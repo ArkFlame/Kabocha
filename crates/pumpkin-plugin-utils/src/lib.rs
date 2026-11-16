@@ -7,6 +7,8 @@
 //! - **Online License Checks**: Verify active licenses with `https://market.pumpkinmc.org/api/v1/rest/check-license`.
 //! - **License Checks & Grace Periods**: Local lease management (`license_lease.json`) to prevent outages during marketplace downtime.
 //!
+//! Online license and update checks are available on native targets. Wasm plugins use host-provided metadata and offline license evaluation instead.
+//!
 //! # Quick Start
 //!
 //! ```rust,ignore
@@ -59,20 +61,20 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 /// Crashlytics reporting, automatic panic hook capture, and offline crash queue management.
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 pub mod crashlytics;
 /// HTTP client helpers for marketplace interaction.
-#[cfg(feature = "http")]
+#[cfg(all(feature = "http", not(target_arch = "wasm32")))]
 pub mod http;
 /// License checking, validation, and lease management.
 pub mod license;
 /// Data models for metadata, licenses, updates, and crashlytics.
 pub mod models;
 /// Non-blocking update checks against marketplace endpoints.
-#[cfg(feature = "updater")]
+#[cfg(all(feature = "updater", not(target_arch = "wasm32")))]
 pub mod updater;
 
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 pub use crashlytics::{
     CrashReporter, CrashlyticsError, get_crash_context, install_panic_hook, scrub_crash_pii,
     set_crash_context, sign_telemetry_payload, with_crash_context,
@@ -85,7 +87,7 @@ pub use models::{
     CrashReportResponse, DEFAULT_MARKETPLACE_URL, DEFAULT_TELEMETRY_URL, LicenseLease,
     LicenseStatus, PumpkinMetadata, RuntimeEnvironment,
 };
-#[cfg(feature = "updater")]
+#[cfg(all(feature = "updater", not(target_arch = "wasm32")))]
 pub use updater::{UpdateChecker, UpdateError};
 
 use std::{
@@ -179,7 +181,7 @@ pub fn init_with_metadata(
     let _ = GLOBAL_DATA_FOLDER.set(folder);
     let _ = GLOBAL_METADATA.set(metadata);
 
-    #[cfg(feature = "crashlytics")]
+    #[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
     {
         install_panic_hook();
         let _ = flush_pending_crashes();
@@ -217,7 +219,7 @@ pub fn get_data_folder() -> Option<&'static Path> {
 /// # Errors
 ///
 /// Returns `LicenseError` if querying the marketplace fails or if `init` was not called.
-#[cfg(feature = "license")]
+#[cfg(all(feature = "license", not(target_arch = "wasm32")))]
 pub fn check_license_online(
     license_key_override: Option<&str>,
 ) -> Result<CheckLicenseResponse, LicenseError> {
@@ -233,7 +235,7 @@ pub fn check_license_online(
 /// # Errors
 ///
 /// Returns `UpdateError` if querying the marketplace fails or if `init` was not called.
-#[cfg(feature = "updater")]
+#[cfg(all(feature = "updater", not(target_arch = "wasm32")))]
 pub fn check_for_updates() -> Result<CheckUpdateResponse, UpdateError> {
     let meta = metadata().map_err(|_| UpdateError::NotInitialized)?;
     UpdateChecker::new().check_for_updates(&meta.plugin_name, &meta.version, &meta.marketplace_url)
@@ -261,7 +263,7 @@ pub fn evaluate_license(grace_period_days: u32) -> LicenseStatus {
 ///
 /// Returns `CrashlyticsError` if `init(context)` was not called, the plugin lacks a marketplace
 /// signature proof, or the HTTP request fails.
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 pub fn report_crash(
     trap_code: &str,
     error_message: &str,
@@ -290,7 +292,7 @@ pub fn report_crash(
 /// # Errors
 ///
 /// Returns `CrashlyticsError` if `init(context)` was not called or transmission fails.
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 #[track_caller]
 pub fn record_error(
     error_message: impl AsRef<str>,
@@ -307,7 +309,7 @@ pub fn record_error(
 /// # Errors
 ///
 /// Returns `CrashlyticsError` if `init(context)` was not called or transmission fails.
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 #[track_caller]
 pub fn record_error_at(
     entry_hook: &str,
@@ -329,7 +331,7 @@ pub fn record_error_at(
 /// # Errors
 ///
 /// Returns `CrashlyticsError` if `init(context)` was not called or flushing fails.
-#[cfg(feature = "crashlytics")]
+#[cfg(all(feature = "crashlytics", not(target_arch = "wasm32")))]
 pub fn flush_pending_crashes() -> Result<Option<CrashReportResponse>, CrashlyticsError> {
     let meta = metadata().map_err(|_| CrashlyticsError::NotInitialized)?;
     let folder = get_data_folder().ok_or(CrashlyticsError::NotInitialized)?;
