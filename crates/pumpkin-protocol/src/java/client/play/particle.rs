@@ -251,10 +251,6 @@ impl ClientPacket for CParticle<'_> {
             } else {
                 write.write_i32_be(self.particle_id.0)?;
             }
-        } else if *version >= JavaMinecraftVersion::V_26_3 {
-            // The particle moved back to the front of the packet in 26.3
-            write.write_var_int(&self.particle_id)?;
-            write.write_slice(self.data)?;
         }
 
         if *version >= JavaMinecraftVersion::V_1_8 {
@@ -279,15 +275,6 @@ impl ClientPacket for CParticle<'_> {
         write.write_f32_be(self.offset.z)?;
 
         write.write_f32_be(self.max_speed)?;
-        if *version >= JavaMinecraftVersion::V_26_3 {
-            // Since 26.3 the speed is set per axis and the count is a var int, followed by the
-            // randomization type, 0 being the default one.
-            write.write_f32_be(self.max_speed)?;
-            write.write_f32_be(self.max_speed)?;
-            write.write_var_int(&VarInt(self.particle_count))?;
-            write.write_var_int(&VarInt(0))?;
-            return Ok(());
-        }
         write.write_i32_be(self.particle_count)?;
 
         if *version >= JavaMinecraftVersion::V_1_20_5 {
@@ -541,6 +528,34 @@ mod tests {
 
         assert_eq!(packet(&[]), 48);
         assert_eq!(packet(&payload), 48 + 29);
+    }
+
+    /// A 26.3 client decodes `level_particles` with the same layout as 26.2: final
+    /// speed, int count, then the particle ID and its option data. Writing the ID
+    /// at the front instead made the client read it twice and then run off the end
+    /// of the buffer while decoding the option (#4582).
+    #[test]
+    fn level_particles_encoding_matches_26_2_for_26_3() {
+        use crate::java::packet_encoder::serialize_packet;
+
+        let options = trail_options();
+        let mut payload = Vec::new();
+        options.write(&mut payload).unwrap();
+        let packet = CParticle::new(
+            false,
+            false,
+            Vector3::new(1.0, 2.0, 3.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            0.0,
+            1,
+            VarInt(options.particle() as i32),
+            &payload,
+        );
+
+        assert_eq!(
+            serialize_packet(&packet, &JavaMinecraftVersion::V_26_3).unwrap(),
+            serialize_packet(&packet, &JavaMinecraftVersion::V_26_2).unwrap()
+        );
     }
 
     /// `encode_for` is the whole decision `Player::spawn_particle_with_options`
