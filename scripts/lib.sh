@@ -11,9 +11,9 @@ mkdir -p "$KAB_RUNS"
 if [ "${KAB_NIGHTLY:-1}" = 1 ] && [ -x "$HOME/.cargo/bin/rustup" ]; then
   export PATH="$HOME/.cargo/bin:$PATH" RUSTUP_TOOLCHAIN=nightly
   export RUSTFLAGS="${RUSTFLAGS:-} -Zthreads=${KAB_FRONTEND_THREADS:-6}"
-  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/kab-target-nightly}"
+  export CARGO_TARGET_DIR="${KAB_TARGET:-/tmp/kab-target-nightly}"
 fi
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/kab-target-main}"
+export CARGO_TARGET_DIR="${KAB_TARGET:-/tmp/kab-target-main}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$(( $(nproc) / 2 ))}"
 KAB_SLOTS="${KAB_SLOTS:-2}"; KAB_MIN_MEM_GB="${KAB_MIN_MEM_GB:-5}"
 cargo_slot() {
