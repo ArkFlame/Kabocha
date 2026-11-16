@@ -3,7 +3,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use pumpkin_data::entity::{EntityStatus, EntityType};
+use pumpkin_data::Block;
+use pumpkin_data::entity::{EntityPose, EntityStatus, EntityType};
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
@@ -13,7 +14,7 @@ use rand::RngExt;
 use crate::entity::{
     Entity, EntityBase,
     ai::behavior::{
-        feline,
+        feline::{self, SPRINT_SPEED, TEMPT_SPEED},
         fleeing::{self, Flee},
         hunting::{self, Hunt},
     },
@@ -23,6 +24,9 @@ use crate::entity::{
     passive::animal::Animal,
     player::Player,
 };
+use crate::world::World;
+
+const DESPAWN_AFTER_TICKS: i32 = 2400;
 
 const OCELOT_FLEES: &[Flee] = &[feline::flee_players(4, is_wary)];
 
@@ -178,5 +182,55 @@ impl Mob for OcelotEntity {
         }
 
         self.animal_interact(player, item_stack)
+    }
+
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        let (pose, sprinting) = {
+            let steered = self.mob_entity.steered();
+            let move_control = steered.move_control();
+            if move_control.has_wanted() {
+                let speed = move_control.get_speed_modifier();
+                if speed == TEMPT_SPEED {
+                    (EntityPose::Crouching, false)
+                } else if speed == SPRINT_SPEED {
+                    (EntityPose::Standing, true)
+                } else {
+                    (EntityPose::Standing, false)
+                }
+            } else {
+                (EntityPose::Standing, false)
+            }
+        };
+        let entity = self.get_entity();
+        entity.set_pose(pose);
+        if entity.is_sprinting() != sprinting {
+            entity.set_sprinting(sprinting);
+        }
+    }
+
+    fn mob_is_stepping_carefully(&self) -> bool {
+        let entity = self.get_entity();
+        entity.pose.load() == EntityPose::Crouching || entity.is_sneaking()
+    }
+
+    fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
+        !self.is_trusting()
+            && self.get_entity().tick_count.load(Ordering::Relaxed) > DESPAWN_AFTER_TICKS
+    }
+
+    fn check_spawn_obstruction(&self, world: &World) -> bool {
+        let entity = self.get_entity();
+        let bounding_box = entity.bounding_box.load();
+        if world.contains_any_liquid(bounding_box)
+            || !world.get_entities_at_box(&bounding_box).is_empty()
+        {
+            return false;
+        }
+        let pos = entity.block_pos.load();
+        if pos.0.y < world.sea_level {
+            return false;
+        }
+        let below = world.get_block(&pos.down());
+        below.id == Block::GRASS_BLOCK.id || below.has_tag(&tag::Block::MINECRAFT_LEAVES)
     }
 }
