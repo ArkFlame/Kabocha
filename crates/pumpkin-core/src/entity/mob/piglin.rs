@@ -150,7 +150,7 @@ impl PiglinEntity {
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, TargetMatch::WITHER_LIKE, true),
             );
 
-            let piglin_clone = mob_arc.clone();
+            let piglin_weak = Arc::downgrade(&mob_arc);
             target_selector.add_goal(
                 4,
                 Box::new(ActiveTargetGoal::new(
@@ -160,7 +160,9 @@ impl PiglinEntity {
                     true,
                     false,
                     Some(move |_target: &LivingEntity, _world: &World| {
-                        piglin_clone.is_adult() && piglin_clone.can_hunt()
+                        piglin_weak
+                            .upgrade()
+                            .is_some_and(|piglin| piglin.is_adult() && piglin.can_hunt())
                     }),
                 )),
             );
