@@ -36,6 +36,14 @@ pub struct StackRequestItem {
     pub extra_data: Vec<u8>,
 }
 
+/// One ingredient slot sent by the client with `CraftRecipeAuto`.
+#[derive(Debug)]
+pub struct AutocraftIngredient {
+    /// Item identifier for item descriptors, `None` for empty or tag descriptors.
+    pub identifier: Option<String>,
+    pub count: u16,
+}
+
 impl PacketRead for StackRequestItem {
     fn read<R: Read>(reader: &mut R) -> Result<Self, Error> {
         let descriptor_type = VarUInt::read(reader)?.0;
@@ -120,6 +128,7 @@ pub enum ItemStackRequestAction {
     CraftRecipeAuto {
         recipe_id: VarUInt,
         repetitions: u8,
+        ingredients: Vec<AutocraftIngredient>,
     },
     CraftCreative {
         creative_item_id: VarUInt,
@@ -203,12 +212,14 @@ impl PacketRead for ItemStackRequestAction {
                 let recipe_id = VarUInt::read(buf)?;
                 let repetitions = u8::read(buf)?;
                 let count = collection_length(buf, "auto-craft ingredients")?;
+                let mut ingredients = Vec::with_capacity(count);
                 for _ in 0..count {
-                    skip_autocraft_ingredient(buf)?;
+                    ingredients.push(AutocraftIngredient::read(buf)?);
                 }
                 Ok(Self::CraftRecipeAuto {
                     recipe_id,
                     repetitions,
+                    ingredients,
                 })
             }
             12 => Ok(Self::CraftCreative {
@@ -253,31 +264,36 @@ impl PacketRead for ItemStackRequestAction {
     }
 }
 
-fn skip_autocraft_ingredient<R: Read>(reader: &mut R) -> Result<(), Error> {
-    let descriptor_type = VarUInt::read(reader)?.0;
-    let _legacy_type = u8::read(reader)?;
-    match descriptor_type {
-        0 => {}
-        1 => {
-            let _identifier = String::read(reader)?;
-            let _aux = VarInt::read(reader)?;
-        }
-        2 => {
-            let _expression = String::read(reader)?;
-            let _version = i16::read(reader)?;
-        }
-        3 => {
-            let _tag = String::read(reader)?;
-        }
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("unknown item descriptor type {descriptor_type}"),
-            ));
-        }
+impl PacketRead for AutocraftIngredient {
+    fn read<R: Read>(reader: &mut R) -> Result<Self, Error> {
+        let descriptor_type = VarUInt::read(reader)?.0;
+        let _legacy_type = u8::read(reader)?;
+        let identifier = match descriptor_type {
+            0 => None,
+            1 => {
+                let identifier = String::read(reader)?;
+                let _aux = VarInt::read(reader)?;
+                Some(identifier)
+            }
+            2 => {
+                let _expression = String::read(reader)?;
+                let _version = i16::read(reader)?;
+                None
+            }
+            3 => {
+                let _tag = String::read(reader)?;
+                None
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("unknown item descriptor type {descriptor_type}"),
+                ));
+            }
+        };
+        let count = u16::read(reader)?;
+        Ok(Self { identifier, count })
     }
-    let _count = u16::read(reader)?;
-    Ok(())
 }
 
 /// An individual inventory request containing slot manipulation actions.

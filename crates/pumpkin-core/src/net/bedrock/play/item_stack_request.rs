@@ -37,6 +37,7 @@ impl BedrockClient {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             let mut responses = Vec::with_capacity(packet.requests.len());
+            let mut crafted_from_inventory = false;
 
             for mut request in packet.requests {
                 let mut created_item: Option<ItemStack> = None;
@@ -57,6 +58,20 @@ impl BedrockClient {
                 }
 
                 for action in request.actions {
+                    if let ItemStackRequestAction::CraftRecipeAuto {
+                        repetitions,
+                        ingredients,
+                        ..
+                    } = &action
+                        && *repetitions > 0
+                    {
+                        crafted_from_inventory |= populate_grid_from_auto_craft(
+                            player.as_ref(),
+                            &mut *screen_handler,
+                            ingredients,
+                        );
+                    }
+
                     match action {
                         ItemStackRequestAction::CraftCreative {
                             creative_item_id,
@@ -460,6 +475,7 @@ impl BedrockClient {
                         | ItemStackRequestAction::CraftRecipeAuto {
                             recipe_id,
                             repetitions,
+                            ..
                         } => {
                             if screen_handler.window_type()
                                 == Some(pumpkin_data::screen::WindowType::Merchant)
@@ -883,7 +899,7 @@ impl BedrockClient {
                 }
             }
 
-            (responses, inventory_updated)
+            (responses, inventory_updated || crafted_from_inventory)
         };
 
         // Send Bedrock specific responses and updates
@@ -1330,6 +1346,92 @@ fn get_slot_stack(
     )
     .and_then(|screen_slot| screen_handler.get_behaviour().slots.get(screen_slot))
     .map_or_else(|| ItemStack::EMPTY.clone(), |slot| slot.get_cloned_stack())
+}
+
+/// Bedrock's recipe book sends the ingredients inside `CraftRecipeAuto` instead of moving them
+/// into the crafting grid first, so take them from the player's inventory and fill the grid.
+fn populate_grid_from_auto_craft(
+    player: &Player,
+    screen_handler: &mut dyn ScreenHandler,
+    ingredients: &[pumpkin_protocol::bedrock::server::item_stack_request::AutocraftIngredient],
+) -> bool {
+    let is_player = screen_handler.window_type().is_none();
+    if !is_player && screen_handler.window_type() != Some(WindowType::Crafting) {
+        return false;
+    }
+    let grid_size = if is_player { 4 } else { 9 };
+    let bedrock_grid_start = if is_player { 28 } else { 32 };
+    let gamemode = player.gamemode.load();
+    let mut filled = false;
+    for (i, ingredient) in ingredients.iter().take(grid_size).enumerate() {
+        let Some(identifier) = ingredient.identifier.as_deref() else {
+            continue;
+        };
+        let Some(item) = pumpkin_data::item::Item::from_registry_key(identifier) else {
+            continue;
+        };
+        let Ok(count) = u8::try_from(ingredient.count) else {
+            continue;
+        };
+        if count == 0
+            || !screen_handler.get_behaviour().slots[1 + i]
+                .get_cloned_stack()
+                .is_empty()
+        {
+            continue;
+        }
+        let Some(stack) = take_from_main_inventory(player, item, count, gamemode) else {
+            continue;
+        };
+        update_slot_stack(
+            player,
+            screen_handler,
+            &ItemStackRequestSlotInfo {
+                container_name: FullContainerName {
+                    container_name: ContainerName::CraftingInput,
+                    dynamic_id: None,
+                },
+                slot_id: (bedrock_grid_start + i) as u8,
+                stack_id: 0,
+            },
+            stack,
+        );
+        filled = true;
+    }
+    if filled {
+        // Recompute the crafting result now that the grid holds the recipe ingredients.
+        screen_handler.get_behaviour().slots[0].set_stack(ItemStack::EMPTY.clone());
+    }
+    filled
+}
+
+fn take_from_main_inventory(
+    player: &Player,
+    item: &'static pumpkin_data::item::Item,
+    count: u8,
+    gamemode: pumpkin_util::GameMode,
+) -> Option<ItemStack> {
+    let mut inventory = player
+        .inventory
+        .main_inventory
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut taken: Option<ItemStack> = None;
+    for stack in inventory.iter_mut() {
+        let remaining = count - taken.as_ref().map_or(0, |taken| taken.item_count);
+        if remaining == 0 {
+            break;
+        }
+        if stack.is_empty() || stack.item.id != item.id {
+            continue;
+        }
+        let part = stack.split_unless_creative(gamemode, remaining);
+        match &mut taken {
+            Some(taken) => taken.item_count += part.item_count,
+            None => taken = Some(part),
+        }
+    }
+    taken.filter(|stack| !stack.is_empty())
 }
 
 #[allow(clippy::unreachable)]
