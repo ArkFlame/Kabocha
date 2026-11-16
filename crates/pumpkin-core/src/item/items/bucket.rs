@@ -270,6 +270,15 @@ fn apply_sulfur_cube_content(bucket_stack: &ItemStack, mob: &dyn EntityBase) {
     }
 }
 
+/// Mirrors vanilla's `BucketItem.getEmptySuccessItem`.
+pub(crate) fn get_empty_success_item(item: ItemStack, player: &Player) -> ItemStack {
+    if player.has_infinite_materials() {
+        item
+    } else {
+        ItemStack::new(1, &Item::BUCKET)
+    }
+}
+
 fn give_player_bucket_item(player: &Player, hand: Hand, item: &'static Item) {
     let mut held_stack = player.inventory.get_stack_in_hand(hand);
     fill_bucket_stack(&mut held_stack, player, item);
@@ -735,16 +744,8 @@ impl FilledBucketItem {
 
         player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
 
-        if player.gamemode.load() != GameMode::Creative {
-            let mut updated_stack = bucket_stack;
-            give_filled_bucket_stack(
-                &mut updated_stack,
-                player,
-                ItemStack::new(1, &Item::BUCKET),
-                false,
-            );
-            player.inventory.set_stack_in_hand(hand, updated_stack);
-        }
+        let stack = get_empty_success_item(player.inventory.get_stack_in_hand(hand), player);
+        player.inventory.set_stack_in_hand(hand, stack);
         true
     }
 }
@@ -815,6 +816,15 @@ impl ItemBehaviour for FilledBucketItem {
                 fill_mob_bucket_stack(item, player, mob_bucket, entity.as_ref());
                 ent.remove();
             }
+        }
+    }
+
+    // Powder snow is vanilla's only `SolidBucketItem`; mirrors its `useOn` override.
+    fn on_placed_as_block(&self, stack: &mut ItemStack, player: &Player) {
+        if stack.item.id == Item::POWDER_SNOW_BUCKET.id {
+            *stack = get_empty_success_item(stack.clone(), player);
+        } else {
+            stack.decrement_unless_creative(player.gamemode.load(), 1);
         }
     }
 
