@@ -443,7 +443,8 @@ impl HostEntity for PluginHostState {
             .leashed_to
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+            .as_ref()
+            .and_then(std::sync::Weak::upgrade);
         match holder {
             Some(h) => {
                 Ok(Some(self.add(h).map_err(|_| {
@@ -481,6 +482,7 @@ impl HostEntity for PluginHostState {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .as_ref()
+                .and_then(std::sync::Weak::upgrade)
                 .is_some_and(|h| h.get_entity().entity_id == holder_id);
             if is_leashed_to_holder {
                 result.push(
