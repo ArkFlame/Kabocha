@@ -4137,7 +4137,9 @@ impl LivingEntity {
         }
         amount = damage_event.damage;
 
-        if let Some(damager) = source.or(cause) {
+        // Vanilla `DamageSource#getEntity` is the causing entity (owner/thrower), not the
+        // direct projectile, so potion damage is attributed to the thrower.
+        if let Some(damager) = cause.or(source) {
             let mut by_entity_event =
                 crate::plugin::api::events::entity::entity_damage_by_entity::EntityDamageByEntityEvent {
                     entity_id: self.entity.entity_id,
