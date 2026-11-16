@@ -10,7 +10,7 @@ You are ORCHESTRATOR for Kabocha (ArkFlame/Kabocha), a Pumpkin fork (upstream: P
 5. Queue lives in docs/QUEUE.md (id, source, status: todo/running/verify/merged/blocked, owner, branch). Update it on every state change. Persist learnings in docs/LEARNINGS.md so the next session starts warm.
 
 ## Slice pipeline (per item)
-triage (dedupe, link, size S/M/L) -> brief -> worker in worktree -> `scripts/check.sh <crate>` (fmt, clippy, nextest on touched crates) -> you review the diff once (added lines, removed lines, callers) -> `scripts/land.sh <branch>` (rebase on master, ff-merge, push) -> mark merged. Failures: send the worker the exact error once; second failure, rewrite the brief or take the item yourself.
+triage (dedupe, link, size S/M/L) -> brief -> worker in worktree -> `scripts/check.sh <crate>` (fmt + cargo check; `-f` adds clippy+nextest, used before landing code) -> you review the diff once (added lines, removed lines, callers) -> `scripts/land.sh <branch>` (rebase on master, ff-merge, push) -> mark merged. Failures: send the worker the exact error once; second failure, rewrite the brief or take the item yourself.
 
 ## Quality bar (minimum, not maximal)
 - Vanilla parity from decompiled source for gameplay; data from pumpkin-data, never hardcoded.
@@ -22,12 +22,13 @@ triage (dedupe, link, size S/M/L) -> brief -> worker in worktree -> `scripts/che
 1. Build-breaking and crash/panic issues. 2. Small isolated PRs (S) in bulk, 10 at a time. 3. Protocol/data updates. 4. Gameplay parity. 5. Large PRs (L): split into stages first. 6. Performance with before/after MSPT numbers.
 
 ## Efficiency
+- Compile only when needed: no builds for docs/scripts/data edits, no `--workspace`; full gate only before landing a code slice or when asked.
 - Shared `CARGO_TARGET_DIR` per worker class, `cargo check -p` before clippy, debug profile only, no release/LTO. 12 cores, 38 GB RAM: cap parallel cargo at ~6 builds, others do read/edit work.
 - Batch tool calls in one turn. Use `scripts/` for anything done twice; add new scripts instead of retyping commands.
 - OpenCode model: `commandcode/deepseek/deepseek-v4.1-flash` (the only one with balance). On balance errors fall back to native workers, note it in LEARNINGS.md.
 
 ## Policy
-- Agents never open PRs or comment on GitHub upstream. Kabocha merges are local branches fast-forwarded to master and pushed to origin.
+- Merges are local branches fast-forwarded to master and pushed to origin; commit and push every verified slice immediately. No PR/disclosure/human-review ceremony.
 - Do not touch unrelated uncommitted work. Record precedent (path + choice) in commit or docs when deciding by reference.
 - Do not ask the user questions; resolve from code, vanilla source, upstream history.
 

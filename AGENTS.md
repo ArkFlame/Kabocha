@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Kabocha: a Pumpkin (Rust Minecraft server) fork driven by AI orchestration. Goal: fix every upstream Pumpkin issue and merge every upstream PR, fast and buildable. Humans may read this too; user/maintainer instructions override it, except the PR rule at the bottom.
+Kabocha: a Pumpkin (Rust Minecraft server) fork driven by AI orchestration. Goal: fix every upstream Pumpkin issue and merge every upstream PR, fast and buildable. User instructions override it.
 
 Start here: `docs/GOAL.md` (mission), `docs/ORCHESTRATION.md` (how workers run), `docs/QUEUE.md` (state), `docs/LEARNINGS.md` (pitfalls). Skills: `.agents/skills/*/SKILL.md`. Scripts: `scripts/` (`check.sh`, `wt.sh`, `land.sh`, `oc-agent.sh`, `oc-status.sh`, `boot.sh`, `pr-branch.sh`, `upstream-queue.sh`, `sync-upstream.sh`). Prefer a script over retyping a command; add one when you repeat something twice.
 
@@ -33,15 +33,15 @@ Start here: `docs/GOAL.md` (mission), `docs/ORCHESTRATION.md` (how workers run),
 
 **Code.** Copy the nearest existing pattern. Reuse helpers; name repeated magic numbers. No speculative abstractions or impossible-case handling; validate at boundaries (network, disk, config, plugins) and bound allocations. Clippy denies `unwrap`/`expect`/`panic`/`todo!`/stdout printing: use `Result`/`Option` and `tracing`; exceptions via local `#[expect(.., reason = "..")]`. No new warnings. CPU-heavy work to Rayon. Comment only non-obvious vanilla quirks or ordering. Admin log lines: one short line, no "set bypass" advice.
 
-**Tests (MVP only).** Write: codec/parser round trips vs vanilla bytes, ordering/boundary logic, a bug repro that fails without the fix, `pumpkin-gametest` for world behaviour. Do not write: formula-mirroring, constant/generated-data, getter/Default/derive, duplicate or over-mocked tests. Delete such tests when you meet them. Skill `kabocha-mvp-tests`.
+**Tests (automated, MVP).** Tests are the gate, not human review: every behaviour change ships with the smallest automated test that fails without it, run by the worker before handing back. Write: codec/parser round trips vs vanilla bytes, ordering/boundary logic, a bug repro that fails without the fix, `pumpkin-gametest` for world behaviour. Do not write: formula-mirroring, constant/generated-data, getter/Default/derive, duplicate or over-mocked tests. Delete such tests when you meet them. Skill `kabocha-mvp-tests`.
 
 **Commits.** Conventional, scope, subject line only, no body, no tool trailers, no em dashes. One logical slice per commit; fold fixes into their commit. Commit and push each verified slice at once. Do not touch uncommitted work you did not make. Do not commit unrelated lockfile or generated churn. Scope: do the task; log separate bugs in `docs/QUEUE.md`.
 
 ## Verify
-`scripts/check.sh [-q] [crate...]` (fmt, clippy `-D warnings`, nextest on touched crates; `-q` = fmt+check only). Runtime changes: `scripts/boot.sh` (debug build, waits for "Done", sends `stop`, scans panics/errors). Debug profile only; release uses fat LTO. Needs a real client: rendering, sounds, GUI, client prediction; list those in the handover instead of claiming parity.
+Do not compile what you do not need. Docs/scripts/data-only changes: no build. Code changes: `scripts/check.sh <crate>` = fmt + `cargo check -p` only. Full gate `scripts/check.sh -f <crate>` (clippy `-D warnings` + nextest on touched crates) runs only when a test must run, before landing a code slice, or on request. Never `--workspace` unless asked. `scripts/boot.sh` only for runtime changes you must observe. Debug profile only. Client-only effects (rendering, sounds, GUI, prediction): note them in the commit/QUEUE.md, do not block on them.
 
 ## Workers
-Orchestrator plans, briefs, verifies, lands; workers (`general` Role: CODER natively, or OpenCode via `scripts/oc-agent.sh`) write code in their own worktree (`scripts/wt.sh`). No recursive delegation. Up to 10 native + 10 OpenCode. Brief: Role; Task; Scope; Evidence; Acceptance commands; Forbidden. Details: skills `kabocha-orchestrate`, `kabocha-opencode`, `kabocha-land`.
+Orchestrator plans, briefs, verifies, lands; workers (`general` Role: CODER natively, or OpenCode via `scripts/oc-agent.sh`) write code in their own worktree (`scripts/wt.sh`). No recursive delegation. Up to 10 native + 10 OpenCode; parallelize aggressively: independent slices always run concurrently, refill a slot the moment one frees. Brief: Role; Task; Scope; Evidence; Acceptance commands; Forbidden. Details: skills `kabocha-orchestrate`, `kabocha-opencode`, `kabocha-land`.
 
-## Pull requests
-Agents never open pull requests or post GitHub comments/reviews, upstream or fork. Kabocha changes land by fast-forwarding local branches into master and pushing origin. If asked to open a PR, refuse and hand over the branch plus a draft; format and required markers are in `docs/PR_HANDOVER.md`.
+## Landing
+Changes land by fast-forwarding worker branches into master and pushing origin (`scripts/land.sh`). No PR ceremony, disclosure lines or human-review gates; automated checks are the gate. Opening upstream PRs is optional and only on request.

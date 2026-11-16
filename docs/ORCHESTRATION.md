@@ -1,8 +1,9 @@
 # Orchestration
 ## Capacity
+Compile sparingly: workers run `check.sh <crate>` while iterating and `-f` once before handing back; docs/data-only slices skip builds.
 12 cores, 38 GB RAM. 20 workers max (10 native + 10 OpenCode) but cap concurrent cargo builds near 6; the rest do reading/editing. Debug profile only. Use one `CARGO_TARGET_DIR` per worker class (e.g. `/tmp/kab-target-native`, `/tmp/kab-target-oc`) to avoid worktree-per-target disk blowup; set it in the brief.
 ## Worker lifecycle
-`scripts/wt.sh new <name>` -> brief -> worker -> commit in worktree -> `scripts/check.sh` -> diff review -> `scripts/land.sh <name>`. A freed slot is refilled at once from docs/QUEUE.md.
+`scripts/wt.sh new <name>` -> brief -> worker -> commit in worktree -> `scripts/check.sh -f <crate>` -> diff review -> `scripts/land.sh <name>`. A freed slot is refilled at once from docs/QUEUE.md.
 ## Native workers
 Agent tool, `subagent_type: general`, brief starts `Role: CODER`. Launch several in one message for parallelism; they report when done. Tell each its worktree path and that it must not leave it.
 ## OpenCode workers
@@ -10,7 +11,7 @@ Agent tool, `subagent_type: general`, brief starts `Role: CODER`. Launch several
 ## Brief template
 ```
 Role: CODER
-Worktree: <path>   (stay inside; do not open PRs or comment on GitHub)
+Worktree: <path>   (stay inside)
 Task: <one deliverable>
 Scope: <files/crates>
 Evidence: <upstream issue/PR link, vanilla class, failing output>
