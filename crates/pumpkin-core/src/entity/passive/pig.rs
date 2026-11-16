@@ -197,6 +197,11 @@ impl Mob for PigEntity {
         self.play_entity_sound(sound_variant.step_sound(self.is_baby()), 0.15, 1.0);
     }
 
+    fn mob_tick(&self, _caller: &dyn EntityBase) {
+        // Vanilla `AbstractPig.tick` ends the carrot on a stick boost server side.
+        self.steering.tick_boost();
+    }
+
     fn has_audited_tick(&self) -> bool {
         true
     }
@@ -322,7 +327,16 @@ impl Mob for PigEntity {
 
 impl ItemSteerable for PigEntity {
     fn boost(&self) -> bool {
-        self.steering.boost()
+        if self.steering.boost() {
+            // Vanilla `ItemBasedSteering.boost` publishes the new boost duration.
+            self.get_entity().set_synced_data(
+                pumpkin_data::tracked_data::pig::DATA_BOOST_TIME,
+                VarInt(self.steering.boost_time_total.load(Ordering::Relaxed)),
+            );
+            true
+        } else {
+            false
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
