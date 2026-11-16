@@ -68,60 +68,59 @@ impl WasmCommandRequirement {
 
         let runtime = self.server.runtime.clone();
         block_on_callback(&runtime, async {
-                match self
-                    .plugin
-                    .store
-                    .call_guest(move |mut guest| {
-                        Box::pin(async move {
-                            let (sender_resource, server_resource, args_resource) =
-                                guest.with(|mut store| {
-                                    let sender_resource = store.data_mut().add(sender)?;
-                                    let server_resource = match store.data_mut().add(server) {
-                                        Ok(resource) => resource,
-                                        Err(error) => {
-                                            store.data_mut().discard(sender_resource);
-                                            return Err(error);
-                                        }
-                                    };
-                                    let args_resource =
-                                        match store.data_mut().add(HashMap::new()) {
-                                            Ok(resource) => resource,
-                                            Err(error) => {
-                                                store.data_mut().discard(sender_resource);
-                                                store.data_mut().discard(server_resource);
-                                                return Err(error);
-                                            }
-                                        };
-                                    Ok::<_, wasmtime::Error>((
-                                        sender_resource,
-                                        server_resource,
-                                        args_resource,
-                                    ))
-                                })?;
-
-                            let result = guest
-                                .call(
-                                    function,
-                                    (handler_id, sender_resource, server_resource, args_resource),
-                                )
-                                .await;
-
+            match self
+                .plugin
+                .store
+                .call_guest(move |mut guest| {
+                    Box::pin(async move {
+                        let (sender_resource, server_resource, args_resource) =
                             guest.with(|mut store| {
-                                result.map(|(result,)| {
-                                    map_command_result(store.data_mut(), result)
-                                        .is_ok_and(|value| value != 0)
-                                })
+                                let sender_resource = store.data_mut().add(sender)?;
+                                let server_resource = match store.data_mut().add(server) {
+                                    Ok(resource) => resource,
+                                    Err(error) => {
+                                        store.data_mut().discard(sender_resource);
+                                        return Err(error);
+                                    }
+                                };
+                                let args_resource = match store.data_mut().add(HashMap::new()) {
+                                    Ok(resource) => resource,
+                                    Err(error) => {
+                                        store.data_mut().discard(sender_resource);
+                                        store.data_mut().discard(server_resource);
+                                        return Err(error);
+                                    }
+                                };
+                                Ok::<_, wasmtime::Error>((
+                                    sender_resource,
+                                    server_resource,
+                                    args_resource,
+                                ))
+                            })?;
+
+                        let result = guest
+                            .call(
+                                function,
+                                (handler_id, sender_resource, server_resource, args_resource),
+                            )
+                            .await;
+
+                        guest.with(|mut store| {
+                            result.map(|(result,)| {
+                                map_command_result(store.data_mut(), result)
+                                    .is_ok_and(|value| value != 0)
                             })
                         })
                     })
-                    .await
-                {
-                    Ok(allowed) => allowed,
-                    Err(error) => {
-                        tracing::error!("Wasm command requirement failed: {error}");
-                        false
-                    }
+                })
+                .await
+            {
+                Ok(allowed) => allowed,
+                Err(error) => {
+                    tracing::error!("Wasm command requirement failed: {error}");
+                    false
                 }
+            }
         })
     }
 }
