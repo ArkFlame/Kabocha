@@ -128,6 +128,31 @@ fn reconcile_action(
     }
 }
 
+/// Vanilla `BubbleColumnBlock.updateColumn(LevelAccessor, BlockPos, BlockState)`: replace the
+/// water column starting at `position` with bubble columns matching the block below it.
+pub(crate) fn update_column(world: &Arc<World>, position: BlockPos) {
+    let below_state = world.get_block_state_id(&position.down());
+    let below_block = Block::from_state_id(below_state);
+    let Some(kind) = kind_from_below(below_block, below_state) else {
+        return;
+    };
+
+    let new_state = bubble_column_state(kind);
+    let mut pos = position;
+    loop {
+        let state = world.get_block_state_id(&pos);
+        let block = Block::from_state_id(state);
+        if block != &Block::BUBBLE_COLUMN && !is_source_water_state(state) {
+            return;
+        }
+        if state == new_state {
+            return;
+        }
+        world.set_block_state(&pos, new_state, BlockFlags::NOTIFY_ALL);
+        pos = pos.up();
+    }
+}
+
 fn schedule_reconcile(world: &Arc<World>, position: BlockPos, delay: u32) {
     world.schedule_block_tick(&Block::BUBBLE_COLUMN, position, delay, TickPriority::Normal);
 }
