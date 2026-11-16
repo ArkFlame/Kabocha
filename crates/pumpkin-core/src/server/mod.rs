@@ -1024,6 +1024,13 @@ impl Server {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
     }
+    /// Whether the server has begun shutting down and closed admission.
+    pub fn is_shutting_down(&self) -> bool {
+        *self
+            .admission_closed
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     /// Asks this server to stop: the ticker ends and a standalone server stops accepting
     /// connections and shuts down.
@@ -1032,6 +1039,7 @@ impl Server {
     }
 
     pub async fn shutdown(&self) {
+        self.close_admission();
         self.management_hub.broadcast_server_stopping();
 
         self.tasks.close();

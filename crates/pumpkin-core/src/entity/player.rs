@@ -321,6 +321,7 @@ use crate::net::authentication;
 use crate::net::{ClientPlatform, GameProfile};
 use crate::net::{DisconnectReason, PlayerConfig};
 use crate::plugin::api::events::entity::horse_jump::HorseJumpEvent;
+use crate::plugin::api::events::player::player_leave::PlayerLeaveReason;
 use crate::plugin::player::exp_change::PlayerExpChangeEvent;
 use crate::plugin::player::inventory_interact::InventoryClickEvent;
 use crate::plugin::player::player_change_world::PlayerChangeWorldEvent;
@@ -611,6 +612,8 @@ pub struct Player {
     /// The client connection associated with the player.
     pub client: Arc<ClientPlatform>,
     transfer_requested: AtomicBool,
+    /// Set when this session was kicked, so the leave event can report the reason.
+    kicked: AtomicBool,
     /// The player's inventory.
     pub inventory: Arc<PlayerInventory>,
     /// The player's `EnderChest` inventory.
@@ -1079,6 +1082,7 @@ impl Player {
             // Item usage tracking
             using_item: AtomicBool::new(false),
             transfer_requested: AtomicBool::new(false),
+            kicked: AtomicBool::new(false),
             item_use_start_time: AtomicI32::new(0),
             using_hand: AtomicCell::new(None),
             // Minecraft has no way to change the default permission level of new players.
@@ -5477,6 +5481,24 @@ impl Player {
         self.transfer_requested.load(Ordering::Relaxed)
     }
 
+    /// Why this player is leaving, derived from the session state at leave time.
+    pub fn leave_reason(&self) -> PlayerLeaveReason {
+        if self.transfer_requested() {
+            PlayerLeaveReason::Transfer
+        } else if self
+            .world()
+            .server
+            .upgrade()
+            .is_some_and(|server| server.is_shutting_down())
+        {
+            PlayerLeaveReason::ServerShutdown
+        } else if self.kicked.load(Ordering::Relaxed) {
+            PlayerLeaveReason::Kicked
+        } else {
+            PlayerLeaveReason::Disconnected
+        }
+    }
+
     pub fn kick(&self, reason: DisconnectReason, message: &TextComponent) {
         if let Some(server) = self.world().server.upgrade()
             && let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
@@ -5490,6 +5512,7 @@ impl Player {
                 return;
             }
         }
+        self.kicked.store(true, Ordering::Relaxed);
         self.client.try_kick(reason, message);
     }
 
@@ -10161,7 +10184,7 @@ mod tests {
                 ClientPlatform, GameProfile, PacketRateLimiter, PlayerConfig,
                 java::{JavaClient, pending::PendingConnection},
             },
-            plugin::api::events::player::player_leave::PlayerLeaveEvent,
+            plugin::api::events::player::player_leave::{PlayerLeaveEvent, PlayerLeaveReason},
             server::Server,
         };
         use arc_swap::ArcSwap;
@@ -10227,14 +10250,18 @@ mod tests {
             &world,
             GameMode::Survival,
         ));
-        assert!(!PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
+        let event = PlayerLeaveEvent::new(player.clone(), TextComponent::text(""));
+        assert!(!event.transfer_requested);
+        assert_eq!(event.reason, PlayerLeaveReason::Disconnected);
 
         assert_eq!(
             player.transfer("localhost", 25566),
             crate::plugin::TransferQueueResult::Queued
         );
         // The writer has not run yet on this current-thread runtime.
-        assert!(PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
+        let event = PlayerLeaveEvent::new(player.clone(), TextComponent::text(""));
+        assert!(event.transfer_requested);
+        assert_eq!(event.reason, PlayerLeaveReason::Transfer);
         let client = player.client.java().ok_or("No Java client")?;
         client.try_send_packet(&CKeepAlive::new(1));
         let mut decoder = TCPNetworkDecoder::new(tokio::io::BufReader::new(peer));
