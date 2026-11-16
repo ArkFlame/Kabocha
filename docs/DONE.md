@@ -135,3 +135,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3395 (PR) fix: preserve player equipment on death (#3395) [1aaa971d3]
 - #3875 (PR, skipped: block/registry.rs:882-905 already preserves block entity data)
 - #3804 (PR, skipped: block/entities/hopper.rs already has whole-stack pickup and bowl box)
+- #3636 (PR, skipped: campfire/respawn_anchor/infested/honeycomb already fixed)
