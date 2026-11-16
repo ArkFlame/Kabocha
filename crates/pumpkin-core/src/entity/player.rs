@@ -1754,6 +1754,10 @@ impl Player {
             return;
         }
 
+        // Vanilla runs the weapon's post-piercing-attack enchantment effects (Lunge) here,
+        // before the damage is dealt and even when it misses.
+        crate::item::items::spear::SpearItem::lunge(self, &item_stack);
+
         // Only reduce attack damage if in cooldown
         // TODO: Enchantments are reduced in the same way, just without the square.
         if attack_cooldown_progress < 1.0 {

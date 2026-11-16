@@ -19,7 +19,7 @@ use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::sound::SoundCategory;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Enchantment, tag};
 use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
@@ -117,6 +117,7 @@ impl ItemBehaviour for SpearItem {
             );
         }
         player.last_attacked_ticks.store(0, Ordering::Relaxed);
+        Self::lunge(player, stack);
 
         let position = player.position();
         if hit_something && let Some(sound) = piercing.hit_sound.as_ref() {
@@ -555,6 +556,56 @@ impl SpearItem {
                     .map(|(_, level)| u32::try_from(*level).unwrap_or(0))
             })
             .unwrap_or(0)
+    }
+
+    /// Vanilla `minecraft:post_piercing_attack` for the Lunge enchantment: propel the attacker
+    /// forward after a spear attack, damaging the weapon and draining food.
+    pub fn lunge(player: &Player, stack: &ItemStack) {
+        let Some(level) = Self::lunge_level(stack) else {
+            return;
+        };
+        let entity = player.get_entity();
+        // Vanilla requirements: not riding, not gliding, not in water, and either not a player
+        // (always here), creative, or enough food to perform exhaustive manoeuvres.
+        if entity.has_vehicle()
+            || entity.is_fall_flying()
+            || entity.is_in_water()
+            || (player.gamemode.load() != GameMode::Creative && player.get_food_level() < 7)
+        {
+            return;
+        }
+
+        let (yaw, pitch) = player.rotation();
+        let look = Vector3::rotation_vector(f64::from(pitch), f64::from(yaw));
+        let magnitude = 0.458 * f64::from(level);
+        // `apply_impulse` with `coordinate_scale` `[1, 0, 1]` keeps only the horizontal look.
+        entity.add_velocity(Vector3::new(look.x * magnitude, 0.0, look.z * magnitude));
+        player.living_entity.apply_post_impulse_grace_time(10);
+
+        player.damage_item_in_slot(&EquipmentSlot::MAIN_HAND, 1);
+        player.add_exhaustion(4.0 * level as f32);
+        let sound = match level {
+            1 => Sound::ItemSpearLunge1,
+            2 => Sound::ItemSpearLunge2,
+            _ => Sound::ItemSpearLunge3,
+        };
+        player.world().play_sound_raw(
+            sound as u16,
+            SoundCategory::Players,
+            &player.position(),
+            1.0,
+            1.0,
+        );
+    }
+
+    fn lunge_level(stack: &ItemStack) -> Option<u32> {
+        let enchantments = stack.get_data_component::<EnchantmentsImpl>()?;
+        enchantments
+            .enchantment
+            .iter()
+            .find(|(enchantment, _)| **enchantment == Enchantment::LUNGE)
+            .and_then(|(_, level)| u32::try_from(*level).ok())
+            .filter(|level| *level > 0)
     }
 
     fn apply_post_damage_effects(stack: &ItemStack, target: &Entity) {
