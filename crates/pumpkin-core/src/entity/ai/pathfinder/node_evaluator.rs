@@ -142,12 +142,12 @@ impl MobData {
 
     #[must_use]
     pub fn get_bb_width(&self) -> i32 {
-        (self.width + 1.0).floor() as i32
+        (self.width + 1.0).ceil() as i32
     }
 
     #[must_use]
     pub fn get_bb_height(&self) -> i32 {
-        (self.height + 1.0).floor() as i32
+        (self.height + 1.0).ceil() as i32
     }
 }
 
@@ -218,5 +218,18 @@ impl BaseNodeEvaluator {
 
             dx <= self.entity_width / 2 && dy <= self.entity_height && dz <= self.entity_depth / 2
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mob_bb_dimensions_use_vanilla_ceil() {
+        // Vanilla: Mth.ceil(mob.getBbWidth() + 1.0F), Mth.ceil(mob.getBbHeight() + 1.0F).
+        let zombie = MobData::new_zombie(Vector3::new(0.5, 64.0, 0.5), true);
+        assert_eq!(zombie.get_bb_width(), 2);
+        assert_eq!(zombie.get_bb_height(), 3);
     }
 }
