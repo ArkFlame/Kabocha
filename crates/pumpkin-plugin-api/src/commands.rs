@@ -187,6 +187,15 @@ impl CommandNode {
 
         self.require_with_handler_id(id)
     }
+
+    /// Requires the sender to hold `permission` to use this node.
+    ///
+    /// Evaluated entirely on the host, so no guest code runs while a command
+    /// tree is built (unlike [`Self::requires`]).
+    #[must_use]
+    pub fn requires_permission(self, permission: &str) -> Self {
+        self.require_permission(permission)
+    }
 }
 
 pub use crate::wit::pumpkin::plugin::command::{

@@ -21,6 +21,7 @@ interface command {
         execute-with-handler-id: func(handler-id: u32);
         suggest-with-handler-id: func(handler-id: u32);
         require-with-handler-id: func(handler-id: u32);
+        require-permission: func(permission: string);
     }
 
     record suggestion-request {
