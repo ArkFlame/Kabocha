@@ -249,7 +249,7 @@ impl Serialize for RGBColor {
 /// An ARGB color with alpha, red, green, and blue components.
 ///
 /// Used for advanced color effects like custom text shadows.
-#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ARGBColor {
     /// The alpha (transparency) component (0-255).
     pub alpha: u8,
@@ -339,9 +339,117 @@ fn as_8_bit_channel(value: f32) -> u8 {
     (value * 255.0).floor() as i32 as u8
 }
 
+/// Vanilla's float channel list, each channel in 0..=1.
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "vanilla narrows each float channel through as_8_bit_channel"
+)]
+fn float_channels([alpha, red, green, blue]: [f64; 4]) -> ARGBColor {
+    ARGBColor {
+        alpha: as_8_bit_channel(alpha as f32),
+        red: as_8_bit_channel(red as f32),
+        green: as_8_bit_channel(green as f32),
+        blue: as_8_bit_channel(blue as f32),
+    }
+}
+
+/// The byte channel list our own older output wrote.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "legacy byte channels are whole numbers in 0..=255"
+)]
+fn legacy_byte_channels([alpha, red, green, blue]: [f64; 4]) -> ARGBColor {
+    ARGBColor {
+        alpha: alpha as u8,
+        red: red as u8,
+        green: green as u8,
+        blue: blue as u8,
+    }
+}
+
 impl Serialize for ARGBColor {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_bytes([self.alpha, self.red, self.green, self.blue].as_ref())
+    }
+}
+
+/// Vanilla writes `shadow_color` as an ARGB int, and its float channel list is
+/// the one alternate form the client accepts. The channel struct and byte list
+/// from our own older output are still read.
+impl<'de> Deserialize<'de> for ARGBColor {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ArgbVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for ArgbVisitor {
+            type Value = ARGBColor;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an ARGB integer, 4 color channels or a channel map")
+            }
+
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                i32::try_from(v)
+                    .map(ARGBColor::from_argb_int)
+                    .map_err(|_| E::custom("shadow_color integer does not fit in 32 bits"))
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                u32::try_from(v)
+                    .map(ARGBColor::from_argb_u32)
+                    .map_err(|_| E::custom("shadow_color integer does not fit in 32 bits"))
+            }
+
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut channels: Vec<f64> = Vec::with_capacity(4);
+                while let Some(channel) = seq.next_element::<f64>()? {
+                    channels.push(channel);
+                }
+                let Ok([a, r, g, b]) = <[f64; 4]>::try_from(channels) else {
+                    return Err(serde::de::Error::custom(
+                        "shadow_color needs 4 color channels",
+                    ));
+                };
+                // A float channel is 0..=1; a channel above it is a byte from our
+                // own older output.
+                if [a, r, g, b].iter().any(|channel| *channel > 1.0) {
+                    Ok(legacy_byte_channels([a, r, g, b]))
+                } else {
+                    Ok(float_channels([a, r, g, b]))
+                }
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                map: A,
+            ) -> Result<Self::Value, A::Error> {
+                #[derive(Deserialize)]
+                struct Channels {
+                    alpha: u8,
+                    red: u8,
+                    green: u8,
+                    blue: u8,
+                }
+
+                let Channels {
+                    alpha,
+                    red,
+                    green,
+                    blue,
+                } = Channels::deserialize(serde::de::value::MapAccessDeserializer::new(map))?;
+                Ok(ARGBColor {
+                    alpha,
+                    red,
+                    green,
+                    blue,
+                })
+            }
+        }
+
+        deserializer.deserialize_any(ArgbVisitor)
     }
 }
 

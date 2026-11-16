@@ -2622,6 +2622,25 @@ mod custom_name_nbt_tests {
     }
 
     #[test]
+    fn vanilla_shadow_color_and_single_hover_component() {
+        let component: TextComponent =
+            serde_json::from_str(r#"{"text":"x","shadow_color":-16777216}"#).unwrap();
+        assert_eq!(
+            component.0.style.shadow_color,
+            Some(ARGBColor::from_argb_int(-16777216))
+        );
+
+        let component: TextComponent = serde_json::from_str(
+            r#"{"text":"x","hover_event":{"action":"show_text","value":{"text":"h"}}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            component.0.style.hover_event,
+            Some(HoverEvent::ShowText { value }) if value.len() == 1
+        ));
+    }
+
+    #[test]
     fn empty_hover_values_stay_readable() {
         let json = r#"{"text":"x","hover_event":{"action":"show_text","value":[]}}"#;
         let component: TextComponent = serde_json::from_str(json).unwrap();
