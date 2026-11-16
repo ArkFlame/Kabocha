@@ -49,6 +49,7 @@ pub struct CreeperEntity {
     pub explosion_radius: AtomicI32,
     pub ignited: AtomicBool,
     pub charged: AtomicBool,
+    pub dropped_skulls: AtomicBool,
 }
 
 impl CreeperEntity {
@@ -63,6 +64,7 @@ impl CreeperEntity {
             explosion_radius: AtomicI32::new(DEFAULT_EXPLOSION_RADIUS),
             ignited: AtomicBool::new(false),
             charged: AtomicBool::new(false),
+            dropped_skulls: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(entity);
         let mob_weak: Weak<dyn Mob> = {
@@ -325,6 +327,34 @@ impl Mob for CreeperEntity {
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
         }
 
+        true
+    }
+
+    // Creeper.killedEntity: a charged creeper drops the victim's mob head once.
+    fn killed_entity(&self, killed: &dyn EntityBase) -> bool {
+        if self.charged.load(Ordering::Relaxed)
+            && self.mob_entity.living_entity.should_drop_loot()
+            && !self.dropped_skulls.swap(true, Ordering::Relaxed)
+        {
+            let world = killed.get_entity().world.load_full();
+            if let Some(table) = world.get_loot_table("minecraft:charged_creeper/root") {
+                let params = crate::world::loot::LootContextParameters {
+                    world: Some(&world),
+                    position: Some(killed.get_entity().pos.load()),
+                    this_entity: Some(killed),
+                    killer_entity: Some(self),
+                    ..Default::default()
+                };
+                let pos = killed.get_entity().block_pos.load();
+                for stack in crate::world::loot::generate_loot_from_handle(
+                    &table,
+                    self.get_random().random(),
+                    &params,
+                ) {
+                    world.drop_stack(&pos, stack);
+                }
+            }
+        }
         true
     }
 
