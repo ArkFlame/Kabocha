@@ -3994,6 +3994,7 @@ mod tests {
                 priority,
                 blocking: true,
                 source: Some(source.to_string()),
+                registration_id: None,
                 _phantom: std::marker::PhantomData,
             };
             insert_handler(&mut handlers, Arc::new(handler));
