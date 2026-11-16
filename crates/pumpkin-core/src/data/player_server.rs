@@ -63,17 +63,21 @@ impl ServerPlayerData {
             .on_closed(player.as_ref());
         player.on_handled_screen_closed();
 
+        self.extract_data_and_save_player(player)
+    }
+
+    /// Builds the NBT snapshot saved for a player.
+    ///
+    /// A player who has not been placed yet keeps no `Pos`, so the next join retries world spawn.
+    fn snapshot(player: &Player) -> NbtCompound {
+        let has_position = player.has_played_before.load(Ordering::Acquire);
         let mut nbt = NbtCompound::new();
         player.write_nbt(&mut nbt);
-
-        let generation = self.reserve_generation();
-        commit_player_data(
-            &self.storage,
-            &self.write_generations,
-            &player.gameprofile.id,
-            generation,
-            nbt,
-        )
+        // A save before login placement finishes must retry world spawn on the next join.
+        if !has_position {
+            nbt.child_tags.remove("Pos");
+        }
+        nbt
     }
 
     /// Performs periodic maintenance tasks.
@@ -93,9 +97,11 @@ impl ServerPlayerData {
             let mut snapshots = Vec::new();
             for world in server.worlds.load().iter() {
                 for player in world.players.load().iter() {
-                    let mut nbt = NbtCompound::new();
-                    player.write_nbt(&mut nbt);
-                    snapshots.push((player.gameprofile.id, self.reserve_generation(), nbt));
+                    snapshots.push((
+                        player.gameprofile.id,
+                        self.reserve_generation(),
+                        Self::snapshot(player),
+                    ));
                 }
             }
 
@@ -193,8 +199,7 @@ impl ServerPlayerData {
         }
 
         let uuid = player.gameprofile.id;
-        let mut nbt = NbtCompound::new();
-        player.write_nbt(&mut nbt);
+        let nbt = Self::snapshot(player);
 
         let generation = self.reserve_generation();
         commit_player_data(

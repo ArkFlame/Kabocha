@@ -3273,6 +3273,7 @@ dependencies = [
  "pumpkin-core",
  "pumpkin-data",
  "pumpkin-gametest",
+ "pumpkin-nbt",
  "pumpkin-protocol",
  "pumpkin-util",
  "rayon",
