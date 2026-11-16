@@ -43,7 +43,7 @@ use crate::item::ItemMetadata;
 use crate::item::items::boat::BoatItem;
 use crate::item::items::bone_meal::BoneMealItem;
 use crate::item::items::bucket::{
-    FilledBucketItem, dispense_filled_bucket_at, try_pickup_fluid_at,
+    FilledBucketItem, dispense_filled_bucket_at, should_evaporate_in_nether, try_pickup_fluid_at,
 };
 use crate::item::items::honeycomb::try_wax_block;
 use crate::item::items::ignite::ignition::Ignition;
@@ -876,6 +876,25 @@ impl DispenserBlock {
         dispenser: &DispenserBlockEntity,
         item: &mut ItemStack,
     ) {
+        let front = Self::target_position(ctx);
+        if !should_evaporate_in_nether(item.item, ctx.world) {
+            let front_state = ctx.world.get_block_state(&front);
+            if front_state.replaceable() {
+                if !front_state.is_air()
+                    && ctx
+                        .world
+                        .break_block(&front, None, BlockFlags::NOTIFY_ALL)
+                        .is_none()
+                {
+                    return;
+                }
+                ctx.world.set_block_state(
+                    &front,
+                    Block::AIR.default_state.id,
+                    BlockFlags::NOTIFY_ALL,
+                );
+            }
+        }
         if dispense_filled_bucket_at(
             ctx.world,
             *ctx.position,

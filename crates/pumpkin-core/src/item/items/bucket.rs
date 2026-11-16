@@ -312,7 +312,7 @@ pub(crate) fn try_pickup_fluid_at(
     None
 }
 
-const fn should_evaporate_in_nether(item: &Item, world: &World) -> bool {
+pub(crate) const fn should_evaporate_in_nether(item: &Item, world: &World) -> bool {
     item.id != Item::LAVA_BUCKET.id
         && item.id != Item::POWDER_SNOW_BUCKET.id
         && item.id != Item::SULFUR_CUBE_BUCKET.id
