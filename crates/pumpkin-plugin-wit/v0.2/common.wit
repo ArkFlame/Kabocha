@@ -3,7 +3,7 @@
 interface common {
     /// Used as a placeholder when codegen can't map a Rust type to a WIT one
     enum inexpressible-host-type {
-        setinel
+        sentinel
     }
 
     /// Serialized text component as a postcard byte array.

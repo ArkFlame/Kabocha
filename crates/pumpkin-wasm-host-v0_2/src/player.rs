@@ -3948,12 +3948,12 @@ impl pumpkin::plugin::player::HostJavaPlayerWithStore<PluginHostState>
             .client
             .java()
             .ok_or_else(|| wasmtime::Error::msg("Not a java player"))?;
-        if let Some(bytes) = crate::generated_packets::serialize_java_packet(
+        let bytes = crate::generated_packets::serialize_java_packet(
             &packet,
             pumpkin_data::packet::CURRENT_MC_VERSION,
-        ) {
-            client.try_enqueue_packet_data(bytes);
-        }
+        )
+        .ok_or_else(|| wasmtime::Error::msg("Failed to serialize java packet"))?;
+        client.try_enqueue_packet_data(bytes);
         Ok(())
     }
 
@@ -4493,9 +4493,9 @@ impl pumpkin::plugin::player::HostBedrockPlayerWithStore<PluginHostState>
     ) -> wasmtime::Result<()> {
         let player = accessor.get_res(&player)?.clone();
 
-        if let Some(bytes) = crate::generated_packets::serialize_bedrock_packet(&packet) {
-            player.client.send_packet_now_data(bytes).await;
-        }
+        let bytes = crate::generated_packets::serialize_bedrock_packet(&packet)
+            .ok_or_else(|| wasmtime::Error::msg("Failed to serialize bedrock packet"))?;
+        player.client.send_packet_now_data(bytes).await;
         Ok(())
     }
 
