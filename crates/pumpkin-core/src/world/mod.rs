@@ -1926,7 +1926,14 @@ impl World {
         let tickable: Vec<_> = entities_to_tick
             .par_iter()
             .filter_map(|entity| {
-                let entity_chunk = entity.get_entity().chunk_pos.load();
+                // Live position, not the cached `chunk_pos`: an entity moved while its chunk
+                // was inactive (knockback, teleport, vehicle) would otherwise keep a stale
+                // chunk and never tick again once it re-enters the simulation distance.
+                let entity_pos = entity.get_entity().pos.load();
+                let entity_chunk = Vector2::new(
+                    pumpkin_util::math::get_section_cord(entity_pos.x.floor() as i32),
+                    pumpkin_util::math::get_section_cord(entity_pos.z.floor() as i32),
+                );
                 if !active_chunks.contains(&entity_chunk) {
                     return None;
                 }
