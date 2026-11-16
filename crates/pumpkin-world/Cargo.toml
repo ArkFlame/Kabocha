@@ -90,3 +90,10 @@ harness = false
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["serde_json"]
+
+[[bench]]
+name = "bedrock_palette"
+harness = false
