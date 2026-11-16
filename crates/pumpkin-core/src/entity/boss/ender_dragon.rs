@@ -605,6 +605,12 @@ impl EnderDragonEntity {
         let zm = f64::midpoint(dragon_bbox.min.z, dragon_bbox.max.z);
 
         for player in world.players.load().iter() {
+            // Vanilla selects colliding players with `EntitySelector.NO_CREATIVE_OR_SPECTATOR`,
+            // so invulnerable players are never pushed by the dragon.
+            if player.is_creative() || player.is_spectator() {
+                continue;
+            }
+
             if player
                 .living_entity
                 .entity
