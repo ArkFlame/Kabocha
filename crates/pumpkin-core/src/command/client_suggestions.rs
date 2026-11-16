@@ -58,12 +58,17 @@ pub fn send_c_commands_packet(
                     .map(|id| VarInt((id.0.get() - 1) as i32))
                     .collect()
             }
-            _ => node
-                .children_ref()
-                .values()
-                .copied()
-                .map(|id| VarInt((id.0.get() - 1) as i32))
-                .collect(),
+            _ => {
+                // Vanilla `Commands.fillUsableCommands` only recurses into
+                // children the source can use, so a sub-command whose
+                // requirement fails is not part of the client's command tree.
+                node.children_ref()
+                    .values()
+                    .copied()
+                    .filter(|id| dispatcher.tree[*id].requirements().evaluate(source))
+                    .map(|id| VarInt((id.0.get() - 1) as i32))
+                    .collect()
+            }
         };
 
         let redirect_target = node
