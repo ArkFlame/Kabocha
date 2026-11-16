@@ -11,6 +11,12 @@ pub struct MagmaBlock;
 impl BlockBehaviour for MagmaBlock {
     fn on_entity_step(&self, args: OnEntityStepArgs<'_>) {
         {
+            // Vanilla only invokes `stepOn` for the block the entity actually stands on, so a
+            // non-solid block above (snow layer, carpet) shields the magma block below it.
+            if args.below_supporting_block {
+                return;
+            }
+
             // Only living entities take damage
             let Some(living_entity) = args.entity.get_living_entity() else {
                 return;
