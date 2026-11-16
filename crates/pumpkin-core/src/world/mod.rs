@@ -4407,11 +4407,7 @@ impl World {
         player.send_time(self);
 
         // Sends initial scoreboard state
-        player.send_scoreboard();
-        // Changes made from now on are sent as increments on top of this state.
-        player
-            .scoreboard_synced
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        player.initialize_scoreboard();
 
         let (spawn_block_pos, yaw, pitch) = {
             let level_info_lock = self.level_info.load();

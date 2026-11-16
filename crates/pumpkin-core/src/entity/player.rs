@@ -101,13 +101,8 @@ impl JavaPlayer<'_> {
     }
 
     pub fn set_scoreboard(&self, scoreboard: Option<Scoreboard>) {
-        *self
-            .0
-            .custom_scoreboard
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            scoreboard.map(CustomScoreboard::Java);
-        self.0.send_scoreboard();
+        self.0
+            .set_scoreboard(scoreboard.map(CustomScoreboard::Java));
     }
 
     pub fn reset_scoreboard(&self) {
@@ -141,13 +136,8 @@ impl BedrockPlayer<'_> {
     }
 
     pub fn set_scoreboard(&self, scoreboard: Option<BedrockScoreboard>) {
-        *self
-            .0
-            .custom_scoreboard
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            scoreboard.map(CustomScoreboard::Bedrock);
-        self.0.send_scoreboard();
+        self.0
+            .set_scoreboard(scoreboard.map(CustomScoreboard::Bedrock));
     }
 
     pub fn reset_scoreboard(&self) {
@@ -757,7 +747,7 @@ pub struct Player {
     /// Display-only plugin API state. Gameplay team membership and ally checks read
     /// the world scoreboard (see [`Player::get_team`]).
     pub custom_scoreboard: std::sync::Mutex<Option<CustomScoreboard>>,
-    /// Set once the join sends the full scoreboard state; scoreboard changes before that are only stored.
+    /// Set once the full scoreboard state is queued; scoreboard changes before that are only stored.
     pub scoreboard_synced: AtomicBool,
     pub compass_target: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub respawn_location: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
@@ -1010,6 +1000,7 @@ impl Player {
             ClientPlatform::Bedrock(_) => true,
         };
         let initially_loaded = !supports_player_loaded;
+        let scoreboard_synced = client.java().is_none();
 
         Self {
             living_entity,
@@ -1133,7 +1124,7 @@ impl Player {
             per_player_time: AtomicCell::new(None),
             per_player_weather: AtomicCell::new(None),
             custom_scoreboard: std::sync::Mutex::new(None),
-            scoreboard_synced: AtomicBool::new(false),
+            scoreboard_synced: AtomicBool::new(scoreboard_synced),
             compass_target: AtomicCell::new(None),
             respawn_location: AtomicCell::new(None),
             hidden_players: Mutex::new(std::collections::HashSet::new()),
@@ -4754,18 +4745,55 @@ impl Player {
     }
 
     pub fn reset_scoreboard(&self) {
-        *self
+        self.set_scoreboard(None);
+    }
+
+    fn set_scoreboard(&self, scoreboard: Option<CustomScoreboard>) {
+        let mut guard = self
             .custom_scoreboard
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-        self.send_scoreboard();
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *guard = scoreboard;
+        self.send_scoreboard_locked(&guard, false);
     }
 
     pub fn send_scoreboard(&self) {
+        self.send_scoreboard_inner(false);
+    }
+
+    pub(crate) fn initialize_scoreboard(&self) {
+        self.send_scoreboard_inner(true);
+    }
+
+    fn send_scoreboard_inner(&self, initialize: bool) {
         let guard = self
             .custom_scoreboard
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.send_scoreboard_locked(&guard, initialize);
+    }
+
+    fn send_scoreboard_locked(
+        &self,
+        guard: &std::sync::MutexGuard<'_, Option<CustomScoreboard>>,
+        initialize: bool,
+    ) {
+        let world = self.world();
+        let world_scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        // Keep both boards locked until the snapshot is queued and live updates are enabled.
+        // A plugin may have populated either board while this player was logging in.
+        let initialized = self.scoreboard_synced.load(Ordering::Relaxed);
+        if initialize {
+            if initialized {
+                return;
+            }
+        } else if !initialized {
+            return;
+        }
         match guard.as_ref() {
             Some(CustomScoreboard::Java(custom))
                 if matches!(self.client.as_ref(), ClientPlatform::Java(_)) =>
@@ -4778,14 +4806,10 @@ impl Player {
                 custom.send_to_player(self);
             }
             _ => {
-                drop(guard);
-                self.world()
-                    .scoreboard
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .send_to_player(self);
+                world_scoreboard.send_to_player(self);
             }
         }
+        self.scoreboard_synced.store(true, Ordering::Relaxed);
     }
 
     /// Vanilla `Entity.getTeam()`: the level scoreboard is the only authority for

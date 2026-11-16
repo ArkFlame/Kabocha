@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::atomic::Ordering;
 
 use pumpkin_data::scoreboard::ScoreboardDisplaySlot;
 use pumpkin_protocol::{
@@ -21,6 +22,9 @@ use tracing::warn;
 use super::World;
 use crate::{entity::player::Player, net::bedrock::BedrockClient};
 
+#[cfg(test)]
+mod tests;
+
 pub trait ScoreboardTarget: Send + Sync {
     fn send_editioned<J: ClientPacket + Sync, B: BClientPacket + Sync>(
         &self,
@@ -36,11 +40,18 @@ impl ScoreboardTarget for World {
         je_packet: &J,
         be_packet: &B,
     ) {
-        self.broadcast_editioned(je_packet, be_packet);
+        ScoreboardTarget::send_je(self, je_packet);
+        self.broadcast_bedrock_all(be_packet);
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        self.broadcast_packet_all(je_packet);
+        let players = self.players.load();
+        Self::broadcast_java_players(
+            je_packet,
+            players
+                .iter()
+                .filter(|player| player.scoreboard_synced.load(Ordering::Relaxed)),
+        );
     }
 }
 
@@ -64,11 +75,11 @@ impl ScoreboardTarget for std::sync::Arc<World> {
         je_packet: &J,
         be_packet: &B,
     ) {
-        self.broadcast_editioned(je_packet, be_packet);
+        ScoreboardTarget::send_editioned(self.as_ref(), je_packet, be_packet);
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        self.broadcast_packet_all(je_packet);
+        ScoreboardTarget::send_je(self.as_ref(), je_packet);
     }
 }
 
@@ -79,14 +90,14 @@ impl ScoreboardTarget for Player {
         be_packet: &B,
     ) {
         // Before the initial scoreboard state is sent on join, changes are only stored;
-        // the full state sent by `spawn_java_player` includes them.
-        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+        // the full state sent when the player spawns includes them.
+        if self.scoreboard_synced.load(Ordering::Relaxed) {
             self.try_enqueue_packet_editioned(je_packet, be_packet);
         }
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.scoreboard_synced.load(Ordering::Relaxed) {
             self.try_send_client_packet(je_packet);
         }
     }
@@ -99,14 +110,14 @@ impl ScoreboardTarget for std::sync::Arc<Player> {
         be_packet: &B,
     ) {
         // Before the initial scoreboard state is sent on join, changes are only stored;
-        // the full state sent by `spawn_java_player` includes them.
-        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+        // the full state sent when the player spawns includes them.
+        if self.scoreboard_synced.load(Ordering::Relaxed) {
             self.try_enqueue_packet_editioned(je_packet, be_packet);
         }
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.scoreboard_synced.load(Ordering::Relaxed) {
             self.try_send_client_packet(je_packet);
         }
     }
