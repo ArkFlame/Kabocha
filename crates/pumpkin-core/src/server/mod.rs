@@ -490,10 +490,8 @@ impl Server {
             .datapack_manager
             .load_all(&world_path, &enabled_packs, &server.recipe_manager);
 
-        let source = crate::command::CommandSender::Console.into_source(&server);
-        let _ = server
-            .datapack_manager
-            .execute_function(&server, &source, "#minecraft:load");
+        // Vanilla runs the load tag from the function manager tick, not during startup.
+        server.datapack_manager.mark_load_pending();
 
         Ok(server)
     }
@@ -689,10 +687,9 @@ impl Server {
         self.datapack_manager
             .load_all(&world_path, &enabled_packs, &self.recipe_manager);
 
-        let source = crate::command::CommandSender::Console.into_source(server);
-        let _ = self
-            .datapack_manager
-            .execute_function(server, &source, "#minecraft:load");
+        // Do not run here: `/reload` and `/datapack` do not tick, and the load tag must see the
+        // enabled pack set at execution time, so it is consumed by `tick_worlds`.
+        self.datapack_manager.mark_load_pending();
 
         let dynamic_recipes = self.recipe_manager.get_dynamic_recipes_internal();
         // The stonecutter list only depends on the client version, so build it once per version.
@@ -1497,6 +1494,12 @@ impl Server {
         let source = crate::command::CommandSender::Console
             .into_source(self)
             .with_silent();
+        // `#minecraft:load` runs from the tick, before the automatic tick functions.
+        if self.datapack_manager.take_load_pending() {
+            let _ = self
+                .datapack_manager
+                .execute_function(self, &source, "#minecraft:load");
+        }
         let _ = self
             .datapack_manager
             .execute_function(self, &source, "#minecraft:tick");

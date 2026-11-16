@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tracing::{info, warn};
 
@@ -97,6 +98,10 @@ pub struct DatapackManager {
     slot_sources: RwLock<HashMap<String, serde_json::Value>>,
     tags: RwLock<HashMap<String, HashMap<String, tag_loader::DynamicTagEntry>>>,
     pub advancements: advancement::DatapackAdvancements,
+    /// Set when a resource (re)load happened, so the `#minecraft:load` tag runs on the
+    /// next game tick instead of inside the reload, where game ticks are frozen.
+    /// Repeated reloads coalesce into one pending run, like vanilla's post-reload tag.
+    pending_load: AtomicBool,
 }
 
 fn share_function_bodies(
@@ -239,7 +244,18 @@ impl DatapackManager {
             slot_sources: RwLock::new(HashMap::new()),
             tags: RwLock::new(HashMap::new()),
             advancements: advancement::DatapackAdvancements::default(),
+            pending_load: AtomicBool::new(false),
         }
+    }
+
+    /// Schedules the `#minecraft:load` tag to run on the next game tick.
+    pub fn mark_load_pending(&self) {
+        self.pending_load.store(true, Ordering::Release);
+    }
+
+    /// Consumes the pending `#minecraft:load` run, returning `true` at most once per reload.
+    pub fn take_load_pending(&self) -> bool {
+        self.pending_load.swap(false, Ordering::AcqRel)
     }
 
     #[allow(clippy::too_many_lines)]
@@ -2498,6 +2514,17 @@ mod tests {
         recurse(100).expect("bounded recursion must succeed");
         // The depth has to be released again, or later chains would inherit it.
         assert!(FunctionChainGuard::enter().is_ok());
+    }
+
+    #[test]
+    fn load_tag_runs_once_per_pending_reload() {
+        let manager = DatapackManager::new();
+        assert!(!manager.take_load_pending());
+        // Reloads while frozen coalesce into a single pending run.
+        manager.mark_load_pending();
+        manager.mark_load_pending();
+        assert!(manager.take_load_pending());
+        assert!(!manager.take_load_pending());
     }
 
     #[test]
