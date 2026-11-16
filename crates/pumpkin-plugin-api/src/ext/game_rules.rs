@@ -20,11 +20,11 @@ impl World {
 
     /// Sets a boolean game rule value for this world.
     pub fn set_game_rule_bool(&self, rule: GameRule, value: bool) {
-        self.set_game_rule(rule, GameRuleValue::Bool(value));
+        self.set_game_rule(rule, &GameRuleValue::Bool(value));
     }
 
     /// Sets an integer game rule value for this world.
     pub fn set_game_rule_int(&self, rule: GameRule, value: i32) {
-        self.set_game_rule(rule, GameRuleValue::Int(value));
+        self.set_game_rule(rule, &GameRuleValue::Int(value));
     }
 }
