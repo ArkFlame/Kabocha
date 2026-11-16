@@ -127,7 +127,7 @@ impl HungerManager {
     /// Add hunger manually
     pub fn add_hunger(&self, hunger: u8) {
         let current = self.level.load();
-        self.level.store((current + hunger).min(MAX_FOOD));
+        self.level.store(current.saturating_add(hunger).min(MAX_FOOD));
     }
 
     /// Add saturation manually
@@ -182,3 +182,17 @@ impl NBTStorage for HungerManager {
 }
 
 impl NBTStorageInit for HungerManager {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_hunger_saturates_instead_of_wrapping() {
+        let manager = HungerManager::default();
+        manager.set_level(16);
+        // Vanilla clamps `foodLevel + modifier` to 20 (Saturation amplifier 236+).
+        manager.add_hunger(255);
+        assert_eq!(manager.level.load(), MAX_FOOD);
+    }
+}
