@@ -15,3 +15,4 @@
 - integrate.sh takes one branch per argument; never pass a quoted multi-branch string (it silently picks nothing).
 - pkill -f "opencode run" matches the shell that contains the string and kills it (exit 144); kill by .pid file, not by pattern.
 - 2026-11-16: user capped total subagents at 10 (OpenCode default slots 10 in oc-status.sh/oc-refill.sh via KAB_OC_SLOTS; native workers count toward the same cap).
+- 2026-11-16: opencode global config starts the FAUS legal-ar MCP (about 12 node procs per run, never reaped): 2264 orphans held 66 GB of swap. oc-agent.sh now disables it for workers via OPENCODE_CONFIG_CONTENT. Check 'pgrep -fc mcp-legal-ar' after any worker batch.
