@@ -769,7 +769,7 @@ impl Server {
         // Wrap in Arc after data is loaded
         let player = Arc::new(player);
         // Joining already sends play packets, which must reach `PacketSentEvent` for translation.
-        player.client.set_player(player.clone());
+        player.client.set_player(&player);
         let player_clone = player.clone();
         self.spawn_task(async move {
             let properties = player_clone.gameprofile.properties.load().clone();
@@ -797,7 +797,7 @@ impl Server {
             self;
             &mut PlayerLoginEvent::new(player.clone(), TextComponent::text("You have been kicked from the server"));
             'after: {
-                player.screen_handler_sync_handler.store_player(player.clone());
+                player.screen_handler_sync_handler.store_player(&(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>));
                 if !self.admit_player(&world, &player) {
                     player.kick(DisconnectReason::Shutdown, &TextComponent::text("Server stopped"));
                     player.client.clear_player();

@@ -18,7 +18,7 @@
 //! and server stay in sync. If the client detects a desync, it can request a full
 //! resynchronization.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_protocol::{
@@ -42,10 +42,10 @@ use crate::screen_handler::{InventoryPlayer, ScreenHandlerBehaviour};
 /// - Cursor item tracking
 /// - Property (UI element) updates
 pub struct SyncHandler {
-    /// The player to synchronize inventory updates with.
+    /// A non-owning reference to the player, which owns this handler.
     ///
     /// None until `store_player` is called to attach a player.
-    player: Mutex<Option<Arc<dyn InventoryPlayer>>>,
+    player: Mutex<Option<Weak<dyn InventoryPlayer>>>,
 }
 
 impl Default for SyncHandler {
@@ -66,11 +66,11 @@ impl SyncHandler {
     /// Stores the player to synchronize with.
     ///
     /// Must be called before any sync operations.
-    pub fn store_player(&self, player: Arc<dyn InventoryPlayer>) {
+    pub fn store_player(&self, player: &Arc<dyn InventoryPlayer>) {
         self.player
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .replace(player);
+            .replace(Arc::downgrade(player));
     }
 
     /// Sends a full container content update.
@@ -97,6 +97,7 @@ impl SyncHandler {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
+            .and_then(Weak::upgrade)
         {
             player.enqueue_inventory_packet(
                 &CSetContainerContent::new(
@@ -146,6 +147,7 @@ impl SyncHandler {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
+            .and_then(Weak::upgrade)
         {
             player.enqueue_slot_packet(
                 &CSetContainerSlot::new(
@@ -172,6 +174,7 @@ impl SyncHandler {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
+            .and_then(Weak::upgrade)
         {
             player.enqueue_cursor_packet(&CSetCursorItem::new(&ItemStackSerializer::from(
                 stack.clone(),
@@ -198,6 +201,7 @@ impl SyncHandler {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
+            .and_then(Weak::upgrade)
         {
             player.enqueue_property_packet(
                 &CSetContainerProperty::new(

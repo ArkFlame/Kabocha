@@ -67,6 +67,9 @@ pub mod recipe_helper;
 pub mod status;
 pub mod versions;
 
+#[cfg(test)]
+mod lifetime_tests;
+
 pub use chunk_data::{CChunkData, ChunkLightExt};
 use outgoing::{DISCONNECT_FLUSH_TIMEOUT, OutgoingPacket, run_outgoing_packet_writer};
 pub use versions::JavaVersions;
@@ -112,8 +115,8 @@ pub struct JavaClient {
     pub address: SocketAddr,
     /// The client's brand or modpack information. Lock-free `ArcSwap`.
     pub brand: ArcSwap<Option<String>>,
-    /// Associated player reference. Lock-free `ArcSwap`.
-    pub player: ArcSwap<Option<Arc<Player>>>,
+    /// Non-owning player reference: the player owns this client.
+    pub player: ArcSwap<std::sync::Weak<Player>>,
     /// A collection of tasks associated with this client. The tasks await completion when removing the client.
     tasks: TaskTracker,
     rt_handle: tokio::runtime::Handle,
@@ -179,7 +182,7 @@ impl JavaClient {
             network_writer: std::sync::Mutex::new(Some(pending.network_writer)),
             network_reader: std::sync::Mutex::new(Some(pending.network_reader)),
             brand: ArcSwap::from_pointee(pending.brand),
-            player: ArcSwap::from_pointee(None),
+            player: ArcSwap::from_pointee(std::sync::Weak::new()),
             wait_for_keep_alive: AtomicBool::new(false),
             received_movement_this_tick: AtomicBool::new(false),
             keep_alive_id: AtomicCell::new(0),
@@ -221,11 +224,11 @@ impl JavaClient {
 
     /// Drops the player again when joining failed.
     pub fn clear_player(&self) {
-        self.player.store(Arc::new(None));
+        self.player.store(Arc::new(std::sync::Weak::new()));
     }
 
-    pub fn set_player(&self, player: Arc<Player>) {
-        self.player.store(Arc::new(Some(player)));
+    pub fn set_player(&self, player: &Arc<Player>) {
+        self.player.store(Arc::new(Arc::downgrade(player)));
     }
 
     pub async fn progress_player_packets(&self, player: &Arc<Player>, server: &Arc<Server>) {
@@ -352,8 +355,7 @@ impl JavaClient {
     /// Queues the chunks and reports which were sent and why the others were not.
     pub async fn send_chunks(&self, chunks: &[SyncChunk]) -> ChunkSendOutcome {
         let mut outcome = ChunkSendOutcome::default();
-        let player = self.player.load_full();
-        let Some(player) = player.as_ref() else {
+        let Some(player) = self.player.load().upgrade() else {
             return outcome;
         };
         let Some(server) = player.world().server.upgrade() else {
@@ -509,8 +511,7 @@ impl JavaClient {
         {
             return (Some(packet_data), Vec::new());
         }
-        let player = self.player.load_full();
-        let Some(player) = player.as_ref() else {
+        let Some(player) = self.player.load().upgrade() else {
             return (Some(packet_data), Vec::new());
         };
         let Some(server) = player.world().server.upgrade() else {

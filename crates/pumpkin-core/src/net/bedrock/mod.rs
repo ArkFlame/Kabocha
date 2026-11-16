@@ -150,7 +150,7 @@ pub struct BedrockClient {
     session: Arc<NetherNetSession>,
     /// The client's IP address.
     pub address: SocketAddr,
-    pub player: ArcSwap<Option<Arc<Player>>>,
+    pub player: ArcSwap<std::sync::Weak<Player>>,
     pub protocol_version: AtomicU32,
     pub version: AtomicCell<BedrockMinecraftVersion>,
     pub client_data: ArcSwap<Option<Arc<ClientData>>>,
@@ -224,7 +224,7 @@ impl BedrockClient {
         Self {
             id,
             session,
-            player: ArcSwap::new(Arc::new(None)),
+            player: ArcSwap::from_pointee(std::sync::Weak::new()),
             address,
             protocol_version: AtomicU32::new(0),
             version: AtomicCell::new(BedrockMinecraftVersion::Unknown),
@@ -474,8 +474,7 @@ impl BedrockClient {
     /// while they were being encoded.
     pub async fn send_chunks(&self, chunks: &[SyncChunk], epoch: Option<u32>) -> ChunkSendOutcome {
         let mut outcome = ChunkSendOutcome::default();
-        let player = self.player.load_full();
-        let Some(player) = player.as_ref() else {
+        let Some(player) = self.player.load().upgrade() else {
             debug!(
                 "send_chunks: player not set yet, deferring {} chunks",
                 chunks.len()
@@ -615,12 +614,12 @@ impl BedrockClient {
         }
     }
 
-    pub fn set_player(&self, player: Arc<Player>) {
-        self.player.store(Arc::new(Some(player)));
+    pub fn set_player(&self, player: &Arc<Player>) {
+        self.player.store(Arc::new(Arc::downgrade(player)));
     }
 
     pub fn clear_player(&self) {
-        self.player.store(Arc::new(None));
+        self.player.store(Arc::new(std::sync::Weak::new()));
     }
 
     fn is_current_protocol(&self) -> bool {
@@ -637,8 +636,7 @@ impl BedrockClient {
         if current_version && !observe {
             return None;
         }
-        let player_guard = self.player.load();
-        let player = (**player_guard).as_ref()?;
+        let player = self.player.load().upgrade()?;
         let server = player
             .world()
             .server
@@ -675,7 +673,7 @@ impl BedrockClient {
         &self,
         packet_data: &Bytes,
     ) -> Option<(Arc<Server>, BedrockConnectionPacketSentEvent)> {
-        if self.is_current_protocol() || self.player.load().is_some() {
+        if self.is_current_protocol() || self.player.load().upgrade().is_some() {
             return None;
         }
         let server = self.server.upgrade()?;

@@ -250,7 +250,7 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
                 Some(config),
             ) {
                 if let ClientPlatform::Java(client) = player.client.as_ref() {
-                    client.set_player(player.clone());
+                    client.set_player(&player);
                 }
                 world
                     .spawn_java_player(&server.basic_config, &player, &server)

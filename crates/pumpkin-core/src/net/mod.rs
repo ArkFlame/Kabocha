@@ -202,7 +202,7 @@ impl ClientPlatform {
         }
     }
 
-    pub fn set_player(&self, player: Arc<Player>) {
+    pub fn set_player(&self, player: &Arc<Player>) {
         match self {
             Self::Java(java) => java.set_player(player),
             Self::Bedrock(bedrock) => bedrock.set_player(player),
