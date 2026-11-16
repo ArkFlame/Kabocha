@@ -43,9 +43,15 @@ impl JavaClient {
             return Err(BlockPlacingError::InvalidHand);
         };
 
+        // A vanilla client only sends this packet for a block it actually looked at, with the
+        // hit position clipped to that block. Dropping impossible hits keeps modified clients
+        // from placing blocks in mid air or with a rotation the client could not produce.
+        let world = player.get_entity().world.load_full();
+        if world.get_block(&position) == &Block::AIR || !is_valid_hit_position(&cursor_pos) {
+            return Ok(());
+        }
+
         if player.gamemode.load() == GameMode::Spectator {
-            let entity = &player.get_entity();
-            let world = entity.world.load_full();
             let block = world.get_block(&position);
 
             let event = PlayerInteractEvent::new(
@@ -88,8 +94,6 @@ impl JavaClient {
         let item_id = item.item.id;
         player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
 
-        let entity = &player.get_entity();
-        let world = entity.world.load_full();
         let block = world.get_block(&position);
 
         let event = PlayerInteractEvent::new(
@@ -332,4 +336,28 @@ fn sync_used_hand_item(
 
     player.inventory().set_stack_in_hand(hand, after.clone());
     player.sync_hand_slot(slot_index, after);
+}
+
+/// A vanilla client clips its block hit position to the interacted block, so every component
+/// lies in `0..=1`. Anything outside that range cannot come from a real client view.
+fn is_valid_hit_position(cursor_pos: &Vector3<f32>) -> bool {
+    const EPSILON: f32 = 1.0e-3;
+    [cursor_pos.x, cursor_pos.y, cursor_pos.z]
+        .into_iter()
+        .all(|component| component.is_finite() && (-EPSILON..=1.0 + EPSILON).contains(&component))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_valid_hit_position;
+
+    #[test]
+    fn hit_position_must_be_inside_clicked_block() {
+        assert!(is_valid_hit_position(&Vector3::new(0.5, 1.0, 0.0)));
+        assert!(is_valid_hit_position(&Vector3::new(1.0, 0.25, 0.75)));
+        assert!(!is_valid_hit_position(&Vector3::new(1.5, 0.5, 0.5)));
+        assert!(!is_valid_hit_position(&Vector3::new(0.5, -0.5, 0.5)));
+        assert!(!is_valid_hit_position(&Vector3::new(f32::NAN, 0.5, 0.5)));
+        assert!(!is_valid_hit_position(&Vector3::new(0.5, f32::INFINITY, 0.5)));
+    }
 }
