@@ -1016,9 +1016,8 @@ impl pumpkin::plugin::world::HostWorld for PluginHostState {
         pitch: f32,
     ) -> wasmtime::Result<()> {
         let world_ref = self.get(&world)?;
-        let sound_name = format!("{sound:?}").to_lowercase().replace('_', ".");
-        let sound_data = pumpkin_data::sound::Sound::from_name(&sound_name)
-            .ok_or_else(|| wasmtime::Error::msg(format!("Unknown sound: {sound_name}")))?;
+        let sound_data = pumpkin_wasm_host_common::sound::from_variant_name(&format!("{sound:?}"))
+            .ok_or_else(|| wasmtime::Error::msg(format!("Unknown sound: {sound:?}")))?;
 
         let internal_category = from_wit_sound_category(category);
 
