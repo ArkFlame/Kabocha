@@ -13,7 +13,7 @@ pub fn can_hold_fluid(block: &Block) -> bool {
 
 /// Blocks implementing vanilla's `LiquidBlockContainer`: every `SimpleWaterloggedBlock`, plus
 /// kelp and seagrass.
-fn is_liquid_block_container(block: &Block) -> bool {
+pub fn is_liquid_block_container(block: &Block) -> bool {
     block.is_waterloggable()
         || block == &Block::KELP
         || block == &Block::KELP_PLANT

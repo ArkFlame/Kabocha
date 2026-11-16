@@ -27,7 +27,7 @@ use pumpkin_util::{
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
 use uuid::Uuid;
 
-use crate::world::World;
+use crate::{block::fluid::physics::is_liquid_block_container, world::World};
 
 pub struct EmptyBucketItem;
 pub struct FilledBucketItem;
@@ -404,10 +404,13 @@ fn try_place_liquid(
 
     let (block, state) = world.get_block_and_state(&pos);
     let is_water = item.id != Item::LAVA_BUCKET.id;
-    let can_waterlog_clicked =
-        is_water && !is_sneaking && block.is_waterloggable() && !block.is_waterlogged(state.id);
+    // Vanilla `BucketItem.use` targets the clicked block itself when it is a
+    // `LiquidBlockContainer` and the bucket holds water, even when it cannot take
+    // any more water (already waterlogged, or seagrass/kelp, whose `placeLiquid`
+    // returns false): the bucket is emptied without placing a block.
+    let clicked_is_liquid_container = is_water && !is_sneaking && is_liquid_block_container(block);
 
-    let place_pos = if can_waterlog_clicked {
+    let place_pos = if clicked_is_liquid_container {
         pos
     } else {
         pos.offset(direction.to_offset())
@@ -417,11 +420,12 @@ fn try_place_liquid(
     let can_waterlog_target = is_water
         && target_block.is_waterloggable()
         && !target_block.is_waterlogged(target_state.id);
+    let liquid_container_rejects_water = clicked_is_liquid_container && !can_waterlog_target;
     let can_replace_target = target_state.is_air()
         || target_state.is_liquid()
         || can_be_replaced_by_fluid(target_block, target_state);
 
-    if !can_waterlog_target && !can_replace_target {
+    if !can_waterlog_target && !can_replace_target && !liquid_container_rejects_water {
         return None;
     }
 
@@ -431,6 +435,10 @@ fn try_place_liquid(
         }
         play_bucket_evaporation(world, &place_pos.to_f64());
         return Some(place_pos);
+    }
+
+    if liquid_container_rejects_water {
+        return can_place(place_pos).then_some(place_pos);
     }
 
     if can_waterlog_target {
