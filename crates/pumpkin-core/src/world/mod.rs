@@ -5129,22 +5129,41 @@ impl World {
 
     /// Closest player that satisfies `predicate`. Unlike [`Self::get_closest_player`], a nearer
     /// player failing the predicate does not hide a farther one that passes it.
+    /// Single pass over `entities`: no intermediate `Vec`/`HashMap`. Every entity within `radius`
+    /// is marked reached (as `get_nearby_*` did), then the first strictly nearest one passing
+    /// `predicate` wins. Points at NaN distance never match.
+    fn closest_matching<T: EntityBase + ?Sized>(
+        entities: &[Arc<T>],
+        pos: Vector3<f64>,
+        radius: f64,
+        predicate: impl Fn(&Arc<T>) -> bool,
+    ) -> Option<Arc<T>> {
+        let radius_squared = radius.powi(2);
+        let mut closest = None;
+        let mut closest_distance = f64::INFINITY;
+        for entity in entities {
+            let base = entity.get_entity();
+            let distance = base.pos.load().squared_distance_to_vec(&pos);
+            if !(distance <= radius_squared) {
+                continue;
+            }
+            entity_islands::check_reached(base.entity_id);
+            if predicate(entity) && (closest.is_none() || distance < closest_distance) {
+                closest = Some(entity);
+                closest_distance = distance;
+            }
+        }
+        closest.cloned()
+    }
+
     pub fn get_nearest_player(
         &self,
         pos: Vector3<f64>,
         radius: f64,
         predicate: impl Fn(&Arc<Player>) -> bool,
     ) -> Option<Arc<Player>> {
-        self.get_nearby_players(pos, radius)
-            .into_iter()
-            .filter(|player| predicate(player))
-            .min_by(|a, b| {
-                a.get_entity()
-                    .pos
-                    .load()
-                    .squared_distance_to_vec(&pos)
-                    .total_cmp(&b.get_entity().pos.load().squared_distance_to_vec(&pos))
-            })
+        let players = self.players.load();
+        Self::closest_matching(&players, pos, radius, predicate)
     }
 
     /// Closest entity that satisfies `predicate`. See [`Self::get_nearest_player`] for why this is
@@ -5156,19 +5175,11 @@ impl World {
         entity_types: Option<&[&'static EntityType]>,
         predicate: impl Fn(&Arc<dyn EntityBase>) -> bool,
     ) -> Option<Arc<dyn EntityBase>> {
-        self.get_nearby_entities(pos, radius)
-            .into_values()
-            .filter(|entity| {
-                entity_types.is_none_or(|types| types.contains(&entity.get_entity().entity_type))
-                    && predicate(entity)
-            })
-            .min_by(|a, b| {
-                a.get_entity()
-                    .pos
-                    .load()
-                    .squared_distance_to_vec(&pos)
-                    .total_cmp(&b.get_entity().pos.load().squared_distance_to_vec(&pos))
-            })
+        let entities = self.entities.load();
+        Self::closest_matching(&entities, pos, radius, |entity| {
+            entity_types.is_none_or(|types| types.contains(&entity.get_entity().entity_type))
+                && predicate(entity)
+        })
     }
 
     pub fn get_closest_player(&self, pos: Vector3<f64>, radius: f64) -> Option<Arc<Player>> {
