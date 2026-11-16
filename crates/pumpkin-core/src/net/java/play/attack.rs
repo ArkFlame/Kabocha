@@ -16,12 +16,9 @@ impl JavaClient {
             .as_ref()
             .map(|p| Arc::clone(p) as Arc<dyn EntityBase>)
             .or_else(|| world.get_entity_by_id(entity_id.0));
+        // Vanilla guards the whole attack branch with `target != null` and ignores ids it
+        // cannot resolve, so damage-less targets (e.g. ender dragon parts) do not kick.
         let Some(target) = target else {
-            self.try_kick(&TextComponent::translate_cross(
-                translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
-                translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
-                [],
-            ));
             return;
         };
 
