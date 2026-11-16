@@ -363,6 +363,15 @@ impl BedrockClient {
                     }
                 }
             }
+
+            // The sync `try_kick` path only queues the disconnect and cancels the token,
+            // so flush what the loop drained before the session goes away. Without this
+            // the client keeps playing until it notices the 10s connection timeout.
+            let _ = client
+                .session
+                .flush_reliable(std::time::Duration::from_secs(1))
+                .await;
+            client.close().await;
         });
     }
 
