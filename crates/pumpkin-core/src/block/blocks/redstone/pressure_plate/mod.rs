@@ -111,8 +111,7 @@ pub(crate) trait PressurePlate {
     fn calculate_redstone_output(&self, world: &World, block: &Block, pos: &BlockPos) -> u8;
 
     fn click_sounds(&self, block: &Block) -> (Sound, Sound);
-
-    fn tick_rate(&self) -> u8 {
+    fn tick_rate(&self) -> u32 {
         20
     }
 }

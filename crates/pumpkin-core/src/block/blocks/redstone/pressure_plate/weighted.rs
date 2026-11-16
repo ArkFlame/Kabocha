@@ -131,8 +131,7 @@ impl PressurePlate for WeightedPressurePlateBlock {
             Sound::BlockMetalPressurePlateClickOff,
         )
     }
-
-    fn tick_rate(&self) -> u8 {
+    fn tick_rate(&self) -> u32 {
         10
     }
 }

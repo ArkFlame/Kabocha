@@ -26,7 +26,7 @@ impl SnifferEggBlock {
             .has_tag(&tag::Block::MINECRAFT_SNIFFER_EGG_HATCH_BOOST)
     }
 
-    const fn get_hatch_delay(boosted: bool) -> u8 {
+    const fn get_hatch_delay(boosted: bool) -> u32 {
         if boosted { 100 } else { 200 }
     }
 }
