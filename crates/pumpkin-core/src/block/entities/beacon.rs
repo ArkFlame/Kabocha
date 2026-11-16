@@ -55,7 +55,7 @@ impl BeaconBlockEntity {
     pub const ID: &'static str = "minecraft:beacon";
 
     #[must_use]
-    pub const fn new(position: BlockPos) -> Self {
+    pub fn new(position: BlockPos) -> Self {
         Self {
             position,
             primary_effect: AtomicI32::new(0),
