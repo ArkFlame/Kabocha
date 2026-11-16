@@ -469,16 +469,16 @@ fn place_carved_block(
     carve_top_material(run, pos.x, pos.y, pos.z, state, has_grass, overworld);
 }
 
-fn schedule_fluid_tick_for_state(
+pub(crate) fn schedule_fluid_tick_for_state(
     chunk: &mut ProtoChunk,
     x: i32,
     y: i32,
     z: i32,
-    state: &'static BlockState,
+    state: &BlockState,
 ) {
-    if state.id == pumpkin_data::Block::WATER.default_state.id {
+    if state.id.to_block_id() == pumpkin_data::BlockId::WATER {
         chunk.schedule_fluid_tick(x, y, z, &Fluid::WATER);
-    } else if state.id == pumpkin_data::Block::LAVA.default_state.id {
+    } else if state.id.to_block_id() == pumpkin_data::BlockId::LAVA {
         chunk.schedule_fluid_tick(x, y, z, &Fluid::LAVA);
     }
 }
