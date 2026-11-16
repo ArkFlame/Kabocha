@@ -1990,7 +1990,10 @@ impl LivingEntity {
         let effective_ai = caller.is_effective_ai() && !client_controlled;
 
         if client_controlled {
-            self.entity.velocity.store(Vector3::default());
+            // Keep a queued knockback impulse until the tracker sends it; the tracker clears the flag on send.
+            if !self.entity.velocity_dirty.load(SeqCst) {
+                self.entity.velocity.store(Vector3::default());
+            }
         } else if effective_ai && !caller.get_mob().is_some_and(|mob| mob.travel(caller)) {
             // A mob with its own travel, e.g. the allay, replaces the default one
             self.travel(caller);
