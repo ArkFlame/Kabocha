@@ -5209,8 +5209,19 @@ impl Entity {
         };
         let holder_entity = holder.get_entity();
 
-        if !self.is_alive() || !holder_entity.is_alive() {
+        if !self.is_alive() {
             self.unleash();
+            return LeashTick::NotLeashed;
+        }
+
+        // Vanilla `Leashable.tickLeash`: a gone holder (e.g. a destroyed knot) releases the mob and
+        // refunds a lead only when the entity-drop game rule allows it.
+        if !holder_entity.is_alive() {
+            if self.world.load().level_info.load().game_rules.entity_drops {
+                self.drop_leash();
+            } else {
+                self.unleash();
+            }
             return LeashTick::NotLeashed;
         }
 

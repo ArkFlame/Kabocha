@@ -21,9 +21,9 @@ use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::codec::var_long::VarLong;
 use pumpkin_protocol::codec::var_ulong::VarULong;
 use pumpkin_protocol::java::client::play::{
-    CEntityPositionSync, CEntityVelocity, CHeadRot, CRemoveEntities, CSetEntityMetadata,
-    CSetEquipment, CSetPassengers, CUpdateEntityPos, CUpdateEntityPosRot, CUpdateEntityRot,
-    Metadata,
+    CEntityPositionSync, CEntityVelocity, CHeadRot, CRemoveEntities, CSetEntityLink,
+    CSetEntityMetadata, CSetEquipment, CSetPassengers, CUpdateEntityPos, CUpdateEntityPosRot,
+    CUpdateEntityRot, Metadata,
 };
 use pumpkin_protocol::{BClientPacket, ClientPacket};
 use pumpkin_util::GameMode;
@@ -909,6 +909,18 @@ impl TrackedEntity {
                         }
                     }
                 }
+            }
+        }
+
+        // Vanilla `ServerEntity.sendPairingData` sends the leash link with the spawn, otherwise a
+        // client that starts tracking an already-leashed mob never draws the lead.
+        if let Ok(holder_guard) = self.entity.get_entity().leashed_to.try_lock()
+            && let Some(holder) = holder_guard.as_ref().and_then(std::sync::Weak::upgrade)
+            && let ClientPlatform::Java(client) = player.client.as_ref()
+        {
+            let packet = CSetEntityLink::new(self.entity_id, holder.get_entity().entity_id, true);
+            if let Ok(data) = client.serialize_packet(&packet) {
+                client.try_enqueue_packet(data);
             }
         }
     }

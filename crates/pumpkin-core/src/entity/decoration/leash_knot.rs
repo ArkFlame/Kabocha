@@ -1,6 +1,7 @@
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::world::World;
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -184,5 +185,35 @@ impl EntityBase for LeashKnotEntity {
     }
     fn cast_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn damage_with_context(
+        &self,
+        _caller: &dyn EntityBase,
+        _amount: f32,
+        damage_type: DamageType,
+        _position: Option<Vector3<f64>>,
+        source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        // Vanilla `BlockAttachedEntity.hurtServer` checks invulnerability first.
+        if self.entity.is_invulnerable_to(&damage_type, cause) {
+            return false;
+        }
+        // `BlockAttachedEntity.hurtServer`: no damage from a mob while `mob_griefing` is off.
+        let world = self.entity.world.load();
+        if !world.level_info.load().game_rules.mob_griefing
+            && cause.or(source).is_some_and(|atk| atk.get_mob().is_some())
+        {
+            return false;
+        }
+        // Hitting the knot destroys it. Leashed mobs release on their next tick (see `tick_leash`).
+        world.play_sound(
+            Sound::ItemLeadUntied,
+            SoundCategory::Neutral,
+            &self.entity.pos.load(),
+        );
+        self.entity.remove();
+        true
     }
 }
