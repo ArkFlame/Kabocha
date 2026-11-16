@@ -5,8 +5,8 @@ use crate::block::entities::bell::BellBlockEntity;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, BlockHitResult, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs, OnProjectileHitArgs, PathComputationType,
-    PlacedArgs,
+    NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs, OnProjectileHitArgs, OnSyncedBlockEventArgs,
+    PathComputationType, PlacedArgs,
 };
 use crate::entity::EntityBase;
 use crate::world::World;
@@ -51,6 +51,13 @@ pub(crate) fn ring_bell(
         be.activate(direction);
     }
 
+    // BellBlockEntity.attemptToRing: the client animates the swing from this block event.
+    world.add_synced_block_event(
+        position,
+        BellBlock::RING_EVENT_TYPE,
+        direction.to_block_direction().to_index(),
+    );
+
     world.play_sound_fine(
         Sound::BlockBellUse,
         SoundCategory::Blocks,
@@ -90,6 +97,9 @@ fn is_point_on_bell(
 pub struct BellBlock;
 
 impl BellBlock {
+    /// `BellBlockEntity.RING_EVENT`: vanilla `level.blockEvent(pos, this, 1, direction.get3DDataValue())`.
+    const RING_EVENT_TYPE: u8 = 1;
+
     fn can_survive_dir(
         &self,
         block_accessor: &dyn BlockAccessor,
@@ -133,6 +143,11 @@ impl BlockBehaviour for BellBlock {
     fn placed(&self, args: PlacedArgs<'_>) {
         args.world
             .add_block_entity(Arc::new(BellBlockEntity::new(*args.position)));
+    }
+
+    fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
+        // The client plays and animates the ring itself; the server only needs to broadcast.
+        args.r#type == Self::RING_EVENT_TYPE
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
