@@ -1013,6 +1013,12 @@ where
         self.handle.driver_join()
     }
 
+    /// Whether the store driver has reached a terminal state, so guest calls can no longer run.
+    #[must_use]
+    pub fn is_terminal(&self) -> bool {
+        self.handle.state().is_terminal()
+    }
+
     fn claim_terminal(&self) -> bool {
         self.terminal_admitted
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)

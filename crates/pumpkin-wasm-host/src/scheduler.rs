@@ -62,6 +62,10 @@ pub fn tick(scheduler: &TaskScheduler, server: &Arc<Server>) {
 /// task, a slow task delays the tick; it is logged once it passes [`SLOW_TASK_WARNING`].
 fn run_task(server: &Arc<Server>, task: &ScheduledTask) {
     let plugin = task.plugin.clone();
+    // A trapped plugin's driver is already reported; retrying its tasks only repeats the error.
+    if plugin.store.is_terminal() {
+        return;
+    }
     let handler_id = task.handler_id;
     let server_clone = server.clone();
 
