@@ -20,5 +20,6 @@ pub mod objective;
 pub mod operation;
 pub mod resource_key;
 pub mod score_holder;
+pub mod scoreboard_slot;
 pub mod team;
 pub mod template;

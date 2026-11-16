@@ -7,6 +7,7 @@ use crate::command::argument_types::core::string::StringArgumentType;
 use crate::command::argument_types::objective::ObjectiveArgumentType;
 use crate::command::argument_types::operation::{OperationArgumentType, ScoreboardOperation};
 use crate::command::argument_types::score_holder::{ResolvedScoreHolder, ScoreHolderArgumentType};
+use crate::command::argument_types::scoreboard_slot::{ScoreboardSlotArgumentType, slot_name};
 use crate::command::context::command_context::CommandContext;
 use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
@@ -33,6 +34,7 @@ const ARG_SCORE: &str = "score";
 const ARG_OPERATION: &str = "operation";
 const ARG_SOURCE_TARGETS: &str = "source";
 const ARG_SOURCE_OBJECTIVE: &str = "sourceObjective";
+const ARG_SLOT: &str = "slot";
 
 const NO_SCORE_ERROR: CommandErrorType<2> = CommandErrorType::new(
     translation::java::COMMANDS_SCOREBOARD_PLAYERS_GET_NULL,
@@ -609,6 +611,275 @@ impl PlayersOperationExecutor {
     }
 }
 
+fn display_slot_component(
+    slot: pumpkin_data::scoreboard::ScoreboardDisplaySlot,
+) -> TextComponent {
+    TextComponent::text(slot_name(slot).to_string())
+}
+
+struct ObjectivesListExecutor;
+
+impl CommandExecutor for ObjectivesListExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let world = context.world().clone();
+        let scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let names: Vec<String> = scoreboard.get_objectives().keys().cloned().collect();
+        drop(scoreboard);
+
+        let count = names.len();
+        let message = if names.is_empty() {
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_LIST_EMPTY,
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_LIST_EMPTY,
+                Vec::<TextComponent>::new(),
+            )
+        } else {
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_LIST_SUCCESS,
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_LIST_SUCCESS,
+                [
+                    TextComponent::text(count.to_string()),
+                    TextComponent::text(names.join(", ")),
+                ],
+            )
+        };
+
+        context.source.send_feedback(message, false);
+        Ok(count as i32)
+    }
+}
+
+struct ObjectivesSetDisplayExecutor {
+    has_objective: bool,
+}
+
+impl CommandExecutor for ObjectivesSetDisplayExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let slot = ScoreboardSlotArgumentType::get(context, ARG_SLOT)?;
+        let world = context.world().clone();
+        let mut scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let (message, changed) = if self.has_objective {
+            let objective_name = ObjectiveArgumentType::get(context, ARG_OBJECTIVE)?.to_string();
+            let display_name =
+                ObjectiveArgumentType::objective_or_error(&scoreboard, &objective_name)?
+                    .display_name
+                    .clone();
+            if scoreboard.get_display_objective(slot) == Some(objective_name.as_str()) {
+                (
+                    TextComponent::translate_cross(
+                        translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_ALREADYSET,
+                        translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_ALREADYSET,
+                        Vec::<TextComponent>::new(),
+                    ),
+                    false,
+                )
+            } else {
+                scoreboard.set_display_objective(&world, slot, Some(&objective_name));
+                (
+                    TextComponent::translate_cross(
+                        translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_SET,
+                        translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_SET,
+                        [display_slot_component(slot), display_name],
+                    ),
+                    true,
+                )
+            }
+        } else if scoreboard.get_display_objective(slot).is_none() {
+            (
+                TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_ALREADYEMPTY,
+                    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_ALREADYEMPTY,
+                    Vec::<TextComponent>::new(),
+                ),
+                false,
+            )
+        } else {
+            scoreboard.clear_display_objective(&world, slot);
+            (
+                TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_CLEARED,
+                    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_DISPLAY_CLEARED,
+                    [display_slot_component(slot)],
+                ),
+                true,
+            )
+        };
+        drop(scoreboard);
+
+        context.source.send_feedback(message, changed);
+        Ok(if changed { 1 } else { 0 })
+    }
+}
+
+struct ObjectivesModifyDisplayNameExecutor;
+
+impl CommandExecutor for ObjectivesModifyDisplayNameExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let objective_name = ObjectiveArgumentType::get(context, ARG_OBJECTIVE)?.to_string();
+        let display_name = ComponentArgumentType::get(context, ARG_DISPLAY_NAME)?;
+        let world = context.world().clone();
+        let mut scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let mut objective =
+            ObjectiveArgumentType::writable_objective_or_error(&scoreboard, &objective_name)?
+                .clone();
+        objective.display_name = display_name.clone();
+        scoreboard.update_objective(&world, objective);
+        drop(scoreboard);
+
+        context.source.send_feedback(
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_MODIFY_DISPLAYNAME,
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_MODIFY_DISPLAYNAME,
+                [TextComponent::text(objective_name), display_name],
+            ),
+            true,
+        );
+
+        Ok(1)
+    }
+}
+
+struct ObjectivesModifyRenderTypeExecutor {
+    render_type: RenderType,
+}
+
+impl CommandExecutor for ObjectivesModifyRenderTypeExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let objective_name = ObjectiveArgumentType::get(context, ARG_OBJECTIVE)?.to_string();
+        let world = context.world().clone();
+        let mut scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let mut objective =
+            ObjectiveArgumentType::writable_objective_or_error(&scoreboard, &objective_name)?
+                .clone();
+        objective.render_type = self.render_type;
+        scoreboard.update_objective(&world, objective);
+        drop(scoreboard);
+
+        context.source.send_feedback(
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_MODIFY_RENDERTYPE,
+                translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_MODIFY_RENDERTYPE,
+                [TextComponent::text(objective_name)],
+            ),
+            true,
+        );
+
+        Ok(1)
+    }
+}
+
+struct PlayersListExecutor {
+    has_targets: bool,
+}
+
+impl CommandExecutor for PlayersListExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let world = context.world().clone();
+        if !self.has_targets {
+            let scoreboard = world
+                .scoreboard
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut names: Vec<String> = scoreboard
+                .get_scores()
+                .values()
+                .flat_map(|scores| scores.keys().cloned())
+                .collect();
+            drop(scoreboard);
+            names.sort_unstable();
+            names.dedup();
+
+            let count = names.len();
+            let message = if names.is_empty() {
+                TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_EMPTY,
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_EMPTY,
+                    Vec::<TextComponent>::new(),
+                )
+            } else {
+                TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_SUCCESS,
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_SUCCESS,
+                    [
+                        TextComponent::text(count.to_string()),
+                        TextComponent::text(names.join(", ")),
+                    ],
+                )
+            };
+            context.source.send_feedback(message, false);
+            return Ok(count as i32);
+        }
+
+        let holders = ScoreHolderArgumentType::get_score_holders(context, ARG_TARGETS)?;
+        let scoreboard = world
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut lines = Vec::new();
+        for holder in &holders {
+            let mut scores: Vec<(String, i32)> = scoreboard
+                .get_scores_for_entity(&holder.name)
+                .into_iter()
+                .map(|(objective_name, score)| (objective_name, score.value.0))
+                .collect();
+            scores.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+            if scores.is_empty() {
+                lines.push(TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_EMPTY,
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_EMPTY,
+                    [holder.display_name.clone()],
+                ));
+                continue;
+            }
+
+            lines.push(TextComponent::translate_cross(
+                translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_SUCCESS,
+                translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_SUCCESS,
+                [
+                    holder.display_name.clone(),
+                    TextComponent::text(scores.len().to_string()),
+                ],
+            ));
+            for (objective_name, value) in scores {
+                let display_name = scoreboard
+                    .get_objective(&objective_name)
+                    .map_or_else(
+                        || TextComponent::text(objective_name.clone()),
+                        |objective| objective.display_name.clone(),
+                    );
+                lines.push(TextComponent::translate_cross(
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_ENTRY,
+                    translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_ENTRY,
+                    [display_name, TextComponent::text(value.to_string())],
+                ));
+            }
+        }
+        drop(scoreboard);
+
+        for line in lines {
+            context.source.send_feedback(line, false);
+        }
+        Ok(holders.len() as i32)
+    }
+}
+
+
 #[expect(
     clippy::too_many_lines,
     reason = "the scoreboard command tree mirrors the vanilla structure"
@@ -652,6 +923,44 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                         literal("remove").then(
                             argument(ARG_OBJECTIVE, ObjectiveArgumentType)
                                 .executes(ObjectivesRemoveExecutor),
+                        ),
+                    )
+                    .then(literal("list").executes(ObjectivesListExecutor))
+                    .then(
+                        literal("setdisplay").then(
+                            argument(ARG_SLOT, ScoreboardSlotArgumentType)
+                                .executes(ObjectivesSetDisplayExecutor {
+                                    has_objective: false,
+                                })
+                                .then(argument(ARG_OBJECTIVE, ObjectiveArgumentType).executes(
+                                    ObjectivesSetDisplayExecutor {
+                                        has_objective: true,
+                                    },
+                                )),
+                        ),
+                    )
+                    .then(
+                        literal("modify").then(
+                            argument(ARG_OBJECTIVE, ObjectiveArgumentType)
+                                .then(
+                                    literal("displayname").then(
+                                        argument(ARG_DISPLAY_NAME, ComponentArgumentType)
+                                            .executes(ObjectivesModifyDisplayNameExecutor),
+                                    ),
+                                )
+                                .then(
+                                    literal("rendertype")
+                                        .then(literal("integer").executes(
+                                            ObjectivesModifyRenderTypeExecutor {
+                                                render_type: RenderType::Integer,
+                                            },
+                                        ))
+                                        .then(literal("hearts").executes(
+                                            ObjectivesModifyRenderTypeExecutor {
+                                                render_type: RenderType::Hearts,
+                                            },
+                                        )),
+                                ),
                         ),
                     ),
             )
@@ -733,6 +1042,13 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                     .executes(PlayersEnableExecutor),
                             ),
                         ),
+                    )
+                    .then(
+                        literal("list")
+                            .executes(PlayersListExecutor { has_targets: false })
+                            .then(argument(ARG_TARGETS, ScoreHolderArgumentType::Multiple).executes(
+                                PlayersListExecutor { has_targets: true },
+                            )),
                     ),
             ),
     );
