@@ -756,6 +756,11 @@ impl EntityBase for ItemEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         let inserted = player.inventory.insert_stack_anywhere(&mut local_stack);
+        // Vanilla `Inventory.add` for a creative player voids a stack that fits nowhere, instead
+        // of leaving a ghost item entity the player keeps touching without ever collecting.
+        if !inserted && player.is_creative() {
+            local_stack.set_count(0);
+        }
         let count_after = local_stack.item_count;
         let is_empty = local_stack.is_empty();
         *self
@@ -766,11 +771,7 @@ impl EntityBase for ItemEntity {
         if inserted || player.is_creative() {
             player.inventory_changed.store(true, Ordering::Relaxed);
 
-            let amount_picked_up = if player.is_creative() {
-                count_before
-            } else {
-                count_before - count_after
-            };
+            let amount_picked_up = count_before - count_after;
 
             if amount_picked_up > 0 {
                 if inserted
