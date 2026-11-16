@@ -17,8 +17,9 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     block::{
-        BlockBehaviour, BlockMetadata, OnNeighborUpdateArgs, OnPlaceArgs, OnSyncedBlockEventArgs,
-        PathComputationType, PlacedArgs, blocks::redstone::is_emitting_redstone_power,
+        BlockBehaviour, BlockMetadata, BrokenArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+        OnSyncedBlockEventArgs, PathComputationType, PlacedArgs,
+        blocks::redstone::is_emitting_redstone_power,
     },
     world::World,
 };
@@ -90,6 +91,25 @@ impl PistonBlock {
 }
 
 impl BlockBehaviour for PistonBlock {
+    fn broken(&self, args: BrokenArgs<'_>) {
+        // Vanilla `PistonBlock.playerWillDestroy`: an extended piston takes its head with it.
+        let props = PistonProps::from_state_id(args.state.id);
+        if !props.extended {
+            return;
+        }
+        let head_pos = args
+            .position
+            .offset(props.facing.to_block_direction().to_offset());
+        let (head_block, head_state_id) = args.world.get_block_and_state_id(&head_pos);
+        if head_block != &Block::PISTON_HEAD
+            || PistonHeadLikeProperties::from_state_id(head_state_id).facing != props.facing
+        {
+            return;
+        }
+        args.world
+            .break_block(&head_pos, None, BlockFlags::NOTIFY_ALL);
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = PistonProps::default(args.block);
         props.extended = false;
