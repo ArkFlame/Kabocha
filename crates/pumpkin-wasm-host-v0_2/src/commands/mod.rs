@@ -274,7 +274,10 @@ impl pumpkin::plugin::command::HostCommand for PluginHostState {
     }
 
     fn drop(&mut self, rep: Resource<Command>) -> wasmtime::Result<()> {
-        self.drop(rep)
+        // ComponentizeJS guests drop owned handles they already passed to
+        // `register-command`, which consumed and removed the entry itself.
+        self.discard(rep);
+        Ok(())
     }
 }
 
@@ -784,5 +787,23 @@ const fn map_util_locale_to_wit(locale: pumpkin_util::translation::Locale) -> Lo
         pumpkin_util::translation::Locale::ZhHk => Locale::ZhHk,
         pumpkin_util::translation::Locale::ZhTw => Locale::ZhTw,
         pumpkin_util::translation::Locale::ZlmArab => Locale::ZlmArab,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin::plugin::command::HostCommand;
+    use pumpkin_wasm_host_common::state::PluginHostState;
+    use wasmtime::component::Resource;
+
+    #[test]
+    fn command_can_be_dropped_after_registration_took_it() {
+        let mut state = PluginHostState::new();
+        let Ok(command) = HostCommand::new(&mut state, vec!["test".into()], "desc".into()) else {
+            return;
+        };
+        let rep = command.rep();
+        assert!(HostCommand::drop(&mut state, command).is_ok());
+        assert!(HostCommand::drop(&mut state, Resource::new_own(rep)).is_ok());
     }
 }

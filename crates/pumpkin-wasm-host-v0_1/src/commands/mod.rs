@@ -274,7 +274,10 @@ impl pumpkin::plugin::command::HostCommand for PluginHostState {
     }
 
     fn drop(&mut self, rep: Resource<Command>) -> wasmtime::Result<()> {
-        self.drop(rep)
+        // ComponentizeJS guests drop owned handles they already passed to
+        // `register-command`, which consumed and removed the entry itself.
+        self.discard(rep);
+        Ok(())
     }
 }
 
