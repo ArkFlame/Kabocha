@@ -286,6 +286,9 @@ impl BedBlock {
                 }
             }
 
+            // Vanilla kicks the sleeping villager out and then continues with the
+            // player's own sleep attempt; only a bed occupied by someone else
+            // (e.g. another player) blocks it.
             if !kicked_villager {
                 player.send_system_message_raw(
                     &pumpkin_macros::translate_cross!(
@@ -294,8 +297,8 @@ impl BedBlock {
                     ),
                     true,
                 );
+                return BlockActionResult::SuccessServer;
             }
-            return BlockActionResult::SuccessServer;
         }
 
         // Make sure player is close enough
