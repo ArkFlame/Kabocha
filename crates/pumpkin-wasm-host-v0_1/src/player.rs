@@ -3472,12 +3472,14 @@ impl pumpkin::plugin::player::HostJavaPlayer for PluginHostState {
             .client
             .java()
             .ok_or_else(|| wasmtime::Error::msg("Not a java player"))?;
-        if let Some(bytes) = crate::generated_packets::serialize_java_packet(
+        let bytes = crate::generated_packets::serialize_java_packet(
             &packet,
             pumpkin_data::packet::CURRENT_MC_VERSION,
-        ) {
-            client.try_enqueue_packet_data(bytes);
-        }
+        )
+        .ok_or_else(|| {
+            wasmtime::Error::msg("This clientbound packet type is not supported by send-packet")
+        })?;
+        client.try_enqueue_packet_data(bytes);
         Ok(())
     }
 

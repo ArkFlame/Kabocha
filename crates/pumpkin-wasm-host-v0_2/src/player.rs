@@ -3952,7 +3952,9 @@ impl pumpkin::plugin::player::HostJavaPlayerWithStore<PluginHostState>
             &packet,
             pumpkin_data::packet::CURRENT_MC_VERSION,
         )
-        .ok_or_else(|| wasmtime::Error::msg("Failed to serialize java packet"))?;
+        .ok_or_else(|| {
+            wasmtime::Error::msg("This clientbound packet type is not supported by send-packet")
+        })?;
         client.try_enqueue_packet_data(bytes);
         Ok(())
     }
