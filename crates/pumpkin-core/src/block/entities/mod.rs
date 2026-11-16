@@ -128,6 +128,13 @@ pub trait BlockEntity: Any + Send + Sync {
         saved
     }
 
+    /// Obtain NBT for the block entity update packet sent when the block entity changes, or `None`
+    /// when the client must not receive one (vanilla's `getUpdatePacket` returning null).
+    fn update_packet_nbt(&self) -> Option<NbtCompound> {
+        self.chunk_data_nbt()
+            .map(|nbt| self.client_update_tag(nbt))
+    }
+
     /// Obtain block actor NBT for fields Bedrock does not include in its block state.
     fn bedrock_block_actor_data(&self, _state_id: BlockStateId) -> Option<NbtCompound> {
         None
