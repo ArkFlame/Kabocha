@@ -1,3 +1,4 @@
+4601	Bedrock player appears in a swimming pose	bug,Bedrock Edition,player
 4598	Worldborder transition broken	bug,protocol,Java Edition
 4596	Frozen ocean icebergs turn into grass/dirt in strips of chunks	bug,Java Edition,worldgen
 4593	stop and SIGTERM never return while a v0.2 plugin keeps an endless spawn_local future	bug,api,panic,plugin
@@ -11,7 +12,6 @@
 4558	At an extremely long render distance (64 chunks), the server may stop sending data packets.	bug,protocol,Java Edition,performance
 4550	When clicking on mob that has variants with spawn eggs, child is default variant instead of similar to parent.	bug,Java Edition,mobai,entity
 4547	Server never checks if the block rotation and position is possible from the players perspective.	bug,protocol,block,security
-4546	Clicking on a fence with lead causes time out of player connection. Server doesn't crash	bug,Java Edition,player,entity
 4545	Lead doesn't drop after attached mob is killed	bug,good first issue,Java Edition,item,entity
 4537	Shulker box doesn't check for blocks on top	bug,good first issue,Java Edition,block,inventory
 4529	Book Ban Exploit fix?	enhancement,inventory,security,data
@@ -20,7 +20,6 @@
 4522	Painting variant metadata is sent without the Holder +1 offset	bug,good first issue,protocol,Java Edition,entity
 4521	Expose transfer queue results to plugins	enhancement,api,player
 4518	Are there plans to support Alpine Linux?	question,docker
-4515	Players can equip nautilus armor in their own armor slots	bug,Java Edition,item,player
 4513	Client shows wrong max health for horses (26 hearts) after spawn	bug,protocol,Java Edition,entity
 4498	crafted items disappear from inventory	bug,Bedrock Edition,item,inventory
 4496	Furnace does not award experience after smelting when the smelted product is extracted	bug,block,player
@@ -28,7 +27,6 @@
 4487	[Vanilla Parity 26.3] Missing and outdated mechanics in `ArrowEntity` (`arrow.rs`)	bug,combat,entity,data
 4485	Worldspawn Always set to ground, regardless of highest Y-level	bug,player,world
 4484	Gamerule immediate_respawn non-functioning	bug,good first issue,Java Edition,command,player
-4483	Completing a villager trade deadlocks the whole server (on_trade relocks a mutex held by on_slot_click)	bug,panic,inventory,entity
 4478	After the flame is extinguished, it reappears out of thin air.	bug,block
 4477	The sword's sweeping effect appeared in the wrong location.	bug,good first issue,Java Edition,combat
 4475	Anvil chunk serializer drops 'structures' compound (starts and References)	bug,world,data
@@ -38,7 +36,6 @@
 4471	[WASM v0.2] Deprecate Wasm Plugin API v0.1	enhancement,api
 4470	[WASM v0.2] Enable Wasm Plugin API v0.2 by default	enhancement,api
 4466	Container block entities send full inventory in CBlockEntityData on chunk load, crashing Java client	bug,protocol,Java Edition,inventory
-4465	Enchantments serialization missing +1 registry ID offset, causing client disconnects (Invalid tag id: 19)	bug,protocol,Java Edition,enchantments
 4463	systemctl Unit File	documentation,good first issue,question
 4458	stone cutter bug	bug,block,inventory
 4457	smithing table bug	bug,Java Edition,item,inventory
@@ -47,7 +44,6 @@
 4454	lunge enchantment doesnt work on the spear	bug,Java Edition,combat,enchantments
 4452	copper golem crash	bug,protocol,panic,entity
 4451	The way the fire is spreading doesn't seem quite right.	bug,Java Edition,block
-4450	The ignition radius of the lava is too large.	bug,Java Edition,block,fluid
 4447	Copying vanilla server data leaves packet error.	bug,protocol,Java Edition,data
 4423	fix(entity): preserve pending knockback on player-controlled mounts	bug,player,entity
 4422	Process fall distance and landing for client-controlled mounts	bug,player,entity
@@ -69,18 +65,12 @@
 4359	New world saves SpawnY=200, console commands run at y=200	bug,command,world
 4358	Console /say and /msg are not written to the server log	bug,good first issue,Java Edition,command
 4357	/setblock and /fill report success when no block changes	bug,command,block
-4356	/gamerule accepts out-of-range integer values (e.g. negative)	bug,good first issue,command,config
 4355	/xp add with a negative amount: negative level and wrong message	bug,good first issue,command,player
 4354	/spreadplayers with respectTeams puts all teams on the same spot	bug,good first issue,command,player
 4353	Entity NBT: NoGravity/Silent/Glowing ignored and /data remove has no effect	bug,command,entity,data
 4352	/fill with destroy mode deadlocks the server	bug,panic,command,block
 4348	Older chucks not loading	bug,world,data
 4345	Infinite "Loading Terrain" loading screen	bug,Java Edition,panic,player
-4343	Hopper does not pull items from a chest minecart above it	bug,Java Edition,inventory,entity
-4342	Hoppers do not insert items into composters	bug,block,inventory
-4340	Side hopper puts non-fuel items into furnace input slot	bug,block,inventory
-4339	Hopper pulls input and fuel from furnace above	bug,block,inventory
-4336	Entity 'cat' being called causes a crash client side	bug,protocol,Java Edition,entity
 4331	`PlayerSpawnLocationEvent` is not fired on join, so plugins cannot choose where a joining player spawns (feature request)	enhancement,Java Edition,api,player
 4328	Server never checks if the block placment is blocked	bug,block,security
 4321	Bedrock block pick (middle click) is always ignored	bug,good first issue,protocol,Bedrock Edition,inventory
@@ -99,7 +89,6 @@
 4295	`PlayerLeaveEvent` has no leave reason (feature request)	enhancement,api,player
 4294	`entity.get-nearby-entities` never includes players	bug,good first issue,api,player,entity
 4292	A plugin that trapped keeps logging an error for every event and task run	bug,api
-4290	[BUG] Crafter's disabled slots reset when the player opens the UI.	bug,Java Edition,block,redstone
 4288	Chest changes are lost when the last player leaves (item duplication)	bug,inventory,player,data
 4283	Problems with Mouse middle click	bug,Java Edition,item,inventory
 4281	Issues with pistons	bug,redstone
@@ -181,31 +170,23 @@
 4137	Event priorities are ignored	bug,api
 4136	Typing a plugin command with server-side suggestions into the console crashes the server	bug,api,panic,command
 4135	Evokers do not drop totems	bug,mobai,item,loot
-4134	Totems do not appear to work	bug,item,player
-4132	Server appears to assume every mob has a baby varient	bug,Java Edition,mobai,entity
 4130	Several issues	bug,Bedrock Edition,block,inventory
-4129	Composter does not take seeds	bug,good first issue,Java Edition,block,inventory
 4128	Jukebox music disc duplication	bug,block,item,inventory
 4127	Low RAM usage but High CPU usage	bug,performance
 4126	Dolphins have several issues relating to their behavior.	bug,Java Edition,mobai,entity
 4124	Villages do not appear to spawn villagers or iron golems	bug,Java Edition,worldgen,mobai
 4123	Server does not appear to send the packet for the animation when a warden hits you	bug,good first issue,protocol,Java Edition,entity
 4122	Wardens do not have a sonic boom	bug,Java Edition,mobai,entity
-4121	Mobs have a unusual collision	bug,Java Edition,mobai,entity
 4109	Server freezes on server.create_world method	bug,api,panic,world
-4090	Floting Fish	bug,mobai,entity
 4089	Firework Rockets All being Power 1	bug,good first issue,combat,item
-4084	TNT explodes with delay	bug,block,performance
 4079	Nether trees can generate through solid terrain	bug,Java Edition,worldgen
 4078	some dungeons are generated differently than in vanilla.	bug,worldgen
 4077	Dripstone caves are not generating correctly.	bug,worldgen
 4076	geodes do not generate	bug,worldgen
 4075	Empty command in console should be ignored not error	bug,good first issue,command
 4070	Parts of trees generating across a chunk border get replaced with grass	bug,worldgen,world
-4063	Fish go wild on land	bug,mobai,entity
 4052	Clarity Regarding Docker Image Tags	question,docker
 4048	Memory grows by about 3 MB with every player join and leave	bug,performance,player
-4036	Spawn Egg problems	bug,protocol,Java Edition,entity
 4035	deep dark generates practically nothing in terms of sculk and only sculk veins	bug,worldgen,block
 4034	Woodland Mansion generates buried while the vanilla counterpart does not	bug,worldgen
 4027	shipwreck stairs have a incorect block state	bug,worldgen,block
@@ -213,13 +194,10 @@
 4020	Loot table generation uses non deterministic RNG instead of seed-based random sequences (1.20+)	bug,Java Edition,loot
 4011	Extending a chest from diagonally above does not work properly	bug,block,inventory
 4006	Bug: PacketSentEvent handlers are rarely or never invoked by the core event dispatcher	bug,protocol,Bedrock Edition,api
-4005	Aquatic mobs bobbing instead of swimming	bug,Java Edition,mobai,entity
 3989	Trial Vault crashes the server	bug,good first issue,Java Edition,panic,block
 3974	fix(entity): correct hoglin and zoglin throw guards and velocity behavior	bug,mobai,combat,entity
 3973	Placing a powder snow bucket by hand consumes the bucket instead of returning an empty one	bug,good first issue,Java Edition,block,item
-3972	Powder snow placed from a bucket by a dispenser is not shown to clients	bug,Java Edition,block,item
 3971	Mob buckets do not keep the mob data, so a released axolotl gets a random color	bug,item,entity,data
-3970	Dispensers drop filled buckets in front of replaceable blocks (short grass) instead of replacing them	bug,Java Edition,block,item
 3969	Filled water and mob buckets create a water block above seagrass instead of using its water	bug,block,item,fluid
 3933	Catching a fish, axolotl or tadpole with a water bucket does not give the mob bucket	bug,Java Edition,item,entity
 3926	Structure generation and /locate have no per-dimension structure state	bug,worldgen,performance
@@ -230,8 +208,6 @@
 3900	Piston problem	bug,Java Edition,block,redstone
 3899	Flying in creative while flying with a elytra you move strangly	bug,Java Edition,player
 3888	Taking damage/getting killed while sleeping doesn't wake the player up	bug,Java Edition,player
-3881	Hopper-to-hopper cooldown compares cooldown_time instead of tickedGameTime	bug,Java Edition,block
-3880	Hopper minecart picks up a dropped stack one item at a time	bug,Java Edition,entity
 3879	Floating snow in Snowy Taiga village	bug,Java Edition,worldgen
 3867	Tracking: GameTest framework issues	bug,testing,entity,world
 3858	Indiscriminate use of `tokio::sync` throughout the codebase	enhancement,performance,refactor
@@ -270,14 +246,11 @@
 3672	Falling blocks don't slow with cobwebs	bug,Java Edition,block,entity
 3659	Fire may stay floating mid air after burning down a tree/forest	bug,Java Edition,block
 3646	Chiseled bookshelf book changes emit no block-change game event	bug,good first issue,block,inventory,sound
-3643	Inserting or ejecting a jukebox record emits no block-change game event	bug,good first issue,block,sound
 3631	Bells never resonate or reveal nearby raiders	bug,block,entity
 3628	Add support for arm/v7	enhancement,docker
 3627	Dispensers drop bone meal instead of applying it as fertilizer	bug,block,redstone,item
 3626	Creepers with status effects leave no area-effect cloud when they explode	bug,mobai,entity
 3624	Experience orbs sink instead of floating in water	bug,good first issue,entity,fluid
-3623	Tripwire state changes emit no game events	bug,good first issue,block,redstone,sound
-3622	Broken paintings do not drop a painting item	bug,good first issue,item,entity
 3621	Opening and closing containers emits no game events	bug,good first issue,block,inventory,sound
 3618	Slimes cannot spawn in swamps or mangrove swamps	bug,Java Edition,worldgen,mobai
 3614	Armor stands cannot equip or swap items through player interaction	bug,item,player,entity
@@ -288,23 +261,18 @@
 3575	Pass the used hand down to item behaviours (normal_use, normal_use_with_rotation)	api,item,refactor
 3574	Breaking tripwire with shears does not consume durability	bug,good first issue,block,item
 3567	Waxing copper trapdoors resets their orientation and open state	bug,good first issue,block
-3566	Endermen place carried blocks where the block cannot survive	bug,good first issue,mobai,block,entity
 3561	Attempt to attack invalid entity when hitting ender dragon	bug,panic,combat,entity
 3558	Sugar cane cannot be planted beside water or waterlogged blocks	bug,good first issue,block
 3557	Lily pads cannot be placed on waterlogged blocks	bug,good first issue,block
 3551	Scheduled block/fluid ticks execute in chunks outside `active_chunks` (asymmetric with random ticks)	bug,block,world,fluid
 3548	Jukebox playback state never resumes after chunk or server reload	bug,block,data,sound
-3542	Curse of Binding armor can be removed in non-Creative modes	bug,good first issue,item,inventory,enchantments
-3538	`/gamemode` uses the wrong variables	bug,command,player
 3522	Successful fishing yields no item, experience, or rod durability cost	bug,item,player,loot
 3521	Bed and respawn-anchor explosions do not create fire	bug,block,world
 3520	Shields cannot block ordinary player melee attacks	bug,combat,player
 3519	Tracking: implement Wilderness Bound gameplay and world generation from Java 26.3	enhancement,worldgen,block,item
 3518	Dispensers lose aquatic mobs from filled buckets	bug,block,item,entity
-3516	Crops continue growing below vanilla light level	bug,block,world
 3515	Explosion knockback ignores Blast Protection and the resistance attribute	bug,combat,entity,enchantments
 3514	Uncharged respawn anchors explode outside the Nether	bug,good first issue,block,world
-3513	Attack packets bypass server-side entity interaction range	bug,protocol,combat,player
 3512	Older periodic player snapshots can overwrite newer disconnect saves	bug,player,data
 3511	Player data saves truncate the last good file before the new write succeeds	bug,player,data
 3489	Arrows dont hurt	bug,Java Edition,combat,entity
