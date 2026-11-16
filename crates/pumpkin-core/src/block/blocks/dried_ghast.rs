@@ -20,7 +20,7 @@ use crate::{
 
 const MAX_HYDRATION_LEVEL: u8 = 3;
 /// Clamped to `u8::MAX` due to Pumpkin's block tick delay representation.
-const HYDRATION_TICK_DELAY: u8 = u8::MAX;
+const HYDRATION_TICK_DELAY: u32 = u32::from(u8::MAX);
 
 #[pumpkin_block("minecraft:dried_ghast")]
 pub struct DriedGhastBlock;

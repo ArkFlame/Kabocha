@@ -26,7 +26,7 @@ use crate::{
 const MIN_TADPOLES_SPAWN: u8 = 2;
 const MAX_TADPOLES_SPAWN: u8 = 5;
 /// Clamped to `u8::MAX` due to Pumpkin's block tick delay representation.
-const HATCH_DELAY: u8 = u8::MAX;
+const HATCH_DELAY: u32 = u32::from(u8::MAX);
 
 #[pumpkin_block("minecraft:frogspawn")]
 pub struct FrogspawnBlock;

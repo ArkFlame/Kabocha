@@ -284,7 +284,7 @@ pub(crate) fn maybe_transfer_fluid(
     {
         world.sync_world_event(WorldEvent::DripstoneDrip, tip_pos, 0);
         let fall_distance = (tip_pos.0.y - cauldron_pos.0.y).max(0);
-        let delay = (50 + fall_distance).min(i32::from(u8::MAX)) as u8;
+        let delay = (50 + fall_distance).unsigned_abs();
         world.schedule_block_tick(cauldron_block, cauldron_pos, delay, TickPriority::Normal);
     }
 }
