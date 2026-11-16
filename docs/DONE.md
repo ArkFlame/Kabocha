@@ -42,3 +42,7 @@ Format: `- #N (PR|issue) title [commit]`
 - #3443 (PR) chore(deps): bump signpath/github-action-submit-signing-request from 2 to 3 (#3443) [bf194a7e9]
 - #3444 (PR) chore(deps): bump DeterminateSystems/nix-installer-action from 22 to 23 (#3444) [61cd4fbce]
 - #4597 (PR) build(deps): bump crate-ci/typos from 1.52.0 to 1.52.2 (#4597) [f43bf4cc7]
+- #2985 (PR) fix(config): keep config file on wrong field type
+- #4531 (PR) fix(nbt): decode Bedrock strings as UTF-8
+- #4532 (PR) fix(nbt): avoid upfront allocation for stream payloads
+- #3135 #4061 #3485 #3349 #3826 #3869 #3788 (PR, skipped: already present in master)
