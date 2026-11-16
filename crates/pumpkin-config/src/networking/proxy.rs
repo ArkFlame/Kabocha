@@ -1,5 +1,25 @@
 use serde::{Deserialize, Serialize};
 
+/// Resolves a configured secret, reading it from a file when the value starts
+/// with `@` (the path is relative to the working directory).
+///
+/// This allows secrets to live outside the configuration file, e.g.
+/// `secret = "@forwarding.secret"`. If the file cannot be read the raw value
+/// is returned so authentication fails instead of silently succeeding.
+#[must_use]
+pub fn resolve_secret(value: &str) -> String {
+    let Some(path) = value.strip_prefix('@') else {
+        return value.to_string();
+    };
+    match std::fs::read_to_string(path) {
+        Ok(contents) => contents.trim().to_string(),
+        Err(err) => {
+            tracing::warn!("Couldn't read secret file at {path}: {err}");
+            value.to_string()
+        }
+    }
+}
+
 /// Configuration for proxy support.
 ///
 /// Allows integration with proxy servers like Velocity and `BungeeCord`.
@@ -59,6 +79,8 @@ pub struct VelocityConfig {
     #[toml(default = Self::default().enabled)]
     pub enabled: bool,
     /// Shared secret for authenticating connections from the Velocity proxy.
+    /// Prefix the value with `@` to read it from a file instead, e.g.
+    /// `"@forwarding.secret"`.
     #[toml(default = Self::default().secret)]
     pub secret: String,
 }
@@ -79,4 +101,23 @@ pub struct VineConfig {
     /// the public key is automatically derived from this secret.
     #[toml(default = Self::default().secret)]
     pub secret: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_secret;
+
+    #[test]
+    fn resolves_secret_from_file() {
+        let path = std::env::temp_dir().join(format!("kabocha-secret-{}", std::process::id()));
+        std::fs::write(&path, "file-secret\n").unwrap();
+        let value = format!("@{}", path.display());
+        assert_eq!(resolve_secret(&value), "file-secret");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn keeps_plain_secret() {
+        assert_eq!(resolve_secret("plain-secret"), "plain-secret");
+    }
 }

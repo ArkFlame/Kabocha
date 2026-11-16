@@ -127,7 +127,8 @@ pub fn receive_velocity_plugin_response(
         }
         let (signature, mut data_without_signature) = data.split_at(32);
 
-        if !check_integrity((signature, data_without_signature), &config.secret) {
+        let secret = pumpkin_config::networking::proxy::resolve_secret(&config.secret);
+        if !check_integrity((signature, data_without_signature), &secret) {
             return Err(VelocityError::FailedVerifyIntegrity);
         }
 
