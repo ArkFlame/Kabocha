@@ -24,7 +24,6 @@ use pumpkin_util::GameMode;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 
-use crate::entity::vehicle::vehicle::VehicleEntity;
 
 const FRONT_SEAT_OFFSET: f32 = 0.2;
 const BACK_SEAT_OFFSET: f32 = -0.6;
