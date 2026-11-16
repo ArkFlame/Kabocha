@@ -756,7 +756,20 @@ impl ProtoChunk {
         if local_y < 0 || local_y >= self.height() as i32 {
             return;
         }
+        self.set_block_state_direct(local_x, local_y, local_z, y as i16, block_state);
+    }
 
+    /// The noise-generation fast path: coordinates are chunk-local and already
+    /// checked against the dimension height by the caller.
+    #[inline]
+    fn set_block_state_direct(
+        &mut self,
+        local_x: i32,
+        local_y: i32,
+        local_z: i32,
+        block_y: i16,
+        block_state: &BlockState,
+    ) {
         let index = Self::local_pos_to_block_index(local_x, local_y, local_z);
         if index >= self.flat_block_map.len() {
             if block_state.id == BlockStateId::AIR {
@@ -772,7 +785,7 @@ impl ProtoChunk {
         self.flat_block_map[index] = block_state.id;
 
         let hm_index = Self::local_position_to_height_map_index(local_x, local_z);
-        self.update_height_map_column(hm_index, local_x, local_y, local_z, y as i16, block_state);
+        self.update_height_map_column(hm_index, local_x, local_y, local_z, block_y, block_state);
     }
 
     #[inline]
@@ -1084,13 +1097,18 @@ impl ProtoChunk {
     ) {
         let volume = *noise_sampler.volume();
         let densities = noise_sampler.sample_density();
+        let bottom_y = i32::from(self.bottom_y());
+        let height = i32::from(self.height());
 
         for z in 0..volume.size_z {
             let block_z = volume.block_z(z);
+            let local_z = block_z & 15;
             for x in 0..volume.size_x {
                 let block_x = volume.block_x(x);
+                let local_x = block_x & 15;
                 for y in (0..volume.size_y).rev() {
                     let block_y = volume.block_y(y);
+                    let local_y = block_y - bottom_y;
                     let index = volume.index_unchecked(x, y, z);
                     let block_state = noise_sampler
                         .sample_block_state(
@@ -1101,7 +1119,15 @@ impl ProtoChunk {
                             surface_height_estimate_sampler,
                         )
                         .unwrap_or(generator.default_block);
-                    self.set_block_state(block_x, block_y, block_z, block_state);
+                    if (0..height).contains(&local_y) {
+                        self.set_block_state_direct(
+                            local_x,
+                            local_y,
+                            local_z,
+                            block_y as i16,
+                            block_state,
+                        );
+                    }
                 }
             }
         }
@@ -2053,4 +2079,73 @@ fn structure_entity_position(nbt: &NbtCompound) -> Option<(i32, i32, i32)> {
             .map(|value| value.floor() as i32)
     };
     Some((coordinate(0)?, coordinate(1)?, coordinate(2)?))
+}
+
+#[cfg(test)]
+mod direct_block_write_tests {
+    use super::ProtoChunk;
+    use crate::generation::get_world_gen;
+    use pumpkin_data::{Block, dimension::Dimension};
+    use pumpkin_util::world_seed::Seed;
+
+    #[test]
+    fn direct_writes_match_world_coordinate_writes_across_chunk_heights() {
+        for dimension in [
+            Dimension::OVERWORLD,
+            Dimension::THE_NETHER,
+            Dimension::THE_END,
+        ] {
+            let generator = get_world_gen(Seed(42), dimension, false, Vec::new(), String::new());
+            for (chunk_x, chunk_z) in [(0, 0), (-3, 5)] {
+                let mut normal = ProtoChunk::new(chunk_x, chunk_z, &generator);
+                let mut direct = ProtoChunk::new(chunk_x, chunk_z, &generator);
+                let bottom_y = i32::from(normal.bottom_y());
+                let height = i32::from(normal.height());
+                for step in 0..2048 {
+                    let local_x = (step * 7) % 16;
+                    let local_z = (step * 13) % 16;
+                    // Include Y values outside the dimension, which must be ignored.
+                    let block_y = bottom_y + (step * 17) % (height + 32) - 16;
+                    let state = match step % 3 {
+                        0 => Block::AIR.default_state,
+                        1 => Block::STONE.default_state,
+                        _ => Block::WATER.default_state,
+                    };
+                    normal.set_block_state(
+                        normal.start_block_x() + local_x,
+                        block_y,
+                        normal.start_block_z() + local_z,
+                        state,
+                    );
+                    let local_y = block_y - bottom_y;
+                    if (0..height).contains(&local_y) {
+                        direct.set_block_state_direct(
+                            local_x,
+                            local_y,
+                            local_z,
+                            block_y as i16,
+                            state,
+                        );
+                    }
+                }
+                assert_eq!(normal.flat_block_map, direct.flat_block_map);
+                assert_eq!(
+                    normal.flat_surface_height_map,
+                    direct.flat_surface_height_map
+                );
+                assert_eq!(
+                    normal.flat_ocean_floor_height_map,
+                    direct.flat_ocean_floor_height_map
+                );
+                assert_eq!(
+                    normal.flat_motion_blocking_height_map,
+                    direct.flat_motion_blocking_height_map
+                );
+                assert_eq!(
+                    normal.flat_motion_blocking_no_leaves_height_map,
+                    direct.flat_motion_blocking_no_leaves_height_map
+                );
+            }
+        }
+    }
 }
