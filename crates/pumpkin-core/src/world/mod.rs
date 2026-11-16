@@ -4419,6 +4419,9 @@ impl World {
         player.on_screen_handler_opened(&player.player_screen_handler);
 
         player.send_active_effects();
+        // Like vanilla, the joined player learns their own attributes (movement speed etc.)
+        // including the modifiers contributed by effects restored from NBT.
+        crate::entity::attributes::send_attributes_to_pairing_player(&player.living_entity, player);
         player.breath_manager.send_air_supply(player);
         self.send_player_equipment(player);
         player
