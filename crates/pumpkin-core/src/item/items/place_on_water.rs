@@ -12,7 +12,7 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_data::tag::{self, Taggable};
-use pumpkin_data::{Block, BlockDirection};
+use pumpkin_data::{Block, BlockDirection, BlockId};
 use pumpkin_inventory::player::player_inventory::PlayerInventory;
 use pumpkin_util::Hand;
 use pumpkin_util::math::position::BlockPos;
@@ -71,11 +71,25 @@ impl ItemBehaviour for PlaceOnWaterBlockItem {
         }
 
         let hit_block = world.get_block(&hit_pos);
+        let hit_state = world.get_block_state(&hit_pos);
         let hit_fluid = world.get_fluid(&hit_pos);
         let can_support = if item.id == Item::LILY_PAD.id {
-            hit_fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_LILY_PAD)
-                || hit_block.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_LILY_PAD)
-                || hit_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_LILY_PAD)
+            // Vanilla checks the fluid state (`minecraft:supports_lily_pad` holds source water
+            // only), so waterlogged blocks count too. `get_fluid` normalizes sources to flowing
+            // water, hence the state lookup.
+            let is_source_water = hit_state.is_waterlogged()
+                || Fluid::from_state_id(hit_state.id)
+                    .is_some_and(|fluid| fluid.id == Fluid::WATER.id)
+                // These blocks hold source water without a `waterlogged` property.
+                || matches!(
+                    hit_block.id,
+                    BlockId::KELP
+                        | BlockId::KELP_PLANT
+                        | BlockId::SEAGRASS
+                        | BlockId::TALL_SEAGRASS
+                        | BlockId::BUBBLE_COLUMN
+                );
+            is_source_water || hit_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_LILY_PAD)
         } else {
             hit_fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_FROGSPAWN)
                 || hit_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_FROGSPAWN)
