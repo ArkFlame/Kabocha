@@ -1,10 +1,12 @@
 use std::{any::Any, sync::Arc};
 
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, block_properties::BLOCK_ENTITY_TYPES};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 
+use crate::entity::experience_orb::ExperienceOrbEntity;
 use crate::world::World;
 use pumpkin_data::BlockStateId;
 use pumpkin_inventory::Inventory;
@@ -166,7 +168,15 @@ pub trait BlockEntity: Any + Send + Sync {
     /// applied to a live block entity in a world.
     fn on_nbt_loaded(&self, _world: &Arc<World>, _previous: Option<&dyn BlockEntity>) {}
 
+    /// Runs before the block entity is removed, like vanilla `preRemoveSideEffects`. Drops
+    /// belong here: by the time `BlockBehaviour::broken` runs, the entity is already gone.
     fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, position: &BlockPos) {
+        if let Some(experience) = self.clone().to_experience_container() {
+            let xp = experience.extract_experience();
+            if xp > 0 {
+                ExperienceOrbEntity::spawn(world, position.to_f64(), xp as u32);
+            }
+        }
         if let Some(inventory) = self.get_inventory() {
             world.scatter_inventory(position, &inventory);
         }
@@ -340,6 +350,14 @@ pub fn block_entity_from_generic<T: BlockEntity>(nbt: &NbtCompound) -> T {
 #[allow(clippy::too_many_lines)]
 pub fn block_entity_from_nbt(nbt: &NbtCompound) -> Option<Arc<dyn BlockEntity>> {
     let id = nbt.get_string("id")?;
+    // Vanilla reads the id as an identifier, so `chest` means `minecraft:chest`.
+    let namespaced;
+    let id = if id.contains(':') {
+        id
+    } else {
+        namespaced = format!("minecraft:{id}");
+        namespaced.as_str()
+    };
     let x = nbt.get_int("x")?;
     let y = nbt.get_int("y")?;
     let z = nbt.get_int("z")?;
@@ -484,6 +502,24 @@ pub fn block_entity_from_nbt(nbt: &NbtCompound) -> Option<Arc<dyn BlockEntity>> 
         )),
         _ => None,
     }
+}
+
+/// Name of the block entity Pumpkin keeps for `block`, without namespace. Vanilla 26.3 has no
+/// bed block entity, but Bedrock clients and older Java clients still get their beds from it.
+#[must_use]
+pub fn block_entity_name(block: &Block) -> Option<&'static str> {
+    if block.has_tag(&tag::Block::MINECRAFT_BEDS) || block == &Block::STRAW_BED {
+        return Some("bed");
+    }
+    BLOCK_ENTITY_TYPES
+        .get(block.default_state.block_entity_type as usize)
+        .copied()
+}
+
+/// Whether `block` owns a block entity with `id`, which may omit the `minecraft:` namespace.
+#[must_use]
+pub fn block_owns_block_entity(block: &Block, id: &str) -> bool {
+    block_entity_name(block) == Some(id.strip_prefix("minecraft:").unwrap_or(id))
 }
 
 #[must_use]
@@ -644,12 +680,13 @@ pub fn create_block_entity(
 mod test {
     use super::{
         BlockEntity, barrel::BarrelBlockEntity, blasting_furnace::BlastingFurnaceBlockEntity,
-        block_entity_from_nbt, brewing_stand::BrewingStandBlockEntity, chest::ChestBlockEntity,
-        crafter::CrafterBlockEntity, dispenser::DispenserBlockEntity, dropper::DropperBlockEntity,
-        furnace::FurnaceBlockEntity, hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity,
-        sign::SignBlockEntity, smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
+        block_entity_from_nbt, block_owns_block_entity, brewing_stand::BrewingStandBlockEntity,
+        chest::ChestBlockEntity, crafter::CrafterBlockEntity, daylight_detector::DaylightDetectorBlockEntity,
+        dispenser::DispenserBlockEntity, dropper::DropperBlockEntity, furnace::FurnaceBlockEntity,
+        hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity,
+        smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
     };
-    use pumpkin_data::{block_properties::FacingHopper, item::Item, item_stack::ItemStack};
+    use pumpkin_data::{Block, block_properties::FacingHopper, item::Item, item_stack::ItemStack};
     use pumpkin_inventory::Inventory;
     use pumpkin_nbt::compound::NbtCompound;
     use pumpkin_util::math::position::BlockPos;
@@ -685,6 +722,35 @@ mod test {
 
         let sign = SignBlockEntity::empty(position);
         assert_eq!(sign.client_update_tag(saved.clone()), saved);
+    }
+
+    #[test]
+    fn block_entity_ids_without_a_namespace_load() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", "chest".to_string());
+        nbt.put_int("x", 0);
+        nbt.put_int("y", 64);
+        nbt.put_int("z", 0);
+
+        let entity = block_entity_from_nbt(&nbt).map(|entity| entity.resource_location());
+        assert_eq!(entity, Some("minecraft:chest"));
+    }
+
+    #[test]
+    fn a_block_entity_is_only_ticked_against_its_own_block() {
+        let detector = DaylightDetectorBlockEntity::new(BlockPos::new(0, 0, 0));
+        let id = detector.resource_location();
+
+        assert!(block_owns_block_entity(&Block::DAYLIGHT_DETECTOR, id));
+        // Air is what a `fill` over the detector leaves behind, and ticking against it
+        // used to read air as daylight detector properties and panic.
+        for block in [&Block::AIR, &Block::STONE, &Block::CHEST] {
+            assert!(
+                !block_owns_block_entity(block, id),
+                "{} should not tick a daylight detector",
+                block.name
+            );
+        }
     }
 
     /// A loaded block entity is serialized back into its chunk with
