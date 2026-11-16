@@ -202,6 +202,7 @@ impl BedrockClient {
         {
             *awaiting = None;
             drop(awaiting);
+            player.is_changing_dimension.store(false, Ordering::Relaxed);
             // Bedrock sends no `PlayerLoaded` after a respawn, reaching the spawn stands in
             player.set_client_loaded(true);
         } else if self

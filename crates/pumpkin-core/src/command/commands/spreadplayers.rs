@@ -1,3 +1,4 @@
+use crate::plugin::api::events::player::player_teleport::TeleportCause;
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::math::vector3::Vector3;
@@ -306,11 +307,12 @@ impl CommandExecutor for SpreadPlayersExecutor {
         for (target, &group) in targets.iter().zip(&pile_of) {
             let pile = piles[group];
             let y = surface_ys[group];
-            target.teleport(
+            target.teleport_with_cause(
                 Vector3::new(pile.x.floor() + 0.5, f64::from(y), pile.z.floor() + 0.5),
                 None,
                 None,
                 world.clone(),
+                TeleportCause::Command,
             );
         }
 
