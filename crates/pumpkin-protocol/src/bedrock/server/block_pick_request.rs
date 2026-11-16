@@ -13,6 +13,6 @@ pub struct SBlockPickRequest {
     pub position: BlockPos,
     /// Whether block entity data / NBT should be copied into the picked item stack.
     pub with_data: bool,
-    /// Maximum hotbar slots available for placing the picked item.
+    /// Number of hotbar slots the server may use for the picked item (not a slot index).
     pub max_slots: u8,
 }

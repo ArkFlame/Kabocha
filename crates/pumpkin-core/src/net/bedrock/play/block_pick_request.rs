@@ -20,10 +20,14 @@ impl BedrockClient {
         };
         let stack = ItemStack::new(1, item);
 
-        let target_hotbar_slot = packet.max_slots as usize;
-        if target_hotbar_slot >= 9 {
+        // `max_slots` is the number of hotbar slots the server may use, not a slot index.
+        // Keep the selected slot when it is allowed, otherwise fall back to slot 0.
+        let usable_slots = usize::from(packet.max_slots).min(9);
+        if usable_slots == 0 {
             return;
         }
+        let selected = player.inventory.get_selected_slot() as usize;
+        let target_hotbar_slot = if selected < usable_slots { selected } else { 0 };
 
         let slot_with_stack = player.inventory().get_slot_with_stack(&stack);
 
