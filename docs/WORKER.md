@@ -12,3 +12,4 @@ Report format (one message, no prose): `STATUS: merged|skipped|failed | PR #N | 
 
 ## Brief structure (prompt engineering, implemented in scripts/brief-pr.sh)
 XML-tagged sections in this order: `<role>` (one-line persona + "alone, one pass"), `<context>` (repo, PR number/title/files, known refactor pitfall, what to read), `<task>` (numbered, with the skip branch), `<constraints>` (explicit don'ts: no cargo, no polling, minimum change, no markers), `<output>` (exact one-line format plus a worked example). Facts the orchestrator already knows (files, title, layout move) are injected so the worker does not rediscover them. Negative instructions are specific and checkable. Keep briefs under ~2.5 KB.
+9. Before committing, view your own diff (`git diff --cached`) and delete any stray fragments (lone `}`, `>`, orphan `#[test]`, markers): they break the batch build.

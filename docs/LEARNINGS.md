@@ -10,3 +10,4 @@
 - 2026-11-16: build policy rewritten (docs/BUILD.md): workers never compile; integrate.sh batches; scripts/cargo.sh is the only cargo entry.
 - 2026-11-16: worker mistakes and fixes are in docs/WORKER.md (read by every brief); PR triage is mechanical (scripts/pr-triage.sh).
 - Note: the user's shell exports CARGO_TARGET_DIR=~/.cache/cargo-target; scripts/lib.sh overrides it (KAB_TARGET to change) so toolchains never share a target.
+- #3420 uses eprintln!: clippy print_stderr may deny; check at the full gate

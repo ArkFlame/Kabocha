@@ -88,3 +88,10 @@ Format: `- #N (PR|issue) title [commit]`
 - #4332 (PR) fix(world): write loaded entity chunks on autosave and save-all (#4332) [a592041b0]
 - #3901 (PR) fix(worldgen): cache template pool max size like vanilla (#3901) [2929d3eee]
 - #3475 (PR) fix(worldborder): select center block for collapsed clamp ranges (#3475) [92545e178]
+- #3728 (PR, skipped: already present item_stack/mod.rs:934)
+- #4019 (PR, skipped: master already handles heads, piston_head.rs:39)
+- #3463 (PR, skipped: already present data_component.rs:1339)
+- #4497 (PR, skipped: already present setblock.rs:67, fill.rs:159)
+- #3353 (PR, skipped: abstract_fish.rs:35)
+- #4118 (PR, skipped: screen_handler.rs:981)
+- #3965 (PR, skipped: hopper.rs:299)
