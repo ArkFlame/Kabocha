@@ -4,11 +4,13 @@ use std::sync::{
 };
 
 use pumpkin_data::BlockState;
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use rand::{Rng, RngExt};
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
@@ -309,12 +311,19 @@ impl Mob for BeeEntity {
         &self.mob_entity
     }
 
-    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+    fn custom_server_ai_step(&self, caller: &dyn EntityBase) {
+        // Vanilla `Bee.customServerAiStep`: a bee that has stung keeps counting and
+        // may die from its own sting once the countdown nears 1200 ticks.
         if self.has_stung() {
-            let time = self.time_since_sting.fetch_add(1, Ordering::Relaxed) + 1;
-            if time >= 1200 {
-                self.mob_entity.living_entity.set_health(0.0);
+            let time = self.time_since_sting.load(Ordering::Relaxed);
+            if time % 5 == 0 {
+                let bound = (1200 - time).clamp(1, 1200);
+                if self.get_random().random_range(0..bound) == 0 {
+                    let living = &self.mob_entity.living_entity;
+                    living.damage(caller, living.health.load(), DamageType::GENERIC);
+                }
             }
+            self.time_since_sting.store(time + 1, Ordering::Relaxed);
         }
         self.update_persistent_anger();
     }
