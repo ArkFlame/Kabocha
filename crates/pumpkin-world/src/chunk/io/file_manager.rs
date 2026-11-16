@@ -908,6 +908,7 @@ mod tests {
             data: Mutex::new(Vec::new()),
             live: AtomicBool::new(false),
             dirty: AtomicBool::new(true),
+            read_failed: AtomicBool::new(false),
         });
         manager
             .save_chunks(&folder, vec![(pos, chunk)])
