@@ -11,7 +11,7 @@ description: DOs and DON'Ts for the Kabocha orchestrator loop (native + OpenCode
 | Native workers | launched via scripts, orchestrator blocked on logs | `Agent` tool, `subagent_type: general`, `run_in_background: true`; completion arrives as a notification, never poll |
 | OpenCode workers | orchestrator waited in `sleep` loops (stuck, memory-heavy watcher shells) | one persistent `Monitor` running `scripts/oc-status.sh` + `scripts/oc-refill.sh` every 60 s; one event per change; re-arm at expiry |
 | Slots | refilled by hand, often 3-7 of 10 | refill in the same turn a worker notification arrives |
-| Briefs | prose, workers guessed | `scripts/brief-pr.sh <pr>` (role, context, numbered task, constraints); fetch `refs/kab/pr-<n>` FIRST |
+| Briefs | prose, workers guessed | `scripts/next-pr.sh N` picks PRs, fetches refs, makes worktree + brief, prints ready lines; launch one worker per line |
 | Compile | per branch, or by workers | workers never build; orchestrator runs ONE `scripts/integrate.sh <branches>` per batch (warm shared target) |
 | Triage | launch worker, find it is empty | `scripts/pr-triage.sh` first: EMPTY = log to DONE.md, CLEAN = batch-merge, CONFLICT = worker |
 
@@ -40,3 +40,8 @@ description: DOs and DON'Ts for the Kabocha orchestrator loop (native + OpenCode
 - `expected expression, found '>'` after cherry-pick -> stray fragment in worker squash -> delete line, amend branch.
 - Silverfish-style FAILED (#3886): PR built on older goal APIs -> needs a redesign brief, not a re-merge; queue it for a dedicated worker with the master API list.
 - oc-refill reports `free_slots` but starts nothing -> all candidates CLEAN/EMPTY/CLOSED this round; run again or widen the candidate filter.
+
+## Self-optimization log (fix inefficiencies as found)
+- Repeated candidate python + wt + fetch + brief by hand -> `scripts/next-pr.sh` (one call, verified briefs).
+- Failures of ported-but-uncompiled branches are cheaper to drop from a batch (and queue a fix worker) than to debug inside the batch; re-run integrate without them.
+- Report skipped/failed PRs to docs/QUEUE.md immediately so the loop never retries them.
