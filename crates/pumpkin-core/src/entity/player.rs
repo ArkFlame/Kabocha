@@ -6169,6 +6169,12 @@ impl Player {
         if matches!(self.client.as_ref(), ClientPlatform::Java(_)) {
             self.set_client_loaded(false);
         }
+        // The client's `showDeathScreen` flag is reset when the local player is
+        // recreated on respawn, so vanilla re-sends the rule before every death
+        // packet; otherwise only the first death after a rule change respawns.
+        if self.world().level_info.load().game_rules.immediate_respawn {
+            self.send_game_event(GameEvent::EnabledRespawnScreen, 1.0);
+        }
         self.send_combat_death(death_msg);
         self.send_health();
         self.send_bedrock_respawn_state(RespawnState::SearchingForSpawn);
