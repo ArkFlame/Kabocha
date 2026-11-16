@@ -488,6 +488,7 @@ mod tests {
             block_ticks: ChunkTickScheduler::default(),
             fluid_ticks: ChunkTickScheduler::default(),
             pending_block_entities: Mutex::new(FxHashMap::default()),
+            preserved_tags: Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
             light_engine: Mutex::new(ChunkLight::default()),
             light_populated: AtomicBool::new(true),
             status: ChunkStatus::Full,

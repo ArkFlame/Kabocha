@@ -1187,6 +1187,7 @@ impl ChunkData {
             pending_block_entities: std::sync::Mutex::new(block_entities),
             light_engine: std::sync::Mutex::new(light_engine),
             light_populated: AtomicBool::new(light_correct),
+            preserved_tags: std::sync::Mutex::new(NbtCompound::default()),
             status,
             blending_data: None,
             inhabited_time: AtomicU64::new(inhabited_time),
