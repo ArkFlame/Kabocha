@@ -9,6 +9,7 @@ use std::{
         Arc, Mutex as StdMutex, OnceLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
+    time::Duration,
 };
 
 use futures::{StreamExt, stream::FuturesUnordered};
@@ -26,6 +27,10 @@ use crate::{
 };
 
 const STORE_QUEUE_CAPACITY: usize = 64;
+/// How long a Store may keep background tasks alive during shutdown before the
+/// host abandons it. Matches the default SIGTERM grace period users expect from
+/// `docker stop` and systemd.
+const SHUTDOWN_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 const REENTRY_QUEUE_CAPACITY: usize = 64;
 
 /// How a Store's guest calls are driven.
@@ -1053,6 +1058,23 @@ where
         F: for<'a> FnOnce(LegacyGuestScope<'a, T>) -> StoreFuture<'a, R> + Send + 'static,
         R: Send + 'static,
     {
+        self.shutdown_with_timeout(SHUTDOWN_DRAIN_TIMEOUT, call).await
+    }
+
+    /// [`Self::shutdown`], but abandons the Store if it has not dropped its
+    /// background tasks after `timeout`.
+    ///
+    /// A guest future that never completes (for example a `spawn_local` loop that
+    /// ignores `on_unload`) must not block the host's shutdown forever.
+    pub async fn shutdown_with_timeout<R, F>(
+        &self,
+        timeout: Duration,
+        call: F,
+    ) -> wasmtime::Result<R>
+    where
+        F: for<'a> FnOnce(LegacyGuestScope<'a, T>) -> StoreFuture<'a, R> + Send + 'static,
+        R: Send + 'static,
+    {
         let (result, receiver) = oneshot::channel();
         self.handle
             .ensure_accepting("Wasm plugin store is already shutting down")?;
@@ -1101,9 +1123,25 @@ where
         });
         drop(send_guard);
 
-        let result = receiver.await;
-        let mut join = self.driver_join();
-        let terminal = join.wait().await;
+        let (result, terminal) = match tokio::time::timeout(timeout, async {
+            let result = receiver.await;
+            let mut join = self.driver_join();
+            let terminal = join.wait().await;
+            (result, terminal)
+        })
+        .await
+        {
+            Ok(drained) => drained,
+            Err(_) => {
+                tracing::warn!(
+                    ?timeout,
+                    "Wasm plugin store kept background tasks alive after on_unload; abandoning the store"
+                );
+                return Err(wasmtime::Error::msg(
+                    "Wasm plugin store shutdown timed out waiting for background tasks",
+                ));
+            }
+        };
         reconcile_shutdown_result(result, terminal)
     }
 }

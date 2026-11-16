@@ -625,6 +625,36 @@ mod tests {
             .expect("shutdown result");
     }
 
+    async fn shutdown_abandons_store_that_never_drains() {
+        let store = TestStore::new(test_store(StoreMode::Concurrent), StoreMode::Concurrent).await;
+        let started = Arc::new(Notify::new());
+        let task_started = Arc::clone(&started);
+        store
+            .call_guest(move |scope| {
+                let accessor = scope.accessor().expect("concurrent store scope");
+                let spawned = accessor.spawn(async move |_accessor| {
+                    task_started.notify_one();
+                    std::future::pending::<()>().await;
+                    Ok(())
+                });
+                Box::pin(async move {
+                    spawned?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("spawn endless background task");
+        started.notified().await;
+
+        let result = timeout(
+            Duration::from_secs(5),
+            store.shutdown_with_timeout(Duration::from_millis(50), |_| Box::pin(async move { Ok(()) })),
+        )
+        .await
+        .expect("shutdown must not wait for an endless guest task");
+        assert!(result.is_err());
+    }
+
     async fn explicit_discard_drains_accepted_work(mode: StoreMode) {
         let spawner = Arc::new(TestSpawner {
             runtime: tokio::runtime::Handle::current(),
@@ -1474,6 +1504,7 @@ mod tests {
                 owner_drop_drains_accepted_work(mode).await;
             }
             shutdown_waits_for_joined_store_background_tasks(StoreMode::Concurrent).await;
+            shutdown_abandons_store_that_never_drains().await;
             shutdown_reentry_scenario().await;
         })
         .await
