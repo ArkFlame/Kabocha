@@ -917,7 +917,7 @@ impl pumpkin::plugin::world::HostWorld for PluginHostState {
             };
             world.broadcast_to_chunk(
                 pos,
-                &crate::net::java::chunk_data::CChunksBiomes(&[&*chunk]),
+                &pumpkin_core::net::java::chunk_data::CChunksBiomes(&[&*chunk]),
             );
         }
         Ok(())

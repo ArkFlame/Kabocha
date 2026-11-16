@@ -13,7 +13,7 @@ use crate::bot::{HeadlessBot, MAX_POLL_TICKS};
 
 /// Writes a save that leaves the bot in the Nether, to test the disabled-dimension login fallback.
 async fn save_nether_logout(server: &Server, name: &str) -> Result<(), String> {
-    let uuid = offline_uuid(name).map_err(|err| err.to_string())?;
+    let uuid = offline_uuid(name);
     let mut data = NbtCompound::new();
     data.put_string("Dimension", Dimension::THE_NETHER.minecraft_name.to_owned());
     data.put_list("Pos", vec![100.0.into(), 50.0.into(), 100.0.into()]);
