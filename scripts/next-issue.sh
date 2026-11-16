@@ -6,7 +6,7 @@ prep_issue() { # claim, check state, make worktree + brief; prints "<id> <worktr
   echo "$id" >> "$KAB_RUNS/tried-issues"
   # skip issues already CLOSED upstream: log to DONE.md-style list and take no slot
   st=$(timeout 20 gh issue view "$id" -R Pumpkin-MC/Pumpkin --json state -q .state 2>/dev/null)
-  [ "$st" = "CLOSED" ] && { echo "- #$id (issue, skipped: closed upstream)" >> docs/DONE.md; continue; }
+  [ "$st" = "CLOSED" ] && { echo "- #$id (issue, skipped: closed upstream)" >> docs/DONE.md; return 0; }
   flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "i$id" >/dev/null 2>&1
   t=$(awk -F'\t' -v n="$id" '$1==n{print $2}' docs/queue-issues.tsv)
   f="$KAB_RUNS/brief-issue$id.md"

@@ -35,5 +35,5 @@ m.sort(key=lambda r:int(r[1])); print('\n'.join(r[0] for r in m[:need]))
 PY
 # 2) issue workers fill whatever PR work did not use (next-issue.sh prints "<id> <worktree> <brief>" as each is ready)
 need=$(free_slots)
-[ "$need" -gt 0 ] && scripts/next-issue.sh "$need" | xargs -r -P "$JOBS" -L1 bash -c 'scripts/oc-agent.sh "i$0" "$2" 9>&-'
+[ "$need" -gt 0 ] && scripts/next-issue.sh "$((need*${KAB_TASKS:-2}))" | scripts/oc-group.sh "${KAB_TASKS:-2}" | xargs -r -P "$JOBS" -L1 bash -c 'scripts/oc-agent.sh "i$0" "$2" 9>&-'
 scripts/oc-status.sh | tail -1
