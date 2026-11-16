@@ -232,6 +232,25 @@ impl EntityBase for MinecartEntity {
         }
 
         let world = self.vehicle.entity.world.load();
+        // `max_minecart_speed` only exists with the `minecart_improvements` experiment;
+        // without it vanilla keeps the fixed 0.4 blocks/tick cap (`OldMinecartBehavior`).
+        // The gamerule counts blocks per second (default 8), so divide by 20 ticks.
+        let max_speed = {
+            let level_info = world.level_info.load();
+            let improvements = world.server.upgrade().map_or_else(
+                || {
+                    level_info.data_packs.enabled.iter().any(|p| {
+                        p == "minecart_improvements" || p == "file/minecart_improvements"
+                    })
+                },
+                |s| s.is_feature_enabled("minecraft:minecart_improvements"),
+            );
+            if improvements {
+                level_info.game_rules.max_minecart_speed as f64 / 20.0
+            } else {
+                0.4
+            }
+        };
         let pos = self.vehicle.entity.pos.load();
         let mut block_pos = BlockPos(Vector3::new(
             pos.x.floor() as i32,
@@ -288,7 +307,7 @@ impl EntityBase for MinecartEntity {
                     let mut velocity = self.vehicle.entity.velocity.load();
                     let speed = velocity.length();
                     if speed > 0.01 {
-                        let new_speed = (speed + 0.06).min(0.4);
+                        let new_speed = (speed + 0.06).min(max_speed);
                         velocity = velocity
                             .normalize()
                             .multiply(new_speed, new_speed, new_speed);
@@ -402,10 +421,10 @@ impl EntityBase for MinecartEntity {
                         .x
                         .hypot(self.vehicle.entity.velocity.load().z);
 
-                    let max_speed = old_speed.clamp(0.15, 0.4);
-                    if speed > max_speed {
-                        velocity.x = (velocity.x / speed) * max_speed;
-                        velocity.z = (velocity.z / speed) * max_speed;
+                    let driver_max_speed = old_speed.clamp(0.15, max_speed.max(0.15));
+                    if speed > driver_max_speed {
+                        velocity.x = (velocity.x / speed) * driver_max_speed;
+                        velocity.z = (velocity.z / speed) * driver_max_speed;
                     }
                 }
                 self.vehicle.entity.velocity.store(velocity);
