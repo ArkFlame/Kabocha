@@ -1146,6 +1146,9 @@ impl Slot for ResultSlot {
                 }
             }
         }
+        // Throw-all keeps taking until the slot's stack changes, so the result must
+        // follow the inputs now rather than on the next content update.
+        self.refill_output();
         self.mark_dirty();
     }
     fn can_insert(&self, _stack: &ItemStack) -> bool {
@@ -1570,6 +1573,25 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         assert_eq!(drops.len(), 1);
         assert_eq!(drops[0].item.id, Item::BUCKET.id);
+    }
+
+    #[test]
+    fn throwing_all_from_the_result_slot_stops_when_the_inputs_run_out() {
+        let (mut handler, _, player) = test_handler();
+        set_slot(&handler, 1, ItemStack::new(2, &Item::OAK_LOG));
+        refresh_result(&handler);
+        assert_eq!(grid_stack(&handler, 0).item.id, Item::OAK_PLANKS.id);
+
+        handler.on_slot_click(0, 1, SlotActionType::Throw, &player);
+
+        let drops = player
+            .drops
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let dropped: usize = drops.iter().map(|stack| usize::from(stack.item_count)).sum();
+        assert_eq!(dropped, 8);
+        assert!(grid_stack(&handler, 1).is_empty());
+        assert!(!handler.get_behaviour().slots[0].has_stack());
     }
 
     #[test]
