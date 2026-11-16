@@ -50,12 +50,12 @@ fn boost_vehicle(
 }
 
 impl ItemBehaviour for CarrotOnAStickItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         item: &Item,
         player: &Player,
@@ -78,12 +78,12 @@ impl ItemMetadata for WarpedFungusOnAStickItem {
 }
 
 impl ItemBehaviour for WarpedFungusOnAStickItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         item: &Item,
         player: &Player,

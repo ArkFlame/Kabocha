@@ -582,11 +582,14 @@ pub(crate) fn dispense_filled_bucket_at(
     direction: BlockDirection,
     bucket_stack: &ItemStack,
 ) -> bool {
-    let Some(place_pos) =
-        try_place_liquid(world, bucket_stack.item, dispenser_pos, direction, false, |_| {
-            true
-        })
-    else {
+    let Some(place_pos) = try_place_liquid(
+        world,
+        bucket_stack.item,
+        dispenser_pos,
+        direction,
+        false,
+        |_| true,
+    ) else {
         return false;
     };
     finish_empty_filled_bucket(world, bucket_stack, place_pos, None);
@@ -594,16 +597,19 @@ pub(crate) fn dispense_filled_bucket_at(
 }
 
 impl ItemBehaviour for EmptyBucketItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_rotation(&self, item: &Item, player: &Player, yaw: f32, pitch: f32) {
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
-    }
-
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+    fn normal_use_with_rotation(
+        &self,
+        item: &Item,
+        player: &Player,
+        yaw: f32,
+        pitch: f32,
+        hand: Hand,
+    ) {
         let world = player.world();
         let (start_pos, end_pos) = self.get_start_and_end_pos_with_rotation(player, yaw, pitch);
 
@@ -744,16 +750,19 @@ impl FilledBucketItem {
 }
 
 impl ItemBehaviour for FilledBucketItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_rotation(&self, item: &Item, player: &Player, yaw: f32, pitch: f32) {
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
-    }
-
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+    fn normal_use_with_rotation(
+        &self,
+        item: &Item,
+        player: &Player,
+        yaw: f32,
+        pitch: f32,
+        hand: Hand,
+    ) {
         let world = player.world();
         let (start_pos, end_pos) = self.get_start_and_end_pos_with_rotation(player, yaw, pitch);
         let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
@@ -815,7 +824,7 @@ impl ItemBehaviour for FilledBucketItem {
 }
 
 impl ItemBehaviour for MilkBucketItem {
-    fn normal_use(&self, _item: &Item, _player: &Player) {
+    fn normal_use(&self, _item: &Item, _player: &Player, _hand: Hand) {
         // Drinking is handled by the consumable flow in the server (active hand + consumption tick).
     }
 

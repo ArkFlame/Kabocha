@@ -37,7 +37,7 @@ impl ItemMetadata for SpearItem {
 }
 
 impl ItemBehaviour for SpearItem {
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

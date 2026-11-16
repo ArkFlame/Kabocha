@@ -31,12 +31,12 @@ fn dynamic_recipe_id(recipe: &DynamicRecipe) -> &str {
 }
 
 impl ItemBehaviour for KnowledgeBookItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

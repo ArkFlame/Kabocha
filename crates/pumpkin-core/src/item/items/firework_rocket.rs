@@ -41,14 +41,14 @@ impl ItemBehaviour for FireworkRocketItem {
         BlockActionResult::Pass
     }
 
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
     // Vanilla `FireworkRocketItem.use`: only while fall flying (gliding) does it spawn the
     // owner-attached rocket and consume the item; on the ground it passes and does nothing.
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

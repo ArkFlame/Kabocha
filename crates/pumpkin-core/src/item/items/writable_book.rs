@@ -15,11 +15,11 @@ impl ItemMetadata for WritableBookItem {
 }
 
 impl ItemBehaviour for WritableBookItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
-        self.normal_use_with_hand(item, player, 0.0, 0.0, Hand::Right);
+    fn normal_use(&self, item: &Item, player: &Player, hand: Hand) {
+        self.normal_use_with_rotation(item, player, 0.0, 0.0, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         item: &Item,
         player: &Player,

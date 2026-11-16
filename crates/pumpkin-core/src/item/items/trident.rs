@@ -150,7 +150,7 @@ impl TridentItem {
 }
 
 impl ItemBehaviour for TridentItem {
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

@@ -239,12 +239,19 @@ pub(crate) fn prepare_egg_mob(
 }
 
 impl ItemBehaviour for SpawnEggItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+    fn normal_use_with_rotation(
+        &self,
+        item: &Item,
+        player: &Player,
+        yaw: f32,
+        pitch: f32,
+        hand: Hand,
+    ) {
         let mut stack = player.inventory.get_stack_in_hand(hand);
         if stack.is_empty() || stack.item.id != item.id {
             return;

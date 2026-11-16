@@ -74,7 +74,14 @@ impl ItemBehaviour for EnderEyeItem {
         BlockActionResult::Success
     }
 
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+    fn normal_use_with_rotation(
+        &self,
+        item: &Item,
+        player: &Player,
+        yaw: f32,
+        pitch: f32,
+        hand: Hand,
+    ) {
         let world = player.world();
 
         let (start_pos, end_pos) = self.get_start_and_end_pos_with_rotation(player, yaw, pitch);

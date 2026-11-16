@@ -23,12 +23,12 @@ const POWER: f32 = 1.5;
 const THROW_SOUND_VOLUME: f32 = 0.5;
 
 impl ItemBehaviour for SnowBallItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

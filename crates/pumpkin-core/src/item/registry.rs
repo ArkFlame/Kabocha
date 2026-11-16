@@ -57,25 +57,25 @@ impl ItemRegistry {
         }
 
         if let Some(pumpkin_item) = self.get_pumpkin_item(item.id) {
-            pumpkin_item.normal_use_with_hand(item, player, yaw, pitch, hand);
+            pumpkin_item.normal_use_with_rotation(item, player, yaw, pitch, hand);
         } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::KineticWeaponImpl>()
             .is_some()
         {
             crate::item::items::spear::SpearItem
-                .normal_use_with_hand(item, player, yaw, pitch, hand);
+                .normal_use_with_rotation(item, player, yaw, pitch, hand);
         } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::InstrumentImpl>()
             .is_some()
         {
             crate::item::items::goat_horn::GoatHornItem
-                .normal_use_with_hand(item, player, yaw, pitch, hand);
+                .normal_use_with_rotation(item, player, yaw, pitch, hand);
         } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::RecipesImpl>()
             .is_some()
         {
             crate::item::items::knowledge_book::KnowledgeBookItem
-                .normal_use_with_hand(item, player, yaw, pitch, hand);
+                .normal_use_with_rotation(item, player, yaw, pitch, hand);
         }
 
         if let Some(cooldown) = cooldown

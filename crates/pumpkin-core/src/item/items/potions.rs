@@ -107,7 +107,7 @@ fn try_convert_to_mud(
 }
 
 impl ItemBehaviour for PotionItem {
-    fn normal_use(&self, _item: &Item, _player: &Player) {
+    fn normal_use(&self, _item: &Item, _player: &Player, _hand: pumpkin_util::Hand) {
         // Drinking is handled by the consumable flow in the server (active hand + consumption tick).
     }
 
@@ -143,12 +143,12 @@ impl ItemBehaviour for SplashPotionItem {
         try_convert_to_mud(item, player, location, face, block)
     }
 
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,
@@ -213,12 +213,12 @@ impl ItemBehaviour for LingeringPotionItem {
         try_convert_to_mud(item, player, location, face, block)
     }
 
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
-    fn normal_use_with_hand(
+    fn normal_use_with_rotation(
         &self,
         _item: &Item,
         player: &Player,

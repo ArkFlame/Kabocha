@@ -6,7 +6,7 @@ use crate::enchantment::EnchantmentHelper;
 use crate::entity::Entity;
 use crate::entity::player::Player;
 use crate::entity::projectile::fishing_bobber::FishingBobberEntity;
-use crate::item::{ItemBehaviour, ItemMetadata, hand_holding};
+use crate::item::{ItemBehaviour, ItemMetadata};
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
@@ -30,14 +30,20 @@ fn bobber_sound_pitch(random: f32) -> f32 {
 }
 
 impl ItemBehaviour for FishingRodItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
+    fn normal_use(&self, item: &Item, player: &Player, hand: Hand) {
         let (yaw, pitch) = player.rotation();
-        let hand = hand_holding(player, item);
-        self.normal_use_with_hand(item, player, yaw, pitch, hand);
+        self.normal_use_with_rotation(item, player, yaw, pitch, hand);
     }
 
     /// Vanilla `FishingRodItem.use`: cast when no bobber is out, otherwise reel the current one in.
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+    fn normal_use_with_rotation(
+        &self,
+        item: &Item,
+        player: &Player,
+        yaw: f32,
+        pitch: f32,
+        hand: Hand,
+    ) {
         let world = player.world();
         let inventory = player.inventory();
         let used_item = inventory.get_stack_in_hand(hand);
