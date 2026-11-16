@@ -22,6 +22,7 @@ use crate::{
         drop_loot,
     },
     entity::{Entity, EntityBase, projectile::is_redirectable, tnt::TNTEntity},
+    net::ClientPlatform,
     world::loot::LootContextParameters,
 };
 
@@ -182,6 +183,11 @@ impl ExplosionDamageCalculator for SimpleExplosionDamageCalculator {
     fn get_knockback_multiplier(&self, _entity: &dyn EntityBase) -> f32 {
         self.knockback_multiplier.unwrap_or(1.0)
     }
+}
+
+pub struct ExplosionResult {
+    pub block_count: u32,
+    pub player_knockback: FxHashMap<i32, Vector3<f64>>,
 }
 
 pub struct Explosion<'a> {
@@ -527,10 +533,11 @@ impl<'a> Explosion<'a> {
         (map, affected_positions)
     }
 
-    fn damage_entities(&self, world: &Arc<World>) {
+    fn damage_entities(&self, world: &Arc<World>) -> FxHashMap<i32, Vector3<f64>> {
+        let mut player_knockback = FxHashMap::default();
         // Explosion is too small
         if self.power < 1.0e-5 {
-            return;
+            return player_knockback;
         }
 
         let radius = self.power as f64 * 2.0;
@@ -633,12 +640,21 @@ impl<'a> Explosion<'a> {
                     Some(knockback)
                 };
                 if let Some(knockback) = knockback {
-                    entity.add_velocity(knockback);
+                    if entity_base.get_player().is_some_and(|player| {
+                        matches!(player.client.as_ref(), ClientPlatform::Java(_))
+                    }) {
+                        // Java applies this impulse to its own current motion in handleExplosion.
+                        // Sending server velocity would replay previous client-authoritative launches.
+                        player_knockback.insert(entity.entity_id, knockback);
+                    } else {
+                        entity.add_velocity(knockback);
+                    }
                 }
             }
 
             self.on_explosion_hit(entity_base.as_ref());
         }
+        player_knockback
     }
 
     /// A pushed redirectable projectile now belongs to whoever caused the explosion, and a player remembers the
@@ -721,14 +737,18 @@ impl<'a> Explosion<'a> {
         visible_points as f32 / total_points as f32
     }
 
-    /// Returns the removed block count
-    pub fn explode(&self, world: &Arc<World>) -> u32 {
-        self.explode_with_fire_roll(world, || rand::rng().random_range(0..3))
+    /// Damages entities, then interacts with blocks. Returns the removed block count and the
+    /// knockback owed to Java players, who apply it themselves.
+    pub fn explode(&self, world: &Arc<World>) -> ExplosionResult {
+        let player_knockback = self.damage_entities(world);
+        let block_count = self.explode_with_fire_roll(world, || rand::rng().random_range(0..3));
+        ExplosionResult {
+            block_count,
+            player_knockback,
+        }
     }
 
     fn explode_with_fire_roll(&self, world: &Arc<World>, mut fire_roll: impl FnMut() -> u8) -> u32 {
-        self.damage_entities(world);
-
         match self.block_interaction {
             BlockInteraction::Keep => {
                 if self.create_fire {

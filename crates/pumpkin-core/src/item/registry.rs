@@ -169,10 +169,9 @@ impl ItemRegistry {
             BlockActionResult::Pass
         };
 
-        if matches!(
-            result,
-            BlockActionResult::Success | BlockActionResult::SuccessServer
-        ) && let Some(cooldown) = cooldown
+        // Block items are placed by the caller after Pass, so retain their cooldown.
+        if (result.consumes_action() || Block::from_item_id(stack.item.id).is_some())
+            && let Some(cooldown) = cooldown
         {
             player.start_cooldown(cooldown_group, (cooldown.seconds * 20.0) as i32);
         }

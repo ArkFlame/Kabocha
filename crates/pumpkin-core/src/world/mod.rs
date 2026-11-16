@@ -4444,7 +4444,7 @@ impl World {
             return;
         }
 
-        let block_count = explosion.explode(self);
+        let result = explosion.explode(self);
         let particle = explosion.particle();
         let sound = IdOr::<SoundEvent>::Id(explosion.sound() as u16);
         for player in self.players.load().iter() {
@@ -4454,8 +4454,8 @@ impl World {
             player.try_send_client_packet(&CExplosion::new(
                 position,
                 power,
-                block_count as i32,
-                None,
+                result.block_count as i32,
+                result.player_knockback.get(&player.entity_id()).copied(),
                 VarInt(particle as i32),
                 sound.clone(),
             ));
