@@ -3663,6 +3663,18 @@ impl Player {
         starting_time: i32,
     ) -> bool {
         let time = self.tick_counter.load(Ordering::Relaxed) - starting_time;
+        // Vanilla clients no longer loop the block hit sound locally while mining, the server
+        // repeats it every 4 ticks with the same volume and pitch the client used to apply.
+        if time > 0 && time % 4 == 0 {
+            let sound_type = state.get_sound_type();
+            world.play_sound_fine(
+                sound_type.hit_sound,
+                SoundCategory::Blocks,
+                &location.to_centered_f64(),
+                (sound_type.volume + 1.0) / 8.0,
+                sound_type.pitch * 0.5,
+            );
+        }
         let speed = block::calc_block_breaking(self, state, Block::from_state_id(state.id));
         let total_progress = speed * (time + 1) as f32;
         let stage = (total_progress * 10.0) as i32;
