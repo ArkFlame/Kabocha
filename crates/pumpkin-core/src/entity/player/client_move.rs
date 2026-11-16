@@ -140,6 +140,7 @@ impl Player {
             'after: {
                 if event.is_flying {
                     self.living_entity.fall_distance.store(0.0);
+                    self.stop_glide_for_flight();
                 }
                 self.abilities.lock().unwrap_or_else(std::sync::PoisonError::into_inner).flying = event.is_flying;
                 self.send_abilities_update();
