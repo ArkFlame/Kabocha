@@ -96,3 +96,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #4118 (PR, skipped: screen_handler.rs:981)
 - #3965 (PR, skipped: hopper.rs:299)
 - #4120 (PR, skipped: living.rs:3387 do_hurt_equipment)
+- #3827 (PR, skipped: block.rs:188 BlockArgumentType)
