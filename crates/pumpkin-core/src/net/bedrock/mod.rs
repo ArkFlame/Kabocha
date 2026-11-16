@@ -3,7 +3,7 @@ pub mod play;
 pub(crate) mod recipe;
 use crossbeam::atomic::AtomicCell;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     io::{Cursor, Error, Write},
     net::SocketAddr,
     sync::{
@@ -1298,7 +1298,12 @@ impl BedrockClient {
                 cache.remove(hash);
             }
             let mut missing_blobs = Vec::with_capacity(packet.miss_hashes.len());
+            let mut requested_hashes = HashSet::with_capacity(packet.miss_hashes.len());
             for hash in packet.miss_hashes {
+                // Repeated requests must not duplicate payloads before the queue limit check.
+                if !requested_hashes.insert(hash) {
+                    continue;
+                }
                 if let Some(blob) = cache.get(hash) {
                     missing_blobs.push(MissingBlobData {
                         blob_id: hash,
