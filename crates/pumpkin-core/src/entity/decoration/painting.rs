@@ -1,6 +1,7 @@
 use core::f32;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::entity::decoration::hanging::{self, DEPTH};
 use crossbeam::atomic::AtomicCell;
 use pumpkin_nbt::tag::NbtTag;
 
@@ -17,6 +18,7 @@ use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::Metadata;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::version::JavaMinecraftVersion;
@@ -98,6 +100,22 @@ impl PaintingEntity {
     /// Painting variant is a Holder with an inline form: 0 = inline data, registry id is sent +1.
     fn variant_holder_id(&self) -> VarInt {
         VarInt(self.variant_id.load(Ordering::Relaxed) as i32 + 1)
+    }
+
+    /// Vanilla `Painting.calculateBoundingBox`, around the already wall-shifted position.
+    #[must_use]
+    pub fn hanging_bounding_box(&self) -> BoundingBox {
+        let facing = BlockDirection::from_index(self.entity.data.load(Ordering::Relaxed) as u8)
+            .unwrap_or(BlockDirection::South);
+        let variant = self.variant();
+        let step = facing.to_offset();
+        let width = f64::from(variant.width());
+        let size = Vector3::new(
+            if step.x == 0 { width } else { DEPTH },
+            f64::from(variant.height()),
+            if step.z == 0 { width } else { DEPTH },
+        );
+        hanging::box_of_size(self.entity.pos.load(), size)
     }
 
     pub fn sync_variant(&self) {

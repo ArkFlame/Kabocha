@@ -61,7 +61,7 @@ use crate::{
     },
     command::client_suggestions,
     entity::{
-        Entity, EntityBase, RemovalReason,
+        Entity, EntityBase, RemovalReason, decoration::item_frame::ItemFrameEntity,
         player::Player,
         r#type::{load_entity_from_nbt, load_static_entity_from_nbt, self_and_passengers},
     },
@@ -7617,6 +7617,23 @@ impl World {
         except: Option<BlockDirection>,
     ) {
         neighbor_updater::update_neighbors_at(self, block_pos, source_block, except);
+        self.check_hanging_support_around(block_pos);
+    }
+
+    /// Lets item frames next to `block_pos` drop if the block they hang on is gone.
+    fn check_hanging_support_around(&self, block_pos: &BlockPos) {
+        for entity in self.entities.load().iter() {
+            if let Some(frame) = entity.cast_any().downcast_ref::<ItemFrameEntity>()
+                && frame
+                    .get_entity()
+                    .block_pos
+                    .load()
+                    .manhattan_distance(*block_pos)
+                    == 1
+            {
+                frame.check_support();
+            }
+        }
     }
 
     /// Updates neighboring blocks of a block
