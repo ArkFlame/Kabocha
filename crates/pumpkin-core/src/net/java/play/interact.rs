@@ -33,6 +33,9 @@ impl JavaClient {
             .or_else(|| world.get_entity_by_id(entity_id.0));
 
         if let Some(target) = target {
+            if !player.can_interact_with_entity(target.as_ref(), 1.0) {
+                return;
+            }
             if player.gamemode.load() == GameMode::Spectator {
                 player.camera_target_id.store(Some(entity_id.0));
                 player.try_send_client_packet(&CSetCamera::new(entity_id));
