@@ -151,3 +151,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3508 (PR) merged
 - #4368 (PR) merged
 - #3905 (PR) merged
+- #3961 (PR, skipped: boat.rs already has chest boat inventory)
