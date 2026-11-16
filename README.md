@@ -33,6 +33,9 @@ curl -sSfL https://pumpkinmc.org/install.sh | sh
 
 Or grab a prebuilt binary from the [Download page](https://pumpkinmc.org/download/) (also available on [GitHub Releases](https://github.com/Pumpkin-MC/Pumpkin/releases)). See the [Quick Start guide](https://docs.pumpkinmc.org/#quick-start) and [Documentation](https://docs.pumpkinmc.org/) for setup details.
 
+> [!NOTE]
+> Prebuilt Linux binaries are linked against glibc and run on glibc-based distributions (Debian, Ubuntu, Fedora, ...) and on the official Docker image. Alpine Linux and other musl-based distributions are not supported: a musl build is significantly slower than glibc.
+
 ## Goals
 
 - **Performance**: Leveraging multi-threading for maximum speed and efficiency.
