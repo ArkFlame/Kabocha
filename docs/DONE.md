@@ -172,3 +172,5 @@ Format: `- #N (PR|issue) title [commit]`
 - #3697 (PR, skipped: firework core present; elytra boost/attached rockets missing, see QUEUE)
 - batch 9 landed (3079 3706 3896 3684 3612 3861 4444 3493 4561)
 - #4181 (PR, skipped: reduction present registry.rs:1319)
+- batch 10 landed (3075 3860 4392 4535 4093 3903 4482)
+- #4054 (PR, skipped: item merge present entity/item.rs:44)
