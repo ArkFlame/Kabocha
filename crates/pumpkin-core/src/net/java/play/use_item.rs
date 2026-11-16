@@ -122,9 +122,7 @@ impl JavaClient {
                     && (equippable.slot.slot_type()
                         == pumpkin_data::data_component_impl::EquipmentType::HumanoidArmor
                         || matches!(equippable.slot, EquipmentSlot::OffHand(_)))
-                    && equippable.allowed_entities.as_ref().is_none_or(|allowed| {
-                        allowed.contains(&pumpkin_data::entity::EntityType::PLAYER)
-                    })
+                    && equippable.can_be_equipped_by(player.get_entity().entity_type)
             })
             .map(|equippable| equippable.slot.clone());
         if let Some(slot) = equipment_slot {
