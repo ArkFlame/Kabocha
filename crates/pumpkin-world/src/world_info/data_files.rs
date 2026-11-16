@@ -665,11 +665,12 @@ pub fn write_scheduled_events_stub(
     level_folder: &Path,
     data_version: i32,
 ) -> Result<(), WorldInfoError> {
-    let dir = ensure_minecraft_data_dir(level_folder)?;
-    let path = dir.join("scheduled_events.dat");
-    if path.exists() {
+    // Until events can be loaded, do not shadow imported events with an empty root file.
+    if find_data_file(level_folder, "scheduled_events.dat").is_some() {
         return Ok(());
     }
+    let dir = ensure_minecraft_data_dir(level_folder)?;
+    let path = dir.join("scheduled_events.dat");
 
     let mut inner = NbtCompound::new();
     inner.put("events", NbtTag::List(vec![]));
@@ -760,5 +761,20 @@ mod tests {
         fs::create_dir_all(root_file.parent().unwrap()).unwrap();
         fs::write(&root_file, b"root").unwrap();
         assert_eq!(find_data_file(temp.path(), "game_rules.dat"), Some(root_file));
+    }
+
+    #[test]
+    fn scheduled_events_stub_does_not_shadow_paper_file() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let paper_file = paper_data_dir(temp.path()).join("scheduled_events.dat");
+        fs::create_dir_all(paper_file.parent().unwrap()).unwrap();
+        fs::write(&paper_file, b"paper").unwrap();
+
+        write_scheduled_events_stub(temp.path(), 1).unwrap();
+
+        assert!(!minecraft_data_dir(temp.path())
+            .join("scheduled_events.dat")
+            .exists());
+        assert_eq!(fs::read(&paper_file).unwrap(), b"paper");
     }
 }
