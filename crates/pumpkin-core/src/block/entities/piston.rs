@@ -5,6 +5,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::{Block, BlockDirection, BlockState};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
+use pumpkin_world::block::BlockStateCodec;
 
 use crate::world::{BlockFlags, World};
 
@@ -209,6 +210,7 @@ impl PistonBlockEntity {
 }
 
 const FACING: &str = "facing";
+const BLOCK_STATE: &str = "blockState";
 const LAST_PROGRESS: &str = "progress";
 const EXTENDING: &str = "extending";
 const SOURCE: &str = "source";
@@ -258,8 +260,10 @@ impl BlockEntity for PistonBlockEntity {
     where
         Self: Sized,
     {
-        // TODO
-        let pushed_block_state = Block::AIR.default_state;
+        let pushed_block_state = nbt
+            .get_compound(BLOCK_STATE)
+            .and_then(BlockStateCodec::state_from_nbt)
+            .map_or(Block::AIR.default_state, BlockState::from_id);
         let facing = nbt.get_byte(FACING).unwrap_or(0);
         let last_progress = nbt.get_float(LAST_PROGRESS).unwrap_or(0.0);
         let extending = nbt.get_bool(EXTENDING).unwrap_or(false);
@@ -277,7 +281,10 @@ impl BlockEntity for PistonBlockEntity {
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
-        // TODO: pushed_block_state
+        nbt.put_compound(
+            BLOCK_STATE,
+            BlockStateCodec::state_to_nbt(self.pushed_block_state.id),
+        );
         nbt.put_byte(FACING, self.facing.to_index() as i8);
         nbt.put_float(LAST_PROGRESS, self.last_progress.load());
         nbt.put_bool(EXTENDING, self.extending);
@@ -286,7 +293,10 @@ impl BlockEntity for PistonBlockEntity {
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         let mut nbt = NbtCompound::new();
-        // TODO: pushed_block_state
+        nbt.put_compound(
+            BLOCK_STATE,
+            BlockStateCodec::state_to_nbt(self.pushed_block_state.id),
+        );
         nbt.put_byte(FACING, self.facing.to_index() as i8);
         nbt.put_float(LAST_PROGRESS, self.last_progress.load());
         nbt.put_bool(EXTENDING, self.extending);
@@ -297,5 +307,34 @@ impl BlockEntity for PistonBlockEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use pumpkin_data::{Block, BlockDirection};
+    use pumpkin_nbt::compound::NbtCompound;
+    use pumpkin_util::math::position::BlockPos;
+
+    use super::PistonBlockEntity;
+    use crate::block::entities::BlockEntity;
+
+    #[test]
+    fn pushed_block_state_survives_nbt_round_trip() {
+        let state = Block::OAK_PLANKS.default_state;
+        let entity = PistonBlockEntity {
+            position: BlockPos::new(1, 2, 3),
+            pushed_block_state: state,
+            facing: BlockDirection::Up,
+            current_progress: 0.5f32.into(),
+            last_progress: 0.0f32.into(),
+            last_ticked: 0.into(),
+            extending: true,
+            source: false,
+        };
+        let mut nbt = NbtCompound::new();
+        entity.write_nbt(&mut nbt);
+        let restored = PistonBlockEntity::from_nbt(&nbt, BlockPos::new(1, 2, 3));
+        assert_eq!(restored.pushed_block_state.id, state.id);
     }
 }
