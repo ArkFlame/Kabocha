@@ -2388,12 +2388,7 @@ impl pumpkin::plugin::player::HostPlayer for PluginHostState {
         port: u16,
     ) -> wasmtime::Result<()> {
         let player = self.get(&player)?;
-        if let pumpkin_core::net::ClientPlatform::Java(client) = player.client.as_ref() {
-            client.try_send_packet(&pumpkin_protocol::java::client::play::CTransfer::new(
-                &host,
-                pumpkin_protocol::codec::var_int::VarInt(i32::from(port)),
-            ));
-        }
+        player.transfer(&host, port);
         Ok(())
     }
 
