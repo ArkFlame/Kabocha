@@ -5007,9 +5007,8 @@ impl Entity {
             return false;
         }
         *leashed_to = Some(Arc::downgrade(holder));
-        // The effects go out under the same lock, so a later unleash is applied and sent after them.
-        self.send_leash_attached(holder);
         drop(leashed_to);
+        self.send_leash_attached(holder);
         true
     }
 
@@ -5035,17 +5034,15 @@ impl Entity {
     }
 
     pub fn attach_leash(&self, holder: &Arc<dyn EntityBase>) {
-        let mut leashed_to = self
+        *self
             .leashed_to
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *leashed_to = Some(Arc::downgrade(holder));
-        // Sent under the same lock, so clients get leash changes in the order they happened.
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::downgrade(holder));
         self.send_leash_attached(holder);
-        drop(leashed_to);
     }
 
-    /// Resets the leash motion and tells clients about the new holder. Does not lock `leashed_to`.
+    /// Resets the leash motion and tells clients about the new holder. Call it without holding
+    /// `leashed_to`: sending the packet runs plugin handlers that may lock it again.
     fn send_leash_attached(&self, holder: &Arc<dyn EntityBase>) {
         let holder_entity_id = holder.get_entity().entity_id;
         self.leash_angular_momentum.store(0.0);
@@ -5195,18 +5192,18 @@ impl Entity {
         true
     }
 
-    /// Removes the leash, returning whether this call took the connection.
+    /// Removes the leash, returning whether this call took the connection. The packet is sent
+    /// after `leashed_to` is released, because plugin handlers may lock it again.
     pub fn remove_leash(&self) -> bool {
-        let mut leashed_to = self
+        let removed = self
             .leashed_to
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let removed = leashed_to.take().is_some();
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            .is_some();
         if removed {
-            // Sent under the same lock, so clients get leash changes in the order they happened.
             self.send_leash_removed();
         }
-        drop(leashed_to);
         removed
     }
 
