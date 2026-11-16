@@ -429,10 +429,11 @@ impl BlockBehaviour for FireBlock {
                                     }
                                 }
 
+                                // Vanilla places spread fire with flag 3: clients must see it.
                                 world.set_block_state(
                                     &offset_pos,
                                     new_state_id,
-                                    BlockFlags::NOTIFY_NEIGHBORS,
+                                    BlockFlags::NOTIFY_ALL,
                                 );
                             }
                         }
