@@ -740,6 +740,8 @@ pub struct Player {
     pub per_player_time: AtomicCell<Option<(u64, bool)>>,
     pub per_player_weather: AtomicCell<Option<PlayerWeather>>,
     pub custom_scoreboard: std::sync::Mutex<Option<CustomScoreboard>>,
+    /// Set once the join sends the full scoreboard state; scoreboard changes before that are only stored.
+    pub scoreboard_synced: AtomicBool,
     pub compass_target: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub respawn_location: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub hidden_players: Mutex<std::collections::HashSet<uuid::Uuid>>,
@@ -1109,6 +1111,7 @@ impl Player {
             per_player_time: AtomicCell::new(None),
             per_player_weather: AtomicCell::new(None),
             custom_scoreboard: std::sync::Mutex::new(None),
+            scoreboard_synced: AtomicBool::new(false),
             compass_target: AtomicCell::new(None),
             respawn_location: AtomicCell::new(None),
             hidden_players: Mutex::new(std::collections::HashSet::new()),

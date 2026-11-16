@@ -78,11 +78,17 @@ impl ScoreboardTarget for Player {
         je_packet: &J,
         be_packet: &B,
     ) {
-        self.try_enqueue_packet_editioned(je_packet, be_packet);
+        // Before the initial scoreboard state is sent on join, changes are only stored;
+        // the full state sent by `spawn_java_player` includes them.
+        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+            self.try_enqueue_packet_editioned(je_packet, be_packet);
+        }
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        self.try_send_client_packet(je_packet);
+        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+            self.try_send_client_packet(je_packet);
+        }
     }
 }
 
@@ -92,11 +98,17 @@ impl ScoreboardTarget for std::sync::Arc<Player> {
         je_packet: &J,
         be_packet: &B,
     ) {
-        self.try_enqueue_packet_editioned(je_packet, be_packet);
+        // Before the initial scoreboard state is sent on join, changes are only stored;
+        // the full state sent by `spawn_java_player` includes them.
+        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+            self.try_enqueue_packet_editioned(je_packet, be_packet);
+        }
     }
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
-        self.try_send_client_packet(je_packet);
+        if self.scoreboard_synced.load(std::sync::atomic::Ordering::Relaxed) {
+            self.try_send_client_packet(je_packet);
+        }
     }
 }
 
