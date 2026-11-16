@@ -379,6 +379,15 @@ impl CreakingEntity {
 }
 
 impl Mob for CreakingEntity {
+    /// Vanilla `Creaking.getAmbientSound`: silent while active.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        if self.is_active() {
+            None
+        } else {
+            Some(Sound::EntityCreakingAmbient)
+        }
+    }
+
     fn mob_is_pushable(&self) -> bool {
         self.mob_entity.living_entity.is_pushable() && self.can_move()
     }
