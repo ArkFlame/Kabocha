@@ -841,7 +841,7 @@ impl DispenserBlock {
         item: &mut ItemStack,
     ) {
         let front = Self::target_position(ctx);
-        let Some(filled) = try_pickup_fluid_at(ctx.world, front) else {
+        let Some(filled) = try_pickup_fluid_at(ctx.world, front, |_, _| true) else {
             Self::drop_item(ctx, item);
             return;
         };
