@@ -452,7 +452,9 @@ impl Mob for CatEntity {
             }
         };
         let entity = self.get_entity();
-        entity.set_pose(pose);
+        // The crouch is cosmetic: vanilla `LivingEntity.getDimensions` only swaps boxes for
+        // `Sleeping`, so the pose must not resize the hitbox to the player-sized pose table.
+        entity.set_pose_keep_dimensions(pose);
         if entity.is_sprinting() != sprinting {
             entity.set_sprinting(sprinting);
         }

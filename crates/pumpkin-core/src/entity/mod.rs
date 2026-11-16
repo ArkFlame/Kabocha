@@ -4830,7 +4830,21 @@ impl Entity {
         self.synched_data.clear_dirty();
     }
 
+    /// Sets the pose, recalculating the dimensions for it.
     pub fn set_pose(&self, pose: EntityPose) {
+        self.set_pose_inner(pose, true);
+    }
+
+    /// Vanilla `Entity.setPose` shape: sync the pose without recalculating dimensions.
+    ///
+    /// Vanilla refreshes dimensions in a separate `refreshDimensions` call, and
+    /// `LivingEntity.getDimensions` only swaps boxes for `Sleeping`, so a mob whose pose is
+    /// cosmetic (the feline crouch) keeps its species dimensions.
+    pub fn set_pose_keep_dimensions(&self, pose: EntityPose) {
+        self.set_pose_inner(pose, false);
+    }
+
+    fn set_pose_inner(&self, pose: EntityPose, refresh_dimensions: bool) {
         if self.pose.load() == pose {
             return;
         }
@@ -4853,7 +4867,9 @@ impl Entity {
         let pose = pose as i32;
         let mut bedrock_meta = SyncedActorDataList::new();
         bedrock_meta.set(entity_data_key::POSE_INDEX, MetadataValue::Int(pose));
-        self.refresh_dimensions_into(&mut bedrock_meta);
+        if refresh_dimensions {
+            self.refresh_dimensions_into(&mut bedrock_meta);
+        }
         self.set_synced_data(tracked_data::entity::DATA_POSE, VarInt(pose));
         self.send_bedrock_actor_data(&bedrock_meta);
     }

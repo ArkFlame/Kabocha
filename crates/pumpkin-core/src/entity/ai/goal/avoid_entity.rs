@@ -26,7 +26,7 @@ pub type ThreatSelector = fn(&dyn Mob, &dyn EntityBase) -> bool;
 
 /// The default selector: no creative or spectator players.
 pub fn not_creative_or_spectator(_mob: &dyn Mob, candidate: &dyn EntityBase) -> bool {
-    EntityPredicate::ExceptCreativeOrSpectator.test(candidate.get_entity())
+    EntityPredicate::ExceptCreativeOrSpectator.test(candidate)
 }
 
 /// Fish and pandas: creative players count too.

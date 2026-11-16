@@ -137,7 +137,7 @@ impl PlaceBlockGoal {
             .iter()
             .any(|other| {
                 other.get_entity().entity_id != enderman_id
-                    && EntityPredicate::ExceptSpectator.test(other.get_entity())
+                    && EntityPredicate::ExceptSpectator.test(other.as_ref())
             })
     }
 }

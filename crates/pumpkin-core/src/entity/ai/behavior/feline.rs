@@ -21,13 +21,14 @@ pub const TEMPT_SPEED: f64 = 0.6;
 pub const SPRINT_SPEED: f64 = 1.33;
 const STROLL_PROBABILITY: f32 = 1.000_000_1E-5;
 
+/// The ocelot's fish tempt goal; player movement only startles it while `gate` holds
+/// (vanilla `OcelotTemptGoal#canScare` is false once the ocelot trusts you).
 #[must_use]
-pub fn tempt_goal() -> Box<TemptGoal> {
-    Box::new(TemptGoal::with_tag(
-        TEMPT_SPEED,
-        &tag::Item::MINECRAFT_OCELOT_FOOD,
-        true,
-    ))
+pub fn tempt_goal(gate: MobFilter) -> Box<TemptGoal> {
+    Box::new(
+        TemptGoal::with_tag(TEMPT_SPEED, &tag::Item::MINECRAFT_OCELOT_FOOD, true)
+            .with_scare_condition(gate),
+    )
 }
 
 /// Shy of players while `gate` holds: untamed cats, wary ocelots.

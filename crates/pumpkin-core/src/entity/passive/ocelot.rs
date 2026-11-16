@@ -68,7 +68,7 @@ impl OcelotEntity {
             // Goal 1: FloatGoal (SwimGoal)
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             // Goal 3: OcelotTemptGoal
-            goal_selector.add_goal(3, feline::tempt_goal());
+            goal_selector.add_goal(3, feline::tempt_goal(is_wary));
             // Goal 4: OcelotAvoidEntityGoal (when not trusting)
             fleeing::apply(goal_selector, OCELOT_FLEES);
             // Goal 7-11: LeapAtTarget, OcelotAttack, Breed, Stroll, LookAtPlayer
@@ -135,6 +135,34 @@ impl Mob for OcelotEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    /// Vanilla `Ocelot.customServerAiStep`: pose and sprint follow the navigation speed,
+    /// identical to the cat's copy.
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        let (pose, sprinting) = {
+            let steered = self.mob_entity.steered();
+            let move_control = steered.move_control();
+            if move_control.has_wanted() {
+                let speed = move_control.get_speed_modifier();
+                if speed == feline::TEMPT_SPEED {
+                    (EntityPose::Crouching, false)
+                } else if speed == feline::SPRINT_SPEED {
+                    (EntityPose::Standing, true)
+                } else {
+                    (EntityPose::Standing, false)
+                }
+            } else {
+                (EntityPose::Standing, false)
+            }
+        };
+        let entity = self.get_entity();
+        // The crouch is cosmetic: vanilla `LivingEntity.getDimensions` only swaps boxes for
+        // `Sleeping`, so the pose must not resize the hitbox to the player-sized pose table.
+        entity.set_pose_keep_dimensions(pose);
+        if entity.is_sprinting() != sprinting {
+            entity.set_sprinting(sprinting);
+        }
     }
 
     fn mob_init_data_tracker(&self) {

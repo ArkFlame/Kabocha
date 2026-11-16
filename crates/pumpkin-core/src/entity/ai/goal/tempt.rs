@@ -42,7 +42,13 @@ pub struct TemptGoal {
     cooldown: i32,
     running: bool,
     navigation: TemptNavigation,
+    /// Extra condition combined with `can_scare` on every continue check
+    /// (`OcelotTemptGoal#canScare`).
+    scare_condition: Option<Box<TemptGate>>,
 }
+
+/// Subclass hook, ported as a closure: `OcelotTemptGoal#canScare` (trust state).
+type TemptGate = dyn Fn(&dyn Mob) -> bool + Send + Sync;
 
 impl TemptGoal {
     #[must_use]
@@ -88,7 +94,21 @@ impl TemptGoal {
             cooldown: 0,
             running: false,
             navigation: TemptNavigation::Path,
+            scare_condition: None,
         }
+    }
+
+    /// Like [`Self::new`], but the startle check additionally requires `condition`.
+    ///
+    /// Mirrors vanilla `OcelotTemptGoal#canScare`'s `&& !ocelot.isTrusting()`: a trusting
+    /// ocelot keeps following the fish instead of being startled by player movement.
+    #[must_use]
+    pub fn with_scare_condition<F>(mut self, condition: F) -> Self
+    where
+        F: Fn(&dyn Mob) -> bool + Send + Sync + 'static,
+    {
+        self.scare_condition = Some(Box::new(condition));
+        self
     }
 
     #[must_use]
@@ -235,7 +255,12 @@ impl Goal for TemptGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
-        if self.can_scare {
+        if self.can_scare
+            && self
+                .scare_condition
+                .as_ref()
+                .is_none_or(|condition| condition(mob))
+        {
             let Some(player) = self.target_player.as_ref().and_then(Weak::upgrade) else {
                 return false;
             };
