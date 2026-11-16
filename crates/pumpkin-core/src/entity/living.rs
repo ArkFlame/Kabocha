@@ -3755,6 +3755,11 @@ impl LivingEntity {
         // Fresh damage cooldown, as on a new vanilla player
         self.hurt_cooldown.store(0, Relaxed);
         self.last_damage_taken.store(0f32);
+        // Clear the panic-goal damage marker from before respawning
+        *self
+            .last_damage_type
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 
         self.entity.portal_cooldown.store(0, Relaxed);
         *self

@@ -25,6 +25,12 @@ fn panic_causes(_mob: &dyn Mob) -> &'static Tag {
     &tag::DamageType::MINECRAFT_PANIC_CAUSES
 }
 
+/// Vanilla `TamableAnimalPanicGoal`: only environmental damage (fire, lava, lightning,
+/// freezing, cactus, ...) panics, so a hit from a player does not interrupt the fight.
+pub fn panic_environmental(_mob: &dyn Mob) -> &'static Tag {
+    &tag::DamageType::MINECRAFT_PANIC_ENVIRONMENTAL_CAUSES
+}
+
 pub struct EscapeDangerGoal {
     speed: f64,
     panic_tag: PanicTag,
@@ -57,7 +63,7 @@ impl EscapeDangerGoal {
     /// not on being hit by a player or mob — vanilla's `TamableAnimalPanicGoal` default.
     #[must_use]
     pub fn new_environmental(speed: f64) -> Box<Self> {
-        Self::new(speed).with_panic_tag(|_| &tag::DamageType::MINECRAFT_PANIC_ENVIRONMENTAL_CAUSES)
+        Self::new(speed).with_panic_tag(panic_environmental)
     }
 
     #[must_use]
