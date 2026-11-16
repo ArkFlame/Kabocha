@@ -1213,10 +1213,12 @@ impl LivingEntity {
         self.get_attribute_value(&Attributes::MAX_HEALTH) as f32
     }
 
-    /// Sets the maximum health for this entity
+    /// Sets the maximum health for this entity, clamping it to the attribute's
+    /// allowed range (`minecraft:max_health` has a minimum of 1).
     pub fn set_max_health(&self, max_health: f32) {
+        let max_health = Attributes::MAX_HEALTH.sanitize_value(f64::from(max_health)) as f32;
         // Update base attribute
-        self.set_attribute_base(&Attributes::MAX_HEALTH, max_health as f64);
+        self.set_attribute_base(&Attributes::MAX_HEALTH, f64::from(max_health));
 
         // Broadcast the attribute change
         crate::entity::attributes::send_attribute_updates_for_living(
