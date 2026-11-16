@@ -53,6 +53,13 @@ impl EscapeDangerGoal {
         })
     }
 
+    /// Panics only on `#minecraft:panic_environmental_causes` damage (fire, lava, lightning…),
+    /// not on being hit by a player or mob — vanilla's `TamableAnimalPanicGoal` default.
+    #[must_use]
+    pub fn new_environmental(speed: f64) -> Box<Self> {
+        Self::new(speed).with_panic_tag(|_| &tag::DamageType::MINECRAFT_PANIC_ENVIRONMENTAL_CAUSES)
+    }
+
     #[must_use]
     pub fn tamable(speed: f64) -> Box<Self> {
         let mut goal = Self::new(speed);
