@@ -136,3 +136,9 @@ Format: `- #N (PR|issue) title [commit]`
 - #3875 (PR, skipped: block/registry.rs:882-905 already preserves block entity data)
 - #3804 (PR, skipped: block/entities/hopper.rs already has whole-stack pickup and bowl box)
 - #3636 (PR, skipped: campfire/respawn_anchor/infested/honeycomb already fixed)
+- #4131 (PR) merged
+- #3634 (PR) merged
+- #4417 (PR) merged
+- #3820 (PR) merged
+- #4501 (PR) merged
+- #3547 (PR) merged
