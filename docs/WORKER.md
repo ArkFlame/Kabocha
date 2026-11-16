@@ -1,3 +1,5 @@
+# MODE (2026-11-16, user rule): the ORCHESTRATOR evaluates each issue/PR itself (is the gap real, skip or commit) and only for items that need edits runs `scripts/impl.sh <issue|pr> <n> <guidance-file>` with EVALUATION + RECOMMENDATION + TECHNICAL GUIDANCE. Autonomous triage workers (oc-refill.sh, next-issue.sh) are paused.
+
 # Worker rules (prepended to every brief; lessons from sessions)
 Mistakes seen so far and the rule that fixes each:
 1. Private cold `CARGO_TARGET_DIR` per worker, many parallel builds -> machine load 98. **Do not run cargo at all.** If you truly must, use `scripts/cargo.sh` only.

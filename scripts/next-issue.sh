@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
 # next-issue.sh [N] -- pick N untried issues (bugs first), create worktree i<ISSUE>, write brief; prints "<ISSUE> <worktree> <brief>".
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"; touch "$KAB_RUNS/tried-issues"; n="${1:-1}"
-python3 - "$n" <<'PY' | while read -r id; do
-import re,sys
-done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))|{l.split('\t')[1] for l in open('docs/OUTCOMES.tsv') if l.startswith('issue')}
-tried=set(open('/tmp/kabocha-runs/tried-issues').read().split())
-rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-issues.tsv')]
-c=[r for r in rows if r[0] not in done|tried]
-# runtime-only areas (worldgen/protocol) need a seeded world or client; workers failed on them 7/7, so they go last
-c.sort(key=lambda r:(1 if ('worldgen' in r[2] or 'Bedrock' in r[1]) else 0, 0 if 'bug' in r[2] else 1, -int(r[0])))
-print('\n'.join(r[0] for r in c[:int(sys.argv[1])]))
-PY
+prep_issue() { # claim, check state, make worktree + brief; prints "<id> <worktree> <brief>"
+  local id="$1" st t f
   echo "$id" >> "$KAB_RUNS/tried-issues"
   # skip issues already CLOSED upstream: log to DONE.md-style list and take no slot
   st=$(timeout 20 gh issue view "$id" -R Pumpkin-MC/Pumpkin --json state -q .state 2>/dev/null)
   [ "$st" = "CLOSED" ] && { echo "- #$id (issue, skipped: closed upstream)" >> docs/DONE.md; continue; }
-  scripts/wt.sh new "i$id" >/dev/null 2>&1
+  flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "i$id" >/dev/null 2>&1
   t=$(awk -F'\t' -v n="$id" '$1==n{print $2}' docs/queue-issues.tsv)
   f="$KAB_RUNS/brief-issue$id.md"
   cat > "$f" <<B
@@ -33,4 +25,15 @@ Upstream issue #$id: "$t". Read it once: gh issue view $id -R Pumpkin-MC/Pumpkin
 <report>One line: STATUS: committed|partial|skipped|failed | ISSUE #$id | commit <hash> | files <list> | compiled: no | note <one line></report>
 B
   [ -s "$f" ] && echo "$id $KAB_WT/i$id $f"
-done
+}
+export -f prep_issue; export KAB_RUNS KAB_WT
+python3 - "$n" <<'PY' | xargs -r -P "${KAB_PREP_JOBS:-10}" -I{} bash -c 'prep_issue {}'
+import re,sys
+done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))|{l.split('\t')[1] for l in open('docs/OUTCOMES.tsv') if l.startswith('issue')}
+tried=set(open('/tmp/kabocha-runs/tried-issues').read().split())
+rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-issues.tsv')]
+c=[r for r in rows if r[0] not in done|tried]
+# runtime-only areas (worldgen/protocol) need a seeded world or client; workers failed on them 7/7, so they go last
+c.sort(key=lambda r:(1 if ('worldgen' in r[2] or 'Bedrock' in r[1]) else 0, 0 if 'bug' in r[2] else 1, -int(r[0])))
+print('\n'.join(r[0] for r in c[:int(sys.argv[1])]))
+PY
