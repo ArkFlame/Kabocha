@@ -12,7 +12,7 @@ rm -f "$KAB_RUNS/$name".{exit,out}
   cd "$dir"; export KAB_AGENT=opencode; rc=1; log="$KAB_RUNS/$name.log"
   trap '[ -f "$KAB_RUNS/$name.exit" ] || echo "${rc:-143}" >"$KAB_RUNS/$name.exit"' EXIT
   for attempt in 1 2; do
-    OPENCODE_CONFIG_CONTENT='{"mcp":{"legal-ar":{"enabled":false}}}' setsid timeout -k 10 "${KAB_OC_TIMEOUT:-1500}" opencode run -m "$KAB_OC_MODEL" --auto --title "kab:$name" \
+    setsid timeout -k 10 "${KAB_OC_TIMEOUT:-1500}" opencode run -m "$KAB_OC_MODEL" --auto --title "kab:$name" \
       "$(cat "$brief")" >"$KAB_RUNS/$name.out" 2>"$log" &
     w=$!
     while kill -0 "$w" 2>/dev/null; do
