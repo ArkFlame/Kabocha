@@ -1815,6 +1815,11 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    /// Vanilla `Mob.canUseNonMeleeWeapon`: whether the mob fights with `stack` from a distance.
+    fn can_use_non_melee_weapon(&self, _stack: &ItemStack) -> bool {
+        false
+    }
+
     fn can_use_slot(&self, _slot: &EquipmentSlot) -> bool {
         true
     }
@@ -2155,6 +2160,11 @@ pub trait Mob: EntityBase + Send + Sync {
         _cause: Option<&dyn EntityBase>,
     ) -> bool {
         self.pre_damage(damage_type, source)
+    }
+
+    /// Mobs are valid enemy targets unless their concrete type says otherwise.
+    fn mob_can_be_seen_as_enemy(&self) -> bool {
+        true
     }
 
     fn on_damage(&self, _damage_type: DamageType, _source: Option<&dyn EntityBase>) {}
@@ -2891,6 +2901,10 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
     fn is_pushed_by_fluids(&self) -> bool {
         self.mob_is_pushed_by_fluids()
+    }
+
+    fn can_be_seen_as_enemy(&self) -> bool {
+        self.mob_can_be_seen_as_enemy() && self.is_visible_and_vulnerable()
     }
 
     fn sound_source(&self) -> SoundCategory {

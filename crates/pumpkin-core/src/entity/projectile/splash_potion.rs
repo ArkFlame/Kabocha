@@ -76,6 +76,36 @@ pub(crate) fn stack_hurts_water_sensitive(stack: &ItemStack) -> bool {
     names.contains(&potion.name) || ids.contains(&u16::from(potion.id))
 }
 
+/// Whether the potion carries the `minecraft:rehydrates_axolotls` tag.
+fn rehydrates_axolotls(stack: &ItemStack) -> bool {
+    let (names, ids) = pumpkin_data::tag::Potion::MINECRAFT_REHYDRATES_AXOLOTLS;
+    stack
+        .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
+        .and_then(|contents| contents.potion_id)
+        .and_then(|id| u8::try_from(id).ok())
+        .and_then(pumpkin_data::potion::Potion::from_id)
+        .is_some_and(|potion| names.contains(&potion.name) || ids.contains(&u16::from(potion.id)))
+}
+
+/// Rehydrates the axolotls inside `search_box` when the potion carries the rehydrating tag.
+pub(crate) fn rehydrate_axolotls_around(
+    world: &Arc<crate::world::World>,
+    stack: &ItemStack,
+    search_box: &BoundingBox,
+) {
+    if !rehydrates_axolotls(stack) {
+        return;
+    }
+    for entity in world.get_all_at_box(search_box) {
+        if let Some(axolotl) = entity
+            .cast_any()
+            .downcast_ref::<crate::entity::passive::axolotl::AxolotlEntity>()
+        {
+            axolotl.rehydrate();
+        }
+    }
+}
+
 fn is_water_potion(stack: &ItemStack) -> bool {
     stack
         .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
@@ -269,6 +299,8 @@ impl EntityBase for SplashPotionEntity {
             &CWorldEvent::new(event_id, block_pos, color, false),
         );
 
+        let search_box = self.get_entity().bounding_box.load().expand(4.0, 2.0, 4.0);
+        rehydrate_axolotls_around(&world, &stack, &search_box);
         if self.hurts_water_sensitive_entities() {
             hurt_water_sensitive_entities(&world, self, &self.thrown);
         }

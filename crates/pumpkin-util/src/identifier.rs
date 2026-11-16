@@ -348,6 +348,17 @@ impl Identifier {
     }
 }
 
+// Fork fix (rust 1.101 clippy `try_from_instead_of_from_str`): implement
+// `FromStr` alongside `TryFrom<&str>` so the new lint passes without a
+// breaking change.
+impl std::str::FromStr for Identifier {
+    type Err = IdentifierError;
+
+    fn from_str(s: &str) -> IdentifierCreationResult {
+        Self::parse(s)
+    }
+}
+
 impl TryFrom<&str> for Identifier {
     type Error = IdentifierError;
 

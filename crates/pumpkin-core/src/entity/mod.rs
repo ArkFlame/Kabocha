@@ -586,10 +586,17 @@ pub trait EntityBase: Send + Sync + std::any::Any {
             .is_some_and(|living| !self.is_spectator() && living.is_alive())
     }
 
-    fn can_be_seen_as_enemy(&self) -> bool {
+    /// Default targeting gate: alive, not invulnerable and visible to anyone.
+    fn is_visible_and_vulnerable(&self) -> bool {
         self.get_living_entity()
             .is_some_and(|living| !living.entity.invulnerable.load(Ordering::Relaxed))
             && self.can_be_seen_by_anyone()
+    }
+
+    /// Enemies may target anything visible and vulnerable by default; concrete entities override this
+    /// (e.g. a playing-dead axolotl).
+    fn can_be_seen_as_enemy(&self) -> bool {
+        self.is_visible_and_vulnerable()
     }
 
     fn is_stepping_carefully(&self) -> bool {

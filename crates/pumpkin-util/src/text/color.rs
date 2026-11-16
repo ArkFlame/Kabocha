@@ -462,6 +462,17 @@ impl std::fmt::Display for NamedColor {
     }
 }
 
+// Fork fix (rust 1.101 clippy `try_from_instead_of_from_str`): implement
+// `FromStr` alongside `TryFrom<&str>` so the new lint passes without a
+// breaking change.
+impl std::str::FromStr for NamedColor {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
 impl TryFrom<&str> for NamedColor {
     type Error = ();
 

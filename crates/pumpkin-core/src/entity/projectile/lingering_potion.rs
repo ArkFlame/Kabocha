@@ -2,7 +2,8 @@ use crate::entity::projectile::owner::ProjectileOwner;
 use std::sync::RwLock;
 
 use crate::entity::projectile::splash_potion::{
-    extinguish_fire_if_water_potion, hurt_water_sensitive_entities, stack_hurts_water_sensitive,
+    extinguish_fire_if_water_potion, hurt_water_sensitive_entities, rehydrate_axolotls_around,
+    stack_hurts_water_sensitive,
 };
 use crate::{
     entity::{Entity, EntityBase, projectile::ThrownItemEntity},
@@ -121,6 +122,8 @@ impl EntityBase for LingeringPotionEntity {
         if stack_hurts_water_sensitive(&stack) {
             hurt_water_sensitive_entities(&world, self, &self.thrown);
         }
+        let search_box = self.get_entity().bounding_box.load().expand(4.0, 2.0, 4.0);
+        rehydrate_axolotls_around(&world, &stack, &search_box);
 
         // If no effects, just splash (like water bottles)
         if effects.is_empty() {
