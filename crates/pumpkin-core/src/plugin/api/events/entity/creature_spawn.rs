@@ -35,6 +35,8 @@ pub enum CreatureSpawnReason {
     /// A dispenser dispensed a spawn egg.
     DispenseEgg,
     Bucket,
+    /// The natural spawner spawned the creature.
+    Natural,
 }
 
 impl CreatureSpawnReason {
@@ -44,6 +46,7 @@ impl CreatureSpawnReason {
             Self::SpawnerEgg => "spawner_egg",
             Self::DispenseEgg => "dispense_egg",
             Self::Bucket => "bucket",
+            Self::Natural => "natural",
         }
     }
 }

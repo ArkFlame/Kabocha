@@ -5843,6 +5843,21 @@ impl World {
         reason: crate::plugin::api::events::entity::creature_spawn::CreatureSpawnReason,
         player: Option<Arc<Player>>,
     ) -> bool {
+        if !self.fire_creature_spawn_event(&entity, reason, player) {
+            return false;
+        }
+        self.spawn_entity(entity)
+    }
+
+    /// Fires [`CreatureSpawnEvent`]; `false` if a plugin cancelled the spawn.
+    ///
+    /// [`CreatureSpawnEvent`]: crate::plugin::api::events::entity::creature_spawn::CreatureSpawnEvent
+    pub fn fire_creature_spawn_event(
+        self: &Arc<Self>,
+        entity: &Arc<dyn EntityBase>,
+        reason: crate::plugin::api::events::entity::creature_spawn::CreatureSpawnReason,
+        player: Option<Arc<Player>>,
+    ) -> bool {
         let base = entity.get_entity();
         let mut event = crate::plugin::api::events::entity::creature_spawn::CreatureSpawnEvent::new(
             base.entity_id,
@@ -5855,10 +5870,7 @@ impl World {
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
         }
-        if event.cancelled {
-            return false;
-        }
-        self.spawn_entity(entity)
+        !event.cancelled
     }
 
     #[expect(clippy::needless_pass_by_value)]

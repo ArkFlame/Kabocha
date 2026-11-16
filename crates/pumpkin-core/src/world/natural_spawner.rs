@@ -854,7 +854,15 @@ pub fn spawn_category_for_position(
                         let max_group_size_reached = entity
                             .get_mob()
                             .is_some_and(|mob| mob.is_max_group_size_reached(group_size));
-                        world.spawn_entity_non_save(entity);
+                        // Vanilla fires `CreatureSpawnEvent` at `addFreshEntity`; a cancel skips
+                        // the spawn but still counts towards the cluster like vanilla does.
+                        if world.fire_creature_spawn_event(
+                            &entity,
+                            crate::plugin::api::events::entity::creature_spawn::CreatureSpawnReason::Natural,
+                            None,
+                        ) {
+                            world.spawn_entity_non_save(entity);
+                        }
                         if cluster_size >= entity_type.limit_per_chunk {
                             return;
                         }
