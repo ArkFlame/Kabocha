@@ -40,6 +40,20 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// that makes old binary plugins incompatible.
 pub const PLUGIN_API_VERSION: u32 = 6;
 
+/// Local submission outcome of a player transfer request. It describes queuing only, not
+/// whether the client departed or reached the destination.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransferQueueResult {
+    /// The transfer packet was queued for the source connection.
+    Queued,
+    /// The source connection was already closed.
+    ConnectionClosed,
+    /// The transfer packet could not be encoded for the client edition.
+    EncodeFailure,
+    /// The outgoing queue is closed or full.
+    QueueRejected,
+}
+
 const PLUGIN_DIR: &str = "./plugins";
 
 /// A trait for handling events dynamically.

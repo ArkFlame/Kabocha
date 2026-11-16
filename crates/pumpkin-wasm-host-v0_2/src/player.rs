@@ -3236,6 +3236,21 @@ impl pumpkin::plugin::player::HostPlayerWithStore<PluginHostState> for HasSelf<P
         player.transfer(&host, port);
         Ok(())
     }
+    async fn try_transfer(
+        accessor: &Accessor<PluginHostState, Self>,
+        player: Resource<Player>,
+        host: String,
+        port: u16,
+    ) -> wasmtime::Result<pumpkin::plugin::player::TransferQueueResult> {
+        use pumpkin::plugin::player::TransferQueueResult as Wasm;
+        let player = accessor.get_res(&player)?;
+        Ok(match player.transfer(&host, port) {
+            pumpkin_core::plugin::TransferQueueResult::Queued => Wasm::Queued,
+            pumpkin_core::plugin::TransferQueueResult::ConnectionClosed => Wasm::ConnectionClosed,
+            pumpkin_core::plugin::TransferQueueResult::EncodeFailure => Wasm::EncodeFailure,
+            pumpkin_core::plugin::TransferQueueResult::QueueRejected => Wasm::QueueRejected,
+        })
+    }
 
     async fn open_ender_chest(
         accessor: &Accessor<PluginHostState, Self>,

@@ -4645,6 +4645,18 @@ impl Player {
         self.client
             .try_enqueue_packet_editioned(je_packet, be_packet);
     }
+    /// Like [`Self::try_enqueue_packet_editioned`] but reports the local queue outcome.
+    pub fn try_enqueue_packet_editioned_result<
+        J: pumpkin_protocol::ClientPacket + Sync,
+        B: pumpkin_protocol::BClientPacket + Sync,
+    >(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) -> Result<bool, ()> {
+        self.client
+            .try_enqueue_packet_editioned_result(je_packet, be_packet)
+    }
 
     pub async fn send_packet_now_editioned<
         J: pumpkin_protocol::ClientPacket + Sync,
@@ -5443,14 +5455,13 @@ impl Player {
         self.abilities.lock().is_ok_and(|a| a.allow_modify_world)
     }
 
-    /// Requests a transfer to another server without waiting for the client to reconnect.
-    pub fn transfer(&self, host: &str, port: u16) {
+    /// Requests a transfer to another server and reports the local queue outcome.
+    pub fn transfer(&self, host: &str, port: u16) -> crate::plugin::TransferQueueResult {
+        use crate::plugin::TransferQueueResult;
         if self.client.closed() {
-            return;
+            return TransferQueueResult::ConnectionClosed;
         }
-        // Mark before queuing: the client may disconnect as soon as it receives the packet.
-        self.transfer_requested.store(true, Ordering::Relaxed);
-        self.try_enqueue_packet_editioned(
+        let queued = self.try_enqueue_packet_editioned_result(
             &pumpkin_protocol::java::client::play::CTransfer::new(host, VarInt(i32::from(port))),
             &pumpkin_protocol::bedrock::client::transfer::CTransfer::new(
                 host.to_string(),
@@ -5458,6 +5469,14 @@ impl Player {
                 false,
             ),
         );
+        match queued {
+            Ok(true) => {
+                self.transfer_requested.store(true, Ordering::Relaxed);
+                TransferQueueResult::Queued
+            }
+            Ok(false) => TransferQueueResult::QueueRejected,
+            Err(()) => TransferQueueResult::EncodeFailure,
+        }
     }
 
     /// Returns whether this session has requested a transfer, not whether it succeeded.
@@ -10225,7 +10244,10 @@ mod tests {
         ));
         assert!(!PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
 
-        player.transfer("localhost", 25566);
+        assert_eq!(
+            player.transfer("localhost", 25566),
+            crate::plugin::TransferQueueResult::Queued
+        );
         // The writer has not run yet on this current-thread runtime.
         assert!(PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
         let client = player.client.java().ok_or("No Java client")?;

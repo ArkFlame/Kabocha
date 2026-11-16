@@ -290,16 +290,23 @@ impl ClientPlatform {
         je_packet: &J,
         be_packet: &B,
     ) {
+        let _ = self.try_enqueue_packet_editioned_result(je_packet, be_packet);
+    }
+    /// Queues one packet per client edition. `Err(())` when encoding fails for the client's
+    /// edition, `Ok(false)` when the outgoing queue rejected the packet.
+    pub fn try_enqueue_packet_editioned_result<J: ClientPacket, B: BClientPacket>(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) -> Result<bool, ()> {
         match self {
             Self::Java(java) => {
-                if let Ok(data) = java.serialize_packet(je_packet) {
-                    java.try_enqueue_packet(data);
-                }
+                let data = java.serialize_packet(je_packet).map_err(|_| ())?;
+                Ok(java.try_enqueue_packet_data(data))
             }
             Self::Bedrock(bedrock) => {
-                if let Ok(data) = bedrock.serialize_packet(be_packet) {
-                    bedrock.try_enqueue_packet(data);
-                }
+                let data = bedrock.serialize_packet(be_packet).map_err(|_| ())?;
+                Ok(bedrock.try_enqueue_packet_data(data))
             }
         }
     }

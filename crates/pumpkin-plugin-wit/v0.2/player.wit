@@ -836,6 +836,19 @@ interface player {
         log-to-console: bool,
     }
 
+    /// Local submission outcome of a transfer request. It describes queuing only, not
+    /// whether the client departed or reached the destination.
+    enum transfer-queue-result {
+        /// The transfer packet was queued for the source connection.
+        queued,
+        /// The source connection was already closed.
+        connection-closed,
+        /// The transfer packet could not be encoded for the client edition.
+        encode-failure,
+        /// The outgoing queue is closed or full.
+        queue-rejected,
+    }
+
     /// A handle to a player on the server.
     resource player {
         /// Returns the player as an entity.
@@ -1058,6 +1071,9 @@ interface player {
         /// Bans the player's IP address with the specified options.
         ban-ip: async func (options: ban-ip-options);
 
+        /// Transfers the player to another server, reporting whether the transfer packet was
+        /// queued on the source connection.
+        try-transfer: async func (host: string, port: u16) -> transfer-queue-result;
         /// Transfers the player to another server.
         transfer: async func (host: string, port: u16);
 
