@@ -20,3 +20,4 @@ Status: todo | running | verify | merged | blocked | invalid.
 ## Failed this round (need redesign brief, no read budget)
 - #2828 wasm host moved + git-only wit-bindgen deps; #3407 Mob trait lacks mob_damage_with_context/remove_when_far_away, 11 core conflicts; #4039 and #3794 relaunched as redesign workers.
 - Issues needing log/video/runtime: #4005 #3989 #4006 #4020 #4048.
+- Failed (squash conflicts, need redesign or codegen): #4379 (16 files), #4378 (14 files), #3057 (about 100 files, old crate paths), #3507 (stale base, loot codegen), #4512 (58 files, 1287 hunks in generated block.rs, needs codegen regeneration).
