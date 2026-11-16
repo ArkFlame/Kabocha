@@ -797,7 +797,12 @@ impl World {
 
     #[must_use]
     pub fn is_in_spawn_protection(&self, player: &Player, position: &BlockPos) -> bool {
-        if player.permission_lvl.load() == pumpkin_util::permission::PermissionLvl::Four {
+        // Vanilla only protects the overworld, and every permission level above normal
+        // (moderator and up) may build inside it.
+        if self.dimension != Dimension::OVERWORLD {
+            return false;
+        }
+        if player.permission_lvl.load() != pumpkin_util::permission::PermissionLvl::Zero {
             return false;
         }
 
@@ -807,6 +812,18 @@ impl World {
 
         let radius = server.basic_config.spawn_protection;
         if radius == 0 {
+            return false;
+        }
+
+        // Vanilla disables spawn protection entirely while the server has no operators.
+        if server
+            .data
+            .operator_config
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .ops
+            .is_empty()
+        {
             return false;
         }
 
