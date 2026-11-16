@@ -122,6 +122,40 @@ pub fn minecraft_data_dir(level_folder: &Path) -> PathBuf {
     level_folder.join("data").join("minecraft")
 }
 
+/// Paper/Purpur store world data inside the overworld dimension container.
+#[must_use]
+pub fn paper_data_dir(level_folder: &Path) -> PathBuf {
+    level_folder
+        .join("dimensions")
+        .join("minecraft")
+        .join("overworld")
+        .join("data")
+        .join("minecraft")
+}
+
+/// Checks root first, so existing Pumpkin saves stay authoritative, then falls
+/// back to Paper's overworld dimension container.
+#[must_use]
+pub fn find_data_file(level_folder: &Path, name: &str) -> Option<PathBuf> {
+    let root = minecraft_data_dir(level_folder).join(name);
+    if root.exists() {
+        return Some(root);
+    }
+    let paper = paper_data_dir(level_folder).join(name);
+    paper.exists().then_some(paper)
+}
+
+/// Write next to the file we read, so a Paper-only world is not shadowed by a root copy.
+fn ensure_data_file_dir(level_folder: &Path, name: &str) -> Result<PathBuf, WorldInfoError> {
+    if let Some(dir) =
+        find_data_file(level_folder, name).and_then(|path| path.parent().map(Path::to_path_buf))
+    {
+        fs::create_dir_all(&dir)?;
+        return Ok(dir);
+    }
+    ensure_minecraft_data_dir(level_folder)
+}
+
 /// Ensures the `<world>/data/minecraft/` directory exists.
 pub fn ensure_minecraft_data_dir(level_folder: &Path) -> Result<PathBuf, WorldInfoError> {
     let dir = minecraft_data_dir(level_folder);
@@ -130,10 +164,9 @@ pub fn ensure_minecraft_data_dir(level_folder: &Path) -> Result<PathBuf, WorldIn
 }
 
 pub fn read_weather(level_folder: &Path) -> WeatherData {
-    let path = minecraft_data_dir(level_folder).join("weather.dat");
-    if !path.exists() {
+    let Some(path) = find_data_file(level_folder, "weather.dat") else {
         return WeatherData::default();
-    }
+    };
     match File::open(&path) {
         Ok(f) => match read_gzip_compound_tag(f) {
             Ok(compound) => {
@@ -161,7 +194,7 @@ pub fn read_weather(level_folder: &Path) -> WeatherData {
 }
 
 pub fn write_weather(level_folder: &Path, data: &WeatherData) -> Result<(), WorldInfoError> {
-    let dir = ensure_minecraft_data_dir(level_folder)?;
+    let dir = ensure_data_file_dir(level_folder, "weather.dat")?;
     let path = dir.join("weather.dat");
     let file = File::create(&path)?;
     let mut data_comp = NbtCompound::new();
@@ -242,13 +275,7 @@ pub fn read_world_gen_settings(level_folder: &Path) -> Option<WorldGenSettings> 
     // Support world generation settings locations used by vanilla and Paper-derived 26.x worlds.
     let paths = [
         minecraft_data_dir(level_folder).join("world_gen_settings.dat"),
-        level_folder
-            .join("dimensions")
-            .join("minecraft")
-            .join("overworld")
-            .join("data")
-            .join("minecraft")
-            .join("world_gen_settings.dat"),
+        paper_data_dir(level_folder).join("world_gen_settings.dat"),
     ];
 
     for path in paths.iter().filter(|path| path.exists()) {
@@ -458,10 +485,9 @@ pub fn game_rules_from_nbt(root: &NbtCompound) -> GameRuleRegistry {
 }
 
 pub fn read_game_rules(level_folder: &Path) -> GameRuleRegistry {
-    let path = minecraft_data_dir(level_folder).join("game_rules.dat");
-    if !path.exists() {
+    let Some(path) = find_data_file(level_folder, "game_rules.dat") else {
         return GameRuleRegistry::default();
-    }
+    };
 
     match File::open(&path) {
         Ok(f) => match read_gzip_compound_tag(f) {
@@ -483,7 +509,7 @@ pub fn write_game_rules(
     rules: &GameRuleRegistry,
     data_version: i32,
 ) -> Result<(), WorldInfoError> {
-    let dir = ensure_minecraft_data_dir(level_folder)?;
+    let dir = ensure_data_file_dir(level_folder, "game_rules.dat")?;
     let path = dir.join("game_rules.dat");
 
     let compound = game_rules_to_nbt(rules, data_version);
@@ -563,10 +589,9 @@ pub fn write_world_clocks(
 }
 
 pub fn read_wandering_trader(level_folder: &Path) -> WanderingTraderData {
-    let path = minecraft_data_dir(level_folder).join("wandering_trader.dat");
-    if !path.exists() {
+    let Some(path) = find_data_file(level_folder, "wandering_trader.dat") else {
         return WanderingTraderData::default();
-    }
+    };
     match File::open(&path) {
         Ok(f) => match read_gzip_compound_tag(f) {
             Ok(compound) => {
@@ -604,7 +629,7 @@ pub fn write_wandering_trader(
     level_folder: &Path,
     data: &WanderingTraderData,
 ) -> Result<(), WorldInfoError> {
-    let dir = ensure_minecraft_data_dir(level_folder)?;
+    let dir = ensure_data_file_dir(level_folder, "wandering_trader.dat")?;
     let path = dir.join("wandering_trader.dat");
     let file = File::create(&path)?;
     let mut data_comp = NbtCompound::new();
@@ -714,4 +739,26 @@ pub fn write_stopwatches_stub(
     let file = File::create(&path)?;
     pumpkin_nbt::nbt_compress::write_gzip_compound_tag(root, file)
         .map_err(|e| WorldInfoError::SerializationError(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paper_world_data_files_are_found_with_root_precedence() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let paper_file = paper_data_dir(temp.path()).join("game_rules.dat");
+        fs::create_dir_all(paper_file.parent().unwrap()).unwrap();
+        fs::write(&paper_file, b"paper").unwrap();
+        assert_eq!(
+            find_data_file(temp.path(), "game_rules.dat"),
+            Some(paper_file)
+        );
+
+        let root_file = minecraft_data_dir(temp.path()).join("game_rules.dat");
+        fs::create_dir_all(root_file.parent().unwrap()).unwrap();
+        fs::write(&root_file, b"root").unwrap();
+        assert_eq!(find_data_file(temp.path(), "game_rules.dat"), Some(root_file));
+    }
 }

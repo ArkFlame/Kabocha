@@ -18,7 +18,7 @@ use crate::world_info::{
     DataPacks, MAXIMUM_SUPPORTED_LEVEL_VERSION, MAXIMUM_SUPPORTED_WORLD_DATA_VERSION,
     MINIMUM_SUPPORTED_LEVEL_VERSION, MINIMUM_SUPPORTED_WORLD_DATA_VERSION, WorldVersion,
     data_files::{
-        minecraft_data_dir, read_game_rules, read_wandering_trader, read_weather,
+        find_data_file, minecraft_data_dir, read_game_rules, read_wandering_trader, read_weather,
         read_world_clocks, read_world_gen_settings, write_custom_boss_events_stub,
         write_game_rules, write_random_sequences_stub, write_scheduled_events_stub,
         write_scoreboard_stub, write_stopwatches_stub, write_wandering_trader, write_weather,
@@ -400,10 +400,7 @@ impl WorldInfoReader for AnvilLevelInfo {
         }
 
         // game_rules.dat – prefer the new file; fall back to level.dat values
-        if minecraft_data_dir(level_folder)
-            .join("game_rules.dat")
-            .exists()
-        {
+        if find_data_file(level_folder, "game_rules.dat").is_some() {
             level_data.game_rules = read_game_rules(level_folder);
         }
 
@@ -418,18 +415,12 @@ impl WorldInfoReader for AnvilLevelInfo {
         }
 
         // weather.dat
-        if minecraft_data_dir(level_folder)
-            .join("weather.dat")
-            .exists()
-        {
+        if find_data_file(level_folder, "weather.dat").is_some() {
             let weather = read_weather(level_folder);
             level_data.clear_weather_time = weather.clear_weather_time;
         }
 
-        if minecraft_data_dir(level_folder)
-            .join("wandering_trader.dat")
-            .exists()
-        {
+        if find_data_file(level_folder, "wandering_trader.dat").is_some() {
             let wandering_trader = read_wandering_trader(level_folder);
             level_data.wandering_trader_spawn_delay = wandering_trader.spawn_delay;
             level_data.wandering_trader_spawn_chance = wandering_trader.spawn_chance;
