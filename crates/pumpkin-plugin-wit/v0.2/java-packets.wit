@@ -671,6 +671,17 @@ interface java-packets {
     /// A JSON-encoded chat component explaining why the player was disconnected.
     json-reason: string,
   }
+  /// A GameProfile property, as sent by the Mojang authentication servers.
+  ///
+  /// This is distinct from `property`, which describes entity attributes.
+  record profile-property {
+    /// The property name, such as `textures`.
+    name: string,
+    /// The property value, usually base64-encoded.
+    value: string,
+    /// The Mojang signature for `value`, when the property is signed.
+    signature: option<string>,
+  }
   /// Sent by the server to signal a successful login and transition to the configuration phase
   /// 
   /// This packet provides the client with its official UUID and username as
@@ -682,7 +693,7 @@ interface java-packets {
     username: string,
     /// A list of properties for the player's profile, such as skin data and signatures.
     /// This is typically retrieved from the Mojang authentication servers.
-    properties: list<property>,
+    properties: list<profile-property>,
     /// (<1.21.2) Whether strict error handling should be enabled.
     strict-error-handling: bool,
     /// Added in 26.2
@@ -1709,7 +1720,7 @@ interface java-packets {
   /// Generated; extracted from variant arm. See `player-action.add-player` for details.
   record player-action-add-player {
     name: string,
-    properties: list<property>,
+    properties: list<profile-property>,
   }
   variant player-action {
     add-player(player-action-add-player),
