@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use crate::item::items::boat::BoatItem;
 
 impl JavaClient {
     pub fn handle_pick_item_from_block(
@@ -94,7 +95,11 @@ impl JavaClient {
             }
         }
 
-        if let Some(item) = found_egg.and_then(Item::from_id) {
+        let picked_item = found_egg
+            .and_then(Item::from_id)
+            .or_else(|| BoatItem::entity_to_item(target.get_entity().entity_type));
+
+        if let Some(item) = picked_item {
             let stack = ItemStack::new(1, item);
 
             let slot_with_stack = player.inventory().get_slot_with_stack(&stack);

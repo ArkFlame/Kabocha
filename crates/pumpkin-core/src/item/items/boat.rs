@@ -49,6 +49,14 @@ impl BoatItem {
         }
     }
 
+    /// Vanilla: `AbstractBoat.getPickResult()` - the boat item that drops for this entity type
+    pub(crate) fn entity_to_item(entity_type: &EntityType) -> Option<&'static Item> {
+        Self::ids()
+            .iter()
+            .filter_map(|&id| Item::from_id(id))
+            .find(|item| Self::item_to_entity(item).id == entity_type.id)
+    }
+
     /// Gets entity dimensions for the boat type
     const fn get_entity_dimensions(entity_type: &EntityType) -> EntityDimensions {
         EntityDimensions::new(
