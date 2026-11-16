@@ -267,7 +267,23 @@ impl CommandExecutor for SpreadPlayersExecutor {
             world.dimension.height + min_y + 1
         };
 
-        let pile_count = if respect_teams { 1 } else { targets.len() };
+        // With respectTeams, one pile per distinct team; non-team entities share one group.
+        let (pile_of, pile_count): (Vec<usize>, usize) = if respect_teams {
+            let mut teams: Vec<Option<String>> = Vec::new();
+            let pile_of = targets
+                .iter()
+                .map(|target| {
+                    let team = target.get_team_name();
+                    teams.iter().position(|name| *name == team).unwrap_or_else(|| {
+                        teams.push(team);
+                        teams.len() - 1
+                    })
+                })
+                .collect();
+            (pile_of, teams.len())
+        } else {
+            ((0..targets.len()).collect(), targets.len())
+        };
 
         let Some((piles, surface_ys)) =
             find_spread_positions(&world, pile_count, spread_distance, max_height, &area)
@@ -287,9 +303,9 @@ impl CommandExecutor for SpreadPlayersExecutor {
             ));
         };
 
-        for (index, target) in targets.iter().enumerate() {
-            let pile = piles[index % pile_count];
-            let y = surface_ys[index % pile_count];
+        for (target, &group) in targets.iter().zip(&pile_of) {
+            let pile = piles[group];
+            let y = surface_ys[group];
             target.teleport(
                 Vector3::new(pile.x.floor() + 0.5, f64::from(y), pile.z.floor() + 0.5),
                 None,
