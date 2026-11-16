@@ -4233,6 +4233,15 @@ impl World {
             (position, info.spawn_yaw, info.spawn_pitch)
         };
 
+        // Bukkit `PlayerSpawnLocationEvent`: fired on join before the player is placed, and
+        // `spawn-pos` is where the player spawns (chunks load around the resolved position).
+        let mut spawn_loc_event = crate::plugin::api::events::player::player_spawn_location::PlayerSpawnLocationEvent::new(
+            player.clone(),
+            position,
+        );
+        server.plugin_manager.fire(server, &mut spawn_loc_event).await;
+        let position = spawn_loc_event.spawn_pos;
+
         // Load chunks around the real spawn position before teleporting the client there.
         player.living_entity.entity.set_pos(position);
         player.living_entity.entity.set_rotation(yaw, pitch);
