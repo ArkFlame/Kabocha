@@ -175,6 +175,7 @@ impl EntityBase for MinecartEntity {
     #[allow(clippy::too_many_lines)]
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.vehicle.tick();
+        let from = self.vehicle.entity.pos.load();
         match &self.kind {
             MinecartKind::Furnace(minecart) => minecart.tick(&self.vehicle.entity),
             MinecartKind::CommandBlock(minecart) => minecart.step_tick(),
@@ -536,6 +537,25 @@ impl EntityBase for MinecartEntity {
             }
         }
 
+        let attempted_to = self.vehicle.entity.pos.load();
+        let move_result = self.vehicle.move_vehicle(from, attempted_to);
+        let to = move_result.position;
+        self.vehicle.entity.set_pos(to);
+        if move_result.cancelled {
+            self.vehicle.entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
+            self.vehicle.entity.send_velocity();
+        }
+        if to != attempted_to {
+            let world = self.vehicle.entity.world.load();
+            self.vehicle.entity.teleport(to, None, None, &world);
+        }
+        if attempted_to != from
+            && let Ok(passengers) = self.vehicle.entity.passengers.try_lock()
+        {
+            for passenger in passengers.iter() {
+                passenger.get_entity().set_pos(to);
+            }
+        }
         match &self.kind {
             MinecartKind::Hopper(minecart) => minecart.tick(&self.vehicle.entity),
             MinecartKind::Spawner(minecart) => minecart.tick(&self.vehicle.entity),
@@ -549,6 +569,10 @@ impl EntityBase for MinecartEntity {
 
     fn get_living_entity(&self) -> Option<&LivingEntity> {
         None
+    }
+
+    fn get_vehicle_entity(&self) -> Option<&VehicleEntity> {
+        Some(&self.vehicle)
     }
 
     fn has_container_inventory(&self) -> bool {

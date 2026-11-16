@@ -5,6 +5,7 @@ use crossbeam::atomic::AtomicCell;
 
 use crate::entity::player::Player;
 use crate::entity::vehicle::minecart::container::{self, MinecartInventory};
+use crate::entity::vehicle::vehicle::VehicleEntity;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
 use crate::world::game_event::GameEventContext;
@@ -182,6 +183,10 @@ impl EntityBase for BoatEntity {
 
     fn get_living_entity(&self) -> Option<&LivingEntity> {
         None
+    }
+
+    fn get_vehicle_entity(&self) -> Option<&VehicleEntity> {
+        Some(&self.vehicle)
     }
 
     fn has_container_inventory(&self) -> bool {
