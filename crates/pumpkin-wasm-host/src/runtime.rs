@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::{any::Any, fs, net::SocketAddr, path::Path, sync::Arc};
+use tracing::warn;
 use wasmtime::{Cache, CacheConfig, Engine, component::Component, component::Linker};
 use wasmtime_wasi::{FsPerms, WasiCtxBuilder, sockets::SocketAddrUse};
 
@@ -162,6 +163,12 @@ impl PluginRuntime {
         let wasm_bytes = signature::strip_pumpkin_sections(&wasm_bytes).unwrap_or(wasm_bytes);
 
         let (api_version, binding_language) = inspect_plugin(&wasm_bytes)?;
+        if matches!(api_version, PluginApiVersion::V0_1) {
+            warn!(
+                path = %path.as_ref().display(),
+                "Wasm Plugin API v0.1 is deprecated and will be removed in a future release; rebuild this plugin against API v0.2"
+            );
+        }
         let engine = self.engine(api_version);
         let component = load_component(engine, &wasm_bytes, &self.cache_dir)?;
 

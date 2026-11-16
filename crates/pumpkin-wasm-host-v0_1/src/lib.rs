@@ -3,6 +3,12 @@
 // Not warn event sending macros
 #![allow(unused_labels, deprecated)]
 
+//! Host implementation of the **deprecated** Wasm Plugin API v0.1.
+//!
+//! New plugins must target API v0.2 (`crates/pumpkin-plugin-wit/v0.2`). This crate is kept only
+//! so existing v0.1 plugins keep loading; it logs a deprecation warning on load and will be removed
+//! in a future release.
+
 use crate::bindings::PluginPre;
 use pumpkin_core::plugin::PluginMetadata;
 use pumpkin_wasm_host_common::{

@@ -13,3 +13,6 @@ This enables `self -> Self` chaining without changing the WIT ABI or adding boun
 For other languages, use wrappers or equivalent binding-generator support.
 
 - *Rule:* Do **not** implement builder patterns in WIT by returning the same resource.
+
+## Deprecation
+- `v0.1` is deprecated: it stays loadable for compatibility only, and the host logs a warning when a v0.1 plugin loads. New plugins target `v0.2`.
