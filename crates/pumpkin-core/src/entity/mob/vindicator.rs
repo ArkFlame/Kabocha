@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_util::Difficulty;
 
 use crate::entity::ai::behavior::fleeing::{self, Flee};
 use crate::entity::ai::behavior::hunting::{self, Hunt};
@@ -10,9 +11,9 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        break_door::BreakDoorGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
+        swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{
         Mob, MobEntity,
@@ -58,6 +59,17 @@ impl VindicatorEntity {
             goal_selector.add_goal(1, Box::new(OpenDoorGoal::new(false)));
             goal_selector.add_goal(1, Box::new(ObtainRaidLeaderBannerGoal));
             fleeing::apply(goal_selector, VINDICATOR_FLEES);
+            goal_selector.add_goal(
+                2,
+                Box::new(
+                    BreakDoorGoal::with_door_break_time(
+                        6,
+                        Arc::new(|d| matches!(d, Difficulty::Normal | Difficulty::Hard)),
+                    )
+                    .requires_raid()
+                    .with_move_control(),
+                ),
+            );
             goal_selector.add_goal(2, Box::new(HoldGroundAttackGoal::new(10.0)));
             goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));

@@ -21,6 +21,10 @@ pub struct BreakDoorGoal {
     pub break_time: i32,
     pub last_break_progress: i32,
     pub door_break_time: i32,
+    /// Only break doors while the mob is part of an active raid (vanilla `VindicatorBreakDoorGoal`).
+    requires_raid: bool,
+    /// Vanilla subclasses such as `VindicatorBreakDoorGoal` claim the `MOVE` flag.
+    controls: Controls,
 }
 
 impl BreakDoorGoal {
@@ -32,6 +36,8 @@ impl BreakDoorGoal {
             break_time: 0,
             last_break_progress: -1,
             door_break_time: -1,
+            requires_raid: false,
+            controls: Controls::empty(),
         }
     }
 
@@ -46,7 +52,23 @@ impl BreakDoorGoal {
             break_time: 0,
             last_break_progress: -1,
             door_break_time,
+            requires_raid: false,
+            controls: Controls::empty(),
         }
+    }
+
+    /// Restricts door breaking to raiders with an active raid.
+    #[must_use]
+    pub fn requires_raid(mut self) -> Self {
+        self.requires_raid = true;
+        self
+    }
+
+    /// Claims the `MOVE` control flag, as vanilla's `VindicatorBreakDoorGoal` does.
+    #[must_use]
+    pub fn with_move_control(mut self) -> Self {
+        self.controls.insert(Controls::MOVE);
+        self
     }
 
     #[must_use]
@@ -80,7 +102,12 @@ impl Goal for BreakDoorGoal {
         if !level_info.game_rules.mob_griefing {
             return false;
         }
-        self.is_valid_difficulty(level_info.difficulty) && !self.door_interact_goal.is_open(mob)
+        self.is_valid_difficulty(level_info.difficulty)
+            && !self.door_interact_goal.is_open(mob)
+            && (!self.requires_raid
+                || mob
+                    .as_raider()
+                    .is_some_and(|raider| raider.has_active_raid()))
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
@@ -178,6 +205,6 @@ impl Goal for BreakDoorGoal {
     }
 
     fn controls(&self) -> Controls {
-        Controls::empty()
+        self.controls
     }
 }
