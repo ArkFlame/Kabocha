@@ -595,6 +595,62 @@ impl LivingEntity {
         self.entity.world.load().get_player_by_uuid(uuid)
     }
 
+    /// Vanilla `LivingEntity.tryAddSoulSpeed` / `removeSoulSpeed`: while the entity stands on a
+    /// soul speed block wearing soul speed boots, keep a temporary movement speed boost modifier.
+    fn tick_soul_speed(&self, caller: &dyn EntityBase) {
+        const SOUL_SPEED_MODIFIER_ID: &str = "minecraft:soul_speed";
+        let pos = self.entity.get_block_pos_below_that_affects_my_movement();
+        let on_soul_block = self.entity.world.load().get_block(&pos).has_tag(
+            &pumpkin_data::tag::Block::MINECRAFT_SOUL_SPEED_BLOCKS,
+        );
+        let level = if on_soul_block {
+            crate::enchantment::helper::EnchantmentHelper::get_enchantment_level(
+                &Enchantment::SOUL_SPEED,
+                caller,
+            )
+        } else {
+            0
+        };
+
+        let mut changed = false;
+        {
+            let mut attributes = self
+                .attributes
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(instance) = attributes.get_mut(&Attributes::MOVEMENT_SPEED.id) else {
+                return;
+            };
+            if level > 0 {
+                let amount = 0.03 + f64::from(level) * 0.04;
+                let same = instance
+                    .modifiers
+                    .iter()
+                    .any(|m| m.id == SOUL_SPEED_MODIFIER_ID && (m.amount - amount).abs() < 1.0e-9);
+                if !same {
+                    instance.add_or_replace_modifier(Modifier {
+                        id: SOUL_SPEED_MODIFIER_ID.to_string(),
+                        amount,
+                        operation: ModifierOperation::Add,
+                    });
+                    changed = true;
+                }
+            } else if instance.modifiers.iter().any(|m| m.id == SOUL_SPEED_MODIFIER_ID) {
+                instance.remove_modifier(SOUL_SPEED_MODIFIER_ID);
+                changed = true;
+            }
+            if changed {
+                instance.mark_dirty();
+            }
+        }
+        if changed {
+            crate::entity::attributes::send_attribute_updates_for_living(
+                self,
+                vec![Attributes::MOVEMENT_SPEED],
+            );
+        }
+    }
+
     /// Returns the entity that should receive kill credit for this entity's death.
     /// Following vanilla Java logic (`LivingEntity.getKillCredit`):
     /// 1. Prioritize `last_hurt_by_player`, which is forgotten 100 ticks after the hit.
@@ -4548,6 +4604,9 @@ impl EntityBase for LivingEntity {
         // We allow movement during death animation (20 ticks) so knockback is applied.
         let is_alive = !self.dead.load(Relaxed) && self.health.load() > 0.0;
         let in_death_animation = self.health.load() <= 0.0 && self.death_time.load(Relaxed) < 20;
+        if is_alive {
+            self.tick_soul_speed(caller);
+        }
         if is_alive || in_death_animation {
             let _ = self.current_impulse_context_reset_grace_time.fetch_update(
                 Relaxed,
