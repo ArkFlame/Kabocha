@@ -1302,6 +1302,18 @@ impl World {
         Self::broadcast_java_players(packet, players.iter());
     }
 
+    /// Broadcasts a packet to every Java player that has not set a per-player
+    /// weather override, so world weather changes do not overwrite it.
+    pub fn broadcast_packet_all_with_world_weather<P: ClientPacket>(&self, packet: &P) {
+        let players = self.players.load();
+        Self::broadcast_java_players(
+            packet,
+            players
+                .iter()
+                .filter(|player| player.get_player_weather().is_none()),
+        );
+    }
+
     pub fn broadcast_bedrock_all<P: BClientPacket>(&self, packet: &P) {
         let players = self.players.load();
         Self::broadcast_bedrock_grouped(

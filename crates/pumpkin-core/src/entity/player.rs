@@ -4613,10 +4613,51 @@ impl Player {
 
     pub fn set_player_weather(&self, weather: PlayerWeather) {
         self.per_player_weather.store(Some(weather));
+        let world = self.world();
+        self.send_weather(&world, Some(weather));
     }
 
     pub fn reset_player_weather(&self) {
         self.per_player_weather.store(None);
+        let world = self.world();
+        self.send_weather(&world, None);
+    }
+
+    /// Sends this client's rain and thunder levels, matching vanilla's per-player
+    /// weather override (`ClientboundGameEventPacket`). `None` restores the world's.
+    fn send_weather(&self, world: &World, weather: Option<PlayerWeather>) {
+        let (raining, rain_level, thunder_level) = match weather {
+            Some(PlayerWeather::Downfall) => (true, 1.0, 0.0),
+            Some(PlayerWeather::Clear) => (false, 0.0, 0.0),
+            None => {
+                let w = world
+                    .weather
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                (
+                    w.raining,
+                    w.rain_level.clamp(0.0, 1.0),
+                    w.thunder_level.clamp(0.0, 1.0),
+                )
+            }
+        };
+        let ClientPlatform::Java(client) = self.client.as_ref() else {
+            return;
+        };
+        let begin = if raining {
+            GameEvent::BeginRaining
+        } else {
+            GameEvent::EndRaining
+        };
+        for packet in [
+            CGameEvent::new(begin, 0.0),
+            CGameEvent::new(GameEvent::RainLevelChange, rain_level),
+            CGameEvent::new(GameEvent::ThunderLevelChange, thunder_level),
+        ] {
+            if let Ok(data) = client.serialize_packet(&packet) {
+                client.try_enqueue_packet(data);
+            }
+        }
     }
 
     pub fn get_player_weather(&self) -> Option<PlayerWeather> {
