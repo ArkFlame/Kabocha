@@ -5179,6 +5179,10 @@ impl Player {
 
                 player.request_teleport(position, yaw, pitch);
 
+                // Vanilla pairs after the teleport and the chunk send: without this the arriving
+                // player never tracks the players already in the destination world.
+                new_world.pair_new_player_with_tracked_entities(&player);
+
                 let mut changed_world_event = crate::plugin::api::events::player::player_changed_world::PlayerChangedWorldEvent {
                     player: player.clone(),
                     from_world: current_world,
