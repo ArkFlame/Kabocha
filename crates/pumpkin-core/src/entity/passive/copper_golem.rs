@@ -111,6 +111,10 @@ pub struct CopperGolemEntity {
     pub next_weathering_tick: AtomicI64,
 }
 
+/// Vanilla `nextIntBetweenInclusive(504000, 552000)` weathering delay in ticks.
+const MIN_WEATHERING_TICKS: i64 = 504_000;
+const MAX_WEATHERING_TICKS: i64 = 552_000;
+
 impl CopperGolemEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
@@ -139,6 +143,13 @@ impl CopperGolemEntity {
         };
 
         mob_arc
+    }
+
+    fn next_weathering_delay(&self) -> i64 {
+        rand::RngExt::random_range(
+            &mut self.get_random(),
+            MIN_WEATHERING_TICKS..=MAX_WEATHERING_TICKS,
+        )
     }
 
     #[must_use]
@@ -236,6 +247,38 @@ impl CustomSound for CopperGolemEntity {
 impl Mob for CopperGolemEntity {
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(self.step_sound(), 1.0, 1.0);
+    }
+
+    fn mob_tick(&self, _caller: &dyn EntityBase) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let game_time = world.get_world_age();
+        let mut next_weathering_tick = self.next_weathering_tick.load(Ordering::Relaxed);
+        // -2 means waxed: vanilla skips weathering entirely.
+        if next_weathering_tick == -2 {
+            return;
+        }
+        if next_weathering_tick == -1 {
+            next_weathering_tick = game_time + self.next_weathering_delay();
+            self.next_weathering_tick
+                .store(next_weathering_tick, Ordering::Relaxed);
+        }
+        if game_time < next_weathering_tick {
+            return;
+        }
+        let weather_state = self.get_weather_state();
+        if weather_state == WeatherState::Oxidized {
+            // Vanilla keeps nextWeatheringTick at 0 so the statue conversion can run.
+            return;
+        }
+        let next_state = weather_state.next();
+        self.set_weather_state(next_state);
+        let next = if next_state == WeatherState::Oxidized {
+            0
+        } else {
+            game_time + self.next_weathering_delay()
+        };
+        self.next_weathering_tick.store(next, Ordering::Relaxed);
     }
 
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
