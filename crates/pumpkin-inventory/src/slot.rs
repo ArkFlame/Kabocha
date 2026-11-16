@@ -27,7 +27,7 @@ use crate::screen_handler::InventoryPlayer;
 
 use crate::inventory::Inventory;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::data_component_impl::EquipmentSlot;
+use pumpkin_data::{Enchantment, data_component_impl::EquipmentSlot};
 
 /// A slot in an inventory.
 ///
@@ -315,6 +315,14 @@ impl ArmorSlot {
     }
 }
 
+/// Vanilla `ArmorSlot.mayPickup`: blocks non-creative removal when `prevent_armor_change` is
+/// present or the stack is bound by a Curse of Binding.
+fn can_take_armor_stack(stack: &ItemStack, is_creative: bool) -> bool {
+    is_creative
+        || !(stack.has_prevent_armor_change()
+            || stack.get_enchantment_level(&Enchantment::BINDING_CURSE) > 0)
+}
+
 impl Slot for ArmorSlot {
     fn get_inventory(&self) -> Arc<dyn Inventory> {
         self.inventory.clone()
@@ -365,15 +373,14 @@ impl Slot for ArmorSlot {
         1
     }
 
-    /// Vanilla `ArmorSlot.mayPickup`: blocks non-creative removal when `prevent_armor_change` is present.
     fn can_take_items(&self, player: &dyn InventoryPlayer) -> bool {
-        let stack = self.get_stack();
-        !(!stack.is_empty() && !player.has_infinite_materials() && stack.has_prevent_armor_change())
+        can_take_armor_stack(&self.get_stack(), player.is_creative())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::can_take_armor_stack;
     use crate::build_equipment_slots;
     use crate::entity_equipment::EntityEquipment;
     use crate::player::player_inventory::PlayerInventory;
@@ -490,6 +497,21 @@ mod tests {
         let mut stack = ItemStack::new(1, &Item::DIAMOND_HELMET);
         stack.add_enchantment(&Enchantment::BINDING_CURSE, 1);
         stack
+    }
+
+    #[test]
+    fn binding_curse_blocks_non_creative_removal() {
+        let stack = cursed_helmet();
+
+        assert!(!can_take_armor_stack(&stack, false));
+        assert!(can_take_armor_stack(&stack, true));
+    }
+
+    #[test]
+    fn unbound_armor_remains_removable() {
+        let stack = ItemStack::new(1, &Item::DIAMOND_HELMET);
+
+        assert!(can_take_armor_stack(&stack, false));
     }
 
     #[test]
