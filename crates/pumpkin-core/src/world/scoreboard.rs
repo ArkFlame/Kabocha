@@ -809,6 +809,7 @@ pub struct Team {
 
 impl Team {
     pub(crate) const ALLOW_FRIENDLY_FIRE: i8 = 0x01;
+    pub(crate) const SEE_FRIENDLY_INVISIBLES: i8 = 0x02;
 
     #[must_use]
     pub const fn is_allow_friendly_fire(&self) -> bool {

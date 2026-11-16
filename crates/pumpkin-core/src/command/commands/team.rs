@@ -114,7 +114,8 @@ impl CommandExecutor for TeamAddExecutor {
         let new_team = Team {
             name: team_name_owned,
             display_name: display_name_clone.clone(),
-            options: 0,
+            // Vanilla PlayerTeam defaults: friendly fire and seeing invisible friends are both on.
+            options: Team::ALLOW_FRIENDLY_FIRE | Team::SEE_FRIENDLY_INVISIBLES,
             nametag_visibility: NameTagVisibility::Always,
             collision_rule: CollisionRule::Always,
             color: NamedColor::White,
