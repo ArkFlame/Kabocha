@@ -3312,6 +3312,25 @@ impl pumpkin::plugin::player::HostPlayerWithStore<PluginHostState> for HasSelf<P
         run_blocking(accessor, move || player.has_permission(&server, &node)).await
     }
 
+    async fn refresh_commands(
+        accessor: &Accessor<PluginHostState, Self>,
+        player: Resource<Player>,
+    ) -> wasmtime::Result<()> {
+        let (player, server) = accessor.with(|mut host| -> wasmtime::Result<_> {
+            let state = host.get();
+            Ok((
+                state.get(&player)?.clone(),
+                state.require_server().cloned()?,
+            ))
+        })?;
+
+        run_blocking(accessor, move || {
+            let command_dispatcher = server.command_dispatcher.load();
+            player.refresh_commands(&server, &command_dispatcher);
+        })
+        .await
+    }
+
     async fn add_effect(
         accessor: &Accessor<PluginHostState, Self>,
         player: Resource<Player>,

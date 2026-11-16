@@ -891,6 +891,8 @@ interface player {
         has-permission-set: func (node: string) -> option<bool>;
         /// Checks if the player has a specific permission node.
         has-permission: async func (node: string) -> bool;
+        /// Resends the player's command tree so permission changes are reflected in the client.
+        refresh-commands: async func ();
         /// Returns the player's display name, which may include formatting.
         get-display-name: func () -> text-component;
         /// Sets the player's display name.

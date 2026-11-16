@@ -21,6 +21,7 @@ bindgen!({
         "pumpkin:plugin/player@0.2.0.[method]player.ban-ip": async | store | trappable,
         "pumpkin:plugin/player@0.2.0.[method]player.damage": async | store | trappable,
         "pumpkin:plugin/player@0.2.0.[method]player.has-permission": async | store | trappable,
+        "pumpkin:plugin/player@0.2.0.[method]player.refresh-commands": async | store | trappable,
         "pumpkin:plugin/player@0.2.0.[method]player.heal": async | store | trappable,
         "pumpkin:plugin/player@0.2.0.[method]player.kill": async | store | trappable,
         "pumpkin:plugin/player@0.2.0.[method]player.open-ender-chest": async | store | trappable,

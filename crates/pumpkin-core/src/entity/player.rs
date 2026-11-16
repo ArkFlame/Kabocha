@@ -4511,7 +4511,16 @@ impl Player {
     ) {
         self.permission_lvl.store(lvl);
         self.send_permission_lvl_update();
+        self.refresh_commands(server, command_dispatcher);
+    }
 
+    /// Resends the command tree to this player, so that permission changes made
+    /// by plugins are reflected in the client's command list.
+    pub fn refresh_commands(
+        self: &Arc<Self>,
+        server: &Arc<Server>,
+        command_dispatcher: &CommandDispatcher,
+    ) {
         if let ClientPlatform::Bedrock(_) = self.client.as_ref() {
             client_suggestions::send_bedrock_commands_packet(self, server, command_dispatcher);
         } else {
