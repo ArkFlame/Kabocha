@@ -272,7 +272,7 @@ notify = { version = "8.2.2", default-features = false, features = ["macos_fseve
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh64"] }
 
-wasmtime = { version = "50.0.1", default-features = false, features = ["runtime", "component-model", "component-model-async", "async", "cache", "cranelift", "gc", "gc-drc", "threads", "std"] }
+wasmtime = { version = "50.0.1", default-features = false, features = ["runtime", "component-model", "component-model-async", "async", "cache", "cranelift", "gc", "gc-drc", "threads", "std", "demangle", "addr2line"] }
 wasmtime-wasi = { version = "50.0.1", default-features = false, features = ["p2", "p3"] }
 wasmtime-wasi-http = { version = "50.0.1", default-features = false, features = ["p2", "p3", "default-send-request"] }
 

@@ -25,6 +25,7 @@ use tracing::{debug, error, info, warn};
 
 pub mod api;
 pub mod cache;
+pub mod error;
 pub mod loader;
 /// Constants for plugin permissions.
 ///
@@ -646,7 +647,7 @@ struct LoadedPlugin {
 pub enum ManagerError {
     #[error("Plugin not found: {0}")]
     PluginNotFound(String),
-    #[error("Loader error: {0}")]
+    #[error(transparent)]
     LoaderError(#[from] LoaderError),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
@@ -1523,13 +1524,32 @@ impl PluginManager {
                     let mut unloading =
                         UNLOADING_PLUGINS.try_with(Clone::clone).unwrap_or_default();
                     unloading.push((manager_id, token));
-                    let _ = UNLOADING_PLUGINS
+                    match UNLOADING_PLUGINS
                         .scope(
                             unloading,
                             AssertUnwindSafe(async { instance.on_unload(context.clone()).await })
                                 .catch_unwind(),
                         )
-                        .await;
+                        .await
+                    {
+                        Ok(Ok(())) => {}
+                        Ok(Err(error)) => warn!(
+                            "{}",
+                            loader_clone.format_lifecycle_error(
+                                &metadata,
+                                "failed during initialization cleanup",
+                                &error,
+                            )
+                        ),
+                        Err(_) => error!(
+                            "{}",
+                            loader_clone.format_lifecycle_error(
+                                &metadata,
+                                "panicked during initialization cleanup",
+                                "on_unload panicked",
+                            )
+                        ),
+                    }
                     // on_unload can register again, that must not outlive the library
                     registrations.extend(self_ref_clone.take_registrations(&plugin_name).await);
                     // Last sweep: the plugin's own tasks can't register past it
@@ -1553,8 +1573,8 @@ impl PluginManager {
                     };
 
                     // Library still in use: stays leaked, the name is free again anyway
-                    if let Some(data) = loader_data {
-                        release_library(
+                    if let Some(data) = loader_data
+                        && let Err(error) = release_library(
                             &plugin_name,
                             registrations,
                             None,
@@ -1564,7 +1584,19 @@ impl PluginManager {
                             children_unloading,
                         )
                         .await
-                        .ok();
+                        && !matches!(
+                            error,
+                            LoaderError::LibraryInUse | LoaderError::CommandsResident
+                        )
+                    {
+                        warn!(
+                            "{}",
+                            loader_clone.format_lifecycle_error(
+                                &metadata,
+                                "could not release loader data",
+                                &error.to_string(),
+                            )
+                        );
                     }
 
                     // Same states-then-plugins section as the reservation, so a new load of
@@ -1606,7 +1638,10 @@ impl PluginManager {
                     );
                     state_notify.notify_waiters();
 
-                    error!("Failed to initialize plugin {plugin_name}: {error_msg}");
+                    error!(
+                        "{}",
+                        loader_clone.format_lifecycle_error(&metadata, "could not initialize", &e)
+                    );
                     Err(e)
                 }
             }
@@ -1713,7 +1748,7 @@ impl PluginManager {
                             loader_found = true;
                         }
                         Err(err) => {
-                            error!("Failed to load plugin from {:?}: {}", path, err);
+                            loader.report_load_error(&path, &err);
                             self.mark_load_failed(&path, &err);
                             loader_found = true;
                         }
@@ -1967,7 +2002,7 @@ impl PluginManager {
                 let (instance, metadata, loader_data) = match loader.load(path).await {
                     Ok(loaded) => loaded,
                     Err(err) => {
-                        error!("Failed to load plugin from {:?}: {}", path, err);
+                        loader.report_load_error(path, &err);
                         self.mark_load_failed(path, &err);
                         return Err(err.into());
                     }
@@ -2593,7 +2628,10 @@ impl PluginManager {
                 .await
             {
                 Ok(Ok(())) => {}
-                Ok(Err(e)) => warn!("Plugin {name} failed to unload cleanly: {e}"),
+                Ok(Err(e)) => warn!(
+                    "{}",
+                    loader.format_lifecycle_error(&metadata, "failed during on_unload", &e)
+                ),
                 Err(_) => error!("Plugin {name} panicked in on_unload"),
             }
             // on_unload can register again, that must not outlive the library

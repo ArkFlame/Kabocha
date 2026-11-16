@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    path::PathBuf,
     sync::{Arc, Weak},
 };
 
@@ -148,6 +149,7 @@ pub struct PluginHostState {
     pub server: Option<Arc<Server>>,
     pub permissions: Vec<String>,
     pub name: Option<String>,
+    pub plugin_file: Option<PathBuf>,
     pub marketplace_metadata: Option<crate::signature::PumpkinMetadata>,
 }
 
@@ -174,6 +176,7 @@ impl PluginHostState {
             server: None,
             permissions: Vec::new(),
             name: None,
+            plugin_file: None,
             marketplace_metadata: None,
         }
     }
