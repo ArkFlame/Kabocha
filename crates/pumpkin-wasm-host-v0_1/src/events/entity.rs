@@ -389,19 +389,20 @@ impl ToFromWasmEvent
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::EntityExplodeEvent(data) => Self {
-                entity_id: data.entity_id,
-                position: pumpkin_util::math::vector3::Vector3::new(
-                    data.position.0,
-                    data.position.1,
-                    data.position.2,
-                ),
-                yield_rate: data.yield_rate,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 EntityExplodeEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+        if let Event::EntityExplodeEvent(data) = event {
+            self.entity_id = data.entity_id;
+            self.position = pumpkin_util::math::vector3::Vector3::new(
+                data.position.0,
+                data.position.1,
+                data.position.2,
+            );
+            self.yield_rate = data.yield_rate;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -779,16 +780,8 @@ impl ToFromWasmEvent for EntityChangeBlockEvent {
         }
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::EntityChangeBlockEvent(data) => Self {
-                entity_id: data.entity_id,
-                block_pos: from_wasm_block_position(data.block_pos),
-                new_block: data.new_block,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
-        }
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 EntityChangeBlockEvent is applied in place by apply_wasm_event")
     }
 }
 

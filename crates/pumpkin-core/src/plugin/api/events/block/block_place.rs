@@ -4,6 +4,7 @@ use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
 
 use crate::entity::player::Player;
+use crate::world::World;
 
 use super::BlockEvent;
 
@@ -28,6 +29,9 @@ pub struct BlockPlaceEvent {
 
     /// A boolean indicating whether the player can build.
     pub can_build: bool,
+
+    /// The world the block is being placed in.
+    pub world: Arc<World>,
 }
 
 impl BlockPlaceEvent {
@@ -38,6 +42,7 @@ impl BlockPlaceEvent {
         block_placed_against: &'static Block,
         block_position: BlockPos,
         can_build: bool,
+        world: Arc<World>,
     ) -> Self {
         Self {
             player,
@@ -45,6 +50,7 @@ impl BlockPlaceEvent {
             block_placed_against,
             block_position,
             can_build,
+            world,
             cancelled: false,
         }
     }

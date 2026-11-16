@@ -49,6 +49,7 @@ impl ItemBehaviour for FlintAndSteelItem {
                 &pumpkin_data::Block::FIRE,
                 player_arc,
                 BlockIgniteEvent::CAUSE_FLINT_AND_STEEL.to_string(),
+                world.clone(),
             );
             server_ref
                 .plugin_manager

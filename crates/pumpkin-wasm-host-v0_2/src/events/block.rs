@@ -116,6 +116,9 @@ impl ToFromWasmEvent for BlockBreakEvent {
             block_pos: to_wasm_block_position(self.block_position),
             exp: self.exp,
             should_drop: self.drop,
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
@@ -128,6 +131,7 @@ impl ToFromWasmEvent for BlockBreakEvent {
                 block_position: from_wasm_block_position(data.block_pos),
                 exp: data.exp,
                 drop: data.should_drop,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -237,6 +241,9 @@ impl ToFromWasmEvent for BlockPlaceEvent {
             block_placed_against: to_wasm_block_name(self.block_placed_against),
             block_pos: to_wasm_block_position(self.block_position),
             can_build: self.can_build,
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
@@ -249,6 +256,7 @@ impl ToFromWasmEvent for BlockPlaceEvent {
                 block_placed_against: from_wasm_block_name(&data.block_placed_against),
                 block_position: from_wasm_block_position(data.block_pos),
                 can_build: data.can_build,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -296,6 +304,9 @@ impl ToFromWasmEvent for BlockIgniteEvent {
             block_pos: to_wasm_block_position(self.block_pos),
             player,
             cause: self.cause.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
@@ -307,6 +318,7 @@ impl ToFromWasmEvent for BlockIgniteEvent {
                 igniting_block: &pumpkin_data::Block::FIRE,
                 player: data.player.map(|player| consume_player(state, &player)),
                 cause: data.cause,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -399,19 +411,23 @@ impl ToFromWasmEvent for BlockDispenseEvent {
 }
 
 impl ToFromWasmEvent for BlockExplodeEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::BlockExplodeEvent(BlockExplodeEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             yield_rate: self.yield_rate,
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::BlockExplodeEvent(data) => Self {
                 block_pos: from_wasm_block_position(data.block_pos),
                 yield_rate: data.yield_rate,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -441,19 +457,23 @@ impl ToFromWasmEvent for BlockPhysicsEvent {
 }
 
 impl ToFromWasmEvent for BlockPistonExtendEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::BlockPistonExtendEvent(BlockPistonExtendEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             direction: self.direction.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::BlockPistonExtendEvent(data) => Self {
                 block_pos: from_wasm_block_position(data.block_pos),
                 direction: data.direction,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -462,19 +482,23 @@ impl ToFromWasmEvent for BlockPistonExtendEvent {
 }
 
 impl ToFromWasmEvent for BlockPistonRetractEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::BlockPistonRetractEvent(BlockPistonRetractEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             direction: self.direction.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::BlockPistonRetractEvent(data) => Self {
                 block_pos: from_wasm_block_position(data.block_pos),
                 direction: data.direction,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -551,19 +575,23 @@ impl ToFromWasmEvent for SpongeAbsorbEvent {
 }
 
 impl ToFromWasmEvent for TNTPrimeEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::TntPrimeEvent(TntPrimeEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             prime_reason: self.prime_reason.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::TntPrimeEvent(data) => Self {
                 block_pos: from_wasm_block_position(data.block_pos),
                 prime_reason: data.prime_reason,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

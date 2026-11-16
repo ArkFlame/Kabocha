@@ -378,16 +378,19 @@ impl ToFromWasmEvent
 impl ToFromWasmEvent
     for pumpkin_core::plugin::api::events::entity::entity_explode::EntityExplodeEvent
 {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::EntityExplodeEvent(EntityExplodeEventData {
             entity_id: self.entity_id,
             position: to_wasm_position(self.position),
             yield_rate: self.yield_rate,
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::EntityExplodeEvent(data) => Self {
                 entity_id: data.entity_id,
@@ -397,6 +400,7 @@ impl ToFromWasmEvent
                     data.position.2,
                 ),
                 yield_rate: data.yield_rate,
+                world: consume_world(state, &data.world),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -787,11 +791,14 @@ impl ToFromWasmEvent for EntityBreakDoorEvent {
 }
 
 impl ToFromWasmEvent for EntityChangeBlockEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::EntityChangeBlockEvent(EntityChangeBlockEventData {
             entity_id: self.entity_id,
             block_pos: to_wasm_block_position(self.block_pos),
             new_block: self.new_block.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
@@ -804,11 +811,12 @@ impl ToFromWasmEvent for EntityChangeBlockEvent {
         }
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::EntityChangeBlockEvent(data) => Self {
                 entity_id: data.entity_id,
                 block_pos: from_wasm_block_position(data.block_pos),
+                world: consume_world(state, &data.world),
                 new_block: data.new_block,
                 cancelled: data.cancelled,
             },

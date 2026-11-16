@@ -865,6 +865,7 @@ impl BlockRegistry {
             clicked_block,
             final_block_pos,
             true,
+            player.world(),
         );
         server.plugin_manager.fire_blocking(server, &mut event);
         if event.cancelled {

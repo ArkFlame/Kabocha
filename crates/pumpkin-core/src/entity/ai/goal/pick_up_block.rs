@@ -92,6 +92,7 @@ impl Goal for PickUpBlockGoal {
                 entity.entity_id,
                 target_pos,
                 "minecraft:air".to_string(),
+                world.clone(),
             );
         if let Some(server) = world.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);

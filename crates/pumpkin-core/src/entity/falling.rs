@@ -124,6 +124,7 @@ impl EntityBase for FallingEntity {
                         entity.entity_id,
                         landing_pos,
                         format!("minecraft:{}", block.name),
+                        (*world).clone(),
                     );
                     if let Some(server) = world.server.upgrade() {
                         server.plugin_manager.fire_blocking(&server, &mut event);

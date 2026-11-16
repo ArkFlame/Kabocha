@@ -1,4 +1,5 @@
 use crate::entity::player::Player;
+use crate::world::World;
 use pumpkin_data::Block;
 use pumpkin_macros::{Event, cancellable};
 use pumpkin_util::math::position::BlockPos;
@@ -20,6 +21,9 @@ pub struct BlockIgniteEvent {
 
     /// What ignited the block, e.g. flint and steel or a fire charge.
     pub cause: String,
+
+    /// The world the block ignites in.
+    pub world: Arc<World>,
 }
 
 impl BlockIgniteEvent {
@@ -32,12 +36,14 @@ impl BlockIgniteEvent {
         igniting_block: &'static Block,
         player: Option<Arc<Player>>,
         cause: String,
+        world: Arc<World>,
     ) -> Self {
         Self {
             block_pos,
             igniting_block,
             player,
             cause,
+            world,
             cancelled: false,
         }
     }

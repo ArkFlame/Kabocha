@@ -174,6 +174,7 @@ impl PistonBlock {
                 crate::plugin::api::events::block::block_piston::BlockPistonExtendEvent::new(
                     *pos,
                     format!("{dir:?}"),
+                    world.clone(),
                 );
             if !world.fire_block_event(pos, block, &mut event) {
                 return false;
@@ -206,6 +207,7 @@ impl PistonBlock {
             crate::plugin::api::events::block::block_piston::BlockPistonRetractEvent::new(
                 *pos,
                 format!("{dir:?}"),
+                world.clone(),
             );
         if !world.fire_block_event(pos, block, &mut event) {
             return false;

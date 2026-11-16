@@ -4,6 +4,7 @@ use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
 
 use crate::entity::player::Player;
+use crate::world::World;
 
 use super::BlockEvent;
 
@@ -28,6 +29,9 @@ pub struct BlockBreakEvent {
 
     /// A boolean indicating whether the block should drop items.
     pub drop: bool,
+
+    /// The world the block is being broken in.
+    pub world: Arc<World>,
 }
 
 impl BlockBreakEvent {
@@ -39,6 +43,7 @@ impl BlockBreakEvent {
     /// - `block_position`: The position of the block that is being broken.
     /// - `exp`: The amount of experience gained from breaking the block.
     /// - `drop`: A boolean indicating whether the block should drop items.
+    /// - `world`: The world the block is being broken in.
     ///
     /// # Returns
     /// A new instance of `BlockBreakEvent`.
@@ -49,6 +54,7 @@ impl BlockBreakEvent {
         block_position: BlockPos,
         exp: u32,
         drop: bool,
+        world: Arc<World>,
     ) -> Self {
         Self {
             player,
@@ -56,6 +62,7 @@ impl BlockBreakEvent {
             block_position,
             exp,
             drop,
+            world,
             cancelled: false,
         }
     }

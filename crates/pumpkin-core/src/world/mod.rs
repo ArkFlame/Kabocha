@@ -4667,6 +4667,7 @@ impl World {
                 .map_or(0, |source| source.get_entity().entity_id),
             position,
             power,
+            self.clone(),
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
@@ -6323,6 +6324,7 @@ impl World {
             *position,
             0,
             !flags.contains(BlockFlags::SKIP_DROPS),
+            self.clone(),
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);

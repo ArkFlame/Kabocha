@@ -50,6 +50,7 @@ impl ItemBehaviour for FireChargeItem {
                 &pumpkin_data::Block::FIRE,
                 player_arc,
                 BlockIgniteEvent::CAUSE_FIRE_CHARGE.to_string(),
+                world.clone(),
             );
             server_ref
                 .plugin_manager

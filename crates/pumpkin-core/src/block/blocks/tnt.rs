@@ -85,6 +85,7 @@ impl TNTBlock {
         let mut event = crate::plugin::api::events::block::tnt_prime::TNTPrimeEvent::new(
             *location,
             "REDSTONE".to_string(),
+            world.clone(),
         );
         if let Some(server) = world.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);

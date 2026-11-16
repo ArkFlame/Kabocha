@@ -120,17 +120,18 @@ impl ToFromWasmEvent for BlockBreakEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockBreakEvent(data) => Self {
-                player: data.player.map(|player| consume_player(state, &player)),
-                block: from_wasm_block_name(&data.block),
-                block_position: from_wasm_block_position(data.block_pos),
-                exp: data.exp,
-                drop: data.should_drop,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockBreakEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        if let Event::BlockBreakEvent(data) = event {
+            self.player = data.player.map(|player| consume_player(state, &player));
+            self.block = from_wasm_block_name(&data.block);
+            self.block_position = from_wasm_block_position(data.block_pos);
+            self.exp = data.exp;
+            self.drop = data.should_drop;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -241,17 +242,18 @@ impl ToFromWasmEvent for BlockPlaceEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockPlaceEvent(data) => Self {
-                player: consume_player(state, &data.player),
-                block_placed: from_wasm_block_name(&data.block_placed),
-                block_placed_against: from_wasm_block_name(&data.block_placed_against),
-                block_position: from_wasm_block_position(data.block_pos),
-                can_build: data.can_build,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockPlaceEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        if let Event::BlockPlaceEvent(data) = event {
+            self.player = consume_player(state, &data.player);
+            self.block_placed = from_wasm_block_name(&data.block_placed);
+            self.block_placed_against = from_wasm_block_name(&data.block_placed_against);
+            self.block_position = from_wasm_block_position(data.block_pos);
+            self.can_build = data.can_build;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -300,16 +302,16 @@ impl ToFromWasmEvent for BlockIgniteEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockIgniteEvent(data) => Self {
-                block_pos: from_wasm_block_position(data.block_pos),
-                igniting_block: &pumpkin_data::Block::FIRE,
-                player: data.player.map(|player| consume_player(state, &player)),
-                cause: data.cause,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockIgniteEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        if let Event::BlockIgniteEvent(data) = event {
+            self.block_pos = from_wasm_block_position(data.block_pos);
+            self.player = data.player.map(|player| consume_player(state, &player));
+            self.cause = data.cause;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -407,14 +409,15 @@ impl ToFromWasmEvent for BlockExplodeEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockExplodeEvent(data) => Self {
-                block_pos: from_wasm_block_position(data.block_pos),
-                yield_rate: data.yield_rate,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockExplodeEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+        if let Event::BlockExplodeEvent(data) = event {
+            self.block_pos = from_wasm_block_position(data.block_pos);
+            self.yield_rate = data.yield_rate;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -449,14 +452,15 @@ impl ToFromWasmEvent for BlockPistonExtendEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockPistonExtendEvent(data) => Self {
-                block_pos: from_wasm_block_position(data.block_pos),
-                direction: data.direction,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockPistonExtendEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+        if let Event::BlockPistonExtendEvent(data) = event {
+            self.block_pos = from_wasm_block_position(data.block_pos);
+            self.direction = data.direction;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -470,14 +474,15 @@ impl ToFromWasmEvent for BlockPistonRetractEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::BlockPistonRetractEvent(data) => Self {
-                block_pos: from_wasm_block_position(data.block_pos),
-                direction: data.direction,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 BlockPistonRetractEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+        if let Event::BlockPistonRetractEvent(data) = event {
+            self.block_pos = from_wasm_block_position(data.block_pos);
+            self.direction = data.direction;
+            self.cancelled = data.cancelled;
         }
     }
 }
@@ -559,14 +564,15 @@ impl ToFromWasmEvent for TNTPrimeEvent {
         })
     }
 
-    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
-        match event {
-            Event::TntPrimeEvent(data) => Self {
-                block_pos: from_wasm_block_position(data.block_pos),
-                prime_reason: data.prime_reason,
-                cancelled: data.cancelled,
-            },
-            _ => panic!("unexpected event type"),
+    fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
+        unreachable!("v0.1 TntPrimeEvent is applied in place by apply_wasm_event")
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+        if let Event::TntPrimeEvent(data) = event {
+            self.block_pos = from_wasm_block_position(data.block_pos);
+            self.prime_reason = data.prime_reason;
+            self.cancelled = data.cancelled;
         }
     }
 }

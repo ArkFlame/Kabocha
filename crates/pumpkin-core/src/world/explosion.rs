@@ -785,6 +785,7 @@ impl<'a> Explosion<'a> {
                         } else {
                             1.0
                         },
+                        world.clone(),
                     );
                 if let Some(server) = world.server.upgrade() {
                     server.plugin_manager.fire_blocking(&server, &mut event);
