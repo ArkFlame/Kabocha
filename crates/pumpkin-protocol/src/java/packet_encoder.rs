@@ -12,6 +12,175 @@ use crate::{
 
 // raw -> compress -> encrypt
 
+/// Upper bound on zlib (deflate) output size for `data_len` input bytes.
+///
+/// `compress_vec` never grows the caller's buffer, so the destination must be
+/// pre-sized. Deflate expands incompressible input by at most a few bytes per
+/// 64 KiB stored block plus a fixed header/trailer; `data_len / 16` is a
+/// generous multiple of that worst case and keeps the output buffer always
+/// large enough to reach `StreamEnd`.
+const fn deflate_output_capacity(data_len: usize) -> usize {
+    data_len.saturating_add(data_len / 16).saturating_add(64)
+}
+/// A validated Java packet payload consisting of a packet ID `VarInt` followed by packet fields.
+///
+/// This type deliberately excludes the outer packet-length prefix, compression framing, and
+/// connection-local encryption.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SerializedPacket {
+    bytes: Bytes,
+}
+
+impl SerializedPacket {
+    /// Validates bytes supplied by raw/plugin packet APIs.
+    pub fn try_from_bytes(bytes: Bytes) -> Result<Self, PacketEncodeError> {
+        if bytes.is_empty() {
+            return Err(PacketEncodeError::Message(
+                "Serialized packet must contain a packet ID".into(),
+            ));
+        }
+        if bytes.len() > MAX_PACKET_DATA_SIZE {
+            return Err(PacketEncodeError::TooLong(bytes.len()));
+        }
+
+        let mut packet_id = 0u32;
+        let mut complete = false;
+        for (index, byte) in bytes.iter().copied().take(5).enumerate() {
+            packet_id |= u32::from(byte & 0x7f) << (index * 7);
+            if byte & 0x80 == 0 {
+                complete = true;
+                break;
+            }
+        }
+        if !complete || packet_id > i32::MAX as u32 {
+            return Err(PacketEncodeError::Message(
+                "Serialized packet has an invalid packet ID VarInt".into(),
+            ));
+        }
+
+        Ok(Self { bytes })
+    }
+
+    #[must_use]
+    pub const fn as_bytes(&self) -> &Bytes {
+        &self.bytes
+    }
+
+    #[must_use]
+    pub fn into_bytes(self) -> Bytes {
+        self.bytes
+    }
+
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CompressionProfile {
+    pub threshold: CompressionThreshold,
+    pub level: CompressionLevel,
+}
+
+impl From<(CompressionThreshold, CompressionLevel)> for CompressionProfile {
+    fn from((threshold, level): (CompressionThreshold, CompressionLevel)) -> Self {
+        Self { threshold, level }
+    }
+}
+
+/// Complete Java packet framing before connection-local encryption.
+#[derive(Clone, Debug)]
+pub struct PreparedPacket {
+    bytes: Bytes,
+    compression: Option<CompressionProfile>,
+}
+
+impl PreparedPacket {
+    #[must_use]
+    pub const fn as_bytes(&self) -> &Bytes {
+        &self.bytes
+    }
+
+    #[must_use]
+    pub const fn compression(&self) -> Option<CompressionProfile> {
+        self.compression
+    }
+
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+pub fn prepare_packet(
+    packet: &SerializedPacket,
+    compression: Option<CompressionProfile>,
+) -> Result<PreparedPacket, PacketEncodeError> {
+    let packet_data = packet.as_bytes();
+    let data_len = packet_data.len();
+    let data_len_var_int = VarInt::try_from(data_len)
+        .map_err(|_| PacketEncodeError::Message("Packet data length exceeds VarInt".into()))?;
+    let mut output = Vec::with_capacity(data_len.saturating_add(10));
+
+    if let Some(profile) = compression {
+        if data_len >= profile.threshold {
+            let mut compressor = Compress::new(Compression::new(profile.level), true);
+            let mut compressed = Vec::with_capacity(deflate_output_capacity(data_len));
+            let status = compressor
+                .compress_vec(packet_data, &mut compressed, FlushCompress::Finish)
+                .map_err(|err| PacketEncodeError::CompressionFailed(err.to_string()))?;
+            if status != Status::StreamEnd {
+                return Err(PacketEncodeError::CompressionFailed(format!(
+                    "Unexpected compressor status: {status:?}"
+                )));
+            }
+            let packet_len = VarInt::try_from(data_len_var_int.written_size() + compressed.len())
+                .map_err(|_| PacketEncodeError::TooLong(data_len))?;
+            packet_len
+                .encode(&mut output)
+                .map_err(|err| PacketEncodeError::Message(err.to_string()))?;
+            data_len_var_int
+                .encode(&mut output)
+                .map_err(|err| PacketEncodeError::Message(err.to_string()))?;
+            output.extend_from_slice(&compressed);
+        } else {
+            let packet_len = VarInt::try_from(VarInt(0).written_size() + data_len)
+                .map_err(|_| PacketEncodeError::TooLong(data_len))?;
+            packet_len
+                .encode(&mut output)
+                .map_err(|err| PacketEncodeError::Message(err.to_string()))?;
+            VarInt(0)
+                .encode(&mut output)
+                .map_err(|err| PacketEncodeError::Message(err.to_string()))?;
+            output.extend_from_slice(packet_data);
+        }
+    } else {
+        data_len_var_int
+            .encode(&mut output)
+            .map_err(|err| PacketEncodeError::Message(err.to_string()))?;
+        output.extend_from_slice(packet_data);
+    }
+
+    if output.len() > MAX_PACKET_SIZE as usize {
+        return Err(PacketEncodeError::TooLong(output.len()));
+    }
+    Ok(PreparedPacket {
+        bytes: output.into(),
+        compression,
+    })
+}
+
 /// Encoder: Server -> Client
 /// Supports `ZLib` endecoding/compression
 /// Supports Aes128 Encryption
@@ -19,7 +188,7 @@ pub struct TCPNetworkEncoder<W: AsyncWrite + Unpin> {
     writer: W,
     cipher: Option<Aes128Cfb8Enc>,
     // compression and compression threshold
-    compression: Option<(CompressionThreshold, CompressionLevel)>,
+    compression: Option<CompressionProfile>,
     // Reused compressor to avoid constructing zlib state per packet.
     compressor: Option<(CompressionLevel, Compress)>,
     // Reused compression buffer to avoid allocating a new Vec for each packet.
@@ -43,7 +212,10 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
         &mut self,
         compression_info: (CompressionThreshold, CompressionLevel),
     ) {
-        self.compression = Some(compression_info);
+        self.compression = Some(CompressionProfile {
+            threshold: compression_info.0,
+            level: compression_info.1,
+        });
     }
 
     /// NOTE: Encryption can only be set; a minecraft stream cannot go back to being unencrypted
@@ -65,10 +237,7 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
         compression_level: CompressionLevel,
     ) -> Result<(), PacketEncodeError> {
         self.compression_scratch.clear();
-        let reserve_hint = packet_data
-            .len()
-            .saturating_add(packet_data.len() / 16)
-            .saturating_add(64);
+        let reserve_hint = deflate_output_capacity(packet_data.len());
         let current_capacity = self.compression_scratch.capacity();
         if reserve_hint > current_capacity {
             self.compression_scratch
@@ -138,10 +307,10 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
     /// -   `Data`: The packet's data.
     ///
     /// NOTE: This method does not flush. Call [`Self::flush`] to flush buffered data.
-    pub async fn write_packet(&mut self, packet_data: Bytes) -> Result<(), PacketEncodeError> {
+    pub async fn write_packet(&mut self, packet: SerializedPacket) -> Result<(), PacketEncodeError> {
         let mut frame = std::mem::take(&mut self.frame_scratch);
         frame.clear();
-        let framed = self.frame_packet(&packet_data, &mut frame);
+        let framed = self.frame_packet(packet.as_bytes(), &mut frame);
         let result = match framed {
             Ok(()) => self.write_frame(&mut frame).await,
             Err(err) => Err(err),
@@ -166,7 +335,7 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
     #[must_use]
     pub fn is_compressing_packet(&self, packet_data: &Bytes) -> bool {
         self.compression
-            .is_some_and(|(threshold, _)| packet_data.len() >= threshold)
+            .is_some_and(|profile| packet_data.len() >= profile.threshold)
     }
 
     #[allow(clippy::too_many_lines)]
@@ -189,11 +358,9 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
         let mut header_buf = [0u8; 10];
         let mut header_cursor = std::io::Cursor::new(&mut header_buf[..]);
 
-        let payload_to_write: &[u8] = if let Some((compression_threshold, compression_level)) =
-            self.compression
-        {
-            if data_len >= compression_threshold {
-                self.compress_packet_data(packet_data.as_ref(), compression_level)?;
+        let payload_to_write: &[u8] = if let Some(compression) = self.compression {
+            if data_len >= compression.threshold {
+                self.compress_packet_data(packet_data.as_ref(), compression.level)?;
                 debug_assert!(!self.compression_scratch.is_empty());
 
                 let full_packet_len_var_int: VarInt = (data_len_var_int.written_size()
@@ -268,6 +435,25 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
         out.extend_from_slice(payload_to_write);
 
         Ok(())
+    }
+
+    pub async fn write_prepared_packet(
+        &mut self,
+        packet: &PreparedPacket,
+    ) -> Result<(), PacketEncodeError> {
+        if packet.compression != self.compression {
+            return Err(PacketEncodeError::Message(
+                "Prepared packet compression does not match connection".into(),
+            ));
+        }
+        let mut frame = packet.bytes.to_vec();
+        if let Some(cipher) = &mut self.cipher {
+            cipher.encrypt(&mut frame);
+        }
+        self.writer
+            .write_all(&frame)
+            .await
+            .map_err(|err| PacketEncodeError::Message(err.to_string()))
     }
 
     pub async fn flush(&mut self) -> Result<(), PacketEncodeError> {
@@ -394,7 +580,7 @@ mod tests {
         packet.write_packet_data(writer, &JavaMinecraftVersion::V_1_21_11)?;
 
         encoder
-            .write_packet(packet_buf.into())
+            .write_packet(SerializedPacket::try_from_bytes(packet_buf.into())?)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -837,5 +1023,172 @@ mod tests {
         let mut frame = vec![1, 2, 3];
         let result = encoder.write_frame(&mut frame).await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn serialized_packet_validates_the_packet_id_boundary() {
+        assert!(SerializedPacket::try_from_bytes(Bytes::new()).is_err());
+        assert!(
+            SerializedPacket::try_from_bytes(Bytes::from_static(&[
+                0x80, 0x80, 0x80, 0x80, 0x80, 0x00
+            ]))
+            .is_err()
+        );
+        assert!(SerializedPacket::try_from_bytes(Bytes::from_static(&[0x00])).is_ok());
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_matches_regular_encoder() -> Result<(), Box<dyn std::error::Error>> {
+        let compressions = [
+            None,
+            Some(CompressionProfile {
+                threshold: usize::MAX,
+                level: 4,
+            }),
+            Some(CompressionProfile {
+                threshold: 64 * 1024,
+                level: 4,
+            }),
+            Some(CompressionProfile {
+                threshold: 0,
+                level: 4,
+            }),
+        ];
+
+        for compression in compressions {
+            let packet = SerializedPacket::try_from_bytes(Bytes::from(vec![0x5a; 64 * 1024]))?;
+            let prepared = prepare_packet(&packet, compression)?;
+
+            let mut expected = Vec::new();
+            let mut encoder = TCPNetworkEncoder::new(&mut expected);
+            if let Some(profile) = compression {
+                encoder.set_compression((profile.threshold, profile.level));
+            }
+            encoder.write_packet(packet).await?;
+            encoder.flush().await?;
+
+            assert_eq!(prepared.as_bytes().as_ref(), expected);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_rejects_different_compression() -> Result<(), PacketEncodeError> {
+        let packet = SerializedPacket::try_from_bytes(Bytes::from_static(b"\x00packet"))?;
+        let prepared = prepare_packet(
+            &packet,
+            Some(CompressionProfile {
+                threshold: 0,
+                level: 4,
+            }),
+        )?;
+        let mut output = Vec::new();
+        let mut encoder = TCPNetworkEncoder::new(&mut output);
+        encoder.set_compression((256, 4));
+
+        assert!(encoder.write_prepared_packet(&prepared).await.is_err());
+        assert!(output.is_empty());
+        Ok(())
+    }
+
+    /// Deterministic high-entropy bytes so that tests are reproducible and the
+    /// payload is not compressible by repetition.
+    fn high_entropy_payload(size: usize) -> Vec<u8> {
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut payload = Vec::with_capacity(size);
+        while payload.len() < size {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            payload.extend_from_slice(&state.to_le_bytes());
+        }
+        payload.truncate(size);
+        payload
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_matches_encoder_for_high_entropy_payloads()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for size in [64 * 1024, 256 * 1024, 1024 * 1024] {
+            let profile = Some(CompressionProfile {
+                threshold: 0,
+                level: 4,
+            });
+            let packet = SerializedPacket::try_from_bytes(Bytes::from(high_entropy_payload(size)))?;
+            let prepared = prepare_packet(&packet, profile)?;
+
+            let mut expected = Vec::new();
+            let mut encoder = TCPNetworkEncoder::new(&mut expected);
+            encoder.set_compression((0, 4));
+            encoder.write_packet(packet.clone()).await?;
+            encoder.flush().await?;
+
+            assert_eq!(prepared.as_bytes().as_ref(), expected, "size {size}");
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_handles_near_maximum_payload() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let size = MAX_PACKET_SIZE as usize - 2048;
+        let profile = Some(CompressionProfile {
+            threshold: 0,
+            level: 4,
+        });
+        let packet = SerializedPacket::try_from_bytes(Bytes::from(high_entropy_payload(size)))?;
+        let prepared = prepare_packet(&packet, profile)?;
+        assert!(prepared.len() <= MAX_PACKET_SIZE as usize);
+
+        let mut expected = Vec::new();
+        let mut encoder = TCPNetworkEncoder::new(&mut expected);
+        encoder.set_compression((0, 4));
+        encoder.write_packet(packet).await?;
+        encoder.flush().await?;
+
+        assert_eq!(prepared.as_bytes().as_ref(), expected);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_matches_encoder_at_every_compression_level()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for level in 0..=9 {
+            let profile = Some(CompressionProfile {
+                threshold: 0,
+                level,
+            });
+            let packet =
+                SerializedPacket::try_from_bytes(Bytes::from(high_entropy_payload(256 * 1024)))?;
+            let prepared = prepare_packet(&packet, profile)?;
+
+            let mut expected = Vec::new();
+            let mut encoder = TCPNetworkEncoder::new(&mut expected);
+            encoder.set_compression((0, level));
+            encoder.write_packet(packet.clone()).await?;
+            encoder.flush().await?;
+
+            assert_eq!(prepared.as_bytes().as_ref(), expected, "level {level}");
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn prepared_packet_compressed_output_can_expand_beyond_source()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let profile = Some(CompressionProfile {
+            threshold: 0,
+            level: 0,
+        });
+        let packet =
+            SerializedPacket::try_from_bytes(Bytes::from(high_entropy_payload(256 * 1024)))?;
+        let prepared = prepare_packet(&packet, profile)?;
+        assert!(
+            prepared.len() > packet.len(),
+            "compressed output {} should exceed source {}",
+            prepared.len(),
+            packet.len()
+        );
+        Ok(())
     }
 }

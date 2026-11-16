@@ -16,7 +16,7 @@ use pumpkin_protocol::{
         client::login::CLoginDisconnect,
         client::play::CPlayDisconnect,
         packet_decoder::TCPNetworkDecoder,
-        packet_encoder::TCPNetworkEncoder,
+        packet_encoder::{SerializedPacket, TCPNetworkEncoder},
         server::config::{
             SAcceptCodeOfConduct, SAcknowledgeFinishConfig, SClientInformationConfig,
             SConfigCookieResponse, SConfigPong, SConfigResourcePack, SKeepAlive, SKnownPacks,
@@ -230,6 +230,13 @@ impl PendingConnection {
             return;
         }
         let (payload, extras) = self.translate_outgoing(Bytes::from(packet_buf)).await;
+        let payload = payload.and_then(|payload| match SerializedPacket::try_from_bytes(payload) {
+            Ok(payload) => Some(payload),
+            Err(err) => {
+                warn!("Failed to serialize packet for client {}: {:?}", self.id, err);
+                None
+            }
+        });
         if let Some(payload) = payload
             && let Err(err) = self.network_writer.write_packet(payload).await
         {
@@ -238,6 +245,10 @@ impl PendingConnection {
             return;
         }
         for extra in extras {
+            let Ok(extra) = SerializedPacket::try_from_bytes(extra) else {
+                warn!("Failed to validate extra packet for client {}", self.id);
+                continue;
+            };
             if let Err(err) = self.network_writer.write_packet(extra).await {
                 warn!("Failed to send extra packet to client {}: {}", self.id, err);
             }
