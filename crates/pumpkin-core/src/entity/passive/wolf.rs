@@ -171,7 +171,9 @@ impl AgeableMob for WolfEntity {
 impl Animal for WolfEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         let item = item_stack.get_item();
-        item.has_tag(&tag::Item::MINECRAFT_WOLF_FOOD) || item == &Item::BONE
+        // Vanilla Wolf#isFood only checks WOLF_FOOD; bones are a taming
+        // item (handled in mob_interact) and must not heal tamed wolves.
+        item.has_tag(&tag::Item::MINECRAFT_WOLF_FOOD)
     }
 }
 
