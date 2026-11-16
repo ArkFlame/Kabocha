@@ -2914,6 +2914,11 @@ impl LivingEntity {
             if perished && let Some(mob) = dyn_self.get_mob() {
                 mob.drop_inventory();
             }
+            // Vanilla `LivingEntity.dropAllDeathLoot`: an entity dying while leashed drops
+            // the lead instead of vanishing with it.
+            if perished {
+                self.entity.drop_leash();
+            }
 
             // Broadcast death message if it's a player and the gamerule is enabled
             self.broadcast_death_message(&*dyn_self, damage_type, source, cause);
