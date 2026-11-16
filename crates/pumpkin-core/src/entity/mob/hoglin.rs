@@ -12,7 +12,7 @@ use rand::RngExt;
 
 use crate::entity::mob::spawn::SpawnGroupData;
 use crate::entity::{
-    Entity, EntityBase,
+    Entity, EntityBase, living::LivingEntity,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
@@ -265,21 +265,36 @@ impl Mob for HoglinEntity {
         if self.is_baby() {
             return;
         }
-        throw_target(&self.mob_entity.living_entity.entity, target);
+        throw_target(&self.mob_entity.living_entity, target);
     }
 }
 
 /// Vanilla `HoglinBase.throwTarget`, shared with zoglins.
-pub fn throw_target(attacker: &Entity, target: &dyn EntityBase) {
-    let my_pos = attacker.pos.load();
-    let target_pos = target.get_entity().pos.load();
+pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
+    // Vanilla: strength = attacker ATTACK_KNOCKBACK - target KNOCKBACK_RESISTANCE.
+    let resistance = target.get_living_entity().map_or(0.0, |living| {
+        living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
+    });
+    let strength = attacker
+        .get_attribute_value(&Attributes::ATTACK_KNOCKBACK)
+        - resistance;
+    if strength <= 0.0 {
+        return;
+    }
+    let my_pos = attacker.entity.pos.load();
+    let target_entity = target.get_entity();
+    let target_pos = target_entity.pos.load();
     let dx = target_pos.x - my_pos.x;
     let dz = target_pos.z - my_pos.z;
     let dist = dx.hypot(dz).max(0.001);
-    let vel = target.get_entity().velocity.load();
-    target.get_entity().velocity.store(Vector3::new(
-        vel.x + (dx / dist) * 0.5,
-        0.5,
-        vel.z + (dz / dist) * 0.5,
+    // Impulse adds to existing motion (keeps upward velocity).
+    let vel = target_entity.velocity.load();
+    target_entity.velocity.store(Vector3::new(
+        vel.x + (dx / dist) * strength * 0.5,
+        vel.y + 0.5,
+        vel.z + (dz / dist) * strength * 0.5,
     ));
+    target_entity
+        .velocity_dirty
+        .store(true, std::sync::atomic::Ordering::SeqCst);
 }
