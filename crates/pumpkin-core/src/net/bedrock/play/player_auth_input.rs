@@ -108,6 +108,12 @@ impl BedrockClient {
                 flags.get(InputData::PaddlingLeft as usize),
                 flags.get(InputData::PaddlingRight as usize),
             );
+            apply_mount_move(
+                player,
+                &vehicle,
+                &packet,
+                flags.get(InputData::VerticalCollision as usize),
+            );
         }
 
         // Inventory moves can ride inside the input packet, like the standalone request
@@ -306,4 +312,49 @@ fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
         analog.x > 0.0,
         analog.x < 0.0,
     )
+}
+
+/// Bedrock has no move-vehicle packet: the client simulates the mount it rides and reports
+/// only the rider's step, so the server has to carry that step onto the mount itself.
+/// Without it a Bedrock-controlled saddled mount never leaves the spot it was mounted at.
+fn apply_mount_move(
+    player: &Arc<Player>,
+    vehicle: &Arc<dyn EntityBase>,
+    packet: &SPlayerAuthInput,
+    on_ground: bool,
+) {
+    // Vanilla's "moved too quickly" guard, minus the vehicle's own motion allowance.
+    const MAX_STEP_SQUARED: f64 = 100.0;
+    // Saddled mounts only: boats and minecarts have their own server-side movement.
+    if vehicle.get_mob().is_none() {
+        return;
+    }
+    let rider = player.get_entity();
+    // Vanilla `Entity.getControllingPassenger`: only a saddle-steering first passenger,
+    // and never a NoAI mount, moves the mount.
+    let controls = vehicle
+        .get_controlling_passenger()
+        .is_some_and(|controller| controller.get_entity().entity_id == rider.entity_id);
+    if !controls {
+        return;
+    }
+    let delta = packet.delta.to_f64();
+    let step = delta.length_squared();
+    let moved = delta.x.is_finite()
+        && delta.y.is_finite()
+        && delta.z.is_finite()
+        && step > 0.0
+        && step <= MAX_STEP_SQUARED;
+    let vehicle_entity = vehicle.get_entity();
+    if moved {
+        vehicle_entity.set_pos(vehicle_entity.pos.load().add_raw(delta.x, delta.y, delta.z));
+        vehicle_entity.emit_client_movement(vehicle.as_ref(), delta);
+    }
+    // A rider's body yaw is the mount's yaw, so steering in place still turns the mount.
+    vehicle_entity.set_rotation(packet.yaw, vehicle_entity.pitch.load());
+    vehicle_entity.on_ground.store(on_ground, Ordering::Relaxed);
+    crate::entity::position_rider(vehicle.as_ref(), player.as_ref());
+    if moved {
+        chunker::update_position(player);
+    }
 }
