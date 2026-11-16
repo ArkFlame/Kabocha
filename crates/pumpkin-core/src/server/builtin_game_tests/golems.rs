@@ -1,6 +1,6 @@
 use pumpkin_data::{Block, block_properties::OakLeavesLikeProperties};
 use pumpkin_gametest::{GameTestHelper, GameTestResult};
-use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 
 use super::build_stone_floor;
 
@@ -44,6 +44,37 @@ pub(super) async fn test_snow_golem_snow_trail_support(
         helper.succeed();
         Ok(())
     });
+    Ok(())
+}
+
+pub(super) async fn test_copper_golem_collects_items_at_path_end(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 5).await?;
+    for x in 0..5 {
+        for z in 0..5 {
+            if x == 0 || x == 4 || z == 0 || z == 4 {
+                for y in 1..3 {
+                    helper
+                        .set_block_default(&BlockPos::new(x, y, z), &Block::STONE)
+                        .await?;
+                }
+            }
+        }
+    }
+    let source = BlockPos::new(1, 1, 2);
+    helper
+        .set_block_default(&source, &Block::WAXED_COPPER_CHEST)
+        .await?;
+    helper
+        .set_container_item(&source, 0, "minecraft:iron_ingot", 16)
+        .await?;
+    helper
+        .spawn_entity_at("minecraft:copper_golem", Vector3::new(3.5, 1.0, 2.5))
+        .await?;
+
+    helper
+        .succeed_when(move |helper| async move { helper.assert_container_empty(&source).await })?;
     Ok(())
 }
 

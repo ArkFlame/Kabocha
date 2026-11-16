@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use pumpkin_data::{
     Block, BlockDirection, BlockId, BlockStateId, block_properties::WallTorchLikeProperties,
-    entity::EntityType, world::WorldEvent,
+    entity::EntityType, tag::Taggable, world::WorldEvent,
 };
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use pumpkin_world::world::BlockFlags;
@@ -11,7 +11,11 @@ use crate::{
     block::{BlockBehaviour, BlockMetadata, OnPlaceArgs, PlacedArgs},
     entity::{
         Entity, EntityBase,
-        passive::{iron_golem::IronGolemEntity, snow_golem::SnowGolemEntity},
+        passive::{
+            copper_golem::{CopperGolemEntity, WeatherState},
+            iron_golem::IronGolemEntity,
+            snow_golem::SnowGolemEntity,
+        },
     },
     world::World,
 };
@@ -101,13 +105,97 @@ fn find_pattern(
     None
 }
 
+struct CopperGolemPattern {
+    pumpkin: BlockPos,
+    copper: BlockPos,
+}
+
+fn find_copper_golem_pattern(world: &World, origin: &BlockPos) -> Option<CopperGolemPattern> {
+    let requires_pumpkin = is_pumpkin(world.get_block(origin));
+    // BlockPattern.find scans a 2x2x2 cube, X first, then forward/up orientations.
+    for z in 0..=1 {
+        for y in 0..=1 {
+            for x in 0..=1 {
+                let pumpkin = origin.offset(Vector3::new(x, y, z));
+                if requires_pumpkin && !is_pumpkin(world.get_block(&pumpkin)) {
+                    continue;
+                }
+                for direction in [
+                    BlockDirection::South,
+                    BlockDirection::North,
+                    BlockDirection::East,
+                    BlockDirection::West,
+                    BlockDirection::Up,
+                    BlockDirection::Down,
+                ] {
+                    let copper = pumpkin.offset(direction.to_offset());
+                    let body = world.get_block(&copper);
+                    if body.id.has_tag(pumpkin_data::tag::Block::MINECRAFT_COPPER) {
+                        return Some(CopperGolemPattern { pumpkin, copper });
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_pumpkin(block: &Block) -> bool {
+    block == &Block::CARVED_PUMPKIN || block == &Block::JACK_O_LANTERN
+}
+
+fn spawn_copper_golem(world: &Arc<World>, pattern: &CopperGolemPattern) {
+    let (pumpkin, copper) = (&pattern.pumpkin, &pattern.copper);
+    let (pumpkin_block, pumpkin_state) = world.get_block_and_state(pumpkin);
+    if !is_pumpkin(pumpkin_block) {
+        return;
+    }
+    let (body, copper_state) = world.get_block_and_state_id(copper);
+    let facing = WallTorchLikeProperties::from_state_id(pumpkin_state.id).facing;
+    let position = pumpkin.to_f64().add_raw(0.0, 0.05, 0.0);
+    let golem = CopperGolemEntity::new(Entity::new(
+        world.clone(),
+        position,
+        &EntityType::COPPER_GOLEM,
+    ));
+    let weather_state = match body.id {
+        BlockId::EXPOSED_COPPER | BlockId::WAXED_EXPOSED_COPPER => WeatherState::Exposed,
+        BlockId::WEATHERED_COPPER | BlockId::WAXED_WEATHERED_COPPER => WeatherState::Weathered,
+        BlockId::OXIDIZED_COPPER | BlockId::WAXED_OXIDIZED_COPPER => WeatherState::Oxidized,
+        _ => WeatherState::Unaffected,
+    };
+    golem.set_weather_state(weather_state);
+    if !world.spawn_entity(golem.clone()) {
+        return;
+    }
+    for (position, state) in [(pumpkin, pumpkin_state.id), (copper, copper_state)] {
+        world.set_block_state(
+            position,
+            Block::AIR.default_state.id,
+            BlockFlags::NOTIFY_LISTENERS,
+        );
+        world.sync_world_event(
+            WorldEvent::ParticlesDestroyBlock,
+            *position,
+            i32::from(state.as_u16()),
+        );
+    }
+    for position in [pumpkin, copper] {
+        world.update_neighbors_at(position, &Block::AIR, None);
+    }
+    let chest_state =
+        super::chests::CopperChestBlock::get_from_copper_block(body, facing, world, copper);
+    world.set_block_state(copper, chest_state, BlockFlags::NOTIFY_LISTENERS);
+    golem.play_spawn_sound();
+}
+
 #[must_use]
 pub fn can_spawn_golem(world: &World, top_pos: &BlockPos) -> bool {
     find_pattern(world, top_pos, &EntityType::SNOW_GOLEM, &SNOW_GOLEM_BASE).is_some()
         || find_pattern(world, top_pos, &EntityType::IRON_GOLEM, &IRON_GOLEM_BASE).is_some()
 }
 
-fn try_spawn_golem(world: &Arc<World>, top_pos: &BlockPos) {
+fn try_spawn_golem(world: &Arc<World>, top_pos: &BlockPos) -> bool {
     if let Some(pattern) = find_pattern(world, top_pos, &EntityType::SNOW_GOLEM, &SNOW_GOLEM_FULL) {
         let spawn_pos = pattern.block_pos(0, 2);
         let golem = SnowGolemEntity::new(Entity::new(
@@ -116,7 +204,7 @@ fn try_spawn_golem(world: &Arc<World>, top_pos: &BlockPos) {
             &EntityType::SNOW_GOLEM,
         ));
         spawn_golem_in_world(world, &pattern, &(golem as Arc<dyn EntityBase>), spawn_pos);
-        return;
+        return true;
     }
     if let Some(pattern) = find_pattern(world, top_pos, &EntityType::IRON_GOLEM, &IRON_GOLEM_FULL) {
         let spawn_pos = pattern.block_pos(1, 2);
@@ -127,7 +215,9 @@ fn try_spawn_golem(world: &Arc<World>, top_pos: &BlockPos) {
         ));
         golem.set_player_created(true);
         spawn_golem_in_world(world, &pattern, &(golem as Arc<dyn EntityBase>), spawn_pos);
+        return true;
     }
+    false
 }
 
 fn spawn_golem_in_world(
@@ -196,6 +286,10 @@ impl BlockBehaviour for CarvedPumpkinBlock {
         if Block::from_state_id(args.old_state_id) == args.block {
             return;
         }
-        try_spawn_golem(args.world, args.position);
+        if !try_spawn_golem(args.world, args.position)
+            && let Some(pattern) = find_copper_golem_pattern(args.world, args.position)
+        {
+            spawn_copper_golem(args.world, &pattern);
+        }
     }
 }
