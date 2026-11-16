@@ -31,18 +31,13 @@ impl CoralMushroomFeature {
                 for z in 0..=length {
                     let cur_pos = BlockPos::new(pos.0.x + x, pos.0.y + y - sink_value, pos.0.z + z);
 
-                    let condition_a = (x != 0 && x != width) || (y != 0 && y != height);
-                    let condition_b = (z != 0 && z != length) || (y != 0 && y != height);
-                    let condition_c = (x != 0 && x != width) || (z != 0 && z != length);
-                    let condition_d =
+                    // Vanilla places the hollow outer shell of the mushroom; requiring
+                    // two interior coordinates restricted this to the six face centres,
+                    // leaving gaps along every edge.
+                    let on_shell =
                         x == 0 || x == width || y == 0 || y == height || z == 0 || z == length;
 
-                    if condition_a
-                        && condition_b
-                        && condition_c
-                        && condition_d
-                        && random.next_f32() >= 0.1
-                    {
+                    if on_shell && random.next_f32() >= 0.1 {
                         CoralFeature::generate_coral_piece(
                             chunk,
                             block_registry,
