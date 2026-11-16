@@ -196,7 +196,7 @@ pub fn collect_fields(
             if !is_ok {
                 docs = Some(format!(
                     "{}WARNING: Could not fully translate type `{}` to WIT",
-                    docs.map_or_default(|str| str + &"\n\n"),
+                    docs.map_or_else(String::new, |str| str + "\n\n"),
                     field.ty.to_token_stream()
                 ));
             }
