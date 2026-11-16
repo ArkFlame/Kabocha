@@ -225,11 +225,20 @@ impl ToFromWasmEvent
         })
     }
 
+    // v0.1 events carry no cause, so the original one is kept.
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        let cause = self.cause;
+        *self = Self::from_wasm_event(event, state);
+        self.cause = cause;
+    }
+
     fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::WeatherChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_weather_state: data.to_weather_state,
+                cause:
+                    pumpkin_core::plugin::api::events::world::weather_change::WeatherCause::Plugin,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -252,11 +261,20 @@ impl ToFromWasmEvent
         })
     }
 
+    // v0.1 events carry no cause, so the original one is kept.
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        let cause = self.cause;
+        *self = Self::from_wasm_event(event, state);
+        self.cause = cause;
+    }
+
     fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::ThunderChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_thunder_state: data.to_thunder_state,
+                cause:
+                    pumpkin_core::plugin::api::events::world::weather_change::WeatherCause::Plugin,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
