@@ -76,9 +76,11 @@ async fn main() {
         exit(0);
     }
 
-    let vanilla_data = VanillaData::load();
-
+    // Install the logger before loading the vanilla data files, so their errors
+    // (for example an unwritable data directory) actually reach the console.
     pumpkin_core::init_logger(&config.advanced);
+
+    let vanilla_data = VanillaData::load();
 
     if let Some(target_arg) = parse_convert_world_arg(std::env::args().skip(1)) {
         let anvil_default = match &config.advanced.world.chunk {
@@ -118,6 +120,8 @@ async fn main() {
             }
         }
     }
+
+    let vanilla_data = VanillaData::load();
 
     info!(
         "{}",
