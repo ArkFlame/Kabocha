@@ -212,20 +212,24 @@ impl PaintingEntity {
     fn drop_and_remove(&self, caused_by: Option<&dyn EntityBase>) {
         let entity = &self.entity;
         let world = entity.world.load();
-        world.play_sound(
-            Sound::EntityPaintingBreak,
-            SoundCategory::Blocks,
-            &entity.pos.load(),
-        );
+        // Vanilla `HangingEntity#dropItem`: break sound and drop only happen
+        // under `doEntityDrops`, and a creative attacker gets no item.
+        if world.level_info.load().game_rules.entity_drops {
+            world.play_sound(
+                Sound::EntityPaintingBreak,
+                SoundCategory::Blocks,
+                &entity.pos.load(),
+            );
 
-        let is_creative = caused_by.is_some_and(|c| {
-            c.cast_any()
-                .downcast_ref::<Player>()
-                .is_some_and(Player::is_creative)
-        });
+            let is_creative = caused_by.is_some_and(|c| {
+                c.cast_any()
+                    .downcast_ref::<Player>()
+                    .is_some_and(Player::is_creative)
+            });
 
-        if !is_creative {
-            world.drop_stack(&entity.block_pos.load(), ItemStack::new(1, &Item::PAINTING));
+            if !is_creative {
+                world.drop_stack(&entity.block_pos.load(), ItemStack::new(1, &Item::PAINTING));
+            }
         }
 
         entity.remove();
