@@ -16,6 +16,7 @@ use pumpkin_protocol::java::client::play::{
 };
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::text::TextComponent;
+use pumpkin_util::translation::Locale;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::to_string_pretty;
@@ -635,12 +636,12 @@ impl PlayerAdvancement {
             );
             let je_packet = CSystemChatMessage::new(&je_component, false);
 
+            // Bedrock does not have the Java `advancements.*` translation keys, so the
+            // title has to be resolved server side instead of sent as `%key`.
+            let be_title = display.get_title().0.to_bedrock_legacy(Locale::EnUs);
             let be_packet = SText::translation(
                 translation::bedrock::CHAT_TYPE_ACHIEVEMENT.to_string(),
-                vec![
-                    player_name.0.to_bedrock_string(),
-                    display.get_title().0.to_bedrock_string(),
-                ],
+                vec![player_name.0.to_bedrock_string(), be_title],
             );
 
             player.world().broadcast_editioned(&je_packet, &be_packet);
