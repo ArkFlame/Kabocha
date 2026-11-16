@@ -332,24 +332,8 @@ impl BrewingStandBlockEntity {
             }
         }
 
-        // Check if we can immediately start the next brew
-        if let Ok(items) = self.items.read() {
-            let ingredient = items[3].clone();
-            drop(items);
-            if self.fuel.load(Ordering::Relaxed) > 0 && self.is_brewable(&ingredient, world) {
-                let next_ticks = self.effective_brew_ticks();
-                self.fuel.fetch_sub(1, Ordering::Relaxed);
-                self.brew_time.store(next_ticks, Ordering::Relaxed);
-                self.total_brew_time.store(next_ticks, Ordering::Relaxed);
-                *self
-                    .ingredient_item
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                    Some(ingredient.get_item());
-            } else {
-                self.brew_time.store(0, Ordering::Relaxed);
-            }
-        }
+        // Like vanilla, the next brew is started by `tick` so it goes through `BrewingStartEvent`.
+        self.brew_time.store(0, Ordering::Relaxed);
 
         // Play sound at the center of the block
         let pos = Vector3::new(
