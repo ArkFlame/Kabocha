@@ -14,6 +14,7 @@ use pumpkin_data::{entity::EntityType, item::Item};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
+use rand::RngExt;
 
 use crate::entity::EntityBase;
 use crate::entity::custom_sound::CustomSound;
@@ -26,10 +27,11 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
-    mob::{Mob, MobEntity, equipment::equip_on_target},
+    mob::{Mob, MobEntity, equipment::equip_on_target, spawn::SpawnGroupData},
     passive::animal::Animal,
     player::Player,
 };
+use crate::world::World;
 
 /// Represents a Pig, a common passive mob that provides porkchops.
 ///
@@ -44,15 +46,12 @@ pub struct PigEntity {
 
 impl PigEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let world = entity.world.load();
-        let biome = world.get_biome(&entity.block_pos.load());
-        let variant = PigVariant::select_for_biome(biome.registry_id);
         let mob_entity = MobEntity::new(entity);
         let pig = Self {
             mob_entity,
             ageable_data: crate::entity::ageable::AgeableData::default(),
             steering: ItemBasedSteering::default(),
-            variant: AtomicU8::new(variant.id()),
+            variant: AtomicU8::new(PigVariant::default().id()),
             sound_variant: AtomicU8::new(PigSoundVariant::Classic as u8),
         };
         let mob_arc = Arc::new(pig);
@@ -66,26 +65,26 @@ impl PigEntity {
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.25));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
+            goal_selector.add_goal(3, BreedGoal::new(1.0));
             goal_selector.add_goal(
-                3,
+                4,
                 Box::new(TemptGoal::new(1.2, &[&Item::CARROT_ON_A_STICK], false)),
             );
             goal_selector.add_goal(
-                3,
+                4,
                 Box::new(TemptGoal::with_tag(
                     1.2,
                     &tag::Item::MINECRAFT_PIG_FOOD,
                     false,
                 )),
             );
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.1)));
+            goal_selector.add_goal(6, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
-                6,
+                7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
         };
 
         mob_arc
@@ -147,9 +146,42 @@ impl Animal for PigEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         item_stack.item.has_tag(&tag::Item::MINECRAFT_PIG_FOOD)
     }
+
+    fn get_breed_offspring(&self, partner: &dyn EntityBase) -> Arc<dyn EntityBase> {
+        let entity = self.get_entity();
+        let baby = Self::new(Entity::new(
+            entity.world.load_full(),
+            entity.pos.load(),
+            &EntityType::PIG,
+        ));
+        if let Some(partner) = partner.cast_any().downcast_ref::<Self>() {
+            let parent = if self.get_random().random::<bool>() {
+                self
+            } else {
+                partner
+            };
+            baby.variant
+                .store(parent.variant.load(Ordering::Relaxed), Ordering::Relaxed);
+        }
+        baby
+    }
 }
 
 impl Mob for PigEntity {
+    fn finalize_spawn(
+        &self,
+        world: &Arc<World>,
+        group_data: Option<SpawnGroupData>,
+    ) -> Option<SpawnGroupData> {
+        let biome = world.get_biome(&self.get_entity().block_pos.load());
+        self.set_variant(PigVariant::select_for_biome(biome.registry_id));
+        let sound_variants = PigSoundVariant::ALL;
+        self.set_sound_variant(
+            sound_variants[self.get_random().random_range(0..sound_variants.len())],
+        );
+        self.finalize_spawn_super(group_data)
+    }
+
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot == EquipmentSlot::SADDLE || self.mob_entity.can_pick_up_loot()
     }
