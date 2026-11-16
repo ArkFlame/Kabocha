@@ -7013,14 +7013,11 @@ impl Player {
         }
 
         let current_level = self.experience_level.load(Ordering::Relaxed);
-        let current_points = self.experience_points.load(Ordering::Relaxed);
+        let current_progress = self.experience_progress.load();
 
-        let total_exp = experience::points_to_level(current_level) as i64 + current_points as i64;
-        let new_total_exp = total_exp + added_points as i64;
-        let safe_new_total = new_total_exp.clamp(0, i32::MAX as i64) as i32;
-
-        let (new_level, new_points) = experience::total_to_level_and_points(safe_new_total);
-        let progress = experience::progress_in_level(new_points, new_level);
+        let (new_level, progress) =
+            experience::add_points(current_level, current_progress, added_points);
+        let new_points = (progress * experience::points_in_level(new_level) as f32).round() as i32;
 
         self.set_experience(new_level, progress, new_points);
     }
