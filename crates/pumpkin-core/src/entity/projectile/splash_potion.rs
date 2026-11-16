@@ -6,7 +6,10 @@ use crate::{
     server::Server,
 };
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::{Block, BlockId};
+use pumpkin_data::{
+    Block, BlockId, block_properties::CampfireLikeProperties, tag::{self, Taggable},
+    world::WorldEvent,
+};
 use pumpkin_protocol::java::client::play::CWorldEvent;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::math::{boundingbox::BoundingBox, vector2::Vector2};
@@ -163,10 +166,16 @@ fn extinguish_fire(world: &Arc<crate::world::World>, hit_pos: Vector3<f64>) {
             p.y.floor() as i32,
             p.z.floor() as i32,
         ));
-        let state_id = world.get_block_state_id(&pos);
-        let raw_block_id = state_id.to_block_id();
-        if raw_block_id == BlockId::FIRE || raw_block_id == BlockId::SOUL_FIRE {
+        let (block, state) = world.get_block_and_state(&pos);
+        if block.id == BlockId::FIRE || block.id == BlockId::SOUL_FIRE {
             world.set_block_state(&pos, air_state_id, BlockFlags::NOTIFY_ALL);
+        } else if block.has_tag(&tag::Block::MINECRAFT_CAMPFIRES) {
+            let mut props = CampfireLikeProperties::from_state_id(state.id);
+            if props.lit {
+                world.sync_world_event(WorldEvent::SoundExtinguishFire, pos, 0);
+                props.lit = false;
+                world.set_block_state(&pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+            }
         }
     }
 }
