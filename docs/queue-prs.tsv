@@ -1,0 +1,366 @@
+4597	2	1	MERGEABLE	false	build(deps): bump crate-ci/typos from 1.52.0 to 1.52.2	dependencies,github_actions
+4595	3729	10	MERGEABLE	false	refactor(plugin): add plugin commands for unloading, loading and reloading on specific plugins	api,command,refactor,plugin
+4594	310	3	MERGEABLE	true	feat(entity): polar bear warning stand and sounds	enhancement,mobai,entity,sound
+4591	296	1	MERGEABLE	false	fix(command): make /data modify insert take its index	bug,command
+4589	47938	438	CONFLICTING	false	feat(plugin): generate core and wasm v0.2 events from wit	enhancement,api,plugin
+4586	199	6	MERGEABLE	false	fix(net): reject oversized book edits	bug,protocol,security,config
+4584	375	2	MERGEABLE	false	fix(net): fire PacketSentEvent on the writer, not while enqueuing	bug,protocol,performance,plugin
+4581	5	2	MERGEABLE	false	fix(entity): spawn sweep attack particle at the attacker	bug,combat,entity,particles
+4578	2251	32	MERGEABLE	false	feat(entity): full snow golem vanilla parity	enhancement,Java Edition,mobai,entity
+4570	61	1	MERGEABLE	false	fix(entity): drop armor stand equipment and apply fire damage	bug,item,entity
+4569	45	2	CONFLICTING	false	fix(entity): break paintings after losing wall support	bug,entity
+4568	9	1	MERGEABLE	false	fix(entity): play the cushion get-up sound on dismount	bug,entity,sound
+4567	92	4	MERGEABLE	false	fix(item): clear the compass target when its lodestone is gone	bug,item
+4566	6	1	CONFLICTING	false	fix(item): apply the goat horn use cooldown	bug,item
+4565	35	1	MERGEABLE	false	fix(block): wake a sleeping villager when its bed is used	bug,block,entity
+4562	26	1	MERGEABLE	false	feat(entity): vanilla parity for blaze, adding pathfinding maluses and water avoiding stroll goal	enhancement,mobai,entity
+4561	949	26	CONFLICTING	false	fix(block): preserve plugin event changes	bug,api,block,plugin
+4551	16	2	MERGEABLE	false	fix(item): breed the spawn egg baby from the clicked animal so it inherits its variant	bug,mobai,item,entity
+4548	116	3	MERGEABLE	false	fix(entity): release the leash lock before moving knot leashes to the player	bug,entity
+4541	377	5	MERGEABLE	false	feat(portal): play sound when entering portals	enhancement,player,sound
+4540	714	21	MERGEABLE	false	fix(teleport): vanilla confirm handling, relative rotation, teleport cause for plugins	bug,protocol,api,player
+4535	1509	15	CONFLICTING	false	feat(entity): implement sniffer vanilla behavior	enhancement,mobai,entity,loot
+4534	95	2	MERGEABLE	false	fix(nbt): require compound end tags when reading and skipping	bug,data
+4533	72	1	MERGEABLE	false	fix(nbt): skip Bedrock integers using variable-length encoding	bug,Bedrock Edition,data
+4532	97	1	MERGEABLE	false	fix(nbt): avoid upfront allocation for stream payloads	bug,performance,data
+4531	77	1	MERGEABLE	false	fix(nbt): decode Bedrock strings as UTF-8	bug,Bedrock Edition,data
+4530	20	1	CONFLICTING	false	fix(inventory): stop crafting two shulkers together	bug,item,recipe
+4527	4	1	MERGEABLE	false	fix(entity): prevent wither from despawning on chunk unload	bug,entity
+4525	414	10	CONFLICTING	false	fix(block): send stonecutter recipes and return input on close (#4458)	bug,block,recipe
+4523	9	1	MERGEABLE	false	fix: offset painting variant id by 1	bug,entity,data
+4519	35	1	CONFLICTING	false	fix(plugin): fire PlayerSpawnLocationEvent on join (#4331)	bug,api,player,plugin
+4516	44	4	CONFLICTING	false	fix(entity): stop players equipping armor that only allows other entity	bug,item,player,entity
+4514	103	2	MERGEABLE	false	fix(entity): send attributes when a player starts tracking a living entity	bug,protocol,entity
+4512	1097113	96	CONFLICTING	true	perf(data): property slots and a data-driven fluid system	block,performance,fluid,data
+4511	55	3	MERGEABLE	false	fix(player): prevent picking up death drops during respawn	bug,inventory,player
+4509	597	1	CONFLICTING	false	feat(block): grow pointed dripstone and sulfur spikes on random ticks	enhancement,block,world
+4507	4	2	MERGEABLE	false	fix(data): use distinct metadata type ID for copper_golem_state	bug,protocol,entity,data
+4505	343	4	MERGEABLE	false	fix(entity): let blazes ascend toward higher targets	bug,mobai,entity
+4504	178	8	CONFLICTING	false	Add transfer_requested boolean	enhancement,api,player
+4502	3802	41	MERGEABLE	false	feat(entity): vanilla parity for axolotl	enhancement,mobai,entity
+4501	229	11	MERGEABLE	false	fix(player): honor the immediate_respawn gamerule	bug,protocol,player
+4497	145	4	CONFLICTING	false	fix(command): fail setblock and fill when nothing changes	bug,command,block
+4489	112	12	MERGEABLE	false	fix(block): omit container inventories from block entity payloads	bug,protocol,block,inventory
+4488	244	8	MERGEABLE	false	fix(world): stop chunk read errors from overwriting stored chunks	bug,world,data
+4482	2594	9	MERGEABLE	false	feat(entity): vanilla parity for panda	enhancement,mobai,entity
+4480	27082	370	CONFLICTING	true	feat(gametest): expand in-game testing and add CLI execution	enhancement,command,testing
+4479	178	1	MERGEABLE	false	feat(smithing): validate input slots	enhancement,item,inventory
+4476	145	2	MERGEABLE	false	fix(plugin): run wasm scheduled tasks inside the server tick	bug,api,performance,plugin
+4461	183	2	MERGEABLE	false	fix(command): find Nether structures using /locate	bug,worldgen,command
+4445	272	14	MERGEABLE	false	fix(world): honor disabled dimensions across world access	bug,player,world,config
+4444	833	8	MERGEABLE	false	fix(advancement): evaluate effects_changed conditions and fire it for all effect sources	bug,entity,advancements
+4429	188	5	CONFLICTING	false	feat(inventory): add server-side inventory holders	enhancement,api,inventory
+4426	452	4	MERGEABLE	false	Fix wasm command callbacks panicking on simulation threads	bug,api,panic,command
+4419	57	3	CONFLICTING	false	fix(entity): drop the minecart item when a minecart is destroyed	bug,item,entity
+4418	460	1	MERGEABLE	false	Implement bedrock scoreboard functionality and tests	enhancement,Bedrock Edition,testing
+4417	232	7	CONFLICTING	false	fix(entity): break minecarts in lava and on cactus	bug,entity,fluid
+4416	763	9	CONFLICTING	false	fix(item): stop custom attribute modifiers from corrupting player saves	bug,item,player,data
+4415	10	1	MERGEABLE	false	fix(command): show the limit in /worldborder set too-big error	bug,command
+4414	10	1	MERGEABLE	false	fix(command): show the limit in /worldborder center out of bounds error	bug,command
+4405	15508	17	MERGEABLE	true	feat(wit): Plugin event rework (variant => resource)	enhancement,api,refactor
+4402	29	3	MERGEABLE	false	fix(plugin): return unique v0.2 world ids	bug,api
+4400	331	4	MERGEABLE	false	Fix network error when sending scoreboard objective during join	bug,protocol
+4395	972	31	CONFLICTING	false	feat(config): migrate configuration loading to toml-spanner	bug,enhancement,config
+4393	418	2	CONFLICTING	false	feat(entity): vanilla parity for witch	enhancement,mobai,entity
+4392	1118	9	CONFLICTING	false	fix(entity): vanilla slime and magma cube behavior	bug,mobai,entity
+4391	132	19	CONFLICTING	false	fix(entity): roll spawn equipment only when a mob is finalized, not on every load	bug,mobai,entity,data
+4389	102	5	CONFLICTING	false	feat(entity): vanilla parity for creeper	enhancement,mobai,entity
+4387	161	2	CONFLICTING	false	feat(entity): vanilla parity for pig	enhancement,mobai,entity
+4384	129	2	MERGEABLE	false	fix(auth): only validate the textures profile property	bug,security,config
+4380	16	2	CONFLICTING	true	fix(tester): wait for the setblock chunk and stop keep-alive kicks of the bots	bug,github_actions,testing
+4379	4277	48	CONFLICTING	true	feat(command): support item, loot, particle and text component syntax used by datapacks	enhancement,command,item,loot
+4378	2912	32	CONFLICTING	true	fix(entity): position riders, read display transformations and fix execute gaps	bug,command,entity
+4377	1157	13	CONFLICTING	true	feat(command): support function macros, function with and return	enhancement,command
+4376	1079	11	CONFLICTING	true	feat(datapack): load datapack advancements and fire their triggers	enhancement,data,advancements
+4375	451	5	CONFLICTING	true	feat(command): support execute if/unless predicate with inline entity and item predicates	enhancement,command
+4374	933	6	CONFLICTING	true	fix(world): persist datapack state and riding trees across restarts	bug,world,data
+4373	40	1	MERGEABLE	true	fix(command): add chunk tickets for force-loaded chunks	bug,world
+4371	814	10	CONFLICTING	true	feat(command): support execute store bossbar and data targets	enhancement,api,command
+4368	293	9	CONFLICTING	false	feat(entity): vanilla parity for spider and cave spider	enhancement,mobai,entity
+4351	44	2	MERGEABLE	true	fix(item): keep stacks with unknown components and default consumable fields	bug,item,data
+4350	153	5	CONFLICTING	true	fix(text): decode JSON-string item names	bug,item,data
+4349	2322	25	MERGEABLE	false	feat(weather): vanilla-parity weather, per-world cycles, data-driven phases	enhancement,api,world,data
+4347	312	6	CONFLICTING	true	fix(command): support datapack block tags in execute if/unless block	bug,command,block,data
+4337	46	1	MERGEABLE	true	fix(entity): load and save block display block_state	bug,entity,data
+4334	109	4	CONFLICTING	false	fix(item): read styled lore and item names given as SNBT in item arguments	bug,item,data
+4333	28	3	MERGEABLE	false	fix(command): expose player SelectedItem in entity NBT	bug,command,player,data
+4332	38	3	MERGEABLE	false	fix(world): write loaded entity chunks on autosave and save-all	bug,world,data
+4330	83	4	MERGEABLE	false	fix(command): replace translation keys the 26.3 client removed	bug,localization,command
+4329	42	1	MERGEABLE	false	fix(command): answer /time query daytime and day with keys the 26.3 client has	bug,Java Edition,command
+4327	45	4	MERGEABLE	false	fix(world): persist game time and time of day across restarts	bug,world,data
+4326	188	1	MERGEABLE	false	fix(world): match vanilla huge fungus terrain placement	bug,worldgen
+4323	132	3	CONFLICTING	false	fix(text): accept legacy clickEvent and hoverEvent from pre-1.21.5 datapacks	bug,command,data
+4306	125	3	MERGEABLE	false	fix(worldgen): prevent tree shear across chunk borders & scheduler desync	bug,worldgen,testing,world
+4287	202	6	CONFLICTING	false	fix(entity): bring goat spawning, breeding, milking and sounds in lin…	bug,mobai,entity,sound
+4184	1327	8	CONFLICTING	true	feat(block): read bounce restitution from block data	enhancement,block,entity
+4181	1320	8	CONFLICTING	false	feat(block): read fall distance reduction from block data	enhancement,block,data
+4172	45	7	MERGEABLE	false	fix(net): derive offline-mode UUIDs like vanilla	bug,protocol,player
+4163	133	3	CONFLICTING	true	fix(player): make hide_player and show_player hide the player from th…	bug,protocol,api,player
+4162	75	2	MERGEABLE	false	fix(plugin): register the reentry scope before spawning a blocking host call	bug,api,panic
+4161	54	2	MERGEABLE	false	fix(plugin): apply set-block-entity-nbt to a loaded block entity	bug,api,block,data
+4160	114	4	MERGEABLE	false	fix(plugin): map WIT sounds to pumpkin-data sounds by index	bug,api,sound
+4158	153	5	MERGEABLE	false	fix(world): apply the terrain matching projection to jigsaw pieces	bug,worldgen,world
+4153	35	2	MERGEABLE	false	fix(plugin): don't cache permission denials when there is no console to ask	bug,api,config,permissions
+4152	138	2	CONFLICTING	false	fix(item): fire bucket events before the world changes and honor cancelling	bug,api,item,fluid
+4151	58	2	MERGEABLE	false	fix(plugin): call event handlers in priority order	bug,api
+4150	70	1	MERGEABLE	false	fix(plugin): pass game-profile command arguments to wasm plugins	bug,api,command
+4149	6	2	MERGEABLE	false	fix(plugin): run wasm command suggestions on the server runtime	bug,api,panic,command
+4131	224	2	CONFLICTING	false	fix(player): fire entity interaction events for attack packets	bug,api,combat,player
+4120	200	5	CONFLICTING	false	fix(entity): damage armor durability when hurt	bug,combat,item,entity
+4119	129	2	CONFLICTING	false	fix(inventory): write the shift-click remainder back to the source slot (Item Dupe)	bug,item,inventory
+4118	177	3	CONFLICTING	false	fix(inventory): stop the throw loop when a take is empty	bug,inventory,player
+4117	409	5	CONFLICTING	false	fix(entity): restore totem of undying death protection	bug,item,entity,advancements
+4115	2328	22	CONFLICTING	false	feat(entity): implement copper golem sorting and statue lifecycle	enhancement,mobai,inventory,entity
+4114	149	5	MERGEABLE	false	fix(fluid): decide what fluids replace with the washed_away_by_fluids tag	bug,block,fluid
+4113	13	1	MERGEABLE	false	fix(entity): read blaze follow range from the FOLLOW_RANGE attribute	bug,mobai,entity
+4112	11	1	CONFLICTING	false	fix(world): apply explosion knockback resistance to explosion knockback	bug,combat,entity
+4111	9	1	CONFLICTING	false	fix(server): ignore empty commands from the console	bug,command
+4110	31	2	MERGEABLE	false	fix(map): point the player map icon the way the player faces	bug,item
+4106	55	1	CONFLICTING	false	perf(world): cache light level in propagation queue entry	performance,world
+4105	9	2	MERGEABLE	false	fix(entity): piglin & armadillo mob_drops gamerule	bug,entity,loot
+4099	21	1	CONFLICTING	false	fix(entity): stop the server from sending critical arrow particles	bug,combat,entity,particles
+4096	1520	28	CONFLICTING	false	feat(plugin): add comprehensive wasm plugin errors	enhancement,api,testing
+4093	1549	9	MERGEABLE	false	feat(entity): implement vanilla fox mechanics and AI behaviors	enhancement,mobai,entity,data
+4086	386	12	CONFLICTING	false	fix(entity): hold weak self references in mob goals	bug,mobai,performance,entity
+4083	323	4	MERGEABLE	false	feat(plugin): add bukkit-style config file helpers	enhancement,api,config
+4073	2361	20	CONFLICTING	false	feat: improve boat water physics	enhancement,player,entity,fluid
+4072	3238	34	CONFLICTING	false	feat(profiler): add memory and CPU profiler	enhancement,api,command,performance
+4069	4	1	UNKNOWN	true	fix(command): require permission level 2 for entity selectors	bug,command,permissions
+4068	16	1	UNKNOWN	true	fix(inventory): close block containers that are no longer in reach	bug,inventory
+4067	17	2	UNKNOWN	true	fix(bedrock): spawn a player only on its first completed pack response	bug,Bedrock Edition,player
+4066	23	1	UNKNOWN	true	fix(command): cap /give at 100 stacks like vanilla	bug,command,item
+4061	16	1	CONFLICTING	false	fix(bedrock): check bans and the whitelist on Bedrock login	bug,Bedrock Edition,permissions
+4060	43	1	UNKNOWN	true	fix(server): make the duplicate-login and max-players checks atomic with the join	bug,security,player
+4059	44	1	UNKNOWN	true	fix(item): write the bucket result back to the hand that used it	bug,item
+4058	56	2	UNKNOWN	true	fix(net): validate finished digging before breaking the block	bug,block,player
+4057	124	1	UNKNOWN	true	fix(inventory): refill the crafting result when it is taken	bug,inventory
+4056	49	1	UNKNOWN	true	fix(bedrock): bounds-check hotbar slot ids in item stack requests	bug,Bedrock Edition,panic,inventory
+4055	79	1	UNKNOWN	true	fix(protocol): bound how deeply block predicates may nest	bug,protocol,panic,security
+4054	4030	71	CONFLICTING	false	fix(item): stack dropped items on contact, pre-merge explosion drops, fix hopper transfers and container inventory	bug,item,entity
+4047	162	6	MERGEABLE	false	fix(piston): stop moving pistons from desyncing clients and losing blocks	bug,block,redstone,data
+4042	6	1	UNKNOWN	true	fix(entity): keep the air supply of a dead player from draining before respawn	bug,player
+4039	952	11	UNKNOWN	true	fix(entity): give drowned their vanilla swimming AI	bug,mobai,entity
+4031	639	1	UNKNOWN	true	fix(world): keep in-place region writes from overwriting the next chunk	bug,world,data
+4030	502	16	UNKNOWN	true	fix(entity): let fish swim in water instead of walking like land mobs	bug,mobai,entity
+4029	25	1	UNKNOWN	true	fix(world): compute located structure starts the way chunk generation does	bug,worldgen,world
+4026	120	3	MERGEABLE	false	fix(piston): make sticky piston retracts match vanilla	bug,block,redstone
+4022	24	2	MERGEABLE	false	fix(block): bubble columns	bug,world,fluid
+4019	106	3	CONFLICTING	false	fix(block): breaking piston heads now functions correctly	bug,block,redstone
+4015	62	3	CONFLICTING	false	fix(block): allow double chest extension from diagonal placement	bug,block
+4010	274	35	CONFLICTING	false	feat(world): support scheduled tick delays longer than 255 ticks	enhancement,world,data
+4007	5	1	MERGEABLE	false	fix(block): pistons facing down now don't extend when powered from below	bug,block,redstone
+4003	25	2	UNKNOWN	true	fix(command): bound how deeply SNBT may nest	bug,panic,command,security
+4002	4	1	MERGEABLE	false	fix(block): use vault properties when placing a vault	bug,panic,block
+4001	7	1	UNKNOWN	true	fix(bedrock): cap a reassembled NetherNet packet at the maximum packet size	bug,protocol,Bedrock Edition,security
+4000	11	1	UNKNOWN	true	fix(command): cut the error context on character boundaries	bug,panic,command
+3999	33	1	UNKNOWN	true	fix(protocol): bound how deeply item stack templates may nest	bug,protocol,panic,item
+3996	126	4	CONFLICTING	false	fix(net): validate client supplied positions in move vehicle and bedrock input	bug,protocol,Java Edition,security
+3995	39	2	CONFLICTING	false	fix(server): keep a Rayon worker panic from aborting the process	bug,panic,performance
+3993	75	4	CONFLICTING	false	fix(world): cap how much a chunk may decompress to	bug,panic,security,world
+3992	9	1	CONFLICTING	false	fix(protocol): grow the payload buffer as bytes arrive instead of reserving the declared length	bug,protocol,security,performance
+3991	57	5	CONFLICTING	false	fix(auth): escape the username in authentication URLs	bug,api,security
+3990	16	1	CONFLICTING	false	fix(block): dispenser now correctly replaces replacable block infront with bucket content	bug,block
+3988	354	19	CONFLICTING	false	feat(entity): implement bogged mechanics and skeleton parity improvements    	enhancement,mobai,entity,sound
+3987	577	8	CONFLICTING	true	fix(command): support execute store score	bug,api,command
+3984	753	17	CONFLICTING	false	fix(entity): feline goal parity for cats and ocelots	bug,mobai,entity
+3979	82	1	MERGEABLE	false	fix(plugin): load healthy plugins when one has an unresolvable depend…	bug,api
+3978	11	1	CONFLICTING	false	fix(entity): cap fall distance while gliding	bug,player,entity
+3976	57	5	CONFLICTING	false	fix(item): return an empty bucket after placing powder snow	bug,item
+3965	178	2	CONFLICTING	false	fix(block): make hoppers respect double chests	bug,block,inventory
+3962	7224	40	MERGEABLE	false	feat(plugin): add async v0.2 guest bindings	documentation,enhancement,api
+3961	344	4	CONFLICTING	false	feat(entity): implement chest boat inventory	enhancement,inventory,entity,data
+3955	367	4	CONFLICTING	false	perf(pathfinder): reuse paths, share block caches, limit searches	mobai,performance,entity
+3951	286	3	CONFLICTING	false	fix(block): place banners on walls	bug,block
+3940	74	6	CONFLICTING	false	fix(item): give the mob bucket when catching a mob with a water bucket	bug,item,entity
+3931	13	2	CONFLICTING	false	fix(block): allow dirt path and farmland under fence gates	bug,block
+3927	92	3	MERGEABLE	false	feat(api): add leash APIs to Wasm host v0.2	enhancement,api,entity
+3925	62	6	MERGEABLE	false	fix(plugin): correct BlockFromTo positions and fluid type	bug,api,block,fluid
+3922	141	2	CONFLICTING	false	fix(inventory): cap recipe book placement at max stack size	bug,inventory,recipe
+3920	69	2	CONFLICTING	false	fix(block): spawn the stored mob when a dispenser empties a mob bucket	bug,block,entity
+3914	83	1	MERGEABLE	false	fix(wasm): verify plugin signatures against the trusted key only	bug,api,security
+3913	127	1	CONFLICTING	false	fix(query): derive the challenge token and handle datagrams inline	bug,protocol,security,performance
+3906	62	2	MERGEABLE	false	fix(command): match resource tag suggestions like vanilla	bug,command
+3905	294	4	CONFLICTING	false	fix(entity): restore wind charge launches and burst effects 🤖🤖🤖	bug,entity,sound,particles
+3904	6	1	MERGEABLE	false	fix(player): wake sleeping players before applying damage 🤖🤖🤖	bug,player,entity
+3903	1643	2	CONFLICTING	false	fix(worldgen): resolve named block state providers 🤖🤖🤖	bug,worldgen
+3901	37	4	MERGEABLE	false	fix(worldgen): cache template pool max size like vanilla	bug,worldgen,performance
+3897	190	3	CONFLICTING	false	fix(codec): improve serialization and deserialization of charged projectiles	bug,combat,data
+3896	475	6	CONFLICTING	false	fix(item): give bundles vanilla's click, use and sync behaviour	bug,item,inventory,sound
+3895	92	10	MERGEABLE	false	fix(plugin): point block ignite events at the ignited block and carry…	bug,api,block
+3894	97	4	MERGEABLE	false	fix(data): parse SNBT custom model data numbers	bug,item,data
+3887	8245	35	CONFLICTING	false	feat: support dynamically adding registries	enhancement,api,block,item
+3886	382	8	CONFLICTING	false	feat(entity): complete the silverfish goal set	enhancement,mobai,entity
+3875	239	7	CONFLICTING	false	fix(block): preserve block entity data when placing items	bug,command,block,data
+3871	7390	9	CONFLICTING	false	fix(entity): correct cushion placement and support removal	bug,block,entity
+3869	5	1	CONFLICTING	false	fix(block): preserve fire age on neighbor updates	bug,block
+3868	19	1	CONFLICTING	false	fix(block): remove unsupported snow during neighbor updates	bug,block
+3865	24	1	MERGEABLE	false	fix(entity): drop nether star only on death	bug,entity,loot
+3863	401	5	MERGEABLE	false	fix(redstone): observers actually match vanilla now	bug,redstone,world
+3861	894	3	MERGEABLE	false	fix(spawn): use correct vanilla spawn weights for spawn entries	bug,worldgen,mobai
+3860	1297	8	CONFLICTING	false	feat(beacon): port vanilla beacon behaviour	enhancement,block,data
+3859	336	9	CONFLICTING	false	fix(world): remove block entity NBT when the block is removed	bug,panic,block,data
+3854	13	1	MERGEABLE	false	fix(util): stop extra %s placeholders repeating the last arg	bug
+3853	6	2	CONFLICTING	false	fix(entity): apply hurt cooldown to void damage	bug,player,entity
+3849	40	1	CONFLICTING	false	fix(protocol): keep item changes from block interactions	bug,protocol,item
+3848	1337	26	CONFLICTING	false	perf(world): chunk memory optimisation(s) and benchmarks	performance,testing,world
+3846	17	2	MERGEABLE	false	Slovenian translation	localization
+3845	705	12	CONFLICTING	false	 fix: entity motion, forced chunks, attributes and combat knockback	bug,combat,entity,world
+3843	13	1	CONFLICTING	false	fix(block): avoid double press sound on buttons	bug,block,sound
+3835	420	21	CONFLICTING	false	fix(projectile): vanilla fireball flight, player collisions and leftOwner state machine	bug,Java Edition,combat,entity
+3829	505	9	CONFLICTING	false	fix(entity): add Shearable trait and fix shearing	bug,entity
+3827	217	3	CONFLICTING	false	fix(command): parse block state properties in /setblock	bug,command,block
+3826	4	1	CONFLICTING	false	fix(block): keep ice from melting when broken in creative	bug,block
+3821	1239	14	CONFLICTING	false	feat(entity): implement the fishing bobber	enhancement,item,entity,loot
+3820	229	6	CONFLICTING	false	fix(player): stop the Bedrock skin download from blocking the join	bug,protocol,Bedrock Edition,Java Edition
+3819	14501	363	CONFLICTING	false	chore(multiversion): remove specific multiversion code and only have one java version with open plugin calls	protocol,Java Edition,api,refactor
+3816	115	7	CONFLICTING	false	fix(entity): damage water-sensitive mobs with thrown water potions	bug,api,combat,entity
+3813	359	2	MERGEABLE	false	fix(command): bound nested function chain depth to stop stack overflow	bug,panic,command
+3811	80	2	CONFLICTING	false	fix(protocol): preserve custom item name formatting 🤖🤖🤖	bug,protocol,item
+3810	439	10	CONFLICTING	false	feat(item): place scaffolding like vanilla	enhancement,block,item
+3808	23	1	CONFLICTING	false	fix(entity): prevent mobs burning under opaque blocks	bug,mobai,entity
+3807	29	1	CONFLICTING	false	fix(command): apply /data block changes to the live block entity	bug,command,block,data
+3804	235	1	CONFLICTING	false	fix(hopper): pick up whole item stacks, including from the bowl	bug,item,inventory
+3800	339	6	CONFLICTING	false	fix(entity): persist leashes and destroy a leash knot on hit	bug,entity,data
+3795	1420	10	CONFLICTING	false	  fix(entity): sulfur cube AI and cube mob size sync	bug,mobai,entity
+3794	2364	34	UNKNOWN	true	fix(entity): velocity sync and vanilla minecart velocity transfer	bug,Bedrock Edition,api,entity
+3792	26	2	MERGEABLE	false	fix(world): handle queued player packets before scheduled ticks	bug,redstone,player,world
+3790	54	1	CONFLICTING	false	fix(entity): let blazes ascend toward higher targets	bug,mobai,entity
+3788	5	1	CONFLICTING	false	fix(server): stop the stdin console task when the server stops	bug,docker,command
+3778	724	15	CONFLICTING	false	feat: vanilla world types for new worlds, and decorated flat worlds	enhancement,Java Edition,worldgen,config
+3776	215	8	CONFLICTING	false	fix(entity): validate item frame placement and support 🤖🤖🤖	bug,block,entity
+3775	19	1	CONFLICTING	false	fix(entity): send the painting variant as registry id plus one 🤖🤖🤖	bug,Java Edition,entity
+3763	12	1	MERGEABLE	false	fix(command): avoid sending tick sprint report before completion	bug,command
+3755	247	5	CONFLICTING	false	feat(plugin): add event registration w/ handler and unregistration	enhancement,api
+3745	25	3	CONFLICTING	false	fix(plugin-utils): allow wasm builds 🤖🤖🤖	bug,dependencies,api
+3744	82	11	CONFLICTING	false	fix(entity): validate spectator camera targets like vanilla	bug,protocol,player
+3739	109	1	CONFLICTING	false	fix(world): scope sound events to players in range	bug,performance,world,sound
+3729	82	2	CONFLICTING	true	fix(block): make shelf mushrooms work	bug,block,entity
+3728	112	2	CONFLICTING	false	fix(item): stop components with no NBT form from truncating chunk data	bug,item,data
+3725	9030	5	CONFLICTING	true	fix(loot): fix loot table conditions	bug,block,loot
+3721	45	2	CONFLICTING	false	feat(plugin): load chunks on demand	enhancement,api,world
+3720	91	4	CONFLICTING	false	feat(plugin): read, write and spawn entities from NBT	enhancement,api,entity,data
+3719	267	5	CONFLICTING	false	feat(plugin): read sections in bulk, and set and resend biomes	enhancement,protocol,api,world
+3718	679	18	CONFLICTING	false	fix(entity): swim fish and squid like vanilla instead of like land mobs	bug,mobai,entity
+3717	22	1	CONFLICTING	false	fix(entity): show custom names loaded from NBT to Java clients	bug,Java Edition,entity,data
+3707	130	5	MERGEABLE	false	fix(world): keep the chunk tags this server does not model	bug,world,data
+3706	726	2	MERGEABLE	false	fix(protocol): reject item stack wire values that do not fit	bug,protocol,item,enchantments
+3697	1387	15	CONFLICTING	false	feat(firework): port firework rocket flight, explosions and crossbow launching	enhancement,combat,item,entity
+3695	22	1	CONFLICTING	false	fix: make dispensers apply bone meal 🤖🤖🤖	bug,block,item
+3694	10	2	MERGEABLE	false	fix: correct end crystal combat behavior 🤖🤖🤖	bug,combat,entity
+3687	50	4	CONFLICTING	false	fix(plugin): poll native methods on global runtime 🤖🤖🤖	bug,api
+3686	58	7	CONFLICTING	false	Emit game events on container open and close, fix	bug,enhancement,block
+3684	440	5	CONFLICTING	false	fix(entity): enable armor stand item interactions 🤖🤖🤖	bug,Java Edition,item,entity
+3682	125	1	CONFLICTING	false	fix(entity): restore swamp slime spawning 🤖🤖🤖	bug,mobai,entity
+3681	4	1	MERGEABLE	false	fix(entity): sync falling block positions each tick 🤖🤖🤖	bug,protocol,entity
+3673	168	1	MERGEABLE	false	fix(block): make bells reveal nearby raiders 🤖🤖🤖	bug,mobai,block,entity
+3669	12	1	MERGEABLE	false	fix(block): notify clients when fire extinguishes 🤖🤖🤖	bug,block
+3666	13	1	MERGEABLE	false	fix(item_stack): reject damaged items from stacking 🤖🤖🤖	bug,item,inventory
+3665	23	3	CONFLICTING	false	feat(block): allow pressure plates placement on fences and fence gates	bug,block
+3664	7	1	MERGEABLE	false	fix(docker): build published images from matching release 🤖🤖🤖	bug,github_actions,docker
+3663	41	1	MERGEABLE	false	fix(entity): spawn lingering cloud for affected creepers 🤖🤖🤖	bug,mobai,entity
+3661	69	5	CONFLICTING	false	fix(entity): register ender dragon hitbox parts for entity id lookup	bug,combat,entity
+3660	10	1	CONFLICTING	false	fix(block): emit block_change game event on jukebox insert/eject	bug,block
+3658	3	1	CONFLICTING	false	fix(block): emit block_change game event on chiseled bookshelf book changes	bug,block
+3657	901	6	CONFLICTING	false	feat(elytra): port vanilla gliding	enhancement,player,entity
+3656	31	4	CONFLICTING	false	fix(block): emit container_open/container_close game events	bug,block,inventory,sound
+3655	20	1	CONFLICTING	false	fix(entity): drop a painting item when a painting breaks 🤖🤖🤖	bug,item,entity
+3644	28	1	MERGEABLE	false	fix(entity): float experience orbs in water 🤖🤖🤖	bug,entity
+3642	43	1	CONFLICTING	false	fix(command): order gamemode feedback args per edition 🤖🤖🤖	bug,Bedrock Edition,Java Edition,command
+3641	33	1	CONFLICTING	false	fix(inventory): lock curse of binding armor outside creative 🤖🤖🤖	bug,inventory,player,enchantments
+3640	26	2	CONFLICTING	false	fix(redstone): tripwire shears and dispenser bone meal 🤖🤖🤖	bug,block,redstone,item
+3639	3	1	MERGEABLE	false	fix(world): only tick scheduled ticks in active chunks 🤖🤖🤖	bug,performance,world
+3638	41	1	CONFLICTING	false	fix(server): force hard difficulty on hardcore worlds 🤖🤖🤖	bug,Java Edition,world,config
+3637	67	2	CONFLICTING	false	fix(entity): melee shield blocking and suspicious block breaking 🤖🤖🤖	bug,combat,block,entity
+3636	231	4	CONFLICTING	false	fix(block): respawn anchor, campfire, waxing and infested fixes 🤖🤖🤖	bug,block
+3634	232	3	CONFLICTING	false	fix(world): harden player and level data saves 🤖🤖🤖	bug,world,data
+3632	12	1	CONFLICTING	false	fix(tripwire): emit state change game events 🤖🤖🤖	bug,block,sound
+3630	6390	53	CONFLICTING	false	feat(entity): move piglins and piglin brutes onto the brain	enhancement,mobai,entity
+3612	575	3	CONFLICTING	false	feat(warden): add anger management	enhancement,mobai,entity,data
+3594	27	1	MERGEABLE	false	feat(data): validate operator configuration	enhancement,config,data
+3592	114	1	MERGEABLE	false	fix(block/sugar_cane): allow placement next to water, waterlogged blocks	bug,block
+3586	19	1	CONFLICTING	false	fix(enderman): validate carried block placement	bug,mobai,block
+3585	24	3	CONFLICTING	false	fix(block): move entities when farmland turns to dirt	bug,block,entity
+3584	2	1	CONFLICTING	false	fix(tripwire): damage shears when disarming tripwire	bug,block
+3559	30	1	CONFLICTING	false	fix(block): allow lily pads on waterlogged blocks	bug,block
+3554	36	3	CONFLICTING	false	feat(plugin-api): expose native chunk loading 🤖🤖🤖	enhancement,api,world
+3553	31	1	MERGEABLE	false	fix(world): pause scheduled ticks outside active chunks	bug,redstone,world,fluid
+3549	99	1	CONFLICTING	false	fix(jukebox): restore playback state after reload	bug,block,data,sound
+3547	228	4	CONFLICTING	false	fix(explosion): ignite bed and respawn anchor blasts 🤖🤖🤖	bug,block,world
+3544	4	1	MERGEABLE	false	fix(combat): pass attacker position for shield blocking 🤖🤖🤖	bug,combat
+3543	298	3	CONFLICTING	false	fix(inventory): respect Curse of Binding on armor removal 🤖🤖🤖	bug,inventory,enchantments
+3525	10	2	CONFLICTING	false	fix(entity): pass attacker position so shields can block melee attacks	bug,combat,entity
+3524	26	1	MERGEABLE	false	Fire `EntityChangeBlockEvent` when falling block lands	api,block,entity
+3523	42	1	CONFLICTING	false	fix(block): prevent empty respawn anchor explosions🤖🤖🤖	bug,block
+3509	135	1	CONFLICTING	false	fix(block): encode eyeblossom trail particle data 🤖🤖🤖	bug,Java Edition,block,particles
+3508	253	4	CONFLICTING	false	Fix WASM command node requirement handlers 🤖🤖🤖	bug,api,command
+3507	19832	53	UNKNOWN	true	fix(loot): preserve block entity components in drops	bug,block,data,loot
+3506	156	1	MERGEABLE	false	fix(player): spectate after hardcore death🤖🤖🤖	bug,Java Edition,player
+3505	24	1	MERGEABLE	false	fix(plugin-wit): import all host interfaces🤖🤖🤖	bug,api
+3497	68	6	CONFLICTING	false	Add `spawn_falling_block` API	enhancement,api,block
+3493	1099	11	MERGEABLE	false	feat(scheduler): add cancellation and completion tracking to scheduler	enhancement,api,performance
+3485	13	1	CONFLICTING	false	Fix SIGINT	bug,docker
+3479	28	1	CONFLICTING	false	Fix/falling block partial landing 3153🤖🤖🤖	bug,block
+3476	63	2	CONFLICTING	false	fix(entity): stop sending a player its own stale motion on every push 🤖🤖🤖	bug,protocol,player,entity
+3475	36	1	MERGEABLE	false	fix(worldborder): select center block for collapsed clamp ranges 🤖🤖🤖	bug,world
+3473	8	1	MERGEABLE	false	fix: avoid duplicate experience packets	bug,protocol
+3466	41	1	MERGEABLE	false	Fix `wrong teleport id`	bug,protocol,player
+3465	125	7	MERGEABLE	false	Guard stale block-entity property decoding (split 2/2 of #3011)	bug,block,data
+3463	120	1	CONFLICTING	false	fix(protocol): fix stream desync and lost text for named items in bundles	bug,protocol,item,data
+3462	75	1	MERGEABLE	false	fix(firework-rocket): render the rocket and always allow launching	bug,item,entity
+3461	6	1	MERGEABLE	false	fix(setworldspawn): actually persist the new spawn point to level.dat	bug,command,data
+3460	0	0	MERGEABLE	false	fix(item-drops): apply air drag once in grounded item friction	bug,performance,entity
+3459	59	4	MERGEABLE	false	fix(elytra): vanilla-parity fixes for gliding and flight state	bug,api,panic,player
+3458	59	5	CONFLICTING	false	fix(entity): use the per-mob panic damage tags for wolves, pandas, armadillos and polar bears 🤖🤖🤖	bug,mobai,entity
+3447	228	2	MERGEABLE	false	fix(world): preserve Paper overworld settings on import	bug,world,data
+3444	2	1	MERGEABLE	false	chore(deps): bump DeterminateSystems/nix-installer-action from 22 to 23	dependencies,github_actions
+3443	2	1	MERGEABLE	false	chore(deps): bump signpath/github-action-submit-signing-request from 2 to 3	dependencies,github_actions
+3433	340	3	CONFLICTING	false	Prevent datapack loaders from following symlinks	bug,security,data
+3432	62	2	CONFLICTING	false	fix(player): preserve visibility and equipment across dimensions	bug,Java Edition,player,entity
+3428	1345	17	CONFLICTING	false	fix: project village paths onto terrain	bug,worldgen
+3427	195	4	CONFLICTING	false	perf(bedrock): Reuse indexed palettes for Bedrock chunk packets	protocol,Bedrock Edition,performance
+3425	280	6	CONFLICTING	false	perf: stream nearest entity searches	performance,player,entity
+3424	117	5	MERGEABLE	false	perf: avoid allocations when matching recipe ingredients	performance,recipe
+3420	46	1	MERGEABLE	false	fix(config): make configuration load failures visible before the logger is ready 🤖🤖🤖	bug,config
+3417	27	1	CONFLICTING	false	fix(entity): drop falling blocks as items when they can't land	bug,block,entity
+3414	20	1	CONFLICTING	false	fix(entity): keep armor stand name and let projectiles break it	bug,entity
+3412	42	1	CONFLICTING	false	fix(brewing): follow screen slot rules and fire the start event	bug,inventory
+3407	1892	19	UNKNOWN	true	fix(dragon-parts): make the ender dragon hittable and stop it despawning	bug,mobai,combat,entity
+3395	14	2	CONFLICTING	false	fix: preserve player equipment on death	bug,item,inventory,player
+3394	34	4	CONFLICTING	false	fix: defer datapack load functions until the next game tick	bug,world,data
+3373	216	3	MERGEABLE	false	feat(config): validate listener ports and addresses before startup	enhancement,config
+3355	3067	8	MERGEABLE	false	refactor(plugin): make plugin load, reload and unload race-free, add plugin commands	enhancement,api,command
+3353	154	6	CONFLICTING	false	fix(entity): keep fish wander targets in water 🤖🤖🤖	bug,mobai,entity
+3352	86	4	CONFLICTING	false	fix(entity): panic goals only trigger on vanilla panic damage causes 🤖🤖🤖	bug,mobai,entity
+3351	6	1	CONFLICTING	false	fix: avoid tool break effects when placing the last block	bug,item,sound,particles
+3349	16	1	CONFLICTING	false	fix(entity): sync item push velocity and force position updates when pushed 🤖🤖🤖	bug,protocol,entity
+3320	118	3	CONFLICTING	false	perf(world): avoid repeated scans when packing dense palettes	performance,world,data
+3307	115	2	CONFLICTING	false	Fire PlayerDropItemEvent when dropping from GUI	bug,inventory,player
+3275	546	25	UNKNOWN	true	fix(entity): give all living entities an air supply	bug,player,entity
+3245	205	2	CONFLICTING	false	fix: release closed and abandoned NetherNet sessions	bug,Bedrock Edition
+3244	432	2	CONFLICTING	false	fix: retire completed Bedrock chunk blob payloads	bug,protocol,Bedrock Edition,performance
+3243	130	7	CONFLICTING	false	fix: release disconnected player ownership cycles	bug,refactor,player
+3238	6344	27	MERGEABLE	false	feat(world): lighting engine flood, shape occlusion, and sky cut height	enhancement,worldgen,performance,world
+3231	126	3	MERGEABLE	false	chore(ci): add ferrflow for automated versioning	dependencies,github_actions
+3221	78	1	CONFLICTING	false	fix(entity): play death sound on lethal hit and send Poof when removing a corpse	bug,entity,sound
+3216	66	1	CONFLICTING	false	feat(plugin): fire BlockFormEvent for lava conversions	enhancement,api,block,fluid
+3179	57	2	MERGEABLE	false	perf(worldgen): prune biome distance checks early	worldgen,performance
+3149	135	7	CONFLICTING	false	Fix VehicleMoveEvent not triggering and canceling	bug,player
+3145	4	1	CONFLICTING	false	fix(net): honor movement lock for vehicle movement	bug,protocol,player
+3135	14	1	CONFLICTING	false	fix(block): restore lever's moved guard and normal_use result	bug,block,redstone
+3079	441	4	CONFLICTING	false	fix(block): send trail particle options when eyeblossoms change state	bug,block
+3075	858	7	CONFLICTING	false	feat(world): safe spawn position check for player join and respawn	bug,enhancement,player,world
+3057	8158	83	UNKNOWN	true	feat!: Correct Piston behaviour	enhancement,block,redstone
+3041	76	1	CONFLICTING	false	fix(worldgen): generate both halves of double-height plants	bug,worldgen
+3017	86	3	CONFLICTING	false	feat(block): add farmland trampling	enhancement,block
+2995	120	4	CONFLICTING	false	fix(piston): stop block swapping from corrupting pistons	bug,block,redstone
+2985	64	3	MERGEABLE	false	fix(config): don't overwrite the config file when a field has the wrong type	bug,config
+2958	281	4	MERGEABLE	false	feat(pumpkin): add /perf command	enhancement,command,performance
+2858	13	1	MERGEABLE	false	feat(build): decrease incremental build times by ~1.5x	github_actions,performance,refactor
+2828	210	8	UNKNOWN	true	feat(plugin): native cdylib plugin loading via native-wit	enhancement,api
+2795	53	1	CONFLICTING	false	fix: untamed wolves attack their prey	bug,mobai
+2793	83	1	CONFLICTING	false	fix: resolve placement modifiers per position	bug,block
+2792	542	5	CONFLICTING	false	perf(protocol): add typed prepared packet representations	protocol,performance
+2506	110	1	CONFLICTING	false	perf(world): optimize chunk noise generation and buffer allocations	enhancement,worldgen,performance,needs-snowiiii
+2504	30	2	CONFLICTING	false	fix(data): don't panic when the data directory can't be created	bug,docker,config,needs-snowiiii
+2489	8	2	CONFLICTING	false	perf(protocol): use zlib-rs for Java compression	enhancement,protocol,performance,needs-snowiiii
+2482	326	8	CONFLICTING	false	perf(protocol): buffer encrypted writes	enhancement,protocol,performance,needs-snowiiii
