@@ -180,18 +180,28 @@ impl AttributeModifiersImpl {
         };
         let mut modifiers = Vec::with_capacity(list.len());
         for entry in list {
-            let comp = entry.extract_compound()?;
-            let type_name = comp.get_string("type")?;
-            let r#type = attribute_from_name(type_name)?;
-            let id = Cow::Owned(comp.get_string("id")?.to_string());
-            let amount = comp
-                .get_double("amount")
-                .or_else(|| comp.get_float("amount").map(f64::from))?;
-            let operation = Operation::from_name(comp.get_string("operation")?)?;
+            // Vanilla skips entries it cannot decode instead of failing the whole component.
+            let Some(comp) = entry.extract_compound() else {
+                continue;
+            };
+            let Some(r#type) = comp.get_string("type").and_then(attribute_from_name) else {
+                continue;
+            };
+            let Some(id) = comp.get_string("id") else {
+                continue;
+            };
+            let Some(amount) = comp.get("amount").and_then(NbtTag::as_numeric_double) else {
+                continue;
+            };
+            let Some(operation) = comp.get_string("operation").and_then(Operation::from_name)
+            else {
+                continue;
+            };
             let slot = comp
                 .get_string("slot")
-                .and_then(slot_from_name)
-                .unwrap_or(crate::AttributeModifierSlot::Any);
+                .map_or(crate::AttributeModifierSlot::Any, |name| {
+                    slot_from_name(name).unwrap_or(crate::AttributeModifierSlot::Any)
+                });
             let display = if let Some(disp_comp) = comp.get_compound("display") {
                 match disp_comp.get_string("type") {
                     Some("hidden") => ModifierDisplay::Hidden,
@@ -211,7 +221,7 @@ impl AttributeModifiersImpl {
             };
             modifiers.push(Modifier {
                 r#type,
-                id,
+                id: Cow::Owned(id.to_string()),
                 amount,
                 operation,
                 slot,
