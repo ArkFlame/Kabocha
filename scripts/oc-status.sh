@@ -11,4 +11,4 @@ for p in "$KAB_RUNS"/*.pid; do [ -e "$p" ] || continue
   else running=$((running+1)); fi
   echo "$n $st"
 done
-echo "running=$running free_slots=$((${KAB_OC_SLOTS:-10}-running))"
+echo "running=$running free_slots=$((${KAB_OC_SLOTS:-20}-running))"

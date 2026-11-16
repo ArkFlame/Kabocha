@@ -195,3 +195,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3513 (issue, skipped: closed upstream)
 - #3521 (issue) skipped: bed.rs:229-234, respawn_anchor.rs:71-77 with_fire; explosion.rs:376-395
 - #3522 (issue) skipped: fishing_bobber.rs:62-150 reel_in; fishing_rod.rs:93-105
+- #4039 (PR) skipped: drowned goals and travel_in_water already on master, entity/mob/zombie/drowned.rs:383, goals prio 1/2/5/6/7

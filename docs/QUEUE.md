@@ -21,3 +21,7 @@ Status: todo | running | verify | merged | blocked | invalid.
 - #2828 wasm host moved + git-only wit-bindgen deps; #3407 Mob trait lacks mob_damage_with_context/remove_when_far_away, 11 core conflicts; #4039 and #3794 relaunched as redesign workers.
 - Issues needing log/video/runtime: #4005 #3989 #4006 #4020 #4048.
 - Failed (squash conflicts, need redesign or codegen): #4379 (16 files), #4378 (14 files), #3057 (about 100 files, old crate paths), #3507 (stale base, loot codegen), #4512 (58 files, 1287 hunks in generated block.rs, needs codegen regeneration).
+- batch 18b dropped: kab/i4496 (split_experience missing), kab/i4537 (shulker_box.rs:72-74 ambiguous float), kab/i4420 and kab/n4374 conflicted; fix on branch then re-integrate.
+- batch 24 dropped: kab/oc3355 (plugin/mod.rs:731,738 E0308 after refactor), kab/oc3216 and kab/oc3352 conflicted.
+- #3407 (PR) update: Mob-trait gap is stale (damage_with_context mob/mod.rs:3062, mob_hurt_server :2200 on master). Remaining work: move rotation/head-rotation broadcast to world/entity_tracker.rs plus dragon/falling/item/player/world changes; multi-file redesign, no small slice.
+- #4140 decision: add world field to 9 block/entity event records in WIT v0.2 only; v0.1 frozen (precedent: block-spread-event-data target-world).
