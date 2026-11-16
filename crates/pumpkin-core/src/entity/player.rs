@@ -280,8 +280,9 @@ use pumpkin_protocol::java::client::play::{
     CRespawn, CSetCamera, CSetContainerContent, CSetContainerProperty, CSetContainerSlot,
     CSetCursorItem, CSetExperience, CSetHealth, CSetPlayerInventory, CSetSelectedSlot,
     CSoundEffect, CStopSound, CSubtitle, CSystemChatMessage, CTabList, CTitleAnimation,
-    CTitleText, CUnloadChunk, CUpdateMobEffect, CUpdateTime, GameEvent, MapIcon, MapPatch,
-    ParticleOptions, PlayerAction, PlayerInfoFlags, PlayerSpawnData, PreviousMessage, Statistic,
+    CTitleText, CUnloadChunk, CUpdateMobEffect, CUpdateTime, CWorldEvent, GameEvent, MapIcon,
+    MapPatch, ParticleOptions, PlayerAction, PlayerInfoFlags, PlayerSpawnData, PreviousMessage,
+    Statistic,
 };
 use pumpkin_protocol::java::server::play::{
     SClickSlot, SContainerButtonClick, SRenameItem, SlotActionType,
@@ -5123,6 +5124,7 @@ impl Player {
         position: Vector3<f64>,
         yaw: Option<f32>,
         pitch: Option<f32>,
+        play_portal_sound: bool,
     ) {
         let current_world = self.living_entity.entity.world.load_full();
         let yaw = yaw.unwrap_or(new_world.level_info.load().spawn_yaw);
@@ -5252,6 +5254,15 @@ impl Player {
                 new_world.send_center_chunk(&player).await;
 
                 player.request_teleport(position, yaw, pitch);
+
+                if play_portal_sound {
+                    self.try_send_client_packet(&CWorldEvent::new(
+                        pumpkin_data::world::WorldEvent::SoundPortalTravel as i32,
+                        BlockPos::ZERO,
+                        0,
+                        false,
+                    ));
+                }
 
                 // Vanilla pairs after the teleport and the chunk send: without this the arriving
                 // player never tracks the players already in the destination world.
@@ -8662,7 +8673,9 @@ impl EntityBase for Player {
             );
         } else if let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) {
             self.spawn_task(async move {
-                player_arc.teleport_world(world, position, yaw, pitch).await;
+                player_arc
+                    .teleport_world(world, position, yaw, pitch, false)
+                    .await;
             });
         }
     }

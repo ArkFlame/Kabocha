@@ -127,6 +127,7 @@ impl PortalType {
                             position: Vector3::new(100.5f64, y, 0.5f64),
                             yaw: Some(90.0f32),
                             pitch: None,
+                            play_portal_sound: false,
                         })
                     } else {
                         // Leaving the End through the exit portal: return to overworld spawn
@@ -167,6 +168,7 @@ impl PortalType {
                             ),
                             yaw: None,
                             pitch: None,
+                            play_portal_sound: false,
                         })
                     }
                 } else {
@@ -254,6 +256,7 @@ impl PortalType {
                     position: final_pos,
                     yaw,
                     pitch: None,
+                    play_portal_sound: true,
                 })
             }
         }
@@ -265,6 +268,7 @@ pub struct TeleportTransition {
     pub position: Vector3<f64>,
     pub yaw: Option<f32>,
     pub pitch: Option<f32>,
+    pub play_portal_sound: bool,
 }
 
 pub struct PortalProcessor {
