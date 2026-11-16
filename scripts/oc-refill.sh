@@ -2,7 +2,7 @@
 # oc-refill.sh  -- start OpenCode PR workers until 10 are running. Picks smallest non-draft PRs from docs/queue-prs.tsv
 # not yet done (docs/DONE.md), not already attempted (worktree or $KAB_RUNS/tried). Run after every worker exit.
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"; touch "$KAB_RUNS/tried"
-running=$(scripts/oc-status.sh | grep -c ' running$' || true); need=$((${KAB_OC_SLOTS:-20}-running)); [ $need -le 0 ] && { echo "full"; exit 0; }
+running=$(scripts/oc-status.sh | grep -c ' running$' || true); need=$((${KAB_OC_SLOTS:-10}-running)); [ $need -le 0 ] && { echo "full"; exit 0; }
 python3 - "$need" <<'PY' | while read -r pr; do
 import re,sys
 need=int(sys.argv[1]); kr='/tmp/kabocha-runs'
@@ -21,6 +21,6 @@ PY
   scripts/wt.sh new "oc$pr" >/dev/null 2>&1; scripts/oc-agent.sh "oc$pr" "$(scripts/brief-pr.sh "$pr")"
 done
 # PR queue drained -> fill the rest with issue workers
-running=$(scripts/oc-status.sh | grep -c ' running$' || true); need=$((${KAB_OC_SLOTS:-20}-running))
+running=$(scripts/oc-status.sh | grep -c ' running$' || true); need=$((${KAB_OC_SLOTS:-10}-running))
 [ $need -gt 0 ] && scripts/next-issue.sh "$need" | while read -r id wt brief; do scripts/oc-agent.sh "i$id" "$brief"; done
 scripts/oc-status.sh | tail -1

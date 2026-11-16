@@ -185,3 +185,13 @@ Format: `- #N (PR|issue) title [commit]`
 - #3881 (issue, skipped: closed upstream)
 - #3880 (issue, skipped: closed upstream)
 - batch 18 landed (b22): #4364 #4365 #4366 #4383 #4386 #4421 #4451 #4454 #4478 #4487 #4498 #4545 #4547 #3794 (minecart direction only)
+- #3643 (issue, skipped: closed upstream)
+- #3623 (issue, skipped: closed upstream)
+- #3622 (issue, skipped: closed upstream)
+- #3566 (issue, skipped: closed upstream)
+- #3542 (issue, skipped: closed upstream)
+- #3538 (issue, skipped: closed upstream)
+- #3516 (issue, skipped: closed upstream)
+- #3513 (issue, skipped: closed upstream)
+- #3521 (issue) skipped: bed.rs:229-234, respawn_anchor.rs:71-77 with_fire; explosion.rs:376-395
+- #3522 (issue) skipped: fishing_bobber.rs:62-150 reel_in; fishing_rod.rs:93-105
