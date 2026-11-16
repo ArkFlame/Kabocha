@@ -15,3 +15,4 @@ Status: todo | running | verify | merged | blocked | invalid.
 - #4073 failed: 45 conflict hunks; #4595 failed: plugin manager diverged
 - #3630 failed: ~50 conflicting files; #4054 skipped (item merge present entity/item.rs:44)
 - #3887 failed: generated-code conflicts, needs codegen run
+- batch 11 held out: #4349 (fox goals use removed weather is_thundering), #4115 (copper golem shear duplicate vs #4578), #3871 (cushion Weak get_entity); fix workers needed
