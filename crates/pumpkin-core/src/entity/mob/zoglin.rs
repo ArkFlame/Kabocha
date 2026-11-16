@@ -122,6 +122,15 @@ impl ZoglinEntity {
 }
 
 impl Mob for ZoglinEntity {
+    /// Vanilla `Zoglin.getAmbientSound`: angry while it has an attack target.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        if self.mob_entity.get_target().is_some() {
+            Some(Sound::EntityZoglinAngry)
+        } else {
+            self.get_entity().entity_type.ambient_sound
+        }
+    }
+
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityZoglinStep, 0.15, 1.0);
     }
