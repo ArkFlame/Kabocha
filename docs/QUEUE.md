@@ -16,3 +16,7 @@ Status: todo | running | verify | merged | blocked | invalid.
 - #3630 failed: ~50 conflicting files; #4054 skipped (item merge present entity/item.rs:44)
 - #3887 failed: generated-code conflicts, needs codegen run
 - batch 11 held out: #4349 (fox goals use removed weather is_thundering), #4115 (copper golem shear duplicate vs #4578), #3871 (cushion Weak get_entity); fix workers needed
+
+## Failed this round (need redesign brief, no read budget)
+- #2828 wasm host moved + git-only wit-bindgen deps; #3407 Mob trait lacks mob_damage_with_context/remove_when_far_away, 11 core conflicts; #4039 and #3794 relaunched as redesign workers.
+- Issues needing log/video/runtime: #4005 #3989 #4006 #4020 #4048.

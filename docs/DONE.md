@@ -175,3 +175,7 @@ Format: `- #N (PR|issue) title [commit]`
 - batch 10 landed (3075 3860 4392 4535 4093 3903 4482)
 - #4054 (PR, skipped: item merge present entity/item.rs:44)
 - batch 12 landed: #4578 (snow golem) #4502 (axolotl); #3238 conflicted, requeued.
+
+## Batches 14-17 (2026-11-16)
+- Landed: #4283 #4177 #4169 #4136 #3871 #4115 (b14); #4075 #3974 #4069 #4375 (b15); #4000 #4001 #4042 #2858 #4068 #4066 #4067 #3999 #4003 #4377 #4376 (b16); #4373 #4060 #4056 #4351 #4337 #4055 #4163 #4057 #3729 #4594 #4350 #4347 (b17).
+- Skipped, already on master: #4380 (commands_and_gamemode.rs:38-41), #4029 (structure_finder.rs:162-219), #4059 (bucket.rs:271-276), #4058 (player.rs:670, player_action.rs:212-232), #4030 (abstract_fish.rs:35), #3460 (item.rs:499-507), #4184 (blocks.rs:36), #3987 (execute.rs:581), #4031 (anvil.rs:383,434).
