@@ -2,8 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crate::{
+    block::registry::BlockActionResult,
     entity::{EntityBase, player::Player, r#type::from_type},
     item::{ItemBehaviour, ItemMetadata},
+    server::Server,
 };
 use pumpkin_data::{
     Block, BlockDirection, BlockState,
@@ -682,31 +684,17 @@ impl ItemBehaviour for EmptyBucketItem {
     }
 }
 
-impl ItemBehaviour for FilledBucketItem {
-    fn normal_use(&self, item: &Item, player: &Player) {
-        let (yaw, pitch) = player.rotation();
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
-    }
-
-    fn normal_use_with_rotation(&self, item: &Item, player: &Player, yaw: f32, pitch: f32) {
-        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
-    }
-
-    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+impl FilledBucketItem {
+    /// Places the bucket contents against a clicked block face, returning whether the action was handled.
+    fn place_filled_bucket(
+        &self,
+        item: &Item,
+        player: &Player,
+        hand: Hand,
+        pos: BlockPos,
+        direction: BlockDirection,
+    ) -> bool {
         let world = player.world();
-        let (start_pos, end_pos) = self.get_start_and_end_pos_with_rotation(player, yaw, pitch);
-        let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
-            start_pos,
-            end_pos,
-            pumpkin_world::clip::ClipBlock::Outline,
-            pumpkin_world::clip::ClipFluid::None,
-        ));
-        if hit.is_miss {
-            return;
-        }
-
-        let pos = hit.block_pos;
-        let direction = hit.direction;
         let is_sneaking = player.get_entity().is_sneaking();
 
         let Some(place_pos) = try_place_liquid(
@@ -733,7 +721,7 @@ impl ItemBehaviour for FilledBucketItem {
                 true
             },
         ) else {
-            return;
+            return false;
         };
 
         let bucket_stack = player.inventory.get_stack_in_hand(hand);
@@ -751,6 +739,51 @@ impl ItemBehaviour for FilledBucketItem {
             );
             player.inventory.set_stack_in_hand(hand, updated_stack);
         }
+        true
+    }
+}
+
+impl ItemBehaviour for FilledBucketItem {
+    fn normal_use(&self, item: &Item, player: &Player) {
+        let (yaw, pitch) = player.rotation();
+        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+    }
+
+    fn normal_use_with_rotation(&self, item: &Item, player: &Player, yaw: f32, pitch: f32) {
+        self.normal_use_with_hand(item, player, yaw, pitch, Hand::Right);
+    }
+
+    fn normal_use_with_hand(&self, item: &Item, player: &Player, yaw: f32, pitch: f32, hand: Hand) {
+        let world = player.world();
+        let (start_pos, end_pos) = self.get_start_and_end_pos_with_rotation(player, yaw, pitch);
+        let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
+            start_pos,
+            end_pos,
+            pumpkin_world::clip::ClipBlock::Outline,
+            pumpkin_world::clip::ClipFluid::None,
+        ));
+        if hit.is_miss {
+            return;
+        }
+
+        self.place_filled_bucket(item, player, hand, hit.block_pos, hit.direction);
+    }
+
+    fn use_on_block(
+        &self,
+        stack: &mut ItemStack,
+        player: &Player,
+        location: BlockPos,
+        face: BlockDirection,
+        _cursor_pos: Vector3<f32>,
+        _block: &Block,
+        _server: &Server,
+    ) -> BlockActionResult {
+        if !self.place_filled_bucket(stack.item, player, Hand::Right, location, face) {
+            return BlockActionResult::Pass;
+        }
+        *stack = player.inventory.get_stack_in_hand(Hand::Right);
+        BlockActionResult::Success
     }
 
     fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
