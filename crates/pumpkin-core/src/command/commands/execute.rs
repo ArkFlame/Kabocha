@@ -18,7 +18,7 @@ use crate::command::argument_builder::{
     ArgumentBuilder, LiteralArgumentBuilder, RequiredArgumentBuilder, argument, command, literal,
 };
 use crate::command::argument_types::argument_type::JavaClientArgumentType;
-use crate::command::argument_types::block_predicate::BlockPredicateArgumentType;
+use crate::command::argument_types::block_predicate::{BlockPredicate, BlockPredicateArgumentType};
 use crate::command::argument_types::client_parsed::ClientParsed;
 use crate::command::argument_types::coordinates::block_pos::BlockPosArgumentType;
 use crate::command::argument_types::coordinates::rotation::RotationArgumentType;
@@ -337,33 +337,48 @@ fn execute_facing_entity_modifier(
 fn execute_if_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
-    let expected = BlockPredicateArgumentType::get(context, "block")?;
-
-    if let Some(ref world) = context.source.world {
-        let state_id = world.get_block_state_id(&pos);
-        if expected.test(state_id, || world.get_block_entity_nbt(&pos)) {
-            return Ok(vec![context.source.clone()]);
-        }
+    if block_matches(context)? {
+        Ok(vec![context.source.clone()])
+    } else {
+        Ok(vec![])
     }
-    Ok(vec![])
 }
 
 fn execute_unless_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
+    if block_matches(context)? {
+        Ok(vec![])
+    } else {
+        Ok(vec![context.source.clone()])
+    }
+}
+
+/// Tests the `block` predicate at `pos`, resolving datapack block tags against the loaded packs.
+fn block_matches(context: &CommandContext) -> Result<bool, CommandSyntaxError> {
     let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
     let expected = BlockPredicateArgumentType::get(context, "block")?;
 
-    if let Some(ref world) = context.source.world {
-        let state_id = world.get_block_state_id(&pos);
-        if !expected.test(state_id, || world.get_block_entity_nbt(&pos)) {
-            return Ok(vec![context.source.clone()]);
-        }
-    } else {
-        return Ok(vec![context.source.clone()]);
+    let Some(ref world) = context.source.world else {
+        return Ok(false);
+    };
+    if let BlockPredicate::Tag {
+        tag_name,
+        block_ids,
+        ..
+    } = &expected
+        && block_ids.is_empty()
+    {
+        let block_id = world.get_block(&pos).id.as_u16();
+        return Ok(context.source.server.as_ref().is_some_and(|server| {
+            server
+                .datapack_manager
+                .resolve_block_tag(tag_name)
+                .contains(&block_id)
+        }));
     }
-    Ok(vec![])
+    let state_id = world.get_block_state_id(&pos);
+    Ok(expected.test(state_id, || world.get_block_entity_nbt(&pos)))
 }
 
 fn execute_if_loaded_modifier(

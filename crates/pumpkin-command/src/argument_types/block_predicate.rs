@@ -186,7 +186,6 @@ fn parse_tag_predicate(reader: &mut StringReader) -> Result<BlockPredicate, Comm
 fn parse_tag_predicate_inner(
     reader: &mut StringReader,
 ) -> Result<BlockPredicate, CommandSyntaxError> {
-    let tag_start = reader.cursor();
     reader.skip();
     let id = Identifier::from_reader(reader)?;
     let normalized = id.to_string();
@@ -194,10 +193,9 @@ fn parse_tag_predicate_inner(
 
     let tag_ids = get_tag_ids(RegistryKey::Block, &normalized)
         .or_else(|| get_tag_ids(RegistryKey::Block, stripped));
-    let Some(ids) = tag_ids else {
-        reader.set_cursor(tag_start);
-        return Err(ERROR_UNKNOWN_TAG.create(reader, TextComponent::text(normalized)));
-    };
+    // Datapack tags are not known at parse time; callers with access to the
+    // loaded datapacks resolve an empty id list by `tag_name`.
+    let block_ids = tag_ids.map(<[u16]>::to_vec).unwrap_or_default();
 
     let properties = if reader.peek() == Some('[') {
         read_vague_properties(reader, &normalized)?
@@ -208,7 +206,7 @@ fn parse_tag_predicate_inner(
 
     Ok(BlockPredicate::Tag {
         tag_name: normalized,
-        block_ids: ids.to_vec(),
+        block_ids,
         properties,
         nbt,
     })
@@ -266,7 +264,7 @@ impl BlockPredicateArgumentType {
 
 #[cfg(test)]
 mod test {
-    use super::{BlockPredicateArgumentType, ERROR_UNKNOWN_TAG};
+    use super::{BlockPredicate, BlockPredicateArgumentType};
     use crate::{
         argument_types::{
             argument_type::ArgumentType,
@@ -326,10 +324,13 @@ mod test {
             ArgumentType::<DummySource>::parse(&BlockPredicateArgumentType, &mut dup).unwrap_err();
         assert!(err.is(&ERROR_DUPLICATE_PROPERTY));
 
-        let mut unknown = StringReader::new("#minecraft:definitely_not_a_real_tag");
-        let err = ArgumentType::<DummySource>::parse(&BlockPredicateArgumentType, &mut unknown)
-            .unwrap_err();
-        assert!(err.is(&ERROR_UNKNOWN_TAG));
-        assert_eq!(unknown.cursor(), 0);
+        // Unknown tags may be datapack tags: they parse with no ids and resolve at execute time.
+        let mut unknown = StringReader::new("#test:datapack_tag");
+        let pred = ArgumentType::<DummySource>::parse(&BlockPredicateArgumentType, &mut unknown)
+            .unwrap();
+        assert!(matches!(
+            pred,
+            BlockPredicate::Tag { ref block_ids, .. } if block_ids.is_empty()
+        ));
     }
 }
