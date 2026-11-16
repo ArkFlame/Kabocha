@@ -12,6 +12,12 @@ rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-prs.tsv')]
 m=[r for r in rows if r[4]=='false' and r[0] not in done|tried and int(r[1])>0]
 m.sort(key=lambda r:int(r[1])); print('\n'.join(r[0] for r in m[:need]))
 PY
-  echo "$pr" >> "$KAB_RUNS/tried"; scripts/wt.sh new "oc$pr" >/dev/null 2>&1; scripts/oc-agent.sh "oc$pr" "$(scripts/brief-pr.sh "$pr")"
+  echo "$pr" >> "$KAB_RUNS/tried"
+  case "$(scripts/pr-triage.sh "$pr")" in
+    *EMPTY) echo "- #$pr (PR, skipped: already present) $(awk -F'\t' -v n=$pr '$1==n{print $6}' docs/queue-prs.tsv)" >> docs/DONE.md; continue ;;
+    *CLEAN) echo "$pr" >> "$KAB_RUNS/clean.txt"; continue ;;
+    *CLOSED) continue ;;
+  esac
+  scripts/wt.sh new "oc$pr" >/dev/null 2>&1; scripts/oc-agent.sh "oc$pr" "$(scripts/brief-pr.sh "$pr")"
 done
 scripts/oc-status.sh | tail -1

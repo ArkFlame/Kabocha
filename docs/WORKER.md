@@ -1,0 +1,11 @@
+# Worker rules (prepended to every brief; lessons from sessions)
+Mistakes seen so far and the rule that fixes each:
+1. Private cold `CARGO_TARGET_DIR` per worker, many parallel builds -> machine load 98. **Do not run cargo at all.** If you truly must, use `scripts/cargo.sh` only.
+2. Workers waited minutes on slow builds, re-armed monitors, and sent the same "still running" report dozens of times. **Never poll, sleep, or arm monitors. Finish in one pass; report once.**
+3. Staged merges left uncommitted while waiting for a build. **Always commit before reporting.** An unverified commit is fine; the orchestrator batch-compiles.
+4. `git add -A` swept unrelated dirty files into commits. **Stage only the files you changed** (`git add <paths>`), never `-A` in a shared or dirty tree.
+5. OpenCode workers burned runs on PRs already fixed or closed. **Triage is mechanical** (`scripts/pr-triage.sh`): only CONFLICT PRs reach workers. If you still find the effect already present, say SKIPPED with file:line evidence.
+6. Old PRs target pre-refactor paths (`crates/pumpkin/src/...` now `crates/pumpkin-core/src/...`). **Port the intent to the current file layout**; do not resurrect old files.
+7. Two PRs can clash when merged together (new struct field vs new initializer, Arc vs Weak). **When you add a struct field or change a signature, grep every constructor/caller** and update them in the same commit.
+8. Typos in PR text (e.g. a key like `shearing_sound_sound`): prefer the existing correct code.
+Report format (one message, no prose): `STATUS: merged|skipped|failed | PR #N | commit <hash> | files <list> | note <one line>`.
