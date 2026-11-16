@@ -7,7 +7,7 @@ name="$1"; brief="$2"
 dir="$KAB_WT/$name"; [ -d "$dir" ] || "$KAB_ROOT/scripts/wt.sh" new "$name" >/dev/null
 rm -f "$KAB_RUNS/$name".{exit,out}
 (
-  cd "$dir"
+  cd "$dir"; export KAB_AGENT=opencode
   timeout "${KAB_OC_TIMEOUT:-1800}" opencode run -m "$KAB_OC_MODEL" --auto --title "kab:$name" \
     "$(cat "$brief")" >"$KAB_RUNS/$name.out" 2>"$KAB_RUNS/$name.log"
   echo $? >"$KAB_RUNS/$name.exit"

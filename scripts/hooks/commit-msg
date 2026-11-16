@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Append the author trailer by agent kind: KAB_AGENT=opencode -> OpenCode DeepSeek; anything else -> Claude.
+f="$1"
+case "${KAB_AGENT:-claude}" in
+  opencode) t="Co-Authored-By: OpenCode DeepSeek V4.1 <noreply@opencode.ai>" ;;
+  *)        t="Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" ;;
+esac
+grep -q "^Co-Authored-By:" "$f" || printf '\n%s\n' "$t" >> "$f"
