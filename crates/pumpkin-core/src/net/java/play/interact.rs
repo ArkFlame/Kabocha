@@ -146,7 +146,7 @@ impl JavaClient {
                         player.world().send_entity_status(
                             player.get_entity(),
                             equipment_break_status(&EquipmentSlot::MAIN_HAND),
-                            None,
+                            pumpkin_protocol::bedrock::server::actor_event::ActorEventID::None,
                         );
                     }
                 }
