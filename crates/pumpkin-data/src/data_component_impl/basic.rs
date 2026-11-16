@@ -6,8 +6,6 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::color::ARGBColor;
-    }
-    #[test]
 use pumpkin_util::version::JavaMinecraftVersion;
 use std::borrow::Cow;
 
