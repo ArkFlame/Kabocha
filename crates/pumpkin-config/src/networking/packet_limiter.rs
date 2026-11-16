@@ -22,7 +22,10 @@ impl Default for PacketLimiterConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            max_packet_rate: 500.0,
+            // Vanilla's `rate-limit-packets-per-second` defaults to 0 (disabled), so a client
+            // that buffers packets while the server stalls (e.g. first-join worldgen) is never
+            // kicked for a burst it did not cause.
+            max_packet_rate: 0.0,
             burst_capacity: 500.0,
             kick_message: "Kicked for spamming packets".to_string(),
         }
@@ -61,5 +64,11 @@ mod tests {
         assert!((config.max_packet_rate - 500.0).abs() < f64::EPSILON);
         assert!((config.burst_capacity - 500.0).abs() < f64::EPSILON);
         assert_eq!(config.kick_message, "Kicked for spamming packets");
+    }
+
+    #[test]
+    fn default_disables_rate_limit_like_vanilla() {
+        let config = PacketLimiterConfig::default();
+        assert!(config.max_packet_rate <= 0.0);
     }
 }
