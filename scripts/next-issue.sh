@@ -25,7 +25,7 @@ Upstream issue #$id: "$t". Read it: gh issue view $id -R Pumpkin-MC/Pumpkin --co
 4. Else make the smallest fix, update all callers, add the smallest automated test only if trivial.
 5. Commit: git add <your files>; git commit -m "fix(<scope>): <subject> (#$id)" (subject only; trailer is automatic).
 </task>
-<constraints>No cargo/tests/builds, no sleeping or background jobs, no GitHub writes, no other worktrees, no conflict markers.</constraints>
+<constraints>READ BUDGET: at most ~8 file reads/greps total; read only the function(s) the issue names (use offset/limit or grep -n, never whole large files). STOP RULE: the moment you know it needs a runtime/client/video repro, extra data, a 1.13 world sample, codegen, or is already fixed, STOP and report skipped/failed at once with one line of proof; do not keep investigating. No cargo/tests/builds, no sleeping or background jobs, no GitHub writes, no other worktrees, no conflict markers.</constraints>
 <report>One line: STATUS: committed|partial|skipped|failed | ISSUE #$id | commit <hash> | files <list> | compiled: no | note <one line></report>
 B
   [ -s "$f" ] && echo "$id $KAB_WT/i$id $f"

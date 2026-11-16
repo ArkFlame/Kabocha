@@ -13,3 +13,6 @@ Report format (one message, no prose): `STATUS: committed|partial|skipped|failed
 ## Brief structure (prompt engineering, implemented in scripts/brief-pr.sh)
 XML-tagged sections in this order: `<role>` (one-line persona + "alone, one pass"), `<context>` (repo, PR number/title/files, known refactor pitfall, what to read), `<task>` (numbered, with the skip branch), `<constraints>` (explicit don'ts: no cargo, no polling, minimum change, no markers), `<output>` (exact one-line format plus a worked example). Facts the orchestrator already knows (files, title, layout move) are injected so the worker does not rediscover them. Negative instructions are specific and checkable. Keep briefs under ~2.5 KB.
 9. Before committing, view your own diff (`git diff --cached`) and delete any stray fragments (lone `}`, `>`, orphan `#[test]`, markers): they break the batch build.
+
+## Read budget and stop rule (user-mandated 2026-11-16)
+Read only what the fix needs: grep -n first, then offset/limit around the hit, about 8 reads total, never whole large files. The moment the blocker is "needs a client/runtime repro, a video, a world sample, codegen, or already fixed", stop and report skipped/failed with one line of proof. Evidence: ~65% of issue workers ended skipped/failed after 40-70k tokens of reading.
