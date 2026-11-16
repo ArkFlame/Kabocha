@@ -1462,7 +1462,7 @@ impl World {
             )
         });
 
-        Self::broadcast_java_grouped(packet, Self::collect_java_recipients_by_version(recipients));
+        Self::broadcast_java_players(packet, recipients);
     }
 
     pub fn play_sound_event(
