@@ -92,10 +92,13 @@ impl Goal for RangedAttackGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        // Vanilla re-runs `canUse`, which switches to the mob's current target; without one
+        // the goal keeps walking to the old target while it lives and the path is not done.
         self.can_start(mob)
             || (self.target_alive() && !mob.get_mob_entity().steered().navigator().is_done())
     }
 
+    // Vanilla leaves the navigation running.
     fn stop(&mut self, _mob: &dyn Mob) {
         self.target = None;
         self.see_time = 0;
@@ -166,6 +169,7 @@ impl Goal for RangedAttackGoal {
             let max = self.attack_interval_max as f32;
             self.attack_time = (dist * (max - min) + min).floor() as i32;
         } else if self.attack_time < 0 {
+            // `Mth.lerp` in double precision, unlike the float interval above.
             let ratio = target_dist_sq.sqrt() / f64::from(self.attack_radius);
             let min = f64::from(self.attack_interval_min);
             let max = f64::from(self.attack_interval_max);
