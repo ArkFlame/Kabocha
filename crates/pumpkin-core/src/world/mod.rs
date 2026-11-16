@@ -8806,15 +8806,47 @@ impl World {
         );
     }
 
+    /// Emits a game event and remembers the entity that caused it, for plugins.
+    pub fn emit_game_event_with_source(
+        &self,
+        event_key: impl Into<String>,
+        position: Vector3<f64>,
+        source_entity: Option<Arc<dyn EntityBase>>,
+    ) {
+        let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(
+            event_key.into(),
+            position,
+            source_entity,
+        );
+        if let Some(server) = self.server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if event.cancelled {
+            return;
+        }
+        if let Some(kind) = pumpkin_data::game_event::GameEvent::from_name(&event.event_key) {
+            self.post_game_event(
+                kind,
+                event.position,
+                &game_event::GameEventContext {
+                    source_entity: event.source_entity.as_deref(),
+                },
+            );
+        }
+    }
     pub fn emit_game_event_with_context(
         &self,
         event_key: impl Into<String>,
         position: Vector3<f64>,
         context: &game_event::GameEventContext<'_>,
     ) {
+        let source_entity = context
+            .source_entity
+            .and_then(|entity| self.get_entity_by_uuid(entity.get_entity().entity_uuid));
         let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(
             event_key.into(),
             position,
+            source_entity,
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
