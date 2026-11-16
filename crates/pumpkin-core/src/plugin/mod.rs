@@ -741,21 +741,19 @@ impl PluginManager {
             .iter()
             .map(|(name, _, path)| (name.clone(), path.clone()))
             .collect();
-        match Self::topological_sort(&relations) {
-            Ok(mut order) => {
-                order.reverse();
-                order
-                    .into_iter()
-                    .filter_map(|name| paths.remove(&name).map(|path| (name, path)))
-                    .collect()
-            }
-            Err(e) => {
-                warn!("Unloading plugins in listed order: {e}");
-                selected
-                    .into_iter()
-                    .map(|(name, _, path)| (name, path))
-                    .collect()
-            }
+        let (mut order, skipped) = Self::topological_sort(&relations);
+        if skipped.is_empty() {
+            order.reverse();
+            order
+                .into_iter()
+                .filter_map(|name| paths.remove(&name).map(|path| (name, path)))
+                .collect()
+        } else {
+            warn!("Unloading plugins in listed order: {skipped:?}");
+            selected
+                .into_iter()
+                .map(|(name, _, path)| (name, path))
+                .collect()
         }
     }
 
