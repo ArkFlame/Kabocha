@@ -425,6 +425,7 @@ impl ChunkData {
                 world_surface: None,
                 motion_blocking: None,
                 motion_blocking_no_leaves: None,
+                preserved: FxHashMap::default(),
             },
             // A heightmap of the wrong length is dropped rather than stored:
             // every reader indexes it by column and would run off the end.
@@ -441,6 +442,27 @@ impl ChunkData {
                     .get_long_array("MOTION_BLOCKING_NO_LEAVES")
                     .filter(|a| a.len() == ChunkHeightmaps::LONGS)
                     .map(|a| a.to_vec().into_boxed_slice()),
+                // Vanilla also stores OCEAN_FLOOR; this server never computes
+                // it, so keep whatever the chunk arrived with instead of
+                // dropping the entry on save.
+                preserved: h_compound
+                    .child_tags
+                    .iter()
+                    .filter(|(name, _)| {
+                        !matches!(
+                            &***name,
+                            "WORLD_SURFACE" | "MOTION_BLOCKING" | "MOTION_BLOCKING_NO_LEAVES"
+                        )
+                    })
+                    .filter_map(|(name, tag)| match tag {
+                        pumpkin_nbt::tag::NbtTag::LongArray(a)
+                            if a.len() == ChunkHeightmaps::LONGS =>
+                        {
+                            Some((name.to_string(), a.clone().into_boxed_slice()))
+                        }
+                        _ => None,
+                    })
+                    .collect(),
             },
         );
         let mut block_ticks = Vec::new();
@@ -610,6 +632,9 @@ impl ChunkData {
         }
         if let Some(ref arr) = heightmap_lock.motion_blocking_no_leaves {
             heightmaps_compound.put("MOTION_BLOCKING_NO_LEAVES", NbtTag::LongArray(arr.to_vec()));
+        }
+        for (name, arr) in &heightmap_lock.preserved {
+            heightmaps_compound.put(name, NbtTag::LongArray(arr.to_vec()));
         }
         root_compound.put_compound("Heightmaps", heightmaps_compound);
 
@@ -981,6 +1006,7 @@ impl ChunkData {
             world_surface: read_heightmap(&mut buf, (flags & (1 << 1)) != 0)?,
             motion_blocking: read_heightmap(&mut buf, (flags & (1 << 2)) != 0)?,
             motion_blocking_no_leaves: read_heightmap(&mut buf, (flags & (1 << 3)) != 0)?,
+            preserved: FxHashMap::default(),
         };
 
         if buf.remaining() < 2 {
@@ -1794,6 +1820,39 @@ mod tests {
                 "{key} did not survive the save"
             );
         }
+    }
+
+    /// `Heightmaps` is regenerated on save, but this server does not compute
+    /// `OCEAN_FLOOR`; a vanilla world must not lose it across a load/save.
+    #[test]
+    fn saving_keeps_heightmaps_this_server_does_not_compute() {
+        use crate::chunk::ChunkData;
+        use pumpkin_util::math::vector2::Vector2;
+
+        let mut nbt = test_chunk(vec![test_section(-4, "minecraft:stone", true)]);
+        let mut heightmaps = NbtCompound::new();
+        heightmaps.put(
+            "OCEAN_FLOOR",
+            NbtTag::LongArray(vec![7i64; ChunkHeightmaps::LONGS].into_boxed_slice()),
+        );
+        nbt.root_tag.put("Heightmaps", NbtTag::Compound(heightmaps));
+
+        let chunk = ChunkData::from_bytes(&nbt.write(), Vector2::new(0, 0)).expect("chunk parses");
+        let saved = chunk.to_bytes().expect("chunk serializes");
+
+        let mut cursor = std::io::Cursor::new(saved.as_ref());
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(&mut cursor);
+        let reloaded = pumpkin_nbt::Nbt::read(&mut reader).expect("saved chunk parses");
+
+        assert_eq!(
+            reloaded
+                .root_tag
+                .get_compound("Heightmaps")
+                .and_then(|h| h.get_long_array("OCEAN_FLOOR"))
+                .map(<[i64]>::len),
+            Some(ChunkHeightmaps::LONGS),
+            "OCEAN_FLOOR did not survive the save"
+        );
     }
 
     /// `MODELLED_ROOT_TAGS` can fall behind the writer. When it does, the name

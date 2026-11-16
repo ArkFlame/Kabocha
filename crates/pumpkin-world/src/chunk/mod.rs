@@ -203,6 +203,9 @@ pub struct ChunkHeightmaps {
     pub world_surface: Option<Box<[i64]>>,
     pub motion_blocking: Option<Box<[i64]>>,
     pub motion_blocking_no_leaves: Option<Box<[i64]>>,
+    /// Heightmaps this server does not compute (`OCEAN_FLOOR` and anything a
+    /// datapack adds), kept verbatim so a save does not strip them.
+    pub preserved: FxHashMap<String, Box<[i64]>>,
 }
 
 impl ChunkHeightmaps {
@@ -309,6 +312,7 @@ impl Default for ChunkHeightmaps {
             motion_blocking: None,
             motion_blocking_no_leaves: None,
             world_surface: None,
+            preserved: FxHashMap::default(),
         }
     }
 }
