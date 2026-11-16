@@ -4,7 +4,12 @@ pub mod gui;
 pub mod tab_list;
 pub mod title;
 
-use std::{pin::Pin, sync::Arc};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context as TaskContext, Poll},
+};
 
 pub use context::*;
 pub use events::*;
@@ -34,6 +39,33 @@ pub struct PluginMetadata {
 
 /// This type represents a future for the plugin.
 pub type PluginFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// Wraps a [`PluginFuture`] so each poll runs inside the given tokio runtime.
+///
+/// Native plugins own a global runtime (`GLOBAL_RUNTIME` in `#[plugin_impl]`), but
+/// their lifecycle futures are polled by the server runtime. Without entering the
+/// plugin runtime, tokio I/O created inside `#[plugin_method]` aborts with
+/// "there is no reactor running".
+pub struct RuntimeScopedFuture<'a, T> {
+    handle: tokio::runtime::Handle,
+    future: PluginFuture<'a, T>,
+}
+
+impl<'a, T> RuntimeScopedFuture<'a, T> {
+    pub fn new(handle: tokio::runtime::Handle, future: PluginFuture<'a, T>) -> Self {
+        Self { handle, future }
+    }
+}
+
+impl<T> Future for RuntimeScopedFuture<'_, T> {
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<T> {
+        let this = self.get_mut();
+        let _guard = this.handle.enter();
+        this.future.as_mut().poll(cx)
+    }
+}
 
 /// Trait representing a plugin with asynchronous lifecycle methods.
 ///
@@ -66,5 +98,27 @@ pub trait Plugin: Send + Sync + 'static {
         message: &[u8],
     ) -> PluginFuture<'_, Result<Vec<u8>, String>> {
         Box::pin(async move { Err("This plugin cannot receive messages.".to_string()) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runtime_scoped_future_polls_inside_plugin_runtime() {
+        let runtime = tokio::runtime::Runtime::new().expect("plugin runtime");
+        let expected = runtime.handle().id();
+        let future = RuntimeScopedFuture::new(
+            runtime.handle().clone(),
+            Box::pin(async move { tokio::runtime::Handle::current().id() }),
+        );
+        let mut future = Box::pin(future);
+        let waker = std::task::Waker::noop();
+        let mut context = std::task::Context::from_waker(waker);
+        assert_eq!(
+            future.as_mut().poll(&mut context),
+            std::task::Poll::Ready(expected)
+        );
     }
 }
