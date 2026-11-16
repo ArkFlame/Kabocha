@@ -12,3 +12,6 @@ Status: todo | running | verify | merged | blocked | invalid.
 - #3428 failed: master uses HeightMap, PR uses HeightmapType + WG heightmaps; needs redesign
 - #3697 follow-up: elytra boost_attached, attached rockets, deflection, NBT
 - #3848 failed: palette/light conflicts with #3320 #3427 #4488; #3903 partial: regenerate configured_features_generated.rs via codegen
+- #4073 failed: 45 conflict hunks; #4595 failed: plugin manager diverged
+- #3630 failed: ~50 conflicting files; #4054 skipped (item merge present entity/item.rs:44)
+- #3887 failed: generated-code conflicts, needs codegen run
