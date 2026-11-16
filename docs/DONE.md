@@ -167,3 +167,6 @@ Format: `- #N (PR|issue) title [commit]`
 - #3863 (PR, committed, batch 8 compiled)
 - #4426 (PR, committed, batch 8 compiled)
 - #4418 (PR, committed, batch 8 compiled)
+- #3657 skipped (gliding present: item_stack/mod.rs:428, entity/mod.rs:4249)
+- #3795 (PR, skipped: sulfur cube goals and slime hunt present)
+- #3697 (PR, skipped: firework core present; elytra boost/attached rockets missing, see QUEUE)
