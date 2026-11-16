@@ -875,7 +875,9 @@ impl HostMob for PluginHostState {
                 let holder = self.take(h)?;
                 entity.get_entity().leash_to(holder);
             }
-            None => entity.get_entity().unleash(),
+            None => {
+                entity.get_entity().unleash();
+            }
         }
         Ok(())
     }
