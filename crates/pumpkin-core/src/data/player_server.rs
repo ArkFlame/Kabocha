@@ -194,7 +194,9 @@ impl ServerPlayerData {
     ///
     /// A Result indicating success or the error that occurred.
     pub fn extract_data_and_save_player(&self, player: &Player) -> Result<(), PlayerDataError> {
-        if !self.storage.is_save_enabled() {
+        // A rejected first spawn must not create a returning-player data file
+        // containing the uninitialized position.
+        if !self.storage.is_save_enabled() || !player.has_played_before.load(Ordering::Relaxed) {
             return Ok(());
         }
 
