@@ -1459,8 +1459,19 @@ fn attachments_of(entity: &(impl EntityBase + ?Sized)) -> (&'static EntityAttach
         .map(|pose| &pose.attachments)
         .or_else(|| entity_type.baby_attachments.as_ref().filter(|_| baby))
         .unwrap_or(&entity_type.attachments);
-    // The scale the current dimensions were built with, like vanilla's scaled attachments
-    (attachments, f64::from(base.scale.load()))
+    // Vanilla `AgeableMob.getAttachments` scales by `getAgeScale` on top of the SCALE
+    // attribute, so a baby's seat follows its shrunk dimensions.
+    let age_scale = if baby {
+        let adult_width = Entity::type_dimensions(entity_type).width;
+        if adult_width > 0.0 {
+            f64::from(Entity::age_dimensions(entity_type, true).width / adult_width)
+        } else {
+            1.0
+        }
+    } else {
+        1.0
+    };
+    (attachments, f64::from(base.scale.load()) * age_scale)
 }
 
 pub(crate) fn attachment_point(point: [f64; 3], scale: f64, yaw: f32) -> Vector3<f64> {
@@ -6757,6 +6768,29 @@ mod tests {
             })
             .sum();
         assert_eq!(leads, 16);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn baby_dolphin_passenger_attachment_scales_with_age()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::{
+            ageable::AgeableMob, ai::test_support::world, passive::dolphin::DolphinEntity,
+        };
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let dolphin = DolphinEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::DOLPHIN,
+        ));
+        let adult_seat = default_passenger_attachment_point(dolphin.as_ref(), 0).unwrap();
+        assert!((adult_seat.y - 0.6).abs() < 1e-6);
+        // Vanilla scales baby attachments by `getAgeScale` 0.65
+        dolphin.set_age(-1);
+        let baby_seat = default_passenger_attachment_point(dolphin.as_ref(), 0).unwrap();
+        assert!((baby_seat.y - 0.3125 * 0.65).abs() < 1e-6);
         world.level.shutdown().await;
         Ok(())
     }
