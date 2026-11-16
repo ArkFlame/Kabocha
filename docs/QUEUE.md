@@ -3,3 +3,4 @@ Seed with `scripts/upstream-queue.sh prs > docs/queue-prs.tsv` and `... issues >
 Status: todo | running | verify | merged | blocked | invalid.
 | id | source | size | files | status | owner/branch | note |
 |---|---|---|---|---|---|---|
+- #3755 (PR) needs re-port: PluginHostState moved to wasm-host-common, no inherent impl in v0_1 context.rs

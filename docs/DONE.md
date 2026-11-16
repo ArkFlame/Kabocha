@@ -142,3 +142,12 @@ Format: `- #N (PR|issue) title [commit]`
 - #3820 (PR) merged
 - #4501 (PR) merged
 - #3547 (PR) merged
+- #4488 (PR) merged
+- #4010 (PR) merged
+- #3425 (PR) merged
+- #4445 (PR) merged
+- #3951 (PR) merged
+- #3719 (PR) merged
+- #3508 (PR) merged
+- #4368 (PR) merged
+- #3905 (PR) merged
