@@ -4,6 +4,7 @@ use pumpkin_data::item::Item;
 use pumpkin_data::{Block, BlockDirection, BlockStateId, block_properties::HorizontalFacing};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
+use pumpkin_util::GameMode;
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
 
 use crate::{
@@ -105,7 +106,12 @@ impl BlockBehaviour for TripwireBlock {
                 pumpkin_data::game_event::GameEvent::Shear.name(),
                 args.position.to_centered_f64(),
             );
-            // TODO: Deduct 1 durability from held shears (skip in Creative mode).
+            if !matches!(
+                args.player.gamemode.load(),
+                GameMode::Creative | GameMode::Spectator
+            ) {
+                args.player.damage_held_item(1);
+            }
         }
     }
 
