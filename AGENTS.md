@@ -52,6 +52,7 @@ Do not compile what you do not need. Docs/scripts/data-only changes: no build. C
 
 ## Workers
 Orchestrator plans, briefs, verifies, lands; workers (`general` Role: CODER natively, or OpenCode via `scripts/oc-agent.sh`) write code in their own worktree (`scripts/wt.sh`). No recursive delegation. Up to 10 native + 10 OpenCode; parallelize aggressively: independent slices always run concurrently, refill a slot the moment one frees. Brief: Role; Task; Scope; Evidence; Acceptance commands; Forbidden. Details: skills `kabocha-orchestrate`, `kabocha-opencode`, `kabocha-land`.
+**Orchestrator loop (read `kabocha-orchestrator-playbook` first).** Native workers: `Agent` tool, `general`, `run_in_background: true`, refill on each completion notification. OpenCode workers: one persistent `Monitor` over `scripts/oc-status.sh` + `scripts/oc-refill.sh`; never block or `sleep`-poll. Fetch `refs/kab/pr-N` before `scripts/brief-pr.sh N` and check the brief exists. Workers never build; one `scripts/integrate.sh` per batch, fix forward, ff-merge, push. Co-author trailers are automatic via `scripts/hooks/commit-msg`.
 
 ## Landing
 Changes land by fast-forwarding worker branches into master and pushing origin (`scripts/land.sh`). No PR ceremony, disclosure lines or human-review gates; automated checks are the gate. Opening upstream PRs is optional and only on request.
