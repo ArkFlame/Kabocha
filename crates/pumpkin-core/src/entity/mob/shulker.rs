@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::BlockDirection;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -20,6 +21,7 @@ use crate::entity::ai::goal::look_at_entity::LookAtEntityGoal;
 use crate::entity::ai::goal::revenge::RevengeGoal;
 use crate::entity::ai::goal::{Controls, Goal};
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::mob::{Mob, MobEntity};
 use crate::entity::projectile::shulker_bullet::ShulkerBulletEntity;
 use crate::entity::{Entity, EntityBase};
@@ -28,6 +30,9 @@ const DEFAULT_ATTACH_FACE: BlockDirection = BlockDirection::Down;
 const NO_COLOR: u8 = 16;
 const PEEK_PER_TICK: f32 = 0.05;
 const MAX_TELEPORT_DISTANCE: i32 = 8;
+/// Vanilla `Shulker.MODIFIER_COVERED_ARMOR`: +20 armor while fully closed.
+const COVERED_ARMOR_MODIFIER_ID: &str = "covered";
+const COVERED_ARMOR: f64 = 20.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axis {
@@ -162,6 +167,22 @@ impl ShulkerEntity {
         }
 
         self.peek_amount.store(amount, Ordering::Relaxed);
+
+        // Vanilla `setRawPeekAmount`: closed shulkers gain a permanent +20 armor modifier.
+        let living = &self.mob_entity.living_entity;
+        if amount == 0 {
+            living.update_attribute(&Attributes::ARMOR, |armor| {
+                armor.add_or_replace_permanent_modifier(Modifier {
+                    id: COVERED_ARMOR_MODIFIER_ID.to_string(),
+                    amount: COVERED_ARMOR,
+                    operation: ModifierOperation::Add,
+                });
+            });
+        } else {
+            living.update_attribute(&Attributes::ARMOR, |armor| {
+                armor.remove_modifier(COVERED_ARMOR_MODIFIER_ID);
+            });
+        }
 
         entity.set_synced_data(pumpkin_data::tracked_data::shulker::PEEK_ID, amount);
     }
@@ -355,16 +376,6 @@ impl Mob for ShulkerEntity {
 
     fn pre_damage(&self, damage_type: DamageType, _source: Option<&dyn EntityBase>) -> bool {
         !(self.is_closed() && damage_type == DamageType::ARROW)
-    }
-
-    fn modify_incoming_damage(&self, amount: f32, damage_type: DamageType) -> f32 {
-        if self.is_closed() && !crate::entity::living::bypasses_armor_durability(&damage_type) {
-            const ARMOR: f32 = 20.0;
-            let f1 = (ARMOR - amount * 0.5f32).clamp(ARMOR * 0.2f32, 20.0f32);
-            (amount * (1.0f32 - f1 / 25.0f32)).max(0.0)
-        } else {
-            amount
-        }
     }
 }
 
