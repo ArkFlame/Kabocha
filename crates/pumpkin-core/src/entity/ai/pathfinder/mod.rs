@@ -717,12 +717,16 @@ impl PathNavigation {
             );
             self.update_pathfinder_max_visited_nodes = false;
         }
+        let search_start = std::time::Instant::now();
         let mut path = finder.find_path(
             &mut self.evaluator,
             targets,
             max_path_length,
             reach_range,
             self.max_visited_nodes_multiplier,
+        );
+        entity.entity.world.load().add_path_search_time(
+            u64::try_from(search_start.elapsed().as_nanos()).unwrap_or(u64::MAX),
         );
         self.evaluator.done();
         if let Some(path) = &mut path {
@@ -830,7 +834,9 @@ impl PathNavigation {
             || !self.can_update_path(entity)
         {
             self.has_delayed_recomputation = true;
-        } else if let Some(target) = self.target_pos {
+        } else if let Some(target) = self.target_pos
+            && entity.entity.world.load().can_start_path_search()
+        {
             self.path = None;
             self.path = self.create_path(entity, target.0.to_f64(), self.reach_range);
             self.time_last_recompute = world_age;
@@ -838,11 +844,16 @@ impl PathNavigation {
         }
     }
 
-    fn update_path(&mut self, entity: &LivingEntity) {
+    /// Returns `true` when a pending goal had to wait because this tick's
+    /// pathfinding time budget is spent. The goal stays pending for next tick.
+    fn update_path(&mut self, entity: &LivingEntity) -> bool {
         if self.has_delayed_recomputation {
             self.recompute_path(entity);
         }
         if self.has_pending_path {
+            if !entity.entity.world.load().can_start_path_search() {
+                return true;
+            }
             self.has_pending_path = false;
             if let Some(goal) = self.current_goal {
                 // Vanilla moveTo(Path): an equivalent route keeps the installed path and its progress.
@@ -855,6 +866,7 @@ impl PathNavigation {
                 }
             }
         }
+        false
     }
 
     pub fn can_move_directly(
@@ -1096,10 +1108,12 @@ impl PathNavigation {
     #[allow(clippy::too_many_lines)]
     pub fn tick_ground(&mut self, entity: &LivingEntity) -> Option<NavigationTarget> {
         self.tick_count += 1;
-        self.update_path(entity);
+        let search_denied = self.update_path(entity);
 
         if self.path.is_none() {
-            self.stop();
+            if !search_denied {
+                self.stop();
+            }
             return None;
         }
 
@@ -1497,7 +1511,10 @@ impl PathNavigationTrait for FlyingPathNavigation {
     #[allow(clippy::too_many_lines)]
     fn tick(&mut self, entity: &LivingEntity) -> Option<NavigationTarget> {
         self.inner.tick_count += 1;
-        self.inner.update_path(entity);
+        let search_denied = self.inner.update_path(entity);
+        if search_denied && self.inner.path.is_none() {
+            return None;
+        }
 
         let mob_pos = entity.entity.pos.load();
         let can_update = self.inner.can_update_path(entity);
@@ -1793,7 +1810,9 @@ impl PathNavigationTrait for WaterBoundPathNavigation {
     #[allow(clippy::too_many_lines)]
     fn tick(&mut self, entity: &LivingEntity) -> Option<NavigationTarget> {
         self.inner.tick_count += 1;
-        self.inner.update_path(entity);
+        if self.inner.update_path(entity) && self.inner.path.is_none() {
+            return None;
+        }
         if self.is_done() {
             self.inner.stop();
             return None;
@@ -2090,8 +2109,11 @@ impl PathNavigationTrait for WallClimberNavigation {
 
     #[allow(clippy::too_many_lines)]
     fn tick(&mut self, entity: &LivingEntity) -> Option<NavigationTarget> {
-        if self.inner.inner.has_pending_path {
-            self.inner.inner.update_path(entity);
+        if self.inner.inner.has_pending_path
+            && self.inner.inner.update_path(entity)
+            && self.inner.inner.path.is_none()
+        {
+            return None;
         }
         if !self.inner.is_done() {
             return self.inner.tick(entity);
@@ -2357,7 +2379,9 @@ impl PathNavigationTrait for AmphibiousPathNavigation {
     fn tick(&mut self, entity: &LivingEntity) -> Option<NavigationTarget> {
         if entity.entity.touching_water.load(Ordering::Relaxed) {
             self.inner.tick_count += 1;
-            self.inner.update_path(entity);
+            if self.inner.update_path(entity) && self.inner.path.is_none() {
+                return None;
+            }
 
             let mob_pos = Vector3::new(
                 entity.entity.pos.load().x,
