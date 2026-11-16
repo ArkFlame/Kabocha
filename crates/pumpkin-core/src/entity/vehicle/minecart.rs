@@ -59,6 +59,49 @@ const fn get_exits(
     }
 }
 
+/// Vanilla `OldMinecartBehavior.getPos`: snap a position onto the rail surface,
+/// interpolating the height along ascending rails.
+fn get_pos_on_rail(
+    block_pos: BlockPos,
+    shape: pumpkin_data::block_properties::RailShape,
+    pos: Vector3<f64>,
+) -> Vector3<f64> {
+    let (exit0, exit1) = get_exits(shape);
+    let bx = f64::from(block_pos.0.x);
+    let by = f64::from(block_pos.0.y);
+    let bz = f64::from(block_pos.0.z);
+
+    let start = Vector3::new(
+        bx + 0.5 + exit0.x * 0.5,
+        by + RAIL_HEIGHT_OFFSET + exit0.y * 0.5,
+        bz + 0.5 + exit0.z * 0.5,
+    );
+    let end = Vector3::new(
+        bx + 0.5 + exit1.x * 0.5,
+        by + RAIL_HEIGHT_OFFSET + exit1.y * 0.5,
+        bz + 0.5 + exit1.z * 0.5,
+    );
+
+    let dx = end.x - start.x;
+    let dy = (end.y - start.y) * 2.0;
+    let dz = end.z - start.z;
+    let progress = if dx == 0.0 {
+        pos.z - bz
+    } else if dz == 0.0 {
+        pos.x - bx
+    } else {
+        ((pos.x - start.x) * dx + (pos.z - start.z) * dz) * 2.0
+    };
+
+    let mut y = start.y + dy * progress;
+    if dy < 0.0 {
+        y += 1.0;
+    } else if dy > 0.0 {
+        y += 0.5;
+    }
+    Vector3::new(start.x + dx * progress, y, start.z + dz * progress)
+}
+
 const GRAVITY: f64 = 0.04;
 const RAIL_HEIGHT_OFFSET: f64 = 0.0625;
 
@@ -391,6 +434,20 @@ impl EntityBase for MinecartEntity {
                 }
             };
 
+            // Vanilla `OldMinecartBehavior.moveAlongTrack`: gravity along the slope.
+            let slope_gravity = if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {
+                0.0078125 * 0.2
+            } else {
+                0.0078125
+            };
+            match shape {
+                RailShape::AscendingEast => velocity.x -= slope_gravity,
+                RailShape::AscendingWest => velocity.x += slope_gravity,
+                RailShape::AscendingNorth => velocity.z += slope_gravity,
+                RailShape::AscendingSouth => velocity.z -= slope_gravity,
+                _ => {}
+            }
+
             let pos = self.vehicle.entity.pos.load();
             let block_center_bottom = Vector3::new(
                 f64::from(block_pos.0.x) + 0.5,
@@ -402,37 +459,7 @@ impl EntityBase for MinecartEntity {
             let exit0 = exit0.multiply(0.5, 0.5, 0.5);
             let exit1 = exit1.multiply(0.5, 0.5, 0.5);
 
-            let in_corner = exit0.x != exit1.x && exit0.z != exit1.z;
-            let mut target_position = pos;
-
-            if in_corner {
-                let from0to1 = exit1 - exit0;
-                let from0topos = pos - block_center_bottom - exit0;
-                let dot_num = from0to1.dot(&from0topos);
-                let dot_den = from0to1.dot(&from0to1);
-                if dot_den != 0.0 {
-                    let travel_vector_from0 =
-                        from0to1.multiply(dot_num / dot_den, dot_num / dot_den, dot_num / dot_den);
-                    target_position = block_center_bottom.add(&exit0).add(&travel_vector_from0);
-                }
-            } else {
-                let z_snap = (exit0.x - exit1.x).abs() > 1e-5;
-                let x_snap = (exit0.z - exit1.z).abs() > 1e-5;
-                if x_snap {
-                    target_position.x = block_center_bottom.x;
-                }
-                if z_snap {
-                    target_position.z = block_center_bottom.z;
-                }
-            }
-
-            target_position.y = match shape {
-                RailShape::AscendingEast
-                | RailShape::AscendingWest
-                | RailShape::AscendingNorth
-                | RailShape::AscendingSouth => pos.y,
-                _ => f64::from(block_pos.0.y) + RAIL_HEIGHT_OFFSET,
-            };
+            let target_position = get_pos_on_rail(block_pos, shape, pos);
             self.vehicle.entity.set_pos(target_position);
 
             let horizontal_in_direction = Vector3::new(exit1.x, 0.0, exit1.z);
@@ -903,6 +930,26 @@ mod tests {
     use pumpkin_util::text::TextComponent;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn rail_position_follows_ascending_slope() {
+        use pumpkin_data::block_properties::RailShape;
+
+        let flat = get_pos_on_rail(
+            BlockPos(Vector3::new(0, 64, 0)),
+            RailShape::EastWest,
+            Vector3::new(0.5, 64.0, 0.5),
+        );
+        assert_eq!((flat.x, flat.y, flat.z), (0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.5));
+
+        // Vanilla snaps an ascending rail's exit Y up by half a block plus the slope progress.
+        let slope = get_pos_on_rail(
+            BlockPos(Vector3::new(0, 64, 0)),
+            RailShape::AscendingEast,
+            Vector3::new(0.5, 64.0, 0.5),
+        );
+        assert_eq!((slope.x, slope.y, slope.z), (0.5, 64.0 + 1.0625, 0.5));
+    }
 
     #[tokio::test]
     async fn command_block_minecart_nbt_and_activation_cooldown() -> TestResult {
