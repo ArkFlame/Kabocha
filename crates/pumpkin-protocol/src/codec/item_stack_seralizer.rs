@@ -303,6 +303,10 @@ impl ItemStackSerializer<'_> {
             patch.push((id, None));
         }
 
+        let item_count_u8: u8 = item_count
+            .0
+            .try_into()
+            .map_err(|_| ReadingError::Message("Invalid item count!".into()))?;
         let item_id_u16: u16 = item_id
             .0
             .try_into()
@@ -310,7 +314,7 @@ impl ItemStackSerializer<'_> {
 
         Ok(ItemStackSerializer(Cow::Owned(
             ItemStack::new_with_component(
-                item_count.0 as u8,
+                item_count_u8,
                 Item::from_id(item_id_u16).unwrap_or(&Item::AIR),
                 patch,
             ),
