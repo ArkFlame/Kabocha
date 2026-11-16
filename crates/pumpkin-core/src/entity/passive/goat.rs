@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use pumpkin_data::BlockState;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -21,10 +22,19 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    ai::pathfinder::node::PathType,
+    custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
 };
+use crate::item::items::bucket::fill_bucket_stack;
+use crate::world::World;
+
+const ADULT_ATTACK_DAMAGE: f64 = 2.0;
+const BABY_ATTACK_DAMAGE: f64 = 1.0;
+const GOAT_SCREAMING_CHANCE: f64 = 0.02;
+const UNIHORN_CHANCE: f32 = 0.1;
 
 pub struct GoatEntity {
     pub mob_entity: MobEntity,
@@ -37,6 +47,15 @@ pub struct GoatEntity {
 impl GoatEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        {
+            let mut navigator = mob_entity
+                .navigator
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            navigator.set_can_float(true);
+            navigator.set_pathfinding_malus(PathType::PowderSnow, -1.0);
+            navigator.set_pathfinding_malus(PathType::DangerPowderSnow, -1.0);
+        }
         let goat = Self {
             mob_entity,
             ageable_data: AgeableData::default(),
@@ -119,13 +138,67 @@ impl GoatEntity {
     }
 }
 
+impl GoatEntity {
+    fn screaming_sound(&self, regular: Sound, screaming: Sound) -> Sound {
+        if self.is_screaming() {
+            screaming
+        } else {
+            regular
+        }
+    }
+}
+
+impl CustomSound for GoatEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(self.screaming_sound(Sound::EntityGoatDeath, Sound::EntityGoatScreamingDeath))
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(self.screaming_sound(Sound::EntityGoatHurt, Sound::EntityGoatScreamingHurt))
+    }
+}
+
 impl AgeableMob for GoatEntity {
     fn get_ageable_data(&self) -> &AgeableData {
         &self.ageable_data
     }
+
+    fn age_boundary_reached(&self) {
+        let damage = if self.is_baby() {
+            BABY_ATTACK_DAMAGE
+        } else {
+            ADULT_ATTACK_DAMAGE
+        };
+        self.mob_entity
+            .living_entity
+            .set_attribute_base(&Attributes::ATTACK_DAMAGE, damage);
+    }
 }
 
 impl Animal for GoatEntity {
+    fn get_breed_offspring(&self, partner: &dyn EntityBase) -> Arc<dyn EntityBase> {
+        let entity = self.get_entity();
+        let baby = Self::new(Entity::new(
+            entity.world.load_full(),
+            entity.pos.load(),
+            &EntityType::GOAT,
+        ));
+        let mut random = self.get_random();
+        // Vanilla `Goat.createChild`: the parent that donates the screaming trait is picked at random.
+        let selected_parent_screaming = if random.random::<bool>() {
+            self.is_screaming()
+        } else {
+            partner
+                .cast_any()
+                .downcast_ref::<Self>()
+                .is_some_and(Self::is_screaming)
+        };
+        baby.set_screaming(
+            selected_parent_screaming || random.random::<f64>() < GOAT_SCREAMING_CHANCE,
+        );
+        baby
+    }
+
     fn play_eating_sound(&self) {
         let sound = if self.is_screaming() {
             Sound::EntityGoatScreamingEat
@@ -142,6 +215,30 @@ impl Animal for GoatEntity {
 }
 
 impl Mob for GoatEntity {
+    fn finalize_spawn(
+        &self,
+        _world: &Arc<World>,
+        _reason: crate::entity::mob::spawn::EntitySpawnReason,
+        group_data: Option<crate::entity::mob::spawn::SpawnGroupData>,
+    ) -> Option<crate::entity::mob::spawn::SpawnGroupData> {
+        let mut random = self.get_random();
+        self.set_screaming(random.random::<f64>() < GOAT_SCREAMING_CHANCE);
+        self.age_boundary_reached();
+        if !self.is_baby() && random.random::<f32>() < UNIHORN_CHANCE {
+            if random.random::<bool>() {
+                self.set_has_left_horn(false);
+            } else {
+                self.set_has_right_horn(false);
+            }
+        }
+        self.mob_entity.finalize_spawn_base();
+        group_data
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
     fn calculate_fall_damage(&self, fall_distance: f32, damage_modifier: f32) -> i32 {
         self.mob_entity
             .living_entity
@@ -206,18 +303,44 @@ impl Mob for GoatEntity {
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let item = item_stack.get_item();
         if item == &Item::BUCKET && !self.is_baby() {
-            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
-            let entity = self.get_entity();
-            let world = entity.world.load();
-            let sound = if self.is_screaming() {
-                Sound::EntityGoatScreamingMilk
-            } else {
-                Sound::EntityGoatMilk
-            };
-            world.play_sound(sound, SoundCategory::Neutral, &entity.pos.load());
+            self.get_entity().world.load().play_sound_expect(
+                player,
+                self.screaming_sound(Sound::EntityGoatMilk, Sound::EntityGoatScreamingMilk),
+                SoundCategory::Players,
+                &player.position(),
+            );
+            fill_bucket_stack(item_stack, player, &Item::MILK_BUCKET);
             return true;
         }
 
         self.animal_interact(player, item_stack)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::attributes::Attributes;
+    use pumpkin_util::math::vector3::Vector3;
+
+    use super::*;
+    use crate::entity::ai::test_support::world;
+
+    #[tokio::test]
+    async fn attack_damage_follows_the_age_boundary() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        let attack_damage =
+            || goat.mob_entity.living_entity.get_attribute_base(&Attributes::ATTACK_DAMAGE);
+        goat.set_baby(true);
+        assert_eq!(attack_damage(), BABY_ATTACK_DAMAGE);
+        goat.set_baby(false);
+        assert_eq!(attack_damage(), ADULT_ATTACK_DAMAGE);
+        world.level.shutdown().await;
+        Ok(())
     }
 }
