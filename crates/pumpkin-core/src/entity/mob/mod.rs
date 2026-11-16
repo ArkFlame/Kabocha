@@ -3093,7 +3093,13 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     }
 
     fn interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        let interacted = self.mob_interact(player, item_stack)
+        // Vanilla `Bucketable.bucketMobPickup` runs before any other mob interaction.
+        let interacted = self
+            .as_bucketable()
+            .and_then(|bucketable| {
+                crate::entity::bucketable::bucket_mob_pickup(player, item_stack, bucketable)
+            })
+            .unwrap_or_else(|| self.mob_interact(player, item_stack))
             || self
                 .as_ageable()
                 .is_some_and(|ageable| ageable.ageable_interact(player, item_stack));
