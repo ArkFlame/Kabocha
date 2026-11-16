@@ -1463,15 +1463,24 @@ impl Player {
 
     /// Removes the [`Player`] out of the current [`World`].
     pub async fn remove(self: &Arc<Self>) {
-        if !self
+        let current_screen_handler: Arc<std::sync::Mutex<dyn ScreenHandler>> = self
             .current_screen_handler
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let is_player_screen = current_screen_handler
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_any()
-            .is::<PlayerScreenHandler>()
-        {
+            .is::<PlayerScreenHandler>();
+        if is_player_screen {
+            // The player screen fires no close event, but its cursor and crafting grid must still drop.
+            let player: &Player = self;
+            let mut handler = current_screen_handler
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            handler.on_closed(player);
+        } else {
             self.on_handled_screen_closed();
         }
 
