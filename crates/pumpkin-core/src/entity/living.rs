@@ -4875,6 +4875,13 @@ impl EntityBase for LivingEntity {
                 // respawn. Removing one here breaks reconnecting while dead.
                 return;
             }
+            // Vanilla `EnderDragonEntity#tickDeath` overrides the 20-tick removal:
+            // its DyingPhase runs for `DEATH_TIMER_MAX` ticks and removes the
+            // entity itself after `DragonFight::set_dragon_killed` opens the exit
+            // portal. Removing it here first would leave the portal shut.
+            if self.entity.entity_type == &EntityType::ENDER_DRAGON {
+                return;
+            }
             // Vanilla `LivingEntity.tickDeath` sends the POOF (60) particle event
             // once the death animation finished; the death event (3) was already
             // broadcast in `on_death`. Sending it again here would restart the
