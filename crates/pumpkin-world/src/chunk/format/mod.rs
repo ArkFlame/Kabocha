@@ -744,7 +744,7 @@ impl ChunkData {
 
     #[allow(clippy::too_many_lines)]
     pub fn internal_to_pump_bytes(&self) -> Bytes {
-        const PUMP_CHUNK_VERSION: u8 = 1;
+        const PUMP_CHUNK_VERSION: u8 = 2;
 
         let is_light_correct = self.light_populated.load(Ordering::Relaxed);
         let block_entities_nbt = {
@@ -875,7 +875,7 @@ impl ChunkData {
             out.put_i32(tick.position.0.x);
             out.put_i32(tick.position.0.y);
             out.put_i32(tick.position.0.z);
-            out.put_u8(tick.delay);
+            out.put_u32(tick.delay);
             out.put_i8(tick.priority as i32 as i8);
             out.put_u16(tick.value.id.as_u16());
         }
@@ -886,7 +886,7 @@ impl ChunkData {
             out.put_i32(tick.position.0.x);
             out.put_i32(tick.position.0.y);
             out.put_i32(tick.position.0.z);
-            out.put_u8(tick.delay);
+            out.put_u32(tick.delay);
             out.put_i8(tick.priority as i32 as i8);
             out.put_u16(tick.value.id);
         }
@@ -1069,7 +1069,7 @@ impl ChunkData {
             let x = buf.get_i32();
             let y = buf.get_i32();
             let z = buf.get_i32();
-            let delay = buf.get_u8();
+            let delay = buf.get_u32();
             let priority = i32::from(buf.get_i8());
             let raw_id = buf.get_u16();
             if let Ok(priority) = TickPriority::try_from(priority)
@@ -1100,7 +1100,7 @@ impl ChunkData {
             let x = buf.get_i32();
             let y = buf.get_i32();
             let z = buf.get_i32();
-            let delay = buf.get_u8();
+            let delay = buf.get_u32();
             let priority = i32::from(buf.get_i8());
             let raw_id = buf.get_u16();
             if let Ok(priority) = TickPriority::try_from(priority)
