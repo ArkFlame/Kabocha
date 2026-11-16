@@ -1694,6 +1694,9 @@ pub struct Entity {
     pub fire_immune: AtomicBool,
     pub fire_ticks: AtomicI32,
     pub has_visual_fire: AtomicBool,
+    /// Vanilla `Entity.isOnFire` overrides that do not come from fire ticks,
+    /// such as a charged blaze.
+    pub forced_on_fire: AtomicBool,
     /// The number of ticks the entity has been frozen (in powder snow)
     /// Max is 140 ticks (7 seconds). Increases by 1/tick in powder snow, decreases by 2/tick outside.
     pub frozen_ticks: AtomicI32,
@@ -1998,6 +2001,7 @@ impl Entity {
             fire_immune: AtomicBool::new(false),
             fire_ticks: AtomicI32::new(-1),
             has_visual_fire: AtomicBool::new(false),
+            forced_on_fire: AtomicBool::new(false),
             frozen_ticks: AtomicI32::new(0),
             is_in_powder_snow: AtomicBool::new(false),
             was_in_powder_snow: AtomicBool::new(false),
@@ -4226,7 +4230,8 @@ impl Entity {
         // Magma cubes are immune to fire and never render as burning.
         self.entity_type != &EntityType::MAGMA_CUBE
             && (self.fire_ticks.load(Ordering::Relaxed) > 0
-                || self.has_visual_fire.load(Ordering::Relaxed))
+                || self.has_visual_fire.load(Ordering::Relaxed)
+                || self.forced_on_fire.load(Ordering::Relaxed))
     }
 
     pub fn get_horizontal_facing(&self) -> HorizontalFacing {

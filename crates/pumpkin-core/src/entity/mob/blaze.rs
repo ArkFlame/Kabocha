@@ -99,6 +99,12 @@ impl BlazeEntity {
 
     pub fn set_charged(&self, charged: bool) {
         self.is_charged.store(charged, Ordering::Relaxed);
+        // Vanilla `Blaze.isOnFire` reports the charged state instead of fire ticks.
+        self.entity
+            .living_entity
+            .entity
+            .forced_on_fire
+            .store(charged, Ordering::Relaxed);
         let flags = i8::from(charged);
         self.entity
             .living_entity
@@ -228,6 +234,26 @@ mod tests {
         blaze.custom_server_ai_step(blaze.as_ref());
         assert_eq!(entity.velocity.load(), ascending);
         assert!(!entity.needs_sync.load(Ordering::Relaxed));
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Vanilla `Blaze.isOnFire` returns the charged flag rather than fire ticks.
+    #[tokio::test]
+    async fn charged_blaze_reports_on_fire() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let blaze = BlazeEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::BLAZE,
+        ));
+        let entity = blaze.get_entity();
+        assert!(!entity.is_on_fire());
+        blaze.set_charged(true);
+        assert!(entity.is_on_fire());
+        blaze.set_charged(false);
+        assert!(!entity.is_on_fire());
         world.level.shutdown().await;
         Ok(())
     }
