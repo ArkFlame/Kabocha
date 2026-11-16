@@ -43,7 +43,13 @@ async fn disconnected_players_are_released() -> Result<(), Box<dyn std::error::E
             profile_actions: None,
         };
         let pending =
-            PendingConnection::new(stream, address, id, PacketRateLimiter::new(false, 0.0, 0.0));
+            PendingConnection::new(
+            stream,
+            address,
+            id,
+            PacketRateLimiter::new(false, 0.0, 0.0),
+            Arc::downgrade(&server),
+        );
         let client = Arc::new(ClientPlatform::Java(JavaClient::from_pending(
             pending,
             profile.clone(),
