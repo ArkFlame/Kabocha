@@ -20,7 +20,10 @@ use crate::{
 
 pub struct WitherPattern {
     blocks: [BlockPos; 7],
+    /// Middle skull block, where the wither spawns.
     center: BlockPos,
+    /// Vanilla `yaw`: 0 when the pattern's forward axis is X, otherwise 90.
+    yaw: f32,
 }
 
 #[must_use]
@@ -67,7 +70,12 @@ pub fn find_wither_pattern(world: &Arc<World>, skull_pos: &BlockPos) -> Option<W
             {
                 return Some(WitherPattern {
                     blocks: [center, skull1_pos, skull2_pos, top_middle, arm1, arm2, base],
-                    center: base,
+                    center,
+                    yaw: if dir == BlockDirection::West {
+                        0.0
+                    } else {
+                        90.0
+                    },
                 });
             }
         }
@@ -94,6 +102,9 @@ fn spawn_wither(world: &Arc<World>, pattern: &WitherPattern) {
     let mut spawn_pos = pattern.center.to_centered_f64();
     spawn_pos.y = f64::from(pattern.center.0.y) + 0.55;
     let entity = Entity::new(world.clone(), spawn_pos, &EntityType::WITHER);
+    entity.yaw.store(pattern.yaw);
+    entity.head_yaw.store(pattern.yaw);
+    entity.body_yaw.store(pattern.yaw);
     let wither = WitherEntity::new(entity);
     wither.make_invulnerable();
     world.spawn_entity(wither);
