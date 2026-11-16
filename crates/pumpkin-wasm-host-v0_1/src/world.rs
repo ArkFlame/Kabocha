@@ -577,7 +577,7 @@ impl pumpkin::plugin::sounds::Host for PluginHostState {}
 
 impl pumpkin::plugin::world::HostWorld for PluginHostState {
     fn get_id(&mut self, world: Resource<World>) -> wasmtime::Result<String> {
-        Ok(self.get(&world)?.get_world_name().to_string())
+        Ok(self.get(&world)?.dimension.minecraft_name.to_string())
     }
 
     fn get_border(&mut self, world: Resource<World>) -> wasmtime::Result<Resource<WitWorldBorder>> {
