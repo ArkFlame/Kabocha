@@ -371,7 +371,7 @@ impl CopperGolemEntity {
         !event.cancelled
     }
 
-    fn shear(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+    fn shear_by_player(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let entity = self.get_entity();
         let world = entity.world.load();
         let antenna = self
@@ -734,7 +734,7 @@ impl Mob for CopperGolemEntity {
             }
         }
 
-        if item_stack.item.id == Item::SHEARS.id && self.shear(player, item_stack) {
+        if item_stack.item.id == Item::SHEARS.id && self.shear_by_player(player, item_stack) {
             return true;
         }
 
