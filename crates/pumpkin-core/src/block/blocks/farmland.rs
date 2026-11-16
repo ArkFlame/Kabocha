@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::block::push_entities_up;
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnLandedUponArgs, OnPlaceArgs,
     OnScheduledTickArgs, PathComputationType, RandomTickArgs,
@@ -24,8 +25,13 @@ pub struct FarmlandBlock;
 
 impl BlockBehaviour for FarmlandBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        // TODO: push up entities
         if !can_place_at(args.world.as_ref(), args.position) {
+            push_entities_up(
+                args.world,
+                args.position,
+                args.world.get_block_state_id(args.position),
+                Block::DIRT.default_state.id,
+            );
             args.world.set_block_state(
                 args.position,
                 Block::DIRT.default_state.id,
@@ -76,6 +82,12 @@ impl BlockBehaviour for FarmlandBlock {
                 );
                 let dim = entity.entity_dimension.load();
                 if can_trample && dim.width * dim.width * dim.height > 0.512 {
+                    push_entities_up(
+                        args.world,
+                        &pos,
+                        args.world.get_block_state_id(&pos),
+                        Block::DIRT.default_state.id,
+                    );
                     args.world.set_block_state(
                         &pos,
                         Block::DIRT.default_state.id,
@@ -136,7 +148,12 @@ impl BlockBehaviour for FarmlandBlock {
                 .get_block(&args.position.up())
                 .has_tag(&tag::Block::MINECRAFT_MAINTAINS_FARMLAND)
             {
-                //TODO push entities up
+                push_entities_up(
+                    args.world,
+                    args.position,
+                    state_id,
+                    Block::DIRT.default_state.id,
+                );
                 args.world.set_block_state(
                     args.position,
                     Block::DIRT.default_state.id,

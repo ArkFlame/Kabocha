@@ -37,6 +37,51 @@ pub enum PathComputationType {
     Air,
 }
 
+/// Vanilla's `Block.pushEntitiesUp`: when a replacement block grows upward, raise every
+/// entity inside the block volume by the added collision height so it is not embedded.
+pub fn push_entities_up(
+    world: &World,
+    position: &BlockPos,
+    old_state_id: BlockStateId,
+    new_state_id: BlockStateId,
+) {
+    let old_top = old_state_id
+        .to_state()
+        .get_block_collision_shapes()
+        .map(|shape| shape.max.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let new_top = new_state_id
+        .to_state()
+        .get_block_collision_shapes()
+        .map(|shape| shape.max.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let delta = new_top - old_top;
+    if !delta.is_finite() || delta <= 0.0 {
+        return;
+    }
+    // The block volume itself; shapes are block-local, entities use world space.
+    let x = f64::from(position.0.x);
+    let y = f64::from(position.0.y);
+    let z = f64::from(position.0.z);
+    let aabb = BoundingBox::new(
+        Vector3::new(x, y, z),
+        Vector3::new(x + 1.0, y + 1.0, z + 1.0),
+    );
+    let (players, entities) = (world.get_players_at_box(&aabb), world.get_entities_at_box(&aabb));
+    for entity in players
+        .iter()
+        .map(|player| &**player as &dyn EntityBase)
+        .chain(entities.iter().map(|entity| &**entity))
+    {
+        if entity.is_spectator() {
+            continue;
+        }
+        let entity = entity.get_entity();
+        let pos = entity.pos.load();
+        entity.set_pos(Vector3::new(pos.x, pos.y + delta, pos.z));
+    }
+}
+
 pub trait BlockMetadata {
     fn ids() -> Box<[BlockId]>;
 }

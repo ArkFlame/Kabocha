@@ -1,3 +1,4 @@
+use crate::block::push_entities_up;
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
     OnScheduledTickArgs, PathComputationType,
@@ -17,7 +18,12 @@ pub struct DirtPathBlock;
 
 impl BlockBehaviour for DirtPathBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        // TODO: push up entities
+        push_entities_up(
+            args.world,
+            args.position,
+            args.world.get_block_state_id(args.position),
+            Block::DIRT.default_state.id,
+        );
         args.world.set_block_state(
             args.position,
             Block::DIRT.default_state.id,
