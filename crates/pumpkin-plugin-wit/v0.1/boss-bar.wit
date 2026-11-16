@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface boss-bar {
     use text.{text-component};
     use player.{player};

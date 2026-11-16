@@ -1,4 +1,5 @@
 /// Provides common types and utilities used across the entire plugin API.
+/// @since 0.1.0
 interface common {
     /// Used as a placeholder when codegen can't map a Rust type to a WIT one
     enum inexpressible-host-type {

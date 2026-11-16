@@ -2,6 +2,7 @@
 // https://www.npmjs.com/package/@minecraft/server-gametest/v/1.0.0-beta.1.26.60-preview.23
 // Copyright (c) Microsoft Corporation. MIT terms: ../LICENSE-MIT-MICROSOFT.
 
+/// @since 0.2.0
 interface gametest {
     use common.{game-mode as server-game-mode, block-pos, position};
     use item-stack.{item-stack};
@@ -402,6 +403,7 @@ interface gametest {
     ) -> result<simulated-player, string>;
 }
 
+/// @since 0.2.0
 interface gametest-callbacks {
     use gametest.{
         test,

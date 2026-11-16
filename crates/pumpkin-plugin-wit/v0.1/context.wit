@@ -1,4 +1,5 @@
 /// The core context provided to a plugin during initialization and event handling.
+/// @since 0.1.0
 interface context {
     use server.{server};
     use event.{event-type, event-priority};

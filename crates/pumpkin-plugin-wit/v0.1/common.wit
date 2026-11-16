@@ -1,4 +1,5 @@
 /// Provides common types and utilities used across the entire plugin API.
+/// @since 0.1.0
 interface common {
     /// Serialized text component as a postcard byte array.
     /// @deprecated Use the text-component resource from the text interface instead.

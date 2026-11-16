@@ -1,4 +1,5 @@
 /// Plugin metadata describing the plugin and its compatibility.
+/// @since 0.1.0
 interface metadata {
     record plugin-metadata {
         /// Name of the plugin.

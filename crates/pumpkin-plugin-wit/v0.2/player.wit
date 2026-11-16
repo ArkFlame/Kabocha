@@ -1,4 +1,5 @@
 /// Represents a player connected to the Minecraft server.
+/// @since 0.1.0
 interface player {
     use common.{hand, position, game-mode, block-pos};
     use item-stack.{item-stack};

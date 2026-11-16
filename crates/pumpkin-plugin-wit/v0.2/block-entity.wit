@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface block-entity {
     use common.{block-pos, nbt-tree};
     use item-stack.{item-stack};

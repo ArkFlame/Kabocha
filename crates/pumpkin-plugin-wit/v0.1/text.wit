@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface text {
     use common.{named-color, rgb-color, argb-color};
 

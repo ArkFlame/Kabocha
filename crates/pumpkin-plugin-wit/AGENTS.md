@@ -1,3 +1,9 @@
+## Versioning annotations
+
+Every `interface` and `world` carries a `/// @since <version>` doc line stating the WIT package version that first exposed it (`0.1.0`, `0.2.0`, ...). When you add an interface to `v0.NN`, tag it `@since 0.NN.0`; when you copy an interface forward unchanged into the next version, keep the original `@since` value. Items that are not stable yet get `/// @unstable <short reason>` next to their `@since`, and anything superseded gets `/// @deprecated Use <replacement> instead.`
+
+These tags are plain WIT doc text: `wit-bindgen` carries them into the generated bindings docs, so they describe the API surface without changing the ABI.
+
 ## WIT method chaining
 
 

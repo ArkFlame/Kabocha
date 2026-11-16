@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface uuid {
     /// A 128-bit UUID represented as two 64-bit integers.
     record uuid {

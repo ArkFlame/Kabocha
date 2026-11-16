@@ -1,4 +1,5 @@
 /// Provides functionality to schedule tasks to be executed later on the server.
+/// @since 0.1.0
 interface scheduler {
     /// Schedules a task to be executed once after the specified number of ticks.
     ///

@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface scoreboard {
     use text.{text-component};
     use common.{named-color};

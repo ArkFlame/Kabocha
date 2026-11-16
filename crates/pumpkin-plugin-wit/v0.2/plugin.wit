@@ -4,6 +4,7 @@
 /// it imports. The host selects this ABI by the package version.
 package pumpkin:plugin@0.2.0;
 
+/// @since 0.1.0
 world plugin {
     use context.{context};
     use event.{event};

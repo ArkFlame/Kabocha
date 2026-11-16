@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface logging {
     enum level {
         trace,

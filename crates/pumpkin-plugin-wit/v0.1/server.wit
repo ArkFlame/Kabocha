@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface server {
     use player.{player, ban-player-options, ban-ip-options, server-link, known-server-link, server-link-label};
     use common.{game-mode};

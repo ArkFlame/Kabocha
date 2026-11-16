@@ -1,3 +1,4 @@
+/// @since 0.1.0
 interface item-stack {
     use attributes.{attribute, attribute-modifier};
     use data-components.{data-component};

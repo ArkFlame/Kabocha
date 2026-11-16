@@ -3,6 +3,7 @@
 /// and the imports that the host provides to the plugin.
 package pumpkin:plugin@0.1.0;
 
+/// @since 0.1.0
 world plugin {
     use context.{context};
     use event.{event};
