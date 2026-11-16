@@ -5254,6 +5254,9 @@ impl Player {
                 new_world.send_world_info(&player);
                 new_world.send_center_chunk(&player).await;
 
+                // Entities already tracked in the new world must also be sent to this player.
+                new_world.pair_new_player_with_tracked_entities(&player);
+
                 player.request_teleport(position, yaw, pitch);
 
                 if play_portal_sound {
