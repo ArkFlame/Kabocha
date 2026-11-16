@@ -1,3 +1,4 @@
+use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use std::sync::{
     Arc, Mutex as StdMutex,
     atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
@@ -24,10 +25,11 @@ struct SuccessCounter {
 }
 
 impl ReturnValueCallable for SuccessCounter {
-    fn call(&self, value: ReturnValue) {
+    fn call(&self, value: ReturnValue) -> Result<(), CommandSyntaxError> {
         if value.success_value() {
             self.count.fetch_add(1, Ordering::Relaxed);
         }
+        Ok(())
     }
 }
 
