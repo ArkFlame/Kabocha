@@ -895,7 +895,7 @@ impl World {
     /// `get_block_entity` takes the saved NBT out of the chunk when it wakes an
     /// entity up - so this has to run before the chunk is dropped, or everything
     /// the entity did since it was loaded is lost.
-    fn save_block_entities(&self, chunk_pos: Vector2<i32>) {
+    pub(crate) fn save_block_entities(&self, chunk_pos: Vector2<i32>) {
         let Some(block_entities) = self
             .block_entities
             .get(&chunk_pos)

@@ -1492,6 +1492,11 @@ impl Player {
         world.remove_player(self, true).await;
 
         let cylindrical = self.watched_section.load();
+        // Write live block entities back before the chunk scheduler can unload their
+        // chunks: an unloaded chunk is not dirty, so the change would be dropped (#4288).
+        for chunk_pos in cylindrical.all_chunks_within() {
+            world.save_block_entities(chunk_pos);
+        }
         self.clean_up_chunk_tickets(&world.level);
         if let Ok(mut sender) = self.chunk_sender.lock() {
             sender.reset();
