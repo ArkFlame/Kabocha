@@ -8,7 +8,7 @@ Mistakes seen so far and the rule that fixes each:
 6. Old PRs target pre-refactor paths (`crates/pumpkin/src/...` now `crates/pumpkin-core/src/...`). **Port the intent to the current file layout**; do not resurrect old files.
 7. Two PRs can clash when merged together (new struct field vs new initializer, Arc vs Weak). **When you add a struct field or change a signature, grep every constructor/caller** and update them in the same commit.
 8. Typos in PR text (e.g. a key like `shearing_sound_sound`): prefer the existing correct code.
-Report format (one message, no prose): `STATUS: merged|skipped|failed | PR #N | commit <hash> | files <list> | note <one line>`.
+Report format (one message, no prose): `STATUS: committed|partial|skipped|failed | PR #N | commit <hash> | files <list> | compiled: no | note <one line>`. committed = on your branch only, never master.
 
 ## Brief structure (prompt engineering, implemented in scripts/brief-pr.sh)
 XML-tagged sections in this order: `<role>` (one-line persona + "alone, one pass"), `<context>` (repo, PR number/title/files, known refactor pitfall, what to read), `<task>` (numbered, with the skip branch), `<constraints>` (explicit don'ts: no cargo, no polling, minimum change, no markers), `<output>` (exact one-line format plus a worked example). Facts the orchestrator already knows (files, title, layout move) are injected so the worker does not rediscover them. Negative instructions are specific and checkable. Keep briefs under ~2.5 KB.

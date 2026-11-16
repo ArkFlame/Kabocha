@@ -30,8 +30,8 @@ Read first (short): docs/WORKER.md. Do not read AGENTS.md.
 </constraints>
 
 <output>Reply with exactly one line, nothing else:
-STATUS: merged|skipped|failed | PR #$pr | commit <hash or none> | files <list> | note <one short sentence>
-Example: STATUS: merged | PR #1234 | commit ab12cd3 | files crates/pumpkin-core/src/entity/item.rs | note moved fix to pumpkin-core layout
+STATUS: committed|partial|skipped|failed | PR #$pr | commit <hash or none> | files <list> | compiled: no | note <one short sentence> (committed = on YOUR branch only, never master; partial = only part of the intent ported, say which)
+Example: STATUS: committed | PR #1234 | commit ab12cd3 | files crates/pumpkin-core/src/entity/item.rs | note moved fix to pumpkin-core layout
 </output>
 B
 echo "$f"

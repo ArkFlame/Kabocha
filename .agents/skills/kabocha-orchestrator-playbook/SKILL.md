@@ -45,3 +45,14 @@ description: DOs and DON'Ts for the Kabocha orchestrator loop (native + OpenCode
 - Repeated candidate python + wt + fetch + brief by hand -> `scripts/next-pr.sh` (one call, verified briefs).
 - Failures of ported-but-uncompiled branches are cheaper to drop from a batch (and queue a fix worker) than to debug inside the batch; re-run integrate without them.
 - Report skipped/failed PRs to docs/QUEUE.md immediately so the loop never retries them.
+
+## Communication protocol (orchestrator <-> native <-> OpenCode)
+Detected problems and the rule that fixes each:
+- Workers wrote "merged" for a commit on their own branch -> status vocabulary is `committed|partial|skipped|failed`; only the orchestrator merges to master.
+- Partial ports reported as full -> `partial` must name what was left out; log it in docs/QUEUE.md.
+- Interim notices ("waiting on its own background work") look like completions -> treat only a final STATUS line as done; workers must not start background jobs (briefs forbid it).
+- Missing/empty briefs -> `scripts/next-pr.sh` verifies the brief before a worker is launched.
+- Ambiguous "not compiled" -> every report carries `compiled: no`; orchestrator is the only compiler.
+- Emoji/trailing spaces copied from PR titles into subjects -> the brief says subject only; strip on landing.
+- OpenCode has no notification channel -> track by Monitor events on `oc-status.sh`; its truth is the `.exit` file and branch commits, never its chat output.
+- One-way channel: a worker cannot ask questions, so every brief must hold role, context, numbered task, constraints, report format. If a worker fails twice on a PR, requeue it as a redesign brief with master API names listed.
