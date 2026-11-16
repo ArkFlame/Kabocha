@@ -81,6 +81,23 @@ impl BlockBehaviour for FarmlandBlock {
                         Block::DIRT.default_state.id,
                         BlockFlags::NOTIFY_ALL,
                     );
+
+                    // Vanilla `turnToDirt` pushes entities up: dirt is a full
+                    // block while farmland is one pixel lower, so without this
+                    // the trampler ends up inside the new block.
+                    let top = f64::from(pos.0.y) + 1.0;
+                    let entity_pos = entity.pos.load();
+                    if entity_pos.y < top {
+                        if let Some(player) = args.entity.get_player() {
+                            player.request_relative_teleport(Vector3::new(
+                                0.0,
+                                top - entity_pos.y,
+                                0.0,
+                            ));
+                        } else {
+                            entity.set_pos(Vector3::new(entity_pos.x, top, entity_pos.z));
+                        }
+                    }
                 }
             }
             living.handle_fall_damage(args.entity, args.fall_distance, 1.0);
