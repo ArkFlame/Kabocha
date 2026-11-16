@@ -1311,7 +1311,7 @@ impl ScreenHandler for CraftingTableScreenHandler {
             if stack.is_empty() {
                 slot.set_stack_prev(ItemStack::EMPTY.clone(), stack_prev.clone());
             } else {
-                slot.mark_dirty();
+                slot.set_stack(stack.clone());
             }
             if stack.item_count == stack_prev.item_count {
                 return ItemStack::EMPTY.clone();
