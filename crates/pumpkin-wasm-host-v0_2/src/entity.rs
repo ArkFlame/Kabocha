@@ -384,9 +384,15 @@ impl HostEntity for PluginHostState {
         );
         let world = entity.get_entity().world.load_full();
         let entities = world.get_entities_at_box(&box_range);
+        // Players live in `world.players`, not `world.entities` (vanilla includes them).
+        let players = world.get_players_at_box(&box_range);
 
         let mut result = Vec::new();
-        for e in entities {
+        for e in entities.into_iter().chain(
+            players
+                .into_iter()
+                .map(|p| p as Arc<dyn pumpkin_core::entity::EntityBase>),
+        ) {
             // Don't include the entity itself
             if e.get_entity().entity_id != entity.get_entity().entity_id {
                 result.push(
