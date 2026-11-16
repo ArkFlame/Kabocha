@@ -102,6 +102,17 @@ impl World {
         });
         let mut loaded_chunks = FxHashSet::default();
         if !default_adventure {
+            // The Y set with /setworldspawn is authoritative while it is still standable:
+            // vanilla only runs PlayerSpawnFinder while creating the world, so respawning
+            // must not snap a high spawn point back to the surface.
+            self.level
+                .get_or_fetch_chunk(suggestion.chunk_position(), |_| ())
+                .await;
+            if self.no_collision_no_liquid_at(&suggestion)
+                && is_face_full_up(self.get_block_state(&suggestion.down()))
+            {
+                return suggestion.to_f64();
+            }
             let radius = {
                 let border = self
                     .worldborder
