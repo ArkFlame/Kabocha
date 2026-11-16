@@ -239,6 +239,10 @@ impl Mob for GoatEntity {
         Some(self)
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(self.screaming_sound(Sound::EntityGoatAmbient, Sound::EntityGoatScreamingAmbient))
+    }
+
     fn calculate_fall_damage(&self, fall_distance: f32, damage_modifier: f32) -> i32 {
         self.mob_entity
             .living_entity
@@ -340,6 +344,26 @@ mod tests {
         assert_eq!(attack_damage(), BABY_ATTACK_DAMAGE);
         goat.set_baby(false);
         assert_eq!(attack_damage(), ADULT_ATTACK_DAMAGE);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ambient_sound_follows_the_screaming_flag() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        assert_eq!(goat.get_ambient_sound(), Some(Sound::EntityGoatAmbient));
+        goat.set_screaming(true);
+        assert_eq!(
+            goat.get_ambient_sound(),
+            Some(Sound::EntityGoatScreamingAmbient)
+        );
         world.level.shutdown().await;
         Ok(())
     }
