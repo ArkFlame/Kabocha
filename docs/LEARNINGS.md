@@ -13,3 +13,4 @@
 - #3420 uses eprintln!: clippy print_stderr may deny; check at the full gate
 - 2026-11-16: audit of a live OpenCode trace (i4450): reads were targeted, but the issue was CLOSED and the worker ran find / and chased the fix commit. Closed-issue filter added to next-issue.sh; brief forbids find / and re-fetching.
 - integrate.sh takes one branch per argument; never pass a quoted multi-branch string (it silently picks nothing).
+- pkill -f "opencode run" matches the shell that contains the string and kills it (exit 144); kill by .pid file, not by pattern.
