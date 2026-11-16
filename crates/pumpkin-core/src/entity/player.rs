@@ -24,6 +24,7 @@ use arc_swap::ArcSwap;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::Receiver;
 use crossbeam::queue::SegQueue;
+use pumpkin_config::AuthenticationConfig;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_inventory::Inventory;
 use pumpkin_inventory::player::ender_chest_inventory::EnderChestInventory;
@@ -312,6 +313,7 @@ use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::{CommandSender, client_suggestions};
 use crate::data::SaveJSONConfiguration;
 use crate::log_at_level;
+use crate::net::authentication;
 use crate::net::{ClientPlatform, GameProfile};
 use crate::net::{DisconnectReason, PlayerConfig};
 use crate::plugin::api::events::entity::horse_jump::HorseJumpEvent;
@@ -831,8 +833,11 @@ impl Player {
     pub const FULL_SLEEP_TICKS: u8 = 100;
     pub const SLEEP_TIMER_RESET_TICKS: u8 = 110;
 
+    /// Downloads the Java skin from the profile's `textures` property and converts it
+    /// into a Bedrock skin.
     pub async fn fetch_skin(
         properties: &[Property],
+        auth_config: &AuthenticationConfig,
     ) -> Option<pumpkin_protocol::bedrock::client::Skin> {
         let textures_prop = properties.iter().find(|p| &*p.name == "textures")?;
         let decoded = BASE64_STANDARD
@@ -847,8 +852,28 @@ impl Player {
             .and_then(|m| m.model.as_deref())
             .is_some_and(|model| model == "slim");
 
-        let client = pumpkin_auth::client();
-        let bytes = client.get(&url).send().await.ok()?.bytes().await.ok()?;
+        // Mojang's profiles link skins over plain HTTP, which some networks block.
+        let download_url = url
+            .strip_prefix("http://textures.minecraft.net/")
+            .map_or_else(
+                || url.clone(),
+                |path| format!("https://textures.minecraft.net/{path}"),
+            );
+        let client = authentication::create_client(auth_config);
+        let bytes = match async { client.get(&download_url).send().await?.bytes().await }.await {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                // reqwest's own message is generic; the innermost cause says what failed.
+                let cause =
+                    std::iter::successors(Some(&error as &dyn std::error::Error), |error| {
+                        error.source()
+                    })
+                    .last()
+                    .map_or_else(String::new, ToString::to_string);
+                warn!("Failed to download the skin at {download_url}: {cause}");
+                return None;
+            }
+        };
         let (width, height, mut rgba) = decode_skin_png(&bytes)?;
 
         let opaque_mask = BASE64_STANDARD
@@ -943,15 +968,13 @@ impl Player {
         let mut abilities = Abilities::default();
         abilities.set_for_gamemode(gamemode);
 
-        let mut bedrock_skin = pumpkin_protocol::bedrock::client::Skin::steve();
-
-        // Standard_Custom is a shared placeholder. Give fallback skins a stable,
+        // The real skin is downloaded after the join (`Server::add_player`).
+        // Standard_Custom is a shared placeholder. Give the fallback skin a stable,
         // per-player identity so Bedrock never sees duplicate skin IDs.
-        if bedrock_skin.skin_id == "Standard_Custom" {
-            let skin_id = format!("pumpkin:{player_uuid}");
-            bedrock_skin.skin_id.clone_from(&skin_id);
-            bedrock_skin.full_id = skin_id;
-        }
+        let mut bedrock_skin = pumpkin_protocol::bedrock::client::Skin::steve();
+        let skin_id = format!("pumpkin:{player_uuid}");
+        bedrock_skin.skin_id.clone_from(&skin_id);
+        bedrock_skin.full_id = skin_id;
 
         let supports_player_loaded = match client.as_ref() {
             ClientPlatform::Java(client) => client.version.load() >= JavaMinecraftVersion::V_1_21_4,
@@ -9675,15 +9698,76 @@ impl InventoryPlayer for Player {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::{
-        bedrock_container_slot, bedrock_container_type, read_last_death_location,
+        Player, bedrock_container_slot, bedrock_container_type, read_last_death_location,
         read_root_vehicle, write_last_death_location, write_root_vehicle,
     };
+    use base64::prelude::*;
+    use pumpkin_config::AuthenticationConfig;
     use pumpkin_data::{Block, screen::WindowType};
     use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
+    use pumpkin_protocol::Property;
     use pumpkin_protocol::bedrock::network_item::ContainerName;
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
+    use tokio::io::AsyncReadExt;
     use uuid::Uuid;
+
+    /// A skin host that accepts the connection and never answers must not keep the
+    /// download task alive: it gives up after the authentication timeouts.
+    #[tokio::test]
+    async fn fetch_skin_gives_up_on_a_silent_host() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind a local listener");
+        let address = listener.local_addr().expect("listener address");
+        let (connected_tx, connected_rx) = tokio::sync::oneshot::channel();
+        // Read the request, never answer it.
+        tokio::spawn(async move {
+            let mut connected_tx = Some(connected_tx);
+            while let Ok((mut stream, _)) = listener.accept().await {
+                if let Some(sender) = connected_tx.take() {
+                    let _ = sender.send(());
+                }
+                tokio::spawn(async move {
+                    let mut buf = [0; 1024];
+                    while stream.read(&mut buf).await.is_ok_and(|n| n > 0) {}
+                });
+            }
+        });
+
+        let textures =
+            format!(r#"{{"textures":{{"SKIN":{{"url":"http://{address}/skin.png"}}}}}}"#);
+        let properties = vec![Property {
+            name: "textures".into(),
+            value: BASE64_STANDARD.encode(textures).into(),
+            signature: None,
+        }];
+        let auth_config = AuthenticationConfig {
+            connect_timeout: 200,
+            read_timeout: 200,
+            ..AuthenticationConfig::default()
+        };
+
+        let started = Instant::now();
+        let skin = tokio::time::timeout(
+            Duration::from_secs(10),
+            Player::fetch_skin(&properties, &auth_config),
+        )
+        .await
+        .expect("the skin download should give up on its own");
+
+        assert!(skin.is_none());
+        assert!(started.elapsed() < Duration::from_secs(5));
+        // A `None` without ever connecting would pass for the wrong reason.
+        assert!(
+            tokio::time::timeout(Duration::from_secs(2), connected_rx)
+                .await
+                .is_ok_and(|connected| connected.is_ok()),
+            "fetch_skin should have reached the silent host"
+        );
+    }
 
     #[test]
     fn bedrock_container_types_and_slots_map_consistently() {
