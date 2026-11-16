@@ -66,8 +66,8 @@ impl WasmCommandRequirement {
             plugin.func_handle_command()
         };
 
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
+        let runtime = self.server.runtime.clone();
+        block_on_callback(&runtime, async {
                 match self
                     .plugin
                     .store
@@ -122,7 +122,6 @@ impl WasmCommandRequirement {
                         false
                     }
                 }
-            })
         })
     }
 }
