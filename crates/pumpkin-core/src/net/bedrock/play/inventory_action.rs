@@ -437,9 +437,8 @@ impl BedrockClient {
             }
             TransactionData::UseItemOnEntity(data) => {
                 let action = match data.action_type.0 {
-                    // Bedrock does not distinguish an entity hit position here. ItemInteract is
-                    // therefore exposed as the general Interact action rather than InteractAt.
-                    0 | 2 => ActionType::Interact,
+                    0 => ActionType::Interact,
+                    2 => ActionType::InteractAt,
                     1 => ActionType::Attack,
                     action => {
                         tracing::warn!("invalid UseItemOnEntity action type {action}");
@@ -464,12 +463,15 @@ impl BedrockClient {
                 let Some(server) = world.server.upgrade() else {
                     return;
                 };
+                if player.is_spectator() {
+                    return;
+                }
 
                 let mut event = PlayerInteractEntityEvent::new(
                     player,
                     target.clone(),
                     action,
-                    None,
+                    (action == ActionType::InteractAt).then(|| data.click_position.to_f64()),
                     player.get_entity().is_sneaking(),
                 );
                 server.plugin_manager.fire_blocking(&server, &mut event);
@@ -487,9 +489,13 @@ impl BedrockClient {
                             &mut stack,
                             pumpkin_util::Hand::Right,
                         );
-                        if !native_interaction
-                            .unwrap_or_else(|| event.target.interact(player, &mut stack))
-                        {
+                        let interacted = native_interaction.unwrap_or_else(|| match event.target_position {
+                            Some(position) if event.action == ActionType::InteractAt => {
+                                event.target.interact_at(player, &mut stack, position)
+                            }
+                            _ => event.target.interact(player, &mut stack),
+                        });
+                        if !interacted {
                             server
                                 .item_registry
                                 .use_on_entity(&mut stack, player, event.target);
@@ -501,11 +507,6 @@ impl BedrockClient {
                                 1,
                             );
                             if before.is_damageable() && stack.is_empty() {
-                                player.increment_stat(
-                                    pumpkin_data::statistic::StatisticCategory::Broken,
-                                    item_id as i32,
-                                    1,
-                                );
                                 player.world().send_entity_status(
                                     player.get_entity(),
                                     crate::entity::equipment_break_status(

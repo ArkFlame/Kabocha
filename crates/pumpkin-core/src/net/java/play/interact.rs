@@ -133,7 +133,12 @@ impl JavaClient {
 
                 let item_id = stack.item.id;
                 let before = stack.clone();
-                let interacted = event.target.interact(player, &mut stack);
+                let interacted = match event.target_position {
+                    Some(position) if event.action == ActionType::InteractAt => {
+                        event.target.interact_at(player, &mut stack, position)
+                    }
+                    _ => event.target.interact(player, &mut stack),
+                };
                 if !interacted {
                     server
                         .item_registry
