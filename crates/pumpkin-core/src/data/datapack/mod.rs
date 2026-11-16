@@ -1,4 +1,4 @@
-pub mod advancement_loader;
+pub mod advancement;
 pub mod context_provider_loader;
 pub mod damage_type_loader;
 pub mod dynamic_registry_loader;
@@ -91,11 +91,11 @@ pub struct DatapackManager {
     dynamic_registries: RwLock<HashMap<String, HashMap<String, RegistryEntryData>>>,
     pub dynamic_registry_manager: Arc<dynamic_registry_manager::DynamicRegistryManager>,
     trade_registry: RwLock<TradeRegistry>,
-    advancements: RwLock<HashMap<String, advancement_loader::DynamicAdvancementDefinition>>,
     predicates: RwLock<HashMap<String, serde_json::Value>>,
     item_modifiers: RwLock<HashMap<String, serde_json::Value>>,
     slot_sources: RwLock<HashMap<String, serde_json::Value>>,
     tags: RwLock<HashMap<String, HashMap<String, tag_loader::DynamicTagEntry>>>,
+    pub advancements: advancement::DatapackAdvancements,
 }
 
 fn share_function_bodies(
@@ -232,11 +232,11 @@ impl DatapackManager {
                 ),
             ),
             trade_registry: RwLock::new(TradeRegistry::new()),
-            advancements: RwLock::new(HashMap::new()),
             predicates: RwLock::new(HashMap::new()),
             item_modifiers: RwLock::new(HashMap::new()),
             slot_sources: RwLock::new(HashMap::new()),
             tags: RwLock::new(HashMap::new()),
+            advancements: advancement::DatapackAdvancements::default(),
         }
     }
 
@@ -278,10 +278,6 @@ impl DatapackManager {
         let mut all_dynamic_registries: HashMap<String, HashMap<String, RegistryEntryData>> =
             HashMap::new();
         let mut all_trade_registry = TradeRegistry::new();
-        let mut all_advancements: HashMap<
-            String,
-            advancement_loader::DynamicAdvancementDefinition,
-        > = HashMap::new();
         let mut all_predicates: HashMap<String, serde_json::Value> = HashMap::new();
         let mut all_item_modifiers: HashMap<String, serde_json::Value> = HashMap::new();
         let mut all_slot_sources: HashMap<String, serde_json::Value> = HashMap::new();
@@ -299,7 +295,6 @@ impl DatapackManager {
             loot_tables: &mut all_loot_tables,
             dynamic_registries: &mut all_dynamic_registries,
             trade_registry: &mut all_trade_registry,
-            advancements: &mut all_advancements,
             predicates: &mut all_predicates,
             item_modifiers: &mut all_item_modifiers,
             slot_sources: &mut all_slot_sources,
@@ -316,6 +311,15 @@ impl DatapackManager {
         load_bundled_datapacks(enabled_packs, &mut acc, &mut loaded_packs_vec);
 
         let damage_type_registry = build_damage_type_registry(all_damage_type_defs);
+
+        let mut all_advancements = HashMap::new();
+        for pack in &loaded_packs_vec {
+            advancement::load_advancements_from_pack(&pack.root_path, &mut all_advancements);
+        }
+        if !all_advancements.is_empty() {
+            info!("Loaded {} datapack advancement(s)", all_advancements.len());
+        }
+        self.advancements.set(all_advancements);
 
         recipe_manager.set_recipes(all_recipes);
         *self
@@ -369,10 +373,6 @@ impl DatapackManager {
             .trade_registry
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = all_trade_registry;
-        *self
-            .advancements
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = all_advancements;
         *self
             .predicates
             .write()
@@ -504,26 +504,6 @@ impl DatapackManager {
                 .map(|(k, v)| (k.clone(), v.values.clone()))
                 .collect()
         })
-    }
-
-    pub fn get_advancement(
-        &self,
-        id: &str,
-    ) -> Option<advancement_loader::DynamicAdvancementDefinition> {
-        self.advancements
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(id)
-            .cloned()
-    }
-
-    pub fn get_advancement_ids(&self) -> Vec<String> {
-        self.advancements
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .keys()
-            .cloned()
-            .collect()
     }
 
     pub fn get_loaded_packs(&self) -> Vec<LoadedDatapack> {
@@ -1811,7 +1791,6 @@ struct PackContentAccumulators<'a> {
     loot_tables: &'a mut HashMap<String, Arc<DynamicLootTable>>,
     dynamic_registries: &'a mut HashMap<String, HashMap<String, RegistryEntryData>>,
     trade_registry: &'a mut TradeRegistry,
-    advancements: &'a mut HashMap<String, advancement_loader::DynamicAdvancementDefinition>,
     predicates: &'a mut HashMap<String, serde_json::Value>,
     item_modifiers: &'a mut HashMap<String, serde_json::Value>,
     slot_sources: &'a mut HashMap<String, serde_json::Value>,
@@ -1834,7 +1813,6 @@ struct PackContentCounts {
     trade_sets: usize,
     trades: usize,
     trade_tags: usize,
-    advancements: usize,
     predicates: usize,
     item_modifiers: usize,
     slot_sources: usize,
@@ -1899,7 +1877,7 @@ fn load_bundled_datapacks(
             let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
             let counts = load_pack_contents(&pack_path, acc);
             info!(
-                "Loaded bundled datapack '{bundled}': {} recipe(s), {} function(s), {} test instance(s), {} damage type(s), {} int provider(s), {} float provider(s), {} loot table(s), {} structure(s), {} template pool(s), {} processor list(s), {} dynamic registry entry/entries, {} trade set(s), {} trade(s), {} advancement(s), {} predicate(s), {} tag(s)",
+                "Loaded bundled datapack '{bundled}': {} recipe(s), {} function(s), {} test instance(s), {} damage type(s), {} int provider(s), {} float provider(s), {} loot table(s), {} structure(s), {} template pool(s), {} processor list(s), {} dynamic registry entry/entries, {} trade set(s), {} trade(s), {} predicate(s), {} tag(s)",
                 counts.recipes,
                 counts.functions,
                 counts.test_instances,
@@ -1913,7 +1891,6 @@ fn load_bundled_datapacks(
                 counts.dynamic_registries,
                 counts.trade_sets,
                 counts.trades,
-                counts.advancements,
                 counts.predicates,
                 counts.tags,
             );
@@ -1971,7 +1948,7 @@ fn scan_datapacks_dir(
         let counts = load_pack_contents(&pack_path, acc);
 
         info!(
-            "Loaded datapack '{file_name}': {} recipe(s), {} function(s), {} test instance(s), {} damage type(s), {} int provider(s), {} float provider(s), {} loot table(s), {} structure(s), {} template pool(s), {} processor list(s), {} dynamic registry entry/entries, {} trade set(s), {} trade(s), {} advancement(s), {} predicate(s), {} tag(s)",
+            "Loaded datapack '{file_name}': {} recipe(s), {} function(s), {} test instance(s), {} damage type(s), {} int provider(s), {} float provider(s), {} loot table(s), {} structure(s), {} template pool(s), {} processor list(s), {} dynamic registry entry/entries, {} trade set(s), {} trade(s), {} predicate(s), {} tag(s)",
             counts.recipes,
             counts.functions,
             counts.test_instances,
@@ -1985,7 +1962,6 @@ fn scan_datapacks_dir(
             counts.dynamic_registries,
             counts.trade_sets,
             counts.trades,
-            counts.advancements,
             counts.predicates,
             counts.tags,
         );
@@ -2112,18 +2088,6 @@ fn load_pack_contents(
                         &namespace,
                         &lt_dir,
                         acc.loot_tables,
-                    );
-                }
-            }
-
-            // Load advancements
-            for adv_sub in ["advancement", "advancements"] {
-                let adv_dir = ns_path.join(adv_sub);
-                if adv_dir.is_dir() {
-                    counts.advancements += advancement_loader::load_advancements_from_dir(
-                        &namespace,
-                        &adv_dir,
-                        acc.advancements,
                     );
                 }
             }
@@ -2749,7 +2713,6 @@ mod tests {
         let mut loot_tables = std::collections::HashMap::new();
         let mut dynamic_registries = std::collections::HashMap::new();
         let mut trade_registry = super::TradeRegistry::new();
-        let mut advancements = std::collections::HashMap::new();
         let mut predicates = std::collections::HashMap::new();
         let mut item_modifiers = std::collections::HashMap::new();
         let mut slot_sources = std::collections::HashMap::new();
@@ -2766,7 +2729,6 @@ mod tests {
             loot_tables: &mut loot_tables,
             dynamic_registries: &mut dynamic_registries,
             trade_registry: &mut trade_registry,
-            advancements: &mut advancements,
             predicates: &mut predicates,
             item_modifiers: &mut item_modifiers,
             slot_sources: &mut slot_sources,
@@ -2778,10 +2740,6 @@ mod tests {
         assert_eq!(
             counts.loot_tables, 1447,
             "all vanilla loot tables must load"
-        );
-        assert_eq!(
-            counts.advancements, 1866,
-            "all vanilla advancements must load"
         );
         assert_eq!(counts.structures, 1511, "all vanilla structures must load");
         assert_eq!(
@@ -2829,7 +2787,6 @@ mod tests {
             let mut loot_tables = std::collections::HashMap::new();
             let mut dynamic_registries = std::collections::HashMap::new();
             let mut trade_registry = super::TradeRegistry::new();
-            let mut advancements = std::collections::HashMap::new();
             let mut predicates = std::collections::HashMap::new();
             let mut item_modifiers = std::collections::HashMap::new();
             let mut slot_sources = std::collections::HashMap::new();
@@ -2846,7 +2803,6 @@ mod tests {
                 loot_tables: &mut loot_tables,
                 dynamic_registries: &mut dynamic_registries,
                 trade_registry: &mut trade_registry,
-                advancements: &mut advancements,
                 predicates: &mut predicates,
                 item_modifiers: &mut item_modifiers,
                 slot_sources: &mut slot_sources,

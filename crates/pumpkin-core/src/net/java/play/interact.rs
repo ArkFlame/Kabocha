@@ -142,6 +142,14 @@ impl JavaClient {
                     }
                     _ => event.target.interact(player, &mut stack),
                 };
+                if interacted {
+                    player.trigger_datapack_advancements(
+                        &crate::data::datapack::advancement::TriggerEvent::InteractedWithEntity {
+                            item: &before,
+                            target: event.target.as_ref(),
+                        },
+                    );
+                }
                 if !interacted {
                     server
                         .item_registry
