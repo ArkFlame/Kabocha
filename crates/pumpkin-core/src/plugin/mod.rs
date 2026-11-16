@@ -2206,6 +2206,25 @@ impl PluginManager {
             .any(|p| p.metadata.name == name && p.is_active && p.instance.is_some())
     }
 
+    /// The running plugin `name` as `unload_loaded` takes it, and whether its loader can unload it.
+    #[must_use]
+    pub fn active_plugin(&self, name: &str) -> Option<(PluginId, bool)> {
+        let plugins = self
+            .plugins
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        plugins
+            .iter()
+            .find(|p| p.is_active && p.metadata.name == name)
+            .map(|p| {
+                let id = PluginId {
+                    name: name.to_string(),
+                    token: p.token,
+                };
+                (id, p.loader.can_unload())
+            })
+    }
+
     /// Get list of active plugins
     #[must_use]
     pub fn active_plugins(&self) -> Vec<PluginMetadata> {
