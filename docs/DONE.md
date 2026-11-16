@@ -174,3 +174,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #4181 (PR, skipped: reduction present registry.rs:1319)
 - batch 10 landed (3075 3860 4392 4535 4093 3903 4482)
 - #4054 (PR, skipped: item merge present entity/item.rs:44)
+- batch 12 landed: #4578 (snow golem) #4502 (axolotl); #3238 conflicted, requeued.
