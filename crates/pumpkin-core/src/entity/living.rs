@@ -2560,6 +2560,13 @@ impl LivingEntity {
             let fall_distance = self.fall_distance.swap(0.0);
             if fall_distance > 0.0 {
                 self.on_changed_block(caller, self.entity.block_pos.load());
+                if caller.get_player().is_some() {
+                    let world = self.entity.world.load();
+                    let block = world.get_block(&self.entity.get_pos_with_y_offset(0.2).0);
+                    world
+                        .block_registry
+                        .update_entity_movement_after_fall_on(block, caller);
+                }
                 if let Some(player) = caller.get_player() {
                     let current_y = self.entity.pos.load().y;
                     player.trigger_advancement(

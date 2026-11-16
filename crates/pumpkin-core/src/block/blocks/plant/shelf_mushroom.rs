@@ -112,13 +112,20 @@ impl BlockBehaviour for ShelfMushroomBlock {
     }
 
     fn update_entity_movement_after_fall_on(&self, args: UpdateEntityMovementAfterFallOnArgs<'_>) {
-        bounce_entity_after_fall(args.entity, f64::from(args.block.bounce_restitution));
         let entity = args.entity.get_entity();
+        if entity.entity_type != &EntityType::TNT {
+            bounce_entity_after_fall(args.entity, f64::from(args.block.bounce_restitution));
+        }
         if entity.entity_type != &EntityType::ITEM && entity.entity_type != &EntityType::TNT {
+            let pos = entity
+                .supporting_block_pos
+                .load()
+                .unwrap_or_else(|| entity.block_pos.load())
+                .to_centered_f64();
             entity.world.load().play_sound(
                 Sound::BlockShelfMushroomBounce,
                 SoundCategory::Blocks,
-                &entity.pos.load(),
+                &pos,
             );
         }
     }
