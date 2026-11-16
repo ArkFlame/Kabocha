@@ -4135,7 +4135,10 @@ impl Entity {
 
     #[must_use]
     pub fn is_on_fire(&self) -> bool {
-        self.fire_ticks.load(Ordering::Relaxed) > 0 || self.has_visual_fire.load(Ordering::Relaxed)
+        // Magma cubes are immune to fire and never render as burning.
+        self.entity_type != &EntityType::MAGMA_CUBE
+            && (self.fire_ticks.load(Ordering::Relaxed) > 0
+                || self.has_visual_fire.load(Ordering::Relaxed))
     }
 
     pub fn get_horizontal_facing(&self) -> HorizontalFacing {

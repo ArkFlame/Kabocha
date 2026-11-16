@@ -569,10 +569,8 @@ pub fn check_spawn_rules(
 
     // Magma Cube
     if id == EntityType::MAGMA_CUBE.id {
-        if world.level_info.load().difficulty == pumpkin_util::Difficulty::Peaceful {
-            return false;
-        }
-        return mob::MobEntity::check_mob_spawn_rules(entity_type, world, pos, reason);
+        // Vanilla MagmaCube spawns on any non-peaceful difficulty, ignoring light and block rules.
+        return world.level_info.load().difficulty != pumpkin_util::Difficulty::Peaceful;
     }
 
     // Sulfur Cube
