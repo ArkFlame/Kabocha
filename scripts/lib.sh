@@ -7,6 +7,12 @@ KAB_RUNS="${KAB_RUNS:-/tmp/kabocha-runs}"
 KAB_OC_MODEL="${KAB_OC_MODEL:-commandcode/deepseek/deepseek-v4.1-flash}"
 mkdir -p "$KAB_RUNS"
 # Build policy (see docs/BUILD.md): one shared warm target, 2 build slots, half the cores per build, wait for free RAM.
+# Nightly (rustup in ~/.cargo/bin, installed 2026-11-16): parallel frontend + master needs a newer rustc than system 1.97. KAB_NIGHTLY=0 opts out.
+if [ "${KAB_NIGHTLY:-1}" = 1 ] && [ -x "$HOME/.cargo/bin/rustup" ]; then
+  export PATH="$HOME/.cargo/bin:$PATH" RUSTUP_TOOLCHAIN=nightly
+  export RUSTFLAGS="${RUSTFLAGS:-} -Zthreads=${KAB_FRONTEND_THREADS:-6}"
+  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/kab-target-nightly}"
+fi
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/kab-target-main}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$(( $(nproc) / 2 ))}"
 KAB_SLOTS="${KAB_SLOTS:-2}"; KAB_MIN_MEM_GB="${KAB_MIN_MEM_GB:-5}"

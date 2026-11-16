@@ -8,3 +8,6 @@ Rules (implemented in scripts/lib.sh):
 3. Prefer `cargo check -p <crate>`; no `--workspace`/clippy/tests until before landing a batch (`scripts/check.sh -f`).
 4. `scripts/gc-targets.sh` removes private targets and prunes worktrees; run after landing.
 5. Possible next wins: install mold + clang for linking (only matters for `cargo build/test`), nextest for tests, sccache for the registry-less workspace crates if worktree paths are normalized with `--remap-path-prefix`.
+
+## Nightly (enabled 2026-11-16, user-approved)
+rustup + nightly (1.102) installed in ~/.cargo/bin with rustc-codegen-cranelift-preview and rust-src. scripts/lib.sh switches every script to it (PATH, RUSTUP_TOOLCHAIN=nightly, RUSTFLAGS `-Zthreads=6`, target /tmp/kab-target-nightly; `KAB_NIGHTLY=0` opts out). Measured: `cargo check -p pumpkin-util` 33 s cold with -Zthreads=6. Master needs rustc newer than system 1.97 (`map_or_default`), nightly satisfies it. For test/boot builds add `-Zcodegen-backend=cranelift` (`CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift` with `-Zcodegen-backend`) once verified; first nightly build of the workspace is cold (~10 min) then warm.
