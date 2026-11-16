@@ -18,7 +18,8 @@ Read first (short): docs/WORKER.md. Do not read AGENTS.md.
 2. If it conflicts: read the PR (\`gh pr view $pr -R Pumpkin-MC/Pumpkin\`, \`git diff master...refs/kab/pr-$pr\`), then resolve so the intent applies on top of current code. Prefer current names/APIs over the PR's.
 3. If the intent is already in the code: \`git reset --hard\`, and report SKIPPED with file:line proof.
 4. Search for every constructor/caller of anything you changed (struct field, signature) and update them in the same commit.
-5. Commit: \`git add <only files you changed>\` then \`git commit -m "$title (#$pr)"\` (subject only, no body; the author trailer is added automatically).
+5. Review `git diff --cached`: delete stray fragments (lone `}`, `>`, orphan `#[test]`).
+6. Commit: \`git add <only files you changed>\` then \`git commit -m "$title (#$pr)"\` (subject only, no body; the author trailer is added automatically).
 </task>
 
 <constraints>

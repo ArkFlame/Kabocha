@@ -95,3 +95,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3353 (PR, skipped: abstract_fish.rs:35)
 - #4118 (PR, skipped: screen_handler.rs:981)
 - #3965 (PR, skipped: hopper.rs:299)
+- #4120 (PR, skipped: living.rs:3387 do_hurt_equipment)
