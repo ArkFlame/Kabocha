@@ -53,21 +53,27 @@ impl SplashPotionEntity {
     }
 
     pub fn hurts_water_sensitive_entities(&self) -> bool {
-        let stack = self
-            .item_stack
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(potion) = stack
-            .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
-            .and_then(|contents| contents.potion_id)
-            .and_then(|id| u8::try_from(id).ok())
-            .and_then(pumpkin_data::potion::Potion::from_id)
-        else {
-            return false;
-        };
-        let (names, ids) = pumpkin_data::tag::Potion::MINECRAFT_HURTS_WATER_SENSITIVE_ENTITIES;
-        names.contains(&potion.name) || ids.contains(&u16::from(potion.id))
+        stack_hurts_water_sensitive(
+            &self
+                .item_stack
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
+}
+
+/// Vanilla `minecraft:hurts_water_sensitive_entities` potion tag.
+pub(crate) fn stack_hurts_water_sensitive(stack: &ItemStack) -> bool {
+    let Some(potion) = stack
+        .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
+        .and_then(|contents| contents.potion_id)
+        .and_then(|id| u8::try_from(id).ok())
+        .and_then(pumpkin_data::potion::Potion::from_id)
+    else {
+        return false;
+    };
+    let (names, ids) = pumpkin_data::tag::Potion::MINECRAFT_HURTS_WATER_SENSITIVE_ENTITIES;
+    names.contains(&potion.name) || ids.contains(&u16::from(potion.id))
 }
 
 fn is_water_potion(stack: &ItemStack) -> bool {
@@ -75,6 +81,38 @@ fn is_water_potion(stack: &ItemStack) -> bool {
         .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
         .and_then(|pc| pc.potion_id)
         == Some(pumpkin_data::potion::Potion::WATER.id as i32)
+}
+
+/// Hurts water-sensitive mobs around a thrown potion's position, mirroring vanilla
+/// `AbstractThrownPotion#affectEntitiesAround`. Caller checks the potion tag first.
+pub(crate) fn hurt_water_sensitive_entities(
+    world: &Arc<crate::world::World>,
+    projectile: &dyn EntityBase,
+    thrown: &ThrownItemEntity,
+) {
+    let owner = thrown.owner.get(world);
+    let potion_pos = thrown.entity.pos.load();
+    let search_box = thrown.entity.bounding_box.load().expand(4.0, 2.0, 4.0);
+    for entity in world.get_all_at_box(&search_box) {
+        if entity.get_living_entity().is_some()
+            && entity.is_sensitive_to_water()
+            && entity
+                .get_entity()
+                .pos
+                .load()
+                .squared_distance_to_vec(&potion_pos)
+                < 16.0
+        {
+            entity.damage_with_context(
+                entity.as_ref(),
+                1.0,
+                pumpkin_data::damage::DamageType::INDIRECT_MAGIC,
+                None,
+                Some(projectile),
+                owner.as_deref(),
+            );
+        }
+    }
 }
 
 /// Extinguishes fire (including soul fire) at the hit position and its four horizontal neighbors.
@@ -232,29 +270,7 @@ impl EntityBase for SplashPotionEntity {
         );
 
         if self.hurts_water_sensitive_entities() {
-            let owner = self.thrown.owner.get(&world);
-            let potion_pos = self.get_entity().pos.load();
-            let search_box = self.get_entity().bounding_box.load().expand(4.0, 2.0, 4.0);
-            for entity in world.get_all_at_box(&search_box) {
-                if entity.get_living_entity().is_some()
-                    && entity.is_sensitive_to_water()
-                    && entity
-                        .get_entity()
-                        .pos
-                        .load()
-                        .squared_distance_to_vec(&potion_pos)
-                        < 16.0
-                {
-                    entity.damage_with_context(
-                        entity.as_ref(),
-                        1.0,
-                        pumpkin_data::damage::DamageType::INDIRECT_MAGIC,
-                        None,
-                        Some(self),
-                        owner.as_deref(),
-                    );
-                }
-            }
+            hurt_water_sensitive_entities(&world, self, &self.thrown);
         }
 
         // If no effects, just splash (like water bottles)

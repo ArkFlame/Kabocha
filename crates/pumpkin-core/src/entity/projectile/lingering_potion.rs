@@ -1,7 +1,9 @@
 use crate::entity::projectile::owner::ProjectileOwner;
 use std::sync::RwLock;
 
-use crate::entity::projectile::splash_potion::extinguish_fire_if_water_potion;
+use crate::entity::projectile::splash_potion::{
+    extinguish_fire_if_water_potion, hurt_water_sensitive_entities, stack_hurts_water_sensitive,
+};
 use crate::{
     entity::{Entity, EntityBase, projectile::ThrownItemEntity},
     server::Server,
@@ -114,6 +116,11 @@ impl EntityBase for LingeringPotionEntity {
         world.send_entity_status(self.get_entity(), EntityStatus::Death, ActorEventID::Death);
 
         let effects = crate::item::potion::PotionContents::read_potion_effects(&stack);
+
+        // Water-sensitive potions hurt mobs even when they carry no effects.
+        if stack_hurts_water_sensitive(&stack) {
+            hurt_water_sensitive_entities(&world, self, &self.thrown);
+        }
 
         // If no effects, just splash (like water bottles)
         if effects.is_empty() {
