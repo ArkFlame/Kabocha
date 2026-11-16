@@ -133,3 +133,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #4516 (PR) fix(entity): stop players equipping armor that only allows other entity (#4516) [5210039ef]
 - #3990 (PR) fix(block): dispenser now correctly replaces replacable block infront with bucket content (#3990) [0a6d6cd8e]
 - #3395 (PR) fix: preserve player equipment on death (#3395) [1aaa971d3]
+- #3875 (PR, skipped: block/registry.rs:882-905 already preserves block entity data)
