@@ -3,6 +3,10 @@ use super::*;
 
 impl JavaClient {
     pub fn handle_move_vehicle(&self, player: &Arc<Player>, packet: &SMoveVehicle) {
+        if player.is_movement_locked() {
+            player.reject_client_move();
+            return;
+        }
         // A movement packet was received this tick — tracked for SClientTickEnd zeroing.
         self.received_movement_this_tick
             .store(true, Ordering::Relaxed);
