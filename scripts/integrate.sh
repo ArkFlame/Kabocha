@@ -9,4 +9,8 @@ for b in "$@"; do
     git -C "$wt" cherry-pick "$h" >/dev/null 2>&1 || { echo "CONFLICT $b $h"; git -C "$wt" cherry-pick --abort; break; }
   done; echo "picked $b"
 done
-cd "$wt" && CARGO_INCREMENTAL=1 "$KAB_ROOT/scripts/cargo.sh" check --workspace --locked 2>&1 | grep -E "^error|^\s+--> |Finished" | head -30
+cd "$wt"
+# picked commits may add dependencies: refresh Cargo.lock without upgrading anything, commit it with the batch
+"$KAB_ROOT/scripts/cargo.sh" metadata --format-version 1 >/dev/null 2>&1 || true
+if ! git diff --quiet -- Cargo.lock; then git add Cargo.lock && git commit -q -m "chore(deps): refresh Cargo.lock for integrated branches"; fi
+CARGO_INCREMENTAL=1 "$KAB_ROOT/scripts/cargo.sh" check --workspace --locked 2>&1 | grep -E "^error|^\s+--> |Finished" | head -30
