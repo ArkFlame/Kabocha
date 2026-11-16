@@ -57,7 +57,7 @@ type EndRodLikeProperties = pumpkin_data::block_properties::EndRodLikeProperties
 /// Vanilla `Shulker.getProgressDeltaAabb(1.0, facing, 0.0, 0.5, bottom_center)`,
 /// deflated by `1e-6`: the space the opening lid sweeps through.
 fn lid_open_box(position: &BlockPos, facing: Facing) -> BoundingBox {
-    let dir = match facing {
+    let dir: Vector3<f64> = match facing {
         Facing::North => Vector3::new(0.0, 0.0, -1.0),
         Facing::East => Vector3::new(1.0, 0.0, 0.0),
         Facing::South => Vector3::new(0.0, 0.0, 1.0),
