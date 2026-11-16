@@ -349,10 +349,12 @@ impl RegionFile for PumpFile {
             )));
         }
 
-        let mut decoder = StreamingDecoder::new(&raw[CHUNK_FRAME_HEADER_BYTES..])
+        let decoder = StreamingDecoder::new(&raw[CHUNK_FRAME_HEADER_BYTES..])
             .map_err(|e| ChunkReadingError::IoError(std::io::Error::other(e.to_string())))?;
         let mut decompressed = Vec::with_capacity(uncompressed_len);
-        decoder
+        // Read through a limit; compressed data can expand without bound.
+        let mut limited = decoder.take(MAX_DECOMPRESSED_CHUNK_BYTES as u64 + 1);
+        limited
             .read_to_end(&mut decompressed)
             .map_err(ChunkReadingError::IoError)?;
         if decompressed.len() != uncompressed_len || xxh64(&decompressed, 0) != expected_checksum {

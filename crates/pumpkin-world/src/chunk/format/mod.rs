@@ -34,6 +34,12 @@ pub mod anvil;
 pub mod linear;
 pub mod pump;
 
+/// Upper bound on a decompressed chunk, far above anything the game writes.
+pub const MAX_DECOMPRESSED_CHUNK_SIZE: usize = 32 * 1024 * 1024;
+
+/// Upper bound on a decompressed region, for formats that load a whole region at once.
+pub const MAX_DECOMPRESSED_REGION_SIZE: usize = 32 * MAX_DECOMPRESSED_CHUNK_SIZE;
+
 /// Root tags `internal_from_bytes` consumes or `internal_to_bytes` regenerates.
 /// Everything else a chunk carries is data this server does not model, and it
 /// rides through a load/save cycle untouched rather than being dropped.
