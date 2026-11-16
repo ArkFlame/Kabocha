@@ -907,6 +907,8 @@ impl LightEngine {
             return;
         }
 
+        #[cfg(profiler)]
+        let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Lighting);
         if has_skylight {
             self.sky_light.convert_light(cache);
         } else {
@@ -958,6 +960,8 @@ impl LightEngine {
     }
 
     pub fn run_light_updates(&mut self, cache: &mut Cache) {
+        #[cfg(profiler)]
+        let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Lighting);
         if !self.block_light.decrease_queue.is_empty() {
             self.block_light.process_decrease_queue(cache);
         }

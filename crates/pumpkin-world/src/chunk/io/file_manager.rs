@@ -287,6 +287,11 @@ pub struct ChunkFileManager<R: RegionFile, D> {
 type RegionCache<R, D> = FxHashMap<Vector2<i32>, Arc<RegionEntry<R, D>>>;
 
 impl<R: RegionFile, D: SingleChunkDataSerializer> ChunkFileManager<R, D> {
+    #[cfg(feature = "memory-profiler")]
+    pub fn cached_region_count(&self) -> Option<usize> {
+        self.regions.try_lock().ok().map(|regions| regions.len())
+    }
+
     pub fn new(config: R::Config) -> Self {
         Self {
             regions: Mutex::new(FxHashMap::default()),
@@ -386,6 +391,9 @@ where
         chunk_coords: &'a [Vector2<i32>],
         stream: mpsc::Sender<LoadedData<Self::Data, ChunkReadingError>>,
     ) {
+        #[cfg(profiler)]
+        let _profile =
+            pumpkin_profiler::cpu::async_span(pumpkin_profiler::cpu::Phase::ChunkLoading);
         let mut regions_chunks: FxHashMap<Vector2<i32>, Vec<Vector2<i32>>> = FxHashMap::default();
         for at in chunk_coords {
             regions_chunks.entry(region_of(*at)).or_default().push(*at);
@@ -482,6 +490,9 @@ where
         folder: &'a LevelFolder,
         chunks_data: Vec<(Vector2<i32>, Self::Data)>,
     ) -> Result<(), ChunkWritingError> {
+        #[cfg(profiler)]
+        let _profile =
+            pumpkin_profiler::cpu::async_span(pumpkin_profiler::cpu::Phase::ChunkSaving);
         let mut entries = FxHashMap::default();
         for (pos, chunk) in chunks_data {
             if chunk.is_dirty() {
@@ -639,6 +650,17 @@ pub enum LevelFileIO<D> {
     Linear(ChunkFileManager<LinearV2File, D>),
     Anvil(ChunkFileManager<AnvilRegion, D>),
     Pump(ChunkFileManager<PumpFile, D>),
+}
+
+#[cfg(feature = "memory-profiler")]
+impl<D: SingleChunkDataSerializer + PathFromLevelFolder> LevelFileIO<D> {
+    pub fn cached_region_count(&self) -> Option<usize> {
+        match self {
+            Self::Linear(manager) => manager.cached_region_count(),
+            Self::Anvil(manager) => manager.cached_region_count(),
+            Self::Pump(manager) => manager.cached_region_count(),
+        }
+    }
 }
 
 impl<D> FileIO for LevelFileIO<D>

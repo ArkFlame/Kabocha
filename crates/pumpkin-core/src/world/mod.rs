@@ -1901,10 +1901,16 @@ impl World {
 
     #[expect(clippy::too_many_lines)]
     pub fn tick(self: &Arc<Self>, server: &Arc<Server>) {
+        #[cfg(profiler)]
+        let _profile = pumpkin_profiler::cpu::world(self.uuid, self.dimension.minecraft_name);
+
         let start = std::time::Instant::now();
 
         self.pathfinding_time_spent
             .store(0, std::sync::atomic::Ordering::Relaxed);
+
+        #[cfg(profiler)]
+        let profile_setup = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::WorldSetup);
 
         self.flush_block_updates();
         self.flush_synced_block_events();
@@ -1939,6 +1945,8 @@ impl World {
             *guard = raids;
         };
 
+        #[cfg(profiler)]
+        drop(profile_setup);
         let t_chunks = std::time::Instant::now();
         self.tick_chunks();
         let chunk_elapsed = t_chunks.elapsed();
@@ -1948,6 +1956,8 @@ impl World {
 
         let t_players = std::time::Instant::now();
         players.par_iter().for_each(|player| {
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Players);
             player.tick(server);
         });
         self.encoded_chunk_cache.clear();
@@ -2058,6 +2068,8 @@ impl World {
         let first_order = self.level.reserve_entity_tick_orders(tickable.len());
 
         let server_ref = server.as_ref();
+        #[cfg(profiler)]
+        let profile_entities = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Entities);
         let tick_entity = |index: usize| {
             let (entity, _) = &tickable[index];
             order::set_entity_order(Some(first_order + index as u64 * order::ORDERS_PER_ENTITY));
@@ -2091,6 +2103,8 @@ impl World {
             }
             order::set_entity_order(None);
         }
+        #[cfg(profiler)]
+        drop(profile_entities);
         // Vanilla `rideTick`: riders follow their vehicle's seat once it has moved
         tickable.par_iter().for_each(|(entity, _)| {
             if !entity.is_passenger() && entity.get_entity().has_passengers() {
@@ -2104,7 +2118,12 @@ impl World {
         for player in players.iter() {
             player.send_velocity_changes();
         }
+        #[cfg(profiler)]
+        let profile_tracking =
+            pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::EntityTracking);
         self.entity_tracker.update_all(self);
+        #[cfg(profiler)]
+        drop(profile_tracking);
 
         let mut block_entities: Vec<Arc<dyn BlockEntity>> = Vec::new();
         if self.block_entities.len() < active_chunks.len() {
@@ -2124,6 +2143,8 @@ impl World {
 
         let t_be = std::time::Instant::now();
         block_entities.par_chunks(16).for_each(|batch| {
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::BlockEntities);
             for be in batch {
                 // Vanilla's ticking wrapper skips a block entity whose block no longer owns
                 // it. Without this, a leftover (say, a daylight detector under a `fill` of
@@ -2549,6 +2570,8 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Blocks);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2558,6 +2581,21 @@ impl World {
                         continue;
                     }
                     if let Some(pumpkin_block) = world.block_registry.get_pumpkin_block(block.id) {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Block {
+                                    name: block.name,
+                                    phase: pumpkin_profiler::cpu::Phase::Blocks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_block.on_scheduled_tick(OnScheduledTickArgs {
                             world: &world,
                             block,
@@ -2574,6 +2612,8 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Fluids);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2584,6 +2624,21 @@ impl World {
                         continue;
                     };
                     if let Some(pumpkin_fluid) = world.block_registry.get_pumpkin_fluid(fluid.id) {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Fluid {
+                                    name: fluid.name,
+                                    phase: pumpkin_profiler::cpu::Phase::Fluids,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_fluid.on_scheduled_tick(&world, fluid, &pos);
                     }
                 }
@@ -2596,6 +2651,9 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile =
+                    pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::RandomTicks);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2614,6 +2672,21 @@ impl World {
                         && let Some(pumpkin_block) =
                             world.block_registry.get_pumpkin_block(block.id)
                     {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Block {
+                                    name: block.name,
+                                    phase: pumpkin_profiler::cpu::Phase::RandomTicks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_block.random_tick(RandomTickArgs {
                             world: &world,
                             block,
@@ -2625,6 +2698,21 @@ impl World {
                         && let Some(pumpkin_fluid) =
                             world.block_registry.get_pumpkin_fluid(fluid.id)
                     {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Fluid {
+                                    name: fluid.name,
+                                    phase: pumpkin_profiler::cpu::Phase::RandomTicks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_fluid.random_tick(fluid, &world, &pos);
                     }
                 }
@@ -2659,6 +2747,8 @@ impl World {
 
             spawning_chunks.shuffle(&mut rng());
 
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Spawning);
             for (pos, chunk) in spawning_chunks {
                 self.tick_spawning_chunk(pos, &chunk, &spawn_list, &spawn_state);
             }
