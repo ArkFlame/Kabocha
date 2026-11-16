@@ -3,11 +3,12 @@
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"; touch "$KAB_RUNS/tried-issues"; n="${1:-1}"
 python3 - "$n" <<'PY' | while read -r id; do
 import re,sys
-done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))
+done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))|{l.split('\t')[1] for l in open('docs/OUTCOMES.tsv') if l.startswith('issue')}
 tried=set(open('/tmp/kabocha-runs/tried-issues').read().split())
 rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-issues.tsv')]
 c=[r for r in rows if r[0] not in done|tried]
-c.sort(key=lambda r:(0 if 'bug' in r[2] else 1, -int(r[0])))
+# runtime-only areas (worldgen/protocol) need a seeded world or client; workers failed on them 7/7, so they go last
+c.sort(key=lambda r:(1 if ('worldgen' in r[2] or 'Bedrock' in r[1]) else 0, 0 if 'bug' in r[2] else 1, -int(r[0])))
 print('\n'.join(r[0] for r in c[:int(sys.argv[1])]))
 PY
   echo "$id" >> "$KAB_RUNS/tried-issues"

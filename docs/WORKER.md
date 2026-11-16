@@ -9,6 +9,7 @@ Mistakes seen so far and the rule that fixes each:
 7. Two PRs can clash when merged together (new struct field vs new initializer, Arc vs Weak). **When you add a struct field or change a signature, grep every constructor/caller** and update them in the same commit.
 8. Typos in PR text (e.g. a key like `shearing_sound_sound`): prefer the existing correct code.
 12. **Integrate with judgement, never blindly.** Before editing, check that the issue/PR concern actually fills the gap required: reproduce the gap in the current code (file:line), confirm master does not already cover it, and confirm the proposed change fixes that exact gap (not a neighbouring one) and matches vanilla/Paper. If the gap is already filled, SKIP with file:line proof; if the PR only partly fits, port only the part that fills the gap and report partial naming what was left out.
+13. **No runtime repro is not a failure reason by itself.** Compare the code path with vanilla/Paper/.vendor and with pumpkin-data; if it already matches, report SKIPPED with file:line. Report FAILED only for a concrete blocker (needs a seed, screenshot, client, or a multi-file redesign) and name it, since `scripts/oc-collect.sh` classifies it into docs/OUTCOMES.tsv and the item is not retried.
 Report format (one message, no prose): `STATUS: committed|partial|skipped|failed | PR #N | commit <hash> | files <list> | compiled: no | note <one line>`. committed = on your branch only, never master.
 
 ## Brief structure (prompt engineering, implemented in scripts/brief-pr.sh)

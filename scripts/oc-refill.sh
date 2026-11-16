@@ -4,7 +4,7 @@
 # agents are backgrounded by oc-agent.sh. One refill at a time (flock), so the Monitor and a manual run never double-launch.
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"
 exec 9>"$KAB_RUNS/refill.lock"; flock -n 9 || { echo "refill already running"; exit 0; }
-scripts/reap-mcp.sh >/dev/null 2>&1 || true
+scripts/reap-mcp.sh >/dev/null 2>&1 || true; scripts/oc-collect.sh >/dev/null 2>&1 || true
 touch "$KAB_RUNS/tried" "$KAB_RUNS/tried-issues"
 SLOTS="${KAB_OC_SLOTS:-20}"; JOBS="${KAB_PREP_JOBS:-10}"
 free_slots() { echo $(( SLOTS - $(scripts/oc-status.sh | grep -c ' running$' || true) )); }
