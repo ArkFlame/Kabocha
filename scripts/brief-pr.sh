@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # brief-pr.sh <pr> [target-dir]  -- write a self-contained worker brief for landing upstream PR <pr>; prints brief path.
-source "$(dirname "$0")/lib.sh"; pr="$1"; tgt="${2:-/tmp/kab-target-pr$pr}"
+source "$(dirname "$0")/lib.sh"; pr="$1"; tgt="${2:-/tmp/kab-target-main}"  # shared warm target: deps built once; cargo serializes via its lock instead of 20 cold builds thrashing
 f="$KAB_RUNS/brief-pr$pr.md"
 cat > "$f" <<B
 Role: CODER
