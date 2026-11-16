@@ -10,6 +10,7 @@ fi
 [ ${#crates[@]} -eq 0 ] && { echo "no crates touched"; exit 0; }
 pf=(); for c in "${crates[@]}"; do pf+=(-p "$c"); done
 cargo fmt --check
+cargo() { cargo_slot command cargo "$@"; }
 if [ $quick = 1 ]; then cargo check "${pf[@]}" --all-targets --locked; exit; fi
 cargo clippy "${pf[@]}" --all-targets --all-features --locked -- -D warnings
 if command -v cargo-nextest >/dev/null; then cargo nextest run "${pf[@]}" --no-tests=pass; else cargo test "${pf[@]}"; fi
