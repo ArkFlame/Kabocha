@@ -3,6 +3,7 @@ use pumpkin_data::tag::Taggable;
 use std::sync::Arc;
 
 use pumpkin_data::BlockState;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
@@ -12,9 +13,14 @@ use crate::entity::{
     Entity, EntityBase,
     ai::behavior::hunting::Hunt,
     ai::target_match::TargetMatch,
-    mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
+    mob::{
+        Mob, MobEntity,
+        spawn::{EntitySpawnReason, SpawnGroupData},
+        skeleton::SkeletonEntityBase,
+    },
     projectile::arrow::ArrowEntity,
 };
+use crate::world::World;
 
 const WITHER_SKELETON_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::PIGLIN_LIKE, true)];
 
@@ -67,5 +73,20 @@ impl Mob for WitherSkeletonEntity {
         // vanilla lights it for 100 seconds
         arrow.set_flame(true);
         arrow
+    }
+
+    fn finalize_spawn(
+        &self,
+        world: &Arc<World>,
+        _reason: EntitySpawnReason,
+        group_data: Option<SpawnGroupData>,
+    ) -> Option<SpawnGroupData> {
+        // Vanilla `WitherSkeleton#finalizeSpawn` raises the base damage to 4.0 on spawn only.
+        let group_data = self.default_finalize_spawn(world, group_data);
+        self.entity
+            .mob_entity
+            .living_entity
+            .set_attribute_base(&Attributes::ATTACK_DAMAGE, 4.0);
+        group_data
     }
 }
