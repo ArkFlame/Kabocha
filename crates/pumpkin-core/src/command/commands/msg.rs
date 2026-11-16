@@ -12,6 +12,7 @@ use crate::command::node::Redirection;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::entity::EntityBase;
+use tracing::info;
 
 const NAMES: [&str; 3] = ["msg", "tell", "w"];
 const DESCRIPTION: &str = "Sends a private message to one or more players.";
@@ -26,6 +27,16 @@ impl CommandExecutor for MsgExecutor {
 
         let sender_name = &context.source.display_name;
         let msg_text = TextComponent::text(msg.to_string());
+
+        let sender_log = sender_name.clone().to_pretty_console();
+        for target in &targets {
+            info!(
+                "[{} -> {}] {}",
+                sender_log,
+                target.get_display_name().to_pretty_console(),
+                msg
+            );
+        }
 
         if let Some(player) = context.source.player_or_none() {
             for target in &targets {

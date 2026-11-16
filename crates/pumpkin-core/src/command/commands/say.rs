@@ -1,5 +1,6 @@
 use pumpkin_data::world::SAY_COMMAND;
 use pumpkin_util::text::TextComponent;
+use tracing::info;
 
 use crate::command::argument_builder::{ArgumentBuilder, argument, command};
 use crate::command::argument_types::client_parsed::MessageArgumentType;
@@ -21,6 +22,11 @@ impl CommandExecutor for Executor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let msg = context.get_argument::<String>(ARG_MESSAGE)?;
 
+        info!(
+            "[{}] {}",
+            context.source.display_name.clone().to_pretty_console(),
+            msg
+        );
         context.server().broadcast_message(
             &TextComponent::text(msg.clone()),
             &context.source.display_name,
