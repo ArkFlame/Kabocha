@@ -131,6 +131,13 @@ pub trait BlockBehaviour: Send + Sync {
         false
     }
 
+    /// Vanilla queries the placed block's collision shape with a placement collision
+    /// context before placing it. Blocks that return an empty shape there (scaffolding)
+    /// can be placed inside entities, so the entity obstruction check is skipped.
+    fn can_place_inside_entities(&self) -> bool {
+        false
+    }
+
     /// onBlockAdded in source code
     fn placed(&self, _args: PlacedArgs<'_>) {}
 

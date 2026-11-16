@@ -52,6 +52,10 @@ impl BlockBehaviour for ScaffoldingBlock {
         Self::get_distance(args.block_accessor, args.position) < 7
     }
 
+    fn can_place_inside_entities(&self) -> bool {
+        true
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let distance = Self::get_distance(args.world, args.position);
         let mut props = ScaffoldingLikeProperties::default(args.block);

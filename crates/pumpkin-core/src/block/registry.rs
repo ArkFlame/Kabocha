@@ -831,12 +831,17 @@ impl BlockRegistry {
         // placement. (e.g. arrows/xp orbs/displays/markers should not)
         let state = BlockState::from_id(new_state);
         let mut buildable = true;
-        for shape in state.get_block_collision_shapes_at(&final_block_pos) {
-            let placed_box = shape.at_pos(final_block_pos);
+        if !self
+            .get_pumpkin_block(placed_block.id)
+            .is_some_and(|block| block.can_place_inside_entities())
+        {
+            for shape in state.get_block_collision_shapes_at(&final_block_pos) {
+                let placed_box = shape.at_pos(final_block_pos);
 
-            if Self::has_blocking_entity_in_box(world.as_ref(), &placed_box) {
-                buildable = false;
-                break;
+                if Self::has_blocking_entity_in_box(world.as_ref(), &placed_box) {
+                    buildable = false;
+                    break;
+                }
             }
         }
 
