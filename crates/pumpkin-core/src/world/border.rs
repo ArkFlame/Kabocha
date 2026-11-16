@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use pumpkin_protocol::java::client::play::{
     CInitializeWorldBorder, CSetBorderCenter, CSetBorderLerpSize, CSetBorderSize,
     CSetBorderWarningDelay, CSetBorderWarningDistance,
@@ -10,6 +12,20 @@ use crate::net::java::JavaClient;
 
 use super::World;
 
+/// A running diameter transition, timed on the wall clock like vanilla's `Util.getMillis()`.
+#[derive(Clone, Copy)]
+struct Lerp {
+    start: Instant,
+    duration_ms: i64,
+    from: f64,
+}
+
+impl Lerp {
+    fn elapsed_ms(&self) -> i64 {
+        i64::try_from(self.start.elapsed().as_millis()).unwrap_or(i64::MAX)
+    }
+}
+
 pub struct Worldborder {
     pub center_x: f64,
     pub center_z: f64,
@@ -21,6 +37,7 @@ pub struct Worldborder {
     pub warning_time: i32,
     pub damage_per_block: f32,
     pub buffer: f32,
+    lerp: Option<Lerp>,
 }
 
 impl Worldborder {
@@ -44,16 +61,37 @@ impl Worldborder {
             warning_time,
             damage_per_block: 0.0,
             buffer: 0.0,
+            lerp: None,
         }
+    }
+
+    /// Diameter the client currently shows, interpolated during a transition.
+    #[must_use]
+    pub fn current_diameter(&self) -> f64 {
+        match self.lerp {
+            Some(lerp) if self.remaining_ms() > 0 => {
+                let progress =
+                    (lerp.elapsed_ms() as f64 / lerp.duration_ms as f64).clamp(0.0, 1.0);
+                lerp.from + (self.new_diameter - lerp.from) * progress
+            }
+            _ => self.new_diameter,
+        }
+    }
+
+    /// Milliseconds left in the running transition, 0 when none.
+    #[must_use]
+    pub fn remaining_ms(&self) -> i64 {
+        self.lerp
+            .map_or(0, |lerp| (lerp.duration_ms - lerp.elapsed_ms()).max(0))
     }
 
     pub fn init_client(&self, client: &JavaClient) {
         if let Ok(data) = client.serialize_packet(&CInitializeWorldBorder::new(
             self.center_x,
             self.center_z,
-            self.old_diameter,
+            self.current_diameter(),
             self.new_diameter,
-            self.speed.into(),
+            self.remaining_ms().into(),
             self.portal_teleport_boundary.into(),
             self.warning_blocks.into(),
             self.warning_time.into(),
@@ -70,8 +108,14 @@ impl Worldborder {
     }
 
     pub fn set_diameter(&mut self, world: &World, diameter: f64, speed: Option<i64>) {
-        self.old_diameter = self.new_diameter;
+        let from = self.current_diameter();
+        self.old_diameter = from;
         self.new_diameter = diameter;
+        self.lerp = speed.map(|duration_ms| Lerp {
+            start: Instant::now(),
+            duration_ms,
+            from,
+        });
 
         match speed {
             Some(speed) => {
@@ -122,6 +166,7 @@ impl Worldborder {
         self.warning_time = 15;
         self.damage_per_block = 0.2;
         self.buffer = 5.0;
+        self.lerp = None;
 
         world.broadcast_packet_all(&CInitializeWorldBorder::new(
             self.center_x,
