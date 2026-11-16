@@ -815,7 +815,7 @@ interface %world {
         /// Gets the world border associated with this world.
         get-world-border: func() -> world-border;
 
-        /// Gets the chunk at the specified chunk coordinates.
+        /// Gets the chunk at the specified chunk coordinates if it is already loaded.
         get-chunk: func(x: s32, z: s32) -> option<chunk>;
 
         /// Returns the chunk at the given chunk coordinates, loading it from disk
