@@ -1,5 +1,7 @@
 use pumpkin_data::BlockState;
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
@@ -7,6 +9,7 @@ use std::sync::Arc;
 use crate::entity::{
     Entity, EntityBase,
     mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
+    projectile::arrow::ArrowEntity,
 };
 
 pub struct StraySkeletonEntity {
@@ -28,6 +31,20 @@ impl Mob for StraySkeletonEntity {
 
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityStrayStep, 0.15, 1.0);
+    }
+
+    fn get_arrow(&self, arrow: ArrowEntity) -> ArrowEntity {
+        // vanilla `Stray#getArrow`: arrows from a stray apply slowness for 600 ticks
+        arrow.add_effect(Effect {
+            effect_type: &StatusEffect::SLOWNESS,
+            duration: 600,
+            amplifier: 0,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+            blend: false,
+        });
+        arrow
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

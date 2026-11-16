@@ -17,6 +17,7 @@ use pumpkin_data::data_component_impl::PotionDurationScaleImpl;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_protocol::java::client::play::{CEntityStatus, CGameEvent, GameEvent, Metadata};
 use pumpkin_util::math::position::BlockPos;
@@ -64,6 +65,8 @@ pub struct ArrowEntity {
     pub duration: AtomicU32,
     pub flight: ArrowFlight,
     pub weapon: RwLock<Option<ItemStack>>,
+    /// Extra effects added by the shooter (`Stray` slowness), applied on hurt.
+    pub extra_effects: RwLock<Vec<Effect>>,
 }
 
 impl ArrowEntity {
@@ -101,6 +104,7 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
+            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -136,6 +140,7 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
+            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -348,6 +353,14 @@ impl ArrowEntity {
 
     pub fn set_base_damage(&self, damage: f64) {
         self.base_damage.store(damage.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Adds an effect applied to whatever this arrow hurts (vanilla `Arrow#addEffect`).
+    pub fn add_effect(&self, effect: Effect) {
+        self.extra_effects
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(effect);
     }
 
     pub fn set_flame(&self, flame: bool) {
@@ -777,6 +790,14 @@ impl ArrowEntity {
             living.add_effect(Self::spectral_glowing_effect(
                 self.duration.load(Ordering::Relaxed),
             ));
+        }
+        // Shooter-added effects (vanilla `Stray#getArrow` slowness).
+        let extra = self
+            .extra_effects
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for effect in extra.iter() {
+            living.add_effect(effect.clone());
         }
     }
 
