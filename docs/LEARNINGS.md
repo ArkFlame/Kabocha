@@ -11,3 +11,5 @@
 - 2026-11-16: worker mistakes and fixes are in docs/WORKER.md (read by every brief); PR triage is mechanical (scripts/pr-triage.sh).
 - Note: the user's shell exports CARGO_TARGET_DIR=~/.cache/cargo-target; scripts/lib.sh overrides it (KAB_TARGET to change) so toolchains never share a target.
 - #3420 uses eprintln!: clippy print_stderr may deny; check at the full gate
+- 2026-11-16: audit of a live OpenCode trace (i4450): reads were targeted, but the issue was CLOSED and the worker ran find / and chased the fix commit. Closed-issue filter added to next-issue.sh; brief forbids find / and re-fetching.
+- integrate.sh takes one branch per argument; never pass a quoted multi-branch string (it silently picks nothing).

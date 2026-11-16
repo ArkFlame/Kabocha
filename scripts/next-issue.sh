@@ -11,13 +11,16 @@ c.sort(key=lambda r:(0 if 'bug' in r[2] else 1, -int(r[0])))
 print('\n'.join(r[0] for r in c[:int(sys.argv[1])]))
 PY
   echo "$id" >> "$KAB_RUNS/tried-issues"
+  # skip issues already CLOSED upstream: log to DONE.md-style list and take no slot
+  st=$(timeout 20 gh issue view "$id" -R Pumpkin-MC/Pumpkin --json state -q .state 2>/dev/null)
+  [ "$st" = "CLOSED" ] && { echo "- #$id (issue, skipped: closed upstream)" >> docs/DONE.md; continue; }
   scripts/wt.sh new "i$id" >/dev/null 2>&1
   t=$(awk -F'\t' -v n="$id" '$1==n{print $2}' docs/queue-issues.tsv)
   f="$KAB_RUNS/brief-issue$id.md"
   cat > "$f" <<B
 <role>You are a senior Rust engineer fixing one upstream issue in a fork. Work alone, one pass, no chat context beyond this brief.</role>
 <context>Repo: Kabocha (fork of Pumpkin Minecraft server, Rust). Current dir is your own git worktree; never leave it. Read docs/WORKER.md first (short).
-Upstream issue #$id: "$t". Read it: gh issue view $id -R Pumpkin-MC/Pumpkin --comments</context>
+Upstream issue #$id: "$t". Read it once: gh issue view $id -R Pumpkin-MC/Pumpkin --comments (state is OPEN; do not re-fetch it)</context>
 <task>
 1. Read the issue; locate the root cause in the current code (grep). Match vanilla/Paper behaviour.
 2. If already fixed in the code: report SKIPPED with file:line proof, change nothing.
@@ -25,7 +28,7 @@ Upstream issue #$id: "$t". Read it: gh issue view $id -R Pumpkin-MC/Pumpkin --co
 4. Else make the smallest fix, update all callers, add the smallest automated test only if trivial.
 5. Commit: git add <your files>; git commit -m "fix(<scope>): <subject> (#$id)" (subject only; trailer is automatic).
 </task>
-<constraints>READ BUDGET: at most ~8 file reads/greps total; read only the function(s) the issue names (use offset/limit or grep -n, never whole large files). STOP RULE: the moment you know it needs a runtime/client/video repro, extra data, a 1.13 world sample, codegen, or is already fixed, STOP and report skipped/failed at once with one line of proof; do not keep investigating. No cargo/tests/builds, no sleeping or background jobs, no GitHub writes, no other worktrees, no conflict markers.</constraints>
+<constraints>READ BUDGET: at most ~8 file reads/greps total; read only the function(s) the issue names (use offset/limit or grep -n, never whole large files). STOP RULE: the moment you know it needs a runtime/client/video repro, extra data, a 1.13 world sample, codegen, or is already fixed, STOP and report skipped/failed at once with one line of proof; do not keep investigating. Never run find / or search outside this worktree and .vendor/; reference sources are in .vendor/ and ../ only. Do not chase upstream fix commits. No cargo/tests/builds, no sleeping or background jobs, no GitHub writes, no other worktrees, no conflict markers.</constraints>
 <report>One line: STATUS: committed|partial|skipped|failed | ISSUE #$id | commit <hash> | files <list> | compiled: no | note <one line></report>
 B
   [ -s "$f" ] && echo "$id $KAB_WT/i$id $f"

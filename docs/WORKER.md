@@ -16,3 +16,4 @@ XML-tagged sections in this order: `<role>` (one-line persona + "alone, one pass
 
 ## Read budget and stop rule (user-mandated 2026-11-16)
 Read only what the fix needs: grep -n first, then offset/limit around the hit, about 8 reads total, never whole large files. The moment the blocker is "needs a client/runtime repro, a video, a world sample, codegen, or already fixed", stop and report skipped/failed with one line of proof. Evidence: ~65% of issue workers ended skipped/failed after 40-70k tokens of reading.
+10. (2026-11-16) Issue workers wasted slots on CLOSED issues, repeated `gh issue view`, `find /` over the whole disk and fetching upstream fix commits. **next-issue.sh now skips CLOSED issues; never `find /`; search only the worktree, `.vendor/` and `../`; fetch the issue once; if it is already fixed, report SKIPPED with file:line and stop.**
