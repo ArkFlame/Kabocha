@@ -199,8 +199,10 @@ impl Server {
 
         let block_registry = super::block::registry::default_registry();
 
+        let is_new_world;
         let level_info = match AnvilLevelInfo.read_world_info(&world_path) {
             Ok(level_info) => {
+                is_new_world = false;
                 let dat_path = world_path.join(LEVEL_DAT_FILE_NAME);
                 if dat_path.exists() {
                     let backup_path = world_path.join(LEVEL_DAT_BACKUP_FILE_NAME);
@@ -227,6 +229,7 @@ impl Server {
                     default_data.difficulty_locked = true;
                 }
                 AnvilLevelInfo.write_world_info(&default_data, &world_path)?;
+                is_new_world = true;
                 default_data
             }
             Err(
@@ -482,6 +485,31 @@ impl Server {
         }
 
         server.worlds.store(Arc::new(worlds_vec));
+
+        // Vanilla puts a new world's spawn on the surface. The default level data is written
+        // with `DEFAULT_SPAWN_Y` before any chunk exists, so replace it with the real spawn
+        // height once the spawn chunk can be generated; the console command source uses this
+        // position for relative coordinates.
+        if is_new_world {
+            let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+            let (spawn_x, spawn_z, fallback_y) = {
+                let info = server.level_info.load();
+                (info.spawn_x, info.spawn_z, info.spawn_y)
+            };
+            let position = world
+                .get_safe_player_spawn_position(spawn_x, spawn_z, fallback_y)
+                .await;
+            let spawn_y = position.y.floor() as i32;
+            server.level_info.rcu(|info| {
+                let mut info = (**info).clone();
+                info.spawn_y = spawn_y;
+                info
+            });
+            let info = server.level_info.load();
+            if let Err(err) = AnvilLevelInfo.write_world_info(&info, &world_path) {
+                error!("Failed to persist the world spawn height: {err}");
+            }
+        }
 
         info!("All worlds loaded successfully.");
 
