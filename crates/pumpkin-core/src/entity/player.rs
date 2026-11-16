@@ -751,6 +751,8 @@ pub struct Player {
     pub tab_list_listed: AtomicBool,
     pub per_player_time: AtomicCell<Option<(u64, bool)>>,
     pub per_player_weather: AtomicCell<Option<PlayerWeather>>,
+    /// Display-only plugin API state. Gameplay team membership and ally checks read
+    /// the world scoreboard (see [`Player::get_team`]).
     pub custom_scoreboard: std::sync::Mutex<Option<CustomScoreboard>>,
     /// Set once the join sends the full scoreboard state; scoreboard changes before that are only stored.
     pub scoreboard_synced: AtomicBool,
@@ -4732,18 +4734,10 @@ impl Player {
         }
     }
 
+    /// Vanilla `Entity.getTeam()`: the level scoreboard is the only authority for
+    /// gameplay team membership. The per-player custom scoreboard is display-only
+    /// plugin API state and never feeds ally or targeting checks.
     pub fn get_team(&self) -> Option<crate::world::scoreboard::Team> {
-        let guard = self
-            .custom_scoreboard
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(CustomScoreboard::Java(sb)) = guard.as_ref()
-            && !sb.get_teams().is_empty()
-            && let Some(team) = sb.get_entity_team(&self.gameprofile.name)
-        {
-            return Some(team.clone());
-        }
-        drop(guard);
         let world = self.world();
         let sb = world
             .scoreboard
@@ -4755,18 +4749,8 @@ impl Player {
         sb.get_entity_team(&self.gameprofile.name).cloned()
     }
 
+    /// Same source as [`Self::get_team`], name only.
     pub fn get_team_name(&self) -> Option<String> {
-        let guard = self
-            .custom_scoreboard
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(CustomScoreboard::Java(sb)) = guard.as_ref()
-            && !sb.get_teams().is_empty()
-            && let Some(team) = sb.get_entity_team(&self.gameprofile.name)
-        {
-            return Some(team.name.clone());
-        }
-        drop(guard);
         let world = self.world();
         let sb = world
             .scoreboard

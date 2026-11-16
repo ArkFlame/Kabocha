@@ -16,3 +16,4 @@
 - pkill -f "opencode run" matches the shell that contains the string and kills it (exit 144); kill by .pid file, not by pattern.
 - 2026-11-16: user capped total subagents at 10 (OpenCode default slots 10 in oc-status.sh/oc-refill.sh via KAB_OC_SLOTS; native workers count toward the same cap).
 - 2026-11-16: opencode global config starts the FAUS legal-ar MCP (about 12 node procs per run, never reaped): 2264 orphans held 66 GB of swap. OPENCODE_CONFIG_CONTENT and a config copy do NOT disable it; scripts/reap-mcp.sh (run by oc-refill.sh) kills orphans. Check 'pgrep -fc mcp-legal-ar' after any worker batch.
+- 2026-11-16 #3455: gameplay team membership reads only the level scoreboard (vanilla `Entity.getTeam()`); `Player.custom_scoreboard` is display-only plugin API state and no longer feeds ally/target checks. Use `Player::get_team`/`get_team_name` as the single source.
