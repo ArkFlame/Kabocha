@@ -2,7 +2,7 @@ use crate::block::blocks::bubble_column;
 use crate::entity::projectile::owner::ProjectileOwner;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
 
 use crate::entity::projectile::ProjectileHit;
 use crate::entity::projectile::abstract_arrow::{self, AbstractArrow, ArrowFlight};
@@ -18,7 +18,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
-use pumpkin_protocol::java::client::play::{CGameEvent, GameEvent, Metadata};
+use pumpkin_protocol::java::client::play::{CEntityStatus, CGameEvent, GameEvent, Metadata};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::version::JavaMinecraftVersion;
@@ -60,6 +60,8 @@ pub struct ArrowEntity {
     pub is_critical: AtomicBool,
     pub pierce_level: AtomicU8,
     pub punch_level: AtomicU8,
+    /// Ticks a spectral arrow makes its target glow.
+    pub duration: AtomicU32,
     pub flight: ArrowFlight,
     pub weapon: RwLock<Option<ItemStack>>,
 }
@@ -71,6 +73,10 @@ impl ArrowEntity {
     const FLAME_SECONDS: f32 = 100.0;
     /// Seconds a burning arrow sets its target on fire.
     const IGNITE_SECONDS: f32 = 5.0;
+    /// Ticks a spectral arrow makes its target glow (vanilla `SpectralArrow.DEFAULT_DURATION`).
+    const SPECTRAL_GLOWING_TICKS: u32 = 200;
+    /// Ticks a tipped arrow may lay in the ground before its potion wears off.
+    const EXPOSED_POTION_DECAY_TIME: u32 = 600;
 
     pub fn new(entity: Entity, owner: Option<&Entity>) -> Self {
         let item_stack = ItemStack::new(1, Self::default_item(entity.entity_type));
@@ -92,6 +98,7 @@ impl ArrowEntity {
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
+            duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
         }
@@ -126,6 +133,7 @@ impl ArrowEntity {
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
+            duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
         }
@@ -193,10 +201,10 @@ impl ArrowEntity {
         item_stack.copy_with_count(1)
     }
 
-    const fn spectral_glowing_effect() -> pumpkin_data::potion::Effect {
+    fn spectral_glowing_effect(duration: u32) -> pumpkin_data::potion::Effect {
         pumpkin_data::potion::Effect {
             effect_type: &pumpkin_data::effect::StatusEffect::GLOWING,
-            duration: 200,
+            duration: i32::try_from(duration).unwrap_or(i32::MAX),
             amplifier: 0,
             ambient: false,
             show_particles: true,
@@ -354,6 +362,30 @@ impl ArrowEntity {
     pub fn is_on_fire(&self) -> bool {
         self.entity.is_on_fire()
     }
+
+    /// Vanilla `Arrow#tickDespawn`: a tipped arrow that lay in the ground for
+    /// [`Self::EXPOSED_POTION_DECAY_TIME`] ticks loses its potion effect for good.
+    fn decay_exposed_potion(&self) {
+        if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id
+            || self.flight.in_ground_time.load(Ordering::Relaxed) < Self::EXPOSED_POTION_DECAY_TIME
+        {
+            return;
+        }
+        let mut item_stack = self
+            .item_stack
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if item_stack.item.id == Item::ARROW.id {
+            return;
+        }
+        *item_stack = ItemStack::new(1, &Item::ARROW);
+        drop(item_stack);
+        // Vanilla broadcasts entity event 0 (potion puff) when the potion wears off.
+        self.entity.world.load().send_to_tracking_players_and_self(
+            &self.entity,
+            &CEntityStatus::new(self.entity.entity_id, 0),
+        );
+    }
 }
 
 impl EntityBase for ArrowEntity {
@@ -393,6 +425,10 @@ impl EntityBase for ArrowEntity {
             self.pierce_level.load(Ordering::Relaxed) as i8,
         );
         nbt.put_byte("pickup", self.pickup.to_byte() as i8);
+        if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
+            // Vanilla `SpectralArrow.writeAdditionalSaveData`.
+            nbt.put_int("Duration", self.duration.load(Ordering::Relaxed) as i32);
+        }
     }
 
     fn read_custom_nbt(&self, nbt: &pumpkin_nbt::compound::NbtCompound) {
@@ -412,6 +448,11 @@ impl EntityBase for ArrowEntity {
         if let Some(pierce) = nbt.get_byte("PierceLevel") {
             self.pierce_level
                 .store(pierce.max(0) as u8, Ordering::Relaxed);
+        }
+        if let Some(duration) = nbt.get_int("Duration") {
+            // Vanilla `SpectralArrow.readAdditionalSaveData` uses `getIntOr("Duration", 200)`.
+            self.duration
+                .store(duration.max(0) as u32, Ordering::Relaxed);
         }
     }
 
@@ -733,7 +774,9 @@ impl ArrowEntity {
             None,
         );
         if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
-            living.add_effect(Self::spectral_glowing_effect());
+            living.add_effect(Self::spectral_glowing_effect(
+                self.duration.load(Ordering::Relaxed),
+            ));
         }
     }
 
@@ -783,6 +826,11 @@ impl AbstractArrow for ArrowEntity {
             pumpkin_data::tracked_data::abstract_arrow::IN_GROUND,
             in_ground,
         );
+    }
+
+    fn tick_despawn(&self) {
+        abstract_arrow::count_down_despawn(self);
+        self.decay_exposed_potion();
     }
 }
 
@@ -859,13 +907,13 @@ mod tests {
 
     #[test]
     fn spectral_arrow_applies_vanilla_glowing_effect() {
-        let effect = ArrowEntity::spectral_glowing_effect();
+        let effect = ArrowEntity::spectral_glowing_effect(120);
 
         assert_eq!(
             effect.effect_type,
             &pumpkin_data::effect::StatusEffect::GLOWING
         );
-        assert_eq!(effect.duration, 200);
+        assert_eq!(effect.duration, 120);
         assert_eq!(effect.amplifier, 0);
         assert!(effect.show_particles);
         assert!(effect.show_icon);
