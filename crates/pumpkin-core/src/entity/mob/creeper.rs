@@ -332,6 +332,12 @@ impl Mob for CreeperEntity {
     fn do_hurt_target(&self, _target: &dyn EntityBase) -> bool {
         true
     }
+}
+
+impl CreeperEntity {
+    pub fn is_charged(&self) -> bool {
+        self.charged.load(Ordering::Relaxed)
+    }
 
     pub fn set_charged(&self, charged: bool) {
         self.charged.store(charged, Ordering::Relaxed);
