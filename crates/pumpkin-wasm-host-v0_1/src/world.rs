@@ -939,6 +939,52 @@ impl pumpkin::plugin::world::HostWorld for PluginHostState {
         Ok(())
     }
 
+    fn fill_biome(
+        &mut self,
+        world: Resource<World>,
+        min: WitBlockPos,
+        max: WitBlockPos,
+        biome: pumpkin::plugin::biomes::Biome,
+    ) -> wasmtime::Result<()> {
+        let world_ref = self.get(&world)?.clone();
+        let Some(data) = pumpkin_data::biome::Biome::ALL.get(biome as usize) else {
+            return Err(wasmtime::Error::msg("Unknown biome"));
+        };
+        let min_x = min.x.min(max.x);
+        let min_y = min.y.min(max.y);
+        let min_z = min.z.min(max.z);
+        let max_x = min.x.max(max.x);
+        let max_y = min.y.max(max.y);
+        let max_z = min.z.max(max.z);
+        // Step cell by cell so huge regions do not write each block separately.
+        let mut x = min_x.div_euclid(4) * 4;
+        while x <= max_x {
+            let mut y = min_y.div_euclid(4) * 4;
+            while y <= max_y {
+                let mut z = min_z.div_euclid(4) * 4;
+                while z <= max_z {
+                    let chunk_pos = pumpkin_util::math::vector2::Vector2::new(
+                        x.div_euclid(16),
+                        z.div_euclid(16),
+                    );
+                    if let Some(chunk) = world_ref.level.loaded_chunks.get(&chunk_pos) {
+                        chunk.section.set_biome_absolute_y(
+                            x.rem_euclid(16) as usize,
+                            y,
+                            z.rem_euclid(16) as usize,
+                            data.id,
+                        );
+                        chunk.mark_dirty(true);
+                    }
+                    z += 4;
+                }
+                y += 4;
+            }
+            x += 4;
+        }
+        Ok(())
+    }
+
     fn refresh_biomes(
         &mut self,
         world: Resource<World>,

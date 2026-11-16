@@ -1097,6 +1097,12 @@ interface %world {
         /// Sets the 4x4x4 biome cell containing the specified position (if the chunk is loaded).
         set-biome: func(pos: block-pos, biome: biome);
 
+        /// Fills the biomes of the cuboid between `min` and `max` (inclusive).
+        ///
+        /// Writes every loaded 4x4x4 biome cell the box touches. Players are not
+        /// told; refresh the affected chunks afterwards.
+        fill-biome: func(min: block-pos, max: block-pos, biome: biome);
+
         /// Spawns an entity of the specified type at the given position.
         spawn-entity: async func(entity-type: entity-type, pos: position) -> entity;
 

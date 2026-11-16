@@ -929,6 +929,12 @@ interface %world {
         /// done.
         set-biome: func(pos: block-pos, biome: biome);
 
+        /// Fills the biomes of the cuboid between `min` and `max` (inclusive).
+        ///
+        /// Writes every loaded 4x4x4 biome cell the box touches. Players are not
+        /// told; call `refresh-biomes` once a batch of changes is done.
+        fill-biome: func(min: block-pos, max: block-pos, biome: biome);
+
         /// Sends the current biomes of the given loaded chunks, as chunk x and z,
         /// to every player who has them loaded.
         refresh-biomes: func(chunks: list<tuple<s32, s32>>);
