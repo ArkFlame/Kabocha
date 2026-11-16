@@ -3112,6 +3112,10 @@ impl Player {
             }
         }
 
+        if self.inbound_packets.is_empty() {
+            return;
+        }
+
         let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) else {
             return;
         };
@@ -3303,9 +3307,10 @@ impl Player {
                         }
                         _ => Vec::new(),
                     };
-                    let mut per_player_cache = rustc_hash::FxHashMap::default();
-                    let encoded =
-                        crate::net::ChunkSender::encode_batch(&batch, &mut per_player_cache);
+                    let encoded = crate::net::ChunkSender::encode_batch_shared(
+                        &batch,
+                        &world.encoded_chunk_cache,
+                    );
                     let current_epoch = self.chunk_send_epoch.load(Ordering::Relaxed);
                     let sent = self.chunk_sender.try_lock().map_or_else(
                         |_| Vec::new(),
@@ -4133,9 +4138,11 @@ impl Player {
     }
 
     pub fn increment_stat(&self, category: statistics::StatisticCategory, stat: i32, amount: i32) {
-        let final_amount = if let Some(player_arc) =
-            self.world().get_player_by_uuid(self.gameprofile.id)
-            && let Some(server) = self.world().server.upgrade()
+        let final_amount = if let Some(server) = self.world().server.upgrade()
+            && server
+                .plugin_manager
+                .has_handlers::<crate::plugin::api::events::player::player_statistic_increment::PlayerStatisticIncrementEvent>()
+            && let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
         {
             let mut event = crate::plugin::api::events::player::player_statistic_increment::PlayerStatisticIncrementEvent {
                 player: player_arc,
@@ -4549,15 +4556,20 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(CustomScoreboard::Java(sb)) = guard.as_ref()
+            && !sb.get_teams().is_empty()
             && let Some(team) = sb.get_entity_team(&self.gameprofile.name)
         {
             return Some(team.clone());
         }
+        drop(guard);
         let world = self.world();
         let sb = world
             .scoreboard
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if sb.get_teams().is_empty() {
+            return None;
+        }
         sb.get_entity_team(&self.gameprofile.name).cloned()
     }
 
@@ -4567,15 +4579,20 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(CustomScoreboard::Java(sb)) = guard.as_ref()
+            && !sb.get_teams().is_empty()
             && let Some(team) = sb.get_entity_team(&self.gameprofile.name)
         {
             return Some(team.name.clone());
         }
+        drop(guard);
         let world = self.world();
         let sb = world
             .scoreboard
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if sb.get_teams().is_empty() {
+            return None;
+        }
         sb.get_entity_team(&self.gameprofile.name)
             .map(|team| team.name.clone())
     }
@@ -6274,17 +6291,51 @@ impl Player {
     }
 
     fn tick_inventory_item_components(&self, server: &Server) {
-        use pumpkin_data::data_component_impl::LodestoneTrackerImpl;
+        use pumpkin_data::data_component_impl::{LodestoneTrackerImpl, MapPostProcessingImpl};
         use pumpkin_inventory::Inventory;
 
-        let world = self.world();
-        let inv_size = self.inventory.size();
-        let mut any_changed = false;
-        for slot_idx in 0..inv_size {
-            let mut stack = self.inventory.get_stack(slot_idx);
-            if stack.is_empty() {
-                continue;
+        let needs_tick = |stack: &ItemStack| -> bool {
+            !stack.is_empty()
+                && !stack.patch.is_empty()
+                && (stack
+                    .get_data_component::<MapPostProcessingImpl>()
+                    .is_some()
+                    || stack.get_data_component::<LodestoneTrackerImpl>().is_some())
+        };
+
+        let mut candidates: Vec<(usize, ItemStack)> = Vec::new();
+        {
+            let main = self
+                .inventory
+                .main_inventory
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for (slot_idx, stack) in main.iter().enumerate() {
+                if needs_tick(stack) {
+                    candidates.push((slot_idx, stack.clone()));
+                }
             }
+        }
+        {
+            let equipment = self
+                .inventory
+                .entity_equipment
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for (&slot_idx, eq_slot) in self.inventory.equipment_slots.iter() {
+                let stack = equipment.get(eq_slot);
+                if needs_tick(&stack) {
+                    candidates.push((slot_idx, stack));
+                }
+            }
+        }
+        if candidates.is_empty() {
+            return;
+        }
+
+        let world = self.world();
+        let mut any_changed = false;
+        for (slot_idx, mut stack) in candidates {
             let mut changed = crate::world::map::resolve_map_post_processing(&mut stack, server);
 
             if let Some(tracker) = stack.get_data_component::<LodestoneTrackerImpl>()
@@ -9594,6 +9645,31 @@ impl InventoryPlayer for Player {
         self.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::BrewedPotion,
         );
+    }
+
+    fn game_time(&self) -> i64 {
+        self.world().get_world_age()
+    }
+
+    fn sync_container_world_event(&self, event: pumpkin_data::world::WorldEvent) {
+        if let Some(pos) = self.open_container_pos.load() {
+            self.world().sync_world_event(event, pos, 0);
+        }
+    }
+
+    fn on_crafted_post_process(&self, stack: &mut pumpkin_data::item_stack::ItemStack) {
+        if let Some(server) = self.world().server.upgrade() {
+            crate::world::map::resolve_map_post_processing(stack, &server);
+        }
+    }
+
+    fn map_state(&self, map_id: i32) -> Option<(bool, i8)> {
+        let server = self.world().server.upgrade()?;
+        let map = server.map_manager.get_map(map_id)?;
+        let data = map
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Some((data.locked, data.scale))
     }
 }
 
