@@ -351,7 +351,8 @@ impl EntityBase for CushionEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        if let Some(current_vehicle) = current_vehicle {
+        // A dead weak ref means the old vehicle is already gone, so there is nothing to leave.
+        if let Some(current_vehicle) = current_vehicle.and_then(|weak| weak.upgrade()) {
             current_vehicle
                 .get_entity()
                 .remove_passenger(player.entity_id());
@@ -368,6 +369,7 @@ impl EntityBase for CushionEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
+            .and_then(|weak| weak.upgrade())
             .is_none_or(|vehicle| vehicle.get_entity().entity_id != self.entity.entity_id)
         {
             return false;
