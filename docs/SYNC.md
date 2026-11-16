@@ -8,3 +8,4 @@ master...upstream/master (ours theirs): 54	3
 2026-11-16 18:39 ahead 311 behind 2
 2026-11-16 19:31 ahead 0 behind 0 (pushed 25 commits, workspace check exit 0)
 2026-11-16 19:38 ahead 337 behind 0
+2026-11-16 20:48 ahead 431 behind 0 (merged upstream #4602 keeping our leash impl, workspace check exit 0)
