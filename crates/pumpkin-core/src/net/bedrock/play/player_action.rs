@@ -261,14 +261,8 @@ impl BedrockClient {
             PlayerAction::StopSprinting => {
                 player.apply_sprint_input(server, false);
             }
-            PlayerAction::StartCrawling => {
-                player
-                    .get_entity()
-                    .set_pose(pumpkin_data::entity::EntityPose::Swimming);
-            }
-            PlayerAction::StopCrawling => {
-                player.update_player_pose();
-            }
+            // Bedrock has no crawl pose, so StartCrawling/StopCrawling are ignored.
+            PlayerAction::StartCrawling | PlayerAction::StopCrawling => {}
             PlayerAction::StopSleeping => {
                 player.wake_up();
             }

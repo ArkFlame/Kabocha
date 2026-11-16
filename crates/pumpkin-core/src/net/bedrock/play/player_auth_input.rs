@@ -63,11 +63,8 @@ impl BedrockClient {
             player.update_player_pose();
         }
 
-        if flags.get(InputData::StartCrawling as usize) {
-            entity.set_pose(EntityPose::Swimming);
-        } else if flags.get(InputData::StopCrawling as usize) {
-            player.update_player_pose();
-        }
+        // Bedrock has no crawl pose: the client sends StartCrawling when it squeezes
+        // into a one block gap, which vanilla never turns into a crawl.
 
         if flags.get(InputData::StartSpinAttack as usize) {
             entity.set_pose(EntityPose::SpinAttack);
