@@ -3337,6 +3337,7 @@ dependencies = [
  "libloading",
  "md5",
  "notify",
+ "percent-encoding",
  "png",
  "pumpkin-auth",
  "pumpkin-command",
