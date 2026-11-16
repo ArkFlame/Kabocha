@@ -152,3 +152,18 @@ Format: `- #N (PR|issue) title [commit]`
 - #4368 (PR) merged
 - #3905 (PR) merged
 - #3961 (PR, skipped: boat.rs already has chest boat inventory)
+- #4505 (PR, committed, batch 8 compiled)
+- #2482 (PR, committed, batch 8 compiled)
+- #3859 (PR, committed, batch 8 compiled)
+- #3813 (PR, committed, batch 8 compiled)
+- #3543 (PR, committed, batch 8 compiled)
+- #3433 (PR, committed, batch 8 compiled)
+- #3800 (PR, committed, batch 8 compiled)
+- #3755 (PR, committed, batch 8 compiled)
+- #3955 (PR, committed, batch 8 compiled)
+- #4584 (PR, committed, batch 8 compiled)
+- #4086 (PR, committed, batch 8 compiled)
+- #4525 (PR, committed, batch 8 compiled)
+- #3863 (PR, committed, batch 8 compiled)
+- #4426 (PR, committed, batch 8 compiled)
+- #4418 (PR, committed, batch 8 compiled)
