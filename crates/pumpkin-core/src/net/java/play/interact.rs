@@ -149,6 +149,13 @@ impl JavaClient {
                             target: event.target.as_ref(),
                         },
                     );
+                    // Vanilla swings the used hand whenever the entity interaction consumes the action.
+                    let swing_hand = if hand.is_some_and(|h| h.0 != 0) {
+                        pumpkin_util::Hand::Left
+                    } else {
+                        pumpkin_util::Hand::Right
+                    };
+                    player.swing_hand(swing_hand, true);
                 }
                 if !interacted {
                     server
