@@ -194,6 +194,9 @@ pub struct BedrockClient {
     pub teleport_unconfirmed_inputs: AtomicU32,
     /// Network position of the last own teleport `MovePlayer`, which the client must reach.
     pub teleport_sent_pos: AtomicCell<pumpkin_util::math::vector3::Vector3<f32>>,
+    /// Whether the player has been spawned into its world; set by the first completed
+    /// resource pack response so later ones cannot spawn it again.
+    spawned: AtomicBool,
     /// Separate from normal vitals caching so the first rejected use always gets corrected.
     last_food_rejection_tick: AtomicCell<Option<i32>>,
     pub client_cache_supported: AtomicBool,
@@ -250,6 +253,7 @@ impl BedrockClient {
             last_latency_send: AtomicCell::new(Instant::now()),
             teleport_unconfirmed_inputs: AtomicU32::new(0),
             teleport_sent_pos: AtomicCell::new(pumpkin_util::math::vector3::Vector3::default()),
+            spawned: AtomicBool::new(false),
             last_food_rejection_tick: AtomicCell::new(None),
             client_cache_supported: AtomicBool::new(false),
             blob_cache: std::sync::Mutex::new(blob_cache::BlobCache::new()),
