@@ -82,6 +82,21 @@ impl WasmCommandNode {
     }
 
     #[must_use]
+    pub fn requires<F>(self, requirement: F) -> Self
+    where
+        F: for<'a> Fn(&'a pumpkin_core::command::context::command_source::CommandSource) -> bool
+            + Send
+            + Sync
+            + 'static,
+    {
+        use pumpkin_core::command::argument_builder::ArgumentBuilder;
+        match self {
+            Self::Literal(b) => Self::Literal(b.requires(requirement)),
+            Self::Argument(b) => Self::Argument(b.requires(requirement)),
+        }
+    }
+
+    #[must_use]
     pub fn into_detached_node(self) -> pumpkin_core::command::node::detached::DetachedNode {
         use pumpkin_core::command::argument_builder::ArgumentBuilder;
         match self {
