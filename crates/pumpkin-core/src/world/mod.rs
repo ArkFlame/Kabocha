@@ -4689,19 +4689,22 @@ impl World {
     pub fn run_explosion(self: &Arc<Self>, explosion: &Explosion<'_>) {
         let position = explosion.center();
         let power = explosion.power();
-        let mut event = crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
-            explosion
-                .source()
-                .map_or(0, |source| source.get_entity().entity_id),
-            position,
-            power,
-            self.clone(),
-        );
-        if let Some(server) = self.server.upgrade() {
-            server.plugin_manager.fire_blocking(&server, &mut event);
-        }
-        if event.cancelled {
-            return;
+        // Vanilla fires the entity event only for entity sources; block sources (beds, respawn
+        // anchors) fire `block-explode` from the block interaction below instead.
+        if let Some(source) = explosion.source() {
+            let mut event =
+                crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
+                    source.get_entity().entity_id,
+                    position,
+                    power,
+                    self.clone(),
+                );
+            if let Some(server) = self.server.upgrade() {
+                server.plugin_manager.fire_blocking(&server, &mut event);
+            }
+            if event.cancelled {
+                return;
+            }
         }
 
         let result = explosion.explode(self);

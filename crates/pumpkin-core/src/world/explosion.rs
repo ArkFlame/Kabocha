@@ -776,22 +776,26 @@ impl<'a> Explosion<'a> {
                 0
             }
             BlockInteraction::Destroy | BlockInteraction::DestroyWithDecay => {
-                let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
-                let mut event =
-                    crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
-                        center_pos,
-                        if self.power > 0.0 {
-                            1.0 / self.power
-                        } else {
-                            1.0
-                        },
-                        world.clone(),
-                    );
-                if let Some(server) = world.server.upgrade() {
-                    server.plugin_manager.fire_blocking(&server, &mut event);
-                }
-                if event.cancelled {
-                    return 0;
+                // Entity explosions already fired `entity-explode`, matching vanilla; only
+                // source-less (block) explosions fire `block-explode`.
+                if self.source.is_none() {
+                    let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
+                    let mut event =
+                        crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
+                            center_pos,
+                            if self.power > 0.0 {
+                                1.0 / self.power
+                            } else {
+                                1.0
+                            },
+                            world.clone(),
+                        );
+                    if let Some(server) = world.server.upgrade() {
+                        server.plugin_manager.fire_blocking(&server, &mut event);
+                    }
+                    if event.cancelled {
+                        return 0;
+                    }
                 }
 
                 let (blocks, affected_positions) = self.get_blocks_to_destroy(world);
