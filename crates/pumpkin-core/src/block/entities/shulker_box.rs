@@ -177,12 +177,18 @@ impl BlockEntity for ShulkerBoxBlockEntity {
 impl ViewerCountListener for ShulkerBoxBlockEntity {
     fn on_container_open(&self, world: &Arc<World>, position: &BlockPos) {
         Self::play_sound(world, position, 1);
-        // TODO: this.world.emitGameEvent(player, GameEvent.CONTAINER_OPEN, this.pos);
+        world.emit_game_event(
+            pumpkin_data::game_event::GameEvent::ContainerOpen.name(),
+            position.to_centered_f64(),
+        );
     }
 
     fn on_container_close(&self, world: &Arc<World>, position: &BlockPos) {
         Self::play_sound(world, position, 0);
-        // TODO: this.world.emitGameEvent(player, GameEvent.CONTAINER_CLOSE, this.pos);
+        world.emit_game_event(
+            pumpkin_data::game_event::GameEvent::ContainerClose.name(),
+            position.to_centered_f64(),
+        );
     }
 
     fn on_viewer_count_update(&self, world: &Arc<World>, position: &BlockPos, _old: u16, new: u16) {
