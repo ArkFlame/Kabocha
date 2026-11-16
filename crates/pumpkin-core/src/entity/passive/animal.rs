@@ -48,7 +48,7 @@ pub trait Animal: Mob {
         true
     }
 
-    /// Extra partner checks on top of the type and love checks in `BreedGoal`.
+    /// Extra partner checks on top of the breeding behavior's type and love checks.
     fn can_mate(&self, _partner: &dyn EntityBase) -> bool {
         true
     }
