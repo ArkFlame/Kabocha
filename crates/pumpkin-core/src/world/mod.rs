@@ -12,7 +12,7 @@ use pumpkin_protocol::bedrock::client::{
 };
 use pumpkin_protocol::bedrock::network_item::NetworkItemDescriptor;
 use pumpkin_protocol::codec::data_component::data_to_proto_sound;
-use pumpkin_world::generation::proto_chunk::GenerationCache;
+use pumpkin_world::generation::proto_chunk::{GenerationCache, StructureEntity};
 use pumpkin_world::poi::{PoiStorage, SectionPos};
 use rayon::prelude::*;
 use std::cell::Cell;
@@ -8521,12 +8521,20 @@ impl WorldPortalExt for WorldPortal {
         natural_spawner::spawn_mobs_for_chunk_generation(&self.0, cache, biome, chunk_x, chunk_z);
     }
 
-    fn spawn_structure_entities(&self, entities: Vec<(NbtCompound, &'static Biome)>) {
-        for (mut nbt, biome) in entities {
+    fn spawn_structure_entities(&self, entities: Vec<(StructureEntity, &'static Biome)>) {
+        for (StructureEntity { mut nbt, finalize }, biome) in entities {
             nbt.child_tags.remove("UUID");
             if let Some(entity) = load_static_entity_from_nbt(&nbt, Vector3::default(), &self.0) {
                 if let Some(mob) = entity.get_mob() {
                     mob.finalize_spawn_in_biome(biome);
+                }
+                if finalize {
+                    crate::entity::mob::spawn::finalize_spawn(
+                        &entity,
+                        &self.0,
+                        crate::entity::mob::spawn::EntitySpawnReason::Structure,
+                        None,
+                    );
                 }
                 self.0.spawn_entity(entity);
             }

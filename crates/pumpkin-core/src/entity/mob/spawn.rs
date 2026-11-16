@@ -11,6 +11,7 @@ use crate::entity::EntityBase;
 use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::mob::MobEntity;
 use crate::entity::passive::fox::FoxVariant;
+use crate::entity::mob::equipment::{EQUIPMENT_REGISTRY, RegionalDifficulty, equip_mob_on_spawn};
 use crate::world::World;
 
 pub(crate) const RANDOM_SPAWN_BONUS_ID: &str = "minecraft:random_spawn_bonus";
@@ -79,6 +80,23 @@ impl MobEntity {
             }
         }
         self.set_left_handed(rng.random::<f32>() < 0.05);
+        self.populate_spawn_equipment();
+    }
+
+    /// Loot pickup and spawn equipment of the mobs in `EQUIPMENT_REGISTRY`, rolled once in
+    /// `finalizeSpawn` like vanilla (`setCanPickUpLoot`, `populateDefaultEquipmentSlots`), never
+    /// when a saved mob is loaded.
+    fn populate_spawn_equipment(&self) {
+        let entity = &self.living_entity.entity;
+        let Some(def) = EQUIPMENT_REGISTRY.get(entity.entity_type.resource_name) else {
+            return;
+        };
+        let world = entity.world.load();
+        if def.can_pick_up_loot {
+            let difficulty = RegionalDifficulty::at(&world, entity.pos.load());
+            self.set_can_pick_up_loot(rand::random::<f32>() < 0.55 * difficulty.special_multiplier);
+        }
+        equip_mob_on_spawn(self, &world);
     }
 
     /// Queues a mob to be added and mounted onto this one when it enters the world.

@@ -159,11 +159,19 @@ pub struct ProtoChunk {
     pub light: ChunkLight,
     pub blending_data: Option<crate::generation::blender::blending_data::BlendingData>,
     pub pending_block_entities: Vec<NbtCompound>,
-    pending_structure_entities: Vec<NbtCompound>,
+    pending_structure_entities: Vec<StructureEntity>,
     pub fluid_ticks: Vec<ScheduledTick<&'static Fluid>>,
     pub(crate) surface_height_cache: FxHashMap<u64, i32>,
     pub(crate) aquifer_sampler:
         Option<Box<crate::generation::noise::aquifer_sampler::WorldAquiferSampler>>,
+}
+
+/// An entity a structure placed, spawned once its chunk is generated.
+pub struct StructureEntity {
+    pub nbt: NbtCompound,
+    /// Vanilla runs `finalizeSpawn` (reason `STRUCTURE`) on a mob spawned by a structure's
+    /// data marker or jigsaw piece, but not on one from a plain template.
+    pub finalize: bool,
 }
 
 pub struct TerrainCache {
@@ -450,11 +458,12 @@ impl ProtoChunk {
         std::mem::take(&mut self.pending_block_entities)
     }
 
-    pub fn add_structure_entity(&mut self, nbt: NbtCompound) {
-        self.pending_structure_entities.push(nbt);
+    pub fn add_structure_entity(&mut self, nbt: NbtCompound, finalize: bool) {
+        self.pending_structure_entities
+            .push(StructureEntity { nbt, finalize });
     }
 
-    pub fn take_pending_structure_entities(&mut self) -> Vec<NbtCompound> {
+    pub fn take_pending_structure_entities(&mut self) -> Vec<StructureEntity> {
         std::mem::take(&mut self.pending_structure_entities)
     }
 
@@ -1154,10 +1163,10 @@ impl ProtoChunk {
         let entities = center
             .take_pending_structure_entities()
             .into_iter()
-            .map(|nbt| {
-                let entity_biome = structure_entity_position(&nbt)
+            .map(|entity| {
+                let entity_biome = structure_entity_position(&entity.nbt)
                     .map_or(biome, |(x, y, z)| center.get_terrain_gen_biome(x, y, z));
-                (nbt, entity_biome)
+                (entity, entity_biome)
             })
             .collect();
         block_registry.spawn_structure_entities(entities);
