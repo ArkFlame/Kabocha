@@ -339,7 +339,7 @@ pub struct LocationPredicate {
     pub block: Option<TagOrIdMatcher>,
     pub can_see_sky: Option<bool>,
     pub smokey: Option<bool>,
-    pub structure: Option<String>,
+    pub structure: Option<TagOrIdMatcher>,
     pub stepping_on: Option<TagOrIdMatcher>,
     pub feet_item: Option<TagOrIdMatcher>,
 }
@@ -357,6 +357,7 @@ impl LocationPredicate {
         smokey: Option<bool>,
         stepping_block: Option<&str>,
         feet_item: Option<&str>,
+        structure: Option<&str>,
     ) -> bool {
         if let Some(x) = &self.x
             && !x.matches(pos.0)
@@ -423,7 +424,15 @@ impl LocationPredicate {
         {
             return false;
         }
-        self.structure.is_none()
+        if let Some(structure_matcher) = &self.structure {
+            let Some(current) = structure else {
+                return false;
+            };
+            if !structure_matcher.matches(RegistryKey::WorldgenStructure, current) {
+                return false;
+            }
+        }
+        true
     }
 
     #[must_use]
@@ -476,10 +485,7 @@ impl LocationPredicate {
         let structure = loc_map
             .get("structures")
             .or_else(|| loc_map.get("structure"))
-            .map(|v| {
-                v.as_str()
-                    .map_or_else(|| v.to_string(), ToString::to_string)
-            });
+            .and_then(TagOrIdMatcher::from_value);
 
         let player_pred = map.get("player").and_then(|p| p.get("predicate"));
         let stepping_on = player_pred
@@ -1564,7 +1570,9 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 }),
                 can_see_sky: l.can_see_sky,
                 smokey: l.smokey,
-                structure: l.structure.map(ToString::to_string),
+                structure: l.structure.map(|s| TagOrIdMatcher {
+                    patterns: vec![s.to_string()],
+                }),
                 stepping_on: l.stepping_on.map(|b| TagOrIdMatcher {
                     patterns: vec![b.to_string()],
                 }),
@@ -2221,6 +2229,7 @@ pub fn matches_location_condition(
     can_see_sky: Option<bool>,
     step_block: Option<&str>,
     feet_item: Option<&str>,
+    structure: Option<&str>,
     _is_sneaking: bool,
 ) -> bool {
     LocationPredicate::from_value(cond).matches(
@@ -2232,6 +2241,7 @@ pub fn matches_location_condition(
         None,
         step_block,
         feet_item,
+        structure,
     )
 }
 
@@ -2411,6 +2421,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
         ));
         assert!(!matches_location_condition(
@@ -2419,6 +2430,7 @@ mod tests {
             Some("desert"),
             Some("minecraft:overworld"),
             &[],
+            None,
             None,
             None,
             None,
@@ -2481,6 +2493,42 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+            ));
+        }
+    }
+
+    #[test]
+    fn location_structure_condition_matches_inside_that_structure() {
+        for structures in [json!("minecraft:fortress"), json!(["minecraft:fortress"])] {
+            let predicate = LocationPredicate::from_value(&json!({
+                "player": {
+                    "type": "minecraft:entity_properties",
+                    "entity": "this",
+                    "predicate": { "minecraft:location": { "structures": structures } }
+                }
+            }));
+            assert!(predicate.matches(
+                (0.0, 64.0, 0.0),
+                Some("nether_wastes"),
+                Some("minecraft:the_nether"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some("fortress"),
+            ));
+            assert!(!predicate.matches(
+                (0.0, 64.0, 0.0),
+                Some("nether_wastes"),
+                Some("minecraft:the_nether"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some("bastion_remnant"),
             ));
         }
     }

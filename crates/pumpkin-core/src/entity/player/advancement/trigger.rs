@@ -307,16 +307,23 @@ impl Player {
                     });
 
                 self.trigger_criterion_event("minecraft:location", |cond| match cond {
-                    CriterionConditions::Location(pred) => pred.matches(
-                        (pos.x, pos.y, pos.z),
-                        Some(biome),
-                        Some(dimension),
-                        step_block,
-                        None,
-                        None,
-                        stepping_block,
-                        feet_item.as_deref(),
-                    ),
+                    CriterionConditions::Location(pred) => {
+                        let structure = pred
+                            .structure
+                            .as_ref()
+                            .and_then(|_| world.structure_at(block_pos));
+                        pred.matches(
+                            (pos.x, pos.y, pos.z),
+                            Some(biome),
+                            Some(dimension),
+                            step_block,
+                            None,
+                            None,
+                            stepping_block,
+                            feet_item.as_deref(),
+                            structure,
+                        )
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });

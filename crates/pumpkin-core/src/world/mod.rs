@@ -7084,6 +7084,16 @@ impl World {
         })
     }
 
+    /// The structure piece covering `pos`, if any.
+    #[must_use]
+    pub fn structure_at(&self, pos: BlockPos) -> Option<&'static str> {
+        self.level
+            .world_gen
+            .load()
+            .structure_piece_at(pos)
+            .map(|key| key.to_name())
+    }
+
     /// Whether `pos` lies in a piece of a generated structure from the `structures` tag.
     #[must_use]
     pub fn has_structure_piece_at(
