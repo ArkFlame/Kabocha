@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use pumpkin_util::text::{
     TextComponent,
@@ -8,7 +8,7 @@ use pumpkin_util::text::{
 use crate::pumpkin::plugin::command::{CommandError as CommandErrorWit, SuggestionRequest};
 use pumpkin_core::{
     command::{
-        context::command_context::CommandContext,
+        context::{command_context::CommandContext, command_source::CommandSource},
         errors::error_types::DISPATCHER_PARSE_EXCEPTION,
         node::{CommandExecutor, CommandExecutorResult},
         suggestion::{
@@ -43,6 +43,82 @@ fn map_command_result(
                     .take(resource)
                     .expect("todo: make this method return a result"),
             )),
+    }
+}
+
+pub struct WasmCommandRequirement {
+    pub handler_id: u32,
+    pub plugin: Arc<WasmPlugin>,
+    pub server: Arc<Server>,
+}
+
+impl WasmCommandRequirement {
+    #[must_use]
+    pub fn evaluate(&self, source: &CommandSource) -> bool {
+        let sender = source.output.clone();
+        let server = self.server.clone();
+        let handler_id = self.handler_id;
+        let function = {
+            let plugin = self.plugin.instance::<crate::Plugin>();
+            plugin.func_handle_command()
+        };
+
+        let runtime = self.server.runtime.clone();
+        block_on_callback(&runtime, async {
+            match self
+                .plugin
+                .store
+                .call_guest(move |mut guest| {
+                    Box::pin(async move {
+                        let (sender_resource, server_resource, args_resource) =
+                            guest.with(|mut store| {
+                                let sender_resource = store.data_mut().add(sender)?;
+                                let server_resource = match store.data_mut().add(server) {
+                                    Ok(resource) => resource,
+                                    Err(error) => {
+                                        store.data_mut().discard(sender_resource);
+                                        return Err(error);
+                                    }
+                                };
+                                let args_resource = match store.data_mut().add(HashMap::new()) {
+                                    Ok(resource) => resource,
+                                    Err(error) => {
+                                        store.data_mut().discard(sender_resource);
+                                        store.data_mut().discard(server_resource);
+                                        return Err(error);
+                                    }
+                                };
+                                Ok::<_, wasmtime::Error>((
+                                    sender_resource,
+                                    server_resource,
+                                    args_resource,
+                                ))
+                            })?;
+
+                        let result = guest
+                            .call(
+                                function,
+                                (handler_id, sender_resource, server_resource, args_resource),
+                            )
+                            .await;
+
+                        guest.with(|mut store| {
+                            result.map(|(result,)| {
+                                map_command_result(store.data_mut(), result)
+                                    .is_ok_and(|value| value != 0)
+                            })
+                        })
+                    })
+                })
+                .await
+            {
+                Ok(allowed) => allowed,
+                Err(error) => {
+                    tracing::error!("Wasm command requirement failed: {error}");
+                    false
+                }
+            }
+        })
     }
 }
 
