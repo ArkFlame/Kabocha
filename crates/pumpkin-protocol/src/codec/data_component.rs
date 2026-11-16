@@ -1970,7 +1970,6 @@ impl DataComponentCodec<Self> for IntangibleProjectileImpl {
         Ok(Self)
     }
 }
-}
 
 impl DataComponentCodec<Self> for FoodImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
