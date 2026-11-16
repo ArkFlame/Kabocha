@@ -636,8 +636,48 @@ impl Server {
         });
     }
 
+    /// Copies the overworld world border into the level data so `/worldborder`
+    /// changes survive a restart, like vanilla's level.dat border fields.
+    fn sync_level_border(&self) {
+        let Some(world) = self
+            .worlds
+            .load()
+            .iter()
+            .find(|world| world.dimension.minecraft_name == Dimension::OVERWORLD.minecraft_name)
+            .cloned()
+        else {
+            return;
+        };
+        let border = world
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let center_x = border.center_x;
+        let center_z = border.center_z;
+        let size = border.new_diameter;
+        let warning_blocks = f64::from(border.warning_blocks);
+        let warning_time = f64::from(border.warning_time);
+        let damage_per_block = f64::from(border.damage_per_block);
+        let safe_zone = f64::from(border.buffer);
+        drop(border);
+        self.level_info.rcu(|info| {
+            let mut info = (**info).clone();
+            info.border_center_x = center_x;
+            info.border_center_z = center_z;
+            info.border_size = size;
+            info.border_size_lerp_target = size;
+            info.border_size_lerp_time = 0;
+            info.border_warning_blocks = warning_blocks;
+            info.border_warning_time = warning_time;
+            info.border_damage_per_block = damage_per_block;
+            info.border_safe_zone = safe_zone;
+            info
+        });
+    }
+
     pub fn save_world_info(&self) -> Result<(), WorldInfoError> {
         self.sync_level_time();
+        self.sync_level_border();
         let level_data = self.level_info.load();
         self.world_info_writer
             .write_world_info(&level_data, &self.basic_config.get_world_path())
@@ -1007,6 +1047,7 @@ impl Server {
             world.shutdown().await;
         }
         self.sync_level_time();
+        self.sync_level_border();
         let level_data = self.level_info.load();
         // then lets save the world info
 

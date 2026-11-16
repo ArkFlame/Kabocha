@@ -538,6 +538,16 @@ impl World {
         let mut level_time = LevelTime::new();
         let info = level_info.load();
         level_time.load_from(info.day_time, info.game_time);
+        let mut worldborder = Worldborder::new(
+            info.border_center_x,
+            info.border_center_z,
+            info.border_size,
+            0,
+            info.border_warning_blocks as i32,
+            info.border_warning_time as i32,
+        );
+        worldborder.damage_per_block = info.border_damage_per_block as f32;
+        worldborder.buffer = info.border_safe_zone as f32;
         drop(info);
 
         // Load portal POI from disk (PoiStorage::new automatically loads from disk if files exist)
@@ -575,14 +585,7 @@ impl World {
             entity_index: Arc::default(),
             island_schedule: std::sync::Mutex::default(),
             scoreboard: std::sync::Mutex::new(Scoreboard::default()),
-            worldborder: std::sync::Mutex::new(Worldborder::new(
-                0.0,
-                0.0,
-                5.999_996_8E7,
-                0,
-                5,
-                300,
-            )),
+            worldborder: std::sync::Mutex::new(worldborder),
             level_time: std::sync::Mutex::new(level_time),
             dimension,
             weather: std::sync::Mutex::new(Weather::new()),
