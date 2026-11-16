@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::translation;
 use pumpkin_protocol::bedrock::client::CMovePlayer;
 use pumpkin_protocol::java::client::play::{
@@ -9,8 +10,10 @@ use pumpkin_protocol::java::client::play::{
 };
 use pumpkin_protocol::java::server::play::SPlayerInput;
 use pumpkin_util::GameMode;
-use pumpkin_util::math::{vector3::Vector3, wrap_degrees};
+use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
 use pumpkin_util::text::TextComponent;
+
+use tracing::warn;
 
 use crate::entity::EntityBase;
 use crate::net::{ClientPlatform, DisconnectReason};
@@ -247,6 +250,39 @@ impl Player {
             return ClientMoveOutcome::Rejected;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl` "moved too quickly" check. Bedrock input arrives
+        // through its own path and is not covered by this Java threshold.
+        if matches!(self.client.as_ref(), ClientPlatform::Java(_))
+            && let Some(pos) = target
+        {
+            let received = self
+                .received_move_packet_count
+                .fetch_add(1, Ordering::Relaxed)
+                + 1;
+            let mut packets = received.saturating_sub(
+                self.known_move_packet_count.load(Ordering::Relaxed),
+            );
+            if packets > 5 {
+                // Vanilla resets the sample when a client floods move packets.
+                packets = 1;
+            }
+            let moved = pos.squared_distance_to_vec(&last_pos);
+            let known_movement = entity.velocity.load().length_squared();
+            let allowance = if entity.is_fall_flying() { 300.0 } else { 100.0 }
+                * f64::from(packets);
+            if moved - known_movement > allowance {
+                warn!(
+                    "{} moved too quickly! {},{},{}",
+                    self.gameprofile.name,
+                    pos.x - last_pos.x,
+                    pos.y - last_pos.y,
+                    pos.z - last_pos.z
+                );
+                self.reject_client_move();
+                return ClientMoveOutcome::Rejected;
+            }
+        }
+
         if let Some(pos) = target
             && pos != last_pos
             && server.plugin_manager.has_handlers::<PlayerMoveEvent>()
@@ -276,6 +312,23 @@ impl Player {
         entity.set_pos(pos);
 
         let delta = Vector3::new(pos.x - last_pos.x, pos.y - last_pos.y, pos.z - last_pos.z);
+        // Vanilla `clientIsFloating`: an accepted move that does not descend and has no block
+        // below the player looks like survival flight. `Player::tick` kicks after the grace budget.
+        if matches!(self.client.as_ref(), ClientPlatform::Java(_)) {
+            let allow_flying = self
+                .abilities
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .allow_flying;
+            let floating = delta.y >= -0.03125
+                && !allow_flying
+                && !self.is_spectator()
+                && !self.living_entity.has_effect(&StatusEffect::LEVITATION)
+                && !entity.is_fall_flying()
+                && !self.living_entity.is_auto_spin_attack()
+                && self.no_blocks_around();
+            self.client_is_floating.store(floating, Ordering::Relaxed);
+        }
         let distance = last_pos.squared_distance_to_vec(&pos).sqrt();
         let cm = (distance * 100.0) as i32;
         if cm > 0 {
@@ -392,6 +445,28 @@ impl Player {
                 [],
             ),
         );
+    }
+
+    /// Vanilla `multiplayer.disconnect.flying`, sent when a client floats past the gravity budget.
+    pub(crate) fn kick_flying(&self) {
+        self.client.try_kick(
+            DisconnectReason::Kicked,
+            &TextComponent::translate(translation::java::MULTIPLAYER_DISCONNECT_FLYING, &[]),
+        );
+    }
+
+    /// Vanilla `noBlocksAround`: no block inside the hitbox inflated by `0.0625` and extended
+    /// `0.55` downwards.
+    fn no_blocks_around(&self) -> bool {
+        let entity = self.get_entity();
+        let bounds = entity
+            .bounding_box
+            .load()
+            .expand_all(0.0625)
+            .expand_towards(0.0, -0.55, 0.0);
+        let world = entity.world.load_full();
+        BlockPos::iterate(bounds.min_block_pos(), bounds.max_block_pos())
+            .all(|pos| world.get_block_state(&pos).is_air())
     }
 
     fn broadcast_client_move(

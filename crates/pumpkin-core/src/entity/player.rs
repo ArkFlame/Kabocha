@@ -700,6 +700,15 @@ pub struct Player {
     pub bedrock_spawned: AtomicBool,
     /// Whether the player is frozen in place (movement locked for dialogues/cutscenes).
     pub is_movement_locked: AtomicBool,
+    /// Move packets with a position received since the last tick, for the vanilla
+    /// "moved too quickly" threshold scaling.
+    pub received_move_packet_count: AtomicU32,
+    /// Move packet count at the start of the last tick, see `received_move_packet_count`.
+    pub known_move_packet_count: AtomicU32,
+    /// Vanilla `clientIsFloating`: the last accepted move left the player in the air.
+    pub client_is_floating: AtomicBool,
+    /// Vanilla `aboveGroundTickCount`: ticks spent floating while `client_is_floating`.
+    pub above_ground_tick_count: AtomicU32,
     /// The amount of time (in ticks) the client has to report having finished loading before being timed out.
     pub client_loaded_timeout: AtomicU32,
     /// Counter for tracking chat and command spam. Decays each server tick.
@@ -1039,6 +1048,10 @@ impl Player {
             previous_gamemode: AtomicCell::new(None),
             camera_target_id: AtomicCell::new(None),
             is_movement_locked: AtomicBool::new(false),
+            received_move_packet_count: AtomicU32::new(0),
+            known_move_packet_count: AtomicU32::new(0),
+            client_is_floating: AtomicBool::new(false),
+            above_ground_tick_count: AtomicU32::new(0),
             // TODO: Send the CPlayerSpawnPosition packet when the client connects with proper values
             respawn_point: std::sync::Mutex::new(None),
             last_death_location: std::sync::Mutex::new(None),
@@ -3309,6 +3322,32 @@ impl Player {
             client.tick_network_latency(self);
         }
         self.tick_shoulders();
+
+        // Vanilla `ServerGamePacketListenerImpl.tickPlayer`: packets seen this tick are now
+        // "known", and a client that keeps floating past the gravity budget is kicked.
+        const MAX_FLYING_TICKS: u32 = 80;
+        self.known_move_packet_count.store(
+            self.received_move_packet_count.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
+        if self.client_is_floating.load(Ordering::Relaxed)
+            && !self.is_sleeping()
+            && !self.get_entity().has_vehicle()
+            && !self.living_entity.is_dead_or_dying()
+        {
+            let ticks = self.above_ground_tick_count.fetch_add(1, Ordering::Relaxed) + 1;
+            if ticks > MAX_FLYING_TICKS {
+                warn!(
+                    "{} was kicked for floating too long!",
+                    self.gameprofile.name
+                );
+                self.kick_flying();
+                return;
+            }
+        } else {
+            self.client_is_floating.store(false, Ordering::Relaxed);
+            self.above_ground_tick_count.store(0, Ordering::Relaxed);
+        }
 
         if self.is_spectator() {
             self.living_entity
