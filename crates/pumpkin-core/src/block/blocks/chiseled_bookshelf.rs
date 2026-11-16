@@ -152,6 +152,7 @@ impl ChiseledBookshelfBlock {
         entity.update_state(properties, world, slot);
 
         world.play_sound(sound, SoundCategory::Blocks, &position.to_centered_f64());
+        world.emit_game_event(GameEvent::BlockChange.name(), position.to_centered_f64());
     }
 
     fn try_remove_book(
