@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::effect::StatusEffect;
@@ -14,6 +15,7 @@ use pumpkin_data::tracked_data;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
@@ -55,6 +57,10 @@ fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStac
 ///
 /// Wiki: <https://minecraft.wiki/w/Witch>
 const WITCH_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
+
+/// Vanilla `Witch.SPEED_MODIFIER_DRINKING`: -0.25 `ADD_VALUE` while drinking.
+const SPEED_MODIFIER_DRINKING_ID: &str = "minecraft:drinking";
+const SPEED_MODIFIER_DRINKING_AMOUNT: f64 = -0.25;
 
 pub struct WitchEntity {
     pub mob_entity: MobEntity,
@@ -111,6 +117,19 @@ impl WitchEntity {
     }
 
     pub fn set_drinking_potion(&self, drinking: bool) {
+        // Vanilla `Witch.setDrinkingPotion` swaps the transient speed modifier.
+        self.mob_entity
+            .living_entity
+            .update_attribute(&Attributes::MOVEMENT_SPEED, |speed| {
+                speed.remove_modifier(SPEED_MODIFIER_DRINKING_ID);
+                if drinking {
+                    speed.add_or_replace_modifier(Modifier {
+                        id: SPEED_MODIFIER_DRINKING_ID.to_string(),
+                        amount: SPEED_MODIFIER_DRINKING_AMOUNT,
+                        operation: ModifierOperation::Add,
+                    });
+                }
+            });
         self.drinking_potion.store(drinking, Ordering::Relaxed);
         self.mob_entity
             .living_entity
