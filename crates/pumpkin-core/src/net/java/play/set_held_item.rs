@@ -21,6 +21,17 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl.handleSetCarriedItem` stops using the item when
+        // the main hand slot changes, so a switch cancels eating/drinking instead of completing it.
+        let active_hand = *player
+            .living_entity
+            .active_hand
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if previous_slot != slot && active_hand == Some(Hand::Right) {
+            player.living_entity.clear_active_hand();
+        }
+
         let inv = player.inventory();
         inv.set_selected_slot(slot);
         let stack = inv.held_item();
