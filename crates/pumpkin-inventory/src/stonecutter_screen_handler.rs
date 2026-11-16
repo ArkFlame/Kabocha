@@ -275,7 +275,7 @@ impl ScreenHandler for StonecutterScreenHandler {
         player: &dyn InventoryPlayer,
     ) {
         self.internal_on_slot_click(slot_index, button, action_type, player);
-        self.state.slots_changed();
+        self.update_output();
     }
 
     fn quick_move(&mut self, player: &dyn InventoryPlayer, slot_index: i32) -> ItemStack {
