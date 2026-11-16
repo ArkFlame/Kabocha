@@ -95,8 +95,10 @@ impl ScreenProperty {
     /// - `value` - The property delegate that holds the actual value
     /// - `index` - The property index for multi-value delegates
     pub fn new(value: Arc<dyn PropertyDelegate>, index: u8) -> Self {
+        // Start at 0 like vanilla DataSlot.lastValue, so a freshly opened screen
+        // sends non-zero properties (e.g. crafter disabled slots) to the client.
         Self {
-            old_value: value.get_property(i32::from(index)),
+            old_value: 0,
             index,
             value,
         }
