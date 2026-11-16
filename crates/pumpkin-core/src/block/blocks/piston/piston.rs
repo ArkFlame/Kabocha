@@ -42,13 +42,17 @@ impl BlockMetadata for PistonBlock {
 impl PistonBlock {
     #[must_use]
     pub fn is_movable(
+        world: &World,
+        pos: &BlockPos,
         block: &Block,
         state: &BlockState,
         dir: BlockDirection,
         can_break: bool,
         piston_dir: BlockDirection,
     ) -> bool {
-        // TODO: more checks
+        if !world.is_in_height_limit(pos.0.y) {
+            return false;
+        }
         if state.is_air() {
             return true;
         }
@@ -58,6 +62,12 @@ impl PistonBlock {
             || block == &Block::RESPAWN_ANCHOR
             || block == &Block::REINFORCED_DEEPSLATE
         {
+            return false;
+        }
+        if dir == BlockDirection::Down && pos.0.y == world.get_bottom_y() {
+            return false;
+        }
+        if dir == BlockDirection::Up && pos.0.y == world.get_top_y() {
             return false;
         }
         if block == &Block::PISTON || block == &Block::STICKY_PISTON {
@@ -247,7 +257,7 @@ impl PistonBlock {
             if !piston_piece {
                 if r#type == TRIGGER_CONTRACT
                     && !state.is_air()
-                    && Self::is_movable(block, state, dir.opposite(), false, dir)
+                    && Self::is_movable(world, &pull_pos, block, state, dir.opposite(), false, dir)
                     && (state.piston_behavior == PistonBehavior::Normal
                         || block == &Block::PISTON
                         || block == &Block::STICKY_PISTON)
