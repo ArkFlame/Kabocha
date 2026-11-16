@@ -6,7 +6,8 @@ use crate::{
         ToFromWasmEvent, cleanup_event, consume_player, consume_text_component, consume_world,
         from_wasm_block_name, from_wasm_block_position, from_wasm_click_type,
         from_wasm_entity_interaction_action, from_wasm_entity_type, from_wasm_game_mode,
-        from_wasm_hand, from_wasm_position, to_wasm_block_position, to_wasm_click_type,
+        from_wasm_hand, from_wasm_position, to_wasm_block_name, to_wasm_block_position,
+        to_wasm_click_type,
         to_wasm_entity_interaction_action, to_wasm_entity_type, to_wasm_game_mode, to_wasm_hand,
         to_wasm_position,
     },
@@ -770,7 +771,7 @@ impl ToFromWasmEvent for PlayerInteractEvent {
             player,
             action: to_wasm_interact_action(&self.action),
             clicked_pos: self.clicked_pos.map(to_wasm_block_position),
-            block: self.block.name.to_string(),
+            block: to_wasm_block_name(self.block),
             cancelled: self.cancelled,
         })
     }

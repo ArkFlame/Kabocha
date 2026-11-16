@@ -96,7 +96,7 @@ impl HostItemStack for PluginHostState {
     ) -> wasmtime::Result<String> {
         let stack = self.get(&res)?;
         let stack = stack.lock().await;
-        Ok(stack.item.registry_key.to_string())
+        Ok(format!("minecraft:{}", stack.item.registry_key))
     }
 
     async fn get_count(&mut self, res: Resource<ItemStackHandle>) -> wasmtime::Result<u8> {

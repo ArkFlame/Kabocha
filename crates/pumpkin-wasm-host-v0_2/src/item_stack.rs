@@ -136,7 +136,7 @@ impl HostItemStackWithStore<PluginHostState> for HasSelf<PluginHostState> {
     ) -> wasmtime::Result<String> {
         let stack = accessor.get_res(&res)?;
         let stack = stack.lock().await;
-        Ok(stack.item.registry_key.to_string())
+        Ok(format!("minecraft:{}", stack.item.registry_key))
     }
 
     async fn get_count(

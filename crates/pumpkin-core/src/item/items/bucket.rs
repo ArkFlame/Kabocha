@@ -627,7 +627,7 @@ impl ItemBehaviour for EmptyBucketItem {
                     crate::plugin::api::events::player::player_bucket::PlayerBucketFillEvent::new(
                         player_arc,
                         pos,
-                        filled.registry_key.to_string(),
+                        format!("minecraft:{}", filled.registry_key),
                     );
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 if event.cancelled {
@@ -710,7 +710,7 @@ impl FilledBucketItem {
                     let mut event = crate::plugin::api::events::player::player_bucket::PlayerBucketEmptyEvent::new(
                         player_arc,
                         target,
-                        item.registry_key.to_string(),
+                        format!("minecraft:{}", item.registry_key),
                     );
                     server.plugin_manager.fire_blocking(&server, &mut event);
                     if event.cancelled {
