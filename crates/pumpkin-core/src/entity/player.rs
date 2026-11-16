@@ -1691,7 +1691,7 @@ impl Player {
         let mut damage_multiplier = 1.0;
         let mut add_speed = 0.0;
         let mut extra_ench_damage = 0.0;
-        let mut knockback_level = 0u32;
+        let mut enchantment_knockback = 0.0f64;
 
         {
             let stack = &item_stack;
@@ -1718,7 +1718,7 @@ impl Player {
                     );
                     let mut kb = 0.0f32;
                     enchantment.modify_knockback(*level, &mut kb);
-                    knockback_level += kb as u32;
+                    enchantment_knockback += f64::from(kb);
                 }
             }
         }
@@ -1765,19 +1765,8 @@ impl Player {
         // Modify the added damage based on the multiplier.
         let mut damage = base_damage * damage_multiplier;
         damage += extra_ench_damage * attack_cooldown_progress;
-
-        if let Some(strength) = self
-            .living_entity
-            .get_effect(&pumpkin_data::effect::StatusEffect::STRENGTH)
-        {
-            damage += 3.0 * (f64::from(strength.amplifier) + 1.0);
-        }
-        if let Some(weakness) = self
-            .living_entity
-            .get_effect(&pumpkin_data::effect::StatusEffect::WEAKNESS)
-        {
-            damage -= 4.0 * (f64::from(weakness.amplifier) + 1.0);
-        }
+        // Strength and Weakness are modifiers on ATTACK_DAMAGE, so
+        // `base_damage` already carries them, like vanilla `Player.attack`.
         damage = damage.max(0.0);
 
         let pos = victim_entity.pos.load();
@@ -1893,7 +1882,7 @@ impl Player {
             // of the base knockback the victim's damage handling applies. A plain hit adds
             // nothing. `handle_knockback` halves `strength`, so these are twice the vanilla
             // amount.
-            let mut knockback_strength = f64::from(knockback_level)
+            let mut knockback_strength = enchantment_knockback
                 + self
                     .living_entity
                     .get_attribute_value(&Attributes::ATTACK_KNOCKBACK);
@@ -1917,12 +1906,15 @@ impl Player {
                         Vector3::new(pos.x - 1.0, pos.y - 0.5, pos.z - 1.0),
                         Vector3::new(pos.x + 1.0, pos.y + 0.5, pos.z + 1.0),
                     );
+                    let yaw = f64::from(attacker_entity.yaw.load().to_radians());
+                    let knockback_x = yaw.sin();
+                    let knockback_z = -yaw.cos();
                     let victims = world.get_all_at_box(&search_box);
                     for other_victim in victims {
                         if other_victim.get_entity().entity_id != victim_entity.entity_id
                             && other_victim.get_entity().entity_id != attacker_entity.entity_id
                         {
-                            other_victim.damage_with_context(
+                            let hurt = other_victim.damage_with_context(
                                 other_victim.as_ref(),
                                 sweep_damage,
                                 DamageType::PLAYER_ATTACK,
@@ -1930,6 +1922,18 @@ impl Player {
                                 Some(self),
                                 Some(self),
                             );
+                            // Vanilla `Player.doSweepAttack` knocks every hurt victim
+                            // back by 0.4 along the attacker's facing.
+                            if hurt && let Some(living) = other_victim.get_living_entity() {
+                                let resistance =
+                                    living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
+                                other_victim.get_entity().apply_knockback(
+                                    combat::knockback_after_resistance(0.4, resistance),
+                                    knockback_x,
+                                    knockback_z,
+                                    Some(attacker_entity),
+                                );
+                            }
                         }
                     }
                 }
@@ -1945,6 +1949,8 @@ impl Player {
                     knockback_strength,
                     damage as f32,
                 );
+                // Vanilla `Player.causeExtraKnockback` ends the sprint.
+                self.living_entity.set_sprinting(false);
             }
         }
 

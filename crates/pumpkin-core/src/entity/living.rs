@@ -163,6 +163,8 @@ pub struct LivingEntity {
     /// Modifier ids applied from the current item in each equipment slot.
     /// Used to remove them on unequip without the previous stack.
     equipment_attribute_modifier_ids: std::sync::Mutex<FxHashMap<EquipmentSlot, Vec<(u8, String)>>>,
+    /// Modifier ids applied from the currently held weapon.
+    weapon_attribute_modifier_ids: std::sync::Mutex<Vec<(u8, String)>>,
 }
 
 #[derive(Clone)]
@@ -535,6 +537,7 @@ impl LivingEntity {
             auto_spin_attack_dmg: AtomicCell::new(0.0),
             auto_spin_attack_item_stack: std::sync::Mutex::new(None),
             equipment_attribute_modifier_ids: std::sync::Mutex::new(FxHashMap::default()),
+            weapon_attribute_modifier_ids: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -842,52 +845,53 @@ impl LivingEntity {
     fn update_weapon_attributes(&self, stack: &ItemStack) {
         let component = stack.get_data_component::<AttributeModifiersImpl>();
 
-        // Single pass over the item's modifiers, split by attribute.
-        let mut speed_modifiers: Vec<Modifier> = Vec::new();
-        let mut damage_modifiers: Vec<Modifier> = Vec::new();
+        let mut changed: Vec<Attributes> = Vec::new();
+
+        // Remove only the modifiers the previously held stack applied; replacing
+        // the whole list would drop permanent modifiers from commands and effects.
+        let previous = std::mem::take(
+            &mut *self
+                .weapon_attribute_modifier_ids
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        for (attribute_id, modifier_id) in previous {
+            if let Some(attribute) = attributes_by_id(attribute_id) {
+                self.update_attribute(attribute, |inst| inst.remove_modifier(&modifier_id));
+                push_unique_attribute(&mut changed, attribute);
+            }
+        }
+
+        let mut applied = Vec::new();
         for modifier in component
             .into_iter()
             .flat_map(|c| c.attribute_modifiers.iter())
         {
-            let target = if modifier.r#type == &Attributes::ATTACK_SPEED {
-                &mut speed_modifiers
-            } else if modifier.r#type == &Attributes::ATTACK_DAMAGE {
-                &mut damage_modifiers
-            } else {
+            let attribute = modifier.r#type;
+            if attribute != &Attributes::ATTACK_SPEED && attribute != &Attributes::ATTACK_DAMAGE {
                 continue;
+            }
+            let operation = match modifier.operation {
+                Operation::AddValue => ModifierOperation::Add,
+                Operation::AddMultipliedBase => ModifierOperation::MultiplyBase,
+                Operation::AddMultipliedTotal => ModifierOperation::MultiplyTotal,
             };
-            target.push(Modifier {
-                id: modifier.id.to_string(),
-                amount: modifier.amount,
-                operation: match modifier.operation {
-                    Operation::AddValue => ModifierOperation::Add,
-                    Operation::AddMultipliedBase => ModifierOperation::MultiplyBase,
-                    Operation::AddMultipliedTotal => ModifierOperation::MultiplyTotal,
-                },
+            self.update_attribute(attribute, |inst| {
+                inst.add_or_replace_modifier(Modifier {
+                    id: modifier.id.to_string(),
+                    amount: modifier.amount,
+                    operation,
+                });
             });
+            applied.push((attribute.id, modifier.id.to_string()));
+            push_unique_attribute(&mut changed, attribute);
         }
 
-        let mut changed: Vec<Attributes> = Vec::new();
-        {
-            let mut attributes = self
-                .attributes
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for (attribute, modifiers) in [
-                (Attributes::ATTACK_SPEED, speed_modifiers),
-                (Attributes::ATTACK_DAMAGE, damage_modifiers),
-            ] {
-                let instance = attributes
-                    .entry(attribute.id)
-                    .or_insert_with(|| AttributeInstance::new(attribute.default_value));
-                if instance.modifiers == modifiers {
-                    continue;
-                }
-                instance.modifiers = modifiers;
-                instance.mark_dirty();
-                changed.push(attribute);
-            }
-        }
+        *self
+            .weapon_attribute_modifier_ids
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = applied;
+
         if !changed.is_empty() {
             crate::entity::attributes::send_attribute_updates_for_living(self, changed);
         }
@@ -1650,6 +1654,30 @@ impl LivingEntity {
         }
 
         // Broadcast effect to nearby players
+        self.broadcast_effect(&effect);
+        if !effect.effect_type.instantaneous {
+            let apply_sound = effect.effect_type.apply_sound;
+            let was_absent = self
+                .active_effects
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .insert(effect.effect_type, effect)
+                .is_none();
+            if was_absent && let Some(sound) = apply_sound {
+                let category = self.entity.entity_type.sound_source;
+                self.entity
+                    .world
+                    .load()
+                    .play_sound_fine(sound, category, &self.entity.pos.load(), 1.0, 1.0);
+            }
+        }
+        self.sync_effect_particles();
+        self.trigger_effects_changed(None);
+    }
+
+    /// Sends an effect packet to every player tracking this entity, mirroring
+    /// vanilla `LivingEntity.sendEffectToPassengers`.
+    fn broadcast_effect(&self, effect: &Effect) {
         let mut flag: i8 = 0;
         if effect.ambient {
             flag |= 1;
@@ -1688,25 +1716,11 @@ impl LivingEntity {
         };
 
         let chunk_pos = self.entity.chunk_pos.load();
-        let world = self.entity.world.load();
-        world.broadcast_to_chunk_editioned(chunk_pos, &je_packet, &be_packet);
-        if !effect.effect_type.instantaneous {
-            let apply_sound = effect.effect_type.apply_sound;
-            let was_absent = self
-                .active_effects
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(effect.effect_type, effect)
-                .is_none();
-            if was_absent && let Some(sound) = apply_sound {
-                let category = self.entity.entity_type.sound_source;
-                world.play_sound_fine(sound, category, &self.entity.pos.load(), 1.0, 1.0);
-            }
-        }
-        self.sync_effect_particles();
-        self.trigger_effects_changed(None);
+        self.entity
+            .world
+            .load()
+            .broadcast_to_chunk_editioned(chunk_pos, &je_packet, &be_packet);
     }
-
     /// Vanilla fires `EFFECTS_CHANGED` from `ServerPlayer.onEffectAdded`, `onEffectUpdated` and
     /// `onEffectsRemoved`, so every effect source reaches it. Don't call this while holding
     /// `active_effects`, the criterion reads them.
@@ -3247,6 +3261,7 @@ impl LivingEntity {
         let mut effects_to_remove = Vec::new();
         let mut effects_to_apply = Vec::new();
         let mut effects_updated = false;
+        let mut effects_to_refresh = Vec::new();
 
         {
             let Ok(mut effects) = self.active_effects.try_lock() else {
@@ -3273,6 +3288,12 @@ impl LivingEntity {
 
                 if effect.duration != -1 {
                     effect.duration -= 1;
+                    // Vanilla `LivingEntity.tickEffects` re-sends the effect every 600
+                    // ticks via `onEffectUpdated(effect, false, null)`; the `false`
+                    // means the attribute modifiers are not reapplied.
+                    if effect.duration > 0 && effect.duration % 600 == 0 {
+                        effects_to_refresh.push(effect.clone());
+                    }
                 }
 
                 // `tickEffects` calls `onEffectUpdated` every 600 ticks of remaining duration.
@@ -3289,6 +3310,10 @@ impl LivingEntity {
 
         for (mob_effect, amplifier) in effects_to_apply {
             mob_effect.apply_effect_tick(self, amplifier);
+        }
+
+        for effect in effects_to_refresh {
+            self.broadcast_effect(&effect);
         }
 
         if effects_updated {
