@@ -1,4 +1,5 @@
 use pumpkin_data::{BlockId, item_stack::ItemStack, recipes::CookingRecipe};
+use rand::RngExt;
 
 use crate::block::entities::{BlockEntity, PropertyDelegate};
 pub use pumpkin_inventory::ExperienceContainer;
@@ -12,6 +13,18 @@ pub(crate) const fn is_cooking_block(id: BlockId) -> bool {
         id,
         BlockId::FURNACE | BlockId::BLAST_FURNACE | BlockId::SMOKER
     )
+}
+
+/// Vanilla `AbstractFurnaceBlockEntity.awardUsedRecipes` XP split:
+/// the floor of the recipe XP, plus one point with probability equal to its fraction.
+pub(crate) fn roll_experience(xp: f32) -> i32 {
+    split_experience(xp, rand::rng().random())
+}
+
+fn split_experience(xp: f32, roll: f32) -> i32 {
+    let whole = xp.floor();
+    let fraction = xp - whole;
+    whole as i32 + i32::from(fraction != 0.0 && roll < fraction)
 }
 
 /// Trait for extracting smelting experience from cooking block entities.
@@ -125,15 +138,15 @@ macro_rules! impl_cooking_block_entity_base {
                     .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let mut total_xp: f32 = 0.0;
+                let mut total_xp: i32 = 0;
                 for (recipe_id, count) in recipes.iter() {
                     // Look up the recipe's XP value
                     if let Some(xp) = pumpkin_data::recipes::get_recipe_experience(recipe_id) {
-                        total_xp += xp * (*count as f32);
+                        total_xp += $crate::block::entities::furnace_like_block_entity::roll_experience(xp * (*count as f32));
                     }
                 }
                 recipes.clear();
-                total_xp.floor() as i32
+                total_xp
             }
 
             fn can_accept_recipe_output(
@@ -833,5 +846,14 @@ mod tests {
         assert_eq!(nbt.get_short("BurnDuration"), Some(200));
         assert_eq!(nbt.get_short("StoredXPInt"), Some(5));
         assert_eq!(nbt.get_bool("isMovable"), Some(true));
+    }
+
+    #[test]
+    fn experience_from_a_single_fractional_smelt_is_not_always_zero() {
+        // Iron ore is 0.7 XP: vanilla gives 1 point 70% of the time, never a flat 0.
+        assert_eq!(split_experience(0.7, 0.5), 1);
+        assert_eq!(split_experience(0.7, 0.9), 0);
+        assert_eq!(split_experience(2.0, 0.99), 2);
+        assert_eq!(split_experience(0.0, 0.5), 0);
     }
 }
