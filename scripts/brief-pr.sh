@@ -14,7 +14,7 @@ Read first (short): docs/WORKER.md. Do not read AGENTS.md.
 </context>
 
 <task>
-1. \`git fetch upstream pull/$pr/head:refs/kab/pr-$pr\` (ok if it exists); \`git merge --squash refs/kab/pr-$pr\`.
+1. First check the PR concern fills a gap master still has (WORKER.md rule 12); if master already covers it, report skipped with file:line and stop. Then \`git fetch upstream pull/$pr/head:refs/kab/pr-$pr\` (ok if it exists); \`git merge --squash refs/kab/pr-$pr\`.
 2. If it conflicts: read the PR (\`gh pr view $pr -R Pumpkin-MC/Pumpkin\`, \`git diff master...refs/kab/pr-$pr\`), then resolve so the intent applies on top of current code. Prefer current names/APIs over the PR's.
 3. If the intent is already in the code: \`git reset --hard\`, and report SKIPPED with file:line proof.
 4. Search for every constructor/caller of anything you changed (struct field, signature) and update them in the same commit.

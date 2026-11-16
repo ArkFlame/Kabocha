@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 "$(dirname "$0")/reap-mcp.sh" >/dev/null 2>&1
-# load guard: do not start workers while the machine is saturated (load > KAB_MAX_LOAD or RAM available < KAB_MIN_AVAIL_GB)
-read -r l1 _ < /proc/loadavg; avail=$(awk '/MemAvailable/{printf "%d",$2/1048576}' /proc/meminfo)
-if awk -v l="$l1" -v m="${KAB_MAX_LOAD:-18}" 'BEGIN{exit !(l>m)}' || [ "$avail" -lt "${KAB_MIN_AVAIL_GB:-7}" ]; then echo "refill paused: load=$l1 avail=${avail}GB"; exit 0; fi
 # oc-refill.sh  -- start OpenCode PR workers until 20 are running. Picks smallest non-draft PRs from docs/queue-prs.tsv
 # not yet done (docs/DONE.md), not already attempted (worktree or $KAB_RUNS/tried). Run after every worker exit.
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"; touch "$KAB_RUNS/tried"

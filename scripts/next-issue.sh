@@ -22,7 +22,7 @@ PY
 <context>Repo: Kabocha (fork of Pumpkin Minecraft server, Rust). Current dir is your own git worktree; never leave it. Read docs/WORKER.md first (short).
 Upstream issue #$id: "$t". Read it once: gh issue view $id -R Pumpkin-MC/Pumpkin --comments (state is OPEN; do not re-fetch it)</context>
 <task>
-1. Read the issue; locate the root cause in the current code (grep). Match vanilla/Paper behaviour.
+1. Read the issue; locate the root cause in the current code (grep) and confirm the fix you plan fills exactly the gap the issue describes (WORKER.md rule 12). Match vanilla/Paper behaviour.
 2. If already fixed in the code: report SKIPPED with file:line proof, change nothing.
 3. If unreproducible without runtime/client or too large for one pass: report FAILED with the reason.
 4. Else make the smallest fix, update all callers, add the smallest automated test only if trivial.
