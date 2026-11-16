@@ -10,12 +10,13 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::ai::behavior::{fleeing, hunting};
-use crate::entity::mob::spider::{SPIDER_FLEES, SPIDER_HUNTS};
+use crate::entity::mob::spider::{SPIDER_FLEES, SPIDER_HUNTS, initialize_spider_navigation};
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
-        spider_attack::SpiderAttackGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        leap_at_target::LeapAtTargetGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, spider_attack::SpiderAttackGoal,
+        swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -29,7 +30,8 @@ pub struct CaveSpiderEntity {
 
 impl CaveSpiderEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        initialize_spider_navigation(&mut mob_entity);
         let cave_spider = Self {
             mob_entity,
             is_climbing: AtomicBool::new(false),
@@ -46,8 +48,9 @@ impl CaveSpiderEntity {
 
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             fleeing::apply(goal_selector, SPIDER_FLEES);
-            goal_selector.add_goal(3, SpiderAttackGoal::new(1.0, false));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.8)));
+            goal_selector.add_goal(3, Box::new(LeapAtTargetGoal::new(0.4)));
+            goal_selector.add_goal(4, SpiderAttackGoal::new(1.0, true));
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(0.8)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
@@ -77,11 +80,12 @@ impl Mob for CaveSpiderEntity {
 
     fn finalize_spawn(
         &self,
-        world: &Arc<crate::world::World>,
-        reason: crate::entity::mob::spawn::EntitySpawnReason,
+        _world: &Arc<crate::world::World>,
+        _reason: crate::entity::mob::spawn::EntitySpawnReason,
         group_data: Option<super::spawn::SpawnGroupData>,
     ) -> Option<super::spawn::SpawnGroupData> {
-        super::spider::finalize_spider_spawn(&self.mob_entity, world, reason, group_data)
+        // Vanilla `CaveSpider` skips `Spider.finalizeSpawn`: no skeleton jockey or hard effects.
+        group_data
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

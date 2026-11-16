@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, PoisonError, Weak};
 
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
@@ -15,13 +15,15 @@ use uuid::Uuid;
 
 use crate::entity::ai::behavior::fleeing::{self, Flee};
 use crate::entity::ai::behavior::hunting::{self, Hunt};
+use crate::entity::ai::pathfinder::Navigator;
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::TargetCondition, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, spider_attack::SpiderAttackGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::TargetCondition, leap_at_target::LeapAtTargetGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        revenge::RevengeGoal, spider_attack::SpiderAttackGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{
         Mob, MobEntity,
@@ -62,7 +64,8 @@ pub struct SpiderEntity {
 
 impl SpiderEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        initialize_spider_navigation(&mut mob_entity);
         let spider = Self {
             mob_entity,
             is_climbing: AtomicBool::new(false),
@@ -79,8 +82,9 @@ impl SpiderEntity {
 
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             fleeing::apply(goal_selector, SPIDER_FLEES);
-            goal_selector.add_goal(3, SpiderAttackGoal::new(1.0, false));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.8)));
+            goal_selector.add_goal(3, Box::new(LeapAtTargetGoal::new(0.4)));
+            goal_selector.add_goal(4, SpiderAttackGoal::new(1.0, true));
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(0.8)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
@@ -106,6 +110,13 @@ impl SpiderEntity {
             climbing,
         );
     }
+}
+
+/// Vanilla `Spider` uses the wall-climber path navigator (shared with the cave spider).
+pub fn initialize_spider_navigation(mob: &mut MobEntity) {
+    *mob.navigator
+        .get_mut()
+        .unwrap_or_else(PoisonError::into_inner) = Navigator::wall_climber();
 }
 
 /// Vanilla `Spider.setClimbing`.
