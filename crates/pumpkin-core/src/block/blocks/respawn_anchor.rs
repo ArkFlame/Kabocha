@@ -74,6 +74,7 @@ impl BlockBehaviour for RespawnAnchorBlock {
                 args.world
                     .get_block_interaction(ExplosionInteraction::Block),
             )
+            .with_fire()
             .with_damage_type(DamageType::BAD_RESPAWN_POINT);
             args.world.run_explosion(&explosion);
             return BlockActionResult::SuccessServer;

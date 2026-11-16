@@ -4369,6 +4369,17 @@ impl World {
         self.run_explosion(&explosion);
     }
 
+    pub fn explode_with_fire(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        power: f32,
+        interaction: ExplosionInteraction,
+    ) {
+        let block_interaction = self.get_block_interaction(interaction);
+        let explosion = Explosion::new(power, position, block_interaction).with_fire();
+        self.run_explosion(&explosion);
+    }
+
     pub fn explode_with_calculator(
         self: &Arc<Self>,
         position: Vector3<f64>,

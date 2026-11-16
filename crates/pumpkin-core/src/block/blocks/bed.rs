@@ -231,6 +231,7 @@ impl BedBlock {
                 bed_head_pos.to_centered_f64(),
                 world.get_block_interaction(ExplosionInteraction::Block),
             )
+            .with_fire()
             .with_damage_type(DamageType::BAD_RESPAWN_POINT);
             world.run_explosion(&explosion);
 
