@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Soul of Kabocha
+1. **Parallelize everything.** Independent work always runs concurrently: up to 10 native + 10 OpenCode subagents, each in its own worktree. A freed slot is refilled at once. Idle capacity is a bug.
+2. **Speed over ceremony.** Smallest correct change, compile only what you must, land and push every verified slice immediately.
+3. **Subagents write, the orchestrator decides.** Plan, brief precisely, verify once, land. Never hand-code what a worker can do.
+4. **AI-powered automated tests are the gate.** Every behaviour change ships its smallest automated test, generated and run by agents. Prefer differential tests against vanilla data (extracted assets, chunk dumps, known bytes) and agent-driven bot scenarios over prose review.
+5. **Behaviour matches original Pumpkin/vanilla.** Parity is checked mechanically against decompiled vanilla and upstream behaviour, then massively automated; no change is trusted on plausibility alone.
+6. **Persist what you learn.** Pitfalls go to `docs/LEARNINGS.md`, repeated commands become `scripts/`, repeated procedures become `.agents/skills/`.
+
 Kabocha: a Pumpkin (Rust Minecraft server) fork driven by AI orchestration. Goal: fix every upstream Pumpkin issue and merge every upstream PR, fast and buildable. User instructions override it.
 
 Start here: `docs/GOAL.md` (mission), `docs/ORCHESTRATION.md` (how workers run), `docs/QUEUE.md` (state), `docs/LEARNINGS.md` (pitfalls). Skills: `.agents/skills/*/SKILL.md`. Scripts: `scripts/` (`check.sh`, `wt.sh`, `land.sh`, `oc-agent.sh`, `oc-status.sh`, `boot.sh`, `pr-branch.sh`, `upstream-queue.sh`, `sync-upstream.sh`). Prefer a script over retyping a command; add one when you repeat something twice.
