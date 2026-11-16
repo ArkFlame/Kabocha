@@ -818,11 +818,10 @@ impl World {
         dx <= radius && dz <= radius
     }
 
-    pub async fn shutdown(&self) {
-        let entities = self.entities.load_full();
-        self.save_entities_by_chunk(&entities, self.level.live_entity_chunk_positions())
-            .await;
-
+    /// Serializes every live block entity back into its chunk, as vanilla's
+    /// `ChunkMap.save` does. The live map is the source of truth while a chunk is loaded,
+    /// so a save that skips this writes containers with the NBT they had when placed.
+    fn save_all_block_entities(&self) {
         let chunks: Vec<Vector2<i32>> = self
             .block_entities
             .iter()
@@ -831,6 +830,14 @@ impl World {
         for chunk_pos in chunks {
             self.save_block_entities(chunk_pos);
         }
+    }
+
+    pub async fn shutdown(&self) {
+        let entities = self.entities.load_full();
+        self.save_entities_by_chunk(&entities, self.level.live_entity_chunk_positions())
+            .await;
+
+        self.save_all_block_entities();
 
         // Save portal POI to disk
         let save_result = self
@@ -2343,6 +2350,7 @@ impl World {
     }
 
     pub fn tick_environment(self: &Arc<Self>) {
+        let mut autosave_now = false;
         let (is_night, time_of_day) = {
             let mut level_time = self
                 .level_time
@@ -2380,12 +2388,20 @@ impl World {
             if self.level.autosave_ticks > 0 && self.level.save_enabled.load(Relaxed) {
                 let autosave = self.level.autosave_ticks as i64;
                 if autosave > 0 && level_time.world_age % autosave == 0 {
-                    self.level.should_save.store(true, Relaxed);
-                    self.level.level_channel.notify();
+                    autosave_now = true;
                 }
             }
             (level_time.is_night(), level_time.time_of_day)
         };
+
+        // Vanilla serializes the live block entities into the chunk on every save, so a
+        // later chunk unload cannot drop a container's contents. The chunk scheduler
+        // reads dirty chunks as soon as `should_save` is set, so write them first.
+        if autosave_now {
+            self.save_all_block_entities();
+            self.level.should_save.store(true, Relaxed);
+            self.level.level_channel.notify();
+        }
 
         let (should_reset_weather, weather_cycle_enabled) = {
             let mut weather = self
@@ -8305,14 +8321,7 @@ impl World {
     pub async fn save(&self) {
         self.autosave_entities().await;
 
-        let chunks: Vec<Vector2<i32>> = self
-            .block_entities
-            .iter()
-            .map(|chunk_block_entities| *chunk_block_entities.key())
-            .collect();
-        for chunk_pos in chunks {
-            self.save_block_entities(chunk_pos);
-        }
+        self.save_all_block_entities();
 
         if let Ok(mut portal_poi) = self.portal_poi.try_lock() {
             let _ = portal_poi.save_all();
