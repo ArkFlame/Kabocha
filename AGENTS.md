@@ -47,6 +47,7 @@ Start here: `docs/GOAL.md` (mission), `docs/ORCHESTRATION.md` (how workers run),
 **Commits.** Conventional, scope, subject line only, no body, no em dashes. A `Co-Authored-By` trailer is added by `scripts/hooks/commit-msg` (`git config core.hooksPath scripts/hooks`): Claude Sonnet 5.5 by default, OpenCode DeepSeek V4.1 when `KAB_AGENT=opencode` (set by `scripts/oc-agent.sh`). Never write the trailer by hand; it is how we measure who works best (`scripts/leaderboard.sh`). One logical slice per commit; fold fixes into their commit. Commit and push each verified slice at once. Do not touch uncommitted work you did not make. Do not commit unrelated lockfile or generated churn. Scope: do the task; log separate bugs in `docs/QUEUE.md`.
 
 ## Verify
+Workers do not compile; the orchestrator batch-checks via `scripts/integrate.sh`. Any cargo run goes through `scripts/cargo.sh` (shared warm target, 2 slots, RAM guard); see `docs/BUILD.md`.
 Do not compile what you do not need. Docs/scripts/data-only changes: no build. Code changes: `scripts/check.sh <crate>` = fmt + `cargo check -p` only. Full gate `scripts/check.sh -f <crate>` (clippy `-D warnings` + nextest on touched crates) runs only when a test must run, before landing a code slice, or on request. Never `--workspace` unless asked. `scripts/boot.sh` only for runtime changes you must observe. Debug profile only. Client-only effects (rendering, sounds, GUI, prediction): note them in the commit/QUEUE.md, do not block on them.
 
 ## Workers

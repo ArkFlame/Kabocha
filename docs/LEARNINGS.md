@@ -7,3 +7,4 @@
 - 2026-11-16: many old conflicting upstream PRs are already fixed in master or target pre-refactor paths (`crates/pumpkin/src/...`): workers report SKIPPED with file/line proof; record them in docs/DONE.md as skipped. Cross-PR squash batches break builds (duplicate keys, struct fields, wasm-host types); batch about 15 and compile once. #2858 (Cargo profile) conflicts with master's Cargo.toml, skip.
 - 2026-11-16: machine load hit 34-50 with many cargo builds; `cargo_slot` in scripts/lib.sh caps builds at 3 via flock; workers use separate CARGO_TARGET_DIRs (cold targets are slow).
 - 2026-11-16: load hit ~98 because every worker used its own COLD CARGO_TARGET_DIR (all registry deps rebuilt). Rule: workers share /tmp/kab-target-main (warm); cargo's file lock serializes them. Never give a worker a private target dir.
+- 2026-11-16: build policy rewritten (docs/BUILD.md): workers never compile; integrate.sh batches; scripts/cargo.sh is the only cargo entry.
