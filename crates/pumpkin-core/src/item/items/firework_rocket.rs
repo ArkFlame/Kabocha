@@ -16,10 +16,6 @@ use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
-/// Vanilla offsets a block-launched rocket's spawn point by this many blocks along the
-/// clicked face, so it doesn't spawn embedded in the block.
-const ROCKET_PLACEMENT_OFFSET: f64 = 0.15;
-
 pub struct FireworkRocketItem;
 
 impl ItemMetadata for FireworkRocketItem {
@@ -29,49 +25,20 @@ impl ItemMetadata for FireworkRocketItem {
 }
 
 impl ItemBehaviour for FireworkRocketItem {
-    // A firework rocket always launches, whether or not the player is gliding - it's a
-    // functional item in its own right (decorative in the open, a boost while gliding), not
-    // an elytra-only action. The boost itself is gated separately, inside the spawned
-    // entity's own tick logic (`FireworkRocketEntity::tick`), based on the owner's
-    // fall-flying state at the time - so spawning unconditionally here is what lets both
-    // cases (plain launch, and launch-while-gliding boost) share one code path.
+    // Vanilla `FireworkRocketItem` has no `useOn`: clicking a block passes through to `use`,
+    // which only launches while the player is fall flying. Launching unconditionally here
+    // left a rocket attached to the player (and a client-side boost) while walking on ground.
     fn use_on_block(
         &self,
-        item: &mut ItemStack,
-        player: &Player,
-        location: BlockPos,
-        face: BlockDirection,
-        cursor_pos: Vector3<f32>,
+        _item: &mut ItemStack,
+        _player: &Player,
+        _location: BlockPos,
+        _face: BlockDirection,
+        _cursor_pos: Vector3<f32>,
         _block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
-        if player.get_entity().is_fall_flying() {
-            return BlockActionResult::Pass;
-        }
-        let world = player.world();
-        // The exact click point, nudged just outside the clicked face so the rocket doesn't
-        // spawn embedded in the block. Ownerless (no shooter attached), matching a dispensed
-        // rocket - this isn't the gliding-boost case, so it shouldn't follow the player around.
-        let step = face.to_offset();
-        let entity = Entity::new(
-            world.clone(),
-            Vector3::new(
-                f64::from(location.0.x)
-                    + f64::from(cursor_pos.x)
-                    + f64::from(step.x) * ROCKET_PLACEMENT_OFFSET,
-                f64::from(location.0.y)
-                    + f64::from(cursor_pos.y)
-                    + f64::from(step.y) * ROCKET_PLACEMENT_OFFSET,
-                f64::from(location.0.z)
-                    + f64::from(cursor_pos.z)
-                    + f64::from(step.z) * ROCKET_PLACEMENT_OFFSET,
-            ),
-            &EntityType::FIREWORK_ROCKET,
-        );
-        let entity = FireworkRocketEntity::new_with_stack(entity, item.copy_with_count(1));
-        world.spawn_entity(Arc::new(entity));
-        item.decrement_unless_creative(player.gamemode.load(), 1);
-        BlockActionResult::Success
+        BlockActionResult::Pass
     }
 
     fn normal_use(&self, item: &Item, player: &Player) {
@@ -79,7 +46,8 @@ impl ItemBehaviour for FireworkRocketItem {
         self.normal_use_with_hand(item, player, yaw, pitch, pumpkin_util::Hand::Right);
     }
 
-    // Same reasoning as `use_on_block`: always launches, boost is gated inside the entity's tick.
+    // Vanilla `FireworkRocketItem.use`: only while fall flying (gliding) does it spawn the
+    // owner-attached rocket and consume the item; on the ground it passes and does nothing.
     fn normal_use_with_hand(
         &self,
         _item: &Item,
@@ -95,39 +63,40 @@ impl ItemBehaviour for FireworkRocketItem {
         if held.is_empty() || held.item.id != Item::FIREWORK_ROCKET.id {
             return;
         }
+        if !player.get_entity().is_fall_flying() {
+            return;
+        }
 
         let world = player.world();
         // Vanilla only breaks leashes while the launch is a glide boost.
-        if player.get_entity().is_fall_flying() {
-            let search_box = player
-                .get_entity()
-                .bounding_box
-                .load()
-                .expand(32.0, 32.0, 32.0);
-            let player_id = player.entity_id();
-            let mut dropped_leash = false;
-            for entity_base in world.get_entities_at_box(&search_box) {
-                let ent = entity_base.get_entity();
-                let is_leashed_to_player = ent.leashed_to.try_lock().is_ok_and(|guard| {
-                    guard
-                        .as_ref()
-                        .and_then(std::sync::Weak::upgrade)
-                        .is_some_and(|holder| holder.get_entity().entity_id == player_id)
-                });
-                if is_leashed_to_player && ent.unleash() {
-                    world.drop_stack(&ent.block_pos.load(), ItemStack::new(1, &Item::LEAD));
-                    dropped_leash = true;
-                }
+        let search_box = player
+            .get_entity()
+            .bounding_box
+            .load()
+            .expand(32.0, 32.0, 32.0);
+        let player_id = player.entity_id();
+        let mut dropped_leash = false;
+        for entity_base in world.get_entities_at_box(&search_box) {
+            let ent = entity_base.get_entity();
+            let is_leashed_to_player = ent.leashed_to.try_lock().is_ok_and(|guard| {
+                guard
+                    .as_ref()
+                    .and_then(std::sync::Weak::upgrade)
+                    .is_some_and(|holder| holder.get_entity().entity_id == player_id)
+            });
+            if is_leashed_to_player && ent.unleash() {
+                world.drop_stack(&ent.block_pos.load(), ItemStack::new(1, &Item::LEAD));
+                dropped_leash = true;
             }
-            if dropped_leash {
-                world.play_sound_fine(
-                    Sound::ItemLeadBreak,
-                    SoundCategory::Neutral,
-                    &player.position(),
-                    1.0,
-                    1.0,
-                );
-            }
+        }
+        if dropped_leash {
+            world.play_sound_fine(
+                Sound::ItemLeadBreak,
+                SoundCategory::Neutral,
+                &player.position(),
+                1.0,
+                1.0,
+            );
         }
 
         let entity = Entity::new(
