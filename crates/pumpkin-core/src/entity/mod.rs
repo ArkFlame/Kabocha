@@ -1222,6 +1222,37 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                 }
             }
         } else {
+            // Vanilla: a mob pushed into a boat with a free seat mounts it.
+            if self_entity.entity_type.boat.is_some() {
+                let max_passengers = if crate::entity::vehicle::boat::is_chest_boat(self_entity.entity_type) {
+                    1
+                } else {
+                    2
+                };
+                let has_room = self_entity
+                    .passengers
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .len()
+                    < max_passengers;
+                if has_room {
+                    let pickup_bb = entity_bb.expand(0.2, 0.0, 0.2);
+                    for other in world.get_entities_at_box(&pickup_bb) {
+                        if other.get_entity().entity_id != self_entity.entity_id
+                            && other.get_mob().is_some()
+                            && !other.is_passenger()
+                            && other.is_pushable()
+                            && other.get_entity().riding_cooldown.load(Relaxed) == 0
+                            && let Some(self_arc) = world.get_entity_by_id(self_entity.entity_id)
+                        {
+                            self_entity.add_passenger(self_arc, other.clone());
+                            picked_up = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
             let other_entities = world.get_entities_at_box(&entity_bb);
             for other in other_entities {
                 if other.get_entity().entity_id != self_entity.entity_id {
