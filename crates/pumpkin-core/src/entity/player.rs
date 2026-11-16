@@ -9884,7 +9884,7 @@ impl InventoryPlayer for Player {
         &self,
         item: &ItemStack,
         option: i32,
-        exp_level_cost: i32,
+        exp_level_cost: &mut i32,
         enchantments_to_add: &mut Vec<(&'static pumpkin_data::Enchantment, i32)>,
     ) -> bool {
         let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) else {
@@ -9897,13 +9897,14 @@ impl InventoryPlayer for Player {
             player_arc,
             item.clone(),
             option,
-            exp_level_cost,
+            *exp_level_cost,
             enchantments_to_add.clone(),
         );
         server.plugin_manager.fire_blocking(&server, &mut event);
         if event.cancelled {
             return true;
         }
+        *exp_level_cost = event.exp_level_cost;
         *enchantments_to_add = event.enchantments_to_add;
         false
     }

@@ -226,11 +226,13 @@ pub trait InventoryPlayer: Send + Sync {
     }
 
     /// Fires an enchant item event. Returns true if cancelled.
+    ///
+    /// `exp_level_cost` may be changed by plugins and is what gets charged.
     fn fire_enchant_item_event(
         &self,
         _item: &ItemStack,
         _option: i32,
-        _exp_level_cost: i32,
+        _exp_level_cost: &mut i32,
         _enchantments_to_add: &mut Vec<(&'static Enchantment, i32)>,
     ) -> bool {
         false

@@ -363,14 +363,20 @@ impl ScreenHandler for EnchantingTableScreenHandler {
             return false;
         }
 
-        if player.fire_enchant_item_event(&item_stack, id, level_req, &mut enchantments)
-            || enchantments.is_empty()
+        // Vanilla charges the chosen slot's level requirement, which plugins may adjust.
+        let mut exp_level_cost = level_req;
+        if player.fire_enchant_item_event(
+            &item_stack,
+            id,
+            &mut exp_level_cost,
+            &mut enchantments,
+        ) || enchantments.is_empty()
         {
             return false;
         }
 
         if !player.is_creative() {
-            player.add_experience_levels(-(id + 1));
+            player.add_experience_levels(-exp_level_cost);
             lapis_stack.decrement(lapis_cost);
             self.inventory.set_stack(1, lapis_stack);
         }

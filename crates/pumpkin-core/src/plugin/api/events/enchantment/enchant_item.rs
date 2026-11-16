@@ -18,7 +18,8 @@ pub struct EnchantItemEvent {
     /// The button index selected (0, 1, or 2).
     pub option: i32,
 
-    /// The cost in experience levels for the enchantment.
+    /// The cost in experience levels for the enchantment. Plugins may change this to
+    /// alter what the player pays; it is charged when the transaction commits.
     pub exp_level_cost: i32,
 
     /// The list of enchantments and levels to apply.
