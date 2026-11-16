@@ -5,6 +5,7 @@ use crate::entity::r#type::{check_spawn_rules, from_type};
 use crate::world::World;
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
+use pumpkin_config::world::SpawnLimits;
 use pumpkin_data::biome::Spawner;
 use pumpkin_data::chunk::Biome;
 use pumpkin_data::dimension::Dimension;
@@ -70,8 +71,18 @@ impl MobCounts {
     }
 
     #[inline]
-    pub fn can_spawn(&self, category: &'static MobCategory) -> bool {
-        self.0[category.id].load(Relaxed) < category.max
+    pub fn can_spawn(&self, category: &'static MobCategory, cap: i32) -> bool {
+        self.0[category.id].load(Relaxed) < cap
+    }
+}
+
+/// Configured cap for a mob category, falling back to the vanilla value for categories
+/// without a config option.
+#[inline]
+const fn category_cap(limits: &SpawnLimits, category: &MobCategory) -> i32 {
+    match limits.for_category_id(category.id) {
+        Some(cap) => if cap < 0 { 0 } else { cap },
+        None => category.max,
     }
 }
 
@@ -86,6 +97,7 @@ pub struct LocalMobCapCalculator {
     player_mob_counts: DashMap<i32, MobCounts>,
     players_near_chunk: DashMap<Vector2<i32>, Arc<[i32]>>,
     active_players: Option<Arc<[ActiveSpawnPlayer]>>,
+    spawn_limits: SpawnLimits,
 }
 
 impl Clone for LocalMobCapCalculator {
@@ -102,6 +114,7 @@ impl Clone for LocalMobCapCalculator {
             player_mob_counts,
             players_near_chunk,
             active_players: self.active_players.clone(),
+            spawn_limits: self.spawn_limits,
         }
     }
 }
@@ -112,6 +125,7 @@ impl Default for LocalMobCapCalculator {
             player_mob_counts: DashMap::new(),
             players_near_chunk: DashMap::new(),
             active_players: None,
+            spawn_limits: SpawnLimits::default(),
         }
     }
 }
@@ -143,6 +157,12 @@ impl LocalMobCapCalculator {
             player_mob_counts: DashMap::new(),
             players_near_chunk: DashMap::new(),
             active_players: Some(active.into()),
+            spawn_limits: world
+                .server
+                .upgrade()
+                .map_or_else(SpawnLimits::default, |s| {
+                    s.advanced_config.world.spawn_limits
+                }),
         }
     }
 
@@ -248,7 +268,7 @@ impl LocalMobCapCalculator {
         let players = self.get_players_near(world, chunk_pos);
         for &player in players.iter() {
             if let Some(count) = self.player_mob_counts.get(&player) {
-                if count.can_spawn(category) {
+                if count.can_spawn(category, category_cap(&self.spawn_limits, category)) {
                     return true;
                 }
             } else {
@@ -337,6 +357,7 @@ pub struct SpawnState {
     pub mob_category_counts: MobCounts,
     spawn_potential: PotentialCalculator,
     local_mob_cap_calculator: LocalMobCapCalculator,
+    spawn_limits: SpawnLimits,
 }
 
 impl Clone for SpawnState {
@@ -346,6 +367,7 @@ impl Clone for SpawnState {
             mob_category_counts: self.mob_category_counts.clone(),
             spawn_potential: self.spawn_potential.clone(),
             local_mob_cap_calculator: self.local_mob_cap_calculator.clone(),
+            spawn_limits: self.spawn_limits,
         }
     }
 }
@@ -357,6 +379,7 @@ impl fmt::Debug for SpawnState {
             .field("mob_category_counts", &self.mob_category_counts)
             .field("spawn_potential", &self.spawn_potential)
             .field("local_mob_cap_calculator", &self.local_mob_cap_calculator)
+            .field("spawn_limits", &self.spawn_limits)
             .finish()
     }
 }
@@ -369,6 +392,7 @@ impl SpawnState {
             mob_category_counts: MobCounts::default(),
             spawn_potential: PotentialCalculator::default(),
             local_mob_cap_calculator: LocalMobCapCalculator::default(),
+            spawn_limits: SpawnLimits::default(),
         }
     }
 
@@ -437,6 +461,7 @@ impl SpawnState {
     ) -> Self {
         let potential = PotentialCalculator::default();
         let local_mob_cap = LocalMobCapCalculator::for_world(world);
+        let spawn_limits = local_mob_cap.spawn_limits;
         let counter = MobCounts::default();
         for entity in entities.load().iter() {
             if let Some(mob) = entity.get_mob()
@@ -466,13 +491,15 @@ impl SpawnState {
             mob_category_counts: counter,
             spawn_potential: potential,
             local_mob_cap_calculator: local_mob_cap,
+            spawn_limits,
         }
     }
 
     #[inline]
     pub fn can_spawn_for_category_global(&self, category: &'static MobCategory) -> bool {
+        let cap = category_cap(&self.spawn_limits, category);
         self.mob_category_counts.0[category.id].load(Relaxed)
-            < category.max * self.spawnable_chunk_count / MAGIC_NUMBER
+            < cap.saturating_mul(self.spawnable_chunk_count) / MAGIC_NUMBER
     }
 
     pub fn can_spawn_for_category_local(
