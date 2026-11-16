@@ -101,13 +101,6 @@ impl ItemBehaviour for HangingEntityItem {
             if !world.is_in_build_limit(target_pos) {
                 return BlockActionResult::Fail;
             }
-            let (support_block, support_state) = world.get_block_and_state(&location);
-            let is_diode = face.is_horizontal()
-                && (support_block == &Block::REPEATER || support_block == &Block::COMPARATOR);
-            if !support_state.is_side_solid(face) && !support_state.is_solid() && !is_diode {
-                return BlockActionResult::Consume;
-            }
-
             let entity_type = if item.item.id == Item::GLOW_ITEM_FRAME.id {
                 &EntityType::GLOW_ITEM_FRAME
             } else {
@@ -124,6 +117,11 @@ impl ItemBehaviour for HangingEntityItem {
             let frame = ItemFrameEntity::new(entity);
             crate::item::items::spawn_egg::apply_entity_variant(item, &frame, Some(player));
             frame.set_facing(face);
+            // Vanilla spawns the frame only when it survives on the clicked
+            // face, which the frame checks against the supporting block.
+            if !frame.is_supported() {
+                return BlockActionResult::Consume;
+            }
             let sound = frame.get_place_sound();
             let frame_arc = Arc::new(frame);
             world.play_sound(sound, SoundCategory::Blocks, &frame_pos);

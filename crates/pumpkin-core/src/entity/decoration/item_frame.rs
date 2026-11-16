@@ -1,10 +1,11 @@
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
+use crate::server::Server;
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::BlockDirection;
+use pumpkin_data::{Block, BlockDirection};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
@@ -13,6 +14,7 @@ use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata};
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
 /// An item frame or glow item frame.
@@ -30,6 +32,9 @@ pub struct ItemFrameEntity {
     /// (0 = down, 1 = up, 2 = north, 3 = south, 4 = west, 5 = east).
     facing: AtomicU8,
     item_drop_chance: AtomicCell<f32>,
+    /// Ticks since the support block was last validated, matching the
+    /// vanilla `CHECK_INTERVAL` cadence.
+    ticks_since_last_check: AtomicU32,
     invisible: AtomicBool,
     fixed: AtomicBool,
 }
@@ -37,6 +42,8 @@ pub struct ItemFrameEntity {
 impl ItemFrameEntity {
     /// Facing used when a frame is created without NBT, matching vanilla.
     const DEFAULT_FACING: BlockDirection = BlockDirection::South;
+    /// Vanilla re-validates the supporting block every 20 ticks.
+    const SUPPORT_CHECK_INTERVAL: u32 = 20;
 
     pub fn new(entity: Entity) -> Self {
         let facing = Self::DEFAULT_FACING.to_index();
@@ -49,6 +56,7 @@ impl ItemFrameEntity {
             rotation: AtomicU8::new(0),
             facing: AtomicU8::new(facing),
             item_drop_chance: AtomicCell::new(1.0),
+            ticks_since_last_check: AtomicU32::new(0),
             invisible: AtomicBool::new(false),
             fixed: AtomicBool::new(false),
         }
@@ -227,6 +235,43 @@ impl ItemFrameEntity {
         }
     }
 
+    /// Position of the block this frame hangs on.
+    #[must_use]
+    pub fn support_pos(&self) -> BlockPos {
+        let offset = self.get_facing().to_offset();
+        self.entity
+            .block_pos
+            .load()
+            .offset(Vector3::new(-offset.x, -offset.y, -offset.z))
+    }
+
+    /// Vanilla `ItemFrame.survives()`: the block behind the frame must expose a
+    /// solid face towards it, unless the frame is fixed.
+    #[must_use]
+    pub fn is_supported(&self) -> bool {
+        if self.is_fixed() {
+            return true;
+        }
+        let world = self.entity.world.load();
+        let (support_block, support_state) = world.get_block_and_state(&self.support_pos());
+        let facing = self.get_facing();
+        let is_diode = facing.is_horizontal()
+            && (support_block == &Block::REPEATER || support_block == &Block::COMPARATOR);
+        support_state.is_side_solid(facing) || support_state.is_solid() || is_diode
+    }
+
+    /// Drops the frame (and its item) when the block behind it is gone.
+    fn break_on_invalid_support(&self) {
+        let world = self.entity.world.load();
+        world.play_sound(
+            self.get_break_sound(),
+            pumpkin_data::sound::SoundCategory::Blocks,
+            &self.entity.pos.load(),
+        );
+        self.drop_item(None, true);
+        self.entity.remove();
+    }
+
     pub fn drop_item(&self, caused_by: Option<&dyn EntityBase>, with_frame: bool) {
         if self.is_fixed() {
             return;
@@ -272,6 +317,17 @@ impl ItemFrameEntity {
 impl EntityBase for ItemFrameEntity {
     fn can_hit(&self) -> bool {
         true
+    }
+
+    fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
+        let ticks = self.ticks_since_last_check.fetch_add(1, Ordering::Relaxed);
+        if ticks < Self::SUPPORT_CHECK_INTERVAL {
+            return;
+        }
+        self.ticks_since_last_check.store(0, Ordering::Relaxed);
+        if !self.is_supported() {
+            self.break_on_invalid_support();
+        }
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
