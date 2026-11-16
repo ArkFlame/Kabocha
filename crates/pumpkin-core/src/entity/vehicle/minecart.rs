@@ -668,10 +668,14 @@ impl EntityBase for MinecartEntity {
                 || other_entity.entity_type.id == EntityType::TNT_MINECART.id;
 
             if is_other_minecart {
-                let xo = self_entity.velocity.load().x;
-                let zo = self_entity.velocity.load().z;
-
-                let dir = Vector3::new(xo, 0.0, zo).normalize();
+                // Vanilla: the direction from this cart to the other one, not its motion.
+                // A standing cart has no motion, so the old check never transferred velocity.
+                let dir = Vector3::new(
+                    other_entity.pos.load().x - self_entity.pos.load().x,
+                    0.0,
+                    other_entity.pos.load().z - self_entity.pos.load().z,
+                )
+                .normalize();
                 let facing = Vector3::new(
                     f64::from(self_entity.yaw.load().to_radians().cos()),
                     0.0,
