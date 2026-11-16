@@ -259,7 +259,6 @@ impl TryFrom<RawHoverEvent> for HoverEvent {
         })
     }
 }
->
 #[cfg(test)]
 mod tests {
     use super::*;
