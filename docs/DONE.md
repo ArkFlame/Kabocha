@@ -170,3 +170,5 @@ Format: `- #N (PR|issue) title [commit]`
 - #3657 skipped (gliding present: item_stack/mod.rs:428, entity/mod.rs:4249)
 - #3795 (PR, skipped: sulfur cube goals and slime hunt present)
 - #3697 (PR, skipped: firework core present; elytra boost/attached rockets missing, see QUEUE)
+- batch 9 landed (3079 3706 3896 3684 3612 3861 4444 3493 4561)
+- #4181 (PR, skipped: reduction present registry.rs:1319)

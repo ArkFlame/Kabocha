@@ -11,3 +11,4 @@ Status: todo | running | verify | merged | blocked | invalid.
 - #3821 failed (fishing bobber/projectile 52 conflicts; needs larger-scope port)
 - #3428 failed: master uses HeightMap, PR uses HeightmapType + WG heightmaps; needs redesign
 - #3697 follow-up: elytra boost_attached, attached rockets, deflection, NBT
+- #3848 failed: palette/light conflicts with #3320 #3427 #4488; #3903 partial: regenerate configured_features_generated.rs via codegen
