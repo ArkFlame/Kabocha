@@ -55,6 +55,10 @@ impl Mob for WitherSkeletonEntity {
         &self.entity.mob_entity
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityWitherSkeletonAmbient)
+    }
+
     fn on_attack(&self, target: &dyn EntityBase) {
         if let Some(living) = target.get_living_entity() {
             living.add_effect(Effect {

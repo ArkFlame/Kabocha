@@ -35,6 +35,10 @@ impl Mob for SkeletonEntity {
         &self.entity.mob_entity
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntitySkeletonAmbient)
+    }
+
     fn populate_default_equipment_slots(
         &self,
         world: &Arc<World>,

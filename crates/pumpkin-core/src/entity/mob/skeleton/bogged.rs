@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use pumpkin_data::BlockState;
+use pumpkin_data::data_component_impl::{PotionContentsImpl, StatusEffectInstance};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
@@ -108,6 +109,36 @@ impl Mob for BoggedSkeletonEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
+    }
+
+    fn get_min_attack_interval(&self) -> Option<i32> {
+        let world = self.get_entity().world.load();
+        if world.level_info.load().difficulty == pumpkin_util::Difficulty::Hard {
+            Some(50)
+        } else {
+            Some(70)
+        }
+    }
+
+    fn get_arrow_projectile(&self) -> Option<ItemStack> {
+        // Plain arrow avoids PotionDurationScale reducing the 100-tick poison duration.
+        let mut arrow = ItemStack::new(1, &Item::ARROW);
+        let poison_effect = StatusEffectInstance {
+            effect_id: std::borrow::Cow::Borrowed("minecraft:poison"),
+            amplifier: 0,
+            duration: 100,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+        };
+        let potion_contents = PotionContentsImpl {
+            potion_id: None,
+            custom_color: None,
+            custom_effects: vec![poison_effect],
+            custom_name: None,
+        };
+        arrow.set_data_component(potion_contents);
+        Some(arrow)
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {

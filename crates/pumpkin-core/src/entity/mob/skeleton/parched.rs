@@ -34,4 +34,8 @@ impl Mob for ParchedSkeletonEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
     }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityParchedAmbient)
+    }
 }

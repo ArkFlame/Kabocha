@@ -2260,6 +2260,16 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    /// Arrow projectile to shoot when using a bow.
+    fn get_arrow_projectile(&self) -> Option<ItemStack> {
+        None
+    }
+
+    /// Minimum attack interval for ranged bow attacks in ticks.
+    fn get_min_attack_interval(&self) -> Option<i32> {
+        None
+    }
+
     fn get_ambient_sound(&self) -> Option<pumpkin_data::sound::Sound> {
         None
     }
