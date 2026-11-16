@@ -16,7 +16,6 @@ Format: `- #N (PR|issue) title [commit]`
 - #4022 (PR) fix(block): bubble columns (#4022) [9a3ea7cc9]
 - #3846 (PR) Slovenian translation (#3846) [aac5c5d7c]
 - #4551 (PR) fix(item): breed the spawn egg baby from the clicked animal so it inherits its variant (#4551) [3e48928bf]
-- #2858 (PR) feat(build): decrease incremental build times by ~1.5x (#2858) [e5f1045ec]
 - #3666 (PR) fix(item_stack): reject damaged items from stacking (#3666) [e8bc2e811]
 - #3854 (PR) fix(util): stop extra %s placeholders repeating the last arg (#3854) [24cc53c1a]
 - #4113 (PR) fix(entity): read blaze follow range from the FOLLOW_RANGE attribute (#4113) [346ad3261]
