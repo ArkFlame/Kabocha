@@ -392,24 +392,26 @@ impl ClientPlatform {
 pub async fn can_not_join(
     profile: &GameProfile,
     address: &SocketAddr,
-    server: &Server,
+    server: &Arc<Server>,
 ) -> Option<TextComponent> {
     const FORMAT_DESCRIPTION: &[time::format_description::FormatItem<'static>] = time::macros::format_description!(
         "[year]-[month]-[day] at [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
     );
 
-    let mut banned_players = server
+    let ban_entry = server
         .data
         .banned_player_list
         .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(entry) = banned_players.get_entry(profile) {
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get_entry(profile)
+        .map(|entry| (entry.reason.clone(), entry.expires));
+    if let Some((reason, expires)) = ban_entry {
         let text = TextComponent::translate_cross(
             translation::java::MULTIPLAYER_DISCONNECT_BANNED_REASON,
             translation::java::MULTIPLAYER_DISCONNECT_BANNED_REASON,
-            [TextComponent::text(entry.reason.clone())],
+            [TextComponent::text(reason)],
         );
-        return Some(match entry.expires {
+        let kick_message = match expires {
             Some(expires) => text.add_child(TextComponent::translate_cross(
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
@@ -418,9 +420,21 @@ pub async fn can_not_join(
                 )],
             )),
             None => text,
-        });
+        };
+        let mut event = crate::plugin::api::events::player::banned_player_join::BannedPlayerJoinEvent {
+            player_name: profile.name.clone(),
+            player_uuid: profile.id,
+            ip_address: *address,
+            kick_message,
+            cancelled: false,
+        };
+        server.plugin_manager.fire(server, &mut event).await;
+        if event.cancelled {
+            // The plugin ignored the ban (e.g. unbanned the player), allow the join.
+            return None;
+        }
+        return Some(event.kick_message);
     }
-    drop(banned_players);
 
     if server.white_list.load(Ordering::Relaxed) {
         let ops = server

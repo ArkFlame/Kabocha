@@ -1,5 +1,6 @@
 pub mod async_player_chat;
 pub mod async_player_pre_login;
+pub mod banned_player_join;
 pub mod bedrock_form_response;
 pub mod changed_main_hand;
 pub mod egg_throw;
@@ -76,6 +77,7 @@ pub mod player_velocity;
 
 pub use async_player_chat::*;
 pub use async_player_pre_login::*;
+pub use banned_player_join::*;
 pub use bedrock_form_response::*;
 pub use changed_main_hand::*;
 pub use egg_throw::*;
