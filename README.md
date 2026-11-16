@@ -41,6 +41,10 @@ Or grab a prebuilt binary from the [Download page](https://pumpkinmc.org/downloa
 - **Flexibility**: Highly configurable, with the ability to disable unnecessary features.
 - **Extensibility**: Provides a foundation for plugin development.
 
+## Plugin development
+
+- [WASM plugin API v0.1 to v0.2 migration guide](docs/PLUGIN-API-V0_2-MIGRATION.md)
+
 ## Features
 
 - [x] Configuration (toml)
