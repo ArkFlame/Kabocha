@@ -6,6 +6,7 @@ use crate::{
         fluid::FluidBehaviour,
     },
     entity::EntityBase,
+    plugin::api::events::block::block_form::BlockFormEvent,
     world::World,
 };
 use pumpkin_data::{
@@ -92,6 +93,20 @@ impl FlowingLava {
         world.set_block_state(fire_pos, fire_state_id, BlockFlags::NOTIFY_ALL);
     }
 
+    /// Turns the fluid at `block_pos` into `block`, unless a plugin cancels the
+    /// `BlockFormEvent` first. Used by every lava/water conversion (cobble, obsidian,
+    /// stone, basalt) so a plugin can gate all of them the same way.
+    fn form_block(world: &Arc<World>, block_pos: &BlockPos, block: &'static Block) {
+        let expected = Block::from_state_id(world.get_block_state_id(block_pos));
+        let mut event = BlockFormEvent::new(*block_pos, block);
+        if !world.fire_block_event(block_pos, expected, &mut event) {
+            return;
+        }
+
+        world.set_block_state(block_pos, block.default_state.id, BlockFlags::NOTIFY_ALL);
+        world.sync_world_event(WorldEvent::LavaFizz, *block_pos, 0);
+    }
+
     pub(crate) fn receive_neighbor_fluids(world: &Arc<World>, block_pos: &BlockPos) -> bool {
         // Logic to determine if we should replace the fluid with any of (cobble, obsidian, stone, etc.)
         let below_is_soul_soil = world
@@ -114,28 +129,15 @@ impl FlowingLava {
                 .has_tag(&pumpkin_data::tag::Fluid::MINECRAFT_WATER)
             {
                 let block = if is_still {
-                    Block::OBSIDIAN
+                    &Block::OBSIDIAN
                 } else {
-                    Block::COBBLESTONE
+                    &Block::COBBLESTONE
                 };
-                world.set_block_state(block_pos, block.default_state.id, BlockFlags::NOTIFY_ALL);
-                world.sync_world_event(WorldEvent::LavaFizz, *block_pos, 0);
+                Self::form_block(world, block_pos, block);
                 return false;
             }
             if below_is_soul_soil && world.get_block(&neighbor_pos) == &Block::BLUE_ICE {
-                let mut event = crate::plugin::api::events::block::block_form::BlockFormEvent::new(
-                    *block_pos,
-                    &Block::BASALT,
-                );
-                if !world.fire_block_event(block_pos, &Block::LAVA, &mut event) {
-                    return false;
-                }
-                world.set_block_state(
-                    block_pos,
-                    Block::BASALT.default_state.id,
-                    BlockFlags::NOTIFY_ALL,
-                );
-                world.sync_world_event(WorldEvent::LavaFizz, *block_pos, 0);
+                Self::form_block(world, block_pos, &Block::BASALT);
                 return false;
             }
         }
@@ -287,8 +289,7 @@ impl FlowingFluid for FlowingLava {
         if new_props.level == Level::L8 && new_props.falling == Falling::True {
             // Stone creation when lava meets water
             if target_is_water {
-                world.set_block_state(pos, Block::STONE.default_state.id, BlockFlags::NOTIFY_ALL);
-                world.sync_world_event(WorldEvent::LavaFizz, *pos, 0);
+                Self::form_block(world, pos, &Block::STONE);
                 return;
             }
         }
