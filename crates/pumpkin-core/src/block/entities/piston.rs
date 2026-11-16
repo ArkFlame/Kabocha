@@ -241,11 +241,10 @@ impl BlockEntity for PistonBlockEntity {
                 } else {
                     let updated_state =
                         world.update_from_neighbor_shapes(self.pushed_block_state.id, &pos);
-                    world.set_block_state(
-                        &pos,
-                        updated_state,
-                        BlockFlags::NOTIFY_ALL | BlockFlags::MOVED,
-                    );
+                    // Vanilla `PistonMovingBlockEntity.finish` places the pushed block with
+                    // `Block.UPDATE_ALL` (no MOVE_BY_PISTON), so neighbour shape updates run and
+                    // e.g. an observer whose detection face received the block schedules its tick.
+                    world.set_block_state(&pos, updated_state, BlockFlags::NOTIFY_ALL);
                     world.update_neighbors(&pos, None);
                 }
             }
