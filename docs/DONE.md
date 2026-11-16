@@ -217,3 +217,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #4483 (issue, closed upstream since last sync)
 - #4515 (issue, closed upstream since last sync)
 - #4546 (issue, closed upstream since last sync)
+- #4007 (PR, skipped: already present on master)
