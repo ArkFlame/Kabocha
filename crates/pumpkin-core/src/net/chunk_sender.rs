@@ -371,8 +371,12 @@ impl ChunkSender {
         let quota_limit = self.send_quota.floor() as usize;
         let mut ready = Vec::with_capacity(quota_limit);
 
-        // If pending_chunks is small, sorting it directly avoids scanning offsets.
-        if self.pending_chunks.len() <= 16 {
+        // If pending_chunks is small, sorting it directly avoids scanning offsets. The
+        // precompiled offset table stops at `MAX_VIEW_DISTANCE`, so longer view
+        // distances must sort the pending set too or distant chunks never get sent.
+        if self.pending_chunks.len() <= 16
+            || Cylindrical::exceeds_offsets_lut(view_distance.get())
+        {
             let mut sorted: Vec<Vector2<i32>> = self.pending_chunks.iter().copied().collect();
             sorted.sort_unstable_by_key(|pos| {
                 let dx = (pos.x - center.x).unsigned_abs() as u64;

@@ -77,10 +77,8 @@ pub fn update_position(player: &Arc<Player>) {
             }
         }
     }
-    let (loading_iter, unloading_iter) =
+    let (loading_chunks, unloading_chunks) =
         Cylindrical::changed_chunks(old_cylindrical, new_cylindrical);
-    let loading_chunks: Vec<_> = loading_iter.collect();
-    let unloading_chunks: Vec<_> = unloading_iter.collect();
 
     let level = &world.level;
     let mut held_tickets = player

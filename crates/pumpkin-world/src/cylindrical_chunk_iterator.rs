@@ -18,20 +18,18 @@ impl Cylindrical {
     }
 
     #[inline]
-    pub fn changed_chunks(
-        old: Self,
-        new: Self,
-    ) -> (
-        impl Iterator<Item = Vector2<i32>>,
-        impl Iterator<Item = Vector2<i32>>,
-    ) {
+    pub fn changed_chunks(old: Self, new: Self) -> (Vec<Vector2<i32>>, Vec<Vector2<i32>>) {
         let loading = new
             .all_chunks_within()
-            .filter(move |c| !old.is_within_distance(c.x, c.y));
+            .into_iter()
+            .filter(|c| !old.is_within_distance(c.x, c.y))
+            .collect();
 
         let unloading = old
             .all_chunks_within()
-            .filter(move |c| !new.is_within_distance(c.x, c.y));
+            .into_iter()
+            .filter(|c| !new.is_within_distance(c.x, c.y))
+            .collect();
 
         (loading, unloading)
     }
@@ -53,6 +51,8 @@ impl Cylindrical {
     }
 
     /// Returns a precomputed list of relative chunk offset pairs `(dx, dy)` for a given view distance.
+    ///
+    /// The table only covers `MAX_VIEW_DISTANCE`; use [`Self::offsets`] for distances past it.
     #[must_use]
     #[inline]
     pub const fn get_offsets(view_distance: u8) -> &'static [(i8, i8)] {
@@ -62,14 +62,60 @@ impl Cylindrical {
         pumpkin_data::chunk_view_lut::CHUNK_VIEW_LUT[idx]
     }
 
-    /// Returns an iterator of all chunks within this cylinder using the precomputed LUT
+    /// Whether the configured view distance exceeds the precompiled offset table.
+    #[must_use]
     #[inline]
-    pub fn all_chunks_within(self) -> impl ExactSizeIterator<Item = Vector2<i32>> {
-        let offsets = Self::get_offsets(self.view_distance.get());
-        offsets.iter().map(move |&(dx, dy)| {
-            Vector2::new(self.center.x + i32::from(dx), self.center.y + i32::from(dy))
-        })
+    pub const fn exceeds_offsets_lut(view_distance: u8) -> bool {
+        view_distance > pumpkin_data::chunk_view_lut::MAX_VIEW_DISTANCE
     }
+
+    /// Relative chunk offsets for `view_distance`, closest first.
+    ///
+    /// Servers may be configured beyond the precompiled table, so past it the offsets
+    /// are computed on demand instead of being silently truncated.
+    #[must_use]
+    pub fn offsets(view_distance: NonZero<u8>) -> Vec<(i32, i32)> {
+        let vd = view_distance.get();
+        if Self::exceeds_offsets_lut(vd) {
+            compute_offsets(vd)
+        } else {
+            Self::get_offsets(vd)
+                .iter()
+                .map(|&(dx, dy)| (i32::from(dx), i32::from(dy)))
+                .collect()
+        }
+    }
+
+    /// Returns all chunks within this cylinder, closest first.
+    #[must_use]
+    #[inline]
+    pub fn all_chunks_within(self) -> Vec<Vector2<i32>> {
+        let center = self.center;
+        Self::offsets(self.view_distance)
+            .into_iter()
+            .map(|(dx, dy)| Vector2::new(center.x + dx, center.y + dy))
+            .collect()
+    }
+}
+
+/// Same shape and ordering as the precompiled table, computed for distances past it.
+fn compute_offsets(view_distance: u8) -> Vec<(i32, i32)> {
+    let d = i32::from(view_distance);
+    if d < 2 {
+        return Vec::new();
+    }
+    let mut offsets = Vec::new();
+    for z in -(d + 2)..=(d + 2) {
+        for x in -(d + 2)..=(d + 2) {
+            let rel_x = (x.abs() - 2).max(0);
+            let rel_z = (z.abs() - 2).max(0);
+            if rel_x * rel_x + rel_z * rel_z < d * d {
+                offsets.push((x, z));
+            }
+        }
+    }
+    offsets.sort_unstable_by_key(|&(x, z)| x * x + z * z);
+    offsets
 }
 
 #[cfg(test)]
@@ -114,6 +160,32 @@ mod test {
             let estimated_capacity = ((distance as usize + 3).pow(2) * 3167) >> 10;
 
             assert!(estimated_capacity >= chunks.len(),);
+        }
+    }
+
+    #[test]
+    fn view_distance_beyond_offsets_lut_is_complete() {
+        let cylinder = Cylindrical::new(Vector2::new(0, 0), NonZero::new(64).unwrap());
+        let chunks = cylinder.all_chunks_within();
+
+        // Chunks past the precompiled table used to be dropped entirely.
+        assert!(chunks.len() > 10_000);
+        assert!(chunks.contains(&Vector2::new(65, 0)));
+        assert!(chunks.contains(&Vector2::new(0, -65)));
+        assert!(!chunks.contains(&Vector2::new(66, 0)));
+
+        let brute_force = (-67..=67)
+            .flat_map(|x| (-67..=67).map(move |z| Vector2::new(x, z)))
+            .filter(|pos| cylinder.is_within_distance(pos.x, pos.y))
+            .count();
+        assert_eq!(chunks.len(), brute_force);
+
+        // Closest first, same as the precompiled table.
+        let mut last = 0;
+        for chunk in &chunks {
+            let distance = chunk.x * chunk.x + chunk.y * chunk.y;
+            assert!(distance >= last);
+            last = distance;
         }
     }
 }
