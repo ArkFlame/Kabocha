@@ -3039,8 +3039,19 @@ impl Entity {
     // updateWaterState() in yarn
 
     fn update_fluid_state(&self, caller: &dyn EntityBase) {
+        self.apply_fluid_state(caller, true);
+    }
+
+    /// `update_fluid_state` without pushing the entity along the fluid current, for vehicles
+    /// whose motion is client predicted. Still updates the fluid flags and applies the fluid's
+    /// `entityInside` effects, so lava ignites and damages the vehicle.
+    pub fn update_fluid_state_without_push(&self, caller: &dyn EntityBase) {
+        self.apply_fluid_state(caller, false);
+    }
+
+    fn apply_fluid_state(&self, caller: &dyn EntityBase, push: bool) {
         let world = self.world.load();
-        for fluid in self.update_fluid_interaction(caller) {
+        for fluid in self.update_fluid_interaction(caller, push) {
             world
                 .block_registry
                 .on_entity_collision_fluid(fluid, caller);
@@ -3049,8 +3060,12 @@ impl Entity {
 
     /// Vanilla `Entity.updateFluidInteraction`: fluid flags and current push only, without the
     /// fluid's `entityInside` effects. Returns the fluids the entity is in.
-    fn update_fluid_interaction(&self, caller: &dyn EntityBase) -> Vec<&'static Fluid> {
-        let is_pushed = caller.is_pushed_by_fluids();
+    fn update_fluid_interaction(
+        &self,
+        caller: &dyn EntityBase,
+        push: bool,
+    ) -> Vec<&'static Fluid> {
+        let is_pushed = push && caller.is_pushed_by_fluids();
         let mut fluids = BTreeMap::new();
 
         let water_push = Vector3::default();

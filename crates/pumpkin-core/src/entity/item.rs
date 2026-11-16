@@ -559,7 +559,7 @@ impl ItemEntity {
 
         // Vanilla runs `updateFluidInteraction` again here, but the fluid damage only
         // comes from the block effects, so it must not be applied a second time.
-        let in_fluid = !entity.update_fluid_interaction(caller).is_empty();
+        let in_fluid = !entity.update_fluid_interaction(caller, true).is_empty();
 
         if in_fluid || entity.velocity.load().sub(&original_velo).length_squared() > 0.01 {
             entity.velocity_dirty.store(true, Ordering::SeqCst);

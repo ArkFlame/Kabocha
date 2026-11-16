@@ -205,8 +205,12 @@ impl EntityBase for BoatEntity {
         Some(container.clone() as Arc<dyn Inventory>)
     }
 
-    fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
+    fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.vehicle.tick();
+        // Vanilla `Boat.tick` runs `Entity.baseTick`: fluid flags and the fluid's `entityInside`
+        // effects, which is what ignites and destroys a boat sitting in lava. The boat's motion is
+        // client predicted, so the fluid current push is left out.
+        self.vehicle.entity.update_fluid_state_without_push(caller);
 
         let underwater = self.ticks_underwater.load();
         if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {
