@@ -1,12 +1,20 @@
 use crate::block::entities::BlockEntity;
+use crate::entity::EntityBase;
+use crate::entity::mob::raider::is_raider;
 use crate::world::World;
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::block_properties::HorizontalFacing;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+/// Vanilla `BellBlockEntity.RAIDERS_HEAR_BELL_RANGE`: raiders within 48 blocks resonate the bell.
+const RAIDERS_HEAR_BELL_RANGE: f64 = 48.0;
+/// Vanilla resonation lasts 40 ticks; the glowing tag stays for that long.
+const RESONATE_TICKS: i32 = 40;
 
 pub struct BellBlockEntity {
     pub position: BlockPos,
@@ -15,6 +23,8 @@ pub struct BellBlockEntity {
     pub ringing: AtomicCell<bool>,
     resonating: AtomicCell<bool>,
     resonate_time: AtomicCell<i32>,
+    /// Raider entity ids which were given the glowing tag by the current resonation.
+    glowing_raiders: Mutex<Vec<i32>>,
 }
 
 impl BellBlockEntity {
@@ -28,6 +38,7 @@ impl BellBlockEntity {
             resonate_time: AtomicCell::new(0),
             resonating: AtomicCell::new(false),
             ringing: AtomicCell::new(false),
+            glowing_raiders: Mutex::new(Vec::new()),
         }
     }
     pub fn activate(&self, direction: HorizontalFacing) {
@@ -38,10 +49,38 @@ impl BellBlockEntity {
             self.ringing.store(true);
         }
     }
-    pub const fn raiders_hear_bell(&self) -> bool {
-        //TODO
-
-        false
+    fn nearby_raiders(world: &Arc<World>, position: BlockPos) -> Vec<Arc<dyn EntityBase>> {
+        let center = position.to_f64();
+        let bounds = BoundingBox::new(center, center).expand_all(RAIDERS_HEAR_BELL_RANGE);
+        world.get_entities_of_type_at_box(&bounds, is_raider)
+    }
+    fn raiders_hear_bell(&self, world: &Arc<World>) -> bool {
+        let raiders = Self::nearby_raiders(world, self.position);
+        if raiders.is_empty() {
+            return false;
+        }
+        let mut glowing = self
+            .glowing_raiders
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        glowing.clear();
+        for raider in raiders {
+            let entity = raider.get_entity();
+            entity.set_glowing(true);
+            glowing.push(entity.entity_id);
+        }
+        true
+    }
+    fn stop_raider_glow(&self, world: &Arc<World>) {
+        let mut glowing = self
+            .glowing_raiders
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for id in glowing.drain(..) {
+            if let Some(entity) = world.get_entity_by_id(id) {
+                entity.get_entity().set_glowing(false);
+            }
+        }
     }
 }
 
@@ -63,7 +102,9 @@ impl BlockEntity for BellBlockEntity {
             self.ringing.store(false);
             self.ring_ticks.store(0);
         }
-        if self.ring_ticks.load() >= 5 && self.resonate_time.load() == 0 && self.raiders_hear_bell()
+        if self.ring_ticks.load() >= 5
+            && self.resonate_time.load() == 0
+            && self.raiders_hear_bell(world)
         {
             self.resonating.store(true);
             world.play_sound_fine(
@@ -76,10 +117,12 @@ impl BlockEntity for BellBlockEntity {
         }
 
         if self.resonating.load() {
-            if self.resonate_time.load() < 40 {
+            if self.resonate_time.load() < RESONATE_TICKS {
                 self.resonate_time.fetch_add(1);
             } else {
                 self.resonating.store(false);
+                self.resonate_time.store(0);
+                self.stop_raider_glow(world);
             }
         }
     }
