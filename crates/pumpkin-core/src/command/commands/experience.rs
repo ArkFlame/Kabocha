@@ -97,14 +97,12 @@ impl ExperienceExecutor {
             }
         };
 
-        let bedrock_amount = if amount >= 0 { amount } else { amount.abs() };
-
         if targets.len() > 1 {
             TextComponent::translate_cross(
                 format!("commands.experience.{mode_str}.{type_str}.success.multiple"),
                 bedrock_key,
                 [
-                    TextComponent::text(bedrock_amount.to_string()),
+                    TextComponent::text(amount.to_string()),
                     TextComponent::text(targets.len().to_string()),
                 ],
             )
@@ -113,7 +111,7 @@ impl ExperienceExecutor {
                 format!("commands.experience.{mode_str}.{type_str}.success.single"),
                 bedrock_key,
                 [
-                    TextComponent::text(bedrock_amount.to_string()),
+                    TextComponent::text(amount.to_string()),
                     first_target_name,
                 ],
             )

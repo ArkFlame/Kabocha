@@ -6797,7 +6797,7 @@ impl Player {
     /// Add experience levels to the player.
     pub fn add_experience_levels(&self, added_levels: i32) {
         let current_level = self.experience_level.load(Ordering::Relaxed);
-        let new_level = current_level + added_levels;
+        let new_level = (current_level + added_levels).max(0);
         self.set_experience_level(new_level, true);
     }
 
