@@ -3205,7 +3205,7 @@ dependencies = [
 
 [[package]]
 name = "pumpkin-plugin-api-v0_2"
-version = "0.2.2+26.3-26.60"
+version = "0.2.2+26.3-26.63"
 dependencies = [
  "postcard",
  "serde_json",
