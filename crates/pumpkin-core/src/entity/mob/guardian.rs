@@ -62,16 +62,11 @@ pub(crate) fn reflect_thorns(
     if cause_type == &EntityType::GUARDIAN || cause_type == &EntityType::ELDER_GUARDIAN {
         return;
     }
-    if rand::random::<f32>() >= THORNS_CHANCE {
-        return;
-    }
     if let Some(living) = cause.get_living_entity() {
         let _ = living.damage(guardian, THORNS_DAMAGE, DamageType::THORNS);
     }
 }
 
-/// Chance that a guardian's hit reflects thorns (vanilla `Guardian#hurt` roll).
-const THORNS_CHANCE: f32 = 0.5;
 /// Thorns damage reflected by guardians.
 const THORNS_DAMAGE: f32 = 2.0;
 
