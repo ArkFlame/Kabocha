@@ -54,6 +54,15 @@ impl PistonBlock {
         if !world.is_in_height_limit(pos.0.y) {
             return false;
         }
+        // Vanilla `PistonBlock.isMovable`: blocks outside the world border never move.
+        if !world
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains_block(pos.0.x, pos.0.z)
+        {
+            return false;
+        }
         if state.is_air() {
             return true;
         }
