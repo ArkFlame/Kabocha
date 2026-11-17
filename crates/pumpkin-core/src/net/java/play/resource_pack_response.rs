@@ -25,7 +25,8 @@ impl JavaClient {
         );
         server.plugin_manager.fire_blocking(server, &mut event);
 
-        if server.resource_pack.java().force
+        if !event.cancelled
+            && server.resource_pack.java().force
             && (result == PlayResourcePackResult::Declined
                 || result == PlayResourcePackResult::DownloadFail)
         {
