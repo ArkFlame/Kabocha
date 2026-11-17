@@ -19,3 +19,12 @@ markers, only prose mentions of vanilla (`GameTestInstance.CODEC`, two test name
 | mod.rs:922 (`get_test_instance_registry_entries` unused) + dynamic_registry_loader.rs:93 | `RegistrySynchronization` sends the typed `test_instance` registry built from `GameTestInstance` codecs | The typed entries are never sent; the client only receives the raw JSON-as-NBT copy from the generic dynamic registry loader. Wire the typed encoder into registry sync (or drop the generic duplicate) so the client gets codec-canonical payloads. | M |
 | dynamic_registry_loader.rs:92-95 | vanilla directory is `data/<ns>/test_instance/` with lowercase `.json` only | The generic loader also accepts the plural `test_instances` directory and case-insensitive `.json`, so a pack can load entries vanilla would ignore, and such entries are what the client currently sees. | S |
 | model.rs:85 | `GameTestInstance`/`TestData` keeps `structure` as an optional `ResourceLocation` | `GameTestDefinition.structure` is a required `String`; a function test without a structure fails to deserialize here but is valid in vanilla. Confirm the codec shape against decompiled vanilla before relaxing. | M |
+
+## Gap status
+- `RegistrySynchronization` `writeUnnamedTag` (`test_loader.rs:128`): FIXED per "Fixed" section.
+- `.json` suffix case-insensitive (`test_loader.rs:79`): FIXED per "Fixed" section.
+- `TestData`/`TestEnvironmentDefinition` codec (`test_loader.rs:93-98`, `model.rs:109`): STILL OPEN (S).
+- Catch-and-skip on bad ResourceLocation (`test_loader.rs:91`): STILL OPEN (S).
+- Unused `get_test_instance_registry_entries` (`mod.rs:922`): STILL OPEN (S).
+- Lowercase `.json` only in dynamic loader (`dynamic_registry_loader.rs:92-95`): STILL OPEN (S).
+- Required `structure` field (`model.rs:85`): STILL OPEN (S).

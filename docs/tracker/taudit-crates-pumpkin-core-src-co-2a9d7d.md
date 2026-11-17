@@ -44,3 +44,10 @@ larger argument-type refactor. Size: M.
 `maxCommandChainLength`) and a fixed 65536 command budget instead of the `maxCommandChainLength` gamerule.
 The comment there already explains the stack-overflow reason for the depth cap. Fixing the command budget
 requires reading the gamerule in `execute_function_with`. Size: S-M.
+
+## Gap status
+- Unknown `#tag` error key: FIXED (per "Fixed in this branch").
+- Empty function tag message: FIXED (per "Fixed in this branch").
+- `with` missing `<path>`: FIXED (per "Fixed in this branch").
+- 1. Function return value not reported (M): STILL OPEN.
+- 2. Macro instantiation error path: STILL OPEN.

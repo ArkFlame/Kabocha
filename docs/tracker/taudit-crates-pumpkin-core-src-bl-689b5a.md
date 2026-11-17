@@ -91,3 +91,12 @@ Remaining gaps:
 | `furnace_like_block_entity.rs:535-560` | on (re)ignition with a different multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale (only observable once the multiplier is data-driven) | rescale after the data-driven multiplier lands | S |
 | `furnace_like_block_entity.rs:252-275` | `canBurn`/`burn` use `recipe.assemble(input)`, which includes the recipe result's data components | the output stack is built from `result.id`/`result.count` only; `recipe.result.components` is dropped | build the result stack with the recipe result components | S |
 | `furnace_like_block_entity.rs:521-533` | Paper `FurnaceBurnEvent#setConsumeFuel(false)` keeps the furnace lit without consuming the fuel item | the event has no `consume_fuel` field | add the field to the event (additive plugin API) and honour it | M |
+
+## Gap status
+- `furnace_like_block_entity.rs:484-496`/`510-521,599-610` data-driven speed multiplier: STILL OPEN (M; same as furnace row).
+- `:542-556` `FurnaceStartSmeltEvent` total cook time: STILL OPEN (S).
+- `:233-237` burn always +1 instead of `recipe.result.count`: STILL OPEN (S).
+- `:520-530` / `:535-560` relight timer rescale: STILL OPEN (S).
+- `:252-275` recipe result components: STILL OPEN (S).
+- `:521-533` `FurnaceBurnEvent` consume-fuel flag: STILL OPEN (M; additive plugin API).
+- Re-audit "audited clean" rows (progress reset, createExperience, consumeFuel, slot validity, RecipesUsed codec): verified, no change.

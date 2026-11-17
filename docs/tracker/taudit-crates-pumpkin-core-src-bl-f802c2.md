@@ -45,3 +45,10 @@ All in `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`
    paid out; vanilla derives XP from `RecipesUsed` at take time (`awardUsedRecipes`, with the remaining
    fraction kept). Observable difference only for large batches/datapack XP. Size: M (needs vanilla
    `awardUsedRecipes` port).
+
+## Gap status
+- Shared cooking macro gaps (`furnace_like_block_entity.rs:609-624,661-664` snake_case NBT keys): FIXED (keys now snake_case, see furnace row above).
+- `:555-557` lit with blocked output: STILL OPEN (S).
+- `:558-569` cool-down branch: STILL OPEN (S).
+- `:200-202` result merge requires component equality: FIXED (`:229,261` component-aware compare).
+- `:112-145` XP float accumulation: STILL OPEN (S).

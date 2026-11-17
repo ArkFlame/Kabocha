@@ -36,3 +36,11 @@ No decompiled RecipeCommand in .vendor; comparisons are against vanilla `RecipeC
 5. Error text uses the raw argument string (recipe.rs:24-25, `recipe.notFound` = "Unknown recipe: %s");
    vanilla passes the parsed `ResourceLocation`, so a namespaced id is echoed with and without
    `minecraft:` differently. Cosmetic. Size XS.
+
+## Gap status
+- Fixed in this pass section: FIXED per note.
+- 1. No server-side recipe book (`recipe.rs:59-128`): STILL OPEN (M).
+- 2. `take` remove packet always sent (`recipe.rs:130-237`): STILL OPEN (M).
+- 3. Display-id layout duplicated (`recipe.rs:160`): STILL OPEN (S).
+- 4. Suggestion provider ids (`recipe.rs:40-57`): STILL OPEN (S).
+- 5. Raw argument in error text (`recipe.rs:24-25`): STILL OPEN (S).

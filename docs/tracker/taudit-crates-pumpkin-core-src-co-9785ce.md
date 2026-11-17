@@ -33,3 +33,17 @@ New gaps:
 | data.rs:482-496 | data modify ... string stringifies numerics with Float.toString/Double.toString | Rust f32/f64::to_string drops the .0 (1.0f becomes "1") | reuse the same Java number formatter | S | **FIXED** (numeric tags now rejected)
 | data.rs:767-770 | SET uses tags.getLast(); an empty source list is not silently written | unwrap_or(NbtTag::End) writes an End tag into the target compound when the source path matches nothing, which can be serialised into entity/storage NBT | return an error (likely ERROR_GET_NON_EXISTENT) for an empty source list; confirm the vanilla error text first | S (verify) |
 | pumpkin-command/src/argument_types/nbt_path.rs:632-636 | commands.data.modify.expected_list arg is the SNBT of the offending tag | format!("{target_tag:?}") leaks Rust Debug (same bug just fixed in data.rs) | target_tag.to_string() | S |
+
+## Gap status
+- Entity data accessor (`data.rs:229-241,273-275`): STILL OPEN (M).
+- `modify string` on non-string tags (`data.rs:481-495`): STILL OPEN (S).
+- Empty arrays render `[B; ]` (`data.rs:114-201`): STILL OPEN (S).
+- Compound key order is HashMap order (`data.rs:151-170`): STILL OPEN (S).
+- Substring error indices (`data.rs:497-521`): STILL OPEN (S).
+- `remove entity` at depth (`data.rs:263-271`): STILL OPEN (Second pass section not re-read this pass).
+- Block data live load (`data.rs:310-348`): STILL OPEN (M).
+- Storage persistence (`data.rs:413-431`): STILL OPEN (M).
+- Double formatting in translatable (`data.rs:300-309,386-399,453-464`): STILL OPEN (S).
+- Numeric to_string in `modify string` (`data.rs:482-496`): STILL OPEN (S).
+- `SET` with empty source writes End (`data.rs:767-770`): STILL OPEN (S).
+- `expected_list` argument text (`nbt_path.rs:632-636`): STILL OPEN (S).

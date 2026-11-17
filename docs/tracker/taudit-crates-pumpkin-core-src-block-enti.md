@@ -18,3 +18,12 @@ The tracker note's "5 TODO/FIXME/vanilla markers" are five prose comments mentio
 | 5 | `entities/sculk_catalyst.rs:62` | `level.getRandom()` | Reseeds a Xoroshiro from OS entropy every tick, so spreading is not reproducible from the world seed. Same pattern in `fire`, `stem`, `jigsaw_block`, `grass_block`; not catalyst-specific, fix house-wide. | S |
 | 6 | `entities/sculk_catalyst.rs:132-172` | Souls arrive through the `GameEvent.ENTITY_DIE` listener (BY_DISTANCE, radius 8) | Manual dispatch from `LivingEntity::on_death` only, so any entity removed without that path (despawn/`discard`, direct `remove`) never feeds a catalyst. Equivalent for normal deaths; revisit when a game-event system lands. | M |
 | 7 | `pumpkin-world/.../sculk/spreader.rs:81-83` | `SculkSpreader.createLevelSpreader()` constants | Level spreader uses 10/4/10/5 (growth spawn cost, no-growth radius, charge decay, additional decay); not verifiable without a decompile, and shares the file's charge-merge logic. | M |
+
+## Gap status
+- 1. Bloom level event drives client particles (`entities/sculk_catalyst.rs:125`): STILL OPEN (client-only effect; note in QUEUE).
+- 2. `decay_delay` not a vanilla NBT key (`sculk_catalyst.rs:46,68-77`): STILL OPEN (S).
+- 3. Game-event distance uses entity position (`sculk_catalyst.rs:158-160`, `entity/living.rs:2983`): STILL OPEN (S).
+- 4. XP reward with null killer (`entity/living.rs:2981`): STILL OPEN (S).
+- 5. OS-entropy RNG per tick (`sculk_catalyst.rs:62`): STILL OPEN (S; seeded RNG is an engine change).
+- 6. Souls via manual death dispatch (`sculk_catalyst.rs:132-172`): STILL OPEN (M).
+- 7. Level spreader constants (`pumpkin-world/.../sculk/spreader.rs:81-83`): BLOCKED-DATA (needs decompiled constants).

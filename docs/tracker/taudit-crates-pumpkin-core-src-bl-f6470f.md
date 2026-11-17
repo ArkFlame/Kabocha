@@ -43,3 +43,10 @@ Remaining gaps:
 | `world/explosion.rs:805-837` | `onExplosionHit` runs for every block in a blast, before the block is removed (`ButtonBlock.java:90-100`) | The destroy path calls `BlockBehaviour::explode` after `set_block_state(AIR)`, so blast reactions of surviving/removed blocks see air; only the wind-charge (`TriggerBlock`) path is faithful | Call `explode` before removal, or add a dedicated per-block explosion-hit hook | M |
 | `buttons.rs:52-58`, `buttons.rs:60-67`, `buttons.rs:172-206` | Paper fires `BlockRedstoneEvent` on press (`ButtonBlock.java:80-84, 94-96, 178-182`) and `EntityInteractEvent` when an arrow turns a wooden button on (`ButtonBlock.java:168-176`) | Pumpkin's plugin API has no equivalent redstone-change/entity-interact hook, so plugins cannot veto a button press | Add the plugin events and fire them at the same points | M |
 | `buttons.rs:185-192` (`press`) | `press` order is setBlockAndUpdate, updateNeighbours, scheduleTick, sound, game event (`ButtonBlock.java:102-108`) | Pumpkin schedules the tick before updating neighbours; only visible if a neighbour inspects the tick queue during the update | Move `update_neighbors` above `schedule_block_tick` | S |
+
+## Gap status
+- `buttons.rs:76-81` arrow bounds from shape: STILL OPEN (S).
+- `buttons.rs:98-106`, `:203` game-event source and player: STILL OPEN (S).
+- `world/explosion.rs:805-837` `onExplosionHit` before removal: STILL OPEN (M).
+- `buttons.rs:52-67`, `:172-206` Paper `BlockRedstoneEvent` / interact event: STILL OPEN (M; plugin API).
+- `buttons.rs:185-192` `press` ordering: STILL OPEN (S).

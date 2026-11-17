@@ -70,3 +70,11 @@ The tracker note "3 TODO/FIXME/vanilla markers" is 3 `vanilla` mentions in comme
   blocks). That helper is shared by many blocks, so it is out of scope for this row.
 - One fix landed for this row: `977e9c71c` (poison bees only from closed eyeblossom). No further
   code divergence is certain without the decompiled 26.3 sources; `.vendor/` is absent here.
+
+## Gap status
+- 1. Peaceful bee-poison early return (`eyeblossom.rs:91-93`): STILL OPEN (S).
+- 2. 3x2x3 box iteration (`eyeblossom.rs:135-158`): FIXED (verified equivalent, no change needed).
+- 3. Shared RNG per state change (`eyeblossom.rs:132-133`): STILL OPEN (S).
+- 4. Potted variants (`flower_pots.rs:84-119`): STILL OPEN (M).
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:118`): STILL OPEN (S).
+- Poison-bee-from-closed-only: FIXED (commit 977e9c71c, per Re-audit section).

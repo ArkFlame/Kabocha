@@ -84,3 +84,9 @@ TODO/FIXME in the file.
 ## Notes
 
 - No compile/test was run in the worker (worker rule); the orchestrator batch-checks.
+
+## Gap status
+- Prefix matching on other `filter_and_suggest*` call sites: STILL OPEN (S).
+- Criteria are raw strings, no vanilla registry: STILL OPEN (M).
+- Argument errors without cursor context: STILL OPEN (M).
+- Per-world scoreboards vs server-wide vanilla: STILL OPEN (L).

@@ -85,7 +85,12 @@ Deep audit in this pass (no behaviour change needed):
 - Confirmed there is no `TODO`/`FIXME` in the file; the tracker's 9 markers are
   the explanatory `vanilla` comments.
 
-## Gapwave2-2 status
-
-- `locate.rs` stronghold arm (S): FIXED in 8b30557a5 (sends "Searching for ..." feedback, returns 0; Canvas behaviour, UNVERIFIED against vanilla since vanilla blocks).
-- Remaining rows (POI registry validation, multi-set placements, ring-order, structure-validity arm, Bedrock argument shape): not attempted this pass.
+## Gap status
+- Stronghold blocking search (`locate.rs` stronghold arm): STILL OPEN (M; `locate.rs` is out of scope for this pass).
+- Datapack/modded structures via registry (`locate.rs` `wanted_structures`): STILL OPEN (M).
+- POI argument type (`locate.rs` vs `resource_or_tag.rs`): STILL OPEN (S).
+- All placements per structure set (`locate.rs` `structure_set_containing`): STILL OPEN (M).
+- Random-spread nearest ordering (`structure_finder.rs`): STILL OPEN (M).
+- Stronghold distance ranking (`structure_finder.rs` `find_nearest_concentric`): STILL OPEN (S).
+- Structure arm placement candidates (`locate.rs:273-279`): STILL OPEN (M).
+- Bedrock success arguments (`locate.rs:298-306,359-367`): STILL OPEN (S).

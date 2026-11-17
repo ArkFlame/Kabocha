@@ -53,3 +53,12 @@ Vanilla reference: `net.minecraft.server.commands.DatapackCommand` (1.21.5+; `en
 Command tree (`list`, `list available`, `list enabled`, `enable` default=last, `before`, `after`,
 `disable`, `create`), permission level 2, broadcast feedback (`sendSuccess(..., true)`), enabled/unknown
 error split for `enable`, count of `enable`/`disable`, and `pack.mcmeta` JSON shape match vanilla intent.
+
+## Gap status
+- Fixed in this branch section: FIXED per note.
+- 1. `datapack.rs:455` (and `data/datapack/mod.rs` sites): STILL OPEN (S).
+- 2. Duplicate enable/disable logic (`datapack.rs:219-419`): STILL OPEN (M).
+- 3. `before`/`after` anchor not enabled throws (`datapack.rs:303-310`): STILL OPEN (S).
+- 4. `reload_datapacks` result discarded (`datapack.rs:261,345,399`): STILL OPEN (S).
+- 5. `pumpkin-unit-test` exposed (`data/datapack/mod.rs:1399`): STILL OPEN (S).
+- 6. Suggestion ids are Pumpkin-internal (`datapack.rs:73-122`): STILL OPEN (S).

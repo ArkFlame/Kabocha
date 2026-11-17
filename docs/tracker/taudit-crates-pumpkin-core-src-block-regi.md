@@ -93,3 +93,7 @@ from vanilla `blocksBuilding = false` overrides. Size: M.
   `canBeReplaced` overrides, `540-547`.
 - `BlockPlacingError` height limits use `world.get_bottom_y()`/`get_top_y()`,
   matching `Level` build limits instead of a hardcoded 320, `743-760`.
+
+## Gap status
+- Registry obstruction check counting placing player: FIXED (per "Fixed" section; not re-spot-checked).
+- 1. `get_inside_collision_shape` fallback (`block/registry.rs`): STILL OPEN (not re-read this pass).

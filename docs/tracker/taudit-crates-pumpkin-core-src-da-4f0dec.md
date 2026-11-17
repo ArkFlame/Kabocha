@@ -76,3 +76,9 @@ the tracker note's "8 markers" are the word "vanilla" in doc comments/tests.
     ids are real datapack registries); only the duplicated I/O remains. Size S.
   - `EXCLUDED_REGISTRY_DIRS:352-377` still lists `"datapacks"`, which is never a `data/<ns>/` folder.
     Dead entry, no behaviour impact. Size S.
+
+## Gap status
+- Fixed in this pass section (unknown `worldgen/<sub>` keyed correctly): FIXED per note.
+- 1. JSON streamed to NBT bypassing codec (`json_to_nbt_tag:229-268`): STILL OPEN (L).
+- 2. Plural directory aliases (`DYNAMIC_REGISTRIES:11-225`): STILL OPEN (S).
+- 3. Auto-discovery of unknown folders (`dynamic_registry_loader.rs:367-406`): STILL OPEN (S).

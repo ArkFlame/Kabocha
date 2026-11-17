@@ -31,3 +31,11 @@ match vanilla. Remaining gaps below.
 | Smelting/fuel consumption silently no-ops when `items.try_write()` fails, while `cooking_time_spent` was already reset and `is_dirty` set: lock contention can consume no fuel yet light the furnace, or lose a completed craft | `furnace_like_block_entity.rs:184-186`, `480-507`, `530-551` | single-threaded tick never skips; fuel is consumed whenever the furnace lights | Retry with a blocking `write()` (no await in `tick`) or roll the state changes back when the lock is unavailable | S |
 | Fractional un-awarded experience is dropped on save/load: `from_nbt` rebuilds it only from `recipes_used` | `furnace_like_block_entity.rs:635-653` | vanilla has no stored fraction; XP is derived from `RecipesUsed` at take time, so nothing is lost | Resolved by the per-recipe XP fix above (no float state to persist) | S |
 | `can_accept_recipe_output` ignores the recipe result count (`itemstack1.getCount() + itemstack.getCount() <= maxStackSize` in newer vanilla) | `furnace_like_block_entity.rs:147-178` | 1.21.2+ `canBurn` adds the result count | Only matters if a datapack cooking recipe returns more than 1 item; add the count check | S |
+
+## Gap status
+- XP single float floored once (`furnace_like_block_entity.rs:121-145`): STILL OPEN (S).
+- Recipe book unlock / `triggerRecipeCrafted` (`furnace_like_slot.rs:140-159`): STILL OPEN (M).
+- Fuel remainder stack > 1 (`furnace_like_block_entity.rs:481-505`): STILL OPEN (S).
+- `try_write` failure no-op after reset (`furnace_like_block_entity.rs`): STILL OPEN (S; lock-order change).
+- Fraction dropped on save/load (`furnace_like_block_entity.rs:635-653`): STILL OPEN (S).
+- `can_accept_recipe_output` ignores result count (`furnace_like_block_entity.rs:147-178`): STILL OPEN (S).

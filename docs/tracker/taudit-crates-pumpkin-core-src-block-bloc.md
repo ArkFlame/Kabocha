@@ -33,3 +33,9 @@ Remaining gaps:
 | `spreading_snowy_block.rs:80-95` | `SnowLayerBlock.LAYERS == 1` short-circuit, then `getLightBlockInto(..., blockState.getLightBlock())` | Uses `BlockState::opacity` as light block; equal for vanilla blocks, but Pumpkin has no distinct light-block value | None needed unless a block needs light block != opacity | S |
 | `spreading_snowy_block.rs:121-150` | `randomTick` behaviour | No automated test; the path needs a live world (light + fluid + rng) | Add a `pumpkin-gametest` scenario: grass under water stays grass, grass under an opaque block turns to dirt, dirt next to lit grass turns to grass | M |
 
+
+## Gap status
+- `spreading_snowy_block.rs:30-36,177-179,199-201` no `getStateForPlacement` on grass/mycelium: STILL OPEN (S; vanilla relies on base class, verify before change).
+- `:57-64` `get_amount` generic for any fluid: STILL OPEN (M; world fluid normalisation is WATER/LAVA only).
+- `:80-95` `LAYERS == 1` short-circuit and light block: STILL OPEN (S).
+- `:121-150` randomTick test coverage: STILL OPEN (needs `pumpkin-gametest` scenario; no unit test possible).

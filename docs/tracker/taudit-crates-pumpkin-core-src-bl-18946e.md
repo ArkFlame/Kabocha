@@ -64,3 +64,6 @@ must be confirmed against decompiled vanilla before editing.
    Plays `BlockBeaconDeactivate` unconditionally, per vanilla `BeaconBlockEntity.setRemoved`.
    Confirm the sound is still unconditional in the target version and that the block-break
    path cannot double-fire it (vanilla plays once from `setRemoved`). Size: S (verification).
+
+## Gap status
+- Items 1-7 (bounds, base/beam gating, beam obstruction, pyramid validation, effect flags, NBT shape, `on_block_replaced`): STILL OPEN. The note itself asks for vanilla confirmation; not re-audited in this pass.

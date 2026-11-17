@@ -73,3 +73,9 @@ recompute is lost when Pumpkin's `set_block_state` skips the placement hook.
 
 Client-only / not required: vanilla's early client-side `CONSUME` in `useItemOn`
 (:170-172) — Pumpkin interacts server-side only and the client predicts the swap.
+
+## Gap status
+- Shelf in flowing water not waterlogged (`shelf.rs:325`): FIXED per "Fixed in this pass" section.
+- `block/mod.rs:667-673` `BlockIsReplacing::water_source` source-only: STILL OPEN (M; 46 call sites).
+- Shelf shape/occlusion (`shelf.rs`, absent): BLOCKED-DATA (generated shape data for `#minecraft:wooden_shelves`).
+- Piston push reaction for shelves: STILL OPEN (engine-level, no moveability concept).

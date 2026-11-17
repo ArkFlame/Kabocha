@@ -53,3 +53,6 @@ Remaining gaps:
 
 7. `crates/pumpkin-core/src/block/mod.rs:677` - silk touch is looked up by name on every break;
    use the generated `Enchantment` constant if one exists. Cleanup only. Size: S.
+
+## Gap status
+- No gap rows recorded in this note (title only). Nothing to mark.

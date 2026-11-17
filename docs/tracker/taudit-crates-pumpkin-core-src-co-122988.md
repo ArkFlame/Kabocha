@@ -32,3 +32,21 @@ the explanatory `vanilla` comments at `time.rs:62` and `time.rs:386`.
 | 8 | Rate and tick counts are printed with Rust `f32`/`i64` `to_string`: `/time rate 1` prints `1`, Java prints `1.0` (`Float.toString`) | `time.rs:230-232`, `300-313` | `Component.translatable(..., rate)` renders `1.0` | format the rate as Java does (`{rate:?}`) | S |
 | 9 | `/time pause`, `/time resume`, `/time rate` return `1` | `time.rs:266`, `287`, `315` | `TimeCommand` returns the clock's tick count (used by command blocks/`execute if`) | return the clock total ticks | S |
 | 10 | `/time add` uses `TimeArgumentType::new(i32::MIN)` while `world/time.rs:161-163` clamps at 0; vanilla's `TimeArgument.time(0)` may reject negative amounts | `time.rs:347-352` | `TimeArgument.time(0)` in Java, but the clamp in `add_time` suggests vanilla accepts and clamps | confirm against decompiled `TimeCommand.addTime` before changing the bound | S (needs vanilla source) |
+
+## Gap status
+- `/time set` Bedrock clock message (`time.rs:203-209`, uses `COMMANDS_TIME_CLOCK_SET` at `:206`): FIXED.
+- `/time add` Bedrock message (`time.rs:222-244`, `COMMANDS_TIME_CLOCK_ADDED` at `:228`): FIXED.
+- `/time pause` Bedrock message (`time.rs:257-266`, `COMMANDS_TIME_CLOCK_PAUSED` at `:260`): FIXED.
+- `/time resume` Bedrock message (`time.rs:278-287`, `COMMANDS_TIME_CLOCK_RESUMED` at `:281`): FIXED.
+- `/time query time` Bedrock message (`time.rs:132-144`, `COMMANDS_TIME_CLOCK_QUERY_TIME` at `:132`): FIXED.
+- `/time rate` Bedrock message (`time.rs:289-316`): STILL OPEN (not re-read this pass).
+- 1. `/time set <timemarker>` markers not implemented: STILL OPEN (M; no `time_marker` symbol in `time.rs`).
+- 2. Foreign clock id mutates single `LevelTime`: STILL OPEN (M).
+- 3. `commands.time.no_default_clock` unused: STILL OPEN (S; key not referenced in `time.rs`).
+- 4. `already_paused`/`already_running`/`rate.already_same`/`set.already_at_time` unused: STILL OPEN (S; no references in `time.rs`).
+- 5. One `LevelTime` per world, clocks not modelled: STILL OPEN (L).
+- 6. Bedrock rate key: STILL OPEN (S).
+- 7. Query day/daytime hardcoded `minecraft:day`: STILL OPEN (S).
+- 8. f32/i64 `to_string` formatting: STILL OPEN (S).
+- 9. Pause/resume/rate return value 1: STILL OPEN (S).
+- 10. `/time add` negative amount bounds: STILL OPEN (S; vanilla bound unverified).

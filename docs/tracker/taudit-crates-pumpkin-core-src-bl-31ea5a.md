@@ -61,3 +61,11 @@ state, `set_stack` deriving `has_record` from non-emptiness (vanilla only starts
 `JukeboxPlayable`) and its unconditional stop sound, `Clearable::clear` stopping the song where
 vanilla `clearContent` only empties the stack, `can_transfer_to` semantics, and the Bedrock
 block-actor data dropping item components.
+
+## Gap status
+- Fixed rows (`entities/jukebox.rs:180`, `blocks/jukebox.rs:101,123`): FIXED per "Fixed this pass" section; not re-spot-checked.
+- `entities/jukebox.rs:107-119` tick particle order/payload: STILL OPEN (S).
+- `entities/jukebox.rs:139` `chunk_data_nbt` always writes ticks: STILL OPEN (S).
+- `entities/jukebox.rs:230` `set_record` skips stop/HAS_RECORD: STILL OPEN (S; plugin desync risk).
+- `entities/jukebox.rs:428` `can_transfer_to`: STILL OPEN (S).
+- `blocks/jukebox.rs:192` `on_state_replaced` delegation: STILL OPEN (design note, no behaviour gap reproduced).

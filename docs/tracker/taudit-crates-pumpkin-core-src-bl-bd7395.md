@@ -35,3 +35,10 @@ The two "vanilla" mentions in the file are doc comments (lines 26, 167: `Multifa
    null-player/null-direction branch recomputes the whole state. Vanilla keeps a single
    `getStateForPlacement` (returns null when nothing attaches) plus a trivial `canSurvive`.
    Refactor to one helper when touching this file again.
+
+## Gap status
+- 1. `get_updated_state` recomputes all faces per neighbour update (`vine.rs:69-112`): STILL OPEN (S).
+- 2. Dead fallback branch (`vine.rs:80-106`): STILL OPEN (XS).
+- 3. `is_air()` on default state (`vine.rs:377,421,431,486,521-522`): STILL OPEN (XS).
+- 4. Placement direction order (`vine.rs:195-225,237-246`): STILL OPEN (S, unverified).
+- 5. `can_place_at` duplicates placement loop (`vine.rs:257-319`): STILL OPEN (M).

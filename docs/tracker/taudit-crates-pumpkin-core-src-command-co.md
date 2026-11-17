@@ -53,3 +53,12 @@ horizontal distance for structures/POIs vs 3D distance for biomes, 6400/32/64 bi
    STRUCTURE_PENDING_ERROR_TYPE from inside the per-set loop, discarding a hit already found
    for another requested structure. Vanilla rings are precomputed, so it never aborts.
    Fix: remember the pending state and only surface it when no hit was found. Size S.
+
+## Gap status
+- Fixed section: FIXED per note (`locate.rs` out of scope for this pass).
+- 1. Shared radius-unit bug (`entity/passive/villager/mod.rs:566`): STILL OPEN (S).
+- 2. Datapack/modded structure ids rejected (`locate.rs:127-143`): STILL OPEN (M).
+- 3. Argument node type (`locate.rs:438`): STILL OPEN (S).
+- 4. Datapack biomes/POI dropped (`locate.rs:312`): STILL OPEN (M).
+- 5. POI square vs circle selection: STILL OPEN (S).
+- 6. Stronghold Pending aborts tag search (`locate.rs:256-258`): STILL OPEN (S).

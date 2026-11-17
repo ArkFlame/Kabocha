@@ -101,3 +101,14 @@ hits are comments on `parse_structure_identifier`, `compute_detected_bounds` and
 - Redstone LOAD/CORNER handling, `mode` block-state sync on NBT load, `save_structure_area` mode
   guard, `place_structure_if_same_size` "prepare" (size mismatch) flow and the translation keys used
   by `handle_set_structure_block`.
+
+## Gap status
+- 1. Entities never captured on save (`structure_block.rs:188-262`): STILL OPEN (M).
+- 2. Placement ignores `ignoreEntities`/`StructurePlaceSettings`: STILL OPEN (M).
+- 3. Wall-clock seed when `seed == 0` (`structure_block.rs:327-334`): STILL OPEN (S).
+- 4. Structure name canonicalisation (`from_nbt` 535-541): STILL OPEN (S).
+- 5. Offset clamp to +-48 on load (`from_nbt` 543-554): STILL OPEN (S).
+- 6. `detectSize` enumerates block entities (`structure_block.rs:946-1036`): STILL OPEN (M).
+- 7. `chunk_data_nbt` drops payload (`structure_block.rs:673-695`): STILL OPEN (S).
+- 8. Redstone SAVE does not write disk (`blocks/structure_block.rs:78-81`): STILL OPEN (M).
+- 9. Multiblock bucketing by `is_solid_render` (`structure_block.rs:246`): STILL OPEN (S).

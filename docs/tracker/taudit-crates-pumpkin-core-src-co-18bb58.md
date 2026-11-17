@@ -36,3 +36,13 @@ Remaining gaps:
 | `particle.rs:225-241` | `ServerLevel#sendParticles(ServerPlayer, ...)` uses `player.blockPosition().closerToCenterThan(pos, force ? 512 : 32)` (block centre, strict `<`) and `player.level() != this` | Uses the exact player position with `<=`; half a block of difference at the radius edge | Compare against `block_position + 0.5` with strict `<` | S |
 | `particle.rs:107-131` (`item_stack`) | `ItemParticleOption.CODEC` uses `ItemStackTemplate.CODEC` (item id + count, no components) | Uses the full `ItemStack` reader, so components in SNBT are accepted where vanilla rejects them | Decode as `ItemStackTemplate` once such a type exists | S |
 | `crates/pumpkin-protocol/src/java/client/play/particle.rs:280-320` | 26.x `ClientboundLevelParticlesPacket`: particle options first, three per-axis speeds, `count` VAR_INT, trailing `randomization_type` | `CParticle` writes particle id + payload last, one `max_speed`, `count` as i32 BE, no randomization type (out of this file's scope, flagged while reading `ParticleCommand`) | Needs a dedicated protocol audit with byte-exact tests against a vanilla packet dump | L |
+
+## Gap status
+- Particle options parsed by codec, not command parser (`particle.rs:157-197`): STILL OPEN (M).
+- Spell/colour STREAM_CODEC layout (`particle.rs:157-162`): STILL OPEN (S).
+- Trail options ignored (`particle.rs:157-197`): STILL OPEN (S).
+- Vibration options ignored (`particle.rs:157-197`): STILL OPEN (S).
+- dust_pillar/block_crumble/item_cobweb/geyser/firefly/sulfur_cube_goo payloads: STILL OPEN (M).
+- Player-centre range check (`particle.rs:225-241`): STILL OPEN (S).
+- Item particle component-less ItemStackTemplate (`particle.rs:107-131`): STILL OPEN (S).
+- 26.x packet layout (`pumpkin-protocol/.../particle.rs:280-320`): STILL OPEN (M).

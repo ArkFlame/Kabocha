@@ -29,3 +29,17 @@ comments referencing vanilla behaviour. Behaviour gaps found are listed below.
 | mod.rs:500, 884 | `Tag#getEntries` (flattened holder set) | `get_tag_values` / `get_tag_entries` return raw `#tag` reference strings; vanilla returns the flattened member list. | Reuse the `tag_contains_entry` recursion to expand nested references. | S |
 | function_loader.rs:30, mod.rs:2465 | `FolderRepositorySource` | Loaders skip symlinked files/dirs (`entry.file_type()`), while vanilla's directory source follows them; a pack symlinking shared content silently loads nothing. | Use `path.is_dir()` / `path.is_file()` in the recursive loaders. | S |
 | mod.rs:2409 | `PackMetadataSection` format range | An incompatible `pack_format` is accepted without warning; vanilla marks the pack incompatible and refuses to enable it. | Compare `pack_format` (or min/max range) against the current format and reject/skip with a log. | S |
+
+## Gap status
+- Fixed in this pass section: FIXED per note.
+- `.zip` datapack listing (`mod.rs:2079`): STILL OPEN (partial evidence: `mod.rs:1396` handles `zip` extension; row not re-verified).
+- Fixed 65536 command budget (`mod.rs:122`): STILL OPEN (S; `maxCommandChainLength` game rule).
+- `pack.mcmeta` description as text component (`mod.rs:2409-2421`): STILL OPEN (S).
+- `pack_format` for built-in packs (`mod.rs:1459-1483,2423`): STILL OPEN (S).
+- Macro float stringify (`mod.rs:1729`): STILL OPEN (S).
+- Function suggestion order (`mod.rs:1130`): STILL OPEN (S).
+- `bundle` feature pack acceptance (`mod.rs:2000-2003,1352+`): STILL OPEN (S).
+- Custom damage type id `u8` saturating (`mod.rs:1806`): STILL OPEN (S).
+- Raw `#tag` reference strings (`mod.rs:500,884`): STILL OPEN (M).
+- Symlinks skipped (`function_loader.rs:30`, `mod.rs:2465`): STILL OPEN (S).
+- Incompatible pack_format accepted silently (`mod.rs:2409`): STILL OPEN (S).

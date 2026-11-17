@@ -30,3 +30,8 @@ Doc comment says "first (overworld) world" but `server.worlds.load().first()` is
 
 ## 6. Command block mincart sources (bolt-on)
 `crates/pumpkin-core/src/command/mod.rs:120-124` comment mentions command block minecarts, but there is no sender variant; `MinecartCommandBlock` (`BaseCommandBlock`) is not implemented. Tracked with the minecart work, not this file.
+
+## Gap status
+- 1. Command block custom name ignored (M): STILL OPEN.
+- 2. `LastOutput` plain text not text-component JSON (M): STILL OPEN.
+- 3. Player source text name (`command/mod.rs`): STILL OPEN.

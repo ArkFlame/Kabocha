@@ -71,3 +71,10 @@ Files: `crates/pumpkin-core/src/block/blocks/lectern.rs`,
    page** (`blocks/lectern.rs:65`). `remove_stack` already marked it, so the
    current order makes this a no-op; if the screen handler ever stops calling
    `remove_stack` first, the `Page` NBT would keep the old page. Size S.
+
+## Gap status
+- Fixed in this pass section: FIXED per note (not re-spot-checked).
+- 1. Take ignores adventure mode (`LecternScreenHandler`): STILL OPEN (S).
+- 2. Zero-page comparator output 1: STILL OPEN (S).
+- 3. Jump-to-page success when unchanged: STILL OPEN (S).
+- 4. `on_book_taken` missing dirty mark: STILL OPEN (S).

@@ -55,3 +55,11 @@ already rejects `pos` itself.
 | `spreading_snowy_block.rs:123-141` | `SpreadingSnowyBlock.randomTick`: `if (!canStayAlive(...)) { setBlockAndUpdate(pos, baseBlock.defaultBlockState()); }` with no brightness/opacity gate | Pumpkin invented a gate `get_max_local_raw_brightness(above) < 4 && above_state.opacity > 2`, so a spreading block covered by a full fluid (grass under water/lava, waterlogged plant above) never faded even though `canStayAlive` is false | removed the gate; fade now fires `BlockFadeEvent` and replaces with the base block whenever `canStayAlive` is false | S (fixed) |
 
 Still open (unchanged from the first pass): `BlockFadeEvent` has no `new_state_id` (Paper `BlockFadeEvent(Block, BlockState)`), so plugins cannot see or override the replacement state. `can_propagate` is called with the target dirt state instead of the new default state (vanilla passes `this.defaultBlockState()`); behaviour is identical because both are opaque full cubes, only the comment is misleading. `MyceliumBlock.animateTick` particles are client-only and not implemented.
+
+## Gap status
+- Grass/mycelium spread ignored plugins (`spreading_snowy_block.rs:160-163`): FIXED (`BlockSpreadEvent::new` fired before spread).
+- Fade ignored plugins (`spreading_snowy_block.rs:126-127`): FIXED (`BlockFadeEvent` fired, cancel returns).
+- `plugin/api/events/block/block_fade.rs:8-14` no new-state field: STILL OPEN (additive plugin API; M).
+- `spreading_snowy_block.rs:60-76` `is_full_fluid` hardcoded: STILL OPEN (S).
+- `spreading_snowy_block.rs:100-106` opacity not position-aware: STILL OPEN (S).
+- `spreading_snowy_block.rs:123-141` invented brightness/opacity gate on fade: FIXED (fade branch at `:122-139` has no gate; gate remains only on the spread branch, which is vanilla's `>= 9` check).

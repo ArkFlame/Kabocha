@@ -43,3 +43,8 @@ vanilla `WaterlilyBlock`.
 - `is_liquid_block_container` is also used by `crates/pumpkin-core/src/item/items/bucket.rs:413`;
   the lily pad fix makes that path match vanilla `BucketItem.use` (bucket emptied, no block placed).
 - No test infrastructure covers fluid spreading, so only the helper contract is unit tested.
+
+## Gap status
+- 1. Source water never waterlogs a LiquidBlockContainer (`block/fluid/physics.rs:4-8`): STILL OPEN (M, needs world tick test).
+- 2. `bubble_column` missing from `washed_away_by_fluids` (`physics.rs:10-12`): BLOCKED-DATA (note says confirm against vanilla tag data).
+- 3. Dead lava/water clause in `try_flow`: STILL OPEN (not re-read this pass).

@@ -31,3 +31,14 @@ Markers: the tracker note counts 3 markers, all are doc comments that mention "v
 - `count` is applied to the stack before writing; `IntegerArgumentType::new(1, 99)` matches vanilla.
 - Block target requires a loaded position and a block entity exposing an inventory; error args are x, y, z.
 - `set_damage` clamps the durability fraction to 0..=1 and inverts it into damage like `SetDamageFunction`.
+
+## Gap status
+- Fixed in this review section: FIXED per note.
+- 1-2. 26.3 `item replace` slot source and `item set`: STILL OPEN (M; `minecraft:slot_source` registry data not confirmed in `assets/`).
+- 3. Entity slot ids (`commands/item.rs:317-452`): STILL OPEN (S).
+- 4. Full loot-function set in `applyItemModifier` (`item.rs:484-524`): STILL OPEN (M).
+- 5. Number provider forms (`item.rs:527-532`): STILL OPEN (M).
+- 6. `SetCountFunction` no max-stack clamp (`item.rs:507-516`): STILL OPEN (S).
+- 7. `setChanged` on block item modify (`item.rs:95`, `455-480`): STILL OPEN (S).
+- 8. 26.3 success translations (`item.rs:554-586`): STILL OPEN (S).
+- 9. Inline slot mapping duplicate (`item.rs:122-281`): STILL OPEN (maintenance, no behaviour gap).

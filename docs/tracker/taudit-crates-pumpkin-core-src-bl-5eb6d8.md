@@ -58,3 +58,11 @@ comments (`chain_execute` facing follow, `on_scheduled_tick` condition capture) 
   block entity when absent, and neighbour update gated on the gamerule.
 - No automated test added: both changed paths need a live `World`/`Server` (comparator args, command dispatch);
   the minecart twin has the same constraint.
+
+## Gap status
+- 1. `on_place` horizontal facing only (`command.rs`): STILL OPEN (S).
+- 2. `can_place_at` creative-only gate (`command.rs`): STILL OPEN (S).
+- 3. `chain_execute` cap u16::MAX with warn (`command.rs`): STILL OPEN (S).
+- 4. `last_output` always overwritten (`command/mod.rs` CommandBlock arm): STILL OPEN (S).
+- 5. Block entity dependency (`entities/command_block.rs:10`): STILL OPEN (owned by block entity).
+- 6. Bedrock editor round-trip: STILL OPEN (needs Bedrock client check).

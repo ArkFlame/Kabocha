@@ -37,3 +37,10 @@ Vanilla reference: `net.minecraft.commands.arguments.ResourceKeyArgument`,
 4. No automated test: `list_suggestions`/`get_*` need a live `CommandContext`
    with a server; covered indirectly by `pumpkin-gametest` command tests when
    they exist for `execute in` / `fillbiome`. Size: S.
+
+## Gap status
+- Fixed on this branch section: FIXED per note.
+- 1. `get_biome`/`get_advancement` suggestions (`resource_key.rs:123,141`): STILL OPEN (S).
+- 2. Dimension suggestions only loaded worlds: STILL OPEN (S).
+- 3. `ERROR_NOT_SUMMONABLE_ENTITY`/`ERROR_INVALID` (`resource_key.rs:29`): STILL OPEN (S).
+- 4. No automated test for suggestions (needs live `CommandContext`): STILL OPEN (gametest candidate).

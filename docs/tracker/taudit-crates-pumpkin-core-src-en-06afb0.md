@@ -25,3 +25,14 @@ Compared against vanilla `LivingEntity` / `Entity` (`hurtServer`, `tickEffects`,
 - `tick_effects` matches `MobEffectInstance.tick` (infinite duration uses entity age, 600-tick resend, removal at duration 0).
 - `check_totem_death_protection` hand order, consume, health 1, death effects and entity status 35 match.
 - `get_last_damage_source` 100-tick expiry, drowning interval, soul-speed tick and fall-damage sound selection match.
+
+## Gap status
+- Fixed in this audit section: FIXED per note.
+- 1. `add_effect` instance update (`living.rs:1574`): STILL OPEN (M).
+- 2. Negative heal without die (`living.rs:1251`, TODO): STILL OPEN (S).
+- 3. Fall damage prevention FIXME (`living.rs:1926`): STILL OPEN (S).
+- 4. Effective gravity below world (`living.rs:2277`, TODO): STILL OPEN (S).
+- 5. Climbing sneak clamp (`living.rs:2546`, TODO): STILL OPEN (S).
+- 6. `MobEffectInstance` NBT fields (`living.rs:3962`): STILL OPEN (S).
+- 7. `bypasses_armor` tag as bitmask (`living.rs:5504`, TODO): BLOCKED-DATA (needs data tag generation).
+- 8. Looting from killing blow (`living.rs:3073`): STILL OPEN (S).

@@ -48,3 +48,7 @@ doc comments that cite vanilla (lines 19, 42, 92, 111 pre-change).
   vanilla `ScoreboardSlotArgumentType.parse` + `DisplaySlot.byName`; no TODO/FIXME; no new gap.
 - Gap 1 (`examples()`) stays open as cosmetic S: vanilla `EXAMPLES` is `sidebar`, `foo.bar`; examples
   never reach the wire, and `foo.bar` cannot be confirmed from decompiled sources in this worktree.
+
+## Gap status
+- Slot name/parse agreement: FIXED (`command/argument_types/scoreboard_slot.rs:165` test `slot_name_and_parse_agree_for_every_known_name`).
+- Remaining gaps section and re-audit items: STILL OPEN (not re-read this pass).

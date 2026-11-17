@@ -35,3 +35,11 @@ Math.round, clamp 0..15); 20 tick cadence via `get_world_age() % 20` matches
 `emits_redstone_power`; rotate/mirror are no-ops for the non-directional INVERTED/POWER state;
 block entity NBT is empty in vanilla and here; generated properties (inverted, power) are correct
 for this assets version.
+
+## Gap status
+- Row 1 comparator/analog flag: BLOCKED-DATA (`assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector; needs Extractor).
+- Row 2 shape-driven light occlusion: STILL OPEN (engine has no `useShapeForLightOcclusion`; M).
+- Row 3 tickEntity re-reads world block: STILL OPEN (`block/entities/daylight_detector.rs:96-125`; safe today, S).
+- Row 4 Paper redstone-change ordering: STILL OPEN (`blocks/redstone/daylight_detector.rs:115-123`; S, needs plugin test).
+- Row 5 BLOCK_CHANGE game-event context: STILL OPEN (no listener; S).
+- Row 6 unused `update_power` wrapper: STILL OPEN (`block/entities/daylight_detector.rs:57`, no caller; XS, not removed this pass).

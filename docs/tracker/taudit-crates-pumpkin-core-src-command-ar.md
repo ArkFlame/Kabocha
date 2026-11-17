@@ -55,3 +55,7 @@ to compile in `slot_name`). Fix: emit the names in the codegen output and delete
 `ScoreboardSlotArgumentType.EXAMPLES` is `["sidebar", "foo.bar"]`. Examples are not sent
 on the wire (`JavaClientArgumentType::ScoreboardSlot` carries only the type id) and nothing
 local reads them, so no behaviour change follows.
+
+## Gap status
+- `slot_name` linear scan with `unwrap_or("sidebar")`: FIXED (`scoreboard_slot.rs:165` test covers parse/slot_name agreement).
+- 1. Suggestion filter splits on extra separators (shared helper): STILL OPEN (S).

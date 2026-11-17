@@ -50,3 +50,13 @@ Audited clean:
 | `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S |
 | `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S |
 | `furnace_like_block_entity.rs:856-858` | `getUpdateTag` includes items and cook/burn state | `client_update_tag` returns an empty compound | emit the same keys as `chunk_data_nbt` | S |
+
+## Gap status
+- `furnace_like_block_entity.rs:30-38,511` data-driven speed multiplier: STILL OPEN (M; needs `CookingFuel` data path).
+- `:511-535` relight timer rescale: STILL OPEN (S; depends on previous row).
+- `:177-198` one orb per recipe: STILL OPEN (S; extraction sums to one i32).
+- `furnace_like_slot.rs` take path recipe unlock / `triggerRecipeCrafted`: STILL OPEN (M).
+- `:867-876` Bedrock `StoredXPInt` hardcoded 0: STILL OPEN (S).
+- `:235-274` recipe result components dropped: STILL OPEN (S).
+- `:225` isSameItemSameComponents: FIXED (`furnace_like_block_entity.rs:229,261` now use `are_items_and_components_equal`).
+- `:856-858` `client_update_tag` empty: STILL OPEN (S).

@@ -80,3 +80,12 @@ are comments that mention vanilla behaviour.
    ignores the result. Upstream vanilla throws commands.summon.failed.uuid when the UUID
    already exists (this Paper tree disables that check with `if (false)`); Pumpkin's own
    /summon still raises it. Size S, needs agreement on the Paper vs vanilla behaviour.
+
+## Gap status
+- Fixed in this pass section: FIXED per note.
+- 1. if blocks block-entity comparison (`execute.rs:1139`): STILL OPEN (M).
+- 2. Predicate reference and inline shape (`execute.rs:242-260`): STILL OPEN (M).
+- 3. `if items` missing: STILL OPEN (M).
+- 4. `if function` missing: STILL OPEN (M).
+- 5. `on origin` exact only for projectiles (`execute.rs:1508`): STILL OPEN (S).
+- 6. Positioned over ocean_floor fallback (`execute.rs:194`): STILL OPEN (S).
