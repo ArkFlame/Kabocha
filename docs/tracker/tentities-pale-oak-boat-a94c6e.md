@@ -49,3 +49,13 @@ inventory size 27, `TIME_TO_EJECT` 60-tick underwater ejection, custom-name pres
 placement and break drop, wobble metadata pairing, two-passenger seat indexes 0.2/-0.6, dismount
 spot search over Standing/Crouching/Swimming, `blocks_building = true`, dispenser spawning,
 lily-pad entity collision and the 100-movement/16-step vanilla travel cut-offs in `block_effects.rs`.
+
+## h6 status
+- Rows 1-4 (chest interact fall-through, damage prediction, paddle audio, shared attachment helper): STILL OPEN, not attempted this pass. Vanilla interact ordering not in .vendor; row 4 needs a shared passenger offset helper.
+
+## h6 pass 2 status
+- Row 1 (chest interact discards open result): FIXED already in code (boat.rs interact returns open_custom_inventory_screen result).
+- Row 2 (eye-in-water mount gate): NOT A GAP. Vanilla AbstractBoat.canAddPassenger includes !isEyeInFluid(WATER), so startRiding is blocked too. UNVERIFIED against decompiled source; code matches Java 1.21 memory.
+- Row 3 (damage break prediction coupling): FIXED 1854a8331 (break now read from was_alive && is_removed after the hit). No unit test: needs a world fixture.
+- Row 4 (NaN ground friction): FIXED 426efffdc.
+- Row 5 (client-controlled last_yd): FIXED already in move_from_client (physics.rs stores movement.y into last_yd).
