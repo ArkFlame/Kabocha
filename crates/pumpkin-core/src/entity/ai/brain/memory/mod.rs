@@ -152,13 +152,25 @@ impl fmt::Debug for MemorySlot {
 }
 
 // `StringUtil.truncateStringIfNecessary(text, 255, true)`, applied per line by the vanilla dump.
+// Java measures length in UTF-16 units; a surrogate pair is never split here (Rust cannot hold a lone one).
 fn truncate_description(text: String) -> String {
-    const MAX_CHARS: usize = 255;
-    if text.chars().count() <= MAX_CHARS {
+    const MAX_UNITS: usize = 255;
+    const ELLIPSIS: &str = "...";
+    let units = |c: char| c.len_utf16();
+    if text.chars().map(units).sum::<usize>() <= MAX_UNITS {
         return text;
     }
-    let mut kept: String = text.chars().take(MAX_CHARS - 3).collect();
-    kept.push_str("...");
+    let budget = MAX_UNITS - ELLIPSIS.len();
+    let mut used = 0;
+    let mut kept = String::new();
+    for c in text.chars() {
+        used += units(c);
+        if used > budget {
+            break;
+        }
+        kept.push(c);
+    }
+    kept.push_str(ELLIPSIS);
     kept
 }
 
@@ -601,5 +613,15 @@ mod tests {
         let mut brain = NbtCompound::new();
         brain.put_compound("memories", memories);
         assert!(PackedMemories::from_nbt(&brain).0.is_empty());
+    }
+
+    #[test]
+    fn truncate_description_counts_utf16_units() {
+        // 200 astral chars are 400 UTF-16 units: vanilla truncates to 252 units plus "...".
+        let text = "\u{1F600}".repeat(200);
+        let out = truncate_description(text);
+        assert_eq!(out.encode_utf16().count(), 255);
+        assert!(out.ends_with("..."));
+        assert_eq!(out.chars().filter(|c| *c == '\u{1F600}').count(), 126);
     }
 }
