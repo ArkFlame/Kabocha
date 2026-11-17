@@ -708,7 +708,7 @@ impl PendingConnection {
         server: &Server,
         packet: SConfigResourcePack,
     ) {
-        let resource_config = &server.advanced_config.resource_pack.java;
+        let resource_config = server.resource_pack.java();
         if resource_config.enabled {
             use pumpkin_protocol::java::server::config::ResourcePackResponseResult;
             match packet.response_result() {
