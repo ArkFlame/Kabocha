@@ -623,7 +623,7 @@ impl SulfurCubeEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             contact_damages
                 .iter()
-                .map(|damage| damage.amount.get(&mut random))
+                .map(|damage| damage.amount.get(&mut *random))
                 .collect()
         };
         for (damage, amount) in contact_damages.into_iter().zip(amounts) {

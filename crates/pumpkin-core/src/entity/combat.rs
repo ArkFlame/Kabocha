@@ -93,7 +93,12 @@ pub fn is_mace_weapon(world: &World, weapon: &pumpkin_data::item_stack::ItemStac
     world.server.upgrade().is_some_and(|server| {
         server
             .item_registry
-            .is_behaviour::<crate::item::items::mace::MaceItem>(weapon.item.id)
+            .get_pumpkin_item(weapon.item.id)
+            .is_some_and(|behaviour| {
+                behaviour
+                    .as_any()
+                    .is::<crate::item::items::mace::MaceItem>()
+            })
     })
 }
 

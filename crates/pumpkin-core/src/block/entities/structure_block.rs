@@ -439,7 +439,7 @@ pub fn place_structure_template_in_world(
             let id = template_nbt
                 .get_string("id")
                 .map_or_else(|| format!("minecraft:{}", final_block.name), str::to_string);
-            placed_nbt.put_string("id", id);
+            placed_nbt.put_string("id", id.clone());
             placed_nbt.put_int("x", world_vec.x);
             placed_nbt.put_int("y", world_vec.y);
             placed_nbt.put_int("z", world_vec.z);

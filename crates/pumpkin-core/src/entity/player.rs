@@ -1935,7 +1935,7 @@ impl Player {
                             );
                         if other_victim.get_entity().entity_id != victim_entity.entity_id
                             && other_victim.get_entity().entity_id != attacker_entity.entity_id
-                            && !attacker_entity.is_allied_to(other_victim.as_ref())
+                            && !(self as &dyn EntityBase).is_allied_to(other_victim.as_ref())
                             && !is_marker_stand
                             && combat::sweep_in_reach(attacker_pos, other_pos)
                         {

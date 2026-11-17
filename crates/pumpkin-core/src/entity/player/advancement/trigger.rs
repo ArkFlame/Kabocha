@@ -379,7 +379,7 @@ impl Player {
 
             AdvancementTrigger::PlacedBlock { block_id } => {
                 self.trigger_criterion_event("minecraft:placed_block", |cond| match cond {
-                    CriterionConditions::PlacedBlock(pred) => pred.matches(&block_id, None),
+                    CriterionConditions::PlacedBlock(pred) => pred.matches(&block_id, None, 1, &[]),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });

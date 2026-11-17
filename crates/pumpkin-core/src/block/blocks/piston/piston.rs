@@ -312,7 +312,7 @@ impl PistonBlock {
 // Paper guards the arm removal against headless pistons so a stale `extended`
 // base state cannot delete an unrelated block. Applies to both sticky and
 // non-sticky retraction paths.
-fn remove_arm_if_head(world: &World, arm_pos: &BlockPos, dir: BlockDirection) {
+fn remove_arm_if_head(world: &Arc<World>, arm_pos: &BlockPos, dir: BlockDirection) {
     let (head_block, head_state) = world.get_block_and_state(arm_pos);
     if head_block == &Block::PISTON_HEAD
         && PistonHeadLikeProperties::from_state_id(head_state.id).facing == dir.to_facing()
