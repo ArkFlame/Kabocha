@@ -3402,9 +3402,25 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         self.mob_on_rider_positioned(passenger);
     }
 
-    fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
-        // TODO: apply enchantment processing like in vanilla
-        Mob::get_base_experience_reward(self)
+    fn get_experience_reward(&self, killer: Option<&dyn EntityBase>) -> u32 {
+        let base = Mob::get_base_experience_reward(self);
+        // Vanilla `Mob.getExperienceReward` runs the killer's weapon through the mob
+        // experience enchantment effects, so Looting raises the reward.
+        let Some(killer) = killer.filter(|killer| killer.get_living_entity().is_some()) else {
+            return base;
+        };
+        let Some(living) = self.get_living_entity() else {
+            return base;
+        };
+        if base == 0 {
+            return 0;
+        }
+        let weapon = living.held_item(killer);
+        u32::try_from(crate::enchantment::EnchantmentHelper::modify_mob_experience(
+            &weapon,
+            i32::try_from(base).unwrap_or(i32::MAX),
+        ))
+        .unwrap_or_default()
     }
 
     fn should_drop_loot(&self) -> bool {
