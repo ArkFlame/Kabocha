@@ -26,6 +26,14 @@ Skipped by policy: time, data, compute, locate, enchant/effect/fill (enchant got
 | scoreboard objectives add/display name length | OPEN (UNVERIFIED) | Vanilla `displayTooLong` cap not enforced; exact limit not recalled reliably. |
 | title/subtitle/actionbar/times/clear/reset | NO DIVERGENCE FOUND | Keys `commands.title.show.{mode}.single/multiple`, `cleared`, `reset`, `times` match vanilla. |
 | bossbar | NO DIVERGENCE FOUND | `max` min 1, value min 0, colour/style literals, `commands.bossbar.set.*.unchanged` keys present. |
-| team modify/join/leave | NOT SWEPT | Option literals present; unchanged-error keys are generated constants, not re-checked. |
-| scoreboard players operation/reset | NOT SWEPT | Out of this pass's budget. |
-| advancement, attribute, item | NOT SWEPT | Translation keys are generated constants; slot-name parsing not verified in this pass. |
+| team modify friendlyFire/seeFriendlyInvisibles/nametagVisibility/collisionRule | NO DIVERGENCE FOUND | Literals and `commands.team.option.*.alreadyEnabled/alreadyDisabled/unchanged` error paths match vanilla as recalled (UNVERIFIED). |
+| team modify deathMessageVisibility | OPEN (UNVERIFIED) | Handler sends success feedback but never stores the value: `Team` has no death-message field. Needs a model and packet change, not a one-line fix. |
+| team modify color | OPEN (UNVERIFIED) | Default colour is `White` here; vanilla `PlayerTeam` starts at `RESET`, so `color white` on a fresh team errors here but succeeds in vanilla. Representation change, not fixed. |
+| team modify displayName/prefix/suffix length | NO DIVERGENCE FOUND | No length cap in vanilla modify paths as recalled; existing behaviour kept. |
+| scoreboard players operation `=,+=,-=,*=,/=,%=,<,>,><` | NO DIVERGENCE FOUND | Zero divisor errors with `arguments.operation.div0` instead of skipping. Kept: vanilla `OperationArgument` raises that error as recalled. Swap and min/max match. |
+| scoreboard players operation | NO DIVERGENCE FOUND | Missing target and source scores initialise to 0; result is the sum of final target scores. `players reset` not re-checked this pass. |
+| scoreboard objectives modify displayname/rendertype | NO DIVERGENCE FOUND | Feedback always sent; unchanged-display-name silent-path not recalled reliably, kept. |
+| advancement grant/revoke only/from/through/until/everything | NO DIVERGENCE FOUND | Mode parent/child traversal, grant skips done advancements, revoke skips no-progress, one/many success and failure keys match vanilla as recalled. |
+| attribute get/base get/base set/base reset/modifier add/remove/value get | NO DIVERGENCE FOUND | Error keys `commands.attribute.failed.{entity,no_attribute,no_modifier,modifier_already_present}` and success keys match; scale truncates to int as vanilla. |
+| item replace slot names | NO DIVERGENCE FOUND | Names come from generated `pumpkin_data::slot_ranges`. Entity mapping covers `container/hotbar/weapon/armor/enderchest`, `armor.body`=105 and `armor.saddle`=106. |
+| item replace `villager.N` / `horse.*` | OPEN (UNVERIFIED) | Slot ids 300+ and 500+ have no entity container mapping, so they fail as no-such-slot. Needs villager and horse inventories. |
