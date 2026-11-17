@@ -13,6 +13,7 @@ use pumpkin_data::{
 use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
 use pumpkin_util::loot_table::LootNumberProvider;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::random::RandomImpl;
 use serde_json::Value;
 
@@ -372,9 +373,89 @@ fn get_fishing_hook_in_open_water(entity: &dyn EntityBase, world: Option<&World>
         entity.get_entity().pos.load().y,
         entity.get_entity().pos.load().z,
     );
-    let state = world.get_block_state(&pos);
-    let block = state.id.to_block();
-    Some(block == &pumpkin_data::Block::WATER)
+    Some(is_open_water(|dx, dy, dz| {
+        let cell = pos.offset(Vector3::new(dx, dy, dz));
+        open_water_cell(world.get_block_state(&cell).id.to_block())
+    }))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OpenWaterCell {
+    Water,
+    Air,
+    Other,
+}
+
+fn open_water_cell(block: &pumpkin_data::Block) -> OpenWaterCell {
+    if block == &pumpkin_data::Block::WATER {
+        OpenWaterCell::Water
+    } else if block == &pumpkin_data::Block::AIR {
+        OpenWaterCell::Air
+    } else {
+        OpenWaterCell::Other
+    }
+}
+
+/// Vanilla `FishingHook.calculateOpenWater`, reduced to the loot-relevant rule: the hook sits in
+/// water and the 5x5 column around it is water down to the floor. Air above the surface is
+/// allowed for the three layers up to the hook's height. Any other block in the scanned volume,
+/// or a missing water layer, makes the spot not open water.
+fn is_open_water(cell: impl Fn(i32, i32, i32) -> OpenWaterCell) -> bool {
+    if cell(0, 0, 0) != OpenWaterCell::Water {
+        return false;
+    }
+    (-1..=2).all(|dy| {
+        (-2..=2).all(|dx| {
+            (-2..=2).all(|dz| match (dy, cell(dx, dy, dz)) {
+                (_, OpenWaterCell::Other) => false,
+                (-1, OpenWaterCell::Air) => false,
+                _ => true,
+            })
+        })
+    })
+}
+
+#[cfg(test)]
+mod open_water_tests {
+    use super::{OpenWaterCell, is_open_water};
+
+    #[test]
+    fn full_water_column_is_open_water() {
+        assert!(is_open_water(|_, _, _| OpenWaterCell::Water));
+    }
+
+    #[test]
+    fn air_above_the_surface_is_open_water() {
+        assert!(is_open_water(|_, dy, _| {
+            if dy >= 1 {
+                OpenWaterCell::Air
+            } else {
+                OpenWaterCell::Water
+            }
+        }));
+    }
+
+    #[test]
+    fn single_block_puddle_is_not_open_water() {
+        assert!(!is_open_water(|dx, dy, dz| {
+            if (dx, dy, dz) == (0, 0, 0) {
+                OpenWaterCell::Water
+            } else {
+                OpenWaterCell::Other
+            }
+        }));
+    }
+
+    #[test]
+    fn air_below_the_hook_is_not_open_water() {
+        assert!(!is_open_water(|_, dy, _| {
+            if dy == -1 {
+                OpenWaterCell::Air
+            } else {
+                OpenWaterCell::Water
+            }
+        }));
+    }
 }
 
 pub(super) fn json_to_nbt(value: &Value) -> Option<NbtTag> {
