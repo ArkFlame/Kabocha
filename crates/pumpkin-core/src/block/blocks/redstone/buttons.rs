@@ -25,7 +25,13 @@ use crate::block::{
 };
 use crate::entity::player::Player;
 use crate::entity::projectile::abstract_arrow::is_abstract_arrow;
+use crate::plugin::block::block_redstone::BlockRedstoneEvent;
 use crate::world::World;
+
+/// Ticks a button stays pressed after the last arrow or press, as in vanilla.
+const fn press_duration(block: &Block) -> u32 {
+    if is_stone_button(block) { 20 } else { 30 }
+}
 
 fn is_stone_button(block: &Block) -> bool {
     block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON
@@ -98,6 +104,26 @@ impl BlockBehaviour for ButtonBlock {
                     TickPriority::Normal,
                 );
             } else {
+                // Paper fires `BlockRedstoneEvent(15 -> 0)` on release; a cancelled event, or
+                // a plugin that keeps a current, holds the button down for another period.
+                let mut event =
+                    BlockRedstoneEvent::new(args.world.clone(), state.id, *args.position, 15, 0);
+                let keep_pressed =
+                    !args
+                        .world
+                        .fire_block_event(args.position, args.block, &mut event)
+                        || event.new_current > 0;
+                if keep_pressed {
+                    if args.world.get_block_and_state_id(args.position).0 == args.block {
+                        args.world.schedule_block_tick(
+                            args.block,
+                            *args.position,
+                            press_duration(args.block),
+                            TickPriority::Normal,
+                        );
+                    }
+                    return;
+                }
                 props.powered = false;
                 args.world.set_block_state(
                     args.position,
@@ -187,14 +213,25 @@ impl ButtonBlock {
             return false;
         }
 
+        // Paper fires `BlockRedstoneEvent(0 -> 15)` on press; a cancelled event, or a
+        // plugin that sets the new current to 0, leaves the button unpressed.
+        let mut event = BlockRedstoneEvent::new(world.clone(), state, *block_pos, 0, 15);
+        if !world.fire_block_event(block_pos, block, &mut event) || event.new_current <= 0 {
+            return false;
+        }
+
         button_props.powered = true;
         world.set_block_state(
             block_pos,
             button_props.to_state_id(block),
             BlockFlags::NOTIFY_ALL,
         );
-        let delay = if is_stone_button(block) { 20 } else { 30 };
-        world.schedule_block_tick(block, *block_pos, delay, TickPriority::Normal);
+        world.schedule_block_tick(
+            block,
+            *block_pos,
+            press_duration(block),
+            TickPriority::Normal,
+        );
         Self::update_neighbors(world, block_pos, button_props);
         match player {
             // The client predicts the press sound, so exclude the pressing player.
