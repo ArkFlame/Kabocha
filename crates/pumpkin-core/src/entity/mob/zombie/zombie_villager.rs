@@ -477,22 +477,21 @@ impl Mob for ZombieVillagerEntity {
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        if item_stack.get_item() == &Item::GOLDEN_APPLE {
-            if self
+        if item_stack.get_item() == &Item::GOLDEN_APPLE
+            && self
                 .mob_entity
                 .mob_entity
                 .living_entity
                 .has_effect(&StatusEffect::WEAKNESS)
-            {
-                item_stack.decrement_unless_creative(player.gamemode.load(), 1);
-                self.start_converting(
-                    Some(player.get_entity().entity_uuid),
-                    // Vanilla nextInt(MAX - MIN) + MIN, so MAX itself is never drawn.
-                    rand::random_range(
-                        Self::VILLAGER_CONVERSION_WAIT_MIN..Self::VILLAGER_CONVERSION_WAIT_MAX,
-                    ),
-                );
-            }
+        {
+            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+            self.start_converting(
+                Some(player.get_entity().entity_uuid),
+                // Vanilla nextInt(MAX - MIN) + MIN, so MAX itself is never drawn.
+                rand::random_range(
+                    Self::VILLAGER_CONVERSION_WAIT_MIN..Self::VILLAGER_CONVERSION_WAIT_MAX,
+                ),
+            );
             return true;
         }
         self.mob_entity.mob_interact(player, item_stack)
