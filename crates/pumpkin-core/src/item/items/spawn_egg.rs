@@ -356,8 +356,10 @@ impl ItemBehaviour for SpawnEggItem {
                 }
             }
 
+            // Vanilla `useOn` returns CONSUME even when the peaceful check stops the spawn; the
+            // egg is kept because nothing spawned.
             if is_disallowed_in_peaceful(entity_type, &world) {
-                return BlockActionResult::Fail;
+                return BlockActionResult::Success;
             }
 
             let target_state = world.get_block_state(&location);
