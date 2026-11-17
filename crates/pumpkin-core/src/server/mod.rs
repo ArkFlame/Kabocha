@@ -1242,7 +1242,13 @@ impl Server {
             'after: {
                 player.screen_handler_sync_handler.store_player(&(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>));
                 if !self.admit_player(&world, &player) {
-                    player.kick(DisconnectReason::Shutdown, &TextComponent::text("Server stopped"));
+                    player.kick(
+                        DisconnectReason::Shutdown,
+                        &TextComponent::translate(
+                            pumpkin_data::translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+                            [],
+                        ),
+                    );
                     player.client.clear_player();
                     return None;
                 }
