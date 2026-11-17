@@ -48,5 +48,5 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
 
 ## Gap status
 - Piston block entity facing from state (`mod.rs:571-590`): STILL OPEN (S).
-- Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): STILL OPEN (S).
+- Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): FIXED (UNVERIFIED): ids not in `BLOCK_ENTITY_TYPES` are filtered before the count is written (`block_entity_type_id`, unit test).
 - Remaining rows in the note's table not re-read in this pass.

@@ -155,20 +155,19 @@ pub fn write_chunk_data(
         .pending_block_entities
         .lock()
         .map_err(|_| WritingError::Message("block_entities lock poisoned".into()))?;
+    // Entries without a known BlockEntityType (e.g. Pumpkin-only ids) are dropped
+    // before the count is written; the client would otherwise get a wrong type.
+    let block_entities: Vec<_> = block_entities
+        .iter()
+        .filter_map(|(pos, nbt)| block_entity_type_id(nbt).map(|id| (pos, nbt, id)))
+        .collect();
     write.write_var_int(&VarInt(block_entities.len() as i32))?;
-    for (pos, nbt) in block_entities.iter() {
+    for (pos, nbt, id) in block_entities {
         let local_xz = ((get_local_cord(pos.0.x) & 0xF) << 4) | (get_local_cord(pos.0.z) & 0xF);
 
         write.write_u8(local_xz as u8)?;
         write.write_i16_be(pos.0.y as i16)?;
 
-        let id = nbt.get_string("id").map_or(0, |id_str| {
-            let name = id_str.split(':').next_back().unwrap_or(id_str);
-            pumpkin_data::block_properties::BLOCK_ENTITY_TYPES
-                .iter()
-                .position(|&n| n == name)
-                .unwrap_or(0)
-        });
         write.write_var_int(&VarInt(id as i32))?;
 
         let mut client_nbt = u16::try_from(id)
@@ -305,4 +304,32 @@ pub fn write_biomes(
         }
     }
     Ok(network.packed_data.len())
+}
+
+/// Registry index of a block entity's `id` in `BLOCK_ENTITY_TYPES`, or `None` when unknown.
+fn block_entity_type_id(nbt: &pumpkin_nbt::compound::NbtCompound) -> Option<usize> {
+    let name = nbt.get_string("id")?.split(':').next_back()?;
+    pumpkin_data::block_properties::BLOCK_ENTITY_TYPES
+        .iter()
+        .position(|&n| n == name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::block_entity_type_id;
+    use pumpkin_nbt::compound::NbtCompound;
+
+    fn with_id(id: &str) -> NbtCompound {
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", id.to_string());
+        nbt
+    }
+
+    #[test]
+    fn unknown_block_entity_id_is_dropped() {
+        assert!(block_entity_type_id(&with_id("minecraft:furnace")).is_some());
+        // Pumpkin-only ids must not be sent as a furnace fallback.
+        assert_eq!(block_entity_type_id(&with_id("minecraft:bed")), None);
+        assert_eq!(block_entity_type_id(&NbtCompound::new()), None);
+    }
 }
