@@ -169,7 +169,7 @@ use pumpkin_util::{
 };
 use pumpkin_util::{
     math::{position::chunk_section_from_pos, vector2::Vector2},
-    random::{RandomImpl, get_seed, xoroshiro128::Xoroshiro},
+    random::{RandomImpl, xoroshiro128::Xoroshiro},
 };
 use pumpkin_world::world::{GetBlockError, WorldPortalExt};
 use pumpkin_world::{
@@ -7427,20 +7427,33 @@ impl World {
         let half_width = width / 2.0;
         let spawn_area = 1.0 - width;
 
-        let mut rng = Xoroshiro::from_seed(get_seed());
-
-        // TODO: Use world random here: world.random.nextDouble()
+        // Vanilla `ItemScatterer` draws from `level.random`, the same source loot uses.
+        // Lock only around the draws: spawning fires plugin events that may touch it again.
+        let mut rng = self
+            .loot_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let x = rng.next_f64().mul_add(spawn_area, x.floor()) + half_width;
         let y = rng.next_f64().mul_add(spawn_area, y.floor());
         let z = rng.next_f64().mul_add(spawn_area, z.floor()) + half_width;
+        drop(rng);
 
         while !stack.is_empty() {
-            let item = stack.split((rng.next_bounded_i32(21) + 10) as u8);
-            let velocity = Vector3::new(
-                rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
-                rng.next_triangular(Y_MODE, TRIANGULAR_DEVIATION),
-                rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
-            );
+            let (split_count, velocity) = {
+                let mut rng = self
+                    .loot_random
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                (
+                    (rng.next_bounded_i32(21) + 10) as u8,
+                    Vector3::new(
+                        rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
+                        rng.next_triangular(Y_MODE, TRIANGULAR_DEVIATION),
+                        rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
+                    ),
+                )
+            };
+            let item = stack.split(split_count);
 
             let entity = Entity::new(self.clone(), Vector3::new(x, y, z), &EntityType::ITEM);
             let entity = Arc::new(ItemEntity::new_with_velocity(entity, item, velocity, 10));
