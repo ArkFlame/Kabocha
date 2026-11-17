@@ -102,22 +102,23 @@ pub enum AdvancementTrigger {
         vehicle_type: Option<String>,
     },
     Levitation {
-        distance_y: f64,
+        /// `entity - origin` delta the `distance` predicate is evaluated against.
+        delta: (f64, f64, f64),
     },
     FallFromHeight {
-        distance_y: f64,
+        delta: (f64, f64, f64),
         from_y: f64,
         to_y: f64,
     },
     FallAfterExplosion {
-        distance_y: f64,
+        delta: (f64, f64, f64),
         cause: String,
     },
     NetherTravel {
-        distance_horizontal: f64,
+        delta: (f64, f64, f64),
     },
     RideEntityInLava {
-        distance_horizontal: f64,
+        delta: (f64, f64, f64),
         dimension: String,
         vehicle_type: Option<String>,
     },
@@ -691,27 +692,27 @@ impl Player {
                 );
             }
 
-            AdvancementTrigger::Levitation { distance_y } => {
+            AdvancementTrigger::Levitation { delta } => {
                 self.trigger_criterion_event("minecraft:levitation", |cond| match cond {
                     CriterionConditions::Levitation {
-                        distance_y: Some(bounds),
-                    } => bounds.matches(distance_y),
-                    CriterionConditions::Levitation { distance_y: None }
+                        distance: Some(bounds),
+                    } => bounds.matches(delta),
+                    CriterionConditions::Levitation { distance: None }
                     | CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
             }
 
             AdvancementTrigger::FallFromHeight {
-                distance_y,
+                delta,
                 from_y,
                 to_y,
             } => {
                 self.trigger_criterion_event("minecraft:fall_from_height", |cond| match cond {
                     CriterionConditions::FallFromHeight {
-                        distance_y: Some(bounds),
-                    } => bounds.matches(distance_y) && from_y >= 319.0 && to_y <= -59.0,
-                    CriterionConditions::FallFromHeight { distance_y: None } => {
+                        distance: Some(bounds),
+                    } => bounds.matches(delta) && from_y >= 319.0 && to_y <= -59.0,
+                    CriterionConditions::FallFromHeight { distance: None } => {
                         from_y >= 319.0 && to_y <= -59.0
                     }
                     CriterionConditions::Custom { .. } => true,
@@ -719,19 +720,19 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::FallAfterExplosion { distance_y, cause } => {
+            AdvancementTrigger::FallAfterExplosion { delta, cause } => {
                 self.trigger_criterion_event("minecraft:fall_after_explosion", |cond| match cond {
                     CriterionConditions::FallAfterExplosion {
-                        distance_y: Some(bounds),
+                        distance: Some(bounds),
                         cause_entity,
                     } => {
-                        bounds.matches(distance_y)
+                        bounds.matches(delta)
                             && cause_entity
                                 .as_ref()
                                 .is_none_or(|c| c.matches(&cause, None, None))
                     }
                     CriterionConditions::FallAfterExplosion {
-                        distance_y: None,
+                        distance: None,
                         cause_entity,
                     } => cause_entity
                         .as_ref()
@@ -741,34 +742,30 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::NetherTravel {
-                distance_horizontal,
-            } => {
+            AdvancementTrigger::NetherTravel { delta } => {
                 self.trigger_criterion_event("minecraft:nether_travel", |cond| match cond {
                     CriterionConditions::NetherTravel {
-                        distance_horizontal: Some(bounds),
-                    } => bounds.matches(distance_horizontal),
-                    CriterionConditions::NetherTravel {
-                        distance_horizontal: None,
-                    }
+                        distance: Some(bounds),
+                    } => bounds.matches(delta),
+                    CriterionConditions::NetherTravel { distance: None }
                     | CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
             }
 
             AdvancementTrigger::RideEntityInLava {
-                distance_horizontal,
+                delta,
                 dimension,
                 vehicle_type,
             } => {
                 self.trigger_criterion_event("minecraft:ride_entity_in_lava", |cond| match cond {
                     CriterionConditions::RideEntityInLava {
-                        distance_horizontal: exp_d,
+                        distance: exp_d,
                         dimension: exp_dim,
                         vehicle_type: exp_vt,
                     } => {
                         if let Some(d) = exp_d
-                            && !d.matches(distance_horizontal)
+                            && !d.matches(delta)
                         {
                             return false;
                         }

@@ -127,6 +127,56 @@ impl FloatBounds {
     }
 }
 
+/// `DistancePredicate`: per-axis and derived bounds over the origin-to-entity delta.
+/// Vanilla truncates each delta component to f32 before comparing, and compares the
+/// squared distance for `horizontal` and `absolute`.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct DistancePredicate {
+    pub x: Option<FloatBounds>,
+    pub y: Option<FloatBounds>,
+    pub z: Option<FloatBounds>,
+    pub horizontal: Option<FloatBounds>,
+    pub absolute: Option<FloatBounds>,
+}
+
+impl DistancePredicate {
+    /// `delta` is `entity - origin`, the vectors vanilla's `DistancePredicate::matches` receives.
+    /// Each delta component is truncated to f32 there before the axis checks; the derived
+    /// horizontal and absolute bounds compare the squared length, which is the same ordering.
+    #[must_use]
+    pub fn matches(&self, delta: (f64, f64, f64)) -> bool {
+        let (dx, dy, dz) = delta;
+        let xd = f64::from(dx as f32);
+        let yd = f64::from(dy as f32);
+        let zd = f64::from(dz as f32);
+        self.x.as_ref().is_none_or(|b| b.matches(xd.abs()))
+            && self.y.as_ref().is_none_or(|b| b.matches(yd.abs()))
+            && self.z.as_ref().is_none_or(|b| b.matches(zd.abs()))
+            && self
+                .horizontal
+                .as_ref()
+                .is_none_or(|b| b.matches(xd.hypot(zd)))
+            && self
+                .absolute
+                .as_ref()
+                .is_none_or(|b| b.matches((xd * xd + yd * yd + zd * zd).sqrt()))
+    }
+
+    #[must_use]
+    pub fn from_value(val: &Value) -> Option<Self> {
+        let Value::Object(map) = val else {
+            return None;
+        };
+        Some(Self {
+            x: map.get("x").and_then(FloatBounds::from_value),
+            y: map.get("y").and_then(FloatBounds::from_value),
+            z: map.get("z").and_then(FloatBounds::from_value),
+            horizontal: map.get("horizontal").and_then(FloatBounds::from_value),
+            absolute: map.get("absolute").and_then(FloatBounds::from_value),
+        })
+    }
+}
+
 /// Matches against one or more item/block/entity tags or IDs.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TagOrIdMatcher {
@@ -1590,6 +1640,28 @@ impl RecipePredicate {
     }
 }
 
+/// Generated advancement data stores only a lower y bound for vertical distance triggers.
+fn vertical_distance(min: f64) -> DistancePredicate {
+    DistancePredicate {
+        y: Some(FloatBounds {
+            min: Some(min),
+            max: None,
+        }),
+        ..Default::default()
+    }
+}
+
+/// Generated advancement data stores only a lower bound for horizontal distance triggers.
+fn horizontal_distance(min: f64) -> DistancePredicate {
+    DistancePredicate {
+        horizontal: Some(FloatBounds {
+            min: Some(min),
+            max: None,
+        }),
+        ..Default::default()
+    }
+}
+
 /// Strongly-typed criterion conditions for all advancement trigger types.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CriterionConditions {
@@ -1633,20 +1705,20 @@ pub enum CriterionConditions {
         vehicle_type: Option<TagOrIdMatcher>,
     },
     Levitation {
-        distance_y: Option<FloatBounds>,
+        distance: Option<DistancePredicate>,
     },
     FallFromHeight {
-        distance_y: Option<FloatBounds>,
+        distance: Option<DistancePredicate>,
     },
     FallAfterExplosion {
-        distance_y: Option<FloatBounds>,
+        distance: Option<DistancePredicate>,
         cause_entity: Option<EntityPredicate>,
     },
     NetherTravel {
-        distance_horizontal: Option<FloatBounds>,
+        distance: Option<DistancePredicate>,
     },
     RideEntityInLava {
-        distance_horizontal: Option<FloatBounds>,
+        distance: Option<DistancePredicate>,
         dimension: Option<String>,
         vehicle_type: Option<TagOrIdMatcher>,
     },
@@ -1962,25 +2034,16 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 }),
             },
             AC::Levitation { distance_y_min } => Self::Levitation {
-                distance_y: distance_y_min.map(|min| FloatBounds {
-                    min: Some(min),
-                    max: None,
-                }),
+                distance: distance_y_min.map(vertical_distance),
             },
             AC::FallFromHeight { distance_y_min } => Self::FallFromHeight {
-                distance_y: distance_y_min.map(|min| FloatBounds {
-                    min: Some(min),
-                    max: None,
-                }),
+                distance: distance_y_min.map(vertical_distance),
             },
             AC::FallAfterExplosion {
                 distance_y_min,
                 cause_entity,
             } => Self::FallAfterExplosion {
-                distance_y: distance_y_min.map(|min| FloatBounds {
-                    min: Some(min),
-                    max: None,
-                }),
+                distance: distance_y_min.map(vertical_distance),
                 cause_entity: cause_entity.map(|c| EntityPredicate {
                     entity_type: Some(TagOrIdMatcher {
                         patterns: vec![c.to_string()],
@@ -1991,20 +2054,14 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
             AC::NetherTravel {
                 distance_horizontal_min,
             } => Self::NetherTravel {
-                distance_horizontal: distance_horizontal_min.map(|min| FloatBounds {
-                    min: Some(min),
-                    max: None,
-                }),
+                distance: distance_horizontal_min.map(horizontal_distance),
             },
             AC::RideEntityInLava {
                 distance_horizontal_min,
                 dimension,
                 vehicle_type,
             } => Self::RideEntityInLava {
-                distance_horizontal: distance_horizontal_min.map(|min| FloatBounds {
-                    min: Some(min),
-                    max: None,
-                }),
+                distance: distance_horizontal_min.map(horizontal_distance),
                 dimension: dimension.map(ToString::to_string),
                 vehicle_type: vehicle_type.map(|v| TagOrIdMatcher {
                     patterns: vec![v.to_string()],
@@ -2360,35 +2417,20 @@ impl CriterionConditions {
                 }
             }
             "minecraft:levitation" => Self::Levitation {
-                distance_y: val
-                    .get("distance")
-                    .and_then(|d| d.get("y"))
-                    .and_then(FloatBounds::from_value),
+                distance: val.get("distance").and_then(DistancePredicate::from_value),
             },
             "minecraft:fall_from_height" => Self::FallFromHeight {
-                distance_y: val
-                    .get("distance")
-                    .and_then(|d| d.get("y"))
-                    .and_then(FloatBounds::from_value),
+                distance: val.get("distance").and_then(DistancePredicate::from_value),
             },
             "minecraft:fall_after_explosion" => Self::FallAfterExplosion {
-                distance_y: val
-                    .get("distance")
-                    .and_then(|d| d.get("y"))
-                    .and_then(FloatBounds::from_value),
+                distance: val.get("distance").and_then(DistancePredicate::from_value),
                 cause_entity: val.get("cause").map(parse_entity_pred),
             },
             "minecraft:nether_travel" => Self::NetherTravel {
-                distance_horizontal: val
-                    .get("distance")
-                    .and_then(|d| d.get("horizontal"))
-                    .and_then(FloatBounds::from_value),
+                distance: val.get("distance").and_then(DistancePredicate::from_value),
             },
             "minecraft:ride_entity_in_lava" => {
-                let distance_horizontal = val
-                    .get("distance")
-                    .and_then(|d| d.get("horizontal"))
-                    .and_then(FloatBounds::from_value);
+                let distance = val.get("distance").and_then(DistancePredicate::from_value);
                 let dimension = val
                     .get("player")
                     .and_then(|p| p.get("predicate"))
@@ -2409,7 +2451,7 @@ impl CriterionConditions {
                     .and_then(|v| v.get("minecraft:entity_type").or_else(|| v.get("type")))
                     .and_then(TagOrIdMatcher::from_value);
                 Self::RideEntityInLava {
-                    distance_horizontal,
+                    distance,
                     dimension,
                     vehicle_type,
                 }
@@ -2733,10 +2775,10 @@ mod tests {
         );
         match &cond {
             CriterionConditions::FallFromHeight {
-                distance_y: Some(bounds),
+                distance: Some(bounds),
             } => {
-                assert!(bounds.matches(3.0));
-                assert!(!bounds.matches(6.0));
+                assert!(bounds.y.as_ref().is_some_and(|b| b.matches(3.0)));
+                assert!(bounds.y.as_ref().is_none_or(|b| !b.matches(6.0)));
             }
             _ => panic!("expected FallFromHeight"),
         }
@@ -2744,13 +2786,35 @@ mod tests {
         let cond = CriterionConditions::parse("minecraft:levitation", r#"{"distance": {"y": 7}}"#);
         match &cond {
             CriterionConditions::Levitation {
-                distance_y: Some(bounds),
+                distance: Some(bounds),
             } => {
-                assert!(bounds.matches(7.0));
-                assert!(!bounds.matches(8.0));
+                assert!(bounds.y.as_ref().is_some_and(|b| b.matches(7.0)));
+                assert!(bounds.y.as_ref().is_none_or(|b| !b.matches(8.0)));
             }
             _ => panic!("expected Levitation"),
         }
+    }
+
+    #[test]
+    fn distance_trigger_checks_x_z_and_absolute_axes() {
+        let cond = CriterionConditions::parse(
+            "minecraft:nether_travel",
+            r#"{"distance": {"x": {"min": 2}, "z": {"max": 1}, "absolute": {"min": 5}}}"#,
+        );
+        let CriterionConditions::NetherTravel {
+            distance: Some(bounds),
+        } = &cond
+        else {
+            panic!("expected NetherTravel");
+        };
+        // x 3, z 0, y 4: every axis matches (absolute 5).
+        assert!(bounds.matches((3.0, 4.0, 0.0)));
+        // x below the minimum fails even when the absolute distance is enough.
+        assert!(!bounds.matches((1.0, 10.0, 0.0)));
+        // z above the maximum fails.
+        assert!(!bounds.matches((3.0, 4.0, 2.0)));
+        // absolute below the minimum fails.
+        assert!(!bounds.matches((0.5, 1.0, 0.5)));
     }
 
     #[test]
@@ -3634,13 +3698,17 @@ mod tests {
                     "distance":{"horizontal":{"min":3}}}}}"#,
         );
         let CriterionConditions::FallAfterExplosion {
-            distance_y,
+            distance,
             cause_entity: Some(cause),
         } = &cond
         else {
             panic!("expected FallAfterExplosion with a cause predicate");
         };
-        assert!(distance_y.as_ref().is_some_and(|b| b.matches(3.0)));
+        assert!(
+            distance
+                .as_ref()
+                .is_some_and(|d| d.matches((0.0, 3.0, 0.0)))
+        );
         // The whole cause predicate is kept, not just its entity type string.
         assert_eq!(cause.is_baby, Some(true));
         let delta = EntityDistance::from_delta(4.0, 0.0, 0.0);

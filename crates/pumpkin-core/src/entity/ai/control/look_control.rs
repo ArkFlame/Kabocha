@@ -108,6 +108,9 @@ impl LookControlTrait for LookControl {
     fn wanted_position(&self) -> Option<Vector3<f64>> {
         Some(self.position)
     }
+    fn is_looking_at_target(&self) -> bool {
+        self.look_at_timer > 0
+    }
     fn tick(&mut self, mob: &dyn Mob) {
         Self::tick(self, mob);
     }

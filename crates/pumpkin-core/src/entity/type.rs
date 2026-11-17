@@ -121,6 +121,7 @@ use crate::entity::projectile::experience_bottle::ExperienceBottleEntity;
 use crate::entity::projectile::eye_of_ender::EyeOfEnder;
 use crate::entity::projectile::fireball::FireballEntity;
 use crate::entity::projectile::firework_rocket::FireworkRocketEntity;
+use crate::entity::projectile::fishing_bobber::FishingBobberEntity;
 use crate::entity::projectile::lingering_potion::LingeringPotionEntity;
 use crate::entity::projectile::llama_spit::LlamaSpitEntity;
 use crate::entity::projectile::shulker_bullet::ShulkerBulletEntity;
@@ -265,6 +266,7 @@ pub fn from_type(
         id if id == EntityType::ENDER_PEARL.id => Arc::new(EnderPearlEntity::new(entity)),
         id if id == EntityType::SNOWBALL.id => Arc::new(SnowballEntity::new(entity)),
         id if id == EntityType::EGG.id => Arc::new(EggEntity::new(entity)),
+        id if id == EntityType::FISHING_BOBBER.id => Arc::new(FishingBobberEntity::from_loaded(entity)),
         id if id == EntityType::SILVERFISH.id => SilverfishEntity::new(entity),
         id if id == EntityType::SLIME.id => SlimeEntity::new(entity),
         id if id == EntityType::SULFUR_CUBE.id => SulfurCubeEntity::new(entity),

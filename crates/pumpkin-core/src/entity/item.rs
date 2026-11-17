@@ -226,16 +226,24 @@ impl ItemEntity {
             && stack.are_items_and_components_equal(other)
     }
 
-    /// Vanilla `ItemEntity.isMergable`.
+    /// Vanilla `ItemEntity.isMergable`: `pickupDelay != 32767`, `age != -32768`,
+    /// and `count < maxStackSize`.
     fn is_mergeable(&self) -> bool {
-        if self.entity.removed.load(Ordering::SeqCst) {
-            return false;
-        }
         let Ok(item_stack) = self.item_stack.try_lock() else {
             return false;
         };
+        Self::can_merge(
+            self.entity.removed.load(Ordering::SeqCst),
+            self.never_despawn.load(Ordering::Relaxed),
+            self.never_pickup.load(Ordering::Relaxed),
+            item_stack.item_count,
+            item_stack.get_max_stack_size(),
+        )
+    }
 
-        item_stack.item_count < item_stack.get_max_stack_size()
+    /// Pure form of vanilla `ItemEntity.isMergable` for unit testing.
+    fn can_merge(removed: bool, never_despawn: bool, never_pickup: bool, count: u8, max: u8) -> bool {
+        !removed && !never_despawn && !never_pickup && count < max
     }
 
     /// Vanilla `ItemEntity.mergeWithNeighbours`.
@@ -420,10 +428,12 @@ impl ItemEntity {
             contents
         };
 
-        // Vanilla spills through popResource: default pickup delay and velocity.
+        // Vanilla spills via ItemUtils.onContainerDestroyed / Containers.dropItemStack, which
+        // spawn a plain ItemEntity with no default pickup delay, so contents are pickupable at once.
         let pos = self.entity.pos.load();
         for item in contents.into_iter().filter(|item| !item.is_empty()) {
             let spilled = Self::new(Entity::new(world.clone(), pos, &EntityType::ITEM), item);
+            spilled.set_pickup_delay(0);
             world.spawn_entity(Arc::new(spilled));
         }
     }
@@ -558,7 +568,8 @@ impl ItemEntity {
             self.merge_with_neighbours();
         }
 
-        // Vanilla keeps Age at -32768 for never-despawn items: they still merge.
+        // Vanilla holds Age at -32768 for never-despawn items so they never age or despawn;
+        // isMergable excludes them from merging.
         let age = if self.never_despawn.load(Ordering::Relaxed) {
             self.item_age.load(Ordering::Relaxed)
         } else {
@@ -1070,6 +1081,15 @@ mod tests {
         assert_eq!(ItemEntity::decode_pickup_delay(i16::MAX), (u8::MAX, true));
         assert_eq!(ItemEntity::decode_pickup_delay(-1), (0, false));
         assert_eq!(ItemEntity::decode_pickup_delay(10), (10, false));
+    }
+
+    #[test]
+    fn never_pickup_or_never_despawn_items_never_merge() {
+        assert!(ItemEntity::can_merge(false, false, false, 1, 64));
+        assert!(!ItemEntity::can_merge(true, false, false, 1, 64));
+        assert!(!ItemEntity::can_merge(false, true, false, 1, 64));
+        assert!(!ItemEntity::can_merge(false, false, true, 1, 64));
+        assert!(!ItemEntity::can_merge(false, false, false, 64, 64));
     }
 
     #[test]

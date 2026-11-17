@@ -9,7 +9,7 @@ use pumpkin_util::GameMode;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::control::move_control::{MoveControl, Operation};
-use crate::entity::ai::control::{Control, MoveControlTrait};
+use crate::entity::ai::control::{Control, LookControlTrait, MoveControlTrait};
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::living::LivingEntity;
@@ -85,9 +85,25 @@ pub(crate) const GUARDIAN_WATER_SPEED: f64 = 0.1;
 pub(crate) const GUARDIAN_WATER_DRAG: f64 = 0.9;
 pub(crate) const GUARDIAN_IDLE_SINK: f64 = 0.005;
 
-/// Vanilla `Guardian.GuardianMoveControl`: swims toward the wanted position with a wave push
-/// and marks the guardian as moving, which gates thorns reflection. The look-at update is not
-/// ported yet.
+/// Vanilla `GuardianMoveControl#tick` look-at lerp: 0.125 toward the travel direction, snapping
+/// immediately when no goal is steering the head (`isLookingAtTarget() == false`).
+fn guardian_look_target(
+    looking_at_target: bool,
+    old: (f64, f64, f64),
+    new: (f64, f64, f64),
+) -> (f64, f64, f64) {
+    let (ox, oy, oz) = if looking_at_target { old } else { new };
+    const LERP: f64 = 0.125;
+    (
+        ox + LERP * (new.0 - ox),
+        oy + LERP * (new.1 - oy),
+        oz + LERP * (new.2 - oz),
+    )
+}
+
+/// Vanilla `Guardian.GuardianMoveControl`: swims toward the wanted position with a wave push,
+/// smoothly steers the head toward the travel direction, and marks the guardian as moving, which
+/// gates thorns reflection.
 pub struct GuardianMoveControl {
     inner: MoveControl,
     moving: Arc<AtomicBool>,
@@ -147,6 +163,23 @@ impl MoveControlTrait for GuardianMoveControl {
             push * sin,
         ));
         self.moving.store(true, Ordering::Relaxed);
+
+        // Vanilla `GuardianMoveControl#tick`: lerp the look target toward the travel direction.
+        let new_look = (
+            pos.x + xd * 2.0,
+            entity.get_eye_y() + yd / length,
+            pos.z + zd * 2.0,
+        );
+        let mut look_control = mob_entity
+            .look_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let old_look = look_control
+            .wanted_position()
+            .map_or(new_look, |p| (p.x, p.y, p.z));
+        let (look_x, look_y, look_z) =
+            guardian_look_target(look_control.is_looking_at_target(), old_look, new_look);
+        look_control.look_at_with_range(look_x, look_y, look_z, 10.0, 40.0);
     }
 }
 
@@ -276,5 +309,22 @@ mod tests {
         assert!(thorns_reflection_blocked(true, DamageType::GENERIC));
         assert!(!thorns_reflection_blocked(false, DamageType::GENERIC));
         assert!(!thorns_reflection_blocked(false, DamageType::ARROW));
+    }
+
+    #[test]
+    fn guardian_look_target_snaps_when_not_looking() {
+        let old = (0.0, 0.0, 0.0);
+        let new = (10.0, 5.0, -3.0);
+        assert_eq!(guardian_look_target(false, old, new), new);
+    }
+
+    #[test]
+    fn guardian_look_target_lerps_toward_new_when_looking() {
+        let old = (0.0, 0.0, 0.0);
+        let new = (10.0, 5.0, -3.0);
+        let (x, y, z) = guardian_look_target(true, old, new);
+        assert!((x - 1.25).abs() < 1.0e-9);
+        assert!((y - 0.625).abs() < 1.0e-9);
+        assert!((z + 0.375).abs() < 1.0e-9);
     }
 }

@@ -44,6 +44,12 @@ pub trait LookControlTrait: Control {
     fn wanted_position(&self) -> Option<Vector3<f64>> {
         None
     }
+
+    /// Vanilla `LookControl#isLookingAtTarget`: true while a `setLookAt` is still active.
+    fn is_looking_at_target(&self) -> bool {
+        false
+    }
+
     fn tick(&mut self, mob: &dyn Mob);
 
     fn look_at_with_range(

@@ -2671,7 +2671,7 @@ impl LivingEntity {
                     let current_y = self.entity.pos.load().y;
                     player.trigger_advancement(
                         crate::entity::player::advancement::trigger::AdvancementTrigger::FallFromHeight {
-                            distance_y: f64::from(fall_distance),
+                            delta: (0.0, f64::from(fall_distance), 0.0),
                             from_y: current_y + f64::from(fall_distance),
                             to_y: current_y,
                         },

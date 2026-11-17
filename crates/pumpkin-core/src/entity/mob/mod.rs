@@ -1776,6 +1776,9 @@ pub trait Mob: EntityBase + Send + Sync {
         false
     }
 
+    /// Vanilla `Entity.notifyLeashHolder`, called on the holder when an entity leashes to it.
+    fn mob_notify_leash_holder(&self, _leashee: &dyn EntityBase) {}
+
     fn on_elastic_leash_pull(&self) {}
 
     fn follow_leash_speed(&self) -> f64 {
@@ -3139,6 +3142,10 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
     fn support_quad_leash_as_holder(&self) -> bool {
         self.mob_support_quad_leash_as_holder()
+    }
+
+    fn notify_leash_holder(&self, leashee: &dyn EntityBase) {
+        self.mob_notify_leash_holder(leashee);
     }
 
     fn on_lightning_strike(

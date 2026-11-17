@@ -652,6 +652,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
     /// Called on the old holder after an entity leashed to it was unleashed.
     fn notify_leashee_removed(&self) {}
 
+    /// Called on the holder each tick while another entity is leashed to it (vanilla
+    /// `Leashable.whenLeashedTo` -> `leashHolder.notifyLeashHolder(this)`).
+    fn notify_leash_holder(&self, _leashee: &dyn EntityBase) {}
+
     /// Vanilla `Entity.canInteractWithLevel`, using `LivingEntity.isAlive` for living entities.
     fn can_interact_with_level(&self) -> bool {
         self.get_living_entity()
@@ -5752,6 +5756,10 @@ impl Entity {
             }
             return LeashTick::NotLeashed;
         }
+
+        // Vanilla `Leashable.tickLeash` calls `whenLeashedTo` on every tick while leashed,
+        // which notifies the holder. This must run before the snap-distance check.
+        holder.notify_leash_holder(caller);
 
         let distance = self.leash_distance_to(holder_entity);
         if distance > Self::LEASH_SNAP_DISTANCE {

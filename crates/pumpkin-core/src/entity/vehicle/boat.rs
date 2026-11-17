@@ -44,6 +44,26 @@ const TIME_TO_EJECT: f32 = 60.0;
 const BUBBLE_COLUMN_DELAY: i32 = 60;
 const BOAT_MAX_PASSENGERS: usize = 2;
 const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
+const PADDLE_STEP: f32 = std::f32::consts::FRAC_PI_8;
+const PADDLE_CUE: f32 = std::f32::consts::FRAC_PI_4;
+
+/// Vanilla AbstractBoat.tick plays a stroke as the paddle position crosses PI/4 inside a
+/// single PI/8 step, so a continuously paddling boat strokes twice per revolution.
+fn paddle_sound_cue(position: f32) -> bool {
+    position % std::f32::consts::TAU <= PADDLE_CUE
+        && (position + PADDLE_STEP) % std::f32::consts::TAU >= PADDLE_CUE
+}
+
+/// Vanilla AbstractBoat.getPaddleSound: water in fluid, land beached, silent in the air.
+fn paddle_sound_for_status(status: BoatStatus) -> Option<Sound> {
+    match status {
+        BoatStatus::InWater | BoatStatus::UnderWater | BoatStatus::UnderFlowingWater => {
+            Some(Sound::EntityBoatPaddleWater)
+        }
+        BoatStatus::OnLand => Some(Sound::EntityBoatPaddleLand),
+        BoatStatus::InAir => None,
+    }
+}
 
 /// Vanilla distinguishes `ChestBoat` from Boat by class. Generated entity resource names
 /// carry that distinction in the _`chest_boat` / `bamboo_chest_raft` suffix, so a new wood
@@ -196,6 +216,7 @@ pub struct BoatEntity {
     movements: Mutex<VecDeque<BoatMovement>>,
     left_paddle_moving: AtomicBool,
     right_paddle_moving: AtomicBool,
+    paddle_positions: [AtomicCell<f32>; 2],
     bubble_column_time: AtomicCell<i32>,
     bubble_column_drag_down: AtomicBool,
     bubble_column_above: AtomicBool,
@@ -221,6 +242,7 @@ impl BoatEntity {
             movements: Mutex::new(VecDeque::new()),
             left_paddle_moving: AtomicBool::new(false),
             right_paddle_moving: AtomicBool::new(false),
+            paddle_positions: [AtomicCell::new(0.0), AtomicCell::new(0.0)],
             bubble_column_time: AtomicCell::new(0),
             bubble_column_drag_down: AtomicBool::new(false),
             bubble_column_above: AtomicBool::new(false),
@@ -299,6 +321,51 @@ impl BoatEntity {
             ],
             None,
         );
+    }
+
+    /// Vanilla AbstractBoat.tick paddle-stroke loop: the sound is placed one unit to each side
+    /// of the hull, perpendicular to the boat heading, with a randomised pitch.
+    fn play_paddle_sounds(&self) {
+        let entity = &self.vehicle.entity;
+        if entity.is_silent() {
+            return;
+        }
+        let Some(sound) = self.status.load().and_then(paddle_sound_for_status) else {
+            return;
+        };
+        // Vanilla getViewVector(1.0F) for a level boat is (-sin(yaw), 0, cos(yaw)); the
+        // stroke offsets use its perpendicular, side 0 to starboard and side 1 to port.
+        let yaw = f64::from(entity.yaw.load()).to_radians();
+        let pos = entity.pos.load();
+        let world = entity.world.load();
+        for (side, position) in self.paddle_positions.iter().enumerate() {
+            let moving = if side == 0 {
+                self.left_paddle_moving.load(Ordering::Relaxed)
+            } else {
+                self.right_paddle_moving.load(Ordering::Relaxed)
+            };
+            if !moving {
+                position.store(0.0);
+                continue;
+            }
+            let stroke = position.load();
+            if paddle_sound_cue(stroke) {
+                let (dx, dz) = if side == 0 {
+                    (yaw.cos(), yaw.sin())
+                } else {
+                    (-yaw.cos(), -yaw.sin())
+                };
+                let pitch = 0.8 + rand::random::<f32>() * 0.4;
+                world.play_sound_fine(
+                    sound,
+                    SoundCategory::Neutral,
+                    &Vector3::new(pos.x + dx, pos.y, pos.z + dz),
+                    1.0,
+                    pitch,
+                );
+            }
+            position.store(stroke + PADDLE_STEP);
+        }
     }
 
     fn send_wobble_metadata(&self) {
@@ -511,6 +578,7 @@ impl EntityBase for BoatEntity {
         }
         self.apply_effects_from_blocks();
         self.tick_bubble_column();
+        self.play_paddle_sounds();
         entity.tick_block_collisions(caller);
     }
 
@@ -819,10 +887,12 @@ pub fn clamp_rider_yaw(rider_yaw: f32, boat_yaw: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        boat_drop_item, clamp_head_to_body, clamp_rider_yaw, drops_item_when_destroyed,
-        is_chest_boat, max_passengers, rider_body_yaw,
+        PADDLE_CUE, PADDLE_STEP, boat_drop_item, clamp_head_to_body, clamp_rider_yaw,
+        drops_item_when_destroyed, is_chest_boat, max_passengers, paddle_sound_cue,
+        paddle_sound_for_status, rider_body_yaw,
     };
     use pumpkin_data::entity::EntityType;
+    use pumpkin_data::sound::Sound;
 
     #[test]
     fn rider_yaw_clamps_to_boat_heading_window() {
@@ -858,6 +928,39 @@ mod tests {
     fn bubble_column_impulse_matches_vanilla_boat_effect() {
         assert!((super::bubble_column_vertical_velocity(true, 0.2) - (-0.5)).abs() < 1e-9);
         assert!((super::bubble_column_vertical_velocity(false, -0.3) - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn paddle_stroke_cue_fires_twice_per_revolution() {
+        // Vanilla crosses PI/4 between PI/8 -> PI/4 and again one full turn later.
+        assert!(!paddle_sound_cue(0.0));
+        assert!(paddle_sound_cue(PADDLE_STEP));
+        assert!(paddle_sound_cue(PADDLE_CUE));
+        assert!(!paddle_sound_cue(PADDLE_CUE + PADDLE_STEP));
+        assert!(!paddle_sound_cue(std::f32::consts::TAU));
+        assert!(paddle_sound_cue(std::f32::consts::TAU + PADDLE_STEP));
+    }
+
+    #[test]
+    fn paddle_sound_follows_boat_status() {
+        use super::BoatStatus;
+        assert_eq!(
+            paddle_sound_for_status(BoatStatus::InWater),
+            Some(Sound::EntityBoatPaddleWater)
+        );
+        assert_eq!(
+            paddle_sound_for_status(BoatStatus::UnderWater),
+            Some(Sound::EntityBoatPaddleWater)
+        );
+        assert_eq!(
+            paddle_sound_for_status(BoatStatus::UnderFlowingWater),
+            Some(Sound::EntityBoatPaddleWater)
+        );
+        assert_eq!(
+            paddle_sound_for_status(BoatStatus::OnLand),
+            Some(Sound::EntityBoatPaddleLand)
+        );
+        assert_eq!(paddle_sound_for_status(BoatStatus::InAir), None);
     }
 
     #[test]
