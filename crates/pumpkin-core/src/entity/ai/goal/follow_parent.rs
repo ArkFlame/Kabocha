@@ -6,13 +6,14 @@ use crate::entity::ai::target_match::{SearchArea, TargetMatch};
 use crate::entity::{EntityBase, ai::pathfinder::NavigatorGoal, mob::Mob};
 
 const SEARCH_RADIUS: f64 = 8.0;
-const MIN_DISTANCE_SQ: f64 = 9.0;
+const MIN_DISTANCE: f64 = 3.0;
 const MAX_DISTANCE_SQ: f64 = 256.0;
 
 const SEARCH_Y_RANGE: f64 = 4.0;
 
 pub struct FollowParentGoal {
     speed: f64,
+    min_distance_sq: f64,
     parent: Option<Weak<dyn EntityBase>>,
     delay: i32,
 }
@@ -20,14 +21,21 @@ pub struct FollowParentGoal {
 impl FollowParentGoal {
     #[must_use]
     pub fn new(speed: f64) -> Self {
+        Self::with_min_distance(speed, MIN_DISTANCE)
+    }
+
+    /// Vanilla `BabyFollowAdult` takes a per-mob follow distance (goats sample 5..16).
+    #[must_use]
+    pub fn with_min_distance(speed: f64, min_distance: f64) -> Self {
         Self {
             speed,
+            min_distance_sq: min_distance * min_distance,
             parent: None,
             delay: 0,
         }
     }
 
-    fn find_parent(mob: &dyn Mob) -> Option<Arc<dyn EntityBase>> {
+    fn find_parent(&self, mob: &dyn Mob) -> Option<Arc<dyn EntityBase>> {
         let mob_entity = mob.get_mob_entity();
         let entity = &mob_entity.living_entity.entity;
         let pos = entity.pos.load();
@@ -42,7 +50,7 @@ impl FollowParentGoal {
         // The minimum distance applies to the closest parent only: a nearby parent means "do not
         // follow", not "follow a farther one".
         let dist_sq = pos.squared_distance_to_vec(&parent.get_entity().pos.load());
-        (dist_sq >= MIN_DISTANCE_SQ).then_some(parent)
+        (dist_sq >= self.min_distance_sq).then_some(parent)
     }
 }
 
@@ -69,7 +77,7 @@ impl Goal for FollowParentGoal {
         if age >= 0 {
             return false;
         }
-        self.parent = Self::find_parent(mob).as_ref().map(Arc::downgrade);
+        self.parent = self.find_parent(mob).as_ref().map(Arc::downgrade);
         self.parent.is_some()
     }
 
@@ -88,7 +96,7 @@ impl Goal for FollowParentGoal {
         let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
         let parent_pos = parent_entity.pos.load();
         let dist_sq = mob_pos.squared_distance_to_vec(&parent_pos);
-        (MIN_DISTANCE_SQ..=MAX_DISTANCE_SQ).contains(&dist_sq)
+        (self.min_distance_sq..=MAX_DISTANCE_SQ).contains(&dist_sq)
     }
 
     fn start(&mut self, _mob: &dyn Mob) {

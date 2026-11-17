@@ -84,7 +84,12 @@ impl GoatEntity {
                     false,
                 )),
             );
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.25)));
+            // Vanilla GoatAi.initIdleActivity: each goat rolls its own BabyFollowAdult distance (5..=16).
+            let follow_distance = rand::rng().random_range(5..=16) as f64;
+            goal_selector.add_goal(
+                4,
+                Box::new(FollowParentGoal::with_min_distance(1.25, follow_distance)),
+            );
             goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
                 7,
