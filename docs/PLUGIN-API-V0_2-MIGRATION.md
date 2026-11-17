@@ -42,8 +42,9 @@ interface (`gametest`) was added.
   plugin thread — but every call site must now be awaited.
 * **All plugin exports became `async func`** except `init-plugin` and
   `metadata`, which stay synchronous.
-* **Plugin exports return the event they were given** (`handle-event`), with
-  new rules for when host applies the changes.
+* **Plugin events are a resource** (`event`): `handle-event` receives a
+  `borrow<event>` and returns nothing, and handlers read and write the record
+  through the resource's `get-*` and `set-*` methods.
 * **`init-plugin` no longer sets anything up**: it only wires the plugin. Any
   setup that awaits host calls belongs in `on-load`.
 * **`item-stack.constructor` and the other pure-data interfaces are no longer
@@ -89,7 +90,7 @@ export init-plugin: func();                                  // still sync
 export on-load: async func(context: context) -> result<_, string>;
 export on-unload: async func(context: context) -> result<_, string>;
 export metadata;                                             // pure snapshot
-export handle-event: async func(event-id: u32, server: server-instance, event: event) -> event;
+export handle-event: async func(event-id: u32, server: server-instance, event: borrow<event>);
 export handle-command: async func(command-id: u32, sender: command-sender, server: server-instance, args: consumed-args) -> result<s32, command-error>;
 export handle-command-suggestion: async func(handler-id: u32, sender: command-sender, server: server-instance, request: suggestion-request) -> command-suggestions;
 export handle-task: async func(handler-id: u32, server: server-instance);
@@ -98,12 +99,12 @@ export handle-task: async func(handler-id: u32, server: server-instance);
 Rules that come with that shape:
 
 * `metadata` must never call host imports; it is a snapshot, not a hook.
-* `handle-event` must return a value of the **same variant case** it was
-  dispatched with. A different case is treated as a handler error and the
-  original event is kept.
-* Modifications to the returned event are applied only for handlers registered
-  with `blocking: true` (see `register-event` in `v0.2/context.wit`); for
-  non-blocking handlers the returned event is ignored.
+* `handle-event` only receives a borrow of the event resource; write changes
+  back with the matching `set-*` method. A mismatch between the handler id and
+  the dispatched event record is a handler error and the original event is kept.
+* Modifications made through the resource are applied only for handlers
+  registered with `blocking: true` (see `register-event` in
+  `v0.2/context.wit`); for non-blocking handlers the changes are ignored.
 
 ### 2.3 Removed functions
 
@@ -182,18 +183,17 @@ change that. To keep fluent builder source syntax, enable `wit-bindgen`'s
 
 ### 3.6 Event handlers
 
-Return the event you were handed, even when you change nothing:
+Copy the record out, change it, and write it back:
 
 ```rust
-// blocking handler: mutate and return the same case
-Event::BlockBreak(mut e) => {
-    e.cancelled = true;
-    Event::BlockBreak(e)
-}
+// blocking handler: the SDK reads the record, calls the handler, writes it back
+let mut e = event.get_block_break().map_err(|()| "wrong event record")?;
+e.cancelled = true;
+event.set_block_break(e).map_err(|()| "wrong event record")?;
 ```
 
-Returning a different case, or returning early without the event, is a handler
-error on the v0.2 host and the original event is kept.
+Leaving the resource untouched, or reading the record of a different event, is
+a handler error on the v0.2 host: the original event is kept.
 
 ## 4. Checklist
 
@@ -201,7 +201,7 @@ error on the v0.2 host and the original event is kept.
 - [ ] Host built with `--features plugin-v0_2`.
 - [ ] Setup that needs `await` moved from `init-plugin` to `on-load`.
 - [ ] World-mutating host calls are awaited; pure getters untouched.
-- [ ] `handle-event` returns the same variant case as dispatched.
+- [ ] `handle-event` writes changes back through the `event` resource setters.
 - [ ] Missing interfaces (`item-stack`, `uuid`, …) imported explicitly.
 - [ ] Removed `context`/`world` functions replaced or dropped (§2.3).
 - [ ] Plugin tested in-game; v0.1 behaviour is unchanged for plugins that do
