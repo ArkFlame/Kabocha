@@ -93,7 +93,10 @@ impl BlockEntity for CampfireBlockEntity {
         let properties = CampfireLikeProperties::from_state_id(state_id);
 
         if !properties.lit {
-            if self.cool_down() {
+            // Vanilla only cools cooking progress on a waterlogged campfire
+            // (`CampfireBlockEntity.getTicker`). A campfire that was merely
+            // extinguished keeps its progress and resumes once it is relit.
+            if properties.waterlogged && self.cool_down() {
                 self.mark_chunk_dirty(world);
             }
             return;

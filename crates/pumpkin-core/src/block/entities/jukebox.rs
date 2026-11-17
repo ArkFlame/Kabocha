@@ -400,12 +400,9 @@ impl Inventory for JukeboxBlockEntity {
                     );
                     world.update_neighbors(&self.position, None);
                 } else {
+                    // stop_playing already sends vanilla single stop sound (1011) while a
+                    // song is playing; a second send would double the packet.
                     self.stop_playing();
-                    world.sync_world_event(
-                        pumpkin_data::world::WorldEvent::SoundStopJukeboxSong,
-                        self.position,
-                        0,
-                    );
                 }
             }
         } else if inserted && let Some(song) = playable_song {

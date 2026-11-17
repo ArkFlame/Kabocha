@@ -43,6 +43,12 @@ fn facing_from_nbt(nbt: &NbtCompound) -> BlockDirection {
     facing_from_horizontal(nbt.get_byte("facing").unwrap_or(0) as u8)
 }
 
+/// Vanilla `HangingEntity#setDirection` derives the yaw from the horizontal
+/// value: south 0, west 90, north 180, east 270.
+const fn facing_to_yaw(direction: BlockDirection) -> f32 {
+    facing_to_horizontal(direction) as f32 * 90.0
+}
+
 const fn facing_to_horizontal(direction: BlockDirection) -> u8 {
     match direction {
         BlockDirection::West => 1,
@@ -95,6 +101,7 @@ impl PaintingEntity {
     pub fn set_variant(&self, variant: PaintingVariant) {
         self.variant_id.store(variant.id(), Ordering::Relaxed);
         self.sync_variant();
+        self.recalculate_bounding_box();
     }
 
     /// Painting variant is a Holder with an inline form: 0 = inline data, registry id is sent +1.
@@ -116,6 +123,21 @@ impl PaintingEntity {
             if step.z == 0 { width } else { DEPTH },
         );
         hanging::box_of_size(self.entity.pos.load(), size)
+    }
+
+    /// Vanilla `HangingEntity#setDirection`: store the facing the spawn packet and
+    /// renderer read, rotate the entity and resize its bounding box.
+    pub fn set_facing(&self, facing: BlockDirection) {
+        self.entity
+            .data
+            .store(i32::from(facing.to_index()), Ordering::Relaxed);
+        self.entity.set_rotation(facing_to_yaw(facing), 0.0);
+        self.recalculate_bounding_box();
+    }
+
+    /// Applies the variant-sized box so hits anywhere on the artwork break it.
+    pub fn recalculate_bounding_box(&self) {
+        self.entity.bounding_box.store(self.hanging_bounding_box());
     }
 
     pub fn sync_variant(&self) {
@@ -283,9 +305,7 @@ impl EntityBase for PaintingEntity {
                 .store(Some(BlockPos(Vector3::new(x, y, z))));
         }
         let facing = facing_from_nbt(nbt);
-        self.entity
-            .data
-            .store(i32::from(facing.to_index()), Ordering::Relaxed);
+        self.set_facing(facing);
         if let Some(variant_str) = nbt
             .get_string("variant")
             .or_else(|| nbt.get_string("Motive"))
@@ -298,6 +318,7 @@ impl EntityBase for PaintingEntity {
             self.variant_id.store(raw_id, Ordering::Relaxed);
             self.sync_variant();
         }
+        self.recalculate_bounding_box();
     }
 
     fn get_entity(&self) -> &Entity {

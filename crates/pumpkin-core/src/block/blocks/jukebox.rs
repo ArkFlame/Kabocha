@@ -65,14 +65,6 @@ impl JukeboxBlock {
         }
     }
 
-    /// Stops the music and updates block state
-    fn stop_playing(block: &Block, position: &BlockPos, world: &Arc<World>) {
-        Self::set_record_state(false, block, position, world);
-        world.emit_game_event(GameEvent::BlockChange.name(), position.to_centered_f64());
-        world.sync_world_event(WorldEvent::SoundStopJukeboxSong, *position, 0);
-        world.update_neighbors(position, None);
-    }
-
     /// Starts playing music
     fn start_playing(position: &BlockPos, world: &Arc<World>, song_id: u32) {
         world.sync_world_event(WorldEvent::SoundPlayJukeboxSong, *position, song_id as i32);
@@ -108,10 +100,15 @@ impl BlockBehaviour for JukeboxBlock {
                 .get_block_entity(args.position)
                 .is_some_and(|entity| entity.as_any().is::<JukeboxBlockEntity>())
         {
-            // Drop the record
+            // Drop the record. clear_record runs stop_playing, which already sends the
+            // single vanilla stop game event + 1011 sound and updates neighbours while a song
+            // is playing.
             Self::drop_record(args.position, args.world);
-            // Stop the music and update block state
-            Self::stop_playing(args.block, args.position, args.world);
+            // Update block state and emit BLOCK_CHANGE like vanilla eject path.
+            Self::set_record_state(false, args.block, args.position, args.world);
+            args.world
+                .emit_game_event(GameEvent::BlockChange.name(), args.position.to_centered_f64());
+            args.world.update_neighbors(args.position, None);
             return BlockActionResult::Success;
         }
 

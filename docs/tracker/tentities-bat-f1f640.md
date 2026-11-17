@@ -29,6 +29,23 @@ Reference: decompiled vanilla 26.3, class `net.minecraft.world.entity.ambient.Ba
   which is exactly `TargetPredicate::create_non_attackable().set_base_max_distance(4.0)`
   (bat.rs:101-102).
 
+## Re-review 2026-11-17 (tracker: source changed)
+- Re-compared `crates/pumpkin-core/src/entity/mob/bat.rs` with the 26.3 member table recorded below.
+  The file is unchanged from the state reviewed last time: every line range previously cited still
+  matches (`is_roosting`/`set_roosting` 72-86, `tick_roosting` 88-120, `tick_flying` 122-196,
+  `mob_write_nbt`/`mob_read_nbt` 238-247, `post_tick` 271-283, `pre_damage_with_context` 285-298).
+  The only moved reference is the spawn-rule dispatch, now `crates/pumpkin-core/src/entity/type.rs:629-631`
+  (previously 620-622); the drift comes from unrelated insertions above it, the dispatch is unchanged.
+- Checked the one member whose semantics could have drifted, `readAdditionalSaveData`: bat.rs:242-247
+  stores the raw `BatFlags` byte into the synced flag, which matches vanilla
+  `this.entityData.set(DATA_ID_FLAGS, nbt.getByte("BatFlags"))`. Preserving bits 1-7 is therefore
+  intended, and `bat_flags_preserve_other_bits_when_resting_changes` is a valid regression test, not
+  an over-test.
+- Checked the spawn wiring end to end: `entity/type.rs:629-631` -> `BatEntity::check_bat_spawn_rules`,
+  and bat arrives through the generated AMBIENT biome spawner list in `world/natural_spawner.rs:989`
+  (no hardcoded per-mob spawn entry is missing). Wiring is complete.
+- Conclusion: no new behaviour gap, no code change in this pass. The four remaining S items below are
+  unchanged and still not worth a speculative edit.
 ## Remaining gaps (all low risk, no behaviour difference observed)
 - S: `is_roosting`/`set_roosting` read and write a shadow `AtomicI8` (bat.rs:30) plus the synced
   `DATA_ID_FLAGS`, while vanilla `isResting` reads only the synced byte. Diverges only if a plugin

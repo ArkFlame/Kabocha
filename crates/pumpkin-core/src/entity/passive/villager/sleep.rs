@@ -63,6 +63,13 @@ impl VillagerEntity {
             let block = Block::from_state_id(state_id);
             if block.has_tag(&BlockTag::MINECRAFT_BEDS) {
                 BedBlock::set_occupied(false, &world, block, &bed_pos, state_id);
+                // AbstractBedBlock#onStopSleeping destroys beds whose rule has
+                // destroyOnLeave, straw beds included.
+                if block == &Block::STRAW_BED {
+                    crate::block::blocks::straw_bed::StrawBedBlock::destroy_after_use(
+                        &world, bed_pos,
+                    );
+                }
 
                 let facing = WhiteBedLikeProperties::from_state_id(state_id)
                     .facing

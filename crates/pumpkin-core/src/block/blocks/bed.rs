@@ -298,6 +298,12 @@ impl BedBlock {
             return BlockActionResult::SuccessServer;
         }
 
+        // ServerPlayer#getBedResult returns OTHER_PROBLEM (no message) for a
+        // player that is already sleeping or dead.
+        if player.is_sleeping() || !player.living_entity.is_alive() {
+            return BlockActionResult::SuccessServer;
+        }
+
         // Make sure player is close enough (ServerPlayer#getBedResult checks the
         // reachable range before the obstruction).
         if !player
