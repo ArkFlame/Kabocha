@@ -28,3 +28,6 @@ Worker fail #1: resend exact error. Fail #2: rewrite brief or take it yourself. 
 - Hourly upstream sync: cron job (re-create at session start: "7 * * * *" -> scripts/sync-upstream.sh, merge upstream/master, append to docs/SYNC.md). Fork was 3 commits behind at 53 ahead on 2026-11-16.
 - Author trailers: Claude workers -> `Co-Authored-By: Claude Sonnet 5.5`, OpenCode -> `Co-Authored-By: opencode <noreply@opencode.ai>`; via scripts/hooks/commit-msg (core.hooksPath). Compare with `scripts/leaderboard.sh`.
 - Skipped-as-already-present PRs go to docs/DONE.md as `- #N (PR, skipped: already present) title`.
+
+## Limit fallback (user rule, 2026-11-16)
+Workers are CommandCode DeepSeek via scripts/oc-agent.sh. Only when CommandCode reports a usage limit (5-hour, weekly or monthly), run `general` Claude subagents on model haiku instead (Agent tool, run_in_background, same briefs). Return to OpenCode when the limit resets. Never use Haiku while CommandCode has quota.
