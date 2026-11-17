@@ -312,6 +312,11 @@ impl Mob for CopperGolemEntity {
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
         self.set_weather_state(WeatherState::Unaffected);
+        // Vanilla invalidates the pending weathering tick so the golem does not
+        // re-oxidize on the next tick; a waxed golem (-2) keeps its sentinel.
+        if self.next_weathering_tick.load(Ordering::Relaxed) != -2 {
+            self.next_weathering_tick.store(-1, Ordering::Relaxed);
+        }
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);
@@ -360,6 +365,7 @@ impl Mob for CopperGolemEntity {
             && self.next_weathering_tick.load(Ordering::Relaxed) != -2
         {
             self.next_weathering_tick.store(-2, Ordering::Relaxed);
+            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
             let pos = entity.pos.load();
             world.play_sound(Sound::ItemHoneycombWaxOn, SoundCategory::Blocks, &pos);
             return true;
@@ -372,6 +378,7 @@ impl Mob for CopperGolemEntity {
                 self.next_weathering_tick.store(-1, Ordering::Relaxed);
                 let pos = entity.pos.load();
                 world.play_sound(Sound::ItemAxeScrape, SoundCategory::Blocks, &pos);
+                let _ = player.damage_item_stack(item_stack, 1);
                 return true;
             }
 
@@ -381,6 +388,7 @@ impl Mob for CopperGolemEntity {
                 self.next_weathering_tick.store(-1, Ordering::Relaxed);
                 let pos = entity.pos.load();
                 world.play_sound(Sound::ItemAxeScrape, SoundCategory::Blocks, &pos);
+                let _ = player.damage_item_stack(item_stack, 1);
                 return true;
             }
         }
