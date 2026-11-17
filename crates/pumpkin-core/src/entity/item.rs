@@ -96,6 +96,12 @@ const MERGE_MAX_COUNT: u8 = 64;
 /// Horizontal search distance of `mergeWithNeighbours`.
 const MERGE_DISTANCE: f64 = 0.5;
 
+/// Vanilla `ItemEntity`: `Age` is a short and `-32768` marks an item that never ages or despawns.
+const AGE_NEVER_DESPAWN: i16 = i16::MIN;
+
+/// Vanilla `ItemEntity.INFINITE_PICKUP_DELAY`: this `PickupDelay` means never pick up.
+const INFINITE_PICKUP_DELAY: i16 = i16::MAX;
+
 impl ItemEntity {
     pub const DEFAULT_PICKUP_DELAY: u8 = 10;
 
@@ -178,6 +184,26 @@ impl ItemEntity {
 
     pub fn set_pickup_delay(&self, pickup_delay: u8) {
         self.pickup_delay.store(pickup_delay, Ordering::Relaxed);
+    }
+
+    /// Vanilla `ItemEntity` NBT: `Age` `-32768` means the item never ages or despawns.
+    fn decode_age(age: i16) -> (u32, bool) {
+        if age == AGE_NEVER_DESPAWN {
+            (0, true)
+        } else {
+            (age.max(0) as u32, false)
+        }
+    }
+
+    /// Vanilla `ItemEntity` NBT: `PickupDelay` `32767` means the item can never be picked up.
+    fn decode_pickup_delay(delay: i16) -> (u8, bool) {
+        if delay >= INFINITE_PICKUP_DELAY {
+            (u8::MAX, true)
+        } else if delay <= 0 {
+            (0, false)
+        } else {
+            (delay as u8, false)
+        }
     }
 
     pub const fn get_entity(&self) -> &Entity {
@@ -843,11 +869,18 @@ impl EntityBase for ItemEntity {
         item.write_item_stack(&mut item_compound);
         nbt.put_compound("Item", item_compound);
 
-        nbt.put_short("Age", self.item_age.load(Ordering::Relaxed) as i16);
-        nbt.put_short(
-            "PickupDelay",
-            self.pickup_delay.load(Ordering::Relaxed) as i16,
-        );
+        let age = if self.never_despawn.load(Ordering::Relaxed) {
+            AGE_NEVER_DESPAWN
+        } else {
+            self.item_age.load(Ordering::Relaxed).min(i16::MAX as u32) as i16
+        };
+        nbt.put_short("Age", age);
+        let pickup_delay = if self.never_pickup.load(Ordering::Relaxed) {
+            INFINITE_PICKUP_DELAY
+        } else {
+            i16::from(self.pickup_delay.load(Ordering::Relaxed))
+        };
+        nbt.put_short("PickupDelay", pickup_delay);
         nbt.put_short("Health", self.health.load(Relaxed) as i16);
         if let Some(thrower) = self.thrower.load() {
             nbt.put_uuid("Thrower", thrower);
@@ -868,13 +901,16 @@ impl EntityBase for ItemEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
         }
 
-        // Vanilla stores Age as a short
-        self.item_age
-            .store(nbt.get_short("Age").unwrap_or(0) as u32, Ordering::Relaxed);
+        // Vanilla stores Age as a short; `-32768` is the never-despawn sentinel.
+        let (age, never_despawn) = Self::decode_age(nbt.get_short("Age").unwrap_or(0));
+        self.item_age.store(age, Ordering::Relaxed);
+        self.never_despawn.store(never_despawn, Ordering::Relaxed);
 
-        // Vanilla stores PickupDelay as a short
+        // Vanilla stores PickupDelay as a short; `32767` is the never-pick-up sentinel.
         if let Some(delay) = nbt.get_short("PickupDelay") {
-            self.pickup_delay.store(delay as u8, Ordering::Relaxed);
+            let (delay, never_pickup) = Self::decode_pickup_delay(delay);
+            self.pickup_delay.store(delay, Ordering::Relaxed);
+            self.never_pickup.store(never_pickup, Ordering::Relaxed);
         }
 
         // Vanilla stores Health as a short
@@ -992,6 +1028,16 @@ mod tests {
         let mut tagged = plain.clone();
         tagged.set_data_component(CustomDataImpl::new(data));
         assert!(!ItemEntity::are_mergeable(&plain, &tagged));
+    }
+
+    #[test]
+    fn nbt_age_and_pickup_sentinels() {
+        assert_eq!(ItemEntity::decode_age(i16::MIN), (0, true));
+        assert_eq!(ItemEntity::decode_age(0), (0, false));
+        assert_eq!(ItemEntity::decode_age(5999), (5999, false));
+        assert_eq!(ItemEntity::decode_pickup_delay(i16::MAX), (u8::MAX, true));
+        assert_eq!(ItemEntity::decode_pickup_delay(-1), (0, false));
+        assert_eq!(ItemEntity::decode_pickup_delay(10), (10, false));
     }
 
     #[test]
