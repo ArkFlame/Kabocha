@@ -29,6 +29,7 @@ impl JavaClient {
         player: &Arc<Player>,
         packet: &SRecipeBookSeenRecipe,
     ) {
+        use pumpkin_inventory::crafting::recipe_provider::RecipeProvider;
         let dynamic_count = server.recipe_manager.get_dynamic_recipes().len();
         if !recipe_display_exists(
             packet.recipe_display_id.0,
