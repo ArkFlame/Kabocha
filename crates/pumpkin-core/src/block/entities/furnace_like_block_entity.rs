@@ -71,6 +71,32 @@ pub(crate) fn read_saved_short(
         .map_or(0, |value| value as u16)
 }
 
+/// Builds a recipe's result stack including its data components, matching vanilla
+/// `Recipe#getResultItem` / `AbstractCookingRecipe#assemble`.
+pub(crate) fn recipe_result_stack(recipe: &CookingRecipe) -> Option<ItemStack> {
+    let item = pumpkin_data::item::Item::from_registry_key(
+        recipe
+            .result
+            .id
+            .strip_prefix("minecraft:")
+            .unwrap_or(&recipe.result.id),
+    )?;
+    if recipe.result.components.is_empty() {
+        return Some(ItemStack::new(recipe.result.count, item));
+    }
+    let patch = recipe
+        .result
+        .components
+        .iter()
+        .map(|(component, value)| (*component, Some(value.clone_dyn())))
+        .collect();
+    Some(ItemStack::new_with_component(
+        recipe.result.count,
+        item,
+        patch,
+    ))
+}
+
 /// Trait for extracting smelting experience from cooking block entities.
 pub trait CookingBlockEntityBase:
     Sync + Send + Inventory + PropertyDelegate + BlockEntity + Clearable
@@ -204,6 +230,11 @@ macro_rules! impl_cooking_block_entity_base {
                 max_count: u8,
             ) -> bool {
                 let Some(recipe) = recipe else { return false };
+                let Some(output_item_stack) =
+                    $crate::block::entities::furnace_like_block_entity::recipe_result_stack(recipe)
+                else {
+                    return false;
+                };
                 let Ok(items) = self.items.try_read() else {
                     return false;
                 };
@@ -215,22 +246,17 @@ macro_rules! impl_cooking_block_entity_base {
                     return !is_top_items_empty;
                 }
 
-                if let Some(recipe_output_item) = pumpkin_data::item::Item::from_registry_key(
-                    recipe
-                        .result
-                        .id
-                        .strip_prefix("minecraft:")
-                        .unwrap_or(&recipe.result.id),
-                ) && !is_top_items_empty
-                    && recipe_output_item.id == side_item_stack.item.id
+                // Vanilla `canBurn` also requires the output slot to hold the same components.
+                if is_top_items_empty
+                    || !side_item_stack.are_items_and_components_equal(&output_item_stack)
                 {
-                    // Vanilla `canBurn`: the result stack must have room for the whole result.
-                    let total =
-                        u16::from(side_item_stack.item_count) + u16::from(recipe.result.count);
-                    return total <= u16::from(max_count)
-                        && total <= u16::from(side_item_stack.get_max_stack_size());
+                    return false;
                 }
-                false
+                // Vanilla `canBurn`: the result stack must have room for the whole result.
+                let total = u16::from(side_item_stack.item_count)
+                    + u16::from(output_item_stack.item_count);
+                total <= u16::from(max_count)
+                    && total <= u16::from(side_item_stack.get_max_stack_size())
             }
             fn craft_recipe(&self, recipe: Option<&pumpkin_data::recipes::CookingRecipe>) -> bool {
                 let can_accept_output =
@@ -240,18 +266,15 @@ macro_rules! impl_cooking_block_entity_base {
                         let Ok(mut items) = self.items.try_write() else {
                             return false;
                         };
-                        let Some(output_item) = pumpkin_data::item::Item::from_registry_key(
-                            recipe
-                                .result
-                                .id
-                                .strip_prefix("minecraft:")
-                                .unwrap_or(&recipe.result.id),
-                        ) else {
+                        let Some(output_item_stack) =
+                            $crate::block::entities::furnace_like_block_entity::recipe_result_stack(
+                                recipe,
+                            )
+                        else {
                             return false;
                         };
-                        let output_item_stack = ItemStack::new(recipe.result.count, output_item);
 
-                        if items[2].are_equal(ItemStack::EMPTY) {
+                        if items[2].is_empty() {
                             items[2] = output_item_stack;
                         } else if items[2].are_items_and_components_equal(&output_item_stack) {
                             items[2].increment(recipe.result.count);
