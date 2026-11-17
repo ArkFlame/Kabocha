@@ -105,10 +105,6 @@ impl BlockEntity for JukeboxBlockEntity {
                 self.stop_playing();
             } else {
                 if ticks.is_multiple_of(20) {
-                    world.emit_game_event(
-                        pumpkin_data::game_event::GameEvent::JukeboxPlay.name(),
-                        self.position.to_centered_f64(),
-                    );
                     let random_color = rand::rng().random_range(0..4) as f32 / 24.0;
                     world.spawn_particle(
                         pumpkin_util::math::vector3::Vector3::new(
@@ -263,6 +259,13 @@ impl JukeboxBlockEntity {
         self.ticks_since_song_started.store(0, Ordering::Relaxed);
         self.song_length_ticks
             .store(length_in_ticks, Ordering::Relaxed);
+        // Vanilla emits `JUKEBOX_PLAY` once in `JukeboxSongPlayer.play`, not per note particle tick.
+        if let Some(world) = self.world.get().and_then(Weak::upgrade) {
+            world.emit_game_event(
+                pumpkin_data::game_event::GameEvent::JukeboxPlay.name(),
+                self.position.to_centered_f64(),
+            );
+        }
         self.mark_dirty();
     }
 
@@ -517,6 +520,7 @@ mod tests {
         ));
         world.add_entity_silent(allay.clone());
         let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        jukebox.set_world(Arc::downgrade(&world));
         jukebox.start_playing(100);
         jukebox.tick(&world);
         assert!(allay.is_dancing());
