@@ -35,6 +35,10 @@ const MAGIC_NUMBER: i32 = 17 * 17;
 
 pub(crate) const SPAWN_DISTANCE_CHUNK: u8 = 8;
 
+/// Vanilla ChunkMap.playerIsCloseEnoughForSpawning uses a 128-block horizontal
+/// radius for local mob caps (16384.0D squared).
+const LOCAL_MOB_CAP_RANGE_SQ: f64 = 128.0 * 128.0;
+
 pub struct MobCounts([AtomicI32; 8]);
 
 impl Default for MobCounts {
@@ -95,7 +99,6 @@ const fn category_cap(limits: &SpawnLimits, category: &MobCategory) -> i32 {
 #[derive(Clone, Copy)]
 struct ActiveSpawnPlayer {
     entity_id: i32,
-    chunk_pos: Vector2<i32>,
     pos: Vector3<f64>,
 }
 
@@ -155,7 +158,6 @@ impl LocalMobCapCalculator {
             let entity = player.get_entity();
             active.push(ActiveSpawnPlayer {
                 entity_id: player.entity_id(),
-                chunk_pos: entity.chunk_pos.load(),
                 pos: entity.pos.load(),
             });
         }
@@ -176,6 +178,13 @@ impl LocalMobCapCalculator {
         let dx = ((chunk_pos.x << 4) + 8) as f64 - player_pos.x;
         let dy = ((chunk_pos.y << 4) + 8) as f64 - player_pos.z;
         dx * dx + dy * dy
+    }
+
+    /// Mirrors vanilla ChunkMap.getPlayersCloseForSpawning, which filters the
+    /// nearby-player set by a 128-block horizontal radius. A chunk-window gate
+    /// is unnecessary: that radius already bounds the chunk offset to 8.
+    const fn is_near(chunk_pos: Vector2<i32>, player_pos: &Vector3<f64>) -> bool {
+        Self::calc_distance(chunk_pos, player_pos) < LOCAL_MOB_CAP_RANGE_SQ
     }
 
     fn nearest_player_distance_sq(&self, world: &World, x: f64, y: f64, z: f64) -> Option<f64> {
@@ -219,10 +228,7 @@ impl LocalMobCapCalculator {
         let mut players = Vec::new();
         if let Some(active_players) = &self.active_players {
             for p in active_players.iter() {
-                if (chunk_pos.x - p.chunk_pos.x).abs() <= 9
-                    && (chunk_pos.y - p.chunk_pos.y).abs() <= 9
-                    && Self::calc_distance(chunk_pos, &p.pos) < 16384.0
-                {
+                if Self::is_near(chunk_pos, &p.pos) {
                     players.push(p.entity_id);
                 }
             }
@@ -231,7 +237,7 @@ impl LocalMobCapCalculator {
                 if player.gamemode.load() == GameMode::Spectator {
                     continue;
                 }
-                if Self::calc_distance(chunk_pos, &player.position()) < 16384.0 {
+                if Self::is_near(chunk_pos, &player.position()) {
                     players.push(player.entity_id());
                 }
             }
@@ -1257,6 +1263,34 @@ fn is_burning_block(block: &Block) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_mob_cap_uses_128_block_horizontal_range() {
+        // Chunk (0, 0) centre is block (8, 8); only x/z matter, as in vanilla's
+        // ChunkMap.playerIsCloseEnoughForSpawning.
+        let chunk = Vector2::new(0, 0);
+        assert!(LocalMobCapCalculator::is_near(
+            chunk,
+            &Vector3::new(8.0, 320.0, 8.0)
+        ));
+        assert!(LocalMobCapCalculator::is_near(
+            chunk,
+            &Vector3::new(135.0, 64.0, 8.0)
+        ));
+        assert!(!LocalMobCapCalculator::is_near(
+            chunk,
+            &Vector3::new(137.0, 64.0, 8.0)
+        ));
+        assert!(!LocalMobCapCalculator::is_near(
+            chunk,
+            &Vector3::new(8.0, 64.0, 137.0)
+        ));
+        // Vanilla uses a strict less-than, so exactly 128 blocks is outside.
+        assert!(!LocalMobCapCalculator::is_near(
+            chunk,
+            &Vector3::new(136.0, 64.0, 8.0)
+        ));
+    }
 
     #[tokio::test]
     async fn spawn_state_counts_entities_outside_active_chunks()

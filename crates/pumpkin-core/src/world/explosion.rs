@@ -12,8 +12,8 @@ use pumpkin_data::{
     tag::{Tag, Taggable},
 };
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
+use pumpkin_util::random::RandomImpl;
 use pumpkin_world::chunk::ChunkData;
-use rand::RngExt;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -459,7 +459,11 @@ impl<'a> Explosion<'a> {
                     let mut pos_y = self.pos.y;
                     let mut pos_z = self.pos.z;
 
-                    let random_val = rand::random::<f32>();
+                    let random_val = world
+                        .explosion_random
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .next_f32();
                     let mut h = self.power * random_val.mul_add(0.6, 0.7);
 
                     while h > 0.0 {
@@ -775,7 +779,16 @@ impl<'a> Explosion<'a> {
             },
         );
         let player_knockback = self.damage_entities(world);
-        let block_count = self.explode_with_fire_roll(world, || rand::rng().random_range(0..3));
+        let block_count = self.explode_with_fire_roll(world, || {
+            u8::try_from(
+                world
+                    .explosion_random
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .next_bounded_i32(3),
+            )
+            .unwrap_or(0)
+        });
         ExplosionResult {
             block_count,
             player_knockback,
