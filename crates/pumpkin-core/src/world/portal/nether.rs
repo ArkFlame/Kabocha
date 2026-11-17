@@ -463,7 +463,7 @@ impl NetherPortal {
                 }
             }
         }
-        21
+        Self::MAX_HEIGHT
     }
 
     fn is_horizontal_frame_valid(
@@ -817,12 +817,16 @@ impl NetherPortal {
                             .offset_dir(perpendicular.to_offset(), perp)
                             .offset_dir(BlockDirection::Up.to_offset(), height);
 
-                        let state = if height < 0 {
-                            obsidian_state
+                        // Vanilla clears with client-only flags (2 for air, 18 for the floor).
+                        let (state, flags) = if height < 0 {
+                            (
+                                obsidian_state,
+                                BlockFlags::NOTIFY_LISTENERS | BlockFlags::UPDATE_KNOWN_SHAPE,
+                            )
                         } else {
-                            air_state
+                            (air_state, BlockFlags::NOTIFY_LISTENERS)
                         };
-                        world.set_block_state(&pos, state, BlockFlags::NOTIFY_ALL);
+                        world.set_block_state(&pos, state, flags);
                     }
                 }
             }
