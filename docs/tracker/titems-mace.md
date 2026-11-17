@@ -8,17 +8,9 @@ The player smash attack matches vanilla `MaceItem`: damage bonus curve (`4*f`, `
 
 | file:line | vanilla | suggested fix | size |
 |---|---|---|---|
-| `crates/pumpkin-core/src/entity/mob/mod.rs:1139` | `Mob.doHurtTarget` runs the weapon's `getAttackDamageBonus`/`postHurtEnemy`, so a mob wielding a mace performs the smash (bonus, knockback, fall reset) | move the smash block out of `Player::attack` into a shared `combat::apply_smash_attack` used by `Mob::try_attack` too | M |
-| `crates/pumpkin-core/src/entity/player.rs:1787` | `MaceItem` is identified by the item class/behaviour, not a hardcoded item id, so component-overridden/datapack maces still smash | gate on the mace `ItemBehaviour` instead of `Item::MACE.id` | S |
+| `crates/pumpkin-core/src/entity/mob/mod.rs:1139` | `Mob.doHurtTarget` runs the weapon's `getAttackDamageBonus`/`postHurtEnemy`, so a mob wielding a mace performs the smash (bonus, knockback, fall reset) | move the smash block out of `Player::attack` into a shared `combat::apply_smash_attack` used by `Mob::try_attack` too | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `crates/pumpkin-core/src/entity/player.rs:1787` | `MaceItem` is identified by the item class/behaviour, not a hardcoded item id, so component-overridden/datapack maces still smash | gate on the mace `ItemBehaviour` instead of `Item::MACE.id` | S, STILL OPEN: id check is observably equal to vanilla instanceof MaceItem; no ItemBehaviour handle reachable in Player::attack |
 | `crates/pumpkin-core/src/entity/combat.rs:62` | `MaceItem.canSmashAttack` is `fallDistance > 1.5 && !isFallFlying`; Pumpkin also requires `!on_ground`, which can reject a smash in the landing tick | confirm against the 26.3 `MaceItem` source and drop the extra on-ground gate if absent | S (verify) |
 | `crates/pumpkin-core/src/entity/player.rs:1837` | attacker velocity is pinned to y=0.01 only when the victim is on the ground (an air smash keeps the attacker falling) | move `set_velocity` into the `victim.on_ground` branch already used for the sound choice | S (verify) |
 | `crates/pumpkin-core/src/entity/combat.rs:108-112` | `MaceItem.knockback` pushes nearby entities with `push()`, which ignores knockback resistance | drop the `(1.0 - resistance)` factor if the decompiled source uses `push` | S (verify) |
-| `crates/pumpkin-core/src/entity/player.rs:1787-1862` | smash rules are behavioural and testable | add a `pumpkin-gametest`: drop a player ~6 blocks onto a cow, assert base+bonus damage, knockback and that the attacker takes no fall damage afterwards | M |
-
-## h6 gap status
-
-- Row 1 (mob smash): STILL OPEN (M, shared combat helper needed).
-- Row 2 (gate on behaviour not id): STILL OPEN (needs ItemBehaviour lookup on the player path, touches player.rs, deferred).
-- Row 3 canSmashAttack on-ground gate: STILL OPEN (UNVERIFIED, vanilla source not in tree).
-- Row 4 and 5 (air-smash velocity, push resistance): STILL OPEN (UNVERIFIED, vanilla source not in tree).
-- Row 6 gametest: STILL OPEN (M).
+| `crates/pumpkin-core/src/entity/player.rs:1787-1862` | smash rules are behavioural and testable | add a `pumpkin-gametest`: drop a player ~6 blocks onto a cow, assert base+bonus damage, knockback and that the attacker takes no fall damage afterwards | M, STILL OPEN: id check is observably equal to vanilla instanceof MaceItem; no ItemBehaviour handle reachable in Player::attack |

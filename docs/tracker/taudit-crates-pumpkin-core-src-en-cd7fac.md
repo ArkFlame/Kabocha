@@ -17,8 +17,8 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `types.rs:121-122` (`VISIBLE_ADULT_PIGLIN_COUNT`, `VISIBLE_ADULT_HOGLIN_COUNT`) | `PiglinSpecificSensor.java:107-108` writes both counts from the visible adult lists; `PiglinAi.java:780-781` and `HoglinAi.java:179-180` read them to make the outnumbered side retreat | Nothing writes or reads the counts (the `// TODO` at `types.rs:120`) | Port `PiglinSpecificSensor` and the two `retreatFromNearestTarget` call sites | M |
-| `types.rs:118-122` (`NEARBY_ADULT_PIGLINS`, `NEAREST_VISIBLE_ADULT_PIGLINS`, `NEAREST_VISIBLE_ADULT_HOGLINS`, `NEAREST_VISIBLE_ADULT_PIGLIN`) | Written by `PiglinSpecificSensor`/`HoglinSpecificSensor` | Declared but never populated; `crates/pumpkin-core/src/entity/ai/sensing.rs` has no piglin/hoglin specific sensor | Port the two species sensors together with the counts above | L |
+| `types.rs:121-122` (`VISIBLE_ADULT_PIGLIN_COUNT`, `VISIBLE_ADULT_HOGLIN_COUNT`) | `PiglinSpecificSensor.java:107-108` writes both counts from the visible adult lists; `PiglinAi.java:780-781` and `HoglinAi.java:179-180` read them to make the outnumbered side retreat | Nothing writes or reads the counts (the `// TODO` at `types.rs:120`) | Port `PiglinSpecificSensor` and the two `retreatFromNearestTarget` call sites | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `types.rs:118-122` (`NEARBY_ADULT_PIGLINS`, `NEAREST_VISIBLE_ADULT_PIGLINS`, `NEAREST_VISIBLE_ADULT_HOGLINS`, `NEAREST_VISIBLE_ADULT_PIGLIN`) | Written by `PiglinSpecificSensor`/`HoglinSpecificSensor` | Declared but never populated; `crates/pumpkin-core/src/entity/ai/sensing.rs` has no piglin/hoglin specific sensor | Port the two species sensors together with the counts above | L, STILL OPEN: size L, skipped per wave brief |
 
 Checked and considered correct: all other 112 type names, their declaration order, and
 codec presence (global pos, global pos set/list, block pos, uuid, int, long, bool, unit)

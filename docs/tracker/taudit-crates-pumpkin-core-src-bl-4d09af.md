@@ -54,15 +54,15 @@ no TODO/FIXME markers; the two "vanilla" hits are test names at :567 and :581).
 
 | Gap | Rust | Vanilla | Fix | Size |
 |---|---|---|---|---|
-| Shelves placed in **flowing** water were not waterlogged | `shelf.rs:325` | `ShelfBlock.getStateForPlacement`: `getFluidState(...).is(Fluids.WATER)` is also true for flowing water (`FlowingFluid.isSame` covers still/flowing) | waterlogged now `matches!(replacing, BlockIsReplacing::Water(_))` instead of the source-only `water_source()` | S |
+| Shelves placed in **flowing** water were not waterlogged | `shelf.rs:325` | `ShelfBlock.getStateForPlacement`: `getFluidState(...).is(Fluids.WATER)` is also true for flowing water (`FlowingFluid.isSame` covers still/flowing) | waterlogged now `matches!(replacing, BlockIsReplacing::Water(_))` instead of the source-only `water_source()` | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 
 ## Remaining gaps
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `block/mod.rs:667-673` `BlockIsReplacing::water_source` (46 call sites) | every `getStateForPlacement` that uses `FluidState#is(Fluids.WATER)` | only accepts level-0 sources, so all other waterloggable blocks still ignore flowing water | add `BlockIsReplacing::is_water()` and migrate the call sites; shelf already fixed locally | S |
-| `shelf.rs` (absent) | `ShelfBlock.SHAPES` + `useShapeForLightOcclusion() = true` | shelf collision/occlusion shape comes from generated state data; not modelled in this file | verify the generated shape for `#minecraft:wooden_shelves`; engine/codegen work | L |
-| `shelf.rs` (absent) | `BaseEntityBlock` + block entity | wiki: shelves cannot be pushed by pistons; Pumpkin has no block push-reaction/piston moveability concept | needs an engine-level piston push reaction, not a shelf-local fix | M |
+| `block/mod.rs:667-673` `BlockIsReplacing::water_source` (46 call sites) | every `getStateForPlacement` that uses `FluidState#is(Fluids.WATER)` | only accepts level-0 sources, so all other waterloggable blocks still ignore flowing water | add `BlockIsReplacing::is_water()` and migrate the call sites; shelf already fixed locally | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `shelf.rs` (absent) | `ShelfBlock.SHAPES` + `useShapeForLightOcclusion() = true` | shelf collision/occlusion shape comes from generated state data; not modelled in this file | verify the generated shape for `#minecraft:wooden_shelves`; engine/codegen work | L, STILL OPEN: size L, skipped per wave brief |
+| `shelf.rs` (absent) | `BaseEntityBlock` + block entity | wiki: shelves cannot be pushed by pistons; Pumpkin has no block push-reaction/piston moveability concept | needs an engine-level piston push reaction, not a shelf-local fix | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 
 Correction (2026-11-17): the earlier `set_part` -> `onPlace` row was removed after
 reading the decompiled source. `setPart` uses `setBlockAndUpdate`, which does run `onPlace`,

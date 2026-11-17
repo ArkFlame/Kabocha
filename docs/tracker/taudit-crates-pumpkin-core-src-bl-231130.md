@@ -42,21 +42,11 @@ Audited clean:
 
 | Location | Vanilla | Gap | Suggested fix | Size |
 |---|---|---|---|---|
-| `furnace_like_block_entity.rs:30-38,511` | `getSpeedMultiplier` reads the fuel item's `CookingFuel.speedMultiplier` (ResolvableFloat, `cooking/speed_default`); `getTotalCookTime` divides by it | multiplier is derived from the block kind; a datapack fuel with an explicit `speed_multiplier` is ignored and the value is not restored on load | store `speed_multiplier` on the three entities, set it from `CookingFuelImpl::get_speed_multiplier(is_fast)` at ignition, use it in `cooking_total_time`, read/write the float key | M |
-| `furnace_like_block_entity.rs:511-535` | on relight with a different multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale | implement after the data-driven multiplier above | S |
-| `furnace_like_block_entity.rs:177-198` | `getRecipesToAwardAndPopExperience` spawns one orb per recipe id | extraction returns one summed `i32`, so one orb | return per-recipe amounts (Vec) or spawn orbs in the block entity | S |
-| `pumpkin-inventory/src/furnace_like/furnace_like_slot.rs` take path | `FurnaceResultSlot.checkTakeAchievements` -> `awardUsedRecipesAndPopExperience` -> `player.awardRecipes` + `triggerRecipeCrafted` | used recipes are never unlocked in the recipe book nor counted as crafted | pass `RecipesUsed` ids to the player before clearing | M |
-| `furnace_like_block_entity.rs:867-876` | Bedrock furnace actor stores `StoredXPInt` | hardcoded `0` | pass the accumulated `RecipesUsed` XP | S |
-| `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S |
-| `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S |
-| `furnace_like_block_entity.rs:856-858` | `getUpdateTag` includes items and cook/burn state | `client_update_tag` returns an empty compound | emit the same keys as `chunk_data_nbt` | S |
-
-## Gap status
-- `furnace_like_block_entity.rs:30-38,511` data-driven speed multiplier: STILL OPEN (M; needs `CookingFuel` data path).
-- `:511-535` relight timer rescale: STILL OPEN (S; depends on previous row).
-- `:177-198` one orb per recipe: STILL OPEN (S; extraction sums to one i32).
-- `furnace_like_slot.rs` take path recipe unlock / `triggerRecipeCrafted`: STILL OPEN (M).
-- `:867-876` Bedrock `StoredXPInt` hardcoded 0: STILL OPEN (S).
-- `:235-274` recipe result components dropped: STILL OPEN (S).
-- `:225` isSameItemSameComponents: FIXED (`furnace_like_block_entity.rs:229,261` now use `are_items_and_components_equal`).
-- `:856-858` `client_update_tag` empty: STILL OPEN (S).
+| `furnace_like_block_entity.rs:30-38,511` | `getSpeedMultiplier` reads the fuel item's `CookingFuel.speedMultiplier` (ResolvableFloat, `cooking/speed_default`); `getTotalCookTime` divides by it | multiplier is derived from the block kind; a datapack fuel with an explicit `speed_multiplier` is ignored and the value is not restored on load | store `speed_multiplier` on the three entities, set it from `CookingFuelImpl::get_speed_multiplier(is_fast)` at ignition, use it in `cooking_total_time`, read/write the float key | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:511-535` | on relight with a different multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale | implement after the data-driven multiplier above | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:177-198` | `getRecipesToAwardAndPopExperience` spawns one orb per recipe id | extraction returns one summed `i32`, so one orb | return per-recipe amounts (Vec) or spawn orbs in the block entity | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `pumpkin-inventory/src/furnace_like/furnace_like_slot.rs` take path | `FurnaceResultSlot.checkTakeAchievements` -> `awardUsedRecipesAndPopExperience` -> `player.awardRecipes` + `triggerRecipeCrafted` | used recipes are never unlocked in the recipe book nor counted as crafted | pass `RecipesUsed` ids to the player before clearing | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:867-876` | Bedrock furnace actor stores `StoredXPInt` | hardcoded `0` | pass the accumulated `RecipesUsed` XP | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `furnace_like_block_entity.rs:856-858` | `getUpdateTag` includes items and cook/burn state | `client_update_tag` returns an empty compound | emit the same keys as `chunk_data_nbt` | S, FIXED d047c4b2d |
