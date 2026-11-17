@@ -51,6 +51,9 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
 - tick with a dead Weak target only skips the speed refresh; vanilla keeps a
   strong reference, so the difference is the last speed modifier, not a new flee.
 
-## Status (sweep h2)
-
-- FIXED (5065fe6c8): no code change; no TODO/FIXME markers in the file at HEAD, tracker marker is stale.
+## Gap status
+- 1 brain-sensor threats reuse goal path logic (avoid_entity.rs:138-238): STILL OPEN, M.
+- 2 confirm applied to ranked nearest only (avoid_entity.rs:201-207): STILL OPEN, S, needs decompiled WolfAvoidEntityGoal (changes RNG draws).
+- 3 tick_reach searches flee_distance not FOLLOW_RANGE (avoid_entity.rs:175-194): STILL OPEN, S.
+- 4 drop_target per-tick clear (avoid_entity.rs:247-263): STILL OPEN, S, needs vanilla override confirmation.
+- Default targeting conditions (avoid_entity.rs:69-74): FIXED in the note (already landed); not re-grepped this pass.

@@ -38,6 +38,5 @@ defend_village_target.rs, fox/goals.rs, trader_llama.rs, teleport_towards_player
   melee_attack.rs:176), which implements distSqr < r*r with radius -1 meaning no
   restriction. Vanilla: TrackTargetGoal.canAttack -> Mob.isWithinRestriction.
 
-## Status (sweep h2)
-
-- FIXED (05a735da1): no code change; the note records TrackTargetGoal as matching vanilla.
+## Gap status
+- can_navigate_to_entity pathfinder (row 1): STILL OPEN, no path-finding API (only NavigatorGoal, entity/mob/mod.rs:955). Prior fix track_target.rs:125 FIXED.

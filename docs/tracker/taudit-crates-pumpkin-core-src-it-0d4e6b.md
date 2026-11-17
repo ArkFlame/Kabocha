@@ -70,10 +70,12 @@ Coverage: AUDIT. No `TODO`/`FIXME` markers exist in the file; the tracker's
    the state without drops. Size: S.
 
 ## Gap status
-- 1 STILL OPEN: vanilla `pickupBlock` drop-on-cannot-survive not confirmed without decompiled source.
-- 2 STILL OPEN: vanilla sneak behaviour unconfirmed; note itself asks to verify first.
-- 3 STILL OPEN: ultrawarm mob-bucket ordering unconfirmed (BucketItem.use not in repo).
-- 4 STILL OPEN: spawn-protection/mayInteract gate, S/M, not attempted in sweep.
-- 5 STILL OPEN: trait change across implementors, M.
-- 6 STILL OPEN: additive WIT change, M.
-- 7 STILL OPEN: dispenser loot-roll, S, not attempted in sweep.
+- SKIP_DROPS on replaced block (bucket.rs:305/386/511): FIXED, verified.
+- Creative duplicate bucket (bucket.rs:163): FIXED per note.
+- 1 waterlogged pickup can_survive (bucket.rs:309-318): STILL OPEN, S.
+- 2 sneak waterlogging (bucket.rs:423): STILL OPEN, S, verify against decompiled BucketItem.use.
+- 3 ultrawarm mob bucket spawns mob (bucket.rs:540-577): STILL OPEN, S.
+- 4 no mayInteract / spawn protection (bucket.rs:291-338): STILL OPEN, S/M.
+- 5 hardcoded Hand::Right (bucket.rs:783-798): STILL OPEN, M, trait change.
+- 6 event payload lacks face/stack (bucket.rs:642-654, 726-736): STILL OPEN, M, additive WIT change.
+- 7 dispenser break_block without SKIP_DROPS (redstone/dispenser.rs:910-923): STILL OPEN, S.

@@ -24,6 +24,11 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - `has_line_of_sight` clip uses the collision shape set, which is what `ClipContext.Block.COLLIDER` resolves to in `pumpkin_world::clip` (`ClipBlock::Collider` and `Visual` share `clip_block_shapes`), so the enum name difference has no behavioural effect.
 - `spawn_state`/`create_spawn_packet` packing via `pack_degrees`; entity metadata dirty flush at end of tick (`sendDirtyEntityData`).
 
-## Status (sweep h2)
-
-- FIXED (2c38597bb): has_line_of_sight checks the level, per the Changed note above.
+## Gap status
+- 1 team color/prefix/suffix in get_display_name (entity/mod.rs:1359): STILL OPEN, M.
+- 2 set_on_fire clears frozen_ticks (entity/mod.rs:1032): STILL OPEN, S, vanilla entry point unverified.
+- 3 Bedrock climate_variant (entity/mod.rs:917): STILL OPEN, M.
+- 4 tick_block_underneath stub (entity/mod.rs:3092): STILL OPEN, M.
+- 5 teleport broadcast only to destination chunk (entity/mod.rs:5110): STILL OPEN, M.
+- 6 set_rotation normalisation: FIXED at entity/mod.rs:4372-4376 (yaw mod 360, finite check).
+- 7 kill fallback for non-living entities (entity/mod.rs:1387): STILL OPEN, S, cleanup only.

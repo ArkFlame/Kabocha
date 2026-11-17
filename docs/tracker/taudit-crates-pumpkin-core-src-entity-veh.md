@@ -125,3 +125,23 @@ the exact constant/return could not be confirmed locally.
 
 `tick` physics, `push`, damage and the activator/powered-rail paths have no automated
 test; gaps 3-8 are the ones a gametest could pin cheaply (rail + cart + rider scenarios).
+
+## Gap status
+- block_effects 1 (block_effects.rs:79-90 non-lily-pad dispatch): STILL OPEN, M, needs vanilla checkInsideBlocks source.
+- block_effects 2 (endpoint double dispatch, block_effects.rs:91-102): STILL OPEN, M, interacts with row 1.
+- block_effects 3 (chunk loaded guard, block_effects.rs:83): STILL OPEN, S.
+- block_effects 4 (take before early return, block_effects.rs:49-59): STILL OPEN, S.
+- block_effects 5 (requested-movement axis split, block_effects.rs:118-152): STILL OPEN, S, verify.
+- block_effects 6 (no gametest): STILL OPEN, M.
+- minecart 1 (powered rail damages rideable cart): FIXED, removed in 8c7debbe3 (note).
+- minecart 2 (rustfmt at minecart.rs:581): FIXED, 96ab3cd1b (note).
+- minecart 3 (activator rail ejects riders, minecart.rs:330-352): STILL OPEN, S, verify then delete Rideable arm.
+- minecart 4 (push direction, minecart.rs:649-783): STILL OPEN, M.
+- minecart 5 (powered-rail boost on 3D length, minecart.rs:305-327): STILL OPEN, M.
+- minecart 6 (container friction, minecart/container.rs:235-277): STILL OPEN, M.
+- minecart 7 (passenger repositioning, minecart.rs:575-593): STILL OPEN, S.
+- minecart 8 (slope tests, minecart.rs:64-103): STILL OPEN, S, test-only.
+- minecart 9 (double move_entity, minecart.rs:919-932): STILL OPEN, M, verify.
+- minecart 10 (TNT priming, minecart.rs:840-868): STILL OPEN, M, verify.
+- minecart 11 (portal skipped, minecart.rs:225): BLOCKED-DATA, needs entity dimension change.
+- minecart 12 (sneak interact, minecart.rs:176-219): STILL OPEN, S, verify.

@@ -10,11 +10,6 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
   *this* hook. The port wrote `-1` unconditionally, so a stale hook's removal could orphan a newer
   bobber. Now a `compare_exchange` on `player.fishing_bobber`.
 
-## Gapwave2-2 status (h3)
-
-- #2 cancelled PlayerFishEvent keeps hook: FIXED 20b15d659 (reel_in returns Option, None on cancel; rod keeps the hook and skips the -1 store; UNVERIFIED, no test)
-- #3 should_stop_fishing discard: STILL OPEN (trivial, harmless today, to align with #2 rework later)
-
 ## Open gaps
 
 1. **Open-water flag missing (medium).** `catching_fish` (L549+) and `tick` never track vanilla
@@ -60,4 +55,11 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
   `FISH_CAUGHT` stat and `FISHED_ITEM` advancement (L126-279).
 - `setHookedEntity` stores `id + 1`, hooked entity teleport to `0.8 * height`, block hit stopping
   at the face, `FishingRodReelIn` status broadcast, off-hand rod accepted (L157-161, L377-391, L502-521, L525-539).
-- #3 should_stop_fishing discard: FIXED faf838f3b (discard moved into should_stop_fishing, process_tick no longer discards separately; UNVERIFIED, no test)
+
+## Gap status
+- 1 open-water flag missing: STILL OPEN, M (fishing_bobber.rs catching_fish/tick; loot predicate wiring).
+- 2 cancelled PlayerFishEvent still removes hook (item/items/fishing_rod.rs:96-106): STILL OPEN, S.
+- 3 should_stop_fishing does not discard: STILL OPEN, trivial, harmless today.
+- 4 rod durability path (fishing_rod.rs:98): STILL OPEN, verify.
+- 5 random f64 vs f32: STILL OPEN, cosmetic, accepted by note.
+- L542 discard compare-exchange: FIXED at fishing_bobber.rs:554 (verified).

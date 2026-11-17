@@ -85,5 +85,4 @@ mod.rs:1389 applies `REGENERATION` (200 ticks) in `villager_ai_step` when
 starts one tick late.
 
 ## Gap status
-
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.

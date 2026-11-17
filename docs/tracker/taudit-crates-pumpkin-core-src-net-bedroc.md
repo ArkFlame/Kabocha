@@ -19,3 +19,12 @@ eat / block / bow / place from `PlayerAuthInput` never reached the item use code
 | player_auth_input.rs:43 `store_input_state` | vanilla `LastKinetic` / knockback recovery | `packet.delta` is stored unvalidated and later layered into entity pushes (`entity/player/client_push.rs:130`) without the `MAX_STEP_SQUARED` clamp used in `apply_mount_move` | clamp the stored delta to the same 100.0 squared-step budget | S |
 | player_auth_input.rs:66-67 start/stop crawling | n/a (Bedrock has no crawl) | correct to ignore, kept as documentation | none | - |
 | player_auth_input.rs:diff `MissedSwing` (39) / `StartUsingItem` (53) flags | Geyser `BedrockPlayerAuthInputTranslator` maps both to `ServerboundSwingPacket` / `ServerboundUseItemPacket` | the flags are a duplicate transport for effects already handled by `SAnimate` and the embedded item interaction; only worth mapping if a client is observed without those packets | none for now | - |
+
+## Gap status
+- 1 await_teleport has no Teleport ack (player_auth_input.rs:186): STILL OPEN, M.
+- 2 StartJumping ignored on saddled mounts (player_auth_input.rs:69-79): STILL OPEN, M.
+- 3 vehicle_rotation and vehicle_unique_id ignored (player_auth_input.rs:317-357): STILL OPEN, M.
+- 4 on_ground from zero delta (player_auth_input.rs:36-38): STILL OPEN, S.
+- 5 sprint from SprintDown fallback (player_auth_input.rs:50-56): STILL OPEN, S.
+- 6 unclamped stored delta (player_auth_input.rs:43): STILL OPEN, S.
+- Crawl flags (player_auth_input.rs:66-67): no gap, documented.

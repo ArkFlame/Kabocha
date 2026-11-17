@@ -46,3 +46,9 @@ Remaining gaps (not fixed here):
    book entries after a datapack reload. Fix: generate the property sets in
    `pumpkin-data`/`recipe_helper` and send them in the same packet. Size M
    (data/codegen).
+
+## Gap status
+- 1 SChatMessage/SChatCommand/SPlayerSession spawned off-thread (net/java/mod.rs:908-977, 1201): STILL OPEN, M, needs per-player ordered queue.
+- 2 config disconnect loses Component (mod.rs:651-670): STILL OPEN, M, protocol change.
+- 3 stonecutter-only recipe packet (mod.rs:772-781): STILL OPEN, M, data/codegen.
+- Keep-alive pending, unknown id disconnect, fixed 30 s timeout (mod.rs:107 KEEP_ALIVE_TIMEOUT verified): FIXED per note.

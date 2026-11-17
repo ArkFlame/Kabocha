@@ -32,3 +32,13 @@ Source: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs`. No decompile
    - `spawn_break_particles` (line 265-279) uses `Block::OAK_PLANKS` plus count 10 / speed 0.05; verify against vanilla `ArmorStand.showBreakingParticles` (which derives the state from the block below) and `spawn_block_particle` semantics.
 8. **Equipment drops are bare `drop_stack` calls** (size S).
    - `broken_by_anything` (line 240-261) drops each slot at `block_pos.up()` with no random velocity; vanilla spawns `ItemEntity`s with per-slot random offsets/pickup delay. Cosmetic only.
+
+## Gap status
+- 1 armor stand flags not synced: BLOCKED-DATA, no DATA_ARMOR_STAND_FLAGS in generated tracked_data (index 14 absent, per note).
+- 2 pose not synced (armor_stand.rs:207): STILL OPEN, M; indices 16-21 exist in generated data.
+- 3 get_clicked_slot hitboxes (armor_stand.rs:314-448): BLOCKED-DATA, needs decompiled getClickedSlot.
+- 4 PlayerArmorStandManipulateEvent never fired (armor_stand.rs:343): STILL OPEN, M.
+- 5 only kill() emits ENTITY_DIE: STILL OPEN, S, not landed this pass.
+- 6 ENTITY_DAMAGE on survivable damage: STILL OPEN, S.
+- 7 break particle block state (armor_stand.rs:265-279): STILL OPEN, S.
+- 8 bare drop_stack for equipment: STILL OPEN, S, cosmetic.

@@ -60,5 +60,5 @@ Remaining gaps:
   such input skips chat validation, the visibility gate and `PlayerChatEvent` (size S,
   existing Pumpkin convenience; only change it together with `handle_chat_command`).
 
-## Status (code-verified sweep)
-FIXED: tryHandleChat drops hidden and commands-only clients before the message event (net/java/play/chat_message.rs:23-38). STILL OPEN: broadcast empty-message and session-update rows not re-read.
+## Gap status
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

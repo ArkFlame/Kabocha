@@ -58,8 +58,10 @@ vanilla counterpart (the pearl is just discarded), so clients may show an extra 
 - Pearl removal after a hit (`entity.remove()` in `ThrownItemEntity::process_tick`).
 - Bubble-column handling: vanilla `EnderPearlEntity` has no special case, regular entity push.
 
-## Gapwave h3 status
-- #5 endermite gate uses DO_MOB_SPAWNING only: FIXED 85a67dd25 (UNVERIFIED, no test)
-- #4 connection-open gate: STILL OPEN (XS, no Player::is_connected helper exists yet)
-- #3 cancellable dismount events: STILL OPEN (intentional plugin contract, keep)
-- #6 death entity status: STILL OPEN (ThrowableProjectile.onHit broadcasts entity event 3 in vanilla; needs a client check before removing)
+## Gap status
+- 1 portal particle distribution: STILL OPEN, S, cosmetic.
+- 2 teleport sound for non-player owners: STILL OPEN, XS, unobservable today.
+- 3 cancellable dismount events: STILL OPEN, intentional Pumpkin extension, no change.
+- 4 connection-open gate: STILL OPEN, XS, no Player::is_connected helper.
+- 5 endermite gate uses should_spawn_monsters: FIXED at ender_pearl.rs:149-150 (now gates on game_rules.spawn_mobs, DO_MOB_SPAWNING only).
+- 6 death entity status: STILL OPEN, XS.

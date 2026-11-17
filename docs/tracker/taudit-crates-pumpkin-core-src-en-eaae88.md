@@ -25,10 +25,6 @@ Coverage: AUDIT. 3 vanilla-reference doc comments at lines 655, 683, 2324 (pre-a
 12. :581 ItemUsedOnBlockPredicate merges all location terms with last-wins for state, smokey and biome; all_of/any_of/inverted semantics are not modelled. M.
 13. :2327 matches_effects_changed_condition passes None distance to the source entity predicate, so a source predicate with a distance field can never match. S.
 
-## h3 wave status
-- 7 (:1064 PlacedBlock item count/enchantments): FIXED a98a6f3ec. Takes the placed stack count and enchantments; no current caller of `matches_placed_block_condition`.
-- 8 (:2302 item condition count): FIXED a98a6f3ec. `matches_item_condition` takes the stack count (UNVERIFIED in game; test `item_count_bounds_use_actual_stack_count`).
-- 9 (:2035 fall_after_explosion cause): STILL OPEN. Needs the cause entity predicate; the generated `AC::FallAfterExplosion` carries only the type string, so the full predicate cannot be built from that path yet.
-- 11 (:2014 distance x/z/absolute): STILL OPEN. Needs the trigger to pass all axes of the player position delta.
-- 13 (:2327 effects_changed source distance): FIXED 1b4d82d2f. `trigger_effects_changed` passes player-to-source distance; `matches_effects_changed_condition` feeds it to the source predicate (UNVERIFIED, test `effects_changed_source_distance_is_checked`).
-- 9 and 11 remain STILL OPEN as above: 9 needs `advancement_data.rs`, which tools/pumpkin-codegen emits (codegen change, not a hand edit); 11 needs x/z/absolute on every distance-carrying trigger (Levitation, FallFromHeight, NetherTravel, RideEntityInLava), a multi-variant change.
+## Gap status
+- Rows 1-13 (ItemPredicate durability, LocationPredicate light/fluid, EntityPredicate fields, safe_armor, DamagePredicate source, BredAnimals roles, PlacedBlock item, item count, fall_after_explosion, lightning, distance axes, ItemUsedOnBlock merge, effects_changed distance): all STILL OPEN, sizes as listed in the note, none landed this pass.
+- Fixes listed in the note (enchantment levels, components key, distance bounds, item-used-on-block location): kept, verified only by the note.

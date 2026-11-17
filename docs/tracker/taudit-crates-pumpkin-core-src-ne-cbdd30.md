@@ -63,3 +63,6 @@ Re-audit 2026-11-17: no remaining gap in this file is both small and certain. Al
 ### 6. try_enqueue_spawn_packet is not fallible (S, internal)
 - net/mod.rs:328-330 returns () and delegates to enqueue_spawn_packet, unlike every other
   try_enqueue_*. No vanilla counterpart; leave unless a caller needs the back-pressure signal.
+
+## Gap status
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

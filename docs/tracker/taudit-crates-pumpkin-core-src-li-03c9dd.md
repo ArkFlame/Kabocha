@@ -35,3 +35,13 @@ Paper ServerGamePacketListenerImpl/PlayerList#remove, Spigot settings.connection
 Notes: adjust_file_descriptor_limit (1,048,576 cap with 65,536 fallback) has no vanilla
 counterpart and is intentional. Console Ctrl-C (graceful then force-exit) matches vanilla
 stopServer plus second-signal behaviour.
+
+## Gap status
+- Fixed rows per note: disconnect key at lib.rs:626 FIXED (verified); Bedrock advancement save FIXED per note.
+- 1 early reject at accept loop (lib.rs:641-693): STILL OPEN, S.
+- 2 per-IP connection throttle (lib.rs:641): STILL OPEN, M.
+- 3 IP masking shape (lib.rs:657-661, 907-911): STILL OPEN, S.
+- 4 player stats persistence (lib.rs:599-636): STILL OPEN, L.
+- 5 console EOF warning (lib.rs:785-787): STILL OPEN, S.
+- 6 fallback kick overwrites rejection (server/mod.rs:942): FIXED in part, server/mod.rs:1268 uses the shutdown key; the overwrite itself STILL OPEN, S.
+- 7 bedrock_clients keyed by SocketAddr (lib.rs:713): STILL OPEN, S.

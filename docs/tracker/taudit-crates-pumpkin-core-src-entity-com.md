@@ -21,5 +21,10 @@ Audited 2026-11-16. The file has no TODO/FIXME markers; the tracker's 5 matches 
 | combat.rs:285 | 1.21 applies Breach through `EnchantmentHelper.modifyArmorEffectiveness` outside `CombatRules` | confirm no double clamp vs 1.21 `CombatRules.getDamageAfterAbsorb` | M |
 
 ## Gap status
-
-- STILL OPEN: combat.rs rows (walk distance gate, event 128, knockback resistance, death message, mace identity, breach clamp). Not re-verified in h3 sweep.
+- 1 sweep needs walk distance (combat.rs:57): STILL OPEN, S.
+- 2 recordDamage/recheckStatus event 128 (combat.rs:471,486): STILL OPEN, S.
+- 3 knockback resistance applied once (combat.rs:189): STILL OPEN, M, verify Mob::mob_knockback.
+- 4 death message killer fallback (combat.rs:714): STILL OPEN, M.
+- 5 mace owner identity (combat.rs:140): STILL OPEN, S.
+- 6 Breach double clamp (combat.rs:285): STILL OPEN, M.
+- Fixes listed in the note (crit/sweep/mace/armor clamp): kept, verified only by the note.

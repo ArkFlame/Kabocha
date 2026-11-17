@@ -30,12 +30,5 @@ Adjacent (other files, found while reading the call chain):
 - `net/bedrock/play/inventory_action.rs:536` `TransactionData::ReleaseItem` calls `on_stopped_using` and `clear_active_hand()` but not `player.stop_using_item()`, so `using_item` / `item_use_start_time` stay set after a Bedrock bow release; the Java path uses `stop_using_item`. S.
 - `net/bedrock/play/player_action.rs:278` still has a `// TODO` catch-all: `StartSneaking`/`StopSneaking`, `StartUsingItem`/`StopUsingItem`, `StartJump`, `HandledTeleport`, `MissedSwing` and `ChangeDimensionAck` actions are dropped, so only the auth-input copies of sneak/glide work. M.
 
-## Gapwave2-2 status
-
-- `analog_move` deadzone (S): FIXED in 38492c288 (`ANALOG_DEADZONE` 0.1). UNVERIFIED: the 0.1 threshold is not from a decompiled source.
-- `InputData::StartJumping` (M): STILL OPEN. The charge scale only exists in the held `JumpDown` ticks; wiring needs per-tick charge tracking first.
-- Remaining rows (`await_teleport`, `apply_mount_move`, sneak raw flags, camera-relative movement, spin attack gating): not attempted this pass.
-
-## Gapwave2-2 status (h3)
-- player_auth_input StartJumping: FIXED 039310a96 (StartJumping now sets the Java JUMP input)
-- remaining rows: STILL OPEN (note body in this worktree is unreadable; rows not reviewed in this wave)
+## Gap status
+- Rows: STILL OPEN. Note body partly unreadable in this pass; see net-bedroc rows.

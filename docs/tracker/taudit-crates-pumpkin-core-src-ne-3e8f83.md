@@ -28,3 +28,10 @@ comparison uses the 1.21 `ServerPlayerGameMode` structure.
 | `player_action.rs:36` | same, plus CraftBukkit ordering | `PlayerInteractEvent` and `BlockDamageEvent` fire before the `cannot_mine_block` check (spectator, adventure `can_break`, creative non-destroying tool), while vanilla runs `blockActionRestricted` / spectator checks first | move the `cannot_mine_block` check above the event block; keep the `CBlockUpdate` resync on rejection | S |
 | `player_action.rs:143` | same, "abort destroying since another started" | a `START_DESTROY_BLOCK` on a second block just overwrites `mining_pos`; the previous target keeps its announced break stage, so other players can keep seeing its crack progress | if `player.mining` and the stored `mining_pos` differs from the new position, `world.set_block_breaking(entity, old, Stop)` and resync the old position | S |
 | `player_action.rs:190` | `ServerPlayerGameMode` `ABORT_DESTROY_BLOCK` | abort sends `BlockBreakingProgress::Stop` but leaves `current_block_destroy_stage` / `current_block_breaking_speed` and `mining_pos` stale and never resyncs the block; vanilla clears the destroy state and sends a `ClientboundBlockUpdatePacket` | call `player.reset_mining()` (or `stop_mining()`) and add a `CBlockUpdate` for `player_action.position` | S |
+
+## Gap status
+- Spawn-protection reject at START_DESTROY_BLOCK (player_action.rs:36-38): FIXED, verified.
+- 1 out-of-range Y guard (player_action.rs:31): STILL OPEN, S.
+- 2 event ordering before cannot_mine_block (player_action.rs:36): STILL OPEN, S.
+- 3 stale previous mining target crack stage (player_action.rs:143): STILL OPEN, S.
+- 4 ABORT_DESTROY_BLOCK does not reset state or resync (player_action.rs:190): STILL OPEN, S.

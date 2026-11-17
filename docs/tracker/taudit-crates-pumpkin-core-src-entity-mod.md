@@ -24,5 +24,9 @@ Date: 2026-11-16. Tracker row category=audit, coverage=AUDIT.
 - Frozen ticks: thaw rate, MAX_FROZEN_TICKS and freeze-damage interval match `Entity#tick` powder-snow handling.
 
 ## Gap status
-
-- STILL OPEN: entity/mod.rs rows (bedrock climate variant, fire freeze reset, player display name, kill fallback, block step stub, EntityDismount emit). Not re-verified in h3 sweep.
+- 1 TemperatureVariantAnimal Bedrock properties (entity/mod.rs:906): STILL OPEN, M.
+- 2 igniting clears freeze (entity/mod.rs:1021): STILL OPEN, S.
+- 3 team name decoration (entity/mod.rs:1347): STILL OPEN, M.
+- 4 kill fallback (entity/mod.rs:1375): STILL OPEN, S.
+- 5 dead tick_block_underneath stub (entity/mod.rs:3078): STILL OPEN, M.
+- 6 stopRiding emits ENTITY_DISMOUNT (entity/mod.rs:6172): FIXED at entity/mod.rs:6324 (emit_game_event EntityDismount, verified).

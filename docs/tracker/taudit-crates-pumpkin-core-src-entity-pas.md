@@ -40,3 +40,11 @@ ambient sounds, eat counter cadence (80/80/20/100/5).
 
 Eating item particles (`Panda.addEatingParticles`) and the sneeze particle are not sent; the
 synced `EAT_COUNTER`/`SNEEZE_COUNTER` are assumed to drive the vanilla client animation.
+
+## Gap status
+- 1 HAPPY_GHAST/EMPTY behaviour (panda-side rows 1-2): STILL OPEN, needs decompiled setGeneFromParents / canFindBamboo before editing.
+- 2 breed bamboo search range (panda/goals.rs:134-149): STILL OPEN, M, low confidence.
+- 3 mobInteract guard (panda.rs:614-626): STILL OPEN, S, no edit while both readings plausible.
+- 4 playAttackSound path (panda.rs:863-866): STILL OPEN, S, looks covered, unverified.
+- 5 sneeze after-jump and tick_reach (panda/sneeze.rs:84-109): STILL OPEN, S, audit before has_audited_tick.
+- Fixes in note: panda/roll.rs:84-97 FIXED; panda.rs thunder_scares FIXED (per note).

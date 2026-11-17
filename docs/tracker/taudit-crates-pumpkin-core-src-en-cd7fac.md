@@ -25,5 +25,5 @@ codec presence (global pos, global pos set/list, block pos, uuid, int, long, boo
 match vanilla; types without a codec in vanilla also have `None` here.
 
 ## Gap status
-
-- STILL OPEN: VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT and NEAREST_VISIBLE_ADULT_* memories never populated (brain/memory/types.rs:118-122). Piglin sensor is out of scope.
+- VISIBLE_ADULT_PIGLIN/HOGLIN_COUNT never written or read (types.rs:120-122): STILL OPEN, M, needs PiglinSpecificSensor and HoglinAi/PiglinAi call sites.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_* never populated (types.rs:118-122): STILL OPEN, L, no piglin/hoglin specific sensor in sensing.rs.

@@ -10,6 +10,9 @@ Changed: `can_start` now builds the vanilla `createPath(target, 0)` route (falli
 | melee_attack.rs:19,38 | constructor arg is `followingTargetEvenIfNotSeen` (true = keep chasing without line of sight) | named `pause_when_mob_idle` with inverted meaning; creaking.rs:119 passes true where vanilla `CreakingMeleeAttackGoal` passes false (docs/tracker/tentities-creaking.md:26) | rename across callers and fix creaking | S |
 | melee_attack.rs:26,86 | `attackInterval = 20` feeds `resetAttackCooldown` | `attack_interval_ticks` is dead and `get_max_cooldown` hardcodes 20 | use the field in `get_max_cooldown` | S |
 
-## Status (sweep h2)
-
-- FIXED (215492fe7): can_start builds the vanilla createPath route (per the Changed note above).
+## Gap status
+- 1 async search failure has no +15 retry backoff (melee_attack.rs:263): STILL OPEN, M.
+- 2 stop() dead ForgotTarget block (melee_attack.rs:204-214): STILL OPEN, S.
+- 3 perceived box-to-hitbox distance (melee_attack.rs:247-262): STILL OPEN, S.
+- 4 constructor arg naming and inverted meaning (melee_attack.rs:19,38; creaking.rs:119): STILL OPEN, S, creaking.rs is out of scope this pass.
+- 5 attack_interval_ticks unused (melee_attack.rs:26,86): STILL OPEN, S.

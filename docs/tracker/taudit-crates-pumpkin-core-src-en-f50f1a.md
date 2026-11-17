@@ -68,5 +68,4 @@ behavior. No `TODO`/`FIXME` left in these files: the tracker markers are the
   fish bucket returns the water bucket.
 
 ## Gap status
-
-- STILL OPEN: axolotl rows (support regen AABB, play-dead roll on no-damage hit). Not re-verified in h3 sweep.
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

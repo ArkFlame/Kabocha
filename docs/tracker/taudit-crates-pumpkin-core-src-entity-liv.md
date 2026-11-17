@@ -17,5 +17,8 @@ Fixed in this pass:
 | 5 | living.rs:5457 | `LivingEntity` consumable-effect application | TODO: consumable-effect probability hardcoded; needs datapack support. | Move the probability table into datapack data and read it at apply time. | L |
 
 ## Gap status
-
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- 1 heal() clamp and no return value (living.rs:1242): STILL OPEN, M.
+- 2 fall-damage reset via block scan (living.rs:1907): STILL OPEN, M.
+- 3 gravity fallback for unloaded world (living.rs:2257): STILL OPEN, M.
+- 4 scaffolding descent clamp in water travel (living.rs:2540): STILL OPEN, S, not landed this pass.
+- 5 consumable probability data (living.rs:5457): STILL OPEN, L, needs datapack support.

@@ -33,5 +33,4 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - Bedrock actor metadata (`FUSE_TIME`, `y_offset 0.49`) and `is_about_to_explode` (`fuse <= 1`) used by the entity-island push check.
 
 ## Gap status
-
-- STILL OPEN: tnt.rs rows 3-8 (portal ignoreExplosion, fuse default, owner persistence, power clamp, ExplosionPrimeEvent power, tntExplodes recheck). Not re-verified in h3 sweep.
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

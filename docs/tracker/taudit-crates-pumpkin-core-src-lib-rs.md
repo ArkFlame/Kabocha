@@ -20,3 +20,9 @@ tracker's "2 vanilla markers" are the `vanilla_data` constructor parameter (line
 | lib.rs:240 (`PacketHandlerResult::Stop => pending.close()`) | `ServerLoginPacketListenerImpl.tick` / `ServerConfigurationPacketListenerImpl` | On server stop during login/config, vanilla sends a state-appropriate disconnect packet with `multiplayer.disconnect.server_shutdown` before closing; Pumpkin closes the TCP socket silently. | Track the pending connection's protocol state and call `pending.kick(TextComponent::translate(translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN, []))` on the login/config state before `close()`. | M |
 | lib.rs:599-636 (`shutdown`) | `MinecraftServer.stopServer` | Vanilla logs and broadcasts "Stopping the server", "Saving players", "Saving worlds" milestones and removes all players from the list after kicking. Pumpkin logs its own wording and relies on connection tasks to remove players. Cosmetic log parity only. | Optional: align info lines with vanilla; no behaviour change. | S |
 | lib.rs:839 (`rl.readline("$ ")`) | `DedicatedServer` console thread | Vanilla's dedicated console has no prompt; Pumpkin prints a custom "$ " prompt. Cosmetic, config-gated `use_tty`. | Leave as is unless strict console-output parity is wanted. | S |
+
+## Gap status
+- 1 login/config stop closes silently (lib.rs:240): STILL OPEN, M.
+- 2 shutdown log wording (lib.rs:599-636): STILL OPEN, S, cosmetic.
+- 3 console "$ " prompt (lib.rs:839): STILL OPEN, S, cosmetic.
+- Shutdown key at lib.rs:626 and server/mod.rs:1268: FIXED (verified).

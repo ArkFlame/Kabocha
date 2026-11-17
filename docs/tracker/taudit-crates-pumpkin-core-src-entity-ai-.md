@@ -44,5 +44,4 @@ checked against. Vanilla reference: `net.minecraft.world.entity.ai.goal.MeleeAtt
   `passive/polar_bear.rs`, `passive/fox`, `passive/panda`; they do not diverge from vanilla behaviour.
 
 ## Gap status
-
-- STILL OPEN: melee_attack.rs rows 1-5 (should_continue nav idle, can_start path, +15 retry, start seeding, field naming). Not re-verified in h3 sweep.
+- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.

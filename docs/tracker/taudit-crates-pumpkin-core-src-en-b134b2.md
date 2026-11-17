@@ -53,5 +53,7 @@ Line numbers are post-fix.
    early/late. Cosmetic — **S**.
 
 ## Gap status
-
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- Fire-on-hit main-hand guard (zombie/mod.rs:564-578): BLOCKED-DATA, needs decompiled 1.21 Zombie.doHurtTarget.
+- Chicken jockey candidate filter (zombie/mod.rs:332): FIXED, dropped the extra !has_vehicle() check to match ENTITY_NOT_BEING_RIDDEN. No unit test: filter needs a live world.
+- Reinforcement RNG order (summon_reinforcements): STILL OPEN, S, changes the random stream; not landed this pass.
+- Halloween timezone (is_halloween): STILL OPEN, S, needs the level-local date source.

@@ -52,6 +52,10 @@ FIXME, todo! or unimplemented!. The grep hits are doc comments naming vanilla cl
    wiki numbers only; re-check Zombie.finalizeSpawn/AbstractSkeleton.finalizeSpawn when a
    decompiled dump is available.
 
-## Status (sweep h2)
-
-- FIXED (5065fe6c8): no code change; the TODO/FIXME markers are false positives (doc comments only).
+## Gap status
+- 1 baby spawn chance ignores difficulty (ageable.rs:156-161): STILL OPEN, M, signature change across finalize overrides.
+- 2 first group mob never rolls baby: STILL OPEN, S, depends on 1 and vanilla re-read.
+- 3 AgeableMobGroupData lacks can_spawn_another: STILL OPEN, M.
+- 4 triangle draw precision (spawn.rs:93): STILL OPEN, XS, no differential RNG test.
+- 5 equipment roll ignores spawn reason (spawn.rs:105-118): STILL OPEN, S, needs decompiled AbstractSkeleton.
+- 6 Halloween constants (spawn.rs:20-22): BLOCKED-DATA, no decompiled Zombie/AbstractSkeleton tree.

@@ -84,5 +84,4 @@ Reference: `PaperMC/Paper/paper-server/src/minecraft/java/net/minecraft/world/en
   defaults or have no observable server effect.
 
 ## Gap status
-
-- STILL OPEN: armor_stand.rs rows (marker gravity, explosion immunity, interact events, may_interact, potion immunity, can_tick override). Not re-verified in h3 sweep.
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

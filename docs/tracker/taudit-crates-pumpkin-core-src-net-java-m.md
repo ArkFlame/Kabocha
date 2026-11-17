@@ -64,3 +64,6 @@ acknowledgement, `SClientTickEnd` zeroing movement when no movement packet arriv
 (`handleClientTickEnd`), brand channel read bound of 256 (`readUtf(256)`), `register`/`unregister`
 splitting on `\0`, no disconnect packet in handshake/status (`serialize_disconnect` -> None),
 `PacketReceivedEvent`/`PacketSentEvent` fire points (server thread / writer task).
+
+## Gap status
+- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.

@@ -70,5 +70,4 @@ Remaining gaps:
    shared roll in `finalize_spawn_base`. Size M.
 
 ## Gap status
-
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.

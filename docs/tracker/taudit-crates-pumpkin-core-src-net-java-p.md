@@ -81,5 +81,5 @@ markers before this pass).
   the second before any action, so both paths end in `Ok(())`; removing the first
   check changes no behaviour, so it was left alone.
 
-## Status (code-verified sweep)
-FIXED: hit coordinates bounded to 0.5 +- 1.0000001 for all items (net/java/play/use_item_on.rs:28-33).
+## Gap status
+- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.

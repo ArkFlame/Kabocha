@@ -67,3 +67,6 @@ check.
 - Arrow spawn position and eye offset live in `ArrowEntity::new_shot` (`eye - 0.1`), matching
   vanilla `AbstractArrow`; mob arrows pass `ArrowPickup::Disallowed` from `bow_attack.rs:98`,
   matching `ProjectileUtil.getMobArrow`.
+
+## Gap status
+- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
