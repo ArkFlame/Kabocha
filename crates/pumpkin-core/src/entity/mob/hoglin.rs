@@ -223,6 +223,12 @@ impl Mob for HoglinEntity {
         true
     }
 
+    /// Vanilla `Hoglin` implements `Monster` despite being ageable, so Peaceful despawn and
+    /// loot/xp rules treat it as a monster.
+    fn is_monster_class(&self) -> bool {
+        true
+    }
+
     fn get_base_experience_reward(&self) -> u32 {
         if self.is_baby() {
             Self::BABY_XP_REWARD
