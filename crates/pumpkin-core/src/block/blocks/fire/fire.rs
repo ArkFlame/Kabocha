@@ -183,6 +183,27 @@ impl BlockBehaviour for FireBlock {
             return;
         }
 
+        // Vanilla FireBlock.onPlace drops the fire instead of scheduling when the
+        // placed position cannot survive.
+        if !self.can_place_at(CanPlaceAtArgs {
+            server: None,
+            world: Some(args.world),
+            block_accessor: args.world.as_ref(),
+            block: args.block,
+            state: args.block.default_state,
+            position: args.position,
+            direction: None,
+            player: None,
+            use_item_on: None,
+        }) {
+            args.world.set_block_state(
+                args.position,
+                Block::AIR.default_state.id,
+                BlockFlags::NOTIFY_ALL,
+            );
+            return;
+        }
+
         args.world.schedule_block_tick(
             args.block,
             *args.position,
