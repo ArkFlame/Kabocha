@@ -114,6 +114,11 @@ fn enchant_target(
     Ok(())
 }
 
+/// Vanilla rejects only levels strictly above the enchantment's maximum.
+fn level_exceeds_max(level: i32, max_level: i32) -> bool {
+    level > max_level
+}
+
 struct EnchantExecutor {
     has_level: bool,
 }
@@ -128,7 +133,7 @@ impl CommandExecutor for EnchantExecutor {
             1
         };
 
-        if level > enchantment.max_level {
+        if level_exceeds_max(level, enchantment.max_level) {
             return Err(ERROR_FAILED_LEVEL.create_without_context(
                 TextComponent::text(level.to_string()),
                 TextComponent::text(enchantment.max_level.to_string()),
@@ -172,6 +177,18 @@ impl CommandExecutor for EnchantExecutor {
         context.source.send_feedback(msg, true);
 
         Ok(successful_targets)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::level_exceeds_max;
+
+    #[test]
+    fn level_at_max_is_accepted_and_above_is_rejected() {
+        assert!(!level_exceeds_max(5, 5));
+        assert!(!level_exceeds_max(0, 5));
+        assert!(level_exceeds_max(6, 5));
     }
 }
 
