@@ -23,8 +23,8 @@ use std::{
 /// Vanilla `Entity.getAirDrag`, applied every tick.
 const AIR_DRAG: f32 = 0.98;
 
-// TODO: `owner` (igniter, projectile owner or explosion source): NBT, kill credit, damage source.
-// TODO: `block_state` NBT tag and `usedPortal` damage calculator.
+// TODO: `block_state` NBT tag (legacy saves and `/data`) and vanilla's `usedPortal`
+// explosion damage calculator are not modelled; the synced block state is always plain TNT.
 pub struct TNTEntity {
     entity: Entity,
     power: AtomicCell<f32>,
