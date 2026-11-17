@@ -1,6 +1,7 @@
 use super::BlockEntity;
 use crate::world::World;
 use pumpkin_data::block_properties::{SculkCatalystLikeProperties, WaterLikeProperties};
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{BlockId, BlockState, BlockStateId};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -21,6 +22,10 @@ const HEARING_RADIUS: i32 = 8;
 /// Blocks between the bloom animation and its reset, vanilla
 /// `SculkCatalystBlock` block-event tick.
 const BLOOM_DURATION: u32 = 20;
+/// Bloom sound volume and pitch range (`0.6 + random * 0.4`), vanilla `SculkCatalystBlock.tick`.
+const BLOOM_VOLUME: f32 = 2.0;
+const BLOOM_PITCH_BASE: f32 = 0.6;
+const BLOOM_PITCH_RANGE: f32 = 0.4;
 
 pub struct SculkCatalystBlockEntity {
     pub position: BlockPos,
@@ -121,6 +126,14 @@ impl SculkCatalystBlockEntity {
         let mut props = SculkCatalystLikeProperties::from_state_id(state_id);
         props.bloom = true;
         world.set_block_state(&pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        // Vanilla `SculkCatalystBlock.tick` plays the bloom at volume 2.0 with a random pitch.
+        world.play_sound_fine(
+            Sound::BlockSculkCatalystBloom,
+            SoundCategory::Blocks,
+            &pos.to_centered_f64(),
+            BLOOM_VOLUME,
+            BLOOM_PITCH_BASE + rand::rng().random::<f32>() * BLOOM_PITCH_RANGE,
+        );
         world.schedule_block_tick(block, pos, BLOOM_DURATION, TickPriority::Normal);
     }
 }
