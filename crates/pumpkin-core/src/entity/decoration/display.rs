@@ -18,6 +18,9 @@ use crate::{
     server::Server,
 };
 
+/// Vanilla `Display.setPosRotInterpolationDuration` clamps the teleport duration to 0..=59.
+const TELEPORT_DURATION_MAX: i32 = 59;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Vector3fSerializer(pub f32, pub f32, pub f32);
 
@@ -136,6 +139,7 @@ impl DisplayEntity {
     }
 
     pub fn set_teleport_duration(&self, duration: i32) {
+        let duration = duration.clamp(0, TELEPORT_DURATION_MAX);
         self.teleport_duration.store(duration, Ordering::Relaxed);
         self.entity.set_synced_data(
             pumpkin_data::tracked_data::display::TELEPORT_DURATION,
@@ -575,6 +579,10 @@ impl DisplayEntity {
         if let Some(start) = nbt.get_int("start_interpolation") {
             self.interpolation_start_delta_ticks
                 .store(start, Ordering::Relaxed);
+        }
+        if let Some(td) = nbt.get_int("teleport_duration") {
+            self.teleport_duration
+                .store(td.clamp(0, TELEPORT_DURATION_MAX), Ordering::Relaxed);
         }
         if let Some(vr) = nbt.get_float("view_range") {
             *self
