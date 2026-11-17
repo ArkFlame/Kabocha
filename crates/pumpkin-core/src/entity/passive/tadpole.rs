@@ -39,7 +39,7 @@ use pumpkin_data::data_component_impl::BucketEntityDataImpl;
 use pumpkin_data::environment_attribute::Activity;
 
 const TICKS_TO_BE_FROG: i32 = 24000;
-const GROW_UP_SOUND_VOLUME: f32 = 0.15;
+const SOUND_VOLUME: f32 = 0.15;
 const MAX_TURN_X: i32 = 85;
 const MAX_TURN_Y: i32 = 10;
 const IN_WATER_SPEED_MODIFIER: f32 = 0.02;
@@ -140,7 +140,7 @@ impl TadpoleEntity {
                     .store(true, Relaxed);
                 frog.get_entity()
                     .fudge_position_after_size_change_of(frog, dimensions);
-                self.play_entity_sound(Sound::EntityTadpoleGrowUp, GROW_UP_SOUND_VOLUME, 1.0);
+                self.play_entity_sound(Sound::EntityTadpoleGrowUp, SOUND_VOLUME, 1.0);
             },
         );
     }
@@ -250,14 +250,23 @@ impl crate::entity::custom_sound::CustomSound for TadpoleEntity {
     fn sound_category(&self) -> pumpkin_data::sound::SoundCategory {
         pumpkin_data::sound::SoundCategory::Neutral
     }
+
+    /// Vanilla `Tadpole#getSoundVolume`.
+    fn sound_volume(&self) -> f32 {
+        SOUND_VOLUME
+    }
 }
 
 impl Bucketable for TadpoleEntity {
     fn is_from_bucket(&self) -> bool {
-        true
+        self.fish_data.from_bucket.load(Relaxed)
     }
 
-    fn set_from_bucket(&self, _from_bucket: bool) {}
+    fn set_from_bucket(&self, from_bucket: bool) {
+        self.fish_data.from_bucket.store(from_bucket, Relaxed);
+        self.get_entity()
+            .set_synced_data(tracked_data::abstract_fish::FROM_BUCKET, from_bucket);
+    }
 
     fn bucket_item(&self) -> &'static Item {
         &Item::TADPOLE_BUCKET
