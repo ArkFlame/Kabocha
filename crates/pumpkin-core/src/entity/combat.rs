@@ -218,6 +218,8 @@ pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f6
                 Some(attacker),
             );
         }
+        // Vanilla `LivingEntity.causeExtraKnockback` interrupts the attacker's sprint.
+        attacker.set_sprinting(false);
     }
 
     let velocity = attacker.velocity.load();
