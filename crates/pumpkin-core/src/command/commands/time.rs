@@ -263,7 +263,7 @@ impl CommandExecutor for ActionExecutor {
                     ),
                     true,
                 );
-                Ok(1)
+                Ok(wrap_time(level_time.time_of_day))
             }
             Action::Resume => {
                 let level_time = {
@@ -284,7 +284,7 @@ impl CommandExecutor for ActionExecutor {
                     ),
                     true,
                 );
-                Ok(1)
+                Ok(wrap_time(level_time.time_of_day))
             }
             Action::Rate => {
                 let rate = FloatArgumentType::get(context, "rate")?;
@@ -312,7 +312,7 @@ impl CommandExecutor for ActionExecutor {
                     )
                 };
                 context.source.send_feedback(feedback, true);
-                Ok(1)
+                Ok(wrap_time(level_time.time_of_day))
             }
         }
     }
