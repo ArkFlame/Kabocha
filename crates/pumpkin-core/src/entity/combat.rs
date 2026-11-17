@@ -82,9 +82,16 @@ impl AttackType {
 
 /// Checks smash eligibility, rejecting stale fall distance after a ground-only packet.
 pub fn can_smash_attack(attacker: &LivingEntity) -> bool {
-    attacker.fall_distance.load() > 1.5
-        && !attacker.entity.on_ground.load(Ordering::Relaxed)
-        && !attacker.entity.is_fall_flying()
+    smash_fall_ready(
+        attacker.fall_distance.load(),
+        attacker.entity.is_fall_flying(),
+    )
+}
+
+/// Vanilla `MaceItem.canSmashAttack`: more than 1.5 blocks fallen and not gliding.
+#[must_use]
+fn smash_fall_ready(fall_distance: f32, fall_flying: bool) -> bool {
+    fall_distance > 1.5 && !fall_flying
 }
 
 /// Whether `weapon` is a mace, resolved through the item behaviour registry so
@@ -823,6 +830,13 @@ impl CombatTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn smash_needs_a_fall_over_one_and_a_half_blocks_and_no_glide() {
+        assert!(smash_fall_ready(1.6, false));
+        assert!(!smash_fall_ready(1.5, false));
+        assert!(!smash_fall_ready(3.0, true));
+    }
 
     #[test]
     fn sweep_reach_is_strictly_under_three_blocks() {
