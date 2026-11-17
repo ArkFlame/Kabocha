@@ -80,3 +80,6 @@ markers before this pass).
   strict subset. Every coordinate rejected by the first check is also rejected by
   the second before any action, so both paths end in `Ok(())`; removing the first
   check changes no behaviour, so it was left alone.
+
+## Status (code-verified sweep)
+FIXED: hit coordinates bounded to 0.5 +- 1.0000001 for all items (net/java/play/use_item_on.rs:28-33).

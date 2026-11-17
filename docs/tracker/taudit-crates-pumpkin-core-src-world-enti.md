@@ -58,3 +58,6 @@ No local `.vendor` decompile was available in this worktree.
 - Range test is horizontal-only (x/z squared), matching `ChunkMap$TrackedEntity`.
 - Chunk-ready gate before pairing, mirroring `isChunkTracked`.
 - Spectator/vanish visibility filter in `broadcast_to_player`.
+
+## Status (code-verified sweep)
+FIXED: encode/rotation packing uses pumpkin_util pack_degrees (world/entity_tracker.rs); the pre-fix TODO row is resolved. STILL OPEN: CHeadRot cadence not re-read.

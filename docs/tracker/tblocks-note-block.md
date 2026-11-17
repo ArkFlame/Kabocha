@@ -28,3 +28,6 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
    Plugin API surface only, no vanilla gameplay effect. Vanilla class
    `NoteBlock#playNote` / `NoteBlockInstrument#getSerializedName`.
    Suggested fix: add a serialized-id helper on `NoteblockInstrument`. Size S.
+
+## Status (code-verified sweep)
+FIXED: NOTE particle sent on tunable playback (block/blocks/note.rs:206). STILL OPEN: (1) custom head SoundEvent range (note.rs:193), (2) NotePlayEvent instrument serialized id (note.rs:37).

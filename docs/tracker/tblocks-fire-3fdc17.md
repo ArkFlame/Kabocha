@@ -85,3 +85,6 @@ Tracker note: the reviewed source changed after that audit. Two commits touched
 - Whether vanilla still burns neighbours at age 15 and whether `level.isRaining()` is separately
   required in `checkBurnOut` (currently covered by `is_raining_at`).
 - `fire_spread_radius_around_player` sentinel handling (fire.rs:379-407: -1 unlimited, 0 disabled).
+
+## Status (code-verified sweep)
+FIXED: fire tick delay is 30 + rand(0..10) (block/blocks/fire/fire.rs:33-34). STILL OPEN: getStateForPosition shape and canSurvive neighbour rule not re-read.

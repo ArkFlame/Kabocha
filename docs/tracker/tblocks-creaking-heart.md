@@ -44,3 +44,6 @@ Extractor before fixing the rows marked verify.
 
 Note: the creaking heart state machine (logs tag, axis alignment, dormant/awake/uprooted, spawn sound on uproot)
 matches vanilla apart from the rows above. No test added: this pass is not allowed to run cargo.
+
+## Status (code-verified sweep)
+FIXED: block entity tick re-syncs state every 20 ticks (block/entities/creaking_heart.rs tick); awake heart with a player in 32 blocks spawns a bound creaking (try_spawn_creaking); is_protector requires a bound UUID (no fallback). UNVERIFIED: spawn distance 32 and free-spot search are from memory. STILL OPEN: idle heartbeat, teardown of bound creaking when heart goes uprooted, break sound routing.

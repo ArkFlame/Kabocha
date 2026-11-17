@@ -63,3 +63,6 @@ Newly noted, not changed:
 |---|---|---|---|---|
 | `ticker.rs:182` | overload warning gate is a strict `>` on `l - lastOverloadWarningNanos` | fork uses `>=`, so an exact-equality interval warns one tick early | change to `>`, update `sustained_overload_warns_again_after_wall_clock_interval` (`[1, 6]` becomes `[1, 7]`) | XS |
 | `ticker.rs:66-71` | `checkShouldSprintThisTick()` also decrements `remainingSprintTicks` | fork decrements in `end_sprint_tick_work`; equivalent for the loop, `is_sprinting()` just stays true through the sprint work | none needed | - |
+
+## Status (code-verified sweep)
+FIXED: OVERLOADED_THRESHOLD_NANOS is 1s (server/ticker.rs:17-18). STILL OPEN: game-test freeze gate ordering and sprint redundancy not re-read.

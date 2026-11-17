@@ -54,3 +54,6 @@ present in this worktree, so the three items below are recorded instead of edite
 `crates/pumpkin-core/src/world/spawn_tests.rs` already covers radius/border interplay, fluid columns, split
 collision shapes, the height fixup boundaries, removed collidable entities, the null-source entity filter, the
 26.3 motion heightmap tag and the highest-floor case. No test was added in this pass because no code changed.
+
+## Status (code-verified sweep)
+FIXED: NoiseBasedChunkGenerator and Custom spawn height uses sea_level + 1 (world/player_spawn_finder.rs:264-265). STILL OPEN: scan range row 2 and can_be_collided_with row 3 not re-read.

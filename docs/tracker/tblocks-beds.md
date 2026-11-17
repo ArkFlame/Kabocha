@@ -44,3 +44,6 @@ Remaining gaps:
 
 Note: `destroy_on_leave` for straw beds is already handled in
 `crates/pumpkin-core/src/entity/player.rs:2807` via `StrawBedBlock::destroy_after_use`.
+
+## Status (code-verified sweep)
+FIXED: CONSUME when partner half mismatched (bed.rs:241, straw_bed.rs:264); OCCUPIED checked before range/obstruction (bed.rs:292-298); obstruction uses is_suffocating (bed.rs:328); SLEPT_IN_BED gated on can_set_spawn (straw_bed.rs:401). STILL OPEN: straw bed respawn point (straw_bed.rs:334) not re-read.

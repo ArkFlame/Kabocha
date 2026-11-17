@@ -51,3 +51,6 @@ call sites in this repo; items marked *verify* need a decompiled-source check be
 | 6 | explosion.rs:843, world/mod.rs:4717 | `ClientboundExplodePacket.blockCount` in vanilla is the destroyed-block count fed to the client's smoke particles; confirm affected-vs-destroyed | Confirm and align; *verify*. Client-visual only | S |
 | 7 | explosion.rs:308-318 | `player_explosion` damage type is used when the credited entity is a player; here any living indirect source (e.g. wither skull -> wither) selects it | Gate on the indirect source being a player; *verify* `DamageSources#explosion` | S |
 | 8 | world/mod.rs:4711-4725 (not this file) | Vanilla `finalizeExplosion` emits its own particle/sound; here the packet is the only source, sent to players within 64 blocks | Confirm the radius and that every caller sets the right particle/sound; client-only | S |
+
+## Status (code-verified sweep)
+FIXED: getBlockExplosionResistance returns None for air with empty fluid (world/explosion.rs:58-70).

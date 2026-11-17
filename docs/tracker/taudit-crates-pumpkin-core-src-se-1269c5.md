@@ -35,3 +35,6 @@ No `TODO`/`FIXME` markers in the file; the 8 greps are `vanilla` mentions in doc
 - `save_persistent_data` forced-chunk packing: `x` low 32 bits, `z` high 32 bits of `ChunkPos.toLong`.
 - `tick_players_and_network`: players/network tick while frozen, matching `PlayerList.tick` being outside the world-tick gate; suspend/resume flushing brackets the whole tick like `ServerCommonPacketListenerImpl`.
 - `next_map_id`, `new_container_id` ordering, listing add/remove accounting, telemetry join/leave pairing.
+
+## Status (code-verified sweep)
+FIXED: close_admission holds player_join_lock (server/mod.rs:1375-1381). STILL OPEN: spawn_world WorldInitEvent and get_tps rows not re-read.

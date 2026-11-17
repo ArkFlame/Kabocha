@@ -99,3 +99,6 @@ after the campfire/beehive parity changes (`4dd7d7360`). Vanilla reference:
    game event (the shears path at :1105-1141 similarly emits no `SHEAR` event).
    Confirm against the dispenser tracker row before touching; only relevant once
    gaps 1-2 exist.
+
+## Status (code-verified sweep)
+FIXED: honey_level only increments below MAX_HONEY_LEVEL (block/blocks/beehive.rs:206). Shears to honeycomb path not re-read.

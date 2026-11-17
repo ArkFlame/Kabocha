@@ -22,3 +22,6 @@ Both audit markers in the file are comments, not TODOs: line 731 (vanilla displa
 | 7 | crates/pumpkin-core/src/world/scoreboard.rs:167-169 | Objective names are immutable map keys | `get_objective_mut` lets callers change `name`, desynchronising the map key from the objective, after which `update_objective` inserts a duplicate under the new name and removal targets the wrong key; needs an invariant check or a keyed update API | S |
 
 Checked, no change: display-slot persistence names match vanilla (`list`, `sidebar`, `below_name`, `sidebar.team.*`); `Locked` defaults to true like `dummy` (read-only criteria); `remove_objective` drops its scores and display references; team packet fields (`options` bit flags, visibility/collision names, colour id) and `TeamMethod` transitions match `ClientboundSetPlayerTeamPacket`; objective add/update/remove modes and render types match; `NoTarget`/`Player`/`World` targets gate on `scoreboard_synced` so pre-spawn changes are replayed by `send_to_player`.
+
+## Status (code-verified sweep)
+STILL OPEN: BedrockScoreboard wrapping_add row not found in world/scoreboard.rs; score map orientation not re-read.

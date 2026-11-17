@@ -69,3 +69,6 @@ mirror of vanilla's `NoteblockInstrument.Type.BASE_BLOCK`; each new instrument
 (e.g. 1.21.5 copper trumpets) must be added here or it silently loses pitch and
 loses the "block above" gate. A `Type`/`is_tunable` field in the generated
 `NoteblockInstrument` (codegen from vanilla enum) would remove the class of bug.
+
+## Status (code-verified sweep)
+FIXED: Pling classified as pitched instrument (note.rs:258,291); sound position uses to_centered_f64 (note.rs:200).
