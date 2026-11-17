@@ -62,6 +62,9 @@ pub struct FishingBobberEntity {
 impl FishingBobberEntity {
     const INERTIA: f64 = 0.92;
     const GRAVITY: f64 = 0.03;
+    /// Vanilla `FishingHook.minWaitTime` / `maxWaitTime` defaults.
+    const MIN_WAIT_TIME: i32 = 100;
+    const MAX_WAIT_TIME: i32 = 600;
 
     /// Creates a bobber owned by `owner`, thrown along the given `yaw` and `pitch`.
     pub fn new(
@@ -115,8 +118,7 @@ impl FishingBobberEntity {
         // Vanilla `FishingHook` constructor: `this.luck = Math.max(0, luck)`.
         let luck_bonus = luck_bonus.max(0);
         let wait_time_reduction_ticks = wait_time_reduction_ticks.max(0);
-        // Vanilla `FishingBobberEntity.catchingFish` rolls `100..=600` minus the lure speed.
-        let wait_countdown = rand::random_range(100..=600) - wait_time_reduction_ticks;
+        let wait_countdown = roll_wait_countdown(wait_time_reduction_ticks);
 
         Self {
             entity,
@@ -711,8 +713,10 @@ impl FishingBobberEntity {
                     .store(rand::random_range(20..=80), Ordering::Relaxed);
             }
         } else {
-            let wait = rand::random_range(100..=600) - self.wait_time_reduction_ticks;
-            self.wait_countdown.store(wait, Ordering::Relaxed);
+            self.wait_countdown.store(
+                roll_wait_countdown(self.wait_time_reduction_ticks),
+                Ordering::Relaxed,
+            );
         }
     }
 }
@@ -724,6 +728,19 @@ fn can_interact_with_level(entity: &dyn EntityBase) -> bool {
         && entity
             .get_living_entity()
             .is_none_or(|living| living.health.load() > 0.0)
+}
+
+/// Vanilla `FishingHook.resetTimeUntilLured`: roll the wait, then Paper's fix for the Lure
+/// infinite loop makes a lure at or above the maximum wait leave a single tick.
+fn roll_wait_countdown(wait_time_reduction_ticks: i32) -> i32 {
+    let wait = rand::random_range(
+        FishingBobberEntity::MIN_WAIT_TIME..=FishingBobberEntity::MAX_WAIT_TIME,
+    );
+    if wait_time_reduction_ticks >= FishingBobberEntity::MAX_WAIT_TIME {
+        1
+    } else {
+        wait - wait_time_reduction_ticks
+    }
 }
 
 /// Vanilla `FishHookState.BOBBING`: damp the bobber toward the water surface.
