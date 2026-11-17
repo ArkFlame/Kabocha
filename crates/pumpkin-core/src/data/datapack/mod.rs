@@ -1355,6 +1355,11 @@ impl DatapackManager {
     }
 
     #[must_use]
+    /// The core pack every world requires; other embedded packs may be disabled.
+    pub fn is_required_pack(name: &str) -> bool {
+        name == "vanilla"
+    }
+
     pub fn is_embedded_pack(name: &str) -> bool {
         pumpkin_world::generation::structure::template::all_embedded_datapack_names()
             .contains(&name)
@@ -1421,12 +1426,16 @@ impl DatapackManager {
     }
 
     pub fn get_enabled_packs(server: &Server) -> Vec<String> {
-        // Compile-time embedded datapacks cannot be disabled at runtime, so
-        // expose them as permanently enabled.
+        // Only the required core pack (`vanilla`) is always enabled; other
+        // compile-time embedded packs follow the disabled list.
+        let level_info = server.level_info.load();
+        let disabled = &level_info.data_packs.disabled;
         let mut packs: Vec<String> =
             pumpkin_world::generation::structure::template::all_embedded_datapack_names()
                 .iter()
-                .map(|name| (*name).to_owned())
+                .copied()
+                .filter(|name| Self::is_required_pack(name) || !disabled.iter().any(|d| d == name))
+                .map(str::to_owned)
                 .collect();
 
         for pack in &server.level_info.load().data_packs.enabled {
@@ -1657,9 +1666,9 @@ impl DatapackManager {
             return Err(format!("Datapack '{target_pack}' is not enabled"));
         }
 
-        if Self::is_embedded_pack(&target_pack) {
+        if Self::is_required_pack(&target_pack) {
             return Err(format!(
-                "Cannot disable embedded datapack '{target_pack}' because it is compiled into the server"
+                "Cannot disable required datapack '{target_pack}'"
             ));
         }
 
@@ -3288,5 +3297,11 @@ mod tests {
             load_shared_function(temp.path(), &["file/alpha", "file/beta"]),
             "say beta"
         );
+    }
+
+    #[test]
+    fn only_vanilla_pack_is_required() {
+        assert!(super::DatapackManager::is_required_pack("vanilla"));
+        assert!(!super::DatapackManager::is_required_pack("pumpkin-unit-test"));
     }
 }
