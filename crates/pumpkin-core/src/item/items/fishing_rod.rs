@@ -48,7 +48,20 @@ impl ItemBehaviour for FishingRodItem {
         let used_item = inventory.get_stack_in_hand(hand);
         let equipment_slot = EquipmentSlot::from_hand(hand);
 
-        let bobber_id = player.fishing_bobber.load(Ordering::Relaxed);
+        let mut bobber_id = player.fishing_bobber.load(Ordering::Relaxed);
+        // A hook removed outside `discard()` (e.g. `/kill`, chunk unload) leaves a stale id.
+        // Vanilla `FishingHook.remove` clears `owner.fishing`, so the next use casts again.
+        if bobber_id != -1
+            && !world.get_entity_by_id(bobber_id).is_some_and(|entity| {
+                entity
+                    .cast_any()
+                    .downcast_ref::<FishingBobberEntity>()
+                    .is_some()
+            })
+        {
+            player.fishing_bobber.store(-1, Ordering::Relaxed);
+            bobber_id = -1;
+        }
 
         if bobber_id == -1 {
             // Cast
