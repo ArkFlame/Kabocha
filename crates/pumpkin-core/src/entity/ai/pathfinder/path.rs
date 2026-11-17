@@ -200,19 +200,6 @@ impl Path {
     }
 
     #[must_use]
-    pub fn calculate_length(&self) -> f32 {
-        if self.route.nodes.len() < 2 {
-            return 0.0;
-        }
-
-        let mut total_length = 0.0;
-        for i in 1..self.route.nodes.len() {
-            total_length += self.route.nodes[i - 1].distance_to_node(&self.route.nodes[i]);
-        }
-        total_length
-    }
-
-    #[must_use]
     pub fn get_remaining_distance(&self) -> f32 {
         if self.next_node_index >= self.route.nodes.len() {
             return 0.0;
