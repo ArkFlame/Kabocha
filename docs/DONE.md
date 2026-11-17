@@ -1,5 +1,17 @@
 # DONE (merged PRs and closed issues, one per line)
 Format: `- #N (PR|issue) title [commit]`
+
+## Summary (from docs/LEDGER.md, generated 2026-11-17)
+
+| State | PR | Issue | Total |
+|---|---|---|---|
+| DONE | 285 | 231 | 516 |
+| SKIPPED | 80 | 186 | 266 |
+| TODO, IN-PROGRESS, COMMITTED-UNLANDED, FAILED, BLOCKED | 0 | 0 | 0 |
+| All upstream items | 365 | 417 | 782 |
+
+Every upstream PR and issue is DONE or SKIPPED. The entries below are the annotated log (batch notes at the end); `docs/LEDGER.tsv` holds the complete per-item state. Deferred work is listed in `docs/TODO.md`.
+
 - #4153 (PR) fix(plugin): don't cache permission denials when there is no console to ask (#4153) [14155214b]
 - #4565 (PR) fix(block): wake a sleeping villager when its bed is used (#4565) [9eb02f749]
 - #3553 (PR) fix(world): pause scheduled ticks outside active chunks (#3553) [8bd293365]
