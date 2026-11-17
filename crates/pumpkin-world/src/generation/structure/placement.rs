@@ -614,7 +614,8 @@ fn should_generate_frequency(
 ) -> bool {
     match method {
         FrequencyReductionMethod::Default => {
-            let region_seed = get_large_feature_with_salt(seed, chunk_x, chunk_z, salt as i32);
+            // Vanilla probabilityReducer: setLargeFeatureWithSalt(seed, salt, sourceX, sourceZ).
+            let region_seed = get_large_feature_with_salt(seed, salt as i32, chunk_x, chunk_z);
             let mut random = LegacyRand::from_seed(region_seed);
             random.next_f32() < frequency
         }
@@ -712,7 +713,8 @@ mod tests {
         StructureSet,
     };
     use pumpkin_util::random::{
-        RandomGenerator, RandomImpl, get_region_seed, legacy_rand::LegacyRand,
+        RandomGenerator, RandomImpl, get_large_feature_with_salt, get_region_seed,
+        legacy_rand::LegacyRand,
     };
 
     use crate::generation::structure::placement::{
@@ -769,11 +771,11 @@ mod tests {
     }
 
     #[test]
-    fn default_frequency_reduction_uses_chunk_then_salt_order() {
+    fn default_frequency_reduction_uses_salt_then_chunk_order() {
         let seed = 123;
         let salt = 14357620;
         for (chunk_x, chunk_z) in [(1, 1), (-1002, -595), (37, -4)] {
-            let region_seed = get_region_seed(seed as u64, chunk_x, chunk_z, salt);
+            let region_seed = get_large_feature_with_salt(seed, salt as i32, chunk_x, chunk_z);
             let expected = LegacyRand::from_seed(region_seed).next_f32() < 0.5;
             assert_eq!(
                 should_generate_frequency(
