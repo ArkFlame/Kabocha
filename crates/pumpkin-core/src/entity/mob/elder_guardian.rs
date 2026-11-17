@@ -5,9 +5,11 @@ use pumpkin_data::damage::DamageType;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
+use pumpkin_data::sound::Sound;
 use pumpkin_protocol::java::client::play::{CGameEvent, GameEvent};
 
 use crate::entity::ai::behavior::hunting;
+use crate::entity::custom_sound::CustomSound;
 use crate::entity::mob::guardian::GUARDIAN_HUNTS;
 use crate::entity::{
     Entity, EntityBase,
@@ -50,6 +52,28 @@ impl ElderGuardianEntity {
         };
 
         mob_arc
+    }
+}
+
+impl CustomSound for ElderGuardianEntity {
+    fn hurt_sound(&self) -> Option<Sound> {
+        let entity = self.get_entity();
+        let is_water = entity.touching_water.load(Ordering::Relaxed);
+        Some(if is_water {
+            Sound::EntityElderGuardianHurt
+        } else {
+            Sound::EntityElderGuardianHurtLand
+        })
+    }
+
+    fn death_sound(&self) -> Option<Sound> {
+        let entity = self.get_entity();
+        let is_water = entity.touching_water.load(Ordering::Relaxed);
+        Some(if is_water {
+            Sound::EntityElderGuardianDeath
+        } else {
+            Sound::EntityElderGuardianDeathLand
+        })
     }
 }
 
