@@ -648,3 +648,25 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
             .then(modify_node),
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_nbt::compound::NbtCompound;
+
+    #[test]
+    fn uniform_number_provider_samples_within_min_and_max() {
+        let mut compound = NbtCompound::new();
+        compound.put_string("type", "uniform".to_string());
+        compound.put_float("min", 2.0);
+        compound.put_float("max", 5.0);
+        let tag = NbtTag::Compound(compound);
+        for _ in 0..256 {
+            let sample = number_provider(Some(&tag)).expect("uniform provider yields a sample");
+            assert!(
+                (2.0..5.0).contains(&sample),
+                "sample {sample} out of [2, 5)"
+            );
+        }
+    }
+}
