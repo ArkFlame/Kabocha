@@ -382,6 +382,17 @@ impl CommandExecutor for LocateBiomeExecutor {
     }
 }
 
+/// Paper's `PoiAccess.findNearestPoiRecords` bounds candidates by a 3D sphere
+/// of squared radius `POI_SEARCH_RADIUS²`, not the enclosing square, so a poi
+/// far above or below the source is not locatable.
+fn poi_within_radius(origin: &BlockPos, target: &BlockPos) -> bool {
+    let dx = i64::from(target.0.x - origin.0.x);
+    let dy = i64::from(target.0.y - origin.0.y);
+    let dz = i64::from(target.0.z - origin.0.z);
+    let radius = i64::from(POI_SEARCH_RADIUS);
+    dx * dx + dy * dy + dz * dz <= radius * radius
+}
+
 struct LocatePoiExecutor;
 
 impl CommandExecutor for LocatePoiExecutor {
@@ -415,8 +426,8 @@ impl CommandExecutor for LocatePoiExecutor {
                 .portal_poi
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            poi_storage.find_closest_matching(origin, POI_SEARCH_RADIUS, |poi_type| {
-                targets.contains(poi_type)
+            poi_storage.find_closest_where(origin, POI_SEARCH_RADIUS, |poi_type, pos| {
+                targets.contains(poi_type) && poi_within_radius(&origin, &pos)
             })
         };
 
@@ -528,6 +539,16 @@ mod tests {
             absolute_distance(&origin, &BlockPos::new(1, 2871, 2980)),
             4138
         );
+    }
+
+    /// Paper bounds poi candidates by the 3D radius, so a poi 250 blocks up
+    /// and 250 blocks out stays outside the search even though it is inside
+    /// the x/z square.
+    #[test]
+    fn poi_search_is_bounded_by_3d_radius() {
+        let origin = BlockPos::new(0, 64, 0);
+        assert!(poi_within_radius(&origin, &BlockPos::new(250, 64, 0)));
+        assert!(!poi_within_radius(&origin, &BlockPos::new(250, 314, 0)));
     }
 
     /// Every structure the command can name must belong to a set, or it has no
