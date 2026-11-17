@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use crate::block::entities::bed::BedBlockEntity;
 use pumpkin_data::block_properties::BedPart;
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::translation;
 use pumpkin_data::{Block, BlockState, BlockStateId};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::GameMode;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::text::TextComponent;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::registry::BlockActionResult;
@@ -16,6 +17,7 @@ use crate::block::{
     BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, NormalUseArgs,
     OnPlaceArgs, OnStateReplacedArgs, PathComputationType, PlacedArgs,
 };
+use crate::entity::passive::villager::VillagerEntity;
 use crate::entity::{EntityBase, player::Player};
 use crate::world::World;
 use pumpkin_data::HorizontalFacingExt;
@@ -67,14 +69,20 @@ impl BlockBehaviour for StrawBedBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         if let Some(player) = args.player {
             let facing = player.get_entity().get_horizontal_facing();
-            return args
-                .block_accessor
-                .get_block_state(args.position)
-                .replaceable()
+            let head_pos = args.position.offset(facing.to_offset());
+            // AbstractBedBlock#getStateForPlacement requires the head position to
+            // be inside the world border.
+            let head_inside_border = args.world.is_none_or(|world| {
+                world.worldborder.lock().is_ok_and(|border| {
+                    border.is_within_bounds(f64::from(head_pos.0.x), f64::from(head_pos.0.z), 1.0)
+                })
+            });
+            return head_inside_border
                 && args
                     .block_accessor
-                    .get_block_state(&args.position.offset(facing.to_offset()))
-                    .replaceable();
+                    .get_block_state(args.position)
+                    .replaceable()
+                && args.block_accessor.get_block_state(&head_pos).replaceable();
         }
         true
     }
@@ -224,69 +232,6 @@ impl StrawBedBlock {
         );
     }
 
-    /// Returns the message to show the player when they cannot sleep here, or
-    /// `None` if the bed is usable.
-    fn sleep_refusal(
-        world: &Arc<World>,
-        player: &Arc<Player>,
-        occupied: bool,
-        bed_head_pos: BlockPos,
-        bed_foot_pos: BlockPos,
-    ) -> Option<TextComponent> {
-        if !world.dimension.bed_rule.can_sleep(world.is_dark_outside()) {
-            return Some(pumpkin_macros::translate_cross!(
-                translation::java::BLOCK_MINECRAFT_BED_NO_SLEEP,
-                translation::bedrock::TILE_BED_NOSLEEP
-            ));
-        }
-
-        if world.get_block_state(&bed_head_pos.up()).is_solid()
-            || world.get_block_state(&bed_foot_pos.up()).is_solid()
-        {
-            return Some(pumpkin_macros::translate_cross!(
-                translation::java::BLOCK_MINECRAFT_BED_OBSTRUCTED,
-                translation::bedrock::TILE_BED_OBSTRUCTED
-            ));
-        }
-
-        if occupied {
-            return Some(pumpkin_macros::translate_cross!(
-                translation::java::BLOCK_MINECRAFT_BED_OCCUPIED,
-                translation::bedrock::TILE_BED_OCCUPIED
-            ));
-        }
-
-        if !player
-            .position()
-            .is_within_bounds(bed_head_pos.to_f64(), 3.0, 3.0, 3.0)
-            && !player
-                .position()
-                .is_within_bounds(bed_foot_pos.to_f64(), 3.0, 3.0, 3.0)
-        {
-            return Some(pumpkin_macros::translate_cross!(
-                translation::java::BLOCK_MINECRAFT_BED_TOO_FAR_AWAY,
-                translation::bedrock::TILE_BED_TOOFAR
-            ));
-        }
-
-        for entity in world.entities.load().iter() {
-            if !NO_SLEEP_IDS.contains(&entity.get_entity().entity_type.id) {
-                continue;
-            }
-            let pos = entity.get_entity().pos.load();
-            if pos.is_within_bounds(bed_head_pos.to_f64(), 8.0, 5.0, 8.0)
-                || pos.is_within_bounds(bed_foot_pos.to_f64(), 8.0, 5.0, 8.0)
-            {
-                return Some(pumpkin_macros::translate_cross!(
-                    translation::java::BLOCK_MINECRAFT_BED_NOT_SAFE,
-                    translation::bedrock::TILE_BED_NOTSAFE
-                ));
-            }
-        }
-
-        None
-    }
-
     fn use_bed(
         world: &Arc<World>,
         player: &Arc<Player>,
@@ -296,24 +241,144 @@ impl StrawBedBlock {
         let state_id = world.get_block_state_id(position);
         let bed_props = BedProperties::from_state_id(state_id);
 
-        let (bed_head_pos, bed_foot_pos) = if bed_props.part == BedPart::Head {
+        let (bed_head_pos, bed_foot_pos, other_half_pos) = if bed_props.part == BedPart::Head {
             (
                 *position,
                 position.offset(bed_props.facing.opposite().to_offset()),
+                position.offset(bed_props.facing.opposite().to_offset()),
             )
         } else {
-            (position.offset(bed_props.facing.to_offset()), *position)
+            (
+                position.offset(bed_props.facing.to_offset()),
+                *position,
+                position.offset(bed_props.facing.to_offset()),
+            )
         };
 
-        if let Some(message) = Self::sleep_refusal(
-            world,
-            player,
-            bed_props.occupied,
-            bed_head_pos,
-            bed_foot_pos,
-        ) {
-            player.send_system_message_raw(&message, true);
+        // AbstractBedBlock#useWithoutItem ignores a half whose partner is not the
+        // same block with the opposite part (e.g. a lone half from /setblock).
+        let (other_block, other_state) = world.get_block_and_state(&other_half_pos);
+        if other_block != block
+            || BedProperties::from_state_id(other_state.id).part == bed_props.part
+        {
+            return BlockActionResult::Consume;
+        }
+
+        let is_dark = world.is_dark_outside();
+        let can_sleep = world.dimension.bed_rule.can_sleep(is_dark);
+        let can_set_spawn = world.dimension.bed_rule.can_set_spawn(is_dark);
+
+        // AbstractBedBlock#useWithoutItem handles an occupied bed before any
+        // range, obstruction or sleep rule check.
+        if bed_props.occupied {
+            let bed_box = BoundingBox::from_block(&bed_head_pos);
+            let mut kicked_villager = false;
+            for entity in
+                world.get_entities_of_type_at_box(&bed_box, |t| t == &EntityType::VILLAGER)
+            {
+                let Some(villager) = entity.cast_any().downcast_ref::<VillagerEntity>() else {
+                    continue;
+                };
+                if villager.is_sleeping() {
+                    villager.wake_up();
+                    kicked_villager = true;
+                    break;
+                }
+            }
+            if !kicked_villager {
+                player.send_system_message_raw(
+                    &pumpkin_macros::translate_cross!(
+                        translation::java::BLOCK_MINECRAFT_BED_OCCUPIED,
+                        translation::bedrock::TILE_BED_OCCUPIED
+                    ),
+                    true,
+                );
+            }
             return BlockActionResult::SuccessServer;
+        }
+
+        // ServerPlayer#getBedResult checks the reachable range before the
+        // obstruction.
+        if !player
+            .position()
+            .is_within_bounds(bed_head_pos.to_f64(), 3.0, 2.0, 3.0)
+            && !player
+                .position()
+                .is_within_bounds(bed_foot_pos.to_f64(), 3.0, 2.0, 3.0)
+        {
+            player.send_system_message_raw(
+                &pumpkin_macros::translate_cross!(
+                    translation::java::BLOCK_MINECRAFT_BED_TOO_FAR_AWAY,
+                    translation::bedrock::TILE_BED_TOOFAR
+                ),
+                true,
+            );
+            return BlockActionResult::SuccessServer;
+        }
+
+        // ServerPlayer#bedBlocked uses Player#freeAt, i.e. `!isSuffocating`.
+        if world.get_block_state(&bed_head_pos.up()).is_suffocating()
+            || world.get_block_state(&bed_foot_pos.up()).is_suffocating()
+        {
+            player.send_system_message_raw(
+                &pumpkin_macros::translate_cross!(
+                    translation::java::BLOCK_MINECRAFT_BED_OBSTRUCTED,
+                    translation::bedrock::TILE_BED_OBSTRUCTED
+                ),
+                true,
+            );
+            return BlockActionResult::SuccessServer;
+        }
+
+        // Set respawn point
+        if can_set_spawn
+            && player.set_respawn_point(
+                world.dimension.clone(),
+                bed_head_pos,
+                player.get_entity().yaw.load(),
+                player.get_entity().pitch.load(),
+                false,
+            )
+        {
+            player.send_system_message(&pumpkin_macros::translate_cross!(
+                translation::java::BLOCK_MINECRAFT_SET_SPAWN,
+                translation::bedrock::TILE_BED_RESPAWNSET
+            ));
+        }
+
+        if !can_sleep {
+            player.send_system_message_raw(
+                &pumpkin_macros::translate_cross!(
+                    translation::java::BLOCK_MINECRAFT_BED_NO_SLEEP,
+                    translation::bedrock::TILE_BED_NOSLEEP
+                ),
+                true,
+            );
+            return BlockActionResult::SuccessServer;
+        }
+
+        // Vanilla skips the monster scan in creative and only scans the head.
+        for entity in world.entities.load().iter() {
+            if player.gamemode.load() == GameMode::Creative
+                || !NO_SLEEP_IDS.contains(&entity.get_entity().entity_type.id)
+                || entity
+                    .get_mob()
+                    .is_some_and(|mob| !mob.is_preventing_player_rest(player.as_ref()))
+            {
+                continue;
+            }
+
+            let pos = entity.get_entity().pos.load();
+            if pos.is_within_bounds(bed_head_pos.to_f64(), 8.0, 5.0, 8.0) {
+                player.send_system_message_raw(
+                    &pumpkin_macros::translate_cross!(
+                        translation::java::BLOCK_MINECRAFT_BED_NOT_SAFE,
+                        translation::bedrock::TILE_BED_NOTSAFE
+                    ),
+                    true,
+                );
+                return BlockActionResult::SuccessServer;
+            }
         }
 
         if let Some(server) = world.server.upgrade() {
@@ -329,9 +394,12 @@ impl StrawBedBlock {
         }
 
         player.sleep(bed_head_pos);
-        player.trigger_advancement(
-            crate::entity::player::advancement::trigger::AdvancementTrigger::SleptInBed,
-        );
+        // ServerPlayer#startSleepInBed only fires SLEPT_IN_BED when canSetSpawn.
+        if can_set_spawn {
+            player.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::SleptInBed,
+            );
+        }
         player.increment_stat(
             pumpkin_data::statistic::StatisticCategory::Custom,
             pumpkin_data::statistic::CustomStatistic::SleepInStrawBed as i32,
