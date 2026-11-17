@@ -200,6 +200,11 @@ fn is_food(stack: &ItemStack) -> bool {
         .has_tag(&pumpkin_data::tag::Item::MINECRAFT_SULFUR_CUBE_FOOD)
 }
 
+/// Yaw that points from the cube to a target, matching vanilla atan2(dx, dz) yaw.
+fn yaw_toward(from: &Vector3<f64>, to: &Vector3<f64>) -> f32 {
+    (to.x - from.x).atan2(to.z - from.z).to_degrees() as f32
+}
+
 const fn modifier_operation(operation: Operation) -> ModifierOperation {
     match operation {
         Operation::AddValue => ModifierOperation::Add,
@@ -1455,12 +1460,29 @@ impl Goal for SulfurCubeSearchForItemsGoal {
             .look_at_entity(target.as_ref(), 10.0, 10.0);
         if let Some(cube) = self.cube.upgrade() {
             let data = cube.cube_data();
-            data.target_yaw.store(cube.get_entity().yaw.load());
+            data.target_yaw.store(yaw_toward(
+                &cube.get_entity().pos.load(),
+                &target.get_entity().pos.load(),
+            ));
             data.is_aggressive.store(true, Ordering::Relaxed);
         }
     }
 
     fn controls(&self) -> Controls {
         Controls::LOOK
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::yaw_toward;
+    use pumpkin_util::math::vector3::Vector3;
+
+    #[test]
+    fn yaw_toward_points_at_the_item() {
+        let origin = Vector3::new(0.0, 0.0, 0.0);
+        assert!(yaw_toward(&origin, &Vector3::new(0.0, 0.0, 2.0)).abs() < 1e-4);
+        assert!((yaw_toward(&origin, &Vector3::new(2.0, 0.0, 0.0)) - 90.0).abs() < 1e-4);
+        assert!((yaw_toward(&origin, &Vector3::new(0.0, 0.0, -2.0)) - 180.0).abs() < 1e-4);
     }
 }
