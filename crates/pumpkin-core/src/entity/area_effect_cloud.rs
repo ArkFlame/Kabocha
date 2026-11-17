@@ -131,9 +131,10 @@ impl AreaEffectCloudEntity {
         Arc::new(Self {
             entity,
             item_stack: Mutex::new(ItemStack::new(0, &pumpkin_data::item::Item::DRAGON_BREATH)),
+            // Vanilla `Potions.HARMING` is amplifier 0; `DragonFireball.onHit` waits 10 ticks.
             effects: Mutex::new(vec![(
                 &StatusEffect::INSTANT_DAMAGE,
-                1,
+                0,
                 1,
                 false,
                 true,
@@ -147,7 +148,7 @@ impl AreaEffectCloudEntity {
             radius_on_tick: Mutex::new(radius_per_tick),
             radius_on_use: Mutex::new(0.0),
             duration_on_use: Mutex::new(0),
-            wait_time: Mutex::new(20),
+            wait_time: Mutex::new(10),
             owner: EntityReference::new(owner),
         })
     }

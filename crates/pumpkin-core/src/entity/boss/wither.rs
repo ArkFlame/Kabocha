@@ -370,7 +370,8 @@ impl WitherEntity {
 
                 // Main head attack
                 let dist_sq = (wither_pos - target_pos).length_squared();
-                if dist_sq <= 400.0 {
+                // Vanilla `RangedAttackGoal` requires line of sight before firing.
+                if dist_sq <= 400.0 && self.has_line_of_sight(target.get_entity()) {
                     let attack_timer = self.main_attack_timer.load(Ordering::Relaxed);
                     if attack_timer <= 0 {
                         self.main_attack_timer.store(40, Ordering::Relaxed);
