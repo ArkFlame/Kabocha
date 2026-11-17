@@ -24,29 +24,39 @@ TODO/FIXME in the file.
   which the existing table test asserts (commands/scoreboard.rs:1272-1307).
 - `examples` matches vanilla `EXAMPLES` ("objective", "trigger_obj").
 
+## Fixed in this pass
+
+1. Objective suggestions now use vanilla prefix matching.
+   - Before: objective.rs:58 used `Suggestions::filter_and_suggest_one`, whose
+     `matches_substr` (pumpkin-command/src/suggestion/suggestions.rs:218-227) also
+     matches after `.`/`_`/`/`/`:`, so typing `red` suggested `team_red`.
+   - Vanilla: `ObjectiveArgument.listSuggestions` delegates to
+     `CommandSource.suggestMatching`, which is `candidate.toLowerCase().startsWith(input)`.
+   - Fix: new `SuggestionsBuilder::filter_and_suggest_one_prefix` (suggestions.rs:157-174),
+     used by objective.rs:57-61. Test: suggestion/mod.rs
+     `filter_and_suggest_one_prefix_only_matches_from_start`.
+   - Commit 64a0de8ab.
+2. `list_suggestions` no longer panics for a source without a world.
+   - Before: objective.rs:52-56 called `CommandContext::world()` ->
+     `CommandSource::world()` (`expect("Expected world to exist")`,
+     context/command_source.rs:324).
+   - Vanilla returns empty suggestions when the source is not a
+     `ServerCommandSource`; the fix returns `builder.build()` when
+     `context.source.world` is `None`.
+   - Commit 78dd2191c.
+
 ## Remaining gaps (not fixed here)
 
-1. Objective suggestions use segment/substring matching, not vanilla prefix matching.
-   - File:line: argument_types/objective.rs:58 -> `Suggestions::filter_and_suggest_one`.
-   - Cause: pumpkin-command/src/suggestion/suggestions.rs:218-227 `matches_substr`
-     advances past `.`/`_`/`/`/`:`, so typing `red` suggests `team_red`.
-   - Vanilla: `CommandSource.suggestMatching` is `candidate.toLowerCase().startsWith(input)`.
-   - Fix: add a prefix-only filter and use it for objective names (and the equivalent
-     scoreboard_slot/team/score_holder/operation call sites after per-type checks).
-   - Size: M (shared helper, many argument types).
+1. Prefix matching is still missing on the other `filter_and_suggest*` call sites
+   that mirror vanilla `suggestMatching` (team.rs:37, score_holder.rs:133,
+   scoreboard_slot.rs, operation.rs, ...). The new
+   `filter_and_suggest_one_prefix` helper is ready for them; each call site needs a
+   per-type check first (resource-id suggestions must keep the separator matching).
+   Size: S per type.
 
-2. `list_suggestions` panics when the source has no world.
-   - File:line: objective.rs:52-56 -> `CommandContext::world` -> `CommandSource::world`
-     (`expect("Expected world to exist")`, context/command_source.rs:324).
-   - Vanilla: `ObjectiveArgument.listSuggestions` returns empty suggestions when the
-     source is not a `ServerCommandSource`.
-   - Fix: return `builder.build()` when the source lacks a world.
-   - Size: S, but only reachable from a hand-built source today (all production
-     sources get a world in `CommandSource::into_source`).
-
-3. Criteria are raw strings, so vanilla's criterion registry is not enforced.
+2. Criteria are raw strings, so vanilla's criterion registry is not enforced.
    - File:line: objective.rs:93 reads `ScoreboardObjective.criterion` (String,
-     world/scoreboard.rs:733); commands/scoreboard.rs:66-99 stores the argument
+     world/scoreboard.rs:899-923); commands/scoreboard.rs:66-99 stores the argument
      verbatim without resolving it.
    - Effect: a criterion spelled `Health` bypasses `criterion_is_read_only`, and
      unknown criteria are accepted where vanilla resolves through
@@ -56,14 +66,21 @@ TODO/FIXME in the file.
    - Size: M; verify the unknown-criterion branch against decompiled
      `ScoreboardCommand.addObjective` before implementing.
 
-4. Argument errors carry no cursor context.
+3. Argument errors carry no cursor context.
    - File:line: objective.rs:81 and :94-95 use `create_without_context`, while vanilla
      uses `DynamicCommandExceptionType.createWithContext(reader, name)`.
    - Effect: the client cannot highlight the failing objective name.
    - Size: S, but it is a fleet-wide convention across argument types; change
      together, not per file.
 
+4. Scoreboards are per-world in Pumpkin, server-wide in vanilla.
+   - File:line: objective.rs:52-56 and the helpers take `&Scoreboard` from the
+     source's world; vanilla `ObjectiveArgument` reads
+     `source.getServer().getScoreboard()`.
+   - Effect: objectives created in one dimension are invisible in another; a
+     cross-dimensional `/execute as ... run scoreboard ...` sees the wrong board.
+   - Size: L (scoreboard ownership move), tracked separately.
+
 ## Notes
 
-- No code change was committed for this row: the file itself is vanilla-correct.
-- No compile/test was run (worker rule).
+- No compile/test was run in the worker (worker rule); the orchestrator batch-checks.
