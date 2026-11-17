@@ -248,6 +248,25 @@ impl Mob for HoglinEntity {
         self.play_entity_sound(Sound::EntityHoglinStep, 0.15, 1.0);
     }
 
+    /// Vanilla `Hoglin.getWalkTargetValue`: avoid tiles near a repellent, prefer crimson nylium.
+    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
+        let entity = &self.get_mob_entity().living_entity.entity;
+        let world = entity.world.load();
+        let origin = entity.block_pos.load();
+        let repellent = find_nearest_repellent(origin, |candidate| {
+            world
+                .get_block(&candidate)
+                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_HOGLIN_REPELLENTS)
+        });
+        if repellent.is_some_and(|repellent| is_near_repellent(repellent, *pos)) {
+            return HOGLIN_REPELLENT_AVOID_VALUE;
+        }
+        if world.get_block(&pos.down()).id == pumpkin_data::Block::CRIMSON_NYLIUM.id {
+            return 10.0;
+        }
+        0.0
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
@@ -374,6 +393,94 @@ impl Mob for HoglinEntity {
 }
 
 /// Vanilla `HoglinBase.throwTarget`, shared with zoglins.
+/// Walk target value for tiles inside the repellent avoidance radius (vanilla returns -1.0).
+const HOGLIN_REPELLENT_AVOID_VALUE: f32 = -1.0;
+/// Vanilla `HoglinSpecificSensor.findNearestRepellent` search box: `findBlocksInBoxByManhattanDistance(pos, 8, 4)`.
+const REPELLENT_SEARCH_XZ: i32 = 8;
+const REPELLENT_SEARCH_Y: i32 = 4;
+/// Vanilla `HoglinAi.isPosNearNearestRepellent` uses a strict `closerThan(pos, 8.0)`.
+const REPELLENT_AVOID_RADIUS: i32 = 8;
+
+/// Returns the repellent with the smallest Manhattan distance from `origin` inside the search box.
+/// Ties keep the first block found in scan order.
+fn find_nearest_repellent(
+    origin: BlockPos,
+    is_repellent: impl Fn(BlockPos) -> bool,
+) -> Option<BlockPos> {
+    let mut best: Option<(i32, BlockPos)> = None;
+    for dy in -REPELLENT_SEARCH_Y..=REPELLENT_SEARCH_Y {
+        for dx in -REPELLENT_SEARCH_XZ..=REPELLENT_SEARCH_XZ {
+            for dz in -REPELLENT_SEARCH_XZ..=REPELLENT_SEARCH_XZ {
+                let distance = dx.abs() + dy.abs() + dz.abs();
+                if best.is_some_and(|(best_distance, _)| best_distance <= distance) {
+                    continue;
+                }
+                let candidate = BlockPos(Vector3::new(
+                    origin.0.x + dx,
+                    origin.0.y + dy,
+                    origin.0.z + dz,
+                ));
+                if is_repellent(candidate) {
+                    best = Some((distance, candidate));
+                }
+            }
+        }
+    }
+    best.map(|(_, pos)| pos)
+}
+
+/// Strict Euclidean check of `pos` against the avoidance radius around `repellent`.
+fn is_near_repellent(repellent: BlockPos, pos: BlockPos) -> bool {
+    let dx = i64::from(repellent.0.x - pos.0.x);
+    let dy = i64::from(repellent.0.y - pos.0.y);
+    let dz = i64::from(repellent.0.z - pos.0.z);
+    let radius = i64::from(REPELLENT_AVOID_RADIUS);
+    dx * dx + dy * dy + dz * dz < radius * radius
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn origin() -> BlockPos {
+        BlockPos(Vector3::new(0, 64, 0))
+    }
+
+    fn at(x: i32, y: i32, z: i32) -> BlockPos {
+        BlockPos(Vector3::new(x, y, z))
+    }
+
+    #[test]
+    fn nearest_repellent_uses_manhattan_distance() {
+        let found = find_nearest_repellent(origin(), |p| p == at(3, 64, 0) || p == at(1, 64, 1));
+        assert_eq!(found, Some(at(1, 64, 1)));
+    }
+
+    #[test]
+    fn repellent_search_respects_box_bounds() {
+        assert_eq!(
+            find_nearest_repellent(origin(), |p| p == at(9, 64, 0)),
+            None
+        );
+        assert_eq!(
+            find_nearest_repellent(origin(), |p| p == at(0, 69, 0)),
+            None
+        );
+        assert_eq!(
+            find_nearest_repellent(origin(), |p| p == at(0, 68, 0)),
+            Some(at(0, 68, 0))
+        );
+    }
+
+    #[test]
+    fn avoidance_radius_is_strict() {
+        let repellent = at(0, 64, 0);
+        assert!(is_near_repellent(repellent, at(7, 64, 0)));
+        assert!(!is_near_repellent(repellent, at(8, 64, 0)));
+        assert!(!is_near_repellent(repellent, at(6, 64, 6)));
+    }
+}
+
 pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
     // Vanilla: strength = attacker ATTACK_KNOCKBACK - target KNOCKBACK_RESISTANCE.
     let resistance = target.get_living_entity().map_or(0.0, |living| {
