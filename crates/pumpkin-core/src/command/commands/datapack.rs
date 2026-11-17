@@ -144,7 +144,7 @@ impl CommandExecutor for DatapackListExecutor {
             ListFilter::All => {
                 send_enabled_list(context, &enabled);
                 send_available_list(context, &available);
-                Ok(enabled.len() as i32)
+                Ok((enabled.len() + available.len()) as i32)
             }
             ListFilter::Enabled => {
                 send_enabled_list(context, &enabled);
