@@ -402,6 +402,14 @@ fn create_structure_seed(seed: i64) -> u64 {
     }
 }
 
+/// Rewrites a template entity's `block_pos` to its transformed world position.
+/// Vanilla stores this through `BlockPos.CODEC` (three ints); Pumpkin's IntArray matches that shape.
+fn put_transformed_block_pos(nbt: &mut NbtCompound, pos: Vector3<i32>) {
+    if nbt.child_tags.contains_key("block_pos") {
+        nbt.put("block_pos", NbtTag::IntArray(vec![pos.x, pos.y, pos.z]));
+    }
+}
+
 /// Spawns every entity stored in a template after its blocks are placed.
 ///
 /// Vanilla StructureTemplate#placeEntities transforms each entry's block and
@@ -435,13 +443,14 @@ fn place_template_entities(
             ],
         );
         nbt.child_tags.remove("UUID");
-        if nbt.child_tags.contains_key("block_pos") {
-            let mut block_pos_nbt = NbtCompound::new();
-            block_pos_nbt.put_int("x", origin.0.x + block_pos.x);
-            block_pos_nbt.put_int("y", origin.0.y + block_pos.y);
-            block_pos_nbt.put_int("z", origin.0.z + block_pos.z);
-            nbt.put_compound("block_pos", block_pos_nbt);
-        }
+        put_transformed_block_pos(
+            &mut nbt,
+            Vector3::new(
+                origin.0.x + block_pos.x,
+                origin.0.y + block_pos.y,
+                origin.0.z + block_pos.z,
+            ),
+        );
         if let Some(rotation_list) = nbt.get_list("Rotation")
             && rotation_list.len() >= 2
             && let Some(yaw) = rotation_list[0].extract_float()
@@ -1465,8 +1474,9 @@ impl StructureBlockBlockEntity {
 #[cfg(test)]
 mod tests {
     use super::{
-        compute_detected_bounds, is_randomizable_container_id, is_safe_generated_structure_path,
-        parse_structure_identifier, transform_entity_yaw,
+        NbtCompound, NbtTag, compute_detected_bounds, is_randomizable_container_id,
+        is_safe_generated_structure_path, parse_structure_identifier, put_transformed_block_pos,
+        transform_entity_yaw,
     };
     use pumpkin_data::{Block, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
@@ -1570,5 +1580,13 @@ mod tests {
         ));
         let wrapped = transform_entity_yaw(370.0, Mirror::None, Rotation::Clockwise90);
         assert!(close(wrap_degrees(wrapped), 100.0));
+    }
+
+    #[test]
+    fn entity_block_pos_uses_three_int_codec_shape() {
+        let mut nbt = NbtCompound::new();
+        nbt.put("block_pos", NbtTag::IntArray(vec![0, 0, 0]));
+        put_transformed_block_pos(&mut nbt, Vector3::new(3, -4, 5));
+        assert_eq!(nbt.get_int_array("block_pos"), Some(&[3, -4, 5][..]));
     }
 }
