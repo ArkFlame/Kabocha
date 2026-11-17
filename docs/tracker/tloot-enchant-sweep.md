@@ -24,7 +24,7 @@ Scope: `crates/pumpkin-core/src/world/loot.rs`, `world/loot/generation.rs`, `wor
 | explosion_decay | generation.rs `ExplosionDecay` arm | `nextFloat() <= 1/radius` per item | OK |
 | ore_drops | world/loot.rs `apply_bonus_formula` | level > 0: `count * (max(0, nextInt(level+2)-1) + 1)`, else count, no RNG | OK |
 | binomial_with_bonus_count | world/loot.rs `apply_bonus_formula` | n = level + extra, `nextFloat() < p` per trial | OK |
-| uniform_bonus_count | world/loot.rs `apply_bonus_formula` | `count + nextInt(mult*level + 1)` | OPEN: the code draws from the RNG even at level 0 (bound 1), while vanilla only rolls when level > 0. Not changed: the guard is recalled from memory and not checked against decompiled source. Affects RNG stream parity only, not the drop distribution. |
+| uniform_bonus_count | world/loot.rs `apply_bonus_formula` | `count + nextInt(mult*level + 1)` | FIXED: `apply_bonus_formula` now skips the formula and its RNG draw at level 0, matching vanilla ApplyBonusCount (`if level > 0`). Recalled from memory, not re-checked against decompiled source: UNVERIFIED for the guard. Test: `uniform_bonus_count_at_level_zero_does_not_draw_rng`. |
 | set_count uniform/binomial | generation.rs `number_int` / predicates.rs `LootNumberProvider::Binomial` | per provider | OK |
 | enchanted_count_increase (looting_enchant) | generation.rs `EnchantedCountIncrease` arm | `round(count * level)`, added to count | OK for the add. The `limit` is applied to the final total here. Vanilla's exact limit placement was not confirmed, so left as is. UNVERIFIED |
 | limit_count | generation.rs `LimitCount` arm | clamp to min/max | OK |
@@ -33,7 +33,7 @@ Scope: `crates/pumpkin-core/src/world/loot.rs`, `world/loot/generation.rs`, `wor
 
 | Check | Location | Vanilla | Status |
 |---|---|---|---|
-| distance predicate on entity conditions | predicate.rs `EntityPredicate::matches` (single `distance: Option<f64>`), trigger.rs call sites | `distance.horizontal` is compared with the horizontal distance from the origin, `distance.absolute` with the 3D distance | OPEN. Two gaps: (1) `horizontal` and `absolute` are both checked against one value, so one of them is always wrong; (2) every trigger call site passes `None`, so any entity predicate that sets `distance` never matches (for example `player_killed_entity`, `player_sheared_equipment`, `player_interacted_with_entity`). Fixing this needs the player origin and target position at each call site and a split into horizontal and absolute values. That is a multi-site change, so it is not done in this pass. |
+| distance predicate on entity conditions | predicate.rs `EntityPredicate::matches`, trigger.rs call sites | `distance.horizontal` is compared with the horizontal distance from the origin, `distance.absolute` with the 3D distance | PARTIAL FIX: `EntityDistance { horizontal, absolute }` is now passed to `matches`, built with `EntityDistance::between(origin, target)`. Wired for `player_killed_entity` (killer to victim), `tame_animal` (player to animal, both sites) and `effects_changed` (affected entity to source). Test: `entity_distance_checks_horizontal_and_absolute_separately`. OPEN for the rest: `summoned_entity` (carved pumpkin, wither skull), `sniper_duel` (still a fixed 50-block value), and `player_sheared_equipment`, `player_interacted_with_entity` and other sites still pass `None`, so their `distance` predicates never match. |
 | nether_travel / ride_entity_in_lava horizontal distance | trigger.rs | horizontal bounds vs horizontal distance | OK |
 | item count ranges | predicate.rs item matching | `count` is FloatBounds/IntBounds, uses actual stack count | OK (fixed earlier, see a1cbfca8d) |
 | distance parsing | predicate.rs `from_value` | keeps full min/max bounds | OK (fixed earlier, see 96c85e8aa) |
@@ -49,5 +49,5 @@ Scope: `crates/pumpkin-core/src/world/loot.rs`, `world/loot/generation.rs`, `wor
 
 ## Not changed in this pass
 
-- No code change landed. The two OPEN items above need either a decompiled vanilla check (uniform_bonus_count level-0 guard) or a multi-site change (entity predicate distance). Both are recorded for a follow-up worker.
-- Tests: none added, because no confident divergence was fixed.
+- Fixed in this pass: uniform_bonus_count level-0 RNG draw; entity predicate horizontal/absolute split with real origin for the killed, tamed and effects_changed triggers.
+- Still open: summoned_entity sites (`carved_pumpkin.rs`, `wither_skull.rs`), sniper_duel constant distance, and the remaining `None` trigger sites. Unverified: the uniform level-0 guard was not checked against decompiled source.

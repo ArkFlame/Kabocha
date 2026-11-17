@@ -343,7 +343,8 @@ fn apply_bonus_formula(
             let bound = fortune_level
                 .saturating_mul(bonus_multiplier)
                 .saturating_add(1);
-            if bound > 0 {
+            // Vanilla ApplyBonusCount skips the formula, including its RNG draw, at level 0.
+            if fortune_level > 0 && bound > 0 {
                 base_count.saturating_add(rng.next_bounded_i32(bound))
             } else {
                 base_count

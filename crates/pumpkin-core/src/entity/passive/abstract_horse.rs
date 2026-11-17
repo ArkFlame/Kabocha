@@ -616,6 +616,12 @@ pub trait AbstractHorse: Animal + AgeableMob {
         let entity = self.get_entity();
         player.trigger_advancement(AdvancementTrigger::TameAnimal {
             entity_type: format!("minecraft:{}", entity.entity_type.resource_name),
+            distance: Some(
+                crate::entity::player::advancement::predicate::EntityDistance::between(
+                    player.position(),
+                    entity.pos.load(),
+                ),
+            ),
         });
         entity.world.load().send_entity_status(
             entity,

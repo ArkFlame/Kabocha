@@ -720,6 +720,38 @@ impl MobEffectsPredicate {
     }
 }
 
+/// Distance between the predicate's origin and the checked entity, split the way vanilla's
+/// `EntityPredicate.DistanceData` splits it: `horizontal` ignores Y, `absolute` is the 3D length.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EntityDistance {
+    pub horizontal: f64,
+    pub absolute: f64,
+}
+
+impl EntityDistance {
+    /// Builds the distance from the origin-to-entity delta (`entity - origin`).
+    #[must_use]
+    pub fn from_delta(dx: f64, dy: f64, dz: f64) -> Self {
+        Self {
+            horizontal: dx.hypot(dz),
+            absolute: (dx * dx + dy * dy + dz * dz).sqrt(),
+        }
+    }
+
+    /// Distance from `origin` to `target`, the positions vanilla passes to `EntityPredicate`.
+    #[must_use]
+    pub fn between(
+        origin: pumpkin_util::math::vector3::Vector3<f64>,
+        target: pumpkin_util::math::vector3::Vector3<f64>,
+    ) -> Self {
+        Self::from_delta(
+            target.x - origin.x,
+            target.y - origin.y,
+            target.z - origin.z,
+        )
+    }
+}
+
 /// Strongly-typed entity condition.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct EntityPredicate {
@@ -737,7 +769,12 @@ pub struct EntityPredicate {
 
 impl EntityPredicate {
     #[must_use]
-    pub fn matches(&self, entity_type: &str, distance: Option<f64>, is_baby: Option<bool>) -> bool {
+    pub fn matches(
+        &self,
+        entity_type: &str,
+        distance: Option<EntityDistance>,
+        is_baby: Option<bool>,
+    ) -> bool {
         if let Some(types) = &self.entity_type
             && !types.matches(RegistryKey::EntityType, entity_type)
         {
@@ -747,7 +784,7 @@ impl EntityPredicate {
             let Some(d) = distance else {
                 return false;
             };
-            if !dist_bounds.matches(d) {
+            if !dist_bounds.matches(d.horizontal) {
                 return false;
             }
         }
@@ -755,7 +792,7 @@ impl EntityPredicate {
             let Some(d) = distance else {
                 return false;
             };
-            if !dist_bounds.matches(d) {
+            if !dist_bounds.matches(d.absolute) {
                 return false;
             }
         }
@@ -2337,7 +2374,7 @@ pub fn matches_effects_changed_condition(
     cond: &CriterionConditions,
     effects: &[Effect],
     source_type: Option<&str>,
-    source_distance: Option<f64>,
+    source_distance: Option<EntityDistance>,
 ) -> bool {
     let CriterionConditions::EffectsChanged {
         player,
@@ -2993,14 +3030,28 @@ mod tests {
             &cond,
             &effects,
             Some("minecraft:zombie"),
-            Some(3.0)
+            Some(EntityDistance::from_delta(3.0, 0.0, 0.0))
         ));
         assert!(!matches_effects_changed_condition(
             &cond,
             &effects,
             Some("minecraft:zombie"),
-            Some(6.0)
+            Some(EntityDistance::from_delta(6.0, 0.0, 0.0))
         ));
+    }
+
+    #[test]
+    fn entity_distance_checks_horizontal_and_absolute_separately() {
+        let horizontal = EntityPredicate::from_value(&serde_json::json!({
+            "distance": {"horizontal": {"max": 5.0}}
+        }));
+        let absolute = EntityPredicate::from_value(&serde_json::json!({
+            "distance": {"absolute": {"max": 5.0}}
+        }));
+        // 3 blocks east and 10 blocks up: horizontal 3 (matches), absolute ~10.44 (fails).
+        let delta = EntityDistance::from_delta(3.0, 10.0, 0.0);
+        assert!(horizontal.matches("minecraft:zombie", Some(delta), None));
+        assert!(!absolute.matches("minecraft:zombie", Some(delta), None));
     }
 
     #[test]

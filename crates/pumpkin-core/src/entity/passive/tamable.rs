@@ -161,6 +161,12 @@ pub trait TamableAnimal: Animal {
             player.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::TameAnimal {
                     entity_type: format!("minecraft:{}", entity.entity_type.resource_name),
+                    distance: Some(
+                        crate::entity::player::advancement::predicate::EntityDistance::between(
+                            player.position(),
+                            entity.pos.load(),
+                        ),
+                    ),
                 },
             );
         }

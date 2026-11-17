@@ -1757,12 +1757,10 @@ impl LivingEntity {
                 source_type: source
                     .map(|source| source.get_entity().entity_type.resource_name.to_string()),
                 source_distance: source.map(|source| {
-                    source
-                        .get_entity()
-                        .pos
-                        .load()
-                        .squared_distance_to_vec(&self.entity.pos.load())
-                        .sqrt()
+                    crate::entity::player::advancement::predicate::EntityDistance::between(
+                        self.entity.pos.load(),
+                        source.get_entity().pos.load(),
+                    )
                 }),
             },
         );
@@ -3218,6 +3216,10 @@ impl LivingEntity {
                 killer_player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::PlayerKilledEntity {
                         entity_type_resource: criterion_key,
+                        distance: Some(crate::entity::player::advancement::predicate::EntityDistance::between(
+                            killer_player.position(),
+                            self.entity.pos.load(),
+                        )),
                     },
                 );
 

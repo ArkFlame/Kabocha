@@ -1,6 +1,8 @@
 use crate::entity::player::Player;
 use crate::entity::player::advancement::PlayerAdvancement;
-use crate::entity::player::advancement::predicate::{self, CriterionConditions};
+use crate::entity::player::advancement::predicate::{
+    self, CriterionConditions, EntityDistance,
+};
 use pumpkin_util::math::position::BlockPos;
 
 #[derive(Debug, Clone)]
@@ -8,6 +10,8 @@ pub enum AdvancementTrigger {
     InventoryChanged,
     PlayerKilledEntity {
         entity_type_resource: String,
+        /// Player-to-victim distance, checked against the entity's `distance` predicate.
+        distance: Option<EntityDistance>,
     },
     SniperDuel,
     TwoBirdsOneArrow,
@@ -63,6 +67,8 @@ pub enum AdvancementTrigger {
     },
     TameAnimal {
         entity_type: String,
+        /// Player-to-animal distance, checked against the entity's `distance` predicate.
+        distance: Option<EntityDistance>,
     },
     FilledBucket {
         item_id: String,
@@ -162,7 +168,7 @@ pub enum AdvancementTrigger {
         /// Entity type of the effect's source; vanilla passes `null` for removals and most sources.
         source_type: Option<String>,
         /// Distance from the source to the player, for the source's `distance` predicate.
-        source_distance: Option<f64>,
+        source_distance: Option<EntityDistance>,
     },
     SpearMobs {
         count: i32,
@@ -333,10 +339,11 @@ impl Player {
 
             AdvancementTrigger::PlayerKilledEntity {
                 entity_type_resource,
+                distance,
             } => {
                 self.trigger_criterion_event("minecraft:player_killed_entity", |cond| match cond {
                     CriterionConditions::PlayerKilledEntity(pred) => {
-                        pred.matches(&entity_type_resource, None, None)
+                        pred.matches(&entity_type_resource, distance, None)
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
@@ -346,7 +353,11 @@ impl Player {
             AdvancementTrigger::SniperDuel => {
                 self.trigger_criterion_event("minecraft:player_killed_entity", |cond| match cond {
                     CriterionConditions::PlayerKilledEntity(pred) => {
-                        pred.matches("minecraft:skeleton", Some(50.0), None)
+                        pred.matches(
+                            "minecraft:skeleton",
+                            Some(EntityDistance::from_delta(50.0, 0.0, 0.0)),
+                            None,
+                        )
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
@@ -526,9 +537,14 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::TameAnimal { entity_type } => {
+            AdvancementTrigger::TameAnimal {
+                entity_type,
+                distance,
+            } => {
                 self.trigger_criterion_event("minecraft:tame_animal", |cond| match cond {
-                    CriterionConditions::TameAnimal(pred) => pred.matches(&entity_type, None, None),
+                    CriterionConditions::TameAnimal(pred) => {
+                        pred.matches(&entity_type, distance, None)
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
