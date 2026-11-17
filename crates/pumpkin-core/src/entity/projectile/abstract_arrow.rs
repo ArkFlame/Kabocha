@@ -20,6 +20,8 @@ use crate::server::Server;
 
 /// How long an arrow lies in the ground before it despawns.
 pub const DESPAWN_TIME: u32 = 1200;
+/// Ticks in the ground before a creative-only arrow despawns (Paper `creativeArrowDespawnRate`).
+pub const CREATIVE_DESPAWN_TIME: u32 = 200;
 const AIR_INERTIA: f64 = 0.99;
 const GRAVITY: f64 = 0.05;
 /// Ticks a stuck arrow shakes after landing, it can't be picked up meanwhile.
@@ -172,7 +174,12 @@ pub fn hit_sound_pitch() -> f32 {
 
 /// Removes the arrow once it lay in the ground for [`DESPAWN_TIME`] ticks.
 pub fn count_down_despawn<A: AbstractArrow + ?Sized>(arrow: &A) {
-    if arrow.flight().life.fetch_add(1, Ordering::Relaxed) + 1 >= DESPAWN_TIME {
+    count_down_despawn_at(arrow, DESPAWN_TIME);
+}
+
+/// Removes the arrow once it lay in the ground for `limit` ticks.
+pub fn count_down_despawn_at<A: AbstractArrow + ?Sized>(arrow: &A, limit: u32) {
+    if arrow.flight().life.fetch_add(1, Ordering::Relaxed) + 1 >= limit {
         arrow.get_entity().remove();
     }
 }
