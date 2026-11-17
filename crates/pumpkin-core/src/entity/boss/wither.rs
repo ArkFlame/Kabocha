@@ -159,10 +159,12 @@ impl WitherEntity {
 
     pub fn make_invulnerable(&self) {
         self.set_invulnerable_ticks(INVULNERABLE_TICKS);
-        self.bossbar_progress.store(0.0);
-        self.mob_entity
-            .living_entity
-            .set_health(self.mob_entity.living_entity.get_max_health() / 3.0);
+        let living = &self.mob_entity.living_entity;
+        let max_health = living.get_max_health();
+        living.set_health(max_health / 3.0);
+        // Vanilla WitherBoss drives the boss bar from health / maxHealth for the whole fight.
+        self.bossbar_progress
+            .store((living.health.load() / max_health).clamp(0.0, 1.0));
     }
 
     #[must_use]
@@ -426,8 +428,6 @@ impl WitherEntity {
 
         if invul > 0 {
             let new_count = invul - 1;
-            let progress = (1.0 - (new_count as f32) / INVULNERABLE_TICKS as f32).clamp(0.0, 1.0);
-            self.bossbar_progress.store(progress);
 
             if new_count <= 0 {
                 let pos = entity.pos.load();
@@ -452,6 +452,15 @@ impl WitherEntity {
             if tick_count % 10 == 0 {
                 self.mob_entity.living_entity.heal(10.0);
             }
+
+            let living = &self.mob_entity.living_entity;
+            let max_health = living.get_max_health();
+            let progress = if max_health > 0.0 {
+                (living.health.load() / max_health).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            self.bossbar_progress.store(progress);
         } else {
             let living = &self.mob_entity.living_entity;
             self.tick_main_head_attack();
