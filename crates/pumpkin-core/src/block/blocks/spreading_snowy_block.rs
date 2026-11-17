@@ -121,24 +121,20 @@ impl SpreadingSnowyBlock {
         default_block_state: &'static BlockState,
     ) {
         if !Self::can_stay_alive(state, world, pos) {
-            // Vanilla only kills the block when the cover is dark enough and thick enough;
-            // e.g. grass under water survives, grass under an opaque block turns to dirt.
-            let above = pos.up();
-            let above_state = world.get_block_state(&above);
-            if world.get_max_local_raw_brightness(&above) < 4 && above_state.opacity > 2 {
-                // Paper fires `BlockFadeEvent`; a cancelled fade keeps the spreading block.
-                let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
-                    *pos,
-                    state.id.to_block(),
-                );
-                if let Some(server) = world.server.upgrade() {
-                    server.plugin_manager.fire_blocking(&server, &mut event);
-                }
-                if event.cancelled {
-                    return;
-                }
-                world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
+            // Vanilla `SpreadingSnowyBlock#randomTick` fades to the base block whenever
+            // `canStayAlive` is false, with no brightness or cover-opacity gate.
+            // Paper fires `BlockFadeEvent`; a cancelled fade keeps the spreading block.
+            let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
+                *pos,
+                state.id.to_block(),
+            );
+            if let Some(server) = world.server.upgrade() {
+                server.plugin_manager.fire_blocking(&server, &mut event);
             }
+            if event.cancelled {
+                return;
+            }
+            world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
         } else if world.get_max_local_raw_brightness(&pos.up()) >= 9 {
             let mut rng = rand::rng();
             for _ in 0..4 {
