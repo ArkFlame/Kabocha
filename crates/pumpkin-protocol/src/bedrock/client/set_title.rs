@@ -72,3 +72,30 @@ impl CSetTitle {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{CSetTitle, TitleType};
+    use crate::serial::PacketWrite;
+
+    #[test]
+    fn title_type_wire_ids_match_bedrock() {
+        let cases = [
+            (TitleType::Clear, 0u8),
+            (TitleType::Reset, 1),
+            (TitleType::Title, 2),
+            (TitleType::Subtitle, 3),
+            (TitleType::Actionbar, 4),
+            (TitleType::Times, 5),
+            (TitleType::TitleTextObject, 6),
+            (TitleType::SubtitleTextObject, 7),
+            (TitleType::ActionbarTextObject, 8),
+        ];
+        for (title_type, wire_id) in cases {
+            let packet = CSetTitle::new(title_type, String::new(), 0, 0, 0);
+            let mut buf = Vec::new();
+            packet.write(&mut buf).unwrap();
+            assert_eq!(buf[0], wire_id);
+        }
+    }
+}

@@ -72,3 +72,25 @@ pub enum PlayerActionType {
     InternalUpdate,
     Count,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PlayerActionType;
+    use crate::serial::PacketRead;
+
+    fn decode(wire_id: u8) -> PlayerActionType {
+        let mut reader: &[u8] = &[wire_id];
+        PlayerActionType::read(&mut reader).unwrap()
+    }
+
+    #[test]
+    fn player_action_wire_ids_match_bedrock() {
+        // Bedrock PlayerActionType: start break 0, abort 1, stop break 2, respawn 7, jump 8, continue break 27.
+        assert_eq!(decode(0) as i32, 0);
+        assert_eq!(decode(1) as i32, 1);
+        assert_eq!(decode(2) as i32, 2);
+        assert!(matches!(decode(7), PlayerActionType::Respawn));
+        assert!(matches!(decode(8), PlayerActionType::StartJump));
+        assert!(matches!(decode(27), PlayerActionType::ContinueDestroyBlock));
+    }
+}
