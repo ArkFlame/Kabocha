@@ -379,7 +379,6 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(WeatheringCopperStairBlock);
     manager.register(WeatheringCopperTrapDoorBlock);
     manager.register(CommandBlock);
-    manager.register(TestBlock);
     manager.register(JigsawBlock);
     manager.register(ComposterBlock);
     manager.register(CauldronBlock);
@@ -661,7 +660,7 @@ impl BlockRegistry {
                 clicked_block,
                 clicked_block_state.id,
                 &clicked_block_pos,
-                face,
+                face.opposite(),
                 use_item_on,
                 player,
             )
@@ -1711,6 +1710,22 @@ mod replacement_tests {
         let fence = &Block::OAK_FENCE;
         assert!(registry.get_pumpkin_block(fence.id).is_some());
         assert!(!registry.is_pathfindable(fence, fence.default_state, PathComputationType::Land));
+    }
+
+    #[test]
+    fn water_pathfinding_matches_vanilla_fluid_tag_default() {
+        // Vanilla BlockBehaviour.isPathfindable: WATER -> state.getFluidState().is(WATER).
+        let registry = super::BlockRegistry::default();
+        assert!(registry.is_pathfindable(
+            &Block::WATER,
+            Block::WATER.default_state,
+            PathComputationType::Water
+        ));
+        assert!(!registry.is_pathfindable(
+            &Block::AIR,
+            Block::AIR.default_state,
+            PathComputationType::Water
+        ));
     }
 
     #[test]

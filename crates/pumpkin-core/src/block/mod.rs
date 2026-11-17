@@ -258,10 +258,11 @@ pub trait BlockBehaviour: Send + Sync {
 
     /// Whether entities in the way stop this block from being placed.
     ///
-    /// Vanilla checks placement against `getCollisionShape`, which is empty for a placement
-    /// context for some blocks, scaffolding included.
+    /// Vanilla checks `getCollisionShape(...).isEmpty()` once; an empty placement shape means
+    /// entities do not block placement. Derive this from the same signal so the two paths cannot
+    /// drift (scaffolding overrides `can_place_inside_entities`).
     fn has_placement_collision(&self) -> bool {
-        true
+        !self.can_place_inside_entities()
     }
 
     fn mirror(&self, block: &Block, state_id: BlockStateId, mirror: Mirror) -> &'static BlockState {
@@ -682,10 +683,10 @@ pub fn drop_loot(
         }
     }
 
-    let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
-        pumpkin_data::Enchantment::from_name("silk_touch")
-            .is_some_and(|e| tool.get_enchantment_level(e) > 0)
-    });
+    let has_silk_touch = params
+        .tool
+        .as_ref()
+        .is_some_and(|tool| tool.get_enchantment_level(&pumpkin_data::Enchantment::SILK_TOUCH) > 0);
 
     if experience
         && !has_silk_touch
@@ -760,9 +761,13 @@ impl BlockPlaceContext {
     /// `direction` face was clicked.
     #[must_use]
     pub fn at(world: &World, position: BlockPos, direction: BlockDirection) -> Self {
-        let state_id = world.get_block_state_id(&position);
-        let replacing = if Block::from_state_id(state_id) == &Block::WATER {
-            BlockIsReplacing::Water(WaterLikeProperties::from_state_id(state_id).level)
+        let (block, state) = world.get_block_and_state(&position);
+        // Vanilla's constructor sets `replaceClicked` from `state.canBeReplaced(context)`;
+        // without this gate a non-replaceable position is misreported as replaceable.
+        let replacing = if !crate::block::registry::can_replace_with_other_block(block, state) {
+            BlockIsReplacing::None
+        } else if block == &Block::WATER {
+            BlockIsReplacing::Water(WaterLikeProperties::from_state_id(state.id).level)
         } else {
             BlockIsReplacing::Other
         };
@@ -836,4 +841,27 @@ pub fn calculate_comparator_output(inventory: &dyn pumpkin_inventory::Inventory)
     let percentage = fill_sum / (size as f32);
     let output = 1.0 + percentage * 14.0;
     output.floor() as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct EmptyPlacementCollision;
+
+    impl BlockBehaviour for EmptyPlacementCollision {
+        fn can_place_inside_entities(&self) -> bool {
+            true
+        }
+    }
+
+    struct DefaultPlacementCollision;
+
+    impl BlockBehaviour for DefaultPlacementCollision {}
+
+    #[test]
+    fn placement_collision_mirrors_can_place_inside_entities() {
+        assert!(!EmptyPlacementCollision.has_placement_collision());
+        assert!(DefaultPlacementCollision.has_placement_collision());
+    }
 }

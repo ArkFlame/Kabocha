@@ -320,7 +320,7 @@ impl BlockEntity for PistonBlockEntity {
 mod test {
     use pumpkin_data::{Block, BlockDirection};
     use pumpkin_nbt::compound::NbtCompound;
-    use pumpkin_util::math::position::BlockPos;
+    use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 
     use super::PistonBlockEntity;
     use crate::block::entities::BlockEntity;
@@ -342,5 +342,36 @@ mod test {
         entity.write_nbt(&mut nbt);
         let restored = PistonBlockEntity::from_nbt(&nbt, BlockPos::new(1, 2, 3));
         assert_eq!(restored.pushed_block_state.id, state.id);
+    }
+
+    #[test]
+    fn head_shape_slab_sits_on_facing_side() {
+        // Vanilla PistonHeadBlock rotates a 4-pixel platform (boxZ(16, 0, 4)) so
+        // it always sits on the side the head faces, never the base side.
+        let block = BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+        let cases: [(BlockDirection, usize, f64, f64); 6] = [
+            (BlockDirection::East, 0, 0.75, 1.0),
+            (BlockDirection::West, 0, 0.0, 0.25),
+            (BlockDirection::Up, 1, 0.75, 1.0),
+            (BlockDirection::Down, 1, 0.0, 0.25),
+            (BlockDirection::South, 2, 0.75, 1.0),
+            (BlockDirection::North, 2, 0.0, 0.25),
+        ];
+        for (facing, axis, expected_min, expected_max) in cases {
+            let slab = PistonBlockEntity::head_shape_aabb(block, facing);
+            let (min, max) = match axis {
+                0 => (slab.min.x, slab.max.x),
+                1 => (slab.min.y, slab.max.y),
+                _ => (slab.min.z, slab.max.z),
+            };
+            assert!(
+                (min - expected_min).abs() < 1e-6,
+                "{facing:?} axis {axis} min {min}"
+            );
+            assert!(
+                (max - expected_max).abs() < 1e-6,
+                "{facing:?} axis {axis} max {max}"
+            );
+        }
     }
 }

@@ -74,7 +74,9 @@ pub fn get_updated_state(
     let above_pos = pos.up();
     if props.up {
         let (above_block, above_state) = world.get_block_and_state(&above_pos);
-        props.up = is_acceptable_neighbour(above_block, above_state, BlockDirection::Up);
+        // Vanilla's getUpdatedState checks the block above with DOWN (its top face),
+        // unlike canSupportAtFace which uses UP (the bottom face).
+        props.up = is_acceptable_neighbour(above_block, above_state, BlockDirection::Down);
     }
 
     let mut above_props: Option<VineLikeProperties> = None;
@@ -374,7 +376,7 @@ impl BlockBehaviour for VineBlock {
             if can_spread(args.world, args.position) {
                 let test_pos = args.position.offset(test_direction.to_offset());
                 let (edge_block, edge_state) = args.world.get_block_and_state(&test_pos);
-                if edge_block.default_state.is_air() {
+                if edge_state.is_air() {
                     let cw_direction = test_direction.rotate_clockwise();
                     let ccw_direction = test_direction.rotate_counter_clockwise();
                     let cw_has_connecting_face = has_face_property(&state_props, cw_direction);
@@ -417,7 +419,7 @@ impl BlockBehaviour for VineBlock {
                             .get_block_and_state(&args.position.offset(ccw_direction.to_offset()));
 
                         if cw_has_connecting_face
-                            && cw_test_block.default_state.is_air()
+                            && cw_test_state.is_air()
                             && is_acceptable_neighbour(cw_support_block, cw_support_state, opposite)
                         {
                             let mut new_props = VineLikeProperties::default(args.block);
@@ -428,7 +430,7 @@ impl BlockBehaviour for VineBlock {
                                 BlockFlags::NOTIFY_LISTENERS,
                             );
                         } else if ccw_has_connecting_face
-                            && ccw_test_block.default_state.is_air()
+                            && ccw_test_state.is_air()
                             && is_acceptable_neighbour(
                                 ccw_support_block,
                                 ccw_support_state,
@@ -483,7 +485,7 @@ impl BlockBehaviour for VineBlock {
                     return;
                 }
 
-                if args.world.get_block(&above_pos).default_state.is_air() {
+                if args.world.get_block_state(&above_pos).is_air() {
                     if !can_spread(args.world, args.position) {
                         return;
                     }
@@ -518,8 +520,8 @@ impl BlockBehaviour for VineBlock {
             if args.position.0.y > args.world.dimension.min_y {
                 let below_pos = args.position.down();
                 let (below_block, below_state) = args.world.get_block_and_state(&below_pos);
-                if below_block.default_state.is_air() || below_block == &Block::VINE {
-                    let before_props = if below_block.default_state.is_air() {
+                if below_state.is_air() || below_block == &Block::VINE {
+                    let before_props = if below_state.is_air() {
                         VineLikeProperties::default(args.block)
                     } else {
                         VineLikeProperties::from_state_id(below_state.id)

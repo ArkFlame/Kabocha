@@ -884,6 +884,31 @@ mod tests {
         hopper
     }
 
+    /// Vanilla chest vehicles implement plain Container, not WorldlyContainer, so a hopper
+    /// reaches every slot from any face: insertion above and extraction below both work.
+    #[test]
+    fn hopper_moves_items_both_ways_with_a_plain_entity_container() {
+        use crate::entity::vehicle::minecart::container::MinecartInventory;
+
+        let chest_vehicle = MinecartInventory::new(27);
+        let leftover = HopperBlockEntity::add_item(
+            None,
+            &chest_vehicle,
+            ItemStack::new(3, &Item::DIAMOND),
+            Some(BlockDirection::Down),
+        );
+        assert!(leftover.is_empty());
+        assert_eq!(chest_vehicle.get_stack(0).item_count, 3);
+
+        let hopper = hopper_holding(ItemStack::EMPTY.clone());
+        assert!(HopperBlockEntity::try_take_from_source(
+            &hopper,
+            &chest_vehicle
+        ));
+        assert_eq!(hopper.get_stack(0).item_count, 1);
+        assert_eq!(chest_vehicle.get_stack(0).item_count, 2);
+    }
+
     #[test]
     fn take_one_splits_a_single_item_off() {
         let hopper = hopper_holding(ItemStack::new(10, &Item::DIAMOND));

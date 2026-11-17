@@ -5,7 +5,7 @@ use std::{
     collections::HashMap,
     sync::{
         Arc, Mutex as StdMutex, RwLock,
-        atomic::{AtomicBool, AtomicU16, Ordering},
+        atomic::{AtomicBool, AtomicU16, AtomicU32, Ordering},
     },
 };
 
@@ -28,6 +28,8 @@ pub struct FurnaceBlockEntity {
     pub cooking_total_time: AtomicU16,
     pub lit_time_remaining: AtomicU16,
     pub lit_total_time: AtomicU16,
+    /// Persisted fuel speed multiplier (vanilla `speedMultiplier`), stored as bits.
+    pub speed_multiplier_bits: AtomicU32,
 
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
 
@@ -56,6 +58,7 @@ impl FurnaceBlockEntity {
             cooking_time_spent: AtomicU16::new(0),
             lit_total_time: AtomicU16::new(0),
             lit_time_remaining: AtomicU16::new(0),
+            speed_multiplier_bits: AtomicU32::new(1.0f32.to_bits()),
             recipes_used: StdMutex::new(HashMap::new()),
             experience: StdMutex::new(0.0),
             metadata: super::ContainerMetadata::default(),

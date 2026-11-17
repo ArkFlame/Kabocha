@@ -525,17 +525,18 @@ impl DispenserBlock {
 
     fn dispense_boat(ctx: &DispenseContext<'_>, item: &mut ItemStack) -> bool {
         let target = Self::target_position(ctx);
-        // Vanilla `BoatDispenseItemBehavior` only accepts still water (`isStill`), not flowing water.
-        let is_still_water = |pos: &BlockPos| {
-            let (fluid, state) = ctx.world.get_fluid_and_fluid_state(pos);
-            fluid.id == Fluid::WATER.id && state.is_source
+        // Vanilla `BoatDispenseItemBehavior` tests `getFluidState(pos).is(FluidTags.WATER)`.
+        // The tag is on the fluid, so flowing water passes just like a source block.
+        let is_water = |pos: &BlockPos| {
+            let (fluid, _state) = ctx.world.get_fluid_and_fluid_state(pos);
+            fluid.has_tag(&tag::Fluid::MINECRAFT_WATER)
         };
 
         // Vanilla `BoatDispenseItemBehavior`: spawn just outside the dispenser,
         // one block higher when the block in front is water.
-        let y_offset = if is_still_water(&target) {
+        let y_offset = if is_water(&target) {
             1.0
-        } else if ctx.world.get_block_state(&target).is_air() && is_still_water(&target.down()) {
+        } else if ctx.world.get_block_state(&target).is_air() && is_water(&target.down()) {
             0.0
         } else {
             return false;

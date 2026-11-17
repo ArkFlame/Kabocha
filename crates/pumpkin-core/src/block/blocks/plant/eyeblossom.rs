@@ -165,7 +165,8 @@ pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &Block
 
 /// Emits the `minecraft:trail` particle that marks a flower changing state,
 /// mirroring vanilla `EyeblossomBlock.Type.spawnTransformParticle`.
-fn spawn_transform_particle(
+/// Shared with the potted eyeblossom variants in `flower_pots.rs`.
+pub(crate) fn spawn_transform_particle(
     world: &Arc<World>,
     new_block: &Block,
     pos: &BlockPos,

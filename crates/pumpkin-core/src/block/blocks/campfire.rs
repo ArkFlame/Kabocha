@@ -47,19 +47,29 @@ impl CampfireBlock {
             Vector3::new(0.375, 0.0, 0.375),
             Vector3::new(0.625, 1.0, 0.625),
         );
-        for dy in 1..=Self::SMOKE_DISTANCE {
+        Self::is_smokey_pos_from(|dy| {
             let check_pos = BlockPos::new(pos.0.x, pos.0.y - dy, pos.0.z);
             let (block, state) = world.get_block_and_state(&check_pos);
-            if Self::is_lit_campfire(block, state.id) {
-                return true;
-            }
-            let smoke_blocked = state
+            let blocks_smoke = state
                 .get_block_collision_shapes_at(&check_pos)
                 .any(|shape| shape.intersects(&virtual_post));
-            if smoke_blocked {
-                // Vanilla stops at the first block whose collision shape crosses the
-                // 0.375..0.625 smoke column; a campfire under that block does not count.
-                return false;
+            (Self::is_lit_campfire(block, state.id), blocks_smoke)
+        })
+    }
+
+    /// Pure core of `is_smokey_pos`. `state_at(dy)` reports whether the cell
+    /// `dy` blocks below the smoke origin holds a lit campfire and whether its
+    /// collision shape crosses the 0.375..0.625 smoke column.
+    fn is_smokey_pos_from(mut state_at: impl FnMut(i32) -> (bool, bool)) -> bool {
+        for dy in 1..=Self::SMOKE_DISTANCE {
+            let (is_lit, blocks_smoke) = state_at(dy);
+            if is_lit {
+                return true;
+            }
+            if blocks_smoke {
+                // Vanilla checks the one cell directly below the blocker and then
+                // stops; it does not assume the space below the blocker is empty.
+                return state_at(dy + 1).0;
             }
         }
         false
@@ -241,4 +251,23 @@ impl BlockBehaviour for CampfireBlock {
 
 fn is_signal_fire_base_block(block: &Block) -> bool {
     block == &Block::HAY_BLOCK
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CampfireBlock;
+
+    #[test]
+    fn smoke_scans_five_cells_and_stops_at_a_blocker() {
+        // A lit campfire within range smokes.
+        assert!(CampfireBlock::is_smokey_pos_from(|dy| (dy == 2, false)));
+        // A lit campfire itself blocks the column but still smokes.
+        assert!(CampfireBlock::is_smokey_pos_from(|dy| (dy == 1, dy == 1)));
+        // A blocker with a lit campfire directly below it still smokes.
+        assert!(CampfireBlock::is_smokey_pos_from(|dy| (dy == 2, dy == 1)));
+        // A blocker with nothing lit below it does not smoke.
+        assert!(!CampfireBlock::is_smokey_pos_from(|dy| (false, dy == 1)));
+        // A lit campfire beyond the scan distance is ignored.
+        assert!(!CampfireBlock::is_smokey_pos_from(|dy| (dy == 6, false)));
+    }
 }

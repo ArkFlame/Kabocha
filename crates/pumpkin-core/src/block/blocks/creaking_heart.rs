@@ -70,8 +70,17 @@ impl CreakingHeartBlock {
         let state_id = world.get_block_state_id(position);
         let mut props = CreakingHeartLikeProperties::from_state_id(state_id);
 
-        let new_state = if Self::check_active_logs(world.as_ref(), position, props.axis) {
-            if props.creaking_heart_state == CreakingHeartState::Uprooted {
+        let has_logs = Self::check_active_logs(world.as_ref(), position, props.axis);
+        // Vanilla updateCreakingState: a heart with a bound protector stays awake/dormant when it
+        // loses its logs, so the creaking is never orphaned; only an unbound heart can uproot.
+        let block_entity = world.get_block_entity(position);
+        let bound = block_entity
+            .as_any()
+            .downcast_ref::<CreakingHeartBlockEntity>()
+            .is_some_and(|heart| heart.creaking_uuid.load().is_some());
+
+        let new_state = if !Self::should_uproot(has_logs, bound) {
+            if has_logs && props.creaking_heart_state == CreakingHeartState::Uprooted {
                 world.play_sound(
                     Sound::BlockCreakingHeartSpawn,
                     SoundCategory::Blocks,
@@ -91,6 +100,11 @@ impl CreakingHeartBlock {
                 BlockFlags::NOTIFY_ALL,
             );
         }
+    }
+
+    /// Vanilla updateCreakingState: uproot only when there are no logs and no bound creaking.
+    fn should_uproot(has_logs: bool, bound: bool) -> bool {
+        !has_logs && !bound
     }
 }
 
@@ -143,12 +157,6 @@ impl BlockBehaviour for CreakingHeartBlock {
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
-        args.world.play_sound(
-            Sound::BlockCreakingHeartBreak,
-            SoundCategory::Blocks,
-            &args.position.to_f64(),
-        );
-
         // Vanilla CreakingHeartBlock#onStacksDropped: only world-gen (natural) hearts drop
         // 20-24 experience, and never with Silk Touch (vanilla dropExperienceWhenMined).
         let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
@@ -167,5 +175,18 @@ impl BlockBehaviour for CreakingHeartBlock {
         let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
         let amount = 20 + random.next_bounded_i32(5) as u32;
         ExperienceOrbEntity::spawn(args.world, args.position.to_f64(), amount);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CreakingHeartBlock;
+
+    #[test]
+    fn bound_heart_never_uproots_without_logs() {
+        assert!(CreakingHeartBlock::should_uproot(false, false));
+        assert!(!CreakingHeartBlock::should_uproot(false, true));
+        assert!(!CreakingHeartBlock::should_uproot(true, false));
+        assert!(!CreakingHeartBlock::should_uproot(true, true));
     }
 }

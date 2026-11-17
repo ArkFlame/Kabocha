@@ -1,6 +1,6 @@
 use std::any::Any;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::{Arc, OnceLock, Weak};
 
 use pumpkin_data::Block;
 use pumpkin_data::effect::StatusEffect;
@@ -37,8 +37,9 @@ pub struct BeaconBlockEntity {
     /// passes the beacon itself, set again by an opaque block.
     checking_beam_blocked: AtomicBool,
     last_check_y: AtomicI32,
-    /// Set when the primary effect changes while the beam is up; consumed by `tick`.
-    play_select_sound: AtomicBool,
+    /// Set by BlockEntity::set_world; lets set_property play the select sound from the
+    /// world handle instead of deferring it to the next tick.
+    world: OnceLock<Weak<World>>,
     metadata: super::ContainerMetadata,
 }
 
@@ -63,7 +64,7 @@ impl BeaconBlockEntity {
             beam_active: AtomicBool::new(false),
             checking_beam_blocked: AtomicBool::new(false),
             last_check_y: AtomicI32::new(position.0.y - 1),
-            play_select_sound: AtomicBool::new(false),
+            world: OnceLock::new(),
             metadata: super::ContainerMetadata::default(),
         }
     }
@@ -216,8 +217,12 @@ impl PropertyDelegate for BeaconBlockEntity {
         match index {
             DATA_LEVELS => self.levels.store(value, Ordering::Relaxed),
             DATA_PRIMARY => {
-                if self.beam_active.load(Ordering::Relaxed) {
-                    self.play_select_sound.store(true, Ordering::Relaxed);
+                // Vanilla fires BEACON_POWER_SELECT from the dataAccess.set handler while the
+                // beam is up, not on a later tick.
+                if self.beam_active.load(Ordering::Relaxed)
+                    && let Some(world) = self.world.get().and_then(|w| w.upgrade())
+                {
+                    Self::play_sound(&world, self.position, Sound::BlockBeaconPowerSelect);
                 }
                 self.primary_effect.store(
                     encode_effect(filter_effect(decode_effect(value))),
@@ -333,16 +338,19 @@ impl BlockEntity for BeaconBlockEntity {
         }
 
         let previous_levels = self.levels.load(Ordering::Relaxed);
+        let beam_active = self.beam_active.load(Ordering::Relaxed);
         if world.get_world_age() % 80 == 0 {
-            // Vanilla recomputes the pyramid and applies effects every 80 ticks whether or not
-            // something blocks the beam above the beacon: only the beam (and the power-select
-            // sound) depends on the column scan, so an indoor beacon still grants its effects.
-            let levels = self.update_base(world);
-            if levels != previous_levels {
-                self.levels.store(levels, Ordering::Relaxed);
-                self.mark_dirty();
+            // Vanilla recomputes the pyramid and applies effects only while the beam is
+            // unblocked (empty beamSections means blocked); an indoor beacon grants no effects.
+            if beam_active {
+                let levels = self.update_base(world);
+                if levels != previous_levels {
+                    self.levels.store(levels, Ordering::Relaxed);
+                    self.mark_dirty();
+                }
             }
-            if levels > 0 {
+            let levels = self.levels.load(Ordering::Relaxed);
+            if levels > 0 && beam_active {
                 self.apply_effects(world, levels);
                 Self::play_sound(world, self.position, Sound::BlockBeaconAmbient);
             }
@@ -365,10 +373,6 @@ impl BlockEntity for BeaconBlockEntity {
             }
         }
         self.last_check_y.store(last_check_y, Ordering::Relaxed);
-
-        if self.play_select_sound.swap(false, Ordering::Relaxed) {
-            Self::play_sound(world, self.position, Sound::BlockBeaconPowerSelect);
-        }
     }
 
     fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, position: &BlockPos) {
@@ -409,6 +413,10 @@ impl BlockEntity for BeaconBlockEntity {
 
     fn to_property_delegate(self: Arc<Self>) -> Option<Arc<dyn PropertyDelegate>> {
         Some(self)
+    }
+
+    fn set_world(&self, world: Weak<World>) {
+        let _ = self.world.set(world);
     }
 
     fn as_any(&self) -> &dyn Any {

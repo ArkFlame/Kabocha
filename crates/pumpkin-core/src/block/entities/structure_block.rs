@@ -449,8 +449,9 @@ pub fn place_structure_template_in_world(
                     placed_nbt.child_tags.insert(key.clone(), value.clone());
                 }
             }
-            // Vanilla `StructureTemplate.placeBlock` only seeds RandomizableContainer block entities.
-            if placed_nbt.get_string("LootTable").is_some() && is_randomizable_container_id(&id) {
+            // Vanilla `StructureTemplate.placeInWorld` seeds every RandomizableContainer it
+            // places, advancing the placement RNG even when the block has no LootTable tag.
+            if is_randomizable_container_id(&id) {
                 placed_nbt.put_long("LootTableSeed", loot_rng.next_i64());
             }
             placer.add_block_entity(placed_nbt);
@@ -466,14 +467,27 @@ pub fn place_structure_template_in_world(
         }
     }
     world.queue_block_updates(&placer.changed_positions);
-    world.flush_block_updates();
 
     if !strict {
-        for (changed_pos, state_id) in &placer.changed_positions {
-            let block = Block::from_state_id(*state_id);
+        // Vanilla reconnects multi-block states (fences, stairs, walls, ...) once the whole
+        // template is written, via Block.updateFromNeighbourShapes, then notifies neighbours.
+        // Strict placement sets UPDATE_KNOWN_SHAPE and skips both passes.
+        for (changed_pos, _placed_state_id) in &placer.changed_positions {
+            let current_state_id = world.get_block_state_id(changed_pos);
+            let shaped_state_id = world.update_from_neighbor_shapes(current_state_id, changed_pos);
+            if shaped_state_id != current_state_id {
+                world.set_block_state(
+                    changed_pos,
+                    shaped_state_id,
+                    BlockFlags::NOTIFY_LISTENERS | BlockFlags::UPDATE_KNOWN_SHAPE,
+                );
+            }
+            let block = Block::from_state_id(shaped_state_id);
             world.update_neighbors_at(changed_pos, block, None);
         }
     }
+
+    world.flush_block_updates();
 
     true
 }
@@ -697,26 +711,141 @@ impl BlockEntity for StructureBlockBlockEntity {
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
+        // Blocking lock like the getters: transient contention must not drop the whole payload.
         let mut nbt = NbtCompound::new();
-        nbt.put_string("name", self.name.try_lock().ok()?.clone());
-        nbt.put_string("author", self.author.try_lock().ok()?.clone());
-        nbt.put_string("metadata", self.metadata.try_lock().ok()?.clone());
-        nbt.put_int("posX", *self.pos_x.try_lock().ok()?);
-        nbt.put_int("posY", *self.pos_y.try_lock().ok()?);
-        nbt.put_int("posZ", *self.pos_z.try_lock().ok()?);
-        nbt.put_int("sizeX", *self.size_x.try_lock().ok()?);
-        nbt.put_int("sizeY", *self.size_y.try_lock().ok()?);
-        nbt.put_int("sizeZ", *self.size_z.try_lock().ok()?);
-        nbt.put_string("rotation", self.rotation.try_lock().ok()?.clone());
-        nbt.put_string("mirror", self.mirror.try_lock().ok()?.clone());
-        nbt.put_string("mode", self.mode.try_lock().ok()?.clone());
-        nbt.put_bool("ignoreEntities", *self.ignore_entities.try_lock().ok()?);
-        nbt.put_bool("strict", *self.strict.try_lock().ok()?);
-        nbt.put_bool("powered", *self.powered.try_lock().ok()?);
-        nbt.put_bool("showair", *self.show_air.try_lock().ok()?);
-        nbt.put_bool("showboundingbox", *self.show_bounding_box.try_lock().ok()?);
-        nbt.put_float("integrity", *self.integrity.try_lock().ok()?);
-        nbt.put_long("seed", *self.seed.try_lock().ok()?);
+        nbt.put_string(
+            "name",
+            self.name
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "author",
+            self.author
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "metadata",
+            self.metadata
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_int(
+            "posX",
+            *self
+                .pos_x
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_int(
+            "posY",
+            *self
+                .pos_y
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_int(
+            "posZ",
+            *self
+                .pos_z
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_int(
+            "sizeX",
+            *self
+                .size_x
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_int(
+            "sizeY",
+            *self
+                .size_y
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_int(
+            "sizeZ",
+            *self
+                .size_z
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_string(
+            "rotation",
+            self.rotation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "mirror",
+            self.mirror
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "mode",
+            self.mode
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_bool(
+            "ignoreEntities",
+            *self
+                .ignore_entities
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_bool(
+            "strict",
+            *self
+                .strict
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_bool(
+            "powered",
+            *self
+                .powered
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_bool(
+            "showair",
+            *self
+                .show_air
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_bool(
+            "showboundingbox",
+            *self
+                .show_bounding_box
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_float(
+            "integrity",
+            *self
+                .integrity
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        nbt.put_long(
+            "seed",
+            *self
+                .seed
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
         Some(nbt)
     }
 

@@ -23,6 +23,14 @@ use tracing::{debug, warn};
 /// Vanilla `maxCommandChainLength` default; one chain run executes at most this many blocks.
 const MAX_CHAIN_LENGTH: u32 = 65536;
 
+/// Vanilla `CommandBlock#getStateForPlacement` faces the block away from
+/// `context.getNearestLookingDirection()`, which may point vertically. The
+/// entity's ordered facing is the port of vanilla `Direction.orderedByNearest`,
+/// so its first entry keeps up/down placement correct as well as horizontal.
+fn placement_facing(facing_order: [Facing; 6]) -> Facing {
+    facing_order[0].opposite()
+}
+
 pub struct CommandBlock;
 
 impl CommandBlock {
@@ -255,7 +263,8 @@ impl BlockMetadata for CommandBlock {
 impl BlockBehaviour for CommandBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = CommandBlockLikeProperties::default(args.block);
-        props.facing = args.player.get_entity().get_facing().opposite();
+        let facing_order = args.player.get_entity().get_entity_facing_order();
+        props.facing = placement_facing(facing_order);
         props.to_state_id(args.block)
     }
 
@@ -452,5 +461,48 @@ impl BlockBehaviour for CommandBlock {
             .rotate(props.facing.to_block_direction())
             .to_facing();
         BlockState::from_id(props.to_state_id(block))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_placement_facing_mirrors_vanilla_nearest_looking_direction() {
+        // Vanilla `getNearestLookingDirection().getOpposite()` also handles vertical placement.
+        assert_eq!(
+            placement_facing([
+                Facing::Down,
+                Facing::South,
+                Facing::East,
+                Facing::West,
+                Facing::North,
+                Facing::Up,
+            ]),
+            Facing::Up
+        );
+        assert_eq!(
+            placement_facing([
+                Facing::Up,
+                Facing::North,
+                Facing::East,
+                Facing::West,
+                Facing::South,
+                Facing::Down,
+            ]),
+            Facing::Down
+        );
+        assert_eq!(
+            placement_facing([
+                Facing::South,
+                Facing::East,
+                Facing::Up,
+                Facing::Down,
+                Facing::West,
+                Facing::North,
+            ]),
+            Facing::North
+        );
     }
 }

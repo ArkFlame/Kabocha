@@ -246,6 +246,16 @@ impl ChiseledBookshelfBlockEntity {
         self.mark_dirty();
         res
     }
+
+    /// Vanilla reads occupancy from the block-entity stack, not the blockstate slot flags.
+    #[must_use]
+    pub fn has_book(&self, slot: usize) -> bool {
+        let items = self
+            .items
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        items.get(slot).is_some_and(|stack| !stack.is_empty())
+    }
 }
 
 impl Inventory for ChiseledBookshelfBlockEntity {
@@ -367,5 +377,34 @@ impl Clearable for ChiseledBookshelfBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         items.fill_with(|| ItemStack::EMPTY.clone());
         self.mark_dirty();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::item::Item;
+
+    #[test]
+    fn has_book_tracks_slot_and_respects_amount() {
+        let shelf = ChiseledBookshelfBlockEntity::new(BlockPos::new(0, 64, 0));
+        assert!(!shelf.has_book(0));
+
+        shelf.set_book(0, ItemStack::new(1, &Item::BOOK));
+        assert!(shelf.has_book(0));
+
+        // amount == 0 is a no-op (vanilla split(0) yields an empty stack).
+        assert!(shelf.remove_book(0, 0).is_empty());
+        assert!(shelf.has_book(0));
+
+        let removed = shelf.remove_book(0, 1);
+        assert_eq!(removed.item_count, 1);
+        assert!(!shelf.has_book(0));
+    }
+
+    #[test]
+    fn has_book_is_false_for_out_of_range_slot() {
+        let shelf = ChiseledBookshelfBlockEntity::new(BlockPos::new(0, 64, 0));
+        assert!(!shelf.has_book(ChiseledBookshelfBlockEntity::INVENTORY_SIZE));
     }
 }

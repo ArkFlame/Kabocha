@@ -180,6 +180,8 @@ impl BlockBehaviour for NoteBlock {
             let Some(sound_name) = custom_sound else {
                 return false;
             };
+            // Vanilla wraps custom head sounds in SoundEvent.createVariableRangeEvent(id),
+            // which is just fixedRange = Optional.empty(); range is derived from volume at play time.
             let sound_event = pumpkin_data::data_component_impl::IdOr::Value(
                 pumpkin_data::data_component_impl::SoundEvent {
                     sound_name,

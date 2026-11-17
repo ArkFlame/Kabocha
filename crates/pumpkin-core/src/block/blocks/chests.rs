@@ -44,6 +44,7 @@ struct ChestScreenFactory {
     inventory: Arc<dyn Inventory>,
     loot_pending: bool,
     name: Option<TextComponent>,
+    double_chest: bool,
 }
 
 impl ScreenHandlerFactory for ChestScreenFactory {
@@ -68,16 +69,29 @@ impl ScreenHandlerFactory for ChestScreenFactory {
         Some(concrete_arc as SharedScreenHandler)
     }
 
-    /// Vanilla titles the menu with the first half's display name, so a renamed chest
-    /// keeps its name and a double chest still shows `container.chest` ("Large Chest"
-    /// is Bedrock only).
+    /// Vanilla `ChestBlock.MENU_PROVIDER_COMBINER.getDisplayName`: a custom name on
+    /// either half wins; double chests without one use `container.chestDouble`
+    /// ("Large Chest"), single chests use `container.chest`.
     fn get_display_name(&self) -> TextComponent {
-        self.name.clone().unwrap_or_else(|| {
-            pumpkin_macros::translate_cross!(
-                translation::java::CONTAINER_CHEST,
-                translation::bedrock::CONTAINER_CHEST
-            )
-        })
+        chest_display_name(self.name.as_ref(), self.double_chest)
+    }
+}
+
+/// Resolves the chest menu title the way vanilla's menu providers do.
+fn chest_display_name(custom_name: Option<&TextComponent>, double_chest: bool) -> TextComponent {
+    if let Some(name) = custom_name {
+        return name.clone();
+    }
+    if double_chest {
+        pumpkin_macros::translate_cross!(
+            translation::java::CONTAINER_CHESTDOUBLE,
+            translation::bedrock::CONTAINER_CHESTDOUBLE
+        )
+    } else {
+        pumpkin_macros::translate_cross!(
+            translation::java::CONTAINER_CHEST,
+            translation::bedrock::CONTAINER_CHEST
+        )
     }
 }
 
@@ -464,17 +478,19 @@ fn get_chest_screen_handler_factory(
         ChestType::Right => Some(chest_props.facing.rotate_counter_clockwise()),
     };
 
-    // Vanilla uses the first half (`ChestType::Right`) for the menu title, so opening
-    // the left half also shows the right half's custom name.
-    let first_half_name = if matches!(chest_props.r#type, ChestType::Right | ChestType::Single) {
-        first_chest.clone()
-    } else {
-        connected_towards.and_then(|direction| {
-            args.world
-                .get_block_entity(&args.position.offset(direction.to_offset()))
-        })
-    }
-    .and_then(|entity| entity.get_custom_name());
+    // Vanilla titles from the RIGHT half, then the LEFT half. Resolve both entities so a
+    // custom name on either half wins regardless of which half the player clicked.
+    let neighbor_entity = connected_towards.and_then(|direction| {
+        args.world
+            .get_block_entity(&args.position.offset(direction.to_offset()))
+    });
+    let (first_half, second_half) = match chest_props.r#type {
+        ChestType::Left => (neighbor_entity, first_chest.clone()),
+        _ => (first_chest.clone(), neighbor_entity),
+    };
+    let name = first_half
+        .and_then(|entity| entity.get_custom_name())
+        .or_else(|| second_half.and_then(|entity| entity.get_custom_name()));
 
     // Unpack deferred loot table on first open (non-spectator only).
     if !player_is_spectator && let Some(ref entity) = first_chest {
@@ -539,7 +555,8 @@ fn get_chest_screen_handler_factory(
     Some(Box::new(ChestScreenFactory {
         inventory,
         loot_pending,
-        name: first_half_name,
+        name,
+        double_chest: connected_towards.is_some(),
     }))
 }
 
@@ -1122,6 +1139,31 @@ mod tests {
     use pumpkin_inventory::Inventory;
     use pumpkin_util::math::position::BlockPos;
     use std::sync::Arc;
+
+    #[test]
+    fn chest_menu_title_matches_vanilla() {
+        use super::chest_display_name;
+        use pumpkin_util::text::{TextComponent, TextContent};
+
+        fn key(component: &TextComponent) -> &str {
+            match &*component.0.content {
+                TextContent::Translate { translate, .. } => translate.as_ref(),
+                _ => "",
+            }
+        }
+
+        assert_eq!(key(&chest_display_name(None, false)), "container.chest");
+        assert_eq!(
+            key(&chest_display_name(None, true)),
+            "container.chestDouble"
+        );
+
+        let custom = TextComponent::from_content(TextContent::Text {
+            text: "Named".into(),
+        });
+        assert_eq!(chest_display_name(Some(&custom), false), custom);
+        assert_eq!(chest_display_name(Some(&custom), true), custom);
+    }
 
     #[test]
     fn failed_double_chest_reservation_releases_the_first_half() {

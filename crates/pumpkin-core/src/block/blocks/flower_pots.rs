@@ -1,3 +1,4 @@
+use crate::block::blocks::plant::eyeblossom::spawn_transform_particle;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, NormalUseArgs, PathComputationType, RandomTickArgs, UseWithItemArgs,
@@ -108,6 +109,15 @@ impl BlockBehaviour for FlowerPotBlock {
                 next_block.default_state.id,
                 BlockFlags::NOTIFY_ALL,
             );
+            // Vanilla FlowerPotBlock#randomTick spawns the same trail particle as the
+            // ground form, colored for the type the flower turned into.
+            let particle_block = if should_be_open {
+                &Block::OPEN_EYEBLOSSOM
+            } else {
+                &Block::CLOSED_EYEBLOSSOM
+            };
+            let mut rng = rand::rng();
+            spawn_transform_particle(args.world, particle_block, args.position, &mut rng);
             args.world.play_sound_fine(
                 sound,
                 SoundCategory::Blocks,

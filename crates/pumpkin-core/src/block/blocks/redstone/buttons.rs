@@ -10,6 +10,7 @@ use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_macros::pumpkin_block_from_tag;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
@@ -23,10 +24,12 @@ use crate::block::{
     GetStateForNeighborUpdateArgs, NormalUseArgs, OnEntityCollisionArgs, OnPlaceArgs,
     OnScheduledTickArgs, OnStateReplacedArgs,
 };
+use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::entity::projectile::abstract_arrow::is_abstract_arrow;
 use crate::plugin::block::block_redstone::BlockRedstoneEvent;
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
 
 /// Ticks a button stays pressed after the last arrow or press, as in vanilla.
 fn press_duration(block: &Block) -> u32 {
@@ -56,7 +59,12 @@ pub struct ButtonBlock;
 
 impl BlockBehaviour for ButtonBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        if Self::press(Some(args.player), args.world, args.position) {
+        if Self::press_with_source(
+            Some(args.player),
+            Some(args.player.as_ref() as &dyn EntityBase),
+            args.world,
+            args.position,
+        ) {
             BlockActionResult::Success
         } else {
             BlockActionResult::Consume
@@ -77,7 +85,7 @@ impl BlockBehaviour for ButtonBlock {
         if !is_stone_button(args.block) {
             let entity_type = args.entity.get_entity().entity_type;
             if is_abstract_arrow(entity_type) {
-                Self::press(None, args.world, args.position);
+                Self::press_with_source(None, Some(args.entity), args.world, args.position);
             }
         }
     }
@@ -89,11 +97,34 @@ impl BlockBehaviour for ButtonBlock {
             let stay_pressed = if is_stone_button(args.block) {
                 false
             } else {
-                let aabb = BoundingBox::from_block(args.position);
-                args.world
-                    .get_entities_at_box(&aabb)
-                    .iter()
-                    .any(|e| is_abstract_arrow(e.get_entity().entity_type))
+                // Vanilla `checkPressed` searches `state.getShape(level, pos).bounds().move(pos)`,
+                // the thin button shape, not the whole block cube. Union every outline box to
+                // reproduce `VoxelShape.bounds()`.
+                let mut detection_box: Option<BoundingBox> = None;
+                for shape in state.get_block_outline_shapes_at(args.position) {
+                    let shape = shape.at_pos(*args.position);
+                    detection_box = Some(match detection_box {
+                        None => shape,
+                        Some(current) => BoundingBox::new(
+                            Vector3::new(
+                                current.min.x.min(shape.min.x),
+                                current.min.y.min(shape.min.y),
+                                current.min.z.min(shape.min.z),
+                            ),
+                            Vector3::new(
+                                current.max.x.max(shape.max.x),
+                                current.max.y.max(shape.max.y),
+                                current.max.z.max(shape.max.z),
+                            ),
+                        ),
+                    });
+                }
+                detection_box.is_some_and(|aabb| {
+                    args.world
+                        .get_entities_at_box(&aabb)
+                        .iter()
+                        .any(|e| is_abstract_arrow(e.get_entity().entity_type))
+                })
             };
 
             if stay_pressed {
@@ -206,6 +237,17 @@ impl ButtonBlock {
     /// pressed, so callers can tell the two cases apart the way vanilla's
     /// `ButtonBlock::useWithoutItem` does.
     pub(crate) fn press(player: Option<&Player>, world: &Arc<World>, block_pos: &BlockPos) -> bool {
+        Self::press_with_source(player, None, world, block_pos)
+    }
+
+    /// As `press`, but records the causing entity as the game-event source: the
+    /// player for a hand press, the arrow for a wooden-button trigger.
+    fn press_with_source(
+        player: Option<&Player>,
+        source: Option<&dyn EntityBase>,
+        world: &Arc<World>,
+        block_pos: &BlockPos,
+    ) -> bool {
         let (block, state) = world.get_block_and_state_id(block_pos);
 
         let mut button_props = ButtonLikeProperties::from_state_id(state);
@@ -226,13 +268,15 @@ impl ButtonBlock {
             button_props.to_state_id(block),
             BlockFlags::NOTIFY_ALL,
         );
+        // Vanilla `press` order: setBlockAndUpdate, updateNeighbours, scheduleTick,
+        // sound, game event.
+        Self::update_neighbors(world, block_pos, button_props);
         world.schedule_block_tick(
             block,
             *block_pos,
             press_duration(block),
             TickPriority::Normal,
         );
-        Self::update_neighbors(world, block_pos, button_props);
         match player {
             // The client predicts the press sound, so exclude the pressing player.
             Some(player) => world.play_block_sound_expect(
@@ -245,7 +289,13 @@ impl ButtonBlock {
                 world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
             }
         }
-        world.emit_game_event(GameEvent::BlockActivate.name(), block_pos.to_centered_f64());
+        world.emit_game_event_with_context(
+            GameEvent::BlockActivate.name(),
+            block_pos.to_centered_f64(),
+            &GameEventContext {
+                source_entity: source,
+            },
+        );
 
         true
     }

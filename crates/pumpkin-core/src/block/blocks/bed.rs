@@ -547,6 +547,30 @@ pub fn sleep_height(state: &BlockState) -> Option<f64> {
         .reduce(f64::max)
 }
 
+/// The position whose collision shape determines `getSleepHeight`. Vanilla
+/// `StrawBedBlock#getSleepHeight` redirects the head half to the connected foot
+/// (the straw surface), whose shape is lower than the head's pillow shape.
+fn sleep_shape_pos(head_pos: BlockPos, state: &BlockState) -> BlockPos {
+    if state.id.to_block() == &Block::STRAW_BED {
+        let props = BedProperties::from_state_id(state.id);
+        if props.part == BedPart::Head {
+            return head_pos.offset(props.facing.opposite().to_offset());
+        }
+    }
+    head_pos
+}
+
+/// Sleep height for the head position a player lies on, matching vanilla
+/// `AbstractBedBlock#getSleepHeight` including the straw bed override.
+pub fn player_sleep_height(world: &Arc<World>, head_pos: BlockPos, head_state: &BlockState) -> f64 {
+    if head_state.id.to_block() == &Block::STRAW_BED {
+        let shape_pos = sleep_shape_pos(head_pos, head_state);
+        sleep_height(world.get_block_state(&shape_pos)).unwrap_or(0.0)
+    } else {
+        sleep_height(head_state).unwrap_or(0.0)
+    }
+}
+
 fn is_bunk_bed(world: &World, pos: &BlockPos) -> bool {
     world
         .get_block(&pos.down())
@@ -607,6 +631,31 @@ mod tests {
         // Vanilla bed shape tops out at 9/16; setPosToBed then adds 0.125 (= 0.6875).
         let height = sleep_height(&Block::WHITE_BED.states[0]).map(|h| h + SLEEP_HEIGHT_OFFSET);
         assert_eq!(height, Some(0.6875));
+    }
+
+    #[test]
+    fn straw_bed_sleep_shape_is_the_lower_foot_surface() {
+        use pumpkin_data::block_properties::HorizontalFacing;
+
+        // Vanilla StrawBedBlock#getSleepHeight redirects the head to the foot's
+        // shape (4/16 = 0.25) instead of the head's pillow shape (5/16 = 0.3125).
+        let mut props = BedProperties::default(&Block::STRAW_BED);
+        props.part = BedPart::Head;
+        props.facing = HorizontalFacing::North;
+        let head_state = props.to_state_id(&Block::STRAW_BED).to_state();
+        assert_eq!(sleep_height(head_state), Some(0.3125));
+
+        let head_pos = BlockPos(Vector3::new(5, 64, 5));
+        let foot_pos = sleep_shape_pos(head_pos, head_state);
+        assert_eq!(
+            foot_pos,
+            head_pos.offset(props.facing.opposite().to_offset())
+        );
+
+        props.part = BedPart::Foot;
+        let foot_state = props.to_state_id(&Block::STRAW_BED).to_state();
+        assert_eq!(sleep_height(foot_state), Some(0.25));
+        assert!(sleep_height(foot_state) < sleep_height(head_state));
     }
 
     #[test]

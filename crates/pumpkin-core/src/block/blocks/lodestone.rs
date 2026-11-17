@@ -1,25 +1,11 @@
-use pumpkin_data::poi_type::PoiType;
 use pumpkin_macros::pumpkin_block;
 
-use crate::block::{BlockBehaviour, OnStateReplacedArgs, PlacedArgs};
+use crate::block::BlockBehaviour;
 
 #[pumpkin_block("minecraft:lodestone")]
 pub struct LodestoneBlock;
 
-impl BlockBehaviour for LodestoneBlock {
-    fn placed(&self, args: PlacedArgs<'_>) {
-        args.world
-            .portal_poi
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .add_poi(*args.position, PoiType::Lodestone);
-    }
-
-    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        args.world
-            .portal_poi
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove(args.position);
-    }
-}
+// Vanilla registers lodestone as a plain Block with no overrides. POI add/remove is derived
+// generically from block state ids by World::update_poi (state 25187 maps to PoiType::Lodestone),
+// so the block needs no hooks of its own.
+impl BlockBehaviour for LodestoneBlock {}

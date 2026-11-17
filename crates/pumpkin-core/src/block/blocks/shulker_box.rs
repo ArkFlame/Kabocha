@@ -105,24 +105,22 @@ impl BlockBehaviour for ShulkerBoxBlock {
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
-        // The client plays the lid animation; the server only tracks its state so that
-        // an OPENING event is dropped while the lid is closing (vanilla `triggerEvent`).
+        // Vanilla `ShulkerBoxBlockEntity.triggerEvent` updates the server-side status
+        // and always returns true so the event reaches the client for the lid animation.
         if args.r#type != Self::OPEN_ANIMATION_EVENT_TYPE {
             return false;
         }
-        let Some(block_entity) = args.world.get_block_entity(args.position) else {
-            return true;
-        };
-        let Some(shulker) = block_entity
-            .as_any()
-            .downcast_ref::<ShulkerBoxBlockEntity>()
-        else {
-            return true;
-        };
-        shulker
-            .animation
-            .lock()
-            .map_or(true, |mut animation| animation.on_open_count(args.data))
+        if let Some(block_entity) = args.world.get_block_entity(args.position) {
+            if let Some(shulker) = block_entity
+                .as_any()
+                .downcast_ref::<ShulkerBoxBlockEntity>()
+            {
+                if let Ok(mut animation) = shulker.animation.lock() {
+                    animation.on_open_count(args.data);
+                }
+            }
+        }
+        true
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
@@ -133,9 +131,9 @@ impl BlockBehaviour for ShulkerBoxBlock {
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        // Vanilla `ShulkerBoxBlock.canOpen`: a box whose lid is already fully open
-        // is left alone, otherwise a collidable block in the lid sweep blocks it.
-        let fully_open = args
+        // Vanilla `ShulkerBoxBlock.canOpen`: any non-CLOSED lid status opens directly;
+        // only a CLOSED box checks the lid sweep space for collisions.
+        let not_closed = args
             .world
             .get_block_entity(args.position)
             .is_some_and(|block_entity| {
@@ -143,17 +141,15 @@ impl BlockBehaviour for ShulkerBoxBlock {
                     .as_any()
                     .downcast_ref::<ShulkerBoxBlockEntity>()
                     .and_then(|shulker| shulker.animation.lock().ok())
-                    .is_some_and(|animation| animation.is_fully_open())
+                    .is_some_and(|animation| !animation.is_closed())
             });
-        if fully_open {
-            return BlockActionResult::Success;
-        }
         let facing =
             EndRodLikeProperties::from_state_id(args.world.get_block_state_id(args.position))
                 .facing;
-        if !args
-            .world
-            .is_space_empty(lid_open_box(args.position, facing))
+        if !not_closed
+            && !args
+                .world
+                .is_space_empty(lid_open_box(args.position, facing))
         {
             return BlockActionResult::Success;
         }

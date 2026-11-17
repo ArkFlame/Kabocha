@@ -123,11 +123,16 @@ impl DaylightDetectorBlock {
                 return;
             }
             let power = event.new_current.clamp(0, 15) as u8;
-            if power != props.power {
-                props.power = power;
-                let new_state = props.to_state_id(block);
-                world.set_block_state(block_pos, new_state, BlockFlags::NOTIFY_ALL);
-            }
+            props.power = power;
+            let new_state = props.to_state_id(block);
+            // Vanilla always calls setBlockAndUpdate after the event (flags NEIGHBORS|CLIENTS),
+            // even when a plugin sets the current back to the old power. FORCE_STATE keeps that
+            // same-state write observable so neighbours still receive the update as in vanilla.
+            world.set_block_state(
+                block_pos,
+                new_state,
+                BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
+            );
         }
     }
 }

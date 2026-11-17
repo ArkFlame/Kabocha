@@ -3,12 +3,14 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
+use pumpkin_data::data_component_impl::{CustomNameImpl, DataComponentImpl};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::text::TextComponent;
 
 use super::BlockEntity;
 
-// todo: CustomName, LastExecution, UpdateLastExecution
+// todo: LastExecution, UpdateLastExecution
 pub struct CommandBlockEntity {
     pub position: BlockPos,
     pub powered: AtomicBool,
@@ -16,6 +18,7 @@ pub struct CommandBlockEntity {
     pub auto: AtomicBool,
     pub dirty: AtomicBool,
     pub command: StdMutex<String>,
+    pub custom_name: StdMutex<Option<TextComponent>>,
     pub last_output: StdMutex<String>,
     pub track_output: AtomicBool,
     pub success_count: AtomicU32,
@@ -32,6 +35,7 @@ impl CommandBlockEntity {
             auto: AtomicBool::new(is_chain),
             dirty: AtomicBool::new(false),
             command: StdMutex::new(String::new()),
+            custom_name: StdMutex::new(None),
             last_output: StdMutex::new(String::new()),
             track_output: AtomicBool::new(track_output),
             success_count: AtomicU32::new(0),
@@ -47,6 +51,15 @@ impl CommandBlockEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .to_string(),
         );
+        if let Some(name) = self
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            // Vanilla BaseCommandBlock saves CustomName via ComponentSerialization.CODEC.
+            nbt.put("CustomName", CustomNameImpl { name }.write_data());
+        }
         nbt.put_bool("conditionMet", self.condition_met.load(Ordering::SeqCst));
         nbt.put_string(
             "LastOutput",
@@ -81,6 +94,10 @@ impl BlockEntity for CommandBlockEntity {
         let auto = AtomicBool::new(nbt.get_bool("auto").unwrap_or(false));
         let powered = AtomicBool::new(nbt.get_bool("powered").unwrap_or(false));
         let command = StdMutex::new(nbt.get_string("Command").unwrap_or("").to_string());
+        let custom_name = nbt
+            .get("CustomName")
+            .and_then(CustomNameImpl::read_data)
+            .map(|c| c.name);
         let track_output_val = nbt.get_bool("TrackOutput").unwrap_or(true);
         let last_output_str = if track_output_val {
             nbt.get_string("LastOutput").unwrap_or("").to_string()
@@ -98,6 +115,7 @@ impl BlockEntity for CommandBlockEntity {
             auto,
             powered,
             command,
+            custom_name: StdMutex::new(custom_name),
             last_output,
             track_output,
             success_count,
@@ -132,10 +150,16 @@ impl BlockEntity for CommandBlockEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
+        let custom_name = self
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .map(TextComponent::get_text);
         Some(build_command_block_actor(
             self.position,
             &command,
-            None,
+            custom_name.as_deref(),
             self.auto.load(Ordering::Relaxed),
             self.condition_met.load(Ordering::Relaxed),
             conditional,
@@ -228,5 +252,27 @@ mod tests {
         assert_eq!(nbt.get_bool("powered"), Some(false));
         assert_eq!(nbt.get_int("SuccessCount"), Some(1));
         assert_eq!(nbt.get_bool("isMovable"), Some(false));
+    }
+
+    #[test]
+    fn command_block_custom_name_nbt_round_trip() {
+        let pos = BlockPos::new(6, 64, 6);
+        let entity = CommandBlockEntity::new(pos, true, false);
+        *entity
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(TextComponent::text("Cmd"));
+
+        let mut nbt = NbtCompound::new();
+        entity.write_sync_nbt(&mut nbt);
+        assert!(nbt.get("CustomName").is_some());
+
+        let restored = CommandBlockEntity::from_nbt(&nbt, pos);
+        let name = restored
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        assert_eq!(name.map(TextComponent::get_text), Some("Cmd".to_string()));
     }
 }

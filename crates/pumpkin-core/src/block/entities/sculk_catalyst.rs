@@ -29,7 +29,6 @@ const BLOOM_PITCH_RANGE: f32 = 0.4;
 
 pub struct SculkCatalystBlockEntity {
     pub position: BlockPos,
-    pub decay_delay: Mutex<i32>,
     spreader: Mutex<SculkSpreader>,
     bloomed: AtomicBool,
 }
@@ -43,17 +42,11 @@ impl BlockEntity for SculkCatalystBlockEntity {
         self.position
     }
 
-    fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
+    fn from_nbt(_nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
     where
         Self: Sized,
     {
-        let decay_delay = nbt.get_int("decay_delay").unwrap_or(0);
-        let entity = Self::new(position);
-        *entity
-            .decay_delay
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = decay_delay;
-        entity
+        Self::new(position)
     }
 
     fn tick(&self, world: &std::sync::Arc<World>) {
@@ -68,16 +61,10 @@ impl BlockEntity for SculkCatalystBlockEntity {
         spreader.update_cursors(&mut level, self.position, &mut random, true);
     }
 
-    fn write_nbt(&self, nbt: &mut NbtCompound) {
-        if let Ok(decay_delay) = self.decay_delay.lock() {
-            nbt.put_int("decay_delay", *decay_delay);
-        }
-    }
+    fn write_nbt(&self, _nbt: &mut NbtCompound) {}
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
-        let mut nbt = NbtCompound::new();
-        nbt.put_int("decay_delay", *self.decay_delay.try_lock().ok()?);
-        Some(nbt)
+        None
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -91,7 +78,6 @@ impl SculkCatalystBlockEntity {
     pub const fn new(position: BlockPos) -> Self {
         Self {
             position,
-            decay_delay: Mutex::new(0),
             spreader: Mutex::new(SculkSpreader::new_level_spreader()),
             bloomed: AtomicBool::new(false),
         }
@@ -138,13 +124,18 @@ impl SculkCatalystBlockEntity {
     }
 }
 
+/// Strict-radius test matching vanilla `Vec3.closerThan`: a death exactly on
+/// the 8-block boundary is not heard by the catalyst.
+fn within_hearing_radius(dx: i32, dy: i32, dz: i32) -> bool {
+    dx * dx + dy * dy + dz * dz < HEARING_RADIUS * HEARING_RADIUS
+}
+
 /// Feeds the death of an entity at `death_pos` into every sculk catalyst
 /// within hearing range, matching vanilla's game-event dispatch.
 pub fn on_entity_death(world: &std::sync::Arc<World>, death_pos: BlockPos, charge: i32) {
     if charge <= 0 {
         return;
     }
-    let radius_sq = HEARING_RADIUS * HEARING_RADIUS;
     let mut catalysts: Vec<BlockPos> = Vec::new();
     // A catalyst within 8 blocks lies in one of the 3x3 chunks around the
     // death position; iterating those block-entity maps is far cheaper than
@@ -167,7 +158,7 @@ pub fn on_entity_death(world: &std::sync::Arc<World>, death_pos: BlockPos, charg
                     continue;
                 }
                 let offset = pos.0 - death_pos.0;
-                if offset.x * offset.x + offset.y * offset.y + offset.z * offset.z <= radius_sq {
+                if within_hearing_radius(offset.x, offset.y, offset.z) {
                     catalysts.push(*pos);
                 }
             }
@@ -218,5 +209,18 @@ impl SculkLevel for WorldSculkLevel {
 
     fn sculk_is_full_cube(&self, pos: BlockPos) -> bool {
         self.0.get_block_state(&pos).is_full_cube()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::within_hearing_radius;
+
+    #[test]
+    fn catalyst_hearing_is_strict_at_boundary() {
+        assert!(within_hearing_radius(7, 0, 0));
+        assert!(!within_hearing_radius(8, 0, 0));
+        assert!(within_hearing_radius(4, 4, 4));
+        assert!(!within_hearing_radius(5, 5, 5));
     }
 }

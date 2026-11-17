@@ -224,18 +224,15 @@ impl AnimationState {
     /// Progress added or removed per tick (vanilla `updateAnimation`).
     pub const STEP: f32 = 0.1;
 
-    /// Applies the open-count block event (`data` = viewer count). Returns false when
-    /// the event is dropped: vanilla ignores an OPENING event while the lid is closing.
-    pub fn on_open_count(&mut self, open_count: u8) -> bool {
-        if open_count == 0 {
-            self.status = AnimationStatus::Closing;
-            return true;
+    /// Applies the open-count block event (`data` = viewer count), mirroring vanilla
+    /// `ShulkerBoxBlockEntity.triggerEvent`: 0 closes, 1 opens and any higher viewer
+    /// count leaves the status unchanged. Vanilla never drops the event.
+    pub fn on_open_count(&mut self, open_count: u8) {
+        match open_count {
+            0 => self.status = AnimationStatus::Closing,
+            1 => self.status = AnimationStatus::Opening,
+            _ => {}
         }
-        if self.status == AnimationStatus::Closing {
-            return false;
-        }
-        self.status = AnimationStatus::Opening;
-        true
     }
 
     /// Advances the lid by one tick.
@@ -261,6 +258,12 @@ impl AnimationState {
     #[must_use]
     pub fn is_fully_open(&self) -> bool {
         self.progress >= 1.0
+    }
+
+    /// True while the lid is fully closed (vanilla `getAnimationStatus() == CLOSED`).
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.status == AnimationStatus::Closed
     }
 }
 
@@ -423,13 +426,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn opening_event_is_dropped_while_closing() {
+    fn opening_event_reverses_closing_and_extra_viewers_keep_status() {
         let mut state = AnimationState::default();
-        assert!(state.on_open_count(1));
+        assert!(state.is_closed());
+        state.on_open_count(1);
         assert_eq!(state.status, AnimationStatus::Opening);
-        assert!(state.on_open_count(0));
-        assert!(!state.on_open_count(1));
+        assert!(!state.is_closed());
+        state.on_open_count(0);
         assert_eq!(state.status, AnimationStatus::Closing);
+        // Vanilla sets OPENING even while closing and ignores counts above 1.
+        state.on_open_count(1);
+        assert_eq!(state.status, AnimationStatus::Opening);
+        state.on_open_count(2);
+        assert_eq!(state.status, AnimationStatus::Opening);
     }
 
     #[test]

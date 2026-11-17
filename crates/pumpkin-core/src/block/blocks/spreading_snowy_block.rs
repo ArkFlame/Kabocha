@@ -146,9 +146,9 @@ impl SpreadingSnowyBlock {
                     continue;
                 }
                 if world.get_block(&test_pos) == base_block {
-                    // Vanilla checks the target block state, not the new block state.
-                    let target_state = world.get_block_state(&test_pos);
-                    if !Self::can_propagate(target_state, world, &test_pos) {
+                    // Vanilla passes the new block's default state to canPropagate, not
+                    // the target state being overwritten.
+                    if !Self::can_propagate(default_block_state, world, &test_pos) {
                         continue;
                     }
                     let above_test = test_pos.up();
@@ -230,5 +230,50 @@ impl BlockBehaviour for MyceliumBlock {
             &Block::DIRT,
             Block::MYCELIUM.default_state,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::block_properties::SnowLikeProperties;
+    use pumpkin_data::{Block, BlockState};
+
+    use super::SpreadingSnowyBlock;
+
+    fn snow_state(layers: u8) -> &'static BlockState {
+        BlockState::from_id(SnowLikeProperties { r#layers: layers }.to_state_id(&Block::SNOW))
+    }
+
+    #[test]
+    fn snow_layer_one_survives_full_fluid() {
+        // Vanilla SnowLayerBlock.LAYERS == 1 short-circuits canStayAlive.
+        assert!(SpreadingSnowyBlock::can_stay_alive_with_above(
+            Block::GRASS_BLOCK.default_state,
+            snow_state(1),
+            true,
+        ));
+    }
+
+    #[test]
+    fn full_fluid_kills_under_other_cover() {
+        assert!(!SpreadingSnowyBlock::can_stay_alive_with_above(
+            Block::GRASS_BLOCK.default_state,
+            snow_state(2),
+            true,
+        ));
+        assert!(!SpreadingSnowyBlock::can_stay_alive_with_above(
+            Block::GRASS_BLOCK.default_state,
+            Block::WATER.default_state,
+            true,
+        ));
+    }
+
+    #[test]
+    fn clear_air_above_survives() {
+        assert!(SpreadingSnowyBlock::can_stay_alive_with_above(
+            Block::GRASS_BLOCK.default_state,
+            Block::AIR.default_state,
+            false,
+        ));
     }
 }

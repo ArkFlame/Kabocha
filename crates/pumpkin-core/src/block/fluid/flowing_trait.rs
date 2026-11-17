@@ -142,12 +142,10 @@ pub trait FlowingFluid: Send + Sync {
     ) {
         let below_pos = block_pos.down();
         let below_block = world.get_block(&below_pos);
-        // Vanilla lava may fall into water, where its `spread_to` turns the water into
-        // stone. Other fluids never enter another fluid block: water flowing onto lava
-        // leaves the lava to its own obsidian/cobblestone conversion.
-        let is_hole = physics::can_hold_fluid(below_block)
-            || (below_block == &Block::WATER
-                && (fluid.id == Fluid::LAVA.id || fluid.id == Fluid::FLOWING_LAVA.id));
+        // Water is in `#minecraft:washed_away_by_fluids`, so `can_hold_fluid` already
+        // treats it as a hole for lava; lava's `spread_to` then turns that water to
+        // stone rather than replacing the block. No fluid-specific clause is needed.
+        let is_hole = physics::can_hold_fluid(below_block);
 
         // Try to flow down first
         if is_hole {

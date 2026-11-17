@@ -34,14 +34,21 @@ impl FireBlock {
         30 + rand::rng().random_range(0..10)
     }
 
-    fn is_flammable(id: BlockStateId) -> bool {
-        let block = id.to_block();
-
-        if block.is_waterlogged(id) {
-            return false;
+    // Vanilla canBurn()/getIgniteOdds() use the registry spread chance and
+    // return 0 for waterlogged states (not the burn odds).
+    fn get_ignite_odds(state_id: BlockStateId) -> i32 {
+        let block = state_id.to_block();
+        if block.is_waterlogged(state_id) {
+            return 0;
         }
+        block
+            .flammable
+            .as_ref()
+            .map_or(0, |f| i32::from(f.spread_chance))
+    }
 
-        block.flammable.as_ref().is_some_and(|f| f.burn_chance > 0)
+    fn is_flammable(id: BlockStateId) -> bool {
+        Self::get_ignite_odds(id) > 0
     }
 
     fn are_blocks_around_flammable(block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
@@ -93,13 +100,12 @@ impl FireBlock {
         let mut total_burn_chance = 0;
 
         for dir in BlockDirection::all() {
-            let neighbor_block = world.get_block(&pos.offset(dir.to_offset()));
-            if *world.get_fluid(&pos.offset(dir.to_offset())) != Fluid::EMPTY {
+            let neighbor_pos = pos.offset(dir.to_offset());
+            if *world.get_fluid(&neighbor_pos) != Fluid::EMPTY {
                 continue; // Skip if there is a fluid
             }
-            if let Some(flammable) = &neighbor_block.flammable {
-                total_burn_chance = total_burn_chance.max(i32::from(flammable.spread_chance));
-            }
+            let neighbor_state_id = world.get_block_state_id(&neighbor_pos);
+            total_burn_chance = total_burn_chance.max(Self::get_ignite_odds(neighbor_state_id));
         }
 
         total_burn_chance
@@ -416,9 +422,11 @@ impl BlockBehaviour for FireBlock {
                                 odds /= 2; // Fire spreads 50% slower
                             }
 
+                            // Vanilla's spread loop gates on isNearRain (5 columns),
+                            // not the single-column isRainingAt used by checkBurnOut.
                             if odds > 0
                                 && rand::rng().random_range(0..rate) <= odds
-                                && !world.is_raining_at(&offset_pos)
+                                && !Self::is_near_rain(world.as_ref(), &offset_pos)
                             {
                                 let spread_age =
                                     (age + rand::rng().random_range(0..5) / 4).min(15) as u8;
@@ -459,6 +467,24 @@ impl BlockBehaviour for FireBlock {
     fn broken(&self, args: BrokenArgs<'_>) {
         {
             FireBlockBase::broken(args.world, *args.position);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FireBlock;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn waterlogged_flammable_has_zero_ignite_odds() {
+        assert!(Block::OAK_SLAB.is_waterloggable());
+        let dry = Block::OAK_SLAB.default_state.id;
+        let wet = Block::OAK_SLAB.set_waterlogged(dry, true);
+        assert!(wet.is_some());
+        if let Some(wet) = wet {
+            assert!(FireBlock::get_ignite_odds(dry) > 0);
+            assert_eq!(FireBlock::get_ignite_odds(wet), 0);
         }
     }
 }

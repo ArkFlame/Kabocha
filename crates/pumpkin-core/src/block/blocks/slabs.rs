@@ -56,8 +56,10 @@ impl BlockBehaviour for SlabBlock {
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
         let slab_props = SlabProperties::from_state_id(args.state_id);
 
+        // args.direction points from the new block toward its support, the opposite of
+        // vanilla getClickedFace; flip it so the slab face test uses the raw clicked face.
         slab_props.r#type
-            == match args.direction {
+            == match args.direction.opposite() {
                 BlockDirection::Up => SlabType::Bottom,
                 BlockDirection::Down => SlabType::Top,
                 _ => match args.use_item_on.cursor_pos.y {

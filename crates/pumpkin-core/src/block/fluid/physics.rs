@@ -45,4 +45,11 @@ mod tests {
         assert!(can_hold_fluid(&Block::FIRE));
         assert!(!can_hold_fluid(&Block::STONE));
     }
+
+    #[test]
+    fn water_is_washed_away_so_lava_needs_no_special_hole_case() {
+        // Water is in #minecraft:washed_away_by_fluids and is not a liquid container,
+        // so `can_hold_fluid` already reports it as a hole for every fluid, lava included.
+        assert!(can_hold_fluid(&Block::WATER));
+    }
 }

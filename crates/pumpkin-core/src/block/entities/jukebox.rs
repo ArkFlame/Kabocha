@@ -89,12 +89,14 @@ impl BlockEntity for JukeboxBlockEntity {
             nbt.put(RECORD_ITEM_NBT_KEY, record_nbt);
         }
 
-        // Vanilla `JukeboxBlockEntity.saveAdditional` writes the playback position
-        // unconditionally, even for a stopped or empty jukebox.
-        nbt.put_long(
-            TICKS_SINCE_SONG_STARTED_NBT_KEY,
-            self.ticks_since_song_started.load(Ordering::Relaxed) as i64,
-        );
+        // Vanilla `JukeboxBlockEntity.saveAdditional` writes the playback position only while a
+        // song is playing (`JukeboxSongPlayer.song != null`); a stopped jukebox omits the key.
+        if self.song_length_ticks.load(Ordering::Relaxed) > 0 {
+            nbt.put_long(
+                TICKS_SINCE_SONG_STARTED_NBT_KEY,
+                self.ticks_since_song_started.load(Ordering::Relaxed) as i64,
+            );
+        }
     }
 
     fn tick(&self, world: &Arc<World>) {
@@ -504,19 +506,41 @@ mod tests {
     }
 
     #[test]
-    fn write_nbt_writes_ticks_since_song_started_when_stopped() {
-        // Vanilla always writes the key; a stopped jukebox must round-trip as 0, not be absent.
+    fn write_nbt_omits_ticks_since_song_started_when_stopped() {
+        // Vanilla omits the key while no song plays; writing 0 would restart playback on load.
         let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        let mut nbt = NbtCompound::new();
+        jukebox.write_nbt(&mut nbt);
+        assert_eq!(nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), None);
+    }
+
+    #[test]
+    fn write_nbt_writes_ticks_since_song_started_while_playing() {
+        let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        jukebox.start_playing(100);
+        jukebox.ticks_since_song_started.store(7, Ordering::Relaxed);
+        let mut nbt = NbtCompound::new();
+        jukebox.write_nbt(&mut nbt);
+        assert_eq!(nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(7));
+    }
+
+    #[test]
+    fn write_nbt_keeps_zero_ticks_while_song_is_loaded() {
+        // Vanilla `saveAdditional` gates on `song != null`, not on the tick value: a song
+        // resumed from NBT at tick 0 must keep the key so it continues after another reload.
+        let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        jukebox.start_playing(100);
         let mut nbt = NbtCompound::new();
         jukebox.write_nbt(&mut nbt);
         assert_eq!(nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(0));
     }
 
     #[test]
-    fn chunk_data_nbt_carries_the_same_ticks_key_as_write_nbt() {
+    fn chunk_data_nbt_omits_ticks_when_stopped() {
         let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
-        let chunk = jukebox.chunk_data_nbt().expect("jukebox chunk data");
-        assert_eq!(chunk.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(0));
+        if let Some(chunk) = jukebox.chunk_data_nbt() {
+            assert_eq!(chunk.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), None);
+        }
     }
 
     #[tokio::test]

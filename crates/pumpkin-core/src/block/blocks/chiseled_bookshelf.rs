@@ -46,26 +46,33 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
         let state = args.world.get_block_state(args.position);
         let properties = ChiseledBookshelfLikeProperties::from_state_id(state.id);
 
-        if let Some(slot) = args
+        let Some(slot) = args
             .hit
             .get_hit_slot(properties.facing, Self::ROWS, Self::COLUMNS)
-            && Self::is_slot_used(properties, slot)
-            && let Some(block_entity) = args.world.get_block_entity(args.position)
-            && let Some(block_entity) = block_entity
-                .as_any()
-                .downcast_ref::<ChiseledBookshelfBlockEntity>()
-        {
-            Self::try_remove_book(
-                args.world,
-                args.player,
-                args.position,
-                block_entity,
-                properties,
-                slot,
-            );
+        else {
+            return BlockActionResult::Pass;
+        };
+        // Vanilla reads occupancy from the block-entity stack; the blockstate slot
+        // flags are only render hints and can disagree after /setblock.
+        let Some(block_entity) = args.world.get_block_entity(args.position) else {
+            return BlockActionResult::Pass;
+        };
+        let Some(block_entity) = block_entity
+            .as_any()
+            .downcast_ref::<ChiseledBookshelfBlockEntity>()
+        else {
+            return BlockActionResult::Pass;
+        };
+        if Self::try_remove_book(
+            args.world,
+            args.player,
+            args.position,
+            block_entity,
+            properties,
+            slot,
+        ) {
             return BlockActionResult::Success;
         }
-        // Empty slot: vanilla `useWithoutItem` returns PASS, not CONSUME.
         BlockActionResult::Pass
     }
 
@@ -73,38 +80,46 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
         let state = args.world.get_block_state(args.position);
         let properties = ChiseledBookshelfLikeProperties::from_state_id(state.id);
 
+        let Some(slot) = args
+            .hit
+            .get_hit_slot(properties.facing, Self::ROWS, Self::COLUMNS)
+        else {
+            return BlockActionResult::Pass;
+        };
+        let Some(block_entity) = args.world.get_block_entity(args.position) else {
+            return BlockActionResult::Pass;
+        };
+        let Some(block_entity) = block_entity
+            .as_any()
+            .downcast_ref::<ChiseledBookshelfBlockEntity>()
+        else {
+            return BlockActionResult::Pass;
+        };
+
+        // Vanilla resolves the hit slot before checking the held item and returns
+        // TRY_WITH_EMPTY_HAND for an occupied slot regardless of the item, which
+        // Pumpkin models as falling through to `normal_use`.
+        if block_entity.has_book(slot) {
+            return BlockActionResult::PassToDefaultBlockAction;
+        }
         if !args
             .item_stack
             .get_item()
             .has_tag(&tag::Item::MINECRAFT_BOOKSHELF_BOOKS)
         {
-            return BlockActionResult::PassToDefaultBlockAction;
-        }
-        if let Some(slot) = args
-            .hit
-            .get_hit_slot(properties.facing, Self::ROWS, Self::COLUMNS)
-        {
-            if Self::is_slot_used(properties, slot) {
-                return BlockActionResult::PassToDefaultBlockAction;
-            } else if let Some(block_entity) = args.world.get_block_entity(args.position)
-                && let Some(block_entity) = block_entity
-                    .as_any()
-                    .downcast_ref::<ChiseledBookshelfBlockEntity>()
-            {
-                Self::try_add_book(
-                    args.world,
-                    args.player,
-                    args.position,
-                    block_entity,
-                    properties,
-                    slot,
-                    args.item_stack,
-                );
-                return BlockActionResult::Success;
-            }
+            return BlockActionResult::Pass;
         }
 
-        BlockActionResult::Pass
+        Self::try_add_book(
+            args.world,
+            args.player,
+            args.position,
+            block_entity,
+            properties,
+            slot,
+            args.item_stack,
+        );
+        BlockActionResult::Success
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
@@ -156,8 +171,11 @@ impl ChiseledBookshelfBlock {
         entity: &ChiseledBookshelfBlockEntity,
         properties: ChiseledBookshelfLikeProperties,
         slot: usize,
-    ) {
+    ) -> bool {
         let mut stack = entity.remove_book(slot, 1);
+        if stack.is_empty() {
+            return false;
+        }
 
         let sound = if stack.get_item() == &Item::ENCHANTED_BOOK {
             Sound::BlockChiseledBookshelfPickupEnchanted
@@ -177,17 +195,6 @@ impl ChiseledBookshelfBlock {
         entity.update_state(properties, world, slot);
 
         world.play_sound(sound, SoundCategory::Blocks, &position.to_centered_f64());
-    }
-
-    const fn is_slot_used(properties: ChiseledBookshelfLikeProperties, slot: usize) -> bool {
-        match slot {
-            0 => properties.slot_0_occupied,
-            1 => properties.slot_1_occupied,
-            2 => properties.slot_2_occupied,
-            3 => properties.slot_3_occupied,
-            4 => properties.slot_4_occupied,
-            5 => properties.slot_5_occupied,
-            _ => false,
-        }
+        true
     }
 }

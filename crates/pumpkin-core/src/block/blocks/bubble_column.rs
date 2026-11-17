@@ -26,6 +26,9 @@ pub(crate) const SURFACE_UPWARD_ACCELERATION: f64 = 0.1;
 const SURFACE_UPWARD_MAX_SPEED: f64 = 1.8;
 const DOWNWARD_ACCELERATION: f64 = -0.03;
 const DOWNWARD_MIN_SPEED: f64 = -0.3;
+// Vanilla Entity.handleOnAboveBubbleColumn uses a looser -0.9 cap for the top of a
+// downward column; handleOnInsideBubbleColumn uses -0.3.
+const SURFACE_DOWNWARD_MIN_SPEED: f64 = -0.9;
 
 pub struct BubbleColumnBlock;
 
@@ -169,7 +172,10 @@ fn bubble_column_vertical_velocity(
         (BubbleColumnKind::Upward, false) => {
             (current_y + UPWARD_ACCELERATION).min(UPWARD_MAX_SPEED)
         }
-        (BubbleColumnKind::Downward, _) => {
+        (BubbleColumnKind::Downward, true) => {
+            (current_y + DOWNWARD_ACCELERATION).max(SURFACE_DOWNWARD_MIN_SPEED)
+        }
+        (BubbleColumnKind::Downward, false) => {
             (current_y + DOWNWARD_ACCELERATION).max(DOWNWARD_MIN_SPEED)
         }
     }
@@ -422,6 +428,20 @@ mod tests {
                 Block::STONE.default_state.id,
             ),
             ReconcileAction::RestoreWater
+        );
+    }
+    #[test]
+    fn downward_push_cap_depends_on_surface() {
+        // Entity.handleOnAboveBubbleColumn clamps a downward push at -0.9; the
+        // on-inside path clamps at -0.3. A hard fall must not be capped by -0.3
+        // while an entity sits at the top of a whirlpool column.
+        assert_eq!(
+            bubble_column_vertical_velocity(-1.0, BubbleColumnKind::Downward, true),
+            -0.9
+        );
+        assert_eq!(
+            bubble_column_vertical_velocity(-1.0, BubbleColumnKind::Downward, false),
+            -0.3
         );
     }
 }

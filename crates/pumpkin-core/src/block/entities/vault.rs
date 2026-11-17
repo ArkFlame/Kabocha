@@ -1,4 +1,5 @@
 use super::BlockEntity;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
@@ -154,6 +155,23 @@ impl VaultBlockEntity {
             server_data: Mutex::new(None),
             shared_data: Mutex::new(None),
             rewarded_players: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Mirrors vanilla `VaultSharedData#setDisplayItem`: the item shown inside the vault lives in
+    /// `shared_data.display_item` and is sent to clients through `chunk_data_nbt`.
+    pub fn set_display_item(&self, stack: &ItemStack) {
+        let mut shared = self
+            .shared_data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let data = shared.get_or_insert_with(NbtCompound::new);
+        if stack.is_empty() {
+            data.child_tags.remove("display_item");
+        } else {
+            let mut item_compound = NbtCompound::new();
+            stack.write_item_stack(&mut item_compound);
+            data.put_compound("display_item", item_compound);
         }
     }
 
