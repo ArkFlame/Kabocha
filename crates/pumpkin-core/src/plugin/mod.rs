@@ -2954,27 +2954,30 @@ impl PluginManager {
             return;
         }
 
-        // Process blocking handlers first
+        // Handlers are pre-sorted by priority then registration order (Bukkit
+        // HandlerList order). Run them one by one in that order, isolating panics
+        // so one faulty plugin cannot abort the rest of the dispatch (Paper behaviour).
         for handler in handlers {
-            if handler.is_blocking() {
-                #[cfg(profiler)]
-                let _profile = pumpkin_profiler::cpu::plugin_event(
-                    handler.source().unwrap_or("unattributed"),
-                    event_name,
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::plugin_event(
+                handler.source().unwrap_or("unattributed"),
+                event_name,
+            );
+            let outcome = if handler.is_blocking() {
+                AssertUnwindSafe(handler.handle_blocking_dyn(server, event))
+                    .catch_unwind()
+                    .await
+            } else {
+                AssertUnwindSafe(handler.handle_dyn(server, &*event))
+                    .catch_unwind()
+                    .await
+            };
+            if outcome.is_err() {
+                error!(
+                    "Could not pass event {event_name} to plugin {}: handler panicked",
+                    handler.source().unwrap_or("unattributed")
                 );
-                handler.handle_blocking_dyn(server, event).await;
             }
-        }
-
-        // Run non-blocking handlers concurrently
-        let non_blocking: Vec<_> = handlers
-            .iter()
-            .filter(|h| !h.is_blocking())
-            .map(|h| h.handle_dyn(server, event))
-            .collect();
-
-        if !non_blocking.is_empty() {
-            futures::future::join_all(non_blocking).await;
         }
     }
 
