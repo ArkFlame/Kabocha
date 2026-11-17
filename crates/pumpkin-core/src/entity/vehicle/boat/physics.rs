@@ -152,7 +152,7 @@ impl BoatEntity {
         );
         let world = self.vehicle.entity.world.load();
         let mut friction = 0.0;
-        let mut count = 0;
+        let mut count: u32 = 0;
         for x in min.0.x..=max.0.x {
             for z in min.0.z..=max.0.z {
                 let edges =
@@ -178,7 +178,7 @@ impl BoatEntity {
                 }
             }
         }
-        friction / count as f32
+        average_ground_friction(friction, count)
     }
 
     pub(super) fn float_boat(
@@ -251,5 +251,25 @@ impl BoatEntity {
         let move_from = entity.pos.load();
         entity.move_entity(caller, event.to - entity.pos.load());
         self.record_movement(move_from, entity.pos.load(), event.to - move_from);
+    }
+}
+
+/// Vanilla `Boat#getGroundFriction`: no supporting block yields 0.0 instead of a NaN average.
+fn average_ground_friction(total: f32, count: u32) -> f32 {
+    if count == 0 {
+        0.0
+    } else {
+        total / count as f32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::average_ground_friction;
+
+    #[test]
+    fn ground_friction_without_contact_is_zero_not_nan() {
+        assert_eq!(average_ground_friction(0.0, 0), 0.0);
+        assert_eq!(average_ground_friction(1.8, 2), 0.9);
     }
 }
