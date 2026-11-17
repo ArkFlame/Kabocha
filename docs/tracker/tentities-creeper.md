@@ -26,3 +26,12 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - `Creeper.tick` swell/prime-sound/explode ordering, negative swell clamp, `maxSwell` clamp on fall damage (`cause_fall_damage`).
 - Goal list: swim 1, `CreeperSwellGoal` 2, ocelot/cat `AvoidEntityGoal` 3 (6 blocks, 1.0/1.2), `MeleeAttackGoal` 4 with no-op `doHurtTarget`, stroll 5, look 6 / random look 6; `CreeperSwellGoal` 3-block start, 7-block stop, line-of-sight, `requiresUpdateEveryTick`.
 - Igniter interaction (tag `CREEPER_IGNITERS`, fire charge vs flint and steel sound, durability/stack decrement), explosion radius ×2 when charged, NBT keys (`powered`, `Fuse`, `ExplosionRadius`, `ignited`).
+
+## Gap status
+- 1 target-selector order: FIXED (creeper.rs:92-93, RevengeGoal at 1, CREEPER_HUNTS at 2)
+- 2 charged victim heads: FIXED (creeper.rs:328; dropped_skulls flag removed)
+- 3 lightning sets charged via set_charged: FIXED (creeper.rs:237)
+- 4 spawnEffectsCloud parameters: FIXED (no change needed; see creeper-0de8b3 row 4a)
+- 5 swell direction Bedrock metadata: FIXED (creeper.rs:99-106)
+- 6 readAdditionalSaveData sync: FIXED (no gap per creeper-0de8b3 row 6)
+- 7 charged_creeper/root loot table: BLOCKED-DATA (no loot_table JSON in assets/)
