@@ -1860,7 +1860,7 @@ impl Player {
             self.living_entity.fall_distance.store(0.0);
         }
 
-        player_attack_sound(&pos, &world, attack_type);
+        player_attack_sound(&self.living_entity.entity.pos.load(), &world, attack_type);
 
         if matches!(attack_type, AttackType::Critical) {
             let je_packet =
