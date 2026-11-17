@@ -128,14 +128,15 @@ impl LevelTime {
         );
     }
 
-    /// Vanilla `ClientboundSetTimePacket(overworld.getGameTime(), Map.of())`,
-    /// once per player (players with a custom time get their own day time).
-    /// Clock entries would rewind `clockManager` and can freeze client
-    /// `getGameTime()` across two piston animation ticks.
+    /// Vanilla `MinecraftServer.forceGameTimeSynchronization` once per player
+    /// (players with a custom time get their own day time). Clock entries would
+    /// rewind `clockManager` and can freeze client `getGameTime()` across two
+    /// piston animation ticks.
     ///
-    /// `CUpdateTime.game_time` is global, Bedrock's `CSetTime` is a day time:
-    /// the overworld's would snap a Nether or End client back to it. Runs before
-    /// any world ticks, so every `time_of_day` read here is this tick's.
+    /// Folia builds the packet from the current world's `getGameTime()`, so each
+    /// world's players receive their own `world_age` as `game_time`. Bedrock's
+    /// `CSetTime` is a day time, so it uses this world's value. Runs before any
+    /// world ticks, so every `time_of_day` read here is this tick's.
     ///
     /// Clients before 26.1 read day time and the frozen flag from the packet
     /// itself, so each world's packet carries its own values next to the empty
@@ -143,11 +144,13 @@ impl LevelTime {
     pub fn send_game_time_sync(&self, server: &crate::server::Server) {
         for world in server.worlds.load().iter() {
             let advance_time = world.level_info.load().game_rules.advance_time;
-            let (day_time, _, rate) = world
+            let level_time = world
                 .level_time
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .pack_network_state(advance_time);
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let game_time = level_time.world_age;
+            let (day_time, _, rate) = level_time.pack_network_state(advance_time);
+            drop(level_time);
             let frozen = rate == 0.0;
             for player in world.players.load().iter() {
                 // A per-player `/time set ... ` override replaces the world's day
@@ -158,7 +161,7 @@ impl LevelTime {
                     day_time
                 };
                 let java = CUpdateTime {
-                    game_time: self.world_age,
+                    game_time,
                     clock_updates: Vec::new(),
                     legacy_day_time: Some((client_day_time, !frozen)),
                 };

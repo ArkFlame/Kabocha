@@ -89,6 +89,7 @@ pub use explosion::{
     ExplosionInteraction, SimpleExplosionDamageCalculator,
 };
 use pumpkin_config::BasicConfiguration;
+use pumpkin_data::BlockId;
 use pumpkin_data::block_properties::{blocks_movement, is_air};
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
@@ -2443,7 +2444,6 @@ impl World {
                 .push((position, block_state_id));
         }
 
-        // TODO: only send packet to players who have the chunks loaded
         // TODO: Send light updates to update the wire directly next to a broken block
         for (chunk_section, updates) in block_state_updates_by_chunk_section {
             if updates.is_empty() {
@@ -3293,6 +3293,23 @@ impl World {
         }
     }
 
+    /// Vanilla `ChunkMap.anyPlayerCloseEnoughForSpawning`: a non-spectator player whose XZ
+    /// distance to the chunk centre is under 128 blocks makes this chunk spawn-eligible.
+    fn any_player_close_enough_for_spawning(&self, chunk_pos: Vector2<i32>) -> bool {
+        const SPAWN_RANGE_SQUARED: f64 = 128.0 * 128.0;
+        let center_x = f64::from((chunk_pos.x << 4) + 8);
+        let center_z = f64::from((chunk_pos.y << 4) + 8);
+        self.players.load().iter().any(|player| {
+            if player.is_spectator() {
+                return false;
+            }
+            let pos = player.get_entity().pos.load();
+            let dx = pos.x - center_x;
+            let dz = pos.z - center_z;
+            dx * dx + dz * dz < SPAWN_RANGE_SQUARED
+        })
+    }
+
     pub fn tick_spawning_chunk(
         self: &Arc<Self>,
         chunk_pos: Vector2<i32>,
@@ -3303,7 +3320,10 @@ impl World {
         if spawn_list.is_empty() {
             return;
         }
-        // TODO this.level.canSpawnEntitiesInChunk(chunkPos)
+        // Vanilla ServerChunkCache.tickChunks gates spawning on a nearby player.
+        if !self.any_player_close_enough_for_spawning(chunk_pos) {
+            return;
+        }
         spawn_for_chunk(
             self,
             chunk_pos,
@@ -3709,6 +3729,28 @@ impl World {
             .unwrap_or(self.min_y)
     }
 
+    /// Vanilla `Heightmap.Types.OCEAN_FLOOR`: topmost block that blocks movement, ignoring
+    /// fluids. Unlike the persisted heightmaps vanilla recomputes this from block states.
+    pub fn get_ocean_floor_height(&self, x: i32, z: i32) -> i32 {
+        let chunk_pos = Vector2::new(x >> 4, z >> 4);
+        let relative_x = (x & 15) as usize;
+        let relative_z = (z & 15) as usize;
+        self.level
+            .read_chunk_sync(&chunk_pos, |chunk| {
+                for y in (self.min_y..self.min_y + self.dimension.height).rev() {
+                    if let Some(state_id) = chunk
+                        .section
+                        .get_block_absolute_y(relative_x, y, relative_z)
+                        && blocks_movement(state_id.to_state(), BlockId::from_state_id(state_id))
+                    {
+                        return y;
+                    }
+                }
+                self.min_y - 1
+            })
+            .unwrap_or(self.min_y - 1)
+    }
+
     /// Fires `PlayerSpawnLocationEvent` on join and keeps `position` if a plugin returns
     /// coordinates the world cannot hold.
     async fn fire_spawn_location_event(
@@ -3865,6 +3907,7 @@ impl World {
             server_editor_connection_policy: VarInt(0),
             allow_anonymous_block_drops_in_editor_worlds: false,
         };
+        let world_spawn = BlockPos::new(level_info.spawn_x, level_info.spawn_y, level_info.spawn_z);
         drop(level_info);
 
         let Some(client) = player.client.bedrock() else {
@@ -3917,6 +3960,18 @@ impl World {
         client.send_packet(&CJigsawStructureData).await;
         client.send_packet(&CVoxelShapes).await;
         if let Ok(data) = client.serialize_packet(&start_game) {
+            client.send_game_packet(data).await;
+        }
+
+        // BDS sends SetSpawnPositionPacket right after StartGame so the client's
+        // compass points at the shared world spawn before the first respawn.
+        let set_spawn_position = pumpkin_protocol::bedrock::client::CSetSpawnPosition {
+            spawn_position_type: pumpkin_protocol::bedrock::client::SpawnPositionType::WorldRespawn,
+            block_position: world_spawn,
+            dimension_type: VarInt(0),
+            spawn_block_pos: world_spawn,
+        };
+        if let Ok(data) = client.serialize_packet(&set_spawn_position) {
             client.send_game_packet(data).await;
         }
 
@@ -5277,6 +5332,9 @@ impl World {
             player.set_experience(0, 0.0, 0);
             player.inventory.clear();
         }
+        // Vanilla `ServerPlayer.restoreFrom` resets `lastSentExp` to -1 so the next
+        // tick resends the XP bar after the client recreated its entity on respawn.
+        player.last_sent_xp.store(-1, Relaxed);
 
         player.get_entity().set_pos(position);
         player.get_entity().set_rotation(yaw, pitch);
@@ -5286,9 +5344,9 @@ impl World {
 
         player.send_permission_lvl_update();
 
-        player.hunger_manager.restart();
+        // Vanilla carries FoodData (level/saturation/exhaustion/tickTimer) over on
+        // respawn. The same Player instance is reused, so leave its hunger intact.
 
-        // TODO: difficulty, exp bar, status effect
 
         // Registered after positioning; a same-dimension respawn keeps its client entities.
         if target_world.uuid == self.uuid {
@@ -5307,6 +5365,10 @@ impl World {
 
         // Load chunks and send world info FIRST (before teleport packet)
         target_world.send_world_info(player);
+        // Vanilla `PlayerList.respawn` re-sends difficulty and active effects after
+        // the respawn packet because the client dropped both when it recreated the entity.
+        player.send_difficulty_update();
+        player.send_active_effects();
         target_world.send_center_chunk(player).await;
 
         // Send teleport packet after at least the center chunk was delivered
@@ -6877,7 +6939,7 @@ impl World {
                 block_entity: broken_block_entity,
                 ..Default::default()
             };
-            crate::block::drop_loot(self, broken_block, position, true, &params);
+            crate::block::drop_loot(self, broken_block, position, cause, true, &params);
         }
 
         self.broadcast_destroy_block_particles(position, broken_state_id, new_state_id, cause);
@@ -6996,7 +7058,7 @@ impl World {
                 position: Some(position.to_f64()),
                 ..Default::default()
             };
-            crate::block::drop_loot(self, broken_block, position, true, &params);
+            crate::block::drop_loot(self, broken_block, position, None, true, &params);
         }
 
         flags.insert(BlockFlags::SKIP_DROPS);

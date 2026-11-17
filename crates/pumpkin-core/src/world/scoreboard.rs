@@ -899,6 +899,61 @@ impl Scoreboard {
     }
 }
 
+/// The resolved form of a criterion, mirroring vanilla `ObjectiveCriteria`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectiveCriterion {
+    pub read_only: bool,
+    pub render_type: RenderType,
+}
+
+const TEAM_COLORS: &[&str] = &[
+    "black",
+    "dark_blue",
+    "dark_green",
+    "dark_aqua",
+    "dark_red",
+    "dark_purple",
+    "gold",
+    "gray",
+    "dark_gray",
+    "blue",
+    "green",
+    "aqua",
+    "red",
+    "light_purple",
+    "yellow",
+    "white",
+];
+
+/// Resolves a criterion name the way vanilla `ObjectiveCriteria.byName` does.
+/// Unknown names return `None`, which vanilla reports as `argument.criteria.invalid`.
+/// Pumpkin has no stat registry, so colon-qualified stat names are accepted as
+/// writable integer criteria.
+#[must_use]
+pub fn resolve_criterion(name: &str) -> Option<ObjectiveCriterion> {
+    let read_only = match name {
+        "health" | "food" | "air" | "armor" | "xp" | "level" => true,
+        "dummy" | "trigger" | "deathCount" | "playerKillCount" | "totalKillCount" => false,
+        _ if name
+            .strip_prefix("teamkill.")
+            .or_else(|| name.strip_prefix("killedByTeam."))
+            .is_some_and(|color| TEAM_COLORS.contains(&color)) =>
+        {
+            false
+        }
+        _ if name.contains(':') => false,
+        _ => return None,
+    };
+    Some(ObjectiveCriterion {
+        read_only,
+        render_type: if name == "health" {
+            RenderType::Hearts
+        } else {
+            RenderType::Integer
+        },
+    })
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScoreboardObjective {
     pub name: String,

@@ -361,9 +361,24 @@ fn get_raider_has_raid(entity: &dyn EntityBase) -> Option<bool> {
         .map(crate::entity::mob::raider::Raider::has_active_raid)
 }
 
+/// Vanilla `FishingHook.calculateOpenWater` for a hook sitting at `pos`.
+pub(crate) fn is_open_water_at(world: &World, pos: &BlockPos) -> bool {
+    is_open_water(|dx, dy, dz| {
+        let cell = pos.offset(Vector3::new(dx, dy, dz));
+        open_water_cell(world.get_block_state(&cell).id.to_block())
+    })
+}
+
 fn get_fishing_hook_in_open_water(entity: &dyn EntityBase, world: Option<&World>) -> Option<bool> {
     if entity.get_entity().entity_type.id != pumpkin_data::entity::EntityType::FISHING_BOBBER.id {
         return None;
+    }
+    // Vanilla reads the latched `FishingHook.openWater` flag via `isOpenWaterFishing()`.
+    if let Some(hook) = entity
+        .cast_any()
+        .downcast_ref::<crate::entity::projectile::fishing_bobber::FishingBobberEntity>(
+    ) {
+        return Some(hook.is_open_water_fishing());
     }
     let Some(world) = world else {
         return Some(true);
@@ -373,10 +388,7 @@ fn get_fishing_hook_in_open_water(entity: &dyn EntityBase, world: Option<&World>
         entity.get_entity().pos.load().y,
         entity.get_entity().pos.load().z,
     );
-    Some(is_open_water(|dx, dy, dz| {
-        let cell = pos.offset(Vector3::new(dx, dy, dz));
-        open_water_cell(world.get_block_state(&cell).id.to_block())
-    }))
+    Some(is_open_water_at(world, &pos))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

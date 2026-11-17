@@ -442,3 +442,43 @@ fn new_team_uses_reset_colour_and_stores_death_message_visibility() {
         Some(NameTagVisibility::HideForOwnTeam)
     );
 }
+
+#[test]
+fn resolve_criterion_matches_vanilla_custom_and_stat_names() {
+    assert_eq!(
+        resolve_criterion("health"),
+        Some(ObjectiveCriterion {
+            read_only: true,
+            render_type: RenderType::Hearts
+        })
+    );
+    assert_eq!(
+        resolve_criterion("level"),
+        Some(ObjectiveCriterion {
+            read_only: true,
+            render_type: RenderType::Integer
+        })
+    );
+    for writable in [
+        "dummy",
+        "trigger",
+        "deathCount",
+        "playerKillCount",
+        "totalKillCount",
+        "teamkill.red",
+        "killedByTeam.dark_blue",
+        "minecraft.mined:minecraft.stone",
+    ] {
+        assert_eq!(
+            resolve_criterion(writable),
+            Some(ObjectiveCriterion {
+                read_only: false,
+                render_type: RenderType::Integer
+            }),
+            "{writable}"
+        );
+    }
+    for unknown in ["Health", "notACriterion", "teamkill.notacolor", ""] {
+        assert_eq!(resolve_criterion(unknown), None, "{unknown}");
+    }
+}

@@ -339,6 +339,23 @@ impl<'a> Explosion<'a> {
         self
     }
 
+    /// Mirrors `ServerExplosion.canTriggerBlocks`: only a wind charge triggers blocks, and a
+    /// breeze wind charge needs `mobGriefing` (a thrown wind charge always may).
+    #[must_use]
+    pub fn can_trigger_blocks(&self, world: &World) -> bool {
+        if self.block_interaction != BlockInteraction::TriggerBlock {
+            return false;
+        }
+        match self.source {
+            Some(source)
+                if source.get_entity().entity_type.id == EntityType::BREEZE_WIND_CHARGE.id =>
+            {
+                world.level_info.load().game_rules.mob_griefing
+            }
+            _ => true,
+        }
+    }
+
     /// Mirrors `ServerExplosion.isSmall`.
     #[must_use]
     pub const fn is_small(&self) -> bool {
@@ -822,6 +839,17 @@ impl<'a> Explosion<'a> {
                 for (pos, (block, state)) in &blocks {
                     let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
 
+                    // Vanilla `onExplosionHit` runs before the block is removed, so wind-charge
+                    // reactions (button press, lever pull, candle extinguish) still see it placed.
+                    if let Some(pumpkin_block) = pumpkin_block {
+                        pumpkin_block.explode(ExplodeArgs {
+                            world,
+                            block,
+                            position: pos,
+                            explosion: self,
+                        });
+                    }
+
                     if pumpkin_block.is_none_or(|s| s.should_drop_items_on_explosion()) {
                         let is_raining = world.is_raining();
                         let is_thundering = world.is_thundering();
@@ -841,20 +869,11 @@ impl<'a> Explosion<'a> {
                             is_thundering: Some(is_thundering),
                             ..Default::default()
                         };
-                        drop_loot(world, block, pos, false, &params);
+                        drop_loot(world, block, pos, None, false, &params);
                     }
 
                     world.set_block_state(pos, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
                     world.close_container_screens_at(pos);
-
-                    if let Some(pumpkin_block) = pumpkin_block {
-                        pumpkin_block.explode(ExplodeArgs {
-                            world,
-                            block,
-                            position: pos,
-                            explosion: self,
-                        });
-                    }
                 }
                 if self.create_fire {
                     Self::place_fire(world, &affected_positions, &mut fire_roll);
@@ -980,6 +999,24 @@ mod tests {
         assert_eq!(destroyed, 0);
         assert!(fire_was_created);
         assert!(floor_remains);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn only_wind_charge_explosions_can_trigger_blocks()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (world, level, _folder) = test_world()?;
+        let destroy = Explosion::new(3.0, Vector3::new(0.0, 64.0, 0.0), BlockInteraction::Destroy);
+        assert!(!destroy.can_trigger_blocks(&world));
+
+        let wind_charge = Explosion::new(
+            1.2,
+            Vector3::new(0.0, 64.0, 0.0),
+            BlockInteraction::TriggerBlock,
+        );
+        assert!(wind_charge.can_trigger_blocks(&world));
+
+        level.shutdown().await;
         Ok(())
     }
 

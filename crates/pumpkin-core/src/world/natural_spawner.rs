@@ -902,8 +902,15 @@ pub fn spawn_category_for_position(
 
                     let is_valid_for_mob = entity.get_mob().is_none_or(|mob| {
                         let despawn_dist = f64::from(entity_type.category.despawn_distance);
-                        !(player_distance_sq > despawn_dist * despawn_dist
-                            && mob.remove_when_far_away(player_distance_sq))
+                        if player_distance_sq > despawn_dist * despawn_dist
+                            && mob.remove_when_far_away(player_distance_sq)
+                        {
+                            return false;
+                        }
+                        // Vanilla `PathfinderMob.checkSpawnRules(level, NATURAL)` gates
+                        // the spawn on the walk target value at the mob's block position.
+                        // This is the entity-level rule `PathAwareEntity::can_spawn` wraps.
+                        mob.get_walk_target_value(&mob.get_entity().block_pos.load()) >= 0.0
                     });
 
                     if is_valid_for_mob {

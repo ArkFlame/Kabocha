@@ -19,6 +19,8 @@ use pumpkin_util::random::{RandomImpl, xoroshiro128::Xoroshiro};
 mod generation;
 mod predicates;
 
+pub(crate) use predicates::is_open_water_at;
+
 #[derive(Default, Clone)]
 pub struct LootContextParameters<'a> {
     pub world: Option<&'a World>,
