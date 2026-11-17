@@ -141,25 +141,12 @@ impl EntityBase for LeashKnotEntity {
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
-        // Vanilla searches a 7 block cube around the knot.
-        const SEARCH_RADIUS: f64 = 7.0;
         let world = player.world();
         let knot_id = self.entity.entity_id;
         let player_id = player.entity_id();
 
         let pos = self.entity.pos.load();
-        let search_box = BoundingBox::new(
-            Vector3::new(
-                pos.x - SEARCH_RADIUS,
-                pos.y - SEARCH_RADIUS,
-                pos.z - SEARCH_RADIUS,
-            ),
-            Vector3::new(
-                pos.x + SEARCH_RADIUS,
-                pos.y + SEARCH_RADIUS,
-                pos.z + SEARCH_RADIUS,
-            ),
-        );
+        let search_box = transfer_search_box(pos);
         let entities = world.get_entities_at_box(&search_box);
 
         let mut attached_mob = false;
@@ -228,5 +215,40 @@ impl EntityBase for LeashKnotEntity {
         );
         self.entity.remove();
         true
+    }
+}
+
+/// Vanilla `LeashFenceKnotEntity.interact` searches `AABB(blockPos).inflate(7)`,
+/// measured from the integer block coordinates rather than the entity position.
+fn transfer_search_box(pos: Vector3<f64>) -> BoundingBox {
+    const SEARCH_RADIUS: f64 = 7.0;
+    let block_min = Vector3::new(pos.x.floor(), pos.y.floor(), pos.z.floor());
+    BoundingBox::new(
+        Vector3::new(
+            block_min.x - SEARCH_RADIUS,
+            block_min.y - SEARCH_RADIUS,
+            block_min.z - SEARCH_RADIUS,
+        ),
+        Vector3::new(
+            block_min.x + 1.0 + SEARCH_RADIUS,
+            block_min.y + 1.0 + SEARCH_RADIUS,
+            block_min.z + 1.0 + SEARCH_RADIUS,
+        ),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::transfer_search_box;
+    use pumpkin_util::math::vector3::Vector3;
+
+    #[test]
+    fn transfer_box_spans_block_coordinates_plus_seven() {
+        // Knot centred in block (10, 64, 10).
+        let bb = transfer_search_box(Vector3::new(10.5, 64.375, 10.5));
+        assert_eq!(bb.min.x, 3.0);
+        assert_eq!(bb.max.x, 18.0);
+        assert_eq!(bb.min.y, 57.0);
+        assert_eq!(bb.max.y, 72.0);
     }
 }
