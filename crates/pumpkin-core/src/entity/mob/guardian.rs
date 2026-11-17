@@ -114,16 +114,6 @@ impl Mob for GuardianEntity {
         }
     }
 
-    fn get_ambient_sound(&self) -> Option<Sound> {
-        let entity = self.get_entity();
-        let is_water = entity.touching_water.load(Ordering::Relaxed);
-        Some(if is_water {
-            Sound::EntityGuardianAmbient
-        } else {
-            Sound::EntityGuardianAmbientLand
-        })
-    }
-
     fn get_ambient_sound_interval(&self) -> i32 {
         160
     }

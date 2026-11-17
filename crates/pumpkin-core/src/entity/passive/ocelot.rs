@@ -210,30 +210,6 @@ impl Mob for OcelotEntity {
         self.animal_interact(player, item_stack)
     }
 
-    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
-        let (pose, sprinting) = {
-            let steered = self.mob_entity.steered();
-            let move_control = steered.move_control();
-            if move_control.has_wanted() {
-                let speed = move_control.get_speed_modifier();
-                if speed == TEMPT_SPEED {
-                    (EntityPose::Crouching, false)
-                } else if speed == SPRINT_SPEED {
-                    (EntityPose::Standing, true)
-                } else {
-                    (EntityPose::Standing, false)
-                }
-            } else {
-                (EntityPose::Standing, false)
-            }
-        };
-        let entity = self.get_entity();
-        entity.set_pose(pose);
-        if entity.is_sprinting() != sprinting {
-            entity.set_sprinting(sprinting);
-        }
-    }
-
     fn mob_is_stepping_carefully(&self) -> bool {
         let entity = self.get_entity();
         entity.pose.load() == EntityPose::Crouching || entity.is_sneaking()
