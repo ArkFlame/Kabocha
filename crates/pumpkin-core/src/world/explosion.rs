@@ -458,6 +458,10 @@ impl<'a> Explosion<'a> {
 
                         let (chunk_pos, relative) = block_pos.chunk_and_chunk_relative_position();
 
+                        // Vanilla `getBlockState` force-loads unloaded chunks. The tick is
+                        // sync and must not block Tokio, so unloaded chunks use the sync
+                        // loaded-chunk read and count as air here (blocks there are not
+                        // destroyed). Forced loading needs an async prefetch before `explode`.
                         let chunk_opt = chunk_cache.entry(chunk_pos).or_insert_with(|| {
                             world
                                 .level
