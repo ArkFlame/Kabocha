@@ -2835,10 +2835,11 @@ impl Player {
 
         // LivingEntity#stopSleeping moves the player to the first safe
         // stand-up position (bunk-bed aware) and turns them toward the bed.
+        type BedProperties = pumpkin_data::block_properties::WhiteBedLikeProperties;
         let facing = BedProperties::from_state_id(bed_state)
             .facing
             .to_block_direction();
-        let stand_up = BedBlock::find_stand_up_position(
+        let stand_up = crate::block::blocks::bed::BedBlock::find_stand_up_position(
             self.get_entity().entity_type,
             &world,
             &bed_pos,
