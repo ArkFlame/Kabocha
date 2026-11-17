@@ -1316,6 +1316,9 @@ fn execute_summon_modifier(
     finalize_spawn(&entity, context.source.world(), crate::entity::mob::spawn::EntitySpawnReason::Command, None);
     context.source.world().spawn_entity(entity.clone());
     let mut source = context.source.as_ref().clone();
+    // Vanilla routes the new entity through withEntity, which adopts its name and display name.
+    source.name = entity.get_name().get_text();
+    source.display_name = entity.get_display_name();
     source.entity = Some(entity);
     Ok(vec![Arc::new(source)])
 }
