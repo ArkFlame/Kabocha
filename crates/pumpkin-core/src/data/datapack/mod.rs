@@ -852,26 +852,11 @@ impl DatapackManager {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let category = category.strip_prefix("minecraft:").unwrap_or(category);
-        if let Some(cat_tags) = guard.get(category) {
-            let tag_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
-            let full_tag = if tag_id.contains(':') {
-                tag_id.to_string()
-            } else {
-                format!("minecraft:{tag_id}")
-            };
-            if let Some(tag_entry) = cat_tags.get(&full_tag).or_else(|| cat_tags.get(tag_id)) {
-                let full_entry = if entry_id.contains(':') {
-                    entry_id.to_string()
-                } else {
-                    format!("minecraft:{entry_id}")
-                };
-                return tag_entry
-                    .values
-                    .iter()
-                    .any(|v| v == &full_entry || v == entry_id);
-            }
-        }
-        false
+        let Some(cat_tags) = guard.get(category) else {
+            return false;
+        };
+        let full_entry = normalize_id(entry_id);
+        tag_contains_entry(cat_tags, tag_id, &full_entry, entry_id, &mut Vec::new())
     }
 
     #[must_use]
@@ -1890,6 +1875,34 @@ fn collect_block_tag(
             ids.push(block.id.as_u16());
         }
     }
+}
+
+/// True when `tag_id` lists the entry directly or through a nested `#tag` reference.
+///
+/// Vanilla expands tag references when it builds a tag, so membership must follow them.
+/// `visited` stops reference cycles.
+fn tag_contains_entry<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, DynamicTagEntry, S>,
+    tag_id: &str,
+    full_entry: &str,
+    raw_entry: &str,
+    visited: &mut Vec<String>,
+) -> bool {
+    let tag = normalize_id(tag_id.strip_prefix('#').unwrap_or(tag_id));
+    if visited.contains(&tag) {
+        return false;
+    }
+    visited.push(tag.clone());
+    let Some(entry) = tags.get(&tag) else {
+        return false;
+    };
+    entry.values.iter().any(|value| {
+        if let Some(nested) = value.strip_prefix('#') {
+            tag_contains_entry(tags, nested, full_entry, raw_entry, visited)
+        } else {
+            value == full_entry || value == raw_entry
+        }
+    })
 }
 
 struct PackContentAccumulators<'a> {
@@ -3064,6 +3077,45 @@ mod tests {
         tags.insert("minecraft:dirt".to_string(), block_tag(true, &["stone"]));
         assert_eq!(resolve(&tags, "minecraft:dirt"), vec![stone]);
     }
+    #[test]
+    fn is_in_tag_follows_nested_tag_references() {
+        let manager = DatapackManager::new();
+        let mut block_tags = std::collections::HashMap::new();
+        block_tags.insert(
+            "test:stones".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:stones".to_string(),
+                values: vec!["minecraft:stone".to_string()],
+            },
+        );
+        block_tags.insert(
+            "test:rocks".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:rocks".to_string(),
+                values: vec!["#test:stones".to_string(), "minecraft:granite".to_string()],
+            },
+        );
+        // A cycle must terminate instead of recursing forever.
+        block_tags.insert(
+            "test:loop".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:loop".to_string(),
+                values: vec!["#test:loop".to_string(), "minecraft:dirt".to_string()],
+            },
+        );
+        manager
+            .tags
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert("block".to_string(), block_tags);
+
+        assert!(manager.is_in_tag("block", "test:rocks", "stone"));
+        assert!(manager.is_in_tag("block", "test:rocks", "granite"));
+        assert!(!manager.is_in_tag("block", "test:rocks", "dirt"));
+        assert!(manager.is_in_tag("block", "test:loop", "dirt"));
+        assert!(!manager.is_in_tag("block", "test:loop", "stone"));
+    }
+
     #[test]
     fn scan_datapacks_dir_loads_packs_in_enabled_order() {
         fn load_shared_function(root: &std::path::Path, enabled: &[&str]) -> String {
