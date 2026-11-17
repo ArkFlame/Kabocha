@@ -849,7 +849,10 @@ fn map_team_to_settings(
         pumpkin_core::world::scoreboard::CollisionRule::PushOwnTeam => CollisionRule::PushOwnTeam,
     };
 
-    let color = map_named_color_rev(team.color);
+    let color = map_named_color_rev(
+        team.color
+            .unwrap_or(pumpkin_util::text::color::NamedColor::White),
+    );
 
     Ok(TeamSettings {
         display_name,
