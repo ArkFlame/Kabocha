@@ -132,7 +132,16 @@ impl BlockBehaviour for VaultBlock {
             })
             .unwrap_or_default();
 
-        for stack in loot_stacks {
+        let mut dispense_event =
+            crate::plugin::block::block_dispense_loot::BlockDispenseLootEvent::new(
+                *args.position,
+                args.world.clone(),
+                loot_stacks,
+            );
+        if let Some(server) = args.world.server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut dispense_event);
+        }
+        for stack in dispense_event.items {
             args.world.drop_stack(args.position, stack);
         }
 

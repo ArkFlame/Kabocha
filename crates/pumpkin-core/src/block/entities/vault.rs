@@ -1,5 +1,6 @@
 use super::BlockEntity;
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 use rustc_hash::FxHashSet;
 use std::sync::Mutex;
@@ -11,6 +12,49 @@ pub struct VaultBlockEntity {
     pub server_data: Mutex<Option<NbtCompound>>,
     pub shared_data: Mutex<Option<NbtCompound>>,
     pub rewarded_players: Mutex<FxHashSet<Uuid>>,
+}
+
+/// Vanilla keeps rewarded players in `server_data` as a list of four-int UUID arrays.
+fn read_rewarded_players(server_data: &NbtCompound) -> FxHashSet<Uuid> {
+    let mut set = FxHashSet::default();
+    let Some(list) = server_data.get_list("rewarded_players") else {
+        return set;
+    };
+    for tag in list {
+        match tag {
+            NbtTag::IntArray(arr) if arr.len() == 4 => {
+                let value = ((arr[0] as u128) << 96)
+                    | (((arr[1] as u32) as u128) << 64)
+                    | (((arr[2] as u32) as u128) << 32)
+                    | ((arr[3] as u32) as u128);
+                set.insert(Uuid::from_u128(value));
+            }
+            NbtTag::String(s) => {
+                if let Ok(uuid) = Uuid::parse_str(s) {
+                    set.insert(uuid);
+                }
+            }
+            _ => {}
+        }
+    }
+    set
+}
+
+fn rewarded_players_tag(rewarded: &FxHashSet<Uuid>) -> NbtTag {
+    NbtTag::List(
+        rewarded
+            .iter()
+            .map(|uuid| {
+                let value = uuid.as_u128();
+                NbtTag::IntArray(vec![
+                    (value >> 96) as i32,
+                    ((value >> 64) & 0xFFFF_FFFF) as i32,
+                    ((value >> 32) & 0xFFFF_FFFF) as i32,
+                    (value & 0xFFFF_FFFF) as i32,
+                ])
+            })
+            .collect(),
+    )
 }
 
 impl BlockEntity for VaultBlockEntity {
@@ -26,12 +70,19 @@ impl BlockEntity for VaultBlockEntity {
     where
         Self: Sized,
     {
+        let server_data = nbt.get_compound("server_data").cloned();
+        let rewarded_players = Mutex::new(
+            server_data
+                .as_ref()
+                .map(read_rewarded_players)
+                .unwrap_or_default(),
+        );
         Self {
             position,
             config: Mutex::new(nbt.get_compound("config").cloned()),
-            server_data: Mutex::new(nbt.get_compound("server_data").cloned()),
+            server_data: Mutex::new(server_data),
             shared_data: Mutex::new(nbt.get_compound("shared_data").cloned()),
-            rewarded_players: Mutex::new(FxHashSet::default()),
+            rewarded_players,
         }
     }
 
@@ -41,10 +92,23 @@ impl BlockEntity for VaultBlockEntity {
         {
             nbt.put_compound("config", cfg.clone());
         }
-        if let Ok(data) = self.server_data.lock()
-            && let Some(data) = data.as_ref()
-        {
-            nbt.put_compound("server_data", data.clone());
+        let mut server_data = self
+            .server_data
+            .lock()
+            .ok()
+            .and_then(|data| data.as_ref().cloned());
+        let rewarded = self
+            .rewarded_players
+            .lock()
+            .map(|set| set.clone())
+            .unwrap_or_default();
+        if !rewarded.is_empty() {
+            let mut data = server_data.take().unwrap_or_else(NbtCompound::new);
+            data.put("rewarded_players", rewarded_players_tag(&rewarded));
+            server_data = Some(data);
+        }
+        if let Some(data) = server_data {
+            nbt.put_compound("server_data", data);
         }
         if let Ok(shared) = self.shared_data.lock()
             && let Some(shared) = shared.as_ref()
