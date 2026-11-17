@@ -638,6 +638,12 @@ pub fn drop_loot(
     params: &LootContextParameters,
 ) {
     let loot_block = loot_table_block(block);
+    // Vanilla `Block.dropResources` receives the block entity captured before the block was
+    // replaced; a player break removes it first, so prefer the caller's copy.
+    let block_entity = params
+        .block_entity
+        .clone()
+        .or_else(|| world.get_block_entity(pos));
     let params = LootContextParameters {
         world: Some(world),
         tool: Some(
@@ -646,7 +652,7 @@ pub fn drop_loot(
                 .clone()
                 .unwrap_or_else(|| ItemStack::EMPTY.clone()),
         ),
-        block_entity: world.get_block_entity(pos),
+        block_entity: block_entity.clone(),
         ..params.clone()
     };
     let items = block_loot(world, block, &params);
@@ -662,7 +668,6 @@ pub fn drop_loot(
             server.plugin_manager.fire_blocking(&server, &mut event);
         }
         if !event.cancelled {
-            let block_entity = world.get_block_entity(pos);
             for mut stack in event.items {
                 if let Some(block_entity) = &block_entity
                     && Block::from_item_id(stack.item.id) == Some(loot_block)

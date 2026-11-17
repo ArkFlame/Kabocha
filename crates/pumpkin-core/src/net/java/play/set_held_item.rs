@@ -29,6 +29,17 @@ impl JavaClient {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if previous_slot != slot && active_hand == Some(Hand::Right) {
+            // Vanilla `LivingEntity.stopUsingItem` calls `ItemStack.releaseUsing` before clearing
+            // the active item, so switching slots mid-draw fires the bow instead of cancelling it.
+            let item_in_use = player
+                .living_entity
+                .item_in_use
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            if let Some(stack) = item_in_use {
+                server.item_registry.on_stopped_using(&stack, player);
+            }
             player.living_entity.clear_active_hand();
         }
 

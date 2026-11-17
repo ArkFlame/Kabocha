@@ -906,6 +906,7 @@ impl Mob for SulfurCubeEntity {
             .split(1);
         self.mob_entity
             .set_item_slot_and_drop_when_killed(&EquipmentSlot::BODY, taken);
+        self.detect_body_item_change();
         self.play_sound(Sound::EntitySulfurCubeAbsorb);
 
         let empty = item
@@ -987,7 +988,8 @@ impl Mob for SulfurCubeEntity {
                 .living_entity
                 .deal_default_knockback(self, position, source, cause, amount);
         }
-        Some(true)
+        // Vanilla returns false: the block body absorbs the hit, only the knockback lands.
+        Some(false)
     }
 
     fn mob_knockback(

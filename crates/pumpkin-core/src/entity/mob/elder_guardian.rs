@@ -114,7 +114,10 @@ impl Mob for ElderGuardianEntity {
             let pos = entity.pos.load();
             let world = entity.world.load();
             let players = world.get_nearby_players(pos, 50.0);
-            let packet = CGameEvent::new(GameEvent::PlayElderGuardianMobAppearance, 1.0);
+            let packet = CGameEvent::new(
+                GameEvent::PlayElderGuardianMobAppearance,
+                rand::random::<f32>() * 0.25 + 0.75,
+            );
 
             for player in players {
                 player.try_send_client_packet(&packet);
@@ -131,11 +134,13 @@ impl Mob for ElderGuardianEntity {
         }
     }
 
-    fn on_damage(&self, _damage_type: DamageType, source: Option<&dyn EntityBase>) {
-        if let Some(src) = source
-            && let Some(living) = src.get_living_entity()
-        {
-            let _ = living.damage(src, 2.0, DamageType::THORNS);
-        }
+    fn on_damage_with_context(
+        &self,
+        damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        crate::entity::mob::guardian::reflect_thorns(self.get_entity(), damage_type, cause);
+        true
     }
 }

@@ -6824,6 +6824,8 @@ impl World {
 
         // Vanilla `ServerPlayerGameMode::destroyBlock` removes the block before calling
         // `playerDestroy`, so loot conditions and neighbour updates see it already gone.
+        // The block entity it hands to `playerDestroy` was read before the removal.
+        let broken_block_entity = self.get_block_entity(position);
         let broken_state_id = self.set_block_state(position, new_state_id, flags);
 
         if !flags.contains(BlockFlags::SKIP_DROPS) {
@@ -6837,6 +6839,7 @@ impl World {
                 block_state: Some(broken_block_state),
                 position: Some(position.to_f64()),
                 killed_by_player: Some(cause.is_some()),
+                block_entity: broken_block_entity,
                 ..Default::default()
             };
             crate::block::drop_loot(self, broken_block, position, true, &params);

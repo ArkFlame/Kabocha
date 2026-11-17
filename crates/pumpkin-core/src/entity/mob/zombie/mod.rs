@@ -111,17 +111,9 @@ impl ZombieEntityBase {
         hunting::apply(target_selector, mob_entity, ZOMBIE_HUNTS);
     }
 
-    /// Constructs a zombie-family mob with the shared goals. `destroy_eggs` mirrors whether the vanilla
-    /// `registerGoals` extends `Zombie#registerGoals`, which is the only place `ZombieAttackTurtleEggGoal`
-    /// is added; vanilla `Drowned` overrides it without calling `super`.
-    pub fn with_behaviour_goals(
-        entity: Entity,
-        destroy_eggs: bool,
-        add_behaviour_goals: fn(&MobEntity),
-    ) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
-        let zombie = Self {
-            mob_entity,
+    fn create(entity: Entity) -> Arc<Self> {
+        Arc::new(Self {
+            mob_entity: MobEntity::new(entity),
             can_break_doors: AtomicBool::new(false),
             is_baby: AtomicBool::new(false),
             drowning: ConversionTracker::new(
@@ -131,8 +123,18 @@ impl ZombieEntityBase {
                 "DrownedConversionTime",
                 DROWNING_CONVERSION_TICKS,
             ),
-        };
-        let mob_arc = Arc::new(zombie);
+        })
+    }
+
+    /// Constructs a zombie-family mob with the shared goals. `destroy_eggs` mirrors whether the vanilla
+    /// `registerGoals` extends `Zombie#registerGoals`, which is the only place `ZombieAttackTurtleEggGoal`
+    /// is added; vanilla `Drowned` overrides it without calling `super`.
+    pub fn with_behaviour_goals(
+        entity: Entity,
+        destroy_eggs: bool,
+        add_behaviour_goals: fn(&MobEntity),
+    ) -> Arc<Self> {
+        let mob_arc = Self::create(entity);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
@@ -152,13 +154,16 @@ impl ZombieEntityBase {
         mob_arc
     }
 
-    /// For a zombie-family member whose vanilla `registerGoals` does not call `super`, so it never
-    /// inherits `Zombie.ZombieAttackTurtleEggGoal` (vanilla `Drowned`).
-    pub fn without_turtle_egg_goal(
+    /// For a zombie-family member whose vanilla `registerGoals` replaces
+    /// `Zombie#registerGoals` without calling `super` (vanilla `Drowned`): only the
+    /// entity-specific goals, none of the inherited zombie or look goals.
+    pub fn with_custom_goals_only(
         entity: Entity,
         add_behaviour_goals: fn(&MobEntity),
     ) -> Arc<Self> {
-        Self::with_behaviour_goals(entity, false, add_behaviour_goals)
+        let mob_arc = Self::create(entity);
+        add_behaviour_goals(&mob_arc.mob_entity);
+        mob_arc
     }
 
     #[must_use]

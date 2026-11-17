@@ -160,7 +160,7 @@ pub(crate) fn create_filled_result(
 }
 
 pub(crate) fn give_filled_mob_bucket(stack: &mut ItemStack, player: &Player, bucket: ItemStack) {
-    give_filled_bucket_stack(stack, player, bucket, false);
+    give_filled_bucket_stack(stack, player, bucket, true);
 }
 
 pub(crate) fn fill_bucket_stack(stack: &mut ItemStack, player: &Player, item: &'static Item) {

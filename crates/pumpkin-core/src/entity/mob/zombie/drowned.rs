@@ -80,7 +80,7 @@ pub struct DrownedEntity {
 
 impl DrownedEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let entity = ZombieEntityBase::without_turtle_egg_goal(entity, |_| {});
+        let entity = ZombieEntityBase::with_custom_goals_only(entity, |_| {});
         let mut navigator = entity
             .mob_entity
             .navigator
@@ -122,7 +122,7 @@ impl DrownedEntity {
         goal_selector.add_goal(5, Box::new(DrownedGoToBeachGoal::new(1.0)));
         let sea_level = mob_entity.living_entity.entity.world.load().sea_level;
         goal_selector.add_goal(6, Box::new(DrownedSwimUpGoal::new(1.0, sea_level)));
-        goal_selector.add_goal(7, Box::new(WanderAroundGoal::new(1.0)));
+        goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
 
         let target_selector = &mob_entity.target_selector;
         target_selector.add_goal(
@@ -289,7 +289,7 @@ impl Mob for DrownedEntity {
                 equipment.get(&EquipmentSlot::MAIN_HAND).item == &Item::TRIDENT,
             )
         };
-        if offhand_empty && rand::random::<f32>() < NAUTILUS_SHELL_CHANCE {
+        if offhand_empty && self.get_random().random::<f32>() < NAUTILUS_SHELL_CHANCE {
             mob_entity.set_item_slot_and_drop_when_killed(
                 &EquipmentSlot::OFF_HAND,
                 ItemStack::new(1, &Item::NAUTILUS_SHELL),
