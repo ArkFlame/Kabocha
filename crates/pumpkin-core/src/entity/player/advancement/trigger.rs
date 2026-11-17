@@ -1,8 +1,6 @@
 use crate::entity::player::Player;
 use crate::entity::player::advancement::PlayerAdvancement;
-use crate::entity::player::advancement::predicate::{
-    self, CriterionConditions, EntityDistance,
-};
+use crate::entity::player::advancement::predicate::{self, CriterionConditions, EntityDistance};
 use pumpkin_util::math::position::BlockPos;
 
 #[derive(Debug, Clone)]
@@ -352,13 +350,11 @@ impl Player {
 
             AdvancementTrigger::SniperDuel => {
                 self.trigger_criterion_event("minecraft:player_killed_entity", |cond| match cond {
-                    CriterionConditions::PlayerKilledEntity(pred) => {
-                        pred.matches(
-                            "minecraft:skeleton",
-                            Some(EntityDistance::from_delta(50.0, 0.0, 0.0)),
-                            None,
-                        )
-                    }
+                    CriterionConditions::PlayerKilledEntity(pred) => pred.matches(
+                        "minecraft:skeleton",
+                        Some(EntityDistance::from_delta(50.0, 0.0, 0.0)),
+                        None,
+                    ),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
