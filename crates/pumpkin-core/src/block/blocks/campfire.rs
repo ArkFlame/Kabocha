@@ -57,9 +57,9 @@ impl CampfireBlock {
                 .get_block_collision_shapes_at(&check_pos)
                 .any(|shape| shape.intersects(&virtual_post));
             if smoke_blocked {
-                let below_pos = check_pos.down();
-                let (below_block, below_state_id) = world.get_block_and_state_id(&below_pos);
-                return Self::is_lit_campfire(below_block, below_state_id);
+                // Vanilla stops at the first block whose collision shape crosses the
+                // 0.375..0.625 smoke column; a campfire under that block does not count.
+                return false;
             }
         }
         false
