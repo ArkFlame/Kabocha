@@ -1,5 +1,5 @@
 use crate::{
-    BlockState, BlockStateId,
+    BlockState, BlockStateId, Property, PropertyKey,
     tag::{RegistryKey, Tag, Taggable},
 };
 use pumpkin_util::{
@@ -8,7 +8,9 @@ use pumpkin_util::{
     random::hash_block_pos,
     resource_location::{FromResourceLocation, ResourceLocation, ToResourceLocation},
 };
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::sync::{OnceLock, RwLock};
 
 /// Represents the static definition of a Minecraft block type.
 ///
@@ -48,6 +50,110 @@ pub struct Block {
     pub experience: Option<Experience>,
     /// Loot table identifier, `None` when the block has no loot table.
     pub loot_table: Option<&'static str>,
+}
+
+/// One property of a block: `index = (state - first) / stride % values.len()`.
+#[derive(Debug, Clone, Copy)]
+pub struct PropertySlot {
+    pub key: PropertyKey,
+    pub stride: u16,
+    /// Values in index order, same variants as `to_props`.
+    pub values: &'static [Property],
+}
+
+impl PropertySlot {
+    #[must_use]
+    pub const fn count(&self) -> u16 {
+        self.values.len() as u16
+    }
+
+    #[must_use]
+    pub fn index_of(&self, value: Property) -> Option<u16> {
+        self.values
+            .iter()
+            .position(|slot_value| slot_value.matches_property(value))
+            .map(|index| index as u16)
+    }
+}
+
+struct SlotBuilder {
+    key: PropertyKey,
+    values: Vec<Property>,
+    stride: Option<u16>,
+}
+
+/// Lazily built property slots, keyed by block id. The generated tables only store
+/// the state order, so the mixed radix is derived from it on first use per block.
+static PROPERTY_SLOT_CACHE: OnceLock<RwLock<HashMap<u16, &'static [PropertySlot]>>> =
+    OnceLock::new();
+
+/// Derives the slots from the generated state order. Blocks whose states are not a full
+/// mixed radix of their properties (unlisted properties) get no slots.
+fn build_property_slots(block: &Block) -> &'static [PropertySlot] {
+    let state_count = block.states.len();
+    if state_count <= 1 {
+        return &[];
+    }
+    let Some(first) = block.properties(block.states[0].id) else {
+        return &[];
+    };
+    let first_props = first.to_props();
+    if first_props.is_empty() {
+        return &[];
+    }
+    let mut builders: Vec<SlotBuilder> = first_props
+        .iter()
+        .map(|prop| SlotBuilder {
+            key: prop.key(),
+            values: vec![*prop],
+            stride: None,
+        })
+        .collect();
+    for (offset, state) in block.states.iter().enumerate().skip(1) {
+        let Some(props) = block.properties(state.id) else {
+            return &[];
+        };
+        for prop in props.to_props() {
+            let Some(builder) = builders
+                .iter_mut()
+                .find(|builder| builder.key == prop.key())
+            else {
+                return &[];
+            };
+            if builder.stride.is_none() && !builder.values[0].matches_property(prop) {
+                builder.stride = Some(offset as u16);
+            }
+            if !builder
+                .values
+                .iter()
+                .any(|value| value.matches_property(prop))
+            {
+                builder.values.push(prop);
+            }
+        }
+    }
+    let mut product = 1usize;
+    for builder in &builders {
+        product *= builder.values.len();
+    }
+    if product != state_count {
+        return &[];
+    }
+    for builder in &mut builders {
+        if builder.stride.is_none() {
+            builder.stride = Some(state_count as u16);
+        }
+    }
+    builders.sort_by(|a, b| b.stride.cmp(&a.stride));
+    let slots: Vec<PropertySlot> = builders
+        .into_iter()
+        .map(|builder| PropertySlot {
+            key: builder.key,
+            stride: builder.stride.unwrap_or(1),
+            values: Box::leak(builder.values.into_boxed_slice()),
+        })
+        .collect();
+    Box::leak(slots.into_boxed_slice())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,12 +296,7 @@ impl Block {
 
     #[must_use]
     pub fn is_waterloggable(&self) -> bool {
-        self.properties(self.default_state.id).is_some_and(|props| {
-            props
-                .to_props()
-                .iter()
-                .any(|p| p.key() == crate::PropertyKey::Waterlogged)
-        })
+        self.property_slot(PropertyKey::Waterlogged).is_some()
     }
 
     /// Returns a new [`BlockStateId`] for the given [`BlockStateId`] with the
@@ -204,18 +305,99 @@ impl Block {
     /// property then `None` is returned.
     #[must_use]
     pub fn set_waterlogged(&self, id: BlockStateId, value: bool) -> Option<BlockStateId> {
-        self.properties(id).and_then(|props| {
-            let mut props = props.to_props();
-            let waterlogged = props.iter_mut().find_map(|p| match p {
-                crate::Property::Waterlogged(w) => Some(w),
-                _ => None,
-            })?;
-            if value == *waterlogged {
-                return None;
-            }
+        if id.is_waterlogged() == value {
+            return None;
+        }
+        self.with_property(id, Property::Waterlogged(value))
+    }
 
-            *waterlogged = value;
-            Some(self.from_properties(&props).to_state_id(self))
+    /// Property layout of this block in state-index order, empty when the generated
+    /// states are not a full mixed radix of their properties.
+    #[must_use]
+    pub fn property_slots(&self) -> &'static [PropertySlot] {
+        let cache = PROPERTY_SLOT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+        {
+            let guard = cache
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(slots) = guard.get(&self.id.as_u16()) {
+                return slots;
+            }
+        }
+        let slots = build_property_slots(self);
+        let mut guard = cache
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *guard.entry(self.id.as_u16()).or_insert(slots)
+    }
+
+    #[must_use]
+    pub fn property_slot(&self, key: PropertyKey) -> Option<&'static PropertySlot> {
+        self.property_slots().iter().find(|slot| slot.key == key)
+    }
+
+    /// Offset of `id` in this block's state list, `None` for another block's state.
+    fn state_offset(&self, id: BlockStateId) -> Option<u16> {
+        let Some(offset) = id.as_u16().checked_sub(self.states[0].id.as_u16()) else {
+            return None;
+        };
+        if (offset as usize) < self.states.len() {
+            Some(offset)
+        } else {
+            None
+        }
+    }
+
+    /// Value index of `key` in `id`; `None` if `id` is not a state of this block.
+    #[must_use]
+    pub fn property_index(&self, id: BlockStateId, key: PropertyKey) -> Option<u16> {
+        let offset = self.state_offset(id)?;
+        let slot = self.property_slot(key)?;
+        Some(offset / slot.stride % slot.count())
+    }
+
+    /// `id` with `key` set to value `index`, by arithmetic.
+    #[must_use]
+    pub fn with_property_index(
+        &self,
+        id: BlockStateId,
+        key: PropertyKey,
+        index: u16,
+    ) -> Option<BlockStateId> {
+        let offset = self.state_offset(id)?;
+        let slot = self.property_slot(key)?;
+        if index >= slot.count() {
+            return None;
+        }
+        let current = offset / slot.stride % slot.count();
+        let offset = offset - current * slot.stride + index * slot.stride;
+        if (offset as usize) >= self.states.len() {
+            return None;
+        }
+        BlockStateId::new(self.states[0].id.as_u16() + offset)
+    }
+
+    #[must_use]
+    pub fn get_property(&self, id: BlockStateId, key: PropertyKey) -> Option<Property> {
+        let index = self.property_index(id, key)?;
+        self.property_slot(key)
+            .map(|slot| slot.values[index as usize])
+    }
+
+    /// `id` with `value` applied; `None` if the block has no such value.
+    #[must_use]
+    pub fn with_property(&self, id: BlockStateId, value: Property) -> Option<BlockStateId> {
+        let slot = self.property_slot(value.key())?;
+        self.with_property_index(id, slot.key, slot.index_of(value)?)
+    }
+
+    /// All property values of `id`, without allocating.
+    pub fn property_values(&self, id: BlockStateId) -> impl Iterator<Item = Property> {
+        let slots = self.property_slots();
+        self.state_offset(id).into_iter().flat_map(move |offset| {
+            slots
+                .iter()
+                .map(move |slot| slot.values[(offset / slot.stride % slot.count()) as usize])
         })
     }
 
@@ -579,5 +761,51 @@ mod tests {
         assert_eq!(xyz_delta.z, 0.5);
 
         assert_eq!(Block::STONE.shape_offset_delta(&positive_extreme).x, 0.0);
+    }
+
+    #[test]
+    fn property_slots_match_generated_state_layout() {
+        for raw_id in 0..BlockId::COUNT {
+            let block = Block::from_id(BlockId::new(raw_id).unwrap());
+            let slots = block.property_slots();
+            if slots.is_empty() {
+                continue;
+            }
+            for state in block.states {
+                let props = block.properties(state.id).unwrap().to_props();
+                let values: Vec<_> = block.property_values(state.id).collect();
+                assert_eq!(props.len(), values.len(), "{}", block.name);
+                for prop in &props {
+                    assert!(
+                        values.iter().any(|value| value.matches_property(*prop)),
+                        "{} {prop:?}",
+                        block.name
+                    );
+                    assert_eq!(
+                        block.with_property(state.id, *prop),
+                        Some(state.id),
+                        "{} {prop:?}",
+                        block.name
+                    );
+                }
+                for slot in slots {
+                    let index = block.property_index(state.id, slot.key).unwrap();
+                    let expected = props.iter().find(|prop| prop.key() == slot.key).unwrap();
+                    assert!(
+                        slot.values[index as usize].matches_property(*expected),
+                        "{} {:?}",
+                        block.name,
+                        slot.key
+                    );
+                    assert_eq!(
+                        block.with_property_index(state.id, slot.key, index),
+                        Some(state.id),
+                        "{} {:?}",
+                        block.name,
+                        slot.key
+                    );
+                }
+            }
+        }
     }
 }
