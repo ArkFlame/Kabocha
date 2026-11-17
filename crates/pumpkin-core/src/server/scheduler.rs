@@ -5,6 +5,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tracing::warn;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScheduledFunctionEvent {
@@ -183,7 +184,16 @@ impl ScheduledFunctionQueue {
             let Some(name) = callback.get_string("Name") else {
                 continue;
             };
-            let is_tag = callback.get_string("Type") == Some("minecraft:function_tag");
+            let is_tag = match callback.get_string("Type") {
+                Some("minecraft:function") => false,
+                Some("minecraft:function_tag") => true,
+                // Vanilla only decodes these two callback types; drop anything else
+                // instead of running it as a plain function.
+                other => {
+                    warn!("Ignoring scheduled event {id} with unknown callback type {other:?}");
+                    continue;
+                }
+            };
             let function_name = if is_tag {
                 format!("#{name}")
             } else {
@@ -241,7 +251,7 @@ impl ScheduledFunctionQueue {
 
 #[cfg(test)]
 mod tests {
-    use super::{NbtTag, ScheduledFunctionEvent, ScheduledFunctionQueue};
+    use super::{NbtCompound, NbtTag, ScheduledFunctionEvent, ScheduledFunctionQueue};
 
     #[test]
     fn saved_events_keep_their_remaining_delay_across_a_restart() {
@@ -302,5 +312,22 @@ mod tests {
         queue.schedule("ns:loop".into(), 8, "ns:loop".into(), false, true);
         let saved = queue.to_saved_nbt(7, 7);
         assert_eq!(saved.get_list("events").map(<[NbtTag]>::len), Some(1));
+    }
+
+    #[test]
+    fn saved_event_with_unknown_callback_type_is_dropped() {
+        let mut callback = NbtCompound::new();
+        callback.put_string("Type", "minecraft:unknown".to_string());
+        callback.put_string("Name", "ns:loop".to_string());
+        let mut event = NbtCompound::new();
+        event.put_string("Name", "ns:loop".to_string());
+        event.put_long("TriggerTime", 20);
+        event.put_compound("Callback", callback);
+        let mut data = NbtCompound::new();
+        data.put("events", NbtTag::List(vec![NbtTag::Compound(event)]));
+
+        let queue = ScheduledFunctionQueue::new();
+        queue.load_saved_nbt(&data, 0, 0);
+        assert!(queue.get_event_ids().is_empty());
     }
 }
