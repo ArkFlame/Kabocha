@@ -29,7 +29,12 @@ impl JavaClient {
                 player.open_vehicle_inventory();
             }
             Action::StartFlyingElytra => {
-                if !player.try_to_start_fall_flying(server) {
+                // A failed start is also the client asking to stop gliding; the stop event
+                // veto applies here like every other stop site.
+                if !player.try_to_start_fall_flying(server)
+                    && entity.is_fall_flying()
+                    && player.glide_stop_allowed()
+                {
                     entity.stop_fall_flying();
                 }
             }
