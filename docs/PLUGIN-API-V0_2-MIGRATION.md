@@ -113,6 +113,25 @@ Rules that come with that shape:
 | `context` | `register-event-with-handle`, `unregister-event` | none; v0.2 `register-event` is keyed by `handler-id` only, and handlers are torn down with the plugin |
 | `world` | `read-section`, `refresh-biomes` | none in v0.2; use `get-biome`/`set-biome` and the block APIs |
 
+### 2.3a Removed event and packet records (intentional, not dropped)
+The v0.1 → upstream diff shows these `event.wit` records absent in this tree.
+They were not dropped: the variant event payloads were replaced by the `event`
+resource rework (§2), and each record below is carried by a same-named
+`*-event` record (same fields, plus `cancelled` where noted). Nothing fires
+less often; the events are exposed through `get-*`/`set-*` on `event`.
+| removed record (upstream `event.wit`) | replacement |
+|---|---|
+| `java-connection-packet-received-event-data` | `java-connection-packet-received-event` |
+| `java-connection-packet-sent-event-data` | `java-connection-packet-sent-event` |
+| `bedrock-connection-packet-received-event-data` | `bedrock-connection-packet-received-event` |
+| `bedrock-connection-packet-sent-event-data` | `bedrock-connection-packet-sent-event` |
+| `entity-toggle-sit-event-data` | `entity-toggle-sit-event` |
+
+Packet field retype (`java-packets.wit`): `login-success.properties` and
+`player-action-add-player.properties` changed from `list<property>` (entity
+attribute type) to `list<profile-property>` (GameProfile property, with
+`signature`). Plugins that read these fields must use `profile-property`.
+
 ### 2.4 New APIs worth using
 
 * `gametest.wit` – new interface, a one-to-one mapping of
