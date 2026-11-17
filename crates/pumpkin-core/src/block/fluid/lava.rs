@@ -163,6 +163,11 @@ impl FluidBehaviour for FlowingLava {
     }
 
     fn on_scheduled_tick(&self, world: &Arc<World>, _fluid: &Fluid, block_pos: &BlockPos) {
+        // Vanilla runs the neighbor fluid scan on every tick, so lava touching water
+        // turns into cobblestone/obsidian instead of flowing on top of it.
+        if !Self::receive_neighbor_fluids(world, block_pos) {
+            return;
+        }
         Self.on_scheduled_tick_internal(world, &Fluid::FLOWING_LAVA, block_pos);
     }
 
@@ -275,13 +280,23 @@ impl FlowingFluid for FlowingLava {
         let current_state_id = world.get_block_state_id(pos);
         let block = Block::from_state_id(current_state_id);
 
+        let target_is_water = world
+            .get_fluid(pos)
+            .has_tag(&pumpkin_data::tag::Fluid::MINECRAFT_WATER);
+
         if new_props.level == Level::L8 && new_props.falling == Falling::True {
             // Stone creation when lava meets water
-            if block == &Block::WATER {
+            if target_is_water {
                 world.set_block_state(pos, Block::STONE.default_state.id, BlockFlags::NOTIFY_ALL);
                 world.sync_world_event(WorldEvent::LavaFizz, *pos, 0);
                 return;
             }
+        }
+
+        // Vanilla `LavaFluid#canPassThrough` refuses water: the lava block itself turns
+        // into cobblestone/obsidian in `receive_neighbor_fluids` instead of replacing it.
+        if target_is_water {
+            return;
         }
 
         // Don't flow into waterlogged blocks
