@@ -22,6 +22,8 @@ use crate::entity::{
 
 const EFFECT_INTERVAL: i32 = 1200;
 const HOME_RADIUS: i32 = 16;
+/// Mining fatigue amplifier applied by the elder guardian's appearance effect.
+const FATIGUE_AMPLIFIER: u8 = 2;
 
 pub struct ElderGuardianEntity {
     pub mob_entity: MobEntity,
@@ -121,11 +123,20 @@ impl Mob for ElderGuardianEntity {
             );
 
             for player in players {
+                // Vanilla `MobEffectUtil.addEffectToPlayersAround` skips players whose
+                // mining fatigue is already at amplifier 2 or higher.
+                if player
+                    .living_entity
+                    .get_effect(&StatusEffect::MINING_FATIGUE)
+                    .is_some_and(|effect| effect.amplifier >= FATIGUE_AMPLIFIER)
+                {
+                    continue;
+                }
                 player.try_send_client_packet(&packet);
                 player.living_entity.add_effect(Effect {
                     effect_type: &StatusEffect::MINING_FATIGUE,
                     duration: 6000,
-                    amplifier: 2,
+                    amplifier: FATIGUE_AMPLIFIER,
                     ambient: false,
                     show_particles: true,
                     show_icon: true,
