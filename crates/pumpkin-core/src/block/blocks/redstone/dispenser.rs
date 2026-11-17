@@ -666,7 +666,8 @@ impl DispenserBlock {
             None,
         );
 
-        // Vanilla SpawnEggItemBehavior keeps the egg when nothing spawned.
+        // Vanilla SpawnEggItemBehavior keeps the egg when nothing spawned, and the
+        // dispenser plays the fail click instead of the dispense sound.
         if ctx
             .world
             .spawn_creature(mob, CreatureSpawnReason::DispenseEgg, None)
@@ -675,10 +676,12 @@ impl DispenserBlock {
             // Vanilla `EntityType.spawn` emits ENTITY_PLACE at the spawned entity's position.
             ctx.world
                 .emit_game_event(GameEvent::EntityPlace.name(), spawn_pos);
+            ctx.world
+                .sync_world_event(WorldEvent::SoundDispenserDispense, *ctx.position, 0);
+        } else {
+            ctx.world
+                .sync_world_event(WorldEvent::SoundDispenserFail, *ctx.position, 0);
         }
-
-        ctx.world
-            .sync_world_event(WorldEvent::SoundDispenserDispense, *ctx.position, 0);
     }
 
     fn dispense_snowball(ctx: &DispenseContext<'_>, item: &mut ItemStack) {
