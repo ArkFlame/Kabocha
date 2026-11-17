@@ -204,7 +204,9 @@ impl ArmadilloEntity {
     pub fn can_stay_rolled_up(&self) -> bool {
         !self.is_panicking()
             && !self.mob_entity.living_entity.is_in_water()
+            && !self.get_entity().is_leashed()
             && !self.get_entity().has_vehicle()
+            && !self.get_entity().has_passengers()
     }
 
     pub fn roll_up(&self) {
