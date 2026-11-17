@@ -398,6 +398,8 @@ impl ArrowEntity {
             &self.entity,
             &CEntityStatus::new(self.entity.entity_id, 0),
         );
+        // Vanilla Arrow#updateColor resets the effect color when the potion is gone.
+        self.entity.set_synced_data(pumpkin_data::tracked_data::arrow::ID_EFFECT_COLOR, -1);
     }
 }
 
