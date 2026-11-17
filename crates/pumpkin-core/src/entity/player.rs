@@ -4010,7 +4010,8 @@ impl Player {
     }
 
     pub fn progress_motion(&self, delta_pos: Vector3<f64>) {
-        // TODO: gliding...
+        // Airborne movement (including gliding) falls through to `return` below: vanilla
+        // `checkMovementStatistics` grants no food exhaustion while not on ground, in water or climbing.
         let entity = &self.living_entity.entity;
         let (rate, distance) = if self.is_swimming() || entity.is_submerged_in_water() {
             (0.01, delta_pos.length())
