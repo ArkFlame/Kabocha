@@ -530,12 +530,14 @@ impl DispenserBlock {
         let target = Self::target_position(ctx);
         let is_water = |id: u16| id == Fluid::WATER.id || id == Fluid::FLOWING_WATER.id;
 
-        let spawn_pos = if is_water(ctx.world.get_fluid(&target).id) {
-            target.to_f64()
+        // Vanilla `BoatDispenseItemBehavior`: spawn just outside the dispenser,
+        // one block higher when the block in front is water.
+        let y_offset = if is_water(ctx.world.get_fluid(&target).id) {
+            1.0
         } else if ctx.world.get_block_state(&target).is_air()
             && is_water(ctx.world.get_fluid(&target.down()).id)
         {
-            target.down().to_f64()
+            0.0
         } else {
             return false;
         };
@@ -546,12 +548,19 @@ impl DispenserBlock {
             entity_type.dimension[1],
             entity_type.eye_height,
         );
+        let center = ctx.position.to_centered_f64();
+        let facing = to_normal(ctx.facing);
+        let just_outside = 0.5625 + f64::from(dimensions.width) / 2.0;
+        let spawn_pos = Vector3::new(
+            facing.x.mul_add(just_outside, center.x),
+            facing.y.mul_add(1.125, center.y) + y_offset,
+            facing.z.mul_add(just_outside, center.z),
+        );
         if !Self::has_room_for(ctx, spawn_pos, &dimensions) {
             return false;
         }
 
         let dispensed = item.split(1);
-        let facing = to_normal(ctx.facing);
         let entity = Entity::new(ctx.world.clone(), spawn_pos, entity_type);
         entity.set_rotation(facing.x.atan2(facing.z) as f32 * 57.295_776, 0.0);
         let boat = Arc::new(BoatEntity::new(entity));
