@@ -11,6 +11,7 @@ use pumpkin_util::difficulty::Difficulty;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
+use pumpkin_world::chunk::ChunkHeightmapType;
 
 use crate::entity::EntityBase;
 use crate::entity::mob::raider::create_ominous_banner;
@@ -418,7 +419,7 @@ impl Raid {
     }
 
     #[must_use]
-    pub fn find_random_spawn_pos(&self, max_tries: usize) -> Option<BlockPos> {
+    pub fn find_random_spawn_pos(&self, world: &World, max_tries: usize) -> Option<BlockPos> {
         let seconds_remaining = self.raid_cooldown_ticks / 20;
         let how_far = 0.22 * (seconds_remaining as f32) - 0.24;
         let start_angle = rand::random::<f32>() * std::f32::consts::PI * 2.0;
@@ -431,9 +432,11 @@ impl Raid {
             let spawn_z = self.center.0.z
                 + ((angle.sin() * 32.0 * how_far) as i32)
                 + (rand::random::<i32>().rem_euclid(3)) * (how_far as i32);
-            let spawn_y = self.center.0.y;
+            // Vanilla `Raid.findRandomSpawnPos` places the group on the WORLD_SURFACE heightmap.
+            let spawn_y =
+                world.get_heightmap_height(ChunkHeightmapType::WorldSurface, spawn_x, spawn_z);
 
-            if (spawn_y - self.center.0.y).abs() <= 96 {
+            if is_within_raid_spawn_y(spawn_y, self.center.0.y) {
                 let spawn_pos = BlockPos(Vector3::new(spawn_x, spawn_y, spawn_z));
                 return Some(spawn_pos);
             }
@@ -573,7 +576,7 @@ impl Raid {
                     }
                 } else {
                     if self.wave_spawn_pos.is_none() && self.raid_cooldown_ticks % 5 == 0 {
-                        self.wave_spawn_pos = self.find_random_spawn_pos(8);
+                        self.wave_spawn_pos = self.find_random_spawn_pos(world, 8);
                     }
 
                     if self.raid_cooldown_ticks == 300 || self.raid_cooldown_ticks % 20 == 0 {
@@ -604,7 +607,7 @@ impl Raid {
             while self.should_spawn_group() {
                 let spawn_pos = self
                     .wave_spawn_pos
-                    .or_else(|| self.find_random_spawn_pos(20))
+                    .or_else(|| self.find_random_spawn_pos(world, 20))
                     .unwrap_or(self.center);
 
                 self.started = true;
@@ -764,5 +767,25 @@ impl Raids {
                 raid.remove_all_players(world);
             }
         }
+    }
+}
+
+/// Vanilla `Raid.findRandomSpawnPos` accepts a surface height within 96 blocks of the raid center.
+const RAID_SPAWN_MAX_Y_DELTA: i32 = 96;
+
+const fn is_within_raid_spawn_y(surface_y: i32, center_y: i32) -> bool {
+    (surface_y - center_y).abs() <= RAID_SPAWN_MAX_Y_DELTA
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_within_raid_spawn_y;
+
+    #[test]
+    fn raid_spawn_y_bound_is_inclusive_at_96_blocks() {
+        assert!(is_within_raid_spawn_y(64 + 96, 64));
+        assert!(is_within_raid_spawn_y(64 - 96, 64));
+        assert!(!is_within_raid_spawn_y(64 + 97, 64));
+        assert!(!is_within_raid_spawn_y(64 - 97, 64));
     }
 }
