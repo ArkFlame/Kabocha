@@ -187,6 +187,16 @@ impl JavaClient {
 
         sync_used_hand_item(player, hand, slot_index, &before, item);
 
+        // Vanilla falls back to the item's own use when neither the block nor the
+        // item handled the click (Item#useOn defaults to Item#use), so items such
+        // as ender pearls still throw when aimed at a block.
+        if matches!(item_result, BlockActionResult::Pass)
+            && !item.is_empty()
+            && Block::from_item_id(item.item.id).is_none()
+        {
+            server.item_registry.on_use(&item, player, hand);
+        }
+
         Ok(())
     }
 
