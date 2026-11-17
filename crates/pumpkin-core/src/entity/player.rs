@@ -7037,8 +7037,10 @@ impl Player {
                     .cloned()
             {
                 let pos = BlockPos::new(target.x, target.y, target.z);
-                if target_world.level.is_chunk_loaded(&pos.chunk_position())
-                    && target_world.get_block(&pos) != &Block::LODESTONE
+                // Vanilla LodestoneTracker#tick unlinks targets outside the world bounds outright.
+                if !target_world.is_in_build_limit(pos)
+                    || (target_world.level.is_chunk_loaded(&pos.chunk_position())
+                        && target_world.get_block(&pos) != &Block::LODESTONE)
                 {
                     stack.set_data_component(LodestoneTrackerImpl {
                         target: None,

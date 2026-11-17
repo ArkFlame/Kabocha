@@ -52,3 +52,6 @@ verify" marks items that need the decompiled method before changing code.
 No code change: every candidate fix above is either M-sized or needs the decompiled
 `AbstractBoat` (`floatBoat` ordering/gravity, `handleMoveVehicle` wrapping) to satisfy WORKER.md
 rule 12; the worktree has no `.vendor/` reference to check against.
+
+## Worker pass (kab/h8, gapwave2-7)
+- gap 7 (`move_from_client` dead code): STILL OPEN. `entity/vehicle/boat/physics.rs:257` is an intentional `#[expect(dead_code)]` placeholder whose wiring is owned by gap 6; removing it would drop the parity path.

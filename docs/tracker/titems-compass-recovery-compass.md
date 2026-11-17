@@ -42,6 +42,6 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `entity/player.rs:6822-6831` | `LodestoneTracker#tick` returns the empty tracker when `!level.isInWorldBounds(pos)` | No bounds check; clearing relies on `get_block` returning a non-lodestone for an out-of-world Y | Add a world-bounds guard before reading the block | S |
+| `entity/player.rs:6822-6831` | `LodestoneTracker#tick` returns the empty tracker when `!level.isInWorldBounds(pos)` | No bounds check; clearing relies on `get_block` returning a non-lodestone for an out-of-world Y | Add a world-bounds guard before reading the block | S. FIXED (build-limit unlink guard; no test: needs loaded world, UNVERIFIED) |
 | `entity/player.rs:753,1129,4845-4853` | No vanilla counterpart | `compass_target` plus `set_compass_target`/`get_compass_target` has no reader and only ever stores `None`; leftover from the spawn-compass TODO at `world/mod.rs:4589` | Delete the field and both accessors | S |
 | `item/items/compass.rs:55-66` | `CompassItem#useOn` branches on `player.hasInfiniteMaterials()` (abilities `instabuild`, true for creative and spectator) | Branches on `gamemode != Creative`; spectator never reaches `use_on_block`, so no observable difference today | Use an ability/`has_infinite_materials` check when one exists | S |

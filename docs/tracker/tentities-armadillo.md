@@ -35,3 +35,7 @@ shed loot table `minecraft:gameplay/armadillo_shed` + scute drop sound, NBT keys
 goal priorities (Swim 0, EscapeDanger 1, Breed 2, Tempt 3, FollowParent 4, Wander 5, LookAtPlayer 6,
 RandomLookAround 7), food tag, step sound volume 0.15, `roll_up` gated on `!is_scared()`, and
 `mob_interact` returning `PASS` while scared.
+
+## Worker pass (kab/h8, gapwave2-7)
+- gap 2 (`on_damage` both branches store 80, dead check): FIXED/STALE. `entity/passive/armadillo.rs:399-414` now stores `SCARE_CHECK_INTERVAL` only for a living attacker and rolls up only if `can_stay_rolled_up()`; the duplicated branch no longer exists.
+- gaps 3-6: STILL OPEN (not re-verified this pass).

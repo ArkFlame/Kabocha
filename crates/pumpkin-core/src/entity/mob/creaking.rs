@@ -114,7 +114,7 @@ impl CreakingEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
+            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, false)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
                 6,
@@ -282,7 +282,7 @@ impl CreakingEntity {
             if distance > 0.001 {
                 let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
                 let dot = look_dir.dot(&norm_dir);
-                if dot > 1.0 - 0.5 / distance {
+                if dot > 1.0 - 0.5 / distance && player_entity.has_line_of_sight(creaking_entity) {
                     return true;
                 }
             }

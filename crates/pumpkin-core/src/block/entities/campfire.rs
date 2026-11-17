@@ -125,19 +125,17 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
-            let Some(recipe) =
-                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking)
-            else {
-                continue;
-            };
+            // Vanilla `litServerTick` counts every stack, `cookItems` drops the raw stack without a recipe
+            let recipe =
+                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking);
 
             let total = {
                 let mut total = self.cooking_total_times[slot]
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if *total <= 0 {
-                    let mut cooking_time = recipe.cookingtime;
-                    if let Some(server) = world.server.upgrade() {
+                    let mut cooking_time = recipe.as_ref().map_or(0, |recipe| recipe.cookingtime);
+                    if let Some(server) = world.server.upgrade().filter(|_| recipe.is_some()) {
                         let mut event = crate::plugin::api::events::block::campfire_start::CampfireStartEvent::new(
                             self.position,
                             world.clone(),
@@ -172,11 +170,16 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
-            let Some(result_item) = Item::from_registry_key(recipe.result.id) else {
-                continue;
+            let mut result = match &recipe {
+                Some(recipe) => {
+                    let Some(result_item) = Item::from_registry_key(recipe.result.id) else {
+                        continue;
+                    };
+                    Self::cooked_result(result_item, recipe.result.count)
+                }
+                // Vanilla `cookItems` falls back to the raw stack when no recipe matches
+                None => stack.clone(),
             };
-
-            let mut result = ItemStack::new(recipe.result.count, result_item);
             if let Some(server) = world.server.upgrade() {
                 let mut event = crate::plugin::api::events::block::block_cook::BlockCookEvent::new(
                     self.position,
@@ -356,6 +359,13 @@ impl CampfireBlockEntity {
         });
     }
 
+    /// Vanilla `CampfireBlockEntity.cookItems` splits one item off the recipe
+    /// result per completed cook, regardless of the recipe's result count.
+    fn cooked_result(result_item: &'static Item, recipe_count: u8) -> ItemStack {
+        let mut result = ItemStack::new(recipe_count, result_item);
+        result.split(1)
+    }
+
     fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, stack: ItemStack) {
         // Vanilla CampfireBlockEntity.cookItems spawns the result at the block
         // centre, one block above the campfire.
@@ -424,5 +434,11 @@ mod tests {
         assert_eq!(item3.get_string("Name"), Some("minecraft:porkchop"));
         assert_eq!(item3.get_byte("Count"), Some(1));
         assert_eq!(item3.get_byte("Slot"), Some(2));
+    }
+
+    #[test]
+    fn cooked_result_yields_single_item_per_cook() {
+        let result = CampfireBlockEntity::cooked_result(&Item::BAKED_POTATO, 3);
+        assert_eq!(result.item_count, 1);
     }
 }

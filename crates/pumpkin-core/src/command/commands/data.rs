@@ -310,7 +310,7 @@ impl DataAccessor for EntityDataAccessor {
             [
                 TextComponent::text(path.as_str().to_string()),
                 self.entity.get_display_name(),
-                TextComponent::text(format!("{scale:.2}")),
+                TextComponent::text(java_double_to_string(scale)),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -401,7 +401,7 @@ impl DataAccessor for BlockDataAccessor {
                 TextComponent::text(format!("{}", self.pos.0.x)),
                 TextComponent::text(format!("{}", self.pos.0.y)),
                 TextComponent::text(format!("{}", self.pos.0.z)),
-                TextComponent::text(format!("{scale:.2}")),
+                TextComponent::text(java_double_to_string(scale)),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -466,7 +466,7 @@ impl DataAccessor for StorageDataAccessor {
             [
                 TextComponent::text(path.as_str().to_string()),
                 TextComponent::text(self.id.clone()),
-                TextComponent::text(format!("{scale:.2}")),
+                TextComponent::text(java_double_to_string(scale)),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -488,15 +488,53 @@ pub fn get_single_tag(
     }
 }
 
+/// Java `Double.toString`: plain decimal for `1e-3 <= |v| < 1e7`, otherwise `d.dddE[-]n`,
+/// always with at least one fraction digit. Digits come from Rust's shortest round-trip form.
+fn java_double_to_string(value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value.is_infinite() {
+        return if value > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    if value == 0.0 {
+        return if value.is_sign_negative() {
+            "-0.0"
+        } else {
+            "0.0"
+        }
+        .to_string();
+    }
+    let sign = if value < 0.0 { "-" } else { "" };
+    let sci = format!("{:e}", value.abs());
+    let Some((mantissa, exp)) = sci.split_once('e') else {
+        return sci;
+    };
+    let exp: i32 = exp.parse().unwrap_or(0);
+    let digits = mantissa.replace('.', "");
+    if (-3..7).contains(&exp) {
+        if exp >= 0 {
+            let int_len = exp as usize + 1;
+            if digits.len() <= int_len {
+                let zeros = "0".repeat(int_len - digits.len());
+                format!("{sign}{digits}{zeros}.0")
+            } else {
+                format!("{sign}{}.{}", &digits[..int_len], &digits[int_len..])
+            }
+        } else {
+            let zeros = "0".repeat((-exp - 1) as usize);
+            format!("{sign}0.{zeros}{digits}")
+        }
+    } else {
+        let frac = if digits.len() > 1 { &digits[1..] } else { "0" };
+        format!("{sign}{}.{frac}E{exp}", &digits[..1])
+    }
+}
+
+/// Vanilla `NbtElement#asString` is only implemented by `NbtString`; numeric tags throw.
 fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
     match tag {
         NbtTag::String(s) => Ok(s.to_string()),
-        NbtTag::Byte(b) => Ok(b.to_string()),
-        NbtTag::Short(s) => Ok(s.to_string()),
-        NbtTag::Int(i) => Ok(i.to_string()),
-        NbtTag::Long(l) => Ok(l.to_string()),
-        NbtTag::Float(f) => Ok(f.to_string()),
-        NbtTag::Double(d) => Ok(d.to_string()),
         _ => Err(ERROR_EXPECTED_VALUE.create_without_context(TextComponent::text(tag.to_string()))),
     }
 }
@@ -1105,6 +1143,17 @@ mod tests {
     }
 
     #[test]
+    fn java_double_to_string_matches_java_format() {
+        assert_eq!(java_double_to_string(2.0), "2.0");
+        assert_eq!(java_double_to_string(0.5), "0.5");
+        assert_eq!(java_double_to_string(-1.5), "-1.5");
+        assert_eq!(java_double_to_string(100.0), "100.0");
+        assert_eq!(java_double_to_string(1e-4), "1.0E-4");
+        assert_eq!(java_double_to_string(1e7), "1.0E7");
+        assert_eq!(java_double_to_string(1.5e10), "1.5E10");
+    }
+
+    #[test]
     fn modify_insert_takes_an_index_argument() {
         let input = "data modify storage foo:bar a insert 1 value 9";
         assert!(
@@ -1119,6 +1168,16 @@ mod tests {
         assert!(
             !parses_completely(input),
             "{input} must not parse as a complete command"
+        );
+    }
+
+    #[test]
+    fn modify_string_source_rejects_numeric_tags() {
+        assert!(get_as_text(&NbtTag::Int(1)).is_err());
+        assert!(get_as_text(&NbtTag::Double(1.0)).is_err());
+        assert_eq!(
+            get_as_text(&NbtTag::String("x".into())).ok().as_deref(),
+            Some("x")
         );
     }
 

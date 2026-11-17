@@ -15,7 +15,7 @@ Date: 2026-11-16. Tracker row category=audit, coverage=AUDIT.
 | entity/mod.rs:1347 | `Player#getDisplayName` + `Scoreboard#getPlayersTeam` | team color/prefix/suffix belongs to the player display-name path, not generic `Entity`; generic entities keep the plain name | M |
 | entity/mod.rs:1375 | `Entity#kill` (discard) vs `LivingEntity#kill` (hurt genericKill, Float.MAX) | fallback exists only until every non-living entity implements damage; removing it now would break item/vehicle removal | S |
 | entity/mod.rs:3078 | block `stepOn` (campfire/magma) via `Entity#checkBlockCollision` | dead `tick_block_underneath` stub: implement grounded block-step effects in `on_stepped_on` for campfire/soul campfire/magma, then delete the stub | M |
-| entity/mod.rs:6172 | `Entity#stopRiding` emits `GameEvent.ENTITY_DISMOUNT` | call `world.emit_game_event(GameEvent::EntityDismount.name(), passenger.pos)`; position choice (passenger vs vehicle) needs confirming | S |
+| entity/mod.rs:6172 | `Entity#stopRiding` emits `GameEvent.ENTITY_DISMOUNT` | call `world.emit_game_event(GameEvent::EntityDismount.name(), passenger.pos)`; position choice (passenger vs vehicle) needs confirming | S. FIXED (already in 0593e7d4c) |
 
 ## Verified parity (no change needed)
 - `apply_knockback`: matches `LivingEntity#knockback` including the 1e-5 random retry loop, on-ground min(0.4), and velocity halving.

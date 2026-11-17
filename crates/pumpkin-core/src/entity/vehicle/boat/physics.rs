@@ -3,9 +3,8 @@ use pumpkin_data::tag::{self, Taggable};
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 
 use super::BoatEntity;
-use crate::entity::{EntityBase, player::Player};
+use crate::entity::EntityBase;
 use crate::plugin::api::events::vehicle::vehicle_move::VehicleMoveEvent;
-use pumpkin_protocol::java::client::play::CMoveVehicle;
 
 pub(super) const DEFAULT_GRAVITY: f64 = 0.04;
 const WATER_OFFSET: f64 = 0.001;
@@ -153,7 +152,7 @@ impl BoatEntity {
         );
         let world = self.vehicle.entity.world.load();
         let mut friction = 0.0;
-        let mut count = 0;
+        let mut count: u32 = 0;
         for x in min.0.x..=max.0.x {
             for z in min.0.z..=max.0.z {
                 let edges =
@@ -179,7 +178,7 @@ impl BoatEntity {
                 }
             }
         }
-        friction / count as f32
+        average_ground_friction(friction, count)
     }
 
     pub(super) fn float_boat(
@@ -253,50 +252,24 @@ impl BoatEntity {
         entity.move_entity(caller, event.to - entity.pos.load());
         self.record_movement(move_from, entity.pos.load(), event.to - move_from);
     }
+}
 
-    #[expect(
-        dead_code,
-        reason = "client-move boat correction has no packet handler wired yet"
-    )]
-    pub(crate) fn move_from_client(
-        &self,
-        player: &Player,
-        position: Vector3<f64>,
-        yaw: f32,
-        pitch: f32,
-    ) -> bool {
-        let entity = &self.vehicle.entity;
-        let from = entity.pos.load();
-        let mut event = VehicleMoveEvent::new(entity.entity_id, from, position);
-        if event.to != from
-            && let Some(server) = entity.world.load().server.upgrade()
-        {
-            server.plugin_manager.fire_blocking(&server, &mut event);
-        }
-        let movement = event.to - from;
-        if event.cancelled || entity.has_new_boat_collision(self, movement) {
-            self.correct_client_position(player);
-            return false;
-        }
-        entity.set_pos(event.to);
-        entity.set_rotation(yaw, pitch);
-        // Client-controlled boats have their velocity zeroed every tick, so the accepted
-        // vertical delta is the only source for `last_yd` (mirrors `move_boat`).
-        self.last_yd.store(movement.y);
-        self.record_movement(from, event.to, movement);
-        self.position_rider(player);
-        true
+/// Vanilla `Boat#getGroundFriction`: no supporting block yields 0.0 instead of a NaN average.
+fn average_ground_friction(total: f32, count: u32) -> f32 {
+    if count == 0 {
+        0.0
+    } else {
+        total / count as f32
     }
+}
 
-    fn correct_client_position(&self, player: &Player) {
-        let entity = &self.vehicle.entity;
-        let position = entity.pos.load();
-        player.try_send_client_packet(&CMoveVehicle::new(
-            position.x,
-            position.y,
-            position.z,
-            entity.yaw.load(),
-            entity.pitch.load(),
-        ));
+#[cfg(test)]
+mod tests {
+    use super::average_ground_friction;
+
+    #[test]
+    fn ground_friction_without_contact_is_zero_not_nan() {
+        assert_eq!(average_ground_friction(0.0, 0), 0.0);
+        assert_eq!(average_ground_friction(1.8, 2), 0.9);
     }
 }
