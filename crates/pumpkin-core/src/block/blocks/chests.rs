@@ -557,6 +557,11 @@ fn normal_use_chest_impl(args: &NormalUseArgs<'_>) -> BlockActionResult {
         );
         args.player
             .open_handled_screen(factory.as_ref(), Some(*args.position));
+        // Vanilla `ChestBlock.useWithoutItem` angers nearby piglins on a successful open.
+        crate::entity::mob::piglin_ai::PiglinAi::on_guarded_block_interacted(
+            args.world,
+            args.player,
+        );
     }
 
     BlockActionResult::Success
