@@ -131,12 +131,10 @@ pub fn place_template_with_options(
         let wy = origin.y + local_pos.y;
         let wz = world_z + local_pos.z;
 
-        // The y is checked after the processors, since gravity can move the block.
-        if let Some(bbox) = chunk_box
-            && (wx < bbox.min.x || wx > bbox.max.x || wz < bbox.min.z || wz > bbox.max.z)
-        {
-            continue;
-        }
+        // Blocks outside the target chunk still go through the processors: vanilla runs the
+        // processor pipeline over the whole template, so capped processors (for example the
+        // trail ruins archaeology cap) count the same blocks regardless of which chunk is
+        // being written.
 
         let palette_entry: &PaletteEntry = &block.state;
 
@@ -211,7 +209,14 @@ pub fn place_template_with_options(
             state = processed_state;
         }
         if !should_place
-            || chunk_box.is_some_and(|bbox| world_pos.y < bbox.min.y || world_pos.y > bbox.max.y)
+            || chunk_box.is_some_and(|bbox| {
+                wx < bbox.min.x
+                    || wx > bbox.max.x
+                    || wz < bbox.min.z
+                    || wz > bbox.max.z
+                    || world_pos.y < bbox.min.y
+                    || world_pos.y > bbox.max.y
+            })
         {
             continue;
         }
