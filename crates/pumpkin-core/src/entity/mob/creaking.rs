@@ -40,6 +40,8 @@ pub const CREAKING_GRAY: i32 = 6250335;
 pub const INVULNERABILITY_ANIMATION_DURATION: i32 = 8;
 pub const TWITCH_DEATH_DURATION: i32 = 45;
 pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
+/// Vanilla `Creaking#isLookingAtMe` gaze cone epsilon, divided by the distance.
+pub const GAZE_EPSILON: f64 = 0.025;
 
 pub struct CreakingEntity {
     pub mob_entity: MobEntity,
@@ -254,12 +256,13 @@ impl CreakingEntity {
         false
     }
 
+    /// Vanilla `Creaking#isLookingAtMe`: the player's normalized view vector
+    /// must point at the creaking's eye within a distance-scaled epsilon of
+    /// `GAZE_EPSILON / distance`. Vanilla samples no other point of the body.
     pub fn is_looking_at_me(&self, player: &Player) -> bool {
         let creaking_entity = &self.mob_entity.living_entity.entity;
         let creaking_pos = creaking_entity.pos.load();
-        let eye_y = creaking_entity.get_eye_y();
-        let feet_y = creaking_pos.y + 0.5;
-        let mid_y = f64::midpoint(eye_y, creaking_pos.y);
+        let target = Vector3::new(creaking_pos.x, creaking_entity.get_eye_y(), creaking_pos.z);
 
         let player_entity = player.get_entity();
         let player_eye_pos = player_entity.get_eye_pos();
@@ -274,20 +277,13 @@ impl CreakingEntity {
             (yaw.cos() * cos_pitch) as f64,
         );
 
-        let targets_y = [eye_y, feet_y, mid_y];
-        for target_y in targets_y {
-            let target = Vector3::new(creaking_pos.x, target_y, creaking_pos.z);
-            let dir = target - player_eye_pos;
-            let distance = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z).sqrt();
-            if distance > 0.001 {
-                let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
-                let dot = look_dir.dot(&norm_dir);
-                if dot > 1.0 - 0.5 / distance {
-                    return true;
-                }
-            }
+        let dir = target - player_eye_pos;
+        let distance = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z).sqrt();
+        if distance <= 0.001 {
+            return false;
         }
-        false
+        let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
+        look_dir.dot(&norm_dir) > 1.0 - GAZE_EPSILON / distance
     }
 
     fn is_player_disguised(player: &Player) -> bool {
