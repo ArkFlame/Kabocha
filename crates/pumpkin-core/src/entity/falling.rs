@@ -15,19 +15,31 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockFlags;
 use std::sync::{
     Arc,
-    atomic::{AtomicU16, Ordering},
+    atomic::{AtomicU16, AtomicU32, Ordering},
 };
 
 use crate::{
-    block::{blocks::falling::FallingBlock, registry::can_replace_with_other_block},
+    block::{
+        blocks::{anvil::AnvilBlock, falling::FallingBlock},
+        registry::can_replace_with_other_block,
+    },
     entity::{Entity, EntityBase, living::LivingEntity},
     server::Server,
     world::World,
 };
 
+/// Vanilla `FallingBlockEntity` hurt values for anvils and falling pointed dripstone.
+const ANVIL_DAMAGE_PER_DISTANCE: f32 = 2.0;
+const DRIPSTONE_DAMAGE_PER_DISTANCE: f32 = 2.0;
+const FALLING_DAMAGE_MAX: f32 = 40.0;
+/// Vanilla `FallingBlockEntity`: an anvil hit chance is `0.05 + steps * 0.05`.
+const ANVIL_DAMAGE_BASE_CHANCE: f32 = 0.05;
+
 pub struct FallingEntity {
     entity: Entity,
     block_state_id: AtomicU16,
+    /// Accumulated fall distance in blocks, stored as `f32` bits.
+    fall_distance: AtomicU32,
 }
 
 impl FallingEntity {
@@ -36,6 +48,18 @@ impl FallingEntity {
         Self {
             entity,
             block_state_id: AtomicU16::new(block_state_id.as_u16()),
+            fall_distance: AtomicU32::new(0),
+        }
+    }
+
+    fn fall_distance(&self) -> f32 {
+        f32::from_bits(self.fall_distance.load(Ordering::Relaxed))
+    }
+
+    fn add_fall_distance(&self, fallen: f32) {
+        if fallen > 0.0 {
+            let total = self.fall_distance() + fallen;
+            self.fall_distance.store(total.to_bits(), Ordering::Relaxed);
         }
     }
 
@@ -84,7 +108,9 @@ impl EntityBase for FallingEntity {
 
         entity.velocity.store(velo);
 
+        let start_y = entity.pos.load().y;
         entity.move_entity(caller, velo);
+        self.add_fall_distance((start_y - entity.pos.load().y) as f32);
         entity.tick_block_collisions(caller);
 
         // Preserve collision and block-interaction velocity changes (for example,
@@ -114,6 +140,27 @@ impl EntityBase for FallingEntity {
                     return;
                 }
 
+                let mut anvil_destroyed = false;
+                if let Some((per_distance, max_damage, damage_type)) = landing_hurt(block) {
+                    let fall_distance = self.fall_distance();
+                    let damage = falling_block_damage(fall_distance, per_distance, max_damage);
+                    if damage > 0.0 {
+                        for target in world.get_all_at_box(&entity.bounding_box.load()) {
+                            if target.get_entity().entity_id != entity.entity_id {
+                                target.damage(caller, damage, damage_type);
+                            }
+                        }
+                    }
+                    if is_anvil(block) && rand::random::<f32>() < anvil_damage_chance(fall_distance)
+                    {
+                        match AnvilBlock::damage(state_id) {
+                            Some(damaged) => state_id = damaged,
+                            None => anvil_destroyed = true,
+                        }
+                    }
+                }
+                let block = Block::from_state_id(state_id);
+
                 let (below_block, below_state) = world.get_block_and_state(&landing_pos.down());
                 let may_replace = can_replace_with_other_block(current_block, current_state);
                 let would_continue_falling =
@@ -129,7 +176,7 @@ impl EntityBase for FallingEntity {
                     None,
                     None,
                 ) && !would_continue_falling;
-                if may_replace && would_survive {
+                if !anvil_destroyed && may_replace && would_survive {
                     if block.has_tag(&tag::Block::MINECRAFT_CONCRETE_POWDERS)
                         && FallingBlock::should_solidify(&**world, &landing_pos)
                         && let Some(name) = block.name.strip_suffix("_powder")
@@ -163,7 +210,8 @@ impl EntityBase for FallingEntity {
                             &CUpdateBlock::new(landing_pos, BlockState::to_be_network_id(placed)),
                         );
                     }
-                } else if world.level_info.load().game_rules.entity_drops
+                } else if !anvil_destroyed
+                    && world.level_info.load().game_rules.entity_drops
                     && let Some(item) = Item::from_id(block.item_id)
                 {
                     entity.spawn_at_location(ItemStack::new(1, item));
@@ -227,6 +275,45 @@ fn shatters_on_landing(block: &Block) -> bool {
     block.id == BlockId::SUSPICIOUS_SAND || block.id == BlockId::SUSPICIOUS_GRAVEL
 }
 
+fn is_anvil(block: &Block) -> bool {
+    block == &Block::ANVIL || block == &Block::CHIPPED_ANVIL || block == &Block::DAMAGED_ANVIL
+}
+
+/// Landing hurt settings: `(damage per fall step, max damage, damage source)`.
+fn landing_hurt(block: &Block) -> Option<(f32, f32, DamageType)> {
+    if is_anvil(block) {
+        Some((
+            ANVIL_DAMAGE_PER_DISTANCE,
+            FALLING_DAMAGE_MAX,
+            DamageType::FALLING_ANVIL,
+        ))
+    } else if block == &Block::POINTED_DRIPSTONE {
+        Some((
+            DRIPSTONE_DAMAGE_PER_DISTANCE,
+            FALLING_DAMAGE_MAX,
+            DamageType::FALLING_STALACTITE,
+        ))
+    } else {
+        None
+    }
+}
+
+/// Vanilla `Mth.ceil(fallDistance - 1)`, or `None` when no impact happens.
+fn fall_steps(fall_distance: f32) -> Option<f32> {
+    let steps = (fall_distance - 1.0).ceil();
+    (steps >= 0.0).then_some(steps)
+}
+
+fn falling_block_damage(fall_distance: f32, per_distance: f32, max_damage: f32) -> f32 {
+    fall_steps(fall_distance).map_or(0.0, |steps| (steps * per_distance).floor().min(max_damage))
+}
+
+fn anvil_damage_chance(fall_distance: f32) -> f32 {
+    fall_steps(fall_distance).map_or(0.0, |steps| {
+        ANVIL_DAMAGE_BASE_CHANCE + steps * ANVIL_DAMAGE_BASE_CHANCE
+    })
+}
+
 fn shatter_sound(block: &Block) -> Option<Sound> {
     if block.id == BlockId::SUSPICIOUS_SAND {
         Some(Sound::BlockSuspiciousSandBreak)
@@ -252,6 +339,42 @@ mod tests {
         assert_eq!(
             shatter_sound(&Block::SUSPICIOUS_GRAVEL),
             Some(Sound::BlockSuspiciousGravelBreak)
+        );
+    }
+
+    #[test]
+    fn falling_damage_follows_vanilla_steps_and_cap() {
+        // No impact below one block of fall.
+        assert_eq!(falling_block_damage(0.5, 2.0, 40.0), 0.0);
+        assert_eq!(falling_block_damage(1.0, 2.0, 40.0), 0.0);
+        // ceil(3 - 1) = 2 steps, 2 damage each.
+        assert_eq!(falling_block_damage(3.0, 2.0, 40.0), 4.0);
+        // ceil(2.5 - 1) = 2 steps.
+        assert_eq!(falling_block_damage(2.5, 2.0, 40.0), 4.0);
+        // Capped at the max.
+        assert_eq!(falling_block_damage(100.0, 2.0, 40.0), 40.0);
+    }
+
+    #[test]
+    fn anvil_damage_chance_grows_per_step() {
+        assert_eq!(anvil_damage_chance(0.5), 0.0);
+        assert!((anvil_damage_chance(1.0) - 0.05).abs() < 1e-6);
+        assert!((anvil_damage_chance(3.0) - 0.15).abs() < 1e-6);
+    }
+
+    #[test]
+    fn landing_hurt_covers_anvils_and_dripstone_only() {
+        assert!(is_anvil(&Block::ANVIL));
+        assert!(is_anvil(&Block::CHIPPED_ANVIL));
+        assert!(is_anvil(&Block::DAMAGED_ANVIL));
+        assert!(landing_hurt(&Block::SAND).is_none());
+        assert_eq!(
+            landing_hurt(&Block::ANVIL).map(|h| h.2),
+            Some(DamageType::FALLING_ANVIL)
+        );
+        assert_eq!(
+            landing_hurt(&Block::POINTED_DRIPSTONE).map(|h| h.2),
+            Some(DamageType::FALLING_STALACTITE)
         );
     }
 
