@@ -556,10 +556,6 @@ impl DispenserBlock {
             facing.y.mul_add(1.125, center.y) + y_offset,
             facing.z.mul_add(just_outside, center.z),
         );
-        if !Self::has_room_for(ctx, spawn_pos, &dimensions) {
-            return false;
-        }
-
         let dispensed = item.split(1);
         let entity = Entity::new(ctx.world.clone(), spawn_pos, entity_type);
         entity.set_rotation(facing.x.atan2(facing.z) as f32 * 57.295_776, 0.0);
