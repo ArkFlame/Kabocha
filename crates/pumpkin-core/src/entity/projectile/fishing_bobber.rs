@@ -224,8 +224,10 @@ impl FishingBobberEntity {
                         .fire_blocking(&server, &mut item_event);
                 }
                 if !item_event.cancelled {
+                    // Vanilla `new ItemEntity(level, x, y, z, stack)` keeps the default ten tick
+                    // pickup delay, so a caught fish cannot be grabbed instantly.
                     let item_entity =
-                        ItemEntity::new_with_velocity(entity, item_stack.clone(), velocity, 0);
+                        ItemEntity::new_with_velocity(entity, item_stack.clone(), velocity, 10);
                     world.spawn_entity(Arc::new(item_entity));
                 }
 
