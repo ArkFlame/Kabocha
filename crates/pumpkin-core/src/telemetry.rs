@@ -562,8 +562,7 @@ impl TelemetryClient {
         let (pubkey_hex, sig_hex) =
             sign_telemetry_payload(&self.signing_key, &timestamp_str, &body_bytes);
 
-        let _ = self
-            .http_client
+        self.http_client
             .post(&self.shutdown_endpoint)
             .header("Content-Type", "application/json")
             .header(HEADER_PUBLIC_KEY, pubkey_hex)
@@ -571,7 +570,8 @@ impl TelemetryClient {
             .header(HEADER_TIMESTAMP, timestamp_str)
             .body(body_bytes)
             .send()
-            .await;
+            .await?
+            .error_for_status()?;
 
         Ok(())
     }
@@ -1327,6 +1327,22 @@ mod tests {
             )
             .await;
         assert!(shutdown_res.is_ok());
+
+        // Transport failures must surface as errors instead of a silent Ok.
+        let unreachable_client = TelemetryClient::new(
+            SigningKey::from_bytes(&seed),
+            pumpkin_auth::client_builder()
+                .timeout(Duration::from_secs(2))
+                .build()
+                .unwrap(),
+            "http://127.0.0.1:1/v1/heartbeat".to_string(),
+        );
+        assert!(
+            unreachable_client
+                .send_shutdown(None, Vec::new())
+                .await
+                .is_err()
+        );
 
         // Test invalid signature / unauthorized
         let body_bytes = serde_json::to_vec(&payload).unwrap();
