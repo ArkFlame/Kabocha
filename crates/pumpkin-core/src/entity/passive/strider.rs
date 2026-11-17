@@ -105,6 +105,12 @@ impl Animal for StriderEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         item_stack.item.has_tag(&tag::Item::MINECRAFT_STRIDER_FOOD)
     }
+
+    /// Vanilla `Strider#usePlayerItem` plays the happy sound whenever it is fed.
+    fn use_player_item(&self, player: &Arc<Player>, item_stack: &mut ItemStack) {
+        self.play_entity_sound(Sound::EntityStriderHappy, 1.0, 1.0);
+        item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+    }
 }
 
 impl Mob for StriderEntity {
