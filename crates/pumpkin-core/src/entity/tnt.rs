@@ -23,8 +23,9 @@ use std::{
 /// Vanilla `Entity.getAirDrag`, applied every tick.
 const AIR_DRAG: f32 = 0.98;
 
-// TODO: `owner` (igniter, projectile owner or explosion source): NBT, kill credit, damage source.
-// TODO: `block_state` NBT tag and `usedPortal` damage calculator.
+// TODO: vanilla `PrimedTnt.usedPortal` / `ignoreExplosion`: TNT that changed dimension
+// ignores explosions from other primed TNT. `block_state` NBT is moot while only a TNT
+// block can be primed.
 pub struct TNTEntity {
     entity: Entity,
     power: AtomicCell<f32>,
@@ -116,7 +117,10 @@ impl EntityBase for TNTEntity {
         let entity = &self.entity;
 
         let mut velo = entity.velocity.load();
-        velo.y -= self.get_gravity();
+        // Vanilla `PrimedTnt.tick`: `if (!this.isNoGravity())`.
+        if !entity.has_no_gravity() {
+            velo.y -= self.get_gravity();
+        }
 
         entity.move_entity(caller, velo);
         entity.tick_block_collisions(caller);
