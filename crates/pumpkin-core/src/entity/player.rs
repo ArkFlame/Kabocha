@@ -3706,7 +3706,7 @@ impl Player {
         let idle_timeout_minutes = server.player_idle_timeout.load(Ordering::Relaxed);
         if idle_timeout_minutes > 0 {
             let idle_duration = now.duration_since(self.last_action_time.load());
-            if idle_duration >= Duration::from_secs(idle_timeout_minutes as u64 * 60) {
+            if idle_duration > Duration::from_secs(idle_timeout_minutes as u64 * 60) {
                 self.kick(
                     DisconnectReason::KickedForIdle,
                     &TextComponent::translate_cross(
@@ -7943,6 +7943,10 @@ impl Player {
 
     #[allow(clippy::too_many_lines)]
     pub fn on_slot_click(self: &Arc<Self>, packet: SClickSlot, server: &Arc<Server>) {
+        // Vanilla `isImmobile()` (dead or dying) returns before the action time is reset.
+        if self.living_entity.is_dead_or_dying() {
+            return;
+        }
         self.update_last_action_time();
 
         let (
