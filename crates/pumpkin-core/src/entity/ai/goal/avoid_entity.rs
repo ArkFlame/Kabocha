@@ -176,11 +176,19 @@ impl AvoidEntityGoal {
 }
 
 impl Goal for AvoidEntityGoal {
-    fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
+    fn tick_reach(&self, mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
+        // The sensor branch searches as far as the follow range, not the per-type distance.
+        let reach = if self.per_type.is_some() {
+            mob.get_mob_entity()
+                .living_entity
+                .get_attribute_value(&Attributes::FOLLOW_RANGE)
+        } else {
+            self.flee_distance
+        };
         Some(super::GoalReach {
-            entities: self.flee_distance,
+            entities: reach,
             players: if self.flee_from.matches(&EntityType::PLAYER) {
-                self.flee_distance
+                reach
             } else {
                 0.0
             },
