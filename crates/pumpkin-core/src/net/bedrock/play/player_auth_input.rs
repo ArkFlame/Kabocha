@@ -12,6 +12,9 @@ use crate::entity::player::ClientMove;
 /// is vanilla's "moved too quickly" budget. Mount steps and the delta pushes layer on share it.
 const MAX_CLIENT_STEP_SQUARED: f64 = 100.0;
 
+/// Vanilla caps the horse jump charge at 90 ticks of held jump.
+const MAX_JUMP_CHARGE_TICKS: i32 = 90;
+
 impl BedrockClient {
     #[expect(
         clippy::too_many_lines,
@@ -126,6 +129,24 @@ impl BedrockClient {
                 &packet,
                 flags.get(InputData::VerticalCollision as usize),
             );
+        }
+
+        // Bedrock has no jump charge packet: the charge is the held `JumpDown` ticks, and
+        // `StartJumping` releases it as a rider jump (Java sends it as START_RIDING_JUMP).
+        if flags.get(InputData::StartJumping as usize) {
+            let charge = player
+                .bedrock_jump_charge_ticks
+                .swap(0, Ordering::Relaxed)
+                .clamp(0, MAX_JUMP_CHARGE_TICKS);
+            player.start_riding_jump(server, charge);
+        } else if flags.get(InputData::JumpDown as usize) {
+            let charge = player.bedrock_jump_charge_ticks.load(Ordering::Relaxed);
+            player.bedrock_jump_charge_ticks.store(
+                charge.saturating_add(1).min(MAX_JUMP_CHARGE_TICKS),
+                Ordering::Relaxed,
+            );
+        } else {
+            player.bedrock_jump_charge_ticks.store(0, Ordering::Relaxed);
         }
 
         // Item use (eat, block, place, bow) is embedded in the input tick since 1.19.80

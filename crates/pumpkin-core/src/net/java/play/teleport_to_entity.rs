@@ -18,23 +18,30 @@ impl JavaClient {
             return;
         }
 
-        // TODO: vanilla handleTeleportToEntityPacket searches any entity in all worlds,
-        // teleports there and never sets the camera
-        if let Some(target_player) = server.get_player_by_uuid(packet.target) {
-            let target_pos = target_player.living_entity.entity.pos.load();
-            let target_yaw = target_player.living_entity.entity.yaw.load();
-            let target_pitch = target_player.living_entity.entity.pitch.load();
+        // Vanilla handleTeleportToEntityPacket: the first level holding the UUID wins,
+        // the spectator moves there and no camera target is set.
+        let Some((target_world, target)) = server.worlds.load().iter().find_map(|world| {
+            world
+                .get_entity_by_uuid(packet.target)
+                .map(|entity| (world.clone(), entity))
+                .or_else(|| {
+                    world
+                        .get_player_by_uuid(packet.target)
+                        .map(|target| (world.clone(), target as Arc<dyn EntityBase>))
+                })
+        }) else {
+            return;
+        };
 
-            let target_id = target_player.living_entity.entity.entity_id;
-            if player.request_teleport_to(
-                target_pos,
-                Some(target_yaw),
-                Some(target_pitch),
-                TeleportCause::Spectate,
-            ) {
-                player.camera_target_id.store(Some(target_id));
-                player.try_send_client_packet(&CSetCamera::new(target_id.into()));
-            }
-        }
+        let target_pos = target.get_entity().pos.load();
+        let yaw = player.living_entity.entity.yaw.load();
+        let pitch = player.living_entity.entity.pitch.load();
+        player.teleport_with_cause(
+            target_pos,
+            Some(yaw),
+            Some(pitch),
+            target_world,
+            TeleportCause::Spectate,
+        );
     }
 }

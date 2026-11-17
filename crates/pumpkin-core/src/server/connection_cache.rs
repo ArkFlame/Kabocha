@@ -124,7 +124,9 @@ impl CachedStatus {
             .collect()
     }
 
-    pub fn add_player(&mut self, player: &Player, allows_listing: bool) {
+    /// Counts the player and, when `allows_listing`, adds a sample ticket.
+    /// Returns whether this player now holds the ticket.
+    pub fn add_player(&mut self, player: &Player, allows_listing: bool) -> bool {
         let player_id = player.gameprofile.id;
         let player_name = player.gameprofile.name.clone();
 
@@ -135,20 +137,23 @@ impl CachedStatus {
         }
 
         if !allows_listing || self.player_samples.iter().any(|(id, _)| *id == player_id) {
-            return;
+            return false;
         }
         self.player_samples.push((player_id, player_name));
         self.refresh_sample();
+        true
     }
 
-    pub fn remove_player(&mut self, player: &Player) {
+    /// Drops the sample ticket only when this player's connection holds it, so a
+    /// gated-off duplicate-UUID join cannot remove another connection's ticket.
+    pub fn remove_player(&mut self, player: &Player, listed: bool) {
         let player_id = player.gameprofile.id;
 
         if let Some(players) = &mut self.status_response.players {
             players.online = players.online.saturating_sub(1);
         }
 
-        if self.player_samples.iter().any(|(id, _)| *id == player_id) {
+        if listed && self.player_samples.iter().any(|(id, _)| *id == player_id) {
             self.player_samples.retain(|(id, _)| *id != player_id);
             self.refresh_sample();
         }

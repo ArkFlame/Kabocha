@@ -1302,10 +1302,12 @@ impl Server {
                     // Vanilla counts every player in the status response; only the
                     // sample lists players that allow server listing.
                     let allows_listing = config.is_some_and(|config| config.server_listing);
-                    self.listing
+                    let listed = self
+                        .listing
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .add_player(&player, allows_listing);
+                    player.listed_in_sample.store(listed, Ordering::Relaxed);
 
                     let player_dto = crate::net::management::dto::PlayerDto::new(
                         Some(player.gameprofile.id),
@@ -1375,7 +1377,7 @@ impl Server {
         self.listing
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove_player(player);
+            .remove_player(player, player.listed_in_sample.load(Ordering::Relaxed));
     }
 
     /// Adds player to `world` unless shutdown already closed admission.

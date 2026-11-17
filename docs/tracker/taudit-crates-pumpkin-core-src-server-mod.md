@@ -22,7 +22,7 @@ classes by name and behaviour. Paper/Spigot behaviour noted where it differs.
 | 3 | `server/mod.rs:1578` (`sync_game_time`) | in 1.21 the time packet is sent per level, from the level tick, for every 20th tick (also while frozen) | send `CUpdateTime` per world (each world has its own `level_time`) instead of overworld-only; confirm which side owns the packet before moving the call | M |
 | 4 | `server/mod.rs:1614` (`update_tick_times`) | vanilla `MinecraftServer` debug sample sends `SampleType.TICK_TIME` with the raw ring entry (worst/current tick), not `tick_duration.max(target)` | mirror the vanilla 4-value sample layout field by field | S - STILL OPEN: vanilla debug sample source not decompiled here |
 | 5 | `server/mod.rs:1649` (`get_tps`) | no vanilla equivalent; Paper clamps `Bukkit.getTPS()` to `[0, tps]` | clamp to `basic_config.tps` here so plugin API and `/tps` agree without the caller clamping | XS |
-| 6 | `server/mod.rs:1032` (`remove_player`) | n/a (listing is a Pumpkin feature); join adds only when `PlayerConfig::server_listing` is set | remember whether the player was added to the listing and only then remove, so a gated-off add cannot remove another ticket | S - STILL OPEN: duplicate-UUID listing edge needs per-connection tracking |
+| 6 | `server/mod.rs:1032` (`remove_player`) | n/a (listing is a Pumpkin feature); join adds only when `PlayerConfig::server_listing` is set | remember whether the player was added to the listing and only then remove, so a gated-off add cannot remove another ticket | S - FIXED (UNVERIFIED): `Player::listed_in_sample` records the ticket per connection; `remove_player` drops the sample entry only when set |
 | 7 | `server/mod.rs:894` (`add_player`) | vanilla does not derive "played before" from `Pos` | keep the Bedrock fallback but prefer the stored `HasPlayedBefore` tag when present | S |
 
 ## Checked, no gap
@@ -34,5 +34,5 @@ classes by name and behaviour. Paper/Spigot behaviour noted where it differs.
 - `saved_login_world` clearing placement for a disabled dimension is a Pumpkin config feature, not a vanilla path.
 ## Gapwave2-2 status
 
-- row 6 (`remove_player` sample ticket): STILL OPEN. Needs per-connection record of whether the player was listed (a gated-off duplicate-UUID join must not remove the other ticket).
+- row 6 (`remove_player` sample ticket): FIXED (UNVERIFIED). `ConnectionCache::add_player` returns whether it pushed the ticket; the join stores it on the player and leave only removes a ticket that connection holds. No unit test: `Player` construction is too heavy for a pure test; needs a gametest or live duplicate-UUID join check.
 - rows 1-4, 7: STILL OPEN.

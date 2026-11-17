@@ -618,6 +618,10 @@ pub struct Player {
     pub previous_gamemode: AtomicCell<Option<GameMode>>,
     /// The entity ID of the entity that the player is currently spectating/camera targeting.
     pub camera_target_id: AtomicCell<Option<i32>>,
+    /// Whether this connection holds a server-list sample ticket, so leaving only drops its own.
+    pub listed_in_sample: AtomicBool,
+    /// Bedrock jump charge: ticks `JumpDown` was held while riding, released by `StartJumping`.
+    pub bedrock_jump_charge_ticks: AtomicI32,
     /// The player's spawnpoint
     pub respawn_point: std::sync::Mutex<Option<RespawnPoint>>,
     /// The player's last death location (vanilla `ServerPlayer.lastDeathLocation`).
@@ -1053,6 +1057,8 @@ impl Player {
             gamemode: AtomicCell::new(gamemode),
             previous_gamemode: AtomicCell::new(None),
             camera_target_id: AtomicCell::new(None),
+            listed_in_sample: AtomicBool::new(false),
+            bedrock_jump_charge_ticks: AtomicI32::new(0),
             is_movement_locked: AtomicBool::new(false),
             received_move_packet_count: AtomicU32::new(0),
             known_move_packet_count: AtomicU32::new(0),
