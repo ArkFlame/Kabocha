@@ -461,3 +461,16 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
 
     dispatcher.register(time_cmd);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_time_returns_ticks_until_i32_max_then_wraps_to_zero() {
+        assert_eq!(wrap_time(0), 0);
+        assert_eq!(wrap_time(2_147_483_646), 2_147_483_646);
+        assert_eq!(wrap_time(2_147_483_647), 0);
+        assert_eq!(wrap_time(2_147_483_648), 1);
+    }
+}
