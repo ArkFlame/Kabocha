@@ -27,8 +27,9 @@ use crate::entity::{
     ai::goal::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, reset_universal_anger::ResetUniversalAngerGoal,
-        revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
+        melee_attack::MeleeAttackGoal, pollinate_flower::PollinateFlowerGoal,
+        reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
+        tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     ai::pathfinder::Navigator,
     mob::{
@@ -57,6 +58,19 @@ fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
 
 fn is_angry(mob: &dyn Mob) -> bool {
     mob.as_neutral().is_some_and(NeutralMob::is_angry)
+}
+
+/// Vanilla `BeePollinateGoal` only runs while the bee has no nectar.
+fn needs_nectar(mob: &dyn Mob) -> bool {
+    mob.cast_any()
+        .downcast_ref::<BeeEntity>()
+        .is_some_and(|bee| !bee.has_nectar())
+}
+
+fn record_nectar(mob: &dyn Mob) {
+    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        bee.set_has_nectar(true);
+    }
 }
 
 /// Angry and still holding its stinger.
@@ -126,6 +140,11 @@ impl BeeEntity {
             goal_selector.add_goal(
                 0,
                 Box::new(MeleeAttackGoal::new(1.4, true).gated_by(can_sting)),
+            );
+            // UNVERIFIED: vanilla `BeePollinateGoal` priority 4.
+            goal_selector.add_goal(
+                4,
+                Box::new(PollinateFlowerGoal::new(needs_nectar, record_nectar)),
             );
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
