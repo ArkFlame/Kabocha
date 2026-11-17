@@ -1149,6 +1149,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
             return;
         }
 
+        // Vanilla scoreboard collision rules gate pushing between teams.
+        if !living::is_allowed_by_team_rules(self.get_team().as_ref(), entity.get_team().as_ref()) {
+            return;
+        }
+
         let mut dx = other_entity.pos.load().x - self_entity.pos.load().x;
         let mut dz = other_entity.pos.load().z - self_entity.pos.load().z;
         let mut d = dx.abs().max(dz.abs());
