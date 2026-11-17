@@ -2,10 +2,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::attributes::Attributes;
-use pumpkin_data::entity::EntityType;
+use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::tracked_data::TrackedData;
 use pumpkin_data::{damage::DamageType, sound::Sound};
-use pumpkin_util::GameMode;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
+use pumpkin_util::{Difficulty, GameMode};
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::control::move_control::{MoveControl, Operation};
@@ -16,7 +18,7 @@ use crate::entity::living::LivingEntity;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        Controls, Goal, look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
         move_towards_restriction::MoveTowardsRestrictionGoal, random_swimming::RandomSwimmingGoal,
     },
     mob::{Mob, MobEntity},
@@ -79,6 +81,9 @@ pub(crate) fn reflect_thorns(
 /// Thorns damage reflected by guardians.
 const THORNS_DAMAGE: f32 = 2.0;
 
+/// Vanilla `Guardian.ATTACK_TIME`: beam charge ticks before the beam hurts.
+const GUARDIAN_ATTACK_TIME: i32 = 80;
+
 const GUARDIAN_SPEED_LERP: f32 = 0.125;
 const GUARDIAN_PUSH_SCALE: f64 = 0.05;
 pub(crate) const GUARDIAN_WATER_SPEED: f64 = 0.1;
@@ -99,6 +104,133 @@ fn guardian_look_target(
         oy + LERP * (new.1 - oy),
         oz + LERP * (new.2 - oz),
     )
+}
+
+/// Vanilla `GuardianAttackGoal.tick` damage: 1.0 base, +2 on Hard, +2 for an elder guardian.
+const fn beam_magic_damage(hard: bool, elder: bool) -> f32 {
+    let mut damage = 1.0;
+    if hard {
+        damage += 2.0;
+    }
+    if elder {
+        damage += 2.0;
+    }
+    damage
+}
+
+/// Vanilla `Guardian.GuardianAttackGoal`: charge a beam for 80 ticks, then hit with indirect
+/// magic and a melee swing. The client renders the beam from `DATA_ID_ATTACK_TARGET`.
+pub struct GuardianAttackGoal {
+    attack_time: i32,
+    elder: bool,
+    attack_target: TrackedData,
+}
+
+impl GuardianAttackGoal {
+    #[must_use]
+    pub const fn new(elder: bool, attack_target: TrackedData) -> Self {
+        Self {
+            attack_time: -10,
+            elder,
+            attack_target,
+        }
+    }
+}
+
+impl Goal for GuardianAttackGoal {
+    fn can_start(&mut self, mob: &dyn Mob) -> bool {
+        mob.get_mob_entity()
+            .get_target()
+            .is_some_and(|target| target.get_entity().is_alive())
+    }
+
+    fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        let Some(target) = mob.get_mob_entity().get_target() else {
+            return false;
+        };
+        if !target.get_entity().is_alive() {
+            return false;
+        }
+        // Vanilla `canContinueToUse`: an elder keeps its target at any range, a guardian only
+        // while the target stays outside melee range (9 squared).
+        if self.elder {
+            return true;
+        }
+        let hunter_pos = mob.get_entity().pos.load();
+        target
+            .get_entity()
+            .pos
+            .load()
+            .squared_distance_to_vec(&hunter_pos)
+            > 9.0
+    }
+
+    fn start(&mut self, _mob: &dyn Mob) {
+        self.attack_time = -10;
+    }
+
+    fn stop(&mut self, mob: &dyn Mob) {
+        mob.get_entity().set_synced_data(self.attack_target, 0i32);
+        mob.get_mob_entity().set_target(None);
+    }
+
+    fn should_run_every_tick(&self) -> bool {
+        true
+    }
+
+    fn tick(&mut self, mob: &dyn Mob) {
+        let Some(target) = mob.get_mob_entity().get_target() else {
+            return;
+        };
+
+        {
+            let steered = mob.get_mob_entity().steered();
+            steered.navigator().stop();
+        }
+        mob.get_mob_entity()
+            .look_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .look_at_entity_with_range(&target, 90.0, 90.0);
+
+        if !mob.has_line_of_sight(target.get_entity()) {
+            mob.get_mob_entity().set_target(None);
+            return;
+        }
+
+        self.attack_time += 1;
+        if self.attack_time == 0 {
+            let entity = mob.get_entity();
+            entity.set_synced_data(self.attack_target, target.get_entity().entity_id);
+            if !entity.is_silent() {
+                let world = entity.world.load();
+                world.broadcast_entity_event(
+                    entity,
+                    EntityStatus::GuardianAttackSound,
+                    ActorEventID::GuardianAttackSound,
+                );
+            }
+        } else if self.attack_time >= GUARDIAN_ATTACK_TIME {
+            let entity = mob.get_entity();
+            let world = entity.world.load();
+            let hard = world.level_info.load().difficulty == Difficulty::Hard;
+            let damage = beam_magic_damage(hard, self.elder);
+            let _ = target.damage_with_context(
+                entity,
+                damage,
+                DamageType::INDIRECT_MAGIC,
+                None,
+                Some(entity),
+                Some(entity),
+            );
+            mob.do_hurt_target(target.as_ref());
+            mob.get_mob_entity().set_target(None);
+        }
+    }
+
+    fn controls(&self) -> Controls {
+        Controls::MOVE | Controls::LOOK
+    }
 }
 
 /// Vanilla `Guardian.GuardianMoveControl`: swims toward the wanted position with a wave push,
@@ -128,6 +260,7 @@ impl MoveControlTrait for GuardianMoveControl {
         if self.inner.operation != Operation::MoveTo || mob_entity.steered().navigator().is_done() {
             mob_entity.set_speed(0.0);
             self.moving.store(false, Ordering::Relaxed);
+            entity.set_synced_data(pumpkin_data::tracked_data::guardian::DATA_ID_MOVING, false);
             return;
         }
         let pos = entity.pos.load();
@@ -163,6 +296,7 @@ impl MoveControlTrait for GuardianMoveControl {
             push * sin,
         ));
         self.moving.store(true, Ordering::Relaxed);
+        entity.set_synced_data(pumpkin_data::tracked_data::guardian::DATA_ID_MOVING, true);
 
         // Vanilla `GuardianMoveControl#tick`: lerp the look target toward the travel direction.
         let new_look = (
@@ -190,6 +324,14 @@ pub struct GuardianEntity {
 
 impl GuardianEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
+        // Vanilla `Guardian.defineSynchedData`: both values start at the client's default.
+        entity
+            .synched_data
+            .define(pumpkin_data::tracked_data::guardian::DATA_ID_MOVING, false);
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET,
+            0i32,
+        );
         let moving = Arc::new(AtomicBool::new(false));
         let mut mob_entity = MobEntity::new(entity);
         *mob_entity
@@ -207,6 +349,14 @@ impl GuardianEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
+            // Vanilla `Guardian.registerGoals`: the beam attack outranks movement.
+            goal_selector.add_goal(
+                3,
+                Box::new(GuardianAttackGoal::new(
+                    false,
+                    pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET,
+                )),
+            );
             goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the guardian near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
@@ -300,6 +450,14 @@ impl Mob for GuardianEntity {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn beam_damage_matches_vanilla_difficulty_and_elder_bonus() {
+        assert_eq!(beam_magic_damage(false, false), 1.0);
+        assert_eq!(beam_magic_damage(true, false), 3.0);
+        assert_eq!(beam_magic_damage(false, true), 3.0);
+        assert_eq!(beam_magic_damage(true, true), 5.0);
+    }
 
     #[test]
     fn thorns_reflection_blocked_matches_vanilla_tag() {

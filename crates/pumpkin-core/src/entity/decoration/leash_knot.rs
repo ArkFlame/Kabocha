@@ -79,51 +79,24 @@ impl EntityBase for LeashKnotEntity {
     }
 
     fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
+        if self.entity.is_removed() {
+            return;
+        }
         let world = self.entity.world.load();
         let block = world.get_block(&self.entity.block_pos.load());
         if !block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_FENCES) {
-            let knot_id = self.entity.entity_id;
-            let pos = self.entity.pos.load();
-            // Vanilla `Leashable.leashableLeashedTo` scans a 32 block box centred on the knot, so
-            // mobs below the knot must be found too.
-            let search_box = BoundingBox::of_size(pos, 32.0, 32.0, 32.0);
-            let entities = world.get_entities_at_box(&search_box);
-
-            // Vanilla BlockAttachedEntity.tick discards the knot as soon as survives() is
-            // false; leashed mobs release themselves on their next tick_leash. Here we also
-            // eagerly release nearby mobs so their leads drop before the knot Arc is freed
-            // (a Rust Weak cannot be upgraded once the world drops it), but the knot is
-            // always removed regardless of any still-attached mob, as in vanilla.
-            let drop_lead = world.level_info.load().game_rules.entity_drops;
-            for entity_base in entities {
-                let ent = entity_base.get_entity();
-                let is_attached_to_knot = ent
-                    .leashed_to
-                    .try_lock()
-                    .ok()
-                    .and_then(|guard| {
-                        guard
-                            .as_ref()
-                            .and_then(std::sync::Weak::upgrade)
-                            .map(|holder| holder.get_entity().entity_id == knot_id)
-                    })
-                    .unwrap_or(false);
-
-                let unleashed = is_attached_to_knot && ent.unleash();
-                if unleashed && drop_lead {
-                    let lead_item = pumpkin_data::item_stack::ItemStack::new(
-                        1,
-                        &pumpkin_data::item::Item::LEAD,
-                    );
-                    world.drop_stack(&ent.block_pos.load(), lead_item);
-                }
-            }
-
-            world.play_sound(Sound::ItemLeadUntied, SoundCategory::Neutral, &pos);
+            // Vanilla `BlockAttachedEntity.tick` discards the knot as soon as `survives()` is
+            // false and calls `dropItem` (the untied sound for a knot). Leashed mobs release
+            // themselves on their next `tick_leash`, which refunds the lead when the holder
+            // is gone; no eager scan is needed.
+            world.play_sound(
+                Sound::ItemLeadUntied,
+                SoundCategory::Neutral,
+                &self.entity.pos.load(),
+            );
             self.entity.remove();
         }
     }
-
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
         let world = player.world();
         let knot_id = self.entity.entity_id;

@@ -18,7 +18,7 @@ use crate::server::Server;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
-use pumpkin_data::entity::EntityType;
+use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -26,6 +26,7 @@ use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::translation;
 use pumpkin_inventory::Inventory;
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_protocol::java::client::play::Metadata;
 use pumpkin_util::GameMode;
 use pumpkin_util::math::position::BlockPos;
@@ -432,11 +433,22 @@ impl BoatEntity {
             return;
         }
         let drag_down = self.bubble_column_drag_down.load(Ordering::Relaxed);
-        // Vanilla broadcasts `EntityEvent.BOAT_SINK` on a downward column, which ejects the
-        // riders there; the impulse itself is skipped for a client-controlled boat.
+        // Vanilla ejects riders on a downward column, then broadcasts BOAT_SINK/BOAT_LAUNCH so
+        // tracking clients reproduce the impulse; only the server-authoritative velocity is
+        // skipped for a ridden boat (Pumpkin leaves that movement to the controlling client).
         if drag_down {
             entity.eject_passengers();
         }
+        let world = entity.world.load();
+        world.broadcast_entity_event(
+            entity,
+            if drag_down {
+                EntityStatus::BoatSink
+            } else {
+                EntityStatus::BoatLaunch
+            },
+            ActorEventID::None,
+        );
         if self.is_client_controlled() {
             return;
         }

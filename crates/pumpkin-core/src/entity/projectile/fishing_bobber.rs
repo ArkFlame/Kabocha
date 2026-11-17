@@ -401,6 +401,11 @@ impl FishingBobberEntity {
             entity.remove();
             return;
         };
+        // Vanilla derives the spawn-data owner id from the live owner when a hook starts being
+        // tracked, which happens after load for a chunk-loaded bobber.
+        entity
+            .data
+            .store(owner.get_entity().entity_id, Ordering::Relaxed);
         if self.should_stop_fishing(player) {
             return;
         }

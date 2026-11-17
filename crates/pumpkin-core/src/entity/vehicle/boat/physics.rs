@@ -193,14 +193,18 @@ impl BoatEntity {
         {
             self.water_level.store(entity.bounding_box.load().max.y);
             let target_y = f64::from(self.get_water_level_above() - entity.height()) + 0.101;
-            // Vanilla `AbstractBoat.floatBoat` snaps to the water surface before any
-            // collision resolution, so a blocked target box must not skip the snap.
+            // Vanilla snaps to the surface before the collision test, so the offset is
+            // always returned; the fall velocity is cleared only when the snapped box
+            // is collision-free (`AbstractBoat.floatBoat`).
             let offset = Vector3::new(0.0, target_y - entity.pos.load().y, 0.0);
-            entity
-                .velocity
-                .store(entity.velocity.load().multiply(1.0, 0.0, 1.0));
-            self.last_yd.store(0.0);
-            self.status.store(Some(BoatStatus::InWater));
+            let moved_box = entity.bounding_box.load().shift(offset);
+            if entity.world.load().no_collision(entity, moved_box) {
+                entity
+                    .velocity
+                    .store(entity.velocity.load().multiply(1.0, 0.0, 1.0));
+                self.last_yd.store(0.0);
+                self.status.store(Some(BoatStatus::InWater));
+            }
             return offset;
         }
 

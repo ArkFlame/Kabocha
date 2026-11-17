@@ -128,8 +128,7 @@ impl FloatBounds {
 }
 
 /// `DistancePredicate`: per-axis and derived bounds over the origin-to-entity delta.
-/// Vanilla truncates each delta component to f32 before comparing, and compares the
-/// squared distance for `horizontal` and `absolute`.
+/// Vanilla truncates each delta component to f32 before comparing.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct DistancePredicate {
     pub x: Option<FloatBounds>,

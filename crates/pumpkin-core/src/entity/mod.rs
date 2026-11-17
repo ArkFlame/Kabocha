@@ -5736,14 +5736,42 @@ impl Entity {
             self.restore_leash_from_save(delayed);
         }
 
-        let holder = {
+        let holder_weak = {
             let Ok(guard) = self.leashed_to.try_lock() else {
                 return LeashTick::NotLeashed;
             };
-            guard.as_ref().and_then(Weak::upgrade)
+            guard.as_ref().cloned()
         };
-        let Some(holder) = holder else {
+        let Some(holder_weak) = holder_weak else {
             return LeashTick::NotLeashed;
+        };
+        let holder = match holder_weak.upgrade() {
+            Some(holder) => holder,
+            None => {
+                // Vanilla `Leashable.tickLeash` drops the lead when the holder is gone. The
+                // holder is a `Weak` here, so its Arc can be freed before this tick; clear the
+                // leash and refund the lead so mobs are not left tied to a stale holder.
+                let world = self.world.load();
+                if let Some(server) = world.server.upgrade() {
+                    let mut event =
+                        crate::plugin::api::events::entity::entity_unleash::EntityUnleashEvent::new(
+                            self.entity_id,
+                            "unleashed".to_string(),
+                        );
+                    server.plugin_manager.fire_blocking(&server, &mut event);
+                    if event.cancelled {
+                        return LeashTick::NotLeashed;
+                    }
+                }
+                self.remove_leash();
+                if world.level_info.load().game_rules.entity_drops {
+                    self.spawn_at_location(pumpkin_data::item_stack::ItemStack::new(
+                        1,
+                        &pumpkin_data::item::Item::LEAD,
+                    ));
+                }
+                return LeashTick::NotLeashed;
+            }
         };
         let holder_entity = holder.get_entity();
 

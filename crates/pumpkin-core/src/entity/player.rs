@@ -6887,7 +6887,7 @@ impl Player {
         ));
     }
 
-    pub fn drop_item(&self, item_stack: ItemStack) {
+    pub fn drop_item(&self, item_stack: ItemStack) -> Arc<ItemEntity> {
         self.increment_stat(
             statistics::StatisticCategory::Dropped,
             item_stack.item.id as i32,
@@ -6922,7 +6922,8 @@ impl Player {
         ));
         // Vanilla Player.drop sets the thrower so other players cannot grab it for 3 seconds.
         item_entity.set_thrower(self.gameprofile.id);
-        self.world().spawn_entity(item_entity);
+        self.world().spawn_entity(item_entity.clone());
+        item_entity
     }
 
     pub fn drop_held_item(&self, drop_stack: bool) {

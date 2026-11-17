@@ -13,7 +13,7 @@ use crate::entity::ai::behavior::hunting;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::mob::guardian::{
     GUARDIAN_HUNTS, GUARDIAN_IDLE_SINK, GUARDIAN_WATER_DRAG, GUARDIAN_WATER_SPEED,
-    GuardianMoveControl,
+    GuardianAttackGoal, GuardianMoveControl,
 };
 use crate::entity::{
     Entity, EntityBase,
@@ -49,6 +49,15 @@ pub struct ElderGuardianEntity {
 
 impl ElderGuardianEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
+        // Vanilla `Guardian.defineSynchedData` (inherited by ElderGuardian).
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::elder_guardian::DATA_ID_MOVING,
+            false,
+        );
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::elder_guardian::DATA_ID_ATTACK_TARGET,
+            0i32,
+        );
         let moving = Arc::new(AtomicBool::new(false));
         let mut mob_entity = MobEntity::new(entity);
         *mob_entity
@@ -66,6 +75,14 @@ impl ElderGuardianEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
+            // Vanilla `Guardian.registerGoals`: the elder's beam outranks movement.
+            goal_selector.add_goal(
+                3,
+                Box::new(GuardianAttackGoal::new(
+                    true,
+                    pumpkin_data::tracked_data::elder_guardian::DATA_ID_ATTACK_TARGET,
+                )),
+            );
             goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the elder near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));

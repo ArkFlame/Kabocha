@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::{
     Arc, Weak,
     atomic::{AtomicBool, Ordering},
@@ -5,13 +6,18 @@ use std::sync::{
 
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
+use pumpkin_data::data_component_impl::InstrumentImpl;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::instrument::Instrument;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::random::RandomImpl;
+use pumpkin_util::random::xoroshiro128::Xoroshiro;
 use rand::RngExt;
 
 use crate::entity::{
@@ -19,9 +25,9 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        ram_target::RamTargetGoal, revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal,
-        wander_around::WanderAroundGoal,
+        long_jump::LongJumpGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, ram_target::RamTargetGoal, revenge::RevengeGoal,
+        swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     ai::pathfinder::node::PathType,
     custom_sound::CustomSound,
@@ -29,6 +35,7 @@ use crate::entity::{
     passive::animal::Animal,
     player::Player,
 };
+use crate::entity::item::ItemEntity;
 use crate::item::items::bucket::fill_bucket_stack;
 use crate::world::World;
 
@@ -37,6 +44,19 @@ const BABY_ATTACK_DAMAGE: f64 = 1.0;
 const GOAT_SCREAMING_CHANCE: f64 = 0.02;
 const UNIHORN_CHANCE: f32 = 0.1;
 const MAX_HEAD_Y_ROT: f32 = 15.0;
+
+/// Vanilla `GoatAi.initLongJumpActivity`: screamers use a distinct long-jump sound.
+fn goat_long_jump_sound(mob: &dyn Mob) -> Sound {
+    let screaming = mob
+        .cast_any()
+        .downcast_ref::<GoatEntity>()
+        .is_some_and(GoatEntity::is_screaming);
+    if screaming {
+        Sound::EntityGoatScreamingLongJump
+    } else {
+        Sound::EntityGoatLongJump
+    }
+}
 
 pub struct GoatEntity {
     pub mob_entity: MobEntity,
@@ -78,6 +98,14 @@ impl GoatEntity {
             goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
             // UNVERIFIED: ram sits in the fight slot, after panic, ahead of breeding.
             goal_selector.add_goal(2, Box::new(RamTargetGoal::default()));
+            // Vanilla GoatAi.initLongJumpActivity: 600..1200 cooldown, 5x5 search, 3.5714288x jump.
+            goal_selector.add_goal(
+                2,
+                Box::new(LongJumpGoal::new(
+                    goat_long_jump_sound,
+                    Sound::EntityGoatStep,
+                )),
+            );
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
                 3,
@@ -151,6 +179,68 @@ impl GoatEntity {
             pumpkin_data::tracked_data::goat::DATA_HAS_RIGHT_HORN,
             has_horn,
         );
+    }
+
+    /// Vanilla `Goat.createHorn`: pick an instrument from the matching goat-horn tag.
+    #[must_use]
+    fn create_horn(&self) -> ItemStack {
+        let key = if self.is_screaming() {
+            tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
+        } else {
+            tag::Instrument::MINECRAFT_REGULAR_GOAT_HORNS
+        };
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        let names = key.0;
+        if names.is_empty() {
+            return stack;
+        }
+        // Vanilla seeds a fresh `RandomSource` from the UUID hash before picking the element.
+        let seed = self.get_entity().entity_uuid.as_u128() as u64;
+        let index = Xoroshiro::from_seed(seed).next_bounded_i32(names.len() as i32) as usize;
+        if let (Some(name), Some(instrument)) = (names.get(index), Instrument::from_name(name)) {
+            stack.set_data_component(InstrumentImpl {
+                instrument: Cow::Borrowed(instrument.asset_id()),
+            });
+        }
+        stack
+    }
+
+    /// Vanilla `Goat.dropHorn`: break one horn and spawn its goat horn item.
+    pub fn drop_horn(&self) -> bool {
+        if self.is_baby() {
+            return false;
+        }
+        let has_left = self.has_left_horn();
+        let has_right = self.has_right_horn();
+        if !has_left && !has_right {
+            return false;
+        }
+        if !has_left {
+            self.set_has_right_horn(false);
+        } else if !has_right {
+            self.set_has_left_horn(false);
+        } else if self.get_random().random::<bool>() {
+            self.set_has_left_horn(false);
+        } else {
+            self.set_has_right_horn(false);
+        }
+
+        let entity = self.get_entity();
+        let pos = entity.pos.load();
+        let world = entity.world.load_full();
+        let mut random = self.get_random();
+        let velocity = Vector3::new(
+            random.random_range(-0.2..=0.2),
+            random.random_range(0.3..=0.7),
+            random.random_range(-0.2..=0.2),
+        );
+        let item_entity = Entity::new(world.clone(), pos, &EntityType::ITEM);
+        world.spawn_entity(Arc::new(ItemEntity::new_with_velocity(
+            item_entity,
+            self.create_horn(),
+            velocity,
+            ItemEntity::DEFAULT_PICKUP_DELAY,
+        )))
     }
 }
 
@@ -404,6 +494,45 @@ mod tests {
             goat.get_ambient_sound(),
             Some(Sound::EntityGoatScreamingAmbient)
         );
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn drop_horn_requires_an_adult_with_horns() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        goat.set_baby(true);
+        assert!(!goat.drop_horn());
+        goat.set_baby(false);
+        goat.set_has_left_horn(false);
+        goat.set_has_right_horn(false);
+        assert!(!goat.drop_horn());
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_horn_uses_the_screaming_tag() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        goat.set_screaming(true);
+        let stack = goat.create_horn();
+        assert!(stack.get_data_component::<InstrumentImpl>().is_some_and(|inst| {
+            tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
+                .0
+                .contains(&inst.instrument.as_ref())
+        }));
         world.level.shutdown().await;
         Ok(())
     }
