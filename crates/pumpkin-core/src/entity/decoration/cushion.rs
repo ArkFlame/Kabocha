@@ -426,8 +426,10 @@ impl EntityBase for CushionEntity {
         source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> bool {
+        // Vanilla `HangingEntity#hurt` ignores a hit on an entity that is already
+        // removed, so one cushion cannot drop twice in the same tick.
         if !self.entity.is_alive() {
-            return false;
+            return true;
         }
         self.drop_and_remove(source);
         true
@@ -491,5 +493,45 @@ mod tests {
         );
         assert!(cushion_empty, "removed cushion still owns its passenger");
         assert!(cushion_removed);
+    }
+
+    #[tokio::test]
+    async fn hit_on_already_removed_cushion_reports_handled() {
+        let directory = tempfile::tempdir().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            directory.path().to_path_buf(),
+            0,
+            Dimension::OVERWORLD,
+        );
+        let world = Arc::new(World::load(
+            level.clone(),
+            Arc::new(ArcSwap::from_pointee(LevelData::default(
+                pumpkin_util::world_seed::Seed(0),
+            ))),
+            Dimension::OVERWORLD,
+            crate::block::registry::default_registry(),
+            crate::world::weather::WeatherSetup::default(),
+            Weak::new(),
+        ));
+        let position = Vector3::new(0.5, 64.0, 0.5);
+        let cushion = Arc::new(CushionEntity::new(
+            Entity::new(world.clone(), position, &EntityType::CUSHION),
+            0,
+        ));
+        world.spawn_entity(cushion.clone());
+
+        cushion.drop_and_remove(None);
+        let handled = cushion.damage_with_context(
+            &*cushion,
+            1.0,
+            DamageType::GENERIC,
+            None,
+            None,
+            None,
+        );
+        level.shutdown().await;
+
+        assert!(handled, "a second hit on a removed cushion must count as handled");
     }
 }
