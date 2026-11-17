@@ -36,13 +36,10 @@ impl JavaClient {
             return;
         }
 
-        let (item_id, _item) = (item_in_hand.item.id, item_in_hand.item);
-        // Vanilla awards ITEM_USED inside each item's own use(). The fishing rod is
-        // awarded locally on the cast branch only (FishingRodItem.use), so reel-in and
-        // plugin-cancelled casts must not count in this generic handler.
-        if item_id != Item::FISHING_ROD.id {
-            player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
-        }
+        // Vanilla `ServerGamePacketListenerImpl.handleUseItem` never awards ITEM_USED;
+        // each item or component awards it once in its own use path (item behaviours,
+        // `Consumable.onConsume` and `Equippable.swapAndEquip`). Awarding generically
+        // here double-counts every item that already self-awards.
 
         let hit = player.world().clip(&pumpkin_world::clip::ClipContext::new(
             player.eye_position(),
@@ -160,6 +157,8 @@ impl JavaClient {
                 swapped_to_eq
             };
 
+            // Vanilla `Equippable.swapAndEquip` awards ITEM_USED to the newly equipped item.
+            player.increment_stat(StatisticCategory::Used, i32::from(equipped.item.id), 1);
             player.enqueue_equipment_change(&slot, &equipped);
             inventory
                 .entity_equipment
