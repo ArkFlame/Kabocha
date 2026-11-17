@@ -1950,6 +1950,7 @@ impl Mob for VillagerEntity {
             || self.mob_entity.living_entity.is_dead_or_dying()
             || self.is_trading.load(Ordering::Relaxed)
             || self.is_sleeping()
+            || player.get_entity().is_sneaking()
         {
             return false;
         }
