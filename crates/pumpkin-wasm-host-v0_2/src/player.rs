@@ -2580,11 +2580,7 @@ impl pumpkin::plugin::player::HostPlayer for PluginHostState {
 
     fn set_flying(&mut self, player: Resource<Player>, flying: bool) -> wasmtime::Result<()> {
         let player = self.get(&player)?;
-        {
-            let mut abilities = player.abilities.lock_ignore_poison();
-            abilities.flying = flying;
-        };
-        player.send_abilities_update();
+        player.set_flying(flying);
         Ok(())
     }
 
