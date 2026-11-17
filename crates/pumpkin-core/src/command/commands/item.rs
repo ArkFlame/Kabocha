@@ -526,7 +526,15 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
 /// Reads a constant number provider (`1.0` or `{type:"constant",value:1.0}`).
 fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
     match tag? {
-        NbtTag::Compound(c) => c.get("value").and_then(NbtTag::extract_float),
+        NbtTag::Compound(c) => match c.get("type").and_then(NbtTag::extract_string) {
+            // vanilla `UniformGenerator`: a uniform sample in [min, max)
+            Some("uniform") => {
+                let min = c.get("min").and_then(NbtTag::extract_float)?;
+                let max = c.get("max").and_then(NbtTag::extract_float)?;
+                Some(min + rand::random::<f32>() * (max - min))
+            }
+            _ => c.get("value").and_then(NbtTag::extract_float),
+        },
         other => other.extract_float(),
     }
 }
