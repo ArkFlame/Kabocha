@@ -16,7 +16,7 @@ use sha2::Sha256;
 use tokio::net::UdpSocket;
 use tracing::{error, info};
 
-use crate::{SHOULD_STOP, STOP_INTERRUPT, server::Server};
+use crate::{SHOULD_STOP, server::Server};
 
 /// Token lifetime. One is accepted for the window it was minted in and the previous one.
 const TOKEN_WINDOW: u64 = 30;
@@ -74,7 +74,7 @@ pub async fn start_query_handler(server: Arc<Server>, query_addr: SocketAddr) {
     while !SHOULD_STOP.load(Ordering::Relaxed) {
         let recv_result = tokio::select! {
             result = socket.recv_from(&mut buf) => Some(result),
-            () = STOP_INTERRUPT.cancelled() => None,
+            () = server.stop_token.cancelled() => None,
         };
 
         let Some(Ok((length, addr))) = recv_result else {
