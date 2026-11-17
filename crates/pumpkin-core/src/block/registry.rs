@@ -617,10 +617,11 @@ impl BlockRegistry {
             || resource_name.ends_with("_raft")
     }
 
-    fn has_blocking_entity_in_box(world: &World, placed_box: &BoundingBox) -> bool {
+    fn has_blocking_entity_in_box(world: &World, placed_box: &BoundingBox, placer_id: i32) -> bool {
         let players = world.players.load();
         if players.iter().any(|player| {
-            Self::entity_blocks_block_placement(player.as_ref())
+            player.get_entity().entity_id != placer_id
+                && Self::entity_blocks_block_placement(player.as_ref())
                 && player
                     .get_entity()
                     .bounding_box
@@ -631,7 +632,8 @@ impl BlockRegistry {
         }
 
         world.entities.load().iter().any(|entity| {
-            Self::entity_blocks_block_placement(entity.as_ref())
+            entity.get_entity().entity_id != placer_id
+                && Self::entity_blocks_block_placement(entity.as_ref())
                 && entity
                     .get_entity()
                     .bounding_box
@@ -842,8 +844,8 @@ impl BlockRegistry {
                 .to_state_id(placed_block);
         }
 
-        // Mirror vanilla obstruction checks: only entities that block building should prevent
-        // placement. (e.g. arrows/xp orbs/displays/markers should not)
+        // Mirror vanilla `BlockItem.canPlace`: `Level.isUnobstructed` skips the placing entity
+        // (the collision context entity) and only counts entities that block building.
         let state = BlockState::from_id(new_state);
         let mut buildable = true;
         if !self
@@ -853,7 +855,11 @@ impl BlockRegistry {
             for shape in state.get_block_collision_shapes_at(&final_block_pos) {
                 let placed_box = shape.at_pos(final_block_pos);
 
-                if Self::has_blocking_entity_in_box(world.as_ref(), &placed_box) {
+                if Self::has_blocking_entity_in_box(
+                    world.as_ref(),
+                    &placed_box,
+                    entity.entity_id,
+                ) {
                     buildable = false;
                     break;
                 }
