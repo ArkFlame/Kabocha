@@ -231,6 +231,16 @@ impl Mob for SilverfishEntity {
         &self.entity
     }
 
+    /// Vanilla `Silverfish.getWalkTargetValue`: infested hosts below the target are favoured.
+    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
+        let world = self.entity.living_entity.entity.world.load();
+        if crate::block::blocks::infested::is_compatible_host(world.get_block(&pos.down())) {
+            10.0
+        } else {
+            0.0
+        }
+    }
+
     fn mob_tick(&self, _caller: &dyn EntityBase) {
         let entity = &self.entity.living_entity.entity;
         if !entity.is_alive() {

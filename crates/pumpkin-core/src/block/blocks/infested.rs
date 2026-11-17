@@ -171,3 +171,20 @@ impl BlockBehaviour for InfestedBlock {
         Self::spawn_infestation(args.world, args.position);
     }
 }
+
+/// Vanilla `InfestedBlock.HOST_BLOCK_STATES`: each infested variant maps back to one host block.
+const HOST_BLOCKS: [BlockId; 7] = [
+    BlockId::STONE,
+    BlockId::COBBLESTONE,
+    BlockId::STONE_BRICKS,
+    BlockId::MOSSY_STONE_BRICKS,
+    BlockId::CRACKED_STONE_BRICKS,
+    BlockId::CHISELED_STONE_BRICKS,
+    BlockId::DEEPSLATE,
+];
+
+/// Vanilla `InfestedBlock.isCompatibleHostBlock`.
+#[must_use]
+pub fn is_compatible_host(block: &Block) -> bool {
+    HOST_BLOCKS.contains(&block.id)
+}
