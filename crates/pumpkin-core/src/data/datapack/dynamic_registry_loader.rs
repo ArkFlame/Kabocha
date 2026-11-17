@@ -226,6 +226,46 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// Widens all numeric elements of a list to the widest numeric type present.
+///
+/// NBT lists are homogeneous. Without this, a JSON array mixing integers and
+/// longs (or integers and doubles) would be encoded as a list of `{"": value}`
+/// wrapper compounds by the NBT serializer instead of plain numbers.
+fn normalize_numeric_list(list: Vec<NbtTag>) -> Vec<NbtTag> {
+    const INT: u8 = 1;
+    const LONG: u8 = 2;
+    const DOUBLE: u8 = 3;
+
+    let mut widest = INT;
+    let mut numeric = true;
+    for tag in &list {
+        let rank = match tag {
+            NbtTag::Int(_) => INT,
+            NbtTag::Long(_) => LONG,
+            NbtTag::Double(_) => DOUBLE,
+            _ => {
+                numeric = false;
+                break;
+            }
+        };
+        widest = widest.max(rank);
+    }
+
+    // Leave non-numeric and already-`Int` lists untouched.
+    if !numeric || widest == INT {
+        return list;
+    }
+
+    list.into_iter()
+        .map(|tag| match (widest, tag) {
+            (LONG, NbtTag::Int(v)) => NbtTag::Long(i64::from(v)),
+            (DOUBLE, NbtTag::Int(v)) => NbtTag::Double(f64::from(v)),
+            (DOUBLE, NbtTag::Long(v)) => NbtTag::Double(v as f64),
+            (_, other) => other,
+        })
+        .collect()
+}
+
 /// Converts a JSON `serde_json::Value` into an `NbtTag`.
 ///
 /// Returns `None` for JSON `null`, which has no NBT equivalent. Writing
@@ -248,8 +288,8 @@ pub fn json_to_nbt_tag(v: &Value) -> Option<NbtTag> {
         )),
         Value::String(s) => Some(NbtTag::String(s.clone().into())),
         Value::Array(arr) => {
-            let list = arr.iter().filter_map(json_to_nbt_tag).collect();
-            Some(NbtTag::List(list))
+            let list: Vec<NbtTag> = arr.iter().filter_map(json_to_nbt_tag).collect();
+            Some(NbtTag::List(normalize_numeric_list(list)))
         }
         Value::Object(obj) => {
             let mut compound = NbtCompound::new();
@@ -647,5 +687,39 @@ mod tests {
         assert_eq!(merged[1].data.as_deref(), Some(&[99][..]));
         assert_eq!(merged[2].entry_id, "custom:fluffy");
         assert_eq!(merged[2].data.as_deref(), Some(&[7, 8, 9][..]));
+    }
+
+    #[test]
+    fn json_numeric_lists_use_one_numeric_type() {
+        let json: Value = serde_json::json!({
+            "ints": [1, 2],
+            "longs": [1, 3_000_000_000i64],
+            "floats": [1, 2.5],
+        });
+
+        let bytes = json_to_registry_nbt_bytes(&json);
+        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        let nbt = Nbt::read_unnamed(&mut reader).unwrap().root_tag;
+
+        // A homogeneous list decodes as Int/Long/Double; widening keeps that shape
+        // instead of falling back to `{"": value}` wrapper compounds.
+        let ints = nbt.get_list("ints").unwrap();
+        assert_eq!(ints.len(), 2);
+        assert!(ints.iter().all(|t| matches!(t, NbtTag::Int(_))));
+        assert!(
+            nbt.get_list("longs")
+                .unwrap()
+                .iter()
+                .all(|t| matches!(t, NbtTag::Long(_)))
+        );
+        assert!(
+            nbt.get_list("floats")
+                .unwrap()
+                .iter()
+                .all(|t| matches!(t, NbtTag::Double(_)))
+        );
     }
 }
