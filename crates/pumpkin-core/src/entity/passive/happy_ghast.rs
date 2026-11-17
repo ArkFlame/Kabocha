@@ -6,6 +6,7 @@ use std::sync::{
 use pumpkin_data::BlockState;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -17,6 +18,7 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
@@ -121,7 +123,25 @@ impl Animal for HappyGhastEntity {
     }
 }
 
+impl CustomSound for HappyGhastEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityHappyGhastDeath)
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityHappyGhastHurt)
+    }
+}
+
 impl Mob for HappyGhastEntity {
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityHappyGhastAmbient)
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         true
     }
