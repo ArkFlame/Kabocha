@@ -6825,7 +6825,6 @@ impl Player {
             (yaw_cos * pitch_cos).mul_add(0.3, horizontal_offset.sin() * l),
         );
 
-        // TODO: Merge stacks together
         let item_entity = Arc::new(ItemEntity::new_with_velocity(
             entity, item_stack, velocity, 40,
         ));
