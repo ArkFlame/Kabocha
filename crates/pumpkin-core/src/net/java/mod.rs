@@ -160,6 +160,8 @@ pub struct JavaClient {
     pub last_packet_time: AtomicCell<Instant>,
     /// Recent in-flight keep alive IDs with their sent timestamps.
     pub pending_keep_alives: std::sync::Mutex<Vec<(i64, Instant)>>,
+    /// Creative drop spam throttle (vanilla `dropSpamThrottler`), per connection.
+    pub creative_drop_throttle: std::sync::Mutex<play::set_creative_slot::CreativeDropThrottle>,
 
     pub packet_sequence: AtomicI32,
     /// Packet rate limiter for incoming client packets.
@@ -202,6 +204,9 @@ impl JavaClient {
             last_keep_alive_time: AtomicCell::new(Instant::now()),
             last_packet_time: AtomicCell::new(Instant::now()),
             pending_keep_alives: std::sync::Mutex::new(Vec::new()),
+            creative_drop_throttle: std::sync::Mutex::new(
+                play::set_creative_slot::CreativeDropThrottle::default(),
+            ),
             packet_sequence: AtomicI32::new(-1),
             packet_limiter: pending.packet_limiter,
             suspend_flushing: Arc::new(AtomicBool::new(false)),
