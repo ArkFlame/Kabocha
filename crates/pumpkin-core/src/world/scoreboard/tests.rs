@@ -363,3 +363,42 @@ fn builder_scores_are_keyed_by_objective() {
         Some("board")
     );
 }
+
+#[derive(Default)]
+struct CountingTarget(std::sync::atomic::AtomicUsize);
+
+impl CountingTarget {
+    fn sent(&self) -> usize {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl ScoreboardTarget for CountingTarget {
+    fn send_editioned<J: ClientPacket + Sync, B: BClientPacket + Sync>(
+        &self,
+        _je_packet: &J,
+        _be_packet: &B,
+    ) {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn send_je<J: ClientPacket + Sync>(&self, _je_packet: &J) {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn remove_score_only_announces_existing_scores() {
+    let target = CountingTarget::default();
+    let mut board = ScoreboardBuilder::new()
+        .objective("board", TextComponent::text("Board"))
+        .score("Alice", "board", 5)
+        .build();
+
+    board.remove_score(&target, "Bob", "board");
+    assert_eq!(target.sent(), 0);
+
+    board.remove_score(&target, "Alice", "board");
+    assert_eq!(target.sent(), 2);
+    assert_eq!(board.get_score_value("Alice", "board"), None);
+}

@@ -458,6 +458,15 @@ impl Scoreboard {
         entity_name: &str,
         objective_name: &str,
     ) {
+        // Vanilla `ServerScoreboard.removePlayerScore` only announces removals of scores that exist.
+        let existed = self
+            .scores
+            .get_mut(objective_name)
+            .is_some_and(|objective_scores| objective_scores.remove(entity_name).is_some());
+        if !existed {
+            return;
+        }
+
         let je_packet = CResetScore::new(entity_name.to_string(), Some(objective_name.to_string()));
 
         let be_packet = BSetScore {
@@ -466,10 +475,6 @@ impl Scoreboard {
         };
 
         target.send_editioned(&je_packet, &be_packet);
-
-        if let Some(objective_scores) = self.scores.get_mut(objective_name) {
-            objective_scores.remove(entity_name);
-        }
     }
 
     pub fn reset_scores_for_entity(&mut self, target: &impl ScoreboardTarget, entity_name: &str) {
