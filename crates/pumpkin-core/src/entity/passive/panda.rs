@@ -147,10 +147,6 @@ fn get_one_of_genes_randomly(
 }
 
 /// Vanilla `setGeneFromParents`: the (main, hidden) genes of a foal of two pandas.
-#[expect(
-    clippy::same_functions_in_if_condition,
-    reason = "vanilla rolls the hidden-gene mutation only when the main gene did not mutate"
-)]
 fn genes_from_parents(
     parent1: (PandaGene, PandaGene),
     parent2: (PandaGene, PandaGene),
@@ -163,10 +159,11 @@ fn genes_from_parents(
     };
     let mut main_gene = get_one_of_genes_randomly(first, &mut next_int);
     let mut hidden_gene = get_one_of_genes_randomly(second, &mut next_int);
-    // Vanilla `else if`: the hidden gene is only rolled when the main gene did not mutate.
+    // Vanilla `setGeneFromParents` rolls each gene's mutation with two independent `if`s.
     if next_int(MUTATION_CHANCE) == 0 {
         main_gene = get_random_gene(&mut next_int);
-    } else if next_int(MUTATION_CHANCE) == 0 {
+    }
+    if next_int(MUTATION_CHANCE) == 0 {
         hidden_gene = get_random_gene(&mut next_int);
     }
     (main_gene, hidden_gene)
@@ -1019,9 +1016,9 @@ mod tests {
             inherit(&[(2, 0), (2, 0), (2, 1), (32, 5), (32, 7)]),
             (PandaGene::Aggressive, PandaGene::Lazy)
         );
-        // A 1 in 32 mutation hits the main gene; the hidden gene is not rolled at all.
+        // A 1 in 32 mutation hits the main gene; the hidden gene still gets its own 1 in 32 roll.
         assert_eq!(
-            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3)]),
+            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3), (32, 1)]),
             (PandaGene::Weak, PandaGene::Aggressive)
         );
         // A miss on the main gene rolls the hidden gene, which can mutate on its own.
