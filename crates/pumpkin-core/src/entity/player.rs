@@ -2683,8 +2683,10 @@ impl Player {
     }
 
     pub fn sleep(&self, bed_head_pos: BlockPos) {
-        // TODO: Stop riding
-
+        // Vanilla `Player.startSleeping` dismounts before lying down.
+        if let Some(vehicle) = self.get_entity().get_vehicle() {
+            vehicle.get_entity().remove_passenger(self.entity_id());
+        }
         self.get_entity().set_pose(EntityPose::Sleeping);
         // Vanilla `setPosToBed`; `to_f64` already centers X and Z.
         self.living_entity
