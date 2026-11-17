@@ -1128,7 +1128,31 @@ impl pumpkin_inventory::Inventory for EquipmentSlotContainer {
 
 #[cfg(test)]
 mod tests {
-    use super::moon_brightness;
+    use super::{EQUIPMENT_REGISTRY, RegionalDifficulty, equip_mob_from_def, moon_brightness};
+    use pumpkin_data::data_component_impl::EquipmentSlot;
+    use pumpkin_data::item::Item;
+    use pumpkin_util::difficulty::Difficulty;
+
+    /// Vanilla `AbstractSkeleton#populateDefaultEquipmentSlots` always puts a bow in the main
+    /// hand, so a naturally spawned skeleton can shoot (issue #4492).
+    #[test]
+    fn skeleton_spawn_equipment_always_holds_a_bow() {
+        let def = EQUIPMENT_REGISTRY
+            .get("skeleton")
+            .expect("skeleton must stay in the equipment registry");
+        for difficulty in [Difficulty::Easy, Difficulty::Normal, Difficulty::Hard] {
+            let regional = RegionalDifficulty::calculate(difficulty, 1_000_000, 3_600_000, 0.0);
+            let changes = equip_mob_from_def(def, &regional);
+            let main_hand = changes
+                .iter()
+                .find(|(slot, _, _)| *slot == EquipmentSlot::MAIN_HAND)
+                .map(|(_, stack, _)| stack);
+            assert!(
+                main_hand.is_some_and(|stack| stack.item.id == Item::BOW.id),
+                "{difficulty:?}: skeleton spawned without a bow"
+            );
+        }
+    }
 
     #[test]
     fn armor_population_starts_at_feet_like_vanilla() {

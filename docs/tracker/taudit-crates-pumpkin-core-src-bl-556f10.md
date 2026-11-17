@@ -75,3 +75,14 @@ Additional gaps found in this pass, not listed above:
 | `BlockFertilizeEvent` is fired with `vec![]` before `perform_bonemeal`, so plugins never see the states the growth changed | `registry.rs:577-591` (`bone_meal`) | Bukkit `CraftEventFactory.callBlockFertilizeEvent` passes the list of changed block states to `BlockFertilizeEvent.getBlocks()` | Let the `perform_bonemeal` path collect changed positions (or diff the world before/after) and fire the event with them; Paper region protection reads that list | S-M (plugin API) |
 | `TestBlock` registered twice, burning a behaviour index | `registry.rs:320` and `registry.rs:382` | n/a | delete the second `register(TestBlock)` | trivial |
 | Flowing/still fluid sharing is keyed on hardcoded ids 2/4 | `registry.rs:1560-1570` (`get_pumpkin_fluid`) | still/flowing fluids share the same `Fluid` behaviour | resolve the still id from the flowing fluid (or from pumpkin-data) instead of literals; breaks silently if generated ids move | S |
+
+## Third pass (2026-11-17): small items from the lists above, now fixed
+
+| Gap | Rust | Vanilla | Fix | Size |
+|---|---|---|---|---|
+| `TestBlock` was registered twice (`default_registry`), so the second `register` overwrote the first index and burned a behaviour slot | `registry.rs:320` and `registry.rs:382` (before) | n/a | deleted the second call | trivial |
+| Still-fluid behaviour sharing was keyed on the literal ids `2 -> 1` and `4 -> 3`; any change in generated fluid order would silently drop water/lava behaviour | `registry.rs:1560-1570` (before) | `FlowingFluid.getSource()`/`getFlowing()` are two registrations of the same behaviour | resolve `Fluid::WATER.id -> Fluid::FLOWING_WATER.id` and `Fluid::LAVA.id -> Fluid::FLOWING_LAVA.id` from `pumpkin_data` | S |
+| `post_process_state` was dead and inverted: it asked the *changed* block's behaviour for a new state and wrote it at the neighbour position | `registry.rs:1443-1470` (before) | `BlockState.updateNeighbourShapes` asks each neighbour's own block (`neighborState.getStateForNeighborUpdate(direction.getOpposite(), self, ...)`) | deleted; the live path is `World::set_block_state` -> `registry.update_neighbors` -> `World::replace_with_state_for_neighbor_update` | S |
+
+Still open and unchanged: `get_inside_collision_shape` full-block fallback (M), the `BlockIsReplacing::Other`/`::None` and `can_update_at` direction conventions (M), the `must_survive` check using `default_state` instead of the placement state (M), the approximated `Entity.blocksBuilding` filter (M), the missing Java place sound (S), `PlayerPlacedArgs.direction` (S) and `BlockFertilizeEvent` without changed states (S-M). See also `taudit-crates-pumpkin-core-src-block-regi.md`.
+

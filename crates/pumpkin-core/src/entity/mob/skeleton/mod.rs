@@ -100,6 +100,25 @@ impl SkeletonEntityBase {
 
         mob_arc
     }
+
+    /// Vanilla `AbstractSkeleton#populateDefaultEquipmentSlots`: a skeleton always spawns with a
+    /// bow in its main hand. Spawns that skip the registry roll still need it, so this is
+    /// idempotent and syncs the slot to nearby clients.
+    pub fn equip_default_bow(&self) {
+        let living = &self.mob_entity.living_entity;
+        let has_bow = living
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&EquipmentSlot::MAIN_HAND)
+            .item
+            .id
+            == Item::BOW.id;
+        if !has_bow {
+            self.mob_entity
+                .set_item_slot(&EquipmentSlot::MAIN_HAND, ItemStack::new(1, &Item::BOW));
+        }
+    }
 }
 
 pub fn wants_to_pick_up<M: Mob + ?Sized>(mob: &M, stack: &ItemStack) -> bool {
@@ -169,11 +188,6 @@ impl Mob for SkeletonEntityBase {
         }
 
         // AbstractSkeleton sets BOW on MAIN_HAND
-        let living = &self.mob_entity.living_entity;
-        let mut equipment = living
-            .entity_equipment
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        equipment.put(&EquipmentSlot::MAIN_HAND, ItemStack::new(1, &Item::BOW));
+        self.equip_default_bow();
     }
 }

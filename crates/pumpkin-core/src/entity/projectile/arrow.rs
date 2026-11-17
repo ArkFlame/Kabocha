@@ -65,8 +65,6 @@ pub struct ArrowEntity {
     pub duration: AtomicU32,
     pub flight: ArrowFlight,
     pub weapon: RwLock<Option<ItemStack>>,
-    /// Extra effects added by the shooter (`Stray` slowness), applied on hurt.
-    pub extra_effects: RwLock<Vec<Effect>>,
 }
 
 impl ArrowEntity {
@@ -104,7 +102,6 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
-            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -140,7 +137,6 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
-            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -355,12 +351,48 @@ impl ArrowEntity {
         self.base_damage.store(damage.to_bits(), Ordering::Relaxed);
     }
 
+    /// Vanilla `Arrow#addEffect` = `setPotionContents(getPotionContents().withEffectAdded(e))`:
+    /// the effect lives in the pickup item, so it tints the arrow and survives a reload.
+    fn push_effect_into_item_stack(item_stack: &mut ItemStack, effect: &Effect) {
+        let mut contents = item_stack
+            .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
+            .cloned()
+            .unwrap_or(pumpkin_data::data_component_impl::PotionContentsImpl {
+                potion_id: None,
+                custom_color: None,
+                custom_effects: Vec::new(),
+                custom_name: None,
+            });
+        contents
+            .custom_effects
+            .push(pumpkin_data::data_component_impl::StatusEffectInstance {
+                effect_id: std::borrow::Cow::Borrowed(effect.effect_type.minecraft_name),
+                amplifier: i32::from(effect.amplifier),
+                duration: effect.duration,
+                ambient: effect.ambient,
+                show_particles: effect.show_particles,
+                show_icon: effect.show_icon,
+            });
+        item_stack.set_data_component(contents);
+    }
+
     /// Adds an effect applied to whatever this arrow hurts (vanilla `Arrow#addEffect`).
+    /// Vanilla appends it to the pickup item's potion contents (`setPotionContents`),
+    /// so the arrow is tinted, applies it on hit and keeps it when picked up or saved.
     pub fn add_effect(&self, effect: Effect) {
-        self.extra_effects
+        let mut item_stack = self
+            .item_stack
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(effect);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::push_effect_into_item_stack(&mut item_stack, &effect);
+        let color = Self::get_effect_color(&item_stack);
+        let is_spectral = self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id;
+        drop(item_stack);
+        // Vanilla `Arrow#setPotionContents` ends with `updateColor`.
+        if !is_spectral {
+            self.entity
+                .set_synced_data(pumpkin_data::tracked_data::arrow::ID_EFFECT_COLOR, color);
+        }
     }
 
     pub fn set_flame(&self, flame: bool) {
@@ -632,13 +664,17 @@ impl EntityBase for ArrowEntity {
         }
 
         // Check pickup rules
-        match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+        let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
+        match pickup {
             ArrowPickup::Disallowed => return,
             ArrowPickup::CreativeOnly if !player.is_creative() => return,
             _ => {}
         }
 
-        if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
+        // Paper only fires `PlayerPickupArrowEvent` for an ALLOWED arrow; a
+        // CREATIVE_ONLY arrow is consumed without ever entering the inventory.
+        if pickup == ArrowPickup::Allowed
+            && let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
             && let Some(server) = player.world().server.upgrade()
         {
             let mut event = crate::plugin::api::events::player::player_pickup_arrow::PlayerPickupArrowEvent::new(
@@ -668,7 +704,7 @@ impl EntityBase for ArrowEntity {
         let mut stack = Self::pickup_item_stack(&item_stack);
         // Vanilla AbstractArrow#tryPickup only inserts the item for ALLOWED; a
         // CREATIVE_ONLY arrow is consumed without entering the inventory.
-        let picked_up = match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+        let picked_up = match pickup {
             ArrowPickup::Allowed => player.inventory.insert_stack_anywhere(&mut stack),
             ArrowPickup::CreativeOnly => true,
             ArrowPickup::Disallowed => false,
@@ -786,7 +822,11 @@ impl ArrowEntity {
                         .item_stack
                         .read()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    entity.spawn_at_location(Self::pickup_item_stack(&item_stack));
+                    // Vanilla `spawnAtLocation(level, getPickupItem(), 0.1F)`.
+                    entity.spawn_at_location_with_offset(
+                        Self::pickup_item_stack(&item_stack),
+                        Vector3::new(0.0, 0.1, 0.0),
+                    );
                 }
                 entity.remove();
             }
@@ -813,14 +853,6 @@ impl ArrowEntity {
             living.add_effect(Self::spectral_glowing_effect(
                 self.duration.load(Ordering::Relaxed),
             ));
-        }
-        // Shooter-added effects (vanilla `Stray#getArrow` slowness).
-        let extra = self
-            .extra_effects
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for effect in extra.iter() {
-            living.add_effect(effect.clone());
         }
     }
 
@@ -978,6 +1010,29 @@ mod tests {
         let normal = ItemStack::new(1, &Item::ARROW);
         let normal_color = ArrowEntity::get_effect_color(&normal);
         assert_eq!(normal_color, -1);
+    }
+
+    #[test]
+    fn added_effect_lands_in_pickup_item_potion_contents() {
+        let mut arrow = ItemStack::new(1, &Item::ARROW);
+        ArrowEntity::push_effect_into_item_stack(
+            &mut arrow,
+            &pumpkin_data::potion::Effect {
+                effect_type: &pumpkin_data::effect::StatusEffect::SLOWNESS,
+                duration: 600,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            },
+        );
+
+        let effects = crate::item::potion::PotionContents::read_potion_effects(&arrow);
+        assert_eq!(effects.len(), 1);
+        assert_eq!(effects[0].0, &pumpkin_data::effect::StatusEffect::SLOWNESS);
+        assert_eq!(effects[0].1, 600);
+        assert!(ArrowEntity::get_effect_color(&arrow) != -1);
     }
 
     #[test]

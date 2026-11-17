@@ -155,29 +155,33 @@ pub fn write_chunk_data(
         .pending_block_entities
         .lock()
         .map_err(|_| WritingError::Message("block_entities lock poisoned".into()))?;
-    write.write_var_int(&VarInt(block_entities.len() as i32))?;
-    for (pos, nbt) in block_entities.iter() {
+    // Vanilla chunk data only holds block entity types the client registers. Pumpkin
+    // also persists its synthetic `minecraft:bed`/`minecraft:map` entities, which have
+    // no registry id; advertising them used to send type 0 (furnace) on every bed/map.
+    let entries: Vec<_> = block_entities
+        .iter()
+        .filter_map(|(pos, nbt)| {
+            let name = nbt.get_string("id")?;
+            let name = name.split(':').next_back().unwrap_or(name);
+            let type_id = pumpkin_data::block_properties::BLOCK_ENTITY_TYPES
+                .iter()
+                .position(|&n| n == name)?;
+            Some((pos, nbt, u16::try_from(type_id).ok()?))
+        })
+        .collect();
+    write.write_var_int(&VarInt(entries.len() as i32))?;
+    for (pos, nbt, type_id) in entries {
         let local_xz = ((get_local_cord(pos.0.x) & 0xF) << 4) | (get_local_cord(pos.0.z) & 0xF);
 
         write.write_u8(local_xz as u8)?;
         write.write_i16_be(pos.0.y as i16)?;
 
-        let id = nbt.get_string("id").map_or(0, |id_str| {
-            let name = id_str.split(':').next_back().unwrap_or(id_str);
-            pumpkin_data::block_properties::BLOCK_ENTITY_TYPES
-                .iter()
-                .position(|&n| n == name)
-                .unwrap_or(0)
-        });
-        write.write_var_int(&VarInt(id as i32))?;
+        write.write_var_int(&VarInt(i32::from(type_id)))?;
 
-        let mut client_nbt = u16::try_from(id)
-            .ok()
-            .and_then(|type_id| create_block_entity(type_id, *pos))
-            .map_or_else(
-                || nbt.clone(),
-                |block_entity| block_entity.client_update_tag(nbt.clone()),
-            );
+        let mut client_nbt = create_block_entity(type_id, *pos).map_or_else(
+            || nbt.clone(),
+            |block_entity| block_entity.client_update_tag(nbt.clone()),
+        );
         client_nbt.child_tags.remove("id");
         client_nbt.child_tags.remove("x");
         client_nbt.child_tags.remove("y");

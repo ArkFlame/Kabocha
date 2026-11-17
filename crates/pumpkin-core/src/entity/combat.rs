@@ -220,12 +220,12 @@ pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f6
                 Some(attacker),
             );
         }
-        // Vanilla `LivingEntity.causeExtraKnockback` interrupts the attacker's sprint.
+        // Vanilla `Player.causeExtraKnockback` slows the attacker and interrupts its
+        // sprint only while the extra knockback is non-zero.
+        let velocity = attacker.velocity.load();
+        attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
         attacker.set_sprinting(false);
     }
-
-    let velocity = attacker.velocity.load();
-    attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
 }
 
 /// End of vanilla `Player.causeExtraKnockback`: a hit player gets its knockback only for
@@ -596,12 +596,11 @@ impl CombatTracker {
                 if let Some(knock_off) = knock_off_entry {
                     Self::get_fall_message(victim_name, knock_off, killing_blow)
                 } else {
-                    let loc = killing_blow.fall_location.unwrap_or(FallLocation::Generic);
-                    pumpkin_util::text::TextComponent::translate_cross(
-                        loc.language_key(),
-                        loc.language_key(),
-                        [victim_name],
-                    )
+                    // Vanilla only takes the fall-variant branch for a significant fall;
+                    // otherwise `DamageSource.getLocalizedDeathMessage` builds the message,
+                    // so a short fall is "hit the ground too hard", not "fell from a high
+                    // place".
+                    self.get_default_death_message(victim_name, killing_blow, kill_credit_name)
                 }
             }
             pumpkin_data::damage::DeathMessageType::IntentionalGameDesign => {
@@ -828,6 +827,31 @@ mod tests {
     fn partial_resistance_scales_strength() {
         // Ravager has KNOCKBACK_RESISTANCE == 0.75.
         assert!((knockback_after_resistance(0.4, 0.75) - 0.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn short_fall_uses_fall_attack_message_not_accident_generic() {
+        // Vanilla `CombatTracker.getDeathMessage` only takes the fall-variant branch for a
+        // significant fall; otherwise `DamageSource.getLocalizedDeathMessage` applies.
+        let no_entity: Option<&dyn EntityBase> = None;
+        let mut tracker = CombatTracker::new();
+        tracker.record_damage(
+            1,
+            true,
+            3.0,
+            None,
+            pumpkin_data::damage::DamageType::FALL,
+            3.0,
+            no_entity,
+            no_entity,
+        );
+        let message =
+            tracker.get_death_message(pumpkin_util::text::TextComponent::text("Steve"), None);
+        let key = match &*message.0.content {
+            pumpkin_util::text::TextContent::Translate { translate, .. } => translate.to_string(),
+            other => format!("{other:?}"),
+        };
+        assert_eq!(key, "death.attack.fall");
     }
 
     #[test]
