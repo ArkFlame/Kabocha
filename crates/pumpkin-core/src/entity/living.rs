@@ -4185,7 +4185,17 @@ impl LivingEntity {
                 return false;
             }
             amount = by_entity_event.damage;
-        } else if position.is_some()
+        }
+
+        // Vanilla `LivingEntity#hurt` remembers the causing living entity, which is what
+        // `HurtByTargetGoal` (`RevengeGoal` here) retaliates against.
+        if let Some(damager) = cause.or(source)
+            && damager.get_living_entity().is_some()
+        {
+            self.set_last_hurt_by_mob(Some(damager));
+        }
+
+        if position.is_some()
             || matches!(
                 damage_type,
                 DamageType::CACTUS
