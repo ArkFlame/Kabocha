@@ -14,6 +14,10 @@ Vanilla reference: `net.minecraft.server.commands.DatapackCommand` (1.21.5+; `en
   `selectedIds.size() + availableIds.size()`.
 - `enable`/`disable` returned `level_info.data_packs.enabled.len()`, which excludes built-in packs;
   vanilla returns `packRepository.getSelectedIds().size()` (always includes `vanilla`).
+- `enable <name> before|after <built-in>` (for example `before vanilla`) validated the anchor as
+  enabled, found it absent from `data_packs.enabled` and silently appended the pack to the end.
+  Vanilla inserts relative to the selected order, so the position is now mapped from the exposed
+  list (built-in prefix first) and clamped to the configurable packs (`configurable_index`).
 
 ## Remaining gaps
 1. datapack.rs:455 (also data/datapack/mod.rs:1467,1474,1489,2388,2431 and tests at :572) —
@@ -40,6 +44,10 @@ Vanilla reference: `net.minecraft.server.commands.DatapackCommand` (1.21.5+; `en
 7. datapack.rs:414-422 `is_valid_pack_name` accepts names vanilla rejects for `datapack create`
    (leading/trailing dots, e.g. `a.` resolves oddly on Windows). Vanilla validates the folder name
    before writing; confirm the exact rule and tighten. Size S.
+8. datapack.rs:319-346 the exposed order is fixed as `vanilla`, `pumpkin-unit-test` followed by
+   `data_packs.enabled`, so `before vanilla` can only clamp to the first configurable slot, not truly
+   precede `vanilla`. Vanilla keeps one ordered `PackRepository` selection. Model pack order in
+   `LevelData` (or keep embedded packs in `data_packs.enabled`) and drop the clamp. Size M.
 
 ## Verified matching
 Command tree (`list`, `list available`, `list enabled`, `enable` default=last, `before`, `after`,
