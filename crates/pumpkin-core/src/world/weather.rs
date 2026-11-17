@@ -790,35 +790,21 @@ impl World {
         }
     }
 
-    /// Runs `send` for every world following the same weather cycle as this one. Like
-    /// vanilla's single cycle, all of them hear about rain starting or stopping.
-    fn for_each_cycle_world(&self, send: impl Fn(&Self)) {
-        let Some(server) = self.server.upgrade() else {
-            send(self);
-            return;
-        };
-        for world in server.worlds.load().iter() {
-            if Arc::ptr_eq(&world.weather_data, &self.weather_data) {
-                send(world);
-            }
-        }
-    }
-
+    /// Vanilla's `PlayerList.broadcastAll(.., dimension)` sends the begin or end of
+    /// rain only to the level it happened in, so a world that cannot have weather (the
+    /// nether, the end) never hears about the overworld's rain.
     fn announce_raining(&self, tick: &WeatherTick) {
         let event = if self.is_raining() {
             GameEvent::BeginRaining
         } else {
             GameEvent::EndRaining
         };
-        let begin_or_end = CGameEvent::new(event, 0.0);
+        self.broadcast_packet_all_with_world_weather(&CGameEvent::new(event, 0.0));
         let (rain_je, rain_be) = rain_level_packets(tick.rain_level);
         let (thunder_je, thunder_be) = thunder_level_packets(tick.thunder_level);
         // Bedrock has no begin or end; its level events carry both.
-        self.for_each_cycle_world(|world| {
-            world.broadcast_packet_all_with_world_weather(&begin_or_end);
-            world.broadcast_editioned(&rain_je, &rain_be);
-            world.broadcast_editioned(&thunder_je, &thunder_be);
-        });
+        self.broadcast_editioned(&rain_je, &rain_be);
+        self.broadcast_editioned(&thunder_je, &thunder_be);
     }
 
     /// Vanilla `PlayerList.sendLevelInfo`'s weather. The levels are sent when clear too,
