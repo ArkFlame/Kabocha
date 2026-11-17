@@ -218,6 +218,11 @@ impl NeutralMob for WolfEntity {
     fn get_neutral_data(&self) -> &NeutralData {
         &self.neutral_data
     }
+
+    /// The client picks the angry face from this value.
+    fn anger_end_time_data(&self) -> Option<pumpkin_data::tracked_data::TrackedData> {
+        Some(pumpkin_data::tracked_data::wolf::DATA_ANGER_END_TIME)
+    }
 }
 
 impl Mob for WolfEntity {
