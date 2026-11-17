@@ -14,13 +14,14 @@ use crate::entity::mob::guardian::GUARDIAN_HUNTS;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        random_swimming::RandomSwimmingGoal,
     },
     mob::{Mob, MobEntity},
 };
 
 const EFFECT_INTERVAL: i32 = 1200;
+const HOME_RADIUS: i32 = 16;
 
 pub struct ElderGuardianEntity {
     pub mob_entity: MobEntity,
@@ -39,8 +40,7 @@ impl ElderGuardianEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             goal_selector.add_goal(
                 5,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -86,6 +86,10 @@ impl Mob for ElderGuardianEntity {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
             return;
+        }
+
+        if !self.mob_entity.has_position_target() {
+            self.mob_entity.set_home_to(entity.block_pos.load(), HOME_RADIUS);
         }
 
         if (entity.tick_count.load(Ordering::Relaxed) + entity.entity_id) % EFFECT_INTERVAL == 0 {

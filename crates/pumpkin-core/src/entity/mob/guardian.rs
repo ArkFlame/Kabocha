@@ -11,8 +11,8 @@ use crate::entity::living::LivingEntity;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        random_swimming::RandomSwimmingGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -56,8 +56,7 @@ impl GuardianEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             goal_selector.add_goal(
                 5,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -97,6 +96,14 @@ impl CustomSound for GuardianEntity {
 impl Mob for GuardianEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.get_entity().touching_water.load(Ordering::Relaxed) {
+            Sound::EntityGuardianAmbient
+        } else {
+            Sound::EntityGuardianAmbientLand
+        })
     }
 
     fn on_damage(&self, _damage_type: DamageType, source: Option<&dyn EntityBase>) {
