@@ -68,6 +68,12 @@ impl CommandExecutor for SetBlockExecutor {
             return Err(ERROR_FAILED.create_without_context());
         }
 
+        // Vanilla fails when the requested state is already present, instead of
+        // reporting success and a result value for a no-op.
+        if world.get_block_state_id(&pos) == old_state_id {
+            return Err(ERROR_FAILED.create_without_context());
+        }
+
         if !strict {
             world.update_neighbours_on_block_set(&pos, old_state_id);
         }
