@@ -8,6 +8,7 @@ use crate::server::Server;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::world::WorldEvent;
+use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
@@ -76,6 +77,25 @@ impl EntityBase for ExperienceBottleEntity {
 
     fn get_living_entity(&self) -> Option<&crate::entity::living::LivingEntity> {
         None
+    }
+
+    fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
+        let stack = self
+            .item_stack
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut item = NbtCompound::new();
+        stack.write_item_stack(&mut item);
+        nbt.put_compound("Item", item);
+    }
+
+    fn read_custom_nbt(&self, nbt: &NbtCompound) {
+        if let Some(stack) = nbt
+            .get_compound("Item")
+            .and_then(ItemStack::read_item_stack)
+        {
+            self.set_item_stack(stack.copy_with_count(1));
+        }
     }
 
     fn on_hit(&self, hit: ProjectileHit) {
