@@ -5207,14 +5207,12 @@ impl World {
             ))
             .await;
 
-        // Inform the client of the default spawn position so the client doesn't
+        // Inform the client of the world spawn position so the client doesn't
         // fall back to (0, 2, 0) while the world reloads (fixes rubberbanding).
         // This must be sent after the CRespawn packet for proper client positioning.
-        let spawn_block_pos = BlockPos(Vector3::new(
-            position.x.round() as i32,
-            position.y.round() as i32,
-            position.z.round() as i32,
-        ));
+        // Vanilla also uses this value as the compass target, so it must stay the
+        // world spawn and never the player's respawn point.
+        let spawn_block_pos = BlockPos(Vector3::new(spawn_x, spawn_y, spawn_z));
         let bedrock_dimension = match target_world.dimension.minecraft_name {
             "minecraft:the_nether" => 1,
             "minecraft:the_end" => 2,
@@ -5224,8 +5222,8 @@ impl World {
             .send_packet_now_editioned(
                 &CPlayerSpawnPosition::new(
                     spawn_block_pos,
-                    yaw,
-                    pitch,
+                    spawn_yaw,
+                    spawn_pitch,
                     target_world.dimension.minecraft_name.to_string(),
                 ),
                 &pumpkin_protocol::bedrock::client::CSetSpawnPosition {
