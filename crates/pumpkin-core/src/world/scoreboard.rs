@@ -1415,9 +1415,9 @@ impl ScoreboardBuilder {
             ScoreboardScore::new(entity_s.clone(), obj_s.clone(), VarInt(value), None, None);
         self.scoreboard
             .scores
-            .entry(entity_s)
+            .entry(obj_s)
             .or_default()
-            .insert(obj_s, score);
+            .insert(entity_s, score);
         self
     }
 
