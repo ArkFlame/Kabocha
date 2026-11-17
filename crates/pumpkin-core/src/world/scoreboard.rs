@@ -1275,7 +1275,7 @@ impl BedrockScoreboard {
             .get(&(entity_s.clone(), obj_s.clone()))
             .copied()
             .unwrap_or(0);
-        let new_val = current + delta;
+        let new_val = current.wrapping_add(delta);
         self.update_score(player, &entity_s, &obj_s, new_val);
         new_val
     }
