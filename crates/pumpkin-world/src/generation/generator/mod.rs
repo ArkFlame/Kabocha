@@ -273,6 +273,41 @@ impl VanillaGenerator {
         })
     }
 
+    /// The structure whose full start bounding box covers `pos` and passes `wanted`, if any.
+    /// Vanilla `ChunkGenerator.getMobsAt` uses `StructureStart.getBoundingBox().isInside(pos)`
+    /// for structures whose spawn override has a full bounding box (monument, outpost, hut).
+    #[must_use]
+    pub fn structure_spawn_override_at(
+        &self,
+        pos: pumpkin_util::math::position::BlockPos,
+        wanted: impl Fn(StructureKeys) -> bool,
+    ) -> Option<StructureKeys> {
+        let dimension = &self.dimension;
+        let bottom_y = dimension.min_y as i8;
+        let shape = self
+            .settings
+            .shape
+            .trim_height(bottom_y, (dimension.min_y + dimension.height) as u16);
+        let min_y = i32::from(shape.min_y.max(bottom_y));
+        let height = shape.height.min(dimension.height as u16);
+        ProtoChunk::structure_references_in_chunk(
+            self,
+            pos.0.x >> 4,
+            pos.0.z >> 4,
+            min_y,
+            height,
+            wanted,
+        )
+        .into_iter()
+        .find_map(|(key, collector)| {
+            let mut guard = collector
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let covers = guard.get_bounding_box().contains_pos(&pos.0);
+            covers.then_some(key)
+        })
+    }
+
     #[must_use]
     pub fn find_spawn_position(&self) -> pumpkin_util::math::position::BlockPos {
         if self.settings.spawn_target.is_empty() {
