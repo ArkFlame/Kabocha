@@ -127,7 +127,7 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         let state_id = args.world.get_block_state_id(args.position);
         let mut props = MangrovePropaguleLikeProperties::from_state_id(state_id);
         if !props.hanging {
-            if rand::random::<u8>().is_multiple_of(7) {
+            if rand::random_range(0..7) == 0 {
                 Self::advance_tree(args.world, args.position, args.block, props, false);
             }
         } else if props.age < MAX_AGE {
