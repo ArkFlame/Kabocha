@@ -2,7 +2,7 @@
 # oc-agent.sh <name> <brief.md>  -- start an OpenCode DeepSeek worker in its own worktree, in background.
 # Logs: $KAB_RUNS/<name>.log ; pid: <name>.pid ; exit code: <name>.exit ; result: <name>.out
 # Own process group (setsid) so a hung `opencode run` is killed whole; idle watchdog (KAB_OC_IDLE, default 300 s);
-# one retry on ECONNRESET; .exit is always written.
+# one retry when a run dies without a final reply; .exit is always written.
 source "$(dirname "$0")/lib.sh"
 name="$1"; brief="$2"
 [ -f "$brief" ] || { echo "no brief $brief" >&2; exit 2; }
@@ -21,7 +21,8 @@ rm -f "$KAB_RUNS/$name".{exit,out}
       if [ "$age" -gt "${KAB_OC_IDLE:-300}" ]; then kill -TERM -- "-$w" 2>/dev/null; sleep 3; kill -KILL -- "-$w" 2>/dev/null; fi
     done
     wait "$w"; rc=$?
-    [ "$attempt" = 1 ] && tail -c 800 "$log" | grep -q 'ECONNRESET' && continue
+    # one retry when the run died without a final reply (crash, ECONNRESET, idle kill): a clean run always leaves a non-empty .out
+    [ "$attempt" = 1 ] && [ "$rc" -ne 0 ] && { [ ! -s "$KAB_RUNS/$name.out" ] || tail -c 800 "$log" | grep -q 'ECONNRESET'; } && continue
     break
   done
   echo "$rc" >"$KAB_RUNS/$name.exit"
