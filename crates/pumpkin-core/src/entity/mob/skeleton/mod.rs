@@ -72,7 +72,7 @@ impl SkeletonEntityBase {
             // TODO: RestrictSunGoal(2) and FleeSunGoal(3), once both match vanilla.
             fleeing::apply(goal_selector, SKELETON_FLEES);
             // Vanilla `reassessWeaponGoal`: the bow or the melee goal at 4, by the held weapon.
-            // TODO: attack interval per type (vanilla bogged and parched 70, 50 on hard).
+            // `get_min_attack_interval` supplies the per-type, per-difficulty interval.
             goal_selector.add_goal(
                 4,
                 Box::new(BowAttackGoal::new(1.0, SKELETON_ATTACK_INTERVAL, 15.0)),
