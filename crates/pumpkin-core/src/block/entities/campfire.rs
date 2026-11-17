@@ -13,7 +13,6 @@ use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::chunk::io::Dirtiable;
-use rand::{RngExt, rng};
 use std::sync::{Arc, Mutex};
 
 pub struct CampfireBlockEntity {
@@ -323,10 +322,12 @@ impl CampfireBlockEntity {
     }
 
     fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, stack: ItemStack) {
+        // Vanilla CampfireBlockEntity.cookItems spawns the result at the block
+        // centre, one block above the campfire.
         let spawn_position = Vector3::new(
-            f64::from(position.0.x) + 0.5 + rng().random_range(-0.35..0.35),
-            f64::from(position.0.y) + 1.01,
-            f64::from(position.0.z) + 0.5 + rng().random_range(-0.35..0.35),
+            f64::from(position.0.x) + 0.5,
+            f64::from(position.0.y) + 1.0,
+            f64::from(position.0.z) + 0.5,
         );
         let entity = Entity::new(world.clone(), spawn_position, &EntityType::ITEM);
         world.spawn_entity(Arc::new(ItemEntity::new(entity, stack)));
