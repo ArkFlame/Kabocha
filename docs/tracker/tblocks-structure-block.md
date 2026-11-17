@@ -51,3 +51,10 @@ adds `UPDATE_SKIP_ALL_SIDEEFFECTS` to the placement flags (`StructureBlockEntity
 
 ## h6 status
 - Structure block rows (addToLists shape, non-strict neighbour updates, LootTableSeed, placeInWorld void filter, empty palette with entities): STILL OPEN, not attempted this pass (h6 budget spent on jukebox/boat slices).
+
+## h6 pass 2 status
+- LootTableSeed gated on RandomizableContainer ids (row 'LootTableSeed'): FIXED d5cd38b63 (is_randomizable_container_id, unit test loot_seed_only_for_randomizable_containers). Container list from vanilla classes, decorated pot and brushables UNVERIFIED.
+- Entities capture/place (L): STILL OPEN, too large for this pass.
+- addToLists collision predicate (M): STILL OPEN, needs generated collision-full flag.
+- update_from_neighbour_shapes (M): STILL OPEN, no helper in pumpkin-core.
+- Strict placement side-effect flags (M): STILL OPEN, WorldBlockPlacer lacks flag API.
