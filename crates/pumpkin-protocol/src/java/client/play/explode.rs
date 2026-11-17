@@ -29,6 +29,9 @@ pub struct CExplosion {
     pub sound: IdOr<SoundEvent>,
     /// The size of the block particles pool, used for debris visuals in 1.21.9+.
     pub block_particles_pool_size: VarInt,
+    /// Whether the client plays the explosion sound, added in 26.3. Vanilla derives this from
+    /// `source == null || !source.isSilent()`.
+    pub play_sound: bool,
 }
 
 impl CExplosion {
@@ -49,7 +52,14 @@ impl CExplosion {
             particle,
             sound,
             block_particles_pool_size: VarInt(0),
+            play_sound: true,
         }
+    }
+
+    #[must_use]
+    pub const fn with_play_sound(mut self, play_sound: bool) -> Self {
+        self.play_sound = play_sound;
+        self
     }
 }
 
@@ -95,7 +105,7 @@ impl ClientPacket for CExplosion {
 
             // Whether the explosion sound is played, added in 26.3
             if *version >= JavaMinecraftVersion::V_26_3 {
-                write.write_bool(true)?;
+                write.write_bool(self.play_sound)?;
             }
         } else {
             write.write_f32_be(self.radius)?;
@@ -188,5 +198,28 @@ mod tests {
             encoded_particle_id(JavaMinecraftVersion::V_26_3),
             VarInt(29)
         );
+    }
+
+    #[test]
+    fn explosion_play_sound_bool_follows_source_silence() {
+        fn encoded_last_byte(play_sound: bool) -> u8 {
+            let packet = CExplosion::new(
+                Vector3::new(0.0, 0.0, 0.0),
+                4.0,
+                0,
+                None,
+                VarInt(Particle::ExplosionEmitter as i32),
+                IdOr::Id(0),
+            )
+            .with_play_sound(play_sound);
+            let mut bytes = Vec::new();
+            packet
+                .write_packet_data(&mut bytes, &JavaMinecraftVersion::V_26_3)
+                .unwrap();
+            *bytes.last().unwrap()
+        }
+
+        assert_eq!(encoded_last_byte(true), 1);
+        assert_eq!(encoded_last_byte(false), 0);
     }
 }
