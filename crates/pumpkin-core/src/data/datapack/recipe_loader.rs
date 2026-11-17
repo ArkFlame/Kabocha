@@ -658,3 +658,15 @@ mod ingredient_codec_tests {
         assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_some());
     }
 }
+
+#[cfg(test)]
+mod ingredient_codec_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn ingredient_object_with_item_and_tag_is_rejected() {
+        assert!(parse_ingredient(&json!({"item": "minecraft:stick", "tag": "minecraft:planks"})).is_none());
+        assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_some());
+    }
+}
