@@ -6398,6 +6398,7 @@ impl World {
             return;
         }
         base_entity.removed.store(true, Ordering::Release);
+        entity.on_removed();
 
         if let Some(vehicle) = base_entity.get_vehicle() {
             vehicle

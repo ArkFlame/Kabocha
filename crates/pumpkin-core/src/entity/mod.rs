@@ -1358,6 +1358,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn get_entity(&self) -> &Entity;
 
+    /// Runs once per `World::remove_entity`, before passengers are dismounted. Vanilla
+    /// subclass `remove` overrides (e.g. `AbstractChestBoat.remove`) hook in here.
+    fn on_removed(&self) {}
+
     fn get_living_entity(&self) -> Option<&LivingEntity>;
 
     fn get_vehicle_entity(&self) -> Option<&vehicle::vehicle::VehicleEntity> {

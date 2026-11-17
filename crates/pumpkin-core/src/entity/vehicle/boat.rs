@@ -112,6 +112,26 @@ impl BoatEntity {
         }
     }
 
+    /// Vanilla `AbstractChestBoat.remove`: scatter the chest slots on any destroying removal
+    /// (break, void, `/kill`, discard). `claim_drops` makes the scatter run at most once.
+    fn scatter_chest_contents(&self) {
+        let Some(container) = &self.inventory else {
+            return;
+        };
+        if !container.claim_drops() {
+            return;
+        }
+        let world = self.vehicle.entity.world.load();
+        let position = self.vehicle.entity.pos.load();
+        container.unpack_loot(&crate::world::loot::LootContextParameters {
+            world: Some(&world),
+            position: Some(position),
+            ..Default::default()
+        });
+        let inventory: Arc<dyn Inventory> = container.clone();
+        world.scatter_inventory_at(position, &inventory);
+    }
+
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
         // Vanilla AbstractChestBoat.openCustomInventoryScreen opens only when the boat is
         // alive and either empty or ridden by the opener; ChestBoat.interact also rejects
@@ -229,6 +249,10 @@ impl BoatEntity {
 }
 
 impl EntityBase for BoatEntity {
+    fn on_removed(&self) {
+        self.scatter_chest_contents();
+    }
+
     fn passenger_attachment_point(
         &self,
         passenger: &dyn EntityBase,
@@ -394,17 +418,7 @@ impl EntityBase for BoatEntity {
             let world = self.vehicle.entity.world.load();
             // Vanilla `AbstractChestBoat.remove` scatters the 27 slots on any destroying
             // removal, independent of `doEntityDrops`; only the boat item is gamerule-gated.
-            if let Some(container) = &self.inventory
-                && container.claim_drops()
-            {
-                container.unpack_loot(&crate::world::loot::LootContextParameters {
-                    world: Some(&world),
-                    position: Some(self.vehicle.entity.pos.load()),
-                    ..Default::default()
-                });
-                let inventory: Arc<dyn Inventory> = container.clone();
-                world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
-            }
+            self.scatter_chest_contents();
             if world.level_info.load().game_rules.entity_drops {
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
