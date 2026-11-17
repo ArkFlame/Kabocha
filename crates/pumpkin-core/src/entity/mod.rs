@@ -1290,7 +1290,7 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .len()
                     < max_passengers;
-                if has_room {
+                if has_room && !crate::entity::vehicle::boat::is_eye_in_water(self_entity) {
                     let pickup_bb = entity_bb.expand(0.2, 0.0, 0.2);
                     for other in world.get_entities_at_box(&pickup_bb) {
                         if other.get_entity().entity_id != self_entity.entity_id

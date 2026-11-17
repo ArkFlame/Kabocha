@@ -177,6 +177,11 @@ impl EntityBase for MannequinEntity {
         !self.get_entity().is_removed()
     }
 
+    fn is_pushable(&self) -> bool {
+        // Vanilla Mannequin.isPushable: immovable mannequins are never pushed.
+        !self.get_immovable() && self.living_entity.can_be_pushed(EntityBase::on_climbable(self))
+    }
+
     fn init_data_tracker(&self) {
         let entity = &self.living_entity.entity;
         entity.set_synced_data(
@@ -239,14 +244,20 @@ impl EntityBase for MannequinEntity {
         );
         nbt.put_bool("immovable", self.get_immovable());
 
-        if let Some(description) = self.get_description() {
-            if description != default_description() {
-                nbt.put(
-                    "description",
-                    description.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
-                );
-            }
-        } else {
+        // description and hide_description are independent tags: hiding a custom
+        // description must not drop it from the saved data.
+        let description = self
+            .description
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        if description != default_description() {
+            nbt.put(
+                "description",
+                description.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            );
+        }
+        if self.hide_description.load(Ordering::Relaxed) {
             nbt.put_bool("hide_description", true);
         }
     }
@@ -350,6 +361,7 @@ mod tests {
         assert!(mannequin.is_effective_ai());
         assert_eq!(mannequin.get_layers_mask(), ALL_LAYERS);
         assert!(mannequin.can_hit());
+        assert!(mannequin.is_pushable());
 
         let mut nbt = NbtCompound::new();
         let profile = ProfileImpl {
@@ -376,6 +388,7 @@ mod tests {
 
         assert!(!mannequin.is_effective_ai());
         assert!(mannequin.is_immobile());
+        assert!(!mannequin.is_pushable());
         assert_eq!(mannequin.get_profile(), profile);
         assert_eq!(
             mannequin.get_layers_mask(),
@@ -397,6 +410,26 @@ mod tests {
             saved.get_list("hidden_layers"),
             Some(&[NbtTag::String("cape".into()), NbtTag::String("hat".into()),][..])
         );
+
+        // A hidden custom description is still saved, and survives a round trip.
+        mannequin.set_description_state(TextComponent::text("Hidden NPC"), true);
+        assert_eq!(mannequin.get_description(), None);
+        let mut hidden = NbtCompound::new();
+        EntityBase::write_nbt(mannequin.as_ref(), &mut hidden);
+        assert_eq!(hidden.get_bool("hide_description"), Some(true));
+        assert!(hidden.get("description").is_some());
+
+        let copy = MannequinEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::MANNEQUIN,
+        ));
+        EntityBase::read_nbt_non_mut(copy.as_ref(), &hidden);
+        assert_eq!(copy.get_description(), None);
+        let mut resaved = NbtCompound::new();
+        EntityBase::write_nbt(copy.as_ref(), &mut resaved);
+        assert!(resaved.get("description").is_some());
+        assert_eq!(resaved.get_bool("hide_description"), Some(true));
 
         world.level.shutdown().await;
         Ok(())

@@ -3,7 +3,6 @@ mod dismount;
 mod passengers;
 mod physics;
 
-use pumpkin_data::tag::Taggable;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -22,11 +21,13 @@ use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::translation;
 use pumpkin_inventory::Inventory;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::java::client::play::Metadata;
 use pumpkin_util::GameMode;
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 
@@ -64,6 +65,18 @@ pub const fn max_passengers(entity_type: &EntityType) -> usize {
     } else {
         BOAT_MAX_PASSENGERS
     }
+}
+
+/// Vanilla `AbstractBoat.canAddPassenger`: a boat whose eye is in water takes no passenger.
+#[must_use]
+pub fn is_eye_in_water(entity: &Entity) -> bool {
+    let pos = entity.pos.load();
+    let eye_y = pos.y + entity.get_eye_height();
+    let eye_pos = BlockPos::floored(pos.x, eye_y, pos.z);
+    let world = entity.world.load();
+    let (fluid, state) = world.get_fluid_and_fluid_state(&eye_pos);
+    fluid.has_tag(&tag::Fluid::MINECRAFT_WATER)
+        && eye_y < f64::from(eye_pos.0.y as f32 + world.get_fluid_height(&eye_pos, fluid, &state))
 }
 
 pub struct BoatEntity {
@@ -134,9 +147,16 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        // Vanilla emits CONTAINER_OPEN only from block containers; an entity container
-        // (chest boat, chest minecart) just calls player.openMenu, so no game event here.
-        container::open(&self.vehicle.entity, player, inventory, title, false)
+        // Vanilla `AbstractChestBoat.interact` emits CONTAINER_OPEN after a successful open
+        // (and angers nearby piglins, which has no AI equivalent yet).
+        let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
+        if opened {
+            self.vehicle.entity.world.load().emit_game_event(
+                pumpkin_data::game_event::GameEvent::ContainerOpen.name(),
+                self.vehicle.entity.pos.load(),
+            );
+        }
+        opened
     }
 
     pub fn set_paddles(&self, left: bool, right: bool) {
@@ -364,19 +384,21 @@ impl EntityBase for BoatEntity {
         // boat item) only when it is not an instabuild hit, so a creative break drops nothing.
         if will_break && !creative && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
+            // Vanilla `AbstractChestBoat.remove` scatters the 27 slots on any destroying
+            // removal, independent of `doEntityDrops`; only the boat item is gamerule-gated.
+            if let Some(container) = &self.inventory
+                && container.claim_drops()
+            {
+                container.unpack_loot(&crate::world::loot::LootContextParameters {
+                    world: Some(&world),
+                    position: Some(self.vehicle.entity.pos.load()),
+                    ..Default::default()
+                });
+                let inventory: Arc<dyn Inventory> = container.clone();
+                world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
+            }
             if world.level_info.load().game_rules.entity_drops {
                 let position = self.vehicle.entity.block_pos.load();
-                if let Some(container) = &self.inventory
-                    && container.claim_drops()
-                {
-                    container.unpack_loot(&crate::world::loot::LootContextParameters {
-                        world: Some(&world),
-                        position: Some(self.vehicle.entity.pos.load()),
-                        ..Default::default()
-                    });
-                    let inventory: Arc<dyn Inventory> = container.clone();
-                    world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
-                }
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
                 if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
@@ -398,9 +420,10 @@ impl EntityBase for BoatEntity {
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
-        // Vanilla `AbstractBoat.interact` gates boarding on `outOfControlTicks < 60`
-        // and secondary use only; it never probes the eye fluid.
+        // Vanilla `AbstractBoat.interact` gates boarding on `outOfControlTicks < 60`,
+        // `canAddPassenger` (eye not in water) and secondary use only.
         let can_add_passenger = self.ticks_underwater.load() < TIME_TO_EJECT
+            && !is_eye_in_water(&self.vehicle.entity)
             && !player.get_entity().has_vehicle()
             && self
                 .vehicle
