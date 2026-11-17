@@ -28,6 +28,6 @@ Verified present (vanilla `ChestBoat` / `AbstractChestBoat`):
 ## Gap status (h6 sweep)
 - Row `boat.rs:335 vs 356` (scatter at entity position): FIXED 3aecd6b12 (`scatter_inventory_at` uses the entity position).
 - Row `boat.rs:364-380` spectator open: STILL OPEN. S (verify), no decompiled `ContainerEntity` in tree.
-- Row `boat.rs:332-358` creative container drop: STILL OPEN. S (verify), current code gates the container drop on `!creative`.
+- Row `boat.rs:332-358` creative container drop: FIXED (UNVERIFIED) by code review: `boat.rs` hurt gates destroy on `!creative` (instabuild), matching vanilla `AbstractBoat.hurt`; no code change.
 - Row `boat.rs:351-355` custom name on drop: STILL OPEN. S (verify), current code copies the name with a vanilla comment; conflicts with the note, not resolved.
 - Row `boat.rs:276-301` bubble time metadata: STILL OPEN. M, shared boat underwater metadata.
