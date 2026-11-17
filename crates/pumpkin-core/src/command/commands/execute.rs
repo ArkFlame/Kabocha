@@ -71,6 +71,7 @@ use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
+use pumpkin_world::chunk::ChunkHeightmapType;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -172,10 +173,15 @@ fn execute_positioned_over_modifier(
     let pos = source.position;
     let block_x = pos.x.floor() as i32;
     let block_z = pos.z.floor() as i32;
+    // Vanilla reads the requested heightmap; ocean_floor has no stored heightmap in Pumpkin yet.
+    let heightmap = match context.get_argument::<String>("heightmap")?.as_str() {
+        "motion_blocking" => ChunkHeightmapType::MotionBlocking,
+        "motion_blocking_no_leaves" => ChunkHeightmapType::MotionBlockingNoLeaves,
+        _ => ChunkHeightmapType::WorldSurface,
+    };
 
     if let Some(ref world) = source.world {
-        let top_y = world.get_top_block(Vector2::new(block_x, block_z));
-        source.position.y = (top_y + 1) as f64;
+        source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
     }
     Ok(vec![Arc::new(source)])
 }
