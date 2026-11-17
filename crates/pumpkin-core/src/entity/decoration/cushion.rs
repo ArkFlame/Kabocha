@@ -174,7 +174,7 @@ impl CushionEntity {
             .map_or_else(|| Self::color_from_item(stack.get_item()), |c| c.color.id())
     }
 
-    fn drop_and_remove(&self) {
+    fn drop_and_remove(&self, caused_by: Option<&dyn EntityBase>) {
         let entity = &self.entity;
         let passengers = entity
             .passengers
@@ -190,15 +190,28 @@ impl CushionEntity {
         }
 
         let world = entity.world.load();
-        world.play_sound(
-            Sound::EntityCushionBreak,
-            SoundCategory::Blocks,
-            &entity.pos.load(),
-        );
-        world.drop_stack(
-            &entity.block_pos.load(),
-            ItemStack::new(1, Self::item_for_color(self.color())),
-        );
+        // Vanilla `BlockAttachedEntity` drop path: break sound and drop only
+        // happen under `doEntityDrops`, and a creative attacker gets no item.
+        if world.level_info.load().game_rules.entity_drops {
+            world.play_sound(
+                Sound::EntityCushionBreak,
+                SoundCategory::Blocks,
+                &entity.pos.load(),
+            );
+
+            let is_creative = caused_by.is_some_and(|c| {
+                c.cast_any()
+                    .downcast_ref::<Player>()
+                    .is_some_and(Player::is_creative)
+            });
+
+            if !is_creative {
+                world.drop_stack(
+                    &entity.block_pos.load(),
+                    ItemStack::new(1, Self::item_for_color(self.color())),
+                );
+            }
+        }
         entity.remove();
     }
 }
@@ -291,7 +304,7 @@ impl EntityBase for CushionEntity {
         if self.entity.is_alive()
             && !Self::would_survive_at(&world, &self.entity.bounding_box.load())
         {
-            self.drop_and_remove();
+            self.drop_and_remove(None);
         }
     }
 
@@ -309,7 +322,11 @@ impl EntityBase for CushionEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         if let Some(color) = nbt.get_byte("Color") {
-            self.set_color(color as u8);
+            // Vanilla resolves the stored byte through `DyeColor.byId`, which
+            // falls back to white instead of syncing an out-of-range dye id.
+            let color =
+                pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(color as u8));
+            self.set_color(color.id());
         }
     }
 
@@ -408,13 +425,13 @@ impl EntityBase for CushionEntity {
         _amount: f32,
         _damage_type: DamageType,
         _position: Option<Vector3<f64>>,
-        _source: Option<&dyn EntityBase>,
+        source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> bool {
         if !self.entity.is_alive() {
             return false;
         }
-        self.drop_and_remove();
+        self.drop_and_remove(source);
         true
     }
 
@@ -463,7 +480,7 @@ mod tests {
             .entity
             .add_passenger(cushion.clone(), passenger.clone());
 
-        cushion.drop_and_remove();
+        cushion.drop_and_remove(None);
         let passenger_detached = !passenger.has_vehicle();
         let cushion_empty = !cushion.entity.has_passengers();
         let cushion_removed = world.get_entity_by_id(cushion.entity.entity_id).is_none();

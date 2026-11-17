@@ -1,47 +1,53 @@
 # entities / Command Block Minecart
 
-Status: AUDITED (2026-11-17, re-review after the reviewed source changed; tracking row coverage RE-REVIEW-UNTRACKED).
+Status: RE-REVIEWED (2026-11-17, source unchanged since the previous audit commit d155c012c; re-checked against
+`block/blocks/command.rs` and `block/entities/command_block.rs`, which are the repo's port of the same
+vanilla `BaseCommandBlock` path).
 Rust: `crates/pumpkin-core/src/entity/vehicle/minecart/command_block.rs` + `minecart.rs` +
 `crates/pumpkin-core/src/net/java/play/set_command_minecart.rs`.
 Vanilla: `MinecartCommandBlock` (+ `AbstractMinecart`), `BaseCommandBlock`,
-`ServerGamePacketListenerImpl#handleSetCommandMinecart`.
+`ServerGamePacketListenerImpl#handleSetCommandMinecart`. No decompiled source under `.vendor/`, so the
+remaining items below are marked when they are inferred rather than confirmed.
+
+## Previously fixed (unchanged, still correct)
+- Exact `"Searge".equals(command)` comparison (b67f2cb41).
+- Tracked output re-synced when a command prints nothing (a606e1ffa).
+- `handleSetCommandMinecart` always applies command/trackOutput regardless of `commandBlocksWork` (4de2458f8).
+- Activation cooldown `tickCount - lastActivated >= 4`, `lastExecution` guard, NBT keys, drop item,
+  tracked data ids: verified matching.
 
 ## Fixed in this pass
-- `command_block.rs:159` Searge easter egg used `eq_ignore_ascii_case`, vanilla `BaseCommandBlock#performCommand`
-  uses `"Searge".equals(command)` -> exact comparison. Commit `4b0d4ab25`.
-- `command_block.rs:206-220` tracked output was only written/synced when the captured string was non-empty, so a
-  command that printed nothing kept the previous `DATA_ID_LAST_OUTPUT` on clients. Vanilla writes `lastOutput`
-  back on every execution; now an empty capture clears and re-syncs. Commit `ca39bd55a`.
-- `set_command_minecart.rs:34-37` re-synced entity data only when the `commandBlocksWork` gamerule was on.
-  Vanilla `handleSetCommandMinecart` always applies `setCommand`/`setTrackOutput` (and `setCommand` fires
-  `onUpdated`); the gamerule only gates execution. Now always re-synced, gamerule kept only for the chat message.
-  Commit `1ca0ad406`.
-
-## Verified matching (no change)
-- Activation cooldown `tickCount - lastActivated >= 4` (`command_block.rs:141-149`), `lastExecution`
-  game-time guard, `UpdateLastExecution` / `-1` sentinel handling (`151-234`).
-- NBT keys `Command`, `SuccessCount`, `TrackOutput`, `LastOutput` (only when tracking), `UpdateLastExecution`,
-  `LastExecution` (only when updating) in `237-302`.
-- `drop_item()` returns `COMMAND_BLOCK_MINECART` (`minecart.rs:173`); tracked data ids
-  `DATA_ID_COMMAND_NAME` / `DATA_ID_LAST_OUTPUT`.
+- `command_block.rs:157-164` the Searge easter egg ran even with the `commandBlocksWork` gamerule off.
+  `block/blocks/command.rs:148-168` (the audited port of the same `BaseCommandBlock#performCommand`) gates it
+  behind the gamerule and the empty-command check. Now gated on `command_blocks_work`. Vanilla class:
+  `BaseCommandBlock`. Commit in this branch (feat(command): gate minecart command block easter egg on the gamerule).
 
 ## Remaining gaps
-1. `command_block.rs:157-164` the Searge branch runs before the `command_blocks_work` / empty-command guard.
-   Vanilla keeps the easter egg inside the gamerule branch of `BaseCommandBlock#performCommand`, so with command
-   blocks disabled it must not answer. Vanilla class: `BaseCommandBlock`. Fix: move the branch inside the guard.
-   Size: S (behavioural, confirm against decompile).
-2. `command_block.rs:75-81` `set_command` zeroes `success_count`; vanilla `BaseCommandBlock#setCommand` only
-   stores the string and calls `onUpdated` (no `successCount` reset documented). Vanilla class:
-   `BaseCommandBlock`. Fix: drop the reset and only re-sync. Size: S (confirm against decompile).
-3. `command_block.rs:233-235` / `minecart.rs:912` `interact` returns a bool and never opens the editor, so a
-   creative gamemaster clicking a command block minecart gets no GUI. Vanilla `MinecartCommandBlock#interact`
-   returns `InteractionResult.PASS` for non-gamemasters (no click is swallowed) and the client opens the command
-   block editor. Vanilla class: `MinecartCommandBlock`. Fix: tri-state result (PASS/SUCCESS) and wire the
-   editor-open path. Size: M (GUI/container path).
-4. `command_block.rs:114-120, 273-302` `BaseCommandBlock.customName` lives only in the command-block struct,
-   while entity display name (`entity/mod.rs:1334`) reads `entity.custom_name`. Vanilla
-   `MinecartCommandBlock#getName` prefers the command block custom name over `super.getName()`. Fix: mirror
-   `CustomName` from `read_nbt` into the entity name (or override the entity name lookup). Size: S (verify).
-5. `command_block.rs:237-266` `write_nbt` hardcodes `JavaMinecraftVersion::V_26_3` when serializing
-   `CustomName` / `LastOutput`; it should use the entity/protocol version so older clients keep their text
-   format. Vanilla class: `Component.Serializer` via `BaseCommandBlock#save`. Size: S.
+1. `command_block.rs:151-153` last-execution bookkeeping happens after execution, so the early-return path
+   (Searge, now also the gamerule-off path) never stores `last_execution`. If vanilla assigns
+   `lastExecution = gameTime` before dispatching (as the block path implies), a Searge cart re-executes every
+   activation instead of once per tick/activation. Vanilla class: `BaseCommandBlock#performCommand`.
+   Fix: compute and store `lastExecution` (respecting `UpdateLastExecution`) before the command body, then
+   return early. Size: S (needs decompile to confirm ordering).
+2. `command_block.rs:168` `success_count` is zeroed even when `commandBlocksWork` is false; the block port
+   resets it only inside the allowed path. Success count feeds conditional chain blocks, so a disabled cart
+   could clear another block's condition state. Vanilla class: `BaseCommandBlock#performCommand`.
+   Fix: move the reset inside the gamerule guard. Size: S (confirm exact ordering).
+3. `command_block.rs:233-235` `interact` returns a bool and never opens the editor. This matches vanilla
+   server behaviour: the client opens `CommandBlockEditScreen` itself in `Minecraft#startUseItem` and sends
+   no packet, so the server only needs PASS (false) for non-gamemasters and SUCCESS (true) for
+   creative+permission 2. Remaining risk only: a client that skips the local screen has no server fallback.
+   Vanilla class: `MinecartCommandBlock#interact`. Fix: none unless a client shows no screen. Size: S.
+4. `command_block.rs:114-120, 240-250, 282-286` `custom_name` is stored and (de)serialized as `CustomName`
+   inside the command-block state, while `Entity.custom_name` (`entity/mod.rs:1343-1365`) already owns the
+   entity display name. Vanilla keeps the name on the entity, not on `BaseCommandBlock`. Duplicate sources can
+   diverge (rename via name tag vs data command). Vanilla class: `MinecartCommandBlock` + `Entity`.
+   Fix: drop the command-block copy and read the entity name in `get_name`, defaulting to "@". Size: S.
+5. `command_block.rs:245-263` `write_nbt` hardcodes `JavaMinecraftVersion::V_26_3` when serializing
+   `CustomName`/`LastOutput`. 16 other sites do the same, so this is repo convention, not an entity bug:
+   only matters once multiple protocol versions are served. Vanilla class: `Component.Serializer`.
+   Fix: thread the target version through entity NBT saving when multi-version lands. Size: M.
+6. No automated test covers the gamerule-off easter-egg path added here (tests were not run in this pass,
+   compile was forbidden by the brief). Suggest a unit test in `minecart.rs` toggling
+   `game_rules.command_blocks_work` and asserting `success_count == 0` / unchanged output.
+   Vanilla class: `BaseCommandBlock#performCommand`. Size: S.

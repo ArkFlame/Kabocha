@@ -14,12 +14,10 @@ use crate::entity::vehicle::minecart::container::{self, MinecartInventory};
 use crate::entity::vehicle::vehicle::VehicleEntity;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
-use crate::world::game_event::GameEventContext;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
-use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::translation;
@@ -38,7 +36,8 @@ const BACK_SEAT_OFFSET: f32 = -0.6;
 const ANIMAL_SEAT_SHIFT: f32 = 0.2;
 const CHEST_BOAT_CONTAINER_SIZE: usize = 27;
 const TIME_TO_EJECT: f32 = 60.0;
-const MAX_PASSENGERS: usize = 2;
+const BOAT_MAX_PASSENGERS: usize = 2;
+const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
 
 #[must_use]
 pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
@@ -53,6 +52,16 @@ pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
         || entity_type.id == EntityType::PALE_OAK_CHEST_BOAT.id
         || entity_type.id == EntityType::POPLAR_CHEST_BOAT.id
         || entity_type.id == EntityType::SPRUCE_CHEST_BOAT.id
+}
+
+/// Vanilla `AbstractBoat.getMaxPassengers` returns 2, `AbstractChestBoat` overrides it with 1.
+#[must_use]
+pub const fn max_passengers(entity_type: &EntityType) -> usize {
+    if is_chest_boat(entity_type) {
+        CHEST_BOAT_MAX_PASSENGERS
+    } else {
+        BOAT_MAX_PASSENGERS
+    }
 }
 
 pub struct BoatEntity {
@@ -123,18 +132,9 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
-        if opened {
-            let world = self.vehicle.entity.world.load();
-            world.emit_game_event_with_context(
-                GameEvent::ContainerOpen.name(),
-                self.vehicle.entity.pos.load(),
-                &GameEventContext {
-                    source_entity: Some(player.as_ref()),
-                },
-            );
-        }
-        opened
+        // Vanilla emits CONTAINER_OPEN only from block containers; an entity container
+        // (chest boat, chest minecart) just calls player.openMenu, so no game event here.
+        container::open(&self.vehicle.entity, player, inventory, title, false)
     }
 
     pub fn set_paddles(&self, left: bool, right: bool) {
@@ -155,12 +155,21 @@ impl BoatEntity {
     }
 
     fn tick_underwater(&self, status: BoatStatus) {
+        let previous = self.ticks_underwater.load();
         let ticks = if status.is_underwater() {
-            self.ticks_underwater.load() + 1.0
+            previous + 1.0
         } else {
             0.0
         };
         self.ticks_underwater.store(ticks);
+        if ticks != previous {
+            // Vanilla `Boat.tick` feeds this counter into `DATA_ID_BUBBLE_TIME`; clients render
+            // the bubbles under a sinking boat from it and `Boat.interact` refuses passengers at 60.
+            self.vehicle.entity.set_synced_data(
+                pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME,
+                ticks as i32,
+            );
+        }
         if ticks < TIME_TO_EJECT {
             return;
         }
@@ -389,7 +398,7 @@ impl EntityBase for BoatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .len()
-                < MAX_PASSENGERS;
+                < max_passengers(self.vehicle.entity.entity_type);
 
         if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
             return self.open_custom_inventory_screen(player);
@@ -437,7 +446,7 @@ impl EntityBase for BoatEntity {
 
 #[cfg(test)]
 mod tests {
-    use super::is_chest_boat;
+    use super::{is_chest_boat, max_passengers};
     use pumpkin_data::entity::EntityType;
 
     #[test]
@@ -451,6 +460,14 @@ mod tests {
                 "{}",
                 entity_type.resource_name
             );
+            if entity_type.boat.is_some() {
+                assert_eq!(
+                    max_passengers(entity_type),
+                    if expected { 1 } else { 2 },
+                    "{}",
+                    entity_type.resource_name
+                );
+            }
         }
     }
 }
