@@ -53,7 +53,7 @@ impl ShiftableStructurePiece {
 
         for z in bounding_box.min.z..=bounding_box.max.z {
             for x in bounding_box.min.x..=bounding_box.max.x {
-                let y = chunk.get_top_y(&HeightMap::OceanFloorWg, x, z);
+                let y = chunk.get_top_y(&HeightMap::WorldSurfaceWg, x, z);
                 sum_y += y;
                 count += 1;
             }
