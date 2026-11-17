@@ -21,7 +21,7 @@ use crate::command::argument_types::entity::EntityArgumentType;
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::CommandSource;
 use crate::command::errors::command_syntax_error::CommandSyntaxError;
-use crate::command::errors::error_types::{CommandErrorType, LiteralCommandErrorType};
+use crate::command::errors::error_types::LiteralCommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::command::snbt::SnbtParser;
@@ -47,12 +47,6 @@ const ERROR_POW_ZERO_ZERO: LiteralCommandErrorType =
     LiteralCommandErrorType::new("0^0 is undefined");
 const ERROR_EVALUATION_FAILED: LiteralCommandErrorType =
     LiteralCommandErrorType::new("Failed to evaluate number provider");
-
-#[allow(dead_code)]
-pub const ERROR_BLOCK_INVALID: CommandErrorType<0> = CommandErrorType::new(
-    translation::java::COMMANDS_DATA_BLOCK_INVALID,
-    translation::java::COMMANDS_DATA_BLOCK_INVALID,
-);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TargetType {
