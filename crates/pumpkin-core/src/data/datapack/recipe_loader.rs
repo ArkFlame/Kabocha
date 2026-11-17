@@ -316,6 +316,9 @@ fn parse_transmute(recipe_id: String, value: &Value) -> Option<OwnedCraftingReci
     let input = parse_ingredient(value.get("input")?)?;
     let material = parse_ingredient(value.get("material")?)?;
     // Vanilla's transmute codec requires a result; an invalid one invalidates the recipe.
+    // Intentionally skipped: `minecraft:map_cloning` ships `"result": {}`, which vanilla maps
+    // through its special-recipe path (copy the input map). Pumpkin has no such variant yet,
+    // so it stays unregistered and the existing crafting behaviour is kept.
     let result = parse_result(value.get("result")?)?;
     Some(OwnedCraftingRecipe::Shapeless {
         recipe_id: Some(recipe_id),
@@ -530,7 +533,8 @@ mod tests {
         let json = r#"{
             "type": "minecraft:crafting_transmute",
             "input": "minecraft:filled_map",
-            "material": "minecraft:map"
+            "material": "minecraft:map",
+            "result": {}
         }"#;
         assert!(parse_recipe("test", "map_cloning", json).is_none());
     }
