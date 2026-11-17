@@ -119,7 +119,7 @@ impl ArgumentType<CommandSource> for OperationArgumentType {
     ) -> Suggestions {
         let mut builder = builder;
         for (_, symbol) in ScoreboardOperation::ALL {
-            builder = builder.filter_and_suggest_one_prefix(symbol);
+            builder = builder.filter_and_suggest_one(symbol);
         }
         builder.build()
     }

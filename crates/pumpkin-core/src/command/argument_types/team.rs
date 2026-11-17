@@ -34,7 +34,7 @@ impl ArgumentType<CommandSource> for TeamArgumentType {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for team_name in scoreboard.get_teams().keys() {
-            builder = builder.filter_and_suggest_one_prefix(team_name.as_str());
+            builder = builder.filter_and_suggest_one(team_name.as_str());
         }
         builder.build()
     }

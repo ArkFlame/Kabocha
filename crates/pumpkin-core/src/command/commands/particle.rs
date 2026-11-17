@@ -213,6 +213,20 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
             let power = opt("power").and_then(tag_as_f32).unwrap_or(1.0);
             ParticleOptions::Spell { color, power }.write(&mut buf)
         }
+        // Vanilla `GeyserParticleOptions`: INT water_blocks.
+        Particle::Geyser | Particle::GeyserPlume => {
+            let water_blocks = opt("water_blocks").and_then(tag_as_i32).unwrap_or(1);
+            buf.write_i32_be(water_blocks)
+        }
+        // Vanilla `GeyserBaseParticleOptions`: INT water_blocks, FLOAT burst_impulse_base.
+        Particle::GeyserBase | Particle::GeyserPoof => {
+            let water_blocks = opt("water_blocks").and_then(tag_as_i32).unwrap_or(1);
+            let burst_impulse_base = opt("burst_impulse_base")
+                .and_then(tag_as_f32)
+                .unwrap_or(0.0);
+            buf.write_i32_be(water_blocks)
+                .and_then(|()| buf.write_f32_be(burst_impulse_base))
+        }
         Particle::SculkCharge => {
             // Vanilla `SculkChargeParticleOptions.STREAM_CODEC`: a single float roll.
             let roll = opt("roll").and_then(tag_as_f32).unwrap_or(0.0);
@@ -536,5 +550,25 @@ mod tests {
             Vector3::new(-100.0, 0.0, 0.0),
             true
         ));
+    }
+
+    #[test]
+    fn geyser_writes_water_blocks_int() {
+        let mut options = NbtCompound::new();
+        options.put_int("water_blocks", 12);
+        let data = encode_particle_options(Particle::Geyser, Some(&options));
+        assert_eq!(data, 12i32.to_be_bytes());
+    }
+
+    #[test]
+    fn geyser_base_writes_water_blocks_and_burst_impulse() {
+        let mut options = NbtCompound::new();
+        options.put_int("water_blocks", 3);
+        options.put_float("burst_impulse_base", 2.5);
+        let data = encode_particle_options(Particle::GeyserBase, Some(&options));
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&3i32.to_be_bytes());
+        expected.extend_from_slice(&2.5f32.to_be_bytes());
+        assert_eq!(data, expected);
     }
 }

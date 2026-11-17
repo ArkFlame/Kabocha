@@ -310,7 +310,7 @@ impl DataAccessor for EntityDataAccessor {
             [
                 TextComponent::text(path.as_str().to_string()),
                 self.entity.get_display_name(),
-                TextComponent::text(java_double_to_string(scale)),
+                TextComponent::text(format!("{scale:.2}")),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -401,7 +401,7 @@ impl DataAccessor for BlockDataAccessor {
                 TextComponent::text(format!("{}", self.pos.0.x)),
                 TextComponent::text(format!("{}", self.pos.0.y)),
                 TextComponent::text(format!("{}", self.pos.0.z)),
-                TextComponent::text(java_double_to_string(scale)),
+                TextComponent::text(format!("{scale:.2}")),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -466,7 +466,7 @@ impl DataAccessor for StorageDataAccessor {
             [
                 TextComponent::text(path.as_str().to_string()),
                 TextComponent::text(self.id.clone()),
-                TextComponent::text(java_double_to_string(scale)),
+                TextComponent::text(format!("{scale:.2}")),
                 TextComponent::text(value.to_string()),
             ],
         )
@@ -491,29 +491,12 @@ pub fn get_single_tag(
     }
 }
 
-/// Java `Double.toString`: plain decimal for `1e-3 <= |v| < 1e7`, otherwise `d.dddE[-]n`,
-/// always with at least one fraction digit. Digits come from Rust's shortest round-trip form.
-fn java_double_to_string(value: f64) -> String {
-    if value.is_nan() {
-        return "NaN".to_string();
-    }
-    if value.is_infinite() {
-        return if value > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
-    }
-    if value == 0.0 {
-        return if value.is_sign_negative() {
-            "-0.0"
-        } else {
-            "0.0"
-        }
-        .to_string();
-    }
-    let sign = if value < 0.0 { "-" } else { "" };
-    let sci = format!("{:e}", value.abs());
-    let Some((mantissa, exp)) = sci.split_once('e') else {
-        return sci;
+/// Shared Java `Double.toString`/`Float.toString` layout for a Rust shortest scientific form.
+fn java_number_from_scientific(sign: &str, scientific: &str) -> String {
+    let Some((mantissa, exponent)) = scientific.split_once('e') else {
+        return format!("{sign}{scientific}");
     };
-    let exp: i32 = exp.parse().unwrap_or(0);
+    let exp: i32 = exponent.parse().unwrap_or(0);
     let digits = mantissa.replace('.', "");
     if (-3..7).contains(&exp) {
         if exp >= 0 {
@@ -534,12 +517,65 @@ fn java_double_to_string(value: f64) -> String {
     }
 }
 
-/// Vanilla `NbtElement#asString` is only implemented by `NbtString`; numeric tags throw.
-fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
-    match tag {
-        NbtTag::String(s) => Ok(s.to_string()),
-        _ => Err(ERROR_EXPECTED_VALUE.create_without_context(TextComponent::text(tag.to_string()))),
+/// Java `Double.toString`: plain decimal for `1e-3 <= |v| < 1e7`, otherwise `d.dddE[-]n`,
+/// always with at least one fraction digit. Digits come from Rust's shortest round-trip form.
+fn java_double_to_string(value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
     }
+    if value.is_infinite() {
+        return if value > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    if value == 0.0 {
+        return if value.is_sign_negative() {
+            "-0.0"
+        } else {
+            "0.0"
+        }
+        .to_string();
+    }
+    let sign = if value < 0.0 { "-" } else { "" };
+    java_number_from_scientific(sign, &format!("{:e}", value.abs()))
+}
+
+/// Java `Float.toString` for NBT float SNBT, same notation rules at f32 precision.
+fn java_float_to_string(value: f32) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value.is_infinite() {
+        return if value > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    if value == 0.0 {
+        return if value.is_sign_negative() {
+            "-0.0"
+        } else {
+            "0.0"
+        }
+        .to_string();
+    }
+    let sign = if value < 0.0 { "-" } else { "" };
+    java_number_from_scientific(sign, &format!("{:e}", value.abs()))
+}
+
+/// Vanilla `DataCommands.getAsText`: a string yields its raw value, any primitive numeric tag
+/// yields its SNBT (`toString()`, including the `b`/`s`/`L`/`f`/`d` suffix); other tags throw.
+fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
+    let text = match tag {
+        NbtTag::String(value) => value.to_string(),
+        NbtTag::Byte(value) => format!("{value}b"),
+        NbtTag::Short(value) => format!("{value}s"),
+        NbtTag::Int(value) => value.to_string(),
+        NbtTag::Long(value) => format!("{value}L"),
+        NbtTag::Float(value) => format!("{}f", java_float_to_string(*value)),
+        NbtTag::Double(value) => format!("{}d", java_double_to_string(*value)),
+        _ => {
+            return Err(
+                ERROR_EXPECTED_VALUE.create_without_context(TextComponent::text(tag.to_string()))
+            );
+        }
+    };
+    Ok(text)
 }
 
 /// Java `String` lengths and indices, which vanilla NBT paths use, count UTF-16 code units.
@@ -821,8 +857,22 @@ fn execute_modify(
         ModifyMode::Prepend => target_path.insert(0, &mut root, &source_tags)?,
         ModifyMode::Append => target_path.insert(-1, &mut root, &source_tags)?,
         ModifyMode::Set => {
-            let last_tag = source_tags.last().cloned().unwrap_or(NbtTag::End);
-            target_path.set(&mut root, last_tag)?
+            let Some(last_tag) = source_tags.last() else {
+                // Vanilla uses `Iterables.getLast(source)`, so an empty source fails before
+                // writing anything rather than inserting an End tag.
+                let path = match source_mode {
+                    SourceMode::From { has_path: true }
+                    | SourceMode::String { has_path: true, .. } => context
+                        .get_argument::<NbtPath>("sourcePath")
+                        .map(|p| p.as_str().to_string())
+                        .unwrap_or_else(|_| target_path.as_str().to_string()),
+                    _ => target_path.as_str().to_string(),
+                };
+                return Err(
+                    ERROR_GET_NON_EXISTENT.create_without_context(TextComponent::text(path))
+                );
+            };
+            target_path.set(&mut root, last_tag.clone())?
         }
         ModifyMode::Merge => {
             let mut combined = NbtCompound::new();
@@ -1182,13 +1232,17 @@ mod tests {
     }
 
     #[test]
-    fn modify_string_source_rejects_numeric_tags() {
-        assert!(get_as_text(&NbtTag::Int(1)).is_err());
-        assert!(get_as_text(&NbtTag::Double(1.0)).is_err());
-        assert_eq!(
-            get_as_text(&NbtTag::String("x".into())).ok().as_deref(),
-            Some("x")
-        );
+    fn modify_string_source_stringifies_primitives() {
+        let text = |tag: &NbtTag| get_as_text(tag).ok();
+        assert_eq!(text(&NbtTag::String("x".into())).as_deref(), Some("x"));
+        assert_eq!(text(&NbtTag::Byte(1)).as_deref(), Some("1b"));
+        assert_eq!(text(&NbtTag::Short(1)).as_deref(), Some("1s"));
+        assert_eq!(text(&NbtTag::Int(1)).as_deref(), Some("1"));
+        assert_eq!(text(&NbtTag::Long(1)).as_deref(), Some("1L"));
+        assert_eq!(text(&NbtTag::Float(1.0)).as_deref(), Some("1.0f"));
+        assert_eq!(text(&NbtTag::Double(2.0)).as_deref(), Some("2.0d"));
+        assert!(get_as_text(&NbtTag::Compound(NbtCompound::new())).is_err());
+        assert!(get_as_text(&NbtTag::List(Vec::new())).is_err());
     }
 
     #[test]

@@ -35,11 +35,11 @@ impl CommandExecutor for SetWorldSpawnExecutor {
                 (block_pos, (0.0, 0.0))
             }
             SetWorldSpawnMode::PosOnly => {
-                let block_pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
+                let block_pos = BlockPosArgumentType::get_spawnable_pos(context, "pos")?;
                 (block_pos, (0.0, 0.0))
             }
             SetWorldSpawnMode::PosAndRotation => {
-                let block_pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
+                let block_pos = BlockPosArgumentType::get_spawnable_pos(context, "pos")?;
                 let rot = RotationArgumentType::get(context, "rotation")?.rotation(&context.source);
                 (block_pos, (rot.x, rot.y))
             }

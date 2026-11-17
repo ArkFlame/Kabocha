@@ -1129,6 +1129,33 @@ mod test {
     }
 
     #[test]
+    fn deactivating_one_plugin_leaves_other_plugin_commands_alone() {
+        let mut dispatcher = CommandDispatcher::new();
+        let executor: fn(&CommandContext) -> CommandExecutorResult = |_| Ok(1);
+        dispatcher.register(
+            CommandArgumentBuilder::new("//set", "WorldEdit set command")
+                .with_source("worldedit")
+                .executes(executor),
+        );
+        dispatcher.register(
+            CommandArgumentBuilder::new("other", "Another plugin command")
+                .with_source("other-plugin")
+                .executes(executor),
+        );
+
+        dispatcher.deactivate_commands_from_source("worldedit");
+        let source = DummySource::dummy();
+        for hidden in ["//set", "/set"] {
+            assert!(
+                dispatcher
+                    .execute_input(hidden, &source)
+                    .is_err_and(|error| error.error_type == &DISPATCHER_UNKNOWN_COMMAND)
+            );
+        }
+        assert_eq!(dispatcher.execute_input("other", &source), Ok(1));
+    }
+
+    #[test]
     fn arithmetic_command() {
         enum Operation {
             Add,

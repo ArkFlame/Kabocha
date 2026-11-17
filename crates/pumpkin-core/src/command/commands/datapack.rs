@@ -80,18 +80,13 @@ impl SuggestionProvider for AvailablePackSuggestionProvider {
         mut builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
         let server = context.server();
+        // Vanilla suggests each available pack id once, quoting ids that are
+        // not valid unquoted strings (DataPackCommand.UNSELECTED_PACKS).
         for pack in get_available_packs(server) {
             if pack.contains(' ') || pack.contains('/') {
                 builder = builder.suggest(format!("\"{pack}\""));
             } else {
-                builder = builder.suggest(pack.clone());
-            }
-            if let Some(short) = pack.strip_prefix("file/") {
-                if short.contains(' ') {
-                    builder = builder.suggest(format!("\"{short}\""));
-                } else {
-                    builder = builder.suggest(short.to_string());
-                }
+                builder = builder.suggest(pack);
             }
         }
         builder.build()
@@ -107,18 +102,12 @@ impl SuggestionProvider for EnabledPackSuggestionProvider {
         mut builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
         let server = context.server();
+        // Vanilla suggests each selected pack id once (DataPackCommand.SELECTED_PACKS).
         for pack in get_enabled_packs(server) {
             if pack.contains(' ') || pack.contains('/') {
                 builder = builder.suggest(format!("\"{pack}\""));
             } else {
-                builder = builder.suggest(pack.clone());
-            }
-            if let Some(short) = pack.strip_prefix("file/") {
-                if short.contains(' ') {
-                    builder = builder.suggest(format!("\"{short}\""));
-                } else {
-                    builder = builder.suggest(short.to_string());
-                }
+                builder = builder.suggest(pack);
             }
         }
         builder.build()

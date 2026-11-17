@@ -8,15 +8,17 @@ use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::command::suggestion::provider::{SuggestionProvider, SuggestionProviderResult};
 use crate::command::suggestion::suggestions::SuggestionsBuilder;
 use crate::entity::EntityBase;
-use pumpkin_data::recipes::{CraftingRecipeTypes, RECIPES_COOKING, RECIPES_CRAFTING};
 use pumpkin_data::translation;
 use pumpkin_protocol::codec::recipe::DynamicRecipe;
 use pumpkin_protocol::codec::var_int::VarInt;
-use pumpkin_protocol::java::client::play::{CRecipeBookAdd, CRecipeBookRemove};
+use pumpkin_protocol::java::client::play::{
+    CRecipeBookAdd, CRecipeBookRemove, dynamic_recipe_display_ids, static_recipe_display_count,
+};
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
+use std::collections::HashSet;
 
 const DESCRIPTION: &str = "Gives or takes player recipes.";
 const PERMISSION: &str = "minecraft:command.recipe";
@@ -37,6 +39,23 @@ fn get_recipe_id(recipe: &DynamicRecipe) -> String {
     )
 }
 
+/// Vanilla's recipe argument suggests recipe-manager keys only, filtered to learnable recipes.
+fn recipe_suggestion_ids(recipes: &[DynamicRecipe]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut ids = Vec::new();
+    for recipe in recipes {
+        if matches!(recipe, DynamicRecipe::SpecialCrafting(_)) {
+            continue;
+        }
+        if let Some(id) = recipe.recipe_id() {
+            if seen.insert(id) {
+                ids.push(id.to_string());
+            }
+        }
+    }
+    ids
+}
+
 struct RecipeSuggestionProvider;
 
 impl SuggestionProvider for RecipeSuggestionProvider {
@@ -47,8 +66,7 @@ impl SuggestionProvider for RecipeSuggestionProvider {
     ) -> SuggestionProviderResult {
         if let Some(server) = &context.source.server {
             let recipes = server.recipe_manager.get_dynamic_recipes_internal();
-            for recipe in recipes {
-                let id = get_recipe_id(&recipe);
+            for id in recipe_suggestion_ids(&recipes) {
                 builder = builder.suggest(id);
             }
         }
@@ -145,24 +163,7 @@ impl CommandExecutor for RecipeTakeExecutor {
         })?;
 
         let all_recipes = server.recipe_manager.get_dynamic_recipes_internal();
-
-        let crafting_display_count = RECIPES_CRAFTING
-            .iter()
-            .filter(|r| {
-                !matches!(
-                    r,
-                    CraftingRecipeTypes::CraftingSpecial(_)
-                        | CraftingRecipeTypes::CraftingDecoratedPot { .. }
-                )
-            })
-            .count();
-
-        let dynamic_recipe_offset = crafting_display_count + RECIPES_COOKING.len();
-
-        let displayable_recipes: Vec<_> = all_recipes
-            .iter()
-            .filter(|r| matches!(r, DynamicRecipe::Crafting(_) | DynamicRecipe::Cooking(_)))
-            .collect();
+        let display_ids = dynamic_recipe_display_ids(&all_recipes);
 
         let is_all = recipe_str == "*";
 
@@ -185,15 +186,15 @@ impl CommandExecutor for RecipeTakeExecutor {
         }
 
         let recipe_ids_to_remove: Vec<VarInt> = if is_all {
-            (0..(dynamic_recipe_offset + displayable_recipes.len()))
-                .map(|id| VarInt(id as i32))
-                .collect()
+            let total = static_recipe_display_count()
+                + display_ids.iter().filter(|id| id.is_some()).count();
+            (0..total).map(|id| VarInt(id as i32)).collect()
         } else {
-            displayable_recipes
+            display_ids
                 .iter()
-                .enumerate()
-                .filter_map(|(idx, r)| {
-                    matches(r).then_some(VarInt((dynamic_recipe_offset + idx) as i32))
+                .zip(all_recipes.iter())
+                .filter_map(|(display_id, recipe)| {
+                    (*display_id).and_then(|id| matches(recipe).then_some(VarInt(id)))
                 })
                 .collect()
         };
@@ -281,4 +282,36 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
         );
 
     dispatcher.register(builder);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recipe_suggestions_are_unique_and_skip_special() {
+        use pumpkin_protocol::codec::recipe::{
+            OwnedRecipeIngredient, OwnedRecipeResult, OwnedSpecialCraftingRecipe,
+            OwnedStonecutterRecipe,
+        };
+
+        let stonecutting = |id: &str| {
+            DynamicRecipe::Stonecutting(OwnedStonecutterRecipe {
+                recipe_id: id.to_string(),
+                group: None,
+                ingredient: OwnedRecipeIngredient::Simple("minecraft:stone".to_string()),
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:dirt".to_string(),
+                    count: 1,
+                },
+            })
+        };
+        let special = DynamicRecipe::SpecialCrafting(OwnedSpecialCraftingRecipe {
+            recipe_id: "test:special".to_string(),
+            category: pumpkin_data::recipes::RecipeCategoryTypes::Misc,
+        });
+
+        let recipes = [stonecutting("test:a"), stonecutting("test:a"), special];
+        assert_eq!(recipe_suggestion_ids(&recipes), vec!["test:a".to_string()]);
+    }
 }

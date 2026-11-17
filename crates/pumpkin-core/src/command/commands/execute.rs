@@ -68,6 +68,7 @@ use crate::world::World;
 use crate::world::scoreboard::{NoTarget, Scoreboard, ScoreboardObjective, ScoreboardTarget};
 use crate::world::stopwatches::Stopwatches;
 use pumpkin_data::translation;
+use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::identifier::Identifier;
@@ -1182,6 +1183,24 @@ fn count_blocks_match(
                     if world.get_block_state_id(&src_pos) != world.get_block_state_id(&dst_pos) {
                         return Ok(None);
                     }
+                    // Vanilla checkRegions also compares block entity type, components and
+                    // saveCustomOnly NBT when the source block has a block entity. Pumpkin
+                    // has no components API; write_nbt is the custom data that matters here.
+                    if let Some(src_be) = world.get_block_entity(&src_pos) {
+                        let Some(dst_be) = world.get_block_entity(&dst_pos) else {
+                            return Ok(None);
+                        };
+                        if src_be.resource_location() != dst_be.resource_location() {
+                            return Ok(None);
+                        }
+                        let mut src_nbt = NbtCompound::new();
+                        let mut dst_nbt = NbtCompound::new();
+                        src_be.write_nbt(&mut src_nbt);
+                        dst_be.write_nbt(&mut dst_nbt);
+                        if src_nbt != dst_nbt {
+                            return Ok(None);
+                        }
+                    }
                     count = count.saturating_add(1);
                 }
             }
@@ -1505,13 +1524,38 @@ fn execute_on_controller_modifier(
     Ok(sources)
 }
 
+/// Vanilla `TraceableEntity.getOwner`: projectiles and item entities resolve through
+/// `get_owner_entity`; primed TNT, area effect clouds and evoker fangs carry an
+/// `EntityReference`. Vex has no owner tracking in Pumpkin yet.
+fn traceable_owner(entity: &dyn EntityBase, world: &World) -> Option<Arc<dyn EntityBase>> {
+    if let Some(owner) = entity.get_owner_entity() {
+        return Some(owner);
+    }
+    let any = entity.cast_any();
+    let reference = if let Some(tnt) = any.downcast_ref::<crate::entity::tnt::TNTEntity>() {
+        Some(&tnt.owner)
+    } else if let Some(cloud) =
+        any.downcast_ref::<crate::entity::area_effect_cloud::AreaEffectCloudEntity>()
+    {
+        Some(&cloud.owner)
+    } else if let Some(fangs) =
+        any.downcast_ref::<crate::entity::projectile::evoker_fangs::EvokerFangsEntity>()
+    {
+        Some(&fangs.owner)
+    } else {
+        None
+    }?;
+    reference.get(world)
+}
+
 fn execute_on_origin_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    // Vanilla on origin follows TraceableEntity: the shooter of a projectile, not its tame owner.
+    // Vanilla on origin follows TraceableEntity (projectile, item, TNT, area effect cloud,
+    // evoker fangs), not the tame owner.
     let mut sources = Vec::new();
     if let Some(ref entity) = context.source.entity
-        && let Some(origin) = entity.get_owner_entity()
+        && let Some(origin) = traceable_owner(entity.as_ref(), context.source.world())
         && !origin.get_entity().is_removed()
     {
         let mut source = context.source.as_ref().clone();

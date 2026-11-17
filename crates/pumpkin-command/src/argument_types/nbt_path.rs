@@ -630,9 +630,8 @@ impl NbtPath {
                         }
                     }
                     _ => {
-                        return Err(ERROR_EXPECTED_LIST.create_without_context(
-                            TextComponent::text(format!("{target_tag:?}")),
-                        ));
+                        return Err(ERROR_EXPECTED_LIST
+                            .create_without_context(TextComponent::text(target_tag.to_string())));
                     }
                 }
             }

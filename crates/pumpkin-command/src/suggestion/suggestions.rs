@@ -155,12 +155,11 @@ impl SuggestionsBuilder {
     }
 
     /// Takes the value only if its lowercased text starts with the current
-    /// builder prefix, like vanilla's `CommandSource.suggestMatching`.
+    /// builder prefix (plain prefix matching).
     ///
-    /// Use this for names vanilla suggests with `suggestMatching` (scoreboard
-    /// objectives, teams, ...); [`Self::filter_and_suggest_one`] also matches
-    /// after `.`, `_`, `/` and `:` separators, which vanilla only does for
-    /// resource suggestions.
+    /// Most vanilla name suggestions instead use [`Self::filter_and_suggest_one`],
+    /// which also matches after `.`, `_`, `/` and `:` separators, mirroring
+    /// `SharedSuggestionProvider.matchesSubStr`.
     #[must_use]
     pub fn filter_and_suggest_one_prefix(mut self, value: impl Into<SuggestionText>) -> Self {
         let value = value.into();

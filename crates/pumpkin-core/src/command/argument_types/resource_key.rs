@@ -26,11 +26,6 @@ pub const ERROR_INVALID_BIOME: CommandErrorType<2> = CommandErrorType::new(
     translation::java::ARGUMENT_RESOURCE_NOT_FOUND,
 );
 
-pub const ERROR_NOT_SUMMONABLE_ENTITY: CommandErrorType<1> = CommandErrorType::new(
-    translation::java::ENTITY_NOT_SUMMONABLE,
-    translation::java::ENTITY_NOT_SUMMONABLE,
-);
-
 /// Represents an argument type used to get a resource key from an identifier.
 ///
 /// If you want an [`Advancement`] use [`ADVANCEMENT_REGISTRY`] and resolve it with
@@ -40,11 +35,6 @@ pub const ERROR_NOT_SUMMONABLE_ENTITY: CommandErrorType<1> = CommandErrorType::n
 ///
 /// Recipes are not handled by this argument type.
 pub struct ResourceKeyArgument(pub &'static Identifier);
-
-pub static ERROR_INVALID: CommandErrorType<0> = CommandErrorType::new(
-    translation::java::ARGUMENT_ID_INVALID,
-    translation::java::ARGUMENT_ID_INVALID,
-);
 
 impl ArgumentType<CommandSource> for ResourceKeyArgument {
     type Item = ResourceKey;
@@ -170,5 +160,36 @@ impl ResourceKeyArgument {
         argument.cast(registry).ok_or_else(|| {
             error.create_without_context(TextComponent::text(argument.identifier.to_string()))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_keeps_registry_and_identifier_namespace() {
+        let argument = ResourceKeyArgument(BIOME_REGISTRY);
+        let mut reader = StringReader::new("minecraft:forest");
+        assert_eq!(
+            argument.parse(&mut reader),
+            Ok(ResourceKey::new(
+                (*BIOME_REGISTRY).clone(),
+                Identifier::from_static("minecraft", "forest")
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_defaults_bare_path_to_minecraft_namespace() {
+        let argument = ResourceKeyArgument(DIMENSION_REGISTRY);
+        let mut reader = StringReader::new("overworld");
+        assert_eq!(
+            argument.parse(&mut reader),
+            Ok(ResourceKey::new(
+                (*DIMENSION_REGISTRY).clone(),
+                Identifier::vanilla_static("overworld")
+            ))
+        );
     }
 }

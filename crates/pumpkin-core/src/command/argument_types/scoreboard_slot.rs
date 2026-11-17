@@ -82,7 +82,7 @@ impl ArgumentType<CommandSource> for ScoreboardSlotArgumentType {
         mut builder: SuggestionsBuilder,
     ) -> Suggestions {
         for (slot_name, _) in SLOT_NAMES {
-            builder = builder.filter_and_suggest_one_prefix(slot_name);
+            builder = builder.filter_and_suggest_one(slot_name);
         }
         builder.build()
     }

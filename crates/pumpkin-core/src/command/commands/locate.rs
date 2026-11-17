@@ -138,15 +138,19 @@ fn wanted_structures(searched: &ResourceOrTag) -> Option<Vec<StructureKeys>> {
     }
 }
 
-/// Index into [`StructureSet::ALL`] of the set a structure belongs to, whose
-/// placement decides where it may generate. Vanilla keeps this as a prepared
-/// reverse map (`ChunkGeneratorStructureState.placementsForStructure`); there
-/// are ~21 sets, so a scan is cheap enough for a command. An index rather than
-/// a reference because the sets are consts, whose addresses are not stable.
-fn structure_set_containing(key: StructureKeys) -> Option<usize> {
+/// Indices into [`StructureSet::ALL`] of every set a structure belongs to; each
+/// set's placement decides where it may generate. Vanilla keeps this as a prepared
+/// reverse map (`ChunkGeneratorStructureState.placementsForStructure`): one
+/// structure can appear in several sets, so all of them must be searched. There
+/// are ~21 sets, so a scan is cheap enough for a command. Indices rather than
+/// references because the sets are consts, whose addresses are not stable.
+fn structure_sets_containing(key: StructureKeys) -> Vec<usize> {
     StructureSet::ALL
         .iter()
-        .position(|set| set.structures.iter().any(|entry| entry.structure == key))
+        .enumerate()
+        .filter(|(_, set)| set.structures.iter().any(|entry| entry.structure == key))
+        .map(|(index, _)| index)
+        .collect()
 }
 
 /// Unfloored horizontal distance, for picking the nearest of several hits
@@ -254,16 +258,15 @@ impl CommandExecutor for LocateStructureExecutor {
 
         let mut scans: Vec<(usize, Vec<StructureKeys>)> = Vec::new();
         for key in wanted {
-            let Some(set_index) = structure_set_containing(key) else {
-                continue;
-            };
-            if !world_gen.can_locate_structure(set_index, key) {
-                continue;
-            }
-            if let Some((_, keys)) = scans.iter_mut().find(|(index, _)| *index == set_index) {
-                keys.push(key);
-            } else {
-                scans.push((set_index, vec![key]));
+            for set_index in structure_sets_containing(key) {
+                if !world_gen.can_locate_structure(set_index, key) {
+                    continue;
+                }
+                if let Some((_, keys)) = scans.iter_mut().find(|(index, _)| *index == set_index) {
+                    keys.push(key);
+                } else {
+                    scans.push((set_index, vec![key]));
+                }
             }
         }
 
@@ -540,8 +543,8 @@ mod tests {
             Some(vec![StructureKeys::BastionRemnant])
         );
 
-        let fortress_set = structure_set_containing(StructureKeys::Fortress).unwrap();
-        let bastion_set = structure_set_containing(StructureKeys::BastionRemnant).unwrap();
+        let fortress_set = structure_sets_containing(StructureKeys::Fortress)[0];
+        let bastion_set = structure_sets_containing(StructureKeys::BastionRemnant)[0];
         assert_eq!(fortress_set, bastion_set);
         assert_eq!(StructureSet::NAMES[fortress_set], "nether_complexes");
     }
@@ -590,9 +593,23 @@ mod tests {
         for name in StructureKeys::all_names() {
             let key = StructureKeys::from_name(name).expect("known structure name");
             assert!(
-                structure_set_containing(key).is_some(),
+                !structure_sets_containing(key).is_empty(),
                 "{name} is in no structure set"
             );
+        }
+    }
+
+    /// Every set that lists a structure must be returned for it: the reverse
+    /// lookup has to cover all of a structure's placements, not just the first.
+    #[test]
+    fn all_sets_containing_a_structure_are_returned() {
+        for (index, set) in StructureSet::ALL.iter().enumerate() {
+            for entry in set.structures.iter() {
+                assert!(
+                    structure_sets_containing(entry.structure).contains(&index),
+                    "set {index} lists a structure whose reverse lookup omits it"
+                );
+            }
         }
     }
 }

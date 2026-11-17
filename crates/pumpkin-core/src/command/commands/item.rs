@@ -514,7 +514,8 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                     } else {
                         amount
                     };
-                    stack.item_count = count.clamp(0, i32::from(stack.get_max_stack_size())) as u8;
+                    // Vanilla setCount does not clamp to the item's max stack size.
+                    stack.item_count = count.clamp(0, i32::from(u8::MAX)) as u8;
                 }
                 other => tracing::debug!("Unsupported item modifier function {other}"),
             }
@@ -523,24 +524,60 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
     }
 }
 
-/// Reads a constant number provider (`1.0` or `{type:"constant",value:1.0}`).
+/// Reads a numeric provider: a plain number, or a typed provider such as
+/// constant, uniform, binomial or sum (vanilla NumberProvider).
 fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
     match tag? {
-        NbtTag::Compound(c) => match c.get("type").and_then(NbtTag::extract_string) {
-            // vanilla `UniformGenerator`: a uniform sample in [min, max)
-            Some("uniform") => {
-                let min = c.get("min").and_then(NbtTag::extract_float)?;
-                let max = c.get("max").and_then(NbtTag::extract_float)?;
-                Some(min + rand::random::<f32>() * (max - min))
+        NbtTag::Compound(c) => {
+            let kind = c
+                .get("type")
+                .and_then(NbtTag::extract_string)
+                .unwrap_or("constant");
+            let kind = kind.strip_prefix("minecraft:").unwrap_or(kind);
+            match kind {
+                // vanilla UniformGenerator: a uniform sample in [min, max)
+                "uniform" => {
+                    let min = number_provider(c.get("min"))?;
+                    let max = number_provider(c.get("max"))?;
+                    Some(min + rand::random::<f32>() * (max - min))
+                }
+                "binomial" => {
+                    let n = number_provider(c.get("n"))? as i32;
+                    let p = number_provider(c.get("p"))?;
+                    let mut result: i32 = 0;
+                    for _ in 0..n {
+                        if rand::random::<f32>() < p {
+                            result += 1;
+                        }
+                    }
+                    Some(result as f32)
+                }
+                "sum" => {
+                    let inputs = c.get("inputs")?.extract_list()?;
+                    inputs.iter().try_fold(0.0_f32, |total, input| {
+                        Some(total + number_provider(Some(input))?)
+                    })
+                }
+                _ => c.get("value").and_then(number_as_f32),
             }
-            _ => c.get("value").and_then(NbtTag::extract_float),
-        },
-        other => other.extract_float(),
+        }
+        other => number_as_f32(other),
     }
 }
 
-/// Resolves the `modifier` argument, which is either an inline function or the id of a
-/// datapack `item_modifier` (vanilla `ResourceOrInlineArgument`).
+/// SNBT numbers parse to several integer and float tag kinds; all are valid providers.
+fn number_as_f32(tag: &NbtTag) -> Option<f32> {
+    match tag {
+        NbtTag::Byte(v) => Some(f32::from(*v)),
+        NbtTag::Short(v) => Some(f32::from(*v)),
+        NbtTag::Int(v) => Some(*v as f32),
+        NbtTag::Long(v) => Some(*v as f32),
+        NbtTag::Float(v) => Some(*v),
+        NbtTag::Double(v) => Some(*v as f32),
+        _ => None,
+    }
+}
+
 fn resolve_item_modifier(context: &CommandContext) -> Result<NbtTag, CommandSyntaxError> {
     match ItemModifierArgumentType::get(context, "modifier")? {
         ItemModifier::Inline(tag) => Ok(tag.clone()),
@@ -567,10 +604,22 @@ impl CommandExecutor for BlockModifyExecutor {
         let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
         let slot = SlotArgumentType::get(context, "slot")?;
         let modifier = resolve_item_modifier(context)?;
-        set_block_slot(context, &pos, slot, |mut stack| {
+        let modified = set_block_slot(context, &pos, slot, |mut stack| {
             apply_item_modifier(&mut stack, &modifier);
             stack
-        })
+        })?;
+        let msg = TextComponent::translate_cross(
+            translation::java::COMMANDS_ITEM_BLOCK_MODIFY_SUCCESS,
+            translation::java::COMMANDS_ITEM_BLOCK_MODIFY_SUCCESS,
+            [
+                TextComponent::text(modified.to_string()),
+                TextComponent::text(pos.0.x.to_string()),
+                TextComponent::text(pos.0.y.to_string()),
+                TextComponent::text(pos.0.z.to_string()),
+            ],
+        );
+        context.source.send_feedback(msg, true);
+        Ok(modified)
     }
 }
 
@@ -596,6 +645,23 @@ impl CommandExecutor for EntityModifyExecutor {
                 ERROR_NO_SUCH_SLOT.create_without_context(TextComponent::text(slot.to_string()))
             );
         }
+        let msg = if targets.len() == 1 {
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_SINGLE,
+                translation::java::COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_SINGLE,
+                [
+                    TextComponent::text(count.to_string()),
+                    targets[0].as_ref().get_display_name(),
+                ],
+            )
+        } else {
+            TextComponent::translate_cross(
+                translation::java::COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_MULTIPLE,
+                translation::java::COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_MULTIPLE,
+                [TextComponent::text(targets.len().to_string())],
+            )
+        };
+        context.source.send_feedback(msg, true);
         Ok(count)
     }
 }
@@ -667,6 +733,44 @@ mod tests {
                 (2.0..5.0).contains(&sample),
                 "sample {sample} out of [2, 5)"
             );
+        }
+    }
+
+    #[test]
+    fn namespaced_uniform_provider_uses_nested_providers() {
+        let mut compound = NbtCompound::new();
+        compound.put_string("type", "minecraft:uniform".to_string());
+        compound.put("min", NbtTag::Int(2));
+        compound.put("max", NbtTag::Int(4));
+        let tag = NbtTag::Compound(compound);
+        for _ in 0..256 {
+            let sample = number_provider(Some(&tag));
+            assert!(sample.is_some_and(|value| (2.0..4.0).contains(&value)));
+        }
+    }
+
+    #[test]
+    fn sum_provider_adds_all_inputs() {
+        let mut compound = NbtCompound::new();
+        compound.put_string("type", "minecraft:sum".to_string());
+        compound.put(
+            "inputs",
+            NbtTag::List(vec![NbtTag::Int(2), NbtTag::Float(3.5)]),
+        );
+        let tag = NbtTag::Compound(compound);
+        assert_eq!(number_provider(Some(&tag)), Some(5.5));
+    }
+
+    #[test]
+    fn binomial_provider_stays_within_zero_and_n() {
+        let mut compound = NbtCompound::new();
+        compound.put_string("type", "minecraft:binomial".to_string());
+        compound.put("n", NbtTag::Int(8));
+        compound.put("p", NbtTag::Float(0.5));
+        let tag = NbtTag::Compound(compound);
+        for _ in 0..256 {
+            let sample = number_provider(Some(&tag));
+            assert!(sample.is_some_and(|value| (0.0..=8.0).contains(&value)));
         }
     }
 }
