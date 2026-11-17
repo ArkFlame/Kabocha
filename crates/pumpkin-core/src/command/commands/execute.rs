@@ -1477,23 +1477,16 @@ fn execute_on_controller_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
     let mut sources = Vec::new();
-    if let Some(ref entity) = context.source.entity {
-        if let Some(controller) = entity
-            .get_entity()
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .first()
-            .cloned()
-        {
-            let mut source = context.source.as_ref().clone();
-            let name = controller.get_name().get_text();
-            let display_name = controller.get_display_name();
-            source.entity = Some(controller);
-            source.name = name;
-            source.display_name = display_name;
-            sources.push(Arc::new(source));
-        }
+    if let Some(ref entity) = context.source.entity
+        && let Some(controller) = entity.get_controlling_passenger()
+    {
+        let mut source = context.source.as_ref().clone();
+        let name = controller.get_name().get_text();
+        let display_name = controller.get_display_name();
+        source.entity = Some(controller);
+        source.name = name;
+        source.display_name = display_name;
+        sources.push(Arc::new(source));
     }
     Ok(sources)
 }
