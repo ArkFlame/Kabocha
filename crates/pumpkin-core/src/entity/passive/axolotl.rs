@@ -1231,16 +1231,17 @@ mod tests {
                 brain.get(types::PLAY_DEAD_TICKS).copied()
             })
         };
+        // Records the raw damage in the pre-damage hook, then runs the post-damage roll, the same
+        // order as `mob_hurt_server` followed by `on_damage_with_context`.
         let hurt = |axolotl: &Arc<AxolotlEntity>, amount: f32, by_source: bool, by_cause: bool| {
             let source: Option<&dyn EntityBase> = by_source.then_some(attacker.as_ref());
             let cause: Option<&dyn EntityBase> = by_cause.then_some(attacker.as_ref());
             for _ in 0..300 {
-                EntityBase::damage_with_context(
+                let _ =
+                    axolotl.mob_hurt_server(amount, DamageType::MOB_ATTACK, None, source, cause);
+                <AxolotlEntity as Mob>::on_damage_with_context(
                     axolotl.as_ref(),
-                    axolotl.as_ref(),
-                    amount,
                     DamageType::MOB_ATTACK,
-                    None,
                     source,
                     cause,
                 );
