@@ -4,7 +4,7 @@
 # --commit also commits and pushes TRACKER.md when it changed (at most what the caller's cadence allows).
 source "$(dirname "$0")/lib.sh"; set +e; cd "$KAB_ROOT"
 python3 - <<'PY'
-import csv, collections, hashlib, re, subprocess, time
+import csv, collections, hashlib, os, re, subprocess, time
 
 def sh(*a):
     return subprocess.run(a, capture_output=True, text=True).stdout
@@ -36,6 +36,7 @@ for r in rows:
     slug = slug_of(cat, name)
     if hits or cov in DONE_COVER: state = 'LANDED' if hits else 'DONE'
     elif slug in running or slug in unlanded: state = 'IN-FLIGHT'
+    elif os.path.exists('docs/tracker/%s.md' % slug): state = 'AUDITED'
     else: state = 'OPEN'
     out.setdefault(cat, collections.Counter())[state] += 1
     detail.append((cat, name, r['status'], cov, state, r['issues'], hits, r['note'], slug in running))
@@ -46,19 +47,19 @@ lines = ['# Parity tracker', '',
          '- Master: `%s` (%d commits ahead of upstream)' % (sh('git', 'rev-parse', '--short', 'master').strip(), len(commits)),
          '- Updated: %s' % time.strftime('%Y-%m-%d %H:%M'),
          '- Matching is by name in commit subjects on master, so LANDED means "a fix naming it landed", not that the vanilla audit is complete.',
-         '- States: **LANDED** a commit on master names it, **DONE** tracker marks it covered, **IN-FLIGHT** audit worker running or branch awaiting integration, **OPEN** nothing yet', '',
+         '- States: **LANDED** a commit on master names it, **AUDITED** an audit worker's note `docs/tracker/<slug>.md` is on master (vanilla review recorded), **DONE** tracker marks it covered, **IN-FLIGHT** audit worker running or branch awaiting integration, **OPEN** nothing yet', '',
          '## Progress by category', '', '| Category | Rows | No gap | LANDED/DONE | IN-FLIGHT | OPEN | Gaps closed |', '|---|---|---|---|---|---|---|']
 tot = collections.Counter()
 for cat, c in out.items():
-    gaps = c['LANDED'] + c['DONE'] + c['IN-FLIGHT'] + c['OPEN']
-    closed = c['LANDED'] + c['DONE']
+    gaps = c['LANDED'] + c['DONE'] + c['AUDITED'] + c['IN-FLIGHT'] + c['OPEN']
+    closed = c['LANDED'] + c['DONE'] + c['AUDITED']
     pct = ('%d%%' % round(100 * closed / gaps)) if gaps else '-'
     lines.append('| %s | %d | %d | %d | %d | %d | %s |' % (cat, sum(c.values()), c['no gap'], closed, c['IN-FLIGHT'], c['OPEN'], pct))
     tot.update(c)
-gaps = tot['LANDED'] + tot['DONE'] + tot['IN-FLIGHT'] + tot['OPEN']; closed = tot['LANDED'] + tot['DONE']
+gaps = tot['LANDED'] + tot['DONE'] + tot['AUDITED'] + tot['IN-FLIGHT'] + tot['OPEN']; closed = tot['LANDED'] + tot['DONE'] + tot['AUDITED']
 lines.append('| **all** | %d | %d | %d | %d | %d | **%s** |' % (sum(tot.values()), tot['no gap'], closed, tot['IN-FLIGHT'], tot['OPEN'], ('%d%%' % round(100 * closed / gaps)) if gaps else '-'))
 lines += ['', '## Gap rows', '', '| State | Category | Name | Tracker | Issues | Commits | Note |', '|---|---|---|---|---|---|---|']
-order = {'IN-FLIGHT': 0, 'OPEN': 1, 'LANDED': 2, 'DONE': 3}
+order = {'IN-FLIGHT': 0, 'OPEN': 1, 'AUDITED': 2, 'LANDED': 3, 'DONE': 4}
 for cat, name, status, cov, state, issues, hits, note, live in sorted(detail, key=lambda d: (order[d[4]], d[0], d[1])):
     lines.append('| %s%s | %s | %s | %s/%s | %s | %s | %s |' % (state, ' (running)' if live else '', cat, name, status, cov, issues, ' '.join('`%s`' % h for h in hits) or '-', note.replace('|', '/')[:140]))
 open('TRACKER.md', 'w').write('\n'.join(lines) + '\n')

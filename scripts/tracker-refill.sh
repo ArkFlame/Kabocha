@@ -8,7 +8,7 @@ need=$(( SLOTS - $(scripts/oc-status.sh | grep -c '^t.* running$' || true) )); [
 python3 - "$need" "$tried" <<'PY' | while IFS=$'\t' read -r slug cat name cov note; do
 import csv,re,sys
 need=int(sys.argv[1]); tried=set(open(sys.argv[2]).read().split())
-rank={'UNCOVERED':0,'COVERED-DONE':1,'RE-REVIEW':2,'RE-REVIEW-UNTRACKED':3,'AUDIT':4}
+rank={'UNCOVERED':0,'COVERED-DONE':1,'COVERED':2,'RE-REVIEW':3,'RE-REVIEW-UNTRACKED':4,'AUDIT':5}
 rows=[r for r in csv.DictReader(open('docs/PARITY.tsv'),delimiter='\t') if r['covered'] in rank]
 rows.sort(key=lambda r:rank[r['covered']])
 import subprocess
