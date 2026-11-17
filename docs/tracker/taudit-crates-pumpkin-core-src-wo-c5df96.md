@@ -57,3 +57,20 @@ changed.
 | nether.rs:497-595 (search_for_portal) | Candidates are filtered by was_already_valid (frame valid AND fully filled). Vanilla findClosestPortalPosition does not rebuild the shape for every POI record; it trusts the POI and only checks the block state and border. Mismatch mainly costs CPU on big POI sets. | PortalForcer.findClosestPortalPosition | Verify whether vanilla validates the frame here; if not, drop the get_on_axis call and construct the rectangle from the POI + PortalShape once. | S |
 | nether.rs:526-542 | Chunk loading of the 3x3 neighbourhood happens only for chunks that contain a POI record; a portal whose POI is in an unloaded chunk is simply invisible to search. Vanilla POI storage is section-backed and loaded on demand. | PoiManager.getInSquare | Acceptable for MVP; note only. | S |
 | nether.rs:330-357 | get_on_axis early-returns None when the block at pos is a portal of another axis, while vanilla builds the shape for the requested axis regardless. get_new_portal compensates by trying the other axis, so the outcome matches for real portals. | PortalShape.findPortalShape | No change needed; documented to avoid a future "fix" that breaks axis selection. | - |
+
+## Second pass (same audit, additional findings)
+
+### Fixed
+2. nether.rs:742-746. is_valid_portal_air accepted any replaceable, non-liquid state, so
+   find_safe_location could build a portal inside short grass or a snow layer. Vanilla
+   PortalForcer#createPortal scans with Level#isEmptyBlock, i.e. air only. Now state.is_air();
+   both call sites (column scan nether.rs:657, 3x4 area check nether.rs:778). No test: needs a
+   generated block state plus a world scan to show the difference.
+
+### Additional gaps
+| file:line | gap | vanilla class | suggested fix | size |
+|---|---|---|---|---|
+| nether.rs:103-106 | entity_pos_in_portal clamps the perpendicular offset to +-0.5, so an entity at the edge of the source portal is pulled toward the centre line on exit. SUSPECT: PortalShape.getRelativePosition passes that offset through unclamped. | PortalShape.getRelativePosition | Drop the clamp after checking the decompiled getRelativePosition; covered by portal_relative_exit_position. | S |
+| nether.rs:810-826 | Fallback clearing writes with BlockFlags::NOTIFY_ALL, so the 3x4x2 air/obsidian box triggers neighbour updates. Vanilla createPortal uses setBlock flags 2/18 (clients only). | PortalForcer.createPortal | Use NOTIFY_LISTENERS (and UPDATE_KNOWN_SHAPE for the frame) for the fallback clear. | S |
+| nether.rs:629-680 | The 16-radius scan is row-major and keeps the nearest candidate; vanilla walks BlockPos.spiralAround and takes the first usable spot per offset. Only which spot wins differs, not whether a portal is built. | PortalForcer.createPortal | Iterate in spiral order and stop at the first accepted candidate to match placement exactly. | S |
+| nether.rs:430-466 | get_potential_height ends with the literal 21 instead of Self::MAX_HEIGHT. | PortalShape.getDistanceUntilTop | Use Self::MAX_HEIGHT as i32. | S (cleanup) |
