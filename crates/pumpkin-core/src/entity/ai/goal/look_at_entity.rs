@@ -334,6 +334,8 @@ mod tests {
         let target = spawn(4.5);
         // Vanilla searches by distance only, so invisibility does not hide the target.
         target.get_entity().set_invisible(true);
+        // The search goes through the world's entity index, so the target must be in the world.
+        world.spawn_entity(target.clone());
         let mob: Arc<dyn Mob> = looker.clone();
         let mut goal =
             LookAtEntityGoal::new(Arc::downgrade(&mob), &EntityType::COW, 6.0, 1.0, false);
