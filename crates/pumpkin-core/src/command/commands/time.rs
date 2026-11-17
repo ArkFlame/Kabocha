@@ -300,14 +300,14 @@ impl CommandExecutor for ActionExecutor {
                 let feedback = if is_bedrock(context) {
                     TextComponent::translate(
                         translation::bedrock::COMMANDS_TIME_SET,
-                        [TextComponent::text(rate.to_string())],
+                        [TextComponent::text(format!("{rate:?}"))],
                     )
                 } else {
                     TextComponent::translate(
                         translation::java::COMMANDS_TIME_RATE,
                         [
                             TextComponent::text(clock_name),
-                            TextComponent::text(rate.to_string()),
+                            TextComponent::text(format!("{rate:?}")),
                         ],
                     )
                 };
