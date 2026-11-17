@@ -546,7 +546,14 @@ impl Mob for AxolotlEntity {
         false
     }
 
-    fn travel_in_water(&self, caller: &dyn EntityBase, _gravity: f64, _falling: bool) {
+    fn travel_in_water(&self, caller: &dyn EntityBase, gravity: f64, falling: bool) {
+        // Vanilla `Axolotl.travel`: the swim path only runs when AI is effective, otherwise `super.travel`.
+        if self.mob_entity.is_no_ai() {
+            self.mob_entity
+                .living_entity
+                .travel_in_water(caller, gravity, falling);
+            return;
+        }
         let living = &self.mob_entity.living_entity;
         let entity = &living.entity;
         entity.update_velocity_from_input(
