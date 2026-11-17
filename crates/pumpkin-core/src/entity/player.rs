@@ -3835,7 +3835,8 @@ impl Player {
     /// Vanilla `tryToStartFallFlying`, for the glide request of both editions
     pub fn try_to_start_fall_flying(&self, server: &Arc<Server>) -> bool {
         let entity = &self.living_entity.entity;
-        if entity.is_fall_flying() || !self.can_glide() || entity.is_in_liquid() {
+        // Vanilla `tryToStartFallFlying` only checks water, lava does not block the start
+        if entity.is_fall_flying() || !self.can_glide() || entity.is_in_water() {
             return false;
         }
         let mut event =
