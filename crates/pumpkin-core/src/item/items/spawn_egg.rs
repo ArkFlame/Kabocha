@@ -275,6 +275,11 @@ impl ItemBehaviour for SpawnEggItem {
             if hit_block != &Block::WATER && hit_block != &Block::LAVA {
                 return;
             }
+            // Vanilla `SpawnEggItem.use` gates on `Level.mayInteract`, so a player without
+            // build rights inside the spawn protection radius cannot spawn here.
+            if world.is_in_spawn_protection(player, &hit_pos) {
+                return;
+            }
             if is_disallowed_in_peaceful(entity_type, &world) {
                 return;
             }
