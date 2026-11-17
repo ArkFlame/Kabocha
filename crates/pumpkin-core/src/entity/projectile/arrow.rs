@@ -648,7 +648,14 @@ impl EntityBase for ArrowEntity {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut stack = Self::pickup_item_stack(&item_stack);
-        if player.is_creative() || player.inventory.insert_stack_anywhere(&mut stack) {
+        // Vanilla AbstractArrow#tryPickup only inserts the item for ALLOWED; a
+        // CREATIVE_ONLY arrow is consumed without entering the inventory.
+        let picked_up = match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+            ArrowPickup::Allowed => player.inventory.insert_stack_anywhere(&mut stack),
+            ArrowPickup::CreativeOnly => true,
+            ArrowPickup::Disallowed => false,
+        };
+        if picked_up {
             player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::PickedUp,
                 stack.item.id as i32,
