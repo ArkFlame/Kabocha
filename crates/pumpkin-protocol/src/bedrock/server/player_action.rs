@@ -85,12 +85,13 @@ mod tests {
 
     #[test]
     fn player_action_wire_ids_match_bedrock() {
-        // Bedrock PlayerActionType: start break 0, abort 1, stop break 2, respawn 7, jump 8, continue break 27.
+        // Bedrock PlayerActionType ids are zigzag-encoded signed varints on the wire.
+        // Ids: start break 0, abort 1, stop break 2, respawn 7, jump 8, continue break 27.
         assert_eq!(decode(0) as i32, 0);
-        assert_eq!(decode(1) as i32, 1);
-        assert_eq!(decode(2) as i32, 2);
-        assert!(matches!(decode(7), PlayerActionType::Respawn));
-        assert!(matches!(decode(8), PlayerActionType::StartJump));
-        assert!(matches!(decode(27), PlayerActionType::ContinueDestroyBlock));
+        assert_eq!(decode(2) as i32, 1);
+        assert_eq!(decode(4) as i32, 2);
+        assert!(matches!(decode(14), PlayerActionType::Respawn));
+        assert!(matches!(decode(16), PlayerActionType::StartJump));
+        assert!(matches!(decode(54), PlayerActionType::ContinueDestroyBlock));
     }
 }

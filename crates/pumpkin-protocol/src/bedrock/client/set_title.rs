@@ -80,16 +80,17 @@ mod tests {
 
     #[test]
     fn title_type_wire_ids_match_bedrock() {
+        // Bedrock `varint` fields are zigzag-encoded, so the wire byte is twice the id.
         let cases = [
             (TitleType::Clear, 0u8),
-            (TitleType::Reset, 1),
-            (TitleType::Title, 2),
-            (TitleType::Subtitle, 3),
-            (TitleType::Actionbar, 4),
-            (TitleType::Times, 5),
-            (TitleType::TitleTextObject, 6),
-            (TitleType::SubtitleTextObject, 7),
-            (TitleType::ActionbarTextObject, 8),
+            (TitleType::Reset, 2),
+            (TitleType::Title, 4),
+            (TitleType::Subtitle, 6),
+            (TitleType::Actionbar, 8),
+            (TitleType::Times, 10),
+            (TitleType::TitleTextObject, 12),
+            (TitleType::SubtitleTextObject, 14),
+            (TitleType::ActionbarTextObject, 16),
         ];
         for (title_type, wire_id) in cases {
             let packet = CSetTitle::new(title_type, String::new(), 0, 0, 0);
