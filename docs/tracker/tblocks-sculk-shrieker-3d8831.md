@@ -45,3 +45,6 @@ the vanilla classes from memory and `docs/VANILLA_REF.md`.
 
 ## Status (h3 sweep)
 - Row 4 (warden_spawn_tracker.rs trigger pushed unconditionally): FIXED, try_warn adds the trigger only when alive and not spectator (is_eligible). UNVERIFIED, no test.
+
+## Status (h3 sweep)
+- Row 1 (darkness timing at shriek start): STILL OPEN (`respond` applies darkness via apply_darkness_around at sculk_shrieker.rs:148; timing vs vanilla not changed).
