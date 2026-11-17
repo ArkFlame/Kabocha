@@ -844,7 +844,7 @@ pub fn spawn_category_for_position(
     for _ in 0..3 {
         let mut x = pos.0.x;
         let mut z = pos.0.z;
-        let mut current_spawner: Option<&'static Spawner> = None;
+        let mut current_spawner: Option<SpawnerRef<'static>> = None;
         // Vanilla starts every cluster with six attempts and only replaces that budget
         // with the pack size once a spawner has been picked.
         let mut max = 6;
@@ -876,17 +876,18 @@ pub fn spawn_category_for_position(
                         break;
                     };
                     current_spawner = Some(spawner);
-                    max = spawner.min_count
-                        + rng().random_range(0..=(spawner.max_count - spawner.min_count).max(0));
+                    max = spawner.min_count()
+                        + rng()
+                            .random_range(0..=(spawner.max_count() - spawner.min_count()).max(0));
                 }
 
                 let Some(spawner) = current_spawner else {
                     break;
                 };
                 let name = spawner
-                    .r#type
+                    .r#type()
                     .strip_prefix("minecraft:")
-                    .unwrap_or(spawner.r#type);
+                    .unwrap_or(spawner.r#type());
                 let Some(entity_type) = EntityType::from_name(name) else {
                     break;
                 };
@@ -896,7 +897,7 @@ pub fn spawn_category_for_position(
                     &check_pos,
                     category,
                     entity_type,
-                    spawner.r#type,
+                    spawner.r#type(),
                     player_distance_sq,
                     is_thundering,
                 ) && spawn_state.can_spawn(entity_type, &check_pos, world)
@@ -1015,9 +1016,7 @@ fn mob_category_name(category: &MobCategory) -> &'static str {
         id if id == MobCategory::CREATURE.id => "creature",
         id if id == MobCategory::AMBIENT.id => "ambient",
         id if id == MobCategory::AXOLOTLS.id => "axolotls",
-        id if id == MobCategory::UNDERGROUND_WATER_CREATURE.id => {
-            "underground_water_creature"
-        }
+        id if id == MobCategory::UNDERGROUND_WATER_CREATURE.id => "underground_water_creature",
         id if id == MobCategory::WATER_CREATURE.id => "water_creature",
         id if id == MobCategory::WATER_AMBIENT.id => "water_ambient",
         id if id == MobCategory::MISC.id => "misc",
@@ -1033,12 +1032,16 @@ fn structure_spawn_entries(
     pos: &BlockPos,
 ) -> Option<&'static [SpawnEntry]> {
     let category_name = mob_category_name(category);
-    let key = world.level.world_gen.load().structure_spawn_override_at(*pos, |key| {
-        Structure::get(&key)
-            .spawn_overrides
-            .iter()
-            .any(|o| o.category == category_name)
-    })?;
+    let key = world
+        .level
+        .world_gen
+        .load()
+        .structure_spawn_override_at(*pos, |key| {
+            Structure::get(&key)
+                .spawn_overrides
+                .iter()
+                .any(|o| o.category == category_name)
+        })?;
     Structure::get(&key)
         .spawn_overrides
         .iter()
@@ -1098,7 +1101,10 @@ pub fn can_spawn_mob_at(
         .unwrap_or(spawner_type);
     if let Some(entries) = structure_spawn_entries(world, category, pos) {
         return entries.iter().any(|s| {
-            s.entity_type.strip_prefix("minecraft:").unwrap_or(s.entity_type) == target
+            s.entity_type
+                .strip_prefix("minecraft:")
+                .unwrap_or(s.entity_type)
+                == target
         });
     }
     let biome = world.level.get_rough_biome(pos);
@@ -1125,7 +1131,7 @@ pub fn can_spawn_mob_at(
 /// `NaturalSpawner::getRandomSpawnMobAt`. A structure spawn override takes priority over
 /// the biome spawner list, as in vanilla `ChunkGenerator.getMobsAt`.
 #[must_use]
-pub fn get_random_spawn_mob_at(
+fn get_random_spawn_mob_at(
     world: &Arc<World>,
     category: &'static MobCategory,
     block_pos: &BlockPos,
@@ -1482,6 +1488,38 @@ mod tests {
         let pos = BlockPos::new(3, 70, 5);
         assert_eq!(adjust_spawn_position_down(pos, true), pos.down());
         assert_eq!(adjust_spawn_position_down(pos, false), pos);
+    }
+
+    #[test]
+    fn structure_spawn_entries_are_picked_by_weight() {
+        use rand::{SeedableRng, rngs::StdRng};
+
+        let entries: &[SpawnEntry] = &[
+            SpawnEntry {
+                entity_type: "minecraft:guardian",
+                min_count: 1,
+                max_count: 1,
+                weight: 99,
+            },
+            SpawnEntry {
+                entity_type: "minecraft:elder_guardian",
+                min_count: 1,
+                max_count: 1,
+                weight: 1,
+            },
+        ];
+        let mut rng = StdRng::seed_from_u64(0);
+        let rare = (0..10_000)
+            .filter(|_| {
+                choose_structure_spawner(entries, &mut rng).map(|s| s.entity_type)
+                    == Some("minecraft:elder_guardian")
+            })
+            .count();
+        assert!(
+            rare > 0 && rare < 1000,
+            "elder guardian picked {rare} times"
+        );
+        assert!(choose_structure_spawner(&entries[..0], &mut rng).is_none());
     }
 
     #[test]
