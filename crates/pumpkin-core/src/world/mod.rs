@@ -3864,8 +3864,8 @@ impl World {
             current_level_time: self.get_world_age() as _,
             enchantment_seed: VarInt(0),
             block_properties: Vec::new(),
-            // TODO Make this unique
-            multiplayer_correlation_id: Uuid::default().to_string(),
+            // Unique per session, like BDS: the client uses this id for telemetry.
+            multiplayer_correlation_id: Uuid::new_v4().to_string(),
             enable_itemstack_net_manager: true,
             server_version: "Pumpkin Rust Server".to_string(),
             compound_id: 10,
