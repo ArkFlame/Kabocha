@@ -405,7 +405,9 @@ impl EntityBase for BoatEntity {
                 .len()
                 < max_passengers(self.vehicle.entity.entity_type);
 
-        if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
+        // Vanilla `AbstractChestBoat.interact`: only secondary use opens the container; a plain
+        // use always goes through `AbstractBoat.interact` (board a free seat or nothing).
+        if self.inventory.is_some() && player.get_entity().is_sneaking() {
             return self.open_custom_inventory_screen(player);
         }
 
