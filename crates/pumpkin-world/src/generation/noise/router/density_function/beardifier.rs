@@ -264,3 +264,41 @@ impl NoiseFunctionComponentRange for Beardifier {
         f32::INFINITY
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression for #4034: woodland mansions are placed at the lowest of four
+    // corner heights and rely on beard_thin to fill below and carve above, so a
+    // missing terrain adaptation leaves them buried under untouched ground.
+    #[test]
+    fn woodland_mansion_beards_around_its_ground_level() {
+        let structure =
+            pumpkin_data::structures::Structure::get(&pumpkin_data::structures::StructureKeys::Mansion);
+        let bounding_box = BlockBox::new(-10, 64, -10, 10, 74, 10);
+        let beardifier = Beardifier::new(
+            vec![BeardifierStructure {
+                bounding_box,
+                terrain_adaptation: structure.terrain_adaptation,
+                ground_level_delta: 0,
+            }],
+            Vec::new(),
+            Some(bounding_box.expand(24, 24, 24)),
+        );
+
+        assert!(
+            beardifier.sample(&Vector3::new(0, 62, 0)) > 0.0,
+            "terrain below the mansion floor must be filled in"
+        );
+        assert!(
+            beardifier.sample(&Vector3::new(0, 70, 0)) < 0.0,
+            "terrain above the mansion floor must be carved away"
+        );
+        assert_eq!(
+            beardifier.sample(&Vector3::new(0, 120, 0)),
+            0.0,
+            "the beardifier is inert outside its affected box"
+        );
+    }
+}
