@@ -21,7 +21,7 @@ use crate::entity::{
         tempt::TemptGoal,
     },
     custom_sound::CustomSound,
-    mob::{Mob, MobEntity},
+    mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
     player::Player,
 };
@@ -100,6 +100,20 @@ impl HappyGhastEntity {
     pub fn is_on_still_timeout(&self) -> bool {
         self.stays_still.load(Ordering::Relaxed)
             || self.server_still_timeout.load(Ordering::Relaxed) > 0
+    }
+
+    /// Vanilla HappyGhast.isWearingBodyArmor: a non-empty body slot is a harness.
+    fn is_wearing_harness(&self) -> bool {
+        !self
+            .mob_entity
+            .is_slot_empty(&pumpkin_data::data_component_impl::EquipmentSlot::BODY)
+    }
+
+    /// Vanilla HappyGhast.canAddPassenger caps riders at four; mobInteract also
+    /// requires a harness and no sneak key before a player mounts.
+    fn can_player_mount(wearing_harness: bool, sneaking: bool, passenger_count: usize) -> bool {
+        const MAX_PASSENGERS: usize = 4;
+        wearing_harness && !sneaking && passenger_count < MAX_PASSENGERS
     }
 
     fn set_leash_holder(&self, is_leash_holder: bool) {
@@ -210,6 +224,20 @@ impl Mob for HappyGhastEntity {
 
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         true
+    }
+
+    /// Vanilla HappyGhast.getControllingPassenger: the first player steers only
+    /// while harnessed and not on a still timeout.
+    fn mob_controlling_passenger(&self) -> Option<Arc<dyn EntityBase>> {
+        if !self.is_wearing_harness() || self.is_on_still_timeout() {
+            return None;
+        }
+        let first = self.get_mob_entity().first_passenger()?;
+        if first.get_player().is_some() {
+            Some(first)
+        } else {
+            self.mob_rider_controller(first)
+        }
     }
 
     /// Vanilla `HappyGhast.notifyLeashHolder`: a leashee with a quad leash makes the ghast
@@ -329,11 +357,34 @@ impl Mob for HappyGhastEntity {
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+        // Vanilla HappyGhast.mobInteract: babies only feed; adults let the held
+        // item interact (harness equip) before an un-sneaking player mounts.
         if self.is_baby() {
             return self.animal_interact(player, item_stack);
         }
-
-        self.animal_interact(player, item_stack)
+        if self.animal_interact(player, item_stack) || equip_on_target(self, player, item_stack) {
+            return true;
+        }
+        let entity = self.get_entity();
+        let passenger_count = entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len();
+        if !Self::can_player_mount(
+            self.is_wearing_harness(),
+            player.get_entity().is_sneaking(),
+            passenger_count,
+        ) {
+            return false;
+        }
+        let world = player.world();
+        if let Some(vehicle) = world.get_entity_by_id(entity.entity_id)
+            && let Some(passenger) = world.get_player_by_id(player.entity_id())
+        {
+            entity.add_passenger(vehicle, passenger as Arc<dyn EntityBase>);
+        }
+        true
     }
 }
 
@@ -455,5 +506,14 @@ mod tests {
     fn leash_holder_notify_only_quad_leashee_extends_timer() {
         assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(true), Some(5));
         assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(false), None);
+    }
+
+    #[test]
+    fn player_mount_requires_harness_and_a_free_seat() {
+        assert!(HappyGhastEntity::can_player_mount(true, false, 0));
+        assert!(HappyGhastEntity::can_player_mount(true, false, 3));
+        assert!(!HappyGhastEntity::can_player_mount(true, false, 4));
+        assert!(!HappyGhastEntity::can_player_mount(false, false, 0));
+        assert!(!HappyGhastEntity::can_player_mount(true, true, 0));
     }
 }
