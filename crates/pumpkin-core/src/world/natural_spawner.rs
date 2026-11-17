@@ -803,7 +803,9 @@ pub fn spawn_category_for_position(
         let mut x = pos.0.x;
         let mut z = pos.0.z;
         let mut current_spawner: Option<&'static Spawner> = None;
-        let mut max = (rng().random::<f32>() * 4.0).ceil() as i32;
+        // Vanilla starts every cluster with six attempts and only replaces that budget
+        // with the pack size once a spawner has been picked.
+        let mut max = 6;
         let mut group_size = 0;
         let mut group_data = None;
         let mut ll = 0;
