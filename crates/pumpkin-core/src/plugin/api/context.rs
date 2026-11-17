@@ -179,7 +179,7 @@ impl Context {
                 return;
             }
             services.insert(name.clone(), service);
-        }
+        };
         // Notification only: the lock is released first so a handler can read services.
         self.server.register_service(name).await;
     }

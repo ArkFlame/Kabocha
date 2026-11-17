@@ -51,7 +51,7 @@ impl JavaClient {
                     };
                     server.plugin_manager.fire_blocking(server, &mut event);
                     if event.cancelled {
-                        locale = current_config.locale.clone();
+                        locale.clone_from(&current_config.locale);
                     }
                 }
 
