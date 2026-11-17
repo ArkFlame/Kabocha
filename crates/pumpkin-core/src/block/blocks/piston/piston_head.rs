@@ -36,9 +36,7 @@ impl PistonHeadBlock {
 
 impl BlockBehaviour for PistonHeadBlock {
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        if args.moved {
-            return;
-        }
+        // Vanilla `PistonHeadBlock#affectNeighborsAfterRemoval` ignores `movedByPiston`.
         let props = PistonHeadProperties::from_state_id(args.old_state_id);
         let base_pos = args
             .position
