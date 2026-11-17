@@ -167,14 +167,25 @@ impl AvoidEntityGoal {
                 })
             }) && (self.selector)(mob, candidate)
                 && predicate.test(&world, Some(mob), candidate)
+                // Vanilla `predicateOnAvoidEntity` filters candidates, so a nearer threat that
+                // fails `confirm` lets a farther one start the flee.
+                && self.confirm.is_none_or(|confirm| confirm(candidate))
         })
     }
 }
 
 impl Goal for AvoidEntityGoal {
-    fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
+    fn tick_reach(&self, mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
+        // The sensor branch searches the follow range, then cuts it down per type.
+        let entities = if self.per_type.is_some() {
+            mob.get_mob_entity()
+                .living_entity
+                .get_attribute_value(&Attributes::FOLLOW_RANGE)
+        } else {
+            self.flee_distance
+        };
         Some(super::GoalReach {
-            entities: self.flee_distance,
+            entities,
             players: if self.flee_from.matches(&EntityType::PLAYER) {
                 self.flee_distance
             } else {
@@ -199,12 +210,6 @@ impl Goal for AvoidEntityGoal {
         let Some(target) = self.find_threat(mob) else {
             return false;
         };
-        if self
-            .confirm
-            .is_some_and(|confirm| !confirm(target.as_ref()))
-        {
-            return false;
-        }
 
         let threat_pos = target.get_entity().pos.load();
         let Some(flee_pos) =
@@ -257,9 +262,6 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
-        if self.drop_target {
-            mob.set_mob_target(None, TargetReason::Fleeing);
-        }
         if let Some(target) = self.target.as_ref().and_then(Weak::upgrade) {
             let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
             let threat_pos = target.get_entity().pos.load();
