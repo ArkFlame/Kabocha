@@ -306,11 +306,17 @@ impl<'a> Explosion<'a> {
         }
     }
 
-    /// Credited explosions with a source deal `player_explosion` damage, which changes the death message.
+    /// Explosions credited to a player deal `player_explosion` damage, which changes the death message.
+    /// UNVERIFIED against `DamageSources#explosion`: gated on the credited source being a player, so
+    /// a wither skull (credited to the wither) keeps the plain `explosion` type.
     #[must_use]
     pub fn damage_type(&self) -> DamageType {
         self.damage_type.unwrap_or(
-            if self.source.is_some() && self.indirect_source().is_some() {
+            if self.source.is_some()
+                && self
+                    .indirect_source()
+                    .is_some_and(|e| e.get_entity().entity_type == &EntityType::PLAYER)
+            {
                 DamageType::PLAYER_EXPLOSION
             } else {
                 DamageType::EXPLOSION
