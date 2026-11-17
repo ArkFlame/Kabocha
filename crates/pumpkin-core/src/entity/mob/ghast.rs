@@ -262,7 +262,7 @@ impl Goal for GhastShootFireballGoal {
         true
     }
 
-    fn tick(&mut self, _mob: &dyn Mob) {
+    fn tick(&mut self, mob: &dyn Mob) {
         let Some(ghast) = self.ghast.upgrade() else {
             return;
         };
@@ -276,8 +276,9 @@ impl Goal for GhastShootFireballGoal {
         let ghast_pos = entity.pos.load();
         let target_pos = target.get_entity().pos.load();
         let dist_sq = ghast_pos.squared_distance_to_vec(&target_pos);
+        let has_line_of_sight = mob.has_line_of_sight(target.get_entity());
 
-        if dist_sq < 4096.0 {
+        if dist_sq < 4096.0 && has_line_of_sight {
             let world = entity.world.load();
             self.charge_time += 1;
 
@@ -307,11 +308,11 @@ impl Goal for GhastShootFireballGoal {
 
                 let spawn_pos = Vector3::new(
                     ghast_pos.x + view_x * 4.0,
-                    ghast_pos.y + 2.5,
+                    ghast_pos.y + 1.0,
                     ghast_pos.z + view_z * 4.0,
                 );
 
-                let target_y = target_pos.y + target.get_entity().get_eye_height() * 0.5;
+                let target_y = target_pos.y + 0.5;
                 let dir_x = target_pos.x - spawn_pos.x;
                 let dir_y = target_y - spawn_pos.y;
                 let dir_z = target_pos.z - spawn_pos.z;
