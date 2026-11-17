@@ -340,11 +340,16 @@ impl EntityBase for BoatEntity {
         &self,
         _caller: &dyn EntityBase,
         amount: f32,
-        _damage_type: DamageType,
+        damage_type: DamageType,
         _position: Option<Vector3<f64>>,
         source: Option<&dyn EntityBase>,
-        _cause: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
     ) -> bool {
+        // Vanilla `Boat.hurt` starts with an invulnerability check, so datapack invulnerability
+        // and fire immunity apply before any wobble or chest contents.
+        if self.vehicle.entity.is_invulnerable_to(&damage_type, cause) {
+            return false;
+        }
         let creative = source
             .and_then(EntityBase::get_player)
             .is_some_and(|player| player.gamemode.load() == GameMode::Creative);
