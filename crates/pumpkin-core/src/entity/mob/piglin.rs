@@ -1271,4 +1271,12 @@ impl CrossbowAttackMob for PiglinEntity {
     fn is_charging_crossbow(&self) -> bool {
         self.is_charging_crossbow()
     }
+
+    /// Vanilla `Piglin.onCrossbowAttackPerformed`: shooting resets the idle counter.
+    fn on_crossbow_attack_performed(&self) {
+        self.mob_entity
+            .living_entity
+            .no_action_time
+            .store(0, Ordering::Relaxed);
+    }
 }
