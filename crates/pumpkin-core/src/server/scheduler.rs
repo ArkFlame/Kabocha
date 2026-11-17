@@ -230,10 +230,17 @@ impl ScheduledFunctionQueue {
                 .clone_from(&to_run);
         };
         for event in to_run {
-            let _ = crate::data::datapack::DatapackManager::execute_function_from_console(
-                server,
-                &event.function_name,
-            );
+            if let Err(error) =
+                crate::data::datapack::DatapackManager::execute_function_from_console(
+                    server,
+                    &event.function_name,
+                )
+            {
+                warn!(
+                    "Failed to run scheduled function {}: {error}",
+                    event.function_name
+                );
+            }
             let _queue = self
                 .queue
                 .lock()
