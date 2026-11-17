@@ -632,13 +632,17 @@ impl EntityBase for ArrowEntity {
         }
 
         // Check pickup rules
-        match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+        let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
+        match pickup {
             ArrowPickup::Disallowed => return,
             ArrowPickup::CreativeOnly if !player.is_creative() => return,
             _ => {}
         }
 
-        if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
+        // Paper only fires `PlayerPickupArrowEvent` for an ALLOWED arrow; a
+        // CREATIVE_ONLY arrow is consumed without ever entering the inventory.
+        if pickup == ArrowPickup::Allowed
+            && let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
             && let Some(server) = player.world().server.upgrade()
         {
             let mut event = crate::plugin::api::events::player::player_pickup_arrow::PlayerPickupArrowEvent::new(
@@ -668,7 +672,7 @@ impl EntityBase for ArrowEntity {
         let mut stack = Self::pickup_item_stack(&item_stack);
         // Vanilla AbstractArrow#tryPickup only inserts the item for ALLOWED; a
         // CREATIVE_ONLY arrow is consumed without entering the inventory.
-        let picked_up = match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+        let picked_up = match pickup {
             ArrowPickup::Allowed => player.inventory.insert_stack_anywhere(&mut stack),
             ArrowPickup::CreativeOnly => true,
             ArrowPickup::Disallowed => false,
