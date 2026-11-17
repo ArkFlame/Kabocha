@@ -1120,13 +1120,11 @@ fn count_blocks_match(
                 for x in min_x..=max_x {
                     let src_pos = BlockPos::new(x, y, z);
                     let dst_pos = BlockPos::new(x + dx, y + dy, z + dz);
-                    let src_block = world.get_block(&src_pos);
-                    let dst_block = world.get_block(&dst_pos);
-
-                    if masked && src_block.is_air() {
+                    if masked && world.get_block(&src_pos).is_air() {
                         continue;
                     }
-                    if src_block != dst_block {
+                    // Vanilla compares block states, so facing or waterlogged still counts as a mismatch.
+                    if world.get_block_state_id(&src_pos) != world.get_block_state_id(&dst_pos) {
                         return Ok(None);
                     }
                     count = count.saturating_add(1);
