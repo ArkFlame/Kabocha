@@ -96,8 +96,8 @@ impl GossipType {
         match self {
             Self::MajorNegative => 100,
             Self::MinorNegative => 200,
-            Self::MajorPositive => 100,
-            Self::MinorPositive => 200,
+            Self::MajorPositive => 20,
+            Self::MinorPositive => 25,
             Self::Trading => 25,
         }
     }
@@ -207,8 +207,8 @@ mod tests {
         let types = [
             (GossipType::MajorNegative, "major_negative", -5, 100, 10),
             (GossipType::MinorNegative, "minor_negative", -1, 200, 20),
-            (GossipType::MinorPositive, "minor_positive", 1, 200, 1),
-            (GossipType::MajorPositive, "major_positive", 5, 100, 0),
+            (GossipType::MinorPositive, "minor_positive", 1, 25, 1),
+            (GossipType::MajorPositive, "major_positive", 5, 20, 0),
             (GossipType::Trading, "trading", 1, 25, 2),
         ];
 
