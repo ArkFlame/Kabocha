@@ -49,6 +49,20 @@ impl MetadataSerializer for QuaternionfSerializer {
     }
 }
 
+/// Packs a display brightness override the way vanilla's `Display.Brightness` does:
+/// block light in the low 16 bits, sky light in the high 16 bits.
+fn pack_brightness(block: i32, sky: i32) -> i32 {
+    (block & 0xFFFF) | ((sky & 0xFFFF) << 16)
+}
+
+fn brightness_block(packed: i32) -> i32 {
+    packed & 0xFFFF
+}
+
+fn brightness_sky(packed: i32) -> i32 {
+    (packed >> 16) & 0xFFFF
+}
+
 pub struct DisplayEntity {
     pub entity: Entity,
     pub interpolation_start_delta_ticks: AtomicI32,
@@ -494,8 +508,8 @@ impl DisplayEntity {
 
         let brightness = self.brightness.load(Ordering::Relaxed);
         if brightness != -1 {
-            let block = brightness & 0xF;
-            let sky = (brightness >> 4) & 0xF;
+            let block = brightness_block(brightness);
+            let sky = brightness_sky(brightness);
             let mut b_compound = NbtCompound::new();
             b_compound.put_int("block", block);
             b_compound.put_int("sky", sky);
@@ -609,7 +623,7 @@ impl DisplayEntity {
             let block = b.get_int("block").unwrap_or(0);
             let sky = b.get_int("sky").unwrap_or(0);
             self.brightness
-                .store((sky << 4) | (block & 0xF), Ordering::Relaxed);
+                .store(pack_brightness(block, sky), Ordering::Relaxed);
         }
 
         if let Some(transform) = nbt.get_compound("transformation") {
