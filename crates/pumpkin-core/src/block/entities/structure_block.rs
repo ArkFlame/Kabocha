@@ -391,9 +391,6 @@ pub fn place_structure_template_in_world(
         if block_info.state.name == "minecraft:structure_void" {
             continue;
         }
-        if clamped_integrity < 1.0 && rng.next_f32() > clamped_integrity {
-            continue;
-        }
         let Some(resolved_state) = BlockStateResolver::resolve(&block_info.state, rotation, mirror)
         else {
             continue;
@@ -406,8 +403,19 @@ pub fn place_structure_template_in_world(
             continue;
         }
 
+        // Vanilla IntegrityProcessor only rolls for blocks without NBT and replaces
+        // rejected blocks with air, so the region is cleared instead of left intact.
+        let state = if clamped_integrity < 1.0
+            && block_info.nbt.is_none()
+            && rng.next_f32() >= clamped_integrity
+        {
+            &Block::AIR.default_state
+        } else {
+            resolved_state
+        };
+
         world.remove_block_entity(&world_pos);
-        placer.set_block_state(&world_vec, resolved_state);
+        placer.set_block_state(&world_vec, state);
 
         if let Some(template_nbt) = &block_info.nbt {
             let final_block = Block::from_id(resolved_state.id.to_block_id());
