@@ -223,10 +223,12 @@ macro_rules! impl_cooking_block_entity_base {
                         .unwrap_or(&recipe.result.id),
                 ) && !is_top_items_empty
                     && recipe_output_item.id == side_item_stack.item.id
-                    && side_item_stack.item_count < max_count
-                    && side_item_stack.item_count < side_item_stack.get_max_stack_size()
                 {
-                    return true;
+                    // Vanilla `canBurn`: the result stack must have room for the whole result.
+                    let total =
+                        u16::from(side_item_stack.item_count) + u16::from(recipe.result.count);
+                    return total <= u16::from(max_count)
+                        && total <= u16::from(side_item_stack.get_max_stack_size());
                 }
                 false
             }
@@ -252,7 +254,7 @@ macro_rules! impl_cooking_block_entity_base {
                         if items[2].are_equal(ItemStack::EMPTY) {
                             items[2] = output_item_stack;
                         } else if items[2].are_items_and_components_equal(&output_item_stack) {
-                            items[2].increment(1);
+                            items[2].increment(recipe.result.count);
                         }
 
                         // Track recipe usage for XP calculation (vanilla RecipesUsed format)
