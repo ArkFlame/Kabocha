@@ -103,6 +103,10 @@ impl Mob for BoggedSkeletonEntity {
         self.play_entity_sound(Sound::EntityBoggedStep, 0.15, 1.0);
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityBoggedAmbient)
+    }
+
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
         Some(self)
     }
