@@ -166,12 +166,21 @@ impl BoatEntity {
     }
 
     fn tick_underwater(&self, status: BoatStatus) {
+        let previous = self.ticks_underwater.load();
         let ticks = if status.is_underwater() {
-            self.ticks_underwater.load() + 1.0
+            previous + 1.0
         } else {
             0.0
         };
         self.ticks_underwater.store(ticks);
+        if ticks != previous {
+            // Vanilla `Boat.tick` feeds this counter into `DATA_ID_BUBBLE_TIME`; clients render
+            // the bubbles under a sinking boat from it and `Boat.interact` refuses passengers at 60.
+            self.vehicle.entity.set_synced_data(
+                pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME,
+                ticks as i32,
+            );
+        }
         if ticks < TIME_TO_EJECT {
             return;
         }
