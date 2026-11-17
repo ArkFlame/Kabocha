@@ -398,7 +398,8 @@ fn remove_score_only_announces_existing_scores() {
     board.remove_score(&target, "Bob", "board");
     assert_eq!(target.sent(), 0);
 
+    // One editioned announcement (Java reset-score plus its Bedrock counterpart) per removal.
     board.remove_score(&target, "Alice", "board");
-    assert_eq!(target.sent(), 2);
+    assert_eq!(target.sent(), 1);
     assert_eq!(board.get_score_value("Alice", "board"), None);
 }
