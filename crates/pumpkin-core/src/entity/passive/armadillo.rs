@@ -438,6 +438,23 @@ impl Mob for ArmadilloEntity {
             }
         }
 
+        // Vanilla re-checks nearby threats every SCARE_CHECK_INTERVAL ticks while idle, so an
+        // armadillo rolls up on approach instead of only after it is hit.
+        if self.get_state() == ArmadilloState::Idle
+            && entity.age.load(Ordering::Relaxed) % SCARE_CHECK_INTERVAL == 0
+        {
+            let pos = entity.pos.load();
+            let threatened = world
+                .get_nearby_entities(pos, SCARE_DISTANCE_HORIZONTAL)
+                .values()
+                .any(|candidate| {
+                    candidate.get_entity().is_alive() && self.is_scared_by(candidate.as_ref())
+                });
+            if threatened {
+                self.roll_up();
+            }
+        }
+
         let state = self.get_state();
         let ticks_in_state = self.in_state_ticks.load(Ordering::Relaxed);
 
