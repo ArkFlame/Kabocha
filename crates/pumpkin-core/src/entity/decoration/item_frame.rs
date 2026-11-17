@@ -360,6 +360,12 @@ impl ItemFrameEntity {
             item_serializer,
         );
 
+        // Vanilla clears the item through `setItem(ItemStack.EMPTY, true)`, so
+        // comparators behind the frame lose their signal immediately.
+        let world = self.entity.world.load();
+        let pos = self.entity.block_pos.load();
+        world.update_neighbors(&pos, None);
+
         let is_creative_player = caused_by.is_some_and(|s| {
             s.cast_any()
                 .downcast_ref::<Player>()
@@ -369,9 +375,6 @@ impl ItemFrameEntity {
         if is_creative_player {
             return;
         }
-
-        let world = self.entity.world.load();
-        let pos = self.entity.block_pos.load();
 
         if with_frame {
             world.drop_stack(&pos, self.get_frame_item_stack_with_data());
