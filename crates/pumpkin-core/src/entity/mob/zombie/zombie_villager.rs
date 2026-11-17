@@ -28,6 +28,17 @@ use crate::entity::mob::equipment::RegionalDifficulty;
 use crate::entity::mob::spawn::{EntitySpawnReason, SpawnGroupData};
 use crate::entity::mob::zombie::ZombieEntityBase;
 use crate::entity::passive::villager::breeding::villager_type_for_biome;
+use pumpkin_util::difficulty::Difficulty;
+
+/// Vanilla gives the cure Strength at `min(difficulty - 1, 0)`. Every level but
+/// Peaceful yields 0. Peaceful yields -1, which is no bonus at all, so the effect
+/// is skipped instead of clamping to an unrepresentable `u8`.
+fn cure_strength_amplifier(difficulty: Difficulty) -> Option<u8> {
+    match difficulty {
+        Difficulty::Peaceful => None,
+        Difficulty::Easy | Difficulty::Normal | Difficulty::Hard => Some(0),
+    }
+}
 use crate::entity::passive::villager::data::VillagerData;
 use crate::entity::passive::villager::{ReputationEventType, VillagerEntity};
 use crate::entity::player::Player;
@@ -203,16 +214,18 @@ impl ZombieVillagerEntity {
         self.conversion_time.store(ticks, Ordering::Relaxed);
         self.set_converting(true);
         living.remove_effect(&StatusEffect::WEAKNESS);
-        living.add_effect(Effect {
-            effect_type: &StatusEffect::STRENGTH,
-            duration: ticks,
-            // min(difficulty - 1, 0) is 0 everywhere but Peaceful.
-            amplifier: 0,
-            ambient: false,
-            show_particles: true,
-            show_icon: true,
-            blend: false,
-        });
+        let difficulty = entity.world.load().level_info.load().difficulty;
+        if let Some(amplifier) = cure_strength_amplifier(difficulty) {
+            living.add_effect(Effect {
+                effect_type: &StatusEffect::STRENGTH,
+                duration: ticks,
+                amplifier,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
+        }
         entity.world.load().send_entity_status(
             entity,
             EntityStatus::ZombieConverting,
@@ -559,5 +572,18 @@ impl Mob for ZombieVillagerEntity {
                 self.start_converting(nbt.get_uuid("ConversionPlayer"), conversion_time);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cure_strength_skipped_only_on_peaceful() {
+        assert_eq!(cure_strength_amplifier(Difficulty::Peaceful), None);
+        assert_eq!(cure_strength_amplifier(Difficulty::Easy), Some(0));
+        assert_eq!(cure_strength_amplifier(Difficulty::Normal), Some(0));
+        assert_eq!(cure_strength_amplifier(Difficulty::Hard), Some(0));
     }
 }
