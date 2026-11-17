@@ -5,7 +5,6 @@ use pumpkin_data::{
     effect::StatusEffect,
     entity::EntityType,
     sound::{Sound, SoundCategory},
-    tag::{self, Taggable},
 };
 use pumpkin_protocol::java::client::play::ParticleOptions;
 use pumpkin_util::{
@@ -93,7 +92,7 @@ impl BlockBehaviour for EyeblossomBlock {
         }
 
         if args.entity.get_entity().entity_type == &EntityType::BEE
-            && args.block.has_tag(&tag::Block::MINECRAFT_BEE_ATTRACTIVE)
+            && args.block == &Block::CLOSED_EYEBLOSSOM
             && let Some(living_entity) = args.entity.get_living_entity()
             && !living_entity.has_effect(&StatusEffect::POISON)
         {
