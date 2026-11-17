@@ -1011,7 +1011,7 @@ impl Server {
             .write_world_info(&level_data, &self.basic_config.get_world_path())
     }
 
-    pub fn reload_datapacks(&self, server: &Arc<Self>) {
+    pub fn reload_datapacks(&self) {
         let enabled_packs = self.level_info.load().data_packs.enabled.clone();
         let world_path = self.basic_config.get_world_path();
         self.datapack_manager
