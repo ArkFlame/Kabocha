@@ -98,11 +98,12 @@ fn parse_result(value: &Value) -> Option<OwnedRecipeResult> {
                 .get("id")
                 .or_else(|| map.get("item"))
                 .and_then(Value::as_str)?;
-            let count = map
-                .get("count")
-                .and_then(Value::as_u64)
-                .unwrap_or(1)
-                .min(99) as u8;
+            // Vanilla `ItemStackTemplate` codec rejects counts outside 1..=99 (the recipe fails to load).
+            let count = map.get("count").and_then(Value::as_u64).unwrap_or(1);
+            if !(1..=99).contains(&count) {
+                return None;
+            }
+            let count = count as u8;
             Some(OwnedRecipeResult {
                 item_id: normalize_id(id),
                 count,
@@ -630,6 +631,16 @@ mod tests {
         } else {
             panic!("Expected brewing recipe");
         }
+    }
+
+    #[test]
+    fn result_count_must_be_within_one_to_ninety_nine() {
+        let ok = parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 99}));
+        assert_eq!(ok.map(|r| r.count), Some(99));
+        assert!(parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 0})).is_none());
+        assert!(
+            parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 100})).is_none()
+        );
     }
 }
 
