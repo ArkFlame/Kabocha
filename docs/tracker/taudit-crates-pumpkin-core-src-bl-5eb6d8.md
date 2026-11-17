@@ -61,8 +61,8 @@ comments (`chain_execute` facing follow, `on_scheduled_tick` condition capture) 
 
 ## Gap status
 - 1. `on_place` horizontal facing only (`command.rs`): STILL OPEN (S).
-- 2. `can_place_at` creative-only gate (`command.rs`): STILL OPEN (S).
-- 3. `chain_execute` cap u16::MAX with warn (`command.rs`): STILL OPEN (S).
-- 4. `last_output` always overwritten (`command/mod.rs` CommandBlock arm): STILL OPEN (S).
+- 2. `can_place_at` creative-only gate (`command.rs`): FIXED (UNVERIFIED): `can_place_at` uses `player.can_use_game_master_blocks()`.
+- 3. `chain_execute` cap u16::MAX with warn (`command.rs`): FIXED (UNVERIFIED): `MAX_CHAIN_LENGTH` 65536 with `debug!`.
+- 4. `last_output` always overwritten (`command/mod.rs` CommandBlock arm): FIXED (UNVERIFIED, stale row): `track_output` gate already present in `command/mod.rs`.
 - 5. Block entity dependency (`entities/command_block.rs:10`): STILL OPEN (owned by block entity).
 - 6. Bedrock editor round-trip: STILL OPEN (needs Bedrock client check).

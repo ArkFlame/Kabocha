@@ -16,9 +16,12 @@ use crate::{
 use pumpkin_data::block_properties::{CommandBlockLikeProperties, Facing};
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation};
 
-use pumpkin_util::{GameMode, math::position::BlockPos};
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
-use tracing::warn;
+use tracing::{debug, warn};
+
+/// Vanilla `maxCommandChainLength` default; one chain run executes at most this many blocks.
+const MAX_CHAIN_LENGTH: u32 = 65536;
 
 pub struct CommandBlock;
 
@@ -176,7 +179,7 @@ impl CommandBlock {
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {
-        let mut i = u16::MAX;
+        let mut i = MAX_CHAIN_LENGTH;
         let mut pos = start;
 
         while i > 0 {
@@ -226,9 +229,9 @@ impl CommandBlock {
 
             i -= 1;
             if i == 0 {
-                warn!(
+                debug!(
                     "Command block chain executed {} times (the maximum)!",
-                    u16::MAX
+                    MAX_CHAIN_LENGTH
                 );
             }
         }
@@ -367,7 +370,7 @@ impl BlockBehaviour for CommandBlock {
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         if let Some(player) = args.player
-            && player.gamemode.load() == GameMode::Creative
+            && player.can_use_game_master_blocks()
         {
             return true;
         }
