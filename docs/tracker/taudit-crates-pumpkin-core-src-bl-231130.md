@@ -50,39 +50,3 @@ Audited clean:
 | `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S |
 | `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S |
 | `furnace_like_block_entity.rs:856-858` | `getUpdateTag` includes items and cook/burn state | `client_update_tag` returns an empty compound | emit the same keys as `chunk_data_nbt` | S |
-
-## Audit pass 2 (deep audit, current tree)
-
-Verified against the same Canvas/Paper ref tree (V_26_3):
-
-- Fixed: `canBurn` equivalence and result components. Vanilla compares
-  `ItemStack.isSameItemSameComponents(resultSlot, recipe.assemble(input))`; the macro compared
-  item ids only and built the result from the id, dropping `recipe.result.components`.
-  `recipe_result_stack` now builds the result with its components. (commit ca4d6b332)
-- Fixed: persisted timer keys. Vanilla 26.x `saveAdditional`/`loadAdditional` use
-  `cooking_time_spent`, `cooking_total_time`, `lit_time_remaining`, `lit_total_time` (ints) and
-  `speed_multiplier` (float); Pumpkin wrote the pre-1.21 `CookTime`/`CookTimeTotal`/`BurnTime`
-  names. It now writes the current keys and still reads the old ones. (this pass)
-- Rejected after checking the ref: resetting `cookingTimer` for an input without a recipe.
-  `serverTick` wraps the whole cook branch in `if (recipe != null)` and has no reset for a null
-  recipe, so the existing freeze is correct and was left alone.
-- Rejected: writing the timers as TAG_Short. That was the pre-1.21 layout; 26.x uses ints.
-- Confirmed matching: fuel crafting remainder is dropped as an item stack when the fuel slot
-  does not empty (`consumeFuel` -> `Containers.dropItemStack`); XP is awarded on block removal
-  (`preRemoveSideEffects` -> `getRecipesToAwardAndPopExperience`) and on taking the result;
-  `canTakeItemThroughFace` uses the `furnace_fuel_bottom_takeable` tag; `getSlotsForFace`,
-  `canPlaceItem` (fuel component or bucket swap), progress decay of 2/tick, `>=` completion
-  compare, wet-sponge/bucket conversion.
-
-### Still open
-
-| Location | Vanilla | Gap | Suggested fix | Size |
-|---|---|---|---|---|
-| `furnace_like_block_entity.rs:30-38,530` | `getSpeedMultiplier` reads the fuel item's `cooking_fuel.speed_multiplier` (default 1) | multiplier is hardcoded per block kind, so datapack fuel multipliers are ignored and the saved `speed_multiplier` is never restored | store the multiplier on the entity, set it at ignition from `CookingFuelImpl`, use it in `cooking_total_time`, read it back in `from_nbt` | M |
-| `furnace_like_block_entity.rs:530-555` | on relight with a different multiplier `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale | implement together with the data-driven multiplier | S |
-| `furnace_like_block_entity.rs:179-199` | `getRecipesToAwardAndPopExperience` spawns one orb per recipe id | one summed `i32` -> single orb | return per-recipe amounts and spawn one orb each | S |
-| `pumpkin-inventory/src/furnace_like/furnace_like_slot.rs:152` | `awardUsedRecipesAndPopExperience` also calls `player.awardRecipes` and `triggerRecipeCrafted` | recipe book is not updated on take | pass the used recipe ids to the player | M |
-| `furnace_like_block_entity.rs:890-899` | Bedrock actor `StoredXPInt` | hardcoded `0` | pass the accumulated `RecipesUsed` XP | S |
-
-Not a gap: `client_update_tag` returning an empty compound matches the base `BlockEntity`
-behaviour, the furnace class does not override it in the ref tree.

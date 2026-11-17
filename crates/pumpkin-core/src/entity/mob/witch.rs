@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::food::ConsumableImpl;
-use pumpkin_data::data_component_impl::{EquipmentSlot, PotionDurationScaleImpl};
+use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::game_event::GameEvent;
@@ -65,7 +65,11 @@ fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStac
 /// Represents a Witch, a hostile ranged mob that throws splash potions and drinks restorative potions.
 ///
 /// Wiki: <https://minecraft.wiki/w/Witch>
-const WITCH_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
+const WITCH_HUNTS: &[Hunt] = &[
+    Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true),
+    Hunt::new(3, TargetMatch::VILLAGER_LIKE, false),
+    Hunt::new(3, TargetMatch::Type(&EntityType::IRON_GOLEM), true),
+];
 
 /// Vanilla `Witch` healable-raider target: any raider below its max health.
 const WITCH_HEALABLE_RAIDERS: Hunt =
@@ -213,13 +217,14 @@ impl WitchEntity {
 
         if let Some(target_living) = target.get_living_entity() {
             if is_raider(target_entity.entity_type) {
-                // Vanilla `Witch.performRangedAttack`: heal low raiders, otherwise regenerate.
+                // Vanilla `Witch.performRangedAttack`: heal low raiders, otherwise
+                // regenerate, then forget the target.
                 if target_living.health.load() <= 4.0 {
                     potion = &Potion::HEALING;
-                    self.set_mob_target(None, TargetReason::Unknown);
                 } else {
                     potion = &Potion::REGENERATION;
                 }
+                self.set_mob_target(None, TargetReason::Unknown);
             } else {
                 let r: f32 = rand::random();
                 if dist >= 8.0 && !target_living.has_effect(&StatusEffect::SLOWNESS) {
@@ -334,19 +339,26 @@ impl WitchEntity {
             .get(&EquipmentSlot::MAIN_HAND);
         self.set_main_hand(ItemStack::EMPTY.clone());
 
-        // Only a drinkable potion takes effect, scaled like vanilla's `forEachEffect`.
+        // Vanilla `Witch.aiStep`: drinking grants an eighth of the potion's duration,
+        // while instant effects keep their full strength.
         if stack.item == &Item::POTION {
-            let scale = stack
-                .get_data_component::<PotionDurationScaleImpl>()
-                .map_or(1.0, |scale| scale.scale);
-            let effects = crate::item::potion::PotionContents::read_potion_effects(&stack);
-            crate::item::potion::PotionContents::apply_effects_to(
-                living,
-                effects,
-                scale,
-                crate::item::potion::PotionApplicationSource::Normal,
-                None,
-            );
+            for (effect_type, duration, amplifier, ambient, show_particles, show_icon) in
+                crate::item::potion::PotionContents::read_potion_effects(&stack)
+            {
+                if effect_type.instantaneous {
+                    living.apply_instant_effect(effect_type, amplifier, Some(1.0), None);
+                } else {
+                    living.add_effect(pumpkin_data::potion::Effect {
+                        effect_type,
+                        duration: duration / 8,
+                        amplifier,
+                        ambient,
+                        show_particles,
+                        show_icon,
+                        blend: false,
+                    });
+                }
+            }
         }
 
         let entity = &living.entity;

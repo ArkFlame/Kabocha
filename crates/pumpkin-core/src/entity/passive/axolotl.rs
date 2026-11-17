@@ -149,7 +149,7 @@ struct HurtCheck {
     health: f32,
     max_health: f32,
     in_water: bool,
-    has_attacker: bool,
+    has_causing_entity: bool,
     playing_dead: bool,
 }
 
@@ -161,7 +161,7 @@ fn plays_dead_when_hurt<R: Rng + ?Sized>(rng: &mut R, hit: &HurtCheck) -> bool {
         && (f32::from(rng.random_range(0..3i16)) < hit.damage || hit.health / hit.max_health < 0.5)
         && hit.damage < hit.health
         && hit.in_water
-        && hit.has_attacker
+        && hit.has_causing_entity
         && !hit.playing_dead
 }
 
@@ -575,7 +575,7 @@ impl Mob for AxolotlEntity {
     fn on_damage_with_context(
         &self,
         _damage_type: DamageType,
-        source: Option<&dyn EntityBase>,
+        _source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
         let amount = f32::from_bits(
@@ -589,7 +589,9 @@ impl Mob for AxolotlEntity {
             health: living.health.load(),
             max_health: living.get_max_health(),
             in_water: self.get_entity().is_in_water(),
-            has_attacker: source.is_some() || cause.is_some(),
+            // Vanilla checks `DamageSource.getEntity()`, the causing entity (owner/thrower),
+            // so a direct projectile without an owner does not count.
+            has_causing_entity: cause.is_some(),
             playing_dead: self.is_playing_dead(),
         };
         if plays_dead_when_hurt(&mut self.get_random(), &hit) {
@@ -1135,7 +1137,7 @@ mod tests {
             health: 10.0,
             max_health: 14.0,
             in_water: true,
-            has_attacker: true,
+            has_causing_entity: true,
             playing_dead: false,
         }
     }
@@ -1182,7 +1184,7 @@ mod tests {
             ..hit()
         };
         let unseen = HurtCheck {
-            has_attacker: false,
+            has_causing_entity: false,
             ..hit()
         };
         let already = HurtCheck {
@@ -1202,10 +1204,11 @@ mod tests {
         assert_eq!(plays_dead(&no_ai, &[0, 0]), (false, 2));
     }
 
-    /// A weak hit from an entity in the water sets the memory to 200 (a source or a cause alone is
-    /// enough), whatever the dice say if it is repeated often enough (the chance that 300 hits all miss is below one in 10^50). Hits
-    /// without an entity behind them (the dry out), out of the water, without AI, while already
-    /// playing dead and killing hits leave the memory alone.
+    /// A weak hit whose damage source has a causing entity in the water sets the memory to 200,
+    /// whatever the dice say if it is repeated often enough (the chance that 300 hits all miss is
+    /// below one in 10^50). A direct entity without an owner, hits without an entity behind them
+    /// (the dry out), out of the water, without AI, while already playing dead and killing hits
+    /// leave the memory alone.
     #[tokio::test]
     async fn hits_set_the_play_dead_memory_only_when_the_conditions_hold() -> TestResult {
         let folder = tempfile::tempdir()?;
@@ -1269,7 +1272,7 @@ mod tests {
         world.level.shutdown().await;
 
         assert_eq!(play_dead_ticks(&hit), Some(200));
-        assert_eq!(play_dead_ticks(&only_source), Some(200));
+        assert_eq!(play_dead_ticks(&only_source), None);
         assert_eq!(play_dead_ticks(&only_cause), Some(200));
         assert_eq!(play_dead_ticks(&dry_out), None);
         assert_eq!(play_dead_ticks(&out_of_water), None);

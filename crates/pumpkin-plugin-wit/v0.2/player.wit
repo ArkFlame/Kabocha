@@ -1321,14 +1321,6 @@ interface player {
         /// Checks if this player can see another specified player.
         can-see-player: func(other: player) -> bool;
 
-        /// Hides an entity from this player only (Paper Player#hideEntity). The entity keeps
-        /// existing for everyone else and is not sent to this player until show-entity-to.
-        hide-entity-from: func(entity: entity);
-        /// Shows a previously hidden entity to this player again (Paper Player#showEntity).
-        show-entity-to: func(entity: entity);
-        /// Whether this player can currently see the given entity (Paper Player#canSee).
-        can-see-entity: func(entity: entity) -> bool;
-
         /// Sets the tab list ping / latency indicator in milliseconds.
         set-tab-list-ping: func(latency-ms: s32);
 

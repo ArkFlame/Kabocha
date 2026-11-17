@@ -38,28 +38,3 @@ Remaining gaps:
 | `crates/pumpkin-core/src/entity/player.rs:1903-1936` (sweep damage) | `Player.doSweepAttack` uses `1 + SWEEPING_DAMAGE_RATIO * damage`, multiplies by attack strength, scans `victim.getBoundingBox().inflate(1.0, 0.25, 1.0)`, skips allies/marker armor stands/anything past 3 blocks, then knocks back and runs post-attack enchantment effects per victim | Uses the pre-1.21.2 `SWEEPING_EDGE` enchantment ratio, no attack-strength factor, no ally/marker/distance checks, no knockback or post-attack effects, and a pos-built box | Port `doSweepAttack` wholesale once the sweep damage source model is confirmed for V_26_3 | M |
 | `crates/pumpkin-core/src/entity/player.rs:1891-1950` | `Player.causeExtraKnockback` also pushes non-living targets (`push(-sin * strength, 0.1, cos * strength)`) and always decays the attacker's velocity | Knockback/causeExtraKnockback runs only for living victims | Apply the non-living push branch for boats/minecarts and other non-living attackables | S |
 | `combat.rs:42` (`AttackType::new`) | Vanilla has no platform condition | `is_bedrock` skips sweeping | Kept: Bedrock clients cannot sweep; revisit only if the Bedrock attack path changes | - |
-
-## Audit round 2 (2026-11-17)
-
-Vanilla compared against `world/damagesource/CombatTracker.java`,
-`world/damagesource/DamageSource.java` and
-`world/entity/player/Player.causeExtraKnockback`.
-
-Fixed in this pass:
-
-- `combat.rs:221-224` - `handle_knockback` decayed the attacker's velocity by
-  `multiply(0.6, 1.0, 0.6)` even when the knockback strength was zero. Vanilla
-  `Player.causeExtraKnockback` keeps both the decay and the sprint interruption inside
-  `if (strength > 0.0F)`.
-- `combat.rs:597-602` - a `FallVariants` death with no significant fall used
-  `death.fell.accident.<loc>` (`generic` by default). Vanilla only takes the fall-variant
-  branch when `getMostSignificantFall() != null` and otherwise calls
-  `DamageSource.getLocalizedDeathMessage`, so a short fall is `death.attack.fall`
-  (`...fall.player` with kill credit). Now falls through to the default death message.
-
-Remaining gaps (round 2):
-
-| Location | Vanilla | Gap | Fix | Size |
-|---|---|---|---|---|
-| `combat.rs:231-243` (`sync_hit_player_velocity`) | `Player.causeExtraKnockback` builds `PlayerVelocityEvent` from `currentMovement`, the victim's movement before the hit, and only sends the plugin-modified vector (else the post-hit one) | The event payload is the post-hit velocity | Pass `old_movement` to the event, send the modified vector when it changed, else the post-hit velocity | S |
-| `combat.rs:148-192` (`mace_smash_can_knockback`) | `MaceItem.knockbackPredicate` needs only `getEntitiesOfClass(LivingEntity, ...)` | Reads entities from the index plus players; behaviour matches today, keep only if the index keeps living entities only | none while the spatial index is authoritative | - |

@@ -90,10 +90,12 @@ impl BlockEntity for JukeboxBlockEntity {
             nbt.put(RECORD_ITEM_NBT_KEY, record_nbt);
         }
 
-        if self.song_length_ticks.load(Ordering::Relaxed) > 0 {
-            let ticks = self.ticks_since_song_started.load(Ordering::Relaxed);
-            nbt.put_long(TICKS_SINCE_SONG_STARTED_NBT_KEY, ticks as i64);
-        }
+        // Vanilla `JukeboxBlockEntity.saveAdditional` writes the playback position
+        // unconditionally, even for a stopped or empty jukebox.
+        nbt.put_long(
+            TICKS_SINCE_SONG_STARTED_NBT_KEY,
+            self.ticks_since_song_started.load(Ordering::Relaxed) as i64,
+        );
     }
 
     fn tick(&self, world: &Arc<World>) {
@@ -138,15 +140,19 @@ impl BlockEntity for JukeboxBlockEntity {
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         let mut nbt = NbtCompound::new();
-        if let Ok(record) = self.record_stack.try_lock()
-            && !record.is_empty()
-        {
+        // `try_lock` used to silently save the chunk without the disc whenever another
+        // thread held the mutex. Match `write_nbt` and wait for the lock instead.
+        let record = self
+            .record_stack
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !record.is_empty() {
             let mut record_nbt = NbtCompound::new();
             record.write_item_stack(&mut record_nbt);
-            nbt.put("RecordItem", NbtTag::Compound(record_nbt));
+            nbt.put(RECORD_ITEM_NBT_KEY, NbtTag::Compound(record_nbt));
         }
         nbt.put_long(
-            "ticks_since_song_started",
+            TICKS_SINCE_SONG_STARTED_NBT_KEY,
             self.ticks_since_song_started.load(Ordering::Relaxed) as i64,
         );
         Some(nbt)
@@ -342,11 +348,8 @@ impl Inventory for JukeboxBlockEntity {
                     state_id,
                     pumpkin_world::world::BlockFlags::NOTIFY_ALL,
                 );
-                world.sync_world_event(
-                    pumpkin_data::world::WorldEvent::SoundStopJukeboxSong,
-                    self.position,
-                    0,
-                );
+                // `stop_playing` above already sent vanilla's single stop event (1011);
+                // sending it again would double the packet.
                 world.emit_game_event(
                     pumpkin_data::game_event::GameEvent::BlockChange.name(),
                     self.position.to_centered_f64(),
@@ -496,6 +499,15 @@ mod tests {
         assert_eq!(nbt.get_long("TicksSinceSongStarted"), Some(100));
         let rec = nbt.get_compound("RecordItem").expect("RecordItem missing");
         assert_eq!(rec.get_string("Name"), Some("minecraft:music_disc_cat"));
+    }
+
+    #[test]
+    fn write_nbt_writes_ticks_since_song_started_when_stopped() {
+        // Vanilla always writes the key; a stopped jukebox must round-trip as 0, not be absent.
+        let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        let mut nbt = NbtCompound::new();
+        jukebox.write_nbt(&mut nbt);
+        assert_eq!(nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(0));
     }
 
     #[tokio::test]

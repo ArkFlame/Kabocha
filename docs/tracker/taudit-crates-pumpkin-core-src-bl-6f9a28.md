@@ -19,6 +19,14 @@ hits are comments on `parse_structure_identifier`, `compute_detected_bounds` and
   as vanilla `isSolidRender`, and the heuristic was deleted. Observable as different palette /
   block-index ordering in every saved `.nbt` (and in `Palette::blocks()` iteration order).
 
+- **Integrity handling diverged from vanilla `IntegrityProcessor`** (`structure_block.rs:390-419`).
+  The loop rolled the RNG for every block (including block entities) and `continue`d on rejection,
+  leaving the existing world blocks untouched. Vanilla rolls only for blocks whose
+  `StructureBlockInfo.nbt() == null`, and replaces a rejected block with `Blocks.AIR`, so the placed
+  region is cleared. Now the RNG is consumed only for NBT-less blocks (`next_f32() >= integrity`),
+  matching vanilla ordering, and rejected positions are written as air. Behaviour difference was
+  visible as leftover terrain inside a LOAD area with integrity < 1.
+
 ## Remaining gaps
 
 1. **Entities are never captured when saving** (`structure_block.rs:188-262`,
@@ -72,6 +80,15 @@ hits are comments on `parse_structure_identifier`, `compute_detected_bounds` and
    template through `StructureTemplateManager` on every trigger, so a redstone-saved structure is
    available to `placeStructure`/other blocks after a restart. Verify intended (likely deliberate to
    avoid disk writes in the tick) before changing. Size S-M.
+
+9. **Multiblock blocks are bucketed by `is_solid_render` alone** (`structure_block.rs:246`).
+   Vanilla `fillFromWorld` puts a block in the "full blocks" list when
+   `blockState.isSolidRender(...) || blockState.isMultiblock()`, and only non-solid non-multiblock
+   states in the "other blocks" list. A non-full-cube multiblock (bed, door, piston head) is
+   therefore ordered differently in the saved palette here; template content is identical, only the
+   palette ordering can differ. Fix only if a byte-diff on saved `.nbt` shows the divergence matters
+   (needs an `is_multiblock` flag, not present in `pumpkin-data`). Vanilla class
+   `StructureTemplate#fillFromWorld`. Size S.
 
 ## Checked, no change needed
 

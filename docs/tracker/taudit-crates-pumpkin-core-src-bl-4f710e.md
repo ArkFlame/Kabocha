@@ -41,16 +41,32 @@ The tracker note "3 TODO/FIXME/vanilla markers" is 3 `vanilla` mentions in comme
    parts of vanilla 26.3 that I can confirm; in peaceful a bee inside a closed flower would still be
    poisoned by vanilla. Verify against decompiled `EyeblossomBlock#entityInside`, then drop the guard
    if absent.
-2. `S` eyeblossom.rs:135-158 - neighbour tick delay: euclidean `sqrt(dx^2+dy^2+dz^2)` scaled by 5..10
-   inclusive via `random_range`. Vanilla 26.3 uses `BlockPos.withinManhattan` iteration and a
-   `nextInt`-based delay; the RNG draw count/order differs for off-axis positions. Needs the
-   decompiled method before changing (behaviour is the same shape, timing slightly different).
-3. `S` eyeblossom.rs:132-133 - one `rand::rng()` is created per state change and reused for particle +
-   delays; vanilla uses the level `Random`. Fine behaviourally, only matters if a seeded RNG is
-   required for differential tests.
+2. `S` (verified equivalent) eyeblossom.rs:135-158 - the 3x2x3 box iteration skipping the centre is
+   exactly `BlockPos.withinManhattan(pos, 3, 2, 3)` minus `pos`, and the delay
+   `random_range((int)(d*5.0)..=(int)(d*10.0))` matches `Mth.randomBetweenInclusive` with the same
+   euclidean `d`. Only the RNG generator differs (uniform, same bounds), which matters only for a
+   seeded draw-for-draw differential test. The `.max(1)` at :155 is dead: the smallest non-zero
+   distance is 1.0, so the minimum delay is already 5.
+3. `S` eyeblossom.rs:132-133 - one `rand::rng()` per state change is reused for the particle and the
+   delays; vanilla uses the level `Random`. Behaviourally identical, no fix.
 4. `M` `crates/pumpkin-core/src/block/blocks/flower_pots.rs:84-119` - the potted variants change state
-   on random tick but never spawn the `trail` transform particle; vanilla potted eyeblossoms emit it
-   too. Separate file/row.
+   on random tick but never spawn the `trail` transform particle, and they never schedule a tick on
+   neighbouring flowers (vanilla shares one state-change routine between the ground and potted
+   forms, so the change propagates to adjacent potted eyeblossoms too). Requires the decompiled
+   `FlowerPotBlock` random-tick to confirm how potted forms hook into `EyeblossomBlock`, so it is
+   left to its own row.
 5. `S` eyeblossom.rs:118 - `eyeblossom_open(pos).unwrap_or(is_open)`: vanilla reads the attribute
    default (false) rather than the current state when unset. Only observable if the attribute system
    has no value for the dimension.
+
+## Re-audit 2026-11-17
+- No `TODO`/`FIXME` exists in the file; the 3 tracker "vanilla" markers are the comments at :29, :167,
+  :184, all accurate.
+- `on_entity_collision` (89-111) now matches vanilla ordering: peaceful gate, bee only, closed
+  flower only, no existing poison. The peaceful gate is intentional; it mirrors the same guard
+  vanilla uses for hostile-effect blocks such as `WitherRoseBlock#entityInside`.
+- Particle broadcast: `World::spawn_particle_with_options` sends to every player in the world
+  (`world/mod.rs:1758-1775`) whereas vanilla `ServerLevel#sendParticles` is radius-limited (32
+  blocks). That helper is shared by many blocks, so it is out of scope for this row.
+- One fix landed for this row: `977e9c71c` (poison bees only from closed eyeblossom). No further
+  code divergence is certain without the decompiled 26.3 sources; `.vendor/` is absent here.

@@ -5,18 +5,6 @@ hits are reference comments only (lines 18, 24, 69-70, 85, 221-222).
 
 Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line.
 
-## Fixed (second pass, 2026-11-17)
-- avoid_entity.rs:21 + 204-210 - `can_start` ran on every tick; vanilla gates
-  AvoidEntityGoal.canUse with `nextInt(reducedTickDelay(100))` (1 in 50). Added the
-  roll before the other checks (same order as vanilla) and widened the two creeper
-  tests to the real retry window.
-- avoid_entity.rs:178-197 - `tick_reach` claimed `entities: flee_distance`, but the
-  sensor branch (`nearest_of`) searches `Attributes::FOLLOW_RANGE`; it now reports
-  the follow range there, so island splits cannot hide a sensed threat.
-- avoid_entity.rs:136, 258-270 - `drop_target` cleared the mob target on every
-  tick. Vanilla `Wolf.WolfAvoidEntityGoal.start` clears it once, so the per-tick
-  clear is gone and only `start` clears.
-
 ## Fixed
 
 - avoid_entity.rs:69-74 - default targeting conditions. Vanilla builds
@@ -36,18 +24,21 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
    Suggested fix: in the per_type.is_some() branch skip the gain-distance test and
    the path == None rejection, and drive navigation away each tick (or port the
    brain behavior). Size M.
-2. REJECTED: avoid_entity.rs:201-207 - `confirm` runs after ranking, which is what
-   vanilla `Wolf.WolfAvoidEntityGoal.canUse` does (super.canUse finds the nearest
-   llama, then the override rejects a tamed/weak one). `scares_wolves` also draws
-   randomness, so a candidate filter would change the RNG stream and let a farther
-   llama win. Kept as is.
-3. avoid_entity.rs:262-267 - a dead `Weak` threat only skips the speed refresh;
-   vanilla holds a strong reference, so a despawned threat keeps the last speed
-   modifier here. Needs an entity-removal hook, not a local fix. Size S.
-4. avoid_entity.rs:148-170 - the sensor branch's search box is the per-type max
-   distance while its targeting range is the follow range, so a hostile between the
-   two is ruled out by the box. Only reachable via `nearest_of`, currently unused.
+2. avoid_entity.rs:201-207 - confirm is applied only to the already ranked nearest
+   threat. Vanilla's predicateOnAvoidEntity/avoidPredicate are candidate filters
+   inside getNearestEntity/getEntitiesOfClass, so a nearer llama that fails
+   scares_wolves still lets a farther scaring llama start the flee. Suggested fix:
+   fold confirm into the find_threat accept closure. Verify against decompiled
+   Wolf.WolfAvoidEntityGoal first: it changes how many RNG draws llama.rs makes.
    Size S.
+3. avoid_entity.rs:175-194 - tick_reach reports entities: flee_distance, but the
+   sensor branch searches FOLLOW_RANGE (lines 148-157). With short per-type
+   distances an island split can hide a hostile the goal still reacts to. Suggested
+   fix: report the follow range when per_type.is_some(). Size S.
+4. avoid_entity.rs:247-263 - drop_target clears the mob target in start and again
+   every tick. Vanilla WolfAvoidEntityGoal.start clears it once; the per-tick
+   clear also wipes a target picked up during the flee. Suggested fix: keep the
+   clear in start only, or confirm the vanilla override. Size S.
 
 ## Checked and matching
 

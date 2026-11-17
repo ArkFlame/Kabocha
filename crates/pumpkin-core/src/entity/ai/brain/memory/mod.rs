@@ -365,7 +365,10 @@ impl PackedMemories {
             memories.put_compound(id.name(), entry);
         }
         let mut brain = NbtCompound::new();
-        brain.put_compound("memories", memories);
+        // Vanilla's `Brain.serializeToNbt` only writes `memories` when an entry was encoded.
+        if !memories.child_tags.is_empty() {
+            brain.put_compound("memories", memories);
+        }
         brain
     }
 
@@ -522,11 +525,10 @@ mod tests {
     }
 
     #[test]
-    fn empty_brain_writes_an_empty_memories_compound() {
+    fn empty_brain_omits_the_memories_compound() {
         let store = MemoryStore::default();
-        let mut expected = NbtCompound::new();
-        expected.put_compound("memories", NbtCompound::new());
-        assert_eq!(store.pack().into_nbt(), expected);
+        let written = store.pack().into_nbt();
+        assert!(written.get_compound("memories").is_none());
     }
 
     #[test]

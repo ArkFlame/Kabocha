@@ -758,8 +758,6 @@ pub struct Player {
     pub compass_target: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub respawn_location: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub hidden_players: Mutex<std::collections::HashSet<uuid::Uuid>>,
-    /// Non-player entities hidden from this player via the plugin API.
-    pub hidden_entities: Mutex<std::collections::HashSet<uuid::Uuid>>,
     pub advancements: Arc<Mutex<PlayerAdvancement>>,
     pub enchantment_seed: AtomicI32,
     /// Ticks spent gliding, vanilla `fallFlyTicks`
@@ -1138,7 +1136,6 @@ impl Player {
             compass_target: AtomicCell::new(None),
             respawn_location: AtomicCell::new(None),
             hidden_players: Mutex::new(std::collections::HashSet::new()),
-            hidden_entities: Mutex::new(std::collections::HashSet::new()),
             fishing_bobber: AtomicI32::new(-1),
             bedrock_skin: ArcSwap::new(Arc::new(bedrock_skin)),
             seen_credits: AtomicBool::new(false),
@@ -4959,67 +4956,6 @@ impl Player {
         self.can_see(other_id)
     }
 
-    /// Hides any tracked entity from this player: it is despawned for this player only and
-    /// not sent again until show_entity_to. Paper Player#hideEntity.
-    pub fn hide_entity_from(&self, entity_uuid: uuid::Uuid) {
-        if entity_uuid == self.gameprofile.id
-            || !self
-                .hidden_entities
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(entity_uuid)
-        {
-            return;
-        }
-        let world = self.world();
-        let Some(entity) = world.get_entity_by_uuid(entity_uuid) else {
-            return;
-        };
-        if let Some(tracked) = world
-            .entity_tracker
-            .get_tracked_entity(entity.get_entity().entity_id)
-        {
-            tracked.remove_player(self);
-        }
-    }
-
-    /// Shows an entity hidden with hide_entity_from again. Paper Player#showEntity.
-    pub fn show_entity_to(&self, entity_uuid: uuid::Uuid) {
-        if !self
-            .hidden_entities
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove(&entity_uuid)
-        {
-            return;
-        }
-        let world = self.world();
-        let Some(entity) = world.get_entity_by_uuid(entity_uuid) else {
-            return;
-        };
-        let Some(viewer) = world.get_player_by_uuid(self.gameprofile.id) else {
-            return;
-        };
-        if let Some(tracked) = world
-            .entity_tracker
-            .get_tracked_entity(entity.get_entity().entity_id)
-        {
-            tracked.update_player(&viewer, &world);
-        }
-    }
-
-    /// Whether this player is currently allowed to see the entity, i.e. it was not hidden
-    /// with hide_entity_from. Paper Player#canSee.
-    #[must_use]
-    pub fn can_see_entity(&self, entity_uuid: &uuid::Uuid) -> bool {
-        entity_uuid == &self.gameprofile.id
-            || !self
-                .hidden_entities
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .contains(entity_uuid)
-    }
-
     // --- Experience & Leveling API ---
     pub fn add_experience(self: &Arc<Self>, points: i32) {
         self.add_experience_points(points);
@@ -6879,19 +6815,8 @@ impl Player {
         let drop_amount = if drop_stack { item_stack.item_count } else { 1 };
         let dropped_stack = item_stack.copy_with_count(drop_amount);
 
-        if let Some(server) = self.world().server.upgrade()
-            && let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
-        {
-            let mut event =
-                crate::plugin::api::events::player::player_drop_item::PlayerDropItemEvent::new(
-                    player_arc,
-                    dropped_stack.item.registry_key.to_string(),
-                    dropped_stack.item_count,
-                );
-            server.plugin_manager.fire_blocking(&server, &mut event);
-            if event.cancelled {
-                return;
-            }
+        if !InventoryPlayer::can_drop_item(self, &dropped_stack) {
+            return;
         }
 
         item_stack.decrement(drop_amount);
@@ -9816,6 +9741,25 @@ impl InventoryPlayer for Player {
 
     fn drop_item(&self, item: ItemStack, _retain_ownership: bool) {
         self.drop_item(item);
+    }
+
+    /// Fires `PlayerDropItemEvent` so plugins can cancel a drop made from an
+    /// open screen (inventory, chest, custom GUI).
+    fn can_drop_item(&self, item: &ItemStack) -> bool {
+        let Some(server) = self.world().server.upgrade() else {
+            return true;
+        };
+        let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) else {
+            return true;
+        };
+        let mut event =
+            crate::plugin::api::events::player::player_drop_item::PlayerDropItemEvent::new(
+                player_arc,
+                item.item.registry_key.to_string(),
+                item.item_count,
+            );
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        !event.cancelled
     }
 
     fn has_infinite_materials(&self) -> bool {
