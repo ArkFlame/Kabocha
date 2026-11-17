@@ -25,6 +25,18 @@ impl Goal for RestrictSunGoal {
         Self::is_exposed(mob)
     }
 
+    /// Vanilla `RestrictSunGoal.start`: the navigator steers away from sunlit tiles.
+    fn start(&mut self, mob: &dyn Mob) {
+        let steered = mob.get_mob_entity().steered();
+        steered.navigator().set_avoid_sun(true);
+    }
+
+    /// Vanilla `RestrictSunGoal.stop`.
+    fn stop(&mut self, mob: &dyn Mob) {
+        let steered = mob.get_mob_entity().steered();
+        steered.navigator().set_avoid_sun(false);
+    }
+
     fn controls(&self) -> Controls {
         Controls::empty()
     }
