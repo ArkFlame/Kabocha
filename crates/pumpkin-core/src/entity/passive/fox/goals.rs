@@ -716,7 +716,7 @@ impl Goal for SleepGoal {
             return false;
         }
         let entity = fox.get_entity();
-        if entity.is_in_water() {
+        if entity.is_in_water_or_rain() {
             return false;
         }
         let world = entity.world.load();
@@ -725,14 +725,17 @@ impl Goal for SleepGoal {
             return false;
         }
 
-        self.can_sleep(fox, &world) || fox.is_sleeping()
+        // Vanilla `Fox.FoxSleepGoal.canUse` rolls a one-in-ten retry.
+        fox.is_sleeping()
+            || (self.can_sleep(fox, &world)
+                && rand::rng().random_range(0..to_goal_ticks(10)) == 0)
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
         let Some(fox) = as_fox(mob) else {
             return false;
         };
-        if fox.get_entity().is_in_water() {
+        if fox.get_entity().is_in_water_or_rain() {
             return false;
         }
         let world = fox.get_entity().world.load();
