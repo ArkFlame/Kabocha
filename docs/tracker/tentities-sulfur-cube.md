@@ -20,7 +20,7 @@ return value could not be confirmed locally.
 
 ## Remaining gaps
 
-2. sulfur_cube.rs:958-968 mob_hurt_server: for damages tagged
+2. **FIXED at HEAD (code check):** mob_hurt_server returns `Some(false)` after the knockback (sulfur_cube.rs ~line 987). Stale row. Original note: for damages tagged
    MINECRAFT_SULFUR_CUBE_WITH_BLOCK_IMMUNE_TO the branch applies deal_default_knockback
    and then returns Some(true), which damage_with_context (mob/mod.rs:3083) returns as
    "the entity was damaged". Vanilla SulfurCube.hurtServer returns false for that tag
@@ -29,14 +29,14 @@ return value could not be confirmed locally.
    meant to be immune to. Suggested fix: return Some(false) after the knockback, and
    confirm against decompiled SulfurCube.hurtServer. Size M (behavioural, needs a vanilla
    check).
-3. sulfur_cube.rs:607 apply_contact_damage builds a new
+3. **FIXED, UNVERIFIED (not compiled):** apply_contact_damage now rolls with the entity-owned `contact_random` field (seeded once in `new`). Original note: sulfur_cube.rs:607 apply_contact_damage builds a new
    RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed())) on every damaging
    collision instead of using the mob random. Vanilla SulfurCube rolls contact damage with
    the entity's own RandomSource. Cost is one RNG construction per collision tick and
    damage that is not reproducible from the entity seed. Suggested fix: reuse an
    entity-owned generator (or thread a RandomGenerator field) instead of reseeding.
    Size S.
-4. sulfur_cube.rs:866-899 pick_up_item writes the BODY slot directly but never calls
+4. **FIXED at HEAD (code check):** pick_up_item calls `self.detect_body_item_change()` after the slot write (sulfur_cube.rs ~line 908). Stale row. Original note: sulfur_cube.rs:866-899 pick_up_item writes the BODY slot directly but never calls
    detect_body_item_change() (equip_item:584 and shear:593 both do). Archetype
    attributes, explosion/contact state, goal clearing and speed reset therefore lag one
    tick behind the pickup, and the absorb sound plays before the state is applied.

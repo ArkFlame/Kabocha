@@ -219,6 +219,7 @@ pub struct SulfurCubeEntity {
     fuse: AtomicI32,
     archetype: Mutex<ArchetypeState>,
     last_body_item: Mutex<ItemStack>,
+    contact_random: Mutex<RandomGenerator>,
     this: Weak<Self>,
 }
 
@@ -235,6 +236,9 @@ impl SulfurCubeEntity {
             fuse: AtomicI32::new(-1),
             archetype: Mutex::new(ArchetypeState::default()),
             last_body_item: Mutex::new(ItemStack::EMPTY.clone()),
+            contact_random: Mutex::new(RandomGenerator::Xoroshiro(
+                Xoroshiro::from_seed(get_seed()),
+            )),
             this: this.clone(),
         });
 
@@ -611,13 +615,23 @@ impl SulfurCubeEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .contact_damages
             .clone();
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
-        for damage in contact_damages {
+        // Roll with the entity-owned generator; the lock is released before damaging the target.
+        let amounts: Vec<_> = {
+            let mut random = self
+                .contact_random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            contact_damages
+                .iter()
+                .map(|damage| damage.amount.get(&mut random))
+                .collect()
+        };
+        for (damage, amount) in contact_damages.into_iter().zip(amounts) {
             let attacker: Option<&dyn EntityBase> =
                 (damage.attribute_to_source || target.get_player().is_some()).then_some(self);
             target.damage_with_context(
                 target,
-                damage.amount.get(&mut random),
+                amount,
                 *damage.damage_type,
                 None,
                 attacker,

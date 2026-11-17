@@ -43,6 +43,8 @@ fixes. Only the gaps below remain, and none is small *and* certain enough to cha
 
 ## Remaining gaps
 
+h6 pass: no elytra code changed. Gap 1 (fall-distance clamp) matches vanilla `checkFallDistanceAccumulation` as recalled (clamp to 1.0 only when `y > -0.5` and above 1.0), **UNVERIFIED** without a decompiled reference. Gap 3 needs a `pumpkin-gametest` harness and is not implemented here. Row stays STILL OPEN.
+
 | # | file:line | vanilla class | gap | suggested fix | size |
 |---|---|---|---|---|---|
 | 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust lowers `fall_distance` to 1.0 only when it is already above 1.0; if vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, a smaller value is never raised | confirm against a decompiled `LivingEntity`; if unconditional, store 1.0 in the branch (observable only below the 3.0 fall-damage threshold) | S |

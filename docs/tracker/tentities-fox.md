@@ -1,4 +1,6 @@
 # entities / Fox
+
+**FIXED** (h6 sweep, code read): both "Fixed in this audit" items are present in `crates/pumpkin-core/src/entity/passive/fox/mod.rs`: the level-2001 burst is gated on `!state.is_air()` (line 392), and `add_trusted` shifts the second slot down and appends the newest (lines 344-351). Remaining open gap (`SleepGoal::can_sleep`) is unchanged.
 Reviewed: `crates/pumpkin-core/src/entity/passive/fox/` (mod.rs, goals.rs) against vanilla `net.minecraft.world.entity.animal.Fox` and its inner goals.
 Verdict: implementation is complete in structure (goal list and priorities, variants, biome spawn variant, breeding, NBT, sounds, berries, pounce/stalk/shelter/sleep/perch/search, defend-trusted, alertable scan). Two small divergences were fixed; one open item remains.
 
