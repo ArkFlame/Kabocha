@@ -205,6 +205,20 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
     buf
 }
 
+/// Vanilla `ServerLevel#sendParticles` measures from the viewer's block centre
+/// (`blockPosition().closerToCenterThan(pos, force ? 512 : 32)`), strictly less than the radius.
+fn is_particle_viewer_in_range(player_pos: Vector3<f64>, pos: Vector3<f64>, force: bool) -> bool {
+    const NORMAL_RADIUS: f64 = 32.0;
+    const FORCED_RADIUS: f64 = 512.0;
+    const BLOCK_CENTRE_OFFSET: f64 = 0.5;
+
+    let radius = if force { FORCED_RADIUS } else { NORMAL_RADIUS };
+    let dx = player_pos.x.floor() + BLOCK_CENTRE_OFFSET - pos.x;
+    let dy = player_pos.y.floor() + BLOCK_CENTRE_OFFSET - pos.y;
+    let dz = player_pos.z.floor() + BLOCK_CENTRE_OFFSET - pos.z;
+    dx * dx + dy * dy + dz * dz < radius * radius
+}
+
 #[allow(clippy::too_many_arguments)]
 fn send_particles(
     source: &CommandSource,
@@ -233,19 +247,13 @@ fn send_particles(
         &data,
     );
 
-    let max_dist_sq = if force { 512.0 * 512.0 } else { 32.0 * 32.0 };
     let mut sent_count = 0;
 
     for player in &players {
         if !Arc::ptr_eq(&player.world(), &world) {
             continue;
         }
-        let player_pos = player.position();
-        let dx = player_pos.x - pos.x;
-        let dy = player_pos.y - pos.y;
-        let dz = player_pos.z - pos.z;
-        let dist_sq = dx * dx + dy * dy + dz * dz;
-        if dist_sq <= max_dist_sq {
+        if is_particle_viewer_in_range(player.position(), pos, force) {
             player.try_send_client_packet(&packet);
             sent_count += 1;
         }
@@ -433,5 +441,27 @@ mod tests {
         options.put_int("delay", 7);
         let data = encode_particle_options(Particle::Shriek, Some(&options));
         assert_eq!(data, [7]);
+    }
+
+    #[test]
+    fn viewer_range_measures_from_block_centre() {
+        // Viewer block x=0 has centre 0.5: 0.5 + 31.4 = 31.9 < 32 (raw 32.3 would miss).
+        let viewer = Vector3::new(0.9, 0.0, 0.0);
+        assert!(is_particle_viewer_in_range(
+            viewer,
+            Vector3::new(-31.4, 0.0, 0.0),
+            false
+        ));
+        // Exactly 32 from the block centre is excluded (strict comparison).
+        assert!(!is_particle_viewer_in_range(
+            viewer,
+            Vector3::new(-31.5, 0.0, 0.0),
+            false
+        ));
+        assert!(is_particle_viewer_in_range(
+            viewer,
+            Vector3::new(-100.0, 0.0, 0.0),
+            true
+        ));
     }
 }
