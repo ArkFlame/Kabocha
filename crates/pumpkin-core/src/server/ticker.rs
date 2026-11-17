@@ -96,9 +96,6 @@ impl Ticker {
                     .fire_blocking(server, &mut ServerTickStartEvent::new(tick_number));
             }
 
-            let should_tick_game_tests = (manager.runs_normally() || sprinting)
-                && (has_pending_game_tests() || !game_test_runner.is_empty());
-
             if sprinting {
                 manager.start_sprint_tick_work();
                 server.tick();
@@ -110,7 +107,11 @@ impl Ticker {
                 server.tick();
             }
 
-            if should_tick_game_tests {
+            // Vanilla gates game tests on `runsNormally()` at the end of the tick,
+            // next to `GameTestTicker.SINGLETON.tick()`, so a mid-tick freeze applies at once.
+            if (manager.runs_normally() || sprinting)
+                && (has_pending_game_tests() || !game_test_runner.is_empty())
+            {
                 server.runtime.block_on(async {
                     drain_game_test_queue(server, &mut game_test_runner).await;
                     game_test_runner.tick().await;
