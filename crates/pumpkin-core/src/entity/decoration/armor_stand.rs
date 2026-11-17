@@ -286,7 +286,7 @@ impl ArmorStandEntity {
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
             self.break_and_drop_items();
-            entity.remove();
+            self.kill(caller);
         } else {
             self.living_entity.health.store(new_health);
         }
@@ -529,18 +529,16 @@ impl EntityBase for ArmorStandEntity {
         Some(&self.living_entity)
     }
 
-    fn kill(&self, _caller: &dyn EntityBase) {
-        let entity = self.get_entity();
-        entity.remove();
-        entity
-            .world
-            .load()
-            .emit_game_event(GameEvent::EntityDie.name(), entity.pos.load());
+    fn kill(&self, caller: &dyn EntityBase) {
+        self.get_entity().remove();
+        // Vanilla `ArmorStand.kill`: removal followed by the death game event.
+        self.get_entity()
+            .emit_own_game_event(caller, GameEvent::EntityDie);
     }
 
     fn damage_with_context(
         &self,
-        _caller: &dyn EntityBase,
+        caller: &dyn EntityBase,
         _amount: f32,
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
@@ -569,7 +567,7 @@ impl EntityBase for ArmorStandEntity {
         }
 
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY) {
-            entity.remove();
+            self.kill(caller);
             return false;
         }
 
@@ -580,7 +578,7 @@ impl EntityBase for ArmorStandEntity {
 
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION) {
             self.broken_by_anything();
-            entity.remove();
+            self.kill(caller);
             return false;
         }
 
@@ -621,7 +619,7 @@ impl EntityBase for ArmorStandEntity {
                 return false;
             } else if player.is_creative() {
                 Self::spawn_break_particles(entity);
-                entity.remove();
+                self.kill(caller);
                 return true;
             }
         }
@@ -645,7 +643,7 @@ impl EntityBase for ArmorStandEntity {
         } else {
             Self::spawn_break_particles(entity);
             self.break_and_drop_items();
-            entity.remove();
+            self.kill(caller);
         }
 
         true
