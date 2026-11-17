@@ -175,6 +175,10 @@ impl TelemetrySessionTracker {
                 joined_at,
                 left_at,
             });
+        } else {
+            tracing::debug!(
+                "Telemetry session buffer is full ({MAX_COMPLETED_SESSIONS_PER_HEARTBEAT}), dropping completed session"
+            );
         }
     }
 
