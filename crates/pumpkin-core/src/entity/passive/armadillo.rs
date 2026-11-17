@@ -35,8 +35,6 @@ pub const ARMADILLO_BABY_START_AGE: i32 = -48000;
 pub const SCARE_CHECK_INTERVAL: i32 = 80;
 pub const SCARE_DISTANCE_HORIZONTAL: f64 = 7.0;
 pub const SCARE_DISTANCE_VERTICAL: f64 = 2.0;
-/// Bounding-sphere radius of the vanilla `inflate(7, 2, 7)` scare box.
-const SCARE_SCAN_RADIUS: f64 = 7.280_109_889_280_518;
 
 fn pick_next_scute_drop_time() -> i32 {
     let rand_ticks = (rand::random::<u32>() % 6000) as i32;
@@ -459,13 +457,15 @@ impl Mob for ArmadilloEntity {
         if self.get_state() == ArmadilloState::Idle
             && entity.age.load(Ordering::Relaxed) % SCARE_CHECK_INTERVAL == 0
         {
-            let pos = entity.pos.load();
-            let threatened = world
-                .get_nearby_entities(pos, SCARE_SCAN_RADIUS)
-                .values()
-                .any(|candidate| {
-                    candidate.get_entity().is_alive() && self.is_scared_by(candidate.as_ref())
-                });
+            // Vanilla scans `getBoundingBox().inflate(7, 2, 7)`, so corners count too.
+            let scan_box = entity.bounding_box.load().expand(
+                SCARE_DISTANCE_HORIZONTAL,
+                SCARE_DISTANCE_VERTICAL,
+                SCARE_DISTANCE_HORIZONTAL,
+            );
+            let threatened = world.get_all_at_box(&scan_box).iter().any(|candidate| {
+                candidate.get_entity().is_alive() && self.is_scared_by(candidate.as_ref())
+            });
             if threatened {
                 self.roll_up();
             }
