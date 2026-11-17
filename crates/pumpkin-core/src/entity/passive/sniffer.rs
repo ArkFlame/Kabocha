@@ -9,6 +9,7 @@ use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_data::entity::{EntityStatus, EntityType};
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
@@ -45,10 +46,7 @@ use crate::plugin::api::events::{
     entity::{entity_drop_item::EntityDropItemEvent, entity_spawn::EntitySpawnEvent},
     world::generic_game::GenericGameEvent,
 };
-use crate::world::{
-    game_event::GameEventContext,
-    loot::{LootContextParameters, generate_loot_from_handle},
-};
+use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
 
 pub const SNIFFER_BABY_START_AGE: i32 = -48000;
 pub const DIGGING_DROP_SEED_OFFSET_TICKS: i32 = 120;
@@ -618,13 +616,7 @@ impl Mob for SnifferEntity {
         if self.get_state() == SnifferState::Digging {
             let entity = self.get_entity();
             if entity.tick_count.load(Relaxed) % 10 == 0 {
-                entity.world.load().emit_game_event_with_context(
-                    "minecraft:entity_action",
-                    self.get_head_block().to_centered_f64(),
-                    &GameEventContext {
-                        source_entity: Some(self),
-                    },
-                );
+                entity.emit_own_game_event(self, GameEvent::EntityAction);
             }
             self.drop_seed();
         }
