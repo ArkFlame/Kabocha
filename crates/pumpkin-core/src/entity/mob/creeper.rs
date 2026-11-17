@@ -49,6 +49,7 @@ pub struct CreeperEntity {
     pub explosion_radius: AtomicI32,
     pub ignited: AtomicBool,
     pub charged: AtomicBool,
+    pub dropped_skulls: AtomicBool,
 }
 
 impl CreeperEntity {
@@ -63,6 +64,7 @@ impl CreeperEntity {
             explosion_radius: AtomicI32::new(DEFAULT_EXPLOSION_RADIUS),
             ignited: AtomicBool::new(false),
             charged: AtomicBool::new(false),
+            dropped_skulls: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(entity);
         let mob_weak: Weak<dyn Mob> = {
@@ -323,10 +325,13 @@ impl Mob for CreeperEntity {
         true
     }
 
-    // Creeper.killedEntity: a charged creeper makes every victim drop its mob head.
+    // Creeper.killedEntityPreEvent: a charged creeper drops a single mob head.
     fn killed_entity(&self, killed: &dyn EntityBase) -> bool {
-        // Every victim of a charged creeper drops its own head, not just the first.
-        if self.charged.load(Ordering::Relaxed) && killed.should_drop_loot() {
+        // Vanilla guards with `!droppedSkulls`: only the first head-dropping victim yields a head.
+        if self.charged.load(Ordering::Relaxed)
+            && !self.dropped_skulls.load(Ordering::Relaxed)
+            && killed.should_drop_loot()
+        {
             let world = killed.get_entity().world.load_full();
             if let Some(table) = world.get_loot_table("minecraft:charged_creeper/root") {
                 let params = crate::world::loot::LootContextParameters {
@@ -337,12 +342,18 @@ impl Mob for CreeperEntity {
                     ..Default::default()
                 };
                 let pos = killed.get_entity().block_pos.load();
+                let mut dropped = false;
                 for stack in crate::world::loot::generate_loot_from_handle(
                     &table,
                     self.get_random().random(),
                     &params,
                 ) {
                     world.drop_stack(&pos, stack);
+                    dropped = true;
+                }
+                // Vanilla sets the flag inside the loot callback; a non-head victim does not consume it.
+                if dropped {
+                    self.dropped_skulls.store(true, Ordering::Relaxed);
                 }
             }
         }

@@ -7,7 +7,7 @@ use crate::entity::ai::util::RandomExt;
 use crate::entity::experience_orb::ExperienceOrbEntity;
 use crate::entity::item::ItemEntity;
 use crate::entity::projectile::owner::ProjectileOwner;
-use crate::entity::projectile::{ProjectileHit, get_hit_result_on_move_vector};
+use crate::entity::projectile::{ProjectileHit, get_hit_result_on_move_vector, update_rotation};
 use crate::world::World;
 use crate::world::loot::{LootContextParameters, LootTableHandle, generate_loot_from_handle};
 use crate::{
@@ -158,22 +158,35 @@ impl FishingBobberEntity {
                 0,
             )?;
 
-            let player_pos = player.get_entity().pos.load();
-            let bobber_pos = self.entity.pos.load();
-            let delta = player_pos - bobber_pos;
-            let motion = delta * 0.1;
-            hooked.get_entity().add_velocity(motion);
-            world.send_entity_status(
-                &self.entity,
-                EntityStatus::FishingRodReelIn,
-                ActorEventID::FishhookHookTime,
-            );
+            // Vanilla `FishingHook.retrieve`: re-read `hookedIn` after the event. A plugin may have
+            // unhooked or removed the entity, in which case nothing is pulled or damaged.
+            if let HookState::HookedIn(current_id) = self.state.load()
+                && current_id == hooked_id
+                && !hooked.get_entity().is_removed()
+            {
+                let player_pos = player.get_entity().pos.load();
+                let bobber_pos = self.entity.pos.load();
+                let delta = player_pos - bobber_pos;
+                let motion = delta * 0.1;
+                hooked.get_entity().add_velocity(motion);
+                world.send_entity_status(
+                    &self.entity,
+                    EntityStatus::FishingRodReelIn,
+                    ActorEventID::FishhookHookTime,
+                );
+                // Vanilla `FISHING_ROD_HOOKED` fires with an empty item list on the entity path.
+                player.trigger_advancement(
+                    crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
+                        item_id: String::new(),
+                    },
+                );
 
-            damage = if hooked.get_entity().entity_type == &EntityType::ITEM {
-                3
-            } else {
-                5
-            };
+                damage = if hooked.get_entity().entity_type == &EntityType::ITEM {
+                    3
+                } else {
+                    5
+                };
+            }
         } else if self.bite_countdown.load(Ordering::Relaxed) > 0 {
             let bobber_pos = self.entity.pos.load();
             let player_luck = player.living_entity.get_attribute_value(&Attributes::LUCK) as f32;
@@ -456,6 +469,13 @@ impl FishingBobberEntity {
         // Vanilla moves the hook through the engine's collision resolution, so it comes to rest on
         // block surfaces instead of hovering above them.
         entity.move_entity(caller, velocity);
+
+        // Vanilla `FishingHook.tick:260-269`: block effects and rotation from the post-move
+        // velocity before the momentum is damped again.
+        if let Some(server) = world.server.upgrade() {
+            Entity::check_block_collision(caller, &server);
+        }
+        update_rotation(entity, false);
 
         // Vanilla zeroes the hook's momentum when it comes to rest while flying.
         if matches!(state, HookState::Flying)
@@ -820,6 +840,20 @@ impl EntityBase for FishingBobberEntity {
 
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.process_tick(caller);
+    }
+
+    /// Vanilla `FishingHook.preRemove` / `onClientRemoval`: clear the owner's hook reference for
+    /// every removal path, not only the tick and reel-in discards.
+    fn on_removed(&self) {
+        let world = self.entity.world.load();
+        if let Some(player) = self.owner.get_player(&world) {
+            let _ = player.fishing_bobber.compare_exchange(
+                self.entity.entity_id,
+                -1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
+        }
     }
 }
 

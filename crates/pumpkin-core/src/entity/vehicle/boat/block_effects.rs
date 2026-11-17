@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use pumpkin_data::Block;
 use pumpkin_util::math::{
     boundingbox::BoundingBox,
     position::BlockPos,
+    vector2::Vector2,
     vector3::{Axis, Vector3},
 };
 
@@ -31,14 +32,7 @@ impl BoatEntity {
             .movements
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        // Entity.addMovementThisTick merges the oldest pair into a straight movement.
-        if movements.len() >= MAX_MOVEMENTS_HANDLED_PER_TICK
-            && let Some(first) = movements.pop_front()
-            && let Some(second) = movements.front_mut()
-        {
-            second.from = first.from;
-            second.requested = None;
-        }
+        merge_oldest_movement(&mut movements);
         movements.push_back(BoatMovement {
             from,
             to,
@@ -80,6 +74,14 @@ impl BoatEntity {
             if !entity.is_alive() {
                 return;
             }
+            // Mirrors `Entity.checkInsideBlocks`: skip blocks in unloaded chunks
+            // instead of forcing a synchronous chunk load inside the tick.
+            if !world
+                .level
+                .is_chunk_loaded(&Vector2::new(pos.0.x >> 4, pos.0.z >> 4))
+            {
+                return;
+            }
             let (block, state) = world.get_block_and_state(&pos);
             // Lily pads inherit the full-block entity-inside shape, not their thin outline.
             if block == &Block::LILY_PAD && visited.insert(pos) {
@@ -100,6 +102,18 @@ impl BoatEntity {
                 &mut visit,
             );
         }
+    }
+}
+
+/// Mirrors `Entity.addMovementThisTick`: once the ring is full the two oldest
+/// records collapse into one straight (unrequested) movement spanning both.
+fn merge_oldest_movement(movements: &mut VecDeque<BoatMovement>) {
+    if movements.len() >= MAX_MOVEMENTS_HANDLED_PER_TICK
+        && let Some(first) = movements.pop_front()
+        && let Some(second) = movements.front_mut()
+    {
+        second.from = first.from;
+        second.requested = None;
     }
 }
 
@@ -491,5 +505,25 @@ mod tests {
         assert!(visited.contains(&BlockPos::new(10, 0, 5)));
         assert!(!visited.contains(&BlockPos::new(11, 0, 5)));
         assert!(!visited.contains(&BlockPos::new(1000, 0, 500)));
+    }
+
+    #[test]
+    fn record_movement_merges_oldest_pair_at_cap() {
+        let mut movements = VecDeque::new();
+        for i in 0..MAX_MOVEMENTS_HANDLED_PER_TICK {
+            movements.push_back(BoatMovement {
+                from: Vector3::new(i as f64, 0.0, 0.0),
+                to: Vector3::new(i as f64 + 1.0, 0.0, 0.0),
+                requested: Some(Vector3::new(1.0, 0.0, 0.0)),
+            });
+        }
+        merge_oldest_movement(&mut movements);
+        // Mirrors Entity.addMovementThisTick: after the next push the list stays
+        // at the cap, and the oldest pair becomes a straight movement from the
+        // first record's origin to the second record's destination.
+        assert_eq!(movements.len(), MAX_MOVEMENTS_HANDLED_PER_TICK - 1);
+        assert_eq!(movements[0].from, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(movements[0].to, Vector3::new(2.0, 0.0, 0.0));
+        assert!(movements[0].requested.is_none());
     }
 }

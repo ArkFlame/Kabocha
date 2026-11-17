@@ -46,6 +46,7 @@ use crate::plugin::api::events::{
     entity::{entity_drop_item::EntityDropItemEvent, entity_spawn::EntitySpawnEvent},
     world::generic_game::GenericGameEvent,
 };
+use crate::world::game_event::GameEventContext;
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
 
 pub const SNIFFER_BABY_START_AGE: i32 = -48000;
@@ -620,6 +621,7 @@ impl Mob for SnifferEntity {
     }
 
     fn get_ambient_sound_interval(&self) -> i32 {
+        // Sniffer inherits Animal's 120-tick interval, not Mob's 80.
         120
     }
 
@@ -631,7 +633,14 @@ impl Mob for SnifferEntity {
         if self.get_state() == SnifferState::Digging {
             let entity = self.get_entity();
             if entity.tick_count.load(Relaxed) % 10 == 0 {
-                entity.emit_own_game_event(self, GameEvent::EntityAction);
+                // Vanilla emits ENTITY_ACTION at the center of the head block, not the entity.
+                entity.world.load().emit_game_event_with_context(
+                    GameEvent::EntityAction.name(),
+                    self.get_head_block().to_centered_f64(),
+                    &GameEventContext {
+                        source_entity: Some(self),
+                    },
+                );
             }
             self.drop_seed();
         }

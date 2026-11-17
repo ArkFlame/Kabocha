@@ -25,6 +25,12 @@ use crate::entity::{
 const ENDERMITE_HUNTS: &[Hunt] = &[Hunt::new(2, TargetMatch::Type(&EntityType::PLAYER), true)];
 const MAX_LIFETIME: i32 = 2400;
 
+/// Vanilla `Entity#getRandomX(0.5)` / `getRandomZ(0.5)` is
+/// `getX((2 * r - 1) * 0.5) = position + width * (r - 0.5)`, a full `+-width * 0.5` spread.
+fn particle_xz_offset(r: f64, width: f32) -> f64 {
+    (r - 0.5) * f64::from(width)
+}
+
 pub struct EndermiteEntity {
     pub mob_entity: MobEntity,
     pub lifetime: AtomicI32,
@@ -118,12 +124,12 @@ impl Mob for EndermiteEntity {
         let position = entity.pos.load();
         let mut rng = self.get_random();
         for _ in 0..2 {
-            // Vanilla `getRandomX(0.5)`: offset in +-width * 0.25 (half the box width, scaled by 0.5).
-            let half_spread = f64::from(dimensions.width) * 0.5;
+            // Vanilla `getRandomX(0.5)` / `getRandomZ(0.5)`: full +-width * 0.5 spread.
+            let width = dimensions.width;
             let particle_position = pumpkin_util::math::vector3::Vector3::new(
-                position.x + (rng.random::<f64>() - 0.5) * half_spread,
+                position.x + particle_xz_offset(rng.random::<f64>(), width),
                 position.y + rng.random::<f64>() * f64::from(dimensions.height),
-                position.z + (rng.random::<f64>() - 0.5) * half_spread,
+                position.z + particle_xz_offset(rng.random::<f64>(), width),
             );
             let velocity = pumpkin_util::math::vector3::Vector3::new(
                 (rng.random::<f64>() - 0.5) * 2.0,
@@ -138,5 +144,22 @@ impl Mob for EndermiteEntity {
                 pumpkin_data::particle::Particle::Portal,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::particle_xz_offset;
+
+    #[test]
+    fn particle_xz_offset_matches_vanilla_get_random_x() {
+        // getRandomX(0.5) = getX((2*r - 1) * 0.5) = position + width*(r - 0.5):
+        // a full +-width*0.5 spread (width 0.4 => +-0.2), not +-width*0.25.
+        let width = 0.4_f32;
+        for r in [0.0_f64, 0.25, 0.5, 0.75, 1.0] {
+            let vanilla = f64::from(width) * (2.0 * r - 1.0) * 0.5;
+            assert!((particle_xz_offset(r, width) - vanilla).abs() < 1e-12);
+        }
+        assert!((particle_xz_offset(0.0, width).abs() - 0.2).abs() < 1e-6);
     }
 }

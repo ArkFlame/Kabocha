@@ -1,16 +1,16 @@
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
 };
 use uuid::Uuid;
 
 use pumpkin_data::{
     BlockState,
+    attributes::Attributes,
     data_component::DataComponent,
     data_component_impl::{DataComponentImpl, EquipmentSlot, ZombieNautilusVariantImpl},
-    item::Item,
     item_stack::ItemStack,
-    sound::Sound,
+    sound::{Sound, SoundCategory},
     tag::{self, Taggable},
     tracked_data,
     zombie_nautilus_variant::ZombieNautilusVariant,
@@ -33,6 +33,7 @@ use crate::{
             spawn::{EntitySpawnReason, SpawnGroupData},
         },
         passive::{
+            abstract_horse::player_jump_pending_scale,
             animal::Animal,
             nautilus::{
                 interact_abstract_nautilus, nautilus_can_use_slot, nautilus_equip_sound,
@@ -45,13 +46,52 @@ use crate::{
     world::World,
 };
 
+fn select_zombie_nautilus_dash_sound(submerged: bool) -> Sound {
+    if submerged {
+        Sound::EntityZombieNautilusDash
+    } else {
+        Sound::EntityZombieNautilusDashLand
+    }
+}
+
+fn select_zombie_nautilus_dash_ready_sound(submerged: bool) -> Sound {
+    if submerged {
+        Sound::EntityZombieNautilusDashReady
+    } else {
+        Sound::EntityZombieNautilusDashReadyLand
+    }
+}
+
+fn select_zombie_nautilus_hurt_sound(submerged: bool) -> Sound {
+    if submerged {
+        Sound::EntityZombieNautilusHurt
+    } else {
+        Sound::EntityZombieNautilusHurtLand
+    }
+}
+
+fn select_zombie_nautilus_death_sound(submerged: bool) -> Sound {
+    if submerged {
+        Sound::EntityZombieNautilusDeath
+    } else {
+        Sound::EntityZombieNautilusDeathLand
+    }
+}
+
+fn select_zombie_nautilus_ambient_sound(submerged: bool) -> Sound {
+    if submerged {
+        Sound::EntityZombieNautilusAmbient
+    } else {
+        Sound::EntityZombieNautilusAmbientLand
+    }
+}
+
 pub struct ZombieNautilusEntity {
     pub mob_entity: MobEntity,
     pub ageable_data: AgeableData,
     pub tamable_data: TamableData,
     pub is_dashing: AtomicBool,
     pub dash_cooldown: AtomicI32,
-    pub inventory: Mutex<Vec<ItemStack>>,
     pub variant: AtomicU8,
 }
 
@@ -72,7 +112,6 @@ impl ZombieNautilusEntity {
             tamable_data: TamableData::default(),
             is_dashing: AtomicBool::new(false),
             dash_cooldown: AtomicI32::new(0),
-            inventory: Mutex::new(vec![ItemStack::new(0, &Item::AIR); 9]),
             variant: AtomicU8::new(ZombieNautilusVariant::default().id()),
         });
 
@@ -124,20 +163,12 @@ impl ZombieNautilusEntity {
 
     #[must_use]
     pub fn get_dash_sound(&self) -> Sound {
-        if self.get_entity().is_in_water() {
-            Sound::EntityZombieNautilusDash
-        } else {
-            Sound::EntityZombieNautilusDashLand
-        }
+        select_zombie_nautilus_dash_sound(self.get_entity().is_under_water())
     }
 
     #[must_use]
     pub fn get_dash_ready_sound(&self) -> Sound {
-        if self.get_entity().is_in_water() {
-            Sound::EntityZombieNautilusDashReady
-        } else {
-            Sound::EntityZombieNautilusDashReadyLand
-        }
+        select_zombie_nautilus_dash_ready_sound(self.get_entity().is_under_water())
     }
 
     fn is_mob_controlled(&self) -> bool {
@@ -193,19 +224,15 @@ impl TamableAnimal for ZombieNautilusEntity {
 
 impl CustomSound for ZombieNautilusEntity {
     fn hurt_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_in_water() {
-            Sound::EntityZombieNautilusHurt
-        } else {
-            Sound::EntityZombieNautilusHurtLand
-        })
+        Some(select_zombie_nautilus_hurt_sound(
+            self.get_entity().is_under_water(),
+        ))
     }
 
     fn death_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_in_water() {
-            Sound::EntityZombieNautilusDeath
-        } else {
-            Sound::EntityZombieNautilusDeathLand
-        })
+        Some(select_zombie_nautilus_death_sound(
+            self.get_entity().is_under_water(),
+        ))
     }
 }
 
@@ -266,6 +293,34 @@ impl Mob for ZombieNautilusEntity {
         self.saddled_controlling_passenger(None)
     }
 
+    fn can_rider_jump(&self) -> bool {
+        self.saddled_controlling_passenger(None).is_some()
+    }
+
+    fn handle_rider_start_jump(&self, jump_scale: i32) {
+        if self.dash_cooldown.load(Ordering::Relaxed) > 0 {
+            return;
+        }
+        let entity = &self.mob_entity.living_entity.entity;
+        entity.world.load().play_sound(
+            self.get_dash_sound(),
+            SoundCategory::Neutral,
+            &entity.pos.load(),
+        );
+        let momentum = if entity.is_in_water() { 1.2 } else { 0.5 };
+        let amount = f64::from(player_jump_pending_scale(jump_scale));
+        // Vanilla `executeRidersJump` also scales by the movement speed
+        // attribute and the block speed factor.
+        let speed = self
+            .mob_entity
+            .living_entity
+            .get_attribute_value(&Attributes::MOVEMENT_SPEED);
+        let factor = f64::from(self.get_block_speed_factor());
+        entity.add_velocity(entity.get_looking_vector() * (momentum * amount * speed * factor));
+        self.dash_cooldown.store(40, Ordering::Relaxed);
+        self.set_dashing(true);
+    }
+
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot == EquipmentSlot::BODY
             || *slot == EquipmentSlot::SADDLE
@@ -281,11 +336,9 @@ impl Mob for ZombieNautilusEntity {
     }
 
     fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_in_water() {
-            Sound::EntityZombieNautilusAmbient
-        } else {
-            Sound::EntityZombieNautilusAmbientLand
-        })
+        Some(select_zombie_nautilus_ambient_sound(
+            self.get_entity().is_under_water(),
+        ))
     }
 
     fn mob_get_swim_sound(&self) -> Option<Sound> {
@@ -429,8 +482,28 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn zombie_nautilus_sounds_use_submerged_state() {
+        assert_eq!(
+            select_zombie_nautilus_ambient_sound(true),
+            Sound::EntityZombieNautilusAmbient
+        );
+        assert_eq!(
+            select_zombie_nautilus_ambient_sound(false),
+            Sound::EntityZombieNautilusAmbientLand
+        );
+        assert_eq!(
+            select_zombie_nautilus_hurt_sound(true),
+            Sound::EntityZombieNautilusHurt
+        );
+        assert_eq!(
+            select_zombie_nautilus_hurt_sound(false),
+            Sound::EntityZombieNautilusHurtLand
+        );
+    }
+
     #[tokio::test]
-    async fn zombie_nautilus_surface_swim_uses_water_sounds() -> TestResult {
+    async fn zombie_nautilus_finalize_spawn_sets_biome_variant() -> TestResult {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let nautilus = ZombieNautilusEntity::new(Entity::new(
@@ -438,21 +511,12 @@ mod tests {
             Vector3::new(0.0, 60.0, 0.0),
             &EntityType::ZOMBIE_NAUTILUS,
         ));
+        let biome = world.get_biome(&nautilus.get_entity().block_pos.load());
+        let expected_id = ZombieNautilusVariant::select_for_biome(biome.registry_id).id();
 
-        // Surface swimming: in water but not submerged, vanilla still plays water sounds.
-        nautilus
-            .get_entity()
-            .touching_water
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        assert!(matches!(
-            nautilus.get_ambient_sound(),
-            Some(Sound::EntityZombieNautilusAmbient)
-        ));
-        assert!(matches!(
-            nautilus.hurt_sound(),
-            Some(Sound::EntityZombieNautilusHurt)
-        ));
+        let _ = nautilus.finalize_spawn(&world, EntitySpawnReason::Natural, None);
 
+        assert_eq!(nautilus.variant.load(Ordering::Relaxed), expected_id);
         world.level.shutdown().await;
         Ok(())
     }

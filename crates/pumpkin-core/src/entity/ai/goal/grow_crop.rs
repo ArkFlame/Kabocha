@@ -10,11 +10,22 @@ use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 use std::sync::Arc;
 
-// UNVERIFIED: vanilla 1.21.x `BeeGrowCropGoal` values, from memory. Not checked against a decompile.
-/// Chance is 1 in this many ticks while the goal is eligible.
-const GROW_CHANCE_ONE_IN: u32 = 30;
+/// Vanilla `BeeGrowCropGoal.tick` grows on a `random.nextInt(30) == 0` roll.
+const GROW_CHANCE_ONE_IN: i32 = 30;
 /// Crops checked below the bee, nearest first.
 const GROW_DEPTH: i32 = 2;
+
+/// Vanilla `BeeGrowCropGoal.canBeeUse` rejects 30% of eligible checks.
+#[must_use]
+pub fn passes_grow_gate(roll: f32) -> bool {
+    roll >= 0.3
+}
+
+/// Vanilla `BeeGrowCropGoal.tick` only grows on a zero roll.
+#[must_use]
+pub fn should_grow_this_tick(roll: i32) -> bool {
+    roll == 0
+}
 
 /// Crops a bee can fertilize, mirroring vanilla `CropBlock` (stems and pitcher crops excluded).
 fn is_growable_block(block: &Block) -> bool {
@@ -60,7 +71,7 @@ impl GrowCropGoal {
 
 impl Goal for GrowCropGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
-        if !(self.gate)(mob) || rand::rng().random_range(0..GROW_CHANCE_ONE_IN) != 0 {
+        if !(self.gate)(mob) || !passes_grow_gate(rand::random::<f32>()) {
             return false;
         }
         let world = mob.get_entity().world.load();
@@ -68,12 +79,11 @@ impl Goal for GrowCropGoal {
         !growable_positions(origin, |pos| Self::is_growable_at(&world, pos)).is_empty()
     }
 
-    fn should_continue(&mut self, _mob: &dyn Mob) -> bool {
-        // One roll grows every eligible crop below the bee, then the goal ends.
-        false
-    }
-
-    fn start(&mut self, mob: &dyn Mob) {
+    fn tick(&mut self, mob: &dyn Mob) {
+        let roll = rand::rng().random_range(0..self.get_tick_count(GROW_CHANCE_ONE_IN));
+        if !should_grow_this_tick(roll) {
+            return;
+        }
         let world = mob.get_entity().world.load();
         let origin = mob.get_entity().block_pos.load();
         for pos in growable_positions(origin, |pos| Self::is_growable_at(&world, pos)) {
@@ -105,6 +115,21 @@ mod tests {
             growable_positions(origin, |pos| crops.contains(pos)),
             vec![BlockPos::new(0, 63, 0), BlockPos::new(0, 62, 0)]
         );
+    }
+
+    #[test]
+    fn grow_gate_mirrors_vanilla_thirty_percent_rejection() {
+        assert!(passes_grow_gate(0.0));
+        assert!(passes_grow_gate(0.299_999));
+        assert!(!passes_grow_gate(0.3));
+        assert!(!passes_grow_gate(1.0));
+    }
+
+    #[test]
+    fn growth_roll_only_succeeds_on_zero() {
+        assert!(should_grow_this_tick(0));
+        assert!(!should_grow_this_tick(1));
+        assert!(!should_grow_this_tick(29));
     }
 
     #[test]

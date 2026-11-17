@@ -183,10 +183,9 @@ impl CushionEntity {
         for passenger in passengers {
             entity.remove_passenger(passenger.get_entity().entity_id);
         }
-        // A cancelled dismount must not leave a rider attached to a removed cushion.
-        if entity.has_passengers() {
-            return;
-        }
+        // Vanilla `BlockAttachedEntity.hurtServer` removes and drops the cushion
+        // unconditionally; a cancelled dismount leaves the rider attached but the
+        // cushion still breaks, so a surviving rider must not block the break.
 
         let world = entity.world.load();
         // Vanilla `BlockAttachedEntity` drop path: break sound and drop only
@@ -390,18 +389,14 @@ impl EntityBase for CushionEntity {
             return false;
         }
 
-        // The player's vehicle attachment is 0.6 blocks above their feet.
-        let position = self.entity.pos.load()
-            + Vector3::new(
-                0.0,
-                f64::from(self.entity.entity_type.dimension[1]) - 0.6,
-                0.0,
-            );
+        // Vanilla `startRiding` seats the rider through `positionRider`, which
+        // subtracts the rider's `vehicle` attachment from the vehicle's `passenger` point.
+        crate::entity::position_rider(vehicle.as_ref(), passenger.as_ref());
+        let position = player.get_entity().pos.load();
         let mut awaiting_teleport = player
             .awaiting_teleport
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        player.get_entity().set_pos(position);
         // The dismount teleport precedes the mount packet. Its acknowledgement
         // must preserve the new riding position, not restore the old seat.
         if let Some((_, target)) = awaiting_teleport.as_mut() {
@@ -450,6 +445,23 @@ mod tests {
     use pumpkin_world::level::Level;
     use pumpkin_world::world_info::LevelData;
     use std::sync::Weak;
+
+    #[test]
+    fn subtract_box_underpins_anchor_buried_detection() {
+        let part = BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+        let overlap = BoundingBox::new(Vector3::new(0.5, 0.0, 0.0), Vector3::new(1.5, 1.0, 1.0));
+        let pieces = subtract_box(part, &overlap);
+        assert_eq!(pieces.len(), 1, "only the uncovered slab should remain");
+        assert_eq!(pieces[0].min, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(pieces[0].max, Vector3::new(0.5, 1.0, 1.0));
+
+        let covering =
+            BoundingBox::new(Vector3::new(-1.0, -1.0, -1.0), Vector3::new(2.0, 2.0, 2.0));
+        assert!(
+            subtract_box(part, &covering).is_empty(),
+            "a fully covered resting slice counts as buried"
+        );
+    }
 
     #[tokio::test]
     async fn breaking_an_occupied_cushion_detaches_its_passenger() {

@@ -4,10 +4,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, RwLock};
 
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_inventory::generic_container_screen_handler::{create_generic_9x3, create_hopper};
+use pumpkin_inventory::generic_container_screen_handler::{
+    GenericContainerScreenHandler, create_generic_9x3, create_hopper,
+};
 use pumpkin_inventory::player::player_inventory::PlayerInventory;
 use pumpkin_inventory::screen_handler::{
-    InventoryPlayer, ScreenHandlerFactory, SharedScreenHandler,
+    InventoryPlayer, ScreenHandler, ScreenHandlerBehaviour, ScreenHandlerFactory,
+    SharedScreenHandler,
 };
 use pumpkin_inventory::{Clearable, Inventory};
 use pumpkin_nbt::compound::NbtCompound;
@@ -173,10 +176,51 @@ impl Clearable for MinecartInventory {
     }
 }
 
+type EntityValidityCheck = Arc<dyn Fn(&dyn InventoryPlayer) -> bool + Send + Sync>;
+
+/// Vanilla `ContainerEntity.stillValid` drops an entity-backed screen once the vehicle is
+/// removed or the player leaves its interaction range. `GenericContainerScreenHandler`
+/// leaves `can_use` at its default (true), so entity screens need a validity-aware wrapper.
+struct EntityContainerScreenHandler {
+    inner: GenericContainerScreenHandler,
+    validity: EntityValidityCheck,
+}
+
+impl ScreenHandler for EntityContainerScreenHandler {
+    fn as_any(&self) -> &dyn Any {
+        self.inner.as_any()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self.inner.as_any_mut()
+    }
+
+    fn get_behaviour(&self) -> &ScreenHandlerBehaviour {
+        self.inner.get_behaviour()
+    }
+
+    fn get_behaviour_mut(&mut self) -> &mut ScreenHandlerBehaviour {
+        self.inner.get_behaviour_mut()
+    }
+
+    fn can_use(&self, player: &dyn InventoryPlayer) -> bool {
+        (self.validity)(player)
+    }
+
+    fn on_closed(&mut self, player: &dyn InventoryPlayer) {
+        self.inner.on_closed(player);
+    }
+
+    fn quick_move(&mut self, player: &dyn InventoryPlayer, slot_index: i32) -> ItemStack {
+        self.inner.quick_move(player, slot_index)
+    }
+}
+
 struct MinecartScreenFactory {
     inventory: Arc<MinecartInventory>,
     title: TextComponent,
     hopper: bool,
+    validity: Option<EntityValidityCheck>,
 }
 
 impl ScreenHandlerFactory for MinecartScreenFactory {
@@ -195,7 +239,13 @@ impl ScreenHandlerFactory for MinecartScreenFactory {
         } else {
             create_generic_9x3(sync_id, player_inventory, inventory, player)
         };
-        Some(Arc::new(Mutex::new(handler)) as SharedScreenHandler)
+        let Some(validity) = self.validity.clone() else {
+            return Some(Arc::new(Mutex::new(handler)) as SharedScreenHandler);
+        };
+        Some(Arc::new(Mutex::new(EntityContainerScreenHandler {
+            inner: handler,
+            validity,
+        })) as SharedScreenHandler)
     }
 
     fn get_display_name(&self) -> TextComponent {
@@ -224,14 +274,31 @@ pub fn open(
         });
     }
 
+    // Vanilla `ContainerEntity.stillValid` = !isRemoved() && player.isWithinEntityInteractionRange(boundingBox, 4.0).
+    // Track the vehicle by id through the world so the screen closes on walking away or destruction.
+    let world = entity.world.load_full();
+    let entity_id = entity.entity_id;
+    let validity: EntityValidityCheck = Arc::new(move |screen_player| {
+        let Some(screen_player) = screen_player.as_any().downcast_ref::<Player>() else {
+            return false;
+        };
+        let Some(vehicle) = world.get_entity_by_id(entity_id) else {
+            return false;
+        };
+        vehicle.get_entity().is_alive()
+            && screen_player.can_interact_with_entity(vehicle.as_ref(), 4.0)
+    });
+
     player
-        .open_handled_screen(
+        .open_handled_screen_at(
             &MinecartScreenFactory {
                 inventory: inventory.clone(),
                 title: entity.custom_name.load().as_ref().clone().unwrap_or(title),
                 hopper,
+                validity: Some(validity),
             },
             None,
+            Some(entity),
         )
         .is_some()
 }
@@ -338,5 +405,23 @@ mod tests {
         let stack = restored.get_stack(8);
         assert_eq!(stack.get_item().id, Item::POWERED_RAIL.id);
         assert_eq!(stack.item_count, 3);
+    }
+
+    #[test]
+    fn chest_boat_last_slot_round_trips_through_items_nbt() {
+        let inventory = MinecartInventory::new(27);
+        inventory.set_stack(26, ItemStack::new(2, &Item::POWERED_RAIL));
+
+        let mut nbt = NbtCompound::new();
+        inventory.write_nbt(&mut nbt);
+        let items = nbt.get_list("Items");
+        assert!(items.is_some_and(|slots| slots.len() == 1));
+
+        let restored = MinecartInventory::new(27);
+        restored.read_nbt(&nbt);
+        let stack = restored.get_stack(26);
+        assert_eq!(stack.get_item().id, Item::POWERED_RAIL.id);
+        assert_eq!(stack.item_count, 2);
+        assert!(restored.get_stack(25).is_empty());
     }
 }

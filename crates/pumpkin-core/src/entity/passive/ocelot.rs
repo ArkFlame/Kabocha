@@ -25,6 +25,7 @@ use crate::entity::{
 };
 
 const DESPAWN_AFTER_TICKS: i32 = 2400;
+const OCELOT_AMBIENT_SOUND_INTERVAL: i32 = 900;
 
 const OCELOT_FLEES: &[Flee] = &[feline::flee_players(4, is_wary)];
 
@@ -137,6 +138,14 @@ impl Mob for OcelotEntity {
         &self.mob_entity
     }
 
+    fn get_ambient_sound(&self) -> Option<pumpkin_data::sound::Sound> {
+        self.get_entity().entity_type.ambient_sound
+    }
+
+    fn get_ambient_sound_interval(&self) -> i32 {
+        OCELOT_AMBIENT_SOUND_INTERVAL
+    }
+
     /// Vanilla `Ocelot.customServerAiStep`: pose and sprint follow the navigation speed,
     /// identical to the cat's copy.
     fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
@@ -228,5 +237,10 @@ mod tests {
     #[test]
     fn despawn_after_ticks_matches_vanilla() {
         assert_eq!(DESPAWN_AFTER_TICKS, 2400);
+    }
+
+    #[test]
+    fn ambient_sound_interval_matches_vanilla() {
+        assert_eq!(OCELOT_AMBIENT_SOUND_INTERVAL, 900);
     }
 }

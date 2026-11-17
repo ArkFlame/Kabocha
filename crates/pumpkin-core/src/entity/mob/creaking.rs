@@ -35,6 +35,8 @@ pub const MAX_HEALTH: f32 = 1.0;
 pub const ATTACK_DAMAGE: f32 = 3.0;
 pub const FOLLOW_RANGE: f32 = 32.0;
 pub const ACTIVATION_RANGE_SQ: f64 = 144.0;
+/// Vanilla `Creaking.checkCanMove` passes coneSize 0.5 with `adjustForDistance=false`.
+pub const GAZE_CONE_SIZE: f64 = 0.5;
 pub const ATTACK_INTERVAL: i32 = 40;
 pub const MOVEMENT_SPEED_WHEN_FIGHTING: f32 = 0.4;
 pub const SPEED_MULTIPLIER_WHEN_IDLING: f32 = 0.3;
@@ -300,7 +302,10 @@ impl CreakingEntity {
             if distance > 0.001 {
                 let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
                 let dot = look_dir.dot(&norm_dir);
-                if dot > 1.0 - 0.5 / distance && player_entity.has_line_of_sight(creaking_entity) {
+                // Vanilla `isLookingAtMe` divides the cone size by distance only when
+                // `adjustForDistance` is true; the creaking passes false, so the
+                // threshold stays constant.
+                if dot > 1.0 - GAZE_CONE_SIZE && player_entity.has_line_of_sight(creaking_entity) {
                     return true;
                 }
             }

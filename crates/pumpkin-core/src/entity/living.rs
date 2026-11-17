@@ -1254,8 +1254,8 @@ impl LivingEntity {
     /// 2. Mobs then play the death animation and vanish after 20 ticks, without drops.
     /// 3. A player at 0 health gets the death screen and respawns, without drops.
     ///
-    /// Kept for parity, the tick and respawn paths already treat 0 health like vanilla.
-    // TODO: config option to prevent this (clamp the amount or run the real death flow).
+    /// Kept for parity, the tick and respawn paths already treat 0 health like vanilla. Vanilla
+    /// returns `()` here too and has no switch, so the clamp stays unconditional.
     pub fn heal(&self, additional_health: f32) {
         if self.health.load() <= 0.0 || additional_health == 0.0 {
             return;
@@ -1611,6 +1611,30 @@ impl LivingEntity {
 
         // Apply non-instant effects
 
+        // Vanilla stores one instance per effect and merges a new one into it, so a weaker or
+        // shorter potion never replaces a stronger or longer effect already running.
+        let (stored_effect, was_absent, effect_changed) = {
+            let mut effects = self
+                .active_effects
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let existing = effects.get(&effect.effect_type).cloned();
+            match existing {
+                Some(existing) => {
+                    let mut merged = existing;
+                    let changed = update_effect(&mut merged, &effect);
+                    if changed {
+                        effects.insert(merged.effect_type, merged.clone());
+                    }
+                    (merged, false, changed)
+                }
+                None => {
+                    effects.insert(effect.effect_type, effect.clone());
+                    (effect.clone(), true, true)
+                }
+            }
+        };
+
         // Effects that modify attributes (ex. speed) should also update the
         // entity's attribute instances (server-side) and then notify clients.
         if !effect.effect_type.attribute_modifiers.is_empty() {
@@ -1622,7 +1646,7 @@ impl LivingEntity {
                     Operation::AddMultipliedBase => ModifierOperation::MultiplyBase,
                     Operation::AddMultipliedTotal => ModifierOperation::MultiplyTotal,
                 };
-                let scaled_amount = m.base_value * (f64::from(effect.amplifier) + 1.);
+                let scaled_amount = m.base_value * (f64::from(stored_effect.amplifier) + 1.);
                 let mod_inst = Modifier {
                     id,
                     amount: scaled_amount,
@@ -1650,6 +1674,7 @@ impl LivingEntity {
         // Vanilla `AbsorptionMobEffect.onEffectStarted`: sets absorption to the larger of the
         // current amount and 4 per level, it does not stack.
         if effect.effect_type == &StatusEffect::ABSORPTION {
+            // Vanilla runs onEffectStarted with the incoming amplifier, changed or not.
             let target = 4.0 * (effect.amplifier as f32 + 1.0);
             let max_abs = self.get_attribute_value(&Attributes::MAX_ABSORPTION) as f32;
             let new_abs = self.absorption.load().max(target).min(max_abs);
@@ -1666,16 +1691,12 @@ impl LivingEntity {
             self.entity.set_glowing_from_effect(true);
         }
 
-        // Broadcast effect to nearby players
-        self.broadcast_effect(&effect);
+        // Vanilla resends the effect only when its stored instance actually changed.
+        if effect_changed {
+            self.broadcast_effect(&stored_effect);
+        }
         if !effect.effect_type.instantaneous {
             let apply_sound = effect.effect_type.apply_sound;
-            let was_absent = self
-                .active_effects
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(effect.effect_type, effect)
-                .is_none();
             if was_absent && let Some(sound) = apply_sound {
                 let category = self.entity.entity_type.sound_source;
                 self.entity.world.load().play_sound_fine(
@@ -1928,43 +1949,17 @@ impl LivingEntity {
         prevents
     }
 
+    /// Vanilla lands on one block state, the one under the feet, so only that pad protects from
+    /// fall damage; a radius scan with the safe fall distance wrongly protected entities merely
+    /// standing near a slime block or cobweb.
     pub fn should_prevent_fall_damage_in_area(&self) -> bool {
-        let world = self.entity.world.load();
-        let block_pos = self.entity.block_pos.load().down();
-        let entity_pos = self.entity.pos.load();
-
-        let min = BlockPos(Vector3::new(
-            block_pos.0.x - 1,
-            block_pos.0.y,
-            block_pos.0.z - 1,
-        ));
-        let max = BlockPos(Vector3::new(
-            block_pos.0.x + 1,
-            block_pos.0.y,
-            block_pos.0.z + 1,
-        ));
-        let pos_iter = BlockPos::iterate(min, max);
-
-        // FIXME: it seems the java server checks all blocks around with a raycast and check if miss or hit,
-        // then added to a collision checker to handle in the tick handler
-        for pos in pos_iter {
-            let block = world.get_block(&pos);
-
-            if Self::PREVENT_AREA_FALL_DAMAGE_BLOCKS.contains(&block) {
-                let block_center = Vector3::new(
-                    f64::from(pos.0.x) + 0.5,
-                    f64::from(pos.0.y) + 0.5,
-                    f64::from(pos.0.z) + 0.5,
-                );
-                let distance = entity_pos.squared_distance_to_vec(&block_center);
-
-                // Fetch safe fall distance from attribute
-                let safe_distance = self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE);
-                return distance <= safe_distance * safe_distance;
-            }
-        }
-
-        false
+        let block = self
+            .entity
+            .world
+            .load()
+            .get_block(&self.entity.block_pos.load().down());
+        Self::PREVENT_AREA_FALL_DAMAGE_BLOCKS.contains(&block)
+            || block.has_tag(&tag::Block::MINECRAFT_FALL_DAMAGE_RESETTING)
     }
 
     pub fn is_immune_to_fall_damage(&self) -> bool {
@@ -2291,11 +2286,9 @@ impl LivingEntity {
         if let Some(lev) = levitation {
             velo.y += 0.05f64.mul_add(f64::from(lev.amplifier + 1), -velo.y) * 0.2;
         } else {
+            // Vanilla only takes the `hasChunkAt` fallback on the client; the server always
+            // applies effective gravity, and Pumpkin has no server-side chunkless travel.
             velo.y -= self.get_effective_gravity(caller);
-
-            // TODO: If world is not loaded: replace effective gravity with:
-
-            // if below world's bottom y then -0.1, else 0.0
         }
 
         if !self.discard_friction.load(Relaxed) {
@@ -2576,25 +2569,23 @@ impl LivingEntity {
 
             velo.y = velo.y.max(neg);
 
-            // TODO
-            // if velo.y < 0.0
-            //     && self.entity.entity_type == &EntityType::PLAYER
-            //     && self.entity.sneaking.load(Relaxed)
-            // {
-            //     let block = self
-            //         .entity
-            //         .world
-            //         .read()
-            //         .await
-            //         .get_block(&self.entity.block_pos.load())
-            //         .await;
-
-            //     if let Some(props) = block.properties(block.default_state.id) {
-            //         if props.name() == "ScaffoldingLikeProperties" {
-            //             velo.y = 0.0;
-            //         }
-            //     }
-            // }
+            // Vanilla handleOnClimbable: inside scaffolding the clamp applies, on any other
+            // climbable a sneaking player stops sliding down.
+            let in_scaffolding = self
+                .entity
+                .world
+                .load()
+                .get_block(&self.entity.block_pos.load())
+                == &Block::SCAFFOLDING;
+            if velo.y < 0.0
+                && climbing_descent_blocked(
+                    self.entity.is_sneaking(),
+                    in_scaffolding,
+                    self.entity.entity_type == &EntityType::PLAYER,
+                )
+            {
+                velo.y = 0.0;
+            }
 
             self.entity.velocity.store(velo);
         }
@@ -2949,26 +2940,21 @@ impl LivingEntity {
                 .and_then(EntityBase::get_mob)
                 .is_none_or(|mob| mob.killed_entity(&*dyn_self));
             world.send_entity_status(&self.entity, EntityStatus::Death, ActorEventID::Death);
-            let looting_level;
-            let tool = if let Some(cause_ent) = cause {
-                if let Some(player) = cause_ent
-                    .cast_any()
-                    .downcast_ref::<crate::entity::player::Player>()
-                {
-                    let hand_stack = player
-                        .inventory()
-                        .get_stack_in_hand(pumpkin_util::Hand::Right);
-                    looting_level = hand_stack
+            // Vanilla EnchantmentHelper.processEquipmentDropChance and LootContext take the
+            // killing blow's attacker, which is any living entity, not only a player.
+            let (looting_level, tool) = match cause.and_then(|cause_ent| {
+                cause_ent
+                    .get_living_entity()
+                    .map(|living| (cause_ent, living))
+            }) {
+                Some((cause_ent, attacker)) => {
+                    let hand_stack = attacker.held_item(cause_ent);
+                    let level = hand_stack
                         .get_enchantment_level(&Enchantment::LOOTING)
                         .max(0) as u32;
-                    (!hand_stack.is_empty()).then(|| hand_stack.clone())
-                } else {
-                    looting_level = 0;
-                    None
+                    (level, (!hand_stack.is_empty()).then_some(hand_stack))
                 }
-            } else {
-                looting_level = 0;
-                None
+                None => (0, None),
             };
 
             let is_raining = world.is_raining();
@@ -3022,8 +3008,9 @@ impl LivingEntity {
             // non-player death with experience, spreading sculk around a
             // catalyst within 8 blocks.
             if perished && dyn_self.get_player().is_none() && dyn_self.should_drop_experience() {
-                // Vanilla passes a null killer here, so Looting does not raise the soul charge.
-                let soul_charge = dyn_self.get_experience_reward(None);
+                // Vanilla passes `lastDamageSource.getEntity()` to `getExperienceReward`,
+                // so Looting raises the soul charge just like the normal XP drop.
+                let soul_charge = dyn_self.get_experience_reward(killer);
                 crate::block::entities::sculk_catalyst::on_entity_death(
                     &world,
                     self.entity.block_pos.load(),
@@ -3033,7 +3020,7 @@ impl LivingEntity {
             self.entity.pose.store(EntityPose::Dying);
 
             if should_drop_loot && dyn_self.get_player().is_none() {
-                self.drop_equipment(looting_level);
+                self.drop_equipment(looting_level, has_player_kill);
             }
             if perished && let Some(mob) = dyn_self.get_mob() {
                 mob.drop_inventory();
@@ -3068,7 +3055,7 @@ impl LivingEntity {
         }
     }
 
-    fn drop_equipment(&self, looting_level: u32) {
+    fn drop_equipment(&self, looting_level: u32, killed_by_player: bool) {
         let world = self.entity.world.load();
         let block_pos = self.entity.block_pos.load();
 
@@ -3098,7 +3085,8 @@ impl LivingEntity {
             // adds lootingLevel * 0.01 to the per-slot equipment drop chance.
             chance += looting_level as f32 * 0.01;
             chance = chance.min(1.0);
-            if !preserved && rand::random::<f32>() >= chance {
+            // Vanilla Mob.dropCustomDeathLoot only rolls a chance drop for a player kill.
+            if !preserved && (!killed_by_player || rand::random::<f32>() >= chance) {
                 continue;
             }
             let mut item = self
@@ -5511,11 +5499,107 @@ pub(crate) const fn attribute_modifier_slot_matches(
     }
 }
 
+/// Vanilla MobEffectInstance.update without the hidden-effect chain: a stronger amplifier
+/// takes over, an equal amplifier only extends the duration, and a weaker or shorter instance
+/// is ignored. Returns whether the stored instance changed.
+fn update_effect(stored: &mut Effect, incoming: &Effect) -> bool {
+    let mut changed = false;
+    if incoming.amplifier > stored.amplifier {
+        stored.amplifier = incoming.amplifier;
+        stored.duration = incoming.duration;
+        changed = true;
+    } else if incoming.amplifier == stored.amplifier
+        && stored.duration != -1
+        && (stored.duration < incoming.duration || incoming.duration == -1)
+    {
+        stored.duration = incoming.duration;
+        changed = true;
+    }
+
+    if (!incoming.ambient && stored.ambient) || changed {
+        stored.ambient = incoming.ambient;
+        changed = true;
+    }
+    if incoming.show_particles != stored.show_particles {
+        stored.show_particles = incoming.show_particles;
+        changed = true;
+    }
+    if incoming.show_icon != stored.show_icon {
+        stored.show_icon = incoming.show_icon;
+        changed = true;
+    }
+    changed
+}
+
+/// Vanilla handleOnClimbable: descending on a climbable is blocked for a sneaking player
+/// unless the block in the entity is scaffolding.
+const fn climbing_descent_blocked(sneaking: bool, in_scaffolding: bool, is_player: bool) -> bool {
+    sneaking && !in_scaffolding && is_player
+}
+
 /// Mirrors vanilla's strict `random < probability` consume-effect gate.
 const fn consume_effect_probability_applies(probability: f32, random: f32) -> bool {
     random < probability
 }
 
+#[cfg(test)]
+mod effect_update_tests {
+    use super::{Effect, update_effect};
+    use pumpkin_data::effect::StatusEffect;
+
+    fn effect(amplifier: u8, duration: i32) -> Effect {
+        Effect {
+            effect_type: &StatusEffect::SPEED,
+            duration,
+            amplifier,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+            blend: false,
+        }
+    }
+
+    #[test]
+    fn weaker_or_shorter_instance_never_replaces_the_stored_one() {
+        let mut stored = effect(2, 200);
+        assert!(!update_effect(&mut stored, &effect(1, 400)));
+        assert_eq!(stored.amplifier, 2);
+        assert_eq!(stored.duration, 200);
+    }
+
+    #[test]
+    fn stronger_amplifier_takes_over_and_equal_amplifier_extends_only() {
+        let mut stored = effect(1, 200);
+        assert!(update_effect(&mut stored, &effect(2, 100)));
+        assert_eq!(stored.amplifier, 2);
+        assert_eq!(stored.duration, 100);
+
+        let mut stored = effect(1, 200);
+        assert!(update_effect(&mut stored, &effect(1, 400)));
+        assert_eq!(stored.duration, 400);
+        assert!(!update_effect(&mut stored, &effect(1, 300)));
+        assert_eq!(stored.duration, 400);
+    }
+
+    #[test]
+    fn infinite_duration_is_never_shortened() {
+        let mut stored = effect(1, -1);
+        assert!(!update_effect(&mut stored, &effect(1, 400)));
+        assert_eq!(stored.duration, -1);
+    }
+}
+
+#[cfg(test)]
+mod climbing_tests {
+    use super::climbing_descent_blocked;
+    #[test]
+    fn sneaking_player_stops_sliding_down_climbables_except_scaffolding() {
+        assert!(climbing_descent_blocked(true, false, true));
+        assert!(!climbing_descent_blocked(true, true, true));
+        assert!(!climbing_descent_blocked(true, false, false));
+        assert!(!climbing_descent_blocked(false, false, true));
+    }
+}
 #[cfg(test)]
 mod consumable_effect_tests {
     use super::{consume_effect_probability_applies, random_teleport_coordinate};

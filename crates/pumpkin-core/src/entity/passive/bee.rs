@@ -1,5 +1,5 @@
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicI32, AtomicU8, Ordering},
 };
 
@@ -69,7 +69,32 @@ fn needs_nectar(mob: &dyn Mob) -> bool {
 fn record_nectar(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
         bee.set_has_nectar(true);
+        // Vanilla `BeePollinateGoal.start` resets this counter when pollination begins.
+        bee.ticks_without_nectar.store(0, Ordering::Relaxed);
+        // Vanilla remembers the flower found at pollination start; here the bee is at the flower.
+        bee.set_flower_pos(Some(bee.get_entity().block_pos.load()));
     }
+}
+
+/// Vanilla `BlockPos.CODEC` stores a hive or flower position as an `X`/`Y`/`Z` compound.
+fn write_block_pos(nbt: &mut NbtCompound, key: &str, pos: BlockPos) {
+    let mut tag = NbtCompound::new();
+    tag.put_int("X", pos.0.x);
+    tag.put_int("Y", pos.0.y);
+    tag.put_int("Z", pos.0.z);
+    nbt.put_compound(key, tag);
+}
+
+/// Reads the vanilla compound or the legacy int-array form of a saved position.
+fn read_block_pos(nbt: &NbtCompound, key: &str) -> Option<BlockPos> {
+    if let Some(tag) = nbt.get_compound(key) {
+        let x = tag.get_int("X").or_else(|| tag.get_int("x"))?;
+        let y = tag.get_int("Y").or_else(|| tag.get_int("y"))?;
+        let z = tag.get_int("Z").or_else(|| tag.get_int("z"))?;
+        return Some(BlockPos::new(x, y, z));
+    }
+    let arr = nbt.get_int_array(key)?;
+    (arr.len() == 3).then(|| BlockPos::new(arr[0], arr[1], arr[2]))
 }
 
 /// Vanilla `Bee.MAX_CROPS_GROWN` per pollination cycle.
@@ -117,6 +142,8 @@ pub struct BeeEntity {
     pub cannot_enter_hive_ticks: AtomicI32,
     pub crops_grown_since_pollination: AtomicI32,
     pub time_since_sting: AtomicI32,
+    pub hive_pos: Mutex<Option<BlockPos>>,
+    pub flower_pos: Mutex<Option<BlockPos>>,
 }
 
 impl BeeEntity {
@@ -155,6 +182,8 @@ impl BeeEntity {
             cannot_enter_hive_ticks: AtomicI32::new(0),
             crops_grown_since_pollination: AtomicI32::new(0),
             time_since_sting: AtomicI32::new(0),
+            hive_pos: Mutex::new(None),
+            flower_pos: Mutex::new(None),
         };
         let mob_arc = Arc::new(bee);
 
@@ -263,6 +292,36 @@ impl BeeEntity {
     pub fn set_rolling(&self, val: bool) {
         self.set_flag(FLAG_ROLL, val);
     }
+
+    #[must_use]
+    pub fn hive_pos(&self) -> Option<BlockPos> {
+        *self
+            .hive_pos
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    pub fn set_hive_pos(&self, pos: Option<BlockPos>) {
+        *self
+            .hive_pos
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
+    }
+
+    #[must_use]
+    pub fn flower_pos(&self) -> Option<BlockPos> {
+        *self
+            .flower_pos
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    pub fn set_flower_pos(&self, pos: Option<BlockPos>) {
+        *self
+            .flower_pos
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
+    }
 }
 
 impl AgeableMob for BeeEntity {
@@ -350,6 +409,12 @@ impl Mob for BeeEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        if let Some(pos) = self.hive_pos() {
+            write_block_pos(nbt, "hive_pos", pos);
+        }
+        if let Some(pos) = self.flower_pos() {
+            write_block_pos(nbt, "flower_pos", pos);
+        }
         nbt.put_bool("HasNectar", self.has_nectar());
         nbt.put_bool("HasStung", self.has_stung());
         nbt.put_int(
@@ -367,6 +432,12 @@ impl Mob for BeeEntity {
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        if let Some(pos) = read_block_pos(nbt, "hive_pos") {
+            self.set_hive_pos(Some(pos));
+        }
+        if let Some(pos) = read_block_pos(nbt, "flower_pos") {
+            self.set_flower_pos(Some(pos));
+        }
         if let Some(nectar) = nbt.get_bool("HasNectar") {
             self.set_has_nectar(nectar);
         }
@@ -406,9 +477,13 @@ impl Mob for BeeEntity {
             }
         }
         // Vanilla `Bee.customServerAiStep`: count ticks spent without nectar. The hive
-        // return reads this at 3600, and the pollination reset is not ported yet.
+        // return reads this at 3600; pollination resets it when nectar is gathered.
         if !self.has_nectar() {
             self.ticks_without_nectar.fetch_add(1, Ordering::Relaxed);
+        }
+        // Vanilla `Bee.aiStep` decrements `stayOutOfHiveCountdown` every server tick.
+        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
+            self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
         }
         self.update_persistent_anger();
     }
@@ -460,9 +535,12 @@ impl Mob for BeeEntity {
 
 #[cfg(test)]
 mod tests {
+    use pumpkin_nbt::compound::NbtCompound;
+    use pumpkin_nbt::tag::NbtTag;
     use pumpkin_util::Difficulty;
+    use pumpkin_util::math::position::BlockPos;
 
-    use super::sting_poison_ticks;
+    use super::{read_block_pos, sting_poison_ticks, write_block_pos};
 
     #[test]
     fn sting_poison_scales_with_difficulty() {
@@ -470,5 +548,27 @@ mod tests {
         assert_eq!(sting_poison_ticks(Difficulty::Easy), 0);
         assert_eq!(sting_poison_ticks(Difficulty::Normal), 200);
         assert_eq!(sting_poison_ticks(Difficulty::Hard), 360);
+    }
+
+    #[test]
+    fn saved_positions_round_trip_as_vanilla_compounds() {
+        let mut nbt = NbtCompound::new();
+        let hive = BlockPos::new(12, 64, -7);
+        let flower = BlockPos::new(-3, 70, 22);
+        write_block_pos(&mut nbt, "hive_pos", hive);
+        write_block_pos(&mut nbt, "flower_pos", flower);
+        assert_eq!(read_block_pos(&nbt, "hive_pos"), Some(hive));
+        assert_eq!(read_block_pos(&nbt, "flower_pos"), Some(flower));
+        assert_eq!(read_block_pos(&nbt, "unset"), None);
+    }
+
+    #[test]
+    fn saved_positions_accept_legacy_int_arrays() {
+        let mut nbt = NbtCompound::new();
+        nbt.put("hive_pos", NbtTag::IntArray(vec![1, 2, 3]));
+        assert_eq!(
+            read_block_pos(&nbt, "hive_pos"),
+            Some(BlockPos::new(1, 2, 3))
+        );
     }
 }

@@ -21,6 +21,13 @@ pub struct VehicleEntity {
     pub damage: AtomicCell<f32>,
 }
 
+/// Vanilla `VehicleEntity.destroy` drops a single hardcoded item; boats have an empty
+/// entity loot table, so rolling `minecraft:entities/<type>` would double-drop with a datapack.
+#[must_use]
+pub fn has_entity_loot_table(entity_type: &pumpkin_data::entity::EntityType) -> bool {
+    entity_type.boat.is_none()
+}
+
 impl VehicleEntity {
     pub const fn new(entity: Entity) -> Self {
         Self {
@@ -191,7 +198,7 @@ impl VehicleEntity {
         let world = self.entity.world.load();
         let entity_drops = world.level_info.load().game_rules.entity_drops;
 
-        if entity_drops {
+        if entity_drops && has_entity_loot_table(self.entity.entity_type) {
             let resource_name = self.entity.entity_type.resource_name;
             let key = format!("minecraft:entities/{resource_name}");
             if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
@@ -322,5 +329,15 @@ mod tests {
 
         assert_eq!(wobble_metadata(JavaMinecraftVersion::V_1_21_11), expected);
         assert_eq!(wobble_metadata(JavaMinecraftVersion::V_26_2), expected);
+    }
+
+    #[test]
+    fn boats_have_no_entity_loot_table() {
+        use pumpkin_data::entity::EntityType;
+        assert!(!super::has_entity_loot_table(&EntityType::OAK_BOAT));
+        assert!(!super::has_entity_loot_table(
+            &EntityType::BAMBOO_CHEST_RAFT
+        ));
+        assert!(super::has_entity_loot_table(&EntityType::COW));
     }
 }

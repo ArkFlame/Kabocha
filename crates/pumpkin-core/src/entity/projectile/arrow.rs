@@ -796,8 +796,9 @@ impl ArrowEntity {
             if pierce == 0 {
                 entity.remove();
             }
-        } else if pierce == 0 && target.projectile_receives_side_effects_on_hit(false) {
-            // Vanilla `Arrow#onHitEntity` keeps this branch inside `if (pierceLevel <= 0)`.
+        } else if target.projectile_receives_side_effects_on_hit(false) {
+            // Vanilla `AbstractArrow#onHitEntity`: the deflect branch is the `else` of the
+            // `hurtOrSimulate` hit, with no pierce-level guard, so piercing arrows deflect too.
             target_entity
                 .fire_ticks
                 .store(fire_ticks, Ordering::Relaxed);

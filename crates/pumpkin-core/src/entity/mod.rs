@@ -252,6 +252,25 @@ pub const fn entity_type_to_bedrock_identifier(entity_type: &EntityType) -> &'st
     }
 }
 
+/// Mirrors vanilla `PlayerTeam.formatNameForTeam`: prefix + name + suffix with the team
+/// colour applied to the root component so children inherit it (Adventure `withColor`).
+fn format_name_for_team(
+    name: TextComponent,
+    team: Option<&crate::world::scoreboard::Team>,
+) -> TextComponent {
+    let Some(team) = team else {
+        return name;
+    };
+    let mut formatted = TextComponent::empty()
+        .add_child(team.player_prefix.clone())
+        .add_child(name)
+        .add_child(team.player_suffix.clone());
+    if let Some(color) = team.color {
+        formatted = formatted.color_named(color);
+    }
+    formatted
+}
+
 pub trait EntityBase: Send + Sync + std::any::Any {
     fn write_nbt(&self, nbt: &mut NbtCompound) {
         self.get_entity().write_nbt(nbt);
@@ -1065,7 +1084,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         if entity.fire_ticks.load(Ordering::Relaxed) < ticks as i32 {
             entity.fire_ticks.store(ticks as i32, Ordering::Relaxed);
         }
-        // TODO: defrost
+        // Vanilla Entity.igniteForTicks clears freeze after setting fire ticks.
+        if entity.frozen_ticks.load(Ordering::Relaxed) > 0 {
+            entity.set_frozen_ticks(0);
+        }
     }
 
     /// Called when a player collides with an entity
@@ -1410,9 +1432,8 @@ pub trait EntityBase: Send + Sync + std::any::Any {
     }
 
     fn get_display_name(&self) -> TextComponent {
-        // TODO: team color
         let entity = self.get_entity();
-        let mut name =
+        let base_name =
             entity
                 .custom_name
                 .load()
@@ -1423,11 +1444,13 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                     format!("entity.minecraft.{}", entity.entity_type.resource_name),
                     [],
                 ));
-        let name_clone = name.clone();
+        // Vanilla Entity.getDisplayName is PlayerTeam.formatNameForTeam(getTeam(), getName())
+        // with hover and insertion applied to the whole result.
+        let mut name = format_name_for_team(base_name.clone(), self.get_team().as_ref());
         name = name.hover_event(HoverEvent::show_entity(
             entity.entity_uuid.to_string(),
             entity.entity_type.resource_name.into(),
-            Some(name_clone),
+            Some(base_name),
         ));
         name = name.insertion(entity.entity_uuid.to_string());
         name
@@ -1450,8 +1473,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                     .load()
                     .scatter_inventory_at(entity.pos.load(), &container);
             }
-            // TODO this should be removed once all entities are implemented
+            // Vanilla `Entity#kill` discards and only then emits `ENTITY_DIE`; living
+            // entities get the same event from the generic-kill hurt path instead.
             self.get_entity().remove();
+            self.get_entity()
+                .emit_own_game_event(caller, GameEvent::EntityDie);
         }
     }
 
@@ -3142,70 +3168,6 @@ impl Entity {
         }
 
         self.velocity.store(motion);
-    }
-
-    #[expect(dead_code)]
-    const fn tick_block_underneath() {
-        // let world = self.world.read();
-
-        // let (pos, block, state) = self.get_block_with_y_offset(0.2);
-
-        // world
-        //     .block_registry
-        //     .on_stepped_on(&world, caller, pos, block, state)
-        //     ;
-
-        // TODO: Add this to on_stepped_on
-
-        /*
-
-
-        if self.on_ground.load(Ordering::SeqCst) {
-
-
-            let (_pos, block, state) = self.get_block_with_y_offset(0.2);
-
-
-            if let Some(live) = living {
-
-
-                if block == Block::CAMPFIRE
-
-
-                    || block == Block::SOUL_CAMPFIRE
-
-
-                        && CampfireLikeProperties::from_state_id(state.id).r#signal_fire
-
-
-                {
-
-
-                    let _ = live.damage(1.0, DamageType::CAMPFIRE);
-
-
-                }
-
-
-
-
-
-                if block == Block::MAGMA_BLOCK {
-
-
-                    let _ = live.damage(1.0, DamageType::HOT_FLOOR);
-
-
-                }
-
-
-            }
-
-
-        }
-
-
-        */
     }
 
     pub fn tick_block_collisions(&self, caller: &dyn EntityBase) -> bool {
@@ -7155,6 +7117,50 @@ fn interact_with_shears(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn team_formatting_adds_prefix_suffix_and_colour() {
+        use crate::world::scoreboard::{CollisionRule, NameTagVisibility, Team};
+        use pumpkin_util::text::color::{Color, NamedColor};
+
+        let team = Team {
+            name: "red".into(),
+            display_name: TextComponent::text("Red"),
+            options: 0,
+            nametag_visibility: NameTagVisibility::Always,
+            collision_rule: CollisionRule::Always,
+            color: Some(NamedColor::Red),
+            death_message_visibility: NameTagVisibility::Always,
+            player_prefix: TextComponent::text("[red] "),
+            player_suffix: TextComponent::text("!"),
+            players: vec![],
+        };
+        let name = TextComponent::text("Steve");
+
+        assert_eq!(format_name_for_team(name.clone(), None), name);
+
+        let formatted = format_name_for_team(name, Some(&team));
+        assert_eq!(formatted.clone().get_text(), "[red] Steve!");
+        assert_eq!(formatted.0.style.color, Some(Color::Named(NamedColor::Red)));
+    }
+
+    #[tokio::test]
+    async fn igniting_clears_freeze_progress() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::{ai::test_support::world, passive::snow_golem::SnowGolemEntity};
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let golem = SnowGolemEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::SNOW_GOLEM,
+        ));
+        golem.get_entity().set_frozen_ticks(100);
+        golem.set_on_fire_for_ticks(20);
+        assert_eq!(golem.get_entity().get_frozen_ticks(), 0);
+        world.level.shutdown().await;
+        Ok(())
+    }
 
     #[tokio::test]
     async fn concurrent_leash_shearing_drops_one_lead_per_connection()

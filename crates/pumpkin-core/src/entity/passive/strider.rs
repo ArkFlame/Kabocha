@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
+use rand::RngExt;
+
 use pumpkin_data::BlockState;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
@@ -176,6 +178,44 @@ impl Mob for StriderEntity {
     fn mob_tick(&self, _caller: &dyn EntityBase) {
         // Vanilla `Strider.tick` expires the warped fungus on a stick boost server side.
         self.steering.tick_boost();
+
+        // Vanilla `Strider.tick`: a panicking strider occasionally retreats.
+        if self.is_panicking() && self.get_random().random_range(0..60) == 0 {
+            self.play_entity_sound(Sound::EntityStriderRetreat, 1.0, 1.0);
+        }
+
+        // Vanilla `Strider.tick` keeps DATA_SUFFOCATING (shivering) in sync with the
+        // environment: a strider shivers unless it stands in/on warm blocks, sits in
+        // lava, or rides another non-shivering strider. Only the flip fires the event.
+        if !self.mob_entity.is_no_ai() {
+            let entity = self.get_entity();
+            let world = entity.world.load();
+            let block_pos = entity.block_pos.load();
+            let warm = &tag::Block::MINECRAFT_STRIDER_WARM_BLOCKS;
+            let in_warm_blocks = world.get_block(&block_pos).has_tag(warm)
+                || world.get_block(&block_pos.down()).has_tag(warm)
+                || entity.lava_height.load() > 0.0;
+            let on_warm_strider = entity.get_vehicle().is_some_and(|vehicle| {
+                vehicle.get_entity().entity_type == &EntityType::STRIDER
+                    && vehicle
+                        .cast_any()
+                        .downcast_ref::<StriderEntity>()
+                        .is_some_and(|strider| !strider.is_suffocating())
+            });
+            let suffocating = !in_warm_blocks && !on_warm_strider;
+            if suffocating != self.is_suffocating() {
+                let mut event = crate::plugin::api::events::entity::strider_temperature_change::StriderTemperatureChangeEvent::new(
+                    entity.entity_id,
+                    suffocating,
+                );
+                if let Some(server) = world.server.upgrade() {
+                    server.plugin_manager.fire_blocking(&server, &mut event);
+                }
+                if !event.cancelled {
+                    self.set_suffocating(suffocating);
+                }
+            }
+        }
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

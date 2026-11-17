@@ -89,8 +89,9 @@ impl MobEntity {
             {
                 follow_range.add_or_replace_permanent_modifier(Modifier {
                     id: RANDOM_SPAWN_BONUS_ID.to_string(),
-                    // Triangle distribution around 0.
-                    amount: 0.114_85 * f64::from(rng.random::<f32>() - rng.random::<f32>()),
+                    // Vanilla `Mob.finalizeSpawn` uses the f64 `RandomSource.triangle(0.0,
+                    // 0.11485)`: `mean + spread * (nextDouble() - nextDouble())`.
+                    amount: 0.114_85 * (rng.random::<f64>() - rng.random::<f64>()),
                     operation: ModifierOperation::MultiplyBase,
                 });
             }

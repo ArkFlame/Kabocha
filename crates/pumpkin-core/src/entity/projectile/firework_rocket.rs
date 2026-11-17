@@ -284,8 +284,14 @@ impl EntityBase for FireworkRocketEntity {
                 }
             }
         } else if !self.shot_at_angle.load(Ordering::Relaxed) {
-            velocity.x *= 1.15;
-            velocity.z *= 1.15;
+            // Vanilla skips the horizontal speed-up while pushed against a wall.
+            let horizontal_acceleration = if entity.horizontal_collision.load(Ordering::Relaxed) {
+                1.0
+            } else {
+                1.15
+            };
+            velocity.x *= horizontal_acceleration;
+            velocity.z *= horizontal_acceleration;
             velocity.y += 0.04;
             entity.set_velocity(velocity);
         }

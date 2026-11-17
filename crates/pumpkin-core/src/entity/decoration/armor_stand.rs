@@ -106,13 +106,17 @@ impl ArmorStandEntity {
         let living_entity = LivingEntity::new(entity);
         let packed_rotation = PackedRotation::default();
 
-        Self {
+        let stand = Self {
             living_entity,
             armor_stand_flags: AtomicU8::new(0),
             last_hit_time: AtomicI64::new(0),
             disabled_slots: AtomicI32::new(0),
             rotation: AtomicCell::new(packed_rotation),
-        }
+        };
+        // Vanilla `ArmorStand.defineSynchedData` seeds the pose entries so clients see
+        // the default arm and leg angles as soon as the stand is spawned.
+        stand.sync_pose(&PackedRotation::default());
+        stand
     }
 
     pub fn set_small(&self, small: bool) {
@@ -200,6 +204,38 @@ impl ArmorStandEntity {
 
     pub fn unpack_rotation(&self, packed: &PackedRotation) {
         self.rotation.store(packed.to_owned());
+        self.sync_pose(packed);
+    }
+
+    /// Vanilla `ArmorStand.setArmorStandPose` writes the six synched rotation
+    /// entries; `Vector3<f32>` serializes the three Euler floats the client expects.
+    fn sync_pose(&self, packed: &PackedRotation) {
+        let entity = self.get_entity();
+        let rotation = |angle: EulerAngle| Vector3::new(angle.pitch, angle.yaw, angle.roll);
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_HEAD_POSE,
+            rotation(packed.head),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_BODY_POSE,
+            rotation(packed.body),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_LEFT_ARM_POSE,
+            rotation(packed.left_arm),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_RIGHT_ARM_POSE,
+            rotation(packed.right_arm),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_LEFT_LEG_POSE,
+            rotation(packed.left_leg),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_RIGHT_LEG_POSE,
+            rotation(packed.right_leg),
+        );
     }
 
     fn break_and_drop_items(&self) {
@@ -225,6 +261,17 @@ impl ArmorStandEntity {
     fn broken_by_anything(&self) {
         let entity = self.get_entity();
         let world = entity.world.load();
+
+        // Paper's brokenByAnything fires EntityDeathEvent before equipment is
+        // cleared, so plugins still observe the stand's items.
+        if let Some(server) = world.server.upgrade() {
+            let mut event = crate::plugin::api::events::entity::entity_death::EntityDeathEvent::new(
+                entity.entity_id,
+                0,
+            );
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+
         world.play_sound(
             Sound::EntityArmorStandBreak,
             SoundCategory::Neutral,
@@ -277,7 +324,7 @@ impl ArmorStandEntity {
 
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
     /// 0.5 or less the stand breaks and drops its equipment (not itself).
-    fn cause_damage(&self, _caller: &dyn EntityBase, amount: f32) {
+    fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
         let entity = self.get_entity();
         self.living_entity.last_damage_taken.store(amount);
         let new_health = self.living_entity.health.load() - amount;
@@ -286,8 +333,11 @@ impl ArmorStandEntity {
             // discards, so burn damage never drops the armor stand item itself.
             self.broken_by_anything();
             entity.remove();
+            // Vanilla `kill(level, source, false)` still emits ENTITY_DIE here.
+            entity.emit_own_game_event(caller, GameEvent::EntityDie);
         } else {
             self.living_entity.health.store(new_health);
+            entity.emit_own_game_event(caller, GameEvent::EntityDamage);
         }
     }
     fn item_in_slot(&self, slot: &EquipmentSlot) -> ItemStack {
@@ -326,12 +376,40 @@ impl ArmorStandEntity {
         item_stack: &mut ItemStack,
     ) -> bool {
         let stand_stack = self.item_in_slot(slot);
+        let insertion_disabled = self.is_slot_insertion_disabled(slot);
+        let removal_disabled = self.is_slot_removal_disabled(slot);
+        // Vanilla `ArmorStand.swapItem` rejects disabled slots before it fires the
+        // manipulation event, so a blocked slot produces no event.
+        if stand_stack.is_empty() {
+            if insertion_disabled {
+                return false;
+            }
+        } else if removal_disabled {
+            return false;
+        }
+
+        // Paper `PlayerArmorStandManipulateEvent`: cancellation consumes the click
+        // but leaves both the stand slot and the held stack untouched.
+        let entity = self.get_entity();
+        let mut event = crate::plugin::api::events::player::player_armor_stand_manipulate::PlayerArmorStandManipulateEvent {
+            player: player.clone(),
+            armor_stand_id: entity.entity_id,
+            slot: vanilla_slot_index(slot) as u8,
+            cancelled: false,
+        };
+        if let Some(server) = entity.world.load().server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if event.cancelled {
+            return true;
+        }
+
         let Some(new_stand_stack) = swap_item_stacks(
             &stand_stack,
             item_stack,
             player.is_creative(),
-            self.is_slot_insertion_disabled(slot),
-            self.is_slot_removal_disabled(slot),
+            insertion_disabled,
+            removal_disabled,
         ) else {
             return false;
         };
@@ -517,6 +595,11 @@ impl EntityBase for ArmorStandEntity {
         self.is_marker()
     }
 
+    /// Vanilla `ArmorStand.ignoreExplosion`: invisible stands ignore explosions.
+    fn is_immune_to_explosion(&self) -> bool {
+        self.is_invisible()
+    }
+
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         let disabled_slots = self.disabled_slots.load(Ordering::Relaxed);
 
@@ -580,6 +663,7 @@ impl EntityBase for ArmorStandEntity {
         cause: Option<&dyn EntityBase>,
     ) -> bool {
         let entity = self.get_entity();
+        let attacker = cause.or(source);
         if entity.is_removed() {
             return false;
         }
@@ -614,13 +698,15 @@ impl EntityBase for ArmorStandEntity {
             // Vanilla: brokenByAnything + discard, so the stand item is not dropped.
             self.broken_by_anything();
             entity.remove();
+            // Vanilla `kill(level, source, false)` emits ENTITY_DIE after removal.
+            entity.emit_own_game_event(caller, GameEvent::EntityDie);
             return false;
         }
 
         // Mirrors vanilla IGNITES_ARMOR_STANDS: ignite once, then burn health down.
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IGNITES_ARMOR_STANDS) {
             if entity.fire_ticks.load(Ordering::Relaxed) > 0 {
-                self.cause_damage(self, 0.15);
+                self.cause_damage(attacker.unwrap_or(self), 0.15);
             } else {
                 self.set_on_fire_for(5.0);
             }
@@ -630,7 +716,7 @@ impl EntityBase for ArmorStandEntity {
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BURNS_ARMOR_STANDS)
             && self.living_entity.health.load() > 0.5
         {
-            self.cause_damage(self, 4.0);
+            self.cause_damage(attacker.unwrap_or(self), 4.0);
             return false;
         }
 
@@ -642,14 +728,16 @@ impl EntityBase for ArmorStandEntity {
             return false;
         }
 
-        let attacker = cause.or(source);
         if let Some(attacker) = attacker
             && let Some(player) = attacker.get_player()
         {
+            // Vanilla ArmorStand.skipAttackInteraction denies attacks when
+            // level.mayInteract refuses the player (spawn protection).
             if !player
                 .abilities
                 .try_lock()
                 .is_ok_and(|a| a.allow_modify_world)
+                || world.is_in_spawn_protection(player, &entity.block_pos.load())
             {
                 return false;
             } else if player.is_creative() {
@@ -682,7 +770,9 @@ impl EntityBase for ArmorStandEntity {
     }
 
     fn get_gravity(&self) -> f64 {
-        0.08
+        // Vanilla gates movement on hasPhysics() = !isMarker() && !isNoGravity(),
+        // so a marker never falls even without the shared NoGravity flag.
+        if self.is_marker() { 0.0 } else { 0.08 }
     }
 
     fn interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
@@ -842,5 +932,18 @@ mod tests {
 
         assert_eq!(new_stand_stack.item_count, 1);
         assert_eq!(held.item_count, 4);
+    }
+
+    #[test]
+    fn clicked_slot_small_stand_matches_decompiled_vanilla() {
+        let has_chest = |slot: &EquipmentSlot| *slot == EquipmentSlot::CHEST;
+        // Decompiled vanilla small chest is 0.9 + 0.3 .. 0.9 + 1.0.
+        assert!(*clicked_slot(1.2, true, has_chest) == EquipmentSlot::CHEST);
+        assert!(*clicked_slot(1.9, true, has_chest) == EquipmentSlot::MAIN_HAND);
+        // Normal chest is 0.9 .. 1.6.
+        assert!(*clicked_slot(0.95, false, has_chest) == EquipmentSlot::CHEST);
+        let has_feet = |slot: &EquipmentSlot| *slot == EquipmentSlot::FEET;
+        // Small feet is 0.1 .. 0.9.
+        assert!(*clicked_slot(0.85, true, has_feet) == EquipmentSlot::FEET);
     }
 }

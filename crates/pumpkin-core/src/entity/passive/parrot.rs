@@ -98,13 +98,11 @@ impl ParrotEntity {
         (rng.random::<f32>() - rng.random::<f32>()) * 0.2 + 1.0
     }
 
-    /// Imitation sounds `getAmbient` may pick. Vanilla `Parrot.getAmbient` filters out
-    /// `HAPPY_GHAST`, whose map entry is deliberately silent.
+    /// Imitation sounds `getAmbient` may pick. Vanilla `Parrot.getAmbient` selects a
+    /// random key from the whole `MOB_SOUND_MAP`, including the happy ghast's
+    /// deliberately silent `EMPTY` entry, so every imitation is a candidate.
     fn ambient_candidates() -> impl Iterator<Item = Sound> {
-        IMITATIONS
-            .iter()
-            .filter(|(kind, _)| *kind != &EntityType::HAPPY_GHAST)
-            .map(|(_, sound)| *sound)
+        IMITATIONS.iter().map(|(_, sound)| *sound)
     }
 
     pub(crate) fn ambient(world: &crate::world::World) -> Sound {
@@ -559,13 +557,13 @@ mod tests {
         assert!(!is_parrot_food(&ItemStack::new(1, &Item::COOKIE)));
     }
 
-    /// Vanilla `Parrot.getAmbient` never picks the happy ghast's silent imitation.
+    /// Vanilla `Parrot.getAmbient` selects from every map key, including the happy
+    /// ghast's silent imitation, so ambient can occasionally return the empty sound.
     #[test]
-    fn ambient_imitation_excludes_the_happy_ghast() {
+    fn ambient_imitation_includes_the_happy_ghast_silent_entry() {
         let sounds: Vec<Sound> = ParrotEntity::ambient_candidates().collect();
-        assert_eq!(sounds.len(), IMITATIONS.len() - 1);
-        assert!(!sounds.is_empty());
-        assert!(!sounds.contains(&Sound::IntentionallyEmpty));
+        assert_eq!(sounds.len(), IMITATIONS.len());
+        assert!(sounds.contains(&Sound::IntentionallyEmpty));
     }
 
     #[test]

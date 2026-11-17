@@ -53,6 +53,8 @@ const UNSET_WEATHERING_TICK: i64 = -1;
 const WEATHERING_TICK_FROM: i64 = 504_000;
 const WEATHERING_TICK_TO: i64 = 552_000;
 const TURN_TO_STATUE_CHANCE: f32 = 0.0058;
+const NBT_KEY_NEXT_WEATHER_AGE: &str = "next_weather_age";
+const NBT_KEY_WEATHER_STATE: &str = "weather_state";
 const SPAWN_COOLDOWN_MIN: i32 = 60;
 const SPAWN_COOLDOWN_MAX: i32 = 100;
 const TICK_TO_START_ON_REACHED_INTERACTION: i32 = 1;
@@ -578,25 +580,28 @@ impl Mob for CopperGolemEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        // Vanilla key `next_weathering_tick` (UNVERIFIED: recalled, no decompiled source).
+        // Vanilla CopperGolem.addAdditionalSaveData writes next_weather_age (long)
         nbt.put_long(
-            "next_weathering_tick",
+            NBT_KEY_NEXT_WEATHER_AGE,
             self.next_weathering_tick.load(Ordering::Relaxed),
         );
-        nbt.put_string("weather_state", self.get_weather_state().name().to_owned());
+        nbt.put_string(
+            NBT_KEY_WEATHER_STATE,
+            self.get_weather_state().name().to_owned(),
+        );
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
-        // `next_weather_age` is the key this port wrote before; read it as a fallback.
+        // Prefer the vanilla key; next_weathering_tick was written by older Pumpkin builds.
         self.next_weathering_tick.store(
-            nbt.get_long("next_weathering_tick")
-                .or_else(|| nbt.get_long("next_weather_age"))
+            nbt.get_long(NBT_KEY_NEXT_WEATHER_AGE)
+                .or_else(|| nbt.get_long("next_weathering_tick"))
                 .unwrap_or(UNSET_WEATHERING_TICK),
             Ordering::Relaxed,
         );
-        if let Some(state) = nbt.get_string("weather_state") {
+        if let Some(state) = nbt.get_string(NBT_KEY_WEATHER_STATE) {
             self.set_weather_state(WeatherState::from_name(state));
-        } else if let Some(state) = nbt.get_int("weather_state") {
+        } else if let Some(state) = nbt.get_int(NBT_KEY_WEATHER_STATE) {
             self.set_weather_state(WeatherState::from_id(state));
         } else {
             self.set_weather_state(WeatherState::Unaffected);

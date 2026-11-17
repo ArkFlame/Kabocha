@@ -542,6 +542,18 @@ fn screen_handler_addr(handler: &Arc<std::sync::Mutex<dyn ScreenHandler>>) -> us
     Arc::as_ptr(handler).cast::<()>().addr()
 }
 
+/// Bedrock `ContainerOpen` target: an entity backed container sends the vehicle runtime id and
+/// its block position, a block container sends the block position and -1.
+fn bedrock_container_open_target(
+    block_pos: Option<BlockPos>,
+    container_entity: Option<(BlockPos, i32)>,
+) -> (BlockPos, VarLong) {
+    match container_entity {
+        Some((position, entity_id)) => (position, VarLong(i64::from(entity_id))),
+        None => (block_pos.unwrap_or(BlockPos::ZERO), VarLong(-1)),
+    }
+}
+
 fn bedrock_container_type(window_type: Option<WindowType>, block: Option<&'static Block>) -> u8 {
     match window_type {
         Some(WindowType::Crafting) => 1,
@@ -1066,7 +1078,6 @@ impl Player {
             known_move_packet_count: AtomicU32::new(0),
             client_is_floating: AtomicBool::new(false),
             above_ground_tick_count: AtomicU32::new(0),
-            // TODO: Send the CPlayerSpawnPosition packet when the client connects with proper values
             respawn_point: std::sync::Mutex::new(None),
             last_death_location: std::sync::Mutex::new(None),
             sleeping_since: AtomicCell::new(None),
@@ -1982,6 +1993,28 @@ impl Player {
                 // Vanilla `Player.causeExtraKnockback` ends the sprint.
                 self.living_entity.set_sprinting(false);
             }
+        } else {
+            // Vanilla `Player.causeExtraKnockback` pushes non-living attackables too
+            // (boats, minecarts, ...), using the raw push direction and a 0.1 lift.
+            let mut knockback_strength = enchantment_knockback
+                + self
+                    .living_entity
+                    .get_attribute_value(&Attributes::ATTACK_KNOCKBACK);
+            if matches!(attack_type, AttackType::Knockback) {
+                knockback_strength += 1.0;
+            }
+            if config.knockback && knockback_strength > 0.0 {
+                let yaw = f64::from(attacker_entity.yaw.load().to_radians());
+                victim_entity.push_by(combat::non_living_knockback_impulse(
+                    yaw,
+                    knockback_strength,
+                ));
+                self.living_entity.set_sprinting(false);
+                let velocity = attacker_entity.velocity.load();
+                attacker_entity
+                    .velocity
+                    .store(velocity.multiply(0.6, 1.0, 0.6));
+            }
         }
 
         combat::sync_hit_player_velocity(victim.as_ref(), old_movement);
@@ -2674,13 +2707,11 @@ impl Player {
         }
         self.get_entity().set_pose(EntityPose::Sleeping);
         // Vanilla `setPosToBed`; `to_f64` already centers X and Z.
-        let bed_state = self
-            .get_entity()
-            .world
-            .load()
-            .get_block_state(&bed_head_pos);
-        let sleep_height = crate::block::blocks::bed::sleep_height(bed_state).unwrap_or(0.0)
-            + crate::block::blocks::bed::SLEEP_HEIGHT_OFFSET;
+        let world = self.get_entity().world.load();
+        let bed_state = world.get_block_state(&bed_head_pos);
+        let sleep_height =
+            crate::block::blocks::bed::player_sleep_height(&world, bed_head_pos, bed_state)
+                + crate::block::blocks::bed::SLEEP_HEIGHT_OFFSET;
         self.living_entity
             .entity
             .set_pos(bed_head_pos.to_f64().add_raw(0.0, sleep_height, 0.0));
@@ -3290,7 +3321,8 @@ impl Player {
     }
 
     pub fn process_inbound_packets(&self) {
-        const MAX_PACKETS_PER_TICK: usize = 64;
+        // Vanilla drains the entire queued batch each tick; the ingress rate limiter in
+        // JavaClient already bounds abusive clients, so no per-tick packet cap is needed.
 
         // Both callers run this after the world's block-update flush. Acknowledge the previous
         // tick's predictions here so Java clients receive the authoritative block states before
@@ -3314,8 +3346,6 @@ impl Player {
         let Some(server_arc) = self.world().server.upgrade() else {
             return;
         };
-
-        let mut count = 0;
 
         while let Some(mut packet) = self.inbound_packets.pop() {
             if self.client.closed() {
@@ -3373,11 +3403,6 @@ impl Player {
                         tracing::error!("Failed to handle Bedrock play packet: {err}");
                     }
                 }
-            }
-
-            count += 1;
-            if count >= MAX_PACKETS_PER_TICK {
-                break;
             }
         }
     }
@@ -4427,21 +4452,7 @@ impl Player {
         let entity = self.get_entity();
         if let Some(vehicle) = entity.get_vehicle() {
             let entity_type = vehicle.get_entity().entity_type;
-            if entity_type.has_tag(&pumpkin_data::tag::EntityType::MINECRAFT_BOAT)
-                || entity_type.has_tag(&pumpkin_data::tag::EntityType::C_BOATS)
-                || entity_type == &EntityType::OAK_BOAT
-                || entity_type == &EntityType::SPRUCE_BOAT
-                || entity_type == &EntityType::BIRCH_BOAT
-                || entity_type == &EntityType::JUNGLE_BOAT
-                || entity_type == &EntityType::ACACIA_BOAT
-                || entity_type == &EntityType::DARK_OAK_BOAT
-                || entity_type == &EntityType::MANGROVE_BOAT
-                || entity_type == &EntityType::CHERRY_BOAT
-                || entity_type == &EntityType::PALE_OAK_BOAT
-                || entity_type == &EntityType::POPLAR_BOAT
-                || entity_type == &EntityType::BAMBOO_RAFT
-                || crate::entity::vehicle::boat::is_chest_boat(entity_type)
-            {
+            if crate::entity::vehicle::boat::is_boat(entity_type) {
                 return statistics::CustomStatistic::BoatOneCm;
             }
             if entity_type.has_tag(&pumpkin_data::tag::EntityType::C_MINECARTS)
@@ -7318,22 +7329,14 @@ impl Player {
     }
 
     pub fn remove_effect(&self, effect_type: &'static StatusEffect) -> bool {
-        let effect_id = VarInt(i32::from(effect_type.id));
-        self.try_send_client_packet(
-            &pumpkin_protocol::java::client::play::CRemoveMobEffect::new(
-                self.entity_id().into(),
-                effect_id,
-            ),
-        );
-
+        // Vanilla `ServerPlayer.onEffectRemoved` sends one removal packet; LivingEntity's
+        // broadcast (World::send_remove_mob_effect) already covers self and tracking players.
         self.living_entity.remove_effect(effect_type)
-
-        // TODO broadcast metadata
     }
 
     pub fn remove_all_effects(&self) -> bool {
-        let mut succeeded = false;
-        let mut effect_list = vec![];
+        // Snapshot keys first: LivingEntity::remove_effect locks `active_effects` and
+        // broadcasts each removal to self and tracking players, like vanilla.
         let effects: Vec<_> = self
             .living_entity
             .active_effects
@@ -7342,20 +7345,9 @@ impl Player {
             .keys()
             .copied()
             .collect();
-        for effect in effects {
-            effect_list.push(effect);
-            let effect_id = VarInt(i32::from(effect.id));
-            self.try_send_client_packet(
-                &pumpkin_protocol::java::client::play::CRemoveMobEffect::new(
-                    self.entity_id().into(),
-                    effect_id,
-                ),
-            );
-            succeeded = true;
-        }
+        let succeeded = !effects.is_empty();
 
-        // Need to remove effects afterward here because there would be a deadlock if this is done in the for loop.
-        for effect in effect_list {
+        for effect in effects {
             self.living_entity.remove_effect(effect);
         }
 
@@ -7681,6 +7673,17 @@ impl Player {
         screen_handler_factory: &dyn ScreenHandlerFactory,
         block_pos: Option<BlockPos>,
     ) -> Option<u8> {
+        self.open_handled_screen_at(screen_handler_factory, block_pos, None)
+    }
+
+    /// Opens a screen backed by an entity container (chest boat, chest minecart). Bedrock needs
+    /// the vehicle runtime id in `ContainerOpen`, otherwise the UI is not tied to the entity.
+    pub fn open_handled_screen_at(
+        &self,
+        screen_handler_factory: &dyn ScreenHandlerFactory,
+        block_pos: Option<BlockPos>,
+        container_entity: Option<&Entity>,
+    ) -> Option<u8> {
         let custom_name = block_pos
             .and_then(|pos| self.world().get_block_entity(&pos))
             .and_then(|be| be.get_custom_name());
@@ -7746,11 +7749,15 @@ impl Player {
             let block = block_pos.map(|pos| self.world().get_block(&pos));
             let bedrock_window_type = bedrock_container_type(Some(window_type), block);
 
+            let (position, target_entity_id) = bedrock_container_open_target(
+                block_pos,
+                container_entity.map(|entity| (entity.block_pos.load(), entity.entity_id)),
+            );
             let bedrock_packet = CContainerOpen {
                 container_id: sync_id,
                 container_type: bedrock_window_type,
-                position: block_pos.unwrap_or(BlockPos::ZERO),
-                target_entity_id: VarLong(-1),
+                position,
+                target_entity_id,
             };
 
             self.try_enqueue_packet_editioned(&java_packet, &bedrock_packet);
@@ -9082,7 +9089,7 @@ impl EntityBase for Player {
     }
 
     fn get_name(&self) -> TextComponent {
-        //TODO: team color
+        // Vanilla `Player.getName` is the plain profile name; team styling is applied by getDisplayName.
         TextComponent::text(self.gameprofile.name.clone())
     }
 
@@ -9096,7 +9103,16 @@ impl EntityBase for Player {
             return display_name.clone();
         }
         let name = self.get_name();
+        // Vanilla `Entity.createHoverEvent` uses the plain `getName()`, not the styled one.
         let name_clone = name.clone();
+        // Vanilla `Player.getDisplayName` -> `PlayerTeam.formatNameForTeam`:
+        // prefix + name + suffix, with the team colour applied to the whole component.
+        let name = match self.get_team() {
+            Some(team) => {
+                format_team_name(name, team.player_prefix, team.player_suffix, team.color)
+            }
+            None => name,
+        };
         let mut name = name.click_event(ClickEvent::SuggestCommand {
             command: format!("/tell {} ", self.gameprofile.name.clone()).into(),
         });
@@ -10460,13 +10476,32 @@ impl InventoryPlayer for Player {
     }
 }
 
+/// Mirrors vanilla `PlayerTeam.formatNameForTeam`/`getFormattedName`: prefix + name + suffix
+/// with the team colour applied to the whole component.
+fn format_team_name(
+    name: TextComponent,
+    prefix: TextComponent,
+    suffix: TextComponent,
+    color: Option<NamedColor>,
+) -> TextComponent {
+    let mut formatted = TextComponent::text("")
+        .add_child(prefix)
+        .add_child(name)
+        .add_child(suffix);
+    if let Some(color) = color {
+        formatted = formatted.color_named(color);
+    }
+    formatted
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        Player, bedrock_container_slot, bedrock_container_type, read_last_death_location,
-        read_root_vehicle, write_last_death_location, write_root_vehicle,
+        Player, bedrock_container_open_target, bedrock_container_slot, bedrock_container_type,
+        format_team_name, read_last_death_location, read_root_vehicle, write_last_death_location,
+        write_root_vehicle,
     };
     use base64::prelude::*;
     use pumpkin_config::AuthenticationConfig;
@@ -10474,9 +10509,23 @@ mod tests {
     use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
     use pumpkin_protocol::Property;
     use pumpkin_protocol::bedrock::network_item::ContainerName;
+    use pumpkin_protocol::codec::var_long::VarLong;
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
+    use pumpkin_util::text::TextComponent;
+    use pumpkin_util::text::color::NamedColor;
     use tokio::io::AsyncReadExt;
     use uuid::Uuid;
+
+    #[test]
+    fn team_name_keeps_vanilla_prefix_name_suffix_order() {
+        let formatted = format_team_name(
+            TextComponent::text("Steve"),
+            TextComponent::text("<"),
+            TextComponent::text(">"),
+            Some(NamedColor::Red),
+        );
+        assert_eq!(formatted.get_text(), "<Steve>");
+    }
 
     /// A skin host that accepts the connection and never answers must not keep the
     /// download task alive: it gives up after the authentication timeouts.
@@ -10530,6 +10579,23 @@ mod tests {
                 .await
                 .is_ok_and(|connected| connected.is_ok()),
             "fetch_skin should have reached the silent host"
+        );
+    }
+
+    #[test]
+    fn bedrock_entity_container_sends_runtime_id_and_block_position() {
+        let pos = BlockPos(Vector3::new(4, 70, -8));
+        assert_eq!(
+            bedrock_container_open_target(None, Some((pos, 42))),
+            (pos, VarLong(42))
+        );
+        assert_eq!(
+            bedrock_container_open_target(Some(pos), None),
+            (pos, VarLong(-1))
+        );
+        assert_eq!(
+            bedrock_container_open_target(None, None),
+            (BlockPos::ZERO, VarLong(-1))
         );
     }
 

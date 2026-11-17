@@ -297,7 +297,17 @@ impl EntityBase for SplashPotionEntity {
             e.id == pumpkin_data::effect::StatusEffect::INSTANT_DAMAGE.id
                 || e.id == pumpkin_data::effect::StatusEffect::INSTANT_HEALTH.id
         });
-        let event_id = if has_instant { 2007 } else { 2002 };
+        let (particle_event, sound_event) = if has_instant {
+            (
+                WorldEvent::ParticlesInstantPotionSplash as i32,
+                WorldEvent::SoundInstantPotionSplash as i32,
+            )
+        } else {
+            (
+                WorldEvent::ParticlesSpellPotionSplash as i32,
+                WorldEvent::SoundSpellPotionSplash as i32,
+            )
+        };
 
         // Convert hit_pos to BlockPos
         let block_pos = BlockPos(Vector3::new(
@@ -305,9 +315,15 @@ impl EntityBase for SplashPotionEntity {
             hit_pos.y.floor() as i32,
             hit_pos.z.floor() as i32,
         ));
+        let chunk_pos = to_chunk_pos(&Vector2::new(block_pos.0.x, block_pos.0.z));
         world.broadcast_to_chunk(
-            to_chunk_pos(&Vector2::new(block_pos.0.x, block_pos.0.z)),
-            &CWorldEvent::new(event_id, block_pos, color, false),
+            chunk_pos,
+            &CWorldEvent::new(particle_event, block_pos, color, false),
+        );
+        // Vanilla splits the splash sound into its own level event.
+        world.broadcast_to_chunk(
+            chunk_pos,
+            &CWorldEvent::new(sound_event, block_pos, 0, false),
         );
 
         let search_box = self.get_entity().bounding_box.load().expand(4.0, 2.0, 4.0);

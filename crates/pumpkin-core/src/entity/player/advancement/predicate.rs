@@ -173,7 +173,6 @@ pub struct EnchantmentPredicate {
 pub struct ItemPredicate {
     pub items: Option<TagOrIdMatcher>,
     pub count: Option<IntBounds>,
-    pub durability: Option<IntBounds>,
     pub enchantments: Vec<EnchantmentPredicate>,
 }
 
@@ -209,7 +208,6 @@ impl ItemPredicate {
                 Self {
                     items: Some(matcher),
                     count: None,
-                    durability: None,
                     enchantments: Vec::new(),
                 }
             });
@@ -217,7 +215,6 @@ impl ItemPredicate {
 
         let items = pred_map.get("items").and_then(TagOrIdMatcher::from_value);
         let count = pred_map.get("count").and_then(IntBounds::from_value);
-        let durability = pred_map.get("durability").and_then(IntBounds::from_value);
 
         let mut enchantments = Vec::new();
         // 1.20.5+ serialises item component predicates under `components`; older packs use `predicates`.
@@ -246,7 +243,6 @@ impl ItemPredicate {
         Self {
             items,
             count,
-            durability,
             enchantments,
         }
     }
@@ -767,6 +763,65 @@ pub struct EntityPredicate {
     pub safe_armor_disallowed: Option<bool>,
 }
 
+/// True when a sub-tree of loot conditions requires an item from the `piglin_safe_armor` tag.
+fn subtree_requires_safe_armor(cond: &Value) -> bool {
+    let Some(obj) = cond.as_object() else {
+        return false;
+    };
+    let kind = obj.get("type").and_then(Value::as_str).unwrap_or("");
+    if matches!(
+        kind,
+        "minecraft:any_of" | "any_of" | "minecraft:all_of" | "all_of"
+    ) {
+        return obj
+            .get("terms")
+            .and_then(Value::as_array)
+            .is_some_and(|terms| terms.iter().any(subtree_requires_safe_armor));
+    }
+
+    let pred = cond.get("predicate").unwrap_or(cond);
+    let Some(eq) = pred
+        .get("minecraft:equipment")
+        .or_else(|| pred.get("equipment"))
+    else {
+        return false;
+    };
+    eq.as_object().is_some_and(|slots| {
+        slots.values().any(|slot| {
+            slot.get("items").is_some_and(|items| match items {
+                Value::String(s) => s.contains("piglin_safe_armor"),
+                Value::Array(arr) => arr.iter().any(|item| {
+                    item.as_str()
+                        .is_some_and(|s| s.contains("piglin_safe_armor"))
+                }),
+                _ => false,
+            })
+        })
+    })
+}
+
+/// Detects the `minecraft:inverted` loot condition vanilla uses for `piglin.safe_armor`.
+fn safe_armor_predicate_is_inverted(cond: &Value) -> bool {
+    let Some(obj) = cond.as_object() else {
+        return false;
+    };
+    let kind = obj.get("type").and_then(Value::as_str).unwrap_or("");
+    if matches!(kind, "minecraft:inverted" | "inverted") {
+        let term = obj.get("term").or_else(|| obj.get("predicate"));
+        return term.is_some_and(subtree_requires_safe_armor);
+    }
+    if matches!(
+        kind,
+        "minecraft:any_of" | "any_of" | "minecraft:all_of" | "all_of"
+    ) {
+        return obj
+            .get("terms")
+            .and_then(Value::as_array)
+            .is_some_and(|terms| terms.iter().any(safe_armor_predicate_is_inverted));
+    }
+    false
+}
+
 impl EntityPredicate {
     #[must_use]
     pub fn matches(
@@ -884,9 +939,10 @@ impl EntityPredicate {
             .and_then(|f| f.get("items"))
             .and_then(TagOrIdMatcher::from_value);
 
-        let val_str = val.to_string();
-        let safe_armor_disallowed = (val_str.contains("piglin_safe_armor")
-            && (val_str.contains("inverted") || val_str.contains("minecraft:inverted")))
+        // Vanilla expresses "not wearing piglin safe armor" as an inverted loot condition
+        // over an equipment predicate; detect that shape instead of scanning the whole JSON.
+        let safe_armor_disallowed = (safe_armor_predicate_is_inverted(val)
+            || safe_armor_predicate_is_inverted(pred_val))
         .then_some(true);
 
         Self {
@@ -1430,7 +1486,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                                     min: item.count_min,
                                     max: item.count_max,
                                 }),
-                            durability: None,
                             enchantments: item
                                 .enchantments
                                 .iter()
@@ -1480,7 +1535,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     patterns: item.items.iter().map(ToString::to_string).collect(),
                 }),
                 count: None,
-                durability: None,
                 enchantments: Vec::new(),
             }),
             AC::PlacedBlock { block, item } => Self::PlacedBlock(PlacedBlockPredicate {
@@ -1492,7 +1546,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                         patterns: vec![i.to_string()],
                     }),
                     count: None,
-                    durability: None,
                     enchantments: Vec::new(),
                 }),
             }),
@@ -1514,7 +1567,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     patterns: vec![item.to_string()],
                 }),
                 count: None,
-                durability: None,
                 enchantments: Vec::new(),
             }),
             AC::FishingRodHooked(item) => Self::FishingRodHooked(ItemPredicate {
@@ -1522,7 +1574,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     patterns: item.items.iter().map(ToString::to_string).collect(),
                 }),
                 count: None,
-                durability: None,
                 enchantments: Vec::new(),
             }),
             AC::UsingItem { item, looking_at } => Self::UsingItem {
@@ -1544,7 +1595,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                         },
                     ),
                     count: None,
-                    durability: None,
                     enchantments: Vec::new(),
                 },
                 looking_at: looking_at.map(|l| TagOrIdMatcher {
@@ -1556,7 +1606,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     patterns: item.items.iter().map(ToString::to_string).collect(),
                 }),
                 count: None,
-                durability: None,
                 enchantments: Vec::new(),
             }),
             AC::EntityHurtPlayer(d) => Self::EntityHurtPlayer(DamagePredicate {
@@ -1660,7 +1709,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                         },
                     ),
                     count: None,
-                    durability: None,
                     enchantments: Vec::new(),
                 },
                 vehicle_type: vehicle_type.map(|v| TagOrIdMatcher {
@@ -1716,7 +1764,6 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     patterns: item.items.iter().map(ToString::to_string).collect(),
                 }),
                 count: None,
-                durability: None,
                 enchantments: Vec::new(),
             }),
             AC::AvoidVibration => Self::AvoidVibration,
@@ -1914,12 +1961,6 @@ fn from_item_condition(i: &pumpkin_data::advancement_data::ItemCondition) -> Ite
             min: i.count_min,
             max: i.count_max,
         }),
-        durability: (i.durability_min.is_some() || i.durability_max.is_some()).then_some(
-            IntBounds {
-                min: i.durability_min,
-                max: i.durability_max,
-            },
-        ),
         enchantments: Vec::new(),
     }
 }
@@ -2522,6 +2563,16 @@ mod tests {
     }
 
     #[test]
+    fn item_predicate_ignores_non_vanilla_durability_field() {
+        // Vanilla 1.21 ItemPredicate has no `durability` field; unknown fields are ignored.
+        let pred = ItemPredicate::from_value(&json!({
+            "items": "minecraft:stone",
+            "durability": {"min": 100}
+        }));
+        assert!(pred.matches("minecraft:stone", 1, &[]));
+    }
+
+    #[test]
     fn matches_item_predicate_works() {
         let pred = json!({
             "items": "minecraft:stone_pickaxe",
@@ -2850,6 +2901,19 @@ mod tests {
             }
             _ => panic!("Expected StartedRiding variant"),
         }
+    }
+
+    #[test]
+    fn safe_armor_not_inferred_from_unrelated_conditions() {
+        let pred = EntityPredicate::from_value(&json!({
+            "type": "minecraft:inverted",
+            "term": {
+                "type": "minecraft:entity_properties",
+                "predicate": {"type": "minecraft:zombie"}
+            },
+            "comment": "piglin_safe_armor mentioned but not required"
+        }));
+        assert_eq!(pred.safe_armor_disallowed, None);
     }
 
     #[test]

@@ -43,6 +43,11 @@ use crate::world::game_event::GameEventContext;
 const SPEED_MODIFIER_DRINKING_ID: &str = "minecraft:drinking";
 const SPEED_MODIFIER_DRINKING_AMOUNT: f64 = -0.25;
 
+/// Vanilla `Witch.performRangedAttack`: 0.45 speed within 2 blocks, else 0.75.
+fn potion_throw_speed(dist: f64) -> f64 {
+    if dist <= 2.0 { 0.45 } else { 0.75 }
+}
+
 fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStack {
     use pumpkin_data::data_component::DataComponent;
     use pumpkin_data::data_component_impl::{DataComponentImpl, PotionContentsImpl};
@@ -248,7 +253,7 @@ impl WitchEntity {
         let splash = SplashPotionEntity::new_shot(splash_entity, entity);
         splash.set_item_stack(potion_stack);
 
-        let speed = if dist <= 2.0 { 0.45 } else { 0.75 };
+        let speed = potion_throw_speed(dist);
         let yo = dist * 0.2;
 
         splash.thrown.set_velocity(xd, yd + yo, zd, speed, 8.0);
@@ -469,6 +474,11 @@ impl PatrollingMonster for WitchEntity {
     fn get_patrol_data(&self) -> &PatrolData {
         &self.raider_data.patrol_data
     }
+
+    // Vanilla `Witch.canBeLeader` returns false; the base `PatrollingMonster` returns true.
+    fn can_be_leader(&self) -> bool {
+        false
+    }
 }
 
 impl Raider for WitchEntity {
@@ -488,5 +498,12 @@ mod tests {
     #[test]
     fn drinking_speed_modifier_matches_vanilla() {
         assert_eq!(SPEED_MODIFIER_DRINKING_AMOUNT, -0.25);
+    }
+
+    #[test]
+    fn potion_throw_speed_matches_vanilla() {
+        assert_eq!(potion_throw_speed(2.0), 0.45);
+        assert_eq!(potion_throw_speed(2.01), 0.75);
+        assert_eq!(potion_throw_speed(8.0), 0.75);
     }
 }

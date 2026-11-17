@@ -8,6 +8,7 @@ use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
+use pumpkin_data::dimension::Dimension;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::entity_variant::PandaGene;
 use pumpkin_data::game_event::GameEvent;
@@ -179,15 +180,16 @@ fn is_worried_and_can_perform_action(mob: &dyn Mob) -> bool {
     as_panda(mob).is_some_and(|panda| panda.is_worried() && panda.can_perform_action())
 }
 
-/// Vanilla `ServerLevel.isThundering` without the weather data: a dimension without sky light or
-/// with a ceiling never thunders, whatever the shared weather says.
+/// Vanilla `Level.canHaveWeather` + thunder level: a dimension without sky light, with a ceiling
+/// or the End never thunders, whatever the shared weather says.
 fn thunder_scares(
     thunder_level: f32,
     rain_level: f32,
     has_skylight: bool,
     has_ceiling: bool,
+    is_end: bool,
 ) -> bool {
-    has_skylight && !has_ceiling && thunder_level * rain_level > THUNDERING_LEVEL
+    has_skylight && !has_ceiling && !is_end && thunder_level * rain_level > THUNDERING_LEVEL
 }
 
 /// Vanilla `Level.isThundering` for the panda's `isScared`.
@@ -198,6 +200,7 @@ fn is_thundering(world: &World) -> bool {
         weather.rain_level,
         world.dimension.has_skylight,
         world.dimension.has_ceiling,
+        world.dimension.minecraft_name == Dimension::THE_END.minecraft_name,
     )
 }
 
@@ -1389,10 +1392,14 @@ mod tests {
 
     #[test]
     fn a_dimension_without_sky_light_never_thunders() {
-        assert!(thunder_scares(1.0, 1.0, true, false));
-        assert!(!thunder_scares(0.9, 1.0, true, false));
-        assert!(!thunder_scares(1.0, 1.0, false, false), "no sky light");
-        assert!(!thunder_scares(1.0, 1.0, true, true), "a ceiling");
+        assert!(thunder_scares(1.0, 1.0, true, false, false));
+        assert!(!thunder_scares(0.9, 1.0, true, false, false));
+        assert!(
+            !thunder_scares(1.0, 1.0, false, false, false),
+            "no sky light"
+        );
+        assert!(!thunder_scares(1.0, 1.0, true, true, false), "a ceiling");
+        assert!(!thunder_scares(1.0, 1.0, true, false, true), "the End");
     }
 
     #[tokio::test]

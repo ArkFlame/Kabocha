@@ -178,11 +178,11 @@ impl EntityBase for MannequinEntity {
     }
 
     fn is_pushable(&self) -> bool {
-        // Vanilla Mannequin.isPushable: immovable mannequins are never pushed.
-        !self.get_immovable()
-            && self
-                .living_entity
-                .can_be_pushed(EntityBase::on_climbable(self))
+        // Vanilla Mannequin does not override isPushable; it inherits
+        // LivingEntity.isPushable. `immovable` gates its own movement via
+        // isImmobile, not whether other entities can push it.
+        self.living_entity
+            .can_be_pushed(EntityBase::on_climbable(self))
     }
 
     fn init_data_tracker(&self) {
@@ -391,7 +391,8 @@ mod tests {
 
         assert!(!mannequin.is_effective_ai());
         assert!(mannequin.is_immobile());
-        assert!(!mannequin.is_pushable());
+        // Immovable blocks its own AI movement, not collision pushes.
+        assert!(mannequin.is_pushable());
         assert_eq!(mannequin.get_profile(), profile);
         assert_eq!(
             mannequin.get_layers_mask(),

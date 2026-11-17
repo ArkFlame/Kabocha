@@ -31,6 +31,9 @@ use crate::entity::{
 
 const ARMADILLO_BRUSH_LOOT_TABLE: &str = "minecraft:brush/armadillo";
 const ARMADILLO_SHED_LOOT_TABLE: &str = "minecraft:gameplay/armadillo_shed";
+/// Vanilla `armadillo_scare_detected` `MobSensor` scan rate, in ticks.
+pub const SCARE_SCAN_INTERVAL: i32 = 5;
+/// Vanilla `DANGER_DETECTED_RECENTLY` memory lifetime after a threat is seen.
 pub const SCARE_CHECK_INTERVAL: i32 = 80;
 pub const SCARE_DISTANCE_HORIZONTAL: f64 = 7.0;
 pub const SCARE_DISTANCE_VERTICAL: f64 = 2.0;
@@ -335,9 +338,9 @@ impl CustomSound for ArmadilloEntity {
         Some(Sound::EntityArmadilloDeath)
     }
 
-    /// Vanilla `Armadillo.getHurtSound` uses the muted variant while the shell covers the body.
+    /// Vanilla `getHurtSound` uses the muted variant for the whole scared state (`isScared`).
     fn hurt_sound(&self) -> Option<Sound> {
-        self.should_hide_in_shell()
+        self.is_scared()
             .then_some(Sound::EntityArmadilloHurtReduced)
     }
 }
@@ -390,8 +393,9 @@ impl Mob for ArmadilloEntity {
         _source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> f32 {
-        if self.should_hide_in_shell() {
-            (amount - 1.0).max(0.0) / 2.0
+        // Vanilla `hurtServer` halves damage for the whole scared state, not just while hidden.
+        if self.is_scared() {
+            (amount - 1.0) / 2.0
         } else {
             amount
         }
@@ -400,7 +404,8 @@ impl Mob for ArmadilloEntity {
     /// Vanilla `Armadillo#actuallyHurt`: a living attacker is remembered for 80 ticks and
     /// triggers `rollUp`; environmental panic damage without a living attacker rolls out.
     fn on_damage(&self, damage_type: DamageType, source: Option<&dyn EntityBase>) {
-        if !self.get_entity().is_alive() {
+        // Vanilla `actuallyHurt` skips the reaction entirely for NoAI or dying mobs.
+        if self.mob_entity.is_no_ai() || !self.get_entity().is_alive() {
             return;
         }
         if source.is_some_and(|attacker| attacker.get_living_entity().is_some()) {
@@ -452,10 +457,10 @@ impl Mob for ArmadilloEntity {
             }
         }
 
-        // Vanilla re-checks nearby threats every `SCARE_CHECK_INTERVAL` ticks while idle, so an
-        // armadillo rolls up on approach instead of only after it is hit.
+        // Vanilla's `armadillo_scare_detected` sensor scans every 5 ticks, so an armadillo rolls
+        // up on approach instead of only after it is hit.
         if self.get_state() == ArmadilloState::Idle
-            && entity.age.load(Ordering::Relaxed) % SCARE_CHECK_INTERVAL == 0
+            && entity.age.load(Ordering::Relaxed) % SCARE_SCAN_INTERVAL == 0
         {
             // Vanilla scans `getBoundingBox().inflate(7, 2, 7)`, so corners count too.
             let scan_box = entity.bounding_box.load().expand(
@@ -499,11 +504,9 @@ impl Mob for ArmadilloEntity {
     }
 
     fn mob_init_data_tracker(&self) {
+        // The baby flag is synced by AgeableMob::set_age on every age boundary crossing, so
+        // only the armadillo-specific state needs initializing here.
         let entity = self.get_entity();
-        let is_baby = entity.age.load(Ordering::Relaxed) < 0;
-        if is_baby {
-            entity.set_synced_data(pumpkin_data::tracked_data::armadillo::BABY_ID, true);
-        }
         entity.set_synced_data(
             pumpkin_data::tracked_data::armadillo::ARMADILLO_STATE,
             VarInt(self.get_state().id()),
@@ -523,5 +526,45 @@ impl Mob for ArmadilloEntity {
             return false;
         }
         self.animal_interact(player, item_stack)
+    }
+}
+
+// Generated tracked-data aliases must stay in sync: the armadillo alias and the ageable
+// `set_age` path refer to the same synced-data index.
+const _: () = assert!(
+    pumpkin_data::tracked_data::armadillo::BABY_ID.id.0
+        == pumpkin_data::tracked_data::ageable_mob::DATA_BABY_ID.id.0,
+    "armadillo BABY_ID diverged from ageable DATA_BABY_ID"
+);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_ids_and_names_match_vanilla_order() {
+        let cases = [
+            (ArmadilloState::Idle, 0, "idle"),
+            (ArmadilloState::Rolling, 1, "rolling"),
+            (ArmadilloState::Scared, 2, "scared"),
+            (ArmadilloState::Unrolling, 3, "unrolling"),
+        ];
+        for (state, id, name) in cases {
+            assert_eq!(state.id(), id);
+            assert_eq!(ArmadilloState::from_id(id), state);
+            assert_eq!(state.name(), name);
+            assert_eq!(ArmadilloState::from_name(name), state);
+        }
+    }
+
+    #[test]
+    fn shell_thresholds_match_vanilla() {
+        use ArmadilloState::*;
+        assert!(!Idle.should_hide_in_shell(100));
+        assert!(!Rolling.should_hide_in_shell(5));
+        assert!(Rolling.should_hide_in_shell(6));
+        assert!(Scared.should_hide_in_shell(0));
+        assert!(Unrolling.should_hide_in_shell(25));
+        assert!(!Unrolling.should_hide_in_shell(26));
     }
 }

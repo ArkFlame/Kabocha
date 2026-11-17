@@ -6,7 +6,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
-use pumpkin_util::math::boundingbox::{BoundingBox, EntityDimensions};
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use std::sync::Arc;
@@ -27,21 +27,7 @@ impl LeashKnotEntity {
     }
 
     pub fn get_knot(world: &Arc<World>, pos: BlockPos) -> Option<Arc<dyn EntityBase>> {
-        let center = Vector3::new(
-            f64::from(pos.0.x) + 0.5,
-            f64::from(pos.0.y) + Self::OFFSET_Y,
-            f64::from(pos.0.z) + 0.5,
-        );
-
-        let search_dim = EntityDimensions {
-            width: 2.0,
-            height: 2.0,
-            eye_height: 1.0,
-        };
-
-        // Vanilla `getOrCreateKnot` searches block +/-1 on every axis, so the box must reach
-        // one block below the knot too (a knot summoned under the fence is still found).
-        let search_box = BoundingBox::new_from_pos(center.x, center.y - 1.0, center.z, &search_dim);
+        let search_box = knot_search_box(pos);
         world
             .get_entities_at_box(&search_box)
             .into_iter()
@@ -103,8 +89,12 @@ impl EntityBase for LeashKnotEntity {
             let search_box = BoundingBox::of_size(pos, 32.0, 32.0, 32.0);
             let entities = world.get_entities_at_box(&search_box);
 
+            // Vanilla BlockAttachedEntity.tick discards the knot as soon as survives() is
+            // false; leashed mobs release themselves on their next tick_leash. Here we also
+            // eagerly release nearby mobs so their leads drop before the knot Arc is freed
+            // (a Rust Weak cannot be upgraded once the world drops it), but the knot is
+            // always removed regardless of any still-attached mob, as in vanilla.
             let drop_lead = world.level_info.load().game_rules.entity_drops;
-            let mut retained_leash = false;
             for entity_base in entities {
                 let ent = entity_base.get_entity();
                 let is_attached_to_knot = ent
@@ -127,14 +117,8 @@ impl EntityBase for LeashKnotEntity {
                     );
                     world.drop_stack(&ent.block_pos.load(), lead_item);
                 }
-                retained_leash |= ent
-                    .get_leash_holder()
-                    .is_some_and(|holder| holder.get_entity().entity_id == knot_id);
             }
 
-            if retained_leash {
-                return;
-            }
             world.play_sound(Sound::ItemLeadUntied, SoundCategory::Neutral, &pos);
             self.entity.remove();
         }
@@ -168,8 +152,10 @@ impl EntityBase for LeashKnotEntity {
             }
         }
 
+        // Vanilla LeashFenceKnotEntity.interact skips re-homing knot mobs onto the player
+        // while secondary use (shift) is active.
         let mut any_dropped = false;
-        if !attached_mob {
+        if !attached_mob && !player.get_entity().is_sneaking() {
             let player_holder = player.clone() as Arc<dyn EntityBase>;
             for entity_base in &entities {
                 if entity_base
@@ -218,6 +204,18 @@ impl EntityBase for LeashKnotEntity {
     }
 }
 
+/// Vanilla `LeashFenceKnotEntity.getKnot` searches `AABB(x-1, y-1, z-1, x+1, y+1, z+1)`
+/// measured from the integer block coordinates.
+fn knot_search_box(pos: BlockPos) -> BoundingBox {
+    let x = f64::from(pos.0.x);
+    let y = f64::from(pos.0.y);
+    let z = f64::from(pos.0.z);
+    BoundingBox::new(
+        Vector3::new(x - 1.0, y - 1.0, z - 1.0),
+        Vector3::new(x + 1.0, y + 1.0, z + 1.0),
+    )
+}
+
 /// Vanilla `LeashFenceKnotEntity.interact` searches `AABB(blockPos).inflate(7)`,
 /// measured from the integer block coordinates rather than the entity position.
 fn transfer_search_box(pos: Vector3<f64>) -> BoundingBox {
@@ -239,7 +237,8 @@ fn transfer_search_box(pos: Vector3<f64>) -> BoundingBox {
 
 #[cfg(test)]
 mod tests {
-    use super::transfer_search_box;
+    use super::{knot_search_box, transfer_search_box};
+    use pumpkin_util::math::position::BlockPos;
     use pumpkin_util::math::vector3::Vector3;
 
     #[test]
@@ -250,5 +249,16 @@ mod tests {
         assert_eq!(bb.max.x, 18.0);
         assert_eq!(bb.min.y, 57.0);
         assert_eq!(bb.max.y, 72.0);
+    }
+
+    #[test]
+    fn knot_search_box_spans_block_plus_minus_one() {
+        let bb = knot_search_box(BlockPos::new(10, 64, 10));
+        assert_eq!(bb.min.x, 9.0);
+        assert_eq!(bb.min.y, 63.0);
+        assert_eq!(bb.min.z, 9.0);
+        assert_eq!(bb.max.x, 11.0);
+        assert_eq!(bb.max.y, 65.0);
+        assert_eq!(bb.max.z, 11.0);
     }
 }

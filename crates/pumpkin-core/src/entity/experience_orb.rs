@@ -31,7 +31,7 @@ fn apply_water_buoyancy(mut velocity: Vector3<f64>) -> Vector3<f64> {
 
 pub struct ExperienceOrbEntity {
     entity: Entity,
-    amount: u32,
+    amount: AtomicU32,
     health: AtomicI32,
     orb_age: AtomicU32,
     following_player: WeakSlot<Player>,
@@ -45,7 +45,7 @@ impl ExperienceOrbEntity {
         entity.yaw.store(rand::random::<f32>() * 360.0);
         Self {
             entity,
-            amount,
+            amount: AtomicU32::new(amount),
             health: AtomicI32::new(Self::DEFAULT_HEALTH),
             orb_age: AtomicU32::new(0),
             following_player: WeakSlot::new(),
@@ -117,19 +117,45 @@ impl ExperienceOrbEntity {
         }
     }
 
+    /// Vanilla `ExperienceOrb.awardWithDirection`: split, then merge into equal-valued orbs.
     pub fn spawn_with_direction(
         world: &Arc<World>,
         position: Vector3<f64>,
         direction: Vector3<f64>,
         amount: u32,
     ) {
-        let mut amount = amount;
-        while amount > 0 {
-            let i = Self::round_to_orb_size(amount);
-            amount -= i;
-            let orb = Arc::new(Self::new_with_direction(world, position, direction, i));
-            world.spawn_entity(orb);
+        for size in Self::orb_sizes(amount) {
+            if !Self::try_merge_to_existing(world, position, size) {
+                let orb = Arc::new(Self::new_with_direction(world, position, direction, size));
+                world.spawn_entity(orb);
+            }
         }
+    }
+
+    fn orb_sizes(mut amount: u32) -> Vec<u32> {
+        let mut sizes = Vec::new();
+        while amount > 0 {
+            let size = Self::round_to_orb_size(amount);
+            amount -= size;
+            sizes.push(size);
+        }
+        sizes
+    }
+
+    /// Vanilla `tryMergeToExisting`: an equal-valued orb in a 1x1x1 box absorbs the amount.
+    fn try_merge_to_existing(world: &Arc<World>, position: Vector3<f64>, value: u32) -> bool {
+        let half = Vector3::new(0.5, 0.5, 0.5);
+        let search_box = BoundingBox::new(position.sub(&half), position.add(&half));
+        for entity in world.get_entities_at_box(&search_box) {
+            if let Some(orb) = entity.cast_any().downcast_ref::<ExperienceOrbEntity>()
+                && orb.amount.load(Ordering::Relaxed) == value
+            {
+                orb.amount.fetch_add(value, Ordering::Relaxed);
+                orb.orb_age.store(0, Ordering::Relaxed);
+                return true;
+            }
+        }
+        false
     }
 
     /// Vanilla `ExperienceOrb.followNearbyPlayer`
@@ -396,7 +422,7 @@ impl EntityBase for ExperienceOrbEntity {
         if can_pickup {
             player.living_entity.pickup(&self.entity, 1);
             self.entity.remove();
-            let amount = self.amount as i32;
+            let amount = self.amount.load(Ordering::Relaxed) as i32;
             let remaining = player.apply_mending_from_xp(amount);
             if remaining > 0 {
                 player.add_experience_points(remaining);
@@ -434,6 +460,13 @@ mod tests {
         let velocity = apply_water_buoyancy(Vector3::new(0.0, 0.0598, 0.0));
 
         assert_eq!(velocity.y, 0.06);
+    }
+
+    #[test]
+    fn award_splits_amount_into_vanilla_orb_sizes() {
+        assert_eq!(ExperienceOrbEntity::orb_sizes(0), Vec::<u32>::new());
+        assert_eq!(ExperienceOrbEntity::orb_sizes(11), vec![7, 3, 1]);
+        assert_eq!(ExperienceOrbEntity::orb_sizes(14), vec![7, 7]);
     }
 
     #[test]

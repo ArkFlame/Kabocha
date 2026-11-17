@@ -207,9 +207,12 @@ pub struct AxolotlEntity {
     pub variant: AtomicI32,
     pub playing_dead: AtomicBool,
     pub from_bucket: AtomicBool,
-    /// Raw damage of the hit being resolved, kept so the play-dead roll can read the health left
-    /// by the hit, as vanilla does after `super.hurtServer`.
+    /// Raw damage and pre-hit health of the hit being resolved. Vanilla `Axolotl.hurtServer`
+    /// snapshots `getHealth()` and rolls before `super.hurtServer` applies the hit, so both values
+    /// must be captured before the base damage code changes health.
     last_hurt_amount: AtomicU32,
+    last_hurt_health: AtomicU32,
+    play_dead_roll_pending: AtomicBool,
 }
 
 impl AxolotlEntity {
@@ -246,6 +249,8 @@ impl AxolotlEntity {
             playing_dead: AtomicBool::new(false),
             from_bucket: AtomicBool::new(false),
             last_hurt_amount: AtomicU32::new(0),
+            last_hurt_health: AtomicU32::new(0),
+            play_dead_roll_pending: AtomicBool::new(false),
         };
         Arc::new(axolotl)
     }
@@ -579,31 +584,40 @@ impl Mob for AxolotlEntity {
     ) -> Option<bool> {
         self.last_hurt_amount
             .store(amount.to_bits(), Ordering::Relaxed);
+        // Vanilla reads getHealth() here, before super.hurtServer applies the hit.
+        self.last_hurt_health.store(
+            self.mob_entity.living_entity.health.load().to_bits(),
+            Ordering::Relaxed,
+        );
+        self.play_dead_roll_pending.store(true, Ordering::Relaxed);
         None
     }
 
-    /// Vanilla `Axolotl.hurtServer` rolls for playing dead after `super.hurtServer` applied the
-    /// hit, so the health ratio and the survival check see the health left by the damage.
-    fn on_damage_with_context(
-        &self,
-        _damage_type: DamageType,
-        _source: Option<&dyn EntityBase>,
-        cause: Option<&dyn EntityBase>,
-    ) -> bool {
+    /// Evaluates the play-dead roll of vanilla Axolotl.hurtServer with the pre-hit damage and
+    /// health captured in mob_hurt_server. Both damage hooks call this; the pending flag makes
+    /// the roll and its random draws happen exactly once per damage attempt.
+    fn try_play_dead(&self, source: Option<&dyn EntityBase>, cause: Option<&dyn EntityBase>) {
+        if !self.play_dead_roll_pending.swap(false, Ordering::Relaxed) {
+            return;
+        }
         let amount = f32::from_bits(
             self.last_hurt_amount
+                .swap(0.0f32.to_bits(), Ordering::Relaxed),
+        );
+        let health = f32::from_bits(
+            self.last_hurt_health
                 .swap(0.0f32.to_bits(), Ordering::Relaxed),
         );
         let living = &self.mob_entity.living_entity;
         let hit = HurtCheck {
             no_ai: self.mob_entity.is_no_ai(),
             damage: amount,
-            health: living.health.load(),
+            health,
             max_health: living.get_max_health(),
             in_water: self.get_entity().is_in_water(),
-            // Vanilla checks `DamageSource.getEntity()`, the causing entity (owner/thrower),
-            // so a direct projectile without an owner does not count.
-            has_causing_entity: cause.is_some(),
+            // Vanilla checks source.getEntity() != null or source.getDirectEntity() != null:
+            // either a causing entity (owner/thrower) or a direct entity is enough to play dead.
+            has_causing_entity: source.is_some() || cause.is_some(),
             playing_dead: self.is_playing_dead(),
         };
         if plays_dead_when_hurt(&mut self.get_random(), &hit) {
@@ -611,6 +625,27 @@ impl Mob for AxolotlEntity {
                 brain.set(types::PLAY_DEAD_TICKS, TOTAL_PLAYDEAD_TIME);
             });
         }
+    }
+
+    /// Vanilla evaluates the play-dead roll before super.hurtServer, so a blocked hit can still
+    /// start play-dead. Pumpkin calls this hook for every damage attempt, damaged or not.
+    fn post_damage_with_context(
+        &self,
+        _damage_type: DamageType,
+        source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) {
+        self.try_play_dead(source, cause);
+    }
+
+    /// Runs the roll for applied hits when post_damage_with_context has not consumed it.
+    fn on_damage_with_context(
+        &self,
+        _damage_type: DamageType,
+        source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        self.try_play_dead(source, cause);
         true
     }
 
@@ -1142,6 +1177,38 @@ mod tests {
         Ok(())
     }
 
+    /// A hit that deals no damage still rolls: vanilla checks play dead before super.hurtServer,
+    /// so Pumpkin must set the memory from post_damage_with_context alone.
+    #[tokio::test]
+    async fn a_blocked_hit_still_rolls_for_play_dead() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let attacker = cod(&world, 2.0);
+        let axolotl = axolotl(&world);
+        axolotl
+            .get_entity()
+            .touching_water
+            .store(true, Ordering::Relaxed);
+        axolotl.mob_entity.living_entity.health.store(6.0);
+        let source: Option<&dyn EntityBase> = Some(attacker.as_ref());
+        for _ in 0..300 {
+            let _ = axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
+            // damage_with_context skips on_damage_with_context when the hit is blocked.
+            <AxolotlEntity as Mob>::post_damage_with_context(
+                axolotl.as_ref(),
+                DamageType::MOB_ATTACK,
+                source,
+                source,
+            );
+        }
+        world.level.shutdown().await;
+        let play_dead = axolotl.mob_entity.with_brain(axolotl.as_ref(), |brain| {
+            brain.get(types::PLAY_DEAD_TICKS).copied()
+        });
+        assert_eq!(play_dead, Some(200));
+        Ok(())
+    }
+
     fn hit() -> HurtCheck {
         HurtCheck {
             no_ai: false,
@@ -1216,11 +1283,10 @@ mod tests {
         assert_eq!(plays_dead(&no_ai, &[0, 0]), (false, 2));
     }
 
-    /// A weak hit whose damage source has a causing entity in the water sets the memory to 200,
-    /// whatever the dice say if it is repeated often enough (the chance that 300 hits all miss is
-    /// below one in 10^50). A direct entity without an owner, hits without an entity behind them
-    /// (the dry out), out of the water, without AI, while already playing dead and killing hits
-    /// leave the memory alone.
+    /// A weak hit whose damage source has a causing or direct entity in the water sets the memory
+    /// to 200, whatever the dice say if it is repeated often enough (the chance that 300 hits all
+    /// miss is below one in 10^50). Hits without any entity behind them (the dry out), out of the
+    /// water, without AI, while already playing dead and killing hits leave the memory alone.
     #[tokio::test]
     async fn hits_set_the_play_dead_memory_only_when_the_conditions_hold() -> TestResult {
         let folder = tempfile::tempdir()?;
@@ -1285,7 +1351,7 @@ mod tests {
         world.level.shutdown().await;
 
         assert_eq!(play_dead_ticks(&hit), Some(200));
-        assert_eq!(play_dead_ticks(&only_source), None);
+        assert_eq!(play_dead_ticks(&only_source), Some(200));
         assert_eq!(play_dead_ticks(&only_cause), Some(200));
         assert_eq!(play_dead_ticks(&dry_out), None);
         assert_eq!(play_dead_ticks(&out_of_water), None);
@@ -1295,8 +1361,8 @@ mod tests {
         Ok(())
     }
 
-    /// The play-dead roll belongs to the damage hook that runs after the hit was applied, not to
-    /// the pre-damage mob hook: the latter only records the raw damage.
+    /// The play-dead roll runs in the post-damage hook, not the pre-damage mob hook: the latter
+    /// only snapshots the raw damage and pre-hit health for the roll to read.
     #[tokio::test]
     async fn the_play_dead_roll_runs_after_the_hit_is_applied() -> TestResult {
         let folder = tempfile::tempdir()?;
@@ -1333,6 +1399,48 @@ mod tests {
 
         assert_eq!(before, None);
         assert_eq!(after, Some(200));
+        Ok(())
+    }
+
+    /// Vanilla snapshots `getHealth()` before applying the hit, so a non-lethal hit that drops the
+    /// axolotl below half health still rolls on its pre-hit health and can play dead even when the
+    /// surviving health is at or below the damage.
+    #[tokio::test]
+    async fn play_dead_roll_uses_pre_hit_health_like_vanilla() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let attacker = cod(&world, 2.0);
+        let axolotl = axolotl(&world);
+        axolotl
+            .get_entity()
+            .touching_water
+            .store(true, Ordering::Relaxed);
+        let max_health = axolotl.mob_entity.living_entity.get_max_health();
+        let damage = max_health / 2.0;
+        let source: Option<&dyn EntityBase> = Some(attacker.as_ref());
+        for _ in 0..300 {
+            // Capture the full, pre-hit health exactly as vanilla's `hurtServer` does.
+            axolotl.mob_entity.living_entity.health.store(max_health);
+            let _ = axolotl.mob_hurt_server(damage, DamageType::MOB_ATTACK, None, source, source);
+            // The base damage code has now applied the hit. With damage equal to the surviving
+            // health the survival check fails unless the pre-hit snapshot is used.
+            axolotl
+                .mob_entity
+                .living_entity
+                .health
+                .store(max_health - damage);
+            <AxolotlEntity as Mob>::on_damage_with_context(
+                axolotl.as_ref(),
+                DamageType::MOB_ATTACK,
+                source,
+                source,
+            );
+        }
+        world.level.shutdown().await;
+        let play_dead_ticks = axolotl.mob_entity.with_brain(axolotl.as_ref(), |brain| {
+            brain.get(types::PLAY_DEAD_TICKS).copied()
+        });
+        assert_eq!(play_dead_ticks, Some(200));
         Ok(())
     }
 

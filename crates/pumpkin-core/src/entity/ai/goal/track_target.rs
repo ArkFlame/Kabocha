@@ -5,6 +5,7 @@ use crate::entity::ai::target_predicate::TargetPredicate;
 use crate::entity::mob::{Mob, MobEntity};
 use crate::plugin::api::events::entity::entity_target::TargetReason;
 use pumpkin_data::attributes::Attributes;
+use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
 use std::sync::{Arc, Weak};
 
@@ -83,14 +84,27 @@ impl TrackTargetGoal {
         self.target_mob = target.map(Arc::downgrade);
     }
 
-    fn can_navigate_to_entity(&mut self, mob: &dyn Mob) -> bool {
+    /// Vanilla TargetGoal.canReach: path to the target, then require the path end
+    /// node to finish within 1.5 blocks (squared 2.25) of the target block.
+    /// Runs inside can_start, so a failed path never claims TARGET or evicts a
+    /// lower-priority goal that currently owns the target selector.
+    fn can_navigate_to_entity(&mut self, mob: &dyn Mob, target: &dyn EntityBase) -> bool {
         self.check_can_navigate_cooldown = to_goal_ticks(10 + mob.get_random().random_range(0..5));
-        // TODO: after implementing path
-        // Path inside `can_start`, claim `TARGET` only afterwards: the selector runs
-        // `can_replace_all` -> `can_start` -> claim -> `start`, so a failed path must not evict revenge.
-        // No navigator lock earlier in the tick (`has_malus` callers must not hold it).
-        // Selectors are `mem::take`n during the AI tick: never lock them from a goal.
-        false
+
+        let steered = mob.get_mob_entity().steered();
+        let target_pos = target.get_entity().block_pos.load();
+        let mut navigator = steered.navigator();
+        let Some(path) = navigator.create_path(
+            &steered.mob_entity().living_entity,
+            target_pos.0.to_f64(),
+            0,
+        ) else {
+            return false;
+        };
+        let Some(last) = path.get_end_node() else {
+            return false;
+        };
+        end_node_reaches_target(last.pos, target_pos)
     }
 
     const fn remembers_visible_target(&mut self, has_line_of_sight: bool) -> bool {
@@ -133,7 +147,7 @@ impl TrackTargetGoal {
             }
 
             if self.can_navigate_flag == UNSET {
-                self.can_navigate_flag = if self.can_navigate_to_entity(mob) {
+                self.can_navigate_flag = if self.can_navigate_to_entity(mob, target) {
                     CAN_TRACK
                 } else {
                     CANNOT_TRACK
@@ -147,6 +161,14 @@ impl TrackTargetGoal {
 
         true
     }
+}
+
+/// Vanilla TargetGoal.canReach end-node tolerance:
+/// (end.x - target.x)^2 + (end.z - target.z)^2 <= 2.25.
+fn end_node_reaches_target(end: BlockPos, target: BlockPos) -> bool {
+    let dx = f64::from(end.0.x - target.0.x);
+    let dz = f64::from(end.0.z - target.0.z);
+    dx * dx + dz * dz <= 2.25
 }
 
 impl Goal for TrackTargetGoal {
@@ -226,7 +248,8 @@ impl Goal for TrackTargetGoal {
 
 #[cfg(test)]
 mod tests {
-    use super::{TrackTargetGoal, to_goal_ticks};
+    use super::{TrackTargetGoal, end_node_reaches_target, to_goal_ticks};
+    use pumpkin_util::math::position::BlockPos;
 
     #[test]
     fn forgets_unseen_target_after_vanilla_memory_window() {
@@ -245,5 +268,15 @@ mod tests {
         assert!(goal.remembers_visible_target(false));
         assert!(goal.remembers_visible_target(true));
         assert_eq!(goal.time_without_visibility, 0);
+    }
+
+    #[test]
+    fn path_end_node_must_land_within_vanilla_reach_tolerance() {
+        let target = BlockPos::new(10, 64, 10);
+        assert!(end_node_reaches_target(BlockPos::new(10, 64, 10), target));
+        assert!(end_node_reaches_target(BlockPos::new(11, 64, 10), target));
+        assert!(end_node_reaches_target(BlockPos::new(11, 64, 11), target));
+        assert!(!end_node_reaches_target(BlockPos::new(12, 64, 10), target));
+        assert!(!end_node_reaches_target(BlockPos::new(11, 64, 12), target));
     }
 }

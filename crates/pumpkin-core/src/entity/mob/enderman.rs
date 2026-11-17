@@ -64,10 +64,11 @@ const MAX_PACKED_OFFSET: i32 = 127;
 const STARE_CONE_SIZE: f64 = 0.025;
 const LINE_OF_SIGHT_RANGE: f64 = 128.0;
 
-fn is_projectile_damage(dt: DamageType) -> bool {
-    pumpkin_data::tag::DamageType::MINECRAFT_IS_PROJECTILE
-        .0
-        .contains(&dt.message_id)
+/// Vanilla gates the projectile dodge on `source.is(DamageTypeTags.IS_PROJECTILE)`, a damage
+/// *type* tag. Check by registry id (`has_tag`); translation keys such as `mob` do not match the
+/// tag's registry names such as `mob_projectile`.
+fn is_projectile_damage(damage_type: DamageType) -> bool {
+    damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)
 }
 
 const ENDERMAN_HUNTS: &[Hunt] = &[Hunt::new(
@@ -647,5 +648,18 @@ mod tests {
     #[test]
     fn max_teleport_radius_matches_vanilla() {
         assert_eq!(MAX_TELEPORT_RADIUS, 32);
+    }
+
+    #[test]
+    fn projectile_damage_uses_damage_type_tag() {
+        // message_id differs from the tag registry name for several projectile types
+        // (mob vs mob_projectile, onFire vs unattributed_fireball, witherSkull vs wither_skull),
+        // so a name-list check misses them; the damage-type tag check must catch them.
+        assert!(is_projectile_damage(DamageType::ARROW));
+        assert!(is_projectile_damage(DamageType::MOB_PROJECTILE));
+        assert!(is_projectile_damage(DamageType::WITHER_SKULL));
+        assert!(is_projectile_damage(DamageType::UNATTRIBUTED_FIREBALL));
+        assert!(is_projectile_damage(DamageType::WIND_CHARGE));
+        assert!(!is_projectile_damage(DamageType::GENERIC));
     }
 }

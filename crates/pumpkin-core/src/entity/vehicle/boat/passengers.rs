@@ -1,6 +1,6 @@
 use pumpkin_data::entity::EntityPose;
 use pumpkin_protocol::PositionFlag;
-use pumpkin_util::math::{cos, sin, vector3::Vector3};
+use pumpkin_util::math::vector3::Vector3;
 
 use super::BoatEntity;
 use crate::entity::{EntityBase, player::Player};
@@ -44,35 +44,12 @@ impl BoatEntity {
         let index = passengers
             .iter()
             .position(|rider| rider.get_entity().entity_id == passenger.get_entity().entity_id)?;
-        let offset = if passengers.len() > 1 {
-            if index == 0 { 0.2f32 } else { -0.6f32 }
-        } else {
-            self.get_single_passenger_x_offset()
-        };
+        let passenger_count = passengers.len();
+        let is_animal = passenger
+            .get_mob()
+            .and_then(|mob| mob.as_animal())
+            .is_some();
         drop(passengers);
-        let rotation = -entity.yaw.load().to_radians();
-        Some(Vector3::new(
-            f64::from(offset) * f64::from(sin(rotation)),
-            self.ride_height(),
-            f64::from(offset) * f64::from(cos(rotation)),
-        ))
-    }
-
-    // Same generated boat seats that passenger_attachment_point reads, so the two
-    // rider positioning paths cannot drift apart.
-    fn get_single_passenger_x_offset(&self) -> f32 {
-        self.vehicle
-            .entity
-            .entity_type
-            .boat
-            .map_or(0.0, |seats| seats.single_passenger_x_offset)
-    }
-
-    fn ride_height(&self) -> f64 {
-        self.vehicle
-            .entity
-            .entity_type
-            .boat
-            .map_or(0.0, |seats| seats.ride_height)
+        super::passenger_attachment(entity, index, passenger_count, is_animal)
     }
 }

@@ -252,8 +252,9 @@ impl ZombieVillagerEntity {
         for block_x in x - radius..x + radius {
             for block_y in y - radius..y + radius {
                 for block_z in z - radius..z + radius {
-                    // Vanilla's loop guard is j <= 14, so it rolls fifteen candidates.
-                    if special_blocks > Self::MAX_SPECIAL_BLOCKS_COUNT {
+                    // Vanilla guards each candidate with `specialBlocksCount < 14`, so at
+                    // most fourteen special blocks are counted before the scan stops.
+                    if special_blocks >= Self::MAX_SPECIAL_BLOCKS_COUNT {
                         return progress;
                     }
                     let block = world.get_block(&BlockPos::new(block_x, block_y, block_z));
@@ -298,18 +299,7 @@ impl ZombieVillagerEntity {
     fn finish_conversion(&self) {
         let entity = self.get_entity();
         let world = entity.world.load_full();
-        // Vanilla spawns a brand-new villager, so none of the zombie's effects survive.
-        let living = &self.mob_entity.mob_entity.living_entity;
-        let effects: Vec<_> = living
-            .active_effects
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .keys()
-            .copied()
-            .collect();
-        for effect in effects {
-            living.remove_effect(effect);
-        }
+        // Vanilla's convertTo copies the zombie's active effects onto the cured villager.
         let kept = self.drop_preserved_equipment();
         convert_to(
             self,

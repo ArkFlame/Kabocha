@@ -194,6 +194,16 @@ mod tests {
     }
 
     #[test]
+    fn activity_slot_matches_java_hash_map_buckets() {
+        // Java HashMap.hash = h ^ (h >>> 16), index = hash & (capacity - 1).
+        // With three activities the default capacity is 16. The mod.rs ordering
+        // test relies on these buckets yielding core < idle < fight.
+        assert_eq!(activity_slot(Activity::Core, 3), 1);
+        assert_eq!(activity_slot(Activity::Idle, 3), 5);
+        assert_eq!(activity_slot(Activity::Fight, 3), 14);
+    }
+
+    #[test]
     fn every_activity_round_trips_through_the_set() {
         for activity in ALL_ACTIVITIES {
             let mut set = ActivitySet::default();

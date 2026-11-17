@@ -62,6 +62,17 @@ pub const fn should_stop_being_angry(still_angry: bool, keeps_valid_player_targe
     !still_angry && !keeps_valid_player_target
 }
 
+/// Vanilla `updatePersistentAnger`: the timer restarts for a new target, or on every
+/// tick while `stayAngryIfTargetPresent` is set and the target is still around. It is
+/// never counted down. Bees pass `false` and calm down once the target is gone.
+#[must_use]
+pub const fn should_refresh_anger_timer(
+    is_new_target: bool,
+    stays_angry_with_target: bool,
+) -> bool {
+    is_new_target || stays_angry_with_target
+}
+
 /// Players live in their own list, everything else in the entity list.
 #[must_use]
 pub fn find_by_uuid(world: &World, uuid: Uuid) -> Option<Arc<dyn EntityBase>> {
@@ -263,17 +274,19 @@ pub trait NeutralMob: Mob {
         if let Some(target) = &target {
             let is_new =
                 anger_target.is_none_or(|angry_at| angry_at != target.get_entity().entity_uuid);
-            if is_new {
-                let ticks = rand::random_range(self.anger_duration());
-                let Some(ticks) = self.approve_grudge(target.as_ref(), ticks) else {
-                    // Refused: drop the target too, else the grudge is offered again every tick.
-                    self.set_mob_target(None, TargetReason::ForgotTarget);
-                    return;
-                };
-                self.set_persistent_anger_target(Some(target.get_entity().entity_uuid));
-                self.set_anger_end_time(now + i64::from(ticks));
-            } else if stays_angry {
-                self.start_persistent_anger_timer_at(now);
+            if should_refresh_anger_timer(is_new, stays_angry) {
+                if is_new {
+                    let ticks = rand::random_range(self.anger_duration());
+                    let Some(ticks) = self.approve_grudge(target.as_ref(), ticks) else {
+                        // Refused: drop the target too, else the grudge is offered again every tick.
+                        self.set_mob_target(None, TargetReason::ForgotTarget);
+                        return;
+                    };
+                    self.set_persistent_anger_target(Some(target.get_entity().entity_uuid));
+                    self.set_anger_end_time(now + i64::from(ticks));
+                } else {
+                    self.start_persistent_anger_timer_at(now);
+                }
             }
         }
 
@@ -299,6 +312,8 @@ pub trait NeutralMob: Mob {
     }
 
     fn write_anger_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla `addPersistentAngerSaveData` uses `putLong` (always written) for the
+        // end time and `storeNullable` (key omitted when null) for the grudge target.
         nbt.put_long("anger_end_time", self.get_anger_end_time());
         if let Some(angry_at) = self.get_persistent_anger_target() {
             nbt.put_uuid("angry_at", angry_at);
@@ -325,6 +340,8 @@ pub fn tell_neutral_mobs_player_died(player: &dyn EntityBase, world: &World) {
         return;
     }
 
+    // Vanilla builds the box from the player's block position (1x1x1), not its
+    // bounding box, then inflates it by 32/10/32 (`ServerPlayer.tellNeutralMobsThatIDied`).
     let pos = player.get_entity().block_pos.load().to_f64();
     let search_box = BoundingBox::new(pos, pos.add_raw(1.0, 1.0, 1.0)).expand(
         DEATH_NOTICE_RANGE_XZ,
@@ -368,7 +385,7 @@ macro_rules! impl_neutral_mob {
 mod tests {
     use super::{
         DEFAULT_ANGER_DURATION, NO_ANGER_END_TIME, NeutralData, anger_end_time_from_nbt,
-        is_angry_at_time, should_stop_being_angry,
+        is_angry_at_time, should_refresh_anger_timer, should_stop_being_angry,
     };
     use pumpkin_nbt::compound::NbtCompound;
     use std::sync::atomic::Ordering::Relaxed;
@@ -447,5 +464,19 @@ mod tests {
             anger_end_time_from_nbt(&NbtCompound::new(), 1_000),
             NO_ANGER_END_TIME
         );
+    }
+
+    #[test]
+    fn new_target_always_restarts_the_anger_timer() {
+        // Vanilla: `if (newTarget || stayAngryIfTargetPresent) startPersistentAngerTimer();`
+        assert!(should_refresh_anger_timer(true, false));
+        assert!(should_refresh_anger_timer(true, true));
+    }
+
+    #[test]
+    fn existing_target_restarts_the_timer_only_for_non_bees() {
+        // Bees pass stayAngryIfTargetPresent = false, so their timer runs down.
+        assert!(!should_refresh_anger_timer(false, false));
+        assert!(should_refresh_anger_timer(false, true));
     }
 }

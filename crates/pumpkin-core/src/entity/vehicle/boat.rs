@@ -21,6 +21,7 @@ use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::translation;
 use pumpkin_inventory::Inventory;
@@ -40,42 +41,48 @@ const BACK_SEAT_OFFSET: f32 = -0.6;
 const ANIMAL_SEAT_SHIFT: f32 = 0.2;
 const CHEST_BOAT_CONTAINER_SIZE: usize = 27;
 const TIME_TO_EJECT: f32 = 60.0;
+const BUBBLE_COLUMN_DELAY: i32 = 60;
 const BOAT_MAX_PASSENGERS: usize = 2;
 const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
 
-/// Vanilla chest boats save only `Items`; loot tables belong to chest minecarts, so a boat's
-/// saved loot keys are dropped before the inventory reads its data.
+/// Vanilla distinguishes ChestBoat from Boat by class. Generated entity resource names
+/// carry that distinction in the _chest_boat / bamboo_chest_raft suffix, so a new wood
+/// needs no extra allow-list entry here.
 #[must_use]
-pub fn without_loot_table(nbt: &NbtCompound) -> NbtCompound {
-    let mut filtered = nbt.clone();
-    filtered.child_tags.remove("LootTable");
-    filtered.child_tags.remove("LootTableSeed");
-    filtered
+pub fn is_chest_boat(entity_type: &EntityType) -> bool {
+    entity_type.resource_name.ends_with("_chest_boat")
+        || entity_type.resource_name == "bamboo_chest_raft"
 }
 
 #[must_use]
-pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
-    entity_type.id == EntityType::ACACIA_CHEST_BOAT.id
-        || entity_type.id == EntityType::BAMBOO_CHEST_RAFT.id
-        || entity_type.id == EntityType::BIRCH_CHEST_BOAT.id
-        || entity_type.id == EntityType::CHERRY_CHEST_BOAT.id
-        || entity_type.id == EntityType::DARK_OAK_CHEST_BOAT.id
-        || entity_type.id == EntityType::JUNGLE_CHEST_BOAT.id
-        || entity_type.id == EntityType::MANGROVE_CHEST_BOAT.id
-        || entity_type.id == EntityType::OAK_CHEST_BOAT.id
-        || entity_type.id == EntityType::PALE_OAK_CHEST_BOAT.id
-        || entity_type.id == EntityType::POPLAR_CHEST_BOAT.id
-        || entity_type.id == EntityType::SPRUCE_CHEST_BOAT.id
+pub fn is_boat(entity_type: &EntityType) -> bool {
+    entity_type.has_tag(&tag::EntityType::C_BOATS) || is_chest_boat(entity_type)
 }
 
 /// Vanilla `AbstractBoat.getMaxPassengers` returns 2, `AbstractChestBoat` overrides it with 1.
 #[must_use]
-pub const fn max_passengers(entity_type: &EntityType) -> usize {
+pub fn max_passengers(entity_type: &EntityType) -> usize {
     if is_chest_boat(entity_type) {
         CHEST_BOAT_MAX_PASSENGERS
     } else {
         BOAT_MAX_PASSENGERS
     }
+}
+
+/// Vanilla `AbstractBoat.getDropItem`: prefer the explicit boat item mapping, then the registry
+/// key fallback shared with the pickup path.
+#[must_use]
+pub fn boat_drop_item(entity_type: &EntityType) -> Option<&'static Item> {
+    crate::item::items::boat::BoatItem::entity_to_item(entity_type)
+        .or_else(|| Item::from_registry_key(entity_type.resource_name))
+}
+
+/// Vanilla `VehicleEntity.hurtServer`: an instabuild hit discards the boat without calling
+/// `destroy`, so no item drops even when it carries a custom name (a name is only copied in the
+/// non-creative `destroy` path).
+#[must_use]
+pub const fn drops_item_when_destroyed(creative: bool, _named: bool) -> bool {
+    !creative
 }
 
 /// Vanilla `AbstractBoat.canAddPassenger`: a boat whose eye is in water takes no passenger.
@@ -90,6 +97,89 @@ pub fn is_eye_in_water(entity: &Entity) -> bool {
         && eye_y < f64::from(eye_pos.0.y as f32 + world.get_fluid_height(&eye_pos, fluid, &state))
 }
 
+/// Vanilla AbstractChestBoat.interact: the container is offered when the ride attempt did
+/// not consume the click, i.e. on secondary use or when no seat is free.
+fn chest_opens_container(is_sneaking: bool, can_add_passenger: bool, has_inventory: bool) -> bool {
+    has_inventory && (is_sneaking || !can_add_passenger)
+}
+
+/// Server-side outcome of a boat click, mirroring the vanilla `interact` chain.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BoatInteractOutcome {
+    Mount,
+    OpenContainer,
+    Nothing,
+}
+
+/// Pure model of vanilla `AbstractBoat.interact` followed by `AbstractChestBoat.interact`.
+///
+/// Vanilla `canAddPassenger` checks only the seat count and whether the eye is in water. The
+/// out-of-control counter and an existing vehicle gate `startRiding`, so neither may make a
+/// chest boat open its container on a plain use.
+#[must_use]
+fn boat_interact_outcome(
+    secondary_use: bool,
+    out_of_control: bool,
+    eye_in_water: bool,
+    player_has_vehicle: bool,
+    seat_available: bool,
+    has_container: bool,
+) -> BoatInteractOutcome {
+    let can_add_passenger = seat_available && !eye_in_water;
+    if can_add_passenger && !secondary_use && !out_of_control && !player_has_vehicle {
+        BoatInteractOutcome::Mount
+    } else if chest_opens_container(secondary_use, can_add_passenger, has_container) {
+        BoatInteractOutcome::OpenContainer
+    } else {
+        BoatInteractOutcome::Nothing
+    }
+}
+
+/// Vanilla AbstractBoat.getPassengerAttachmentPoint seat selection. Shared by the engine's
+/// passenger_attachment_point and the mount-positioning path so the two cannot drift.
+fn passenger_seat_offset(
+    single_passenger_x_offset: f32,
+    index: usize,
+    passenger_count: usize,
+    is_animal: bool,
+) -> f32 {
+    if passenger_count > 1 {
+        let mut offset = if index == 0 {
+            FRONT_SEAT_OFFSET
+        } else {
+            BACK_SEAT_OFFSET
+        };
+        if is_animal {
+            offset += ANIMAL_SEAT_SHIFT;
+        }
+        offset
+    } else {
+        single_passenger_x_offset
+    }
+}
+
+/// Full passenger attachment point matching vanilla AbstractBoat.getPassengerAttachmentPoint,
+/// including the yRot(-getYRot * DEG_TO_RAD) applied to (0, rideHeight, offset).
+pub(super) fn passenger_attachment(
+    entity: &Entity,
+    index: usize,
+    passenger_count: usize,
+    is_animal: bool,
+) -> Option<Vector3<f64>> {
+    let seats = entity.entity_type.boat?;
+    let offset = passenger_seat_offset(
+        seats.single_passenger_x_offset,
+        index,
+        passenger_count,
+        is_animal,
+    );
+    Some(crate::entity::attachment_point(
+        [0.0, seats.ride_height, f64::from(offset)],
+        1.0,
+        entity.yaw.load(),
+    ))
+}
+
 pub struct BoatEntity {
     pub vehicle: VehicleEntity,
     ticks_underwater: AtomicCell<f32>,
@@ -97,9 +187,14 @@ pub struct BoatEntity {
     water_level: AtomicCell<f64>,
     land_friction: AtomicCell<f32>,
     last_yd: AtomicCell<f64>,
+    last_yaw: AtomicCell<f32>,
+    yaw_delta: AtomicCell<f32>,
     movements: Mutex<VecDeque<BoatMovement>>,
     left_paddle_moving: AtomicBool,
     right_paddle_moving: AtomicBool,
+    bubble_column_time: AtomicCell<i32>,
+    bubble_column_drag_down: AtomicBool,
+    bubble_column_above: AtomicBool,
     inventory: Option<Arc<MinecartInventory>>,
 }
 
@@ -107,6 +202,7 @@ impl BoatEntity {
     #[must_use]
     pub fn new(mut entity: Entity) -> Self {
         entity.blocks_building = true;
+        let yaw = entity.yaw.load();
         let inventory = is_chest_boat(entity.entity_type)
             .then(|| Arc::new(MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE)));
         Self {
@@ -116,9 +212,14 @@ impl BoatEntity {
             water_level: AtomicCell::new(0.0),
             land_friction: AtomicCell::new(0.0),
             last_yd: AtomicCell::new(0.0),
+            last_yaw: AtomicCell::new(yaw),
+            yaw_delta: AtomicCell::new(0.0),
             movements: Mutex::new(VecDeque::new()),
             left_paddle_moving: AtomicBool::new(false),
             right_paddle_moving: AtomicBool::new(false),
+            bubble_column_time: AtomicCell::new(0),
+            bubble_column_drag_down: AtomicBool::new(false),
+            bubble_column_above: AtomicBool::new(false),
             inventory,
         }
     }
@@ -144,24 +245,11 @@ impl BoatEntity {
     }
 
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
-        // Vanilla AbstractChestBoat.openCustomInventoryScreen opens only when the boat is
-        // alive and either empty or ridden by the opener; ChestBoat.interact also rejects
-        // spectators. A boat occupied by someone else cannot be looted.
+        // Vanilla AbstractChestBoat.openCustomInventoryScreen has no rider check:
+        // player.openMenu succeeds even when another player rides the boat, so a full
+        // chest boat still offers its container. Spectators cannot open menus and a
+        // removed boat is not interactive.
         if player.is_spectator() || !self.vehicle.entity.is_alive() {
-            return false;
-        }
-        let passengers = self
-            .vehicle
-            .entity
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let opener_is_rider = passengers
-            .iter()
-            .any(|passenger| passenger.get_entity().entity_id == player.entity_id());
-        let occupied_by_other = !passengers.is_empty() && !opener_is_rider;
-        drop(passengers);
-        if occupied_by_other {
             return false;
         }
         let Some(inventory) = &self.inventory else {
@@ -178,14 +266,15 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        // Vanilla `AbstractChestBoat.interact` emits CONTAINER_OPEN and angers nearby piglins
-        // after a successful open.
+        // Vanilla `AbstractChestBoat.interact` emits CONTAINER_OPEN with the player as the
+        // vibration source (`GameEvent.Context.of(player)`), then angers nearby piglins.
         let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
         if opened {
             let world = self.vehicle.entity.world.load_full();
-            world.emit_game_event(
+            world.emit_game_event_with_source(
                 pumpkin_data::game_event::GameEvent::ContainerOpen.name(),
                 self.vehicle.entity.pos.load(),
+                Some(player.clone()),
             );
             crate::entity::mob::piglin_ai::PiglinAi::on_guarded_block_interacted(&world, player);
         }
@@ -210,6 +299,9 @@ impl BoatEntity {
     }
 
     fn tick_underwater(&self, status: BoatStatus) {
+        // Vanilla `AbstractBoat.tick` keeps `outOfControlTicks` for the 60-tick rider eject and
+        // the boarding gate; only the bubble-column path writes `DATA_ID_BUBBLE_TIME`, so a
+        // submerged boat must not overwrite it from this counter.
         let previous = self.ticks_underwater.load();
         let ticks = if status.is_underwater() {
             previous + 1.0
@@ -217,14 +309,6 @@ impl BoatEntity {
             0.0
         };
         self.ticks_underwater.store(ticks);
-        if ticks != previous {
-            // Vanilla `Boat.tick` feeds this counter into `DATA_ID_BUBBLE_TIME`; clients render
-            // the bubbles under a sinking boat from it and `Boat.interact` refuses passengers at 60.
-            self.vehicle.entity.set_synced_data(
-                pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME,
-                ticks as i32,
-            );
-        }
         if ticks < TIME_TO_EJECT {
             return;
         }
@@ -244,10 +328,47 @@ impl BoatEntity {
     }
 
     fn is_client_controlled(&self) -> bool {
-        // Vanilla `AbstractBoat.isControlledByLocalInstance` goes through
-        // `getControllingPassenger`, i.e. the first passenger that is a `LivingEntity`.
-        self.get_controlling_passenger()
-            .is_some_and(|passenger| passenger.get_player().is_some())
+        // Vanilla `AbstractBoat.getControllingPassenger` returns the first passenger only when
+        // it is a `Player` (otherwise `super` returns null), so a mob rider never steers.
+        self.get_controlling_passenger().is_some()
+    }
+
+    /// Vanilla `AbstractBoat.tickBubbleColumn` applies the launch/sink impulse only after the
+    /// 60-tick counter has elapsed, then clears it ready for the next contact.
+    fn tick_bubble_column(&self) {
+        let entity = &self.vehicle.entity;
+        // Vanilla `tickBubbleColumn` drops the countdown as soon as the boat is no longer above a
+        // column, so leaving the column cancels the pending launch or sink.
+        if !self.bubble_column_above.swap(false, Ordering::Relaxed) {
+            if self.bubble_column_time.load() != 0 {
+                self.bubble_column_time.store(0);
+                entity.set_synced_data(pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME, 0i32);
+            }
+            return;
+        }
+        let time = self.bubble_column_time.load();
+        if time <= 0 {
+            return;
+        }
+        let remaining = time - 1;
+        self.bubble_column_time.store(remaining);
+        entity.set_synced_data(pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME, remaining);
+        entity.velocity_dirty.store(true, Ordering::SeqCst);
+        if remaining > 0 {
+            return;
+        }
+        let drag_down = self.bubble_column_drag_down.load(Ordering::Relaxed);
+        // Vanilla broadcasts `EntityEvent.BOAT_SINK` on a downward column, which ejects the
+        // riders there; the impulse itself is skipped for a client-controlled boat.
+        if drag_down {
+            entity.eject_passengers();
+        }
+        if self.is_client_controlled() {
+            return;
+        }
+        let mut velocity = entity.velocity.load();
+        velocity.y = bubble_column_vertical_velocity(drag_down, velocity.y);
+        entity.velocity.store(velocity);
     }
 
     pub(in crate::entity) fn can_push(&self, other: &Entity, is_boat: bool) -> bool {
@@ -272,32 +393,16 @@ impl EntityBase for BoatEntity {
         index: usize,
     ) -> Option<Vector3<f64>> {
         let entity = self.get_entity();
-        let seats = entity.entity_type.boat?;
-        let mut offset = seats.single_passenger_x_offset;
         let passenger_count = entity
             .passengers
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len();
-        if passenger_count > 1 {
-            offset = if index == 0 {
-                FRONT_SEAT_OFFSET
-            } else {
-                BACK_SEAT_OFFSET
-            };
-            if passenger
-                .get_mob()
-                .and_then(|mob| mob.as_animal())
-                .is_some()
-            {
-                offset += ANIMAL_SEAT_SHIFT;
-            }
-        }
-        Some(crate::entity::attachment_point(
-            [0.0, seats.ride_height, f64::from(offset)],
-            1.0,
-            entity.yaw.load(),
-        ))
+        let is_animal = passenger
+            .get_mob()
+            .and_then(|mob| mob.as_animal())
+            .is_some();
+        passenger_attachment(entity, index, passenger_count, is_animal)
     }
 
     fn get_controlling_passenger(&self) -> Option<Arc<dyn EntityBase>> {
@@ -306,7 +411,7 @@ impl EntityBase for BoatEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .first()
-            .filter(|passenger| passenger.get_living_entity().is_some())
+            .filter(|passenger| passenger.get_player().is_some())
             .cloned()
     }
 
@@ -318,7 +423,7 @@ impl EntityBase for BoatEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         if let Some(inventory) = &self.inventory {
-            inventory.read_nbt(&without_loot_table(nbt));
+            inventory.read_nbt(nbt);
         }
     }
 
@@ -357,6 +462,13 @@ impl EntityBase for BoatEntity {
         self.tick_underwater(status);
         self.vehicle.tick();
         let entity = &self.vehicle.entity;
+        // Vanilla `AbstractBoat.deltaRotation` is the per-tick yaw change from steering.
+        // Pumpkin's boat yaw comes from the client's vehicle-move packet, so derive the
+        // same value from consecutive server-side yaw samples for non-player riders.
+        let yaw = entity.yaw.load();
+        let delta = wrap_degrees(yaw - self.last_yaw.load());
+        self.last_yaw.store(yaw);
+        self.yaw_delta.store(delta);
         entity.update_last_pos();
         // Vanilla Boat.tick starts with super.tick -> Entity.baseTick: fluid flags and the
         // fluid's entityInside effects (what ignites and destroys a boat in lava), fire ticks,
@@ -366,6 +478,9 @@ impl EntityBase for BoatEntity {
         if entity.is_removed() {
             return;
         }
+
+        // Vanilla `Entity.baseTick` ticks the leash for every leashable entity; boats are leashable.
+        let _ = entity.tick_leash(caller);
 
         // Vanilla leaves ridden boat movement to its controlling player's client.
         if self.is_client_controlled() {
@@ -380,6 +495,7 @@ impl EntityBase for BoatEntity {
             self.move_boat(caller, surface_offset);
         }
         self.apply_effects_from_blocks();
+        self.tick_bubble_column();
         entity.tick_block_collisions(caller);
     }
 
@@ -396,6 +512,32 @@ impl EntityBase for BoatEntity {
         !self.vehicle.entity.is_removed()
     }
 
+    fn on_above_bubble_column(&self, drag_down: bool, _pos: &BlockPos) {
+        // Vanilla `AbstractBoat.onAboveBubbleColumn` arms the countdown once; the impulse
+        // comes later from `tickBubbleColumn`, not on every tick of contact.
+        self.bubble_column_drag_down
+            .store(drag_down, Ordering::Relaxed);
+        self.bubble_column_above.store(true, Ordering::Relaxed);
+        if self.bubble_column_time.load() == 0 {
+            self.bubble_column_time.store(BUBBLE_COLUMN_DELAY);
+            self.vehicle.entity.set_synced_data(
+                pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME,
+                BUBBLE_COLUMN_DELAY,
+            );
+        }
+        self.vehicle
+            .entity
+            .velocity_dirty
+            .store(true, Ordering::SeqCst);
+    }
+
+    fn on_inside_bubble_column(&self, drag_down: bool) {
+        // Vanilla boats do not override `onInsideBubbleColumn`, so the capped entity push applies.
+        let entity = &self.vehicle.entity;
+        crate::block::blocks::bubble_column::push_entity(entity, drag_down, false);
+        entity.velocity_dirty.store(true, Ordering::SeqCst);
+    }
+
     fn damage_with_context(
         &self,
         _caller: &dyn EntityBase,
@@ -405,8 +547,12 @@ impl EntityBase for BoatEntity {
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
-        // Vanilla `Boat.hurt` starts with an invulnerability check, so datapack invulnerability
-        // and fire immunity apply before any wobble or chest contents.
+        // Vanilla `VehicleEntity.hurtServer` checks `isRemoved` before `isInvulnerableToBase`,
+        // so an already-removed boat neither mutates damage nor drops its contents again.
+        if self.vehicle.entity.is_removed() {
+            return true;
+        }
+        // Datapack invulnerability and fire immunity apply before any wobble or chest contents.
         if self.vehicle.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
@@ -425,11 +571,15 @@ impl EntityBase for BoatEntity {
 
         let damaged = self.vehicle.damage_with_context(amount, source);
 
-        // Vanilla `AbstractBoat#hurt`: a destroying break runs `destroy` (chest contents plus the
-        // boat item) only when it is not an instabuild hit, so a creative break drops nothing.
+        // Vanilla `VehicleEntity.hurtServer`: a destroying break runs `destroy` (chest contents
+        // plus the named boat item); an instabuild hit discards directly, dropping nothing.
         // The break is read from the post-hit removal state so it cannot drift from the vehicle
         // destroy threshold.
-        if was_alive && !creative && self.vehicle.entity.is_removed() {
+        let named = self.vehicle.entity.custom_name.load().is_some();
+        if was_alive
+            && self.vehicle.entity.is_removed()
+            && drops_item_when_destroyed(creative, named)
+        {
             let world = self.vehicle.entity.world.load();
             // Vanilla `AbstractChestBoat.remove` scatters the 27 slots on any destroying
             // removal, independent of `doEntityDrops`; only the boat item is gamerule-gated.
@@ -438,8 +588,7 @@ impl EntityBase for BoatEntity {
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
                 if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
-                    let resource_name = self.vehicle.entity.entity_type.resource_name;
-                    if let Some(item) = Item::from_registry_key(resource_name) {
+                    if let Some(item) = boat_drop_item(&self.vehicle.entity.entity_type) {
                         let mut stack = ItemStack::new(1, item);
                         if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
                             stack.set_data_component(CustomNameImpl {
@@ -455,29 +604,74 @@ impl EntityBase for BoatEntity {
         damaged
     }
 
-    fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
-        // Vanilla `AbstractBoat.interact` gates boarding on `outOfControlTicks < 60`,
-        // `canAddPassenger` (eye not in water) and secondary use only.
-        let can_add_passenger = self.ticks_underwater.load() < TIME_TO_EJECT
-            && !is_eye_in_water(&self.vehicle.entity)
-            && !player.get_entity().has_vehicle()
-            && self
-                .vehicle
-                .entity
-                .passengers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .len()
-                < max_passengers(self.vehicle.entity.entity_type);
-
-        // Vanilla `AbstractChestBoat.interact`: only secondary use opens the container; a plain
-        // use always goes through `AbstractBoat.interact` (board a free seat or nothing).
-        if self.inventory.is_some() && player.get_entity().is_sneaking() {
-            return self.open_custom_inventory_screen(player);
+    fn interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+        // Vanilla `Entity.interact` handles leads for every `Leashable`; `AbstractBoat`
+        // implements it, so a lead ties a boat to the player or unties it on second use.
+        if item_stack.item == &Item::LEAD {
+            let entity = &self.vehicle.entity;
+            let world = entity.world.load();
+            let holder = entity.get_leash_holder();
+            if holder
+                .as_ref()
+                .is_some_and(|holder| holder.get_entity().entity_id == player.entity_id())
+            {
+                if !entity.unleash() {
+                    return false;
+                }
+                if player.gamemode.load() != GameMode::Creative {
+                    entity.spawn_at_location(ItemStack::new(1, &Item::LEAD));
+                }
+                world.play_sound(
+                    Sound::ItemLeadUntied,
+                    SoundCategory::Neutral,
+                    &entity.pos.load(),
+                );
+                return true;
+            }
+            if holder.is_none() {
+                let diff = entity.pos.load() - player.get_entity().pos.load();
+                if diff.length_squared()
+                    <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE
+                {
+                    let player_base = player.clone() as Arc<dyn EntityBase>;
+                    if entity.leash_to(player_base) {
+                        if player.gamemode.load() != GameMode::Creative {
+                            item_stack.decrement(1);
+                        }
+                        world.play_sound(
+                            Sound::ItemLeadTied,
+                            SoundCategory::Neutral,
+                            &entity.pos.load(),
+                        );
+                        return true;
+                    }
+                }
+            }
         }
 
-        if player.get_entity().is_sneaking() || !can_add_passenger {
-            return false;
+        // Vanilla `AbstractBoat.interact` then `AbstractChestBoat.interact` decide between
+        // mounting, opening the container and doing nothing. Keep the server-side chain in one
+        // pure helper so the out-of-control and already-riding cases never open a chest boat.
+        let seat_available = self
+            .vehicle
+            .entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+            < max_passengers(self.vehicle.entity.entity_type);
+        let outcome = boat_interact_outcome(
+            player.get_entity().is_sneaking(),
+            self.ticks_underwater.load() >= TIME_TO_EJECT,
+            is_eye_in_water(&self.vehicle.entity),
+            player.get_entity().has_vehicle(),
+            seat_available,
+            self.inventory.is_some(),
+        );
+        match outcome {
+            BoatInteractOutcome::OpenContainer => return self.open_custom_inventory_screen(player),
+            BoatInteractOutcome::Nothing => return false,
+            BoatInteractOutcome::Mount => {}
         }
 
         let world = self.vehicle.entity.world.load();
@@ -500,19 +694,56 @@ impl EntityBase for BoatEntity {
         self.set_paddles(left, right);
     }
     fn on_rider_positioned(&self, passenger: &dyn EntityBase) {
-        // Vanilla AbstractBoat.clampRotation: players steer themselves, other riders follow the hull.
-        if passenger.get_player().is_some() {
+        // Vanilla `AbstractBoat.positionRider` applies the turn delta and then `clampRotation`.
+        // A player steers itself and an entity in `can_turn_in_boats` keeps its own rotation.
+        let rider = passenger.get_entity();
+        if passenger.get_player().is_some()
+            || rider
+                .entity_type
+                .has_tag(&tag::EntityType::MINECRAFT_CAN_TURN_IN_BOATS)
+        {
             return;
         }
         let boat_yaw = self.get_entity().yaw.load();
-        let rider = passenger.get_entity();
-        let yaw = clamp_rider_yaw(rider.yaw.load(), boat_yaw);
-        rider.body_yaw.store(boat_yaw);
-        rider.yaw.store(yaw);
-        rider.head_yaw.store(yaw);
+        let passenger_count = self
+            .get_entity()
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len();
+        let body_yaw = rider_body_yaw(
+            boat_yaw,
+            passenger_count,
+            max_passengers(rider.entity_type),
+            passenger
+                .get_mob()
+                .is_some_and(|mob| mob.as_animal().is_some()),
+            rider.entity_id,
+        );
+        let delta = self.yaw_delta.load();
+        rider.body_yaw.store(body_yaw);
+        let Some(mob) = passenger.get_mob() else {
+            let yaw = clamp_rider_yaw(rider.yaw.load() + delta, body_yaw);
+            rider.yaw.store(yaw);
+            rider.head_yaw.store(yaw);
+            return;
+        };
+        // Vanilla `Mob` riders take the hull heading as body yaw (`setYRot` then
+        // `clampHeadRotationToBody`), so only the head turns inside the mob's own limit.
+        rider.yaw.store(body_yaw);
+        rider.head_yaw.store(clamp_head_to_body(
+            rider.head_yaw.load() + delta,
+            body_yaw,
+            mob.get_max_head_rotation(),
+        ));
     }
     fn cast_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    // Vanilla `AbstractBoat.supportQuadLeash` renders the lead to four attachment points.
+    fn support_quad_leash(&self) -> bool {
+        true
     }
 
     fn is_pushable(&self) -> bool {
@@ -528,6 +759,37 @@ impl EntityBase for BoatEntity {
     }
 }
 
+/// Vertical velocity vanilla `AbstractBoat.handleBubbleColumnEffect` sets once the column
+/// countdown expires: a whirlpool adds -0.7 to the current y, an updraft sets y to 0.6.
+#[must_use]
+pub fn bubble_column_vertical_velocity(drag_down: bool, current_y: f64) -> f64 {
+    if drag_down { current_y - 0.7 } else { 0.6 }
+}
+
+/// Vanilla `AbstractBoat.calculatePassengerBodyYRot`: an animal in a full boat sits sideways.
+#[must_use]
+pub fn rider_body_yaw(
+    boat_yaw: f32,
+    passenger_count: usize,
+    max_passengers: usize,
+    is_animal: bool,
+    entity_id: i32,
+) -> f32 {
+    if is_animal && passenger_count == max_passengers {
+        boat_yaw + if entity_id % 2 == 0 { 90.0 } else { 270.0 }
+    } else {
+        boat_yaw
+    }
+}
+
+/// Vanilla `Mob.clampHeadRotationToBody`: keeps the head within `max` degrees of the body yaw.
+#[must_use]
+pub fn clamp_head_to_body(head_yaw: f32, body_yaw: f32, max: f32) -> f32 {
+    let delta = wrap_degrees(body_yaw - head_yaw);
+    let clamped = delta.clamp(-max, max);
+    head_yaw + delta - clamped
+}
+
 /// Largest yaw offset, in degrees, a non-player rider may turn away from the boat's heading.
 const RIDER_MAX_TURN_DEGREES: f32 = 105.0;
 
@@ -541,9 +803,11 @@ pub fn clamp_rider_yaw(rider_yaw: f32, boat_yaw: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{clamp_rider_yaw, is_chest_boat, max_passengers, without_loot_table};
+    use super::{
+        boat_drop_item, clamp_head_to_body, clamp_rider_yaw, drops_item_when_destroyed,
+        is_chest_boat, max_passengers, rider_body_yaw,
+    };
     use pumpkin_data::entity::EntityType;
-    use pumpkin_nbt::compound::NbtCompound;
 
     #[test]
     fn rider_yaw_clamps_to_boat_heading_window() {
@@ -553,20 +817,32 @@ mod tests {
     }
 
     #[test]
-    fn chest_boat_nbt_ignores_loot_table_keys_and_keeps_items() {
-        let mut nbt = NbtCompound::new();
-        nbt.put_string("LootTable", "minecraft:chests/simple_dungeon".to_owned());
-        nbt.put_long("LootTableSeed", 1234);
-        nbt.put_list("Items", Vec::new());
+    fn rider_yaw_follows_boat_yaw_delta_then_clamps() {
+        // A rider aligned with the boat follows its turn when the boat yaw changes by a delta.
+        assert!((clamp_rider_yaw(100.0 + 10.0, 110.0) - 110.0).abs() < 1e-4);
+        // The delta accumulates even while the rider stays inside the turn window.
+        assert!((clamp_rider_yaw(100.0 + 20.0, 100.0) - 120.0).abs() < 1e-4);
+        // The delta is applied before the +/-105 clamp keeps the rider within the hull window.
+        assert!((clamp_rider_yaw(250.0 + 5.0, 105.0) - 210.0).abs() < 1e-4);
+    }
 
-        let filtered = without_loot_table(&nbt);
-        assert!(!filtered.has("LootTable"));
-        assert!(!filtered.has("LootTableSeed"));
-        assert!(filtered.has("Items"));
-        assert!(
-            nbt.has("LootTable"),
-            "the source compound is left untouched"
-        );
+    #[test]
+    fn animal_in_a_full_boat_sits_sideways() {
+        // Vanilla AbstractBoat.calculatePassengerBodyYRot offsets the body of a full-boat animal.
+        assert!((rider_body_yaw(90.0, 2, 2, true, 4) - 180.0).abs() < 1e-4);
+        assert!((rider_body_yaw(90.0, 2, 2, true, 5) - 360.0).abs() < 1e-4);
+        // A lone animal or a non-animal rider keeps the hull heading.
+        assert!((rider_body_yaw(90.0, 1, 2, true, 4) - 90.0).abs() < 1e-4);
+        assert!((rider_body_yaw(90.0, 2, 2, false, 4) - 90.0).abs() < 1e-4);
+        // A head outside the mob limit snaps back towards the body, inside it stays put.
+        assert!((clamp_head_to_body(200.0, 0.0, 75.0) - 285.0).abs() < 1e-4);
+        assert!((clamp_head_to_body(30.0, 0.0, 75.0) - 30.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn bubble_column_impulse_matches_vanilla_boat_effect() {
+        assert!((super::bubble_column_vertical_velocity(true, 0.2) - (-0.5)).abs() < 1e-9);
+        assert!((super::bubble_column_vertical_velocity(false, -0.3) - 0.6).abs() < 1e-9);
     }
 
     #[test]
@@ -589,5 +865,114 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn named_boat_keeps_its_drop_when_creative() {
+        assert!(drops_item_when_destroyed(false, false));
+        assert!(drops_item_when_destroyed(false, true));
+        assert!(!drops_item_when_destroyed(true, false));
+        assert!(drops_item_when_destroyed(true, true));
+    }
+
+    #[test]
+    fn every_boat_entity_type_resolves_a_drop_item() {
+        for entity_type in EntityType::ALL {
+            if entity_type.boat.is_none() {
+                continue;
+            }
+            let resolved = boat_drop_item(entity_type);
+            assert!(
+                resolved.is_some(),
+                "no drop item for {}",
+                entity_type.resource_name
+            );
+            if let Some(item) = resolved {
+                assert_eq!(item.registry_key, entity_type.resource_name);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod seat_and_container_tests {
+    use super::{
+        ANIMAL_SEAT_SHIFT, BACK_SEAT_OFFSET, BoatInteractOutcome, FRONT_SEAT_OFFSET,
+        boat_interact_outcome, chest_opens_container, passenger_seat_offset,
+    };
+    use pumpkin_data::entity::EntityType;
+
+    #[test]
+    fn chest_boat_offers_container_only_when_no_seat_or_secondary_use() {
+        assert!(!chest_opens_container(false, true, true));
+        assert!(chest_opens_container(true, true, true));
+        assert!(chest_opens_container(false, false, true));
+        assert!(!chest_opens_container(false, false, false));
+    }
+
+    #[test]
+    fn boat_seat_offset_follows_vanilla_single_multi_rider_and_animal_shift() {
+        assert_eq!(passenger_seat_offset(0.15, 0, 1, false), 0.15);
+        assert_eq!(passenger_seat_offset(0.15, 0, 1, true), 0.15);
+        assert_eq!(passenger_seat_offset(0.15, 0, 2, false), FRONT_SEAT_OFFSET);
+        assert_eq!(passenger_seat_offset(0.15, 1, 2, false), BACK_SEAT_OFFSET);
+        assert_eq!(
+            passenger_seat_offset(0.15, 0, 2, true),
+            FRONT_SEAT_OFFSET + ANIMAL_SEAT_SHIFT
+        );
+        assert_eq!(
+            passenger_seat_offset(0.15, 1, 2, true),
+            BACK_SEAT_OFFSET + ANIMAL_SEAT_SHIFT
+        );
+    }
+    #[test]
+    fn boat_stat_classification_covers_every_boat_entity_type() {
+        for entity_type in EntityType::ALL {
+            if entity_type.boat.is_some() {
+                assert!(super::is_boat(entity_type), "{}", entity_type.resource_name);
+            }
+        }
+    }
+
+    #[test]
+    fn chest_boat_interact_follows_vanilla_mount_container_nothing_chain() {
+        use BoatInteractOutcome::{Mount, Nothing, OpenContainer};
+        // Plain use with a free seat mounts, matching a successful `startRiding`.
+        assert_eq!(
+            boat_interact_outcome(false, false, false, false, true, true),
+            Mount
+        );
+        // Secondary use opens the container instead of mounting.
+        assert_eq!(
+            boat_interact_outcome(true, false, false, false, true, true),
+            OpenContainer
+        );
+        // A full boat or an eye in water disables `canAddPassenger` and opens the chest.
+        assert_eq!(
+            boat_interact_outcome(false, false, false, false, false, true),
+            OpenContainer
+        );
+        assert_eq!(
+            boat_interact_outcome(false, false, true, false, true, true),
+            OpenContainer
+        );
+        // Out of control or already riding returns PASS: neither mount nor container.
+        assert_eq!(
+            boat_interact_outcome(false, true, false, false, true, true),
+            Nothing
+        );
+        assert_eq!(
+            boat_interact_outcome(false, false, false, true, true, true),
+            Nothing
+        );
+        // A plain boat has no container to open in those same cases.
+        assert_eq!(
+            boat_interact_outcome(false, true, false, false, true, false),
+            Nothing
+        );
+        assert_eq!(
+            boat_interact_outcome(true, false, false, false, true, false),
+            Nothing
+        );
     }
 }

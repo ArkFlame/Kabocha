@@ -109,19 +109,27 @@ impl PaintingEntity {
         VarInt(self.variant_id.load(Ordering::Relaxed) as i32 + 1)
     }
 
+    /// Vanilla `Painting.calculateBoundingBoxStatic`: the artwork's width runs
+    /// along the axis perpendicular to the facing, height spans Y, and the depth
+    /// stays thin.
+    #[must_use]
+    fn painting_box_size(facing: BlockDirection, width: u32, height: u32) -> Vector3<f64> {
+        let step = facing.to_offset();
+        let width = f64::from(width);
+        Vector3::new(
+            if step.x == 0 { width } else { DEPTH },
+            f64::from(height),
+            if step.z == 0 { width } else { DEPTH },
+        )
+    }
+
     /// Vanilla `Painting.calculateBoundingBox`, around the already wall-shifted position.
     #[must_use]
     pub fn hanging_bounding_box(&self) -> BoundingBox {
         let facing = BlockDirection::from_index(self.entity.data.load(Ordering::Relaxed) as u8)
             .unwrap_or(BlockDirection::South);
         let variant = self.variant();
-        let step = facing.to_offset();
-        let width = f64::from(variant.width());
-        let size = Vector3::new(
-            if step.x == 0 { width } else { DEPTH },
-            f64::from(variant.height()),
-            if step.z == 0 { width } else { DEPTH },
-        );
+        let size = Self::painting_box_size(facing, variant.width(), variant.height());
         hanging::box_of_size(self.entity.pos.load(), size)
     }
 
@@ -138,6 +146,24 @@ impl PaintingEntity {
     /// Applies the variant-sized box so hits anywhere on the artwork break it.
     pub fn recalculate_bounding_box(&self) {
         self.entity.bounding_box.store(self.hanging_bounding_box());
+    }
+
+    /// Vanilla `HangingEntity#survives`: the variant-sized box must be clear of
+    /// blocks, the supporting wall must still be solid, and no other hanging
+    /// entity may occupy the same space. Placement re-checks this on the
+    /// finished entity before spawning it.
+    #[must_use]
+    pub fn survives(&self) -> bool {
+        let world = self.entity.world.load();
+        let bounding_box = self.entity.bounding_box.load();
+        let Some(location) = self.attached_pos.load() else {
+            return false;
+        };
+        let facing = BlockDirection::from_index(self.entity.data.load(Ordering::Relaxed) as u8)
+            .unwrap_or(BlockDirection::South);
+        world.is_space_empty(bounding_box)
+            && Self::painting_fits(&world, location, facing, self.variant())
+            && !hanging::overlaps_hanging_entity(&world, &bounding_box, self.entity.entity_id)
     }
 
     pub fn sync_variant(&self) {
@@ -501,5 +527,20 @@ mod tests {
         );
         assert_eq!(PaintingVariant::from_name("invalid"), None);
         assert_eq!(PaintingVariant::Kebab.asset_id(), "minecraft:kebab");
+    }
+
+    #[test]
+    fn painting_box_size_matches_vanilla_axes() {
+        // Vanilla `Painting.calculateBoundingBoxStatic`: width runs along the
+        // axis perpendicular to the facing, height spans Y, depth stays `DEPTH`.
+        let north = PaintingEntity::painting_box_size(BlockDirection::North, 4, 2);
+        assert_eq!(north.x, 4.0);
+        assert_eq!(north.y, 2.0);
+        assert_eq!(north.z, DEPTH);
+
+        let east = PaintingEntity::painting_box_size(BlockDirection::East, 4, 2);
+        assert_eq!(east.x, DEPTH);
+        assert_eq!(east.y, 2.0);
+        assert_eq!(east.z, 4.0);
     }
 }

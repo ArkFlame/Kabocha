@@ -29,7 +29,7 @@ use crate::{
         Entity, EntityBase,
         ai::behavior::hunting::{self, Hunt},
         ai::goal::{
-            look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+            Controls, look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
             revenge::RevengeGoal,
         },
         ai::target_match::TargetMatch,
@@ -57,6 +57,15 @@ const WITHER_HUNTS: &[Hunt] = &[Hunt::new(
 /// Vanilla `attackable()`: false only for armor stands.
 fn is_attackable(target: &LivingEntity) -> bool {
     target.entity.entity_type != &EntityType::ARMOR_STAND
+}
+
+/// Vanilla `hurtServer`: a powered wither ignores `AbstractArrow` (arrow, spectral arrow,
+/// trident) and `WindCharge`. `BreezeWindCharge` extends `AbstractWindCharge`, not
+/// `WindCharge`, so it still hurts.
+fn is_projectile_immune_to_powered_wither(entity_type: &EntityType) -> bool {
+    entity_type.has_tag(&tag::EntityType::MINECRAFT_ARROWS)
+        || entity_type == &EntityType::TRIDENT
+        || entity_type == &EntityType::WIND_CHARGE
 }
 
 pub struct WitherEntity {
@@ -636,6 +645,18 @@ impl Mob for WitherEntity {
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
+        // Vanilla WitherDoNothingGoal (priority 0, MOVE/JUMP/LOOK) suppresses every
+        // other goal while Invul > 0. Pumpkin wither registers only LOOK goals, so
+        // gating LOOK reproduces that guard for the whole spawn animation.
+        if self.get_invulnerable_ticks() > 0 {
+            self.mob_entity
+                .goals_selector
+                .disable_control(Controls::LOOK);
+        } else {
+            self.mob_entity
+                .goals_selector
+                .enable_control(Controls::LOOK);
+        }
         if self.tick_wither_lifecycle() {
             self.tick_wither_movement();
         }
@@ -658,12 +679,7 @@ impl Mob for WitherEntity {
             if src_type.has_tag(&tag::EntityType::MINECRAFT_WITHER_FRIENDS) {
                 return false;
             }
-            if self.is_powered()
-                && (src_type == &EntityType::ARROW
-                    || src_type == &EntityType::SPECTRAL_ARROW
-                    || src_type == &EntityType::WIND_CHARGE
-                    || src_type == &EntityType::BREEZE_WIND_CHARGE)
-            {
+            if self.is_powered() && is_projectile_immune_to_powered_wither(src_type) {
                 return false;
             }
         }
@@ -712,5 +728,30 @@ impl Mob for WitherEntity {
         if let Some(invul) = nbt.get_int("Invul") {
             self.set_invulnerable_ticks(invul);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_projectile_immune_to_powered_wither;
+    use pumpkin_data::entity::EntityType;
+
+    #[test]
+    fn powered_wither_ignores_arrows_and_wind_charges_only() {
+        assert!(is_projectile_immune_to_powered_wither(&EntityType::ARROW));
+        assert!(is_projectile_immune_to_powered_wither(
+            &EntityType::SPECTRAL_ARROW
+        ));
+        assert!(is_projectile_immune_to_powered_wither(&EntityType::TRIDENT));
+        assert!(is_projectile_immune_to_powered_wither(
+            &EntityType::WIND_CHARGE
+        ));
+        // `BreezeWindCharge` is not a `WindCharge`, and snowballs are not `AbstractArrow`.
+        assert!(!is_projectile_immune_to_powered_wither(
+            &EntityType::BREEZE_WIND_CHARGE
+        ));
+        assert!(!is_projectile_immune_to_powered_wither(
+            &EntityType::SNOWBALL
+        ));
     }
 }

@@ -41,7 +41,6 @@ pub struct ItemFrameEntity {
     /// Ticks since the support block was last validated, matching the
     /// vanilla `CHECK_INTERVAL` cadence.
     ticks_since_last_check: AtomicU32,
-    invisible: AtomicBool,
     fixed: AtomicBool,
 }
 
@@ -66,7 +65,6 @@ impl ItemFrameEntity {
             facing: AtomicU8::new(facing),
             item_drop_chance: AtomicCell::new(1.0),
             ticks_since_last_check: AtomicU32::new(0),
-            invisible: AtomicBool::new(false),
             fixed: AtomicBool::new(false),
         };
         frame.recalculate_bounding_box();
@@ -206,7 +204,8 @@ impl ItemFrameEntity {
             item_stack.item_count = 1;
         }
 
-        let play_sound = !item_stack.is_empty();
+        // Vanilla setItem plays the add sound only when neighbours are updated.
+        let play_sound = !item_stack.is_empty() && update_neighbours;
         let item_serializer = ItemStackSerializer::from(item_stack.clone());
         *self
             .item_stack
@@ -264,11 +263,11 @@ impl ItemFrameEntity {
     }
 
     pub fn is_invisible(&self) -> bool {
-        self.invisible.load(Ordering::Relaxed)
+        self.entity.invisible.load(Ordering::Relaxed)
     }
 
     pub fn set_invisible(&self, invisible: bool) {
-        self.invisible.store(invisible, Ordering::Relaxed);
+        self.entity.set_invisible(invisible);
     }
 
     pub fn get_frame_item_stack(&self) -> ItemStack {
@@ -282,7 +281,7 @@ impl ItemFrameEntity {
     pub fn get_frame_item_stack_with_data(&self) -> ItemStack {
         let mut stack = self.get_frame_item_stack();
         if let Some(custom_name) = self.entity.custom_name.load().as_ref().clone() {
-            stack.set_custom_name(custom_name.to_pretty_console());
+            stack.set_custom_name(custom_name.get_text());
         }
         stack
     }
@@ -430,7 +429,7 @@ impl EntityBase for ItemFrameEntity {
         nbt.put_float("ItemDropChance", self.item_drop_chance.load());
         nbt.put_byte("ItemRotation", self.rotation.load(Ordering::Relaxed) as i8);
         nbt.put_byte("Facing", self.facing.load(Ordering::Relaxed) as i8);
-        nbt.put_bool("Invisible", self.invisible.load(Ordering::Relaxed));
+        nbt.put_bool("Invisible", self.is_invisible());
         nbt.put_bool("Fixed", self.fixed.load(Ordering::Relaxed));
     }
 
@@ -454,10 +453,8 @@ impl EntityBase for ItemFrameEntity {
         self.recalculate_bounding_box();
         self.item_drop_chance
             .store(nbt.get_float("ItemDropChance").unwrap_or(1.0));
-        self.invisible.store(
-            nbt.get_bool("Invisible").unwrap_or(false),
-            Ordering::Relaxed,
-        );
+        self.entity
+            .set_invisible(nbt.get_bool("Invisible").unwrap_or(false));
         self.fixed
             .store(nbt.get_bool("Fixed").unwrap_or(false), Ordering::Relaxed);
     }

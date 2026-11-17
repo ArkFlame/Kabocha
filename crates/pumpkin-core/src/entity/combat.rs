@@ -170,10 +170,12 @@ pub fn mace_smash_knockback(world: &World, attacker: &dyn EntityBase, victim: &d
             let velocity =
                 Vector3::new(direction.x * power, f64::from(0.7f32), direction.z * power);
             let entity = nearby.get_entity();
+            // Vanilla `MaceItem.knockback` routes through `Entity.push`, which marks the
+            // velocity dirty and keeps Bedrock's predicted push in step.
+            entity.push_by(velocity);
+            // Vanilla also sends a motion packet to each pushed player.
             if let Some(player) = nearby.get_player() {
-                player.set_velocity(entity.velocity.load() + velocity);
-            } else {
-                entity.add_velocity(velocity);
+                player.send_own_velocity(entity.velocity.load());
             }
         }
     }
@@ -233,6 +235,17 @@ pub fn sweep_in_reach(attacker: Vector3<f64>, target: Vector3<f64>) -> bool {
 
 pub fn knockback_after_resistance(strength: f64, resistance: f64) -> f64 {
     strength * (1.0 - resistance)
+}
+
+/// Vanilla `Player.causeExtraKnockback`: a non-living target gets a raw `Entity.push` with
+/// the opposite horizontal direction (an upstream quirk) and a fixed 0.1 vertical impulse.
+#[must_use]
+pub fn non_living_knockback_impulse(yaw_radians: f64, strength: f64) -> Vector3<f64> {
+    Vector3::new(
+        -yaw_radians.sin() * strength,
+        f64::from(0.1f32),
+        yaw_radians.cos() * strength,
+    )
 }
 
 pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f64, damage: f32) {
@@ -349,10 +362,12 @@ impl CombatRules {
         let mut armor_fraction = real_armor / Self::ARMOR_PROTECTION_DIVIDER;
 
         if breach_level > 0 {
-            let mut effectiveness = 1.0f32;
+            // Vanilla CombatRules.getDamageAfterAbsorb seeds modifyArmorEffectiveness
+            // with armorFraction itself and Breach's effect is an ADD, so it subtracts
+            // from the fraction directly. The fraction is then clamped once to [0, 1].
             pumpkin_data::Enchantment::BREACH
-                .modify_armor_effectiveness(breach_level as i32, &mut effectiveness);
-            armor_fraction = (armor_fraction * effectiveness.clamp(0.0, 1.0)).clamp(0.0, 1.0);
+                .modify_armor_effectiveness(breach_level as i32, &mut armor_fraction);
+            armor_fraction = armor_fraction.clamp(0.0, 1.0);
         }
 
         let damage_multiplier = 1.0 - armor_fraction;
@@ -860,6 +875,17 @@ mod tests {
     }
 
     #[test]
+    fn mace_smash_damage_curve_matches_vanilla_branches() {
+        // Vanilla MaceItem.getAttackDamageBonus is linear in three segments that meet
+        // continuously at fall distances 3 and 8.
+        assert!((mace_smash_damage_bonus(1.0) - 4.0).abs() < 1e-9);
+        assert!((mace_smash_damage_bonus(3.0) - 12.0).abs() < 1e-9);
+        assert!((mace_smash_damage_bonus(6.0) - 18.0).abs() < 1e-9);
+        assert!((mace_smash_damage_bonus(8.0) - 22.0).abs() < 1e-9);
+        assert!((mace_smash_damage_bonus(10.0) - 24.0).abs() < 1e-9);
+    }
+
+    #[test]
     fn sweep_reach_is_strictly_under_three_blocks() {
         let origin = Vector3::new(0.0, 0.0, 0.0);
         assert!(sweep_in_reach(origin, Vector3::new(2.9, 0.0, 0.0)));
@@ -873,6 +899,19 @@ mod tests {
         // attributes); vanilla `Mth.clamp` yields 20 there.
         let damage = CombatRules::get_damage_after_absorb(10.0, 120.0, 0.0, 0);
         assert!((damage - 2.0).abs() < 1e-6, "got {damage}");
+    }
+
+    #[test]
+    fn breach_subtracts_from_armor_fraction_like_vanilla() {
+        // Vanilla CombatRules.getDamageAfterAbsorb: realArmor = clamp(10 - 10/2, 2, 20) = 5,
+        // armorFraction = 5/25 = 0.2. Breach's ADD effect applies straight to the fraction.
+        // Level 4 adds -0.6 -> fraction clamps to 0 -> full damage. A multiplier (old bug)
+        // would leave 0.2 * 0.4 = 0.08 and only deal 9.2.
+        let damage = CombatRules::get_damage_after_absorb(10.0, 10.0, 0.0, 4);
+        assert!((damage - 10.0).abs() < 1e-6, "got {damage}");
+        // Level 1 adds -0.15 -> 0.2 - 0.15 = 0.05 -> damage * 0.95.
+        let damage = CombatRules::get_damage_after_absorb(10.0, 10.0, 0.0, 1);
+        assert!((damage - 9.5).abs() < 1e-6, "got {damage}");
     }
 
     #[test]
@@ -915,5 +954,17 @@ mod tests {
         assert!(mace_smash_knockback_power(3.6, false, 0.0) < 0.0);
         // Heavy smash doubles the power, resistance scales it back down.
         assert!((mace_smash_knockback_power(2.0, true, 0.5) - 1.05).abs() < 1e-6);
+    }
+    #[test]
+    fn non_living_knockback_uses_opposite_horizontal_sign_and_small_lift() {
+        // Vanilla `causeExtraKnockback` pushes non-living targets with `-sin` on x and
+        // `cos` on z, plus a fixed 0.1 upward impulse.
+        let impulse = non_living_knockback_impulse(0.0, 0.5);
+        assert!(impulse.x.abs() < 1e-9);
+        assert!((impulse.y - 0.1).abs() < 1e-9);
+        assert!((impulse.z - 0.5).abs() < 1e-9);
+        let quarter = non_living_knockback_impulse(std::f64::consts::FRAC_PI_2, 1.0);
+        assert!((quarter.x + 1.0).abs() < 1e-9);
+        assert!((quarter.z).abs() < 1e-9);
     }
 }

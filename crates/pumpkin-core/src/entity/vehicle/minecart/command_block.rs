@@ -156,15 +156,17 @@ impl CommandBlockMinecart {
 
         let command = self.get_command();
         let command_blocks_work = world.level_info.load().game_rules.command_blocks_work;
-        // Vanilla `BaseCommandBlock#performCommand` uses `"Searge".equals(command)` and only
-        // reaches the easter egg when the `commandBlocksWork` gamerule allows commands to run.
-        if command_blocks_work && command == "Searge" {
+        // Vanilla `BaseCommandBlock#performCommand` checks the Searge easter egg before the
+        // `commandBlocksWork` guard with a case-insensitive comparison, so it fires even with
+        // command blocks disabled.
+        if command.eq_ignore_ascii_case("Searge") {
             self.set_last_output(Some(TextComponent::text("#itzlipofutzli")));
             self.success_count.store(1, Ordering::Relaxed);
             self.on_updated(entity);
             return true;
         }
 
+        // Vanilla clears SuccessCount before the gamerule guard, so a disabled cart still resets it.
         self.success_count.store(0, Ordering::Relaxed);
         if command_blocks_work && !command.is_empty() {
             self.set_last_output(None);

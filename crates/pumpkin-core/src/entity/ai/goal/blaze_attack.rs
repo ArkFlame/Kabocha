@@ -132,7 +132,9 @@ impl Goal for BlazeShootFireballGoal {
                 }
 
                 if self.attack_step > 1 {
-                    shoot_fireball(entity, dx, yd, dz, distance_sq);
+                    // Vanilla aims with `this.blaze.getRandom().triangle(...)`.
+                    let mut rng = blaze.get_random();
+                    shoot_fireball(entity, &mut rng, dx, yd, dz, distance_sq);
                 }
             }
 
@@ -158,7 +160,14 @@ impl Goal for BlazeShootFireballGoal {
 }
 
 /// One fireball, aimed with a triangular spread that widens with the distance.
-fn shoot_fireball(blaze: &Entity, dx: f64, yd: f64, dz: f64, distance_sq: f64) {
+fn shoot_fireball(
+    blaze: &Entity,
+    rng: &mut rand::rngs::ThreadRng,
+    dx: f64,
+    yd: f64,
+    dz: f64,
+    distance_sq: f64,
+) {
     let spread = 2.297 * distance_sq.sqrt().sqrt() * 0.5;
     let world = blaze.world.load_full();
 
@@ -169,10 +178,7 @@ fn shoot_fireball(blaze: &Entity, dx: f64, yd: f64, dz: f64, distance_sq: f64) {
         );
     }
 
-    let direction = {
-        let mut rng = rand::rng();
-        Vector3::new(rng.triangle(dx, spread), yd, rng.triangle(dz, spread))
-    };
+    let direction = Vector3::new(rng.triangle(dx, spread), yd, rng.triangle(dz, spread));
 
     let blaze_pos = blaze.pos.load();
     let spawn_pos = Vector3::new(

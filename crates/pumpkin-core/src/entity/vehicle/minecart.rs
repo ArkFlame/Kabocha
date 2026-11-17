@@ -195,6 +195,21 @@ impl MinecartEntity {
 
 const LOWERED_PASSENGER_ATTACHMENT: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
 
+/// Vanilla `OldMinecartBehavior`: a powered rail adds 0.06 to the horizontal
+/// speed along the current horizontal direction and leaves Y untouched.
+fn powered_rail_boost(velocity: Vector3<f64>, max_speed: f64) -> Vector3<f64> {
+    let speed = velocity.x.hypot(velocity.z);
+    if speed <= 0.01 {
+        return velocity;
+    }
+    let new_speed = (speed + 0.06).min(max_speed);
+    Vector3::new(
+        velocity.x / speed * new_speed,
+        velocity.y,
+        velocity.z / speed * new_speed,
+    )
+}
+
 impl EntityBase for MinecartEntity {
     fn passenger_attachment_point(
         &self,
@@ -240,10 +255,10 @@ impl EntityBase for MinecartEntity {
         // Vanilla `handlePortal` is left out: non-player entities can't change dimension yet,
         // so the minecart would stay behind while its rider is teleported.
         let from = self.vehicle.entity.pos.load();
-        match &self.kind {
-            MinecartKind::Furnace(minecart) => minecart.tick(&self.vehicle.entity),
-            MinecartKind::CommandBlock(minecart) => minecart.step_tick(),
-            _ => {}
+        // Vanilla increments the entity tick counter (used by the command-block activation
+        // cooldown) at the start of `Entity.tick`, before rail activation runs.
+        if let MinecartKind::CommandBlock(minecart) = &self.kind {
+            minecart.step_tick();
         }
 
         let world = self.vehicle.entity.world.load();
@@ -326,26 +341,22 @@ impl EntityBase for MinecartEntity {
 
             if powered {
                 if is_powered_rail {
-                    let mut velocity = self.vehicle.entity.velocity.load();
-                    let speed = velocity.length();
-                    if speed > 0.01 {
-                        let new_speed = (speed + 0.06).min(max_speed);
-                        velocity = velocity
-                            .normalize()
-                            .multiply(new_speed, new_speed, new_speed);
-                        self.vehicle.entity.velocity.store(velocity);
+                    let current = self.vehicle.entity.velocity.load();
+                    let horizontal_speed = current.x.hypot(current.z);
+                    let velocity = if horizontal_speed > 0.01 {
+                        powered_rail_boost(current, max_speed)
                     } else {
+                        // Vanilla derives the standing-cart direction from the rail shape;
+                        // Pumpkin keeps the entity-yaw fallback until that path is ported.
                         let yaw = self.vehicle.entity.yaw.load();
                         let push_dir = Vector3::new(
                             -f64::from((yaw.to_radians()).sin()),
                             0.0,
                             f64::from((yaw.to_radians()).cos()),
                         );
-                        self.vehicle
-                            .entity
-                            .velocity
-                            .store(push_dir.multiply(0.1, 0.1, 0.1));
-                    }
+                        push_dir.multiply(0.1, 0.1, 0.1)
+                    };
+                    self.vehicle.entity.velocity.store(velocity);
                     self.vehicle.entity.send_velocity();
                 } else if is_activator_rail {
                     match &self.kind {
@@ -607,12 +618,10 @@ impl EntityBase for MinecartEntity {
             let world = self.vehicle.entity.world.load();
             self.vehicle.entity.teleport(to, None, None, &world);
         }
-        if attempted_to != from
-            && let Ok(passengers) = self.vehicle.entity.passengers.try_lock()
-        {
-            for passenger in passengers.iter() {
-                passenger.get_entity().set_pos(to);
-            }
+        if attempted_to != from {
+            // Vanilla `Entity.positionRider` places passengers at their seat, which carries
+            // the per-entity attachment offset, instead of at the cart's centre.
+            crate::entity::position_riders(self);
         }
         // Vanilla `OldMinecartBehavior.tick`: `applyEffectsFromBlocks` after moving.
         self.vehicle.entity.tick_block_collisions(caller);
@@ -632,6 +641,11 @@ impl EntityBase for MinecartEntity {
             MinecartKind::Hopper(minecart) => minecart.tick(&self.vehicle.entity),
             MinecartKind::Spawner(minecart) => minecart.tick(&self.vehicle.entity),
             _ => {}
+        }
+        // Vanilla `MinecartFurnace.tick` decrements fuel and emits smoke after `super.tick()`
+        // (movement), so the push is consumed by this tick's motion before being cleared.
+        if let MinecartKind::Furnace(minecart) = &self.kind {
+            minecart.tick(&self.vehicle.entity);
         }
     }
 
@@ -894,26 +908,27 @@ impl EntityBase for MinecartEntity {
 
         if will_break && !creative && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
+            // Vanilla AbstractMinecartContainer.remove scatters the stacks already inside on any
+            // destroying removal, independent of doEntityDrops; only the cart item is gated. The
+            // loot table is only unpacked when a player opens the container menu.
+            if let Some(container) = self.container()
+                && container.claim_drops()
+            {
+                let inventory: Arc<dyn Inventory> = container.clone();
+                // Vanilla Containers.dropContents(level, entity, container) scatters around the
+                // entity position, not the floored block origin.
+                world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
+            }
             if world.level_info.load().game_rules.entity_drops {
-                let position = self.vehicle.entity.block_pos.load();
-                if let Some(container) = self.container()
-                    && container.claim_drops()
-                {
-                    container.unpack_loot(&crate::world::loot::LootContextParameters {
-                        world: Some(&world),
-                        position: Some(self.vehicle.entity.pos.load()),
-                        ..Default::default()
-                    });
-                    let inventory: Arc<dyn Inventory> = container.clone();
-                    world.scatter_inventory(&position, &inventory);
-                }
                 let mut stack = ItemStack::new(1, self.drop_item());
                 if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
                     stack.set_data_component(pumpkin_data::data_component_impl::CustomNameImpl {
                         name: custom_name.clone(),
                     });
                 }
-                world.drop_stack(&position, stack);
+                // Vanilla VehicleEntity.destroy -> Entity.spawnAtLocation spawns the dropped
+                // vehicle at the entity exact position, not the floored block origin.
+                world.drop_stack_at(self.vehicle.entity.pos.load(), stack);
             }
         }
 
@@ -965,6 +980,20 @@ mod tests {
     use crate::entity::ai::test_support::world;
     use pumpkin_util::text::TextComponent;
 
+    #[test]
+    fn powered_rail_boost_uses_horizontal_speed_and_preserves_y() {
+        let boosted = powered_rail_boost(Vector3::new(3.0, 5.0, 4.0), 10.0);
+        assert_eq!(boosted.y, 5.0);
+        assert!((boosted.x.hypot(boosted.z) - 5.06).abs() < 1.0e-9);
+
+        let capped = powered_rail_boost(Vector3::new(3.0, 5.0, 4.0), 5.02);
+        assert_eq!(capped.y, 5.0);
+        assert!((capped.x.hypot(capped.z) - 5.02).abs() < 1.0e-9);
+
+        let still = powered_rail_boost(Vector3::new(0.0, 5.0, 0.0), 10.0);
+        assert_eq!(still, Vector3::new(0.0, 5.0, 0.0));
+    }
+
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[test]
@@ -998,6 +1027,35 @@ mod tests {
             Vector3::new(0.5, 64.0, 0.5),
         );
         assert_eq!((slope.x, slope.y, slope.z), (0.5, 64.0 + 1.0625, 0.5));
+    }
+
+    #[test]
+    fn rail_position_snap_covers_north_south_and_curve() {
+        use pumpkin_data::block_properties::RailShape;
+
+        for (shape, pos, expected) in [
+            (
+                RailShape::NorthSouth,
+                Vector3::new(0.5, 64.3, 0.25),
+                Vector3::new(0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.25),
+            ),
+            (
+                RailShape::NorthSouth,
+                Vector3::new(0.5, 64.3, 0.75),
+                Vector3::new(0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.75),
+            ),
+            (
+                RailShape::SouthEast,
+                Vector3::new(0.625, 64.3, 0.625),
+                Vector3::new(0.75, 64.0 + RAIL_HEIGHT_OFFSET, 0.75),
+            ),
+        ] {
+            let snapped = get_pos_on_rail(BlockPos(Vector3::new(0, 64, 0)), shape, pos);
+            assert_eq!(
+                (snapped.x, snapped.y, snapped.z),
+                (expected.x, expected.y, expected.z)
+            );
+        }
     }
 
     #[tokio::test]
@@ -1052,6 +1110,49 @@ mod tests {
         let mut saved_no_track = NbtCompound::new();
         cart.write_nbt(&mut saved_no_track);
         assert!(saved_no_track.get("LastOutput").is_none());
+
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn command_block_minecart_perform_command_gamerule() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let cart = MinecartEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::COMMAND_BLOCK_MINECART,
+        ));
+        let Some(cb) = cart.command_block() else {
+            return Err("expected CommandBlockMinecart".into());
+        };
+
+        // Decompiled vanilla `BaseCommandBlock#performCommand` resets SuccessCount before the
+        // commandBlocksWork guard and updates lastExecution even when the gamerule is off.
+        let mut level_info = (**world.level_info.load()).clone();
+        level_info.game_rules.command_blocks_work = false;
+        world.level_info.store(Arc::new(level_info));
+
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("Command", "say hello".to_string());
+        nbt.put_int("SuccessCount", 7);
+        cart.read_nbt_non_mut(&nbt);
+        assert!(cb.perform_command(&cart.vehicle.entity, &world));
+        assert_eq!(cb.get_success_count(), 0);
+        assert_eq!(cb.get_last_output_or_empty(), TextComponent::empty());
+
+        // The Searge easter egg is checked before the gamerule guard with equalsIgnoreCase,
+        // so lowercase "searge" still fires with command blocks disabled.
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("Command", "searge".to_string());
+        cart.read_nbt_non_mut(&nbt);
+        assert!(cb.perform_command(&cart.vehicle.entity, &world));
+        assert_eq!(cb.get_success_count(), 1);
+        assert_eq!(
+            cb.get_last_output_or_empty(),
+            TextComponent::text("#itzlipofutzli")
+        );
 
         world.level.shutdown().await;
         Ok(())

@@ -299,9 +299,9 @@ impl Goal for ActiveTargetGoal {
 
     fn start(&mut self, mob: &dyn Mob) {
         let target = self.target.as_ref().and_then(Weak::upgrade);
-        let reason = if self.condition == TargetCondition::Untamed {
-            TargetReason::RandomTarget
-        } else if target.as_ref().is_some_and(|t| t.get_player().is_some()) {
+        // Vanilla `NonTameRandomTargetGoal` does not override `start`: untamed wolves
+        // still fire CLOSEST_PLAYER / CLOSEST_ENTITY from `NearestAttackableTargetGoal`.
+        let reason = if target.as_ref().is_some_and(|t| t.get_player().is_some()) {
             TargetReason::ClosestPlayer
         } else {
             TargetReason::ClosestEntity

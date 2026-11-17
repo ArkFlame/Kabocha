@@ -794,7 +794,7 @@ impl EntityBase for BlockDisplayEntity {
     }
 
     fn is_immune_to_explosion(&self) -> bool {
-        true
+        false
     }
 
     fn damage_with_context(
@@ -951,7 +951,7 @@ impl EntityBase for ItemDisplayEntity {
     }
 
     fn is_immune_to_explosion(&self) -> bool {
-        true
+        false
     }
 
     fn damage_with_context(
@@ -1124,15 +1124,16 @@ impl TextDisplayEntity {
 impl EntityBase for TextDisplayEntity {
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         self.display.write_display_nbt(nbt);
-        let text_json_res = pumpkin_util::serde_json::to_string(
+        // Vanilla writes the `text` key unconditionally; an empty component
+        // serializes to an empty JSON string.
+        let text_json = pumpkin_util::serde_json::to_string(
             &*self
                 .text
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
-        );
-        if let Ok(text_json) = text_json_res {
-            nbt.put_string("text", text_json);
-        }
+        )
+        .unwrap_or_else(|_| "\"\"".to_string());
+        nbt.put_string("text", text_json);
         nbt.put_int("line_width", self.line_width.load(Ordering::Relaxed));
         nbt.put_int("background", self.background.load(Ordering::Relaxed));
         nbt.put_byte("text_opacity", self.text_opacity.load(Ordering::Relaxed));
@@ -1246,7 +1247,7 @@ impl EntityBase for TextDisplayEntity {
     }
 
     fn is_immune_to_explosion(&self) -> bool {
-        true
+        false
     }
 
     fn damage_with_context(

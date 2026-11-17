@@ -5,8 +5,9 @@ use crate::entity::{
 };
 
 pub const AMBIENT_SOUND_INTERVAL: i32 = 120;
-/// Vanilla `WaterAnimal.WATER_ANIMAL_MAX_AIR_SUPPLY`.
-pub const WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = 4800;
+/// Vanilla `WaterAnimal.handleAirSupply` refills to the default `Entity.TOTAL_AIR_SUPPLY` (300);
+/// only dolphins override `getMaxAirSupply` to 4800.
+pub const WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = 300;
 
 pub trait WaterAnimal: Mob {
     fn water_animal_spawn_obstruction(&self, world: &crate::world::World) -> bool {

@@ -71,14 +71,6 @@ pub const WEAPON_ENCHANT_CHANCE: f32 = 0.25;
 /// From vanilla `Mob.MAX_ENCHANTED_ARMOR_CHANCE`.
 pub const ARMOR_ENCHANT_CHANCE: f32 = 0.5;
 
-/// Minimum enchantment cost for mob spawn equipment.
-/// From vanilla `mob_spawn_equipment.json`.
-pub const MOB_SPAWN_ENCHANT_MIN_COST: i32 = 5;
-
-/// Cost span added to the minimum, scaled by `specialMultiplier`.
-/// From vanilla `mob_spawn_equipment.json`.
-pub const MOB_SPAWN_ENCHANT_COST_SPAN: i32 = 17;
-
 // ══════════════════════════════════════════════════════════════════
 // Armor tiers — exact match to vanilla Mob.getEquipmentForSlot()
 // Vanilla approximation: armor type selection (base 0-2 + 3 upgrade
@@ -201,8 +193,6 @@ pub enum ArmorConfig {
 /// Equipment definition for a single mob type. All equipment is randomized at spawn
 /// using [`RegionalDifficulty`] to compute per-world/per-chunk scaling factors.
 pub struct MobEquipmentDef {
-    /// The entity resource name (e.g. `"zombie"`, `"skeleton"`).
-    pub entity_type: &'static str,
     /// Main-hand weapon configuration.
     pub weapon: WeaponConfig,
     /// Armor configuration.
@@ -265,7 +255,6 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "skeleton",
             MobEquipmentDef {
-                entity_type: "skeleton",
                 weapon: WeaponConfig::Always(&Item::BOW),
                 armor: ArmorConfig::Vanilla,
                 enchanted: true,
@@ -277,7 +266,6 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "stray",
             MobEquipmentDef {
-                entity_type: "stray",
                 weapon: WeaponConfig::Always(&Item::BOW),
                 armor: ArmorConfig::Vanilla,
                 enchanted: true,
@@ -289,7 +277,6 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "bogged",
             MobEquipmentDef {
-                entity_type: "bogged",
                 weapon: WeaponConfig::Always(&Item::BOW),
                 armor: ArmorConfig::Vanilla,
                 enchanted: true,
@@ -301,11 +288,13 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "wither_skeleton",
             MobEquipmentDef {
-                entity_type: "wither_skeleton",
                 weapon: WeaponConfig::Always(&Item::STONE_SWORD),
                 armor: ArmorConfig::None,
+                // WitherSkeleton.populateDefaultEquipmentEnchantments is an empty
+                // override, so unlike other skeletons its stone sword stays unenchanted.
                 enchanted: false,
-                can_pick_up_loot: false,
+                // AbstractSkeleton.finalizeSpawn rolls setCanPickUpLoot for every skeleton.
+                can_pick_up_loot: true,
             },
         );
 
@@ -313,7 +302,6 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "piglin",
             MobEquipmentDef {
-                entity_type: "piglin",
                 weapon: WeaponConfig::AlwaysWeighted(&PIGLIN_WEAPONS),
                 armor: ArmorConfig::CustomPerSlot(&PIGLIN_ARMOR),
                 enchanted: true,
@@ -325,10 +313,9 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "pillager",
             MobEquipmentDef {
-                entity_type: "pillager",
                 weapon: WeaponConfig::Always(&Item::CROSSBOW),
                 armor: ArmorConfig::None,
-                enchanted: false,
+                enchanted: true,
                 can_pick_up_loot: false,
             },
         );
@@ -337,7 +324,6 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "vindicator",
             MobEquipmentDef {
-                entity_type: "vindicator",
                 weapon: WeaponConfig::Always(&Item::IRON_AXE),
                 armor: ArmorConfig::None,
                 enchanted: true,
@@ -467,7 +453,7 @@ impl RegionalDifficulty {
 /// Full moon at phase 0, new moon at phase 4.
 #[must_use]
 fn moon_brightness(time_of_day: i64) -> f32 {
-    let phase = (time_of_day / 24000 % 8) as i32;
+    let phase = (time_of_day / 24_000).rem_euclid(8) as i32;
     (phase - 4).abs() as f32 / 4.0
 }
 
@@ -604,9 +590,18 @@ fn equip_mob_from_def(
         WeaponConfig::Always(item) => {
             let mut stack = create_equipment_item(item);
             if item == &Item::CROSSBOW {
-                // Only the pillager is `Always(CROSSBOW)`; vanilla enchants its crossbow from
-                // the pillager spawn provider, not the generic mob spawn one.
-                apply_pillager_crossbow_enchantments(&mut stack, None);
+                // Vanilla `Pillager.enchantSpawnedWeapon`: a 1/300 roll for the dedicated
+                // provider on top of the inherited generic weapon roll.
+                if rand::random_range(0..300) == 0 {
+                    apply_pillager_crossbow_enchantments(&mut stack, None);
+                }
+                if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
+                    apply_vanilla_enchantments(
+                        &mut stack,
+                        &EquipmentSlot::MAIN_HAND,
+                        difficulty.special_multiplier,
+                    );
+                }
             } else if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
                 apply_vanilla_enchantments(
                     &mut stack,
@@ -742,6 +737,10 @@ pub fn equip_mob_on_spawn(mob: &MobEntity, world: &Arc<crate::world::World>) {
     let mut equipment_changes: Vec<(EquipmentSlot, ItemStack)> = Vec::new();
 
     for (slot, stack, drop_chance) in changes_with_drops {
+        // Vanilla `populateDefaultEquipmentSlots` only fills empty armor slots.
+        if slot.is_armor_slot() && !equipment.get(&slot).is_empty() {
+            continue;
+        }
         equipment.put(&slot, stack.clone());
         drop_chances.insert(slot.clone(), drop_chance);
         equipment_changes.push((slot, stack));
@@ -1156,6 +1155,23 @@ mod tests {
                 "{difficulty:?}: skeleton spawned without a bow"
             );
         }
+    }
+
+    /// `AbstractSkeleton.finalizeSpawn` rolls can-pick-up-loot for every skeleton,
+    /// while `WitherSkeleton.populateDefaultEquipmentEnchantments` is an empty override.
+    #[test]
+    fn wither_skeleton_spawn_flags_match_vanilla() {
+        let def = EQUIPMENT_REGISTRY
+            .get("wither_skeleton")
+            .expect("wither_skeleton must stay in the equipment registry");
+        assert!(
+            !def.enchanted,
+            "wither skeleton equipment must stay unenchanted"
+        );
+        assert!(
+            def.can_pick_up_loot,
+            "wither skeleton must roll can-pick-up-loot"
+        );
     }
 
     #[test]

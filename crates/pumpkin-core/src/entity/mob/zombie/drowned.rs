@@ -20,6 +20,7 @@ use rand::RngExt;
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::control::move_control::{MoveControl, Operation};
 use crate::entity::ai::control::{Control, MoveControlTrait};
+use crate::entity::ai::goal::destroy_egg::DestroyEggGoal;
 use crate::entity::ai::goal::move_to_target_pos::{MoveToTargetPos, MoveToTargetPosGoal};
 use crate::entity::ai::goal::ranged_attack::RangedAttackGoal;
 use crate::entity::ai::goal::wander_around::WanderAroundGoal;
@@ -119,6 +120,9 @@ impl DrownedEntity {
                 attack: ZombieAttackGoal::new(1.0, false),
             }),
         );
+        // Vanilla Drowned overrides addBehaviourGoals, not registerGoals, so it inherits
+        // Zombie's priority-4 ZombieAttackTurtleEggGoal and tramples turtle eggs.
+        goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
         goal_selector.add_goal(5, Box::new(DrownedGoToBeachGoal::new(1.0)));
         let sea_level = mob_entity.living_entity.entity.world.load().sea_level;
         goal_selector.add_goal(6, Box::new(DrownedSwimUpGoal::new(1.0, sea_level)));

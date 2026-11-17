@@ -167,9 +167,6 @@ impl AvoidEntityGoal {
                 })
             }) && (self.selector)(mob, candidate)
                 && predicate.test(&world, Some(mob), candidate)
-                // Vanilla `predicateOnAvoidEntity` filters candidates, so a nearer threat that
-                // fails `confirm` lets a farther one start the flee.
-                && self.confirm.is_none_or(|confirm| confirm(candidate))
         })
     }
 }
@@ -237,6 +234,15 @@ impl Goal for AvoidEntityGoal {
             return false;
         };
 
+        // Vanilla `WolfAvoidEntityGoal.canUse` applies `avoidLlama` to the
+        // already-ranked nearest threat, after the escape path is found.
+        if self
+            .confirm
+            .is_some_and(|confirm| !confirm(target.as_ref()))
+        {
+            return false;
+        }
+
         self.target = Some(Arc::downgrade(&target));
         self.path = Some(path);
         true
@@ -262,6 +268,10 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
+        // Vanilla `WolfAvoidEntityGoal.tick` clears the target every tick, not only on start.
+        if self.drop_target {
+            mob.set_mob_target(None, TargetReason::Fleeing);
+        }
         if let Some(target) = self.target.as_ref().and_then(Weak::upgrade) {
             let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
             let threat_pos = target.get_entity().pos.load();

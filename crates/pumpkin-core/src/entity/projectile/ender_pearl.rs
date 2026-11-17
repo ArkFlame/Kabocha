@@ -13,10 +13,9 @@ use crate::{
     server::Server,
 };
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::entity::{EntityPose, EntityStatus};
+use pumpkin_data::entity::EntityPose;
 use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_util::math::vector3::Vector3;
 
 const GRAVITY: f64 = 0.03;
@@ -132,6 +131,8 @@ impl EntityBase for EnderPearlEntity {
         if let Some(owner) = attacker
             && std::sync::Arc::ptr_eq(&owner.get_entity().world.load(), &world)
             && owner.get_entity().is_alive()
+            // Vanilla rejects a player pearl owner whose connection is no longer open.
+            && owner.get_player().is_none_or(|player| !player.client.closed())
             && owner.get_living_entity().is_none_or(|living| {
                 living.health.load() > 0.0 && owner.get_entity().pose.load() != EntityPose::Sleeping
             })
@@ -191,7 +192,5 @@ impl EntityBase for EnderPearlEntity {
                 );
             }
         }
-
-        world.send_entity_status(entity, EntityStatus::Death, ActorEventID::Death);
     }
 }
