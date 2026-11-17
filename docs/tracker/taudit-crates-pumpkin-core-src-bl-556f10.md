@@ -1,35 +1,77 @@
-# block registry — deep audit
+# Tracker: audit / crates/pumpkin-core/src/block/registry.rs
 
-Source: crates/pumpkin-core/src/block/registry.rs (1769 lines) plus the `BlockBehaviour` defaults it
-falls back to in crates/pumpkin-core/src/block/mod.rs.
-Compared against vanilla `BlockBehaviour`, `BlockPlaceContext`, `BlockItem`, `BoneMealItem`,
-`BlockState.updateNeighbourShapes` and `SnowLayerBlock.canBeReplaced`; Paper/Bukkit event contract
-(BlockPlaceEvent, BlockCanBuildEvent, BlockFertilizeEvent). No decompiled sources on this machine,
-so items below marked *verify* rest on class-level knowledge, not grep of `.vendor/`.
+Deep audit of the central block behaviour dispatcher plus `BlockPlaceContext`
+emulation (`placement_target`) and `BlockItem.place` emulation (`place_block`).
+Vanilla sources cross-checked from knowledge (no `.vendor/` checkout in this
+worktree): `BlockBehaviour`, `AbstractBlock$BlockState`, `BlockItem`,
+`BlockPlaceContext`, `Level.isUnobstructed`, `Entity.blocksBuilding`.
 
-Note: the file has no TODO/FIXME markers. The 9 "vanilla" hits are doc comments that describe the
-mirrored vanilla method (`ActionResult`, `BlockPlaceContext`, `BlockItem.canPlace`, `isPathfindable`, ...).
+No TODO/FIXME/todo! markers exist in the file; the 8 "vanilla" hits are doc
+comments naming the mirrored Java members (`BlockActionResult`, `BlockPlaceContext`).
 
-## Fixed in this audit
-- `BlockBehaviour::is_pathfindable` default used `!state.is_full_cube()` (block/mod.rs:282) while the
-  registry fallback used `!state.is_solid()` (registry.rs:1691). Vanilla defaults to `!state.isSolid()`,
-  so every registered behaviour without an override (fences.rs `FenceBlock`, walls, panes, bars, ...)
-  was pathfindable through motion-blocking non-full cubes: mobs could path straight through fences.
-  Default now `!state.is_solid()`; regression test `registered_motion_blocking_block_is_not_pathfindable`
-  in registry.rs drives `default_registry()` and OAK_FENCE (fails before the fix, passes after).
+## Fixed in this pass
 
-## Remaining gaps
-| # | Location | Vanilla | Gap | Size |
+| Gap | Rust (before) | Vanilla | Fix | Size |
 |---|---|---|---|---|
-| 1 | registry.rs:1678-1695 and block/mod.rs:277-284 (Water arm) | `BlockBehaviour.isPathfindable`: `WATER -> !state.blocksMotion()`, i.e. air and non-colliding plants are pathfindable in water | Pumpkin returns true only when the state's own fluid is water, so a dolphin/fish at the surface cannot path into the air block above the water (the swim evaluator already gates on water path types), and waterlogged solid blocks that do report the water tag are wrongly pathfindable. Use `!state.is_solid()` for Water too. *verify* against decompiled source before changing; aquatic-mob behaviour needs a gametest. | M |
-| 2 | registry.rs:1444-1470 `post_process_state` | `BlockState.updateNeighbourShapes`: for each neighbour, ask the **neighbour's** `updateShape(direction.opposite(), sourceState)` and write the result to the neighbour | Dead code (no caller in crates/), and wrong if it ever gets one: it queries `self.get_pumpkin_block(block.id)` (the changed block) and passes the changed block's `state_id`/`position` for every neighbour. Delete it, or rewrite to fetch `world.get_block(&neighbor_pos)` and pass `position = neighbor_pos`, `state_id = neighbor_state_id`, `direction = direction.opposite()`. | M |
-| 3 | registry.rs:792-806 | `BlockItem.canPlace`: survival and `isUnobstructed` are tested on the **placement state** returned by `getStateForPlacement` | The `must_survive` + `can_place_at` check runs on `placed_block.default_state` before `on_place()` computes the real state, so blocks whose survival depends on orientation/half (wall-mounted, double plants, door halves) are validated against the wrong state. Move the check after `new_state` is computed and pass `BlockState::from_id(new_state)`. | S-M |
-| 4 | registry.rs:547-554 `can_replace_with_other_block` | `SnowLayerBlock.canBeReplaced`: `layers == 1` only for the snow item, otherwise `super.canBeReplaced` -> `state.replaceable()`, which is true for every snow layer | Pumpkin hardcodes `layers == 1` for every item, so placing a block on a 2-7 layer snow is refused (vanilla replaces the snow entirely). *verify* with the generated `replaceable()` flag for snow states, then drop the special case or gate it on the held item. The same-block branch is already handled by `can_update_at`. | M |
-| 5 | registry.rs:1632-1649 + block/mod.rs:252-254 | Default `getInsideCollisionShape` returns the state's collision shape; only `ScaffoldingBlock` overrides to a full block | Default is `BoundingBox::full_block()`, so every block without an override (slabs, trapdoors, snow layers, carpet) is treated as a full cube in entity/mod.rs:3194 for on-inside-block/collision effects. *verify* the vanilla default first (tripwire already overrides in Pumpkin). | M |
-| 6 | registry.rs:557-593 `bone_meal` | Bukkit `CraftEventFactory.callBlockFertilizeEvent` / `BlockFertilizeEvent.getBlocks()` lists the states the growth actually changed | Event is fired with `vec![]` before `perform_bonemeal`, so plugins can never see the resulting states (Paper region protection reads them). Needs the perform path to report changed positions. | S-M (plugin API) |
-| 7 | registry.rs:1361-1364 `on_landed_upon` fallback | `BlockBehaviour.onLandedUpon` = `entity.causeFallDamage(fallDistance, 1.0F, fall())` for any Entity; per-block reductions (hay: 0.2) are overrides | Fallback only handles living entities and applies `1.0 - block.fall_distance_reduction` from generated data. Fine for mobs/players, silently skips non-living entities that override fall damage (`ItemEntity`, `TNTPrimitive`). Check where `fall_distance_reduction` comes from before touching, then route through `entity.cause_fall_damage`. | S |
-| 8 | registry.rs:646-712 `placement_target` | `ServerPlayerGameMode.useItemOn` rejects placement outside the world border (`Player.mayUseItemAt`) | Only `is_in_height_limit` and spawn protection are checked in `place_block`; no world-border gate. Client prediction also differs (client rejects at the border), so this shows as a ghost block. | S |
-| 9 | registry.rs:320 and 382 | n/a | `TestBlock` is registered twice in `default_registry()`, burning a behaviour index. Harmless; delete the second line. | trivial |
-| 10 | registry.rs:1560-1570 `get_pumpkin_fluid` | Flowing and still fluids share behaviour | Hardcoded fluid ids 2/4 instead of resolving still from the flowing id (or the other way round). Breaks silently if generated fluid ids are reordered. | S |
+| Placing a block never emitted `GameEvent.BLOCK_PLACE`, so sculk sensors/warden did not hear player placement | `place_block` (now 890) | `BlockItem.place`: `level.gameEvent(GameEvent.BLOCK_PLACE, pos, Context.of(player, state))` | `emit_game_event_with_context(GameEvent::BlockPlace, pos, source_entity = player)` after `set_block_state` | S |
+| Build-limit check used the clicked neighbour (`location + face`), rejecting legal placements that replace a block at the top/bottom layer and using the wrong position for the `build.tooHigh` message | `registry.rs:742-758` (before) | `BlockItem.place` checks `BlockPlaceContext.getClickedPos()`, i.e. the destination | bounds checks moved after `placement_target` and applied to `final_block_pos` | S |
+| Default `isPathfindable` treated every non-full cube as walkable, so fences, chests, walls, farmland (solid, non-full-cube, some without behaviours) were pathfindable | `registry.rs:1662` (before) | `BlockBehaviour.isPathfindable` default: `case LAND, AIR -> !state.isSolid()` | use `!state.is_solid()`; unit test `default_pathfinding_uses_motion_blocking` | S |
 
-Checked, no change: `BlockActionResult` variant set and `consumes_action()` match `InteractionResult`; `place_block` gamemode (spectator/adventure `CanPlaceOn`), spawn protection, `BlockCanBuildEvent` and `BlockPlaceEvent` ordering, `GameEvent.BLOCK_PLACE` with the placer context, block-entity NBT merge from the `block_entity_data` component, `player_placed`/advancement trigger; `has_blocking_entity_in_box`/`entity_blocks_block_placement` approximate `isUnobstructed` (`!isRemoved && !isSpectator && blocksBuilding`, placer skipped) closely; `update_neighbors` uses the vanilla `UPDATE_SHAPE_ORDER` (west, east, north, south, down, up); mirror/rotate and `get_state_for_neighbor_update` delegate with the same fallbacks; redstone power defaults return 0 as in `BlockBehaviour`.
+Event order kept: `BlockCanBuildEvent` -> `BlockPlaceEvent` -> `setBlock` -> sound ->
+game event -> block entity data -> `setPlacedBy` (`player_placed`) -> advancement,
+matching `BlockItem.place` (game event is fired right after the successful `setBlock`).
+
+## Remaining gaps (not fixed)
+
+| Gap | Rust | Vanilla / Paper | Suggested fix | Size |
+|---|---|---|---|---|
+| `can_update_at` gets the raw clicked face in the "clicked block replaced" branch but the opposite face in the "same block at destination" branch | `registry.rs:651` vs `registry.rs:681` | One notion only: `BlockPlaceContext.getClickedFace()` (raw). `SlabBlock.canBeReplaced` expects the raw face; `MultifaceBlock`/glow lichen expects the direction from the new block towards the support | Pick one convention for `CanUpdateAtArgs.direction` (raw clicked face is vanilla), convert in `placement_target`, then audit `slabs.rs:62-78` and `sculk/sculk_vein.rs:76-87`; one of the two must be wrong today | M |
+| `BlockIsReplacing::Other` vs `::None` chosen inconsistently between the two replacement branches | `registry.rs:672` (`Other`) vs `registry.rs:703` (`None`) | `BlockPlaceContext` only exposes `replaceClicked` (true only in the first branch) plus the replaced state's fluid state | Keep `None` for `replaceClicked == false` but return `Other` when the destination held a replaceable non-air block (grass, snow, sculk vein), because `torches.rs:41`, `ladder.rs:20`, `lanterns.rs:24` use `== None` to mean "placed against the clicked face" | M |
+| `post_process_state` is dead code and applies the *changed* block's `get_state_for_neighbor_update` to its neighbours | `registry.rs:1420-1435` | `BlockState.updateNeighbourShapes` asks each *neighbour's* block for its new state (`neighborState.getStateForNeighborUpdate(direction.getOpposite(), self, ...)`) in `UPDATE_SHAPE_ORDER` (WEST, EAST, NORTH, SOUTH, DOWN, UP) and removes blocks whose neighbour state is air | Delete it (no caller in `crates/`) or reimplement as above; the live path is `World::set_block_state` -> `registry.update_neighbors` -> `World::replace_with_state_for_neighbor_update` | S |
+| Default inside-collision shape is always a full block | `registry.rs:1605-1616` | `BlockBehaviour.getInsideCollisionShape(state, level, pos)` defaults to the state's collision shape at that position | Build the union of `state.get_block_collision_shapes_at(pos)` instead of `BoundingBox::full_block()` | S |
+| `isPathfindable` default for `PathComputationType::Water` returns true for any water-tagged fluid state, including waterlogged non-water blocks without behaviour | `registry.rs:1659` | `LiquidBlock.isPathfindable` is true only for the water path type; the base default is `false` and waterlogged blocks opt in via their own behaviour (`SlabBlock` uses `WATERLOGGED`) | Restrict the tag check to water/flowing-water blocks, or default to `false` and let `LiquidBlock` opt in; check waterlogged blocks without a behaviour | S |
+| Obstruction test does not exclude the placing entity | `registry.rs:835-850` (`has_blocking_entity_in_box`) | `BlockItem.canPlace` -> `Level.isUnobstructed(state, pos, context.getPlayer())`; the nullable entity argument is excluded from the candidate list | Thread `Some(player)` into `has_blocking_entity_in_box` and skip that entity | S |
+| Only the Bedrock `place` level sound is played | `registry.rs:884-888` | Java clients get `SoundType.getPlaceSound` via `Level.playSound` from the placed state's sound type | Also fire `world.play_sound(block.sound_type.place_sound, Blocks, ...)`; needs a `SoundType` lookup in pumpkin-data | S |
+| `player_placed` receives the raw clicked face while `on_place` receives the opposite face | `registry.rs:923` (`face`) vs `registry.rs:797` (`final_face`) | `setPlacedBy` has no face parameter; overrides that care use the block state | Document what `PlayerPlacedArgs.direction` means (unused by every implementation) and pass `final_face` if it is meant to match `OnPlaceArgs` | S |
+
+## Verified matching vanilla (no change)
+
+- `placement_target`: replace clicked when the same block allows update (`can_update_at`),
+  when the state is replaceable, or when it is a single snow layer / sculk vein;
+  otherwise offset by the clicked face. `face.opposite()` is the `on_place` direction
+  convention (verified against stairs `Up => Top`, torches `Down => upright`, slab `Up => Top`).
+- Water replacement records the fluid level so `water_source()` drives waterlogging.
+- `entity_blocks_block_placement` mirrors `Entity.blocksBuilding`: living entities,
+  end crystal, falling block, TNT, minecarts, boats and rafts block placement;
+  removed/no-physics/spectator entities do not.
+- Adventure mode requires `CanPlaceOn` for the clicked block; spectator cannot place;
+  spawn protection and `build.tooHigh` messages are sent as in vanilla.
+- `can_replace_with_other_block`: a single snow layer yields to another item, sculk vein
+  is replaceable despite its state flag, everything else follows the `replaceable` tag.
+- Shape updates (`update_neighbors`) and neighbour notifications
+  (`World::update_neighbors_at`) are correctly split like `updateNeighbourShapes` vs
+  `updateNeighborsAt`.
+- `on_landed_upon` fallback reduces the fall distance by the data-driven
+  `fall_distance_reduction` then applies vanilla's 1.0 multiplier; blocks that override
+  (hay, honey, farmland, turtle egg, dripstone, powder snow) keep their own logic.
+- `mirror`/`rotate` fall back to the generated block data, `emits_redstone_power`
+  defaults to `false`, weak/strong redstone power default to 0, and behaviour lookups
+  return the vanilla default values when no behaviour is registered.
+
+## Follow-up pass (registry.rs + BlockBehaviour defaults)
+
+The previous pass fixed the registry fallback `is_pathfindable` (registry.rs:1691) but left
+`BlockBehaviour::is_pathfindable`'s own default on `!state.is_full_cube()` (block/mod.rs:282),
+which is the path every *registered* behaviour without an override takes.
+
+| Gap | Rust (before) | Vanilla | Fix | Size |
+|---|---|---|---|---|
+| `FenceBlock` (and walls, panes, bars, chests without an override) were pathfindable through motion-blocking non-full cubes: mobs could path through fences | `block/mod.rs:282` | `BlockBehaviour.isPathfindable` default `LAND/AIR -> !state.isSolid()` | default changed to `!state.is_solid()`; test `registered_motion_blocking_block_is_not_pathfindable` (registry.rs, drives `default_registry()` + OAK_FENCE, fails before) | S |
+
+Additional gaps found in this pass, not listed above:
+
+| Gap | Rust | Vanilla / Paper | Suggested fix | Size |
+|---|---|---|---|---|
+| `BlockFertilizeEvent` is fired with `vec![]` before `perform_bonemeal`, so plugins never see the states the growth changed | `registry.rs:577-591` (`bone_meal`) | Bukkit `CraftEventFactory.callBlockFertilizeEvent` passes the list of changed block states to `BlockFertilizeEvent.getBlocks()` | Let the `perform_bonemeal` path collect changed positions (or diff the world before/after) and fire the event with them; Paper region protection reads that list | S-M (plugin API) |
+| `TestBlock` registered twice, burning a behaviour index | `registry.rs:320` and `registry.rs:382` | n/a | delete the second `register(TestBlock)` | trivial |
+| Flowing/still fluid sharing is keyed on hardcoded ids 2/4 | `registry.rs:1560-1570` (`get_pumpkin_fluid`) | still/flowing fluids share the same `Fluid` behaviour | resolve the still id from the flowing fluid (or from pumpkin-data) instead of literals; breaks silently if generated ids move | S |
