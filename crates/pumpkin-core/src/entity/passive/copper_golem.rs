@@ -473,7 +473,8 @@ impl CopperGolemEntity {
             self.next_weathering_tick
                 .store(next_weathering_tick, Ordering::Relaxed);
         }
-        if game_time < next_weathering_tick {
+        // Vanilla weathers only once the game time is strictly past the scheduled tick.
+        if game_time <= next_weathering_tick {
             return;
         }
         let weather_state = self.get_weather_state();
