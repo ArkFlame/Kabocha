@@ -44,6 +44,19 @@ impl ChunkListener {
         rx
     }
 
+    /// Drops every pending listener, so tasks awaiting a chunk stop blocking once
+    /// the chunk system shuts down. Waiters get an error and fall back.
+    pub fn close(&self) {
+        self.single
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+        self.global
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+
     pub fn process_new_chunk(&self, pos: ChunkPos, chunk: &SyncChunk) {
         {
             let mut single = self
