@@ -34,3 +34,8 @@ symptom needs a live client capture, not a source edit.
 No cargo/test run was allowed in this pass (WORKER.md rule 1). The two commits are parity
 edits reviewed against the vanilla call chain only; the orchestrator batch build is the gate.
 
+
+## Gapwave2-2 status
+
+- row 3 (stale durability TODO): FIXED, TODO removed in `net/java/play/use_item.rs`.
+- rows 1, 2, 4: STILL OPEN.

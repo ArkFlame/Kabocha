@@ -32,3 +32,7 @@ classes by name and behaviour. Paper/Spigot behaviour noted where it differs.
 - `on_game_rule_changed` mirrors only `IMMEDIATE_RESPAWN`, which is the only rule vanilla mirrors through `ClientboundGameEventPacket`.
 - `tick_worlds` skipping `#minecraft:tick`, `/schedule` and autosave while `/tick freeze` is active matches `runsNormally()` gating.
 - `saved_login_world` clearing placement for a disabled dimension is a Pumpkin config feature, not a vanilla path.
+## Gapwave2-2 status
+
+- row 6 (`remove_player` sample ticket): STILL OPEN. Needs per-connection record of whether the player was listed (a gated-off duplicate-UUID join must not remove the other ticket).
+- rows 1-4, 7: STILL OPEN.

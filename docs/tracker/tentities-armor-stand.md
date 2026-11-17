@@ -32,3 +32,8 @@ world/entity fixture; the existing `clicked_slot`/`swap_item_stacks` unit tests 
 | armor_stand.rs:613-621 (creative break) | vanilla's `CAN_BREAK_ARMOR_STAND` path still runs `breakAndDropItem` + `discard` (stand item dropped, break sound played) | route creative through `break_and_drop_items()` instead of a bare `entity.remove()` | S |
 | armor_stand.rs:529-533 (`kill`) | `ArmorStand.kill` -> `breakAndDropItem` + `brokenByAnything`, so `/kill` and void damage drop the stand plus equipment; `GameEvent.ENTITY_DIE` is emitted | call `break_and_drop_items()` and emit the death game event (resolves the existing TODO) | S |
 | armor_stand.rs:283-291 + 583-590 | burning only calls `cause_damage`, so `last_damage_taken`/hurt animation and the `entity.is_removed()` bookkeeping are never updated for the fire path | set `last_damage_taken` in `cause_damage` once the vanilla behaviour split above is settled | S |
+
+## Gapwave2-2 status
+
+- `armor_stand.rs:343-349` spectator `interactAt` early return: already FIXED in code (`interact_at_position` returns true for spectators); no change.
+- other rows: STILL OPEN (drop_pos needs a position-based drop API, kill/cause_damage split needs a helper).

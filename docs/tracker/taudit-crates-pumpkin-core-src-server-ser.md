@@ -32,3 +32,7 @@ reviewed: the file in full, `crates/pumpkin-gametest/src/world.rs` (trait contra
   requires both loaded and active (ticking) chunks.
 - Chunk coordinate math (`>> 4`, `(max-1) >> 4`) matches vanilla inclusive-maxible
   `BoundingBox` handling used by `StructureUtils`/`TestInstanceBlockEntity`.
+
+## Gapwave2-2 status
+
+- row 4 (`set_block_entity_nbt` not synced): FIXED, `update_block_entity` called after `add_block_entity` in `server/server_test_manager.rs`. No gametest added: needs pumpkin-gametest run.

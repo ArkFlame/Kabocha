@@ -9,3 +9,9 @@ Changed: `can_start` now builds the vanilla `createPath(target, 0)` route (falli
 | melee_attack.rs:247-262 | `tick` thresholds use `getPerceivedTargetDistanceSquareForMeleeAttack` (attack box to target hitbox) | centre-to-centre distance shifts the +10/+5 thresholds for wide mobs (ravager, hoglin) | compute the box-to-hitbox distance like `is_within_melee_attack_range` | S |
 | melee_attack.rs:19,38 | constructor arg is `followingTargetEvenIfNotSeen` (true = keep chasing without line of sight) | named `pause_when_mob_idle` with inverted meaning; creaking.rs:119 passes true where vanilla `CreakingMeleeAttackGoal` passes false (docs/tracker/tentities-creaking.md:26) | rename across callers and fix creaking | S |
 | melee_attack.rs:26,86 | `attackInterval = 20` feeds `resetAttackCooldown` | `attack_interval_ticks` is dead and `get_max_cooldown` hardcodes 20 | use the field in `get_max_cooldown` | S |
+
+## Gapwave2-2 status
+
+- row 3 (`melee_attack.rs:19,38` misnamed flag): STILL OPEN.
+- row 4 (`attack_interval_ticks` dead): already FIXED in code (`get_max_cooldown` reads the field); no change.
+- rows 1-3: STILL OPEN.

@@ -47,3 +47,8 @@ vanilla source exists under `.vendor/`, so each row names the vanilla member it 
 
 - No cargo run (worker rule: orchestrator batch-compiles); the added test is unexecuted here.
 - Client-only effects (chest-boat animation, prediction) not assessed.
+
+## Gapwave2-2 status
+
+- row 3 (`boat.rs` passenger damage): FIXED, early `false` in `damage_with_context` when the source is a passenger of a boat that has passengers. No automated test: needs an entity fixture.
+- rows 1, 2, 4-8: STILL OPEN.
