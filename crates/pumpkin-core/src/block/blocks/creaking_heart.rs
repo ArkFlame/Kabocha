@@ -11,7 +11,11 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
-use crate::block::{BlockBehaviour, BrokenArgs, OnNeighborUpdateArgs, OnPlaceArgs, PlacedArgs};
+use crate::block::{
+    BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    PlacedArgs,
+};
+use crate::entity::EntityBase;
 
 #[pumpkin_block("minecraft:creaking_heart")]
 pub struct CreakingHeartBlock;
@@ -107,6 +111,32 @@ impl BlockBehaviour for CreakingHeartBlock {
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
         Self::update_state(args.world, args.position);
+    }
+
+    fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        // Vanilla `CreakingHeartBlockEntity#getAnalogOutputSignal`: signal strength falls off
+        // with the distance between the heart and its bound creaking, 15 close to 0 at 32.
+        // Vanilla `hasAnalogOutputSignal` is always true; no bound creaking reads 0.
+        let Some(block_entity) = args.world.get_block_entity(args.position) else {
+            return Some(0);
+        };
+        let uuid = block_entity
+            .as_any()
+            .downcast_ref::<CreakingHeartBlockEntity>()
+            .and_then(|heart| heart.creaking_uuid.load());
+        let Some(uuid) = uuid else {
+            return Some(0);
+        };
+        let Some(creaking) = args.world.get_entity_by_uuid(uuid) else {
+            return Some(0);
+        };
+        let pos = creaking.get_entity().pos.load();
+        let dx = pos.x - (f64::from(args.position.x) + 0.5);
+        let dy = pos.y - (f64::from(args.position.y) + 0.5);
+        let dz = pos.z - (f64::from(args.position.z) + 0.5);
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let signal = 15.0 - (distance * 15.0 / 32.0).floor();
+        Some(signal.clamp(0.0, 15.0) as u8)
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
