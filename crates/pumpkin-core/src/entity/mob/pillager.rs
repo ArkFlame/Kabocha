@@ -212,6 +212,9 @@ impl Mob for PillagerEntity {
                 }
             }
         }
+
+        // Vanilla `Pillager.readAdditionalSaveData` always allows loot pickup.
+        self.mob_entity.set_can_pick_up_loot(true);
     }
 
     fn on_damage(
