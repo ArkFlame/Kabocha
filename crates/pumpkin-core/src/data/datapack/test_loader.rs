@@ -76,9 +76,9 @@ fn load_test_instances_recursive(
         if file_type.is_dir() {
             load_test_instances_recursive(namespace, base_dir, &path, registry);
         } else if file_type.is_file()
-            && path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            // Vanilla matches the lowercase .json suffix only, so Foo.JSON is ignored
+            // rather than registered as ns:Foo.JSON.
+            && path.extension().is_some_and(|ext| ext.to_str() == Some("json"))
             && let Ok(rel_path) = path.strip_prefix(base_dir)
         {
             let mut stem_path = rel_path.to_string_lossy().to_string();
@@ -315,6 +315,26 @@ mod tests {
         // A named root would leave two extra bytes explaining the empty name, so a
         // full read proves the payload is exactly one unnamed compound.
         assert_eq!(cursor.position() as usize, data.len());
+    }
+
+    #[test]
+    fn load_test_instances_ignores_uppercase_json_extension() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let body = r#"{
+            "type": "minecraft:block_based",
+            "environment": "minecraft:default",
+            "structure": "pumpkin:some_ai_test",
+            "max_ticks": 20
+        }"#;
+        fs::write(dir.path().join("lower.json"), body).expect("write lower case instance");
+        fs::write(dir.path().join("upper.JSON"), body).expect("write upper case instance");
+
+        let mut registry = TestInstanceRegistry::new();
+        let loaded = load_test_instances_from_dir("pumpkin", dir.path(), &mut registry);
+
+        assert_eq!(loaded, 1);
+        assert!(registry.contains_key("pumpkin:lower"));
+        assert!(!registry.contains_key("pumpkin:upper.JSON"));
     }
 
     fn try_create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
