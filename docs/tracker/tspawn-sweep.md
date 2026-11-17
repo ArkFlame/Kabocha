@@ -17,12 +17,13 @@ Audit of `crates/pumpkin-core/src/world/natural_spawner.rs`, `entity/mob/spawn.r
 
 ## Divergences logged, not changed
 
-1. `WATER_CREATURE` has `is_persistent: true` in generated data. Vanilla `MobCategory` (from memory of 1.21 source) marks it non-persistent. Not confident enough to change generated data; generated files are not hand-edited. Needs a check against the extracted vanilla category table in `assets/` or a decompile before any change.
-2. `checkDespawn` ordering: Pumpkin resets `no_action_time` only when the nearest player is within 32 blocks and returns early for persistent mobs before that reset. Vanilla resets `noActionTime = 0` in the persistent branch too. Effect is limited to the idle counter of persistent mobs. Low impact, left as is.
-3. `checkDespawn` peaceful discard (`shouldDespawnInPeaceful`) not checked in `mob/mod.rs`. Not audited further; possible gap for peaceful-only despawns of hostile mobs.
+1. FIXED: `WATER_CREATURE` `is_persistent` set to `false` in the codegen source `tools/pumpkin-codegen/src/entity_type.rs` (vanilla `MobCategory.WATER_CREATURE(5, true, false, 128)`). Generated `crates/pumpkin-data/src/generated/entity_type.rs` still says `true` until `cargo run --locked -p pumpkin-codegen` is run (UNVERIFIED, not compiled).
+2. FIXED (already on master, verified by reading `entity/mob/mod.rs` `check_despawn`): `no_action_time` is reset to 0 within 32 blocks before the persistence early return.
+3. FIXED (already on master, verified by reading `entity/mob/mod.rs` `check_despawn`): peaceful discard of monster-class mobs runs before the persistence and distance checks.
 4. Ambient spawn light: `spawn_category_for_position` uses `is_solid_block || is_full_cube` for the solid-block early return. Vanilla uses `isRedstoneConductor`. Likely equivalent for natural spawn positions, unverified.
 
 ## Not audited
 
-- Full monster light-level path (`monster_spawn_light_level`), moon-brightness scaling for slimes, and the swamp slime branch (y 50..70, 0.5 chance). Only the chunk branch was read.
+- Full monster light-level path (`monster_spawn_light_level`).
+- FIXED (already on master, verified by reading `entity/mob/slime.rs` `surface_slime_spawn_succeeds`, boundary test `surface_slime_spawn_rules_cover_biomes_height_light_and_moon_roll`): swamp slime branch y 51..=69 (Java `50 < y < 70`), spawn chance from the environment attribute, light `<= nextInt(8)`. Slime chunk branch y < 40 unchanged.
 - Wandering trader and cat spawn timing constants.
