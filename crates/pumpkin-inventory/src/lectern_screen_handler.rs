@@ -101,6 +101,10 @@ impl ScreenHandler for LecternScreenHandler {
                 true
             }
             Self::TAKE_BOOK_BUTTON_ID => {
+                // Vanilla `LecternScreenHandler.onButtonClick` refuses in adventure mode.
+                if !player.may_build() {
+                    return false;
+                }
                 let stack = self.inventory.remove_stack(0);
                 if stack.is_empty() {
                     return false;

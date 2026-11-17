@@ -166,6 +166,11 @@ pub trait InventoryPlayer: Send + Sync {
         false
     }
 
+    /// Vanilla `PlayerEntity.canModifyBlocks`: `false` in adventure mode.
+    fn may_build(&self) -> bool {
+        true
+    }
+
     /// Gets the player's experience level.
     fn experience_level(&self) -> i32;
 

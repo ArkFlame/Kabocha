@@ -9842,6 +9842,10 @@ impl InventoryPlayer for Player {
         self.gamemode.load() == GameMode::Spectator
     }
 
+    fn may_build(&self) -> bool {
+        Player::may_build(self)
+    }
+
     fn experience_level(&self) -> i32 {
         self.experience_level
             .load(std::sync::atomic::Ordering::Relaxed)
