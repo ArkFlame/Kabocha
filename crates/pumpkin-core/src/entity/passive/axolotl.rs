@@ -1,6 +1,6 @@
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, AtomicI32, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
 };
 
 use pumpkin_data::damage::DamageType;
@@ -181,7 +181,6 @@ fn supporting_regeneration_duration(current: Option<(i32, i32)>) -> Option<i32> 
 }
 
 /// Grants the regeneration buff (see `supporting_regeneration_duration`) and clears mining fatigue.
-/// Grants the regeneration buff (see `supporting_regeneration_duration`) and clears mining fatigue,
 fn apply_supporting_effects(player: &Player) {
     let current = player
         .get_effect(&StatusEffect::REGENERATION)
@@ -208,6 +207,9 @@ pub struct AxolotlEntity {
     pub variant: AtomicI32,
     pub playing_dead: AtomicBool,
     pub from_bucket: AtomicBool,
+    /// Raw damage of the hit being resolved, kept so the play-dead roll can read the health left
+    /// by the hit, as vanilla does after `super.hurtServer`.
+    last_hurt_amount: AtomicU32,
 }
 
 impl AxolotlEntity {
@@ -238,6 +240,7 @@ impl AxolotlEntity {
             variant: AtomicI32::new(AxolotlVariant::DEFAULT.id()),
             playing_dead: AtomicBool::new(false),
             from_bucket: AtomicBool::new(false),
+            last_hurt_amount: AtomicU32::new(0),
         };
         Arc::new(axolotl)
     }
@@ -559,9 +562,26 @@ impl Mob for AxolotlEntity {
         amount: f32,
         _damage_type: DamageType,
         _position: Option<Vector3<f64>>,
+        _source: Option<&dyn EntityBase>,
+        _cause: Option<&dyn EntityBase>,
+    ) -> Option<bool> {
+        self.last_hurt_amount
+            .store(amount.to_bits(), Ordering::Relaxed);
+        None
+    }
+
+    /// Vanilla `Axolotl.hurtServer` rolls for playing dead after `super.hurtServer` applied the
+    /// hit, so the health ratio and the survival check see the health left by the damage.
+    fn on_damage_with_context(
+        &self,
+        _damage_type: DamageType,
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
-    ) -> Option<bool> {
+    ) -> bool {
+        let amount = f32::from_bits(
+            self.last_hurt_amount
+                .swap(0.0f32.to_bits(), Ordering::Relaxed),
+        );
         let living = &self.mob_entity.living_entity;
         let hit = HurtCheck {
             no_ai: self.mob_entity.is_no_ai(),
@@ -577,7 +597,7 @@ impl Mob for AxolotlEntity {
                 brain.set(types::PLAY_DEAD_TICKS, TOTAL_PLAYDEAD_TIME);
             });
         }
-        None
+        true
     }
 
     /// A playing-dead axolotl is ignored by attackers, matching vanilla's play-dead window.
@@ -1256,6 +1276,49 @@ mod tests {
         assert_eq!(play_dead_ticks(&no_ai), None);
         assert_eq!(play_dead_ticks(&killing), None);
         assert_eq!(play_dead_ticks(&resting), Some(77));
+        Ok(())
+    }
+
+    /// The play-dead roll belongs to the damage hook that runs after the hit was applied, not to
+    /// the pre-damage mob hook: the latter only records the raw damage.
+    #[tokio::test]
+    async fn the_play_dead_roll_runs_after_the_hit_is_applied() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let attacker = cod(&world, 2.0);
+        let axolotl = axolotl(&world);
+        axolotl
+            .get_entity()
+            .touching_water
+            .store(true, Ordering::Relaxed);
+        axolotl.mob_entity.living_entity.health.store(6.0);
+        let source: Option<&dyn EntityBase> = Some(attacker.as_ref());
+        let play_dead_ticks = || {
+            axolotl.mob_entity.with_brain(axolotl.as_ref(), |brain| {
+                brain.get(types::PLAY_DEAD_TICKS).copied()
+            })
+        };
+
+        for _ in 0..300 {
+            let _ =
+                axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
+        }
+        let before = play_dead_ticks();
+        for _ in 0..300 {
+            let _ =
+                axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
+            EntityBase::on_damage_with_context(
+                axolotl.as_ref(),
+                DamageType::MOB_ATTACK,
+                source,
+                source,
+            );
+        }
+        let after = play_dead_ticks();
+        world.level.shutdown().await;
+
+        assert_eq!(before, None);
+        assert_eq!(after, Some(200));
         Ok(())
     }
 
