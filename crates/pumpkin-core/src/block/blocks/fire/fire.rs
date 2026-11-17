@@ -143,8 +143,10 @@ impl FireBlock {
                 return;
             }
             let old_block = block;
+            // Vanilla FireBlock.checkBurnOut only tests the target position here,
+            // not the 5-column isNearRain used for the fire's own block.
             if rand::rng().random_range(0..(age + 10) as i32) < 5
-                && !Self::is_near_rain(world.as_ref(), pos)
+                && !world.is_raining_at(pos)
             {
                 let new_age = (age + (rand::rng().random_range(0..5) / 4)).min(15) as u8;
                 let state_id = self.get_state_for_position(world.as_ref(), &Block::FIRE, pos);
@@ -397,7 +399,7 @@ impl BlockBehaviour for FireBlock {
 
                             if odds > 0
                                 && rand::rng().random_range(0..rate) <= odds
-                                && !Self::is_near_rain(world.as_ref(), &offset_pos)
+                                && !world.is_raining_at(&offset_pos)
                             {
                                 let spread_age =
                                     (age + rand::rng().random_range(0..5) / 4).min(15) as u8;
