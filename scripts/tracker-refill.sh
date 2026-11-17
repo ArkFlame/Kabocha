@@ -42,7 +42,7 @@ Check that each change fills a real gap (WORKER.md rule 12). Commit with: git ad
 <constraints>Do NOT run cargo or tests. TOOL CAP about 30 tool calls (60 for a DEEP AUDIT). No questions, no background jobs. A second identical command means change approach, a third means stop.</constraints>
 <report>One line: STATUS: committed|partial|skipped|failed | TRACKER $cat/$name | commit <hash or none> | files <list> | compiled: no | note <one line></report>
 B
-  scripts/oc-agent.sh "$slug" "$f" 9>&- 8>&- 2>/dev/null | cut -c1-80 &
+  scripts/oc-agent.sh "$slug" "$f" 9>&- 8>&- 2>/dev/null | cut -c1-80 8>&- 9>&- &
 done
 flock -u 8
 wait
