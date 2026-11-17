@@ -245,7 +245,7 @@ pub async fn send_framed_packet<P: ClientPacket + MultiVersionJavaPacket, W: Asy
         pumpkin_protocol::java::packet_encoder::SerializedPacket::try_from_bytes(Bytes::from(buf))
             .map_err(|err| format!("Failed to frame packet {packet_id}: {err}"))?;
     writer
-        .write_packet(serialized)
+        .write_packet(serialized.into_bytes())
         .await
         .map_err(|err| format!("Failed to write packet to socket: {err}"))?;
     writer

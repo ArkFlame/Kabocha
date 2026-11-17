@@ -46,7 +46,7 @@ fuzz_target!(|data: &[u8]| {
         let _ = buf.write_var_int(&VarInt(packet_id));
         buf.extend_from_slice(packet_data);
         if let Ok(packet) = SerializedPacket::try_from_bytes(buf.into()) {
-            let _ = encoder.write_packet(packet).await;
+            let _ = encoder.write_packet(packet.into_bytes()).await;
         }
 
         // 2. Fuzz with actual packets if they can be partially read
@@ -57,7 +57,7 @@ fuzz_target!(|data: &[u8]| {
             let _ = packet_buf.write_var_int(&VarInt(id));
             let _ = packet.write_packet_data(&mut packet_buf, &TARGET_VERSION);
             if let Ok(packet) = SerializedPacket::try_from_bytes(packet_buf.into()) {
-                let _ = encoder.write_packet(packet).await;
+                let _ = encoder.write_packet(packet.into_bytes()).await;
             }
         }
 

@@ -241,7 +241,7 @@ impl PendingConnection {
             }
         });
         if let Some(payload) = payload
-            && let Err(err) = self.network_writer.write_packet(payload).await
+            && let Err(err) = self.network_writer.write_packet(payload.into_bytes()).await
         {
             warn!("Failed to send packet to client {}: {}", self.id, err);
             self.close();
@@ -252,8 +252,10 @@ impl PendingConnection {
                 warn!("Failed to validate extra packet for client {}", self.id);
                 continue;
             };
-            if let Err(err) = self.network_writer.write_packet(extra).await {
+            if let Err(err) = self.network_writer.write_packet(extra.into_bytes()).await {
                 warn!("Failed to send extra packet to client {}: {}", self.id, err);
+                self.close();
+                return;
             }
         }
         if let Err(err) = self.network_writer.flush().await {
