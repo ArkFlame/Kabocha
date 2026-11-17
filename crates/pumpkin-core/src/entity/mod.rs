@@ -6933,6 +6933,16 @@ impl Entity {
 
 impl Entity {
     pub(crate) fn base_tick(&self, caller: &dyn EntityBase) {
+        self.base_tick_with_fluid_push(caller, true);
+    }
+
+    /// Vanilla `Entity.baseTick` for vehicles whose motion is client predicted: the fluid flags and
+    /// the fluid's `entityInside` effects run, but the fluid current does not push the entity.
+    pub(crate) fn base_tick_without_fluid_push(&self, caller: &dyn EntityBase) {
+        self.base_tick_with_fluid_push(caller, false);
+    }
+
+    fn base_tick_with_fluid_push(&self, caller: &dyn EntityBase, push_fluids: bool) {
         // Recomputed during movement/block-collision handling in the same tick.
         let was_in_powder_snow = self.is_in_powder_snow.load(Ordering::Relaxed);
         self.was_in_powder_snow
@@ -6940,7 +6950,11 @@ impl Entity {
         self.is_in_powder_snow.store(false, Ordering::Relaxed);
 
         self.tick_portal(caller);
-        self.update_fluid_state(caller);
+        if push_fluids {
+            self.update_fluid_state(caller);
+        } else {
+            self.update_fluid_state_without_push(caller);
+        }
         self.check_out_of_world(caller);
         let fire_ticks = self.fire_ticks.load(Ordering::Relaxed);
 
