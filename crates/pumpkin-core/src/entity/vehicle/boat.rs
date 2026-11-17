@@ -3,6 +3,7 @@ mod dismount;
 mod passengers;
 mod physics;
 
+use pumpkin_data::tag::Taggable;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
