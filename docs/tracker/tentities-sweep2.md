@@ -13,7 +13,7 @@ Reference: vanilla 1.21.x decompiled `net.minecraft.world.entity.animal.*` (from
 | Family | Gap | Evidence | Size |
 |---|---|---|---|
 | bee | Pollination and hive AI missing. Vanilla goals `EnterHiveGoal` (p1), `BeePollinateGoal` (p4), `BeeLocateHiveGoal` (p5), `BeeGoToHiveGoal` (p6), `BeeGrowCropGoal` (p7) have no counterpart; `bee.rs` only registers attack, breed, temptation, follow, wander, swim, look goals. The NBT fields `TicksSincePollination`/`CropsGrownSincePollination` are stored but never read by AI. | `grep -rn -i pollinat crates/pumpkin-core/src` matches only `bee.rs` NBT code. | L |
-| goat | Ram/jump behaviour missing. Memory types `RAM_COOLDOWN_TICKS` and `RAM_TARGET` exist in `entity/ai/brain/memory/types.rs`, but `goat.rs` never uses them. Vanilla goats charge and ram targets. Ram constants are not confidently known, so the port is UNVERIFIED-blocked. | `goat.rs` has no ram code. | M |
+| goat | PARTIAL (UNVERIFIED): `RamTargetGoal` in `entity/ai/goal/ram_target.rs` charges the mob's target within 8 blocks, hits it, knocks it back 1.5, stuns 40 ticks and rolls a 30 to 120 s cooldown from world time (brief said 30 to 300 s; kept the 30 to 120 s range from memory). Revenge targeting gives the ram a target. Horn sounds play (regular variants only). Still missing: screaming ram sounds and the head-bonk that breaks log blocks and drops a goat horn. | `goat.rs` registers the goal at priority 2 and `RevengeGoal` at target priority 1. Helper tests in `ram_target.rs`. | M |
 
 ## Checked and matching (from memory, not re-verified against a decompile)
 
