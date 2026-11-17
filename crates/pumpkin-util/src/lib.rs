@@ -103,23 +103,6 @@ pub fn encompassing_bits(count: usize) -> u8 {
     }
 }
 
-#[cfg(test)]
-mod encompassing_bits_tests {
-    use super::encompassing_bits;
-
-    #[test]
-    fn matches_vanilla_ceillog2() {
-        assert_eq!(encompassing_bits(0), 0);
-        assert_eq!(encompassing_bits(1), 0);
-        assert_eq!(encompassing_bits(2), 1);
-        assert_eq!(encompassing_bits(3), 2);
-        assert_eq!(encompassing_bits(4), 2);
-        assert_eq!(encompassing_bits(5), 3);
-        assert_eq!(encompassing_bits(256), 8);
-        assert_eq!(encompassing_bits(257), 9);
-    }
-}
-
 /// Represents actions applied to a player profile that may require moderation or restrictions.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -330,5 +313,22 @@ impl TryFrom<i32> for Hand {
             1 => Ok(Self::Right),
             _ => Err(InvalidHand),
         }
+    }
+}
+
+#[cfg(test)]
+mod encompassing_bits_tests {
+    use super::encompassing_bits;
+
+    #[test]
+    fn matches_vanilla_ceillog2() {
+        assert_eq!(encompassing_bits(0), 0);
+        assert_eq!(encompassing_bits(1), 0);
+        assert_eq!(encompassing_bits(2), 1);
+        assert_eq!(encompassing_bits(3), 2);
+        assert_eq!(encompassing_bits(4), 2);
+        assert_eq!(encompassing_bits(5), 3);
+        assert_eq!(encompassing_bits(256), 8);
+        assert_eq!(encompassing_bits(257), 9);
     }
 }
