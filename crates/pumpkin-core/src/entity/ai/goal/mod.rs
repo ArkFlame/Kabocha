@@ -3,6 +3,7 @@ use std::{any::TypeId, ops::BitOr, ptr};
 
 pub mod active_target;
 pub mod avoid_entity;
+pub mod bee_wander;
 pub mod beg;
 pub mod blaze_attack;
 pub mod bow_attack;
@@ -29,6 +30,7 @@ pub mod go_to_wanted_item;
 pub mod goal_selector;
 pub mod golem_random_stroll_in_village;
 pub mod grow_crop;
+pub mod hive;
 pub mod interact;
 pub mod leap_at_target;
 pub mod llama_follow_caravan;

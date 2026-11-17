@@ -422,6 +422,13 @@ fn compute_sweep_damage(base_damage: f64, sweeping_ratio: f64, attack_strength_s
     ((1.0 + sweeping_ratio * base_damage) * attack_strength_scale) as f32
 }
 
+/// `EntityToggleGlideEvent` outcome: cancelling keeps the entity's current glide state,
+/// otherwise the event's `is_gliding` becomes the state. Both the vanilla toggle hook
+/// and the Forge/NeoForge event follow this rule, so start and stop share it.
+const fn toggle_glide_applies(cancelled: bool, is_gliding: bool, current: bool) -> bool {
+    if cancelled { current } else { is_gliding }
+}
+
 fn write_last_death_location(nbt: &mut NbtCompound, dimension: &ResourceLocation, pos: &BlockPos) {
     let mut death_compound = NbtCompound::new();
     death_compound.put_string("dimension", dimension.clone());
@@ -3978,7 +3985,7 @@ impl Player {
                 true,
             );
         server.plugin_manager.fire_blocking(server, &mut event);
-        if event.cancelled || !event.is_gliding {
+        if !toggle_glide_applies(event.cancelled, event.is_gliding, false) {
             return false;
         }
         entity.set_fall_flying(true);
@@ -3996,7 +4003,7 @@ impl Player {
                 false,
             );
         server.plugin_manager.fire_blocking(&server, &mut event);
-        !event.cancelled && !event.is_gliding
+        !toggle_glide_applies(event.cancelled, event.is_gliding, true)
     }
 
     /// Vanilla `updateFallFlying`: ends the glide once it isn't possible, wears the glider every second
@@ -7117,41 +7124,26 @@ impl Player {
         for (slot_idx, mut stack) in candidates {
             let mut changed = crate::world::map::resolve_map_post_processing(&mut stack, server);
 
-            // Vanilla ticks the tracker against the world named by the target, not the
-            // holder's world, so a compass is unlinked even while the player is elsewhere.
+            // Vanilla CompassItem#inventoryTick passes the holder's level to
+            // LodestoneTracker#tick; the tracker is only checked while the compass is in
+            // the target dimension and is left untouched otherwise.
             if let Some(tracker) = stack.get_data_component::<LodestoneTrackerImpl>()
                 && tracker.tracked
                 && let Some(target) = &tracker.target
             {
-                let target_world = server
-                    .worlds
-                    .load()
-                    .iter()
-                    .find(|world| target.dimension == world.dimension.minecraft_name)
-                    .cloned();
-                match target_world {
-                    // Vanilla LodestoneTracker#tick returns an unlinked tracker when
-                    // `server.getLevel(target.dimension())` is null.
-                    None => {
+                let level = self.world();
+                if target.dimension == level.dimension.minecraft_name {
+                    let pos = BlockPos::new(target.x, target.y, target.z);
+                    // A lost or out-of-bounds lodestone is unlinked with `tracked` still true.
+                    if !level.is_in_build_limit(pos)
+                        || (level.level.is_chunk_loaded(&pos.chunk_position())
+                            && level.get_block(&pos) != &Block::LODESTONE)
+                    {
                         stack.set_data_component(LodestoneTrackerImpl {
                             target: None,
-                            tracked: false,
+                            tracked: true,
                         });
                         changed = true;
-                    }
-                    Some(target_world) => {
-                        let pos = BlockPos::new(target.x, target.y, target.z);
-                        // Vanilla LodestoneTracker#tick unlinks targets outside the world bounds.
-                        if !target_world.is_in_build_limit(pos)
-                            || (target_world.level.is_chunk_loaded(&pos.chunk_position())
-                                && target_world.get_block(&pos) != &Block::LODESTONE)
-                        {
-                            stack.set_data_component(LodestoneTrackerImpl {
-                                target: None,
-                                tracked: true,
-                            });
-                            changed = true;
-                        }
                     }
                 }
             }
@@ -10618,6 +10610,23 @@ mod tests {
     use pumpkin_util::text::color::NamedColor;
     use tokio::io::AsyncReadExt;
     use uuid::Uuid;
+
+    #[test]
+    fn toggle_glide_event_veto_keeps_the_current_state() {
+        // Start request: `is_gliding = true` while the entity was not gliding.
+        assert!(super::toggle_glide_applies(false, true, false));
+        // A cancelled start keeps the not-gliding state.
+        assert!(!super::toggle_glide_applies(true, true, false));
+        // A plugin can also veto the start by clearing the flag.
+        assert!(!super::toggle_glide_applies(false, false, false));
+
+        // Stop request: `is_gliding = false` while the entity was gliding.
+        assert!(!super::toggle_glide_applies(false, false, true));
+        // A cancelled stop keeps the glide, so `glide_stop_allowed` stays false.
+        assert!(super::toggle_glide_applies(true, false, true));
+        // A plugin can also veto the stop by keeping the flag set.
+        assert!(super::toggle_glide_applies(false, true, true));
+    }
 
     #[test]
     fn sweep_damage_scales_by_sweeping_ratio_and_attack_strength() {

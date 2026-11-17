@@ -538,4 +538,68 @@ mod tests {
         world.level.shutdown().await;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn searching_handoff_starts_digging_on_a_diggable_pad() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);
+        for x in 4..=12 {
+            for z in 4..=12 {
+                chunk.set_block_absolute_y(x, 63, z, pumpkin_data::Block::DIRT.default_state.id);
+            }
+        }
+        world
+            .level
+            .loaded_chunks
+            .insert(pumpkin_util::math::vector2::Vector2::new(0, 0), chunk);
+        let sniffer = SnifferEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(8.5, 64.0, 8.5),
+            &EntityType::SNIFFER,
+        ));
+        let entity = sniffer.get_entity();
+        entity.on_ground.store(true, Relaxed);
+        entity
+            .supporting_block_pos
+            .store(Some(BlockPos::new(8, 63, 8)));
+        entity.tick_count.store(100, Relaxed);
+
+        let mut brain = make_brain(&sniffer, &PackedMemories::empty());
+        let dig_pos = BlockPos::new(8, 63, 8);
+        brain.set(types::SNIFFER_SNIFFING_TARGET, dig_pos);
+        brain.set(
+            types::WALK_TARGET,
+            WalkTarget::from_block_pos(dig_pos, SPEED_MULTIPLIER_WHEN_SNIFFING, 0),
+        );
+        let mut tick = BrainTick {
+            state: &mut brain,
+            world: &world,
+            mob: sniffer.as_ref(),
+            time: 100,
+        };
+
+        let mut searching = Timed::new(Searching);
+        assert!(searching.try_start(&mut tick));
+        assert_eq!(sniffer.get_state(), SnifferState::Searching);
+        searching.tick_or_stop(&mut tick);
+        assert_eq!(sniffer.get_state(), SnifferState::Searching);
+
+        tick.state.erase(types::WALK_TARGET.id());
+        searching.tick_or_stop(&mut tick);
+        assert!(tick.state.has_memory_value(types::SNIFFER_DIGGING.id()));
+        assert!(
+            !tick
+                .state
+                .has_memory_value(types::SNIFFER_SNIFFING_TARGET.id())
+        );
+
+        let mut digging = Timed::new(Digging);
+        assert!(digging.try_start(&mut tick));
+        assert_eq!(sniffer.get_state(), SnifferState::Digging);
+        assert!(sniffer.drop_seed_at_tick.load(Relaxed) > 100);
+
+        world.level.shutdown().await;
+        Ok(())
+    }
 }

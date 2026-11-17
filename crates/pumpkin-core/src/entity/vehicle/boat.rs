@@ -75,6 +75,13 @@ pub fn is_chest_boat(entity_type: &EntityType) -> bool {
         || entity_type.resource_name == "bamboo_chest_raft"
 }
 
+/// Vanilla AbstractChestBoat always allocates a 27-slot container while a plain AbstractBoat
+/// has none; this is the sole input to has_container_inventory for boats.
+#[must_use]
+pub fn boat_container_size(entity_type: &EntityType) -> Option<usize> {
+    is_chest_boat(entity_type).then_some(CHEST_BOAT_CONTAINER_SIZE)
+}
+
 #[must_use]
 pub fn is_boat(entity_type: &EntityType) -> bool {
     entity_type.has_tag(&tag::EntityType::C_BOATS) || is_chest_boat(entity_type)
@@ -229,8 +236,8 @@ impl BoatEntity {
     pub fn new(mut entity: Entity) -> Self {
         entity.blocks_building = true;
         let yaw = entity.yaw.load();
-        let inventory = is_chest_boat(entity.entity_type)
-            .then(|| Arc::new(MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE)));
+        let inventory = boat_container_size(entity.entity_type)
+            .map(|size| Arc::new(MinecartInventory::new(size)));
         Self {
             vehicle: VehicleEntity::new(entity),
             ticks_underwater: AtomicCell::new(0.0),
@@ -579,6 +586,11 @@ impl EntityBase for BoatEntity {
         // Vanilla leaves ridden boat movement to its controlling player's client.
         if self.is_client_controlled() {
             entity.velocity.store(Vector3::default());
+            // Vanilla zeroes a client-authoritative boat's delta movement, and its
+            // `checkFallDamage` override stores that zero into `lastYd` from each
+            // vehicle-move packet. Mirror it so `get_water_level_above` never reads a
+            // pre-mount velocity once the boat becomes server-controlled again.
+            self.last_yd.store(0.0);
         } else {
             if self.left_paddle_moving.load(Ordering::Relaxed)
                 || self.right_paddle_moving.load(Ordering::Relaxed)
@@ -899,12 +911,16 @@ pub fn clamp_rider_yaw(rider_yaw: f32, boat_yaw: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        PADDLE_CUE, PADDLE_STEP, boat_drop_item, clamp_head_to_body, clamp_rider_yaw,
-        drops_item_when_destroyed, is_chest_boat, max_passengers, paddle_sound_cue,
-        paddle_sound_for_status, rider_body_yaw,
+        CHEST_BOAT_CONTAINER_SIZE, MinecartInventory, PADDLE_CUE, PADDLE_STEP, boat_container_size,
+        boat_drop_item, clamp_head_to_body, clamp_rider_yaw, drops_item_when_destroyed,
+        is_chest_boat, max_passengers, paddle_sound_cue, paddle_sound_for_status, rider_body_yaw,
     };
     use pumpkin_data::entity::EntityType;
+    use pumpkin_data::item::Item;
+    use pumpkin_data::item_stack::ItemStack;
     use pumpkin_data::sound::Sound;
+    use pumpkin_inventory::Inventory;
+    use pumpkin_nbt::compound::NbtCompound;
 
     #[test]
     fn rider_yaw_clamps_to_boat_heading_window() {
@@ -1021,6 +1037,37 @@ mod tests {
                 assert_eq!(item.registry_key, entity_type.resource_name);
             }
         }
+    }
+
+    #[test]
+    fn poplar_chest_boat_has_container_but_plain_boat_does_not() {
+        // Vanilla AbstractChestBoat always allocates a 27-slot container; Boat has none.
+        assert_eq!(CHEST_BOAT_CONTAINER_SIZE, 27);
+        assert_eq!(
+            boat_container_size(&EntityType::POPLAR_CHEST_BOAT),
+            Some(CHEST_BOAT_CONTAINER_SIZE)
+        );
+        assert_eq!(boat_container_size(&EntityType::POPLAR_BOAT), None);
+    }
+
+    #[test]
+    fn chest_boat_items_round_trip_through_last_slot() {
+        // Vanilla ContainerHelper.saveAllItems/loadAllItems preserves the highest slot (26)
+        // of a 27-slot chest boat across the entity custom NBT save/load path.
+        let source = MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE);
+        source.set_stack(26, ItemStack::new(2, &Item::POWERED_RAIL));
+
+        let mut nbt = NbtCompound::new();
+        source.write_nbt(&mut nbt);
+        let items = nbt.get_list("Items");
+        assert!(items.is_some_and(|slots| slots.len() == 1));
+
+        let restored = MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE);
+        restored.read_nbt(&nbt);
+        let stack = restored.get_stack(26);
+        assert_eq!(stack.get_item().id, Item::POWERED_RAIL.id);
+        assert_eq!(stack.item_count, 2);
+        assert!(restored.get_stack(25).is_empty());
     }
 }
 

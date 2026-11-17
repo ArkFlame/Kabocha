@@ -29,7 +29,7 @@ use crate::entity::{
         go_to_known_flower::GoToKnownFlowerGoal, grow_crop::GrowCropGoal,
         melee_attack::MeleeAttackGoal, pollinate_flower::PollinateFlowerGoal,
         reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        tempt::TemptGoal,
     },
     ai::pathfinder::{Navigator, node::PathType},
     mob::{
@@ -40,12 +40,18 @@ use crate::entity::{
     player::Player,
 };
 
+use crate::entity::ai::goal::bee_wander::BeeWanderGoal;
+use crate::entity::ai::goal::hive::{EnterHiveGoal, GoToHiveGoal, LocateHiveGoal};
+
 pub const FLAG_ROLL: u8 = 2;
 pub const FLAG_HAS_STUNG: u8 = 4;
 pub const FLAG_HAS_NECTAR: u8 = 8;
 
 /// Vanilla `Bee.TICKS_PER_FLAP`, `Mth.ceil(1.4959966F)`.
 const TICKS_PER_FLAP: i32 = 2;
+
+/// Vanilla Bee.isTiredOfLookingForNectar threshold.
+const MAX_TICKS_WITHOUT_NECTAR: i32 = 3600;
 
 /// Vanilla `Bee.TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME`.
 pub const TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME: i32 = 3600;
@@ -164,6 +170,7 @@ pub struct BeeEntity {
     pub flags: AtomicU8,
     pub ticks_without_nectar: AtomicI32,
     pub cannot_enter_hive_ticks: AtomicI32,
+    pub hive_search_cooldown: AtomicI32,
     pub crops_grown_since_pollination: AtomicI32,
     pub time_since_sting: AtomicI32,
     pub hive_pos: Mutex<Option<BlockPos>>,
@@ -205,6 +212,7 @@ impl BeeEntity {
             flags: AtomicU8::new(0),
             ticks_without_nectar: AtomicI32::new(0),
             cannot_enter_hive_ticks: AtomicI32::new(0),
+            hive_search_cooldown: AtomicI32::new(0),
             crops_grown_since_pollination: AtomicI32::new(0),
             time_since_sting: AtomicI32::new(0),
             hive_pos: Mutex::new(None),
@@ -228,6 +236,10 @@ impl BeeEntity {
                 0,
                 Box::new(MeleeAttackGoal::new(1.4, true).gated_by(can_sting)),
             );
+            // Vanilla Bee.registerGoals: enter hive 1, locate hive / go to hive 5.
+            goal_selector.add_goal(1, Box::new(EnterHiveGoal));
+            goal_selector.add_goal(5, Box::new(LocateHiveGoal));
+            goal_selector.add_goal(5, Box::new(GoToHiveGoal::default()));
             // Vanilla `BeePollinateGoal` priority 4.
             goal_selector.add_goal(
                 4,
@@ -255,7 +267,8 @@ impl BeeEntity {
                 )),
             );
             goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.25)));
-            goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(1.0)));
+            // Vanilla BeeWanderGoal at priority 8: water-avoiding hover flight toward hive.
+            goal_selector.add_goal(8, Box::new(BeeWanderGoal::default()));
             goal_selector.add_goal(9, Box::new(SwimGoal::default()));
         };
 
@@ -347,6 +360,33 @@ impl BeeEntity {
             .hive_pos
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
+    }
+
+    #[must_use]
+    pub fn hive_search_cooldown(&self) -> i32 {
+        self.hive_search_cooldown.load(Ordering::Relaxed)
+    }
+
+    pub fn set_hive_search_cooldown(&self, ticks: i32) {
+        self.hive_search_cooldown.store(ticks, Ordering::Relaxed);
+    }
+
+    /// Vanilla Bee.wantsToEnterHive. Fire-near-hive avoidance is not checked here.
+    pub fn wants_to_enter_hive(&self, mob: &dyn Mob) -> bool {
+        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0
+            || self.has_stung()
+            || mob.get_mob_entity().get_target().is_some()
+        {
+            return false;
+        }
+        let world = mob.get_entity().world.load();
+        let pos = mob.get_entity().block_pos.load();
+        let time = world.get_time_of_day().rem_euclid(24000);
+        let night = (13000..23000).contains(&time);
+        self.has_nectar()
+            || self.ticks_without_nectar.load(Ordering::Relaxed) > MAX_TICKS_WITHOUT_NECTAR
+            || night
+            || world.is_raining_at(&pos)
     }
 
     #[must_use]
@@ -556,6 +596,10 @@ impl Mob for BeeEntity {
         // Vanilla `Bee.aiStep` decrements `stayOutOfHiveCountdown` every server tick.
         if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
             self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
+        }
+        // Vanilla Bee.aiStep decrements remainingCooldownBeforeLocatingNewHive.
+        if self.hive_search_cooldown.load(Ordering::Relaxed) > 0 {
+            self.hive_search_cooldown.fetch_sub(1, Ordering::Relaxed);
         }
         // Vanilla `Bee.aiStep` decrements the flower-search cooldown every server tick.
         if self.flower_search_cooldown() > 0 {
