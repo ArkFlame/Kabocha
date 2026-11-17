@@ -220,12 +220,12 @@ pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f6
                 Some(attacker),
             );
         }
-        // Vanilla `LivingEntity.causeExtraKnockback` interrupts the attacker's sprint.
+        // Vanilla `Player.causeExtraKnockback` slows the attacker and interrupts its
+        // sprint only while the extra knockback is non-zero.
+        let velocity = attacker.velocity.load();
+        attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
         attacker.set_sprinting(false);
     }
-
-    let velocity = attacker.velocity.load();
-    attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
 }
 
 /// End of vanilla `Player.causeExtraKnockback`: a hit player gets its knockback only for
