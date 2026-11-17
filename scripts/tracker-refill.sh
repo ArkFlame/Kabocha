@@ -16,12 +16,20 @@ import subprocess
 out=subprocess.run(['git','grep','-c','-E','TODO|FIXME|vanilla',  '--','crates/pumpkin-core/src'],capture_output=True,text=True).stdout.split('\n')
 files=sorted(((int(l.rsplit(':',1)[1]),l.rsplit(':',1)[0]) for l in out if ':' in l),reverse=True)
 rows+= [{'category':'audit','name':p,'covered':'AUDIT','note':'%d TODO/FIXME/vanilla markers in this file'%c} for c,p in files if c>=2]
-n=0
-for r in rows:
-    slug='t'+re.sub(r'[^a-z0-9]+','-',(r['category']+'-'+r['name']).lower()).strip('-')[:40]
-    if slug in tried: continue
-    print('\t'.join([slug,r['category'],r['name'],r['covered'],r['note'].replace('\t',' ')[:600]])); n+=1
-    if n>=need: break
+import hashlib
+def slug_of(r):  # hash suffix keeps long names unique after truncation
+    full=r['category']+'-'+r['name']
+    return 't'+re.sub(r'[^a-z0-9]+','-',full.lower()).strip('-')[:32]+'-'+hashlib.md5(full.encode()).hexdigest()[:6]
+def pick(tried):
+    n=0
+    for r in rows:
+        slug=slug_of(r)
+        if slug in tried: continue
+        print('\t'.join([slug,r['category'],r['name'],r['covered'],r['note'].replace('\t',' ')[:600]])); n+=1; tried.add(slug)
+        if n>=need: break
+    return n
+if pick(set(tried))==0:  # supply exhausted: audits repeat against the latest master, so recycle the tried list
+    open(sys.argv[2],'w').close(); pick(set())
 PY
   echo "$slug" >> "$tried"
   scripts/wt.sh new "$slug" >/dev/null 2>&1
