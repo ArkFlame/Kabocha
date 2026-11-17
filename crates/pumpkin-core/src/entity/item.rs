@@ -39,6 +39,8 @@ pub struct ItemEntity {
     entity: Entity,
     item_age: AtomicU32,
     thrower: crossbeam::atomic::AtomicCell<Option<uuid::Uuid>>,
+    // Vanilla ItemEntity.target ("Owner" NBT): the player allowed to pick this item up.
+    target: crossbeam::atomic::AtomicCell<Option<uuid::Uuid>>,
     // These cannot be atomic values because we mutate their state based on what they are; we run
     // into the ABA problem
     item_stack: Mutex<ItemStack>,
@@ -119,6 +121,7 @@ impl ItemEntity {
             item_stack: Mutex::new(item_stack),
             item_age: AtomicU32::new(0),
             thrower: crossbeam::atomic::AtomicCell::new(None),
+            target: crossbeam::atomic::AtomicCell::new(None),
             pickup_delay: AtomicU8::new(Self::DEFAULT_PICKUP_DELAY),
             health: AtomicF32::new(5.0),
             never_despawn: AtomicBool::new(false),
@@ -142,6 +145,7 @@ impl ItemEntity {
             item_stack: Mutex::new(item_stack),
             item_age: AtomicU32::new(0),
             thrower: crossbeam::atomic::AtomicCell::new(None),
+            target: crossbeam::atomic::AtomicCell::new(None),
             pickup_delay: AtomicU8::new(pickup_delay), // Vanilla pickup delay is 10 ticks
             health: AtomicF32::new(5.0),
             never_despawn: AtomicBool::new(false),
@@ -158,6 +162,7 @@ impl ItemEntity {
             item_stack: Mutex::new(ItemStack::new(1, &pumpkin_data::item::Item::AIR)),
             item_age: AtomicU32::new(0),
             thrower: crossbeam::atomic::AtomicCell::new(None),
+            target: crossbeam::atomic::AtomicCell::new(None),
             pickup_delay: AtomicU8::new(0),
             health: AtomicF32::new(5.0),
             never_despawn: AtomicBool::new(false),
@@ -176,6 +181,23 @@ impl ItemEntity {
 
     pub fn get_thrower(&self) -> Option<uuid::Uuid> {
         self.thrower.load()
+    }
+
+    /// Vanilla `ItemEntity.setTarget`: `Owner` NBT restricts pickup to this player.
+    pub fn set_target(&self, uuid: uuid::Uuid) {
+        self.target.store(Some(uuid));
+    }
+
+    pub fn get_target(&self) -> Option<uuid::Uuid> {
+        self.target.load()
+    }
+
+    /// Vanilla `ItemEntity.playerTouch`: an `Owner` target may only pick up its own items.
+    fn target_allows_pickup(target: Option<uuid::Uuid>, player: uuid::Uuid) -> bool {
+        match target {
+            Some(owner) => owner == player,
+            None => true,
+        }
     }
 
     pub fn get_pickup_delay(&self) -> u8 {
@@ -242,7 +264,13 @@ impl ItemEntity {
     }
 
     /// Pure form of vanilla `ItemEntity.isMergable` for unit testing.
-    fn can_merge(removed: bool, never_despawn: bool, never_pickup: bool, count: u8, max: u8) -> bool {
+    fn can_merge(
+        removed: bool,
+        never_despawn: bool,
+        never_pickup: bool,
+        count: u8,
+        max: u8,
+    ) -> bool {
         !removed && !never_despawn && !never_pickup && count < max
     }
 
@@ -285,6 +313,11 @@ impl ItemEntity {
         let Some(_reservation) = ItemMergeReservation::acquire(low, high) else {
             return;
         };
+
+        // Vanilla `ItemEntity.tryToMerge`: only items with the same `Owner` target merge.
+        if self.target.load() != other.target.load() {
+            return;
+        }
 
         let (expected_low, expected_high, target_is_self) = {
             let low_stack = low
@@ -788,6 +821,11 @@ impl EntityBase for ItemEntity {
             return;
         }
 
+        // Vanilla `ItemEntity.playerTouch`: `target == null || target.equals(player.getUUID())`.
+        if !Self::target_allows_pickup(self.target.load(), player.gameprofile.id) {
+            return;
+        }
+
         // Vanilla ItemEntity.playerTouch: the throwing player keeps a 3 second head start.
         if self.item_age.load(Ordering::Relaxed) <= 60
             && let Some(thrower) = self.thrower.load()
@@ -928,10 +966,14 @@ impl EntityBase for ItemEntity {
         if let Some(thrower) = self.thrower.load() {
             nbt.put_uuid("Thrower", thrower);
         }
+        if let Some(target) = self.target.load() {
+            nbt.put_uuid("Owner", target);
+        }
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         self.thrower.store(nbt.get_uuid("Thrower"));
+        self.target.store(nbt.get_uuid("Owner"));
         // Restore the item stack from the "Item" compound
         if let Some(item_compound) = nbt.get_compound("Item")
             && let Some(stack) = ItemStack::read_item_stack(item_compound)
@@ -1071,6 +1113,15 @@ mod tests {
         let mut tagged = plain.clone();
         tagged.set_data_component(CustomDataImpl::new(data));
         assert!(!ItemEntity::are_mergeable(&plain, &tagged));
+    }
+
+    #[test]
+    fn target_gate_matches_vanilla_player_touch() {
+        let owner = uuid::Uuid::from_u128(1);
+        let other = uuid::Uuid::from_u128(2);
+        assert!(ItemEntity::target_allows_pickup(None, other));
+        assert!(ItemEntity::target_allows_pickup(Some(owner), owner));
+        assert!(!ItemEntity::target_allows_pickup(Some(owner), other));
     }
 
     #[test]

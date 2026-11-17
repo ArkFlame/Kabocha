@@ -131,6 +131,12 @@ impl HappyGhastEntity {
         }
     }
 
+    /// Vanilla `HappyGhast.notifyLeashHolder`: `Some(5)` only when the leashee supports a quad
+    /// leash; otherwise the timer is left as-is (`None`).
+    fn leash_holder_notify_ticks(quad_leash: bool) -> Option<i32> {
+        quad_leash.then_some(5)
+    }
+
     fn scan_player_above_ghast(&self) -> bool {
         let entity = self.get_entity();
         let detection_box = Self::still_detection_box(entity.bounding_box.load());
@@ -204,6 +210,14 @@ impl Mob for HappyGhastEntity {
 
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         true
+    }
+
+    /// Vanilla `HappyGhast.notifyLeashHolder`: a leashee with a quad leash makes the ghast
+    /// render as a lead holder for 5 ticks. A non-quad leashee leaves the timer untouched.
+    fn mob_notify_leash_holder(&self, leashee: &dyn EntityBase) {
+        if let Some(ticks) = Self::leash_holder_notify_ticks(leashee.support_quad_leash()) {
+            self.leash_holder_time.store(ticks, Ordering::Relaxed);
+        }
     }
 
     fn can_dispenser_equip_into_slot(
@@ -435,5 +449,11 @@ mod tests {
         assert_eq!(detection.max.x, 2.5);
         assert_eq!(detection.max.y, 14.5);
         assert_eq!(detection.max.z, 3.0);
+    }
+
+    #[test]
+    fn leash_holder_notify_only_quad_leashee_extends_timer() {
+        assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(true), Some(5));
+        assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(false), None);
     }
 }

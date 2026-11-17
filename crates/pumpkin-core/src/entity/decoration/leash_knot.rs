@@ -187,19 +187,19 @@ impl EntityBase for LeashKnotEntity {
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
-        // Vanilla `BlockAttachedEntity.hurtServer` checks invulnerability, then blocks mob-caused
-        // damage while `mob_griefing` is off before destroying the knot.
         if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
-        let world = self.entity.world.load();
-        let mob_griefing = {
-            let game_rules = &world.level_info.load().game_rules;
-            game_rules.mob_griefing
-        };
-        // `cause` is the causing entity (vanilla `source.getEntity()`); fall back to `source`
-        // for a direct mob attack where no separate cause is recorded.
-        if !mob_griefing
+        // Vanilla `BlockAttachedEntity.hurtServer` rejects mob-caused damage while `mob_griefing`
+        // is off; the causing entity (not the direct projectile) is what counts.
+        if !self
+            .entity
+            .world
+            .load()
+            .level_info
+            .load()
+            .game_rules
+            .mob_griefing
             && cause
                 .or(source)
                 .is_some_and(|attacker| attacker.get_mob().is_some())
@@ -207,12 +207,15 @@ impl EntityBase for LeashKnotEntity {
             return false;
         }
         // Hitting the knot destroys it. Leashed mobs release on their next tick (see `tick_leash`).
+        let world = self.entity.world.load();
         world.play_sound(
             Sound::ItemLeadUntied,
             SoundCategory::Neutral,
             &self.entity.pos.load(),
         );
         self.entity.remove();
+        // Vanilla hurtServer calls markHurt() after kill so the removal syncs to clients.
+        self.entity.mark_hurt();
         true
     }
 }

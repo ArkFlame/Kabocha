@@ -140,6 +140,37 @@ impl FishingBobberEntity {
         }
     }
 
+    /// Rebuilds a bobber created by `/summon` or loaded from a chunk. Vanilla
+    /// `EntityType.FISHING_BOBBER` always deserialises to a `FishingHook`; the owner is restored
+    /// from the `Owner` NBT key by `EntityBase::read_nbt_non_mut` after `from_type`, so an
+    /// ownerless hook removes itself on its first tick like vanilla `FishingHook.tick:170-172`.
+    #[must_use]
+    pub fn from_loaded(entity: Entity) -> Self {
+        // Vanilla `FishingHook` registers both tracked values in its constructor; a loaded hook
+        // must define them too or the client desyncs on the first data update.
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
+            0i32,
+        );
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+            false,
+        );
+        Self {
+            entity,
+            owner: ProjectileOwner::none(),
+            state: AtomicCell::new(HookState::Flying),
+            open_water: AtomicBool::new(true),
+            life: AtomicI32::new(0),
+            wait_countdown: AtomicI32::new(0),
+            bite_countdown: AtomicI32::new(0),
+            hook_countdown: AtomicI32::new(0),
+            fish_angle: AtomicCell::new(0.0),
+            luck_bonus: 0,
+            wait_time_reduction_ticks: 0,
+        }
+    }
+
     /// Vanilla `FishingHook.isOpenWaterFishing`.
     pub fn is_open_water_fishing(&self) -> bool {
         self.open_water.load(Ordering::Relaxed)

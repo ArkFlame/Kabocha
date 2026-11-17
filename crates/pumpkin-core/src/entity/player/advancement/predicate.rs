@@ -2813,8 +2813,8 @@ mod tests {
         assert!(!bounds.matches((1.0, 10.0, 0.0)));
         // z above the maximum fails.
         assert!(!bounds.matches((3.0, 4.0, 2.0)));
-        // absolute below the minimum fails.
-        assert!(!bounds.matches((0.5, 1.0, 0.5)));
+        // absolute below the minimum fails even when x and z pass.
+        assert!(!bounds.matches((3.0, 0.5, 0.0)));
     }
 
     #[test]
