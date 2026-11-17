@@ -57,7 +57,7 @@ pub struct ArrowEntity {
     pub owner: ProjectileOwner,
     pub item_stack: RwLock<ItemStack>,
     pub base_damage: AtomicU64,
-    pub pickup: ArrowPickup,
+    pub pickup: AtomicU8,
     pub is_critical: AtomicBool,
     pub pierce_level: AtomicU8,
     pub punch_level: AtomicU8,
@@ -97,7 +97,7 @@ impl ArrowEntity {
             owner: ProjectileOwner::new(owner),
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
-            pickup,
+            pickup: AtomicU8::new(pickup.to_byte()),
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
@@ -133,7 +133,7 @@ impl ArrowEntity {
             owner: ProjectileOwner::new(Some(shooter)),
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
-            pickup,
+            pickup: AtomicU8::new(pickup.to_byte()),
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
@@ -437,7 +437,7 @@ impl EntityBase for ArrowEntity {
             "PierceLevel",
             self.pierce_level.load(Ordering::Relaxed) as i8,
         );
-        nbt.put_byte("pickup", self.pickup.to_byte() as i8);
+        nbt.put_byte("pickup", self.pickup.load(Ordering::Relaxed) as i8);
         if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
             // Vanilla `SpectralArrow.writeAdditionalSaveData`.
             nbt.put_int("Duration", self.duration.load(Ordering::Relaxed) as i32);
@@ -458,6 +458,13 @@ impl EntityBase for ArrowEntity {
             self.set_base_damage(damage);
         }
         self.flight.read_nbt(nbt);
+        // Vanilla AbstractArrow#readAdditionalSaveData defaults a missing pickup to disallowed.
+        self.pickup.store(
+            nbt.get_byte("pickup")
+                .map_or(ArrowPickup::Disallowed, |b| ArrowPickup::from_byte(b as u8))
+                .to_byte(),
+            Ordering::Relaxed,
+        );
         if let Some(pierce) = nbt.get_byte("PierceLevel") {
             self.pierce_level
                 .store(pierce.max(0) as u8, Ordering::Relaxed);
@@ -607,7 +614,7 @@ impl EntityBase for ArrowEntity {
         }
 
         // Check pickup rules
-        match self.pickup {
+        match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
             ArrowPickup::Disallowed => return,
             ArrowPickup::CreativeOnly if !player.is_creative() => return,
             _ => {}
@@ -758,7 +765,8 @@ impl ArrowEntity {
                 Vector3::new(0.2, 0.2, 0.2),
             );
             if entity.velocity.load().length_squared() < 1.0e-7 {
-                if self.pickup == ArrowPickup::Allowed {
+                let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
+                if pickup == ArrowPickup::Allowed {
                     let item_stack = self
                         .item_stack
                         .read()
