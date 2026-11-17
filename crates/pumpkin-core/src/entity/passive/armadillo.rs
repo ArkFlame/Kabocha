@@ -392,11 +392,15 @@ impl Mob for ArmadilloEntity {
             && let Some(src) = source
             && src.get_entity().entity_type != &EntityType::ITEM
         {
-            self.danger_detected_recently_ticks
-                .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
             if self.can_stay_rolled_up() {
                 self.danger_detected_recently_ticks
                     .store(80, Ordering::Relaxed);
+                // Vanilla tucks into its shell on damage; the countdown above keeps it
+                // balled until the danger fades, then the state machine unrolls it.
+                self.roll_up();
+            } else {
+                self.danger_detected_recently_ticks
+                    .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
             }
         }
     }
