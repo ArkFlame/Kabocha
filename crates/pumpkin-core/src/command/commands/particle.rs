@@ -10,7 +10,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::codec::var_int::VarInt;
-use pumpkin_protocol::java::client::play::CParticle;
+use pumpkin_protocol::java::client::play::{CParticle, ParticleOptions};
 use pumpkin_protocol::ser::NetworkWriteExt;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::math::vector3::Vector3;
@@ -87,6 +87,26 @@ fn color_from_floats(parts: impl Iterator<Item = Option<f32>>) -> Option<i32> {
     let rgb =
         (alpha << 24) | (channel(parts[0]) << 16) | (channel(parts[1]) << 8) | channel(parts[2]);
     Some(rgb as i32)
+}
+
+/// Reads a vanilla `Vec3` option stored as a list of three numbers.
+fn tag_as_vec3(tag: &NbtTag) -> Option<Vector3<f64>> {
+    let NbtTag::List(list) = tag else {
+        return None;
+    };
+    let parts: Vec<f64> = list
+        .iter()
+        .map(|v| match v {
+            NbtTag::Float(f) => Some(f64::from(*f)),
+            NbtTag::Double(d) => Some(*d),
+            NbtTag::Int(i) => Some(f64::from(*i)),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    match parts.as_slice() {
+        [x, y, z] => Some(Vector3::new(*x, *y, *z)),
+        _ => None,
+    }
 }
 
 /// Resolves a vanilla block state (`"minecraft:stone"` or `{Name:..,Properties:{..}}`) to its id.
@@ -172,6 +192,26 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
         Particle::EntityEffect | Particle::TintedLeaves => {
             let color = opt("color").and_then(tag_as_color).unwrap_or(-1);
             buf.write_i32_be(color)
+        }
+        Particle::Trail => {
+            // Vanilla `TrailParticleOption`: target Vec3, colour INT, duration VAR_INT.
+            let target = opt("target")
+                .and_then(tag_as_vec3)
+                .unwrap_or(Vector3::new(0.0, 0.0, 0.0));
+            let color = opt("color").and_then(tag_as_color).unwrap_or(-1);
+            let duration = opt("duration").and_then(tag_as_i32).unwrap_or(0);
+            ParticleOptions::Trail {
+                target,
+                color,
+                duration,
+            }
+            .write(&mut buf)
+        }
+        Particle::Effect | Particle::InstantEffect => {
+            // Vanilla `SpellParticleOption`: colour, then the swirl power.
+            let color = opt("color").and_then(tag_as_color).unwrap_or(-1);
+            let power = opt("power").and_then(tag_as_f32).unwrap_or(1.0);
+            ParticleOptions::Spell { color, power }.write(&mut buf)
         }
         Particle::SculkCharge => {
             // Vanilla `SculkChargeParticleOptions.STREAM_CODEC`: a single float roll.
@@ -441,6 +481,39 @@ mod tests {
         options.put_int("delay", 7);
         let data = encode_particle_options(Particle::Shriek, Some(&options));
         assert_eq!(data, [7]);
+    }
+
+    #[test]
+    fn trail_writes_target_colour_and_duration() {
+        let mut options = NbtCompound::new();
+        options.put(
+            "target",
+            NbtTag::List(vec![
+                NbtTag::Double(1.0),
+                NbtTag::Double(2.0),
+                NbtTag::Double(3.0),
+            ]),
+        );
+        options.put_int("color", 0x00FF_0000);
+        options.put_int("duration", 5);
+        let data = encode_particle_options(Particle::Trail, Some(&options));
+        let mut expected = Vec::new();
+        for v in [1.0f64, 2.0, 3.0] {
+            expected.extend_from_slice(&v.to_be_bytes());
+        }
+        expected.extend_from_slice(&0x00FF_0000i32.to_be_bytes());
+        expected.push(5);
+        assert_eq!(data, expected);
+    }
+
+    #[test]
+    fn effect_writes_colour_var_int_and_power_float() {
+        let mut options = NbtCompound::new();
+        options.put_int("color", 1);
+        let data = encode_particle_options(Particle::Effect, Some(&options));
+        let mut expected = vec![1u8];
+        expected.extend_from_slice(&1.0f32.to_be_bytes());
+        assert_eq!(data, expected);
     }
 
     #[test]
