@@ -1,77 +1,60 @@
-# DEEP AUDIT: crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs
+# Tracker: audit / crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs
 
-Tracker row: audit, coverage AUDIT. Read with the existing RE-REVIEW in
-`docs/tracker/tblocks-dispenser.md`.
+Sources reviewed: `crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs` (whole file),
+`crates/pumpkin-core/src/block/entities/dispenser.rs`,
+`crates/pumpkin-core/src/item/items/bucket.rs`,
+`crates/pumpkin-core/src/plugin/api/events/block/block_dispense.rs`.
 
-## Markers
+No TODO/FIXME markers exist in the file. The three `vanilla` markers (lines 292, 659, 867)
+are documentation cross-references to the source class/behaviour they mirror.
 
-`grep -n 'TODO\|FIXME\|vanilla'` finds no TODO/FIXME. The three hits are vanilla
-cross-reference comments, all accurate:
+The file is already a close port of `DispenserBlock` / `DispenserBlockEntity` /
+`DefaultDispenseItemBehavior` + the per-item behaviors, with an extensive test module
+(lines 1520-1833). The gaps below are the ones that remain.
 
-- `dispenser.rs:295` projectile velocity constants (1.1/6.0 arrows, 1.375/3.0 potions,
-  1.0/6.6666665 charges, 0.5/1.0 fireworks).
-- `dispenser.rs:662` spawn egg uses a null player (`EntitySpawnReason.DISPENSER`).
-- `dispenser.rs:870` `add_to_first_free_slot` remainder insertion.
+## Fixed in this pass
 
-## Re-verified as matching vanilla (no change)
+| Gap | Rust | Vanilla | Fix | Size |
+|---|---|---|---|---|
+| Glass bottle dispensed into water or a full bee nest was silent and reported `FLUID_PICKUP` at the dispenser instead of at the water/hive block | `dispenser.rs:1208-1241` (old) | `BottleDispenseItemBehavior.execute` plays `SoundEvents.BOTTLE_FILL` at the target `BlockPos` and calls `level.gameEvent(null, GameEvent.FLUID_PICKUP, blockPos)` before the state change | added `Sound::ItemBottleFill` via `play_block_sound` and moved the `FluidPickup` event to `target.to_centered_f64()` in both branches, sound before the block-state write | XS |
 
-- `DispenserBlock.neighborChanged`: powered check at pos and pos.above, 4-tick
-  schedule, TRIGGERED flag toggling, no tick scheduled on unpower.
-- `DispenserBlock.dispenseFrom`: one random occupied slot, fail sound 1001 +
-  BLOCK_ACTIVATE game event when empty.
-- `on_place` facing is `player facing opposite`; comparator uses container signal.
-- Projectile spawn position (0.7 out, 0.1 up; charges 1.0 out), velocities,
-  SMOKE animation, arrow item stacking, firework `setShotAtAngle` and roll/pitch.
-- Boat/minecart positions (0.5625 + width/2, 1.125 vertical, water offsets,
-  ascending-rail heights), no non-vanilla collision gate.
-- TNT game-rule gate, flint and steel, bone meal, brush (16 durability like
-  `BrushItem` armadillo use), chest/horse equip, honeycomb, shears, glass bottle,
-  water bottle to mud, glowstone 4-charge cap, mob heads, equipment (equippable
-  component, `can_use_slot` + `can_dispenser_equip_into_slot`, equip sound),
-  spawn eggs (alignPosition = facing != UP is exactly the y+1 rule; there is no
-  extra vanilla `getYOffset` snap, so the older note 4 is not a gap).
-- Shulker box facing rule: `target.below() air ? facing : UP` matches
-  `ShulkerBoxDispenseBehavior`'s `DirectionalPlaceContext`.
-- Filled/empty buckets, incl. nether evaporation returning success and the
-  mob-bucket spawn path.
+No test: the world test harness does not record sounds/game events, so a sound assertion
+would need new plumbing; the change is a pure feedback add.
 
-## Remaining gaps
+## Remaining gaps (larger)
 
-1. `dispenser.rs:306-313` `dispense` - vanilla `DispenserBlock.getDispenseMethod`
-   returns `DispenseItemBehavior.NOOP` (item stays inside) when
-   `!itemStack.isItemEnabled(level.enabledFeatures())`. Rust has no per-item
-   required-feature data, so disabled items still dispense. Needs an item ->
-   required feature table plus `Server::get_enabled_features` check. Size M.
-2. `dispenser.rs:1361-1387` `dispense_shulker_box` - vanilla delegates to
-   `BlockItem.place(DirectionalPlaceContext)`, honouring `canPlace`/`canUpdate`/
-   entity collision and using `consumesAction()` as success. Rust writes the state
-   directly after only `replaceable()`, so it can place inside an entity and
-   reports success even when vanilla would fail (then eject the box). Needs a
-   dispenser-side `BlockItem::place` equivalent (the existing
-   `BlockRegistry::place_block` requires a Player). Size M.
-3. `dispenser.rs:1263-1269` `dispense_water_bottle` - vanilla sends 5 SPLASH
-   particles from the dispenser mouth (`pos.y + 1`), one per iteration with a
-   random x/z offset; Rust sends one 5-count burst at the target block centre
-   half a block lower. Client-only visual. Size S.
-4. `dispenser.rs:874-903` `add_to_first_free_slot` - latent: it can merge the
-   remainder into the slot currently being dispensed from (that slot still holds
-   its pre-dispense stack in Rust, unlike vanilla where it was already shrunk),
-   and `on_scheduled_tick` then overwrites it via `set_stack`. Not reachable
-   today because every remainder (glass bottle, bucket, honey bottle, water
-   bottle) differs from the dispensed item; would matter for plugin/mod items.
-   Pass `slot_index` and skip it. Size S.
-5. `dispenser.rs:1351`/`1379` block placement - no `GameEvent.BLOCK_PLACE`
-   (vanilla `BlockItem.place` emits it, with a null player for dispensers), so
-   sculk sensors do not hear dispensers placing skulls/pumpkins/shulker boxes.
-   Size S, but the same omission is widespread outside this file.
-6. `dispenser.rs:671-684` spawn egg - vanilla shrinks the egg unconditionally
-   after `EntityType.spawn`; Rust keeps it when `spawn_creature` returns false
-   (spawn event cancelled / add failure). Low confidence on the vanilla failure
-   branch, verify against decompiled `SpawnEggItemBehavior` before changing.
-7. `dispenser.rs:571-600` `dispense_armor_stand` - still runs the non-vanilla
-   `has_room_for` collision/entity check before spawning; vanilla
-   `ArmorStand` dispense has no such gate (same class of bug fixed for boats).
-   Verify against `DispenserBlock` bootstrap, then drop the check. Size S.
-8. `dispenser.rs:616-640` TNT - emits `GameEvent.ENTITY_PLACE` at the target;
-   vanilla's priming path emits `PRIME_FUSE` (or nothing) for a dispensed
-   `PrimedTnt`. Needs decompiled confirmation. Size S.
+| Gap | Rust | Vanilla | Suggested fix | Size |
+|---|---|---|---|---|
+| `BlockDispenseEvent` is a stub: only `block_pos` + `item_name`, no item stack, velocity or sound, and the dispense code ignores any plugin result | `dispenser.rs:303-315`; `plugin/api/events/block/block_dispense.rs:7-10` | Paper `BlockDispenseEvent` (org.bukkit.event.block.BlockDispenseEvent) exposes `getItem()`/`setItem()`, `getVelocity()`/`setVelocity()` and `getSound()`; the dispensed stack and launch velocity come from the event, so a plugin can replace the item or aim the projectile | add the fields to the event, build the stack/velocity from them in `dispense()` and pass them into the projectile/drop paths (WIT additive change) | M |
+| Empty bucket dispenser never picks up bucketable mobs and emits no pickup feedback | `dispenser.rs:852-865` (`try_pickup_fluid_at` covers powder snow/waterlogged/water/lava only, `bucket.rs:291-338`) | `BucketDispenseItemBehavior.execute` -> `BucketItem.emptyContents` -> `BucketPickup.pickupBlock` also captures axolotls/fish/tadpoles/sulfur cubes in the front block and calls `checkExtraContent`; vanilla emits `GameEvent.FLUID_PICKUP` and the matching bucket-fill sound | extend the dispenser path with the mob-pickup branch used by the player path (`bucket.rs:809-816`), plus `FluidPickup` and `get_fill_sound` | M |
+| `on_scheduled_tick` does not verify the block is still a dispenser | `dispenser.rs:258-284` | `DispenserBlock.dispenseFrom` starts with `if (state.is(this))` before touching the block entity | re-read the state and return when `state.id != dispenser state` (the block-entity downcast already covers the common case) | XS |
+| TNT dispense is gated on the `tntExplodes` game rule | `dispenser.rs:613-618` | `TntDispenseItemBehavior` creates the `PrimedTnt` directly; the game rule is applied by `TntBlock.prime`, not by the dispense behaviour | verify against decompiled `TntDispenseItemBehavior` and drop the gate if vanilla primes anyway; also check whether vanilla emits `GameEvent.ENTITY_PLACE` or `BLOCK_ACTIVATE` here | XS |
+| Spawn egg dispenser always plays the success click and keeps the egg when the spawn is rejected | `dispenser.rs:639-682` | `SpawnEggItemBehavior` calls `EntityType.spawn(..., MobSpawnType.DISPENSER, direction != UP, false)` and then shrinks the stack; the offset/rotation come from that helper | verify the unconditional shrink and the success-only sound, and reuse `EntityType::spawn`-equivalent positioning (`offsetY` false unless facing up) instead of the local `y + 1.0` rule | S |
+| Brush dispense failure keeps the brush and plays the fail sound | `dispenser.rs:995-1011` | `BrushDispenseItemBehavior` (armadillo branch) - confirm whether a non-armadillo / not-brushable target falls through to `DefaultDispenseItemBehavior.execute`, which would eject the brush as an item | verify and, if vanilla ejects, call `drop_item` on failure | XS |
+| Projectile constants and spawn positions are hand-replicated, not derived from `DispenseConfig`, and are untested | `dispenser.rs:291-301, 438-449, 815-850` (fire charge/wind charge 1 block out, firework 0.5000099 out with a local `set_velocity` copy, `FIREBALL_PROJECTILE_UNCERTAINTY = 6.6666665`) | `DispenseConfig.builder()` defaults and `getEntityJustOutsideOfBlockPos` in `FireworkRocketItem`/`ShootFireballDispenseItemBehavior` | cross-check each number against the decompiled `DispenseConfig` instances and add a spawn-position unit test | S |
+| Nether evaporation branch skips the front-block replacement but still calls `dispense_filled_bucket_at` | `dispenser.rs:902-937` | `BucketItem.emptyContents` in a water-evaporating dimension extinguishes and returns the bucket without touching the front block | verify `dispense_filled_bucket_at` emits `BLOCK_FIRE_EXTINGUISH` and does not place fluid when `should_evaporate_in_nether` is true | XS |
+
+## Verified matching vanilla (no change)
+
+- `on_neighbor_update` powers on `hasNeighborSignal(pos) || hasNeighborSignal(pos.above())`
+  (quasi-connectivity) and schedules the 4-tick dispense, setting/clearing `TRIGGERED`
+  with listener notification (lines 232-256).
+- Random slot selection ignores empty slots (`DispenserBlockEntity.getRandomSlot`), and an
+  empty dispenser plays `SoundDispenserFail` + `BLOCK_ACTIVATE` (lines 266-283).
+- Dispense pipeline order: plugin event (cancel -> fail sound, item kept), projectiles,
+  boats/minecarts/armor stands, TNT, buckets, flint and steel, bone meal, brush, chest,
+  honeycomb, spawn eggs, shears, glass bottle, water bottle, glowstone, heads, shulker
+  boxes, equipment, sulfur cube, then the default drop (lines 303-410).
+- `add_to_first_free_slot` reproduces `ContainerHelper.addItem`: merge into equal stacks
+  with room, then empty slots, remainder ejected; the dispense slot keeps its
+  pre-dispense stack (lines 867-900).
+- `consume_with_remainder` puts the remainder back into the slot when the stack empties
+  (glass bottle -> honey/water bottle, filled bucket -> bucket) (lines 1468-1480).
+- `eject_item` uses the vanilla throw geometry (0.7 out, 0.125/0.15625 down, `triangle`
+  jitter with uncertainty 6 * 0.0172275, 40-tick pickup delay) (lines 1497-1517).
+- Shears: beehive first (loot table `minecraft:harvest/beehive`, honey level reset), then
+  leash cutting before shearing, damage 1; brush damage 16; equipment dispense requires
+  `dispensable`, an empty slot and respects `can_use_slot`/`can_dispenser_equip_into_slot`
+  with guaranteed drop + persistence (lines 1092-1466).
+- Comparator output goes through `container_comparator_output` and `set_stack`/
+  `mark_dirty` flags the comparator dirty (lines 286-288; `block/entities/dispenser.rs:216-228`).
