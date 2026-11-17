@@ -194,25 +194,15 @@ impl BoatEntity {
         {
             self.water_level.store(entity.bounding_box.load().max.y);
             let target_y = f64::from(self.get_water_level_above() - entity.height()) + 0.101;
-            let position = entity.pos.load();
-            let bounds = entity.bounding_box.load();
-            let offset = Vector3::new(0.0, target_y - position.y, 0.0);
-            let target = BoundingBox::new(bounds.min + offset, bounds.max + offset);
-            if entity.world.load().is_space_empty(target)
-                && entity
-                    .get_boat_collisions(target, self)
-                    .iter()
-                    .all(|shape| !shape.intersects(&target))
-            {
-                entity
-                    .velocity
-                    .store(entity.velocity.load().multiply(1.0, 0.0, 1.0));
-                self.last_yd.store(0.0);
-                self.status.store(Some(BoatStatus::InWater));
-                return offset;
-            }
+            // Vanilla `AbstractBoat.floatBoat` snaps to the water surface before any
+            // collision resolution, so a blocked target box must not skip the snap.
+            let offset = Vector3::new(0.0, target_y - entity.pos.load().y, 0.0);
+            entity
+                .velocity
+                .store(entity.velocity.load().multiply(1.0, 0.0, 1.0));
+            self.last_yd.store(0.0);
             self.status.store(Some(BoatStatus::InWater));
-            return Vector3::default();
+            return offset;
         }
 
         let mut vertical_speed = -self.get_gravity();
