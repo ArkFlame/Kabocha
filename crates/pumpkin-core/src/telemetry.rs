@@ -245,6 +245,7 @@ impl TelemetrySessionTracker {
 
         server.for_each_player(|player| {
             if sessions.len() >= MAX_COMPLETED_SESSIONS_PER_HEARTBEAT {
+                tracing::debug!("Telemetry session cap reached, omitting the remaining sessions");
                 return;
             }
             // A player without a recorded join has no known session; skip it instead of
@@ -314,7 +315,7 @@ pub struct HeartbeatPayload {
     pub cpu_cores: usize,
     /// CPU model name or brand.
     pub cpu_model: String,
-    /// RAM allocated/used by the system in MiB.
+    /// Resident memory of the server process in MiB.
     pub ram_allocated_mb: u64,
     /// Total physical RAM available to the system in MiB.
     pub total_ram_mb: u64,
@@ -487,18 +488,25 @@ impl TelemetryClient {
     /// Loads an existing Ed25519 private key/seed from the given path or generates and persists a new one.
     pub fn load_or_generate_key(key_path: &Path) -> Result<SigningKey, std::io::Error> {
         if key_path.exists() {
-            let bytes = std::fs::read(key_path)?;
-            // The identity key is a secret; tighten permissions inherited from older versions.
-            restrict_key_permissions(key_path);
-            if bytes.len() == 32 {
-                let mut seed = [0u8; 32];
-                seed.copy_from_slice(&bytes);
-                return Ok(SigningKey::from_bytes(&seed));
+            match std::fs::read(key_path) {
+                Ok(bytes) => {
+                    // The identity key is a secret; tighten permissions inherited from older versions.
+                    restrict_key_permissions(key_path);
+                    if bytes.len() == 32 {
+                        let mut seed = [0u8; 32];
+                        seed.copy_from_slice(&bytes);
+                        return Ok(SigningKey::from_bytes(&seed));
+                    }
+                    tracing::warn!(
+                        "Failed to read valid 32-byte identity key from {}, generating a new one",
+                        key_path.display()
+                    );
+                }
+                Err(err) => tracing::warn!(
+                    "Failed to read identity key from {} ({err}), generating a new one",
+                    key_path.display()
+                ),
             }
-            tracing::warn!(
-                "Failed to read valid 32-byte identity key from {}, generating a new one",
-                key_path.display()
-            );
         }
 
         // Generate new key
@@ -643,23 +651,17 @@ fn load_existing_identity_key(path: &Path) -> Option<SigningKey> {
 #[must_use]
 pub fn resolve_identity_key() -> SigningKey {
     let primary = Path::new(IDENTITY_KEY_PATH);
-    if let Some(key) = load_existing_identity_key(primary) {
-        return key;
-    }
-
-    let fallback = Path::new(FALLBACK_IDENTITY_KEY_PATH);
-    if let Some(key) = load_existing_identity_key(fallback) {
-        return key;
-    }
-
-    let data_primary = Path::new("data").join(IDENTITY_KEY_PATH);
-    if let Some(key) = load_existing_identity_key(&data_primary) {
-        return key;
-    }
-
-    let data_fallback = Path::new("data").join(FALLBACK_IDENTITY_KEY_PATH);
-    if let Some(key) = load_existing_identity_key(&data_fallback) {
-        return key;
+    let data_dir = Path::new("data");
+    let existing_candidates = [
+        primary.to_path_buf(),
+        Path::new(FALLBACK_IDENTITY_KEY_PATH).to_path_buf(),
+        data_dir.join(IDENTITY_KEY_PATH),
+        data_dir.join(FALLBACK_IDENTITY_KEY_PATH),
+    ];
+    for candidate in &existing_candidates {
+        if let Some(key) = load_existing_identity_key(candidate) {
+            return key;
+        }
     }
 
     let data_dir_key = Path::new("data").join(IDENTITY_KEY_PATH);
@@ -721,10 +723,11 @@ pub fn build_heartbeat_payload(
     server: &Server,
     telemetry_config: &TelemetryConfig,
 ) -> HeartbeatPayload {
-    let salt = LIVE_PLAYER_SALT
-        .get()
-        .copied()
-        .unwrap_or_else(|| derive_player_telemetry_salt(&resolve_identity_key()));
+    // Resolved once per process: this runs on the tick thread, so the key file is not re-read per call.
+    static FALLBACK_PLAYER_SALT: OnceLock<[u8; 32]> = OnceLock::new();
+    let salt = LIVE_PLAYER_SALT.get().copied().unwrap_or_else(|| {
+        *FALLBACK_PLAYER_SALT.get_or_init(|| derive_player_telemetry_salt(&resolve_identity_key()))
+    });
     build_heartbeat_payload_with_salt(server, telemetry_config, &salt)
 }
 
@@ -775,20 +778,22 @@ fn static_host_info() -> &'static StaticHostInfo {
     })
 }
 
-fn read_used_ram_mb() -> u64 {
-    static RAM_SYSTEM: Mutex<Option<sysinfo::System>> = Mutex::new(None);
-    let Ok(mut guard) = RAM_SYSTEM.lock() else {
+/// Resident memory of this server process in MiB (reported as `ram_allocated_mb`).
+fn read_process_ram_mb() -> u64 {
+    static PROCESS_SYSTEM: Mutex<Option<sysinfo::System>> = Mutex::new(None);
+    let Ok(mut guard) = PROCESS_SYSTEM.lock() else {
         return 0;
     };
     if guard.is_none() {
-        let kind = sysinfo::RefreshKind::nothing()
-            .with_memory(sysinfo::MemoryRefreshKind::nothing().with_ram());
-        *guard = sysinfo::System::new_with_specifics(kind).ok();
+        *guard = sysinfo::System::new().ok();
     }
-    guard.as_mut().map_or(0, |sys| {
-        sys.refresh_memory_specifics(sysinfo::MemoryRefreshKind::nothing().with_ram());
-        sys.used_memory() / (1024 * 1024)
-    })
+    let Some(sys) = guard.as_mut() else {
+        return 0;
+    };
+    let pid = sysinfo::Pid::from_u32(std::process::id());
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+    sys.process(pid)
+        .map_or(0, |process| process.memory() / (1024 * 1024))
 }
 
 fn extract_player_client_meta(
@@ -840,6 +845,9 @@ fn collect_players_telemetry(
     let mut online_count = 0usize;
     server.for_each_player(|player| {
         if online_count >= MAX_TELEMETRY_PLAYERS {
+            tracing::debug!(
+                "Telemetry player list capped at {MAX_TELEMETRY_PLAYERS}, omitting the rest"
+            );
             return;
         }
         online_count += 1;
@@ -878,7 +886,7 @@ fn build_heartbeat_payload_inner(
     completed_sessions: Vec<PlayerTelemetryInfo>,
 ) -> HeartbeatPayload {
     let host = static_host_info();
-    let ram_allocated_mb = read_used_ram_mb();
+    let ram_allocated_mb = read_process_ram_mb();
     let plugins = server.plugin_manager.active_plugins_telemetry();
 
     let java_net = &server.advanced_config.networking.java;
