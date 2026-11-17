@@ -893,92 +893,91 @@ fn with_modify_sources<B: ArgumentBuilder>(
         }),
     ));
 
-    // from & string sources
+    // from & string sources. Each verb literal is built once with every source kind as a
+    // child, because `.then()` with a same-named literal replaces the earlier child.
+    let mut from_node = literal("from");
+    let mut string_node = literal("string");
     for &(source_kind, source_name) in &ALL_TARGET_KINDS {
         // from <source> [<sourcePath>]
-        node = node.then(
-            literal("from").then(
-                literal(source_name).then(
-                    make_target_arg(source_kind, "source")
-                        .executes(ModifyExecutor {
+        from_node = from_node.then(
+            literal(source_name).then(
+                make_target_arg(source_kind, "source")
+                    .executes(ModifyExecutor {
+                        target_kind,
+                        modify_mode: mod_mode,
+                        source_kind: Some(source_kind),
+                        source_mode: SourceMode::From { has_path: false },
+                    })
+                    .then(argument("sourcePath", NbtPathArgumentType).executes(
+                        ModifyExecutor {
                             target_kind,
                             modify_mode: mod_mode,
                             source_kind: Some(source_kind),
-                            source_mode: SourceMode::From { has_path: false },
-                        })
-                        .then(argument("sourcePath", NbtPathArgumentType).executes(
-                            ModifyExecutor {
-                                target_kind,
-                                modify_mode: mod_mode,
-                                source_kind: Some(source_kind),
-                                source_mode: SourceMode::From { has_path: true },
-                            },
-                        )),
-                ),
+                            source_mode: SourceMode::From { has_path: true },
+                        },
+                    )),
             ),
         );
 
         // string <source> [<sourcePath>] [<start>] [<end>]
-        node = node.then(
-            literal("string").then(
-                literal(source_name).then(
-                    make_target_arg(source_kind, "source")
-                        .executes(ModifyExecutor {
-                            target_kind,
-                            modify_mode: mod_mode,
-                            source_kind: Some(source_kind),
-                            source_mode: SourceMode::String {
-                                has_path: false,
-                                has_start: false,
-                                has_end: false,
-                            },
-                        })
-                        .then(
-                            argument("sourcePath", NbtPathArgumentType)
-                                .executes(ModifyExecutor {
-                                    target_kind,
-                                    modify_mode: mod_mode,
-                                    source_kind: Some(source_kind),
-                                    source_mode: SourceMode::String {
-                                        has_path: true,
-                                        has_start: false,
-                                        has_end: false,
-                                    },
-                                })
-                                .then(
-                                    argument("start", IntegerArgumentType::any())
-                                        .executes(ModifyExecutor {
-                                            target_kind,
-                                            modify_mode: mod_mode,
-                                            source_kind: Some(source_kind),
-                                            source_mode: SourceMode::String {
-                                                has_path: true,
-                                                has_start: true,
-                                                has_end: false,
-                                            },
-                                        })
-                                        .then(
-                                            argument("end", IntegerArgumentType::any()).executes(
-                                                ModifyExecutor {
-                                                    target_kind,
-                                                    modify_mode: mod_mode,
-                                                    source_kind: Some(source_kind),
-                                                    source_mode: SourceMode::String {
-                                                        has_path: true,
-                                                        has_start: true,
-                                                        has_end: true,
-                                                    },
+        string_node = string_node.then(
+            literal(source_name).then(
+                make_target_arg(source_kind, "source")
+                    .executes(ModifyExecutor {
+                        target_kind,
+                        modify_mode: mod_mode,
+                        source_kind: Some(source_kind),
+                        source_mode: SourceMode::String {
+                            has_path: false,
+                            has_start: false,
+                            has_end: false,
+                        },
+                    })
+                    .then(
+                        argument("sourcePath", NbtPathArgumentType)
+                            .executes(ModifyExecutor {
+                                target_kind,
+                                modify_mode: mod_mode,
+                                source_kind: Some(source_kind),
+                                source_mode: SourceMode::String {
+                                    has_path: true,
+                                    has_start: false,
+                                    has_end: false,
+                                },
+                            })
+                            .then(
+                                argument("start", IntegerArgumentType::any())
+                                    .executes(ModifyExecutor {
+                                        target_kind,
+                                        modify_mode: mod_mode,
+                                        source_kind: Some(source_kind),
+                                        source_mode: SourceMode::String {
+                                            has_path: true,
+                                            has_start: true,
+                                            has_end: false,
+                                        },
+                                    })
+                                    .then(
+                                        argument("end", IntegerArgumentType::any()).executes(
+                                            ModifyExecutor {
+                                                target_kind,
+                                                modify_mode: mod_mode,
+                                                source_kind: Some(source_kind),
+                                                source_mode: SourceMode::String {
+                                                    has_path: true,
+                                                    has_start: true,
+                                                    has_end: true,
                                                 },
-                                            ),
+                                            },
                                         ),
-                                ),
-                        ),
-                ),
+                                    ),
+                            ),
+                    ),
             ),
         );
     }
 
-    node
+    node.then(from_node).then(string_node)
 }
 
 pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistry) {
