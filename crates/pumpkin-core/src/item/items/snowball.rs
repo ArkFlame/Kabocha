@@ -9,7 +9,7 @@ use crate::item::{ItemBehaviour, ItemMetadata};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::Sound;
-use pumpkin_data::statistic::StatisticCategory;
+use pumpkin_util::math::vector3::Vector3;
 
 pub struct SnowBallItem;
 
@@ -21,6 +21,13 @@ impl ItemMetadata for SnowBallItem {
 
 const POWER: f32 = 1.5;
 const THROW_SOUND_VOLUME: f32 = 0.5;
+
+/// Vanilla `ThrowableItemProjectile` spawns thrown items at `shooter.getEyeY() - 0.1`.
+const THROW_SPAWN_Y_OFFSET: f64 = 0.1;
+
+fn throw_spawn_pos(feet: Vector3<f64>, eye_y: f64) -> Vector3<f64> {
+    Vector3::new(feet.x, eye_y - THROW_SPAWN_Y_OFFSET, feet.z)
+}
 
 impl ItemBehaviour for SnowBallItem {
     fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
@@ -53,14 +60,14 @@ impl ItemBehaviour for SnowBallItem {
             THROW_SOUND_VOLUME,
             0.4 / (rng().random::<f32>() * 0.4 + 0.8),
         );
-        let entity = Entity::new(world.clone(), position, &EntityType::SNOWBALL);
+        let spawn_pos = throw_spawn_pos(position, player.get_entity().get_eye_y());
+        let entity = Entity::new(world.clone(), spawn_pos, &EntityType::SNOWBALL);
         let snowball = SnowballEntity::new_shot(entity, player.get_entity());
         snowball
             .thrown
             .shoot_from_rotation(player.get_entity(), pitch, yaw, 0.0, POWER, 1.0);
         world.spawn_entity(Arc::new(snowball));
 
-        let item_id = stack.item.id;
         stack.decrement_unless_creative(player.gamemode.load(), 1);
         match hand {
             pumpkin_util::Hand::Right => player.inventory.set_held_item(stack),
@@ -68,7 +75,6 @@ impl ItemBehaviour for SnowBallItem {
                 .inventory
                 .set_stack_in_hand(pumpkin_util::Hand::Left, stack),
         }
-        player.increment_stat(StatisticCategory::Used, i32::from(item_id), 1);
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

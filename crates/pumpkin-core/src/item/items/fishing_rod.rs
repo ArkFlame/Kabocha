@@ -12,6 +12,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::Hand;
 
 pub struct FishingRodItem;
@@ -100,6 +101,10 @@ impl ItemBehaviour for FishingRodItem {
             world.spawn_entity(bobber_arc);
 
             // Vanilla `ItemStack.causeUseVibration(player, ITEM_INTERACT_START)`.
+            // Vanilla FishingRodItem.use awards ITEM_USED on the cast branch only,
+            // after any plugin cancellation and before the start vibration.
+            player.increment_stat(StatisticCategory::Used, i32::from(Item::FISHING_ROD.id), 1);
+
             world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
         } else {
             // Reel in

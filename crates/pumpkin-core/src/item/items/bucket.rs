@@ -560,13 +560,11 @@ fn finish_empty_filled_bucket(
 
         world.play_sound(get_empty_sound(item), sound_category, &place_pos.to_f64());
         world.emit_game_event(GameEvent::FluidPlace.name(), place_pos.to_f64());
-    } else if get_mob_for_bucket(item).is_some() && should_evaporate_in_nether(item, world) {
-        world.play_sound(
-            get_empty_sound(item),
-            SoundCategory::Neutral,
-            &place_pos.to_f64(),
-        );
     }
+    // Vanilla MobBucketItem skips playEmptySound when the water evaporates:
+    // BucketItem.emptyContents takes the fire-extinguish branch and returns before it,
+    // so try_place_liquid's evaporation sound is the only one. The mob still spawns
+    // via checkExtraContent, which vanilla runs whenever emptyContents returns true.
 
     if let Some((entity_type, _)) = get_mob_for_bucket(item) {
         let spawn_coord = Vector3::new(
@@ -658,6 +656,11 @@ impl ItemBehaviour for EmptyBucketItem {
 
         let block_pos = hit.block_pos;
 
+        // Vanilla BucketItem.use gates the whole interaction on Level.mayInteract.
+        if world.is_in_spawn_protection(player, &block_pos) {
+            return;
+        }
+
         let Some(filled_item) = try_pickup_fluid_at(&world, block_pos, |pos, filled| {
             if let Some(server) = world.server.upgrade()
                 && let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
@@ -733,6 +736,10 @@ impl FilledBucketItem {
         direction: BlockDirection,
     ) -> bool {
         let world = player.world();
+        // Vanilla BucketItem.use gates the whole interaction on Level.mayInteract.
+        if world.is_in_spawn_protection(player, &pos) {
+            return false;
+        }
         let is_sneaking = player.get_entity().is_sneaking();
 
         let Some(place_pos) = try_place_liquid(

@@ -161,23 +161,9 @@ impl ItemBehaviour for BoatItem {
         let dimensions = Self::get_entity_dimensions(entity_type);
         let boat_box = BoundingBox::new_from_pos(hit_vec.x, hit_vec.y, hit_vec.z, &dimensions);
 
-        // Vanilla: if (!world.isSpaceEmpty(lv7, lv7.getBoundingBox())) return FAIL
+        // Vanilla `BoatItem.use` checks only `level.noCollision(boat, boat.getBoundingBox())`
+        // (block collisions). It has no second entity/player occupancy pass after the clip.
         if !world.is_space_empty(boat_box) {
-            return;
-        }
-
-        // Check no collidable entities or other players occupy the space
-        if world.get_entities_at_box(&boat_box).iter().any(|entity| {
-            let ent = entity.get_entity();
-            ent.entity_id != player.entity_id()
-                && ent.entity_type != &EntityType::ITEM
-                && ent.entity_type != &EntityType::EXPERIENCE_ORB
-                && (entity.is_pushable() || entity.can_hit())
-        }) || world
-            .get_players_at_box(&boat_box)
-            .iter()
-            .any(|p| p.entity_id() != player.entity_id() && !p.is_spectator())
-        {
             return;
         }
 
@@ -253,5 +239,17 @@ mod tests {
             BoatItem::item_to_entity(&Item::POPLAR_CHEST_BOAT).id,
             EntityType::POPLAR_CHEST_BOAT.id
         );
+    }
+
+    // Vanilla: EntityTypes.MANGROVE_BOAT / MANGROVE_CHEST_BOAT sized(1.375F, 0.5625F)
+    // with eyeHeight(0.5625F). The placement bounding box uses these exact values.
+    #[test]
+    fn mangrove_boat_dimensions_match_vanilla() {
+        for entity_type in [&EntityType::MANGROVE_BOAT, &EntityType::MANGROVE_CHEST_BOAT] {
+            let dims = BoatItem::get_entity_dimensions(entity_type);
+            assert_eq!(dims.width, 1.375);
+            assert_eq!(dims.height, 0.5625);
+            assert_eq!(dims.eye_height, 0.5625);
+        }
     }
 }

@@ -126,17 +126,11 @@ impl BowItem {
             player.consume_arrow(slot);
         }
 
-        // Damage bow
-        let active_hand = *player
-            .living_entity
-            .active_hand
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let slot = if active_hand == Some(Hand::Left) {
-            pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
-        } else {
-            pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
-        };
+        // Vanilla applies `hurtAndBreak` to the exact used stack at `getUsedItemHand`. Match the
+        // released stack by its network id so the damage lands on the hand that actually holds
+        // the bow, without depending on the shared active-hand flag still being set at release.
+        let weapon_in_off_hand = player.inventory.get_stack_in_hand(Hand::Left).uid == weapon.uid;
+        let slot = Self::damage_slot_for(weapon_in_off_hand);
         player.damage_item_in_slot(&slot, 1);
         player.increment_stat(StatisticCategory::Used, i32::from(weapon.item.id), 1);
     }
@@ -157,6 +151,17 @@ impl BowItem {
         power
     }
 
+    /// Damage slot for the hand that holds the bow, matching vanilla `getUsedItemHand`.
+    fn damage_slot_for(
+        weapon_in_off_hand: bool,
+    ) -> pumpkin_data::data_component_impl::EquipmentSlot {
+        if weapon_in_off_hand {
+            pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
+        } else {
+            pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
+        }
+    }
+
     /// Creates projectile matching vanilla `ProjectileWeaponItem::createProjectile`.
     pub fn create_projectile(
         player: &Player,
@@ -164,15 +169,12 @@ impl BowItem {
         projectile: &ItemStack,
         is_crit: bool,
     ) -> ArrowEntity {
-        let world = player.world();
-        let is_creative = player.gamemode.load() == GameMode::Creative;
         ProjectileWeaponItem::create_projectile(
-            world,
+            player.world(),
             player.get_entity(),
             weapon,
             projectile,
             is_crit,
-            is_creative,
         )
     }
 
@@ -190,7 +192,6 @@ impl BowItem {
         }
 
         let world = player.world();
-        let is_creative = player.gamemode.load() == GameMode::Creative;
         let speed = power * ProjectileWeaponItem::ARROW_SPEED_MULTIPLIER;
 
         ProjectileWeaponItem::shoot_projectiles(
@@ -201,7 +202,6 @@ impl BowItem {
             speed,
             uncertainty,
             is_crit,
-            is_creative,
         );
 
         // Vanilla broadcasts the shoot sound to players within its audible range.
@@ -236,5 +236,22 @@ impl BowItem {
     /// Fire an arrow from the bow
     pub fn fire_arrow(player: &Player, power: f32, projectile: &ItemStack) {
         Self::fire_arrow_with_crit(player, power, projectile, power >= 1.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bow_damage_slot_matches_used_hand() {
+        assert_eq!(
+            BowItem::damage_slot_for(true),
+            pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
+        );
+        assert_eq!(
+            BowItem::damage_slot_for(false),
+            pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
+        );
     }
 }

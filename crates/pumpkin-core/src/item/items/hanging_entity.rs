@@ -90,6 +90,11 @@ impl ItemBehaviour for HangingEntityItem {
                 Some(player),
             );
             painting.set_attached_pos(location);
+            // Vanilla `HangingEntityItem#useOn` re-runs `survives()` on the
+            // finished, variant-sized entity before it is spawned.
+            if !painting.survives() {
+                return BlockActionResult::Consume;
+            }
             world.play_sound(
                 Sound::EntityPaintingPlace,
                 SoundCategory::Blocks,

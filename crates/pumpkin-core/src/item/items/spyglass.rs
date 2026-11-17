@@ -4,7 +4,6 @@ use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::Hand;
 
 pub struct SpyglassItem;
@@ -22,7 +21,7 @@ impl ItemBehaviour for SpyglassItem {
 
     fn normal_use_with_rotation(
         &self,
-        item: &Item,
+        _item: &Item,
         player: &Player,
         _yaw: f32,
         _pitch: f32,
@@ -35,7 +34,6 @@ impl ItemBehaviour for SpyglassItem {
             1.0,
             1.0,
         );
-        player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
         let looking_at = player
             .get_target_entity(&player.world(), 128.0)
             .map(|e| format!("minecraft:{}", e.get_entity().entity_type.resource_name));

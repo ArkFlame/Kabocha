@@ -6,7 +6,6 @@ use crate::entity::projectile::arrow::ArrowEntity;
 use crate::entity::{Entity, EntityBase};
 use crate::world::World;
 use pumpkin_data::data_component_impl::EnchantmentsImpl;
-use pumpkin_data::dimension::Dimension;
 use pumpkin_data::enchantment::{Enchantment, EnchantmentEntityEffect, EnchantmentTarget};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
@@ -235,11 +234,9 @@ impl EnchantmentHelper {
     }
 
     fn is_world_thundering(world: &World) -> bool {
-        world.dimension.has_skylight
-            && !world.dimension.has_ceiling
-            && world.dimension != Dimension::THE_END
-            && world.is_raining()
-            && world.is_thundering()
+        // Vanilla `Level.isThundering()` already folds `canHaveWeather()` (skylight, no ceiling,
+        // not the End) into its result, so no separate dimension gate is needed here.
+        world.is_raining() && world.is_thundering()
     }
 
     /// Applies post-attack enchantment effects for a thrown trident hitting `victim`.

@@ -122,7 +122,10 @@ fn apply_entity_data(item: &ItemStack, mob: &dyn EntityBase, user: Option<&Playe
         return;
     }
     let mut nbt = nbt.clone();
-    for key in ["id", "UUID", "Pos"] {
+    // Vanilla TypedEntityData.loadInto merges the authored tag over saveWithoutId and calls
+    // Entity.load, which reads Pos, so an op-authored Pos moves the mob. Only id (ignored by
+    // load) and UUID (restored by loadInto) are stripped here.
+    for key in ["id", "UUID"] {
         nbt.child_tags.remove(key);
     }
     if !nbt.is_empty() {
@@ -341,7 +344,9 @@ impl ItemBehaviour for SpawnEggItem {
                     spawner.set_entity_type(entity_type);
                     world.update_block_entity(&block_entity);
                     world.emit_game_event(GameEvent::BlockChange.name(), location.to_f64());
-                    item.decrement_unless_creative(player.gamemode.load(), 1);
+                    // Vanilla SpawnEggItem.useOn uses itemStack.shrink(1) here, which consumes
+                    // the egg even in creative, unlike the spawnMob paths' consume().
+                    item.decrement(1);
                     return BlockActionResult::Success;
                 }
                 if let Some(trial_spawner) = block_entity
@@ -351,7 +356,9 @@ impl ItemBehaviour for SpawnEggItem {
                     trial_spawner.set_entity_type(entity_type, &world);
                     world.update_block_entity(&block_entity);
                     world.emit_game_event(GameEvent::BlockChange.name(), location.to_f64());
-                    item.decrement_unless_creative(player.gamemode.load(), 1);
+                    // Vanilla SpawnEggItem.useOn uses itemStack.shrink(1) here, which consumes
+                    // the egg even in creative, unlike the spawnMob paths' consume().
+                    item.decrement(1);
                     return BlockActionResult::Success;
                 }
             }

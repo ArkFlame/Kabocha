@@ -7,6 +7,7 @@ use crate::entity::{Entity, EntityBase};
 use crate::world::World;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::tag::Taggable;
 
 /// Abstraction for projectile-firing weapons (Bow, Crossbow), matching vanilla `ProjectileWeaponItem`.
 pub struct ProjectileWeaponItem;
@@ -15,15 +16,28 @@ impl ProjectileWeaponItem {
     pub const ARROW_SPEED_MULTIPLIER: f32 = 3.0;
 
     #[must_use]
-    pub const fn is_arrow(item: &Item) -> bool {
-        item.id == Item::ARROW.id
-            || item.id == Item::TIPPED_ARROW.id
-            || item.id == Item::SPECTRAL_ARROW.id
+    pub fn is_arrow(item: &Item) -> bool {
+        // Vanilla `ProjectileWeaponItem.ARROW_ONLY` is `ItemTags.ARROWS`; `has_tag`
+        // honours datapack tags as well as the built-in tag entries.
+        item.has_tag(&pumpkin_data::tag::Item::MINECRAFT_ARROWS)
     }
 
     #[must_use]
-    pub const fn is_arrow_or_firework(item: &Item) -> bool {
+    pub fn is_arrow_or_firework(item: &Item) -> bool {
         Self::is_arrow(item) || item.id == Item::FIREWORK_ROCKET.id
+    }
+
+    /// Vanilla `AbstractArrow` pickup derivation: `INTANGIBLE_PROJECTILE` forces
+    /// `CREATIVE_ONLY`; otherwise a player owner yields `ALLOWED`, other owners `DISALLOWED`.
+    #[must_use]
+    const fn pickup_for(is_intangible: bool, is_player_owner: bool) -> ArrowPickup {
+        if is_intangible {
+            ArrowPickup::CreativeOnly
+        } else if is_player_owner {
+            ArrowPickup::Allowed
+        } else {
+            ArrowPickup::Disallowed
+        }
     }
 
     /// Creates a projectile matching vanilla `ProjectileWeaponItem::createProjectile`.
@@ -33,21 +47,19 @@ impl ProjectileWeaponItem {
         weapon: &ItemStack,
         projectile: &ItemStack,
         is_crit: bool,
-        is_creative: bool,
     ) -> ArrowEntity {
         let arrow_entity = Entity::new(
-            world,
+            world.clone(),
             shooter.pos.load(),
             ArrowEntity::entity_type_for_item(projectile.item),
         );
         let is_intangible = projectile
             .get_data_component::<pumpkin_data::data_component_impl::IntangibleProjectileImpl>()
             .is_some();
-        let pickup = if is_creative || is_intangible {
-            ArrowPickup::CreativeOnly
-        } else {
-            ArrowPickup::Allowed
-        };
+        let pickup = Self::pickup_for(
+            is_intangible,
+            world.get_player_by_id(shooter.entity_id).is_some(),
+        );
         let arrow =
             ArrowEntity::new_shot_with_weapon(arrow_entity, shooter, projectile, weapon, pickup);
 
@@ -136,7 +148,6 @@ impl ProjectileWeaponItem {
         power: f32,
         uncertainty: f32,
         is_crit: bool,
-        is_creative: bool,
     ) {
         if projectiles.is_empty() {
             return;
@@ -185,18 +196,44 @@ impl ProjectileWeaponItem {
                 let rocket_arc: Arc<dyn EntityBase> = Arc::new(rocket);
                 world.spawn_entity(rocket_arc);
             } else {
-                let arrow = Self::create_projectile(
-                    world.clone(),
-                    shooter,
-                    weapon,
-                    projectile,
-                    is_crit,
-                    is_creative,
-                );
+                let arrow =
+                    Self::create_projectile(world.clone(), shooter, weapon, projectile, is_crit);
                 arrow.set_velocity_from_rotation(pitch, yaw + angle, 0.0, power, uncertainty);
                 let arrow_arc: Arc<dyn EntityBase> = Arc::new(arrow);
                 world.spawn_entity(arrow_arc);
             }
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_owner_without_intangible_is_allowed() {
+        assert_eq!(
+            ProjectileWeaponItem::pickup_for(false, true),
+            ArrowPickup::Allowed
+        );
+    }
+
+    #[test]
+    fn intangible_is_creative_only_for_any_owner() {
+        assert_eq!(
+            ProjectileWeaponItem::pickup_for(true, true),
+            ArrowPickup::CreativeOnly
+        );
+        assert_eq!(
+            ProjectileWeaponItem::pickup_for(true, false),
+            ArrowPickup::CreativeOnly
+        );
+    }
+
+    #[test]
+    fn non_player_owner_without_intangible_is_disallowed() {
+        assert_eq!(
+            ProjectileWeaponItem::pickup_for(false, false),
+            ArrowPickup::Disallowed
+        );
     }
 }

@@ -71,8 +71,11 @@ impl ItemBehaviour for GoatHornItem {
                 source_entity: Some(player),
             },
         );
-        // Vanilla always adds the cooldown, even for a zero-duration instrument.
-        player.start_cooldown(cooldown_group, duration);
+        // Vanilla only adds the cooldown when the instrument has a positive use duration
+        // (InstrumentItem.use: `if (instrumentCooldown > 0.0F)`).
+        if duration > 0 {
+            player.start_cooldown(cooldown_group, duration);
+        }
         player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
     }
 

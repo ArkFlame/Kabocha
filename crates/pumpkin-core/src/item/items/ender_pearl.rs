@@ -11,6 +11,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::statistic::StatisticCategory;
+use pumpkin_util::math::vector3::Vector3;
 
 pub struct EnderPearlItem;
 
@@ -24,6 +25,13 @@ const ROLL: f32 = 0.0;
 const POWER: f32 = 1.5;
 const DIVERGENCE: f32 = 1.0;
 const THROW_SOUND_VOLUME: f32 = 0.5;
+
+/// Vanilla `ThrowableItemProjectile` spawns thrown items at `shooter.getEyeY() - 0.1`.
+const THROW_SPAWN_Y_OFFSET: f64 = 0.1;
+
+fn throw_spawn_pos(feet: Vector3<f64>, eye_y: f64) -> Vector3<f64> {
+    Vector3::new(feet.x, eye_y - THROW_SPAWN_Y_OFFSET, feet.z)
+}
 
 impl ItemBehaviour for EnderPearlItem {
     fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
@@ -57,7 +65,8 @@ impl ItemBehaviour for EnderPearlItem {
             0.4 / (rng().random::<f32>() * 0.4 + 0.8),
         );
 
-        let entity = Entity::new(world.clone(), position, &EntityType::ENDER_PEARL);
+        let spawn_pos = throw_spawn_pos(position, player.get_entity().get_eye_y());
+        let entity = Entity::new(world.clone(), spawn_pos, &EntityType::ENDER_PEARL);
         let pearl = EnderPearlEntity::new_shot(entity, player.get_entity());
         pearl
             .thrown

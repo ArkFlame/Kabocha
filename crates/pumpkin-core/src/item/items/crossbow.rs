@@ -253,7 +253,6 @@ impl CrossbowItem {
                     Self::ARROW_POWER
                 };
 
-                let is_creative = player.gamemode.load() == GameMode::Creative;
                 ProjectileWeaponItem::shoot_projectiles(
                     &world,
                     player.get_entity(),
@@ -262,7 +261,6 @@ impl CrossbowItem {
                     power,
                     1.0,
                     true,
-                    is_creative,
                 );
 
                 player.trigger_advancement(
