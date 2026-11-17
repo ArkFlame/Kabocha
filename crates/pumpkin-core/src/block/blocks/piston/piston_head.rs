@@ -1,11 +1,10 @@
 use pumpkin_data::block_properties::{MovingPistonLikeProperties, PistonType};
 use pumpkin_data::{Block, BlockState, BlockStateId, FacingExt};
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::GameMode;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
     OnNeighborUpdateArgs, OnStateReplacedArgs, PathComputationType,
 };
 
@@ -36,22 +35,6 @@ impl PistonHeadBlock {
 }
 
 impl BlockBehaviour for PistonHeadBlock {
-    fn broken(&self, args: BrokenArgs<'_>) {
-        let props = PistonHeadProperties::from_state_id(args.state.id);
-        let pos = args
-            .position
-            .offset(props.facing.opposite().to_block_direction().to_offset());
-        let (new_block, new_state) = args.world.get_block_and_state_id(&pos);
-        if Self::is_fitting_base(props, new_block, new_state) {
-            let flags = if args.player.gamemode.load() == GameMode::Creative {
-                BlockFlags::SKIP_DROPS | BlockFlags::NOTIFY_ALL
-            } else {
-                BlockFlags::NOTIFY_ALL
-            };
-            args.world.break_block(&pos, Some(args.player), flags);
-        }
-    }
-
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
         if args.moved {
             return;
@@ -62,7 +45,8 @@ impl BlockBehaviour for PistonHeadBlock {
             .offset(props.facing.opposite().to_block_direction().to_offset());
         let (base_block, base_state) = args.world.get_block_and_state_id(&base_pos);
         if Self::is_fitting_base(props, base_block, base_state) {
-            // A creative break removes the base without drops.
+            // Vanilla removes the base in PistonHeadBlock.onRemove, after the head is gone;
+            // a creative break (head removed with SKIP_DROPS) removes it without drops.
             args.world.break_block(
                 &base_pos,
                 None,
