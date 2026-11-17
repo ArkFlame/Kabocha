@@ -20,8 +20,8 @@ pub struct CampfireBlockEntity {
     pub items: [Arc<Mutex<ItemStack>>; Self::SLOT_COUNT],
     pub cooking_times: [Mutex<i32>; Self::SLOT_COUNT],
     pub cooking_total_times: [Mutex<i32>; Self::SLOT_COUNT],
-    /// Paper `CampfireStartEvent` cancellation is sticky for the sitting: the total
-    /// time stays 0, so without this flag the event would refire every tick.
+    /// Paper `CampfireStartEvent` cancellation is sticky for the sitting: a
+    /// cancelled insertion keeps the placed item from ever cooking.
     pub cooking_cancelled: [Mutex<bool>; Self::SLOT_COUNT],
 }
 
@@ -123,37 +123,11 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
-            // Vanilla `litServerTick` counts every stack, `cookItems` drops the raw stack without a recipe
-            let recipe =
-                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking);
-
-            let total = {
-                let mut total = self.cooking_total_times[slot]
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if *total <= 0 {
-                    let mut cooking_time = recipe.as_ref().map_or(0, |recipe| recipe.cookingtime);
-                    if let Some(server) = world.server.upgrade().filter(|_| recipe.is_some()) {
-                        let mut event = crate::plugin::api::events::block::campfire_start::CampfireStartEvent::new(
-                            self.position,
-                            world.clone(),
-                            stack.clone(),
-                            slot as u8,
-                            cooking_time,
-                        );
-                        server.plugin_manager.fire_blocking(&server, &mut event);
-                        if event.cancelled {
-                            *self.cooking_cancelled[slot]
-                                .lock()
-                                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
-                            continue;
-                        }
-                        cooking_time = event.cooking_time;
-                    }
-                    *total = cooking_time;
-                }
-                *total
-            };
+            // Vanilla `cookTick` increments every non-empty stack and resolves the
+            // recipe only at completion; the total is set once at insertion.
+            let total = *self.cooking_total_times[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             let finished = {
                 let mut progress = self.cooking_times[slot]
@@ -168,6 +142,8 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
+            let recipe =
+                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking);
             let mut result = match &recipe {
                 Some(recipe) => {
                     let Some(result_item) = Item::from_registry_key(recipe.result.id) else {

@@ -16,6 +16,7 @@ use pumpkin_world::tick::TickPriority;
 
 use crate::block::entities::campfire::CampfireBlockEntity;
 use crate::entity::projectile::may_interact;
+use crate::plugin::api::events::block::campfire_start::CampfireStartEvent;
 use crate::world::World;
 use crate::{
     block::{
@@ -90,42 +91,60 @@ impl BlockBehaviour for CampfireBlock {
                 CookingRecipeKind::CampfireCooking,
             )
         {
-            for slot in 0..CampfireBlockEntity::SLOT_COUNT {
-                let mut stored = campfire.items[slot]
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if !stored.is_empty() {
-                    continue;
-                }
+            let slot = campfire.items.iter().position(|item| {
+                item.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_empty()
+            });
+            let Some(slot) = slot else {
+                return BlockActionResult::Consume;
+            };
 
-                *stored = args
-                    .item_stack
-                    .split_unless_creative(args.player.gamemode.load(), 1);
-                *campfire.cooking_times[slot]
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
-                *campfire.cooking_total_times[slot]
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = recipe.cookingtime;
-                *campfire.cooking_cancelled[slot]
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
-                drop(stored);
-
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::InteractWithCampfire as i32,
-                    1,
+            // Vanilla/Paper fires CampfireStartEvent in placeFood at insertion so
+            // plugins can adjust the cook time before the first tick.
+            let mut cooking_time = recipe.cookingtime;
+            let mut cancelled = false;
+            if let Some(server) = args.world.server.upgrade() {
+                let mut event = CampfireStartEvent::new(
+                    *args.position,
+                    args.world.clone(),
+                    args.item_stack.clone(),
+                    slot as u8,
+                    cooking_time,
                 );
-                args.world.emit_game_event(
-                    GameEvent::BlockChange.name(),
-                    args.position.to_centered_f64(),
-                );
-                args.world.update_block_entity(&block_entity);
-                return BlockActionResult::SuccessServer;
+                server.plugin_manager.fire_blocking(&server, &mut event);
+                cooking_time = event.cooking_time;
+                cancelled = event.cancelled;
             }
 
-            return BlockActionResult::Consume;
+            let mut stored = campfire.items[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *stored = args
+                .item_stack
+                .split_unless_creative(args.player.gamemode.load(), 1);
+            *campfire.cooking_times[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
+            *campfire.cooking_total_times[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = cooking_time;
+            *campfire.cooking_cancelled[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = cancelled;
+            drop(stored);
+
+            args.player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Custom,
+                pumpkin_data::statistic::CustomStatistic::InteractWithCampfire as i32,
+                1,
+            );
+            args.world.emit_game_event(
+                GameEvent::BlockChange.name(),
+                args.position.to_centered_f64(),
+            );
+            args.world.update_block_entity(&block_entity);
+            return BlockActionResult::SuccessServer;
         }
 
         let state = args.world.get_block_state(args.position);

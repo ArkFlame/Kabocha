@@ -1561,6 +1561,11 @@ mod tests {
             transform_entity_yaw(90.0, Mirror::FrontBack, Rotation::None),
             -90.0
         ));
+        // Vanilla applies rotate first, then mirror (StructureTemplate#placeEntities).
+        assert!(close(
+            transform_entity_yaw(30.0, Mirror::FrontBack, Rotation::Clockwise90),
+            60.0
+        ));
         let wrapped = transform_entity_yaw(370.0, Mirror::None, Rotation::Clockwise90);
         assert!(close(wrap_degrees(wrapped), 100.0));
     }
