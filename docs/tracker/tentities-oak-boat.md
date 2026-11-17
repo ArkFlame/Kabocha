@@ -1,17 +1,37 @@
-# entities / Oak Boat (RE-REVIEW)
+# Tracker: entities / Oak Boat (RE-REVIEW-UNTRACKED)
 
-Reviewed: `crates/pumpkin-core/src/entity/vehicle/boat.rs` and submodules `physics.rs`, `block_effects.rs`, `passengers.rs`, `dismount.rs`; `crates/pumpkin-core/src/item/items/boat.rs`; `crates/pumpkin-core/src/net/java/play/paddle_boat.rs`; boat paths in `crates/pumpkin-core/src/entity/mod.rs` (`get_boat_collisions`, `has_new_boat_collision`, push/pickup, dismount).
+Source: `crates/pumpkin-core/src/entity/vehicle/boat.rs` plus `boat/{physics,passengers,dismount,block_effects}.rs`,
+item side `crates/pumpkin-core/src/item/items/boat.rs`, dispatch `entity/type.rs`, mounting/paddle packets
+`net/java/play/{move_vehicle,paddle_boat}.rs`. No decompiled vanilla sources in `.vendor/` in this worktree,
+so each row names the vanilla member it must match.
 
-Source changed by `570d3ea1f` (`feat: improve boat water physics (#4073)`), which rewrote the entity into submodules and now matches vanilla `AbstractBoat` closely: status/water-level probes (`physics.rs:74-142`), `floatBoat` constants incl. `-0.04`/frictions/buoyancy (`physics.rs:215-273`), `getWaterLevelAbove`/friction, `applyEffectsFromBlocks` movement sweep (`block_effects.rs`), passenger attachment offsets, dismount poses, damage/drop and chest container. No new parity fix applied in this pass; nothing was certain enough to change without a vanilla decompile to diff against.
+Oak has no per-wood code: every boat variant shares `BoatEntity`. Oak-specific wiring was re-verified and is
+correct: `entity_type.rs` `OAK_BOAT` has size 1.375 x 0.5625 and `BoatSeats { ride_height: 0.1875, single_passenger_x_offset: 0 }`,
+item -> entity `boat.rs:35`, item id list `boat.rs:85`, entity -> item pick result `boat.rs:53` via
+`entity_to_item` (`net/java/play/pick_item.rs:100`), constructor dispatch `entity/type.rs:355`, and
+`is_chest_boat` correctly excludes `OAK_BOAT` (`boat.rs:41-53`) so it gets two seats and no inventory.
+
+The reviewed change (`570d3ea1f` "feat: improve boat water physics (#4073)") was re-audited: status/water
+probes, friction, `float_boat` constants, block sweep (16-step/100-movement caps with differential tests),
+seat offsets, dismount search and damage/drop match `AbstractBoat`. Rider positioning was already unified on
+`EntityType.boat` (`passengers.rs:69-83`), so that earlier drift gap is closed.
+
+## Fixed this pass
+
+- `boat.rs:161-166` `is_client_controlled`: now goes through `get_controlling_passenger()` (first
+  `LivingEntity` passenger) like vanilla `AbstractBoat.isControlledByLocalInstance`/`getControllingPassenger`,
+  instead of `passengers.first()`. A non-living first passenger with a player behind no longer keeps the boat
+  on server-side physics.
+- `boat.rs:359-363` `interact`: dropped the `!is_eye_in_water()` boarding gate; vanilla `AbstractBoat.interact`
+  only checks `outOfControlTicks < 60` and secondary use, so a boat in one-deep water was wrongly unboardable.
+  The now-unused `physics.rs` `is_eye_in_water` helper (and its `BlockDirection` import) was removed.
 
 ## Remaining gaps
 
 | file:line | vanilla | suggested fix | size |
 |---|---|---|---|
-| boat.rs:276-301 (`tick`), tracked_data.rs:4103 | `AbstractBoat.tick` maintains `DATA_ID_BUBBLE_TIME` so a submerged boat renders the bubble effect for its rider; the generated accessor exists but is never written anywhere in `pumpkin-core` (grep `ID_BUBBLE_TIME` = 0 hits) | add a `bubble_time: AtomicI32` (or direct metadata write) and update it from `tick` on the underwater statuses; verify the exact vanilla 60-tick/decay rule against `AbstractBoat.tick` before wiring | S |
-| passengers.rs:12-16 (`position_rider`), boat.rs:190-233 | `AbstractBoat.clampRotation` clamps a rider's body yaw to +/-105 deg around the boat yaw and syncs head yaw; no `clamp_rotation` hook exists in `pumpkin-core` (grep `clamp_rotation`/105 in entity = 0 hits), so mob riders behind the boat are never clamped server-side | add a vehicle rider-rotation hook and implement the boat override for non-player riders (player yaw is client-authoritative, keep it out of the server path) | M |
-| boat.rs:169-177 (`is_client_controlled`) | `AbstractBoat.isControlledByLocalInstance` uses `getControllingPassenger()`, i.e. the first passenger that is a `LivingEntity`; Rust inspects only `passengers.first()` while `get_controlling_passenger` (boat.rs:225-233) already implies the living-only rule | use the same first-living-passenger lookup in `is_client_controlled`; a non-living first passenger with a player behind currently keeps server-side boat movement | S |
-| physics.rs:215-246 (`float_boat` air->water branch) | vanilla `setPos(surfaceY)` runs before the `noCollision` test, so the boat snaps to the surface even when blocked and only the velocity zeroing/return is conditional; Rust returns a zero offset in the blocked case and never snaps | return the computed offset unconditionally, and only zero velocity / set `InWater` status when the target is collision free | S (verify) |
-| physics.rs:248 (`vertical_speed = -self.get_gravity()`) | `floatBoat` uses the hard-coded `-0.04` regardless of the entity's no-gravity flag (vanilla only skips the base `Entity.tick` gravity) | use the `DEFAULT_GRAVITY` constant in `float_boat` instead of `get_gravity()`, or confirm nothing can set `no_gravity` on a boat | S (verify) |
-| passengers.rs:44-80 vs boat.rs:190-223 | rider attachment math is duplicated: `passengers.rs` hard-codes `0.2/-0.6`, chest offset `0.15` and `height/3` while the `EntityBase` impl reads extracted `EntityType.boat.ride_height`/`single_passenger_x_offset`; values agree today but the player position path also omits the animal shift | make `rider_position` reuse `passenger_attachment_point` so there is one source of truth (currently not observable, pure drift risk) | S |
-| boat.rs:276-301 (tick) | no boat coverage in `pumpkin-gametest` (grep `boat` = 0 files), so the rewritten water physics is untested at runtime | add one gametest: boat floats to the surface after a fall, ejecting after 60 underwater ticks, and a chest boat scatters its 27 slots on break | S |
+| `boat.rs:265-289` `tick`, `physics.rs:185-265` `float_boat`, `generated/tracked_data.rs:4103` | `AbstractBoat.tick`/`floatBoat` bubble-column branch, `DATA_ID_BUBBLE_TIME` | `ID_BUBBLE_TIME` is generated but never written; `bubble_column::push_entity` only stores a capped `velocity.y` that the next `float_boat` pass multiplies by 0.9 and re-adds gravity to, so a boat neither rises/falls at vanilla bubble speed nor sends the wobble metadata | Track `is_above_bubble_column`/`bubble_column_direction_is_down` plus a bubble timer; apply vanilla 0.06 (0.1 at surface) acceleration with 0.7/1.8 caps and -0.03/-0.3 downward before `float_boat`, and send `ID_BUBBLE_TIME` while it runs | M |
+| `passengers.rs:34-42` `rider_position`, `boat.rs:180-215` | `AbstractBoat.clampRotation` | No rider-rotation clamp exists: vanilla clamps a mob rider's body yaw to +/-105 deg around the boat yaw and syncs head yaw. Player yaw stays client-authoritative, so only non-player riders need the hook | Add a vehicle rider-rotation hook and the boat override for non-player riders | M |
+| `physics.rs:188-216` `float_boat` air->water branch | `AbstractBoat.floatBoat` transition | Vanilla snaps `setPos(surfaceY)` before the collision test; Rust returns a zero offset when the target is blocked and never snaps. Verify against the decompiled method before changing | Return the computed offset unconditionally; only zero velocity / set `InWater` when collision-free | S (verify) |
+| `physics.rs:218` `vertical_speed = -self.get_gravity()` | `AbstractBoat.floatBoat` hard-coded `-0.04` | `get_gravity()` honours `no_gravity`; vanilla applies the constant in `floatBoat` regardless. Confirm nothing can set `no_gravity` on a boat, else use `DEFAULT_GRAVITY` | Use `DEFAULT_GRAVITY` in `float_boat` | S (verify) |
+| `server/builtin_game_tests/` | runtime parity | No boat gametest coverage (grep confirms only the dispenser boat test), so the rewritten water physics is unverified at runtime | Add one gametest: boat floats up after a fall, ejects a rider after 60 underwater ticks, chest boat scatters its 27 slots when broken | S |

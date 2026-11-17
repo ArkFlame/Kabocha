@@ -174,12 +174,9 @@ impl BoatEntity {
     }
 
     fn is_client_controlled(&self) -> bool {
-        self.vehicle
-            .entity
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .first()
+        // Vanilla `AbstractBoat.isControlledByLocalInstance` goes through
+        // `getControllingPassenger`, i.e. the first passenger that is a `LivingEntity`.
+        self.get_controlling_passenger()
             .is_some_and(|passenger| passenger.get_player().is_some())
     }
 
@@ -372,8 +369,9 @@ impl EntityBase for BoatEntity {
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
+        // Vanilla `AbstractBoat.interact` gates boarding on `outOfControlTicks < 60`
+        // and secondary use only; it never probes the eye fluid.
         let can_add_passenger = self.ticks_underwater.load() < TIME_TO_EJECT
-            && !self.is_eye_in_water()
             && !player.get_entity().has_vehicle()
             && self
                 .vehicle
