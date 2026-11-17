@@ -38,7 +38,8 @@ need that source before editing; the rest are proven by in-tree evidence.
 - Feeding consumes nautilus-bucket food by filling a water bucket (`nautilus.rs:401-414`).
 
 ## Gap status (h6 sweep)
-- Gaps 1, 2, 7, 8: STILL OPEN. L/M, need goal list, rideable jump hook, spawn rules and TamableData migration.
+- Gap 2 (rideable jump hook): FIXED (UNVERIFIED). `Mob::can_rider_jump`/`handle_rider_start_jump` (non-horse mounts) dispatched from `player.rs` `start_riding_jump`; nautilus gate = saddled rider, jump = dash sound + `set_dashing(true)`. Precedent: `camel.rs` `can_jump`/`handle_start_jump`. No horse event fired.
+- Gaps 1, 7, 8: STILL OPEN. L/M, need goal list, spawn rules and TamableData migration.
 - Gap 3 (unused 9-slot inventory): STILL OPEN. S, delete or wire; decision deferred.
 - Gap 4 (food tag): STILL OPEN, blocked on generated `nautilus_food` tag.
 - Gaps 5, 6, 9: STILL OPEN. Each marked verify; no vanilla source in tree to confirm values.
