@@ -17,6 +17,7 @@ impl CommandExecutor for TpsExecutor {
         let server = context.source.server();
         let tps = server.get_tps().min(server.basic_config.tps as f64);
         let mspt = server.get_mspt();
+        let [tps_1m, tps_5m, tps_15m] = server.get_recent_tps();
 
         let max_tps = server.basic_config.tps as f64;
         let tps_color = if tps >= max_tps * 0.9 {
@@ -30,7 +31,10 @@ impl CommandExecutor for TpsExecutor {
         let message = TextComponent::text("TPS: ")
             .add_child(TextComponent::text(format!("{tps:.1}")).color_named(tps_color))
             .add_child(TextComponent::text(" MSPT: "))
-            .add_child(TextComponent::text(format!("{mspt:.2}ms")).color_named(tps_color));
+            .add_child(TextComponent::text(format!("{mspt:.2}ms")).color_named(tps_color))
+            .add_child(TextComponent::text(format!(
+                " (1m/5m/15m: {tps_1m:.1}/{tps_5m:.1}/{tps_15m:.1})"
+            )));
 
         context.source.send_message(message);
 
