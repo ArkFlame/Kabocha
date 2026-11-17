@@ -552,7 +552,10 @@ mod tests {
         let bytes = trail_packet(&options);
 
         let mut tail = &bytes[PARTICLE_ID_OFFSET..];
-        assert_eq!(VarInt::decode(&mut tail).unwrap(), VarInt(56));
+        assert_eq!(
+            VarInt::decode(&mut tail).unwrap(),
+            VarInt(Particle::Trail as i32)
+        );
 
         let target = Vector3::new(
             tail.get_f64_be().unwrap(),
