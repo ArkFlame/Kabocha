@@ -102,6 +102,10 @@ fn frame_packet(packet_id: i32, payload: &[u8]) -> Option<Bytes> {
     Some(framed.into())
 }
 
+/// Vanilla/Paper `settings.timeout-time`: how long a sent keep-alive may stay
+/// unanswered before the connection is dropped. Independent of the send interval.
+const KEEP_ALIVE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 #[repr(C)]
 pub struct JavaClient {
     pub id: u64,
@@ -253,8 +257,6 @@ impl JavaClient {
         let keep_alive_time = server.advanced_config.networking.java.keep_alive_time;
         let mut keep_alive_interval =
             tokio::time::interval(std::time::Duration::from_secs(keep_alive_time.max(1)));
-        let timeout_duration =
-            std::time::Duration::from_secs(keep_alive_time.saturating_mul(2).max(1));
 
         // Skip the immediate first tick so we don't send a keep-alive the exact millisecond they join
         keep_alive_interval.tick().await;
@@ -263,15 +265,16 @@ impl JavaClient {
             tokio::select! {
                 // KEEP-ALIVE TIMER
                 _ = keep_alive_interval.tick() => {
-                    // Check if the client has timed out on keep-alive responses or no packet activity
+                    // Check whether a sent keep-alive has gone unanswered for too long
                     let has_timed_out = {
                         let pending = self
                             .pending_keep_alives
                             .lock()
                             .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        pending.iter().any(|(_, send_time)| send_time.elapsed() > timeout_duration)
-                    } || (self.wait_for_keep_alive.load(Ordering::Relaxed) && self.last_keep_alive_time.load().elapsed() > timeout_duration)
-                      || (self.last_packet_time.load().elapsed() > timeout_duration);
+                        pending
+                            .iter()
+                            .any(|(_, send_time)| send_time.elapsed() > KEEP_ALIVE_TIMEOUT)
+                    };
 
                     if has_timed_out {
                         self.kick(pumpkin_macros::translate_cross!(translation::java::DISCONNECT_TIMEOUT, translation::bedrock::DISCONNECT_TIMEOUT)).await;
