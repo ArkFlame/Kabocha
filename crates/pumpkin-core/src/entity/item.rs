@@ -228,9 +228,7 @@ impl ItemEntity {
 
     /// Vanilla `ItemEntity.isMergable`.
     fn is_mergeable(&self) -> bool {
-        if self.entity.removed.load(Ordering::SeqCst)
-            || self.item_age.load(Ordering::Relaxed) >= LIFETIME
-        {
+        if self.entity.removed.load(Ordering::SeqCst) {
             return false;
         }
         let Ok(item_stack) = self.item_stack.try_lock() else {
