@@ -1,5 +1,6 @@
 use pumpkin_data::data_component_impl::{WritableBookContentImpl, WrittenBookContentImpl};
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::tag::{Taggable, tag};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
@@ -192,6 +193,13 @@ impl Inventory for LecternBlockEntity {
         1
     }
 
+    /// Vanilla `LecternBlockEntity`'s inventory only accepts books from
+    /// `#minecraft:lectern_books`, so a client click packet cannot put an
+    /// arbitrary stack into the book slot.
+    fn is_valid_slot_for(&self, slot: usize, stack: &ItemStack) -> bool {
+        slot == 0 && stack.item.has_tag(&tag::Item::MINECRAFT_LECTERN_BOOKS)
+    }
+
     fn is_empty(&self) -> bool {
         self.book
             .lock()
@@ -298,5 +306,14 @@ mod tests {
         assert_eq!(nbt.get_int("page"), Some(2));
         assert_eq!(nbt.get_int("totalPages"), Some(5));
         assert!(nbt.get_compound("book").is_some());
+    }
+
+    #[test]
+    fn only_lectern_books_are_valid_slot_items() {
+        let lectern = LecternBlockEntity::new(BlockPos::new(0, 64, 0));
+        assert!(lectern.is_valid_slot_for(0, &ItemStack::new(1, &Item::WRITTEN_BOOK)));
+        assert!(lectern.is_valid_slot_for(0, &ItemStack::new(1, &Item::WRITABLE_BOOK)));
+        assert!(!lectern.is_valid_slot_for(0, &ItemStack::new(1, &Item::DIAMOND)));
+        assert!(!lectern.is_valid_slot_for(1, &ItemStack::new(1, &Item::WRITTEN_BOOK)));
     }
 }
