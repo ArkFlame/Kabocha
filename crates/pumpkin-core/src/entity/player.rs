@@ -1784,10 +1784,9 @@ impl Player {
             victim.get_living_entity().is_some(),
         );
 
-        let is_mace_smash = crate::item::items::mace::MaceItem::is_mace(
-            &server.item_registry,
-            item_stack.item,
-        ) && can_smash_attack(&self.living_entity);
+        let is_mace_smash =
+            crate::item::items::mace::MaceItem::is_mace(&server.item_registry, item_stack.item)
+                && can_smash_attack(&self.living_entity);
         // Vanilla adds the weapon's damage bonus before the critical hit multiplier.
         if is_mace_smash {
             let fall_distance = f64::from(self.living_entity.fall_distance.load());
