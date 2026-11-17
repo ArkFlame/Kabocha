@@ -3,6 +3,8 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
+use rand::RngExt;
+
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::entity::EntityType;
@@ -27,11 +29,14 @@ pub struct PiglinBruteEntity {
     pub mob_entity: MobEntity,
     pub immune_to_zombification: AtomicBool,
     pub time_in_overworld: AtomicI32,
+    pub aggressive: AtomicBool,
 }
 
 impl PiglinBruteEntity {
     pub const CONVERSION_TIME: i32 = 300;
     pub const XP_REWARD: u32 = 20;
+    /// Vanilla `PiglinBruteAi.ACTIVITY_SOUND_LIKELIHOOD_PER_TICK`
+    pub const ACTIVITY_SOUND_LIKELIHOOD_PER_TICK: f32 = 0.0125;
 
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
@@ -39,6 +44,7 @@ impl PiglinBruteEntity {
             mob_entity,
             immune_to_zombification: AtomicBool::new(false),
             time_in_overworld: AtomicI32::new(0),
+            aggressive: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(piglin);
         let mob_weak: Weak<dyn Mob> = {
@@ -215,6 +221,17 @@ impl Mob for PiglinBruteEntity {
             }
         } else {
             self.time_in_overworld.store(0, Ordering::Relaxed);
+        }
+
+        // Vanilla plays the angry sound when switching to the FIGHT activity and
+        // with a small per-tick chance while fighting.
+        let aggressive = self.mob_entity.get_target().is_some();
+        let was_aggressive = self.aggressive.swap(aggressive, Ordering::Relaxed);
+        if aggressive {
+            let roll = self.get_random().random_range(0.0_f32..1.0);
+            if !was_aggressive || roll < Self::ACTIVITY_SOUND_LIKELIHOOD_PER_TICK {
+                self.play_entity_sound(Sound::EntityPiglinBruteAngry, 1.0, 1.0);
+            }
         }
     }
 
