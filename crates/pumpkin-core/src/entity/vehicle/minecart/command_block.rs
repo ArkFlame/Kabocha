@@ -209,10 +209,14 @@ impl CommandBlockMinecart {
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .clone();
-                    if !captured.is_empty() {
+                    // Vanilla writes `lastOutput` back after every execution, so a
+                    // command that prints nothing clears the previously synced output.
+                    if captured.is_empty() {
+                        self.set_last_output(None);
+                    } else {
                         self.set_last_output(Some(TextComponent::text(captured)));
-                        self.on_updated(entity);
                     }
+                    self.on_updated(entity);
                 }
             }
         }
