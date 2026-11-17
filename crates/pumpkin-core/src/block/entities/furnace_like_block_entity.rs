@@ -222,8 +222,15 @@ macro_rules! impl_cooking_block_entity_base {
                         .strip_prefix("minecraft:")
                         .unwrap_or(&recipe.result.id),
                 ) && !is_top_items_empty
-                    && recipe_output_item.id == side_item_stack.item.id
                 {
+                    // Vanilla `canBurn` compares the output slot with the recipe result through
+                    // `isSameItemSameComponents`, so a same-item stack with other components must
+                    // block cooking instead of silently dropping the crafted result.
+                    let recipe_output_stack =
+                        ItemStack::new(recipe.result.count, recipe_output_item);
+                    if !side_item_stack.are_items_and_components_equal(&recipe_output_stack) {
+                        return false;
+                    }
                     // Vanilla `canBurn`: the result stack must have room for the whole result.
                     let total =
                         u16::from(side_item_stack.item_count) + u16::from(recipe.result.count);
@@ -251,7 +258,7 @@ macro_rules! impl_cooking_block_entity_base {
                         };
                         let output_item_stack = ItemStack::new(recipe.result.count, output_item);
 
-                        if items[2].are_equal(ItemStack::EMPTY) {
+                        if items[2].is_empty() {
                             items[2] = output_item_stack;
                         } else if items[2].are_items_and_components_equal(&output_item_stack) {
                             items[2].increment(recipe.result.count);
