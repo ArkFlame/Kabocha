@@ -67,8 +67,6 @@ hex.workspace = true
 # authentication
 reqwest = { workspace = true, features = ["json"] }
 rustls.workspace = true
-tokio-rustls.workspace = true
-rcgen.workspace = true
 
 sha1.workspace = true
 md5.workspace = true
