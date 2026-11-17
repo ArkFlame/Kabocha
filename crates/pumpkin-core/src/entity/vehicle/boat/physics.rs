@@ -280,3 +280,23 @@ mod tests {
         assert_eq!(average_ground_friction(1.8, 2), 0.9);
     }
 }
+
+/// Vanilla `Boat#getGroundFriction`: no supporting block yields 0.0 instead of a NaN average.
+fn average_ground_friction(total: f32, count: u32) -> f32 {
+    if count == 0 {
+        0.0
+    } else {
+        total / count as f32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::average_ground_friction;
+
+    #[test]
+    fn ground_friction_without_contact_is_zero_not_nan() {
+        assert_eq!(average_ground_friction(0.0, 0), 0.0);
+        assert_eq!(average_ground_friction(1.8, 2), 0.9);
+    }
+}
