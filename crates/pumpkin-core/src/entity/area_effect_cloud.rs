@@ -300,12 +300,8 @@ impl EntityBase for AreaEffectCloudEntity {
             );
         }
 
-        if age < wait_time {
-            // Respect waiting/grace period
-            return;
-        }
-
-        // Update radius
+        // Unverified: radius advances during the wait period (note: dragon breath
+        // ordering, decompiled `AreaEffectCloud.tick` not available in .vendor/).
         {
             let mut radius = self
                 .radius
@@ -328,6 +324,11 @@ impl EntityBase for AreaEffectCloudEntity {
                 pumpkin_data::tracked_data::area_effect_cloud::RADIUS,
                 current_radius,
             );
+        }
+
+        if age < wait_time {
+            // Respect waiting/grace period
+            return;
         }
 
         // Tick down reapplication map
