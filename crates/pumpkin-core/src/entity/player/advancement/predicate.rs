@@ -2301,6 +2301,10 @@ pub fn matches_entity_condition(
     _variant: Option<&str>,
 ) -> bool {
     let pred_val = cond.get(entity_key).unwrap_or(cond);
+    let distance = distance.map(|d| EntityDistance {
+        horizontal: d,
+        absolute: d,
+    });
     EntityPredicate::from_value(pred_val).matches(target_type, distance, is_baby)
 }
 
