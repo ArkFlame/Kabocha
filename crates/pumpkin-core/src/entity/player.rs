@@ -667,6 +667,8 @@ pub struct Player {
     pub mining: AtomicBool,
     pub start_mining_time: AtomicI32,
     pub tick_counter: AtomicI32,
+    /// Vanilla `lastBookTick`: the tick of the last accepted book edit.
+    pub last_book_tick: AtomicI32,
     pub mining_pos: Mutex<BlockPos>,
     /// Vanilla `hasDelayedDestroy`: a finish below the progress threshold continues in tick.
     pub has_delayed_destroy: AtomicBool,
@@ -1040,6 +1042,7 @@ impl Player {
             raid_omen_position: AtomicCell::new(None),
             entered_lava_pos: AtomicCell::new(None),
             tick_counter: AtomicI32::new(0),
+            last_book_tick: AtomicI32::new(0),
             start_mining_time: AtomicI32::new(0),
             last_input: AtomicI8::new(0),
             carried_item: Mutex::new(None),

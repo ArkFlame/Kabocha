@@ -20,6 +20,14 @@ impl JavaClient {
             }
         }
 
+        // Vanilla `handleEditBook`: edits closer than 20 ticks apart kick, checked before the slot.
+        let now = player.tick_counter.load(Ordering::Relaxed);
+        if book_edited_too_quickly(player.last_book_tick.load(Ordering::Relaxed), now) {
+            self.try_kick(&TextComponent::text("Book edited too quickly!"));
+            return;
+        }
+        player.last_book_tick.store(now, Ordering::Relaxed);
+
         // Vanilla `handleEditBook`: the packet slot must be a hotbar or off-hand slot that holds a writable book.
         let Ok(slot) = usize::try_from(packet.slot.0) else {
             return;
@@ -86,9 +94,29 @@ impl JavaClient {
     }
 }
 
+/// Vanilla `handleEditBook` kick threshold: a book edit is refused while fewer than this many ticks have passed.
+const BOOK_EDIT_COOLDOWN_TICKS: i32 = 20;
+
 /// Hotbar slots 0..=8 and the off-hand slot 40 are the only slots a client may edit a book from.
 const fn is_edit_book_slot(slot: usize) -> bool {
     matches!(slot, 0..=8 | 40)
+}
+
+/// True when `now` is inside the cooldown after `last_edit_tick` (vanilla `lastBookTick + 20 > lastTick`).
+const fn book_edited_too_quickly(last_edit_tick: i32, now: i32) -> bool {
+    last_edit_tick.saturating_add(BOOK_EDIT_COOLDOWN_TICKS) > now
+}
+
+#[cfg(test)]
+mod tests {
+    use super::book_edited_too_quickly;
+
+    #[test]
+    fn book_edit_cooldown_is_twenty_ticks() {
+        assert!(book_edited_too_quickly(100, 119));
+        assert!(!book_edited_too_quickly(100, 120));
+        assert!(!book_edited_too_quickly(0, i32::MAX));
+    }
 }
 
 /// Returns the UTF-8 size of `pages` and the byte budget they are allowed, as Paper computes it.
