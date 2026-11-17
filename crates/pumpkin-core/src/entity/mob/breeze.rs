@@ -106,6 +106,23 @@ impl Mob for BreezeEntity {
         &self.mob_entity
     }
 
+    /// Vanilla `Breeze.playAmbientSound`: idles only while it has no target or is airborne.
+    fn play_ambient_sound(&self) {
+        if self.mob_entity.get_target().is_some()
+            && self
+                .mob_entity
+                .living_entity
+                .entity
+                .on_ground
+                .load(Ordering::Relaxed)
+        {
+            return;
+        }
+        if let Some(sound) = self.get_ambient_sound() {
+            self.make_sound(sound);
+        }
+    }
+
     fn deflection(&self, projectile: &dyn EntityBase) -> ProjectileDeflection {
         let projectile_type = projectile.get_entity().entity_type;
         if projectile_type == &EntityType::WIND_CHARGE
