@@ -39,8 +39,8 @@ Remaining gaps:
 | `bed.rs:263-264`, `straw_bed.rs:268-269` | `AbstractBedBlock#getBedRule` evaluates `EnvironmentAttributes.BED_RULE` / `STRAW_BED_RULE` at the bed position | Uses `world.dimension.bed_rule` (dimension-level); `world/environment.rs` ignores `pos` | Per-position environment attribute lookup for biome overrides | M |
 | `crates/pumpkin-data/src/generated/dimension.rs:13-18` | `BedRule` record: `canSleep`, `canSetSpawn`, `destroyOnUse`, `destroyOnLeave`, `errorMessage` | Generated `BedRule` has `can_sleep`, `can_set_spawn`, `explodes` only; no `destroy_on_leave`/`error_message` | Extend `pumpkin-codegen` + regenerate from `assets/` | M |
 | `straw_bed.rs:268-269` | `StrawBedBlock#getBedEnvironmentAttribute` returns `STRAW_BED_RULE` | Straw bed reads the dimension bed rule | Needs the per-position attribute work above | M |
-| `straw_bed.rs` (`getSleepHeight`) | `StrawBedBlock#getSleepHeight` lowers the sleeping height to the straw surface | Not modelled | Cosmetic/client; only relevant if sleep height is sent | S |
-| `bed.rs:212`, `straw_bed.rs:235` | `ServerPlayer#getBedResult` returns `OTHER_PROBLEM` when already sleeping or dead | No explicit guard before `player.sleep` | Confirm `Player::sleep` rejects sleeping/dead players; add guard if not | S |
+| `straw_bed.rs` (`getSleepHeight`) | `StrawBedBlock#getSleepHeight` lowers the sleeping height to the straw surface | Not modelled | Cosmetic/client; only relevant if sleep height is sent | S | **STILL OPEN**
+| `bed.rs:212`, `straw_bed.rs:235` | `ServerPlayer#getBedResult` returns `OTHER_PROBLEM` when already sleeping or dead | No explicit guard before `player.sleep` | Confirm `Player::sleep` rejects sleeping/dead players; add guard if not | S | **FIXED** (bed.rs already guarded; straw_bed guard added)
 
 Note: `destroy_on_leave` for straw beds is already handled in
 `crates/pumpkin-core/src/entity/player.rs:2807` via `StrawBedBlock::destroy_after_use`.

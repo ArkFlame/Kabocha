@@ -11,7 +11,7 @@ Verdict: structure complete (goal list/priorities, variants, spawn variant, bree
 
 | file:line | vanilla | gap | fix | size |
 |---|---|---|---|---|
-| `mod.rs:877` (`get_ambient_sound`) | `Fox.getAmbientSound` gates the night screech on `!level.isDay()` | Rust uses `world.is_bright_outside()`, which is false in rain/thunder, so a fox screeches on a rainy day and stays silent on a dark-but-raining night | use a day-time check (`world.is_day()`) instead of `is_bright_outside` | S |
+| `mod.rs:877` (`get_ambient_sound`) | `Fox.getAmbientSound` gates the night screech on `!level.isDay()` | Rust uses `world.is_bright_outside()`, which is false in rain/thunder, so a fox screeches on a rainy day and stays silent on a dark-but-raining night | use a day-time check (`world.is_day()`) instead of `is_bright_outside` | S | **STILL OPEN**
 
 ## Notes (not gaps)
 - `goals.rs` (`has_shelter`) uses the motion-blocking heightmap; vanilla `Fox$FoxSleepGoal` shelter test needs decompiled confirmation (possible `canSeeSky` difference), left unchanged.
