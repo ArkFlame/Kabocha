@@ -151,18 +151,13 @@ impl FishingBobberEntity {
             && let Some(hooked) = world.get_entity_by_id(hooked_id)
         {
             // Bukkit `PlayerFishEvent`: reeling in a hooked entity is the `CAUGHT_ENTITY` outcome.
-            if self
-                .fire_fish_event(
-                    &world,
-                    PlayerFishState::CaughtEntity,
-                    Some(&*hooked),
-                    hand,
-                    0,
-                )
-                .is_none()
-            {
-                return None;
-            }
+            self.fire_fish_event(
+                &world,
+                PlayerFishState::CaughtEntity,
+                Some(&*hooked),
+                hand,
+                0,
+            )?;
 
             let player_pos = player.get_entity().pos.load();
             let bobber_pos = self.entity.pos.load();
@@ -272,12 +267,7 @@ impl FishingBobberEntity {
 
         if self.entity.on_ground.load(Ordering::Relaxed) {
             // Bukkit PlayerFishEvent: a hook at rest is the IN_GROUND outcome.
-            if self
-                .fire_fish_event(&world, PlayerFishState::InGround, None, hand, 0)
-                .is_none()
-            {
-                return None;
-            }
+            self.fire_fish_event(&world, PlayerFishState::InGround, None, hand, 0)?;
             damage = 2;
         }
 

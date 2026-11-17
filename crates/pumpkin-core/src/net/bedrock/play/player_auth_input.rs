@@ -448,9 +448,15 @@ mod tests {
 
     #[test]
     fn analog_drift_inside_deadzone_is_ignored() {
-        assert_eq!(analog_move(Vector2::new(0.05, -0.05)), (false, false, false, false));
+        assert_eq!(
+            analog_move(Vector2::new(0.05, -0.05)),
+            (false, false, false, false)
+        );
         // Returns (y>d, y<-d, x>d, x<-d), i.e. (up, down, left, right) as wired in the caller.
-        assert_eq!(analog_move(Vector2::new(0.5, -0.5)), (false, true, true, false));
+        assert_eq!(
+            analog_move(Vector2::new(0.5, -0.5)),
+            (false, true, true, false)
+        );
     }
 
     #[test]

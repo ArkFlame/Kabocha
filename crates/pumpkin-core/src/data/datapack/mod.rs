@@ -1360,6 +1360,7 @@ impl DatapackManager {
         name == "vanilla"
     }
 
+    #[must_use]
     pub fn is_embedded_pack(name: &str) -> bool {
         pumpkin_world::generation::structure::template::all_embedded_datapack_names()
             .contains(&name)
@@ -1667,9 +1668,7 @@ impl DatapackManager {
         }
 
         if Self::is_required_pack(&target_pack) {
-            return Err(format!(
-                "Cannot disable required datapack '{target_pack}'"
-            ));
+            return Err(format!("Cannot disable required datapack '{target_pack}'"));
         }
 
         let target = target_pack;
@@ -3302,6 +3301,8 @@ mod tests {
     #[test]
     fn only_vanilla_pack_is_required() {
         assert!(super::DatapackManager::is_required_pack("vanilla"));
-        assert!(!super::DatapackManager::is_required_pack("pumpkin-unit-test"));
+        assert!(!super::DatapackManager::is_required_pack(
+            "pumpkin-unit-test"
+        ));
     }
 }

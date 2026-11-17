@@ -9,12 +9,6 @@ use crate::entity::{EntityBase, player::Player};
 const DEFAULT_VEHICLE_ATTACHMENT: Vector3<f64> = Vector3::new(0.0, 0.6, 0.0);
 
 impl BoatEntity {
-    pub(in crate::entity) fn position_rider(&self, passenger: &dyn EntityBase) {
-        if let Some(position) = self.rider_position(passenger) {
-            passenger.get_entity().set_pos(position);
-        }
-    }
-
     pub(in crate::entity) fn synchronize_mount(&self, player: &Player) -> bool {
         let Some(position) = self.rider_position(player) else {
             return false;

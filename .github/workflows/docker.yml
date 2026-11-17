@@ -122,8 +122,6 @@ jobs:
             PUMPKIN_TAG=${{ env.PUMPKIN_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ env.REGISTRY }}/${{ env.REGISTRY_IMAGE }}
-          build-args: |
-            PUMPKIN_TAG=${{ env.PUMPKIN_TAG }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest

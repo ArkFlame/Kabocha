@@ -59,7 +59,6 @@ static STRUCTURE_NOT_FOUND_ERROR_TYPE: CommandErrorType<1> = CommandErrorType::n
     translation::bedrock::COMMANDS_LOCATE_STRUCTURE_FAIL_NOSTRUCTUREFOUND,
 );
 
-
 static BIOME_NOT_FOUND_ERROR_TYPE: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_LOCATE_BIOME_NOT_FOUND,
     translation::bedrock::COMMANDS_LOCATE_BIOME_FAIL,
@@ -263,7 +262,10 @@ impl CommandExecutor for LocateStructureExecutor {
                         // so the command acknowledges the search and reports no result.
                         Some(StructureSearch::Pending) => {
                             context.source.send_feedback(
-                                TextComponent::text(format!("Searching for {}...", searched.printable())),
+                                TextComponent::text(format!(
+                                    "Searching for {}...",
+                                    searched.printable()
+                                )),
                                 false,
                             );
                             return Ok(0);

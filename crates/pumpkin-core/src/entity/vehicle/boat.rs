@@ -528,7 +528,10 @@ mod tests {
         assert!(!filtered.has("LootTable"));
         assert!(!filtered.has("LootTableSeed"));
         assert!(filtered.has("Items"));
-        assert!(nbt.has("LootTable"), "the source compound is left untouched");
+        assert!(
+            nbt.has("LootTable"),
+            "the source compound is left untouched"
+        );
     }
 
     #[test]

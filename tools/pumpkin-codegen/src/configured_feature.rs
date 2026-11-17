@@ -67,7 +67,12 @@ fn collect_configured_features(dir: &Path, prefix: &str, map: &mut BTreeMap<Stri
 }
 
 /// Emits a geode IntProvider, falling back to the vanilla codec default when the key is omitted.
-fn geode_int_provider(config: &Value, key: &str, default_min: i32, default_max: i32) -> TokenStream {
+fn geode_int_provider(
+    config: &Value,
+    key: &str,
+    default_min: i32,
+    default_max: i32,
+) -> TokenStream {
     if config[key].is_null() {
         quote! { IntProvider::Object(NormalIntProvider::Uniform(UniformIntProvider { min_inclusive: #default_min, max_inclusive: #default_max })) }
     } else {
@@ -138,7 +143,7 @@ pub fn build() -> TokenStream {
         .collect();
 
     quote! {
-        #[allow(clippy::all, unused_imports, dead_code, clippy::large_stack_frames, clippy::too_many_lines)]
+        #[allow(clippy::all, unused_imports, dead_code, clippy::large_unopt_stack_frames, clippy::too_many_lines)]
         fn build_configured_features() -> std::collections::HashMap<pumpkin_data::configured_feature::ConfiguredFeature, ConfiguredFeature> {
             use crate::generation::block_predicate::{
                 AllOfBlockPredicate, AnyOfBlockPredicate, BlockPredicate,

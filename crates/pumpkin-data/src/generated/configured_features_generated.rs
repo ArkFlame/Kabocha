@@ -3,7 +3,7 @@
     clippy::all,
     unused_imports,
     dead_code,
-    clippy::large_stack_frames,
+    clippy::large_unopt_stack_frames,
     clippy::too_many_lines
 )]
 fn build_configured_features()

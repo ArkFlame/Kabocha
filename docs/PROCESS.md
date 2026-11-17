@@ -39,7 +39,7 @@ How Kabocha is run. The story and cost are in `docs/METHODOLOGY.md`; the worker 
 | Script | Purpose |
 |---|---|
 | `batch-merge.sh` | batch-merge.sh <name> <pr>...  -- in worktree kab/<name>, apply each upstream PR as a squash commit onto master. |
-| `boot.sh` | boot.sh [secs=90]  -- boot debug server in scratch dir, wait for "Done", send `stop`, grep panics/errors. Exit 0 if clea |
+| `boot.sh` | boot.sh [secs=90]  -- boot debug server in scratch dir, wait for "Done", send `stop`, grep panics/errors. Exit 0 if clean. |
 | `brief-pr.sh` | brief-pr.sh <pr>  -- write a self-contained, structured worker brief for landing upstream PR <pr>; prints brief path. |
 | `cargo.sh` | cargo.sh <cargo args>  -- the ONLY way agents run cargo: shared warm target, 2 slots, half the cores, waits for free RAM |
 | `check.sh` | check.sh [-f] <crate>...  -- default: fmt + cargo check -p (fast). -f: also clippy -D warnings + nextest (before landing |
@@ -72,7 +72,7 @@ How Kabocha is run. The story and cost are in `docs/METHODOLOGY.md`; the worker 
 | `requeue.sh` | requeue.sh -- make unfinished work eligible again so worker pools never run dry. |
 | `sync-upstream.sh` | sync-upstream.sh  -- fetch upstream and report ahead/behind; merges nothing. |
 | `tracker-md.sh` | tracker-md.sh [--commit] -- regenerate TRACKER.md from docs/PARITY.tsv, our commits (upstream/master..master) and live w |
-| `tracker-refill.sh` | tracker-refill.sh -- keep KAB_TRACKER_SLOTS (default 10) OpenCode workers on parity-tracker slices that no upstream issu |
+| `tracker-refill.sh` | tracker-refill.sh -- keep KAB_TRACKER_SLOTS (default 10) OpenCode workers on parity-tracker slices that no upstream issue. |
 | `tracker-watch.sh` | tracker-watch.sh -- keep TRACKER.md current against our commits. Polls every 30s; when master's HEAD or the set of runni |
 | `tune-tasks.sh` | tune-tasks.sh -- print tasks-per-issue-worker: grows when recent workers finish fast (<8 min), shrinks when slow (>20 mi |
 | `upstream-queue.sh` | upstream-queue.sh prs/issues  -- dump upstream open items as TSV: number, size/lines, title, labels. Retry-safe (gh is f |

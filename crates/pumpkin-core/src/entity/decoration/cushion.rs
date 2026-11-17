@@ -522,16 +522,13 @@ mod tests {
         world.spawn_entity(cushion.clone());
 
         cushion.drop_and_remove(None);
-        let handled = cushion.damage_with_context(
-            &*cushion,
-            1.0,
-            DamageType::GENERIC,
-            None,
-            None,
-            None,
-        );
+        let handled =
+            cushion.damage_with_context(&*cushion, 1.0, DamageType::GENERIC, None, None, None);
         level.shutdown().await;
 
-        assert!(handled, "a second hit on a removed cushion must count as handled");
+        assert!(
+            handled,
+            "a second hit on a removed cushion must count as handled"
+        );
     }
 }
