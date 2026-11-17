@@ -200,14 +200,22 @@ impl BlockBehaviour for NoteBlock {
                 3.0,
                 pitch,
             );
-            return true;
+        } else {
+            args.world.play_sound_raw(
+                convert_instrument_to_sound(instrument) as u16,
+                SoundCategory::Records,
+                &args.position.to_centered_f64(),
+                3.0,
+                pitch,
+            );
         }
-        args.world.play_sound_raw(
-            convert_instrument_to_sound(instrument) as u16,
-            SoundCategory::Records,
-            &args.position.to_centered_f64(),
-            3.0,
-            pitch,
+        // Vanilla spawns the note particle server-side in `triggerEvent`, for every instrument.
+        args.world.spawn_particle(
+            args.position.to_centered_f64() + Vector3::new(0.0, 0.7, 0.0),
+            Vector3::new(f32::from(note_props.note) / 24.0, 0.0, 0.0),
+            0.0,
+            1,
+            pumpkin_data::particle::Particle::Note,
         );
         true
     }
