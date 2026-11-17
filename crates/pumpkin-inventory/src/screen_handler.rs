@@ -1046,7 +1046,7 @@ pub trait ScreenHandler: Send + Sync {
                             if drop_stack.is_empty() {
                                 break;
                             }
-                            slot.on_take_item(player, &drop_stack);
+                            // `safe_take` already calls `on_take_item`; a second call would consume inputs twice.
                             player.drop_item(drop_stack, true);
                         }
                     } else {
