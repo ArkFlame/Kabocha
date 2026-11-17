@@ -3770,11 +3770,36 @@ fn build_configured_features()
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkPatchAncientCity,
-        ConfiguredFeature::NoOp,
+        ConfiguredFeature::SculkPatch(
+            crate::generation::feature::features::sculk_patch::SculkPatchFeature {
+                charge_count: 10i32,
+                amount_per_charge: 32i32,
+                spread_attempts: 64i32,
+                growth_rounds: 0i32,
+                spread_rounds: 1i32,
+                extra_rare_growths: IntProvider::Object(NormalIntProvider::Uniform(
+                    UniformIntProvider {
+                        min_inclusive: 1i32,
+                        max_inclusive: 3i32,
+                    },
+                )),
+                catalyst_chance: 0.5f32,
+            },
+        ),
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkPatchDeepDark,
-        ConfiguredFeature::NoOp,
+        ConfiguredFeature::SculkPatch(
+            crate::generation::feature::features::sculk_patch::SculkPatchFeature {
+                charge_count: 10i32,
+                amount_per_charge: 32i32,
+                spread_attempts: 64i32,
+                growth_rounds: 0i32,
+                spread_rounds: 1i32,
+                extra_rare_growths: IntProvider::Constant(0i32),
+                catalyst_chance: 0.5f32,
+            },
+        ),
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkVein,
