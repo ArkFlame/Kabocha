@@ -237,6 +237,7 @@ use crate::net::bedrock::play::{
 };
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::block_properties::HorizontalFacing;
+use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::{AttributeModifiersImpl, EnchantmentsImpl, Operation};
 use pumpkin_data::data_component_impl::{
@@ -289,7 +290,8 @@ use pumpkin_protocol::java::server::play::{
 };
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::{
-    boundingbox::BoundingBox, experience, position::BlockPos, vector2::Vector2, vector3::Vector3,
+    boundingbox::BoundingBox, experience, position::BlockPos, vector2::Vector2,
+    vector3::Vector3, wrap_degrees,
 };
 use pumpkin_util::permission::PermissionLvl;
 use pumpkin_util::resource_location::ResourceLocation;
@@ -302,6 +304,7 @@ use pumpkin_world::biome;
 use pumpkin_world::cylindrical_chunk_iterator::Cylindrical;
 
 use crate::block;
+use crate::block::blocks::bed::BedBlock;
 use crate::block::blocks::straw_bed::StrawBedBlock;
 use crate::command::context::command_source::CommandSource;
 use crate::command::node::dispatcher::CommandDispatcher;
@@ -2830,8 +2833,25 @@ impl Player {
             );
         }
 
+        // LivingEntity#stopSleeping moves the player to the first safe
+        // stand-up position (bunk-bed aware) and turns them toward the bed.
+        let facing = BedProperties::from_state_id(bed_state)
+            .facing
+            .to_block_direction();
+        let stand_up = BedBlock::find_stand_up_position(
+            self.get_entity().entity_type,
+            &world,
+            &bed_pos,
+            facing,
+            self.get_entity().yaw.load(),
+        )
+        .unwrap_or_else(|| bed_pos.up().to_f64().add_raw(0.0, 0.1, 0.0));
+        let look_direction = bed_pos.to_f64().sub(&stand_up).normalize();
+        let yaw = wrap_degrees(look_direction.z.atan2(look_direction.x).to_degrees() as f32 - 90.0);
+
         self.living_entity.entity.set_pose(EntityPose::Standing);
-        self.living_entity.entity.set_pos(self.position());
+        self.living_entity.entity.set_pos(stand_up);
+        self.get_entity().set_rotation(yaw, 0.0);
         self.living_entity.entity.set_synced_data(
             pumpkin_data::tracked_data::player::SLEEPING_POS_ID,
             None::<BlockPos>,
