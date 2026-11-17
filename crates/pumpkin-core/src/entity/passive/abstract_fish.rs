@@ -300,6 +300,11 @@ macro_rules! fish_mob_hooks {
             $crate::entity::passive::abstract_fish::AbstractFish::fish_base_tick(self, caller);
         }
 
+        /// Vanilla WaterAnimal.getMaxAirSupply: 4800 ticks, not the 300 of land mobs.
+        fn mob_max_air_supply(&self) -> i32 {
+            $crate::entity::passive::water_animal::WATER_ANIMAL_MAX_AIR_SUPPLY
+        }
+
         fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
             $crate::entity::passive::abstract_fish::AbstractFish::fish_remove_when_far_away(self)
         }
