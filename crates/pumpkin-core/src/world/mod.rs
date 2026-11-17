@@ -2607,6 +2607,7 @@ impl World {
             // `forceGameTimeSynchronization` in `Server::tick_worlds`, *before*
             // this increment.
             level_time.tick(advance_time);
+            pumpkin_world::chunk::format::set_last_update_clock(level_time.world_age);
 
             // Auto-save logic
             if level_time.world_age % 100 == 0 {

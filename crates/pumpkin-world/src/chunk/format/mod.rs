@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
     sync::{
         RwLock,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
     },
 };
 
@@ -56,9 +56,27 @@ const MODELLED_ROOT_TAGS: &[&str] = &[
     "fluid_ticks",
     "isLightOn",
     "InhabitedTime",
+    "LastUpdate",
     "PumpkinCustomData",
     "BukkitValues",
 ];
+
+/// Game time written to the chunk `LastUpdate` tag. Process-wide: the world
+/// tick stores its world age here, so with several worlds the last one to tick
+/// wins. Chunks are saved from many worlds, so a per-level clock would need
+/// threading through every save path.
+static LAST_UPDATE_CLOCK: AtomicI64 = AtomicI64::new(0);
+
+/// Sets the game time that the next chunk save writes as `LastUpdate`.
+pub fn set_last_update_clock(world_age: i64) {
+    LAST_UPDATE_CLOCK.store(world_age, Ordering::Relaxed);
+}
+
+/// Game time that chunk saves write as `LastUpdate`.
+#[must_use]
+pub fn last_update_clock() -> i64 {
+    LAST_UPDATE_CLOCK.load(Ordering::Relaxed)
+}
 
 fn preserved_root_tags(root_tag: &NbtCompound) -> NbtCompound {
     let mut preserved = NbtCompound::new();
@@ -739,6 +757,7 @@ impl ChunkData {
         }
 
         root_compound.put_int("DataVersion", WORLD_DATA_VERSION);
+        root_compound.put_long("LastUpdate", last_update_clock());
         root_compound.put_int("xPos", self.x);
         root_compound.put_int("zPos", self.z);
         root_compound.put_int("yPos", section_coords::block_to_section(self.section.min_y));
@@ -2169,6 +2188,23 @@ mod tests {
             Some(WORLD_DATA_VERSION)
         );
     }
+    #[test]
+    fn last_update_round_trips_the_world_clock() {
+        use crate::chunk::ChunkData;
+        use pumpkin_util::math::vector2::Vector2;
+
+        set_last_update_clock(12_345);
+        let nbt = test_chunk(vec![test_section(-4, "minecraft:stone", true)]);
+        let chunk = ChunkData::from_bytes(&nbt.write(), Vector2::new(0, 0)).expect("chunk parses");
+
+        let saved = chunk.to_bytes().expect("chunk serializes");
+        let mut cursor = std::io::Cursor::new(saved.as_ref());
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(&mut cursor);
+        let reloaded = pumpkin_nbt::Nbt::read(&mut reader).expect("saved chunk parses");
+
+        assert_eq!(reloaded.root_tag.get_long("LastUpdate"), Some(12_345));
+    }
+
     /// A chunk whose open-sky sections are uniform, the shape the light pass produces.
     fn chunk_with_uniform_sky(top_lit_section: usize) -> ChunkData {
         chunk_with_sky(|index| match index {
