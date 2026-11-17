@@ -105,9 +105,24 @@ impl BlockBehaviour for ShulkerBoxBlock {
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
-        // On the server, we don't need the Animation steps for now, because the client is responsible for that.
-        // TODO: Do not open the shulker box when it is currently closing
-        args.r#type == Self::OPEN_ANIMATION_EVENT_TYPE
+        // The client plays the lid animation; the server only tracks its state so that
+        // an OPENING event is dropped while the lid is closing (vanilla `triggerEvent`).
+        if args.r#type != Self::OPEN_ANIMATION_EVENT_TYPE {
+            return false;
+        }
+        let Some(block_entity) = args.world.get_block_entity(args.position) else {
+            return true;
+        };
+        let Some(shulker) = block_entity
+            .as_any()
+            .downcast_ref::<ShulkerBoxBlockEntity>()
+        else {
+            return true;
+        };
+        match shulker.animation.lock() {
+            Ok(mut animation) => animation.on_open_count(args.data),
+            Err(_) => true,
+        }
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
@@ -118,8 +133,19 @@ impl BlockBehaviour for ShulkerBoxBlock {
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        // Vanilla `ShulkerBoxBlock.canOpen`: a closed box cannot open when a
-        // collidable block occupies the space its lid sweeps through.
+        // Vanilla `ShulkerBoxBlock.canOpen`: a box whose lid is already fully open
+        // is left alone, otherwise a collidable block in the lid sweep blocks it.
+        let fully_open = match args.world.get_block_entity(args.position) {
+            Some(block_entity) => block_entity
+                .as_any()
+                .downcast_ref::<ShulkerBoxBlockEntity>()
+                .and_then(|shulker| shulker.animation.lock().ok())
+                .is_some_and(|animation| animation.is_fully_open()),
+            None => false,
+        };
+        if fully_open {
+            return BlockActionResult::Success;
+        }
         let facing =
             EndRodLikeProperties::from_state_id(args.world.get_block_state_id(args.position))
                 .facing;

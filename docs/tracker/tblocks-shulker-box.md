@@ -22,13 +22,13 @@ Verified against vanilla `ShulkerBoxBlock` / `ShulkerBoxBlockEntity` / `Shulker`
 
 | # | file:line | vanilla class | gap | suggested fix | size |
 |---|---|---|---|---|---|
-| 1 | `block/blocks/shulker_box.rs:95` | `ShulkerBoxBlockEntity.triggerEvent` / `startAnimation` | TODO: a box that is currently closing still gets the OPENING block event; vanilla ignores OPENING while the animation status is CLOSING. | Track an animation status/open-count on the block entity (or in the event handler) and drop the OPENING event while closing. | M |
-| 2 | `block/blocks/shulker_box.rs:108` | `ShulkerBoxBlock.canOpen` | Missing early return `getAnimationProgress(1.0F) >= 1.0F`: a box that is already (or still) open cannot be reopened when its lid space is obstructed during the animation. | Expose the block entity progress (needs the animation state from gap 1) and return `Success` before the space test when progress >= 1. | S |
+| FIXED (h3, UNVERIFIED) 1 | `block/blocks/shulker_box.rs:95` | `ShulkerBoxBlockEntity.triggerEvent` / `startAnimation` | TODO: a box that is currently closing still gets the OPENING block event; vanilla ignores OPENING while the animation status is CLOSING. | Track an animation status/open-count on the block entity (or in the event handler) and drop the OPENING event while closing. | M |
+| FIXED (h3, UNVERIFIED) 2 | `block/blocks/shulker_box.rs:108` | `ShulkerBoxBlock.canOpen` | Missing early return `getAnimationProgress(1.0F) >= 1.0F`: a box that is already (or still) open cannot be reopened when its lid space is obstructed during the animation. | Expose the block entity progress (needs the animation state from gap 1) and return `Success` before the space test when progress >= 1. | S |
 | FIXED (c42cfdce2, UNVERIFIED) 3 | `block/blocks/shulker_box.rs:108` | `ShulkerBoxBlock.useWithoutItem` | Always returns `BlockActionResult::Success`; vanilla returns `CONSUME` with a shulker block entity and `PASS` without one. | Check `BlockActionResult` semantics and return the matching variant when the block entity is missing. | S |
 | 4 | `block/entities/shulker_box.rs:295` | `ShulkerBoxBlockEntity` (not a `WorldlyContainer`) | `is_sided()` is true; vanilla has no per-face slot map. Current `SHULKER_SLOTS` = 0..27 so behaviour is identical, but the override is meaningless. | Leave as is unless hopper parity requires non-Worldly containers to be modelled; then drop the override. | S |
 
 ## Worker pass (kab/h8, gapwave2-7)
-- gap 1 (OPENING event while CLOSING): STILL OPEN. Needs animation status on the block entity; M.
-- gap 2 (`canOpen` early return at progress >= 1): STILL OPEN. Depends on gap 1 animation state.
+- gap 1 (OPENING event while CLOSING): FIXED (h3, UNVERIFIED) via `AnimationState` on the block entity, ticked in `tick`.
+- gap 2 (`canOpen` early return at progress >= 1): FIXED (h3, UNVERIFIED) via `AnimationState::is_fully_open`.
 - gap 3 (`useWithoutItem` CONSUME/PASS): STILL OPEN. No decompiled vanilla in the tree (`.vendor` absent) to confirm the CONSUME/PASS split; not changed without a source check.
 - gap 4 (`is_sided` override): STILL OPEN, cosmetic.

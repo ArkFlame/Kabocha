@@ -21,6 +21,7 @@ pub struct ShulkerBoxBlockEntity {
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
+    pub animation: std::sync::Mutex<AnimationState>,
 
     // Viewer
     pub viewers: ViewerCountTracker,
@@ -45,6 +46,7 @@ impl BlockEntity for ShulkerBoxBlockEntity {
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
+            animation: std::sync::Mutex::new(AnimationState::default()),
             viewers: ViewerCountTracker::new(),
             metadata: super::ContainerMetadata::from_nbt(nbt),
         };
@@ -66,6 +68,9 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
+        if let Ok(mut animation) = self.animation.lock() {
+            animation.step();
+        }
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
     }
@@ -198,6 +203,67 @@ impl ViewerCountListener for ShulkerBoxBlockEntity {
     }
 }
 
+/// Lid animation state, mirroring vanilla `ShulkerBoxBlockEntity.AnimationStatus`
+/// with the progress kept as a fraction of the fully open lid.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct AnimationState {
+    pub status: AnimationStatus,
+    pub progress: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AnimationStatus {
+    #[default]
+    Closed,
+    Opening,
+    Opened,
+    Closing,
+}
+
+impl AnimationState {
+    /// Progress added or removed per tick (vanilla `updateAnimation`).
+    pub const STEP: f32 = 0.1;
+
+    /// Applies the open-count block event (`data` = viewer count). Returns false when
+    /// the event is dropped: vanilla ignores an OPENING event while the lid is closing.
+    pub fn on_open_count(&mut self, open_count: u8) -> bool {
+        if open_count == 0 {
+            self.status = AnimationStatus::Closing;
+            return true;
+        }
+        if self.status == AnimationStatus::Closing {
+            return false;
+        }
+        self.status = AnimationStatus::Opening;
+        true
+    }
+
+    /// Advances the lid by one tick.
+    pub fn step(&mut self) {
+        match self.status {
+            AnimationStatus::Opening => {
+                self.progress = (self.progress + Self::STEP).min(1.0);
+                if self.progress >= 1.0 {
+                    self.status = AnimationStatus::Opened;
+                }
+            }
+            AnimationStatus::Closing => {
+                self.progress = (self.progress - Self::STEP).max(0.0);
+                if self.progress <= 0.0 {
+                    self.status = AnimationStatus::Closed;
+                }
+            }
+            AnimationStatus::Opened | AnimationStatus::Closed => {}
+        }
+    }
+
+    /// True once the lid is fully open (vanilla `getAnimationProgress(1.0F) >= 1.0F`).
+    #[must_use]
+    pub fn is_fully_open(&self) -> bool {
+        self.progress >= 1.0
+    }
+}
+
 impl ShulkerBoxBlockEntity {
     pub const INVENTORY_SIZE: usize = 27;
     pub const OPEN_ANIMATION_EVENT_TYPE: u8 = 1;
@@ -210,6 +276,7 @@ impl ShulkerBoxBlockEntity {
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
+            animation: std::sync::Mutex::new(AnimationState::default()),
             viewers: ViewerCountTracker::new(),
             metadata: super::ContainerMetadata::default(),
         }
@@ -354,6 +421,29 @@ pub fn build_shulker_box_actor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opening_event_is_dropped_while_closing() {
+        let mut state = AnimationState::default();
+        assert!(state.on_open_count(1));
+        assert_eq!(state.status, AnimationStatus::Opening);
+        assert!(state.on_open_count(0));
+        assert!(!state.on_open_count(1));
+        assert_eq!(state.status, AnimationStatus::Closing);
+    }
+
+    #[test]
+    fn lid_reaches_fully_open_after_ten_ticks() {
+        let mut state = AnimationState::default();
+        state.on_open_count(1);
+        for _ in 0..9 {
+            state.step();
+        }
+        assert!(!state.is_fully_open());
+        state.step();
+        assert!(state.is_fully_open());
+        assert_eq!(state.status, AnimationStatus::Opened);
+    }
 
     #[test]
     fn shulker_box_actor_builder() {
