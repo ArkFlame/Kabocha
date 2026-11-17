@@ -87,6 +87,16 @@ pub fn can_smash_attack(attacker: &LivingEntity) -> bool {
         && !attacker.entity.is_fall_flying()
 }
 
+/// Whether `weapon` is a mace, resolved through the item behaviour registry so
+/// component-overridden items still count.
+pub fn is_mace_weapon(world: &World, weapon: &pumpkin_data::item_stack::ItemStack) -> bool {
+    world.server.upgrade().is_some_and(|server| {
+        server
+            .item_registry
+            .is_behaviour::<crate::item::items::mace::MaceItem>(weapon.item.id)
+    })
+}
+
 /// Vanilla `MaceItem.getAttackDamageBonus`, before the enchantment part.
 pub fn mace_smash_damage_bonus(fall_distance: f64) -> f64 {
     if fall_distance <= 3.0 {

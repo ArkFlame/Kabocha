@@ -1143,14 +1143,29 @@ impl MobEntity {
             return false;
         }
 
-        let attack_damage: f32 =
+        let mut attack_damage: f32 =
             self.living_entity
                 .get_attribute_value(&Attributes::ATTACK_DAMAGE) as f32;
+        let world = self.living_entity.entity.world.load();
+        let weapon = self.living_entity.held_item(caller);
+        // Vanilla `MaceItem` smash also applies to a mob holding a mace.
+        let is_mace_smash = crate::entity::combat::is_mace_weapon(&world, &weapon)
+            && crate::entity::combat::can_smash_attack(&self.living_entity);
+        if is_mace_smash {
+            attack_damage += crate::entity::combat::mace_smash_damage_bonus(f64::from(
+                self.living_entity.fall_distance.load(),
+            )) as f32;
+        }
+        let damage_type = if is_mace_smash {
+            DamageType::MACE_SMASH
+        } else {
+            DamageType::MOB_ATTACK
+        };
 
         let damaged = target.damage_with_context(
             target,
             attack_damage,
-            DamageType::MOB_ATTACK,
+            damage_type,
             // The attacker's position lets the victim's shield run the vanilla
             // directional block check for melee hits.
             Some(caller.get_entity().pos.load()),
@@ -1160,7 +1175,6 @@ impl MobEntity {
 
         if damaged {
             // Vanilla `Mob.doHurtTarget` then `LivingEntity.causeExtraKnockback`.
-            let weapon = self.living_entity.held_item(caller);
             let knockback = crate::enchantment::EnchantmentHelper::modify_knockback(
                 &weapon,
                 self.living_entity
@@ -1173,6 +1187,29 @@ impl MobEntity {
                     f64::from(knockback),
                     attack_damage,
                 );
+            }
+
+            if is_mace_smash && target.get_living_entity().is_some() {
+                // Mirrors the player smash path: impact grace, sound, knockback, fall reset.
+                let entity = &self.living_entity.entity;
+                let velocity = entity.velocity.load();
+                entity.set_velocity(Vector3::new(velocity.x, f64::from(0.01f32), velocity.z));
+                let impact_pos = self.living_entity.calculate_impact_position();
+                self.living_entity
+                    .set_ignore_fall_damage_from_current_impulse(true, impact_pos);
+                let fall_distance = self.living_entity.fall_distance.load();
+                let sound = if target.get_entity().on_ground.load(Relaxed) {
+                    if fall_distance > 5.0 {
+                        Sound::ItemMaceSmashGroundHeavy
+                    } else {
+                        Sound::ItemMaceSmashGround
+                    }
+                } else {
+                    Sound::ItemMaceSmashAir
+                };
+                world.play_sound(sound, SoundCategory::Hostile, &entity.pos.load());
+                crate::entity::combat::mace_smash_knockback(&world, caller, target);
+                self.living_entity.fall_distance.store(0.0);
             }
 
             self.living_entity
