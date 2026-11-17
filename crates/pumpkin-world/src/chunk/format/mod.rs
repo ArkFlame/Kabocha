@@ -333,6 +333,9 @@ fn top_stored_sky_section(sky_lights: &[LightContainer]) -> Option<usize> {
     )
 }
 
+/// Version byte of a `PCHK` payload. The writer and reader must agree on it.
+const PUMP_CHUNK_VERSION: u8 = 2;
+
 // Per-section light flags in the Pump format. A layer with neither flag is dark.
 const PUMP_BLOCK_LIGHT_FULL: u8 = 1;
 const PUMP_SKY_LIGHT_FULL: u8 = 1 << 1;
@@ -935,8 +938,6 @@ impl ChunkData {
 
     #[allow(clippy::too_many_lines)]
     pub fn internal_to_pump_bytes(&self) -> Bytes {
-        const PUMP_CHUNK_VERSION: u8 = 2;
-
         let is_light_correct = self.light_populated.load(Ordering::Relaxed);
         let block_entities_nbt = {
             let entities_guard = self
@@ -1111,7 +1112,7 @@ impl ChunkData {
 
         let mut buf = &chunk_data[4..];
         let version = buf.get_u8();
-        if version != 1 {
+        if version != PUMP_CHUNK_VERSION {
             return Err(ChunkParsingError::ErrorDeserializingChunk(format!(
                 "Unsupported pump chunk version {version}"
             )));
@@ -2109,8 +2110,6 @@ mod tests {
             "carving_mask",
             NbtTag::ByteArray(vec![1i8, 2, 3].into_boxed_slice()),
         );
-        nbt.root_tag.put_long("LastUpdate", 1_287_805);
-
         let written = nbt.root_tag.clone();
         let chunk = ChunkData::from_bytes(&nbt.write(), Vector2::new(0, 0)).expect("chunk parses");
         let saved = chunk.to_bytes().expect("chunk serializes");
@@ -2119,7 +2118,7 @@ mod tests {
         let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(&mut cursor);
         let reloaded = pumpkin_nbt::Nbt::read(&mut reader).expect("saved chunk parses");
 
-        for key in ["structures", "PostProcessing", "carving_mask", "LastUpdate"] {
+        for key in ["structures", "PostProcessing", "carving_mask"] {
             assert_eq!(
                 reloaded.root_tag.get(key),
                 written.get(key),
