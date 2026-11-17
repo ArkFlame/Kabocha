@@ -3116,7 +3116,6 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         let mob_entity = self.get_mob_entity();
         mob_entity.process_navigation_updates();
         mob_entity.tick_leash(self);
-        sun_burn::tick(self);
 
         if mob_entity.breeding_cooldown.load(Relaxed) > 0 {
             mob_entity.breeding_cooldown.fetch_sub(1, Relaxed);
@@ -3146,6 +3145,9 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         }
 
         mob_entity.living_entity.tick(caller, server);
+        // Vanilla checks sun burn after the fluid update, so a mob that just re-entered
+        // water is not burned from the previous tick's stale water state.
+        sun_burn::tick(self);
         self.post_tick();
         if mob_entity.living_entity.entity.tick_count.load(Relaxed)
             % MobEntity::CONTROL_FLAGS_UPDATE_INTERVAL

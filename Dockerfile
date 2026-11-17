@@ -18,6 +18,7 @@ RUN apt-get -o Acquire::Retries=3 update && \
             fi \
             ;; \
         "arm64") BIN_ARCH="ARM64" ;; \
+        "arm") BIN_ARCH="ARM32" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     if [ "${PUMPKIN_TAG}" = "latest" ]; then \

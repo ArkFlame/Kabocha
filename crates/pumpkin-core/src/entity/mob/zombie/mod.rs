@@ -1,6 +1,9 @@
 use super::conversion::{ConversionParams, ConversionTracker, convert_to};
 use super::equipment::RegionalDifficulty;
-use super::spawn::{EntitySpawnReason, RANDOM_SPAWN_BONUS_ID, SpawnGroupData, finalize_spawn};
+use super::spawn::{
+    EntitySpawnReason, HALLOWEEN_HEAD_CHANCE, JACK_O_LANTERN_CHANCE, RANDOM_SPAWN_BONUS_ID,
+    SpawnGroupData, finalize_spawn, is_halloween,
+};
 use super::{Mob, MobEntity, MobMetadata};
 use crate::entity::ai::goal::break_door::BreakDoorGoal;
 use crate::entity::ai::goal::destroy_egg::DestroyEggGoal;
@@ -68,8 +71,6 @@ const REINFORCEMENT_PLAYER_DISTANCE: f64 = 7.0;
 const BREAK_DOOR_CHANCE: f32 = 0.1;
 const BABY_CHANCE: f32 = 0.05;
 const CHICKEN_JOCKEY_CHANCE: f32 = 0.05;
-const HALLOWEEN_HEAD_CHANCE: f32 = 0.25;
-const JACK_O_LANTERN_CHANCE: f32 = 0.1;
 const DROWNING_AFFLICTION_TICKS: i32 = 600;
 const DROWNING_CONVERSION_TICKS: i32 = 300;
 
@@ -659,12 +660,6 @@ fn convert_villager_to_zombie_villager(
             }
         },
     )
-}
-
-/// The server's local date is October 31st.
-fn is_halloween() -> bool {
-    let now = time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-    now.month() == time::Month::October && now.day() == 31
 }
 
 pub fn wants_to_pick_up<M: Mob + ?Sized>(mob: &M, stack: &ItemStack) -> bool {

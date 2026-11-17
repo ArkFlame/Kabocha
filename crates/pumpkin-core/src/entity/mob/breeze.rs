@@ -95,8 +95,32 @@ impl Mob for BreezeEntity {
         })
     }
 
+    /// Vanilla `Breeze.canAttack`: only players and iron golems are valid targets.
+    fn can_attack(&self, target: &dyn EntityBase) -> bool {
+        let target_type = target.get_entity().entity_type;
+        (target_type == &EntityType::PLAYER || target_type == &EntityType::IRON_GOLEM)
+            && self.can_attack_base(target)
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    /// Vanilla `Breeze.playAmbientSound`: idles only while it has no target or is airborne.
+    fn play_ambient_sound(&self) {
+        if self.mob_entity.get_target().is_some()
+            && self
+                .mob_entity
+                .living_entity
+                .entity
+                .on_ground
+                .load(Ordering::Relaxed)
+        {
+            return;
+        }
+        if let Some(sound) = self.get_ambient_sound() {
+            self.make_sound(sound);
+        }
     }
 
     fn deflection(&self, projectile: &dyn EntityBase) -> ProjectileDeflection {
