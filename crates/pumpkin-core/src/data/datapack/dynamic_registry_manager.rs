@@ -176,8 +176,10 @@ impl DynamicRegistryManager {
                     .collect();
                 entries.sort_by(|a, b| a.entry_id.cmp(&b.entry_id));
                 let dyn_reg = DynamicRegistry::new(reg_id.clone(), entries);
-                reg_guard.insert(reg_id.clone(), dyn_reg);
-                order_guard.push(reg_id);
+                // Datapack-only registries stay server side: vanilla only sends
+                // RegistryDataLoader.SYNCHRONIZED_REGISTRIES, a fixed set, and the
+                // client ignores (and logs) unknown registry keys.
+                reg_guard.insert(reg_id, dyn_reg);
             }
         }
     }
@@ -257,12 +259,14 @@ impl DynamicRegistryManager {
 
     #[must_use]
     pub fn get_synced_registries(&self) -> Vec<Registry> {
-        let order_guard = self
-            .synced_order
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // Same order as `apply_custom_registries` (registries before synced_order) so
+        // a concurrent datapack reload cannot deadlock against this read.
         let reg_guard = self
             .registries
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let order_guard = self
+            .synced_order
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
@@ -358,7 +362,12 @@ mod tests {
         let spell_id = manager.get_raw_id("custom:spells", "custom:fire_spell");
         assert_eq!(spell_id, Some(0));
 
+        // Vanilla never syncs datapack-only registries; the client rejects unknown keys.
         let synced = manager.get_synced_registries();
-        assert!(synced.iter().any(|r| r.registry_id == "custom:spells"));
+        assert!(!synced.iter().any(|r| r.registry_id == "custom:spells"));
+        assert_eq!(
+            manager.get_entry_id("custom:spells", 0),
+            Some("custom:fire_spell".to_string())
+        );
     }
 }

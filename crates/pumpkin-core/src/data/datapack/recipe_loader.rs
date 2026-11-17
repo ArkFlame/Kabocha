@@ -170,9 +170,31 @@ fn parse_shaped(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe>
     let key_map = value.get("key")?.as_object()?;
     let mut key = Vec::new();
     for (k, v) in key_map {
-        let ch = k.chars().next()?;
+        // Vanilla's key symbol codec accepts exactly one character and reserves ' '.
+        let mut chars = k.chars();
+        let ch = chars.next()?;
+        if chars.next().is_some() || ch == ' ' {
+            return None;
+        }
         let ingredient = parse_ingredient(v)?;
         key.push((ch, ingredient));
+    }
+    // Vanilla rejects patterns referencing a symbol missing from the key, and keys defining
+    // symbols that the pattern never uses.
+    for ch in pattern
+        .iter()
+        .flat_map(|row| row.chars())
+        .filter(|c| *c != ' ')
+    {
+        if !key.iter().any(|(symbol, _)| *symbol == ch) {
+            return None;
+        }
+    }
+    if !key
+        .iter()
+        .all(|(symbol, _)| pattern.iter().any(|row| row.chars().any(|c| c == *symbol)))
+    {
+        return None;
     }
 
     let result = parse_result(value.get("result")?)?;
@@ -290,10 +312,8 @@ fn parse_transmute(recipe_id: String, value: &Value) -> Option<OwnedCraftingReci
         .map(ToString::to_string);
     let input = parse_ingredient(value.get("input")?)?;
     let material = parse_ingredient(value.get("material")?)?;
-    let result = parse_result(value.get("result")?).unwrap_or(OwnedRecipeResult {
-        item_id: "minecraft:filled_map".to_string(),
-        count: 1,
-    });
+    // Vanilla's transmute codec requires a result; an invalid one invalidates the recipe.
+    let result = parse_result(value.get("result")?)?;
     Some(OwnedCraftingRecipe::Shapeless {
         recipe_id: Some(recipe_id),
         category,
@@ -465,6 +485,51 @@ mod tests {
         assert_eq!(shrink(&["   "]), None);
         assert_eq!(shrink(&["  # "]), None);
         assert_eq!(shrink(&["#", "#", "#", "#"]), None);
+    }
+
+    #[test]
+    fn shaped_pattern_validates_the_key_like_vanilla() {
+        let missing_symbol = r##"{
+            "type": "minecraft:crafting_shaped",
+            "pattern": ["X"],
+            "key": {"#": "minecraft:stick"},
+            "result": {"id": "minecraft:stick"}
+        }"##;
+        assert!(parse_recipe("test", "missing_symbol", missing_symbol).is_none());
+
+        let unused_symbol = r##"{
+            "type": "minecraft:crafting_shaped",
+            "pattern": ["#"],
+            "key": {"#": "minecraft:stick", "X": "minecraft:diamond"},
+            "result": {"id": "minecraft:stick"}
+        }"##;
+        assert!(parse_recipe("test", "unused_symbol", unused_symbol).is_none());
+
+        let multi_char_key = r##"{
+            "type": "minecraft:crafting_shaped",
+            "pattern": ["X"],
+            "key": {"XY": "minecraft:stick"},
+            "result": {"id": "minecraft:stick"}
+        }"##;
+        assert!(parse_recipe("test", "multi_char_key", multi_char_key).is_none());
+
+        let space_key = r##"{
+            "type": "minecraft:crafting_shaped",
+            "pattern": ["X"],
+            "key": {" ": "minecraft:stick"},
+            "result": {"id": "minecraft:stick"}
+        }"##;
+        assert!(parse_recipe("test", "space_key", space_key).is_none());
+    }
+
+    #[test]
+    fn transmute_recipe_requires_a_result() {
+        let json = r#"{
+            "type": "minecraft:crafting_transmute",
+            "input": "minecraft:filled_map",
+            "material": "minecraft:map"
+        }"#;
+        assert!(parse_recipe("test", "map_cloning", json).is_none());
     }
 
     #[test]

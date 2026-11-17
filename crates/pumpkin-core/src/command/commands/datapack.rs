@@ -63,6 +63,10 @@ fn find_pack_name(server: &Server, input: &str) -> Option<String> {
     crate::data::datapack::DatapackManager::find_pack_name(server, input)
 }
 
+fn is_embedded_pack(name: &str) -> bool {
+    crate::data::datapack::DatapackManager::is_embedded_pack(name)
+}
+
 fn format_pack(name: &str) -> TextComponent {
     TextComponent::text(format!("[{name}]")).color_named(NamedColor::Green)
 }
@@ -140,7 +144,7 @@ impl CommandExecutor for DatapackListExecutor {
             ListFilter::All => {
                 send_enabled_list(context, &enabled);
                 send_available_list(context, &available);
-                Ok(enabled.len() as i32)
+                Ok((enabled.len() + available.len()) as i32)
             }
             ListFilter::Enabled => {
                 send_enabled_list(context, &enabled);
@@ -265,7 +269,7 @@ impl CommandExecutor for DatapackEnableExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 
@@ -349,7 +353,7 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 
@@ -361,7 +365,7 @@ impl CommandExecutor for DatapackDisableExecutor {
         let server = context.server();
 
         let Some(target_pack) = find_pack_name(server, name_str) else {
-            return Err(ERROR_DISABLE_FAILED
+            return Err(ERROR_UNKNOWN_DATAPACK
                 .create_without_context(TextComponent::text(name_str.to_string())));
         };
 
@@ -371,9 +375,11 @@ impl CommandExecutor for DatapackDisableExecutor {
                 .create_without_context(TextComponent::text(name_str.to_string())));
         }
 
-        if target_pack == "vanilla" {
+        // Built-in packs are compiled into the server and reported as enabled
+        // again on every load, so disabling one is not possible.
+        if is_embedded_pack(&target_pack) {
             return Err(ERROR_DISABLE_FAILED
-                .create_without_context(TextComponent::text("vanilla".to_string())));
+                .create_without_context(TextComponent::text(target_pack.clone())));
         }
 
         let target = target_pack.clone();
@@ -401,7 +407,7 @@ impl CommandExecutor for DatapackDisableExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 

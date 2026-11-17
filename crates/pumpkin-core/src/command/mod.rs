@@ -368,13 +368,6 @@ impl CommandSender {
                 let command_block_props = CommandBlockLikeProperties::from_state_id(state_id);
                 let facing = command_block_props.facing;
 
-                let horizontal_direction = match facing {
-                    Facing::South => 0.0,
-                    Facing::West => 90.0,
-                    Facing::North => 180.0,
-                    Facing::Up | Facing::Down | Facing::East => 270.0,
-                };
-
                 // TODO: when command blocks get custom names, add a check for it
                 let name = TextComponent::text("@");
 
@@ -383,7 +376,7 @@ impl CommandSender {
                     world,
                     None,
                     pos.to_centered_f64(),
-                    Vector2::new(0.0, horizontal_direction),
+                    Vector2::new(0.0, command_block_y_rot(facing)),
                     name.clone().get_text(),
                     name,
                     server.clone(),
@@ -417,12 +410,32 @@ impl CommandSender {
     }
 }
 
+/// Command block sources use the block's facing for local coordinates.
+///
+/// Vanilla `CommandBlockEntity` maps only horizontal facings; vertical command
+/// blocks fall through to `Vec2.ZERO`, so they keep a zero yaw.
 const fn command_block_y_rot(facing: Facing) -> f32 {
     match facing {
         Facing::North => 180.0,
         Facing::South => 0.0,
         Facing::West => 90.0,
-        Facing::East | Facing::Up | Facing::Down => 270.0,
+        Facing::East => 270.0,
+        Facing::Up | Facing::Down => 0.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_block_yaw_matches_vanilla() {
+        assert_eq!(command_block_y_rot(Facing::South), 0.0);
+        assert_eq!(command_block_y_rot(Facing::West), 90.0);
+        assert_eq!(command_block_y_rot(Facing::North), 180.0);
+        assert_eq!(command_block_y_rot(Facing::East), 270.0);
+        assert_eq!(command_block_y_rot(Facing::Up), 0.0);
+        assert_eq!(command_block_y_rot(Facing::Down), 0.0);
     }
 }
 

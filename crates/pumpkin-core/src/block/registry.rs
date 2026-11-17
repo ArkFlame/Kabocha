@@ -617,10 +617,11 @@ impl BlockRegistry {
             || resource_name.ends_with("_raft")
     }
 
-    fn has_blocking_entity_in_box(world: &World, placed_box: &BoundingBox) -> bool {
+    fn has_blocking_entity_in_box(world: &World, placed_box: &BoundingBox, placer_id: i32) -> bool {
         let players = world.players.load();
         if players.iter().any(|player| {
-            Self::entity_blocks_block_placement(player.as_ref())
+            player.get_entity().entity_id != placer_id
+                && Self::entity_blocks_block_placement(player.as_ref())
                 && player
                     .get_entity()
                     .bounding_box
@@ -631,7 +632,8 @@ impl BlockRegistry {
         }
 
         world.entities.load().iter().any(|entity| {
-            Self::entity_blocks_block_placement(entity.as_ref())
+            entity.get_entity().entity_id != placer_id
+                && Self::entity_blocks_block_placement(entity.as_ref())
                 && entity
                     .get_entity()
                     .bounding_box
@@ -842,8 +844,8 @@ impl BlockRegistry {
                 .to_state_id(placed_block);
         }
 
-        // Mirror vanilla obstruction checks: only entities that block building should prevent
-        // placement. (e.g. arrows/xp orbs/displays/markers should not)
+        // Mirror vanilla `BlockItem.canPlace`: `Level.isUnobstructed` skips the placing entity
+        // (the collision context entity) and only counts entities that block building.
         let state = BlockState::from_id(new_state);
         let mut buildable = true;
         if !self
@@ -853,7 +855,11 @@ impl BlockRegistry {
             for shape in state.get_block_collision_shapes_at(&final_block_pos) {
                 let placed_box = shape.at_pos(final_block_pos);
 
-                if Self::has_blocking_entity_in_box(world.as_ref(), &placed_box) {
+                if Self::has_blocking_entity_in_box(
+                    world.as_ref(),
+                    &placed_box,
+                    entity.entity_id,
+                ) {
                     buildable = false;
                     break;
                 }
@@ -1680,7 +1686,9 @@ impl BlockRegistry {
                 PathComputationType::Water => {
                     World::get_fluid_from_state_id(state.id).has_tag(&tag::Fluid::MINECRAFT_WATER)
                 }
-                PathComputationType::Land | PathComputationType::Air => !state.is_full_cube(),
+                // Vanilla BlockBehaviour.isPathfindable defaults to !state.isSolid(): fences,
+                // chests and other motion-blocking non-full cubes are not pathfindable.
+                PathComputationType::Land | PathComputationType::Air => !state.is_solid(),
             },
             |pumpkin_block| pumpkin_block.is_pathfindable(state, computation_type),
         )
@@ -1690,10 +1698,31 @@ impl BlockRegistry {
 #[cfg(test)]
 mod replacement_tests {
     use super::can_replace_with_other_block;
+    use crate::block::PathComputationType;
     use pumpkin_data::{
         Block, BlockState,
         block_properties::{GlowLichenLikeProperties, SnowLikeProperties},
     };
+
+    #[test]
+    fn default_pathfinding_uses_motion_blocking() {
+        let registry = super::BlockRegistry::default();
+        // A fence is not a full cube but it blocks movement, so vanilla default
+        // pathfinding (!state.isSolid()) keeps mobs from moving through it.
+        let fence = &Block::OAK_FENCE;
+        assert!(!fence.default_state.is_full_cube());
+        assert!(fence.default_state.is_solid());
+        assert!(!registry.is_pathfindable(
+            fence,
+            fence.default_state,
+            PathComputationType::Land
+        ));
+        assert!(registry.is_pathfindable(
+            &Block::AIR,
+            Block::AIR.default_state,
+            PathComputationType::Air
+        ));
+    }
 
     #[test]
     fn sculk_vein_can_be_replaced_when_dry_or_waterlogged() {

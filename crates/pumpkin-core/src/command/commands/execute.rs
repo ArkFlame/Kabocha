@@ -27,7 +27,7 @@ use crate::command::argument_types::coordinates::vec3::Vec3ArgumentType;
 use crate::command::argument_types::core::double::DoubleArgumentType;
 use crate::command::argument_types::core::string::StringArgumentType;
 use crate::command::argument_types::entity::EntityArgumentType;
-use crate::command::argument_types::entity_anchor::{EntityAnchorArgumentType, EntityAnchorExt};
+use crate::command::argument_types::entity_anchor::{EntityAnchor, EntityAnchorArgumentType, EntityAnchorExt};
 use crate::command::argument_types::identifier::IdentifierArgumentType;
 use crate::command::argument_types::loot_predicate::{LootPredicate, LootPredicateArgumentType};
 use crate::command::argument_types::nbt_path::{NbtPath, NbtPathArgumentType};
@@ -71,6 +71,7 @@ use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
+use pumpkin_world::chunk::ChunkHeightmapType;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -88,6 +89,19 @@ const ERROR_CONDITIONAL_FAILED: CommandErrorType<0> = CommandErrorType::new(
 const ERROR_CONDITIONAL_FAILED_COUNT: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_EXECUTE_CONDITIONAL_FAIL_COUNT,
     translation::java::COMMANDS_EXECUTE_CONDITIONAL_FAIL_COUNT,
+);
+
+const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
+    translation::java::ARGUMENT_POS_UNLOADED,
+    translation::java::ARGUMENT_POS_UNLOADED,
+);
+
+/// Vanilla ExecuteCommand.MAX_TEST_AREA.
+const MAX_TEST_AREA: i64 = 32768;
+
+const ERROR_AREA_TOO_LARGE: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_EXECUTE_BLOCKS_TOOBIG,
+    translation::java::COMMANDS_EXECUTE_BLOCKS_TOOBIG,
 );
 
 fn execute_as_modifier(context: &CommandContext) -> crate::command::node::RedirectModifierResult {
@@ -149,6 +163,8 @@ fn execute_positioned_modifier(
     let pos = Vec3ArgumentType::get_vector3(context, "pos")?;
     let mut source = context.source.as_ref().clone();
     source.position = pos;
+    // Vanilla resets the anchor to the feet when the position is overridden.
+    source.entity_anchor = EntityAnchor::Feet;
     Ok(vec![Arc::new(source)])
 }
 
@@ -172,10 +188,19 @@ fn execute_positioned_over_modifier(
     let pos = source.position;
     let block_x = pos.x.floor() as i32;
     let block_z = pos.z.floor() as i32;
+    // Vanilla reads the requested heightmap; ocean_floor has no stored heightmap in Pumpkin yet.
+    let heightmap = match context.get_argument::<String>("heightmap")?.as_str() {
+        "motion_blocking" => ChunkHeightmapType::MotionBlocking,
+        "motion_blocking_no_leaves" => ChunkHeightmapType::MotionBlockingNoLeaves,
+        _ => ChunkHeightmapType::WorldSurface,
+    };
 
     if let Some(ref world) = source.world {
-        let top_y = world.get_top_block(Vector2::new(block_x, block_z));
-        source.position.y = (top_y + 1) as f64;
+        let block_pos = BlockPos::new(block_x, pos.y.floor() as i32, block_z);
+        if !world.is_loaded(&block_pos) {
+            return Err(ERROR_POS_NOT_LOADED.create_without_context());
+        }
+        source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
     }
     Ok(vec![Arc::new(source)])
 }
@@ -1102,13 +1127,29 @@ fn count_blocks_match(
     let end = BlockPosArgumentType::get_block_pos(context, "end")?;
     let destination = BlockPosArgumentType::get_block_pos(context, "destination")?;
 
+    let min_x = start.0.x.min(end.0.x);
+    let max_x = start.0.x.max(end.0.x);
+    let min_y = start.0.y.min(end.0.y);
+    let max_y = start.0.y.max(end.0.y);
+    let min_z = start.0.z.min(end.0.z);
+    let max_z = start.0.z.max(end.0.z);
+
+    let area = i64::from(max_x - min_x + 1)
+        * i64::from(max_y - min_y + 1)
+        * i64::from(max_z - min_z + 1);
+    if area > MAX_TEST_AREA {
+        return Err(ERROR_AREA_TOO_LARGE.create_without_context(
+            TextComponent::text(MAX_TEST_AREA.to_string()),
+            TextComponent::text(area.to_string()),
+        ));
+    }
+
     if let Some(ref world) = context.source.world {
-        let min_x = start.0.x.min(end.0.x);
-        let max_x = start.0.x.max(end.0.x);
-        let min_y = start.0.y.min(end.0.y);
-        let max_y = start.0.y.max(end.0.y);
-        let min_z = start.0.z.min(end.0.z);
-        let max_z = start.0.z.max(end.0.z);
+        for pos in [&start, &end, &destination] {
+            if !world.is_loaded(pos) {
+                return Err(ERROR_POS_NOT_LOADED.create_without_context());
+            }
+        }
 
         let dx = destination.0.x - min_x;
         let dy = destination.0.y - min_y;
@@ -1120,13 +1161,11 @@ fn count_blocks_match(
                 for x in min_x..=max_x {
                     let src_pos = BlockPos::new(x, y, z);
                     let dst_pos = BlockPos::new(x + dx, y + dy, z + dz);
-                    let src_block = world.get_block(&src_pos);
-                    let dst_block = world.get_block(&dst_pos);
-
-                    if masked && src_block.is_air() {
+                    if masked && world.get_block(&src_pos).is_air() {
                         continue;
                     }
-                    if src_block != dst_block {
+                    // Vanilla compares block states, so facing or waterlogged still counts as a mismatch.
+                    if world.get_block_state_id(&src_pos) != world.get_block_state_id(&dst_pos) {
                         return Ok(None);
                     }
                     count = count.saturating_add(1);
@@ -1182,7 +1221,7 @@ fn check_data_matches(
     context: &CommandContext,
     is_block: bool,
     is_entity: bool,
-) -> Result<bool, CommandSyntaxError> {
+) -> Result<Option<i32>, CommandSyntaxError> {
     let path = context.get_argument::<NbtPath>("path")?;
     let count = if is_block {
         let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
@@ -1203,13 +1242,13 @@ fn check_data_matches(
         path.count_matching(&NbtTag::Compound(data))
     };
     // Mirrors vanilla `checkMatchingData`: a missing path counts as zero matches, not an error.
-    Ok(count > 0)
+    Ok((count > 0).then(|| i32::try_from(count).unwrap_or(i32::MAX)))
 }
 
 fn execute_if_data_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, true, false)? {
+    if check_data_matches(context, true, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1219,7 +1258,7 @@ fn execute_if_data_block_modifier(
 fn execute_if_data_entity_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, false, true)? {
+    if check_data_matches(context, false, true)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1229,7 +1268,7 @@ fn execute_if_data_entity_modifier(
 fn execute_if_data_storage_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, false, false)? {
+    if check_data_matches(context, false, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1239,7 +1278,7 @@ fn execute_if_data_storage_modifier(
 fn execute_unless_data_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, true, false)? {
+    if !check_data_matches(context, true, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1249,7 +1288,7 @@ fn execute_unless_data_block_modifier(
 fn execute_unless_data_entity_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, false, true)? {
+    if !check_data_matches(context, false, true)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1259,7 +1298,7 @@ fn execute_unless_data_entity_modifier(
 fn execute_unless_data_storage_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, false, false)? {
+    if !check_data_matches(context, false, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1318,6 +1357,9 @@ fn execute_summon_modifier(
     finalize_spawn(&entity, context.source.world(), crate::entity::mob::spawn::EntitySpawnReason::Command, None);
     context.source.world().spawn_entity(entity.clone());
     let mut source = context.source.as_ref().clone();
+    // Vanilla routes the new entity through withEntity, which adopts its name and display name.
+    source.name = entity.get_name().get_text();
+    source.display_name = entity.get_display_name();
     source.entity = Some(entity);
     Ok(vec![Arc::new(source)])
 }
@@ -1449,7 +1491,19 @@ fn execute_on_controller_modifier(
 fn execute_on_origin_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    execute_on_owner_modifier(context)
+    // Vanilla on origin follows TraceableEntity: the shooter of a projectile, not its tame owner.
+    let mut sources = Vec::new();
+    if let Some(ref entity) = context.source.entity
+        && let Some(origin) = entity.get_owner_entity()
+        && !origin.get_entity().is_removed()
+    {
+        let mut source = context.source.as_ref().clone();
+        source.name = origin.get_name().get_text();
+        source.display_name = origin.get_display_name();
+        source.entity = Some(origin);
+        sources.push(Arc::new(source));
+    }
+    Ok(sources)
 }
 
 fn execute_on_passengers_modifier(
@@ -1783,9 +1837,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_block_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_block_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| check_data_matches(context, true, false),
+                                        }),
                                 ),
                             ),
                         )
@@ -1799,9 +1854,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_entity_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_entity_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| check_data_matches(context, false, true),
+                                        }),
                                 ),
                             ),
                         )
@@ -1815,9 +1871,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_storage_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_storage_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| check_data_matches(context, false, false),
+                                        }),
                                 ),
                             ),
                         ),
@@ -2006,9 +2063,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_block_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_block_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| check_data_matches(context, true, false),
+                                        }),
                                 ),
                             ),
                         )
@@ -2022,9 +2080,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_entity_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_entity_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| check_data_matches(context, false, true),
+                                        }),
                                 ),
                             ),
                         )
@@ -2038,9 +2097,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_storage_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_storage_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| check_data_matches(context, false, false),
+                                        }),
                                 ),
                             ),
                         ),

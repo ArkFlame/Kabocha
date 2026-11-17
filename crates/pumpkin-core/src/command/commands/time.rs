@@ -59,6 +59,16 @@ const fn wrap_time(ticks: i64) -> i32 {
     (ticks % 2_147_483_647) as i32
 }
 
+/// True when the source is a Bedrock client, which translates its own time messages.
+fn is_bedrock(context: &CommandContext) -> bool {
+    context.source.output.as_player().is_some_and(|player| {
+        matches!(
+            player.client.as_ref(),
+            crate::net::ClientPlatform::Bedrock(_)
+        )
+    })
+}
+
 /// The Java 26.3 client no longer has `commands.time.query`, so Java gets the text vanilla
 /// prints for `/time query minecraft:day` (and `... repetitions`). Bedrock keeps its own
 /// one-argument keys.
@@ -69,13 +79,7 @@ fn day_timeline_feedback(
     value: i64,
 ) -> TextComponent {
     let value = TextComponent::text(value.to_string());
-    let is_bedrock = context.source.output.as_player().is_some_and(|player| {
-        matches!(
-            player.client.as_ref(),
-            crate::net::ClientPlatform::Bedrock(_)
-        )
-    });
-    if is_bedrock {
+    if is_bedrock(context) {
         TextComponent::translate_cross(java_key, bedrock_key, [value])
     } else {
         TextComponent::translate_cross(
@@ -125,7 +129,7 @@ impl CommandExecutor for QueryExecutor {
                 context.source.send_feedback(
                     pumpkin_macros::translate_cross!(
                         translation::java::COMMANDS_TIME_QUERY_ABSOLUTE,
-                        translation::bedrock::COMMANDS_TIME_QUERY_DAYTIME,
+                        translation::bedrock::COMMANDS_TIME_CLOCK_QUERY_TIME,
                         TextComponent::text(clock_name),
                         TextComponent::text(total_ticks.to_string())
                     ),
@@ -199,7 +203,7 @@ impl CommandExecutor for ActionExecutor {
                 context.source.send_feedback(
                     pumpkin_macros::translate_cross!(
                         translation::java::COMMANDS_TIME_SET_ABSOLUTE,
-                        translation::bedrock::COMMANDS_TIME_SET,
+                        translation::bedrock::COMMANDS_TIME_CLOCK_SET,
                         TextComponent::text(clock_name),
                         TextComponent::text(time_count.to_string())
                     ),
@@ -219,15 +223,25 @@ impl CommandExecutor for ActionExecutor {
                     (guard.clone(), total_ticks)
                 };
                 level_time.send_time(world);
-                context.source.send_feedback(
-                    pumpkin_macros::translate_cross!(
+                let feedback = if is_bedrock(context) {
+                    TextComponent::translate(
+                        translation::bedrock::COMMANDS_TIME_CLOCK_ADDED,
+                        [
+                            TextComponent::text(time_count.to_string()),
+                            TextComponent::text(clock_name),
+                            TextComponent::text(total_ticks.to_string()),
+                        ],
+                    )
+                } else {
+                    TextComponent::translate(
                         translation::java::COMMANDS_TIME_SET_ABSOLUTE,
-                        translation::bedrock::COMMANDS_TIME_ADDED,
-                        TextComponent::text(clock_name),
-                        TextComponent::text(total_ticks.to_string())
-                    ),
-                    true,
-                );
+                        [
+                            TextComponent::text(clock_name),
+                            TextComponent::text(total_ticks.to_string()),
+                        ],
+                    )
+                };
+                context.source.send_feedback(feedback, true);
                 Ok(wrap_time(total_ticks))
             }
             Action::Pause => {
@@ -243,8 +257,9 @@ impl CommandExecutor for ActionExecutor {
                 context.source.send_feedback(
                     pumpkin_macros::translate_cross!(
                         translation::java::COMMANDS_TIME_PAUSE,
-                        translation::bedrock::COMMANDS_TIME_STOP,
-                        TextComponent::text(clock_name)
+                        translation::bedrock::COMMANDS_TIME_CLOCK_PAUSED,
+                        TextComponent::text(clock_name),
+                        TextComponent::text(level_time.time_of_day.to_string())
                     ),
                     true,
                 );
@@ -263,8 +278,9 @@ impl CommandExecutor for ActionExecutor {
                 context.source.send_feedback(
                     pumpkin_macros::translate_cross!(
                         translation::java::COMMANDS_TIME_RESUME,
-                        translation::bedrock::COMMANDS_TIME_SET,
-                        TextComponent::text(clock_name)
+                        translation::bedrock::COMMANDS_TIME_CLOCK_RESUMED,
+                        TextComponent::text(clock_name),
+                        TextComponent::text(level_time.time_of_day.to_string())
                     ),
                     true,
                 );
@@ -281,15 +297,21 @@ impl CommandExecutor for ActionExecutor {
                     guard.clone()
                 };
                 level_time.send_time(world);
-                context.source.send_feedback(
-                    pumpkin_macros::translate_cross!(
-                        translation::java::COMMANDS_TIME_RATE,
+                let feedback = if is_bedrock(context) {
+                    TextComponent::translate(
                         translation::bedrock::COMMANDS_TIME_SET,
-                        TextComponent::text(clock_name),
-                        TextComponent::text(rate.to_string())
-                    ),
-                    true,
-                );
+                        [TextComponent::text(rate.to_string())],
+                    )
+                } else {
+                    TextComponent::translate(
+                        translation::java::COMMANDS_TIME_RATE,
+                        [
+                            TextComponent::text(clock_name),
+                            TextComponent::text(rate.to_string()),
+                        ],
+                    )
+                };
+                context.source.send_feedback(feedback, true);
                 Ok(1)
             }
         }

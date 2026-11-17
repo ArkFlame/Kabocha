@@ -72,6 +72,7 @@ use crate::{
         player::{
             player_change_world::PlayerChangeWorldEvent, player_join::PlayerJoinEvent,
             player_leave::PlayerLeaveEvent, player_respawn::PlayerRespawnEvent,
+            player_spawn_location::PlayerSpawnLocationEvent,
         },
     },
     server::Server,
@@ -175,7 +176,11 @@ use pumpkin_world::{
     CURRENT_BEDROCK_MC_VERSION, biome,
     chunk::{io::Dirtiable, palette::bedrock_water_state},
 };
-use pumpkin_world::{chunk::ChunkData, chunk_system::ChunkPos, world::BlockAccessor};
+use pumpkin_world::{
+    chunk::{ChunkData, ChunkEntityData},
+    chunk_system::ChunkPos,
+    world::BlockAccessor,
+};
 use pumpkin_world::{
     level::Level,
     tick::{TickPriority, order},
@@ -365,6 +370,9 @@ pub struct World {
     tick_spawns: std::sync::Mutex<Vec<(u64, i32)>>,
     active_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
     pub forced_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
+    /// Last `/forceload` work task. Force changes chain through it because
+    /// `spawn_task` does not order the tasks it spawns.
+    force_change_task: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
     /// Block entities indexed by chunk, so ticking only visits the currently
     /// active chunks instead of scanning every loaded block entity each tick.
     pub block_entities: DashMap<Vector2<i32>, FxHashMap<BlockPos, Arc<dyn BlockEntity>>>,
@@ -648,6 +656,7 @@ impl World {
             tick_spawns: std::sync::Mutex::new(Vec::new()),
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
             forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
+            force_change_task: std::sync::Mutex::new(None),
             server,
             block_entities: DashMap::new(),
             path_type_cache: DashMap::new(),
@@ -803,6 +812,79 @@ impl World {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .count(player_chunks.collect())
+    }
+
+    /// Adds or removes force tickets for `chunks`, mirroring vanilla
+    /// `ServerLevel.setChunkForced`: the chunks stay loaded, their entities are
+    /// kept live through the watch counts, and they join the active set.
+    pub fn set_chunks_forced(self: &Arc<Self>, chunks: &[Vector2<i32>], forced: bool) {
+        let changed: Vec<Vector2<i32>> = {
+            let mut guard = self
+                .forced_chunks
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut changed = Vec::new();
+            for &chunk in chunks {
+                let changed_membership = if forced {
+                    guard.insert(chunk)
+                } else {
+                    guard.remove(&chunk)
+                };
+                if changed_membership {
+                    changed.push(chunk);
+                }
+            }
+            changed
+        };
+        if changed.is_empty() {
+            return;
+        }
+
+        let mut lock = self
+            .level
+            .chunk_loading
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for &chunk in &changed {
+            if forced {
+                lock.add_force_ticket(chunk);
+            } else {
+                lock.remove_force_ticket(chunk);
+            }
+        }
+        lock.send_change();
+        drop(lock);
+
+        if let Some(server) = self.server.upgrade() {
+            let level = self.level.clone();
+            let world = self.clone();
+            let watched = changed;
+            // A force change has to run before the unforce that follows it:
+            // the watch counts are updated inside these tasks, so running them
+            // out of order leaves a count on a chunk that is no longer forced.
+            let mut previous_task = self
+                .force_change_task
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let previous = previous_task.take();
+            *previous_task = Some(server.spawn_task(async move {
+                if let Some(previous) = previous {
+                    let _ = previous.await;
+                }
+                if forced {
+                    level.mark_chunks_as_newly_watched(&watched);
+                    world.spawn_forced_entity_chunks(watched);
+                } else {
+                    let chunks_to_clean = level.mark_chunks_as_not_watched(watched);
+                    if !chunks_to_clean.is_empty() {
+                        world.remove_entities_in_chunks(&chunks_to_clean).await;
+                        world.level.clean_entity_chunks(&chunks_to_clean);
+                    }
+                }
+            }));
+        }
+
+        self.update_active_chunks();
     }
 
     pub fn get_lighting_config(&self) -> LightingEngineConfig {
@@ -3595,7 +3677,34 @@ impl World {
             .unwrap_or(self.min_y)
     }
 
+    /// Fires `PlayerSpawnLocationEvent` on join and keeps `position` if a plugin returns
+    /// coordinates the world cannot hold.
+    async fn fire_spawn_location_event(
+        &self,
+        server: &Arc<Server>,
+        player: &Arc<Player>,
+        position: Vector3<f64>,
+    ) -> Vector3<f64> {
+        let mut event = PlayerSpawnLocationEvent::new(player.clone(), position);
+        server.plugin_manager.fire(server, &mut event).await;
+        let chosen = event.spawn_pos;
+        if chosen.x.is_finite()
+            && chosen.y.is_finite()
+            && chosen.z.is_finite()
+            && Self::is_valid(BlockPos::floored_v(chosen))
+        {
+            chosen
+        } else {
+            warn!(
+                "Ignoring invalid spawn position {chosen:?} from a plugin for {}",
+                player.gameprofile.name
+            );
+            position
+        }
+    }
+
     /// Runs the join sequence that places a connected Bedrock player into this world.
+
     #[allow(clippy::too_many_lines)]
     pub async fn spawn_bedrock_player(
         &self,
@@ -3627,6 +3736,10 @@ impl World {
                 .await;
             (position, level_info.spawn_yaw, level_info.spawn_pitch)
         };
+
+        let position = self
+            .fire_spawn_location_event(server, &player, position)
+            .await;
 
         // Keep the server-side transform aligned with the StartGame position. In
         // particular, this ensures an early disconnect persists the real spawn.
@@ -4377,12 +4490,9 @@ impl World {
 
         // Bukkit `PlayerSpawnLocationEvent`: fired on join before the player is placed, and
         // `spawn-pos` is where the player spawns (chunks load around the resolved position).
-        let mut spawn_loc_event = crate::plugin::api::events::player::player_spawn_location::PlayerSpawnLocationEvent::new(
-            player.clone(),
-            position,
-        );
-        server.plugin_manager.fire(server, &mut spawn_loc_event).await;
-        let position = spawn_loc_event.spawn_pos;
+        let position = self
+            .fire_spawn_location_event(server, player, position)
+            .await;
 
         // Load chunks around the real spawn position before teleporting the client there.
         player.living_entity.entity.set_pos(position);
@@ -5356,41 +5466,7 @@ impl World {
                 }
 
                 if first_load {
-                    // First watcher: consume the serialized entities and make them
-                    // live. The live entity list becomes the single source of
-                    // truth, so the chunk's NBT is taken (cleared) to avoid keeping
-                    // a duplicate copy that would be re-appended on the next unload
-                    // and doubled on every reload.
-                    let entity_nbts = std::mem::take(
-                        &mut *chunk
-                            .data
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner),
-                    );
-                    chunk.live.store(true, Relaxed);
-                    for entity_nbt in &entity_nbts {
-                        let Some(root) =
-                            load_entity_from_nbt(entity_nbt, Vector3::default(), &world)
-                        else {
-                            continue;
-                        };
-                        for entity in self_and_passengers(&root) {
-                            match entity.get_mob() {
-                                Some(mob) => mob.mob_init_data_tracker(),
-                                None => entity.init_data_tracker(),
-                            }
-
-                            // Clear velocity so the client does not replay the drop
-                            // animation; residual velocity from the original drop is
-                            // stale data.
-                            entity.get_entity().velocity.store(Vector3::default());
-
-                            // UUID-dedupes if another watcher already loaded this entity.
-                            // Tracker owns pairing (spawn packets + vehicle restore).
-                            world.add_entity_silent(entity.clone());
-                            player.try_restore_vehicle(&entity);
-                        }
-                    }
+                    world.make_chunk_entities_live(&chunk, Some(&player));
                 } else {
                     // Already live for other watchers: pair this player now so
                     // spawn packets and vehicle restore do not wait on a tracker tick.
@@ -5403,6 +5479,84 @@ impl World {
             #[cfg(debug_assertions)]
             debug!("Chunks queued after {}ms", inst.elapsed().as_millis());
         });
+    }
+
+    /// Loads the entities of freshly watched chunks that have no player attached,
+    /// so forced chunks get the same live entities as player-watched ones.
+    fn spawn_forced_entity_chunks(self: &Arc<Self>, chunks: Vec<Vector2<i32>>) {
+        let Some(server) = self.server.upgrade() else {
+            return;
+        };
+        let mut entity_receiver = self.level.receive_entity_chunks(chunks);
+        let level = self.level.clone();
+        let world = self.clone();
+
+        server.spawn_task(async move {
+            while let Some((chunk_weak, first_load)) = entity_receiver.recv().await {
+                let Some(chunk) = chunk_weak.upgrade() else {
+                    continue;
+                };
+
+                let position = Vector2::new(chunk.x, chunk.z);
+
+                if !level.is_chunk_watched(&position) {
+                    // No longer watched: don't make its entities live. Leave the
+                    // serialized data untouched so the normal unload path persists
+                    // it as-is (nothing went live, so there is nothing to save).
+                    trace!(
+                        "Received entity chunk {:?}, but it is no longer watched; leaving it for the unload path",
+                        &position
+                    );
+                    continue;
+                }
+
+                if first_load {
+                    world.make_chunk_entities_live(&chunk, None);
+                }
+            }
+        });
+    }
+
+    /// First watcher: consume the serialized entities and make them live. The live
+    /// entity list becomes the single source of truth, so the chunk's NBT is taken
+    /// (cleared) to avoid keeping a duplicate copy that would be re-appended on the
+    /// next unload and doubled on every reload. `player`, when present, gets vehicle
+    /// restore for the entities it just loaded.
+    fn make_chunk_entities_live(
+        self: &Arc<Self>,
+        chunk: &Arc<ChunkEntityData>,
+        player: Option<&Arc<Player>>,
+    ) {
+        let entity_nbts = std::mem::take(
+            &mut *chunk
+                .data
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        chunk.live.store(true, Relaxed);
+        for entity_nbt in &entity_nbts {
+            let Some(root) = load_entity_from_nbt(entity_nbt, Vector3::default(), self) else {
+                continue;
+            };
+            for entity in self_and_passengers(&root) {
+                match entity.get_mob() {
+                    Some(mob) => mob.mob_init_data_tracker(),
+                    None => entity.init_data_tracker(),
+                }
+
+                // Clear velocity so the client does not replay the drop
+                // animation; residual velocity from the original drop is
+                // stale data.
+                entity.get_entity().velocity.store(Vector3::default());
+
+                // UUID-dedupes if another watcher already loaded this entity.
+                // Tracker owns pairing (spawn packets + vehicle restore).
+                self.add_entity_silent(entity.clone());
+                if let Some(player) = player {
+                    player.try_restore_vehicle(&entity);
+                }
+            }
+        }
     }
 
     /// Gets a `Player` by an entity id

@@ -30,6 +30,11 @@ static ERROR_UNKNOWN_FUNCTION: CommandErrorType<1> = CommandErrorType::new(
     translation::java::ARGUMENTS_FUNCTION_UNKNOWN,
 );
 
+static ERROR_UNKNOWN_FUNCTION_TAG: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+);
+
 static ERROR_CHAIN_LIMIT_EXCEEDED: LiteralCommandErrorType =
     LiteralCommandErrorType::new("Maximum number of nested function calls reached");
 
@@ -137,8 +142,16 @@ impl CommandExecutor for FunctionExecutor {
                 return Err(ERROR_COMMAND_CHAIN_LIMIT_EXCEEDED.create_without_context());
             }
             Err(FunctionRunError::Unknown(_)) => {
-                return Err(ERROR_UNKNOWN_FUNCTION
-                    .create_without_context(TextComponent::text(name_str.to_string())));
+                // Vanilla resolves the name while parsing: `FunctionArgument` reports a bad
+                // `#tag` with the tag-specific message and a plain id with the function one.
+                let error_type = if name_str.starts_with('#') {
+                    &ERROR_UNKNOWN_FUNCTION_TAG
+                } else {
+                    &ERROR_UNKNOWN_FUNCTION
+                };
+                return Err(
+                    error_type.create_without_context(TextComponent::text(name_str.to_string())),
+                );
             }
             Err(FunctionRunError::Instantiation(message)) => {
                 return Err(ERROR_INSTANTIATION_FAILURE.create_without_context(
@@ -161,23 +174,34 @@ impl CommandExecutor for FunctionExecutor {
                 .datapack_manager
                 .function_tag_members(name_str)
                 .unwrap_or_else(|| vec![name_str.to_string()]);
-            let msg = if let [single] = functions.as_slice() {
-                TextComponent::translate_cross(
-                    translation::java::COMMANDS_FUNCTION_SCHEDULED_SINGLE,
-                    translation::java::COMMANDS_FUNCTION_SCHEDULED_SINGLE,
-                    [TextComponent::text(single.clone())],
-                )
-            } else {
-                TextComponent::translate_cross(
-                    translation::java::COMMANDS_FUNCTION_SCHEDULED_MULTIPLE,
-                    translation::java::COMMANDS_FUNCTION_SCHEDULED_MULTIPLE,
-                    [TextComponent::text(functions.join(", "))],
-                )
-            };
-            context.source.send_feedback(msg, true);
+            context
+                .source
+                .send_feedback(scheduled_message(&functions, name_str), true);
         }
 
         Ok(executed_count as i32)
+    }
+}
+
+/// Vanilla's `commands.function.scheduled.*` feedback for the functions a name expanded to.
+fn scheduled_message(functions: &[String], name: &str) -> TextComponent {
+    match functions {
+        // An existing function tag may still expand to nothing.
+        [] => TextComponent::translate_cross(
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_NO_FUNCTIONS,
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_NO_FUNCTIONS,
+            [TextComponent::text(name.to_string())],
+        ),
+        [single] => TextComponent::translate_cross(
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_SINGLE,
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_SINGLE,
+            [TextComponent::text(single.clone())],
+        ),
+        _ => TextComponent::translate_cross(
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_MULTIPLE,
+            translation::java::COMMANDS_FUNCTION_SCHEDULED_MULTIPLE,
+            [TextComponent::text(functions.join(", "))],
+        ),
     }
 }
 
@@ -228,4 +252,32 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                 .then(with_sources()),
         ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn serialized(component: &TextComponent) -> String {
+        serde_json::to_string(component).expect("text components serialize")
+    }
+
+    #[test]
+    fn scheduled_message_reports_an_empty_tag_as_no_functions() {
+        let json = serialized(&scheduled_message(&[], "#test:empty"));
+        assert!(json.contains(translation::java::COMMANDS_FUNCTION_SCHEDULED_NO_FUNCTIONS));
+        assert!(json.contains("#test:empty"));
+    }
+
+    #[test]
+    fn scheduled_message_picks_single_and_multiple_variants() {
+        let single = serialized(&scheduled_message(&["test:a".to_string()], "test:a"));
+        assert!(single.contains(translation::java::COMMANDS_FUNCTION_SCHEDULED_SINGLE));
+        let multiple = serialized(&scheduled_message(
+            &["test:a".to_string(), "test:b".to_string()],
+            "#test:pair",
+        ));
+        assert!(multiple.contains(translation::java::COMMANDS_FUNCTION_SCHEDULED_MULTIPLE));
+        assert!(multiple.contains("test:a, test:b"));
+    }
 }

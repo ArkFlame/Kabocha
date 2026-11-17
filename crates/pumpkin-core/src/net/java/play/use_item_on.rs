@@ -171,10 +171,7 @@ impl JavaClient {
 
         if should_try_decrement {
             // TODO: Config
-            // Decrease block count
-            if player.gamemode.load() != GameMode::Creative {
-                item.decrement(1);
-            }
+            server.item_registry.on_placed_as_block(&mut item, player);
         }
 
         if item_result.consumes_action() || !item.are_equal(&before) {

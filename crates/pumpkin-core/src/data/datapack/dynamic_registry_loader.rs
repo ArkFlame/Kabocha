@@ -225,12 +225,16 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
 ];
 
 /// Converts a JSON `serde_json::Value` into an `NbtTag`.
+///
+/// Returns `None` for JSON `null`, which has no NBT equivalent. Writing
+/// [`NbtTag::End`] into a compound or list would truncate the encoded stream,
+/// so object keys and list elements holding `null` are dropped instead.
 #[must_use]
-pub fn json_to_nbt_tag(v: &Value) -> NbtTag {
+pub fn json_to_nbt_tag(v: &Value) -> Option<NbtTag> {
     match v {
-        Value::Null => NbtTag::End,
-        Value::Bool(b) => NbtTag::Byte(i8::from(*b)),
-        Value::Number(num) => num.as_i64().map_or_else(
+        Value::Null => None,
+        Value::Bool(b) => Some(NbtTag::Byte(i8::from(*b))),
+        Value::Number(num) => Some(num.as_i64().map_or_else(
             || num.as_f64().map_or(NbtTag::Int(0), NbtTag::Double),
             |i| {
                 if i32::try_from(i).is_ok() {
@@ -239,15 +243,20 @@ pub fn json_to_nbt_tag(v: &Value) -> NbtTag {
                     NbtTag::Long(i)
                 }
             },
-        ),
-        Value::String(s) => NbtTag::String(s.clone().into()),
-        Value::Array(arr) => NbtTag::List(arr.iter().map(json_to_nbt_tag).collect()),
+        )),
+        Value::String(s) => Some(NbtTag::String(s.clone().into())),
+        Value::Array(arr) => {
+            let list = arr.iter().filter_map(json_to_nbt_tag).collect();
+            Some(NbtTag::List(list))
+        }
         Value::Object(obj) => {
             let mut compound = NbtCompound::new();
             for (k, val) in obj {
-                compound.put(k, json_to_nbt_tag(val));
+                if let Some(tag) = json_to_nbt_tag(val) {
+                    compound.put(k, tag);
+                }
             }
-            NbtTag::Compound(compound)
+            Some(NbtTag::Compound(compound))
         }
     }
 }
@@ -255,7 +264,7 @@ pub fn json_to_nbt_tag(v: &Value) -> NbtTag {
 /// Encodes a JSON definition into binary unnamed NBT bytes.
 #[must_use]
 pub fn json_to_registry_nbt_bytes(val: &Value) -> Box<[u8]> {
-    let nbt_tag = json_to_nbt_tag(val);
+    let nbt_tag = json_to_nbt_tag(val).unwrap_or_else(|| NbtTag::Compound(NbtCompound::new()));
     match nbt_tag {
         NbtTag::Compound(compound) => Nbt::from(compound)
             .write_unnamed()
@@ -286,7 +295,7 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
             load_registry_dir_recursive(namespace, base_dir, &path, registry_map);
         } else if path
             .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            .is_some_and(|ext| ext.to_str() == Some("json"))
             && let Ok(rel_path) = path.strip_prefix(base_dir)
         {
             let mut stem_path = rel_path.to_string_lossy().to_string();
@@ -502,6 +511,47 @@ mod tests {
         assert_eq!(nbt.get_string("asset_id"), Some("custom:entity/cat/fluffy"));
         assert_eq!(nbt.get_int("number"), Some(42));
         assert_eq!(nbt.get_byte("flag"), Some(1));
+    }
+
+    #[test]
+    fn json_null_fields_are_dropped_without_truncating() {
+        let json: Value = serde_json::json!({
+            "asset_id": "custom:entity/cat/fluffy",
+            "optional": null,
+            "list": ["a", null, "b"],
+            "trailing": 7
+        });
+
+        let bytes = json_to_registry_nbt_bytes(&json);
+        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        let nbt = Nbt::read_unnamed(&mut reader).unwrap().root_tag;
+
+        // A JSON null must not write an End tag, which would end the compound early.
+        assert_eq!(nbt.get_int("trailing"), Some(7));
+        assert_eq!(nbt.get_string("asset_id"), Some("custom:entity/cat/fluffy"));
+        assert!(nbt.get_string("optional").is_none());
+        assert_eq!(nbt.get_list("list").map(<[NbtTag]>::len), Some(2));
+    }
+
+    #[test]
+    fn only_lowercase_json_files_are_loaded() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(temp_dir.join("lower.json"), r#"{"asset_id":"custom:lower"}"#).unwrap();
+        fs::write(temp_dir.join("upper.JSON"), r#"{"asset_id":"custom:upper"}"#).unwrap();
+
+        let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
+        load_registry_dir_recursive("custom", &temp_dir, &temp_dir, &mut registry);
+
+        // Vanilla only reads the exact `.json` suffix, so `.JSON` files are ignored.
+        assert_eq!(registry.len(), 1);
+        assert!(registry.contains_key("custom:lower"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]

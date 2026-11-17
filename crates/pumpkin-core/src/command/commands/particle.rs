@@ -52,6 +52,19 @@ fn tag_as_f32(tag: &NbtTag) -> Option<f32> {
     }
 }
 
+/// Reads a numeric tag as `i32`, whatever its NBT type.
+fn tag_as_i32(tag: &NbtTag) -> Option<i32> {
+    match tag {
+        NbtTag::Byte(v) => Some(i32::from(*v)),
+        NbtTag::Short(v) => Some(i32::from(*v)),
+        NbtTag::Int(v) => Some(*v),
+        NbtTag::Long(v) => Some(*v as i32),
+        NbtTag::Float(v) => Some(*v as i32),
+        NbtTag::Double(v) => Some(*v as i32),
+        _ => None,
+    }
+}
+
 /// Decodes a vanilla color: a packed int or a list of `[r, g, b(, a)]` floats in `0..=1`.
 /// Returns the packed ARGB value (alpha defaults to opaque).
 fn tag_as_color(tag: &NbtTag) -> Option<i32> {
@@ -160,6 +173,16 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
             let color = opt("color").and_then(tag_as_color).unwrap_or(-1);
             buf.write_i32_be(color)
         }
+        Particle::SculkCharge => {
+            // Vanilla `SculkChargeParticleOptions.STREAM_CODEC`: a single float roll.
+            let roll = opt("roll").and_then(tag_as_f32).unwrap_or(0.0);
+            buf.write_f32_be(roll)
+        }
+        Particle::Shriek => {
+            // Vanilla `ShriekParticleOption.STREAM_CODEC`: a var-int delay.
+            let delay = opt("delay").and_then(tag_as_i32).unwrap_or(0);
+            buf.write_var_int(&VarInt(delay))
+        }
         Particle::Block
         | Particle::BlockMarker
         | Particle::FallingDust
@@ -232,7 +255,8 @@ fn send_particles(
         return Err(ERROR_FAILED.create_without_context());
     }
 
-    let particle_name = format!("{particle:?}").to_lowercase();
+    // Vanilla uses the registry key, e.g. `minecraft:dust_color_transition`.
+    let particle_name = format!("minecraft:{}", particle.to_name());
     source.send_feedback(
         TextComponent::translate_cross(
             translation::java::COMMANDS_PARTICLE_SUCCESS,
@@ -389,4 +413,25 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                 ),
         ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sculk_charge_writes_roll_float() {
+        let mut options = NbtCompound::new();
+        options.put_float("roll", 0.25);
+        let data = encode_particle_options(Particle::SculkCharge, Some(&options));
+        assert_eq!(data, 0.25f32.to_be_bytes());
+    }
+
+    #[test]
+    fn shriek_writes_delay_var_int() {
+        let mut options = NbtCompound::new();
+        options.put_int("delay", 7);
+        let data = encode_particle_options(Particle::Shriek, Some(&options));
+        assert_eq!(data, [7]);
+    }
 }

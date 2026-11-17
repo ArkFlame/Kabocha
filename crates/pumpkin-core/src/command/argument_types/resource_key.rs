@@ -31,12 +31,12 @@ pub const ERROR_NOT_SUMMONABLE_ENTITY: CommandErrorType<1> = CommandErrorType::n
 
 /// Represents an argument type used to get a resource key from an identifier.
 ///
-/// if you want an [`Advancement`] put the [`ADVANCEMENT_REGISTRY`]
-/// and get it with the [`ResourceKeyArgument::get_advancement`] when it has been parsed
+/// If you want an [`Advancement`] use [`ADVANCEMENT_REGISTRY`] and resolve it with
+/// [`ResourceKeyArgument::get_advancement`] after parsing.
 ///
-/// TODO Recipe
+/// If you just want the [`ResourceKey`], use [`ResourceKeyArgument::get_registry_key`].
 ///
-/// if you juste want the [`ResourceKey`] use the [`ResourceKeyArgument::get_registry_key`] function
+/// Recipes are not handled by this argument type.
 pub struct ResourceKeyArgument(pub &'static Identifier);
 
 pub static ERROR_INVALID: CommandErrorType<0> = CommandErrorType::new(
@@ -110,11 +110,15 @@ impl ResourceKeyArgument {
             ADVANCEMENT_REGISTRY,
             &ERROR_INVALID_ADVANCEMENT,
         )?;
-        Advancement::from_name(resource_key.identifier.path()).ok_or_else(|| {
-            ERROR_INVALID_ADVANCEMENT.create_without_context(TextComponent::text(
-                resource_key.identifier.path().to_string(),
-            ))
-        })
+        resource_key
+            .identifier
+            .is_vanilla_then()
+            .and_then(Advancement::from_name)
+            .ok_or_else(|| {
+                ERROR_INVALID_ADVANCEMENT.create_without_context(TextComponent::text(
+                    resource_key.identifier.path().to_string(),
+                ))
+            })
     }
 
     /// Returns a [`CommandContext`]'s parsed resource key argument as a [`Biome`](pumpkin_data::biome::Biome).
@@ -124,11 +128,15 @@ impl ResourceKeyArgument {
     ) -> Result<&'static pumpkin_data::biome::Biome, CommandSyntaxError> {
         let resource_key: &ResourceKey =
             Self::get_registry_key(context, name, BIOME_REGISTRY, &ERROR_INVALID_BIOME)?;
-        let path = resource_key.identifier.path();
-        pumpkin_data::biome::Biome::from_name(path).ok_or_else(|| {
-            ERROR_INVALID_BIOME
-                .create_without_context(TextComponent::text(resource_key.identifier.to_string()))
-        })
+        resource_key
+            .identifier
+            .is_vanilla_then()
+            .and_then(pumpkin_data::biome::Biome::from_name)
+            .ok_or_else(|| {
+                ERROR_INVALID_BIOME.create_without_context(TextComponent::text(
+                    resource_key.identifier.to_string(),
+                ))
+            })
     }
 
     /// Returns a [`CommandContext`]'s parsed resource key argument in the form of a [`ResourceKey`].

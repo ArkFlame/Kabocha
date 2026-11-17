@@ -51,6 +51,14 @@ pub(crate) const fn cooking_total_time(
     ((recipe_time + divisor - 1) / divisor) as u16
 }
 
+/// Reads a saved cooking value under its vanilla `AbstractFurnaceBlockEntity` key,
+/// falling back to the legacy Pumpkin snake_case key for worlds saved by older builds.
+pub(crate) fn read_saved_short(nbt: &pumpkin_nbt::compound::NbtCompound, vanilla: &str, legacy: &str) -> u16 {
+    nbt.get_short(vanilla)
+        .or_else(|| nbt.get_short(legacy))
+        .map_or(0, |value| value as u16)
+}
+
 /// Trait for extracting smelting experience from cooking block entities.
 pub trait CookingBlockEntityBase:
     Sync + Send + Inventory + PropertyDelegate + BlockEntity + Clearable
@@ -496,8 +504,10 @@ macro_rules! impl_block_entity_for_cooking {
                             .map_or(0, |fuel| fuel.get_burn_ticks(is_fast));
 
                         let mut burn_ticks = adjusted_fuel_ticks;
-                        let mut burn_cancelled = false;
-                        if let Some(server) = world.server.upgrade() {
+                        // Vanilla only ignites, and Paper only fires `FurnaceBurnEvent`, when the
+                        // fuel reports a non-zero burn duration.
+                        let mut burn_cancelled = adjusted_fuel_ticks == 0;
+                        if !burn_cancelled && let Some(server) = world.server.upgrade() {
                             let mut burn_event = $crate::plugin::api::events::inventory::furnace_burn::FurnaceBurnEvent::new(
                                 self.position,
                                 bottom_item.item.registry_key.to_string(),
@@ -652,22 +662,19 @@ macro_rules! impl_block_entity_for_cooking {
             where
                 Self: Sized,
             {
-                let cooking_total_time = AtomicU16::new(
-                    nbt.get_short("cooking_total_time")
-                        .map_or(0, |cooking_total_time| cooking_total_time as u16),
-                );
-                let cooking_time_spent = AtomicU16::new(
-                    nbt.get_short("cooking_time_spent")
-                        .map_or(0, |cooking_time_spent| cooking_time_spent as u16),
-                );
+                let cooking_total_time = AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(
+                    nbt,
+                    "CookTimeTotal",
+                    "cooking_total_time",
+                ));
+                let cooking_time_spent =
+                    AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "CookTime", "cooking_time_spent"));
                 let lit_total_time = AtomicU16::new(
                     nbt.get_short("lit_total_time")
                         .map_or(0, |lit_total_time| lit_total_time as u16),
                 );
-                let lit_time_remaining = AtomicU16::new(
-                    nbt.get_short("lit_time_remaining")
-                        .map_or(0, |lit_time_remaining| lit_time_remaining as u16),
-                );
+                let lit_time_remaining =
+                    AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "BurnTime", "lit_time_remaining"));
                 // Load RecipesUsed from NBT (vanilla format: map of recipe ID -> craft count)
                 let mut recipes_used_map = HashMap::new();
                 if let Some(recipes_compound) = nbt.get_compound("RecipesUsed") {
@@ -704,10 +711,10 @@ macro_rules! impl_block_entity_for_cooking {
             }
 
             fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
-                nbt.put_short("cooking_total_time", self.get_cooking_total_time() as i16);
-                nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
+                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
+                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
                 nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("lit_time_remaining", self.get_lit_time_remaining() as i16);
+                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -791,10 +798,10 @@ macro_rules! impl_block_entity_for_cooking {
 
             fn chunk_data_nbt(&self) -> Option<pumpkin_nbt::compound::NbtCompound> {
                 let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
-                nbt.put_short("cooking_total_time", self.get_cooking_total_time() as i16);
-                nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
+                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
+                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
                 nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("lit_time_remaining", self.get_lit_time_remaining() as i16);
+                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -920,5 +927,39 @@ mod tests {
         assert_eq!(nbt.get_short("BurnDuration"), Some(200));
         assert_eq!(nbt.get_short("StoredXPInt"), Some(5));
         assert_eq!(nbt.get_bool("isMovable"), Some(true));
+    }
+
+    #[test]
+    fn furnace_state_uses_vanilla_nbt_keys() {
+        use crate::block::entities::furnace::FurnaceBlockEntity;
+        use pumpkin_nbt::compound::NbtCompound;
+
+        let mut nbt = NbtCompound::new();
+        nbt.put_short("BurnTime", 40);
+        nbt.put_short("CookTime", 12);
+        nbt.put_short("CookTimeTotal", 200);
+        let furnace = FurnaceBlockEntity::from_nbt(&nbt, BlockPos::new(0, 0, 0));
+        assert_eq!(furnace.get_lit_time_remaining(), 40);
+        assert_eq!(furnace.get_cooking_time_spent(), 12);
+        assert_eq!(furnace.get_cooking_total_time(), 200);
+
+        // Worlds saved by older builds used snake_case keys and must still load.
+        let mut legacy = NbtCompound::new();
+        legacy.put_short("lit_time_remaining", 7);
+        legacy.put_short("cooking_time_spent", 3);
+        legacy.put_short("cooking_total_time", 100);
+        let furnace = FurnaceBlockEntity::from_nbt(&legacy, BlockPos::new(0, 0, 0));
+        assert_eq!(furnace.get_lit_time_remaining(), 7);
+        assert_eq!(furnace.get_cooking_time_spent(), 3);
+        assert_eq!(furnace.get_cooking_total_time(), 100);
+    }
+
+    #[test]
+    fn experience_from_a_single_fractional_smelt_is_not_always_zero() {
+        // Iron ore is 0.7 XP: vanilla gives 1 point 70% of the time, never a flat 0.
+        assert_eq!(split_experience(0.7, 0.5), 1);
+        assert_eq!(split_experience(0.7, 0.9), 0);
+        assert_eq!(split_experience(2.0, 0.99), 2);
+        assert_eq!(split_experience(0.0, 0.5), 0);
     }
 }

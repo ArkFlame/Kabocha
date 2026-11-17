@@ -37,6 +37,7 @@ use crate::server::recipe::RecipeManager;
 use crate::world::loot::LootTableHandle;
 
 use self::context_provider_loader::ContextProviderRegistry;
+use self::tag_loader::DynamicTagEntry;
 use self::damage_type_loader::{DamageTypeDefinition, DamageTypeEntry, DamageTypeRegistry};
 use self::test_loader::{
     TestInstance, TestInstanceRegistry, load_test_instances_from_dir, to_registry_entry,
@@ -852,26 +853,11 @@ impl DatapackManager {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let category = category.strip_prefix("minecraft:").unwrap_or(category);
-        if let Some(cat_tags) = guard.get(category) {
-            let tag_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
-            let full_tag = if tag_id.contains(':') {
-                tag_id.to_string()
-            } else {
-                format!("minecraft:{tag_id}")
-            };
-            if let Some(tag_entry) = cat_tags.get(&full_tag).or_else(|| cat_tags.get(tag_id)) {
-                let full_entry = if entry_id.contains(':') {
-                    entry_id.to_string()
-                } else {
-                    format!("minecraft:{entry_id}")
-                };
-                return tag_entry
-                    .values
-                    .iter()
-                    .any(|v| v == &full_entry || v == entry_id);
-            }
-        }
-        false
+        let Some(cat_tags) = guard.get(category) else {
+            return false;
+        };
+        let full_entry = normalize_id(entry_id);
+        tag_contains_entry(cat_tags, tag_id, &full_entry, entry_id, &mut Vec::new())
     }
 
     #[must_use]
@@ -1289,43 +1275,73 @@ impl DatapackManager {
     }
 
     fn resolve_functions(&self, name: &str) -> Result<Vec<Arc<[String]>>, FunctionRunError> {
-        let (functions_to_run, is_tag) = if let Some(tag_name) = name.strip_prefix('#') {
-            let tags = self
-                .function_tags
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let Some(fns) = tags.get(tag_name) else {
-                return Err(FunctionRunError::Unknown(format!(
-                    "Unknown function tag: #{tag_name}"
-                )));
+        if let Some(tag_name) = name.strip_prefix('#') {
+            let functions_to_run = {
+                let tags = self
+                    .function_tags
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let Some(members) = tags.get(tag_name) else {
+                    return Err(FunctionRunError::Unknown(format!(
+                        "Unknown function tag: #{tag_name}"
+                    )));
+                };
+                let mut names = Vec::new();
+                Self::collect_function_tag_members(
+                    &tags,
+                    members,
+                    &mut names,
+                    &mut vec![tag_name.to_string()],
+                );
+                names
             };
-            (fns.clone(), true)
-        } else {
-            (vec![name.to_string()], false)
-        };
-
-        let functions = {
             let all_fns = self
                 .functions
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let mut functions = Vec::with_capacity(functions_to_run.len());
             for fn_id in functions_to_run {
-                let Some(lines) = all_fns.get(&fn_id) else {
-                    if !is_tag {
-                        return Err(FunctionRunError::Unknown(format!(
-                            "Unknown function: {fn_id}"
-                        )));
-                    }
-                    continue;
-                };
-                functions.push(Arc::clone(lines));
+                // Tag entries are optional in vanilla: unknown functions are skipped.
+                if let Some(lines) = all_fns.get(&fn_id) {
+                    functions.push(Arc::clone(lines));
+                }
             }
-            functions
-        };
+            return Ok(functions);
+        }
 
-        Ok(functions)
+        let all_fns = self
+            .functions
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(lines) = all_fns.get(name) else {
+            return Err(FunctionRunError::Unknown(format!(
+                "Unknown function: {name}"
+            )));
+        };
+        Ok(vec![Arc::clone(lines)])
     }
+
+/// Flattens a function tag's members, following `#tag` references and skipping cycles.
+fn collect_function_tag_members<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, Vec<String>, S>,
+    members: &[String],
+    names: &mut Vec<String>,
+    visited: &mut Vec<String>,
+) {
+    for member in members {
+        if let Some(nested) = member.strip_prefix('#') {
+            if visited.iter().any(|tag| tag == nested) {
+                continue;
+            }
+            visited.push(nested.to_string());
+            if let Some(inner) = tags.get(nested) {
+                Self::collect_function_tag_members(tags, inner, names, visited);
+            }
+        } else if !names.iter().any(|existing| existing == member) {
+            names.push(member.clone());
+        }
+    }
+}
 
     fn boundary_limit() -> Option<FunctionRunError> {
         if FUNCTION_CHAIN_HIT_COMMAND_LIMIT.with(Cell::get) {
@@ -1892,6 +1908,34 @@ fn collect_block_tag(
     }
 }
 
+/// True when `tag_id` lists the entry directly or through a nested `#tag` reference.
+///
+/// Vanilla expands tag references when it builds a tag, so membership must follow them.
+/// `visited` stops reference cycles.
+fn tag_contains_entry<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, DynamicTagEntry, S>,
+    tag_id: &str,
+    full_entry: &str,
+    raw_entry: &str,
+    visited: &mut Vec<String>,
+) -> bool {
+    let tag = normalize_id(tag_id.strip_prefix('#').unwrap_or(tag_id));
+    if visited.contains(&tag) {
+        return false;
+    }
+    visited.push(tag.clone());
+    let Some(entry) = tags.get(&tag) else {
+        return false;
+    };
+    entry.values.iter().any(|value| {
+        if let Some(nested) = value.strip_prefix('#') {
+            tag_contains_entry(tags, nested, full_entry, raw_entry, visited)
+        } else {
+            value == full_entry || value == raw_entry
+        }
+    })
+}
+
 struct PackContentAccumulators<'a> {
     recipes: &'a mut Vec<DynamicRecipe>,
     functions: &'a mut HashMap<String, Vec<String>>,
@@ -2031,32 +2075,10 @@ fn scan_datapacks_dir(
     if !datapacks_dir.is_dir() {
         return;
     }
-    let entries = match fs::read_dir(datapacks_dir) {
-        Ok(entries) => entries,
-        Err(error) => {
-            warn!(
-                "Failed to read datapacks directory '{}': {error}",
-                datapacks_dir.display()
-            );
-            return;
-        }
-    };
 
-    for entry in entries.flatten() {
-        let pack_path = entry.path();
-        let file_name = entry.file_name().to_string_lossy().to_string();
-
-        if file_name.starts_with('.') || !pack_path.is_dir() {
-            continue;
-        }
-
+    for file_name in enabled_world_pack_dirs(datapacks_dir, enabled_packs) {
+        let pack_path = datapacks_dir.join(&file_name);
         let pack_id = format!("file/{file_name}");
-        let is_enabled = enabled_packs
-            .iter()
-            .any(|p| p == &pack_id || p == &file_name);
-        if !is_enabled {
-            continue;
-        }
 
         let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
         let counts = load_pack_contents(&pack_path, acc);
@@ -2091,6 +2113,28 @@ fn scan_datapacks_dir(
             known_packs,
         });
     }
+}
+
+/// Enabled world datapack directories, in the order recorded in the level.
+///
+/// Vanilla applies selected packs in level order, so a later pack overrides an earlier one.
+/// Directory iteration order is arbitrary and must not decide which pack wins.
+fn enabled_world_pack_dirs(datapacks_dir: &Path, enabled_packs: &[String]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for pack in enabled_packs {
+        let name = pack.strip_prefix("file/").unwrap_or(pack);
+        // Namespaced and bundled packs are not world datapack directories.
+        if name.is_empty() || name.contains(':') || name.starts_with('.') {
+            continue;
+        }
+        if names.iter().any(|existing| existing == name) {
+            continue;
+        }
+        if datapacks_dir.join(name).is_dir() {
+            names.push(name.to_string());
+        }
+    }
+    names
 }
 
 /// Loads recipes, functions, function tags, test instances, damage types, context number providers,
@@ -3064,4 +3108,146 @@ mod tests {
         tags.insert("minecraft:dirt".to_string(), block_tag(true, &["stone"]));
         assert_eq!(resolve(&tags, "minecraft:dirt"), vec![stone]);
     }
+    #[test]
+    fn is_in_tag_follows_nested_tag_references() {
+        let manager = DatapackManager::new();
+        let mut block_tags = std::collections::HashMap::new();
+        block_tags.insert(
+            "test:stones".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:stones".to_string(),
+                values: vec!["minecraft:stone".to_string()],
+            },
+        );
+        block_tags.insert(
+            "test:rocks".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:rocks".to_string(),
+                values: vec!["#test:stones".to_string(), "minecraft:granite".to_string()],
+            },
+        );
+        // A cycle must terminate instead of recursing forever.
+        block_tags.insert(
+            "test:loop".to_string(),
+            super::tag_loader::DynamicTagEntry {
+                id: "test:loop".to_string(),
+                values: vec!["#test:loop".to_string(), "minecraft:dirt".to_string()],
+            },
+        );
+        manager
+            .tags
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert("block".to_string(), block_tags);
+
+        assert!(manager.is_in_tag("block", "test:rocks", "stone"));
+        assert!(manager.is_in_tag("block", "test:rocks", "granite"));
+        assert!(!manager.is_in_tag("block", "test:rocks", "dirt"));
+        assert!(manager.is_in_tag("block", "test:loop", "dirt"));
+        assert!(!manager.is_in_tag("block", "test:loop", "stone"));
+    }
+
+    #[test]
+    fn function_tags_expand_nested_tags() {
+        let manager = DatapackManager::new();
+        manager
+            .functions
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
+                "test:leaf".to_string(),
+                vec!["say leaf".to_string()].into(),
+            );
+        {
+            let mut tags = manager
+                .function_tags
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            tags.insert("test:inner".to_string(), vec!["test:leaf".to_string()]);
+            tags.insert("test:outer".to_string(), vec!["#test:inner".to_string()]);
+            // Self-reference must terminate and still run the plain member.
+            tags.insert(
+                "test:loop".to_string(),
+                vec!["#test:loop".to_string(), "test:leaf".to_string()],
+            );
+        }
+
+        let mut visited = Vec::new();
+        let executed = manager
+            .visit_function_lines("#test:outer", |line| visited.push(line.to_string()))
+            .expect("nested tag must resolve");
+        assert_eq!(executed, 1);
+        assert_eq!(visited, ["say leaf"]);
+
+        let executed = manager
+            .visit_function_lines("#test:loop", |_| {})
+            .expect("a self-referencing tag must terminate");
+        assert_eq!(executed, 1);
+    }
+
+    #[test]
+    fn scan_datapacks_dir_loads_packs_in_enabled_order() {
+        fn load_shared_function(root: &std::path::Path, enabled: &[&str]) -> String {
+            let mut recipes = Vec::new();
+            let mut functions = std::collections::HashMap::new();
+            let mut function_tags = std::collections::HashMap::new();
+            let mut block_tags = std::collections::HashMap::new();
+            let mut test_instances = std::collections::HashMap::new();
+            let mut damage_types = std::collections::HashMap::new();
+            let mut context_int_providers = std::collections::HashMap::new();
+            let mut context_float_providers = std::collections::HashMap::new();
+            let mut loot_tables = std::collections::HashMap::new();
+            let mut dynamic_registries = std::collections::HashMap::new();
+            let mut trade_registry = super::TradeRegistry::new();
+            let mut predicates = std::collections::HashMap::new();
+            let mut item_modifiers = std::collections::HashMap::new();
+            let mut slot_sources = std::collections::HashMap::new();
+            let mut tags = std::collections::HashMap::new();
+
+            let mut acc = super::PackContentAccumulators {
+                recipes: &mut recipes,
+                functions: &mut functions,
+                function_tags: &mut function_tags,
+                block_tags: &mut block_tags,
+                test_instances: &mut test_instances,
+                damage_types: &mut damage_types,
+                context_int_providers: &mut context_int_providers,
+                context_float_providers: &mut context_float_providers,
+                loot_tables: &mut loot_tables,
+                dynamic_registries: &mut dynamic_registries,
+                trade_registry: &mut trade_registry,
+                predicates: &mut predicates,
+                item_modifiers: &mut item_modifiers,
+                slot_sources: &mut slot_sources,
+                tags: &mut tags,
+            };
+            let enabled: Vec<String> = enabled.iter().map(|name| (*name).to_string()).collect();
+            let mut loaded = Vec::new();
+            super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
+            drop(acc);
+
+            functions
+                .get("test:shared")
+                .and_then(|lines| lines.first().cloned())
+                .unwrap_or_default()
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        for (pack, line) in [("alpha", "say alpha"), ("beta", "say beta")] {
+            let dir = temp.path().join(pack).join("data/test/function");
+            std::fs::create_dir_all(&dir).expect("create pack");
+            std::fs::write(dir.join("shared.mcfunction"), line).expect("write function");
+        }
+
+        // The last enabled pack wins, exactly like vanilla's pack stack.
+        assert_eq!(
+            load_shared_function(temp.path(), &["file/beta", "file/alpha"]),
+            "say alpha"
+        );
+        assert_eq!(
+            load_shared_function(temp.path(), &["file/alpha", "file/beta"]),
+            "say beta"
+        );
+    }
+
 }

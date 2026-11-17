@@ -25,6 +25,13 @@ use crate::generation::proto_chunk::ProtoChunk;
 
 pub mod flat;
 
+/// The `features` and `lakes` switches of flat world settings.
+#[derive(Clone, Copy, Default)]
+pub struct FlatDecoration {
+    pub features: bool,
+    pub lakes: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct FlatLayer {
     pub block: String,
@@ -152,6 +159,15 @@ impl WorldGenerator {
         match self {
             Self::Noise(noise_gen) => noise_gen.find_spawn_position(),
             _ => pumpkin_util::math::position::BlockPos::ZERO,
+        }
+    }
+
+    /// Estimated terrain surface for the initial spawn; only noise worlds have one.
+    #[must_use]
+    pub fn get_base_height(&self, x: i32, z: i32) -> Option<i32> {
+        match self {
+            Self::Noise(noise_gen) => Some(noise_gen.get_base_height(x, z)),
+            _ => None,
         }
     }
 }
