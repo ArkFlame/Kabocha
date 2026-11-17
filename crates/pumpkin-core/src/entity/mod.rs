@@ -6074,7 +6074,12 @@ impl Entity {
             .collect();
         drop(passengers);
 
-        let be_link = pumpkin_protocol::bedrock::client::CSetActorLink {
+        // Vanilla `Entity.startRiding` emits ENTITY_MOUNT at the vehicle position.
+        self.world
+            .load()
+            .emit_game_event(GameEvent::EntityMount.name(), self.pos.load());
+
+        let be_link =pumpkin_protocol::bedrock::client::CSetActorLink {
             link: pumpkin_protocol::bedrock::client::common::ActorLink {
                 ridden_unique_id: VarLong(i64::from(self.entity_id)),
                 rider_unique_id: VarLong(i64::from(passenger_entity_id)),
