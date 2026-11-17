@@ -27,9 +27,9 @@ use crate::entity::{
     ai::goal::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
         go_to_known_flower::GoToKnownFlowerGoal, grow_crop::GrowCropGoal,
-        melee_attack::MeleeAttackGoal,
-        pollinate_flower::PollinateFlowerGoal, reset_universal_anger::ResetUniversalAngerGoal,
-        revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
+        melee_attack::MeleeAttackGoal, pollinate_flower::PollinateFlowerGoal,
+        reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
+        tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     ai::pathfinder::{Navigator, node::PathType},
     mob::{
