@@ -42,6 +42,16 @@ const TIME_TO_EJECT: f32 = 60.0;
 const BOAT_MAX_PASSENGERS: usize = 2;
 const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
 
+/// Vanilla chest boats save only `Items`; loot tables belong to chest minecarts, so a boat's
+/// saved loot keys are dropped before the inventory reads its data.
+#[must_use]
+pub fn without_loot_table(nbt: &NbtCompound) -> NbtCompound {
+    let mut filtered = nbt.clone();
+    filtered.child_tags.remove("LootTable");
+    filtered.child_tags.remove("LootTableSeed");
+    filtered
+}
+
 #[must_use]
 pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
     entity_type.id == EntityType::ACACIA_CHEST_BOAT.id
@@ -305,7 +315,7 @@ impl EntityBase for BoatEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         if let Some(inventory) = &self.inventory {
-            inventory.read_nbt(nbt);
+            inventory.read_nbt(&without_loot_table(nbt));
         }
     }
 
@@ -503,8 +513,23 @@ impl EntityBase for BoatEntity {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_chest_boat, max_passengers};
+    use super::{is_chest_boat, max_passengers, without_loot_table};
     use pumpkin_data::entity::EntityType;
+    use pumpkin_nbt::compound::NbtCompound;
+
+    #[test]
+    fn chest_boat_nbt_ignores_loot_table_keys_and_keeps_items() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("LootTable", "minecraft:chests/simple_dungeon".to_owned());
+        nbt.put_long("LootTableSeed", 1234);
+        nbt.put_list("Items", Vec::new());
+
+        let filtered = without_loot_table(&nbt);
+        assert!(!filtered.has("LootTable"));
+        assert!(!filtered.has("LootTableSeed"));
+        assert!(filtered.has("Items"));
+        assert!(nbt.has("LootTable"), "the source compound is left untouched");
+    }
 
     #[test]
     fn chest_boat_detection_covers_every_chest_boat_entity_type() {
