@@ -10,6 +10,7 @@ use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, block_properties::NoteBlockLikeProperties};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
 
 use crate::{
@@ -33,7 +34,7 @@ impl NoteBlock {
         if !is_base_block(props.instrument) || world.get_block_state(&pos.up()).is_air() {
             let mut event = crate::plugin::api::events::block::note_play::NotePlayEvent::new(
                 *pos,
-                format!("{:?}", props.instrument),
+                props.instrument.to_value().to_owned(),
                 props.note,
             );
             if let Some(server) = world.server.upgrade() {
@@ -157,6 +158,13 @@ impl BlockBehaviour for NoteBlock {
         let note_props = NoteBlockLikeProperties::from_state_id(block_state.id);
         let instrument = note_props.instrument;
         let pitch = if is_base_block(instrument) {
+            args.world.spawn_particle(
+                args.position.to_centered_f64() + Vector3::new(0.0, 0.7, 0.0),
+                Vector3::new(f32::from(note_props.note) / 24.0, 0.0, 0.0),
+                0.0,
+                1,
+                pumpkin_data::particle::Particle::Note,
+            );
             Self::get_note_pitch(u16::from(note_props.note))
         } else {
             1.0
@@ -192,14 +200,22 @@ impl BlockBehaviour for NoteBlock {
                 3.0,
                 pitch,
             );
-            return true;
+        } else {
+            args.world.play_sound_raw(
+                convert_instrument_to_sound(instrument) as u16,
+                SoundCategory::Records,
+                &args.position.to_centered_f64(),
+                3.0,
+                pitch,
+            );
         }
-        args.world.play_sound_raw(
-            convert_instrument_to_sound(instrument) as u16,
-            SoundCategory::Records,
-            &args.position.to_centered_f64(),
-            3.0,
-            pitch,
+        // Vanilla spawns the note particle server-side in `triggerEvent`, for every instrument.
+        args.world.spawn_particle(
+            args.position.to_centered_f64() + Vector3::new(0.0, 0.7, 0.0),
+            Vector3::new(f32::from(note_props.note) / 24.0, 0.0, 0.0),
+            0.0,
+            1,
+            pumpkin_data::particle::Particle::Note,
         );
         true
     }

@@ -54,6 +54,15 @@ impl PistonBlock {
         if !world.is_in_height_limit(pos.0.y) {
             return false;
         }
+        // Vanilla `PistonBlock.isMovable`: blocks outside the world border never move.
+        if !world
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains_block(pos.0.x, pos.0.z)
+        {
+            return false;
+        }
         if state.is_air() {
             return true;
         }
@@ -289,12 +298,18 @@ impl PistonBlock {
                 }
             }
         } else {
-            // remove
-            world.set_block_state(
-                &extended_pos,
-                Block::AIR.default_state.id,
-                BlockFlags::NOTIFY_ALL,
-            );
+            // Paper guards the arm removal against headless pistons so a stale
+            // `extended` base state cannot delete an unrelated block.
+            let (head_block, head_state) = world.get_block_and_state(&extended_pos);
+            if head_block == &Block::PISTON_HEAD
+                && PistonHeadLikeProperties::from_state_id(head_state.id).facing == dir.to_facing()
+            {
+                world.set_block_state(
+                    &extended_pos,
+                    Block::AIR.default_state.id,
+                    BlockFlags::NOTIFY_ALL,
+                );
+            }
         }
         // Play piston contract sound
         let pitch = rand::rng().random_range(0.6f32..0.75);
