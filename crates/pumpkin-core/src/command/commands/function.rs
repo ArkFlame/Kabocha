@@ -30,6 +30,11 @@ static ERROR_UNKNOWN_FUNCTION: CommandErrorType<1> = CommandErrorType::new(
     translation::java::ARGUMENTS_FUNCTION_UNKNOWN,
 );
 
+static ERROR_UNKNOWN_FUNCTION_TAG: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+);
+
 static ERROR_CHAIN_LIMIT_EXCEEDED: LiteralCommandErrorType =
     LiteralCommandErrorType::new("Maximum number of nested function calls reached");
 
@@ -137,8 +142,16 @@ impl CommandExecutor for FunctionExecutor {
                 return Err(ERROR_COMMAND_CHAIN_LIMIT_EXCEEDED.create_without_context());
             }
             Err(FunctionRunError::Unknown(_)) => {
-                return Err(ERROR_UNKNOWN_FUNCTION
-                    .create_without_context(TextComponent::text(name_str.to_string())));
+                // Vanilla resolves the name while parsing: `FunctionArgument` reports a bad
+                // `#tag` with the tag-specific message and a plain id with the function one.
+                let error_type = if name_str.starts_with('#') {
+                    &ERROR_UNKNOWN_FUNCTION_TAG
+                } else {
+                    &ERROR_UNKNOWN_FUNCTION
+                };
+                return Err(
+                    error_type.create_without_context(TextComponent::text(name_str.to_string())),
+                );
             }
             Err(FunctionRunError::Instantiation(message)) => {
                 return Err(ERROR_INSTANTIATION_FAILURE.create_without_context(
