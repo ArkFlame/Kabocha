@@ -27,3 +27,10 @@ Reference: vanilla `net.minecraft.world.entity.vehicle.boat.AbstractChestBoat` /
 | 3 | `boat.rs:337-352` | `Boat.destroy` (`spawnAtLocation(getDropItem())`) | The dropped chest boat item gets the entity's `CustomName` copied onto it; vanilla drops the plain pick item, so a named boat loses its name on break. Small behavioural difference either way — confirm 26.3 `getPickResult` before changing. | Drop the `CustomNameImpl` `set_data_component` call (or keep and record as an intentional, documented deviation). | S | **STILL OPEN** (conflicting evidence: boat.rs comment says vanilla copies name)
 | 4 | `boat/passengers.rs:71-79` | `Boat.getRideHeight` | Ride height is recomputed from `height()/3.0` (and `height()*0.8888889` for rafts) while `pumpkin-data` already ships `BoatSeats.ride_height` (0.1875 for `dark_oak_chest_boat`, consumed by `boat.rs:191`). Two sources of truth for the same seat point; a data change desynchronises them. | Read `entity_type.boat.map(\|s\| s.ride_height)` and fall back to the current formula only if the data is absent. | S |
 | 5 | `boat.rs:259-274` | `AbstractChestBoat implements Container` | Chest boat inventory is a `MinecartInventory`, which is also exposed as a `WorldlyContainer`-style target. Vanilla chest boats only implement `Container`, so a hopper above a chest boat cannot insert, while a hopper beneath can extract. Verify the hopper/worldly-container path (`has_container_inventory`, `crates/pumpkin-core/src/block/blocks/hopper*`) treats chest boats like minecarts before changing anything. | Gate insertion on the vehicle kind if the hopper path currently allows it. | M |
+
+## Gap status (gapwave2 pass)
+
+- Row 2: **STILL OPEN** (M: container component copy on placement not attempted).
+- Row 3: **STILL OPEN** (conflicting evidence on custom-name drop; needs decompiled `getPickResult`).
+- Row 4: **FIXED** (already at HEAD: `ride_height` reads `entity_type.boat` data, passengers.rs:77-83).
+- Row 5: **STILL OPEN** (hopper/worldly-container path not audited in this pass).

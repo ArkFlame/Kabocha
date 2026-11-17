@@ -68,8 +68,13 @@ decompiled class, the rest are drift risk or a missing hook, not a certain one-f
   (`0.04`) and improves parity for `NoGravity` boats (0 instead of the hard-coded sink), so replacing it
   with the constant would be a regression.
 
-## Status (gapwave2 h1)
-- Row 3 (bubble time): STILL OPEN. Vanilla cadence for `DATA_ID_BUBBLE_TIME` is not verifiable without a decompiled `AbstractBoat`; a guessed tick would be a fake fix.
-- Row 4 (rider clamp rotation, M): STILL OPEN, needs a new rider-rotation hook (M size, out of this slice).
-- Row 6 (dispenser flowing water): STILL OPEN. The note itself is marked *verify*, and recall of `BoatDispenseItemBehavior` uses `FluidTags.WATER` (which includes flowing water), so the claimed divergence is not confirmed.
-- Row 7 (`is_chest_boat` hand list): STILL OPEN, S but a tag-to-entity mapping change touches the passenger cap in two places; not done in this slice.
+## Gap status (gapwave2 pass)
+
+- Row 2: **FIXED** (already at HEAD: `scatter_inventory_at` and `drop_stack_at` both use `pos.load()`, boat.rs:398/412).
+- Row 3: **STILL OPEN** (formula for `DATA_ID_BUBBLE_TIME` not confirmed without the decompiled class).
+- Row 4: **STILL OPEN** (M: needs a vehicle rider-rotation hook; not attempted).
+- Row 5: **STILL OPEN** (needs decompiled `BoatItem.use` to confirm `isPickable` and the second pass).
+- Row 6: **FIXED** (533e9060d: dispenser requires still water for both the front and the air-over-water case).
+- Row 7: **STILL OPEN** (`is_chest_boat` is a `const fn` used in const contexts; tag mapping needs a non-const refactor).
+- Row 8: **STILL OPEN** (gametest not written; cargo not run in this pass).
+- Row 1: **UNVERIFIED** (no edit; `canAddPassenger` eye-in-water check not confirmed against the decompiled class).
