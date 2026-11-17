@@ -24,6 +24,7 @@ use pumpkin_core::command::{
     argument_types::{
         block::BlockArgumentType,
         block_predicate::BlockPredicateArgumentType,
+        client_parsed::MessageArgumentType,
         component::ComponentArgumentType,
         coordinates::{
             block_pos::BlockPosArgumentType, rotation::RotationArgumentType,
@@ -551,6 +552,7 @@ impl pumpkin::plugin::command::HostCommandNode for PluginHostState {
             ArgumentType::Time(min) => {
                 WasmCommandNode::Argument(argument(name, TimeArgumentType::new(min.unwrap_or(0))))
             }
+            ArgumentType::Message => WasmCommandNode::Argument(argument(name, MessageArgumentType)),
             _ => {
                 return Err(wasmtime::Error::msg(format!(
                     "Unimplemented argument type: {arg_type:?}"
@@ -817,5 +819,16 @@ mod tests {
         let rep = command.rep();
         assert!(HostCommand::drop(&mut state, command).is_ok());
         assert!(HostCommand::drop(&mut state, Resource::new_own(rep)).is_ok());
+    }
+
+    #[test]
+    fn message_argument_type_is_supported() {
+        use pumpkin::plugin::command::{ArgumentType, HostCommandNode};
+        let mut state = PluginHostState::new();
+        assert!(
+            state
+                .argument("message".to_string(), ArgumentType::Message)
+                .is_ok()
+        );
     }
 }

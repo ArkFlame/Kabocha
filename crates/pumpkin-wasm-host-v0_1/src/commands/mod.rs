@@ -24,6 +24,7 @@ use pumpkin_core::command::{
     argument_types::{
         block::BlockArgumentType,
         block_predicate::BlockPredicateArgumentType,
+        client_parsed::MessageArgumentType,
         component::ComponentArgumentType,
         coordinates::{
             block_pos::BlockPosArgumentType, rotation::RotationArgumentType,
@@ -564,6 +565,7 @@ impl pumpkin::plugin::command::HostCommandNode for PluginHostState {
             ArgumentType::Time(min) => {
                 WasmCommandNode::Argument(argument(name, TimeArgumentType::new(min.unwrap_or(0))))
             }
+            ArgumentType::Message => WasmCommandNode::Argument(argument(name, MessageArgumentType)),
             _ => {
                 return Err(wasmtime::Error::msg(format!(
                     "Unimplemented argument type: {arg_type:?}"
@@ -811,5 +813,21 @@ const fn map_util_locale_to_wit(locale: pumpkin_util::translation::Locale) -> Lo
         pumpkin_util::translation::Locale::ZhHk => Locale::ZhHk,
         pumpkin_util::translation::Locale::ZhTw => Locale::ZhTw,
         pumpkin_util::translation::Locale::ZlmArab => Locale::ZlmArab,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin::plugin::command::HostCommandNode;
+
+    #[test]
+    fn message_argument_type_is_supported() {
+        let mut state = PluginHostState::new();
+        assert!(
+            state
+                .argument("message".to_string(), ArgumentType::Message)
+                .is_ok()
+        );
     }
 }
