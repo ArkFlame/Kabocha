@@ -59,3 +59,5 @@ Counts: 16 BLOCKED-DATA rows, 26 L rows, 42 in total.
 | 24 | `happy_ghast.rs:158-163`, `:263-269` | Harness body slot and four-seat riding | No harness right-click path, seat layout or steering. |
 | 25 | `strider.rs` constructor | Per-mob pathfinder malus overrides | Needs malus overrides in the pathfinder. |
 | 26 | item use on entity (`item/mod.rs:71`) | Success or pass result for use on entity | The trait returns `()`, so the client result cannot be signalled; the item is still consumed correctly. |
+
+- Minecart stopped powered-rail nudge (0.02 toward a redstone conductor, vanilla `MinecartBehavior`): worker branch kab/f4-veh 43ca3b501 conflicts with the rail friction already integrated; redo on top of current minecart.rs. Also open: OCEAN_FLOOR heightmap (chunk NBT), light dampening `mergedFaceOccludes`, driver move-intent vector (see docs/tracker/tverify-vehicles.md).
