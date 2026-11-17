@@ -10,6 +10,28 @@ impl BedrockClient {
         server: &Arc<Server>,
         packet: &SPlayerAction,
     ) {
+        // Bedrock acknowledges a teleport with a player action, not the Java
+        // `ServerboundAcceptTeleportationPacket`. Clear the pending teleport so a client that
+        // stops near (but not exactly on) the target does not loop the 20-input resend in
+        // `await_teleport`. This is the same state transition the proximity fallback applies.
+        if matches!(
+            packet.action,
+            PlayerAction::HandledTeleport | PlayerAction::ChangeDimensionAck
+        ) {
+            let confirmed = {
+                let mut awaiting = player
+                    .awaiting_teleport
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                awaiting.take().is_some()
+            };
+            if confirmed {
+                player.is_changing_dimension.store(false, Ordering::Relaxed);
+                player.set_client_loaded(true);
+            }
+            return;
+        }
+
         if !player.has_client_loaded()
             || ((player.living_entity.dead.load(Ordering::Relaxed)
                 || player.living_entity.health.load() <= 0.0)
@@ -271,7 +293,9 @@ impl BedrockClient {
                     player_c.world().respawn_player(&player_c, false).await;
                 });
             }
-            // TODO
+            // Sneak / item-use / jump / swing actions are duplicate transports: the auth-input
+            // handler applies their effects every tick (sneak bits, embedded item interaction)
+            // and `animate.rs` broadcasts swings, so acting on them here would double-apply them.
             _ => {}
         }
     }

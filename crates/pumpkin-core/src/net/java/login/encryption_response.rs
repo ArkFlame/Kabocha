@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use crate::net::PlayerConfig;
 use pumpkin_util::version::JavaMinecraftVersion;
 
 impl PendingConnection {
@@ -189,7 +190,9 @@ impl PendingConnection {
             }
             return Some(PacketHandlerResult::ReadyToPlay(
                 profile.clone(),
-                self.config.clone().unwrap_or_default(),
+                self.config
+                    .clone()
+                    .unwrap_or_else(|| PlayerConfig::for_server(server)),
             ));
         }
         None

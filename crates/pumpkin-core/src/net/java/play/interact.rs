@@ -140,12 +140,20 @@ impl JavaClient {
 
                 let item_id = stack.item.id;
                 let before = stack.clone();
-                let interacted = match event.target_position {
+                let mut interacted = match event.target_position {
                     Some(position) if event.action == ActionType::InteractAt => {
                         event.target.interact_at(player, &mut stack, position)
                     }
                     _ => event.target.interact(player, &mut stack),
                 };
+                if !interacted {
+                    let result = server.item_registry.use_on_entity(
+                        &mut stack,
+                        player,
+                        event.target.clone(),
+                    );
+                    interacted = result.consumes_action();
+                }
                 if interacted {
                     player.trigger_datapack_advancements(
                         &crate::data::datapack::advancement::TriggerEvent::InteractedWithEntity {
@@ -182,11 +190,6 @@ impl JavaClient {
                         pumpkin_util::Hand::Right
                     };
                     player.swing_hand(swing_hand, true);
-                }
-                if !interacted {
-                    server
-                        .item_registry
-                        .use_on_entity(&mut stack, player, event.target);
                 }
                 if !stack.are_equal(&before) {
                     player.increment_stat(StatisticCategory::Used, item_id as i32, 1);

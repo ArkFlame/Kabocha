@@ -28,10 +28,19 @@ impl JavaClient {
 
         let world = player.get_entity().world.load_full();
 
-        // Vanilla only reaches the block use when the position is below the build limit and
+        // Vanilla only reaches the block use when the position is below the build limit, no
+        // teleport awaits client confirmation (`awaitingPositionFromClient == null`), and
         // `ServerLevel.mayInteract` allows it (world border, spawn protection); anything else
-        // resyncs the block to the client and stops.
-        if position.0.y > world.get_top_y() || !may_interact(player, &world, &position) {
+        // resyncs the block to the client and stops. Pumpkin tracks the pending teleport on
+        // `Player.awaiting_teleport` (set by `expect_teleport_confirm`, cleared on `SConfirmTeleport`).
+        let teleport_pending = player
+            .awaiting_teleport
+            .lock()
+            .is_ok_and(|awaiting| awaiting.is_some());
+        if position.0.y > world.get_top_y()
+            || teleport_pending
+            || !may_interact(player, &world, &position)
+        {
             let state_id = world.get_block_state_id(&position);
             player.try_send_client_packet(&CBlockUpdate::new(
                 position,
@@ -206,16 +215,9 @@ impl JavaClient {
 
         sync_used_hand_item(player, hand, slot_index, &before, item.clone());
 
-        // Vanilla falls back to the item's own use when neither the block nor the
-        // item handled the click (Item#useOn defaults to Item#use), so items such
-        // as ender pearls still throw when aimed at a block.
-        if matches!(item_result, BlockActionResult::Pass)
-            && !item.is_empty()
-            && Block::from_item_id(item.item.id).is_none()
-        {
-            server.item_registry.on_use(&item, player, hand);
-        }
-
+        // Vanilla does not re-run Item#use here: Item#useOn defaults to PASS and the client
+        // sends a separate ServerboundUseItemPacket (handled by handle_use_item). A fallback
+        // here would double-fire items such as ender pearls.
         Ok(())
     }
 
@@ -322,15 +324,18 @@ fn trigger_item_used_on_block_advancement(
     block: &Block,
     used_item: &ItemStack,
 ) {
-    let state = pumpkin_data::block_properties::CopperBulbLikeProperties::handles_block_id(
-        block.id,
-    )
-    .then(|| {
-        let props = pumpkin_data::block_properties::CopperBulbLikeProperties::from_state_id(
-            world.get_block_state(position).id,
-        );
-        ("lit".to_string(), props.r#lit.to_string())
-    });
+    let state_id = world.get_block_state(position).id;
+    // Vanilla ItemUsedOnLocationTrigger matches a StatePropertiesPredicate against
+    // every property of the clicked block state, not one hardcoded property.
+    let state: Vec<(String, String)> = block
+        .property_values(state_id)
+        .map(|property| {
+            (
+                property.key_str().to_string(),
+                property.value_str().to_string(),
+            )
+        })
+        .collect();
     let is_smokey = crate::block::blocks::campfire::CampfireBlock::is_smokey_pos(world, position);
     let biome = Some(world.get_biome(position).registry_id.to_string());
 
@@ -338,7 +343,7 @@ fn trigger_item_used_on_block_advancement(
         crate::entity::player::advancement::trigger::AdvancementTrigger::ItemUsedOnBlock {
             block_id: format!("minecraft:{}", block.name),
             item_id: used_item.item.registry_key.to_string(),
-            state,
+            state: Some(state),
             smokey: Some(is_smokey),
             biome,
         },

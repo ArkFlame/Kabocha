@@ -623,7 +623,10 @@ impl PendingConnection {
                 let Some(profile) = self.gameprofile.clone() else {
                     return Ok(Some(PacketHandlerResult::Stop));
                 };
-                let config = self.config.clone().unwrap_or_default();
+                let config = self
+                    .config
+                    .clone()
+                    .unwrap_or_else(|| PlayerConfig::for_server(server));
                 self.connection_state.store(ConnectionState::Play);
                 if let Some(reason) = can_not_join(&profile, &self.address, server).await {
                     self.kick(reason).await;

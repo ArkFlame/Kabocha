@@ -173,7 +173,7 @@ pub struct BedrockClient {
     server: std::sync::Weak<Server>,
     /// All Bedrock clients
     /// This list is used to remove the client if the connection gets closed
-    pub be_clients: Arc<Mutex<HashMap<SocketAddr, Arc<Self>>>>,
+    pub be_clients: Arc<Mutex<HashMap<u64, Arc<Self>>>>,
 
     tasks: TaskTracker,
     rt_handle: tokio::runtime::Handle,
@@ -233,7 +233,7 @@ impl BedrockClient {
         id: u64,
         session: Arc<NetherNetSession>,
         address: SocketAddr,
-        be_clients: Arc<Mutex<HashMap<SocketAddr, Arc<Self>>>>,
+        be_clients: Arc<Mutex<HashMap<u64, Arc<Self>>>>,
         packet_limiter: PacketRateLimiter,
         server: std::sync::Weak<Server>,
     ) -> Self {
@@ -1000,7 +1000,7 @@ impl BedrockClient {
         }
         self.close_token.cancel();
         self.session.close().await;
-        self.be_clients.lock().await.remove(&self.address);
+        self.be_clients.lock().await.remove(&self.id);
     }
 
     pub async fn await_tasks(&self) {

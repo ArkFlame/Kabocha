@@ -102,6 +102,20 @@ pub struct PlayerConfig {
     pub server_listing: bool,
 }
 
+impl PlayerConfig {
+    /// The transient configuration used before the client reports its own settings.
+    ///
+    /// Vanilla starts with `modelCustomisation = 0` (`ClientInformation.createDefault()`) and
+    /// the server's configured view distance, so seed both instead of hardcoded placeholders.
+    #[must_use]
+    pub fn for_server(server: &Server) -> Self {
+        Self {
+            view_distance: server.advanced_config.networking.java.view_distance,
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
@@ -109,7 +123,8 @@ impl Default for PlayerConfig {
             view_distance: NonZero::new(8).unwrap_or(NonZero::<u8>::MIN),
             chat_mode: ChatMode::Enabled,
             chat_colors: true,
-            skin_parts: 0x7F,
+            // Vanilla ClientInformation.createDefault() uses modelCustomisation = 0.
+            skin_parts: 0,
             main_hand: Hand::Right,
             text_filtering: false,
             server_listing: false,
@@ -393,14 +408,30 @@ impl ClientPlatform {
     }
 }
 
+/// Vanilla uses SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z") in the system zone;
+/// the time crate has no named zones, so a zero offset renders as UTC and other offsets stay numeric.
+fn format_ban_expiration(expires: time::OffsetDateTime, local_offset: time::UtcOffset) -> String {
+    const FORMAT_DATE_TIME: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[year]-[month]-[day] at [hour]:[minute]:[second]");
+    const FORMAT_OFFSET: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[offset_hour sign:mandatory]:[offset_minute]");
+
+    let local = expires.to_offset(local_offset);
+    let date_time = local.format(FORMAT_DATE_TIME).unwrap_or_default();
+    let zone = if local_offset == time::UtcOffset::UTC {
+        "UTC".to_string()
+    } else {
+        local.format(FORMAT_OFFSET).unwrap_or_default()
+    };
+    format!("{date_time} {zone}")
+}
+
 pub async fn can_not_join(
     profile: &GameProfile,
     address: &SocketAddr,
     server: &Arc<Server>,
 ) -> Option<TextComponent> {
-    const FORMAT_DESCRIPTION: &[time::format_description::FormatItem<'static>] = time::macros::format_description!(
-        "[year]-[month]-[day] at [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
-    );
+    let local_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
 
     let ban_entry = server
         .data
@@ -419,9 +450,10 @@ pub async fn can_not_join(
             Some(expires) => text.add_child(TextComponent::translate_cross(
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
-                [TextComponent::text(
-                    expires.format(FORMAT_DESCRIPTION).unwrap_or_default(),
-                )],
+                [TextComponent::text(format_ban_expiration(
+                    expires,
+                    local_offset,
+                ))],
             )),
             None => text,
         };
@@ -478,9 +510,10 @@ pub async fn can_not_join(
             Some(expires) => text.add_child(TextComponent::translate_cross(
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_EXPIRATION,
                 translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_EXPIRATION,
-                [TextComponent::text(
-                    expires.format(FORMAT_DESCRIPTION).unwrap_or_default(),
-                )],
+                [TextComponent::text(format_ban_expiration(
+                    expires,
+                    local_offset,
+                ))],
             )),
             None => text,
         });
@@ -669,6 +702,22 @@ pub enum DisconnectReason {
 #[cfg(test)]
 mod tests {
     use crate::net::{is_valid_player_name, offline_uuid};
+
+    /// Vanilla ban-expiration z field renders UTC for a zero offset and the date/time in the
+    /// system zone; named zones beyond UTC need tz data that the time crate does not carry.
+    #[test]
+    fn ban_expiration_renders_utc_name_and_local_time() {
+        let expires = time::macros::datetime!(2027-01-15 05:20:00 UTC);
+        assert_eq!(
+            super::format_ban_expiration(expires, time::UtcOffset::UTC),
+            "2027-01-15 at 05:20:00 UTC"
+        );
+        let plus_one = time::UtcOffset::from_hms(1, 0, 0).unwrap_or(time::UtcOffset::UTC);
+        assert_eq!(
+            super::format_ban_expiration(expires, plus_one),
+            "2027-01-15 at 06:20:00 +01:00"
+        );
+    }
 
     /// Expected values come from vanilla `UUIDUtil.createOfflinePlayerUUID`.
     #[test]

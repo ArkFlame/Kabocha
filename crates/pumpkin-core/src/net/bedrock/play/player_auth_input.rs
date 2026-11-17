@@ -287,7 +287,6 @@ impl BedrockClient {
     /// positions (e.g. the death spot before a respawn) never count as movement or a fall.
     /// Returns true while still waiting.
     fn await_teleport(&self, player: &Arc<Player>, packet: &SPlayerAuthInput) -> bool {
-        const TELEPORT_ERROR: f32 = 0.1;
         const RESEND_INPUTS: u32 = 20;
 
         let mut awaiting = player
@@ -297,13 +296,11 @@ impl BedrockClient {
         if awaiting.is_none() {
             return false;
         }
-        // The f32 position actually sent, a f64 target can sit between two f32 values.
-        let target = self.teleport_sent_pos.load();
-        let position = packet.position;
-        if (position.x - target.x).abs() < TELEPORT_ERROR
-            && (position.y - target.y).abs() < TELEPORT_ERROR
-            && (position.z - target.z).abs() < TELEPORT_ERROR
-        {
+        // Bedrock acknowledges a teleport with the `HandledTeleport` input flag (Java uses
+        // `ServerboundAcceptTeleportationPacket`); proximity is the fallback for clients
+        // that never set the flag.
+        let handled = packet.input_data.get(InputData::HandledTeleport as usize);
+        if teleport_confirmed(handled, packet.position, self.teleport_sent_pos.load()) {
             *awaiting = None;
             drop(awaiting);
             player.is_changing_dimension.store(false, Ordering::Relaxed);
@@ -320,6 +317,18 @@ impl BedrockClient {
         }
         true
     }
+}
+
+/// A Bedrock client confirms a teleport by setting the `HandledTeleport` input flag, the
+/// equivalent of vanilla `handleAcceptTeleportPacket`. Clients that do not set it are accepted
+/// once their reported position reaches the sent target; an f32 position can sit either side
+/// of the stored target, hence the small tolerance.
+fn teleport_confirmed(handled: bool, position: Vector3<f32>, target: Vector3<f32>) -> bool {
+    const TELEPORT_ERROR: f32 = 0.1;
+    handled
+        || ((position.x - target.x).abs() < TELEPORT_ERROR
+            && (position.y - target.y).abs() < TELEPORT_ERROR
+            && (position.z - target.z).abs() < TELEPORT_ERROR)
 }
 
 fn sneaking_from_auth(
@@ -440,21 +449,19 @@ fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
 
 /// Bedrock has no move-vehicle packet: the client simulates the mount it rides and reports
 /// only the rider's step, so the server has to carry that step onto the mount itself.
-/// Without it a Bedrock-controlled saddled mount never leaves the spot it was mounted at.
+/// Without it a Bedrock-controlled saddled mount or boat never leaves its mounted spot.
+/// Vanilla's `handleMoveVehicle` applies the client step to any vehicle whose controlling
+/// passenger is the player, not just living mounts, so boats are carried here too.
 fn apply_mount_move(
     player: &Arc<Player>,
     vehicle: &Arc<dyn EntityBase>,
     packet: &SPlayerAuthInput,
     on_ground: bool,
 ) {
-    // Vanilla's "moved too quickly" guard, minus the vehicle's own motion allowance.
-    // Saddled mounts only: boats and minecarts have their own server-side movement.
-    if vehicle.get_mob().is_none() {
-        return;
-    }
     let rider = player.get_entity();
-    // Vanilla `Entity.getControllingPassenger`: only a saddle-steering first passenger,
-    // and never a NoAI mount, moves the mount.
+    // Vanilla `Entity.getControllingPassenger`: a saddle-steering first passenger or a boat's
+    // first player passenger moves the vehicle; minecarts report none and steer through their
+    // server-side input bits instead (see `minecart.rs`).
     let controls = vehicle
         .get_controlling_passenger()
         .is_some_and(|controller| controller.get_entity().entity_id == rider.entity_id);
@@ -516,7 +523,8 @@ const fn mount_rotation(
 #[cfg(test)]
 mod tests {
     use super::{
-        Vector2, analog_move, is_on_ground, mount_rotation, sneaking_from_flags, vehicle_id_matches,
+        Vector2, Vector3, analog_move, is_on_ground, mount_rotation, sneaking_from_flags,
+        teleport_confirmed, vehicle_id_matches,
     };
     use pumpkin_protocol::bedrock::server::player_auth_input::InputData;
     use pumpkin_protocol::codec::bitset::Bitset;
@@ -575,6 +583,29 @@ mod tests {
         assert!(!vehicle_id_matches(
             Some(VarLong::new(i64::from(i32::MAX) + 1)),
             7
+        ));
+    }
+
+    #[test]
+    fn teleport_ack_flag_confirms_without_reaching_the_target() {
+        assert!(teleport_confirmed(
+            true,
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(100.0, 100.0, 100.0)
+        ));
+    }
+
+    #[test]
+    fn teleport_confirms_by_proximity_without_the_ack_flag() {
+        assert!(teleport_confirmed(
+            false,
+            Vector3::new(10.0, 20.0, 30.0),
+            Vector3::new(10.05, 19.95, 30.0)
+        ));
+        assert!(!teleport_confirmed(
+            false,
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(100.0, 100.0, 100.0)
         ));
     }
 

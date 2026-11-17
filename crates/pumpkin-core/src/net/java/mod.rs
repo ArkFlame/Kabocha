@@ -168,6 +168,10 @@ pub struct JavaClient {
     pub packet_limiter: PacketRateLimiter,
     /// Vanilla `suspendFlushingOnServerThread`.
     suspend_flushing: Arc<AtomicBool>,
+    /// Tail of the per-player ordered dispatch chain for chat/command/session
+    /// packets. Every job awaits the previous one so a single client's packets
+    /// are handled in arrival order, like vanilla's inline server-thread handlers.
+    deferred_packet_tail: std::sync::Mutex<Option<JoinHandle<()>>>,
 }
 
 impl JavaClient {
@@ -210,6 +214,7 @@ impl JavaClient {
             packet_sequence: AtomicI32::new(-1),
             packet_limiter: pending.packet_limiter,
             suspend_flushing: Arc::new(AtomicBool::new(false)),
+            deferred_packet_tail: std::sync::Mutex::new(None),
         }
     }
 
@@ -374,6 +379,32 @@ impl JavaClient {
         } else {
             Some(self.tasks.spawn_on(task, &self.rt_handle))
         }
+    }
+
+    /// Enqueue an async packet handler to run after every previously enqueued
+    /// handler for this client. Vanilla handles chat, command, chat-ack and session
+    /// packets inline on the server thread in arrival order; chaining the jobs here
+    /// keeps that order without blocking a Tokio worker.
+    fn enqueue_ordered_packet<F>(&self, server: &Arc<Server>, task: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let previous = self
+            .deferred_packet_tail
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let chained = async move {
+            if let Some(previous) = previous {
+                let _ = previous.await;
+            }
+            task.await;
+        };
+        let handle = server.spawn_task(chained);
+        *self
+            .deferred_packet_tail
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(handle);
     }
 
     /// Queues the chunks and reports which were sent and why the others were not.
@@ -903,7 +934,13 @@ impl JavaClient {
             }
             id if id == SChatAck::to_id(version) => {
                 let packet = SChatAck::read(&mut payload, &version)?;
-                self.handle_chat_ack(player, &packet);
+                let client_platform = player.client.clone();
+                let player_c = player.clone();
+                self.enqueue_ordered_packet(server, async move {
+                    if let ClientPlatform::Java(client) = client_platform.as_ref() {
+                        client.handle_chat_ack(&player_c, &packet);
+                    }
+                });
             }
             id if id == SChatCommand::to_id(version) => {
                 let packet = SChatCommand::read(&mut payload, &version)?;
@@ -911,7 +948,7 @@ impl JavaClient {
                 let client_platform = player.client.clone();
                 let player_c = player.clone();
                 let server_c = server.clone();
-                server.spawn_task(async move {
+                self.enqueue_ordered_packet(server, async move {
                     if let ClientPlatform::Java(client) = client_platform.as_ref() {
                         let packet = SChatCommand { command: &cmd };
                         client
@@ -933,7 +970,7 @@ impl JavaClient {
                 let client_platform = player.client.clone();
                 let player_c = player.clone();
                 let server_c = server.clone();
-                server.spawn_task(async move {
+                self.enqueue_ordered_packet(server, async move {
                     if let ClientPlatform::Java(client) = client_platform.as_ref() {
                         let packet = SChatCommand { command: &cmd };
                         client
@@ -954,7 +991,7 @@ impl JavaClient {
                 let client_platform = player.client.clone();
                 let player_c = player.clone();
                 let server_c = server.clone();
-                server.spawn_task(async move {
+                self.enqueue_ordered_packet(server, async move {
                     if let ClientPlatform::Java(client) = client_platform.as_ref() {
                         let packet = SChatMessage {
                             message: &msg,
@@ -1199,7 +1236,7 @@ impl JavaClient {
                 let client_platform = player.client.clone();
                 let player_c = player.clone();
                 let server_c = server.clone();
-                server.spawn_task(async move {
+                self.enqueue_ordered_packet(server, async move {
                     if let ClientPlatform::Java(client) = client_platform.as_ref() {
                         client
                             .handle_chat_session_update(&player_c, &server_c, session)
