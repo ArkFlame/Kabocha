@@ -2499,11 +2499,19 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
         && let Ok(val) = serde_json::from_str::<serde_json::Value>(&content)
     {
         let pack = val.get("pack");
+        // Vanilla renders the description as a text component: a plain string, or a
+        // component object that is flattened to its English text.
         let description = pack
             .and_then(|p| p.get("description"))
-            .map(|d| {
-                d.as_str()
-                    .map_or_else(|| d.to_string(), ToString::to_string)
+            .map(|d| match d {
+                serde_json::Value::String(text) => text.clone(),
+                component => serde_json::from_value::<pumpkin_util::text::TextComponent>(
+                    component.clone(),
+                )
+                .map_or_else(
+                    |_| component.to_string(),
+                    pumpkin_util::text::TextComponent::get_text,
+                ),
             })
             .unwrap_or_default();
         let pack_format = pack
@@ -2922,6 +2930,17 @@ mod tests {
         assert_eq!(known_packs[0].namespace, "nested");
         assert_eq!(known_packs[0].id, "pack");
         assert_eq!(known_packs[0].version, "2.0.0");
+
+        // 3. Component descriptions are flattened instead of leaking raw JSON.
+        std::fs::write(
+            pack_path.join("pack.mcmeta"),
+            r#"{"pack":{"description":{"text":"Hi ","extra":[{"text":"there"}]},"pack_format":61}}"#,
+        )
+        .unwrap();
+
+        let (desc, _, _) = super::read_pack_mcmeta(pack_path);
+        assert!(desc.contains("Hi"), "component text is kept: {desc}");
+        assert!(!desc.contains('{'), "raw JSON is not shown: {desc}");
     }
 
     #[test]
