@@ -6,6 +6,7 @@ use pumpkin_data::{
     fluid::Fluid,
 };
 use pumpkin_util::encompassing_bits;
+use pumpkin_util::math::bit_storage::SimpleBitStorage;
 use tracing::warn;
 
 use super::format::{ChunkSectionBiomes, ChunkSectionBlockStates};
@@ -20,6 +21,21 @@ fn bedrock_palette_bits(palette_len: usize) -> u8 {
 
 /// 3d array indexed by y,z,x
 type AbstractCube<T, const DIM: usize> = [[[T; DIM]; DIM]; DIM];
+
+/// Vanilla never packs block palette indices tighter than this.
+const MIN_INDEX_BITS: u8 = 4;
+/// Above this the palette is dropped and every entry stores its value.
+const MAX_INDEX_BITS: u8 = 8;
+
+/// Bits an index into a palette of `len` entries takes.
+fn index_bits(len: usize) -> u8 {
+    encompassing_bits(len).max(MIN_INDEX_BITS)
+}
+
+/// Position of `(x, y, z)` in the flattened cube, the same order vanilla packs.
+const fn flat_index<const DIM: usize>(x: usize, y: usize, z: usize) -> usize {
+    (y * DIM + z) * DIM + x
+}
 
 #[inline]
 #[must_use]
@@ -51,7 +67,9 @@ pub struct HeterogeneousPaletteData<V: Hash + Eq + Copy, const DIM: usize> {
 #[derive(Clone)]
 enum PaletteStorage<V, const DIM: usize> {
     Dense(Box<AbstractCube<V, DIM>>),
-    Indexed(Box<AbstractCube<u8, DIM>>),
+    /// Palette indices packed to the palette's bit width, the layout vanilla keeps in its
+    /// `PalettedContainer` and writes to disk and the network unchanged.
+    Indexed(SimpleBitStorage),
 }
 
 impl<V: Hash + Eq + Copy + Default, const DIM: usize> HeterogeneousPaletteData<V, DIM> {
@@ -62,7 +80,9 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> HeterogeneousPaletteData<V
 
         match &self.storage {
             PaletteStorage::Dense(cube) => cube[y][z][x],
-            PaletteStorage::Indexed(indices) => self.palette[indices[y][z][x] as usize],
+            PaletteStorage::Indexed(indices) => {
+                self.palette[indices.get(flat_index::<DIM>(x, y, z)) as usize]
+            }
         }
     }
 
@@ -100,8 +120,11 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> HeterogeneousPaletteData<V
                 cube[y][z][x] = value;
             }
             PaletteStorage::Indexed(indices) => {
-                if new_index <= 255 {
-                    indices[y][z][x] = new_index as u8;
+                if new_index < 1 << MAX_INDEX_BITS {
+                    if new_index >= 1 << indices.bits() {
+                        *indices = indices.resized(index_bits(self.palette.len()));
+                    }
+                    indices.set(flat_index::<DIM>(x, y, z), new_index as u32);
                 } else {
                     // Upgrade to Dense
                     let mut cube = Box::new([[[V::default(); DIM]; DIM]; DIM]);
@@ -111,10 +134,7 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> HeterogeneousPaletteData<V
                         .iter_mut()
                         .enumerate()
                     {
-                        let y = i / (DIM * DIM);
-                        let z = (i / DIM) % DIM;
-                        let x = i % DIM;
-                        *v = self.palette[indices[y][z][x] as usize];
+                        *v = self.palette[indices.get(i) as usize];
                     }
                     cube[y][z][x] = value;
                     self.storage = PaletteStorage::Dense(cube);
@@ -138,13 +158,9 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> HeterogeneousPaletteData<V
 
             // If we are indexed, we need to update all indices because swap_remove changed indices
             if !upgraded && let PaletteStorage::Indexed(indices) = &mut self.storage {
-                for row in indices.iter_mut() {
-                    for col in row.iter_mut() {
-                        for idx in col.iter_mut() {
-                            if *idx as usize == last_index {
-                                *idx = original_index as u8;
-                            }
-                        }
+                for i in 0..DIM * DIM * DIM {
+                    if indices.get(i) as usize == last_index {
+                        indices.set(i, original_index as u32);
                     }
                 }
             }
@@ -187,11 +203,11 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
             Self::Homogeneous(palette[0])
         } else {
             // Heterogeneous cube, store the full data
-            if palette.len() <= 256 && std::mem::size_of::<V>() > 1 {
-                let mut indices = Box::new([[[0u8; DIM]; DIM]; DIM]);
+            if palette.len() <= 1 << MAX_INDEX_BITS && std::mem::size_of::<V>() > 1 {
+                let mut indices = SimpleBitStorage::new(index_bits(palette.len()), Self::VOLUME);
                 for (i, v) in cube.as_flattened().as_flattened().iter().enumerate() {
                     let idx = palette.iter().position(|p| p == v).unwrap_or(0);
-                    indices.as_flattened_mut().as_flattened_mut()[i] = idx as u8;
+                    indices.set(i, idx as u32);
                 }
                 Self::Heterogeneous(Box::new(HeterogeneousPaletteData {
                     storage: PaletteStorage::Indexed(indices),
@@ -211,139 +227,45 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
     /// Builds a complete palette without paying the bookkeeping cost of individual mutations.
     #[expect(clippy::too_many_lines)]
     pub(crate) fn from_fn(mut value_at: impl FnMut(usize, usize, usize) -> V) -> Self {
-        let first = value_at(0, 0, 0);
-        let mut first_count: u16 = 1;
-        let mut first_diff = None;
+        let mut cube = Box::new([[[V::default(); DIM]; DIM]; DIM]);
+        let mut indices = Box::new([[[0u8; DIM]; DIM]; DIM]);
+        let mut palette = Vec::new();
+        let mut counts = Vec::<u16>::new();
 
-        'homogeneous: for y in 0..DIM {
+        for y in 0..DIM {
             for z in 0..DIM {
-                let x_start = usize::from(y == 0 && z == 0);
-                for x in x_start..DIM {
+                for x in 0..DIM {
                     let value = value_at(x, y, z);
-                    if value == first {
-                        first_count += 1;
-                    } else {
-                        first_diff = Some((x, y, z, value));
-                        break 'homogeneous;
-                    }
-                }
-            }
-        }
-
-        let Some((diff_x, diff_y, diff_z, second)) = first_diff else {
-            return Self::Homogeneous(first);
-        };
-
-        let mut palette = Vec::with_capacity(16);
-        palette.push(first);
-        palette.push(second);
-        let mut counts = Vec::<u16>::with_capacity(16);
-        counts.push(first_count);
-        counts.push(1);
-
-        if std::mem::size_of::<V>() <= 1 {
-            let mut cube = Box::new([[[first; DIM]; DIM]; DIM]);
-            cube[diff_y][diff_z][diff_x] = second;
-            let mut last_val = second;
-            let mut last_idx = 1usize;
-
-            for (y, plane) in cube.iter_mut().enumerate().skip(diff_y) {
-                let z_start = if y == diff_y { diff_z } else { 0 };
-                for (z, row) in plane.iter_mut().enumerate().skip(z_start) {
-                    let x_start = if y == diff_y && z == diff_z {
-                        diff_x + 1
-                    } else {
-                        0
-                    };
-                    for (x, cell) in row.iter_mut().enumerate().skip(x_start) {
-                        let value = value_at(x, y, z);
-                        *cell = value;
-                        let index = if value == last_val {
-                            last_idx
-                        } else if let Some(idx) = palette.iter().position(|&e| e == value) {
-                            last_val = value;
-                            last_idx = idx;
-                            idx
+                    cube[y][z][x] = value;
+                    let index =
+                        if let Some(index) = palette.iter().position(|entry| *entry == value) {
+                            counts[index] += 1;
+                            index
                         } else {
                             palette.push(value);
-                            counts.push(0);
-                            last_val = value;
-                            last_idx = palette.len() - 1;
-                            last_idx
+                            counts.push(1);
+                            palette.len() - 1
                         };
-                        counts[index] += 1;
-                    }
-                }
-            }
-
-            return Self::Heterogeneous(Box::new(HeterogeneousPaletteData {
-                storage: PaletteStorage::Dense(cube),
-                palette,
-                counts,
-            }));
-        }
-
-        let mut indices = Box::new([[[0u8; DIM]; DIM]; DIM]);
-        indices[diff_y][diff_z][diff_x] = 1;
-        let mut dense_cube: Option<Box<[[[V; DIM]; DIM]; DIM]>> = None;
-        let mut last_val = second;
-        let mut last_idx = 1usize;
-
-        for y in diff_y..DIM {
-            let z_start = if y == diff_y { diff_z } else { 0 };
-            for z in z_start..DIM {
-                let x_start = if y == diff_y && z == diff_z {
-                    diff_x + 1
-                } else {
-                    0
-                };
-                for x in x_start..DIM {
-                    let value = value_at(x, y, z);
-                    let index = if value == last_val {
-                        counts[last_idx] += 1;
-                        last_idx
-                    } else if value == first {
-                        counts[0] += 1;
-                        last_val = first;
-                        last_idx = 0;
-                        0
-                    } else if let Some(idx) = palette.iter().position(|&e| e == value) {
-                        counts[idx] += 1;
-                        last_val = value;
-                        last_idx = idx;
-                        idx
-                    } else {
-                        palette.push(value);
-                        counts.push(1);
-                        let idx = palette.len() - 1;
-                        last_val = value;
-                        last_idx = idx;
-                        if idx == 256 {
-                            let mut cube = Box::new([[[first; DIM]; DIM]; DIM]);
-                            for cy in 0..=y {
-                                let cz_end = if cy == y { z + 1 } else { DIM };
-                                for cz in 0..cz_end {
-                                    let cx_end = if cy == y && cz == z { x } else { DIM };
-                                    for cx in 0..cx_end {
-                                        cube[cy][cz][cx] = palette[indices[cy][cz][cx] as usize];
-                                    }
-                                }
-                            }
-                            dense_cube = Some(cube);
-                        }
-                        idx
-                    };
-
-                    if let Some(cube) = &mut dense_cube {
-                        cube[y][z][x] = value;
-                    } else {
-                        indices[y][z][x] = index as u8;
+                    if let Ok(index) = u8::try_from(index) {
+                        indices[y][z][x] = index;
                     }
                 }
             }
         }
 
-        let storage = dense_cube.map_or(PaletteStorage::Indexed(indices), PaletteStorage::Dense);
+        if palette.len() == 1 {
+            return Self::Homogeneous(palette[0]);
+        }
+
+        let storage = if palette.len() <= 1 << MAX_INDEX_BITS && std::mem::size_of::<V>() > 1 {
+            let mut packed = SimpleBitStorage::new(index_bits(palette.len()), Self::VOLUME);
+            for (i, &index) in indices.as_flattened().as_flattened().iter().enumerate() {
+                packed.set(i, u32::from(index));
+            }
+            PaletteStorage::Indexed(packed)
+        } else {
+            PaletteStorage::Dense(cube)
+        };
         Self::Heterogeneous(Box::new(HeterogeneousPaletteData {
             storage,
             palette,
@@ -403,23 +325,16 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
                                     acc | packed_offset_index as i64
                                 })
                             })
-                            .collect()
-                    }
-                    PaletteStorage::Indexed(indices) => indices
-                        .as_flattened()
-                        .as_flattened()
-                        .chunks(blocks_per_i64 as usize)
-                        .map(|chunk| {
-                            chunk.iter().enumerate().fold(0, |acc, (index, key_index)| {
-                                let key_index = *key_index as usize;
-                                debug_assert!((1 << bits_per_entry) > key_index);
-
-                                let packed_offset_index =
-                                    (key_index as u64) << (bits_per_entry as u64 * index as u64);
-                                acc | packed_offset_index as i64
-                            })
                         })
                         .collect(),
+                    PaletteStorage::Indexed(indices) => {
+                        let indices = if indices.bits() == bits_per_entry {
+                            std::borrow::Cow::Borrowed(indices)
+                        } else {
+                            std::borrow::Cow::Owned(indices.resized(bits_per_entry))
+                        };
+                        indices.data().iter().map(|&word| word as i64).collect()
+                    }
                 };
 
                 (data.palette.clone().into_boxed_slice(), packed_indices)
@@ -446,31 +361,21 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
         let index_mask = (1 << bits_per_key) - 1;
         let keys_per_i64 = 64 / bits_per_key;
 
-        // Optimized path for indexed storage if palette is small enough
-        if palette.len() <= 256 && std::mem::size_of::<V>() > 1 {
-            let mut indices = Box::new([[[0u8; DIM]; DIM]; DIM]);
+        // The words already have the in-memory layout, so keep them and only count.
+        if palette.len() <= 1 << MAX_INDEX_BITS && std::mem::size_of::<V>() > 1 {
+            let mut words: Vec<u64> = packed_data.iter().map(|&word| word as u64).collect();
+            words.resize(SimpleBitStorage::word_count(bits_per_key, Self::VOLUME), 0);
+            let mut indices =
+                SimpleBitStorage::from_data(bits_per_key, Self::VOLUME, words.into_boxed_slice());
             let mut counts = vec![0u16; palette.len()];
-            let indices_flat = indices.as_flattened_mut().as_flattened_mut();
 
-            let mut packed_data_iter = packed_data.iter();
-            let mut current_packed_word = *packed_data_iter.next().unwrap_or(&0);
-
-            for (i, index_out) in indices_flat.iter_mut().enumerate().take(Self::VOLUME) {
-                let bit_index_in_word = i % keys_per_i64 as usize;
-                if bit_index_in_word == 0 && i > 0 {
-                    current_packed_word = *packed_data_iter.next().unwrap_or(&0);
-                }
-
-                let lookup_index = ((current_packed_word as u64)
-                    >> (bit_index_in_word as u64 * bits_per_key as u64))
-                    & index_mask;
-
-                let idx = lookup_index as usize;
+            for i in 0..Self::VOLUME {
+                let idx = indices.get(i) as usize;
                 if idx < palette.len() {
-                    *index_out = idx as u8;
                     counts[idx] += 1;
                 } else {
                     warn!("Lookup index out of bounds! Defaulting...");
+                    indices.set(i, 0);
                     counts[0] += 1;
                 }
             }
@@ -589,13 +494,9 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
                 PaletteStorage::Dense(cube) => {
                     Box::new(cube.as_flattened().as_flattened().iter().copied())
                 }
-                PaletteStorage::Indexed(indices) => Box::new(
-                    indices
-                        .as_flattened()
-                        .as_flattened()
-                        .iter()
-                        .map(|&idx| data.palette[idx as usize]),
-                ),
+                PaletteStorage::Indexed(indices) => {
+                    Box::new((0..DIM * DIM * DIM).map(|i| data.palette[indices.get(i) as usize]))
+                }
             },
         }
     }
@@ -624,13 +525,9 @@ impl<'a, V: Hash + Eq + Copy + Default, const DIM: usize> IntoIterator
                 PaletteStorage::Dense(cube) => {
                     Box::new(cube.as_flattened().as_flattened().iter().copied())
                 }
-                PaletteStorage::Indexed(indices) => Box::new(
-                    indices
-                        .as_flattened()
-                        .as_flattened()
-                        .iter()
-                        .map(|&idx| data.palette[idx as usize]),
-                ),
+                PaletteStorage::Indexed(indices) => {
+                    Box::new((0..DIM * DIM * DIM).map(|i| data.palette[indices.get(i) as usize]))
+                }
             },
         }
     }
@@ -835,7 +732,8 @@ impl BlockPalette {
                     for y in 0..Self::SIZE {
                         for z in 0..Self::SIZE {
                             let palette_index = match &data.storage {
-                                PaletteStorage::Indexed(indices) => usize::from(indices[z][y][x]),
+                                PaletteStorage::Indexed(indices) =>
+                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize,
                                 PaletteStorage::Dense(cube) => key_to_index[&cube[z][y][x]],
                             };
                             if water_states[palette_index] {
@@ -946,7 +844,8 @@ impl BlockPalette {
                             // Java has it in y, z, x order, so we need to convert it back to x, y, z
                             // Please test your code on bedrock before merging
                             let key_index = match &data.storage {
-                                PaletteStorage::Indexed(indices) => usize::from(indices[z][y][x]),
+                                PaletteStorage::Indexed(indices) =>
+                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize,
                                 PaletteStorage::Dense(cube) => {
                                     key_to_index_map.get(&cube[z][y][x]).copied().unwrap_or(0)
                                 }
@@ -1108,7 +1007,9 @@ impl BlockPalette {
                         out.put_u16(id.as_u16());
                         out.put_u16(count);
                     }
-                    out.extend_from_slice(indices.as_flattened().as_flattened());
+                    for i in 0..Self::VOLUME {
+                        out.put_u8(indices.get(i) as u8);
+                    }
                 }
                 PaletteStorage::Dense(cube) => {
                     out.put_u8(2);
@@ -1160,17 +1061,17 @@ impl BlockPalette {
                     buf.advance(Self::VOLUME);
                     return Ok(Self::Homogeneous(palette[0]));
                 }
-                let mut indices = Box::new([[[0u8; Self::SIZE]; Self::SIZE]; Self::SIZE]);
-                let flat = indices.as_flattened_mut().as_flattened_mut();
-                flat.copy_from_slice(&buf[..Self::VOLUME]);
-                buf.advance(Self::VOLUME);
-
+                let mut indices = SimpleBitStorage::new(index_bits(palette_len), Self::VOLUME);
                 let mut counts = vec![0; palette_len];
-                for idx in flat.iter_mut() {
-                    if *idx as usize >= palette_len {
-                        *idx = 0;
-                    }
-                    counts[*idx as usize] += 1;
+                for i in 0..Self::VOLUME {
+                    let idx = buf.get_u8();
+                    let idx = if usize::from(idx) >= palette_len {
+                        0
+                    } else {
+                        idx
+                    };
+                    counts[usize::from(idx)] += 1;
+                    indices.set(i, u32::from(idx));
                 }
                 Ok(Self::Heterogeneous(Box::new(HeterogeneousPaletteData {
                     storage: PaletteStorage::Indexed(indices),
@@ -1219,8 +1120,13 @@ impl BiomePalette {
                         out.extend_from_slice(cube.as_flattened().as_flattened());
                     }
                     PaletteStorage::Indexed(indices) => {
-                        for &idx in indices.as_flattened().as_flattened() {
-                            out.put_u8(data.palette.get(idx as usize).copied().unwrap_or(0));
+                        for i in 0..Self::VOLUME {
+                            out.put_u8(
+                                data.palette
+                                    .get(indices.get(i) as usize)
+                                    .copied()
+                                    .unwrap_or(0),
+                            );
                         }
                     }
                 }
@@ -1481,6 +1387,30 @@ mod tests {
         assert_eq!(
             network_palette_values(mutated_network.palette),
             network_palette_values(bulk_network.palette)
+        );
+    }
+
+    #[test]
+    fn palette_growth_repacks_indices() {
+        let mut palette = BlockPalette::default();
+        // Air plus 17 states need five bits, one more than the smallest width.
+        for i in 0..17u16 {
+            let state = BlockStateId::new(i + 1).unwrap();
+            palette.set(usize::from(i % 16), usize::from(i / 16), 0, state);
+        }
+        for i in 0..17u16 {
+            let state = BlockStateId::new(i + 1).unwrap();
+            assert_eq!(
+                palette.get(usize::from(i % 16), usize::from(i / 16), 0),
+                state
+            );
+        }
+
+        let (states, data) = palette.to_palette_and_packed_data(5);
+        let reloaded = BlockPalette::from_palette_and_packed_data(&states, &data, 4);
+        assert_eq!(
+            palette.iter().collect::<Vec<_>>(),
+            reloaded.iter().collect::<Vec<_>>()
         );
     }
 

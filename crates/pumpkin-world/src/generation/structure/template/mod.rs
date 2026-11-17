@@ -52,7 +52,7 @@ pub use processor::{
 pub use pumpkin_data::{BlockState, Mirror as BlockMirror, Rotation as BlockRotation};
 pub use structure_template::{
     JigsawBlockInfo, Palette, PaletteEntry, SimplePalette, StructureBlockInfo, StructureEntityInfo,
-    StructurePlaceSettings, StructureTemplate, TemplateBlock, TemplateEntity,
+    StructurePlaceSettings, StructureTemplate, TemplateEntity,
 };
 pub use template_piece::TemplatePiece;
 
@@ -123,7 +123,7 @@ pub fn place_template_with_options(
     let mut context_rng = LegacyRand::from_seed(hash_block_pos(world_x, origin.y, world_z) as u64);
     let mut context = processor::ProcessorContext::new(origin, processors, &mut context_rng);
 
-    for block in &template.blocks {
+    for block in template.blocks() {
         // Rotate block position within template bounds
         let local_pos = rotation.transform_pos(block.pos, template.size);
 
@@ -138,7 +138,7 @@ pub fn place_template_with_options(
             continue;
         }
 
-        let palette_entry = &template.palette[block.state as usize];
+        let palette_entry: &PaletteEntry = &block.state;
 
         // Structure blocks are data markers.
         if palette_entry.name == "minecraft:structure_block" {

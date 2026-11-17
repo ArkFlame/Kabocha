@@ -5,7 +5,7 @@ use crate::generation::structure::structures::{
     StructureGenerator, StructureGeneratorContext, StructurePieceBase, StructurePosition,
 };
 use crate::generation::structure::template::{
-    BlockMirror, BlockPlacer, BlockRotation, PaletteEntry, StructureProcessor, StructureTemplate,
+    BlockMirror, BlockPlacer, BlockRotation, StructureProcessor, StructureTemplate,
 };
 use pumpkin_util::HeightMap;
 use pumpkin_util::math::block_box::BlockBox;
@@ -728,12 +728,12 @@ pub struct JigsawBlock {
 impl JigsawBlock {
     #[must_use]
     pub fn from_template_block(
-        block: &crate::generation::structure::template::TemplateBlock,
-        palette: &PaletteEntry,
+        block: &crate::generation::structure::template::StructureBlockInfo,
     ) -> Option<Self> {
         use pumpkin_data::block_properties::{Orientation, Property};
         use pumpkin_util::BlockDirection;
 
+        let palette = &block.state;
         if palette.name != "minecraft:jigsaw" {
             return None;
         }
@@ -1159,8 +1159,8 @@ mod tests {
         for element in &pool.elements {
             let template = element.first_template().expect("missing start template");
             assert!(
-                template.blocks.iter().any(|block| {
-                    JigsawBlock::from_template_block(block, &template.palette[block.state as usize])
+                template.blocks().iter().any(|block| {
+                    JigsawBlock::from_template_block(block)
                         .is_some_and(|jigsaw| jigsaw.name == "minecraft:city_anchor")
                 }),
                 "start template has no city_anchor"

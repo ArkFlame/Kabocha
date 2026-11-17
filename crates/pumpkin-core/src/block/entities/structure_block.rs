@@ -255,11 +255,11 @@ pub fn capture_structure_template_from_world(
                     let mut tag = NbtCompound::new();
                     tag.put_string("id", be.resource_location().to_string());
                     be.write_nbt(&mut tag);
-                    tag
+                    Box::new(tag)
                 });
 
                 let rel_pos = Vector3::new(x - min_x, y - min_y, z - min_z);
-                let info = StructureBlockInfo::new(rel_pos, entry, nbt);
+                let info = StructureBlockInfo::new(rel_pos, Arc::new(entry), nbt);
                 if info.nbt.is_some() {
                     block_entity_blocks.push(info);
                 } else if is_full_cube_template_block(&block_name) {
