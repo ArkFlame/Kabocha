@@ -30,6 +30,15 @@ const ERROR_INVALID_POSITION: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_TELEPORT_INVALIDPOSITION,
 );
 
+/// Vanilla `TeleportCommand` prints teleport coordinates with `%f` (six decimals).
+fn coordinate_text(value: f64) -> TextComponent {
+    TextComponent::text(format_coordinate(value))
+}
+
+fn format_coordinate(value: f64) -> String {
+    format!("{value:.6}")
+}
+
 fn yaw_pitch_facing_position(
     looking_from: &Vector3<f64>,
     looking_towards: &Vector3<f64>,
@@ -85,9 +94,9 @@ impl CommandExecutor for SelfToPosExecutor {
                 translation::bedrock::COMMANDS_TP_SUCCESS_COORDINATES,
                 [
                     entity.get_display_name(),
-                    TextComponent::text(pos.x.to_string()),
-                    TextComponent::text(pos.y.to_string()),
-                    TextComponent::text(pos.z.to_string()),
+                    coordinate_text(pos.x),
+                    coordinate_text(pos.y),
+                    coordinate_text(pos.z),
                 ],
             ),
             true,
@@ -211,9 +220,9 @@ impl CommandExecutor for EntitiesToPosExecutor {
                 translation::bedrock::COMMANDS_TP_SUCCESS_COORDINATES,
                 [
                     target_arg,
-                    TextComponent::text(pos.x.to_string()),
-                    TextComponent::text(pos.y.to_string()),
-                    TextComponent::text(pos.z.to_string()),
+                    coordinate_text(pos.x),
+                    coordinate_text(pos.y),
+                    coordinate_text(pos.z),
                 ],
             ),
             true,
@@ -260,9 +269,9 @@ impl CommandExecutor for EntitiesToPosWithRotationExecutor {
                 translation::bedrock::COMMANDS_TP_SUCCESS_COORDINATES,
                 [
                     target_arg,
-                    TextComponent::text(pos.x.to_string()),
-                    TextComponent::text(pos.y.to_string()),
-                    TextComponent::text(pos.z.to_string()),
+                    coordinate_text(pos.x),
+                    coordinate_text(pos.y),
+                    coordinate_text(pos.z),
                 ],
             ),
             true,
@@ -314,9 +323,9 @@ impl CommandExecutor for EntitiesToPosFacingPosExecutor {
                 translation::bedrock::COMMANDS_TP_SUCCESS_COORDINATES,
                 [
                     target_arg,
-                    TextComponent::text(pos.x.to_string()),
-                    TextComponent::text(pos.y.to_string()),
-                    TextComponent::text(pos.z.to_string()),
+                    coordinate_text(pos.x),
+                    coordinate_text(pos.y),
+                    coordinate_text(pos.z),
                 ],
             ),
             true,
@@ -376,9 +385,9 @@ impl CommandExecutor for EntitiesToPosFacingEntityExecutor {
                 translation::bedrock::COMMANDS_TP_SUCCESS_COORDINATES,
                 [
                     target_arg,
-                    TextComponent::text(pos.x.to_string()),
-                    TextComponent::text(pos.y.to_string()),
-                    TextComponent::text(pos.z.to_string()),
+                    coordinate_text(pos.x),
+                    coordinate_text(pos.y),
+                    coordinate_text(pos.z),
                 ],
             ),
             true,
@@ -437,4 +446,15 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
         );
 
     dispatcher.register_with_aliases(cmd, &["tp"]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_coordinate;
+
+    #[test]
+    fn coordinates_use_six_decimal_places() {
+        assert_eq!(format_coordinate(1.5), "1.500000");
+        assert_eq!(format_coordinate(-64.0), "-64.000000");
+    }
 }
