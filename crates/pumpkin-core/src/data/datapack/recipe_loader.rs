@@ -57,6 +57,8 @@ fn normalize_id(id: &str) -> String {
 fn parse_ingredient(value: &Value) -> Option<OwnedRecipeIngredient> {
     match value {
         Value::String(s) => Some(OwnedRecipeIngredient::Simple(normalize_id(s))),
+        // Vanilla Ingredient codec rejects an object that sets both `item` and `tag`.
+        Value::Object(map) if map.contains_key("item") && map.contains_key("tag") => None,
         Value::Object(map) => map
             .get("tag")
             .and_then(Value::as_str)
@@ -628,5 +630,17 @@ mod tests {
         } else {
             panic!("Expected brewing recipe");
         }
+    }
+}
+
+#[cfg(test)]
+mod ingredient_codec_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn ingredient_object_with_item_and_tag_is_rejected() {
+        assert!(parse_ingredient(&json!({"item": "minecraft:stick", "tag": "minecraft:planks"})).is_none());
+        assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_some());
     }
 }
