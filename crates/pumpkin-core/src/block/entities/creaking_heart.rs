@@ -6,6 +6,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use uuid::Uuid;
 
+use crate::block::blocks::creaking_heart::CreakingHeartBlock;
 use crate::world::World;
 
 use super::BlockEntity;
@@ -56,6 +57,15 @@ impl BlockEntity for CreakingHeartBlockEntity {
             nbt.put_uuid("creaking", uuid);
         }
         Some(nbt)
+    }
+
+    fn tick(&self, world: &Arc<World>) {
+        // Vanilla CreakingHeartBlockEntity tick keeps CREAKING_HEART_STATE in sync with the
+        // creaking_active environment attribute, which flips at dusk and dawn.
+        if world.get_world_age() % 20 != 0 {
+            return;
+        }
+        CreakingHeartBlock::update_state(world.as_ref(), &self.position);
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
