@@ -25,3 +25,6 @@ Read only what the fix needs: grep -n first, then offset/limit around the hit, a
 
 ## Never search the parent directory
 Never run grep/find/rg on `../` or `../..`: it contains every worker worktree (hundreds of GB) and saturates the disk for everyone. Search only the current worktree, `.vendor/`, or one named sibling repo (e.g. `../Pumpkin-upstream/`).
+
+## Vanilla reference
+`docs/VANILLA_REF.md` is a condensed, non-decompiled numeric digest for entities/blocks/items in the parity tracker. Use it to cross-check values; decompiled vanilla and `assets/` win on any disagreement.
