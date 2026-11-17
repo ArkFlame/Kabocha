@@ -12,10 +12,8 @@ impl JavaClient {
             return;
         };
 
-        let Some((last_word_start, _)) = cmd.char_indices().rfind(|(_, c)| c.is_whitespace())
-        else {
-            return;
-        };
+        // Vanilla completes the command name too, so a first word without a space is not skipped.
+        let word_start = last_word_start(cmd);
 
         let suggestions = server
             .command_dispatcher
@@ -24,11 +22,35 @@ impl JavaClient {
 
         let response = CCommandSuggestions::new(
             packet.id,
-            ((last_word_start + 2) as i32).into(),
-            ((cmd.len() - last_word_start - 1) as i32).into(),
+            ((word_start + 1) as i32).into(),
+            ((cmd.len() - word_start) as i32).into(),
             suggestions.into(),
         );
 
         player.try_send_client_packet(&response);
+    }
+}
+
+/// Byte offset in `cmd` (the command without its leading `/`) where the word being completed starts.
+fn last_word_start(cmd: &str) -> usize {
+    cmd.char_indices()
+        .rfind(|(_, c)| c.is_whitespace())
+        .map_or(0, |(i, c)| i + c.len_utf8())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::last_word_start;
+
+    #[test]
+    fn first_word_starts_at_zero() {
+        assert_eq!(last_word_start("he"), 0);
+        assert_eq!(last_word_start(""), 0);
+    }
+
+    #[test]
+    fn argument_starts_after_last_space() {
+        assert_eq!(last_word_start("give a"), 5);
+        assert_eq!(last_word_start("give  a"), 6);
     }
 }
