@@ -113,7 +113,7 @@ fn execute_at_modifier(context: &CommandContext) -> crate::command::node::Redire
         let entity = target.get_entity();
         let mut source = context.source.as_ref().clone();
         source.position = entity.pos.load();
-        // Vanilla's execute at moves the source but keeps its rotation.
+        source.rotation = Vector2::new(entity.pitch.load(), entity.yaw.load());
         source.world = Some(entity.world.load().clone());
         sources.push(Arc::new(source));
     }
