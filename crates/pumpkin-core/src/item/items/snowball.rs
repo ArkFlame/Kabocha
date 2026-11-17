@@ -67,6 +67,11 @@ impl ItemBehaviour for SnowBallItem {
             .thrown
             .shoot_from_rotation(player.get_entity(), pitch, yaw, 0.0, POWER, 1.0);
         world.spawn_entity(Arc::new(snowball));
+        player.increment_stat(
+            pumpkin_data::statistic::StatisticCategory::Used,
+            i32::from(stack.item.id),
+            1,
+        );
 
         stack.decrement_unless_creative(player.gamemode.load(), 1);
         match hand {

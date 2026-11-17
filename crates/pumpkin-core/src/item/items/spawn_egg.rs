@@ -318,9 +318,12 @@ impl ItemBehaviour for SpawnEggItem {
             };
             player.sync_hand_slot(slot_index, stack);
             world.emit_game_event(GameEvent::EntityPlace.name(), pos);
-            // The air-use packet handlers (Java use_item.rs, Bedrock inventory_action.rs)
-            // already award ITEM_USED for this click. Vanilla SpawnEggItem.use awards it
-            // exactly once, so do not award again here.
+            // Vanilla `SpawnEggItem.use` awards ITEM_USED once here on a successful spawn.
+            player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Used,
+                i32::from(item.id),
+                1,
+            );
         }
     }
 
