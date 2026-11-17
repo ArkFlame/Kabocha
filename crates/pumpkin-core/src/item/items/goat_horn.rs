@@ -8,7 +8,6 @@ use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::instrument::Instrument;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::Hand;
@@ -88,13 +87,6 @@ impl ItemBehaviour for GoatHornItem {
             .map_or(0, |inst| {
                 i32::try_from(inst.use_duration_ticks()).unwrap_or(i32::MAX)
             })
-    }
-
-    fn get_use_duration_for_stack(&self, stack: &ItemStack) -> i32 {
-        stack
-            .get_data_component::<InstrumentImpl>()
-            .and_then(|inst| Instrument::from_name(&inst.instrument))
-            .map_or(0, |instrument| instrument.use_duration_ticks() as i32)
     }
 
     fn as_any(&self) -> &dyn Any {

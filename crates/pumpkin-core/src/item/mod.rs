@@ -102,12 +102,6 @@ pub trait ItemBehaviour: Send + Sync {
         0
     }
 
-    /// Stack-aware use duration, mirroring vanilla `Item.getUseDuration(ItemStack, LivingEntity)`.
-    /// Defaults to the stack-independent [`ItemBehaviour::get_use_duration`].
-    fn get_use_duration_for_stack(&self, _stack: &ItemStack) -> i32 {
-        self.get_use_duration()
-    }
-
     fn can_mine(&self, _player: &Player) -> bool {
         true
     }

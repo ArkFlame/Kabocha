@@ -120,7 +120,7 @@ impl ItemRegistry {
     #[must_use]
     pub fn get_use_duration(&self, stack: &ItemStack) -> Option<i32> {
         self.get_pumpkin_item(stack.item.id)
-            .map(|b| b.get_use_duration_for_stack(stack))
+            .map(|b| b.get_use_duration(stack))
             .filter(|&d| d > 0)
     }
 
