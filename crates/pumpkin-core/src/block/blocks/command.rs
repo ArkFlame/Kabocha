@@ -17,6 +17,7 @@ use pumpkin_data::block_properties::{CommandBlockLikeProperties, Facing};
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation};
 
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::text::TextComponent;
 use pumpkin_world::tick::TickPriority;
 use tracing::{debug, warn};
 
@@ -162,8 +163,10 @@ impl CommandBlock {
             return;
         };
 
-        command_entity.success_count.store(0, Ordering::Release);
-        if command.is_empty() {
+        // Vanilla `BaseCommandBlock#performCommand` runs a block at most once
+        // per game tick, so a redstone edge and a scheduled tick cannot fire it twice.
+        let game_time = world.get_world_age();
+        if game_time == command_entity.last_execution.load(Ordering::Relaxed) {
             return;
         }
 
@@ -173,20 +176,32 @@ impl CommandBlock {
                 .last_output
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            *last_output = "#itzlipofutzli".to_string();
+            *last_output = Some(TextComponent::text("#itzlipofutzli"));
             command_entity.success_count.store(1, Ordering::Release);
             return;
         }
 
-        let Some(source) = CommandSender::CommandBlock(command_entity, world).into_source(server)
-        else {
-            return;
-        };
+        command_entity.success_count.store(0, Ordering::Release);
+        if !command.is_empty() {
+            let Some(source) =
+                CommandSender::CommandBlock(command_entity.clone(), world).into_source(server)
+            else {
+                return;
+            };
 
-        server
-            .command_dispatcher
-            .load()
-            .handle_command(&source, command);
+            server
+                .command_dispatcher
+                .load()
+                .handle_command(&source, command);
+        }
+
+        // Vanilla `BaseCommandBlock#performCommand` records the execution tick
+        // unless `UpdateLastExecution` is disabled, in which case it resets to -1.
+        let update_last_execution = command_entity.update_last_execution.load(Ordering::Relaxed);
+        command_entity.last_execution.store(
+            if update_last_execution { game_time } else { -1 },
+            Ordering::Release,
+        );
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {

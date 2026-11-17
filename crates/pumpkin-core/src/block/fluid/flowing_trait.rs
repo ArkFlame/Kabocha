@@ -145,7 +145,7 @@ pub trait FlowingFluid: Send + Sync {
         // Water is in `#minecraft:washed_away_by_fluids`, so `can_hold_fluid` already
         // treats it as a hole for lava; lava's `spread_to` then turns that water to
         // stone rather than replacing the block. No fluid-specific clause is needed.
-        let is_hole = physics::can_hold_fluid(below_block);
+        let is_hole = physics::can_hold_fluid(below_block, fluid);
 
         // Try to flow down first
         if is_hole {
@@ -448,8 +448,9 @@ pub trait FlowingFluid: Send + Sync {
 
     /// Spreads fluid to a target position with the given state.
     ///
-    /// Default implementation delegates to `apply_spread`. Implementations like
-    /// lava can override to add fluid-specific logic (e.g., water -> stone conversion).
+    /// Water routes a dry waterloggable container through `placeLiquid` (setting
+    /// `waterlogged`); other cases delegate to `apply_spread`. Implementations like lava
+    /// can override to add fluid-specific logic (e.g., water -> stone conversion).
     fn spread_to(
         &self,
         world: &Arc<World>,
@@ -458,6 +459,24 @@ pub trait FlowingFluid: Send + Sync {
         pos: &BlockPos,
         state_id: BlockStateId,
     ) {
+        let current_state_id = world.get_block_state_id(pos);
+        let block = Block::from_state_id(current_state_id);
+
+        // Vanilla `FlowingFluid.spreadTo` routes a `LiquidBlockContainer` through
+        // `placeLiquid` instead of replacing it. A `SimpleWaterloggedBlock` accepts water,
+        // setting `waterlogged=true` and scheduling a fluid tick; lava is never accepted.
+        if (fluid.id == Fluid::FLOWING_WATER.id || fluid.id == Fluid::WATER.id)
+            && block.is_waterloggable()
+            && !block.is_waterlogged(current_state_id)
+        {
+            if let Some(waterlogged_state_id) = block.set_waterlogged(current_state_id, true) {
+                world.set_block_state(pos, waterlogged_state_id, BlockFlags::NOTIFY_ALL);
+                let tick_delay = self.get_flow_speed(world);
+                world.schedule_fluid_tick(fluid, *pos, tick_delay, TickPriority::Normal);
+                return;
+            }
+        }
+
         let new_props = FlowingFluidProperties::from_state_id(state_id, fluid);
         self.apply_spread(world, fluid, from_pos, pos, state_id, new_props);
     }

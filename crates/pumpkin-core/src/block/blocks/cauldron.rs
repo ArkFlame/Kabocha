@@ -101,13 +101,18 @@ fn lower_fill_level(world: &Arc<World>, pos: &BlockPos, block: &Block, current_l
     world.emit_game_event(GameEvent::BlockChange.name(), pos.to_centered_f64());
 }
 
+/// Vanilla `getEntityInsideCollisionShape` for every cauldron: the shell is subtracted from the
+/// full block and the inside column added back, so the shape spans the whole block.
 fn content_collision_box(block_id: BlockId, state_id: BlockStateId) -> BoundingBox {
+    if matches!(block_id, BlockId::CAULDRON | BlockId::LAVA_CAULDRON) {
+        return BoundingBox::full_block();
+    }
     let max_y = match block_id {
         BlockId::WATER_CAULDRON | BlockId::POWDER_SNOW_CAULDRON => {
+            // `LayeredCauldronBlock.getPixelContentHeight`: 6 + level * 3 pixels.
             let level = WaterCauldronLikeProperties::from_state_id(state_id).level;
             (6.0 + 3.0 * f64::from(level)) / 16.0
         }
-        BlockId::LAVA_CAULDRON => 15.0 / 16.0,
         _ => 4.0 / 16.0,
     };
     BoundingBox::new_array([0.125, 0.25, 0.125], [0.875, max_y, 0.875])
@@ -784,6 +789,17 @@ mod tests {
     use pumpkin_data::data_component_impl::{BannerPatternLayer, CustomNameImpl};
     use pumpkin_data::dye_color::DyeColor;
     use pumpkin_util::text::TextComponent;
+
+    #[test]
+    fn inside_collision_box_covers_the_block_for_plain_and_lava_cauldrons() {
+        // Vanilla gives both a full-block inside shape, so an entity on the rim counts as inside.
+        for block in [&Block::CAULDRON, &Block::LAVA_CAULDRON] {
+            assert_eq!(
+                content_collision_box(block.id, block.default_state.id),
+                BoundingBox::full_block()
+            );
+        }
+    }
 
     #[test]
     fn water_potion_detection_rejects_non_water_potions() {

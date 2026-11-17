@@ -462,7 +462,6 @@ pub struct PlayerPlacedArgs<'a> {
     pub block: &'a Block,
     pub state_id: BlockStateId,
     pub position: &'a BlockPos,
-    pub direction: BlockDirection,
     pub player: &'a Player,
 }
 
@@ -638,6 +637,7 @@ pub fn drop_loot(
     world: &Arc<World>,
     block: &Block,
     pos: &BlockPos,
+    player: Option<&Arc<Player>>,
     experience: bool,
     params: &LootContextParameters,
 ) {
@@ -664,7 +664,7 @@ pub fn drop_loot(
         let mut event = crate::plugin::block::block_drop_item::BlockDropItemEvent {
             block_pos: *pos,
             world: world.clone(),
-            player: None,
+            player: player.cloned(),
             items,
             cancelled: false,
         };

@@ -27,6 +27,7 @@ use crate::block::{
 use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::entity::projectile::abstract_arrow::is_abstract_arrow;
+use crate::plugin::api::events::entity::entity_interact::EntityInteractEvent;
 use crate::plugin::block::block_redstone::BlockRedstoneEvent;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
@@ -72,19 +73,35 @@ impl BlockBehaviour for ButtonBlock {
     }
 
     fn explode(&self, args: ExplodeArgs<'_>) {
-        // `onExplosionHit`: a wind charge presses an unpowered button the way a hand
-        // does. The destroy path calls this after removing the block, so only act
-        // while the button itself is still placed.
+        // Vanilla `onExplosionHit`: a wind charge presses an unpowered button the way a hand
+        // does, but only while it still interacts with blocks.
         if args.world.get_block_and_state_id(args.position).0 != args.block {
             return;
         }
-        Self::press(None, args.world, args.position);
+        if args.explosion.can_trigger_blocks(args.world) {
+            Self::press(None, args.world, args.position);
+        }
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
         if !is_stone_button(args.block) {
             let entity_type = args.entity.get_entity().entity_type;
             if is_abstract_arrow(entity_type) {
+                // Vanilla checkPressed fires EntityInteractEvent only on the rising edge
+                // (an arrow turning on an unpowered wooden button); cancelling it skips the press.
+                let state = args.world.get_block_state_id(args.position);
+                if !ButtonLikeProperties::from_state_id(state).powered {
+                    let mut event = EntityInteractEvent::new(
+                        args.entity.get_entity().entity_id,
+                        *args.position,
+                    );
+                    if !args
+                        .world
+                        .fire_block_event(args.position, args.block, &mut event)
+                    {
+                        return;
+                    }
+                }
                 Self::press_with_source(None, Some(args.entity), args.world, args.position);
             }
         }

@@ -114,9 +114,10 @@ impl BlockBehaviour for ShulkerBoxBlock {
             && let Some(shulker) = block_entity
                 .as_any()
                 .downcast_ref::<ShulkerBoxBlockEntity>()
-                && let Ok(mut animation) = shulker.animation.lock() {
-                    animation.on_open_count(args.data);
-                }
+            && let Ok(mut animation) = shulker.animation.lock()
+        {
+            animation.on_open_count(args.data);
+        }
         true
     }
 

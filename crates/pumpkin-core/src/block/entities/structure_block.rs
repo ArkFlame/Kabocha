@@ -7,17 +7,21 @@ use pumpkin_data::block_properties::{StructureBlockLikeProperties, Structurebloc
 use pumpkin_data::{Block, BlockStateId, Mirror, Rotation};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::nbt_compress::write_gzip_compound_tag_to_bytes;
+use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::block_box::BlockBox;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::math::wrap_degrees;
 use pumpkin_util::random::{RandomImpl, legacy_rand::LegacyRand};
 use pumpkin_world::generation::structure::template::{
-    BlockPlacer, BlockStateResolver, Palette, PaletteEntry, StructureBlockInfo, StructureTemplate,
-    global_cache,
+    BlockPlacer, BlockStateResolver, Palette, PaletteEntry, StructureBlockInfo,
+    StructureEntityInfo, StructureTemplate, global_cache,
 };
 use pumpkin_world::world::BlockFlags;
 
+use crate::entity::r#type::{load_entity_from_nbt, self_and_passengers};
 use crate::world::World;
 use crate::world::block_placer::WorldBlockPlacer;
 
@@ -191,6 +195,7 @@ pub fn capture_structure_template_from_world(
     size: Vector3<i32>,
     author: &str,
     ignored_blocks: &[&'static Block],
+    include_entities: bool,
 ) -> StructureTemplate {
     let mut template = StructureTemplate::default();
     template.set_author(author.to_string());
@@ -259,6 +264,42 @@ pub fn capture_structure_template_from_world(
     ordered.extend(other_blocks);
     ordered.extend(block_entity_blocks);
     template.palettes = vec![Palette::new(ordered)];
+
+    // Vanilla StructureTemplate#fillFromWorld calls fillEntityList for live entities
+    // touching the captured box, excluding players, unless Ignore Entities is set.
+    if include_entities {
+        // Vanilla AABB.encapsulatingFullBlocks: the box spans each block cell fully.
+        let area = BoundingBox::new(
+            Vector3::new(min_x as f64, min_y as f64, min_z as f64),
+            Vector3::new(max_x as f64 + 1.0, max_y as f64 + 1.0, max_z as f64 + 1.0),
+        );
+        for entity in world.get_entities_at_box(&area) {
+            let entity_pos = entity.get_entity().pos.load();
+            let rel_pos = Vector3::new(
+                entity_pos.x - min_x as f64,
+                entity_pos.y - min_y as f64,
+                entity_pos.z - min_z as f64,
+            );
+
+            let mut nbt = NbtCompound::new();
+            entity.write_nbt(&mut nbt);
+
+            // Vanilla: paintings use their attached block pos; other entities use
+            // BlockPos.containing(pos). Pumpkin stores that attached pos as block_pos.
+            let block_pos = nbt
+                .get_int_array("block_pos")
+                .and_then(|a| <[i32; 3]>::try_from(a).ok())
+                .map_or_else(
+                    || BlockPos::floored_v(rel_pos).0,
+                    |[x, y, z]| Vector3::new(x - min_x, y - min_y, z - min_z),
+                );
+
+            template
+                .entity_info_list
+                .push(StructureEntityInfo::new(rel_pos, block_pos, nbt));
+        }
+    }
+
     template
 }
 
@@ -270,6 +311,7 @@ pub fn save_structure_from_world(
     author: &str,
     save_to_disk: bool,
     ignored_blocks: &[&'static Block],
+    include_entities: bool,
 ) -> bool {
     let Some((namespace, path, canonical_id)) = parse_structure_identifier(raw_identifier) else {
         return false;
@@ -278,8 +320,14 @@ pub fn save_structure_from_world(
         return false;
     }
 
-    let template =
-        capture_structure_template_from_world(world, origin, size, author, ignored_blocks);
+    let template = capture_structure_template_from_world(
+        world,
+        origin,
+        size,
+        author,
+        ignored_blocks,
+        include_entities,
+    );
     let nbt = template.save();
     let Ok(bytes) = write_gzip_compound_tag_to_bytes(nbt) else {
         return false;
@@ -354,6 +402,82 @@ fn create_structure_seed(seed: i64) -> u64 {
     }
 }
 
+/// Spawns every entity stored in a template after its blocks are placed.
+///
+/// Vanilla StructureTemplate#placeEntities transforms each entry's block and
+/// exact positions, rewrites Pos and block_pos, drops the old UUID, applies
+/// the mirror and rotation to the stored yaw and creates the entity from NBT.
+fn place_template_entities(
+    world: &Arc<World>,
+    template: &StructureTemplate,
+    origin: BlockPos,
+    pivot: Vector3<i32>,
+    mirror: Mirror,
+    rotation: Rotation,
+) {
+    for entity_info in &template.entity_info_list {
+        let block_pos =
+            StructureTemplate::transform_block_pos(entity_info.block_pos, mirror, rotation, pivot);
+        let rel = StructureTemplate::transform_vec3(entity_info.pos, mirror, rotation, pivot);
+        let pos = Vector3::new(
+            origin.0.x as f64 + rel.x,
+            origin.0.y as f64 + rel.y,
+            origin.0.z as f64 + rel.z,
+        );
+
+        let mut nbt = entity_info.nbt.clone();
+        nbt.put_list(
+            "Pos",
+            vec![
+                NbtTag::Double(pos.x),
+                NbtTag::Double(pos.y),
+                NbtTag::Double(pos.z),
+            ],
+        );
+        nbt.child_tags.remove("UUID");
+        if nbt.child_tags.contains_key("block_pos") {
+            let mut block_pos_nbt = NbtCompound::new();
+            block_pos_nbt.put_int("x", origin.0.x + block_pos.x);
+            block_pos_nbt.put_int("y", origin.0.y + block_pos.y);
+            block_pos_nbt.put_int("z", origin.0.z + block_pos.z);
+            nbt.put_compound("block_pos", block_pos_nbt);
+        }
+        if let Some(rotation_list) = nbt.get_list("Rotation")
+            && rotation_list.len() >= 2
+            && let Some(yaw) = rotation_list[0].extract_float()
+            && let Some(pitch) = rotation_list[1].extract_float()
+        {
+            let yaw = transform_entity_yaw(yaw, mirror, rotation);
+            nbt.put_list("Rotation", vec![NbtTag::Float(yaw), NbtTag::Float(pitch)]);
+        }
+
+        if let Some(root) = load_entity_from_nbt(&nbt, pos, world) {
+            for entity in self_and_passengers(&root) {
+                world.spawn_entity(entity);
+            }
+        }
+    }
+}
+
+/// Vanilla Entity#rotate plus Entity#mirror as applied by
+/// StructureTemplate#placeEntities to a template entity's stored yaw.
+fn transform_entity_yaw(yaw: f32, mirror: Mirror, rotation: Rotation) -> f32 {
+    let wrapped = wrap_degrees(yaw);
+    let rotated = wrapped
+        + match rotation {
+            Rotation::Clockwise90 => 90.0,
+            Rotation::CounterClockwise90 => 270.0,
+            Rotation::Rotate180 => 180.0,
+            Rotation::None => 0.0,
+        };
+    let mirrored = match mirror {
+        Mirror::LeftRight => 180.0 - wrapped,
+        Mirror::FrontBack => -wrapped,
+        Mirror::None => wrapped,
+    };
+    rotated + mirrored - yaw
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct StructurePlacementSettings {
     pub mirror: Mirror,
@@ -361,6 +485,7 @@ pub struct StructurePlacementSettings {
     pub integrity: f32,
     pub seed: i64,
     pub strict: bool,
+    pub ignore_entities: bool,
 }
 
 impl Default for StructurePlacementSettings {
@@ -371,6 +496,7 @@ impl Default for StructurePlacementSettings {
             integrity: 1.0,
             seed: 0,
             strict: false,
+            ignore_entities: false,
         }
     }
 }
@@ -387,6 +513,7 @@ pub fn place_structure_template_in_world(
         integrity,
         seed,
         strict,
+        ignore_entities,
     } = *settings;
     if template.size.x < 1 || template.size.y < 1 || template.size.z < 1 {
         return false;
@@ -394,7 +521,7 @@ pub fn place_structure_template_in_world(
     let Some(palette) = template.palettes().first() else {
         return false;
     };
-    if palette.blocks().is_empty() {
+    if palette.blocks().is_empty() && (ignore_entities || template.entity_info_list.is_empty()) {
         return false;
     }
 
@@ -488,6 +615,10 @@ pub fn place_structure_template_in_world(
     }
 
     world.flush_block_updates();
+
+    if !ignore_entities {
+        place_template_entities(world, template, origin, pivot, mirror, rotation);
+    }
 
     true
 }
@@ -1214,6 +1345,10 @@ impl StructureBlockBlockEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
+        let include_entities = !*self
+            .ignore_entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         save_structure_from_world(
             world,
@@ -1223,6 +1358,7 @@ impl StructureBlockBlockEntity {
             &author,
             save_to_disk,
             &[],
+            include_entities,
         )
     }
 
@@ -1296,6 +1432,10 @@ impl StructureBlockBlockEntity {
             .strict
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let ignore_entities = *self
+            .ignore_entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         place_structure_template_in_world(
             world,
@@ -1307,6 +1447,7 @@ impl StructureBlockBlockEntity {
                 integrity,
                 seed,
                 strict,
+                ignore_entities,
             },
         );
     }
@@ -1323,10 +1464,10 @@ impl StructureBlockBlockEntity {
 mod tests {
     use super::{
         compute_detected_bounds, is_randomizable_container_id, is_safe_generated_structure_path,
-        parse_structure_identifier,
+        parse_structure_identifier, transform_entity_yaw,
     };
-    use pumpkin_data::Block;
-    use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
+    use pumpkin_data::{Block, Mirror, Rotation};
+    use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
 
     #[test]
     fn palette_full_block_uses_collision_shape_not_occlusion() {
@@ -1399,5 +1540,28 @@ mod tests {
 
         // Adjacent corners with zero interior volume fail detection.
         assert!(compute_detected_bounds(save_pos, &[BlockPos::new(11, 65, 11)]).is_none());
+    }
+
+    #[test]
+    fn transform_entity_yaw_matches_vanilla_rotate_then_mirror() {
+        let close = |a: f32, b: f32| (a - b).abs() < 1e-5;
+        assert!(close(
+            transform_entity_yaw(90.0, Mirror::None, Rotation::None),
+            90.0
+        ));
+        assert!(close(
+            transform_entity_yaw(90.0, Mirror::None, Rotation::Rotate180),
+            270.0
+        ));
+        assert!(close(
+            transform_entity_yaw(30.0, Mirror::LeftRight, Rotation::None),
+            150.0
+        ));
+        assert!(close(
+            transform_entity_yaw(90.0, Mirror::FrontBack, Rotation::None),
+            -90.0
+        ));
+        let wrapped = transform_entity_yaw(370.0, Mirror::None, Rotation::Clockwise90);
+        assert!(close(wrap_degrees(wrapped), 100.0));
     }
 }

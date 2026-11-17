@@ -1,16 +1,16 @@
 use std::sync::{
     Mutex as StdMutex,
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering},
 };
 
 use pumpkin_data::data_component_impl::{CustomNameImpl, DataComponentImpl};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::text::TextComponent;
+use pumpkin_util::version::JavaMinecraftVersion;
 
 use super::BlockEntity;
 
-// todo: LastExecution, UpdateLastExecution
 pub struct CommandBlockEntity {
     pub position: BlockPos,
     pub powered: AtomicBool,
@@ -19,9 +19,11 @@ pub struct CommandBlockEntity {
     pub dirty: AtomicBool,
     pub command: StdMutex<String>,
     pub custom_name: StdMutex<Option<TextComponent>>,
-    pub last_output: StdMutex<String>,
+    pub last_output: StdMutex<Option<TextComponent>>,
     pub track_output: AtomicBool,
     pub success_count: AtomicU32,
+    pub last_execution: AtomicI64,
+    pub update_last_execution: AtomicBool,
 }
 
 impl CommandBlockEntity {
@@ -36,10 +38,21 @@ impl CommandBlockEntity {
             dirty: AtomicBool::new(false),
             command: StdMutex::new(String::new()),
             custom_name: StdMutex::new(None),
-            last_output: StdMutex::new(String::new()),
+            last_output: StdMutex::new(None),
             track_output: AtomicBool::new(track_output),
             success_count: AtomicU32::new(0),
+            last_execution: AtomicI64::new(-1),
+            update_last_execution: AtomicBool::new(true),
         }
+    }
+
+    /// Returns the last output component, or `None` when nothing was recorded.
+    #[must_use]
+    pub fn get_last_output(&self) -> Option<TextComponent> {
+        self.last_output
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     fn write_sync_nbt(&self, nbt: &mut NbtCompound) {
@@ -61,16 +74,30 @@ impl CommandBlockEntity {
             nbt.put("CustomName", CustomNameImpl { name }.write_data());
         }
         nbt.put_bool("conditionMet", self.condition_met.load(Ordering::SeqCst));
-        nbt.put_string(
-            "LastOutput",
-            self.last_output
+        // Vanilla BaseCommandBlock saves LastOutput as a text-component JSON via
+        // ComponentSerialization.CODEC, and only when TrackOutput is enabled.
+        if self.track_output.load(Ordering::SeqCst)
+            && let Some(last_output) = self
+                .last_output
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .to_string(),
-        );
+                .as_ref()
+        {
+            nbt.put(
+                "LastOutput",
+                last_output.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            );
+        }
         nbt.put_bool("powered", self.powered.load(Ordering::SeqCst));
         nbt.put_bool("TrackOutput", self.track_output.load(Ordering::SeqCst));
-        nbt.put_bool("UpdateLastExecution", false);
+        let update_last_execution = self.update_last_execution.load(Ordering::SeqCst);
+        nbt.put_bool("UpdateLastExecution", update_last_execution);
+        if update_last_execution {
+            let last_execution = self.last_execution.load(Ordering::SeqCst);
+            if last_execution != -1 {
+                nbt.put_long("LastExecution", last_execution);
+            }
+        }
         nbt.put_int(
             "SuccessCount",
             self.success_count.load(Ordering::SeqCst).cast_signed(),
@@ -99,15 +126,22 @@ impl BlockEntity for CommandBlockEntity {
             .and_then(CustomNameImpl::read_data)
             .map(|c| c.name);
         let track_output_val = nbt.get_bool("TrackOutput").unwrap_or(true);
-        let last_output_str = if track_output_val {
-            nbt.get_string("LastOutput").unwrap_or("").to_string()
+        let last_output = if track_output_val {
+            nbt.get("LastOutput").map(TextComponent::from_nbt)
         } else {
-            String::new()
+            None
         };
-        let last_output = StdMutex::new(last_output_str);
+        let last_output = StdMutex::new(last_output);
         let track_output = AtomicBool::new(track_output_val);
         let success_count =
             AtomicU32::new(nbt.get_int("SuccessCount").unwrap_or(0).cast_unsigned());
+        let update_last_execution =
+            AtomicBool::new(nbt.get_bool("UpdateLastExecution").unwrap_or(true));
+        let last_execution = AtomicI64::new(if update_last_execution.load(Ordering::Relaxed) {
+            nbt.get_long("LastExecution").unwrap_or(-1)
+        } else {
+            -1
+        });
 
         Self {
             position,
@@ -119,6 +153,8 @@ impl BlockEntity for CommandBlockEntity {
             last_output,
             track_output,
             success_count,
+            last_execution,
+            update_last_execution,
             dirty: AtomicBool::new(false),
         }
     }
@@ -146,10 +182,8 @@ impl BlockEntity for CommandBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         let last_output = self
-            .last_output
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+            .get_last_output()
+            .map_or_else(String::new, TextComponent::get_text);
         let custom_name = self
             .custom_name
             .lock()
@@ -274,5 +308,55 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         assert_eq!(name.map(TextComponent::get_text), Some("Cmd".to_string()));
+    }
+
+    #[test]
+    fn command_block_last_execution_nbt_round_trip() {
+        let pos = BlockPos::new(6, 64, 6);
+        let entity = CommandBlockEntity::new(pos, true, false);
+        entity.last_execution.store(1234, Ordering::Relaxed);
+
+        let mut nbt = NbtCompound::new();
+        entity.write_sync_nbt(&mut nbt);
+        assert_eq!(nbt.get_long("LastExecution"), Some(1234));
+        assert_eq!(nbt.get_bool("UpdateLastExecution"), Some(true));
+
+        let restored = CommandBlockEntity::from_nbt(&nbt, pos);
+        assert_eq!(restored.last_execution.load(Ordering::Relaxed), 1234);
+        assert!(restored.update_last_execution.load(Ordering::Relaxed));
+
+        // With UpdateLastExecution=false vanilla neither saves nor restores LastExecution.
+        let mut suppressed = CommandBlockEntity::new(pos, true, false);
+        suppressed
+            .update_last_execution
+            .store(false, Ordering::Relaxed);
+        suppressed.last_execution.store(99, Ordering::Relaxed);
+        let mut nbt = NbtCompound::new();
+        suppressed.write_sync_nbt(&mut nbt);
+        assert_eq!(nbt.get_bool("UpdateLastExecution"), Some(false));
+        assert!(nbt.get("LastExecution").is_none());
+        let restored = CommandBlockEntity::from_nbt(&nbt, pos);
+        assert_eq!(restored.last_execution.load(Ordering::Relaxed), -1);
+    }
+
+    #[test]
+    fn command_block_last_output_nbt_round_trip() {
+        let pos = BlockPos::new(6, 64, 6);
+        let entity = CommandBlockEntity::new(pos, true, false);
+        *entity
+            .last_output
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(TextComponent::text("[12:34:56] ").add_child(TextComponent::text("hello")));
+
+        let mut nbt = NbtCompound::new();
+        entity.write_sync_nbt(&mut nbt);
+        assert!(nbt.get("LastOutput").is_some());
+
+        let restored = CommandBlockEntity::from_nbt(&nbt, pos);
+        assert_eq!(
+            restored.get_last_output().map(TextComponent::get_text),
+            Some("[12:34:56] hello".to_string())
+        );
     }
 }

@@ -15,7 +15,8 @@ pub struct EndPortalBlock;
 
 impl BlockBehaviour for EndPortalBlock {
     fn get_inside_collision_shape(&self, _args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
-        BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.75, 1.0))
+        // Vanilla `EndPortalBlock.getEntityInsideCollisionShape` delegates to `getShape`, `Block.column(16.0, 6.0, 12.0)`.
+        BoundingBox::new(Vector3::new(0.0, 0.375, 0.0), Vector3::new(1.0, 0.75, 1.0))
     }
 
     /// Teleports a colliding entity between the Overworld and the End; does nothing when the End is

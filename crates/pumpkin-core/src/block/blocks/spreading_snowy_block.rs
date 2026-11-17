@@ -276,4 +276,14 @@ mod tests {
             false,
         ));
     }
+
+    #[test]
+    fn opaque_block_above_kills() {
+        // A solid occluder above gives light dampening 16, so the block cannot stay alive.
+        assert!(!SpreadingSnowyBlock::can_stay_alive_with_above(
+            Block::GRASS_BLOCK.default_state,
+            Block::STONE.default_state,
+            false,
+        ));
+    }
 }

@@ -95,10 +95,11 @@ impl TNTBlock {
         }
 
         let tnt = TNTEntity::primed(world, location, TNTEntity::DEFAULT_FUSE, source);
+        // Vanilla \`CraftEventFactory.callExplosionPrimeEvent\` uses the entity's real power.
         let mut prime_event =
             crate::plugin::api::events::entity::explosion_prime::ExplosionPrimeEvent::new(
                 tnt.get_entity().entity_id,
-                TNTEntity::DEFAULT_POWER,
+                tnt.power(),
                 false,
             );
         if let Some(server) = world.server.upgrade() {
@@ -109,6 +110,10 @@ impl TNTBlock {
         if prime_event.cancelled {
             return None;
         }
+
+        // Vanilla feeds \`event.getRadius()\` to the explosion; carry a modified radius onto
+        // the entity so detonation uses it.
+        tnt.set_power(prime_event.radius);
 
         Some(tnt)
     }

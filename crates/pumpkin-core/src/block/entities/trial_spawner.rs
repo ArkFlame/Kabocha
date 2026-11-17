@@ -1731,4 +1731,30 @@ mod tests {
         assert_eq!(loaded.config.required_player_range, 14);
         assert!(loaded.data.registered_players.contains(&test_uuid));
     }
+
+    #[test]
+    fn trial_spawner_override_entity_regenerates_potentials() {
+        // Vanilla FullConfig.overrideEntity -> TrialSpawnerConfig.withSpawning replaces
+        // spawn potentials with a single weighted entry for the new type, keeping the rest.
+        let config = TrialSpawnerFullConfig::default();
+        let overridden = config.override_entity(&EntityType::PIG);
+        assert_eq!(overridden.normal.spawn_potentials.len(), 1);
+        assert_eq!(
+            overridden.normal.spawn_potentials[0].data.entity_type,
+            Some(&EntityType::PIG)
+        );
+        assert_eq!(
+            overridden.ominous.spawn_potentials[0].data.entity_type,
+            Some(&EntityType::PIG)
+        );
+        assert_eq!(
+            overridden.target_cooldown_length,
+            config.target_cooldown_length
+        );
+        assert_eq!(
+            overridden.required_player_range,
+            config.required_player_range
+        );
+        assert_eq!(overridden.normal.total_mobs, config.normal.total_mobs);
+    }
 }

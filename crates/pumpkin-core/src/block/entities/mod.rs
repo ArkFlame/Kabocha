@@ -197,9 +197,11 @@ pub trait BlockEntity: Any + Send + Sync {
     /// belong here: by the time `BlockBehaviour::broken` runs, the entity is already gone.
     fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, position: &BlockPos) {
         if let Some(experience) = self.clone().to_experience_container() {
-            let xp = experience.extract_experience();
-            if xp > 0 {
-                ExperienceOrbEntity::spawn(world, position.to_f64(), xp as u32);
+            // Vanilla `getRecipesToAwardAndPopExperience` spawns one orb per used recipe.
+            for xp in experience.extract_experience() {
+                if xp > 0 {
+                    ExperienceOrbEntity::spawn(world, position.to_f64(), xp as u32);
+                }
             }
         }
         if let Some(inventory) = self.get_inventory() {
@@ -568,7 +570,8 @@ pub fn create_block_entity_for_state(
     position: BlockPos,
 ) -> Option<Arc<dyn BlockEntity>> {
     use pumpkin_data::BlockState;
-    use pumpkin_data::block_properties::StructureblockMode;
+    use pumpkin_data::FacingExt;
+    use pumpkin_data::block_properties::{MovingPistonLikeProperties, StructureblockMode};
 
     let state = BlockState::from_id(state_id);
     if state.block_entity_type == u16::MAX {
@@ -592,6 +595,23 @@ pub fn create_block_entity_for_state(
             true,
             block == &Block::CHAIN_COMMAND_BLOCK,
         ))),
+        "piston" if block == &Block::MOVING_PISTON => {
+            // Vanilla's PistonMovingBlockEntity(pos, state) reads FACING from the state;
+            // the empty-NBT fallback would otherwise leave it facing Down.
+            let facing = MovingPistonLikeProperties::from_state_id(state_id)
+                .facing
+                .to_block_direction();
+            Some(Arc::new(piston::PistonBlockEntity {
+                position,
+                pushed_block_state: Block::AIR.default_state,
+                facing,
+                current_progress: 0.0.into(),
+                last_progress: 0.0.into(),
+                last_ticked: 0.into(),
+                extending: false,
+                source: false,
+            }))
+        }
         _ => create_block_entity(state.block_entity_type, position),
     }
 }
@@ -839,5 +859,24 @@ mod test {
             assert_eq!(stack.get_item().id, Item::DIAMOND.id);
             assert_eq!(stack.item_count, 5);
         }
+    }
+
+    /// A fresh moving-piston entity must take FACING from the block state;
+    /// the empty-NBT fallback always reports Down.
+    #[test]
+    fn moving_piston_state_supplies_the_facing() {
+        use pumpkin_data::block_properties::MovingPistonLikeProperties;
+
+        let mut props = MovingPistonLikeProperties::default(&Block::MOVING_PISTON);
+        props.facing = pumpkin_data::BlockDirection::Up.to_facing();
+        let state_id = props.to_state_id(&Block::MOVING_PISTON);
+
+        let entity = super::create_block_entity_for_state(state_id, BlockPos::new(0, 0, 0));
+        let facing = entity.and_then(|e| {
+            e.as_any()
+                .downcast_ref::<super::piston::PistonBlockEntity>()
+                .map(|p| p.facing)
+        });
+        assert_eq!(facing, Some(pumpkin_data::BlockDirection::Up));
     }
 }

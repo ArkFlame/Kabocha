@@ -19,9 +19,9 @@ use crate::entity::projectile::may_interact;
 use crate::world::World;
 use crate::{
     block::{
-        BlockBehaviour, BlockIsReplacing, GetInsideCollisionShapeArgs,
-        GetStateForNeighborUpdateArgs, OnEntityCollisionArgs, OnPlaceArgs, OnProjectileHitArgs,
-        PathComputationType, PlacedArgs, UseWithItemArgs, registry::BlockActionResult,
+        BlockBehaviour, BlockIsReplacing, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
+        OnPlaceArgs, OnProjectileHitArgs, PathComputationType, PlacedArgs, UseWithItemArgs,
+        registry::BlockActionResult,
     },
     entity::EntityBase,
 };
@@ -153,10 +153,6 @@ impl BlockBehaviour for CampfireBlock {
         }
 
         BlockActionResult::PassToDefaultBlockAction
-    }
-
-    fn get_inside_collision_shape(&self, _args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
-        BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.4375, 1.0))
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {

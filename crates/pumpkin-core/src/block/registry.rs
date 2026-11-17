@@ -949,14 +949,7 @@ impl BlockRegistry {
             }
         }
 
-        self.player_placed(
-            &world,
-            placed_block,
-            new_state,
-            &final_block_pos,
-            face,
-            player,
-        );
+        self.player_placed(&world, placed_block, new_state, &final_block_pos, player);
 
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
@@ -1290,7 +1283,6 @@ impl BlockRegistry {
         block: &Block,
         state_id: BlockStateId,
         position: &BlockPos,
-        direction: BlockDirection,
         player: &Player,
     ) {
         let pumpkin_block = self.get_pumpkin_block(block.id);
@@ -1300,7 +1292,6 @@ impl BlockRegistry {
                 block,
                 state_id,
                 position,
-                direction,
                 player,
             });
         }

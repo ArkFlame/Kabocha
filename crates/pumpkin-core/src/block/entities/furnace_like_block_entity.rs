@@ -108,6 +108,23 @@ pub(crate) fn stored_experience(recipes_used: &HashMap<String, u32>) -> i32 {
     })
 }
 
+/// Vanilla `getRecipesToAwardAndPopExperience` awards one orb per recipe id, each rolling its own
+/// fractional part. Return one amount per recipe so callers can spawn one orb per recipe instead
+/// of merging every recipe into a single sum.
+pub(crate) fn experience_per_recipe(
+    recipes_used: &HashMap<String, u32>,
+    roll: impl Fn() -> f32,
+) -> Vec<i32> {
+    recipes_used
+        .iter()
+        .map(|(recipe_id, count)| {
+            let experience = pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
+                * (*count as f32);
+            split_experience(experience, roll())
+        })
+        .collect()
+}
+
 /// Trait for extracting smelting experience from cooking block entities.
 pub trait CookingBlockEntityBase:
     Sync + Send + Inventory + PropertyDelegate + BlockEntity + Clearable
@@ -122,9 +139,9 @@ pub trait CookingBlockEntityBase:
     /// Track that a recipe was used (for XP calculation on extraction)
     /// Uses the recipe ID as the identifier, matching vanilla `RecipesUsed`.
     fn add_recipe_used(&self, recipe: &CookingRecipe);
-    /// Extract and reset accumulated experience, returning the total as an integer
-    /// Calculates XP from tracked recipes and clears the `recipes_used` map
-    fn extract_experience_from_recipes(&self) -> i32;
+    /// Extract and reset the used-recipe map, returning one XP amount per recipe id so callers
+    /// spawn one orb per recipe, matching vanilla `getRecipesToAwardAndPopExperience`.
+    fn extract_experience_from_recipes(&self) -> Vec<i32>;
 
     fn get_input_item(&self) -> ItemStack;
     fn get_fuel_item(&self) -> ItemStack;
@@ -224,23 +241,18 @@ macro_rules! impl_cooking_block_entity_base {
                 *recipes.entry(recipe_id).or_insert(0) += 1;
             }
 
-            fn extract_experience_from_recipes(&self) -> i32 {
+            fn extract_experience_from_recipes(&self) -> Vec<i32> {
                 // Vanilla derives XP from `RecipesUsed` at take time and rolls each recipe's
                 // fractional part once, then clears the map.
                 let mut recipes = self
                     .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let awarded = recipes.iter().fold(0, |total, (recipe_id, count)| {
-                    let experience = pumpkin_data::recipes::get_recipe_experience(recipe_id)
-                        .unwrap_or(0.0)
-                        * (*count as f32);
-                    total
-                        + $crate::block::entities::furnace_like_block_entity::split_experience(
-                            experience,
-                            rand::random::<f32>(),
-                        )
-                });
+                let awarded =
+                    $crate::block::entities::furnace_like_block_entity::experience_per_recipe(
+                        &recipes,
+                        rand::random::<f32>,
+                    );
                 recipes.clear();
                 drop(recipes);
                 *self
@@ -390,7 +402,7 @@ macro_rules! impl_experience_container_for_cooking {
         impl $crate::block::entities::furnace_like_block_entity::ExperienceContainer
             for $struct_name
         {
-            fn extract_experience(&self) -> i32 {
+            fn extract_experience(&self) -> Vec<i32> {
                 // Delegate to the CookingBlockEntityBase method
                 self.extract_experience_from_recipes()
             }
@@ -770,8 +782,10 @@ macro_rules! impl_block_entity_for_cooking {
                 );
                 let lit_time_remaining =
                     AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "lit_time_remaining", "BurnTime"));
+                // Vanilla reads the multiplier through `getFloatOr`, which accepts any
+                // numeric tag, so a hand-written int or double still restores.
                 let speed_multiplier_bits = AtomicU32::new(
-                    nbt.get_float("speed_multiplier")
+                    nbt.get_numeric_float("speed_multiplier")
                         .unwrap_or(1.0f32)
                         .to_bits(),
                 );
@@ -1011,6 +1025,26 @@ mod tests {
     }
 
     #[test]
+    fn experience_per_recipe_returns_one_amount_for_each_used_recipe() {
+        // Iron ore smelting is 0.7 XP and gold ore smelting is 1.0 XP.
+        let iron = "minecraft:iron_ingot_from_smelting_iron_ore";
+        let gold = "minecraft:gold_ingot_from_smelting_gold_ore";
+        let mut recipes_used = HashMap::new();
+        recipes_used.insert(iron.to_string(), 2); // 1.4 XP -> floor 1 with a 0.4 fraction
+        recipes_used.insert(gold.to_string(), 1); // 1.0 XP -> no fraction
+
+        // Low rolls award each recipe's fraction, high rolls drop it.
+        let low = experience_per_recipe(&recipes_used, || 0.0);
+        let high = experience_per_recipe(&recipes_used, || 1.0);
+        assert_eq!(low.len(), 2, "one amount per recipe id, not a summed total");
+        assert_eq!(high.len(), 2);
+        let low_sum: i32 = low.iter().sum();
+        let high_sum: i32 = high.iter().sum();
+        // Only iron's 0.4 fraction differs between the two rolls.
+        assert_eq!(low_sum - high_sum, 1);
+    }
+
+    #[test]
     fn read_saved_short_prefers_the_vanilla_key_over_the_legacy_one() {
         let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
         assert_eq!(read_saved_short(&nbt, "cooking_time_spent", "CookTime"), 0);
@@ -1062,6 +1096,12 @@ mod tests {
         // Worlds without the key default to the vanilla 1.0 multiplier.
         let fresh = FurnaceBlockEntity::new(BlockPos::new(0, 0, 0));
         assert_eq!(fresh.get_speed_multiplier(), 1.0);
+
+        // Vanilla `getFloatOr` accepts any numeric tag, not only a float one.
+        let mut numeric = NbtCompound::new();
+        numeric.put_double("speed_multiplier", 2.0);
+        let furnace = FurnaceBlockEntity::from_nbt(&numeric, BlockPos::new(0, 0, 0));
+        assert_eq!(furnace.get_speed_multiplier(), 2.0);
     }
 
     #[test]

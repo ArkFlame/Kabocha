@@ -695,6 +695,7 @@ impl TestInstanceBlockBlockEntity {
                     integrity: 1.0,
                     seed: 0,
                     strict: true,
+                    ignore_entities: data.ignore_entities,
                 },
             );
         }
@@ -744,6 +745,7 @@ impl TestInstanceBlockBlockEntity {
             "",
             true,
             &[&Block::AIR],
+            !data.ignore_entities,
         ) {
             return Err(self
                 .positional_error_message(translation::TEST_INSTANCE_BLOCK_ERROR_UNABLE_TO_SAVE));

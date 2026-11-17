@@ -1,18 +1,20 @@
 use super::BlockEntity;
 use crate::world::World;
 use pumpkin_data::block_properties::{SculkCatalystLikeProperties, WaterLikeProperties};
+use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{BlockId, BlockState, BlockStateId};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::random::RandomGenerator;
+use pumpkin_util::random::RandomImpl;
 use pumpkin_util::random::xoroshiro128::Xoroshiro;
 use pumpkin_world::generation::feature::features::sculk::SculkLevel;
 use pumpkin_world::generation::feature::features::sculk::spreader::SculkSpreader;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
-use rand::RngExt;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -56,7 +58,11 @@ impl BlockEntity for SculkCatalystBlockEntity {
         if !spreader.has_cursors() {
             return;
         }
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(rand::rng().random()));
+        // Vanilla `SculkCatalystBlockEntity.serverTick` passes `level.getRandom()`.
+        // Seed from the level's world-seeded random (the source loot also uses)
+        // so sculk spreading is reproducible from the world seed.
+        let mut random =
+            RandomGenerator::Xoroshiro(Xoroshiro::from_seed(world.next_loot_seed() as u64));
         let mut level = WorldSculkLevel(world.clone());
         spreader.update_cursors(&mut level, self.position, &mut random, true);
     }
@@ -112,13 +118,28 @@ impl SculkCatalystBlockEntity {
         let mut props = SculkCatalystLikeProperties::from_state_id(state_id);
         props.bloom = true;
         world.set_block_state(&pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        // Vanilla `CatalystListener.bloom` spawns two SCULK_SOUL particles just
+        // above the block; this is the client-visible bloom burst.
+        world.spawn_particle(
+            Vector3::new(
+                f64::from(pos.0.x) + 0.5,
+                f64::from(pos.0.y) + 1.15,
+                f64::from(pos.0.z) + 0.5,
+            ),
+            Vector3::new(0.2, 0.0, 0.2),
+            0.0,
+            2,
+            Particle::SculkSoul,
+        );
         // Vanilla `SculkCatalystBlock.tick` plays the bloom at volume 2.0 with a random pitch.
         world.play_sound_fine(
             Sound::BlockSculkCatalystBloom,
             SoundCategory::Blocks,
             &pos.to_centered_f64(),
             BLOOM_VOLUME,
-            BLOOM_PITCH_BASE + rand::rng().random::<f32>() * BLOOM_PITCH_RANGE,
+            BLOOM_PITCH_BASE
+                + Xoroshiro::from_seed(world.next_loot_seed() as u64).next_f32()
+                    * BLOOM_PITCH_RANGE,
         );
         world.schedule_block_tick(block, pos, BLOOM_DURATION, TickPriority::Normal);
     }

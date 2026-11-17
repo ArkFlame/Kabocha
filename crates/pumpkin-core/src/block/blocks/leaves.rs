@@ -118,7 +118,7 @@ impl BlockBehaviour for LeavesBlock {
                 ..Default::default()
             };
             // loot is dropped
-            drop_loot(args.world, args.block, args.position, true, &params);
+            drop_loot(args.world, args.block, args.position, None, true, &params);
             let new_state_id = if args.block.is_waterlogged(state_id) {
                 Block::WATER.default_state.id
             } else {
