@@ -43,6 +43,8 @@ const ANGERMANAGEMENT_TICK_DELAY: i32 = 20;
 const DEFAULT_ANGER: i32 = 35;
 const ON_HURT_ANGER_BOOST: i32 = 20;
 const TOUCH_COOLDOWN_TICKS: i32 = 20;
+/// Vanilla `Warden#nextStep` adds a fixed offset to the move distance.
+const NEXT_STEP_DISTANCE: f32 = 0.55;
 
 pub struct WardenEntity {
     pub mob_entity: MobEntity,
@@ -318,6 +320,10 @@ impl Mob for WardenEntity {
         pose != EntityPose::Digging
             && pose != EntityPose::Emerging
             && self.mob_entity.living_entity.is_pushable()
+    }
+
+    fn mob_next_step(&self) -> f32 {
+        self.get_entity().move_dist.load() + NEXT_STEP_DISTANCE
     }
 
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
