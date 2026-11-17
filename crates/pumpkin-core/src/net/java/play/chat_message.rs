@@ -281,6 +281,17 @@ impl JavaClient {
             return Err(ChatError::InvalidPublicKey);
         }
 
+        // Vanilla `ServerGamePacketListenerImpl#handleChatSessionUpdate`: a client may not replace
+        // its key with one that expires earlier than the key currently in use.
+        let current_expires_at = player
+            .chat_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .expires_at;
+        if current_expires_at != 0 && session.expires_at < current_expires_at {
+            return Err(ChatError::ExpiredPublicKey);
+        }
+
         let key_signature = RsaPkcs1v15Signature::try_from(session.key_signature.as_ref())
             .map_err(|_| ChatError::InvalidPublicKey)?;
 
