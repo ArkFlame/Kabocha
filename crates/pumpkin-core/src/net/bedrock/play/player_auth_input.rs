@@ -8,6 +8,10 @@ use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::player::ClientMove;
 
+/// A client cannot legitimately move more than this squared distance in one input tick, which
+/// is vanilla's "moved too quickly" budget. Mount steps and the delta pushes layer on share it.
+const MAX_CLIENT_STEP_SQUARED: f64 = 100.0;
+
 impl BedrockClient {
     pub fn handle_player_auth_input(
         &self,
@@ -52,11 +56,12 @@ impl BedrockClient {
 
         let started_sprint = flags.get(InputData::StartSprinting as usize);
         let stopped_sprint = flags.get(InputData::StopSprinting as usize);
+        let held_sprint = flags.get(InputData::SprintDown as usize);
         if started_sprint && !stopped_sprint {
             player.apply_sprint_input(server, true);
         } else if stopped_sprint && !started_sprint {
             player.apply_sprint_input(server, false);
-        } else if !started_sprint && !stopped_sprint && flags.get(InputData::SprintDown as usize) {
+        } else if !started_sprint && !stopped_sprint && held_sprint {
             // Clients that report only the held sprint state, without the edges, still sprint.
             player.apply_sprint_input(server, true);
         }
@@ -242,7 +247,14 @@ impl BedrockClient {
         self.input_tick.store(packet.tick.0, Ordering::Relaxed);
         // Client predicted end-of-tick velocity. Knockback is an absolute `SetActorMotion`.
         // later entity pushes layer on this delta once that motion is no longer in flight.
-        self.client_delta.store(packet.delta.to_f64());
+        // A forged or stale teleport step must not become a push.
+        let delta = packet.delta.to_f64();
+        let plausible = delta.x.is_finite()
+            && delta.y.is_finite()
+            && delta.z.is_finite()
+            && delta.length_squared() <= MAX_CLIENT_STEP_SQUARED;
+        self.client_delta
+            .store(if plausible { delta } else { Vector3::default() });
     }
 
     /// Inputs are ignored until the client reaches a pending teleport, so stale
@@ -388,7 +400,6 @@ fn apply_mount_move(
     on_ground: bool,
 ) {
     // Vanilla's "moved too quickly" guard, minus the vehicle's own motion allowance.
-    const MAX_STEP_SQUARED: f64 = 100.0;
     // Saddled mounts only: boats and minecarts have their own server-side movement.
     if vehicle.get_mob().is_none() {
         return;
@@ -408,7 +419,7 @@ fn apply_mount_move(
         && delta.y.is_finite()
         && delta.z.is_finite()
         && step > 0.0
-        && step <= MAX_STEP_SQUARED;
+        && step <= MAX_CLIENT_STEP_SQUARED;
     let vehicle_entity = vehicle.get_entity();
     if moved {
         vehicle_entity.set_pos(vehicle_entity.pos.load().add_raw(delta.x, delta.y, delta.z));
