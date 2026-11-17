@@ -106,7 +106,12 @@ impl BlockEntity for JukeboxBlockEntity {
                 self.stop_playing();
             } else {
                 if ticks.is_multiple_of(20) {
-                    let random_color = note_particle_hue(rand::rng().random::<f32>());
+                    // Vanilla `JukeboxSongPlayer.tick` emits `JUKEBOX_PLAY` every 20 ticks.
+                    world.emit_game_event(
+                        pumpkin_data::game_event::GameEvent::JukeboxPlay.name(),
+                        self.position.to_centered_f64(),
+                    );
+                    let random_color = note_particle_hue(rand::rng().random_range(0..4));
                     world.spawn_particle(
                         pumpkin_util::math::vector3::Vector3::new(
                             f64::from(self.position.0.x) + 0.5,
@@ -247,13 +252,6 @@ impl JukeboxBlockEntity {
         self.ticks_since_song_started.store(0, Ordering::Relaxed);
         self.song_length_ticks
             .store(length_in_ticks, Ordering::Relaxed);
-        // Vanilla emits `JUKEBOX_PLAY` once in `JukeboxSongPlayer.play`, not per note particle tick.
-        if let Some(world) = self.world.get().and_then(Weak::upgrade) {
-            world.emit_game_event(
-                pumpkin_data::game_event::GameEvent::JukeboxPlay.name(),
-                self.position.to_centered_f64(),
-            );
-        }
         self.mark_dirty();
     }
 
@@ -475,12 +473,9 @@ pub fn build_jukebox_actor(
     builder.finish()
 }
 
-/// Vanilla `JukeboxBlockEntity.playNoteParticles`: `random.nextFloat() * 0.25F` picks the note hue.
-const NOTE_HUE_SPAN: f32 = 0.25;
-
-/// Maps a uniform roll in `[0, 1)` to the note particle hue.
-fn note_particle_hue(roll: f32) -> f32 {
-    roll * NOTE_HUE_SPAN
+/// Vanilla `JukeboxSongPlayer.spawnMusicParticles`: `nextInt(4) / 24.0F` picks the note hue.
+fn note_particle_hue(step: u8) -> f32 {
+    f32::from(step) / 24.0
 }
 
 #[cfg(test)]
@@ -492,9 +487,9 @@ mod tests {
     use pumpkin_util::math::{vector2::Vector2, vector3::Vector3};
 
     #[test]
-    fn note_particle_hue_stays_within_vanilla_span() {
-        assert!(note_particle_hue(0.0).abs() < f32::EPSILON);
-        assert!(note_particle_hue(0.999_999) < NOTE_HUE_SPAN);
+    fn note_particle_hue_uses_vanilla_quarter_steps() {
+        assert!(note_particle_hue(0).abs() < f32::EPSILON);
+        assert!((note_particle_hue(3) - 3.0 / 24.0).abs() < f32::EPSILON);
     }
 
     #[test]
