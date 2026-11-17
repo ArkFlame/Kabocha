@@ -48,7 +48,7 @@ impl BlockBehaviour for PistonHeadBlock {
             } else {
                 BlockFlags::NOTIFY_ALL
             };
-            args.world.break_block(&pos, None, flags);
+            args.world.break_block(&pos, Some(args.player), flags);
         }
     }
 
