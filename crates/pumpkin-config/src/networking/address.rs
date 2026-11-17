@@ -57,6 +57,42 @@ pub fn check(raw: &mut Value) -> AddressReport {
         let Some(table) = table_mut(raw, path) else {
             continue;
         };
+
+        // "port" is not a setting any more: an older config that sets it binds the
+        // default port while the edited one is silently dropped. Fold it into
+        // "address" instead so the port the operator asked for is the one used.
+        let legacy_port = table.get("port").and_then(|value| match value {
+            Value::Integer(port) => Some(*port),
+            Value::String(text) => text.trim().parse::<i64>().ok(),
+            _ => None,
+        });
+        if let Some(port) = legacy_port {
+            table.remove("port");
+            report.patched = true;
+            match u16::try_from(port) {
+                Ok(port) => {
+                    let host = table
+                        .get("address")
+                        .and_then(Value::as_str)
+                        .and_then(|text| match classify(text) {
+                            Address::Valid(addr) => Some(addr.ip()),
+                            Address::NoPort(ip) => Some(ip),
+                            _ => None,
+                        })
+                        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+                    let addr = SocketAddr::new(host, port);
+                    report.warnings.push(format!(
+                        "{name} [{path}]: port is not a setting, using {addr}"
+                    ));
+                    table.insert("address".to_owned(), Value::String(addr.to_string()));
+                }
+                Err(_) => report.errors.push(format!(
+                    "{name} [{path}]: {}",
+                    port_problem(&port.to_string())
+                )),
+            }
+        }
+
         let Some(value) = table.get("address") else {
             continue;
         };
@@ -180,4 +216,30 @@ fn table_mut<'a>(raw: &'a mut Value, path: &str) -> Option<&'a mut Table> {
     path.split('.')
         .try_fold(raw, |value, key| value.get_mut(key))?
         .as_table_mut()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check;
+
+    fn table<'a>(raw: &'a toml::Value, path: &str) -> &'a toml::Value {
+        path.split('.')
+            .fold(raw, |value, key| value.get(key).expect("table"))
+    }
+
+    #[test]
+    fn legacy_port_setting_is_folded_into_the_address() {
+        let mut raw: toml::Value = "[networking.java]\nport = 7732\n".parse().unwrap();
+        let report = check(&mut raw);
+
+        assert!(report.patched);
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        let java = table(&raw, "networking.java");
+        assert_eq!(
+            java.get("address").and_then(toml::Value::as_str),
+            Some("0.0.0.0:7732")
+        );
+        assert!(java.get("port").is_none());
+        assert_eq!(report.warnings.len(), 1);
+    }
 }
