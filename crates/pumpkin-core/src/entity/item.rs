@@ -772,6 +772,20 @@ impl EntityBase for ItemEntity {
             return;
         }
 
+        // Vanilla ItemEntity.playerTouch: the throwing player keeps a 3 second head start.
+        if self.item_age.load(Ordering::Relaxed) <= 60
+            && let Some(thrower) = self.thrower.load()
+            && thrower != player.gameprofile.id
+            && self
+                .entity
+                .world
+                .load()
+                .get_player_by_uuid(thrower)
+                .is_some()
+        {
+            return;
+        }
+
         let (item_id, count_before) = {
             let stack = self
                 .item_stack

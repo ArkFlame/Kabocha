@@ -6642,6 +6642,8 @@ impl Player {
         let item_entity = Arc::new(ItemEntity::new_with_velocity(
             entity, item_stack, velocity, 40,
         ));
+        // Vanilla Player.drop sets the thrower so other players cannot grab it for 3 seconds.
+        item_entity.set_thrower(self.gameprofile.id);
         self.world().spawn_entity(item_entity);
     }
 
