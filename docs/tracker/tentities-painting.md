@@ -64,3 +64,9 @@ Remaining gaps (not fixed):
   101 ticks because the counter is reset after the increment.
 - Vanilla `HangingEntity#tick` checks on `tickCount % 100 == 0` (ticks 100, 200,
   ...). Fix: compare the counter modulo or reset before the increment.
+
+## Gap status (h6 sweep)
+- Row 2 yaw from facing: FIXED already in code (`set_facing` sets rotation, `read_custom_nbt` calls it). Verified by reading painting.rs:134, 308.
+- Row 4 build-limit check: FIXED, painting branch of `hanging_entity.rs` now checks `is_in_build_limit`. UNVERIFIED (no cargo).
+- Row 6 support re-check interval: FIXED, first check now on tick 100 (`painting.rs` tick). UNVERIFIED (no cargo).
+- Rows 1, 3, 5: STILL OPEN.

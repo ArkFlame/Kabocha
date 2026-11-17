@@ -48,3 +48,7 @@ cross-checked against `pumpkin-data` / generated tags, not against `CamelHusk.ja
 
 No code change committed from this audit: nothing above is certain enough to edit without the decompiled
 `CamelHusk` source, and item 3 is out of row scope.
+
+## Gap status (h6 sweep)
+- Row 1 husk love gate: FIXED, `could_set_in_love` now requires `!is_husk()` (`camel.rs`). UNVERIFIED (no cargo).
+- Rows 2-5: STILL OPEN.
