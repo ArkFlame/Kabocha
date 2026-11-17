@@ -155,8 +155,10 @@ impl CommandBlockMinecart {
         }
 
         let command = self.get_command();
-        // Vanilla `BaseCommandBlock#performCommand` uses `"Searge".equals(command)`.
-        if command == "Searge" {
+        let command_blocks_work = world.level_info.load().game_rules.command_blocks_work;
+        // Vanilla `BaseCommandBlock#performCommand` uses `"Searge".equals(command)` and only
+        // reaches the easter egg when the `commandBlocksWork` gamerule allows commands to run.
+        if command_blocks_work && command == "Searge" {
             self.set_last_output(Some(TextComponent::text("#itzlipofutzli")));
             self.success_count.store(1, Ordering::Relaxed);
             self.on_updated(entity);
@@ -164,7 +166,7 @@ impl CommandBlockMinecart {
         }
 
         self.success_count.store(0, Ordering::Relaxed);
-        if world.level_info.load().game_rules.command_blocks_work && !command.is_empty() {
+        if command_blocks_work && !command.is_empty() {
             self.set_last_output(None);
             if let Some(server) = world.server.upgrade() {
                 let track_output = self.is_track_output();
