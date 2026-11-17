@@ -1,4 +1,6 @@
+use pumpkin_data::BlockDirection;
 use pumpkin_data::game_event::GameEvent;
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_util::math::{
     boundingbox::BoundingBox,
     position::{BlockPos, chunk_section_from_pos},
@@ -129,4 +131,22 @@ impl World {
             }
         }
     }
+}
+
+/// Vanilla `VibrationSystem.isOccluded`: a vibration is dampened when every direction-nudged
+/// line from its source to the listener crosses an `#minecraft:occludes_vibration_signals` block.
+#[must_use]
+pub fn is_occluded(world: &World, origin: Vector3<f64>, destination: Vector3<f64>) -> bool {
+    let from = BlockPos::floored_v(origin).to_centered_f64();
+    let to = BlockPos::floored_v(destination).to_centered_f64();
+    BlockDirection::all().iter().all(|direction| {
+        let nudged_source = from + direction.to_offset().to_f64() * f64::from(1.0e-5f32);
+        pumpkin_world::clip::traverse_blocks(nudged_source, to, |pos| {
+            world
+                .get_block(pos)
+                .has_tag(&tag::Block::MINECRAFT_OCCLUDES_VIBRATION_SIGNALS)
+                .then_some(())
+        })
+        .is_some()
+    })
 }

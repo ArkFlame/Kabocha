@@ -8,6 +8,7 @@ use crate::block::{
     OnStateReplacedArgs, PathComputationType, PlacedArgs,
 };
 use crate::world::World;
+use crate::world::game_event::is_occluded;
 use pumpkin_data::block_properties::{
     CalibratedSculkSensorLikeProperties, HorizontalFacing, SculkSensorLikeProperties,
     SculkSensorPhase,
@@ -94,6 +95,9 @@ impl SculkSensorBlock {
     ) {
         let (block, state) = world.get_block_and_state(pos);
         if sculk_sensor_phase(block, state.id) != SculkSensorPhase::Inactive {
+            return;
+        }
+        if is_occluded(world, source_position, pos.to_centered_f64()) {
             return;
         }
         let radius = if block.id == BlockId::CALIBRATED_SCULK_SENSOR {
