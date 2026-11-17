@@ -154,7 +154,7 @@ impl CreeperEntity {
                 cloud_entity,
                 ItemStack::new(0, &Item::GLASS_BOTTLE),
                 effects,
-                300,
+                600,
                 2.5,
                 20,
                 10,
