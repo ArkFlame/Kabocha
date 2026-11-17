@@ -15,15 +15,24 @@ pub struct PlayerBucketEmptyEvent {
 
     /// The bucket item used.
     pub bucket: String,
+
+    /// The clicked block face as a Bukkit-style name.
+    pub block_face: String,
 }
 
 impl PlayerBucketEmptyEvent {
     #[must_use]
-    pub const fn new(player: Arc<Player>, block_pos: BlockPos, bucket: String) -> Self {
+    pub const fn new(
+        player: Arc<Player>,
+        block_pos: BlockPos,
+        bucket: String,
+        block_face: String,
+    ) -> Self {
         Self {
             player,
             block_pos,
             bucket,
+            block_face,
             cancelled: false,
         }
     }
@@ -41,15 +50,24 @@ pub struct PlayerBucketFillEvent {
 
     /// The bucket item used.
     pub bucket: String,
+
+    /// The clicked block face as a Bukkit-style name.
+    pub block_face: String,
 }
 
 impl PlayerBucketFillEvent {
     #[must_use]
-    pub const fn new(player: Arc<Player>, block_pos: BlockPos, bucket: String) -> Self {
+    pub const fn new(
+        player: Arc<Player>,
+        block_pos: BlockPos,
+        bucket: String,
+        block_face: String,
+    ) -> Self {
         Self {
             player,
             block_pos,
             bucket,
+            block_face,
             cancelled: false,
         }
     }
