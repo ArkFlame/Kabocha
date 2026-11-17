@@ -189,9 +189,10 @@ mod tests {
             1.5
         );
         assert_eq!(restored.get_entity().fire_ticks.load(Relaxed), initial_fire);
+        // Water animals spawn with vanilla WaterAnimal max air (4800), not land MAX_AIR.
         assert_eq!(
             restored.get_entity().air_supply.load(Relaxed),
-            crate::entity::breath::MAX_AIR
+            crate::entity::passive::water_animal::WATER_ANIMAL_MAX_AIR_SUPPLY
         );
         assert!(
             restored_bucketable
