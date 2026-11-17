@@ -39,3 +39,9 @@ on the overload constants and on the skip helper.
    (1200) and Bukkit derives 1m/5m/15m TPS from those; `/tps` and plugins reading
    `get_tps()` therefore cannot match Paper. Fix: add the three rings and expose 1m/5m/15m.
    Size: M.
+
+## Gap status
+- 1 STILL OPEN: tick-count freeze semantics, M, many call sites.
+- 2 STILL OPEN: overload-warning gate needs decompiled 1.20.5+ server, S.
+- 3 STILL OPEN: plugin-visible event numbering is an API semantic change, S.
+- 4 STILL OPEN: 1m/5m/15m rings, M.

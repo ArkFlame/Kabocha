@@ -62,3 +62,9 @@ Last change reviewed: `c6f7b548c` "ocelot despawn, crouch pose and spawn obstruc
   tag, baby + trusting tracked data, `OcelotAttackGoal` radius/speeds.
 - Goal ordering from `feline::apply_tail` (leap, attack, breed, stroll,
   look-at-player) matches `Ocelot.registerGoals`.
+
+## Gap status
+- 1 STILL OPEN: `ocelot.rs:162` distance gate, vanilla 1.21 `mobInteract` body not in repo (UNVERIFIED).
+- 2 STILL OPEN: breeding trust inheritance UNVERIFIED; vanilla breeding for ocelots not confirmed.
+- 3 STILL OPEN: sound table entries, S/M, not attempted in sweep.
+- 4 STILL OPEN: stepping-carefully override, UNVERIFIED against vanilla.

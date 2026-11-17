@@ -68,3 +68,12 @@ Coverage: AUDIT. No `TODO`/`FIXME` markers exist in the file; the tracker's
    `break_block(.., NOTIFY_ALL)` (no `SKIP_DROPS`) before dispensing a filled
    bucket, rolling loot for grass/plants. Vanilla bucket dispensing replaces
    the state without drops. Size: S.
+
+## Gap status
+- 1 STILL OPEN: vanilla `pickupBlock` drop-on-cannot-survive not confirmed without decompiled source.
+- 2 STILL OPEN: vanilla sneak behaviour unconfirmed; note itself asks to verify first.
+- 3 STILL OPEN: ultrawarm mob-bucket ordering unconfirmed (BucketItem.use not in repo).
+- 4 STILL OPEN: spawn-protection/mayInteract gate, S/M, not attempted in sweep.
+- 5 STILL OPEN: trait change across implementors, M.
+- 6 STILL OPEN: additive WIT change, M.
+- 7 STILL OPEN: dispenser loot-roll, S, not attempted in sweep.

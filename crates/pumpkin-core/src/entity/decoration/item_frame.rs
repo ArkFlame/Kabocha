@@ -554,9 +554,13 @@ impl EntityBase for ItemFrameEntity {
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
         source: Option<&dyn EntityBase>,
-        _cause: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
     ) -> bool {
         if self.entity.removed.load(Ordering::Relaxed) {
+            return false;
+        }
+        // Vanilla HangingEntity.hurtServer returns false for invulnerable sources first.
+        if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
         // Vanilla ItemFrame.hurtServer: fixed frames are indestructible and

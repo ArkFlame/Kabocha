@@ -72,3 +72,12 @@ Tracker note "5 TODO/FIXME/vanilla markers": 3 TODOs and 2 `vanilla` prose comme
   advancement/stat uses the pre-use item id.
 - `InteractionResult.FAIL` resets predicted block changes at the clicked and placed positions, which is the
   Paper/Pumpkin prediction compensation.
+
+## Gap status
+- 1 FIXED: `net/java/play/mod.rs:104` maps `BlockOutOfReach` to `Level::TRACE`, not WARN. Vanilla uses DEBUG; TRACE is one level quieter, no warn spam.
+- 2 STILL OPEN: no parity fix needed; the air check is stricter than vanilla (`use_item_on.rs:50`). Documentation only.
+- 3 STILL OPEN: stricter hit-position check is intentional (#4547); no change.
+- 4 STILL OPEN: `use_item_on.rs:243` MAIN_HAND gate; vanilla 1.21 hand handling UNVERIFIED without decompiled source.
+- 5 STILL OPEN: advancement state predicate, M.
+- 6 STILL OPEN: no enabled-feature gate in `use_item_on.rs` (grep empty); needs enabled-feature data, S/M.
+- 7 STILL OPEN: `use_item.rs:40` ITEM_USED timing needs API change, M.

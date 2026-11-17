@@ -82,3 +82,7 @@ No test was added: every `ItemFrameEntity` behaviour needs a `World` and a forma
 fixture, larger than a unit test. Smallest useful gate is a `pumpkin-gametest` scenario:
 frame on a slab/carpet breaks, frame next to a destroyed block drops, explosion leaves the
 frame intact, fixed frame survives punching and `/kill` (M).
+
+## Gap status
+- 5 FIXED: `entity/decoration/item_frame.rs:559-563` `damage_with_context` returns false for invulnerable sources (`is_invulnerable_to`) after the removed check. No automated test added (needs entity/world harness); compile not run in this worktree.
+- 1, 2, 3, 4, 6, 7, 8, 9, 10: STILL OPEN, not attempted in this sweep (2 and 7 are S, 4 is M and needs a game-rule store).

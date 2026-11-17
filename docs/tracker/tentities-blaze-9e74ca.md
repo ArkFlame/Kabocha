@@ -38,3 +38,8 @@ Vanilla reference: `net.minecraft.world.entity.monster.Blaze` (`registerGoals`, 
 Notes: attributes (max health 20, attack damage 6, speed 0.23, follow range 48), xp reward 10,
 fire immunity, and the ambient/hurt/death sounds all come from `assets/entities.json` and need no
 Rust override. `isOnFire` returning the charged flag is already ported.
+
+## Gap status
+- 1 STILL OPEN (no-op): `Mob::get_random` (`entity/mob/mod.rs:1634`) also returns `rand::rng()`, so the suggested per-entity RNG does not change the stream in this codebase.
+- 2 STILL OPEN: ordering vs goal tick not confirmed, S.
+- 3 STILL OPEN: `position_target` init not verified in this sweep, S.

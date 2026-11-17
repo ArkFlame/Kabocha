@@ -63,3 +63,9 @@ Re-reviewed 2026-11-17 against vanilla `net.minecraft.world.entity.animal.Tadpol
    refill to 300 and `Mob::mob_max_air_supply` stays 300 for them (dolphin overrides both correctly at
    `dolphin.rs:342-347`). Vanilla `WaterAnimal`. Fix: pass `WATER_ANIMAL_MAX_AIR_SUPPLY` there and
    override `mob_max_air_supply` in the squid `Mob` macros. Size: S.
+
+## Gap status
+- 1 BLOCKED-DATA: `tadpole_variant` not generated in `pumpkin-data` (`generated/tracked_data.rs:17973-17978` only has AGE_LOCKED); needs Extractor.
+- 2 STILL OPEN: depends on gap 1.
+- 3 STILL OPEN: RunIf combinator missing under `entity/ai/brain/behavior/`, M.
+- 4 STILL OPEN: squid max air supply, S, not attempted in sweep (vanilla WaterAnimal value UNVERIFIED).

@@ -67,3 +67,12 @@ Reviewed: 2026-11-16, MC 26.3 (`CURRENT_MC_VERSION`), vanilla classes
    `player.startRiding(this)` succeeded.
    Vanilla class: `Boat.interact`.
    Suggested fix: return the `add_passenger` result. Size: S.
+
+## Gap status
+- 1 FIXED: `boat.rs:179-194` `tick_underwater` increments only on `BoatStatus::is_underwater()` (from `physics.rs:23`), not `touching_water`.
+- 2 STILL OPEN: chest-boat container component on destroy, M.
+- 3 STILL OPEN: placement reads no container component, M.
+- 4 STILL OPEN: no leash hooks in `entity/vehicle/` (grep empty). Vanilla `Boat implements Leashable` UNVERIFIED without decompiled source.
+- 5 STILL OPEN: no server-side boat movement, L.
+- 6 STILL OPEN (partial): invulnerable early-out present at `boat.rs:372`; `isRemoved` early-out and return value at `boat.rs:381` not changed.
+- 7 FIXED: `boat.rs:459` returns `has_passenger` after `add_passenger`.

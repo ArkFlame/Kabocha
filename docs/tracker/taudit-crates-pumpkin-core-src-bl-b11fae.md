@@ -56,3 +56,12 @@ Remaining gaps:
 
 ## Gap status
 - No gap rows recorded in this note (title only). Nothing to mark.
+
+## Gap status
+- 1 STILL OPEN: needs a shape-list API; Size M, not attempted in sweep.
+- 2 STILL OPEN: no live difference. `block/mod.rs:827` divides by item max; vanilla divides by min(container max, item max). Default container max is 99, which is never below an item max (<=64), so the result matches. Only a custom container max under 64 would differ.
+- 3 STILL OPEN: vanilla `pushEntitiesUp` not confirmed (no decompiled source in repo).
+- 4 STILL OPEN: `BlockDropItemEvent` player threading is M, not attempted.
+- 5 STILL OPEN: no live caller bug; S, not attempted.
+- 6 STILL OPEN: consolidation S, not attempted.
+- 7 STILL OPEN: cleanup only, not attempted.
