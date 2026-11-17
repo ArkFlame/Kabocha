@@ -1943,7 +1943,7 @@ impl LivingEntity {
 
                 // Fetch safe fall distance from attribute
                 let safe_distance = self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE);
-                return distance.sqrt() <= safe_distance * safe_distance;
+                return distance <= safe_distance * safe_distance;
             }
         }
 
