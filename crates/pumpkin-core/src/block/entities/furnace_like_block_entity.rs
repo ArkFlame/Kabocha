@@ -51,11 +51,23 @@ pub(crate) const fn cooking_total_time(
     ((recipe_time + divisor - 1) / divisor) as u16
 }
 
+/// Vanilla `AbstractFurnaceBlockEntity#createExperience`: award the whole part of a recipe's
+/// experience and roll its fractional part against a random value in `[0, 1)`.
+pub(crate) fn split_experience(experience: f32, roll: f32) -> i32 {
+    let whole = experience.floor();
+    let fraction = experience - whole;
+    whole as i32 + i32::from(fraction != 0.0 && roll < fraction)
+}
+
 /// Reads a saved cooking value under its vanilla `AbstractFurnaceBlockEntity` key,
 /// falling back to the legacy Pumpkin snake_case key for worlds saved by older builds.
-pub(crate) fn read_saved_short(nbt: &pumpkin_nbt::compound::NbtCompound, vanilla: &str, legacy: &str) -> u16 {
-    nbt.get_short(vanilla)
-        .or_else(|| nbt.get_short(legacy))
+pub(crate) fn read_saved_short(
+    nbt: &pumpkin_nbt::compound::NbtCompound,
+    vanilla: &str,
+    legacy: &str,
+) -> u16 {
+    nbt.get_numeric_short(vanilla)
+        .or_else(|| nbt.get_numeric_short(legacy))
         .map_or(0, |value| value as u16)
 }
 
@@ -162,30 +174,27 @@ macro_rules! impl_cooking_block_entity_base {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 *recipes.entry(recipe_id).or_insert(0) += 1;
-                drop(recipes);
-                // Vanilla accumulates the exact fractional experience per smelt
-                let xp = pumpkin_data::recipes::get_recipe_experience(recipe.recipe_id)
-                    .unwrap_or(0.0);
-                let mut experience = self
-                    .experience
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                *experience += xp;
             }
 
             fn extract_experience_from_recipes(&self) -> i32 {
-                // Vanilla awards the whole part and keeps the fraction for the next take
-                let mut experience = self
-                    .experience
+                // Vanilla derives XP from `RecipesUsed` at take time and rolls each recipe's
+                // fractional part once, then clears the map.
+                let mut recipes = self
+                    .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let awarded = experience.floor() as i32;
-                *experience -= awarded as f32;
-                drop(experience);
-                self.recipes_used
+                let awarded = recipes.iter().fold(0, |total, (recipe_id, count)| {
+                    let experience =
+                        pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
+                            * (*count as f32);
+                    total + split_experience(experience, rand::random::<f32>())
+                });
+                recipes.clear();
+                drop(recipes);
+                *self
+                    .experience
                     .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .clear();
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = 0.0;
                 awarded
             }
 

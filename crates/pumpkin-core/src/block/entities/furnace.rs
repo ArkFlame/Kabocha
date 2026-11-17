@@ -34,9 +34,9 @@ pub struct FurnaceBlockEntity {
     /// Tracks recipes used for XP calculation (vanilla `RecipesUsed` NBT format)
     /// Maps recipe ID -> craft count
     pub recipes_used: StdMutex<HashMap<String, u32>>,
-    /// Smelting experience not yet awarded, accumulated with its fractional
-    /// part carried over between takes (vanilla stores only `RecipesUsed` and
-    /// recomputes the experience per recipe when the output is taken).
+    /// Smelting experience derived from `RecipesUsed` and awarded when the
+    /// output is taken (vanilla stores only `RecipesUsed` and recomputes the
+    /// experience per recipe).
     pub experience: StdMutex<f32>,
     pub metadata: super::ContainerMetadata,
 }
