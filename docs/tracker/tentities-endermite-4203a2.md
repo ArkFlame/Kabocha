@@ -1,3 +1,5 @@
+**FIXED** `39311be46` (fix(entity): endermite expires by generic damage in mob tick). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Endermite
 
 Row: category=entities, name=Endermite, coverage=RE-REVIEW-UNTRACKED (re-review, source changed).

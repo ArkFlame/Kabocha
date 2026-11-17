@@ -1,3 +1,5 @@
+**FIXED** `9728ac352` (fix(entity): apply sulfur cube body state on item pickup). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # Tracker: entities / Sulfur Cube (RE-REVIEW)
 
 Reviewed: branch kab/tentities-sulfur-cube-b516b8 at 0cd6beaf8.

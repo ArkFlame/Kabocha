@@ -1,3 +1,5 @@
+**FIXED** `2077c4c85` (fix(entity): make mannequins pushable and keep hidden descriptions on save). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities/Mannequin (re-review)
 
 Source: crates/pumpkin-core/src/entity/decoration/mannequin.rs

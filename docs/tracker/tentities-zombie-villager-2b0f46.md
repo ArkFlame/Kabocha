@@ -1,3 +1,5 @@
+**FIXED** `cdaaff7ca` (feat(entity): give cured zombie villager its binding gear as equipment). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # Tracker: entities / Zombie Villager (RE-REVIEW-UNTRACKED)
 
 Re-reviewed: actor still does not exist upstream; this is the tracker row "entities / Zombie Villager".

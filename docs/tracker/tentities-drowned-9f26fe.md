@@ -1,3 +1,5 @@
+**FIXED** `670d154bd` (fix(drowned): use the world rng for the nautilus shell roll). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # Tracker audit: entities / Drowned
 
 Re-reviewed 2026-11-17 (RE-REVIEW: source changed since the 2026-11-16 note in

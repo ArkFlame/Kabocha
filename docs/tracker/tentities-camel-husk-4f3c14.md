@@ -1,3 +1,5 @@
+**FIXED** `1357273b3` (fix(entity): stop camels and camel husks blocking sleep). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Camel Husk — re-review audit (2026-11-17)
 
 Tracker row flagged RE-REVIEW-UNTRACKED ("the reviewed source has changed"). Second pass, after the

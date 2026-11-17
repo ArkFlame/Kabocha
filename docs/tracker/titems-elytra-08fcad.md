@@ -1,3 +1,5 @@
+**FIXED** `ee43e7835` (fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # items / Elytra (re-review 2026-11-16, slug titems-elytra-08fcad)
 
 Tracker row `items/Elytra` was flagged RE-REVIEW ("reviewed source has changed"). Re-audited

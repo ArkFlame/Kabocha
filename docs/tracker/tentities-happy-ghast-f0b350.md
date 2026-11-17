@@ -1,3 +1,5 @@
+**FIXED** `dde09024b` (fix(parrot): exclude happy ghast from ambient imitation list). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Happy Ghast
 
 Re-review (tracker row `entities/Happy Ghast`, coverage RE-REVIEW). Source line numbers below are

@@ -1,3 +1,5 @@
+**FIXED** `ae8c43e05` (fix(entity): drop non-vanilla entity damage vibration on dragon fireball burst). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # Tracker: entities / Dragon Fireball (RE-REVIEW-UNTRACKED)
 
 Audit date: 2026-11-17 (third pass). Source changed again in

@@ -1,3 +1,5 @@
+**FIXED** `6cf40066c` (fix(piglin): default CanPickUpLoot to true when loading (#4238)). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Piglin (RE-REVIEW)
 
 Reviewed: `crates/pumpkin-core/src/entity/mob/piglin.rs`, `piglin_ai.rs`, `piglin_brute.rs`, `zombified_piglin.rs`.

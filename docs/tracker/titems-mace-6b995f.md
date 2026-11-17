@@ -1,3 +1,5 @@
+**FIXED** `d519983cb` (feat(combat): use 3d distance for mace smash knockback). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # items / Mace (RE-REVIEW after source change)
 
 Re-reviewed: `crates/pumpkin-core/src/item/items/mace.rs`, `crates/pumpkin-core/src/entity/combat.rs:61-170`, `crates/pumpkin-core/src/entity/player.rs:1775-1852`, `crates/pumpkin-core/src/entity/living.rs:383-389`, `crates/pumpkin-core/src/enchantment/helper.rs:115-155`, `crates/pumpkin-core/src/entity/mob/mod.rs:1139-1160,2287-2289`, data `crates/pumpkin-data/src/generated/item.rs:64050-64158`.

@@ -1,3 +1,5 @@
+**FIXED** `5abaeaa7e` (fix(entity): feline goal parity for cats and ocelots (#3984)). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Ocelot — re-review (source changed)
 
 Source: `crates/pumpkin-core/src/entity/passive/ocelot.rs`,

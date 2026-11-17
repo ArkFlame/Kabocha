@@ -1,3 +1,5 @@
+**FIXED** `40aaf5620` (fix(creaking): require line of sight for gaze and use non-following melee goal). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities/Creaking - re-review
 
 Source: `crates/pumpkin-core/src/entity/mob/creaking.rs` (+ `block/entities/creaking_heart.rs`, `block/blocks/creaking_heart.rs`).

@@ -1,3 +1,5 @@
+**FIXED** `80cd2b048` (fix(entity): apply fishing bobber gravity from the water fluid tag). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # entities / Fishing Bobber (RE-REVIEW)
 
 Target: `JavaMinecraftVersion::V_26_3`. Reference: decompiled Paper/Canvas tree in

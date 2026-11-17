@@ -1,3 +1,5 @@
+**FIXED** `de83cad5a` (fix(breeze): play ambient idle only when idle or airborne (#4249)). Matched by commit subject on master; code not re-diffed in this sweep.
+
 # Tracker: entities / Breeze (RE-REVIEW)
 
 Source under review: `crates/pumpkin-core/src/entity/mob/breeze.rs`.
