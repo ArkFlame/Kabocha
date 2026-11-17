@@ -13,6 +13,7 @@ use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::bedrock::server::ActorEventID;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::boundingbox::EntityDimensions;
@@ -88,6 +89,32 @@ impl SnifferState {
     #[must_use]
     pub const fn id(self) -> i32 {
         self as i32
+    }
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Idling => "idling",
+            Self::FeelingHappy => "feeling_happy",
+            Self::Scenting => "scenting",
+            Self::Sniffing => "sniffing",
+            Self::Searching => "searching",
+            Self::Digging => "digging",
+            Self::Rising => "rising",
+        }
+    }
+
+    #[must_use]
+    pub fn from_name(name: &str) -> Self {
+        match name {
+            "feeling_happy" => Self::FeelingHappy,
+            "scenting" => Self::Scenting,
+            "sniffing" => Self::Sniffing,
+            "searching" => Self::Searching,
+            "digging" => Self::Digging,
+            "rising" => Self::Rising,
+            _ => Self::Idling,
+        }
     }
 
     const fn can_mate(self) -> bool {
@@ -607,6 +634,30 @@ impl Mob for SnifferEntity {
         self.animal_interact(player, item_stack)
     }
 
+    fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        nbt.put_string("State", self.get_state().name().to_string());
+        nbt.put_int("DropSeedAtTick", self.drop_seed_at_tick.load(Relaxed));
+    }
+
+    fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        if let Some(name) = nbt.get_string("State") {
+            let state = SnifferState::from_name(name);
+            self.state.store(state.id(), Relaxed);
+            self.get_entity().set_synced_data(
+                pumpkin_data::tracked_data::sniffer::STATE,
+                VarInt(state.id()),
+            );
+            self.refresh_state_dimensions();
+        }
+        if let Some(tick) = nbt.get_int("DropSeedAtTick") {
+            self.drop_seed_at_tick.store(tick, Relaxed);
+            self.get_entity().set_synced_data(
+                pumpkin_data::tracked_data::sniffer::DROP_SEED_AT_TICK,
+                VarInt(tick),
+            );
+        }
+    }
+
     fn mob_init_data_tracker(&self) {
         let entity = self.get_entity();
         entity.set_synced_data(pumpkin_data::tracked_data::sniffer::BABY_ID, self.is_baby());
@@ -705,12 +756,14 @@ mod tests {
             brain.set_with_expiry(types::SNIFF_COOLDOWN, (), 9137);
         });
         original.transition_to(SnifferState::Digging);
+        original.drop_seed_at_tick.store(4321, Relaxed);
 
         let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
         original.write_custom_nbt(&mut nbt);
         let restored = sniffer(&world);
         restored.read_custom_nbt(&nbt);
-        assert_eq!(restored.get_state(), SnifferState::Idling);
+        assert_eq!(restored.get_state(), SnifferState::Digging);
+        assert_eq!(restored.drop_seed_at_tick.load(Relaxed), 4321);
         restored.mob_entity.with_brain(restored.as_ref(), |brain| {
             let positions = brain
                 .get(types::SNIFFER_EXPLORED_POSITIONS)
