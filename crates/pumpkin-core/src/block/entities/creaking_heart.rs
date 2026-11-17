@@ -65,7 +65,7 @@ impl BlockEntity for CreakingHeartBlockEntity {
         if world.get_world_age() % 20 != 0 {
             return;
         }
-        CreakingHeartBlock::update_state(world.as_ref(), &self.position);
+        CreakingHeartBlock::update_state(world, &self.position);
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

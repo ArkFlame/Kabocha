@@ -61,13 +61,13 @@ impl CreakingHeartBlock {
     /// Vanilla CreakingHeartBlock updateState: re-evaluates CREAKING_HEART_STATE from the two
     /// aligned pale oak logs and the creaking_active environment attribute.
     pub fn update_state(
-        world: &crate::world::World,
+        world: &std::sync::Arc<crate::world::World>,
         position: &pumpkin_util::math::position::BlockPos,
     ) {
         let state_id = world.get_block_state_id(position);
         let mut props = CreakingHeartLikeProperties::from_state_id(state_id);
 
-        let new_state = if Self::check_active_logs(world, position, props.axis) {
+        let new_state = if Self::check_active_logs(world.as_ref(), position, props.axis) {
             if props.creaking_heart_state == CreakingHeartState::Uprooted {
                 world.play_sound(
                     Sound::BlockCreakingHeartSpawn,
@@ -131,9 +131,9 @@ impl BlockBehaviour for CreakingHeartBlock {
             return Some(0);
         };
         let pos = creaking.get_entity().pos.load();
-        let dx = pos.x - (f64::from(args.position.x) + 0.5);
-        let dy = pos.y - (f64::from(args.position.y) + 0.5);
-        let dz = pos.z - (f64::from(args.position.z) + 0.5);
+        let dx = pos.x - (f64::from(args.position.0.x) + 0.5);
+        let dy = pos.y - (f64::from(args.position.0.y) + 0.5);
+        let dz = pos.z - (f64::from(args.position.0.z) + 0.5);
         let distance = (dx * dx + dy * dy + dz * dz).sqrt();
         let signal = 15.0 - (distance * 15.0 / 32.0).floor();
         Some(signal.clamp(0.0, 15.0) as u8)
