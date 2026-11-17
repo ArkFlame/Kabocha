@@ -310,11 +310,7 @@ impl Generator<'_, '_> {
             LootNumberProvider::Constant(value) => value as f32,
             LootNumberProvider::Uniform { min, max } => {
                 let (min, max) = (min as f32, max as f32);
-                if min >= max {
-                    min
-                } else {
-                    min + self.rng.next_f32() * (max - min)
-                }
+                self.rng.next_f32() * (max - min) + min
             }
             LootNumberProvider::Binomial { .. } => self.number_int(provider) as f32,
         }
@@ -602,9 +598,7 @@ impl Generator<'_, '_> {
                         };
                     }
                     LootFunctionKind::ExplosionDecay => {
-                        if let Some(radius) = self.params.explosion_radius
-                            && radius > 1.0
-                        {
+                        if let Some(radius) = self.params.explosion_radius {
                             stack.count = (0..stack.count.max(0))
                                 .filter(|_| self.rng.next_f32() <= 1.0 / radius)
                                 .count() as i32;

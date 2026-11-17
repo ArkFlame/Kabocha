@@ -163,7 +163,7 @@ fn check_dynamic_condition(
         DynamicLootCondition::KilledByPlayer => params.killed_by_player.unwrap_or(false),
         DynamicLootCondition::SurvivesExplosion => params
             .explosion_radius
-            .is_none_or(|radius| radius <= 1.0 || rng.next_f32() <= 1.0 / radius),
+            .is_none_or(|radius| rng.next_f32() <= 1.0 / radius),
         DynamicLootCondition::RandomChance { chance } => rng.next_f32() < *chance,
         DynamicLootCondition::RandomChanceWithEnchantedBonus {
             enchantment,
@@ -263,7 +263,7 @@ fn check_condition(
         LootCondition::KilledByPlayer => params.killed_by_player.unwrap_or(false),
         LootCondition::SurvivesExplosion => params
             .explosion_radius
-            .is_none_or(|radius| radius <= 1.0 || rng.next_f32() <= 1.0 / radius),
+            .is_none_or(|radius| rng.next_f32() <= 1.0 / radius),
         LootCondition::RandomChance { chance } => rng.next_f32() < chance,
         LootCondition::RandomChanceWithEnchantedBonus {
             enchantment,

@@ -1,6 +1,51 @@
 use super::*;
 
 #[test]
+fn ore_drops_without_fortune_consumes_no_randomness() {
+    for seed in 0..32 {
+        let mut rng = Xoroshiro::from_seed(seed as u64);
+        assert_eq!(
+            apply_bonus_formula(3, LootBonusFormula::OreDrops, 0, &mut rng),
+            3
+        );
+        let mut fresh = Xoroshiro::from_seed(seed as u64);
+        assert_eq!(rng.next_f32(), fresh.next_f32());
+    }
+}
+
+#[test]
+fn ore_drops_multiplies_by_one_or_two_at_fortune_one() {
+    // Vanilla: max(0, nextInt(level + 2) - 1) + 1 gives 1 or 2 at level 1.
+    for seed in 0..64 {
+        let mut rng = Xoroshiro::from_seed(seed as u64);
+        let count = apply_bonus_formula(3, LootBonusFormula::OreDrops, 1, &mut rng);
+        assert!(count == 3 || count == 6, "seed {seed} gave {count}");
+    }
+}
+
+#[test]
+fn survives_explosion_always_consumes_one_roll() {
+    // Vanilla rolls nextFloat() <= 1 / radius unconditionally, even for radius <= 1.
+    for radius in [0.5_f32, 1.0, 3.0] {
+        let params = LootContextParameters {
+            explosion_radius: Some(radius),
+            ..Default::default()
+        };
+        let mut rng = Xoroshiro::from_seed(7);
+        let _ = check_condition(
+            LootCondition::SurvivesExplosion,
+            false,
+            false,
+            &params,
+            &mut rng,
+        );
+        let mut fresh = Xoroshiro::from_seed(7);
+        fresh.next_f32();
+        assert_eq!(rng.next_f32(), fresh.next_f32(), "radius {radius}");
+    }
+}
+
+#[test]
 fn alternatives_use_the_first_matching_child() {
     let table = crate::data::datapack::loot_table_loader::parse_loot_table(
             r#"{"pools":[{"rolls":4,"entries":[{"type":"minecraft:alternatives","children":[{"type":"minecraft:item","name":"minecraft:stone"},{"type":"minecraft:item","name":"minecraft:diamond"}]}]}]}"#,
