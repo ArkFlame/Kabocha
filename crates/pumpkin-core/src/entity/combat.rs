@@ -875,9 +875,10 @@ mod tests {
     fn smash_knockback_power_uses_full_3d_distance() {
         // Targets above the victim use the 3D offset: 2 blocks up is inside the radius,
         // while a 3D length past 3.5 gives no push at all.
-        assert!((mace_smash_knockback_power(2.0, false, 0.0) - 1.05).abs() < 1e-9);
+        // 0.7 is an f32 constant in vanilla, so the f64 result differs by ~1e-10.
+        assert!((mace_smash_knockback_power(2.0, false, 0.0) - 1.05).abs() < 1e-6);
         assert!(mace_smash_knockback_power(3.6, false, 0.0) < 0.0);
         // Heavy smash doubles the power, resistance scales it back down.
-        assert!((mace_smash_knockback_power(2.0, true, 0.5) - 1.05).abs() < 1e-9);
+        assert!((mace_smash_knockback_power(2.0, true, 0.5) - 1.05).abs() < 1e-6);
     }
 }
