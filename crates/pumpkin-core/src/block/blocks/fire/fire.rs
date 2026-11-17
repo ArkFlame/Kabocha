@@ -307,6 +307,12 @@ impl BlockBehaviour for FireBlock {
             }
         }
 
+        // Vanilla only burns neighbours and spreads while the fire is younger
+        // than its maximum age; max-age fire just sits there until it dies.
+        if age >= 15 {
+            return;
+        }
+
         // Burn adjacent blocks
         let extra = if Self::is_increased_burnout_biome(world, pos) {
             -50 // Increases chance of block being destroyed

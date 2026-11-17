@@ -380,11 +380,14 @@ impl ToFromWasmEvent
 impl ToFromWasmEvent
     for pumpkin_core::plugin::api::events::entity::entity_explode::EntityExplodeEvent
 {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::EntityExplodeEvent(EntityExplodeEventData {
             entity_id: self.entity_id,
             position: to_wasm_position(self.position),
             yield_rate: self.yield_rate,
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }
@@ -393,7 +396,7 @@ impl ToFromWasmEvent
         unreachable!("v0.1 EntityExplodeEvent is applied in place by apply_wasm_event")
     }
 
-    fn apply_wasm_event(&mut self, event: Event, _state: &mut PluginHostState) {
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
         if let Event::EntityExplodeEvent(data) = event {
             self.entity_id = data.entity_id;
             self.position = pumpkin_util::math::vector3::Vector3::new(
@@ -402,6 +405,7 @@ impl ToFromWasmEvent
                 data.position.2,
             );
             self.yield_rate = data.yield_rate;
+            self.world = consume_world(state, &data.world);
             self.cancelled = data.cancelled;
         }
     }
@@ -763,11 +767,14 @@ impl ToFromWasmEvent for EntityBreakDoorEvent {
 }
 
 impl ToFromWasmEvent for EntityChangeBlockEvent {
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         Event::EntityChangeBlockEvent(EntityChangeBlockEventData {
             entity_id: self.entity_id,
             block_pos: to_wasm_block_position(self.block_pos),
             new_block: self.new_block.clone(),
+            world: state
+                .add(self.world.clone())
+                .expect("failed to add world resource"),
             cancelled: self.cancelled,
         })
     }

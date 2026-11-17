@@ -1,3 +1,4 @@
+use rand::RngExt;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 use std::sync::{Arc, Weak};
@@ -508,7 +509,7 @@ impl EvokerWololoSpellGoal {
 }
 
 impl Goal for EvokerWololoSpellGoal {
-    fn can_start(&mut self, _mob: &dyn Mob) -> bool {
+    fn can_start(&mut self, mob: &dyn Mob) -> bool {
         let Some(evoker) = self.evoker.upgrade() else {
             return false;
         };
@@ -523,12 +524,16 @@ impl Goal for EvokerWololoSpellGoal {
         if target.is_some() {
             return false;
         }
-
-        // Find blue sheep within 16 blocks
-        let bb = entity.bounding_box.load().expand(16.0, 4.0, 16.0);
         let world = entity.world.load();
+        if !world.level_info.load().game_rules.mob_griefing {
+            return false;
+        }
+
+        // Find blue sheep within 16 blocks, then pick one at random like vanilla.
+        let bb = entity.bounding_box.load().expand(16.0, 4.0, 16.0);
         let candidates = world.get_entities_at_box(&bb);
 
+        let mut blue_sheep = Vec::new();
         for cand in candidates {
             if *cand.get_entity().entity_type == EntityType::SHEEP
                 && let Some(sheep) = cand
@@ -537,17 +542,20 @@ impl Goal for EvokerWololoSpellGoal {
             {
                 // Blue color is 11 in Minecraft
                 if sheep.get_color() == 11 {
-                    *evoker
-                        .wololo_target_id
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                        Some(cand.get_entity().entity_id);
-                    return true;
+                    blue_sheep.push(cand.get_entity().entity_id);
                 }
             }
         }
 
-        false
+        if blue_sheep.is_empty() {
+            return false;
+        }
+        let index = mob.get_random().random_range(0..blue_sheep.len());
+        *evoker
+            .wololo_target_id
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(blue_sheep[index]);
+        true
     }
 
     fn should_continue(&mut self, _mob: &dyn Mob) -> bool {

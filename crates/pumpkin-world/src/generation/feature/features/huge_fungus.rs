@@ -43,7 +43,12 @@ impl HugeFungusFeature {
             total_height *= 2;
         }
 
-        if !self.planted && pos.0.y + total_height + 1 >= chunk.top_y() as i32 {
+        // Vanilla caps the stem against `WORLD_SURFACE_WG` at this column, not the
+        // build limit, so a fungus never grows through the nether roof.
+        if !self.planted
+            && pos.0.y + total_height + 1
+                >= chunk.top_block_wg_height_exclusive(pos.0.x, pos.0.z)
+        {
             return false;
         }
 

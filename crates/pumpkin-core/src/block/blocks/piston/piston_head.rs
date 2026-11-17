@@ -62,11 +62,14 @@ impl BlockBehaviour for PistonHeadBlock {
             .offset(props.facing.opposite().to_block_direction().to_offset());
         let (base_block, base_state) = args.world.get_block_and_state_id(&base_pos);
         if Self::is_fitting_base(props, base_block, base_state) {
-            // A creative break removes the base without drops.
+            // Vanilla removes the base with drops, so a survival break of the
+            // head returns the piston item. Creative breaks and piston moves
+            // carry SKIP_DROPS/MOVED and stay drop-free.
             args.world.break_block(
                 &base_pos,
                 None,
-                (args.flags & BlockFlags::SKIP_DROPS) | BlockFlags::NOTIFY_ALL,
+                (args.flags & (BlockFlags::SKIP_DROPS | BlockFlags::MOVED))
+                    | BlockFlags::NOTIFY_ALL,
             );
         }
     }

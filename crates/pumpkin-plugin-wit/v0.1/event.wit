@@ -238,6 +238,7 @@ interface event {
     }
 
     record block-break-event-data {
+        %world: %world,
         player: option<player>,
         block: string,
         block-pos: block-pos,
@@ -273,6 +274,7 @@ interface event {
     }
 
     record block-place-event-data {
+        %world: %world,
         player: player,
         block-placed: string,
         block-placed-against: string,
@@ -477,6 +479,7 @@ interface event {
     }
 
     record entity-explode-event-data {
+        %world: %world,
         entity-id: s32,
         position: position,
         yield-rate: f32,
@@ -570,6 +573,7 @@ interface event {
     }
 
     record entity-change-block-event-data {
+        %world: %world,
         entity-id: s32,
         block-pos: block-pos,
         new-block: string,
@@ -1279,6 +1283,7 @@ interface event {
     }
 
     record block-ignite-event-data {
+        %world: %world,
         block-pos: block-pos,
         player: option<player>,
         cause: string,
@@ -1309,6 +1314,7 @@ interface event {
     }
 
     record block-explode-event-data {
+        %world: %world,
         block-pos: block-pos,
         yield-rate: f32,
         cancelled: bool
@@ -1321,12 +1327,14 @@ interface event {
     }
 
     record block-piston-extend-event-data {
+        %world: %world,
         block-pos: block-pos,
         direction: string,
         cancelled: bool
     }
 
     record block-piston-retract-event-data {
+        %world: %world,
         block-pos: block-pos,
         direction: string,
         cancelled: bool
@@ -1352,6 +1360,7 @@ interface event {
     }
 
     record tnt-prime-event-data {
+        %world: %world,
         block-pos: block-pos,
         prime-reason: string,
         cancelled: bool
