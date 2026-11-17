@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use pumpkin_data::{
-    Block, BlockState, BlockStateId,
+    Block, BlockId, BlockState, BlockStateId,
     biome::Biome,
+    block_properties::blocks_movement,
     fluid::{Fluid, FluidState},
 };
 use pumpkin_nbt::compound::NbtCompound;
@@ -23,6 +24,15 @@ use rustc_hash::FxHashMap;
 
 use crate::block::entities::block_entity_from_nbt;
 use crate::world::World;
+
+/// Vanilla `OCEAN_FLOOR`: the exclusive top of the highest movement-blocking block below
+/// `surface`, or `min_y` when the column has none.
+fn ocean_floor_from_column(surface: i32, min_y: i32, blocks_motion: impl Fn(i32) -> bool) -> i32 {
+    (min_y..surface)
+        .rev()
+        .find(|&y| blocks_motion(y))
+        .map_or(min_y, |y| y + 1)
+}
 
 pub struct WorldGenerationCache {
     world: Arc<World>,
@@ -179,7 +189,14 @@ impl GenerationCache for WorldGenerationCache {
     }
 
     fn ocean_floor_height_exclusive(&self, x: i32, z: i32) -> i32 {
-        self.heightmap(ChunkHeightmapType::WorldSurface, x, z)
+        // Loaded chunks keep no ocean floor map, so scan the column below the surface.
+        let surface = self.top_block_height_exclusive(x, z);
+        let min_y = self.world.dimension.min_y;
+        ocean_floor_from_column(surface, min_y, |y| {
+            let id = self.read(&BlockPos(Vector3::new(x, y, z)));
+            let state = BlockState::from_id(id);
+            blocks_movement(state, BlockId::from_state_id(id))
+        })
     }
 
     fn is_air(&self, local_pos: &Vector3<i32>) -> bool {
@@ -192,5 +209,23 @@ impl GenerationCache for WorldGenerationCache {
 
     fn get_blending_data(&self, _chunk_x: i32, _chunk_z: i32) -> Option<&BlendingData> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ocean_floor_from_column;
+
+    #[test]
+    fn ocean_floor_skips_water_above_the_blocking_floor() {
+        // Stone at y=2, water at y=3..=6, surface (exclusive) at 7: floor is 3, not 7.
+        let blocks = |y: i32| y == 2;
+        assert_eq!(ocean_floor_from_column(7, 0, blocks), 3);
+    }
+
+    #[test]
+    fn ocean_floor_defaults_to_min_y_without_blocking_blocks() {
+        assert_eq!(ocean_floor_from_column(7, -64, |_| false), -64);
+        assert_eq!(ocean_floor_from_column(-64, -64, |_| true), -64);
     }
 }
