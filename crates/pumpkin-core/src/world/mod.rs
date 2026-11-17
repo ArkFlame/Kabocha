@@ -108,6 +108,7 @@ use pumpkin_inventory::crafting::recipe_provider::RecipeProvider;
 use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_inventory::{Clearable, Inventory};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::bedrock::client::set_actor_data::{CSetActorData, PropertySyncData};
 use pumpkin_protocol::bedrock::client::start_game::{CStartGame, ServerTelemetryData};
 use pumpkin_protocol::java::client::play::{
@@ -893,17 +894,22 @@ impl World {
         snapshot_chunks: impl IntoIterator<Item = Vector2<i32>>,
     ) {
         let mut groups: FxHashMap<Vector2<i32>, Vec<NbtCompound>> = FxHashMap::default();
+        // Like vanilla, a passenger is written inside its root vehicle's `Passengers`
+        // list rather than on its own, so the riding tree survives a reload.
+        let mut saved_roots: FxHashSet<i32> = FxHashSet::default();
         for entity in entities {
-            let base_entity = entity.get_entity();
-            if base_entity.is_removed() || is_saved_as_passenger(entity.as_ref()) {
+            if entity.get_entity().is_removed() {
                 continue;
             }
-            let mut nbt = NbtCompound::new();
-            entity.write_nbt(&mut nbt);
+            let root = root_saved_vehicle(entity);
+            let base_root = root.get_entity();
+            if !saved_roots.insert(base_root.entity_id) {
+                continue;
+            }
             groups
-                .entry(base_entity.chunk_pos.load())
+                .entry(base_root.chunk_pos.load())
                 .or_default()
-                .push(nbt);
+                .push(write_entity_with_passengers(&root));
         }
         for pos in snapshot_chunks {
             groups.entry(pos).or_default();
@@ -1901,10 +1907,16 @@ impl World {
 
     #[expect(clippy::too_many_lines)]
     pub fn tick(self: &Arc<Self>, server: &Arc<Server>) {
+        #[cfg(profiler)]
+        let _profile = pumpkin_profiler::cpu::world(self.uuid, self.dimension.minecraft_name);
+
         let start = std::time::Instant::now();
 
         self.pathfinding_time_spent
             .store(0, std::sync::atomic::Ordering::Relaxed);
+
+        #[cfg(profiler)]
+        let profile_setup = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::WorldSetup);
 
         self.flush_block_updates();
         self.flush_synced_block_events();
@@ -1939,6 +1951,8 @@ impl World {
             *guard = raids;
         };
 
+        #[cfg(profiler)]
+        drop(profile_setup);
         let t_chunks = std::time::Instant::now();
         self.tick_chunks();
         let chunk_elapsed = t_chunks.elapsed();
@@ -1948,6 +1962,8 @@ impl World {
 
         let t_players = std::time::Instant::now();
         players.par_iter().for_each(|player| {
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Players);
             player.tick(server);
         });
         self.encoded_chunk_cache.clear();
@@ -2058,6 +2074,8 @@ impl World {
         let first_order = self.level.reserve_entity_tick_orders(tickable.len());
 
         let server_ref = server.as_ref();
+        #[cfg(profiler)]
+        let profile_entities = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Entities);
         let tick_entity = |index: usize| {
             let (entity, _) = &tickable[index];
             order::set_entity_order(Some(first_order + index as u64 * order::ORDERS_PER_ENTITY));
@@ -2091,6 +2109,8 @@ impl World {
             }
             order::set_entity_order(None);
         }
+        #[cfg(profiler)]
+        drop(profile_entities);
         // Vanilla `rideTick`: riders follow their vehicle's seat once it has moved
         tickable.par_iter().for_each(|(entity, _)| {
             if !entity.is_passenger() && entity.get_entity().has_passengers() {
@@ -2104,7 +2124,12 @@ impl World {
         for player in players.iter() {
             player.send_velocity_changes();
         }
+        #[cfg(profiler)]
+        let profile_tracking =
+            pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::EntityTracking);
         self.entity_tracker.update_all(self);
+        #[cfg(profiler)]
+        drop(profile_tracking);
 
         let mut block_entities: Vec<Arc<dyn BlockEntity>> = Vec::new();
         if self.block_entities.len() < active_chunks.len() {
@@ -2124,6 +2149,8 @@ impl World {
 
         let t_be = std::time::Instant::now();
         block_entities.par_chunks(16).for_each(|batch| {
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::BlockEntities);
             for be in batch {
                 // Vanilla's ticking wrapper skips a block entity whose block no longer owns
                 // it. Without this, a leftover (say, a daylight detector under a `fill` of
@@ -2549,6 +2576,8 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Blocks);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2558,6 +2587,21 @@ impl World {
                         continue;
                     }
                     if let Some(pumpkin_block) = world.block_registry.get_pumpkin_block(block.id) {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Block {
+                                    name: block.name,
+                                    phase: pumpkin_profiler::cpu::Phase::Blocks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_block.on_scheduled_tick(OnScheduledTickArgs {
                             world: &world,
                             block,
@@ -2574,6 +2618,8 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Fluids);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2584,6 +2630,21 @@ impl World {
                         continue;
                     };
                     if let Some(pumpkin_fluid) = world.block_registry.get_pumpkin_fluid(fluid.id) {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Fluid {
+                                    name: fluid.name,
+                                    phase: pumpkin_profiler::cpu::Phase::Fluids,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_fluid.on_scheduled_tick(&world, fluid, &pos);
                     }
                 }
@@ -2596,6 +2657,9 @@ impl World {
             .par_chunks(BATCH_SIZE)
             .for_each(|batch| {
                 let _handling_tick = HandlingTickGuard::new();
+                #[cfg(profiler)]
+                let _profile =
+                    pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::RandomTicks);
                 let world = world.clone();
                 for scheduled_tick in batch {
                     let pos = scheduled_tick.position;
@@ -2614,6 +2678,21 @@ impl World {
                         && let Some(pumpkin_block) =
                             world.block_registry.get_pumpkin_block(block.id)
                     {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Block {
+                                    name: block.name,
+                                    phase: pumpkin_profiler::cpu::Phase::RandomTicks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_block.random_tick(RandomTickArgs {
                             world: &world,
                             block,
@@ -2625,6 +2704,21 @@ impl World {
                         && let Some(pumpkin_fluid) =
                             world.block_registry.get_pumpkin_fluid(fluid.id)
                     {
+                        #[cfg(profiler)]
+                        let _detail = {
+                            let chunk = pos.chunk_position();
+                            pumpkin_profiler::cpu::detail(
+                                pumpkin_profiler::cpu::Detail::Fluid {
+                                    name: fluid.name,
+                                    phase: pumpkin_profiler::cpu::Phase::RandomTicks,
+                                },
+                                Some(pumpkin_profiler::cpu::Detail::Chunk {
+                                    world: world.uuid,
+                                    x: chunk.x,
+                                    z: chunk.y,
+                                }),
+                            )
+                        };
                         pumpkin_fluid.random_tick(fluid, &world, &pos);
                     }
                 }
@@ -2659,6 +2753,8 @@ impl World {
 
             spawning_chunks.shuffle(&mut rng());
 
+            #[cfg(profiler)]
+            let _profile = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Spawning);
             for (pos, chunk) in spawning_chunks {
                 self.tick_spawning_chunk(pos, &chunk, &spawn_list, &spawn_state);
             }
@@ -5170,6 +5266,114 @@ impl World {
 
     // NOTE: This function doesn't actually await on anything, it just spawns two tokio tasks
     /// IMPORTANT: Chunks have to be non-empty
+    /// Spawns a saved entity and, recursively, the passengers in its `Passengers` list,
+    /// mounting each on its vehicle (vanilla's `EntityType.loadEntityRecursive`).
+    fn load_entity_recursive(
+        self: &Arc<Self>,
+        entity_nbt: &NbtCompound,
+        vehicle: Option<&Arc<dyn EntityBase>>,
+        loaded: &mut Vec<Arc<dyn EntityBase>>,
+    ) {
+        let Some(id) = entity_nbt.get_string("id") else {
+            debug!("Entity has no ID");
+            return;
+        };
+        let Some(entity_type) = EntityType::from_name(id.strip_prefix("minecraft:").unwrap_or(id))
+        else {
+            warn!("Entity has no valid Entity Type {id}");
+            return;
+        };
+
+        // Keep the persisted UUID so the entity keeps its identity across reloads
+        // (matching vanilla); only fall back to a fresh one if it is missing/corrupt.
+        let uuid = entity_nbt.get_uuid("UUID").unwrap_or_else(Uuid::new_v4);
+        if self
+            .entities
+            .load()
+            .iter()
+            .any(|e| e.get_entity().entity_uuid == uuid)
+        {
+            // Already live (another loader got here first); don't duplicate it.
+            return;
+        }
+        // Pos is zero since it will be read from nbt.
+        let entity = crate::entity::r#type::from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), self, uuid);
+        entity.read_nbt_non_mut(entity_nbt);
+        entity.init_data_tracker();
+
+        // Clear velocity so the client does not replay the drop animation; residual
+        // velocity from the original drop is stale data.
+        entity.get_entity().velocity.store(Vector3::default());
+
+        // Tracker owns pairing (spawn packets + vehicle restore).
+        self.add_entity_silent(entity.clone());
+        if let Some(vehicle) = vehicle {
+            vehicle
+                .get_entity()
+                .add_passenger(vehicle.clone(), entity.clone());
+        }
+        loaded.push(entity.clone());
+
+        if let Some(passengers) = entity_nbt.get_list("Passengers") {
+            for passenger in passengers {
+                if let NbtTag::Compound(passenger) = passenger {
+                    self.load_entity_recursive(passenger, Some(&entity), loaded);
+                }
+            }
+        }
+    }
+
+    /// Makes the serialized entities of an entity chunk live, consuming its NBT. The live
+    /// entity list becomes the single source of truth, so the chunk's NBT is taken (cleared)
+    /// to avoid keeping a duplicate copy that would be re-appended on the next unload.
+    /// Returns `None` if another loader already made the chunk live.
+    fn instantiate_chunk_entities(
+        self: &Arc<Self>,
+        chunk: &pumpkin_world::chunk::ChunkEntityData,
+    ) -> Option<Vec<Arc<dyn EntityBase>>> {
+        if chunk.live.swap(true, Relaxed) {
+            return None;
+        }
+        let entity_nbts = std::mem::take(
+            &mut *chunk
+                .data
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        let mut entities = Vec::with_capacity(entity_nbts.len());
+        for entity_nbt in &entity_nbts {
+            self.load_entity_recursive(entity_nbt, None, &mut entities);
+        }
+        Some(entities)
+    }
+
+    /// Keeps the entities of force-loaded chunks live without any player nearby, like
+    /// vanilla's entity tickets. Each forced chunk counts as one chunk watcher; call this
+    /// once per chunk that just became forced.
+    pub fn load_forced_entity_chunks(self: &Arc<Self>, chunks: Vec<Vector2<i32>>) {
+        if chunks.is_empty() {
+            return;
+        }
+        self.level.mark_chunks_as_newly_watched(&chunks);
+        let world = self.clone();
+        self.level.spawn_task(async move {
+            for pos in chunks {
+                let chunk = world.level.get_entity_chunk(pos).await;
+                world.instantiate_chunk_entities(&chunk);
+            }
+        });
+    }
+
+    /// Releases the watcher held by chunks that are no longer forced, unloading their
+    /// entities if no player is watching them either.
+    pub async fn unload_forced_entity_chunks(self: &Arc<Self>, chunks: &[Vector2<i32>]) {
+        let chunks_to_clean = self.level.mark_chunks_as_not_watched(chunks);
+        if !chunks_to_clean.is_empty() {
+            self.remove_entities_in_chunks(&chunks_to_clean).await;
+            self.level.clean_entity_chunks(&chunks_to_clean);
+        }
+    }
+
     fn spawn_world_entity_chunks(self: &Arc<Self>, player: Arc<Player>, chunks: Vec<Vector2<i32>>) {
         #[cfg(debug_assertions)]
         let inst = std::time::Instant::now();
@@ -9064,10 +9268,6 @@ fn saving_vehicle(entity: &dyn EntityBase) -> Option<Arc<dyn EntityBase>> {
         .filter(|vehicle| vehicle.get_player().is_none() && !vehicle.get_entity().is_removed())
 }
 
-fn is_saved_as_passenger(entity: &dyn EntityBase) -> bool {
-    saving_vehicle(entity).is_some()
-}
-
 fn saved_chunk_pos(entity: &dyn EntityBase) -> Vector2<i32> {
     saving_vehicle(entity).map_or_else(
         || entity.get_entity().chunk_pos.load(),
@@ -9077,6 +9277,62 @@ fn saved_chunk_pos(entity: &dyn EntityBase) -> Vector2<i32> {
 
 /// A live chunk's records were already spawned, so `fresh` replaces them. Otherwise the
 /// records are the only copy of unspawned entities, so they stay and are only replaced by UUID.
+/// Walks up the vehicle chain to the outermost vehicle that is saved with the chunk.
+/// Players are saved with their own data, so the chain stops below a player vehicle.
+fn root_saved_vehicle(entity: &Arc<dyn EntityBase>) -> Arc<dyn EntityBase> {
+    let mut current = entity.clone();
+    loop {
+        let vehicle = current
+            .get_entity()
+            .vehicle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .and_then(|vehicle| vehicle.upgrade());
+        match vehicle {
+            Some(vehicle)
+                if vehicle.get_player().is_none()
+                    && !vehicle
+                        .get_entity()
+                        .removal_reason
+                        .load()
+                        .is_some_and(|reason| reason.should_destroy()) =>
+            {
+                current = vehicle;
+            }
+            _ => return current,
+        }
+    }
+}
+
+/// Serializes an entity and, recursively, its non-player passengers into vanilla's
+/// `Passengers` list.
+fn write_entity_with_passengers(entity: &Arc<dyn EntityBase>) -> NbtCompound {
+    let mut nbt = NbtCompound::new();
+    entity.write_nbt(&mut nbt);
+    let passengers: Vec<NbtTag> = entity
+        .get_entity()
+        .passengers
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .iter()
+        .filter(|passenger| {
+            passenger.get_player().is_none()
+                && !passenger
+                    .get_entity()
+                    .removal_reason
+                    .load()
+                    .is_some_and(|reason| reason.should_destroy())
+        })
+        .map(|passenger| NbtTag::Compound(write_entity_with_passengers(passenger)))
+        .collect();
+    if !passengers.is_empty() {
+        nbt.put("Passengers", NbtTag::List(passengers));
+    }
+    nbt
+}
+
 fn merge_entity_records(data: &mut Vec<NbtCompound>, live: bool, fresh: Vec<NbtCompound>) {
     if live {
         *data = fresh;

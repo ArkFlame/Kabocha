@@ -1,5 +1,7 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use pumpkin_data::tag::Taggable;
+
 use crate::item::items::boat::BoatItem;
 
 impl JavaClient {
@@ -37,6 +39,17 @@ impl JavaClient {
                 });
             }
             block_entity.collect_pick_item_components(&mut stack);
+        }
+        if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_GOLEM_STATUES)
+            && let Some(block_entity) = world.get_block_entity(&pick_item.pos)
+            && let Some(statue) = block_entity.as_any().downcast_ref::<
+                crate::block::entities::copper_golem_statue::CopperGolemStatueBlockEntity,
+            >()
+        {
+            let props = pumpkin_data::block_properties::CopperGolemStatueLikeProperties::from_state_id(
+                world.get_block_state_id(&pick_item.pos),
+            );
+            statue.get_item(&mut stack, props.copper_golem_pose);
         }
 
         let slot_with_stack = player.inventory().get_slot_with_stack(&stack);

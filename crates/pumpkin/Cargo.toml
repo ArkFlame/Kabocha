@@ -26,8 +26,13 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
 tracing.workspace = true
 console-subscriber = { workspace = true, optional = true }
 
+[target.'cfg(all(any(target_os = "windows", target_os = "macos", all(target_os = "linux", target_env = "gnu")), any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
+pumpkin-profiler = { workspace = true, optional = true }
+
 [features]
 default = ["plugin-v0_2"]
+profiler = ["memory-profiler"]
+memory-profiler = ["dep:pumpkin-profiler", "pumpkin-core/memory-profiler"]
 console-subscriber = ["dep:console-subscriber"]
 # Load plugins built against the v0.2 API. On by default.
 plugin-v0_2 = ["pumpkin-wasm-host/v0_2"]
