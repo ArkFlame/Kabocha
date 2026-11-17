@@ -313,6 +313,21 @@ pub(crate) fn try_pickup_fluid_at(
         }
         let state_id = block.set_waterlogged(state, false).unwrap_or(state);
         world.set_block_state(&block_pos, state_id, BlockFlags::NOTIFY_ALL);
+        // Vanilla SimpleWaterloggedBlock.pickupBlock calls destroyBlock(pos, true)
+        // when the dried block can no longer survive (e.g. waterlogged coral fans).
+        if !world.block_registry.can_place_at(
+            None,
+            Some(&**world),
+            &**world,
+            None,
+            block,
+            BlockState::from_id(state_id),
+            &block_pos,
+            None,
+            None,
+        ) {
+            world.break_block(&block_pos, None, BlockFlags::NOTIFY_ALL);
+        }
         world.schedule_fluid_tick(&Fluid::WATER, block_pos, 5, TickPriority::Normal);
         return Some(&Item::WATER_BUCKET);
     }

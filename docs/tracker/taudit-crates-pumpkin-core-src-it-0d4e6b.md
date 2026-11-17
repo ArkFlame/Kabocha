@@ -21,13 +21,10 @@ Coverage: AUDIT. No `TODO`/`FIXME` markers exist in the file; the tracker's
 ## Remaining gaps (not fixed: needs vanilla source confirmation, a player
 ## harness, or a multi-file signature change)
 
-1. `bucket.rs:309-318` (waterlogged pickup). Vanilla
-   `SimpleWaterloggedBlock.pickupBlock` re-sets the state and then calls
-   `Level.destroyBlock(pos, true)` when `!state.canSurvive(level, pos)` (drops
-   for e.g. waterlogged coral fans that need water). Pumpkin only clears the
-   `waterlogged` property and schedules a water tick; blocks that cannot survive
-   dry stay alive. Fix: after `set_block_state`, if `!Block::can_survive(...)`
-   break the block with drops. Size: S.
+1. FIXED (UNVERIFIED, no cargo run): `bucket.rs` waterlogged pickup now calls
+   `break_block` with drops when `block_registry.can_place_at` fails on the
+   dried state, matching vanilla `SimpleWaterloggedBlock.pickupBlock`. No
+   `pumpkin-gametest` yet; needs a waterlogged coral fan scenario.
 
 2. `bucket.rs:423` (`clicked_is_liquid_container = is_water && !is_sneaking &&
    is_liquid_block_container(block)`). Vanilla `BucketItem.use` has no
