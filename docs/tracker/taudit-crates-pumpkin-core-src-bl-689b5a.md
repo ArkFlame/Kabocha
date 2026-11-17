@@ -45,3 +45,49 @@ Remaining gaps:
 | `furnace_like_block_entity.rs:542-556` | Paper passes `getTotalCookTime(level, entity)` (recipe time / multiplier, default 200) to `FurnaceStartSmeltEvent` | event is fired with the stored total, which is 0 when the input arrived before `set_stack` set it | compute from `furnace_recipe` with `cooking_total_time`, default 200 | S |
 | `furnace_like_block_entity.rs:233-237` | `burn` adds `burnResult.count()` to the result slot | always increments by 1 | increment by `recipe.result.count` and bound by `can_accept_recipe_output` | S |
 | `furnace_like_block_entity.rs:520-530` | on relight with a different fuel multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale (only relevant once the multiplier is data-driven, gap 1) | rescale after gap 1 | S |
+
+## Re-audit (2026-11-17, `CURRENT_MC_VERSION = V_26_3`, same reference tree)
+
+Confirmed against the reference tree: `AbstractFurnaceBlockEntity.serverTick`, `canBurn`, `burn`,
+`consumeFuel`, `setItem`, `getTotalCookTime`, `createExperience`, `loadAdditional`/`saveAdditional`.
+
+Fixed in this pass:
+
+- `furnace_like_block_entity.rs:218-241` - `can_accept_recipe_output` compared only the result
+  item id, while vanilla `canBurn` uses `ItemStack.isSameItemSameComponents`. A same-item output
+  stack with different components was accepted, then `craft_recipe`'s component-aware merge
+  refused it and the smelted result was dropped while the input was consumed. The output slot is
+  now compared with `are_items_and_components_equal`, and the empty-slot test uses `is_empty()`
+  like vanilla instead of `are_equal(EMPTY)`.
+- `furnace_like_block_entity.rs:692-706,740-746,827-833` - persisted keys were the pre-26
+  `CookTime`/`CookTimeTotal`/`BurnTime` ints (with the current snake_case names treated as
+  "legacy"). Vanilla 26.3 `saveAdditional`/`loadAdditional` use `cooking_time_spent`,
+  `cooking_total_time`, `lit_time_remaining`, `lit_total_time` (ints) and `speed_multiplier`
+  (float). Writes now use the current names; reads accept them first and still fall back to the
+  pre-26 CamelCase keys and short tags, so existing Pumpkin worlds keep loading (tests updated).
+
+Audited clean in this pass (no change needed):
+
+- `furnace_like_block_entity.rs:630-635` - progress reset rules match the reference exactly:
+  reset when the input is empty or `canBurn` fails, freeze when the input has no recipe (vanilla
+  only resets inside the `recipe != null` branch), decay of 2/tick otherwise.
+- `furnace_like_block_entity.rs:56-60,179-199` - `createExperience` equivalent:
+  `floor(count * xp) + (frac != 0 && rand < frac)` is exactly vanilla's `Mth.floor`/`Mth.frac`
+  roll, so batching is correct.
+- `furnace_like_block_entity.rs:540-566` - fuel consumption and crafting-remainder handling match
+  `consumeFuel` (remainder replaces an emptied fuel slot, otherwise drops as an item entity).
+- `furnace_like_block_entity.rs:427-468` - slot validity (`COOKING_FUEL` component, bucket rule)
+  and `canTakeItemThroughFace` `furnace_fuel_bottom_takeable` tag match vanilla.
+- `furnace_like_block_entity.rs:735-746` - `RecipesUsed` map of recipe id -> count matches the
+  vanilla codec layout.
+- `block/entities/mod.rs:199-209` - vanilla `preRemoveSideEffects` XP pop plus item scatter is
+  handled generically for every experience container, so breaking a smoker drops its XP.
+
+Remaining gaps:
+
+| Location | Vanilla | Gap | Fix | Size |
+|---|---|---|---|---|
+| `furnace_like_block_entity.rs:510-521,599-610` | `getSpeedMultiplier(level, fuel)` reads the fuel item's `CookingFuel.speedMultiplier` (`ResolvableFloat`, `cooking/speed_default` conditional on `FAST_FURNACE`), then `getTotalCookTime = ceil(recipeTime / speedMultiplier)` | the 2x multiplier is hardcoded per recipe kind; a datapack fuel with an explicit `speed_multiplier` is ignored, and the saved `speed_multiplier` float is written but never restored | resolve and store `speed_multiplier` per fuel ignition (`CookingFuelImpl::get_speed_multiplier`), use it for `cooking_total_time`, read the float in `from_nbt` | M |
+| `furnace_like_block_entity.rs:535-560` | on (re)ignition with a different multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale (only observable once the multiplier is data-driven) | rescale after the data-driven multiplier lands | S |
+| `furnace_like_block_entity.rs:252-275` | `canBurn`/`burn` use `recipe.assemble(input)`, which includes the recipe result's data components | the output stack is built from `result.id`/`result.count` only; `recipe.result.components` is dropped | build the result stack with the recipe result components | S |
+| `furnace_like_block_entity.rs:521-533` | Paper `FurnaceBurnEvent#setConsumeFuel(false)` keeps the furnace lit without consuming the fuel item | the event has no `consume_fuel` field | add the field to the event (additive plugin API) and honour it | M |
