@@ -10,6 +10,8 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 | Gap | Rust | Vanilla | Fix | Size |
 |---|---|---|---|---|
 | `isSmokeyPos` treated a lit campfire under an obstruction as smokey | `campfire.rs:59-63` | `CampfireBlock.isSmokeyPos`: stop at the first collision shape that crosses the 0.375..0.625 column, `return false` | blocker now returns `false` instead of probing the block below it | S |
+| `BlockCookEvent` cancel left `cooking_times >= total`, refiring the event every tick and growing the counter without bound | `entities/campfire.rs:164-173` | Paper restarts the slot when the event is cancelled | cancelled slot resets `cooking_times` to 0, keeps `cooking_total_times` so the start event does not refire | S |
+| Cooked results spawned with +-0.35 x/z jitter at y+1.01 | `entities/campfire.rs:329-337` | `CampfireBlockEntity.cookItems`: block centre, `y + 1.0` | spawn at `(x+0.5, y+1.0, z+0.5)`; `ItemEntity::new` already applies the default 10-tick pickup delay | S |
 
 ## Verified matching vanilla (no change)
 
@@ -25,8 +27,12 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 - Waterlogging clears `lit` and schedules the water fluid tick
   (`campfire.rs:211-232`); bucket placement (`item/items/bucket.rs:450`) and splash
   water bottle (`entity/projectile/splash_potion.rs:172`) extinguish too.
+- `is_lit_campfire` uses the `minecraft:campfires` tag (`campfire.rs:38-41`), matching
+  vanilla `isLitCampfire` scheduling on `BlockTags.CAMPFIRES`; soul campfires therefore
+  pacify beehives and count as smoke sources like in vanilla.
 - `on_projectile_hit` relights only unlit, non-waterlogged campfires hit by a burning
-  projectile with interaction rights (`campfire.rs:182-199`).
+  projectile with interaction rights and sets `NOTIFY_ALL` (`campfire.rs:182-199`);
+  vanilla emits no game event there. No change.
 - Cooking tick: lit path increments, unlit path cools by 2 (`entities/campfire.rs:84-195,
   303-316`), NBT keys `Items`/`CookingTimes`/`CookingTotalTimes` (`:35-70, 265-301`),
   completed cooks mark the chunk dirty through `World::update_block_entity`.
@@ -38,9 +44,9 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 
 | # | Gap | Rust | Vanilla | Suggested fix | Size |
 |---|---|---|---|---|---|
-| 1 | Blocked-smoke semantics for soul campfires | `campfire.rs:38-41` (`is_lit_campfire` accepts the whole `minecraft:campfires` tag) | `CampfireBlock.isSmokeyPos` may test `Blocks.CAMPFIRE` only, in which case a soul campfire must not satisfy the `smokey` criterion / beehive check | confirm against decompiled 26.3 `CampfireBlock.isSmokeyPos`; if `Blocks.CAMPFIRE` only, compare `block == &Block::CAMPFIRE` | S |
-| 2 | `BlockCookEvent` cancel does not reset progress | `entities/campfire.rs:161-173`: `continue` leaves `cooking_times >= total`, so the event refires every tick and `cooking_times` grows without bound (debug overflow panic) | Paper resets the slot's cooking time when the event is cancelled | on cancel, set `cooking_times[slot] = 0` (keep `cooking_total_times`) | S |
-| 3 | `CampfireStartEvent` cancel leaves total at 0 | `entities/campfire.rs:118-141`: a cancelled start event is refired every tick | event is Pumpkin-specific; vanilla has no cancel | cache the cancellation per slot or back off, e.g. reset via existing cooldown state | M |
-| 4 | Items without a campfire recipe never progress | `entities/campfire.rs:112-116`: `continue` before `cooking_times += 1` | `CampfireBlockEntity.litServerTick` increments every non-empty stack, then `cookItems` no-ops/loses the stack when no recipe matches | increment first and look up the recipe at completion (NBT/command-inserted stacks only) | S |
-| 5 | Cooked item spawn position/velocity | `entities/campfire.rs:325-333`: `x/z +-0.35` jitter, no velocity or pickup delay | vanilla spawns at `pos + (0.5, 1.0, 0.5)` with default pickup delay | drop the jitter, use `+1.0`, set default pickup delay | S (visual) |
-| 6 | Relight by burning projectile plays no game event | `campfire.rs:182-199` | vanilla `setBlockState(..., NOTIFY_ALL)` only; unverified whether a `BLOCK_CHANGE` game event is emitted | verify in decompiled source; add `emit_game_event` if vanilla does | S |
+| 1 | `CampfireStartEvent` cancel leaves total at 0 | `entities/campfire.rs:118-141`: a cancelled start event is refired every tick | event is Pumpkin-specific; vanilla has no cancel | cache the cancellation per slot or back off, e.g. reset via existing cooldown state | M |
+| 2 | Items without a campfire recipe never progress | `entities/campfire.rs:112-116`: `continue` before `cooking_times += 1` | `CampfireBlockEntity.litServerTick` increments every non-empty stack, then `cookItems` no-ops when no recipe matches | increment first and look up the recipe at completion (NBT/command-inserted stacks only) | S |
+| 3 | Cooked result count not split | `entities/campfire.rs:159`: spawns `recipe.result.count` | vanilla `cookItems` splits one item from `recipe.result` | `split(1)` when spawning; no current recipe yields more than one | S (latent) |
+
+Note: the reviewed sources did not change after the last tracker commit (`56622ca89`);
+this pass re-checked the fixable rows against vanilla.
