@@ -245,6 +245,17 @@ impl BlockEntity for CampfireBlockEntity {
                             .lock()
                             .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
                     }
+                    // A fresh stack must not inherit the previous sitting's progress.
+                    if let Some(progress) = self.cooking_times.get(slot) {
+                        *progress
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
+                    }
+                    if let Some(total) = self.cooking_total_times.get(slot) {
+                        *total
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
+                    }
                 }
             }
         }
@@ -339,11 +350,15 @@ impl CampfireBlockEntity {
 
     fn cool_down(&self) -> bool {
         let mut changed = false;
-        for progress in &self.cooking_times {
+        for (slot, progress) in self.cooking_times.iter().enumerate() {
+            let total = *self.cooking_total_times[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let mut progress = progress
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let cooled = (*progress - 2).max(0);
+            // `CampfireBlockEntity.cooldownTick` clamps to [0, cookingTime].
+            let cooled = (*progress - 2).clamp(0, total.max(0));
             if cooled != *progress {
                 *progress = cooled;
                 changed = true;
