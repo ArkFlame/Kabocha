@@ -143,7 +143,7 @@ impl fmt::Display for CommandSender {
 impl CommandSender {
     pub fn send_message(&self, text: TextComponent) {
         match self {
-            #[allow(clippy::print_stdout)]
+            #[expect(clippy::print_stdout, reason = "console sender prints to the terminal")]
             Self::Console => println!("{}", text.to_pretty_console()),
             Self::Player(c) => c.send_system_message(&text),
             Self::CommandBlock(block_entity, _) => {

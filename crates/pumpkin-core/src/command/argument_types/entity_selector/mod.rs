@@ -161,10 +161,10 @@ impl EntitySelector {
         source: &CommandSource,
     ) -> Result<Arc<Player>, CommandSyntaxError> {
         let mut list = self.find_players(source)?;
-        match list.len() {
-            0 => Err(entity::NO_PLAYERS_ERROR_TYPE.create_without_context()),
-            1 => Ok(list.pop().unwrap()),
-            _ => Err(entity::NOT_SINGLE_PLAYER_ERROR_TYPE.create_without_context()),
+        match list.pop() {
+            None => Err(entity::NO_PLAYERS_ERROR_TYPE.create_without_context()),
+            Some(player) if list.is_empty() => Ok(player),
+            Some(_) => Err(entity::NOT_SINGLE_PLAYER_ERROR_TYPE.create_without_context()),
         }
     }
 
