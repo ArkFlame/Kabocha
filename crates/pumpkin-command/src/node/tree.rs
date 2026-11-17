@@ -469,8 +469,9 @@ impl<S: CommandSource> Tree<S> {
             }
         }
         for id in &to_remove {
-            self.ids_map.remove(&self[*id].global_id());
+            let global_id = self[*id].global_id();
             let name = self[*id].name();
+            self.ids_map.remove(&global_id);
             self.command_node_mappings.remove(&name);
         }
 
