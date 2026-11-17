@@ -39,23 +39,23 @@ Remaining gaps:
   `SignatureUpdater` helper in `net/chat` (update order above), store the `SignedMessageChain`
   state per player, verify in `validate_chat_message` before `PlayerChatEvent`, and return
   `chat.disabled.invalid_signature` / `chain_broken` / `out_of_order_chat` components.
-- `chat_message.rs:238-241` - `handle_chat_session_update` returns early when
+- `chat_message.rs:221-223` - `handle_chat_session_update` returns early when
   `allow_chat_reports` is off, so the session is never stored and no
   `ClientboundPlayerInfoUpdate(INITIALIZE_CHAT)` is broadcast (size M). Vanilla always
   processes the update and only ignores it when the services profile-key validator is
   unavailable. Confirm first whether clients send the update at all when the login packet
   advertises `enforcesSecureChat = false`.
-- `chat_message.rs:216-226` - the 1.21.5 `checksum` field is compared against the server's
+- `chat_message.rs:199-210` - the 1.21.5 `checksum` field is compared against the server's
   stored `last_seen` list; the reference tree is 1.21.4 and has no such field, so it is
   unverified whether vanilla hashes the packet's own acknowledged list instead (size S,
   needs a 1.21.5 decompile).
-- `chat_message.rs:20-60` - check ordering differs from `handleChat`/`tryHandleChat`:
+- `chat_message.rs:12-72` - check ordering differs from `handleChat`/`tryHandleChat`:
   vanilla applies the ack window (`unpackAndApplyLastSeen`) before the illegal-character
   check, disconnects `illegal_characters` before anything else, and only calls
   `resetLastActionTime` in the accepted branch; Pumpkin resets the action time first, then
   runs illegal chars, signature/timestamp/ack, then spam (size S, only observable in edge
   cases and kick-reason ordering).
-- `chat_message.rs:33-38` - a message starting with `/` is parsed as a command (vanilla
+- `chat_message.rs:14-19` - a message starting with `/` is parsed as a command (vanilla
   sends commands as `ServerboundChatCommandPacket` and never parses `/` out of chat), so
   such input skips chat validation, the visibility gate and `PlayerChatEvent` (size S,
   existing Pumpkin convenience; only change it together with `handle_chat_command`).
