@@ -490,7 +490,7 @@ fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
         NbtTag::Double(d) => Ok(d.to_string()),
         _ => {
             Err(ERROR_EXPECTED_VALUE
-                .create_without_context(TextComponent::text(format!("{tag:?}"))))
+                .create_without_context(TextComponent::text(tag.to_string())))
         }
     }
 }
@@ -780,7 +780,7 @@ fn execute_modify(
                     }
                 } else {
                     return Err(ERROR_EXPECTED_OBJECT
-                        .create_without_context(TextComponent::text(format!("{tag:?}"))));
+                        .create_without_context(TextComponent::text(tag.to_string())));
                 }
             }
 
