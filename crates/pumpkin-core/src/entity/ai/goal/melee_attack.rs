@@ -3,6 +3,7 @@ use super::{Controls, Goal};
 use crate::entity::EntityBase;
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::NavigatorGoal;
+use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::mob::Mob;
 use crate::entity::predicate::EntityPredicate;
 use crate::plugin::api::events::entity::entity_target::TargetReason;
@@ -17,7 +18,7 @@ pub struct MeleeAttackGoal {
     goal_control: Controls,
     speed: f64,
     pause_when_mob_idle: bool,
-    //path: Path, TODO: add path when Navigation is implemented
+    path: Option<Path>,
     #[expect(dead_code)]
     target_location: Vector3<f64>,
     update_countdown_ticks: i32,
@@ -40,6 +41,7 @@ impl MeleeAttackGoal {
             goal_control: Controls::MOVE | Controls::LOOK,
             speed,
             pause_when_mob_idle,
+            path: None,
             target_location: Vector3::new(0.0, 0.0, 0.0),
             update_countdown_ticks: 0,
             cooldown: 0,
@@ -145,8 +147,21 @@ impl Goal for MeleeAttackGoal {
         if !target.get_entity().is_alive() {
             return false;
         }
-        // TODO: add path when is implemented Navigation
-        true //TODO: modify that because if a path to the target not exists then call mob.is_in_attack_range(target)
+
+        // Vanilla `createPath(target, 0)`: without a route the goal starts only
+        // when the target is already inside melee reach.
+        let target_pos = target.get_entity().pos.load();
+        let path = {
+            let steered = mob.get_mob_entity().steered();
+            steered
+                .navigator()
+                .create_path(&steered.mob_entity().living_entity, target_pos, 0)
+        };
+        let Some(path) = path else {
+            return mob.is_in_attack_range(target.as_ref());
+        };
+        self.path = Some(path);
+        true
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
@@ -181,17 +196,15 @@ impl Goal for MeleeAttackGoal {
     fn start(&mut self, mob: &dyn Mob) {
         mob.get_mob_entity().set_attacking(true);
 
-        let target = mob.get_mob_entity().get_target().clone();
+        let target = mob.get_mob_entity().get_target();
         if let Some(target) = target {
             let steered = mob.get_mob_entity().steered();
-            let mut navigator = steered.navigator();
-            let target_pos = target.get_entity().pos.load();
-            navigator.set_progress(NavigatorGoal {
-                current_progress: mob.get_entity().pos.load(),
-                destination: target_pos,
-                speed: self.speed,
-            });
-            self.last_target_position = Some(target_pos);
+            steered.navigator().move_to_path(
+                self.path.take(),
+                self.speed,
+                &steered.mob_entity().living_entity,
+            );
+            self.last_target_position = Some(target.get_entity().pos.load());
         }
         self.update_countdown_ticks = 0;
         self.cooldown = 0;
