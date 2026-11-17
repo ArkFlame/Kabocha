@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::BlockState;
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
@@ -87,26 +88,29 @@ impl Mob for EndermiteEntity {
         }
     }
 
-    fn mob_tick(&self, _caller: &dyn EntityBase) {
+    fn mob_tick(&self, caller: &dyn EntityBase) {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
             return;
         }
 
         entity.body_yaw.store(entity.yaw.load());
+
+        // Vanilla `Endermite#customServerAiStep`: age the mite and apply 1.0 generic
+        // damage per tick once the lifetime expires (a normal death, not a silent removal).
+        if !self.mob_entity.persistence_required.load(Ordering::Relaxed) {
+            self.lifetime.fetch_add(1, Ordering::Relaxed);
+        }
+        if self.lifetime.load(Ordering::Relaxed) >= MAX_LIFETIME {
+            self.mob_entity
+                .living_entity
+                .damage(caller, 1.0, DamageType::GENERIC);
+        }
     }
 
     fn post_tick(&self) {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
-            return;
-        }
-
-        if !self.mob_entity.persistence_required.load(Ordering::Relaxed) {
-            self.lifetime.fetch_add(1, Ordering::Relaxed);
-        }
-        if self.lifetime.load(Ordering::Relaxed) >= MAX_LIFETIME {
-            entity.remove();
             return;
         }
 
