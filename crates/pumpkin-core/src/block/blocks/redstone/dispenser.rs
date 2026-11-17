@@ -1211,11 +1211,16 @@ impl DispenserBlock {
                 return false;
             }
 
+            // Vanilla `BeehiveBlock` honey bottle harvest: fill sound and a
+            // `FLUID_PICKUP` event at the hive, then the honey level reset.
+            ctx.world
+                .play_block_sound(Sound::ItemBottleFill, SoundCategory::Blocks, target);
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), target.to_centered_f64());
+
             props.honey_level = 0;
             ctx.world
                 .set_block_state(&target, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
-            ctx.world
-                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
             Self::consume_with_remainder(
                 ctx,
                 dispenser,
@@ -1228,8 +1233,12 @@ impl DispenserBlock {
 
         let fluid = ctx.world.get_fluid(&target);
         if fluid.id == Fluid::WATER.id || fluid.id == Fluid::FLOWING_WATER.id {
+            // Vanilla `BottleDispenseItemBehavior` plays the fill sound and the
+            // `FLUID_PICKUP` event at the water block, not at the dispenser.
             ctx.world
-                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
+                .play_block_sound(Sound::ItemBottleFill, SoundCategory::Blocks, target);
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), target.to_centered_f64());
             Self::consume_with_remainder(ctx, dispenser, item, water_bottle());
             Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
             return true;
