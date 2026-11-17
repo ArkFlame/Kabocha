@@ -696,6 +696,10 @@ impl LivingEntity {
     pub fn on_changed_block(&self, caller: &dyn EntityBase, _pos: BlockPos) {
         let pos_f64 = self.entity.pos.load();
         if let Some(player) = caller.get_player() {
+            // Vanilla ServerPlayer.onChangedBlock skips spectators.
+            if player.is_spectator() {
+                return;
+            }
             let boots = player.inventory.get_slot(36);
             if !boots.is_empty() {
                 crate::enchantment::EnchantmentHelper::on_location_changed(
