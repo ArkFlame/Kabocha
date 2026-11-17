@@ -91,3 +91,7 @@ classes. The change that triggered this re-review is `0a35a87c3` (entity cycles 
   `is_in_water`, jump/attack/death/hurt/eat/play sounds, spawn obstruction, XP reward.
 - `additional_tick_movement` (`dolphin.rs:178-218`) matches the vanilla entity-island reach
   budget for the two movement goals (jump 0.6/0.7, breathe 0.015, follow 0.01, 4 moves/tick).
+
+## Gap status
+- 1 ageable/breedable model (M): STILL OPEN (size M, shared refactor)
+- 2 dolphin_food tag: BLOCKED-DATA (tag not extracted into assets/)

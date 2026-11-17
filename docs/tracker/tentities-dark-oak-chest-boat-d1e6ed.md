@@ -12,3 +12,6 @@ None found in the chest-boat path for DARK_OAK_CHEST_BOAT.
 - entity/vehicle/boat.rs:488-507 existing unit test covers is_chest_boat and max_passengers for every EntityType including dark_oak_chest_boat.
 
 Not checked: client-only rendering of the dark oak boat model and the chest-open sound (client-only, not gated).
+
+## Gap status
+- Remaining-gap items (prose, lines 5-13, not enumerated in this sweep): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

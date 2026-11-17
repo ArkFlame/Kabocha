@@ -52,3 +52,7 @@ Source: `crates/pumpkin-core/src/entity/passive/happy_ghast.rs`.
 6. **Baby metadata is never cleared.** `mob_init_data_tracker` (`happy_ghast.rs:200-215`) sets
    `BABY_ID` only for babies; when a ghastling ages up, if `AgeableMob` does not reset the flag the
    client keeps rendering a baby. Verify the generic age handling, then Size **S** if it is missing.
+
+## Gap status
+- 1-4 (remaining gaps, incl. ghastling baby flag and age reset): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 still_timeout NBT key not vanilla (happy_ghast.rs:151-166): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

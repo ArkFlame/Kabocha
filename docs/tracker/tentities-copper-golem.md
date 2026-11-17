@@ -30,6 +30,8 @@ FIXED (UNVERIFIED): writes `next_weathering_tick` (long) and reads it with fallb
 - Rust: `copper_golem.rs:266` uses `if game_time < next_weathering_tick { return; }`, so oxidation fires on `game_time == next_weathering_tick`; vanilla tests `getGameTime() > nextWeatheringTick`.
 - Fix: compare with `<=`. Cosmetic one-tick drift, nothing else depends on it.
 
-## Sweep h2 status
-- Gap 4 (weathering boundary one tick early): FIXED 1dae0982b (`<=` guard in weathering tick). UNVERIFIED against decompiled `CopperGolem`; no unit test.
-- Gaps 1-3: STILL OPEN (statue conversion M/L, item pickup/deposit L, NBT keys need vanilla reference).
+## Gap status
+- 1 oxidized golem statue conversion (copper_golem.rs:266-273): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 item pickup / chest deposit (L): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 weathering NBT keys (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 weathering boundary one tick early (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

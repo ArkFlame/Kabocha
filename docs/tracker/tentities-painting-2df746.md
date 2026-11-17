@@ -63,3 +63,7 @@ Not gaps (checked, no change):
   before spawning. Reuse `hanging::overlaps_hanging_entity`
   (`hanging.rs:26`). Size M because the spawn path must run the check after the
   variant is applied.
+
+## Gap status
+- 1 front-space check accepts any non-solid block (M): STILL OPEN (painting.rs excluded; needs vanilla confirm)
+- 2 placement space and hanging-entity check (M): STILL OPEN (painting.rs excluded)

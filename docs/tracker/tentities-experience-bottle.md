@@ -53,5 +53,7 @@ Source audited:
    the splash sound for silent bottles while particles always send; confirm against vanilla isSilent()
    placement before changing. Size S (needs .vendor).
 
-## h2 parity sweep (status)
-- All S rows STILL OPEN - need .vendor constants (orb offset, dispense arc) or are cosmetic; not changed this pass.
+## Gap status
+- 2 orb drop offset: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 dispenser launch power: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 sculk vibration per projectile type: STILL OPEN (unverified: no .vendor decompile in h6; not changed)

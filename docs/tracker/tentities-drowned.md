@@ -65,3 +65,10 @@ is empty — the Rust guard matches. No change expected; listed only because the
   nautilus shell; drowned-specific spawn handling at `entity/type.rs:784`; water conversion at
   `zombie.rs:59`; reinforcement spawns allowed in liquids for drowned (`mod.rs:467`).
 
+
+## Gap status
+- 1 turtle egg goal leaks into Drowned: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 trident attack hand: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 trident goal continue condition: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 equipment roll distribution (needs Drowned.java): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 nautilus shell drop chance (needs decompile): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

@@ -75,3 +75,8 @@ consistent with the poplar entries.
   added in three places (type.rs, boat.rs, item/items/boat.rs).
 - The new test flags a missed is_chest_boat entry, so the residual risk is
   reduced but not removed. Size S.
+
+## Gap status
+- 1 seat offset magic numbers (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 break drop resolves by registry key (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 is_chest_boat id allow-list (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

@@ -38,3 +38,6 @@ below that depend on an exact vanilla branch stay tagged with their confidence.
   rather than the integer block coordinates: 0.5 block asymmetry on the positive side, cosmetic.
 - `can_hit` -> `isPickable`, the 0.375 spawn offset, fence-tag survival and leash persistence as a
   block position match vanilla. Render distance (1024) is client-only.
+
+## Gap status
+- 1-5 (sounds, interact, tick survives, tick_leash, get_knot): STILL OPEN (file is in the h6 excluded list; not touched)

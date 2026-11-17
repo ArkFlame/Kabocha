@@ -33,3 +33,12 @@ Vanilla reference class: `net.minecraft.world.entity.monster.Creeper` / `Creeper
 - Goal list/priorities: swim 1, `CreeperSwellGoal` 2, ocelot/cat avoid 3 (6 blocks, 1.0/1.2), `MeleeAttackGoal(1.0, false)` 4 with no-op `doHurtTarget`, stroll 5 (0.8), look-at 8 blocks 6, random look 6; targets `HurtByTargetGoal` 1 then nearest player 2. `CreeperSwellGoal` 3-block start / 7-block stop / line-of-sight, `should_run_every_tick`.
 - Igniter interaction: `CREEPER_IGNITERS` tag, fire-charge vs flint-and-steel sound, random pitch 0.8-1.2, damageable vs stack decrement, leash fallback (creeper.rs:291-325).
 - Lightning strike charges the creeper via `set_charged` (creeper.rs:234-243); NBT keys `powered`, `Fuse`, `ExplosionRadius`, `ignited` (creeper.rs:189-213).
+
+## Gap status
+- 1 Bedrock actor data on fuse speed: FIXED (creeper.rs:99-106 calls send_bedrock_actor_data)
+- 4a lingering cloud duration 600: FIXED (no change needed; creeper.rs:153-163 uses 300, matches the note's correction)
+- 5 swell direction Bedrock metadata: FIXED (creeper.rs:99-106)
+- 6 mob_read_nbt synced data: FIXED (no gap per note; mob_metadata at mob/mod.rs:1873)
+- 2 charged_creeper/root loot table: BLOCKED-DATA (no loot_table JSON in assets/; count 0)
+- 3 explodeCreeper ordering (creeper.rs:107-168): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4b CreeperSwellGoal aliveness guard (creeper_ignite.rs:39): STILL OPEN (unverified: no .vendor decompile in h6; not changed) (note says leave unless vanilla proves it observable)

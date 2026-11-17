@@ -41,3 +41,8 @@ No decompiled vanilla tree present (no `.vendor/`); parity judged against vanill
 
 - Runtime behaviour of the remaining gaps was not observed (no client/world repro); they come from
   reading the vanilla call chain. Generic boat physics/motion is covered by the Mangrove Boat row.
+
+## Gap status
+- 1 ChestBoat.remove scatter on any destroying removal (boat.rs:315-362): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 shared getMaxPassengers helper (entity/mod.rs:1238-1243): STILL OPEN (refactor, no behaviour change identified)
+- 3 interact deciding result on failed mount (boat.rs:365-400): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

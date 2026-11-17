@@ -62,3 +62,9 @@ protection and the `-32768`/`32767` sentinels.
 
 Known intentional deviation: creative players destroy a stack that fits nowhere
 (`item.rs:810`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.
+
+## Gap status
+- 1 despawn before merge check (S, needs decompile): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 is_mergeable age guard (S, dead code after gap 1): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 Pumpkin-only Health NBT tag (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 owner and thrower collapsed (M): STILL OPEN (size M)

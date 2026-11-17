@@ -73,3 +73,6 @@ constructing `BoatEntity` for `OAK_CHEST_BOAT` vs `OAK_BOAT` and asserting
 
 - Compilation and tests were not run (worker rule: orchestrator batch-compiles).
 - Client-only effects (chest-boat open animation, prediction) were not assessed.
+
+## Gap status
+- Table rows (27-slot inventory, single seat, seat offset): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

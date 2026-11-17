@@ -35,3 +35,6 @@ seat offsets, dismount search and damage/drop match `AbstractBoat`. Rider positi
 | `physics.rs:188-216` `float_boat` air->water branch | `AbstractBoat.floatBoat` transition | Vanilla snaps `setPos(surfaceY)` before the collision test; Rust returns a zero offset when the target is blocked and never snaps. Verify against the decompiled method before changing | Return the computed offset unconditionally; only zero velocity / set `InWater` when collision-free | S (verify) |
 | `physics.rs:218` `vertical_speed = -self.get_gravity()` | `AbstractBoat.floatBoat` hard-coded `-0.04` | `get_gravity()` honours `no_gravity`; vanilla applies the constant in `floatBoat` regardless. Confirm nothing can set `no_gravity` on a boat, else use `DEFAULT_GRAVITY` | Use `DEFAULT_GRAVITY` in `float_boat` | S (verify) |
 | `server/builtin_game_tests/` | runtime parity | No boat gametest coverage (grep confirms only the dispenser boat test), so the rewritten water physics is unverified at runtime | Add one gametest: boat floats up after a fall, ejects a rider after 60 underwater ticks, chest boat scatters its 27 slots when broken | S |
+
+## Gap status
+- Remaining-gap items (lines 29-37, incl. missing boat gametest coverage): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

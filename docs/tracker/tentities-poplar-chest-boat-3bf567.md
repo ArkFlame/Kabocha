@@ -50,9 +50,10 @@ behaviour, not quoted decompiled source.
 Client-only effects (chest rendering, screen layout, paddle wobble) were not assessed.
 No cargo or test run was performed (worker constraint); the orchestrator batch-compiles.
 
-## Gapwave2-2 status (h3)
-- boat.rs:377 sneak-only open: FIXED already in code (boat.rs interact gates open_custom_inventory_screen on is_sneaking; no change)
-- boat.rs:332-357 contents on every removal: FIXED bc9cc5098 (BoatEntity::on_removed via World::remove_entity, claim-guarded scatter_chest_contents)
-- boat.rs:113-122 CONTAINER_OPEN: UNVERIFIED, emission kept (vanilla openCustomInventoryScreen emits CONTAINER_OPEN)
-- tag.rs C_BOATS poplar_chest_boat: STILL OPEN (generated data, needs codegen run)
-- passengers.rs offsets: STILL OPEN (S, not started in this wave)
+## Gap status
+- 1 contents drop nested in game rule (boat.rs:365-385): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 dropped item spawn position (boat.rs:366-382): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 stillValid/canPlayerUse (minecart/container.rs:202-233): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 BoatItem container component (item/items/boat.rs:107-200): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 hopper WorldlyContainer (boat.rs:278-296): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 save/load test coverage (boat.rs:441-470): STILL OPEN (needs test, unverified)

@@ -62,3 +62,7 @@ covers NBT round trip, `TrackOutput=false`, cooldown and the Searge output.
    Size: S.
 6. Remaining risk, not a gap: a client that does not open `MinecartCommandBlockEditScreen` locally gets no
    server fallback for `interact` (`command_block.rs:235-237`). Size: S.
+
+## Gap status
+- Remaining-gap items 1-5 (CustomName/LastOutput persistence, performCommand gating, etc.): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 (risk, not a gap): n/a, no action

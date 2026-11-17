@@ -35,6 +35,5 @@ chain.
 | `cushion.rs:489` (`mod tests`) | placement and support rules of `Cushion.canBePlacedAt` / `Cushion.wouldSurviveAt` and the 100-tick support drop | add `pumpkin-gametest` cases: place on a full block and a slab, reject with no anchor, reject under a suffocating block, and drop the item after the support block is removed | M |
 | `cushion.rs:186-192` (`drop_and_remove`) | `Cushion.removePassenger` can be cancelled by a dismount event; vanilla still breaks the cushion | decide whether the early `return` when a cancelled dismount left a rider should still remove the cushion (no vanilla source in this checkout to confirm the ordering) | S |
 
-## Status (gapwave2 h1)
-- Row 1 (mount events, `entity/mod.rs` TODO / `add_passenger`): FIXED a8e623095. `Entity::add_passenger` emits `GameEvent::EntityMount` at the vehicle position, mirroring the existing dismount emit. UNVERIFIED against decompiled source. Scope: the cushion dismount side was already emitted, so only the mount side changed. No test (needs sculk/vibration observer in a gametest).
-- Rows 2-4 and the 2527f1 cushion rows: not in this slice (left to h2).
+## Gap status
+- All remaining-gap items (cushion.rs): STILL OPEN (file is in the h6 excluded list; not touched)

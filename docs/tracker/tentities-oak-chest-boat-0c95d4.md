@@ -48,7 +48,12 @@ vanilla source exists under `.vendor/`, so each row names the vanilla member it 
 - No cargo run (worker rule: orchestrator batch-compiles); the added test is unexecuted here.
 - Client-only effects (chest-boat animation, prediction) not assessed.
 
-## Gapwave2-2 status
-
-- row 3 (`boat.rs` passenger damage): FIXED, early `false` in `damage_with_context` when the source is a passenger of a boat that has passengers. No automated test: needs an entity fixture.
-- rows 1, 2, 4-8: STILL OPEN.
+## Gap status
+- 1 canPlayerUse (minecart/container.rs:172-200): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 instabuild with custom name (boat.rs:319-353): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 hurt passenger branch (boat.rs:307-320): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 destroying removal spills container (entity/mod.rs:4281-4283): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 interact open condition (boat.rs:360-375): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 bubble time publish (boat.rs:268-293): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 7 container entity line (boat.rs:227-266): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 8 pick result and drop item (boat.rs:341-344): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

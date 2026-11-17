@@ -22,3 +22,7 @@ Compared against vanilla BoatItem (use/clip/entity check), AbstractBoat (interac
 - Chest boat container: spectator rejection, occupied-by-other rejection, 27 slots, container open game event, NBT inventory read/write.
 - Paddle input is read from SPaddleBoat and stored/emitted as metadata (paddle_boat.rs, BoatEntity::set_paddles); boat dispenser behaviour spawns at the vanilla offset with the facing yaw and copies the item custom name.
 - Dark oak data: DARK_OAK_BOAT entity registered in entity/type.rs:338 with BoatEntity, boat seats (ride height 0.1875, single-passenger offset 0) from pumpkin-data, item id 987 and recipe from assets; nothing dark-oak-specific differs from the shared boat code.
+
+## Gap status
+- 1 paddle/bubble sound and tick ordering (boat.rs:286-311, block_effects.rs:49): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 ground friction zero when no collision (boat/physics.rs:142-183): STILL OPEN (file is in the h6 excluded list; not touched)

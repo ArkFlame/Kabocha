@@ -48,3 +48,12 @@ change shared boat behaviour for all 11 chest variants.
 - No cargo/build run (worker rule: the orchestrator batch-compiles); nothing was edited this pass.
 - Client-only effects (chest-boat rendering, paddle animation, prediction) not assessed.
 - Rows 1-6 live in shared `boat.rs` / `minecart/container.rs` code, so a fix lands once for all 11 chest variants rather than only for the jungle boat.
+
+## Gap status
+- 1 chest boat interact (boat.rs:390-412): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 failed boarding attempt result (boat.rs:393-412): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 canPlayerUse (minecart/container.rs:172-200): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 container-entity loot tables (1.21.5+): BLOCKED-DATA (no loot_table JSON in assets/)
+- 5 instabuild destroy skip (boat.rs:356-363): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 passenger damage to own boat (boat.rs:339-359): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 7 drop item resolution (boat.rs:380-382): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

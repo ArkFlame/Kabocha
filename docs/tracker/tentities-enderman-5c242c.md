@@ -60,3 +60,7 @@ The source changed since the last review: the damage pipeline now runs
 - Creepy/starred/carry synced data, stare scream at 400-tick cooldown, carried-block NBT,
   `requires_custom_persistence`, death drop via `EnchantmentProvider::ENDERMAN_LOOT_DROP`,
   ambient scream when creepy, water sensitivity, projectile side effects.
+
+## Gap status
+- 1 projectile dodge keyed on damage type (M): STILL OPEN (size M)
+- 2 stare line-of-sight 128-block cap (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

@@ -69,3 +69,10 @@ Source audited:
 5. Splash potion (separate row, same cluster): splash_potion.rs:302-309 broadcasts only event
    2002 and never the 1053 splash sound, unlike this bottle. Logged as a pointer, not fixed here.
 
+
+## Gap status
+- 1 XP orbs never merged (M, shared XP path): STILL OPEN (size M)
+- 2 dispenser launch power: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 thrown bottle spawns at player feet (M, shared throw path across 4 items): STILL OPEN (size M)
+- 4 no automated test (M): STILL OPEN (size M)
+- 5 splash potion sound pointer: STILL OPEN (pointer only, splash_potion.rs out of scope)

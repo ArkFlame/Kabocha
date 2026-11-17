@@ -13,3 +13,6 @@ Gaps found: none that are small and certain. The source matches the shared boat 
 Unverified (no `.vendor/` decompiled class was read, and the generated entity dimensions in `crates/pumpkin-data` were not compared to vanilla):
 - Mangrove boat entity dimensions and eye height vs vanilla `EntityType` values. Size: S. Fix: compare against decompiled `EntityType.MANGROVE_BOAT` once a reference is available.
 - Mangrove-specific sounds and particles, if any differ from other wood types. Size: S.
+
+## Gap status
+- No small certain gap recorded; unverified items: STILL OPEN (unverified: no .vendor decompile in h6; not changed)

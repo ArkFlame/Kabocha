@@ -53,5 +53,12 @@ No code change: every candidate fix above is either M-sized or needs the decompi
 `AbstractBoat` (`floatBoat` ordering/gravity, `handleMoveVehicle` wrapping) to satisfy WORKER.md
 rule 12; the worktree has no `.vendor/` reference to check against.
 
-## Worker pass (kab/h8, gapwave2-7)
-- gap 7 (`move_from_client` dead code): STILL OPEN. `entity/vehicle/boat/physics.rs:257` is an intentional `#[expect(dead_code)]` placeholder whose wiring is owned by gap 6; removing it would drop the parity path.
+## Gap status
+- 1 bubble time publish (boat.rs:286, physics.rs:185): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 rider position clamp (passengers.rs:34): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 float_boat air-to-water transition (physics.rs:185-243): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 floatBoat gravity constant (physics.rs:218): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 MoveVehicle rotation (move_vehicle.rs:73): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 paddle boat handler (paddle_boat.rs:6-10): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 7 dead move_from_client path (physics.rs:267): STILL OPEN (dead-code cleanup, size S, physics excluded)
+- 8 no boat gametest coverage: STILL OPEN (needs gametest, not in scope)

@@ -21,3 +21,10 @@ No decompiled `net.minecraft.world.entity.animal.sniffer.Sniffer` in this worktr
    - `sniffer.rs:623` emits `minecraft:entity_action` at `get_head_block().to_centered_f64()`; vanilla `Sniffer.customServerAiStep`/`tick` emits at `position()` (sculk sensor hears the sniffer, not its head block). Low impact; confirm with the decompiled class.
 5. **No test covers the sniffing -> walk -> dig chain end to end** (size M).
    - `ai.rs:398-444` (`Sniffing`) computes the dig position only on timeout; `ai.rs:344-396` (`Searching`) hands off to `SNIFFER_DIGGING`. Both are exercised only in isolation. A `pumpkin-gametest` scenario over dirt would cover the handoff.
+
+## Gap status
+- 1 explored-position list holds 21 entries: FIXED (crates/pumpkin-core/src/entity/passive/sniffer.rs:341-345 via prepend_capped, cap 20 total; test sniffer.rs explored_positions_keep_newest_within_cap; UNVERIFIED: not compiled)
+- 2 dig loot spawn position floored block corner: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 ambient-sound interval: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 digging game-event position: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 end-to-end chain test (M): STILL OPEN (size M)

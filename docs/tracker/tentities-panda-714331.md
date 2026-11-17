@@ -48,3 +48,6 @@ Cake needs no special case: `panda_eats_from_ground` already contains `cake`
 Eating item particles (`Panda.addEatingParticles`) and the sneeze particle are not sent as
 entities or packets; the synced `EAT_COUNTER`/`SNEEZE_COUNTER` are assumed to drive the vanilla
 client animation. Needs a client to confirm, no server behaviour change.
+
+## Gap status
+- 1-6 (panda.rs and panda/goals.rs, sneeze.rs): STILL OPEN (file is in the h6 excluded list; not touched)

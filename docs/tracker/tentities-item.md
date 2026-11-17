@@ -74,7 +74,9 @@ truncated int with `mobGriefing`, container and bundle spill on destroy, Advance
 Known intentional deviation: creative players destroy a stack that fits nowhere
 (`item.rs:786`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.
 
-## Sweep h2 status
-- Gap 3 (never-despawn items do not merge): STILL OPEN. Current `is_mergeable` no longer has the never_despawn/never_pickup guards this note cites; vanilla `isMergable` guard set not confirmed here.
-- Gap 4 (spilled contents pickup delay): FIXED already in code (`set_pickup_delay(0)` removed in 5b7054378). Verified by reading `item.rs` spill path.
-- Gap 5 (despawn before merge): FIXED 6dbaa4bfc (`process_age_and_merge` merges before the age/despawn check). UNVERIFIED: no automated test (world tick).
+## Gap status
+- 1 owner pickup protection (M): STILL OPEN (size M)
+- 2 player drops record thrower (M): STILL OPEN (size M)
+- 3 never-despawn items do not merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 spilled contents pickup delay (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 despawn before merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

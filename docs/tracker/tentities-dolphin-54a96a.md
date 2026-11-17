@@ -110,5 +110,8 @@ Trigger for the re-review: `0505dd44e` "fix(entity): give all living entities an
   water-creature spawn restriction, 4/chunk limit, XP 2.
 
 
-## h2 parity sweep (status)
-- S rows STILL OPEN - tag dump not extracted, and the negated conjunction needs a reference check; not changed this pass.
+## Gap status
+- 1 dolphin modelled as ageable (M, shared AgeableWaterCreature refactor): STILL OPEN (size M, not in S scope)
+- 2 dolphin_food tag: BLOCKED-DATA (tag not extracted into assets/)
+- 3 DolphinJumpGoal clause grouping: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 PlayWithItemsGoal split priorities 7/8: STILL OPEN (unverified: no .vendor decompile in h6; not changed)

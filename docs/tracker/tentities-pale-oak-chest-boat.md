@@ -55,3 +55,10 @@ the vanilla destroy/spawn paths below.
 Client-only effects (chest rendering, screen layout, paddle wobble) were not assessed.
 No cargo/test run (worker constraint); the orchestrator batch-compiles.
 
+
+## Gap status
+- 1 canPlayerUse (minecart/container.rs:202-233): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 BoatItem container component (item/items/boat.rs:187-198): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 hopper path Container-only (boat.rs:266-281): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 scattered contents source (boat.rs:348-354): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 save/load test coverage (boat.rs:242-252): STILL OPEN (needs test, unverified)

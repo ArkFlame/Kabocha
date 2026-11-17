@@ -27,3 +27,8 @@ Vanilla class: `net.minecraft.world.entity.decoration.Mannequin` (extends `Livin
 
 ## Next
 Gap 1 is the only behaviour that is certainly absent from vanilla parity and needs a real implementation; it requires the vanilla interaction semantics (armour slot pick by hit height, hand preference, sneak behaviour) to avoid guessing. Gaps 2-3 are two-line overrides pending vanilla confirmation.
+
+## Gap status
+- 1 equip via right-click (M): STILL OPEN (size M)
+- 2-4 interaction and push gaps (entity/mod.rs:614, 1064): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 client-only pose and death: STILL OPEN (client-only, not gated)

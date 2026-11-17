@@ -31,6 +31,11 @@ The source changed since the last assessment (`a494cb9b5` cap at 20, `db897ff2d`
 ## Client-only, not blocking
 - Digging particles (`Sniffer.DIGGING_PARTICLES_AMOUNT = 30`) and the digging pose animation are client-side; not implemented server-side beyond `EntityStatus::SnifferDiggingSound`.
 
-## Sweep h2 status
-- Gap 1 (SNIFFER_SEARCHING never played): FIXED 71887ba61 (`transition_to` plays `EntitySnifferSearching` on the Searching state). UNVERIFIED against vanilla `Sniffer#setState`; no unit test.
-- Gaps 2-3: STILL OPEN (ambient interval needs vanilla reference; dig spawn position needs head-block check).
+## Gap status
+- 1 SNIFFER_SEARCHING sound never played (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 ambient sound interval (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 3 dig loot spawn position floored head (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 4 can_sniff/can_dig water test (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 5 explored-position success flag (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 dimension/pose constants (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 7 end-to-end sniff-walk-dig test (M): STILL OPEN (size M)

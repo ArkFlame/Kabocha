@@ -53,9 +53,4 @@ remaining items below are marked when they are inferred rather than confirmed.
    Vanilla class: `BaseCommandBlock#performCommand`. Size: S.
 
 ## Gap status
-- 1 STILL OPEN: `lastExecution` ordering needs decompiled `BaseCommandBlock` to confirm.
-- 2 STILL OPEN: `success_count` reset ordering, S, unconfirmed.
-- 3 STILL OPEN: no change, client opens editor (documented as matching).
-- 4 STILL OPEN: custom-name duplication, S, not attempted in sweep.
-- 5 STILL OPEN: repo-wide version convention, M.
-- 6 STILL OPEN: unit test for gamerule-off path, S, not attempted (compile barred in this worktree).
+- Remaining-gap items (lines 43, 47, 50: entity display name, repo-wide CustomName convention, gamerule-off test): STILL OPEN (unverified: no .vendor decompile in h6; not changed)

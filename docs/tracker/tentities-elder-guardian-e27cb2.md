@@ -19,4 +19,10 @@ No decompiled vanilla tree vendored here; references cite `net.minecraft.world.e
 3. **Restriction goal** (M, unverified). Home position is set (`elder_guardian.rs:110`), but no `MoveTowardsRestrictionGoal(1.0)` at priority 5 exists, so pathing never steers back to the monument; only `random_pos`/targeting consult the range. Fix: port the goal.
 4. **Effect application gating** (S). `elder_guardian.rs:113-131` applies mining fatigue and sends the game event to every player in 50 blocks. Vanilla `MobEffectUtil.addEffectToPlayersAround(..., 1200)` skips players that already have DIG_SLOWDOWN with duration > 1200 and amplifier >= 2, and only those players receive the game event. Fix: check the player's mining fatigue instance first and use the returned subset.
 5. **Guardian flop sound** (S). No `CustomSound`/`Mob` hook for `getFlopSound` (`ELDER_GUARDIAN_FLOP`); vanilla plays it when the guardian flops outside water. Fix: add a flop hook (trait change touches every impl) or leave as client audio.
-6. **FIXED (UNVERIFIED)**: `ElderGuardianEntity` overrides `mob_is_pushed_by_fluids` to false, inheriting Guardian (elder_guardian.rs). **Fluid push** (S, unverified). Vanilla `Guardian#isPushedByFluid` -> confirm against a decompiled source before adding `mob_is_pushed_by_fluids() -> false`.
+6. **Fluid push** (S, unverified). Vanilla `Guardian#isPushedByFluid` -> confirm against a decompiled source before adding `mob_is_pushed_by_fluids() -> false`.
+
+## Gap status
+- 1 guardian beam attack (L): STILL OPEN (size L)
+- 3 restriction goal priority 5 (M, unverified): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 6 fluid push (S, unverified): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2, 4, 5: STILL OPEN (unverified: no .vendor decompile in h6; not changed) (not individually re-checked in this sweep)
