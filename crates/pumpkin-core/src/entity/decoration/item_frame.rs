@@ -7,10 +7,12 @@ use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::{Block, BlockDirection};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
@@ -390,6 +392,18 @@ impl ItemFrameEntity {
             }
         }
     }
+
+    /// Vanilla `gameEvent(GameEvent.BLOCK_CHANGE, entity)`, so sculk sensors and
+    /// the warden attribute the frame edit to whoever caused it.
+    fn emit_block_change(&self, source: Option<&dyn EntityBase>) {
+        self.entity.world.load().emit_game_event_with_context(
+            GameEvent::BlockChange.name(),
+            self.entity.pos.load(),
+            &GameEventContext {
+                source_entity: source,
+            },
+        );
+    }
 }
 
 impl EntityBase for ItemFrameEntity {
@@ -521,11 +535,13 @@ impl EntityBase for ItemFrameEntity {
             let new_rot = self.get_rotation() + 1;
             self.set_rotation(new_rot, true);
             self.entity.play_sound(self.get_rotate_item_sound());
+            self.emit_block_change(Some(player.as_ref()));
             true
         } else if has_held_item && !self.entity.removed.load(Ordering::Relaxed) {
             let mut new_stack = item_stack.clone();
             new_stack.item_count = 1;
             self.set_item(new_stack, true);
+            self.emit_block_change(Some(player.as_ref()));
 
             if !player.is_creative() {
                 item_stack.decrement(1);
@@ -545,6 +561,9 @@ impl EntityBase for ItemFrameEntity {
         source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> bool {
+        if self.entity.removed.load(Ordering::Relaxed) {
+            return false;
+        }
         let fixed = self.is_fixed();
         let is_creative_player = source.is_some_and(|s| {
             s.cast_any()
@@ -569,9 +588,17 @@ impl EntityBase for ItemFrameEntity {
 
         if !is_explosion && has_item {
             self.drop_item(source, false);
+            self.emit_block_change(source);
             self.entity.play_sound(self.get_remove_item_sound());
         } else {
             self.drop_item(source, true);
+            self.entity.world.load().emit_game_event_with_context(
+                GameEvent::EntityDamage.name(),
+                self.entity.pos.load(),
+                &GameEventContext {
+                    source_entity: source,
+                },
+            );
             self.entity.play_sound(self.get_break_sound());
             self.entity.remove();
         }
