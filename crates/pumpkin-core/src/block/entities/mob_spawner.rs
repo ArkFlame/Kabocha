@@ -155,31 +155,34 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
     // Vanilla BaseSpawner bounds the nearby count with new AABB(pos).inflate(spawnRange),
     // i.e. spawnRange + 0.5 from the block centre on every axis.
     let search_radius = f64::from(params.spawn_range) + 0.5;
-    let nearby_count = world
-        .entities
-        .load()
-        .iter()
-        .filter(|e| {
-            let ent = e.get_entity();
-            if ent.entity_type.id != entity_type.id {
-                return false;
-            }
-            let pos = ent.pos.load();
-            (pos.x - center.x).abs() <= search_radius
-                && (pos.z - center.z).abs() <= search_radius
-                && (pos.y - center.y).abs() <= search_radius
-        })
-        .count();
-
-    if nearby_count as i32 >= params.max_nearby_entities {
-        reset_spawner_delay(delay, params.min_delay, params.max_delay, on_reset);
-        return;
-    }
+    let count_nearby = || {
+        world
+            .entities
+            .load()
+            .iter()
+            .filter(|e| {
+                let ent = e.get_entity();
+                if ent.entity_type.id != entity_type.id {
+                    return false;
+                }
+                let pos = ent.pos.load();
+                (pos.x - center.x).abs() <= search_radius
+                    && (pos.z - center.z).abs() <= search_radius
+                    && (pos.y - center.y).abs() <= search_radius
+            })
+            .count()
+    };
 
     let spawn_range = params.spawn_range;
     let mut spawned_any = false;
     let mut cancelled_any = false;
+    let mut at_capacity = false;
     for _ in 0..params.spawn_count {
+        // Vanilla BaseSpawner re-counts per attempt, so mobs spawned earlier this tick count too.
+        if count_nearby() as i32 >= params.max_nearby_entities {
+            at_capacity = true;
+            break;
+        }
         let pos = position.0;
 
         let spawn_pos = Vector3::new(
@@ -232,7 +235,7 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
         world.sync_world_event(WorldEvent::ParticlesMobblockSpawn, position, 0);
         spawned_any = true;
     }
-    if spawned_any || cancelled_any {
+    if spawned_any || cancelled_any || at_capacity {
         reset_spawner_delay(delay, params.min_delay, params.max_delay, on_reset);
     }
 }
