@@ -278,8 +278,11 @@ impl CombatRules {
         breach_level: u32,
     ) -> f32 {
         let toughness = Self::BASE_ARMOR_TOUGHNESS + armor_toughness / 4.0;
+        // Vanilla `Mth.clamp` returns the max when the minimum exceeds it, which happens
+        // once datapacks push armor past 100. `f32::clamp` panics on that inverted range.
         let real_armor = (total_armor - damage / toughness)
-            .clamp(total_armor * Self::MIN_ARMOR_RATIO, Self::MAX_ARMOR);
+            .max(total_armor * Self::MIN_ARMOR_RATIO)
+            .min(Self::MAX_ARMOR);
         let mut armor_fraction = real_armor / Self::ARMOR_PROTECTION_DIVIDER;
 
         if breach_level > 0 {
@@ -759,6 +762,21 @@ impl CombatTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn absorb_clamps_armor_above_hundred_instead_of_panicking() {
+        // `armor * MIN_ARMOR_RATIO` exceeds `MAX_ARMOR` past 100 armor (datapack
+        // attributes); vanilla `Mth.clamp` yields 20 there.
+        let damage = CombatRules::get_damage_after_absorb(10.0, 120.0, 0.0, 0);
+        assert!((damage - 2.0).abs() < 1e-6, "got {damage}");
+    }
+
+    #[test]
+    fn absorb_matches_vanilla_for_normal_armor() {
+        // f = 2 + 0/4; clamp(10 - 4/2, 2, 20) = 8 -> 8/25.
+        let damage = CombatRules::get_damage_after_absorb(4.0, 10.0, 0.0, 0);
+        assert!((damage - 4.0 * 0.68).abs() < 1e-6, "got {damage}");
+    }
 
     #[test]
     fn zero_resistance_keeps_full_strength() {
