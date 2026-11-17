@@ -21,6 +21,12 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
   Vanilla `BlockEntity.loadStatic` logs `Skipping block entity with id {}` before dropping
   the record, so a corrupt or newer save is now reported at `warn` with id and position.
   No test: the value is the log line, and the `None` result is already covered.
+- `net/java/chunk_data/v1_18.rs:154-184` - the chunk writer looked each pending entry's
+  `id` up in `BLOCK_ENTITY_TYPES` and fell back to `0` (furnace). `save_block_entities`
+  persists every live entity with `write_internal`, including the Pumpkin-only
+  `minecraft:bed`/`minecraft:map` that are not in that list, so a save/reload sent a bogus
+  furnace block entity on every bed and map. Entries without a real type id are now dropped
+  and the count written matches. No test: the reader side is a JVM client.
 
 ## Audit coverage (pass 2)
 
@@ -44,4 +50,4 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
 | `mod.rs:571-590` (`create_block_entity_for_state`) | `PistonBlockEntity(BlockPos, BlockState)` takes the `FACING` property from the block state and starts a fresh extension (`extending = true`, progress 0) | Only hopper, structure block and command block build from the state; `moving_piston` falls through to `create_block_entity` -> `from_nbt(empty)`, so facing defaults to `Down`, `extending = false` and the pushed state is air | Add a `"piston"` arm reading the state facing (`PistonProps`/`PistonHeadLikeProperties`) and constructing the entity the way `piston.rs` does when it starts a move | S |
-| `net/java/chunk_data/v1_18.rs:166-175` | Chunk block entity entries carry the `BlockEntityType` registry id | The writer repeats the `BLOCK_ENTITY_TYPES` lookup and falls back to `0` (furnace), and `pending_block_entities` does contain `minecraft:bed`/`minecraft:map` (Pumpkin-only, not in that list), so a Java client is told a furnace block entity sits on every bed and map. `get_id` has the same fallback but is unreachable for those two because neither overrides `chunk_data_nbt` | Filter the entry list before the count is written, dropping ids that are not in `BLOCK_ENTITY_TYPES`, and have `get_id`/the writer share one `Option<u32>` helper | S |
+| `mod.rs:339-351` (`apply_container_items_to_slice`) | `ContainerHelper.loadAllItems` clears every slot before writing the listed ones | The helper only overwrites listed slots. Not observable today because it runs on freshly placed containers, but a reused entity would keep stale items | Clear the slice first (or document the precondition) | S |
