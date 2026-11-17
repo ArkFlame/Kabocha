@@ -160,19 +160,19 @@ impl BeaconBlockEntity {
         }
     }
 
-    /// Vanilla `BeaconBlockEntity`: `new AABB(pos).inflate(10.0, 5.0, 10.0)` around the block cube.
+    /// Vanilla `BeaconBlockEntity.tick`: `new AABB(x, y, z, x, y - 4, z).inflate(10, 5, 10)`.
     fn construct_beacon_bounds(position: BlockPos) -> BoundingBox {
         let BlockPos(pos) = position;
         BoundingBox::new_array(
             [
                 f64::from(pos.x) - 10.0,
-                f64::from(pos.y) - 5.0,
+                f64::from(pos.y) - 4.0 - 5.0,
                 f64::from(pos.z) - 10.0,
             ],
             [
-                f64::from(pos.x) + 11.0,
-                f64::from(pos.y) + 6.0,
-                f64::from(pos.z) + 11.0,
+                f64::from(pos.x) + 10.0,
+                f64::from(pos.y) + 5.0,
+                f64::from(pos.z) + 10.0,
             ],
         )
     }
@@ -524,10 +524,10 @@ mod tests {
     fn construct_beacon_bounds_inflate_matches_vanilla() {
         let bounds = BeaconBlockEntity::construct_beacon_bounds(BlockPos::new(5, 64, 5));
         assert_eq!(bounds.min.x, -5.0);
-        assert_eq!(bounds.min.y, 59.0);
+        assert_eq!(bounds.min.y, 55.0);
         assert_eq!(bounds.min.z, -5.0);
-        assert_eq!(bounds.max.x, 16.0);
-        assert_eq!(bounds.max.y, 70.0);
-        assert_eq!(bounds.max.z, 16.0);
+        assert_eq!(bounds.max.x, 15.0);
+        assert_eq!(bounds.max.y, 69.0);
+        assert_eq!(bounds.max.z, 15.0);
     }
 }
