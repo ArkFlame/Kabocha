@@ -71,3 +71,9 @@ fixes 96093cfc7 #4451 and b388d9d7a #4478).
   0 as disabled), and whether vanilla also requires level.isRaining() for the neighbour rain checks.
 - mod.rs:128-133 extends fire ticks only for PLAYER with rand(1..3); confirm the entity subtype check
   against BaseFireBlock.entityInside in the targeted version.
+
+## Status (h3 sweep)
+- Gap 1 (burn-out/spread rain gate): FIXED in code, burn-out uses `is_raining_at(pos)` (fire.rs:148), spread uses `offset_pos` (fire.rs:421). UNVERIFIED, no new test.
+- Gap 2 (placed without can_place_at): FIXED in code, `placed` removes the block when `can_place_at` fails (fire.rs:186-200). UNVERIFIED.
+- Gap 3 (TNT replaced before priming): STILL OPEN (deliberate ordering, identical effect while TNT is stateless; S).
+- Gap 4 (waterlogged neighbour odds): STILL OPEN (unchecked; S).

@@ -46,3 +46,6 @@ proven by in-tree evidence.
 - `on_state_replaced` removal is idempotent with the engine path, so breaking a
   lodestone leaves no stale POI.
 
+
+## Status (h3 sweep)
+- Gap 4 (no world for target dimension keeps target): FIXED, `player.rs` lodestone tick now clears the target when no world matches the target dimension (`is_none_or`). UNVERIFIED, no test (needs a live server world).
