@@ -7439,7 +7439,7 @@ impl Player {
         {
             let mut event =
                 crate::plugin::api::events::inventory::inventory_open::InventoryOpenEvent::new(
-                    player_arc,
+                    player_arc, block_pos,
                 );
             server.plugin_manager.fire_blocking(&server, &mut event);
             if event.cancelled {
@@ -7563,7 +7563,7 @@ impl Player {
         {
             let mut event =
                 crate::plugin::api::events::inventory::inventory_open::InventoryOpenEvent::new(
-                    player_arc,
+                    player_arc, None,
                 );
             server.plugin_manager.fire_blocking(&server, &mut event);
             if event.cancelled {

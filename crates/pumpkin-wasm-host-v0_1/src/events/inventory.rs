@@ -33,6 +33,7 @@ impl ToFromWasmEvent for InventoryOpenEvent {
 
         Event::InventoryOpenEvent(InventoryOpenEventData {
             player,
+            position: self.position.map(to_wasm_block_position),
             cancelled: self.cancelled,
         })
     }
@@ -41,6 +42,7 @@ impl ToFromWasmEvent for InventoryOpenEvent {
         match event {
             Event::InventoryOpenEvent(data) => Self {
                 player: consume_player(state, &data.player),
+                position: data.position.map(from_wasm_block_position),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

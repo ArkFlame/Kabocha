@@ -1756,6 +1756,7 @@ interface event {
 
     record inventory-open-event-data {
         player: player,
+        position: option<block-pos>,
         cancelled: bool
     }
 
