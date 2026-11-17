@@ -73,7 +73,7 @@ impl BreakDoorGoal {
 
     #[must_use]
     pub const fn get_door_break_time(&self) -> i32 {
-        if self.door_break_time > DEFAULT_DOOR_BREAK_TIME {
+        if self.door_break_time > 0 {
             self.door_break_time
         } else {
             DEFAULT_DOOR_BREAK_TIME
