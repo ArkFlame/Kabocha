@@ -325,8 +325,7 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
                                     acc | packed_offset_index as i64
                                 })
                             })
-                        })
-                        .collect(),
+                            .collect(),
                     PaletteStorage::Indexed(indices) => {
                         let indices = if indices.bits() == bits_per_entry {
                             std::borrow::Cow::Borrowed(indices)
