@@ -50,20 +50,18 @@ impl JavaClient {
             );
             self.handle_entity_interaction(player, event, interact.hand, server);
         } else {
-            // Entity not found
+            // Entity not found: vanilla only warns, a client can legitimately attack an
+            // entity the server already removed (or not track yet).
             send_cancellable_blocking! {{
                 server;
                 PlayerInteractUnknownEntityEvent::new(player, entity_id.0, action);
 
-                'after: {
-                    if event.action == ActionType::Attack {
-                        error!(
-                            "Player id {} interacted with entity id {}, which was not found.",
-                            player.entity_id(),
-                            event.entity_id
-                        );
-                        self.try_kick(&TextComponent::translate_cross(translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED, translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED, []));
-                    }
+                if event.action == ActionType::Attack {
+                    warn!(
+                        "Player id {} interacted with entity id {}, which was not found.",
+                        player.entity_id(),
+                        event.entity_id
+                    );
                 }
             }}
         }
