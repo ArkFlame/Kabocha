@@ -442,13 +442,7 @@ mod tests {
             .await
             .take()
             .ok_or("missing queue")?;
-        let mut cache = client
-            .blob_cache
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        cache.insert(1, Bytes::from(vec![1; 1024]));
-        cache.insert(2, Bytes::from(vec![2; 1024]));
-        drop(cache);
+        seed_blob_cache(&client);
         let expected = client.serialize_packet(&CClientCacheMissResponse {
             missing_blobs: vec![
                 MissingBlobData {
@@ -472,6 +466,15 @@ mod tests {
         assert!(outgoing.try_recv().is_err());
         client.close().await;
         Ok(())
+    }
+
+    fn seed_blob_cache(client: &crate::net::bedrock::BedrockClient) {
+        let mut cache = client
+            .blob_cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        cache.insert(1, Bytes::from(vec![1; 1024]));
+        cache.insert(2, Bytes::from(vec![2; 1024]));
     }
 
     #[tokio::test]
