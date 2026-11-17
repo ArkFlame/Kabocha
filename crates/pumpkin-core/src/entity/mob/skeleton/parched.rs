@@ -51,6 +51,12 @@ impl Mob for ParchedSkeletonEntity {
         &self.entity.mob_entity
     }
 
+    fn get_min_attack_interval(&self) -> Option<i32> {
+        // Vanilla Parched overrides getHardAttackInterval 50 / getAttackInterval 70 (as Bogged does).
+        let hard = self.get_entity().world.load().level_info.load().difficulty
+            == pumpkin_util::Difficulty::Hard;
+        Some(if hard { 50 } else { 70 })
+    }
     fn get_ambient_sound(&self) -> Option<Sound> {
         Some(Sound::EntityParchedAmbient)
     }
