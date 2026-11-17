@@ -43,3 +43,6 @@ Fixed in this audit: sting now sets `HasStung`, clears the target and plays the 
 Notes: combat (attack goal, hurt-by-other alerting, become-angry targeting, look-control pause while
 angry, stung death) matches vanilla. Beehive block entity keeps raw `bees` NBT but has no occupancy
 API, which is the blocker for gaps 1-4.
+
+## Status (h3 sweep)
+- Items 1-5 (no hive, flower memory, crop growth, hive exit, goal priorities): STILL OPEN (M/L, not changed; needs goal ports).

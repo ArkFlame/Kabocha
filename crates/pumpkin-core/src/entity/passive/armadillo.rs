@@ -298,7 +298,10 @@ impl ArmadilloEntity {
 
         if target_type == &EntityType::PLAYER {
             let target_ent = living_entity.get_entity();
-            if target_ent.is_sprinting() || target_ent.has_vehicle() {
+            // Vanilla isScaredBy skips spectators; sprinting or riding scares.
+            if !living_entity.is_spectator()
+                && (target_ent.is_sprinting() || target_ent.has_vehicle())
+            {
                 return true;
             }
         }

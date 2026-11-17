@@ -44,3 +44,7 @@ Remaining gaps:
 | `player_spawn_finder.rs:241-253` | Flat `getSpawnHeight` | No test: the fixture only builds a default (noise) world, so the fixed branch stays uncovered | Add a flat-generator fixture and assert the resulting surface | S/M |
 | `player_spawn_finder.rs:67` | `EntitySelector.CAN_BE_COLLIDED_WITH` has no `isRemoved` check; a just-discarded entity can still sit in the entity section for the rest of the tick | Pumpkin excludes removed entities outright (`spawn_tests.rs:202-224` asserts that) | Only relevant if a same-tick spurious block is observed; leave unless reproduced | S |
 | `player_spawn_finder.rs:225-237` | `scheduleCandidate` loads the candidate chunk at `ChunkStatus.FULL` before every check | The `loaded_chunks` dedup is untested | Test a second call reusing the set | S |
+
+## Status (h3 sweep)
+- `player_spawn_finder.rs:99-109` stored-Y path: STILL OPEN (deliberate, commented in code at :119-123; needs the keep-or-drop decision).
+- `player_spawn_finder.rs:110-117` adventure gate on server defaultgamemode: STILL OPEN (confirmed in code; S, needs level game type accessor, not changed).

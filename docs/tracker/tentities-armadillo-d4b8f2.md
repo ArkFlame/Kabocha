@@ -47,3 +47,7 @@ volume 0.15, `roll_up` gated on `!is_scared()`, `mob_interact` returning `PASS` 
 Brush drop uses `spawn_entity` while the shed drop uses `spawn_entity_non_save`; both create
 tracked, persisted `ItemEntity`s, so only the chunk-save trigger differs from vanilla
 `spawnAtLocation`. Left as-is.
+
+## Status (h3 sweep)
+- Row 4 (`is_scared_by` player test): FIXED, spectators are excluded before the sprinting/riding check (armadillo.rs). UNVERIFIED, no test.
+- Rows 1-3: STILL OPEN (not changed in this pass).
