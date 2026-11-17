@@ -454,11 +454,11 @@ mod tests {
             missing_blobs: vec![
                 MissingBlobData {
                     blob_id: 2,
-                    blob_data: vec![2_u8; 1024].into(),
+                    blob_data: vec![2u8; 1024].into(),
                 },
                 MissingBlobData {
                     blob_id: 1,
-                    blob_data: vec![1_u8; 1024].into(),
+                    blob_data: vec![1u8; 1024].into(),
                 },
             ],
         })?;

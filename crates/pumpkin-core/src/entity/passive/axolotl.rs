@@ -1313,7 +1313,7 @@ mod tests {
         let before = play_dead_ticks();
         for _ in 0..300 {
             let _ = axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
-            EntityBase::on_damage_with_context(
+            <AxolotlEntity as Mob>::on_damage_with_context(
                 axolotl.as_ref(),
                 DamageType::MOB_ATTACK,
                 source,
@@ -1422,8 +1422,6 @@ mod tests {
     /// `WaterBoundPathNavigation` only accepts positions that are not solid.
     #[tokio::test]
     async fn navigation_is_water_bound_like_vanilla() -> TestResult {
-        use crate::entity::ai::pathfinder::PathNavigationTrait;
-
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);

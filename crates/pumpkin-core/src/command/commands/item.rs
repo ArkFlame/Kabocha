@@ -462,7 +462,7 @@ fn set_block_slot(
         .source
         .world()
         .get_block_entity(pos)
-        .and_then(|entity| entity.get_inventory())
+        .and_then(<dyn crate::block::entities::BlockEntity>::get_inventory)
         .ok_or_else(|| {
             ERROR_NOT_CONTAINER.create_without_context(
                 TextComponent::text(pos.0.x.to_string()),

@@ -1527,6 +1527,7 @@ impl DispenserBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::ageable::AgeableMob;
     use crate::entity::ai::test_support::world;
     use crate::entity::mob::skeleton::bogged::BoggedSkeletonEntity;
     use crate::entity::passive::copper_golem::CopperGolemEntity;

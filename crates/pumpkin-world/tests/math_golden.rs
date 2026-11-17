@@ -16,7 +16,7 @@ const POW_GOLDEN: &str = include_str!("data/pow_golden.txt");
 
 /// Number of representable doubles between two values, treating the sign bit as
 /// a continuation of the magnitude ordering.
-fn ulp_distance(a: f64, b: f64) -> u64 {
+const fn ulp_distance(a: f64, b: f64) -> u64 {
     const fn ordered(value: f64) -> i64 {
         let bits = value.to_bits() as i64;
         if bits < 0 {

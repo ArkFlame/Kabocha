@@ -5029,7 +5029,10 @@ impl EntityBase for LivingEntity {
             }
             // Vanilla `Creaking#tickDeath`: a tearing-down creaking removes
             // itself only after its twitch animation finished.
-            if caller.get_mob().is_some_and(|mob| mob.defers_tick_death()) {
+            if caller
+                .get_mob()
+                .is_some_and(<dyn crate::entity::mob::Mob>::defers_tick_death)
+            {
                 return;
             }
             // Vanilla `LivingEntity.tickDeath` sends the POOF (60) particle event
@@ -5518,6 +5521,7 @@ mod consumable_effect_tests {
 }
 /// Returns `true` if `damage_type` is in `#minecraft:bypasses_armor` (1.21.11).
 /// These sources bypass armor entirely (fall, drown, freeze, etc.).
+#[cfg(test)]
 pub(crate) const fn bypasses_armor_durability(damage_type: &DamageType) -> bool {
     // Bitmask lookup: O(1) with two instructions (shift + AND), no array scan.
     // DamageType IDs can exceed 31; use u64 for sufficient range.

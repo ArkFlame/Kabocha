@@ -356,6 +356,10 @@ impl ArrowEntity {
 
     /// Adds an effect applied to whatever this arrow hurts (vanilla `Arrow#addEffect`).
     /// The effect lives in the stack's potion contents, so it survives a save and a pickup.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers hand over an owned Effect value; the signature mirrors vanilla Arrow#addEffect"
+    )]
     pub fn add_effect(&self, effect: Effect) {
         let mut item_stack = self
             .item_stack

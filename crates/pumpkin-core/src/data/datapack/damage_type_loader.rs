@@ -203,6 +203,10 @@ pub fn load_damage_types_from_dir<S: std::hash::BuildHasher>(
     registry.len() - before
 }
 
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "vanilla matches the .json suffix case-sensitively"
+)]
 fn load_damage_types_recursive<S: std::hash::BuildHasher>(
     namespace: &str,
     base_dir: &Path,

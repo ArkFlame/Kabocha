@@ -224,7 +224,10 @@ mod tests {
                 target,
                 color,
                 duration,
-            } = transform_particle(&Block::OPEN_EYEBLOSSOM, &pos, &mut rng);
+            } = transform_particle(&Block::OPEN_EYEBLOSSOM, &pos, &mut rng)
+            else {
+                panic!("open eyeblossom must emit a trail particle");
+            };
 
             assert_eq!(color, OPEN_PARTICLE_COLOR);
             // duration is `(20.0 * lifetime) as i32` over `[0.5, 1.5)`.

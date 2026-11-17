@@ -896,14 +896,16 @@ fn with_modify_sources<B: ArgumentBuilder>(
     mod_mode: ModifyMode,
 ) -> B {
     // value <value>
-    let mut node = node.then(literal("value").then(
-        argument("value", NbtTagArgumentType).executes(ModifyExecutor {
-            target_kind,
-            modify_mode: mod_mode,
-            source_kind: None,
-            source_mode: SourceMode::Value,
-        }),
-    ));
+    let node = node.then(
+        literal("value").then(
+            argument("value", NbtTagArgumentType).executes(ModifyExecutor {
+                target_kind,
+                modify_mode: mod_mode,
+                source_kind: None,
+                source_mode: SourceMode::Value,
+            }),
+        ),
+    );
 
     // from & string sources. Each verb literal is built once with every source kind as a
     // child, because `.then()` with a same-named literal replaces the earlier child.
@@ -1173,7 +1175,7 @@ mod tests {
     #[test]
     fn empty_typed_nbt_arrays_render_without_trailing_space() {
         for (tag, expected) in [
-            (NbtTag::ByteArray(Vec::new()), "[B;]"),
+            (NbtTag::ByteArray(Box::new([])), "[B;]"),
             (NbtTag::IntArray(Vec::new()), "[I;]"),
             (NbtTag::LongArray(Vec::new()), "[L;]"),
         ] {

@@ -608,7 +608,7 @@ impl Scoreboard {
             return;
         };
 
-        if !team.players.contains(player) {
+        if !team.players.iter().any(|p| p == player) {
             return;
         }
 

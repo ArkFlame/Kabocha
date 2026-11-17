@@ -16,7 +16,6 @@ use pumpkin_data::{
     damage::DamageType,
     data_component_impl::EquipmentSlot,
     environment_attribute::Activity,
-    game_event::GameEvent,
 };
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;

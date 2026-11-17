@@ -46,6 +46,7 @@ impl SpawnWorld {
                 Arc::new(ArcSwap::from_pointee(info)),
                 Dimension::OVERWORLD,
                 Arc::new(BlockRegistry::default()),
+                crate::world::weather::WeatherSetup::default(),
                 Weak::new(),
             ),
             _directory: directory,

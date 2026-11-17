@@ -6456,98 +6456,97 @@ impl Entity {
                     .downcast_ref::<BoatEntity>()
                     .map(|boat| boat.get_dismount_location_for_passenger(passenger.as_ref()))
             });
-            let dismount_pos = if let Some(boat_target) = boat_target {
-                boat_target
-            } else if self.is_removed() {
-                self.removed_vehicle_dismount_pos(passenger.as_ref())
-            } else if is_water {
-                fallback_pos
-            } else {
-                // Vanilla checks Standing, Crouching, Swimming poses and their respective height checks
-                let poses_and_heights = [
-                    (EntityPose::Standing, vec![0, 1, -1]),
-                    (EntityPose::Crouching, vec![0, 1, -1]),
-                    (EntityPose::Swimming, vec![0, 1]),
-                ];
+            let dismount_pos = match boat_target {
+                Some(boat_target) => boat_target,
+                None if self.is_removed() => self.removed_vehicle_dismount_pos(passenger.as_ref()),
+                None if is_water => fallback_pos,
+                None => {
+                    // Vanilla checks Standing, Crouching, Swimming poses and their respective height checks
+                    let poses_and_heights = [
+                        (EntityPose::Standing, vec![0, 1, -1]),
+                        (EntityPose::Crouching, vec![0, 1, -1]),
+                        (EntityPose::Swimming, vec![0, 1]),
+                    ];
 
-                let vehicle_block_pos = self.block_pos.load();
-                let mut found = None;
+                    let vehicle_block_pos = self.block_pos.load();
+                    let mut found = None;
 
-                'search: for (pose, y_offsets) in poses_and_heights {
-                    let dims = passenger_entity.get_dimensions(pose);
+                    'search: for (pose, y_offsets) in poses_and_heights {
+                        let dims = passenger_entity.get_dimensions(pose);
 
-                    for y_offset in y_offsets {
-                        for &(ox, oz) in &offsets {
-                            let target_block_x = vehicle_block_pos.0.x + ox;
-                            let target_block_y = vehicle_block_pos.0.y + y_offset;
-                            let target_block_z = vehicle_block_pos.0.z + oz;
+                        for y_offset in y_offsets {
+                            for &(ox, oz) in &offsets {
+                                let target_block_x = vehicle_block_pos.0.x + ox;
+                                let target_block_y = vehicle_block_pos.0.y + y_offset;
+                                let target_block_z = vehicle_block_pos.0.z + oz;
 
-                            let target_pos = BlockPos(Vector3::new(
-                                target_block_x,
-                                target_block_y,
-                                target_block_z,
-                            ));
-                            let height = world.get_dismount_height(&target_pos);
+                                let target_pos = BlockPos(Vector3::new(
+                                    target_block_x,
+                                    target_block_y,
+                                    target_block_z,
+                                ));
+                                let height = world.get_dismount_height(&target_pos);
 
-                            if height.is_finite() && height < 1.0 {
-                                let location = Vector3::new(
-                                    f64::from(target_block_x) + 0.5,
-                                    f64::from(target_block_y) + height,
-                                    f64::from(target_block_z) + 0.5,
-                                );
+                                if height.is_finite() && height < 1.0 {
+                                    let location = Vector3::new(
+                                        f64::from(target_block_x) + 0.5,
+                                        f64::from(target_block_y) + height,
+                                        f64::from(target_block_z) + 0.5,
+                                    );
 
-                                let bbox = BoundingBox::new_from_pos(
-                                    location.x, location.y, location.z, &dims,
-                                );
-                                if world.is_space_empty(bbox) {
-                                    found = Some((location, pose));
-                                    break 'search;
+                                    let bbox = BoundingBox::new_from_pos(
+                                        location.x, location.y, location.z, &dims,
+                                    );
+                                    if world.is_space_empty(bbox) {
+                                        found = Some((location, pose));
+                                        break 'search;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if let Some((pos, pose)) = found {
-                    if pose != EntityPose::Standing {
-                        passenger_entity.set_pose(pose);
-                    }
-                    pos
-                } else {
-                    // Try dismounting directly on top of the vehicle as fallback
-                    let mut found_fallback = None;
-                    let vehicle_top = vehicle_box.max.y;
-
-                    let poses = [
-                        EntityPose::Standing,
-                        EntityPose::Crouching,
-                        EntityPose::Swimming,
-                    ];
-
-                    for pose in poses {
-                        let dims = passenger_entity.get_dimensions(pose);
-                        let bbox = BoundingBox::new_from_pos(
-                            self.pos.load().x,
-                            vehicle_top,
-                            self.pos.load().z,
-                            &dims,
-                        );
-                        if world.is_space_empty(bbox) {
-                            found_fallback = Some((
-                                Vector3::new(self.pos.load().x, vehicle_top, self.pos.load().z),
-                                pose,
-                            ));
-                            break;
-                        }
-                    }
-
-                    if let Some((pos, pose)) = found_fallback {
+                    if let Some((pos, pose)) = found {
                         if pose != EntityPose::Standing {
                             passenger_entity.set_pose(pose);
                         }
                         pos
                     } else {
-                        fallback_pos
+                        // Try dismounting directly on top of the vehicle as fallback
+                        let mut found_fallback = None;
+                        let vehicle_top = vehicle_box.max.y;
+
+                        let poses = [
+                            EntityPose::Standing,
+                            EntityPose::Crouching,
+                            EntityPose::Swimming,
+                        ];
+
+                        for pose in poses {
+                            let dims = passenger_entity.get_dimensions(pose);
+                            let bbox = BoundingBox::new_from_pos(
+                                self.pos.load().x,
+                                vehicle_top,
+                                self.pos.load().z,
+                                &dims,
+                            );
+                            if world.is_space_empty(bbox) {
+                                found_fallback = Some((
+                                    Vector3::new(self.pos.load().x, vehicle_top, self.pos.load().z),
+                                    pose,
+                                ));
+                                break;
+                            }
+                        }
+
+                        if let Some((pos, pose)) = found_fallback {
+                            if pose != EntityPose::Standing {
+                                passenger_entity.set_pose(pose);
+                            }
+                            pos
+                        } else {
+                            fallback_pos
+                        }
                     }
                 }
             };
