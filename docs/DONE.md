@@ -317,3 +317,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3940 (PR, skipped: mob bucket and milk already handled by bucket_mob_pickup, give_filled_mob_bucket and fill_bucket_stack)
 - #4371 (PR, skipped: execute store score/bossbar/data already on master, crates/pumpkin-core/src/command/commands/execute.rs:843 and :2135)
 - #3428 (PR, skipped: village path terrain projection already on master via #4158 jigsaw gravity projection)
+- #3585 (PR, skipped: farmland-to-dirt entity move already identical on master, rebase yielded an empty commit)
