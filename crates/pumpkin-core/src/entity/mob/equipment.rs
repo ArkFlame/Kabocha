@@ -380,7 +380,7 @@ impl RegionalDifficulty {
     pub fn at(world: &Arc<crate::world::World>, pos: Vector3<f64>) -> Self {
         let level_info = world.level_info.load();
         let difficulty = level_info.difficulty;
-        let time_of_day = world.level_time.try_lock().map_or(0, |t| t.time_of_day);
+        let time_of_day = world.get_time_of_day();
         let inhabited_time = {
             let chunk_x = (pos.x / 16.0).floor() as i32;
             let chunk_z = (pos.z / 16.0).floor() as i32;
