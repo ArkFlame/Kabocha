@@ -63,6 +63,13 @@ pub fn apply_on_projectile_spawned(
     }
 }
 
+/// Vanilla `Projectile.shootFromRotation` adds the shooter's known movement; the vertical part
+/// only counts while the shooter is airborne.
+#[must_use]
+pub fn shooter_motion_bonus(movement: Vector3<f64>, on_ground: bool) -> Vector3<f64> {
+    Vector3::new(movement.x, if on_ground { 0.0 } else { movement.y }, movement.z)
+}
+
 pub struct ThrownItemEntity {
     pub entity: Entity,
     pub owner: owner::ProjectileOwner,
@@ -106,6 +113,26 @@ impl ThrownItemEntity {
         );
     }
 
+    /// Vanilla `Projectile.shootFromRotation` for thrown items: aims along `(pitch, yaw)` and adds
+    /// the shooter's movement to the launch velocity.
+    pub fn shoot_from_rotation(
+        &self,
+        shooter: &Entity,
+        pitch: f32,
+        yaw: f32,
+        roll: f32,
+        speed: f32,
+        divergence: f32,
+    ) {
+        self.set_velocity_from(pitch, yaw, roll, speed, divergence);
+        let bonus = shooter_motion_bonus(
+            shooter.known_movement(),
+            shooter.on_ground.load(Ordering::Relaxed),
+        );
+        self.entity
+            .velocity
+            .store(self.entity.velocity.load().add(&bonus));
+    }
     pub fn set_velocity(&self, x: f64, y: f64, z: f64, power: f64, uncertainty: f64) {
         fn next_triangular(mode: f64, deviation: f64) -> f64 {
             deviation.mul_add(rand::random::<f64>() - rand::random::<f64>(), mode)

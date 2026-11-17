@@ -80,11 +80,22 @@ impl EntityBase for SnowballEntity {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::projectile::shooter_motion_bonus;
     use crate::entity::{
         ai::test_support::world, mob::blaze::BlazeEntity, passive::snow_golem::SnowGolemEntity,
     };
     use pumpkin_util::math::vector3::Vector3;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn thrown_items_inherit_airborne_shooter_vertical_motion_only() {
+        let moving = Vector3::new(0.3, -0.5, 0.2);
+        assert_eq!(
+            shooter_motion_bonus(moving, true),
+            Vector3::new(0.3, 0.0, 0.2)
+        );
+        assert_eq!(shooter_motion_bonus(moving, false), moving);
+    }
 
     #[tokio::test]
     async fn snowball_damage_records_the_golem_as_attacker() -> TestResult {
