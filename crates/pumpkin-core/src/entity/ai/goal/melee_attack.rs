@@ -5,8 +5,6 @@ use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::NavigatorGoal;
 use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::mob::Mob;
-use crate::entity::predicate::EntityPredicate;
-use crate::plugin::api::events::entity::entity_target::TargetReason;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
@@ -181,15 +179,11 @@ impl Goal for MeleeAttackGoal {
             return !is_idle;
         }
 
-        let is_valid_target = !target
-            .get_player()
-            .is_some_and(|p| p.is_spectator() || p.is_creative());
-
         let in_range = mob
             .get_mob_entity()
             .is_in_position_target_range_pos(&target.get_entity().block_pos.load());
 
-        in_range && is_valid_target
+        in_range
     }
 
     fn start(&mut self, mob: &dyn Mob) {
@@ -213,18 +207,6 @@ impl Goal for MeleeAttackGoal {
         if let Some(on_stop) = self.on_stop {
             on_stop(mob);
         }
-        // Only clear target if they switched to creative/spectator
-        let should_clear = mob
-            .get_mob_entity()
-            .get_target()
-            .as_deref()
-            .is_some_and(|entity| {
-                !EntityPredicate::ExceptCreativeOrSpectator.test(entity)
-            });
-        if should_clear {
-            mob.set_mob_target(None, TargetReason::ForgotTarget);
-        }
-
         mob.get_mob_entity().set_attacking(false);
 
         // Vanilla: this.mob.getNavigation().stop()
