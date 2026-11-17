@@ -2031,32 +2031,10 @@ fn scan_datapacks_dir(
     if !datapacks_dir.is_dir() {
         return;
     }
-    let entries = match fs::read_dir(datapacks_dir) {
-        Ok(entries) => entries,
-        Err(error) => {
-            warn!(
-                "Failed to read datapacks directory '{}': {error}",
-                datapacks_dir.display()
-            );
-            return;
-        }
-    };
 
-    for entry in entries.flatten() {
-        let pack_path = entry.path();
-        let file_name = entry.file_name().to_string_lossy().to_string();
-
-        if file_name.starts_with('.') || !pack_path.is_dir() {
-            continue;
-        }
-
+    for file_name in enabled_world_pack_dirs(datapacks_dir, enabled_packs) {
+        let pack_path = datapacks_dir.join(&file_name);
         let pack_id = format!("file/{file_name}");
-        let is_enabled = enabled_packs
-            .iter()
-            .any(|p| p == &pack_id || p == &file_name);
-        if !is_enabled {
-            continue;
-        }
 
         let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
         let counts = load_pack_contents(&pack_path, acc);
@@ -2091,6 +2069,28 @@ fn scan_datapacks_dir(
             known_packs,
         });
     }
+}
+
+/// Enabled world datapack directories, in the order recorded in the level.
+///
+/// Vanilla applies selected packs in level order, so a later pack overrides an earlier one.
+/// Directory iteration order is arbitrary and must not decide which pack wins.
+fn enabled_world_pack_dirs(datapacks_dir: &Path, enabled_packs: &[String]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for pack in enabled_packs {
+        let name = pack.strip_prefix("file/").unwrap_or(pack);
+        // Namespaced and bundled packs are not world datapack directories.
+        if name.is_empty() || name.contains(':') || name.starts_with('.') {
+            continue;
+        }
+        if names.iter().any(|existing| existing == name) {
+            continue;
+        }
+        if datapacks_dir.join(name).is_dir() {
+            names.push(name.to_string());
+        }
+    }
+    names
 }
 
 /// Loads recipes, functions, function tags, test instances, damage types, context number providers,
@@ -3064,4 +3064,68 @@ mod tests {
         tags.insert("minecraft:dirt".to_string(), block_tag(true, &["stone"]));
         assert_eq!(resolve(&tags, "minecraft:dirt"), vec![stone]);
     }
+    #[test]
+    fn scan_datapacks_dir_loads_packs_in_enabled_order() {
+        fn load_shared_function(root: &std::path::Path, enabled: &[&str]) -> String {
+            let mut recipes = Vec::new();
+            let mut functions = std::collections::HashMap::new();
+            let mut function_tags = std::collections::HashMap::new();
+            let mut block_tags = std::collections::HashMap::new();
+            let mut test_instances = std::collections::HashMap::new();
+            let mut damage_types = std::collections::HashMap::new();
+            let mut context_int_providers = std::collections::HashMap::new();
+            let mut context_float_providers = std::collections::HashMap::new();
+            let mut loot_tables = std::collections::HashMap::new();
+            let mut dynamic_registries = std::collections::HashMap::new();
+            let mut trade_registry = super::TradeRegistry::new();
+            let mut predicates = std::collections::HashMap::new();
+            let mut item_modifiers = std::collections::HashMap::new();
+            let mut slot_sources = std::collections::HashMap::new();
+            let mut tags = std::collections::HashMap::new();
+
+            let mut acc = super::PackContentAccumulators {
+                recipes: &mut recipes,
+                functions: &mut functions,
+                function_tags: &mut function_tags,
+                block_tags: &mut block_tags,
+                test_instances: &mut test_instances,
+                damage_types: &mut damage_types,
+                context_int_providers: &mut context_int_providers,
+                context_float_providers: &mut context_float_providers,
+                loot_tables: &mut loot_tables,
+                dynamic_registries: &mut dynamic_registries,
+                trade_registry: &mut trade_registry,
+                predicates: &mut predicates,
+                item_modifiers: &mut item_modifiers,
+                slot_sources: &mut slot_sources,
+                tags: &mut tags,
+            };
+            let enabled: Vec<String> = enabled.iter().map(|name| (*name).to_string()).collect();
+            let mut loaded = Vec::new();
+            super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
+
+            functions
+                .get("test:shared")
+                .and_then(|lines| lines.first().cloned())
+                .unwrap_or_default()
+        }
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        for (pack, line) in [("alpha", "say alpha"), ("beta", "say beta")] {
+            let dir = temp.path().join(pack).join("data/test/function");
+            std::fs::create_dir_all(&dir).expect("create pack");
+            std::fs::write(dir.join("shared.mcfunction"), line).expect("write function");
+        }
+
+        // The last enabled pack wins, exactly like vanilla's pack stack.
+        assert_eq!(
+            load_shared_function(temp.path(), &["file/beta", "file/alpha"]),
+            "say alpha"
+        );
+        assert_eq!(
+            load_shared_function(temp.path(), &["file/alpha", "file/beta"]),
+            "say beta"
+        );
+    }
+
 }
