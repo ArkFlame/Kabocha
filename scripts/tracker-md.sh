@@ -47,7 +47,7 @@ lines = ['# Parity tracker', '',
          '- Master: `%s` (%d commits ahead of upstream)' % (sh('git', 'rev-parse', '--short', 'master').strip(), len(commits)),
          '- Updated: %s' % time.strftime('%Y-%m-%d %H:%M'),
          '- Matching is by name in commit subjects on master, so LANDED means "a fix naming it landed", not that the vanilla audit is complete.',
-         '- States: **LANDED** a commit on master names it, **AUDITED** an audit worker's note `docs/tracker/<slug>.md` is on master (vanilla review recorded), **DONE** tracker marks it covered, **IN-FLIGHT** audit worker running or branch awaiting integration, **OPEN** nothing yet', '',
+         '- States: **LANDED** a commit on master names it, **AUDITED** an audit worker note `docs/tracker/<slug>.md` is on master (vanilla review recorded), **DONE** tracker marks it covered, **IN-FLIGHT** audit worker running or branch awaiting integration, **OPEN** nothing yet', '',
          '## Progress by category', '', '| Category | Rows | No gap | LANDED/DONE | IN-FLIGHT | OPEN | Gaps closed |', '|---|---|---|---|---|---|---|']
 tot = collections.Counter()
 for cat, c in out.items():
