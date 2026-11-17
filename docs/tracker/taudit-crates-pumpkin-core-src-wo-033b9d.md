@@ -60,3 +60,34 @@ worktree, so the parity review below uses vanilla \`ServerLevel\`/\`Level\`/\`We
 - \`:316-318\` \`bedrock_intensity\` scales to 65535 for \`LevelEvent\` rain/thunder data. Bedrock's
   \`LevelEvent\` rain intensity field is documented as 0-65535 but the client uses it as a percentage;
   verify against a Bedrock client before trusting a non-zero intensity. Size S (needs client).
+
+## Second pass (2026-11-17): verification of the remaining gaps
+
+The file still has no TODO/FIXME/XXX/HACK; all 17 "vanilla" hits are doc comments naming the mirrored
+method (:31 :46 :139 :154 :253 :258 :375 :395 :599 :614 :620 :780 :810 :827 :851 :893 :980).
+Each open item above was re-checked against vanilla Level/ServerLevel/WeatherData and Paper
+CraftWorld; three of them are not divergences, so no code change was made:
+
+- reset_weather_after_sleep is_raining() guard (:855): KEEP. Vanilla ServerLevel.tick calls
+  resetWeatherCycle() only inside "if (sleepStatus.areEnoughSleeping(100) &&
+  gameRules.getBoolean(RULE_WEATHER_CYCLE) && isRaining())". Dropping the guard would add a deviation.
+- is_thundering (:402): KEEP. Vanilla Level.isThundering() is "hasSkyLight && !hasCeiling &&
+  getThunderLevel(1.0F) > 0.9F", and getThunderLevel is "getRainLevel * thunderLevel"; the code has
+  exactly that formula with RAINING_LEVEL/THUNDERING_LEVEL = 0.2/0.9 (:27-29).
+- set_raining/set_thundering through set_parameters(0, 0, ..) (:699-716): KEEP. Paper
+  CraftWorld#setStorm/#setThundering call ServerLevel.setWeather(0, 0, ..), and vanilla
+  MinecraftServer.setWeatherParameters assigns rainTime = thunderTime = weatherTime, so clearing
+  both timers is vanilla behaviour, not a gap.
+- send_weather_info (:829-849): KEEP as a documented deviation. Vanilla PlayerList.sendLevelInfo
+  sends START_RAINING plus both levels only inside "if (level.isRaining())"; sending them when clear
+  keeps a client that moves between worlds of one dimension from keeping its old rain. The nether/end
+  case degenerates to a STOP_RAINING with data 0.
+- Natural flip events (:642-696): the one real divergence from Paper (Paper fires
+  WeatherChangeEvent/ThunderChangeEvent from the API only) plus the apply-before-event ordering.
+  Both are deliberate design of PR #4349, covered by flips_are_seen_and_restored and
+  restore_keeps_handler_edits; leave unless the design is revisited.
+
+No further code gaps found: timings match vanilla (rain 12000-24000, clear/thunder delay
+12000-180000, thunder 3600-15600, weather_profile.rs:45-52), as do the clear-time countdown
+(:256-263), the 0.01 easing (:24), the rain/thunder thresholds, prepareWeather (:378-388) and
+/weather (command/commands/weather.rs:46,60,74).
