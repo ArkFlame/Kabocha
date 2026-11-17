@@ -119,8 +119,8 @@ impl LpVector3d {
     }
 }
 
-// Vanilla `LpVec3.MAX_ABS_VALUE` is 2^34 (1.7179869184E10).
-const MAX_VELOCITY_CLAMP: f64 = 17_179_869_184.0;
+// Vanilla `LpVec3.ABS_MAX_VALUE` is 1.7179869183E10 (2^34 - 1).
+const MAX_VELOCITY_CLAMP: f64 = 1.717_986_918_3E10;
 const LEGACY_COMPONENT_CLAMP: f64 = 3.9;
 const LEGACY_COMPONENT_SCALE: f64 = 8000.0;
 const MIN_VELOCITY_MAGNITUDE: f64 = 3.051_944_088_384_301E-5;
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(buf.len(), 11);
         let decoded = LpVector3d::read(&mut buf.as_slice());
         assert!(decoded.is_ok());
-        assert_eq!(decoded.map(|v| v.0.x).ok(), Some(17_179_869_184.0));
+        assert_eq!(decoded.map(|v| v.0.x).ok(), Some(1.717_986_918_3E10));
     }
 
     #[test]
