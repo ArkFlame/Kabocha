@@ -647,7 +647,7 @@ impl DrownedGoToWaterGoal {
 impl Goal for DrownedGoToWaterGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
         let entity = mob.get_entity();
-        if entity.world.load().is_bright_outside() || entity.is_in_water() {
+        if !entity.world.load().is_bright_outside() || entity.is_in_water() {
             return false;
         }
         let Some(wanted) = Self::water_pos(mob) else {
