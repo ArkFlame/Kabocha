@@ -595,6 +595,22 @@ impl World {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    /// Whether this world advances the cycle it follows. Of the worlds sharing one cycle
+    /// only the first advances it, so it runs once per tick like vanilla's single cycle
+    /// instead of once per world, and the worlds no longer race on the shared data.
+    fn advances_cycle(&self) -> bool {
+        let Some(server) = self.server.upgrade() else {
+            return true;
+        };
+        server
+            .worlds
+            .load()
+            .iter()
+            .filter(|world| world.can_have_weather())
+            .find(|world| Arc::ptr_eq(&world.weather_data, &self.weather_data))
+            .is_some_and(|world| Arc::ptr_eq(world, self))
+    }
+
     /// Vanilla `Level.isRaining`.
     #[must_use]
     pub fn is_raining(&self) -> bool {
@@ -769,6 +785,7 @@ impl World {
 
         if self.level_info.load().game_rules.advance_weather
             && !matches!(self.weather_cycle, WeatherCycle::Fixed { .. })
+            && self.advances_cycle()
         {
             self.change_weather(WeatherCause::Natural, WeatherData::advance_cycle);
         }
