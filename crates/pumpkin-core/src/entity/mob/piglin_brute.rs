@@ -8,6 +8,8 @@ use rand::RngExt;
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::effect::StatusEffect;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tracked_data;
 use pumpkin_nbt::compound::NbtCompound;
@@ -157,6 +159,18 @@ impl PiglinBruteEntity {
                     dst_equip.put(slot, item.clone());
                 }
             }
+        }
+
+        if let Some(living) = zombified.get_living_entity() {
+            living.add_effect(Effect {
+                effect_type: &StatusEffect::NAUSEA,
+                duration: 200,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
         }
 
         world.spawn_entity(zombified);
