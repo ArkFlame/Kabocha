@@ -280,8 +280,12 @@ impl Goal for ActiveTargetGoal {
             self.target = None;
             return false;
         }
-        // Vanilla `NonTameRandomTargetGoal`: the search test again, so no unseen memory.
+        // Vanilla `NonTameRandomTargetGoal`: taming ends the hunt, then the search test
+        // again, so no unseen memory.
         if self.condition == TargetCondition::Untamed {
+            if mob.is_tamed() {
+                return false;
+            }
             let world = mob.get_mob_entity().living_entity.entity.world.load();
             return self
                 .target
