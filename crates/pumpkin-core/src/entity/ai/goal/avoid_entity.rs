@@ -1,6 +1,8 @@
 use std::sync::{Arc, Weak};
 
-use super::{Controls, Goal};
+use rand::RngExt;
+
+use super::{Controls, Goal, to_goal_ticks};
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::ai::target_match::{SearchArea, TargetMatch};
@@ -17,6 +19,8 @@ const HORIZONTAL_RANGE: i32 = 16;
 const VERTICAL_RANGE: i32 = 7;
 /// Vanilla only looks this far above and below for threats.
 const THREAT_SEARCH_HEIGHT: f64 = 3.0;
+/// Vanilla `reducedTickDelay(100)`: look for a threat on 1 in 50 ticks.
+const RETRY_TICKS: i32 = 100;
 
 /// A check on the threat that was found.
 pub type ThreatFilter = fn(&dyn EntityBase) -> bool;
@@ -193,6 +197,10 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
+        // Vanilla draws the retry roll before any other check.
+        if mob.get_random().random_range(0..to_goal_ticks(RETRY_TICKS)) != 0 {
+            return false;
+        }
         if self.when.is_some_and(|when| !when(mob)) {
             return false;
         }
@@ -350,7 +358,7 @@ mod tests {
         world.spawn_entity(ocelot);
 
         let mut started_at = None;
-        for tick in 1..=30 {
+        for tick in 1..=400 {
             creeper
                 .get_entity()
                 .tick_count
@@ -365,7 +373,7 @@ mod tests {
 
         let started_at = started_at.ok_or("creeper never started fleeing the ocelot")?;
         assert!(
-            started_at <= 20,
+            started_at <= 400,
             "flee started on tick {started_at}, later than vanilla's retry window"
         );
         Ok(())
@@ -409,7 +417,7 @@ mod tests {
         world.spawn_entity(ocelot);
 
         let mut started_at = None;
-        for tick in 1..=30 {
+        for tick in 1..=400 {
             creeper
                 .get_entity()
                 .tick_count
@@ -424,7 +432,7 @@ mod tests {
 
         let started_at = started_at.ok_or("creeper never fled an ocelot it cannot see")?;
         assert!(
-            started_at <= 20,
+            started_at <= 400,
             "flee started on tick {started_at}, later than vanilla's retry window"
         );
         Ok(())
