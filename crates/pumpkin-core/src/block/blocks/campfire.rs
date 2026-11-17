@@ -97,6 +97,9 @@ impl BlockBehaviour for CampfireBlock {
                 *campfire.cooking_total_times[slot]
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner) = recipe.cookingtime;
+                *campfire.cooking_cancelled[slot]
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
                 drop(stored);
 
                 args.player.increment_stat(

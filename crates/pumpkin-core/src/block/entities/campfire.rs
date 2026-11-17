@@ -20,6 +20,9 @@ pub struct CampfireBlockEntity {
     pub items: [Arc<Mutex<ItemStack>>; Self::SLOT_COUNT],
     pub cooking_times: [Mutex<i32>; Self::SLOT_COUNT],
     pub cooking_total_times: [Mutex<i32>; Self::SLOT_COUNT],
+    /// Paper `CampfireStartEvent` cancellation is sticky for the sitting: the total
+    /// time stays 0, so without this flag the event would refire every tick.
+    pub cooking_cancelled: [Mutex<bool>; Self::SLOT_COUNT],
 }
 
 impl BlockEntity for CampfireBlockEntity {
@@ -108,6 +111,13 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
+            if *self.cooking_cancelled[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+            {
+                continue;
+            }
+
             let Some(recipe) =
                 get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking)
             else {
@@ -130,6 +140,9 @@ impl BlockEntity for CampfireBlockEntity {
                         );
                         server.plugin_manager.fire_blocking(&server, &mut event);
                         if event.cancelled {
+                            *self.cooking_cancelled[slot]
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
                             continue;
                         }
                         cooking_time = event.cooking_time;
@@ -186,6 +199,9 @@ impl BlockEntity for CampfireBlockEntity {
             *self.cooking_total_times[slot]
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
+            *self.cooking_cancelled[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
             completed = true;
         }
 
@@ -209,10 +225,16 @@ impl BlockEntity for CampfireBlockEntity {
             stack.get_data_component::<pumpkin_data::data_component_impl::ContainerImpl>()
         {
             for (slot, item) in &container.items {
-                if let Some(cell) = self.items.get(*slot as usize) {
+                let slot = *slot as usize;
+                if let Some(cell) = self.items.get(slot) {
                     *cell
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) = item.clone();
+                    if let Some(cancelled) = self.cooking_cancelled.get(slot) {
+                        *cancelled
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
+                    }
                 }
             }
         }
@@ -263,6 +285,7 @@ impl CampfireBlockEntity {
             items: std::array::from_fn(|_| Arc::new(Mutex::new(ItemStack::EMPTY.clone()))),
             cooking_times: std::array::from_fn(|_| Mutex::new(0)),
             cooking_total_times: std::array::from_fn(|_| Mutex::new(0)),
+            cooking_cancelled: std::array::from_fn(|_| Mutex::new(false)),
         }
     }
 
