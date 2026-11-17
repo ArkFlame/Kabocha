@@ -90,6 +90,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:item_entities_merge",
     "pumpkin:zombie_pathfinds_to_villager",
     "pumpkin:sniffers_breed_into_an_egg",
+    "pumpkin:sniffer_sniffs_walks_and_digs",
     "pumpkin:minecart_drops_item_when_destroyed",
     // redstone_wire_and_power (14)
     "pumpkin:redstone_wire_attenuation_1_to_4",
@@ -265,10 +266,13 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:iron_golem_pattern_clears_all_four_blocks",
     "pumpkin:different_item_entities_do_not_merge",
     "pumpkin:item_entities_stack_up_to_combined_count",
-    // boat_block_effects (3)
+    // boat_block_effects (6)
     "pumpkin:boat_breaks_lily_pad_on_landing",
     "pumpkin:birch_boat_floats_then_drops_on_break",
     "pumpkin:chest_boat_drops_item_on_break",
+    "pumpkin:boat_floats_up_after_fall",
+    "pumpkin:boat_ejects_passenger_after_60_underwater_ticks",
+    "pumpkin:chest_boat_scatters_27_slots_on_break",
 ];
 
 #[must_use]
@@ -621,6 +625,16 @@ pub fn ensure_builtin_game_tests_registered() {
             300,
             0,
             entities_and_ai::test_sniffers_breed_into_an_egg,
+        );
+
+        register_flaky_function_test(
+            "pumpkin:sniffer_sniffs_walks_and_digs",
+            "pumpkin:empty_40x4x40",
+            800,
+            0,
+            3,
+            1,
+            entities_and_ai::test_sniffer_sniffs_walks_and_digs,
         );
 
         // redstone_wire_and_power (14)
@@ -1795,6 +1809,27 @@ pub fn ensure_builtin_game_tests_registered() {
             60,
             0,
             boat_block_effects::test_chest_boat_drops_item_on_break,
+        );
+        register_function_test(
+            "pumpkin:boat_floats_up_after_fall",
+            "pumpkin:empty_5x5x5",
+            80,
+            0,
+            boat_block_effects::test_boat_floats_up_after_fall,
+        );
+        register_function_test(
+            "pumpkin:boat_ejects_passenger_after_60_underwater_ticks",
+            "pumpkin:empty_5x5x5",
+            120,
+            0,
+            boat_block_effects::test_boat_ejects_passenger_after_60_underwater_ticks,
+        );
+        register_function_test(
+            "pumpkin:chest_boat_scatters_27_slots_on_break",
+            "pumpkin:empty_5x5x5",
+            80,
+            0,
+            boat_block_effects::test_chest_boat_scatters_27_slots_on_break,
         );
     });
 }

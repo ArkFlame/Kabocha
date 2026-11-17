@@ -90,6 +90,38 @@ pub(super) async fn test_sniffers_breed_into_an_egg(helper: GameTestHelper) -> G
     })
 }
 
+pub(super) async fn test_sniffer_sniffs_walks_and_digs(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    // Sniffers pick dig sites up to 18 blocks away, so use a wide dirt platform.
+    for x in 0..40 {
+        for z in 0..40 {
+            helper
+                .set_block_default(&BlockPos::new(x, 0, z), &Block::DIRT)
+                .await?;
+        }
+    }
+    helper
+        .spawn_entity_at("minecraft:sniffer", Vector3::new(20.5, 1.0, 20.5))
+        .await?;
+
+    let center = BlockPos::new(20, 1, 20);
+    helper.succeed_when(move |helper| async move {
+        // Digging yields either torchflower seeds or a pitcher pod.
+        match helper
+            .assert_item_entity_present("minecraft:torchflower_seeds", &center, 20.0)
+            .await
+        {
+            Ok(()) => Ok(()),
+            Err(_) => {
+                helper
+                    .assert_item_entity_present("minecraft:pitcher_pod", &center, 20.0)
+                    .await
+            }
+        }
+    })
+}
+
 pub(super) async fn test_minecart_drops_item_when_destroyed(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {
