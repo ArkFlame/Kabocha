@@ -24,6 +24,7 @@ export -f launch_pr; export KAB_ROOT KAB_RUNS
 
 TPW=$(scripts/tune-tasks.sh)
 need=$(free_slots); [ "$need" -le 0 ] && { echo "full"; exit 0; }
+(setsid scripts/wt.sh warm 14 >/dev/null 2>&1 &)
 scripts/requeue.sh >/dev/null 2>&1 || true   # never run dry: recycle TODO/FAILED work
 # 1) PR candidates
 python3 - "$need" <<'PY' | xargs -r -P "$JOBS" -I{} bash -c 'launch_pr {}'
