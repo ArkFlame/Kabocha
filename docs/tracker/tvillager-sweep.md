@@ -37,12 +37,18 @@ Scope: `crates/pumpkin-core/src/entity/passive/villager/`, `wandering_trader.rs`
 
 ## Open items (unverified, no change made)
 
-- Gossip max values: `MinorPositive` and `Trading` use max 25 here. Recalled vanilla value for minor positive is 200 and the trading cap is unclear. Not confident enough to change; needs a decompile check of `Villager.GossipType`.
-- Special prices: `update_special_prices` overwrites `special_price` (idempotent) where vanilla `updateSpecialPrices` appears to accumulate `specialPriceDiff` and rely on `resetSpecialPrices` between sessions. Results should match if reset runs before each refresh, which the reset call site suggests. Left as is.
-- Breeding `can_breed` also requires not sleeping. Recalled vanilla `canBreed` does not check sleep. Left as is.
+- FIXED: Gossip max values. `MajorPositive` 20 -> 100 and `MinorPositive` 25 -> 200 (vanilla GossipType: major_positive weight 5 max 100, minor_positive weight 1 max 200). Covered by `gossip_types_use_vanilla_names_and_values`. Reason: high-confidence recall of the wiki/Java table; the other types already matched.
+- UNVERIFIED (kept): `Trading` max 25. Recall is not confident enough to change it; decay 2 per 24000 ticks is kept.
+- UNVERIFIED (kept): Special prices. `update_special_prices` overwrites `special_price` (idempotent) where vanilla `updateSpecialPrices` appears to accumulate `specialPriceDiff` and rely on `resetSpecialPrices` between sessions. Results should match if reset runs before each refresh. Left as is, no recall with enough confidence.
+- UNVERIFIED (kept): Breeding `can_breed` also requires not sleeping. Recalled vanilla `canBreed` may not check sleep, but not with enough confidence to remove the check. Left as is.
 - Bonus raid wave rule (`raid_omen_level > 1`) recalled, not re-verified.
 - Iron golem natural spawn (village spawner path) not reviewed; only the villager-triggered spawn was.
 
+## Sweep additions (VERIFIED as recalled)
+
+- Wandering trader spawner: default tick 1200, spawn delay 24000, chance 25 rising by 25 up to 75, one-in-10 gate, 10 attempts, search radius 48, llama radius 4, despawn 48000. Matches recall of vanilla `WanderingTraderSpawner`.
+- Iron golem village spawn and cat/zombie siege (`village_siege.rs`): constants were not re-derived in this pass; left as UNVERIFIED.
+
 ## Checks
 
-No code changed. Docs-only slice, no build or test run.
+Code change: `data.rs` max values and its unit test. `rustfmt --edition 2024` on the leaf file only. No cargo run (worker policy).
