@@ -164,10 +164,11 @@ impl EntityBase for WitherSkullEntity {
                 entity.damage(entity.as_ref(), 5.0, DamageType::MAGIC)
             };
 
+            // Vanilla: 40 s on Hard, otherwise 10 s (Easy included).
             let duration_seconds = match world.level_info.load().difficulty {
-                Difficulty::Normal => 10,
                 Difficulty::Hard => 40,
-                Difficulty::Easy | Difficulty::Peaceful => 0,
+                Difficulty::Easy | Difficulty::Normal => 10,
+                Difficulty::Peaceful => 0,
             };
             if hurt
                 && duration_seconds > 0
@@ -176,7 +177,7 @@ impl EntityBase for WitherSkullEntity {
                 let effect = Effect {
                     effect_type: &StatusEffect::WITHER,
                     duration: 20 * duration_seconds,
-                    amplifier: 1,
+                    amplifier: 0,
                     ambient: false,
                     show_particles: true,
                     show_icon: true,
@@ -190,11 +191,12 @@ impl EntityBase for WitherSkullEntity {
             }
         }
 
-        world.explode_from(
-            self,
-            self.get_entity().pos.load(),
-            1.0,
-            ExplosionInteraction::Mob,
-        );
+        // Vanilla: only dangerous skulls use `ExplosionInteraction.MOB`, plain ones do not grief.
+        let interaction = if self.is_dangerous() {
+            ExplosionInteraction::Mob
+        } else {
+            ExplosionInteraction::None
+        };
+        world.explode_from(self, self.get_entity().pos.load(), 1.0, interaction);
     }
 }
