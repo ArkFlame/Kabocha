@@ -5,7 +5,7 @@ use rsa::pkcs8::EncodePublicKey;
 use rsa::{Pkcs1v15Encrypt, PrivateKey as RsaPrivateKey};
 use sha1::Sha1;
 use sha2::Digest;
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::net::EncryptionError;
 
@@ -15,11 +15,10 @@ pub struct KeyStore {
 }
 
 impl KeyStore {
-    #[must_use]
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, rsa::Error> {
         let instant = Instant::now();
         debug!("Creating encryption keys...");
-        let private_key = Self::generate_private_key();
+        let private_key = Self::generate_private_key()?;
 
         let public_key = private_key.to_public_key();
 
@@ -30,21 +29,18 @@ impl KeyStore {
 
         debug!("Created RSA keys, took {}ms", instant.elapsed().as_millis());
 
-        Self {
+        Ok(Self {
             private_key,
             public_key_der,
-        }
+        })
     }
 
-    fn generate_private_key() -> RsaPrivateKey {
+    fn generate_private_key() -> Result<RsaPrivateKey, rsa::Error> {
         let mut rng = rand::rng();
 
-        RsaPrivateKey::new(&mut rng, 1024).unwrap_or_else(|_| {
+        RsaPrivateKey::new(&mut rng, 1024).or_else(|_| {
             let mut fallback_rng = rand::rng();
-            RsaPrivateKey::new(&mut fallback_rng, 1024).unwrap_or_else(|_| {
-                error!("Failed to generate RSA key");
-                std::process::exit(1);
-            })
+            RsaPrivateKey::new(&mut fallback_rng, 1024)
         })
     }
 

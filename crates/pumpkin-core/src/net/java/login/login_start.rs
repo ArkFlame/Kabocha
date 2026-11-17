@@ -86,9 +86,14 @@ impl PendingConnection {
                     || self.version.load() >= pumpkin_util::version::JavaMinecraftVersion::V_1_20_5)
             {
                 let verify_token: [u8; 4] = rand::random();
+                let Ok(request) = server.encryption_request(&verify_token, online_mode).await
+                else {
+                    self.kick(TextComponent::text("Failed to create encryption keys"))
+                        .await;
+                    return Some(PacketHandlerResult::Stop);
+                };
                 self.verify_token = Some(verify_token);
-                self.send_packet_now(&server.encryption_request(&verify_token, online_mode).await)
-                    .await;
+                self.send_packet_now(&request).await;
                 None
             } else {
                 self.finish_login(server, &profile).await

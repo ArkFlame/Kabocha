@@ -83,13 +83,16 @@ fn player_with_transport(
     let mut client = JavaClient::from_pending(pending, profile.clone(), PlayerConfig::default());
     client.connection_state.store(ConnectionState::Play);
     client.start_outgoing_packet_task();
-    let player = Arc::new(Player::new(
-        Arc::new(ClientPlatform::Java(client)),
-        profile,
-        PlayerConfig::default(),
-        world,
-        GameMode::Survival,
-    ));
+    let player = Arc::new(
+        Player::new(
+            Arc::new(ClientPlatform::Java(client)),
+            profile,
+            PlayerConfig::default(),
+            world,
+            GameMode::Survival,
+        )
+        .expect("test player"),
+    );
     Ok((player, peer))
 }
 

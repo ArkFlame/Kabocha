@@ -202,7 +202,9 @@ impl PendingConnection {
         shared_secret: &[u8],
         username: &str,
     ) -> Result<GameProfile, AuthError> {
-        let hash = server.digest_secret(shared_secret);
+        let hash = server
+            .digest_secret(shared_secret)
+            .map_err(|_| AuthError::KeyGeneration)?;
         let ip = self.address.ip();
         let mut profile = authentication::authenticate(
             username,

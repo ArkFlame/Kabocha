@@ -431,8 +431,13 @@ impl Server {
         // Fetch / generate keys in background tasks to avoid blocking startup
         let server_clone = server.clone();
         server.spawn_task(async move {
-            let key_store = Arc::new(KeyStore::new());
-            let _ = server_clone.key_store.set(key_store);
+            match KeyStore::new() {
+                Ok(key_store) => {
+                    let _ = server_clone.key_store.set(Arc::new(key_store));
+                }
+                // `get_or_init_key_store` retries on first use and reports the failure there.
+                Err(err) => error!("Failed to generate encryption keys: {err}"),
+            }
         });
 
         if server.basic_config.allow_chat_reports {
@@ -1229,7 +1234,7 @@ impl Server {
             config.clone().unwrap_or_default(),
             &world,
             gamemode,
-        );
+        )?;
 
         if let Some(mut nbt_data) = nbt {
             player.read_nbt(&mut nbt_data);
@@ -1787,14 +1792,17 @@ impl Server {
         &self.listing
     }
 
-    async fn get_or_init_key_store(&self) -> &Arc<KeyStore> {
+    async fn get_or_init_key_store(&self) -> Result<&Arc<KeyStore>, rsa::Error> {
         self.key_store
-            .get_or_init(|| async {
+            .get_or_try_init(|| async {
                 let (tx, rx) = tokio::sync::oneshot::channel();
                 self.compute_pool.spawn(move || {
-                    let _ = tx.send(Arc::new(KeyStore::new()));
+                    let _ = tx.send(KeyStore::new().map(Arc::new));
                 });
-                rx.await.unwrap_or_else(|_| Arc::new(KeyStore::new()))
+                match rx.await {
+                    Ok(key_store) => key_store,
+                    Err(_) => KeyStore::new().map(Arc::new),
+                }
             })
             .await
     }
@@ -1803,16 +1811,23 @@ impl Server {
         &'a self,
         verification_token: &'a [u8; 4],
         should_authenticate: bool,
-    ) -> CEncryptionRequest<'a> {
-        self.get_or_init_key_store().await.encryption_request(
+    ) -> Result<CEncryptionRequest<'a>, rsa::Error> {
+        Ok(self.get_or_init_key_store().await?.encryption_request(
             "",
             verification_token,
             should_authenticate,
-        )
+        ))
     }
 
     pub async fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        let key_store = self.get_or_init_key_store().await.clone();
+        let key_store = self
+            .get_or_init_key_store()
+            .await
+            .map_err(|err| {
+                error!("Failed to load encryption keys: {err}");
+                EncryptionError::FailedDecrypt
+            })?
+            .clone();
         let data = data.to_vec();
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.compute_pool.spawn(move || {
@@ -1821,10 +1836,10 @@ impl Server {
         rx.await.map_err(|_| EncryptionError::FailedDecrypt)?
     }
 
-    pub fn digest_secret(&self, secret: &[u8]) -> String {
+    pub fn digest_secret(&self, secret: &[u8]) -> Result<String, rsa::Error> {
         self.key_store.get().map_or_else(
-            || KeyStore::new().get_digest(secret),
-            |key_store| key_store.get_digest(secret),
+            || KeyStore::new().map(|key_store| key_store.get_digest(secret)),
+            |key_store| Ok(key_store.get_digest(secret)),
         )
     }
 

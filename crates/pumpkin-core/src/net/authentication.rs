@@ -463,6 +463,8 @@ pub enum AuthError {
     FailedParse,
     #[error("Unknown Status Code {0}")]
     UnknownStatusCode(StatusCode),
+    #[error("Failed to generate encryption keys")]
+    KeyGeneration,
 }
 
 /// Reasons a `textures` property is rejected.

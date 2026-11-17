@@ -936,7 +936,7 @@ impl Player {
         config: PlayerConfig,
         world: &Arc<World>,
         gamemode: GameMode,
-    ) -> Self {
+    ) -> Option<Self> {
         let inventory_changed = Arc::new(AtomicBool::new(true));
 
         struct ScreenListener(Arc<AtomicBool>);
@@ -952,10 +952,10 @@ impl Player {
             }
         }
 
-        let server = world.server.upgrade().unwrap_or_else(|| {
+        let Some(server) = world.server.upgrade() else {
             tracing::error!("server inactive");
-            std::process::exit(1);
-        });
+            return None;
+        };
 
         let player_uuid = gameprofile.id;
 
@@ -1013,7 +1013,7 @@ impl Player {
         let initially_loaded = !supports_player_loaded;
         let scoreboard_synced = client.java().is_none();
 
-        Self {
+        Some(Self {
             living_entity,
             shoulders: Mutex::new(shoulders::Shoulders::default()),
             config: ArcSwap::new(Arc::new(config)),
@@ -1151,7 +1151,7 @@ impl Player {
             spawn_extra_particles_on_fall: AtomicBool::new(false),
             post_effects: std::sync::Mutex::new(Vec::new()),
             inbound_packets: SegQueue::new(),
-        }
+        })
     }
 
     #[must_use]
@@ -10660,7 +10660,7 @@ mod tests {
             PlayerConfig::default(),
             &world,
             GameMode::Survival,
-        ));
+        ).expect("test player"));
         let event = PlayerLeaveEvent::new(player.clone(), TextComponent::text(""));
         assert!(!event.transfer_requested);
         assert_eq!(event.reason, PlayerLeaveReason::Disconnected);

@@ -56,13 +56,16 @@ async fn disconnected_players_are_released() -> Result<(), Box<dyn std::error::E
             profile.clone(),
             PlayerConfig::default(),
         )));
-        let player = Arc::new(Player::new(
-            client.clone(),
-            profile,
-            PlayerConfig::default(),
-            &world,
-            GameMode::Survival,
-        ));
+        let player = Arc::new(
+            Player::new(
+                client.clone(),
+                profile,
+                PlayerConfig::default(),
+                &world,
+                GameMode::Survival,
+            )
+            .expect("test player"),
+        );
         player.screen_handler_sync_handler.store_player(
             &(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>),
         );
