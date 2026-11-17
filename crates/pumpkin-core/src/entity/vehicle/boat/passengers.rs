@@ -1,4 +1,4 @@
-use pumpkin_data::entity::{EntityPose, EntityType};
+use pumpkin_data::entity::EntityPose;
 use pumpkin_protocol::PositionFlag;
 use pumpkin_util::math::{cos, sin, vector3::Vector3};
 
@@ -64,18 +64,21 @@ impl BoatEntity {
         ))
     }
 
+    // Same generated boat seats that passenger_attachment_point reads, so the two
+    // rider positioning paths cannot drift apart.
     fn get_single_passenger_x_offset(&self) -> f32 {
-        if self.is_chest_boat() { 0.15 } else { 0.0 }
+        self.vehicle
+            .entity
+            .entity_type
+            .boat
+            .map_or(0.0, |seats| seats.single_passenger_x_offset)
     }
 
     fn ride_height(&self) -> f64 {
-        let entity = &self.vehicle.entity;
-        if entity.entity_type == &EntityType::BAMBOO_RAFT
-            || entity.entity_type == &EntityType::BAMBOO_CHEST_RAFT
-        {
-            f64::from(entity.height() * 0.888_888_9)
-        } else {
-            f64::from(entity.height() / 3.0)
-        }
+        self.vehicle
+            .entity
+            .entity_type
+            .boat
+            .map_or(0.0, |seats| seats.ride_height)
     }
 }
