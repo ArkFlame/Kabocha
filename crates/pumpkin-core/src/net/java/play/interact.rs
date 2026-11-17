@@ -149,6 +149,24 @@ impl JavaClient {
                             target: event.target.as_ref(),
                         },
                     );
+                    let item_id = format!("minecraft:{}", before.item.registry_key);
+                    player.trigger_advancement(
+                        crate::entity::player::advancement::trigger::AdvancementTrigger::PlayerInteractedWithEntity {
+                            entity_type: format!(
+                                "minecraft:{}",
+                                event.target.get_entity().entity_type.resource_name
+                            ),
+                            item_id,
+                            is_baby: event
+                                .target
+                                .get_living_entity()
+                                .is_some_and(crate::entity::living::LivingEntity::is_baby),
+                            player_wearing_safe_armor:
+                                crate::entity::mob::piglin_ai::PiglinAi::is_wearing_safe_armor(
+                                    &player.living_entity,
+                                ),
+                        },
+                    );
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
                     let swing_hand = if hand.is_some_and(|h| h.0 != 0) {
                         pumpkin_util::Hand::Left
