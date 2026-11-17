@@ -21,8 +21,10 @@ pub const ERROR_INVALID_ADVANCEMENT: CommandErrorType<1> = CommandErrorType::new
     translation::java::ADVANCEMENT_ADVANCEMENTNOTFOUND,
 );
 
-pub const ERROR_INVALID_BIOME: CommandErrorType<1> =
-    CommandErrorType::new("commands.fillbiome.invalid", "commands.fillbiome.invalid");
+pub const ERROR_INVALID_BIOME: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::ARGUMENT_RESOURCE_NOT_FOUND,
+    translation::java::ARGUMENT_RESOURCE_NOT_FOUND,
+);
 
 pub const ERROR_NOT_SUMMONABLE_ENTITY: CommandErrorType<1> = CommandErrorType::new(
     translation::java::ENTITY_NOT_SUMMONABLE,
@@ -139,9 +141,10 @@ impl ResourceKeyArgument {
             .is_vanilla_then()
             .and_then(pumpkin_data::biome::Biome::from_name)
             .ok_or_else(|| {
-                ERROR_INVALID_BIOME.create_without_context(TextComponent::text(
-                    resource_key.identifier.to_string(),
-                ))
+                ERROR_INVALID_BIOME.create_without_context_args_slice(&[
+                    TextComponent::text(resource_key.identifier.to_string()),
+                    TextComponent::text(BIOME_REGISTRY.to_string()),
+                ])
             })
     }
 
