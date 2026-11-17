@@ -7446,7 +7446,8 @@ impl Player {
             return xp;
         }
 
-        let xp_used = (repaired + 1) / 2;
+        // Vanilla `ExperienceOrb.durabilityToXp` floors: `durability / 2`.
+        let xp_used = repaired / 2;
 
         if let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
             && let Some(server) = self.world().server.upgrade()
