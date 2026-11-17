@@ -200,8 +200,8 @@ fn execute_positioned_over_modifier(
     };
 
     if let Some(ref world) = source.world {
-        let block_pos = BlockPos::new(block_x, pos.y.floor() as i32, block_z);
-        if !world.is_loaded(&block_pos) {
+        // Vanilla checks only that the chunk is loaded (`Level#hasChunk`), not the source y.
+        if !world.has_chunks_at(block_x, block_z, block_x, block_z) {
             return Err(ERROR_POS_NOT_LOADED.create_without_context());
         }
         source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
