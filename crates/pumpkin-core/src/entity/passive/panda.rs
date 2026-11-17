@@ -178,10 +178,26 @@ fn is_worried_and_can_perform_action(mob: &dyn Mob) -> bool {
     as_panda(mob).is_some_and(|panda| panda.is_worried() && panda.can_perform_action())
 }
 
-/// Vanilla `Level.isThundering`, without the check that the dimension has weather.
+/// Vanilla `ServerLevel.isThundering` without the weather data: a dimension without sky light or
+/// with a ceiling never thunders, whatever the shared weather says.
+fn thunder_scares(
+    thunder_level: f32,
+    rain_level: f32,
+    has_skylight: bool,
+    has_ceiling: bool,
+) -> bool {
+    has_skylight && !has_ceiling && thunder_level * rain_level > THUNDERING_LEVEL
+}
+
+/// Vanilla `Level.isThundering` for the panda's `isScared`.
 fn is_thundering(world: &World) -> bool {
     let weather = world.weather.lock().unwrap_or_else(PoisonError::into_inner);
-    weather.thunder_level * weather.rain_level > THUNDERING_LEVEL
+    thunder_scares(
+        weather.thunder_level,
+        weather.rain_level,
+        world.dimension.has_skylight,
+        world.dimension.has_ceiling,
+    )
 }
 
 pub struct PandaEntity {
@@ -1326,6 +1342,14 @@ mod tests {
         assert!(panda.is_sitting());
         world.level.shutdown().await;
         Ok(())
+    }
+
+    #[test]
+    fn a_dimension_without_sky_light_never_thunders() {
+        assert!(thunder_scares(1.0, 1.0, true, false));
+        assert!(!thunder_scares(0.9, 1.0, true, false));
+        assert!(!thunder_scares(1.0, 1.0, false, false), "no sky light");
+        assert!(!thunder_scares(1.0, 1.0, true, true), "a ceiling");
     }
 
     #[tokio::test]

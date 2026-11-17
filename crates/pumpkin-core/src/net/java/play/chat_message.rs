@@ -18,6 +18,26 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl#tryHandleChat`: a client that hid chat is never
+        // broadcast, and a commands-only client is told why. Both are dropped before the event.
+        match &player.config.load().chat_mode {
+            ChatMode::Hidden => {
+                player.send_system_message(
+                    &TextComponent::translate(translation::java::CHAT_DISABLED_OPTIONS, [])
+                        .color_named(pumpkin_util::text::color::NamedColor::Red),
+                );
+                return;
+            }
+            ChatMode::CommandsOnly => {
+                player.send_system_message(
+                    &TextComponent::translate(translation::java::CHAT_CANNOTSEND, [])
+                        .color_named(pumpkin_util::text::color::NamedColor::Red),
+                );
+                return;
+            }
+            ChatMode::Enabled => {}
+        }
+
         let gameprofile = &player.gameprofile;
 
         if let Err(err) = self.validate_chat_message(server, player, &chat_message) {
@@ -37,6 +57,12 @@ impl JavaClient {
         }
 
         if player.check_chat_spam(server, crate::entity::player::SpamType::Chat) {
+            return;
+        }
+
+        // Vanilla `ServerGamePacketListenerImpl#broadcastChatMessage` warns and drops empty messages.
+        if chat_message.message.is_empty() {
+            warn!("{} tried to send an empty message", gameprofile.name);
             return;
         }
 
@@ -253,6 +279,17 @@ impl JavaClient {
             .as_millis() as i64;
         if session.expires_at < now {
             return Err(ChatError::InvalidPublicKey);
+        }
+
+        // Vanilla `ServerGamePacketListenerImpl#handleChatSessionUpdate`: a client may not replace
+        // its key with one that expires earlier than the key currently in use.
+        let current_expires_at = player
+            .chat_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .expires_at;
+        if current_expires_at != 0 && session.expires_at < current_expires_at {
+            return Err(ChatError::ExpiredPublicKey);
         }
 
         let key_signature = RsaPkcs1v15Signature::try_from(session.key_signature.as_ref())

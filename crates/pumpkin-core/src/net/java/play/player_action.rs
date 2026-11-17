@@ -33,6 +33,22 @@ impl JavaClient {
                     let world = entity.world.load_full();
                     let (block, state) = world.get_block_and_state(&position);
 
+                    // Vanilla `Level.mayInteract` rejects dig starts inside spawn protection
+                    // before any interaction handling, so no crack animation is started.
+                    if world.is_in_spawn_protection(player, &position) {
+                        player.send_system_message(&TextComponent::translate_cross(
+                            pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                            pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                            [TextComponent::text(player.gameprofile.name.clone())],
+                        ));
+                        player.try_send_client_packet(&CBlockUpdate::new(
+                            position,
+                            VarInt(i32::from(state.id.as_u16())),
+                        ));
+                        self.update_sequence(player_action.sequence.0);
+                        return;
+                    }
+
                     if let Some(server_arc) = world.server.upgrade() {
                         let mut interact_event = PlayerInteractEvent::new(
                             player,
@@ -79,8 +95,6 @@ impl JavaClient {
                         return;
                     }
 
-                    // TODO: do validation
-                    // TODO: Config
                     if gamemode == GameMode::Creative {
                         // Block break & play sound
                         let new_state = world.break_block(
@@ -262,10 +276,18 @@ impl JavaClient {
                     self.update_sequence(player_action.sequence.0);
                 }
                 Status::DropItem => {
-                    player.drop_held_item(false);
+                    // Vanilla `handleBlockBreakAction` ignores item drops and hand swaps in
+                    // spectator mode.
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.drop_held_item(false);
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::DropItemStack => {
-                    player.drop_held_item(true);
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.drop_held_item(true);
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::ReleaseItemInUse => {
                     let item_in_use = player
@@ -279,11 +301,16 @@ impl JavaClient {
                     }
 
                     player.living_entity.clear_active_hand();
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::SwapItem => {
-                    player.swap_item();
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.swap_item();
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::SpearJab => {
+                    self.update_sequence(player_action.sequence.0);
                     if player.gamemode.load() == GameMode::Spectator {
                         return;
                     }
@@ -292,7 +319,9 @@ impl JavaClient {
                     server.item_registry.on_spear_jab(&stack, player);
                 }
                 // The block being mined does not change, so there is nothing to update
-                Status::ChangeDestroyDirection => {}
+                Status::ChangeDestroyDirection => {
+                    self.update_sequence(player_action.sequence.0);
+                }
             },
             Err(_) => self.try_kick(&TextComponent::text("Invalid status")),
         }

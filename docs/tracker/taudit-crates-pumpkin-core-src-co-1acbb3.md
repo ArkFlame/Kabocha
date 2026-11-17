@@ -27,6 +27,17 @@ vanilla behaviour.
 - execute summon: adopts the new entity name and display name, like vanilla withEntity
   (0db49fa11).
 
+- execute facing: both `facing <pos>` and `facing entity <targets> <anchor>` now start
+  from the source anchor (`CommandSourceStack#getAnchor().apply`, CommandSourceStack.java:372)
+  and wrap yaw/pitch with Mth.wrapDegrees like `CommandSourceStack#facing`. Before, an
+  `execute anchored eyes facing ...` aimed from the feet and could return yaw -225 instead
+  of 135 (execute.rs:321 anchor_position, used at 337 and 362, wrap at 340/365).
+- execute if|unless block and biome: resolve the position through
+  BlockPosArgument.getLoadedBlockPos, which raises argument.pos.unloaded for an unloaded
+  chunk (ExecuteCommand.java:498,524), instead of silently reading air. execute.rs:394, 490, 507.
+- execute if|unless blocks: start/end/destination now resolve through getLoadedBlockPos
+  before the area check, matching ExecuteCommand.checkRegions (ExecuteCommand.java:930-932).
+
 ## Remaining gaps (larger than one small certain fix)
 
 1. if blocks block-entity comparison - execute.rs:1122 count_blocks_match. Vanilla
@@ -43,7 +54,7 @@ vanilla behaviour.
    ItemPredicateArgument. Pumpkin has no item predicate/slot source arguments. Size L.
 4. if function - missing; vanilla executes a datapack function as a condition. Pumpkin
    has no datapack functions in this tree. Size L (blocked on functions).
-5. on controller - execute.rs:1466 uses the first passenger; vanilla uses
+5. on controller - execute.rs:1479 uses the first passenger; vanilla uses
    Entity.getControllingPassenger, which is null unless the entity can actually be
    controlled (boat, minecart, rideable mob). Size S.
 6. on origin is exact only for projectiles - execute.rs:1491 relies on

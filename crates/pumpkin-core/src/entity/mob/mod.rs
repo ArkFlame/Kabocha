@@ -1047,7 +1047,8 @@ impl MobEntity {
             world.get_max_local_raw_brightness(pos)
         };
 
-        // TODO
+        // Vanilla samples the light test from the caller's RandomSource; a fresh
+        // Xoroshiro seed keeps the same distribution without threading one through.
         let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
         brightness <= dimension.monster_spawn_light_level.get(&mut random) as u8
     }
@@ -1117,8 +1118,10 @@ impl MobEntity {
             && (reason.ignores_light_requirements() || Self::is_bright_enough_to_spawn(world, pos))
     }
 
+    /// Vanilla `Mob.isBrightEnoughToSpawn`: `getRawBrightness(pos, 0)`, so animals
+    /// ignore the sky darken and still spawn at night.
     pub fn is_bright_enough_to_spawn(world: &World, pos: &BlockPos) -> bool {
-        world.get_max_local_raw_brightness(pos) > 8
+        world.get_raw_brightness(pos, 0) > 8
     }
 
     pub fn check_surface_water_animal_spawn_rules(world: &World, pos: &BlockPos) -> bool {
@@ -1291,6 +1294,14 @@ impl MobEntity {
         let entity = &self.living_entity.entity;
 
         let world = entity.world.load();
+
+        // Vanilla `Mob.checkDespawn` discards monsters on Peaceful before the
+        // persistence and distance checks.
+        if world.level_info.load().difficulty == Difficulty::Peaceful && mob.is_monster_class() {
+            entity.remove();
+            return;
+        }
+
         let pos = entity.pos.load();
         let players = world.players.load();
 
@@ -3392,9 +3403,25 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         self.mob_on_rider_positioned(passenger);
     }
 
-    fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
-        // TODO: apply enchantment processing like in vanilla
-        Mob::get_base_experience_reward(self)
+    fn get_experience_reward(&self, killer: Option<&dyn EntityBase>) -> u32 {
+        let base = Mob::get_base_experience_reward(self);
+        // Vanilla `Mob.getExperienceReward` runs the killer's weapon through the mob
+        // experience enchantment effects, so Looting raises the reward.
+        let Some(killer) = killer.filter(|killer| killer.get_living_entity().is_some()) else {
+            return base;
+        };
+        let Some(living) = self.get_living_entity() else {
+            return base;
+        };
+        if base == 0 {
+            return 0;
+        }
+        let weapon = living.held_item(killer);
+        u32::try_from(crate::enchantment::EnchantmentHelper::modify_mob_experience(
+            &weapon,
+            i32::try_from(base).unwrap_or(i32::MAX),
+        ))
+        .unwrap_or_default()
     }
 
     fn should_drop_loot(&self) -> bool {

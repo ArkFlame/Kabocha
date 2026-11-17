@@ -35,8 +35,8 @@ pub struct SmokerBlockEntity {
     /// Tracks recipes used for XP calculation (vanilla `RecipesUsed` NBT format)
     /// Maps result item ID -> craft count
     pub recipes_used: StdMutex<HashMap<String, u32>>,
-    /// Accumulated smelting experience not yet awarded, kept as a fraction
-    /// like vanilla AbstractFurnaceBlockEntity.experience.
+    /// Smelting experience derived from `RecipesUsed` and awarded when the
+    /// output is taken (vanilla recomputes it per recipe).
     pub experience: StdMutex<f32>,
     pub metadata: super::ContainerMetadata,
 }

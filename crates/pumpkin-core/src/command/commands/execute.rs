@@ -46,7 +46,7 @@ use crate::command::commands::data::{
 };
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::{
-    ResultValueTaker, ReturnValue, ReturnValueCallable, ReturnValueCallback,
+    CommandSource, ResultValueTaker, ReturnValue, ReturnValueCallable, ReturnValueCallback,
 };
 use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
@@ -68,6 +68,8 @@ use pumpkin_util::PermissionLvl;
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
+use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::math::wrap_degrees;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
@@ -316,19 +318,30 @@ fn execute_anchored_modifier(
     Ok(vec![Arc::new(source)])
 }
 
+/// Vanilla faces from the source's anchor position (`CommandSourceStack#getAnchor().apply`).
+fn anchor_position(source: &CommandSource) -> Vector3<f64> {
+    source.entity.as_ref().map_or(source.position, |entity| {
+        source
+            .entity_anchor
+            .transform_position(source.position, entity.get_entity())
+    })
+}
+
 fn execute_facing_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
     let pos = Vec3ArgumentType::get_vector3(context, "pos")?;
     let mut source = context.source.as_ref().clone();
 
-    let dx = pos.x - source.position.x;
-    let dy = pos.y - source.position.y;
-    let dz = pos.z - source.position.z;
+    let from = anchor_position(&source);
+    let dx = pos.x - from.x;
+    let dy = pos.y - from.y;
+    let dz = pos.z - from.z;
 
     let xz_dist = dx.hypot(dz);
-    let yaw = (dz.atan2(dx).to_degrees() as f32) - 90.0;
-    let pitch = -(dy.atan2(xz_dist).to_degrees() as f32);
+    // Vanilla wraps both angles in CommandSourceStack#facing.
+    let yaw = wrap_degrees((dz.atan2(dx).to_degrees() as f32) - 90.0);
+    let pitch = wrap_degrees(-(dy.atan2(xz_dist).to_degrees() as f32));
 
     source.rotation = Vector2::new(pitch, yaw);
     Ok(vec![Arc::new(source)])
@@ -345,13 +358,15 @@ fn execute_facing_entity_modifier(
         let target_pos = anchor.position_at_entity(target.get_entity());
         let mut source = context.source.as_ref().clone();
 
-        let dx = target_pos.x - source.position.x;
-        let dy = target_pos.y - source.position.y;
-        let dz = target_pos.z - source.position.z;
+        let from = anchor_position(&source);
+        let dx = target_pos.x - from.x;
+        let dy = target_pos.y - from.y;
+        let dz = target_pos.z - from.z;
 
         let xz_dist = dx.hypot(dz);
-        let yaw = (dz.atan2(dx).to_degrees() as f32) - 90.0;
-        let pitch = -(dy.atan2(xz_dist).to_degrees() as f32);
+        // Vanilla wraps both angles in CommandSourceStack#facing.
+        let yaw = wrap_degrees((dz.atan2(dx).to_degrees() as f32) - 90.0);
+        let pitch = wrap_degrees(-(dy.atan2(xz_dist).to_degrees() as f32));
 
         source.rotation = Vector2::new(pitch, yaw);
         sources.push(Arc::new(source));
@@ -381,7 +396,7 @@ fn execute_unless_block_modifier(
 
 /// Tests the `block` predicate at `pos`, resolving datapack block tags against the loaded packs.
 fn block_matches(context: &CommandContext) -> Result<bool, CommandSyntaxError> {
-    let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
+    let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
     let expected = BlockPredicateArgumentType::get(context, "block")?;
 
     let Some(ref world) = context.source.world else {
@@ -477,7 +492,7 @@ fn execute_unless_dimension_modifier(
 fn execute_if_biome_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
+    let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
     let biome_arg = context.get_argument::<ResourceOrTag>("biome")?.clone();
 
     if let Some(ref world) = context.source.world {
@@ -494,7 +509,7 @@ fn execute_if_biome_modifier(
 fn execute_unless_biome_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
+    let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
     let biome_arg = context.get_argument::<ResourceOrTag>("biome")?.clone();
 
     if let Some(ref world) = context.source.world {
@@ -1123,9 +1138,10 @@ fn count_blocks_match(
     context: &CommandContext,
     masked: bool,
 ) -> Result<Option<i32>, CommandSyntaxError> {
-    let start = BlockPosArgumentType::get_block_pos(context, "start")?;
-    let end = BlockPosArgumentType::get_block_pos(context, "end")?;
-    let destination = BlockPosArgumentType::get_block_pos(context, "destination")?;
+    // Vanilla checkRegions resolves all three through getLoadedBlockPos, before the area check.
+    let start = BlockPosArgumentType::get_loaded_block_pos(context, "start")?;
+    let end = BlockPosArgumentType::get_loaded_block_pos(context, "end")?;
+    let destination = BlockPosArgumentType::get_loaded_block_pos(context, "destination")?;
 
     let min_x = start.0.x.min(end.0.x);
     let max_x = start.0.x.max(end.0.x);
@@ -1145,12 +1161,6 @@ fn count_blocks_match(
     }
 
     if let Some(ref world) = context.source.world {
-        for pos in [&start, &end, &destination] {
-            if !world.is_loaded(pos) {
-                return Err(ERROR_POS_NOT_LOADED.create_without_context());
-            }
-        }
-
         let dx = destination.0.x - min_x;
         let dy = destination.0.y - min_y;
         let dz = destination.0.z - min_z;

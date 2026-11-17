@@ -3,9 +3,8 @@ use super::{Controls, Goal};
 use crate::entity::EntityBase;
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::NavigatorGoal;
+use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::mob::Mob;
-use crate::entity::predicate::EntityPredicate;
-use crate::plugin::api::events::entity::entity_target::TargetReason;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
@@ -17,12 +16,11 @@ pub struct MeleeAttackGoal {
     goal_control: Controls,
     speed: f64,
     pause_when_mob_idle: bool,
-    //path: Path, TODO: add path when Navigation is implemented
+    path: Option<Path>,
     #[expect(dead_code)]
     target_location: Vector3<f64>,
     update_countdown_ticks: i32,
     pub cooldown: i32,
-    #[expect(dead_code)]
     attack_interval_ticks: i32,
     last_update_time: i64,
     last_target_position: Option<Vector3<f64>>,
@@ -40,6 +38,7 @@ impl MeleeAttackGoal {
             goal_control: Controls::MOVE | Controls::LOOK,
             speed,
             pause_when_mob_idle,
+            path: None,
             target_location: Vector3::new(0.0, 0.0, 0.0),
             update_countdown_ticks: 0,
             cooldown: 0,
@@ -84,7 +83,7 @@ impl MeleeAttackGoal {
 
     #[must_use]
     pub fn get_max_cooldown(&self) -> i32 {
-        self.get_tick_count(20)
+        self.get_tick_count(self.attack_interval_ticks)
     }
 
     pub fn reset_attack_cooldown(&mut self) {
@@ -96,11 +95,11 @@ impl MeleeAttackGoal {
         self.cooldown <= 0
     }
 
+    /// Vanilla `MeleeAttackGoal.checkAndPerformAttack`: only the melee reach and the attack
+    /// cooldown are checked. Line of sight only gates path recalculation in `tick`.
     #[must_use]
     pub fn can_perform_attack(&self, mob: &dyn Mob, target: &dyn EntityBase) -> bool {
-        self.is_time_to_attack()
-            && mob.is_in_attack_range(target)
-            && mob.has_line_of_sight(target.get_entity())
+        self.is_time_to_attack() && mob.is_in_attack_range(target)
     }
 
     fn check_and_perform_attack(&mut self, mob: &dyn Mob, target: &dyn EntityBase) {
@@ -145,8 +144,21 @@ impl Goal for MeleeAttackGoal {
         if !target.get_entity().is_alive() {
             return false;
         }
-        // TODO: add path when is implemented Navigation
-        true //TODO: modify that because if a path to the target not exists then call mob.is_in_attack_range(target)
+
+        // Vanilla `createPath(target, 0)`: without a route the goal starts only
+        // when the target is already inside melee reach.
+        let target_pos = target.get_entity().pos.load();
+        let path = {
+            let steered = mob.get_mob_entity().steered();
+            steered
+                .navigator()
+                .create_path(&steered.mob_entity().living_entity, target_pos, 0)
+        };
+        let Some(path) = path else {
+            return mob.is_in_attack_range(target.as_ref());
+        };
+        self.path = Some(path);
+        true
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
@@ -167,31 +179,25 @@ impl Goal for MeleeAttackGoal {
             return !is_idle;
         }
 
-        let is_valid_target = !target
-            .get_player()
-            .is_some_and(|p| p.is_spectator() || p.is_creative());
-
         let in_range = mob
             .get_mob_entity()
             .is_in_position_target_range_pos(&target.get_entity().block_pos.load());
 
-        in_range && is_valid_target
+        in_range
     }
 
     fn start(&mut self, mob: &dyn Mob) {
         mob.get_mob_entity().set_attacking(true);
 
-        let target = mob.get_mob_entity().get_target().clone();
+        let target = mob.get_mob_entity().get_target();
         if let Some(target) = target {
             let steered = mob.get_mob_entity().steered();
-            let mut navigator = steered.navigator();
-            let target_pos = target.get_entity().pos.load();
-            navigator.set_progress(NavigatorGoal {
-                current_progress: mob.get_entity().pos.load(),
-                destination: target_pos,
-                speed: self.speed,
-            });
-            self.last_target_position = Some(target_pos);
+            steered.navigator().move_to_path(
+                self.path.take(),
+                self.speed,
+                &steered.mob_entity().living_entity,
+            );
+            self.last_target_position = Some(target.get_entity().pos.load());
         }
         self.update_countdown_ticks = 0;
         self.cooldown = 0;
@@ -201,18 +207,6 @@ impl Goal for MeleeAttackGoal {
         if let Some(on_stop) = self.on_stop {
             on_stop(mob);
         }
-        // Only clear target if they switched to creative/spectator
-        let should_clear = mob
-            .get_mob_entity()
-            .get_target()
-            .as_deref()
-            .is_some_and(|entity| {
-                !EntityPredicate::ExceptCreativeOrSpectator.test(entity)
-            });
-        if should_clear {
-            mob.set_mob_target(None, TargetReason::ForgotTarget);
-        }
-
         mob.get_mob_entity().set_attacking(false);
 
         // Vanilla: this.mob.getNavigation().stop()

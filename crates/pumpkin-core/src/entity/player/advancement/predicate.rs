@@ -981,7 +981,8 @@ impl DamagePredicate {
         let direct_entity = damage_obj
             .get("type")
             .and_then(|t| t.get("direct_entity"))
-            .and_then(|de| de.get("minecraft:entity_type"))
+            .map(|de| de.get("predicate").unwrap_or(de))
+            .and_then(|de| de.get("minecraft:entity_type").or_else(|| de.get("type")))
             .and_then(Value::as_str)
             .map(ToString::to_string);
         let dealt = damage_obj.get("dealt").and_then(FloatBounds::from_value);
@@ -1227,7 +1228,11 @@ impl RecipePredicate {
             return Self::default();
         };
         let mut recipes = Vec::new();
-        if let Some(r_val) = map.get("recipes").or_else(|| map.get("recipe")) {
+        if let Some(r_val) = map
+            .get("recipes")
+            .or_else(|| map.get("recipe"))
+            .or_else(|| map.get("recipe_id"))
+        {
             match r_val {
                 Value::String(s) => recipes.push(s.clone()),
                 Value::Array(arr) => {
@@ -1972,7 +1977,8 @@ impl CriterionConditions {
             "minecraft:recipe_crafted" => Self::RecipeCrafted(RecipePredicate::from_value(&val)),
             "minecraft:recipe_unlocked" => Self::RecipeUnlocked(RecipePredicate::from_value(&val)),
             "minecraft:player_generates_container_loot" => Self::PlayerGeneratesContainerLoot(
-                val.get("loot_tables")
+                val.get("loot_table")
+                    .or_else(|| val.get("loot_tables"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
@@ -2160,7 +2166,8 @@ impl CriterionConditions {
             }
             "minecraft:summoned_entity" => Self::SummonedEntity(parse_entity_pred(&val)),
             "minecraft:crafter_recipe_crafted" => Self::CrafterRecipeCrafted(
-                val.get("recipes")
+                val.get("recipe_id")
+                    .or_else(|| val.get("recipes"))
                     .or_else(|| val.get("recipe"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -2310,7 +2317,8 @@ pub fn matches_beacon_condition(cond: &Value, level: i32) -> bool {
 /// Evaluates conditions for `minecraft:enter_block` and `minecraft:slide_down_block`.
 #[must_use]
 pub fn matches_enter_block_condition(cond: &Value, block_id: &str) -> bool {
-    TagOrIdMatcher::from_value(cond).is_none_or(|m| m.matches(RegistryKey::Block, block_id))
+    let block = cond.get("blocks").or_else(|| cond.get("block")).unwrap_or(cond);
+    TagOrIdMatcher::from_value(block).is_none_or(|m| m.matches(RegistryKey::Block, block_id))
 }
 
 /// `EffectsChangedTrigger.TriggerInstance.matches`, plus the `player` check that vanilla runs in
@@ -2624,7 +2632,8 @@ mod tests {
                     None,
                     None,
                     Some("powder_snow"),
-                    Some("leather_boots")
+                    Some("leather_boots"),
+                    None
                 ));
                 assert!(!pred.matches(
                     (0.0, 64.0, 0.0),
@@ -2634,7 +2643,8 @@ mod tests {
                     None,
                     None,
                     Some("stone"),
-                    Some("leather_boots")
+                    Some("leather_boots"),
+                    None
                 ));
                 assert!(!pred.matches(
                     (0.0, 64.0, 0.0),
@@ -2644,7 +2654,8 @@ mod tests {
                     None,
                     None,
                     Some("powder_snow"),
-                    Some("diamond_boots")
+                    Some("diamond_boots"),
+                    None
                 ));
             }
             _ => panic!("Expected Location variant"),
@@ -2790,6 +2801,47 @@ mod tests {
         assert!(matches_effects_changed_condition(&cond, &effects, None));
         effects.pop();
         assert!(!matches_effects_changed_condition(&cond, &effects, None));
+    }
+
+    #[test]
+    fn enter_block_condition_reads_block_field() {
+        assert!(matches_enter_block_condition(
+            &json!({"block": "minecraft:water"}),
+            "minecraft:water"
+        ));
+        assert!(!matches_enter_block_condition(
+            &json!({"block": "minecraft:water"}),
+            "minecraft:stone"
+        ));
+    }
+
+    #[test]
+    fn recipe_crafted_reads_recipe_id() {
+        let cond = CriterionConditions::parse(
+            "minecraft:recipe_crafted",
+            r#"{"recipe_id": "minecraft:bread"}"#,
+        );
+        match &cond {
+            CriterionConditions::RecipeCrafted(pred) => {
+                assert!(pred.matches("minecraft:bread"));
+                assert!(!pred.matches("minecraft:cake"));
+            }
+            _ => panic!("Expected RecipeCrafted variant"),
+        }
+    }
+
+    #[test]
+    fn container_loot_reads_loot_table() {
+        let cond = CriterionConditions::parse(
+            "minecraft:player_generates_container_loot",
+            r#"{"loot_table": "minecraft:chests/simple_dungeon"}"#,
+        );
+        match &cond {
+            CriterionConditions::PlayerGeneratesContainerLoot(lt) => {
+                assert_eq!(lt, "minecraft:chests/simple_dungeon");
+            }
+            _ => panic!("Expected PlayerGeneratesContainerLoot variant"),
+        }
     }
 
     #[test]

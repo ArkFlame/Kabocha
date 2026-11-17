@@ -57,3 +57,21 @@ matching `BlockItem.place` (game event is fired right after the successful `setB
 - `mirror`/`rotate` fall back to the generated block data, `emits_redstone_power`
   defaults to `false`, weak/strong redstone power default to 0, and behaviour lookups
   return the vanilla default values when no behaviour is registered.
+
+## Follow-up pass (registry.rs + BlockBehaviour defaults)
+
+The previous pass fixed the registry fallback `is_pathfindable` (registry.rs:1691) but left
+`BlockBehaviour::is_pathfindable`'s own default on `!state.is_full_cube()` (block/mod.rs:282),
+which is the path every *registered* behaviour without an override takes.
+
+| Gap | Rust (before) | Vanilla | Fix | Size |
+|---|---|---|---|---|
+| `FenceBlock` (and walls, panes, bars, chests without an override) were pathfindable through motion-blocking non-full cubes: mobs could path through fences | `block/mod.rs:282` | `BlockBehaviour.isPathfindable` default `LAND/AIR -> !state.isSolid()` | default changed to `!state.is_solid()`; test `registered_motion_blocking_block_is_not_pathfindable` (registry.rs, drives `default_registry()` + OAK_FENCE, fails before) | S |
+
+Additional gaps found in this pass, not listed above:
+
+| Gap | Rust | Vanilla / Paper | Suggested fix | Size |
+|---|---|---|---|---|
+| `BlockFertilizeEvent` is fired with `vec![]` before `perform_bonemeal`, so plugins never see the states the growth changed | `registry.rs:577-591` (`bone_meal`) | Bukkit `CraftEventFactory.callBlockFertilizeEvent` passes the list of changed block states to `BlockFertilizeEvent.getBlocks()` | Let the `perform_bonemeal` path collect changed positions (or diff the world before/after) and fire the event with them; Paper region protection reads that list | S-M (plugin API) |
+| `TestBlock` registered twice, burning a behaviour index | `registry.rs:320` and `registry.rs:382` | n/a | delete the second `register(TestBlock)` | trivial |
+| Flowing/still fluid sharing is keyed on hardcoded ids 2/4 | `registry.rs:1560-1570` (`get_pumpkin_fluid`) | still/flowing fluids share the same `Fluid` behaviour | resolve the still id from the flowing fluid (or from pumpkin-data) instead of literals; breaks silently if generated ids move | S |

@@ -1149,6 +1149,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
             return;
         }
 
+        // Vanilla scoreboard collision rules gate pushing between teams.
+        if !living::is_allowed_by_team_rules(self.get_team().as_ref(), entity.get_team().as_ref()) {
+            return;
+        }
+
         let mut dx = other_entity.pos.load().x - self_entity.pos.load().x;
         let mut dz = other_entity.pos.load().z - self_entity.pos.load().z;
         let mut d = dx.abs().max(dz.abs());
@@ -5203,16 +5208,12 @@ impl Entity {
         }
         // Update cache so we don't send rubberbanding deltas
         self.last_sent_pos.store(position);
-        // TODO: use `pumpkin_util::math::pack_degrees`.
         if let Some(yaw) = yaw {
-            self.last_sent_yaw
-                .store((yaw * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
-            self.last_sent_head_yaw
-                .store((yaw * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
+            self.last_sent_yaw.store(pack_degrees(yaw), Relaxed);
+            self.last_sent_head_yaw.store(pack_degrees(yaw), Relaxed);
         }
         if let Some(pitch) = pitch {
-            self.last_sent_pitch
-                .store((pitch * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
+            self.last_sent_pitch.store(pack_degrees(pitch), Relaxed);
         }
         let chunk_pos = self.chunk_pos.load();
         world.broadcast_to_chunk(
@@ -5236,6 +5237,10 @@ impl Entity {
     /// No visual-blocking block between the two eye positions (matching vanilla `ClipContext.Block.VISUAL`).
     #[must_use]
     pub fn has_line_of_sight(&self, other: &Self) -> bool {
+        // Vanilla LivingEntity.hasLineOfSight: entities in different levels never see each other.
+        if !Arc::ptr_eq(&self.world.load_full(), &other.world.load_full()) {
+            return false;
+        }
         let from = self.get_eye_pos();
         let to = other.get_eye_pos();
         let distance_sq = from.squared_distance_to_vec(&to);
@@ -6292,7 +6297,10 @@ impl Entity {
                 },
                 Relaxed,
             );
-            // TODO: world.emitGameEvent(passenger, GameEvent.ENTITY_DISMOUNT, vehicle.pos)
+            // Vanilla `Entity`: the dismounting passenger emits ENTITY_DISMOUNT at the vehicle.
+            self.world
+                .load()
+                .emit_game_event(GameEvent::EntityDismount.name(), self.pos.load());
 
             // Mirrors Cushion#removePassenger: get-up sound while the cushion stays alive.
             if self.entity_type == &EntityType::CUSHION && self.is_alive() {

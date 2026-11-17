@@ -10,8 +10,6 @@ use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::statistic::StatisticCategory;
-use pumpkin_protocol::IdOr;
-use pumpkin_protocol::java::client::play::CSoundEffect;
 use pumpkin_util::{GameMode, Hand};
 
 pub struct BowItem;
@@ -78,11 +76,21 @@ impl BowItem {
             return;
         }
 
+        // Vanilla `BowItem.releaseUsing` folds creative mode and Infinity into `flag`:
+        // an Infinity bow still fires a plain arrow when the ammo ran out mid-draw.
+        let is_creative = player.gamemode.load() == GameMode::Creative;
+        let has_infinity = weapon
+            .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+            .is_some_and(|enchantments| {
+                enchantments
+                    .enchantment
+                    .iter()
+                    .any(|(e, _)| **e == pumpkin_data::Enchantment::INFINITY)
+            });
+
         // Check arrows again
         let arrow_slot = player.find_arrow();
-        let gamemode = player.gamemode.load();
-
-        if arrow_slot.is_none() && gamemode != GameMode::Creative {
+        if arrow_slot.is_none() && !is_creative && !has_infinity {
             return;
         }
 
@@ -97,17 +105,6 @@ impl BowItem {
 
         // Calculate power and fire
         let power = Self::get_power_for_time(use_ticks);
-        let is_creative = gamemode == GameMode::Creative;
-
-        // Check for Infinity enchantment
-        let has_infinity = weapon
-            .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
-            .is_some_and(|enchantments| {
-                enchantments
-                    .enchantment
-                    .iter()
-                    .any(|(e, _)| **e == pumpkin_data::Enchantment::INFINITY)
-            });
 
         let fired_projectiles = ProjectileWeaponItem::draw(weapon, &projectile, is_creative);
         if fired_projectiles.is_empty() {
@@ -203,17 +200,15 @@ impl BowItem {
             is_creative,
         );
 
+        // Vanilla broadcasts the shoot sound to players within its audible range.
         let sound_pitch = 1.0 / (rand::random::<f32>() * 0.4 + 1.2) + power * 0.5;
-        let sound_packet = CSoundEffect::new(
-            IdOr::Id(Sound::EntityArrowShoot as u16),
+        world.play_sound_raw(
+            Sound::EntityArrowShoot as u16,
             SoundCategory::Players,
             &player.position(),
             1.0,
             sound_pitch,
-            0,
         );
-        let chunk_pos = player.get_entity().chunk_pos.load();
-        world.broadcast_to_chunk(chunk_pos, &sound_packet);
     }
 
     /// Fire an arrow from the bow with explicit critical flag

@@ -51,11 +51,23 @@ pub(crate) const fn cooking_total_time(
     ((recipe_time + divisor - 1) / divisor) as u16
 }
 
+/// Vanilla `AbstractFurnaceBlockEntity#createExperience`: award the whole part of a recipe's
+/// experience and roll its fractional part against a random value in `[0, 1)`.
+pub(crate) fn split_experience(experience: f32, roll: f32) -> i32 {
+    let whole = experience.floor();
+    let fraction = experience - whole;
+    whole as i32 + i32::from(fraction != 0.0 && roll < fraction)
+}
+
 /// Reads a saved cooking value under its vanilla `AbstractFurnaceBlockEntity` key,
 /// falling back to the legacy Pumpkin snake_case key for worlds saved by older builds.
-pub(crate) fn read_saved_short(nbt: &pumpkin_nbt::compound::NbtCompound, vanilla: &str, legacy: &str) -> u16 {
-    nbt.get_short(vanilla)
-        .or_else(|| nbt.get_short(legacy))
+pub(crate) fn read_saved_short(
+    nbt: &pumpkin_nbt::compound::NbtCompound,
+    vanilla: &str,
+    legacy: &str,
+) -> u16 {
+    nbt.get_numeric_short(vanilla)
+        .or_else(|| nbt.get_numeric_short(legacy))
         .map_or(0, |value| value as u16)
 }
 
@@ -162,30 +174,27 @@ macro_rules! impl_cooking_block_entity_base {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 *recipes.entry(recipe_id).or_insert(0) += 1;
-                drop(recipes);
-                // Vanilla accumulates the exact fractional experience per smelt
-                let xp = pumpkin_data::recipes::get_recipe_experience(recipe.recipe_id)
-                    .unwrap_or(0.0);
-                let mut experience = self
-                    .experience
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                *experience += xp;
             }
 
             fn extract_experience_from_recipes(&self) -> i32 {
-                // Vanilla awards the whole part and keeps the fraction for the next take
-                let mut experience = self
-                    .experience
+                // Vanilla derives XP from `RecipesUsed` at take time and rolls each recipe's
+                // fractional part once, then clears the map.
+                let mut recipes = self
+                    .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let awarded = experience.floor() as i32;
-                *experience -= awarded as f32;
-                drop(experience);
-                self.recipes_used
+                let awarded = recipes.iter().fold(0, |total, (recipe_id, count)| {
+                    let experience =
+                        pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
+                            * (*count as f32);
+                    total + $crate::block::entities::furnace_like_block_entity::split_experience(experience, rand::random::<f32>())
+                });
+                recipes.clear();
+                drop(recipes);
+                *self
+                    .experience
                     .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .clear();
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = 0.0;
                 awarded
             }
 
@@ -214,10 +223,12 @@ macro_rules! impl_cooking_block_entity_base {
                         .unwrap_or(&recipe.result.id),
                 ) && !is_top_items_empty
                     && recipe_output_item.id == side_item_stack.item.id
-                    && side_item_stack.item_count < max_count
-                    && side_item_stack.item_count < side_item_stack.get_max_stack_size()
                 {
-                    return true;
+                    // Vanilla `canBurn`: the result stack must have room for the whole result.
+                    let total =
+                        u16::from(side_item_stack.item_count) + u16::from(recipe.result.count);
+                    return total <= u16::from(max_count)
+                        && total <= u16::from(side_item_stack.get_max_stack_size());
                 }
                 false
             }
@@ -243,7 +254,7 @@ macro_rules! impl_cooking_block_entity_base {
                         if items[2].are_equal(ItemStack::EMPTY) {
                             items[2] = output_item_stack;
                         } else if items[2].are_items_and_components_equal(&output_item_stack) {
-                            items[2].increment(1);
+                            items[2].increment(recipe.result.count);
                         }
 
                         // Track recipe usage for XP calculation (vanilla RecipesUsed format)
@@ -560,10 +571,19 @@ macro_rules! impl_block_entity_for_cooking {
                         let mut start_cancelled = false;
                         if self.get_cooking_time_spent() == 0 {
                             if let Some(server) = world.server.upgrade() {
+                                // Vanilla passes `getTotalCookTime` (recipe time / speed
+                                // multiplier, default 200), not the stored total.
+                                let start_total = furnace_recipe
+                                    .map_or(200, |recipe| {
+                                        $crate::block::entities::furnace_like_block_entity::cooking_total_time(
+                                            &$recipe_kind,
+                                            recipe.cookingtime,
+                                        )
+                                    });
                                 let mut start_event = $crate::plugin::api::events::inventory::furnace_start_smelt::FurnaceStartSmeltEvent::new(
                                     self.position,
                                     top_item.item.registry_key.to_string(),
-                                    self.get_cooking_total_time() as u32,
+                                    start_total as u32,
                                 );
                                 server.plugin_manager.fire_blocking(&server, &mut start_event);
                                 if start_event.cancelled {
@@ -608,7 +628,9 @@ macro_rules! impl_block_entity_for_cooking {
                                 }
                             }
                         }
-                    } else {
+                    } else if is_top_items_empty || furnace_recipe.is_some() {
+                        // Vanilla resets progress when the input is empty or the recipe cannot
+                        // be accepted, but freezes it for a non-cooking input.
                         self.set_cooking_time_spent(0);
                     }
                 } else if !self.is_burning() && self.get_cooking_time_spent() > 0 {
@@ -670,7 +692,7 @@ macro_rules! impl_block_entity_for_cooking {
                 let cooking_time_spent =
                     AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "CookTime", "cooking_time_spent"));
                 let lit_total_time = AtomicU16::new(
-                    nbt.get_short("lit_total_time")
+                    nbt.get_numeric_short("lit_total_time")
                         .map_or(0, |lit_total_time| lit_total_time as u16),
                 );
                 let lit_time_remaining =
@@ -711,10 +733,10 @@ macro_rules! impl_block_entity_for_cooking {
             }
 
             fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
-                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
-                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
-                nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
+                nbt.put_int("CookTimeTotal", i32::from(self.get_cooking_total_time()));
+                nbt.put_int("CookTime", i32::from(self.get_cooking_time_spent()));
+                nbt.put_int("lit_total_time", i32::from(self.get_lit_total_time()));
+                nbt.put_int("BurnTime", i32::from(self.get_lit_time_remaining()));
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -798,10 +820,10 @@ macro_rules! impl_block_entity_for_cooking {
 
             fn chunk_data_nbt(&self) -> Option<pumpkin_nbt::compound::NbtCompound> {
                 let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
-                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
-                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
-                nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
+                nbt.put_int("CookTimeTotal", i32::from(self.get_cooking_total_time()));
+                nbt.put_int("CookTime", i32::from(self.get_cooking_time_spent()));
+                nbt.put_int("lit_total_time", i32::from(self.get_lit_total_time()));
+                nbt.put_int("BurnTime", i32::from(self.get_lit_time_remaining()));
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -935,15 +957,15 @@ mod tests {
         use pumpkin_nbt::compound::NbtCompound;
 
         let mut nbt = NbtCompound::new();
-        nbt.put_short("BurnTime", 40);
-        nbt.put_short("CookTime", 12);
-        nbt.put_short("CookTimeTotal", 200);
+        nbt.put_int("BurnTime", 40);
+        nbt.put_int("CookTime", 12);
+        nbt.put_int("CookTimeTotal", 200);
         let furnace = FurnaceBlockEntity::from_nbt(&nbt, BlockPos::new(0, 0, 0));
         assert_eq!(furnace.get_lit_time_remaining(), 40);
         assert_eq!(furnace.get_cooking_time_spent(), 12);
         assert_eq!(furnace.get_cooking_total_time(), 200);
 
-        // Worlds saved by older builds used snake_case keys and must still load.
+        // Worlds saved by older builds used snake_case keys and short tags and must still load.
         let mut legacy = NbtCompound::new();
         legacy.put_short("lit_time_remaining", 7);
         legacy.put_short("cooking_time_spent", 3);
@@ -952,6 +974,25 @@ mod tests {
         assert_eq!(furnace.get_lit_time_remaining(), 7);
         assert_eq!(furnace.get_cooking_time_spent(), 3);
         assert_eq!(furnace.get_cooking_total_time(), 100);
+    }
+
+    #[test]
+    fn furnace_state_is_saved_with_vanilla_int_keys() {
+        use crate::block::entities::furnace::FurnaceBlockEntity;
+        use pumpkin_nbt::compound::NbtCompound;
+
+        let furnace = FurnaceBlockEntity::new(BlockPos::new(0, 0, 0));
+        furnace.set_cooking_time_spent(12);
+        furnace.set_cooking_total_time(200);
+        furnace.set_lit_time_remaining(40);
+        furnace.set_lit_total_time(40);
+
+        let mut nbt = NbtCompound::new();
+        furnace.write_nbt(&mut nbt);
+        assert_eq!(nbt.get_int("CookTime"), Some(12));
+        assert_eq!(nbt.get_int("CookTimeTotal"), Some(200));
+        assert_eq!(nbt.get_int("BurnTime"), Some(40));
+        assert_eq!(nbt.get_int("lit_total_time"), Some(40));
     }
 
     #[test]

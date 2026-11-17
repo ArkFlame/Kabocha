@@ -36,8 +36,9 @@ const ARG_BIOME: &str = "biome";
 const ARG_POI: &str = "poi";
 
 /// Vanilla's `LocateCommand` asks `findNearestMapStructure` for a structure
-/// within 100 chunks of the source.
-const STRUCTURE_SEARCH_RADIUS_CHUNKS: i32 = 100;
+/// 100 region rings out: `ChunkGenerator` walks region offsets `-100..=100`
+/// around the source region, so the reach grows with the set's spacing.
+const STRUCTURE_SEARCH_RADIUS_REGIONS: i32 = 100;
 
 /// Biome search parameters from vanilla's `LocateCommand`: a 6400 block
 /// radius probed every 32 blocks horizontally and every 64 blocks vertically.
@@ -153,21 +154,6 @@ fn structure_set_containing(key: StructureKeys) -> Option<usize> {
         .position(|set| set.structures.iter().any(|entry| entry.structure == key))
 }
 
-/// The structure finder counts chunk-region rings, and one region is
-/// `spacing` chunks wide. Rounding up keeps every region the vanilla
-/// chunk-radius scan reaches, since a region's candidate chunk can sit up to
-/// `spacing - 1` chunks inside the boundary.
-fn structure_search_rings(set: &StructureSet) -> i32 {
-    match &set.placement.placement_type {
-        StructurePlacementType::RandomSpread(placement) => {
-            STRUCTURE_SEARCH_RADIUS_CHUNKS / placement.spacing + 1
-        }
-        // Concentric-ring placements come from the stronghold cache, which
-        // ignores the radius.
-        StructurePlacementType::ConcentricRings(_) => STRUCTURE_SEARCH_RADIUS_CHUNKS,
-    }
-}
-
 /// Unfloored horizontal distance, for picking the nearest of several hits
 /// without two candidates collapsing onto the same integer.
 fn horizontal_distance_exact(origin: &BlockPos, target: &BlockPos) -> f64 {
@@ -176,17 +162,20 @@ fn horizontal_distance_exact(origin: &BlockPos, target: &BlockPos) -> f64 {
     dx.hypot(dz)
 }
 
-/// Vanilla reports the horizontal block distance for structures and POIs.
+/// Vanilla reports the horizontal block distance for structures and POIs as
+/// `Mth.floor((float) Math.hypot(dx, dz))`, so round through `f32`.
 fn horizontal_distance(origin: &BlockPos, target: &BlockPos) -> i32 {
-    horizontal_distance_exact(origin, target).floor().max(0.0) as i32
+    (horizontal_distance_exact(origin, target) as f32)
+        .floor()
+        .max(0.0) as i32
 }
 
-/// ... and the full 3D block distance for biomes.
+/// ... and biomes use `Mth.floor(Mth.sqrt((float) distSqr))`.
 fn absolute_distance(origin: &BlockPos, target: &BlockPos) -> i32 {
     let dx = f64::from(target.0.x - origin.0.x);
     let dy = f64::from(target.0.y - origin.0.y);
     let dz = f64::from(target.0.z - origin.0.z);
-    (dx * dx + dy * dy + dz * dz).sqrt().floor().max(0.0) as i32
+    ((dx * dx + dy * dy + dz * dz) as f32).sqrt().floor().max(0.0) as i32
 }
 
 fn send_success(
@@ -252,7 +241,9 @@ impl CommandExecutor for LocateStructureExecutor {
         let mut found: Option<(BlockPos, StructureKeys)> = None;
         for (set_index, keys) in scans {
             let set = &StructureSet::ALL[set_index];
-            let search_radius = structure_search_rings(set);
+            // Concentric-ring placements come from the stronghold cache, which
+            // ignores the radius.
+            let search_radius = STRUCTURE_SEARCH_RADIUS_REGIONS;
             let nearest = match &set.placement.placement_type {
                 // Strongholds come out of the pre-computed ring cache, which
                 // already holds positions they really occupy. A concentric-ring
@@ -379,6 +370,17 @@ impl CommandExecutor for LocateBiomeExecutor {
     }
 }
 
+/// Paper's `PoiAccess.findNearestPoiRecords` bounds candidates by a 3D sphere
+/// of squared radius `POI_SEARCH_RADIUS²`, not the enclosing square, so a poi
+/// far above or below the source is not locatable.
+fn poi_within_radius(origin: &BlockPos, target: &BlockPos) -> bool {
+    let dx = i64::from(target.0.x - origin.0.x);
+    let dy = i64::from(target.0.y - origin.0.y);
+    let dz = i64::from(target.0.z - origin.0.z);
+    let radius = i64::from(POI_SEARCH_RADIUS);
+    dx * dx + dy * dy + dz * dz <= radius * radius
+}
+
 struct LocatePoiExecutor;
 
 impl CommandExecutor for LocatePoiExecutor {
@@ -412,8 +414,8 @@ impl CommandExecutor for LocatePoiExecutor {
                 .portal_poi
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            poi_storage.find_closest_matching(origin, POI_SEARCH_RADIUS, |poi_type| {
-                targets.contains(poi_type)
+            poi_storage.find_closest_where(origin, POI_SEARCH_RADIUS, |poi_type, pos| {
+                targets.contains(poi_type) && poi_within_radius(&origin, &pos)
             })
         };
 
@@ -514,6 +516,27 @@ mod tests {
         assert_eq!(members.len(), 5);
         assert!(members.contains(&StructureKeys::VillagePlains));
         assert!(members.contains(&StructureKeys::VillageTaiga));
+    }
+
+    /// Vanilla computes the biome distance as `Mth.floor(Mth.sqrt((float)
+    /// distSqr))`; this 4137.9997 block distance rounds up through `f32`.
+    #[test]
+    fn biome_distance_rounds_through_f32() {
+        let origin = BlockPos::new(0, 0, 0);
+        assert_eq!(
+            absolute_distance(&origin, &BlockPos::new(1, 2871, 2980)),
+            4138
+        );
+    }
+
+    /// Paper bounds poi candidates by the 3D radius, so a poi 250 blocks up
+    /// and 250 blocks out stays outside the search even though it is inside
+    /// the x/z square.
+    #[test]
+    fn poi_search_is_bounded_by_3d_radius() {
+        let origin = BlockPos::new(0, 64, 0);
+        assert!(poi_within_radius(&origin, &BlockPos::new(250, 64, 0)));
+        assert!(!poi_within_radius(&origin, &BlockPos::new(250, 314, 0)));
     }
 
     /// Every structure the command can name must belong to a set, or it has no

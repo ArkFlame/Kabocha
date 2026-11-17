@@ -6,7 +6,9 @@ use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::Nbt;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
+use pumpkin_util::identifier::Identifier;
 use serde_json::Value;
+use tracing::warn;
 
 pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
     ("minecraft:wolf_variant", &["wolf_variant", "wolf_variants"]),
@@ -262,6 +264,9 @@ pub fn json_to_nbt_tag(v: &Value) -> Option<NbtTag> {
 }
 
 /// Encodes a JSON definition into binary unnamed NBT bytes.
+///
+/// The dynamic registry loader rejects a non-object root before calling this,
+/// matching vanilla's registry codecs.
 #[must_use]
 pub fn json_to_registry_nbt_bytes(val: &Value) -> Box<[u8]> {
     let nbt_tag = json_to_nbt_tag(val).unwrap_or_else(|| NbtTag::Compound(NbtCompound::new()));
@@ -303,20 +308,43 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
                 stem_path = stem.to_string();
             }
             let stem_path = stem_path.replace('\\', "/");
+            // Vanilla rejects entry ids that are not valid resource locations.
+            if !Identifier::is_valid_namespace(namespace) || !Identifier::is_valid_path(&stem_path) {
+                warn!(
+                    "Skipping dynamic registry file {}: invalid resource location",
+                    path.display()
+                );
+                continue;
+            }
             let entry_id = format!("{namespace}:{stem_path}");
 
-            if let Ok(content) = fs::read_to_string(&path)
-                && let Ok(val) = serde_json::from_str::<Value>(&content)
-            {
-                let nbt_bytes = json_to_registry_nbt_bytes(&val);
-                registry_map.insert(
-                    entry_id.clone(),
-                    RegistryEntryData {
-                        entry_id,
-                        data: Some(nbt_bytes),
-                    },
+            let Ok(content) = fs::read_to_string(&path) else {
+                warn!("Skipping dynamic registry file {}: unreadable", path.display());
+                continue;
+            };
+            let val = match serde_json::from_str::<Value>(&content) {
+                Ok(val) => val,
+                Err(err) => {
+                    warn!("Skipping dynamic registry file {}: {err}", path.display());
+                    continue;
+                }
+            };
+            if !val.is_object() {
+                warn!(
+                    "Skipping dynamic registry file {}: root is not a JSON object",
+                    path.display()
                 );
+                continue;
             }
+
+            let nbt_bytes = json_to_registry_nbt_bytes(&val);
+            registry_map.insert(
+                entry_id.clone(),
+                RegistryEntryData {
+                    entry_id,
+                    data: Some(nbt_bytes),
+                },
+            );
         }
     }
 }
@@ -455,7 +483,6 @@ pub fn merge_dynamic_registry_entries<S: std::hash::BuildHasher>(
                 entry_id: entry.entry_id.clone(),
                 data: custom.data.clone(),
             };
-            reg_entry.entry_id.clone_from(&entry.entry_id);
             merged.push(reg_entry);
             overridden.insert(full_id);
             overridden.insert(entry.entry_id.clone());
@@ -550,6 +577,35 @@ mod tests {
         // Vanilla only reads the exact `.json` suffix, so `.JSON` files are ignored.
         assert_eq!(registry.len(), 1);
         assert!(registry.contains_key("custom:lower"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn invalid_registry_files_are_skipped() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(
+            temp_dir.join("Upper Case.json"),
+            r#"{"asset_id":"custom:uppercase"}"#,
+        )
+        .unwrap();
+        fs::write(temp_dir.join("array_root.json"), "[1,2]").unwrap();
+        fs::write(temp_dir.join("broken.json"), "{not json").unwrap();
+        fs::write(
+            temp_dir.join("good.json"),
+            r#"{"asset_id":"custom:good"}"#,
+        )
+        .unwrap();
+
+        let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
+        load_registry_dir_recursive("custom", &temp_dir, &temp_dir, &mut registry);
+
+        // Vanilla rejects ids that are not valid resource locations and files whose root
+        // is not a JSON object; unparsable files are skipped as well.
+        assert_eq!(registry.len(), 1);
+        assert!(registry.contains_key("custom:good"));
 
         let _ = fs::remove_dir_all(temp_dir);
     }

@@ -602,7 +602,7 @@ impl EntityBase for ArrowEntity {
         }
 
         match hit {
-            ProjectileHit::Block { pos, .. } => self.on_hit_block(&pos),
+            ProjectileHit::Block { .. } => self.on_hit_block(),
             ProjectileHit::Entity {
                 entity: target,
                 hit_pos,
@@ -692,17 +692,7 @@ impl EntityBase for ArrowEntity {
 }
 
 impl ArrowEntity {
-    fn on_hit_block(&self, pos: &BlockPos) {
-        let entity = self.get_entity();
-        let world = entity.world.load();
-        if world.get_block(pos) == &pumpkin_data::Block::TARGET
-            && let Some(player) = self.owner.get_player(&world)
-        {
-            player.trigger_advancement(
-                crate::entity::player::advancement::trigger::AdvancementTrigger::Bullseye,
-            );
-        }
-
+    fn on_hit_block(&self) {
         abstract_arrow::stick_in_block(self, Sound::EntityArrowHit);
         self.set_critical(false);
         self.set_pierce_level(0);
@@ -738,7 +728,7 @@ impl ArrowEntity {
 
         let target_entity = target.get_entity();
         let fire_ticks = target_entity.fire_ticks.load(Ordering::Relaxed);
-        if self.is_on_fire() {
+        if self.is_on_fire() && Self::ignites_target(target_entity.entity_type) {
             target_entity.set_on_fire_for(Self::IGNITE_SECONDS);
         }
 
@@ -832,6 +822,12 @@ impl ArrowEntity {
         for effect in extra.iter() {
             living.add_effect(effect.clone());
         }
+    }
+
+    /// Vanilla `Arrow#onHitEntity` never ignites an enderman: it dodges instead.
+    #[must_use]
+    fn ignites_target(target_type: &EntityType) -> bool {
+        target_type.id != EntityType::ENDERMAN.id
     }
 
     /// Punch pushes the target along the arrow's flight, less for knockback resistant mobs.
@@ -982,6 +978,12 @@ mod tests {
         let normal = ItemStack::new(1, &Item::ARROW);
         let normal_color = ArrowEntity::get_effect_color(&normal);
         assert_eq!(normal_color, -1);
+    }
+
+    #[test]
+    fn flame_arrow_does_not_ignite_endermen() {
+        assert!(!ArrowEntity::ignites_target(&EntityType::ENDERMAN));
+        assert!(ArrowEntity::ignites_target(&EntityType::ZOMBIE));
     }
 
     #[test]

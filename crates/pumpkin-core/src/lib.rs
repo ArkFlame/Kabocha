@@ -25,6 +25,7 @@ use crate::plugin::server::server_command::ServerCommandEvent;
 use crate::server::{Server, ticker::Ticker};
 use plugin::server::server_load::{LoadType, ServerLoadEvent};
 use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
+use pumpkin_data::translation;
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::color::{Color, NamedColor};
 use pumpkin_world::world_info::WorldInfoError;
@@ -620,7 +621,12 @@ impl PumpkinServer {
             error!("Error saving all players advancements during shutdown: {e}");
         }
 
-        let kick_message = TextComponent::text("Server stopped");
+        // Vanilla disconnects every player with the translatable server-shutdown message
+        let kick_message = TextComponent::translate_cross(
+            translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+            translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+            [],
+        );
         for player in self.server.get_all_players() {
             player.kick(DisconnectReason::Shutdown, &kick_message);
         }
@@ -765,6 +771,9 @@ impl PumpkinServer {
                         if let Err(error) = server.player_data_storage.handle_player_leave(&player)
                         {
                             error!("Failed to save player data on disconnect: {error}");
+                        }
+                        if let Err(e) = server.advancement_manager.save_player(&player).await {
+                            error!("Failed to save player advancement on disconnect: {e}");
                         }
                     }
                 }

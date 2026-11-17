@@ -279,7 +279,9 @@ pub trait BlockBehaviour: Send + Sync {
             PathComputationType::Water => {
                 World::get_fluid_from_state_id(state.id).has_tag(&tag::Fluid::MINECRAFT_WATER)
             }
-            PathComputationType::Land | PathComputationType::Air => !state.is_full_cube(),
+            // Vanilla `BlockBehaviour.isPathfindable` defaults to `!state.isSolid()` for land and
+            // air, so fences, walls and other motion-blocking non-full cubes are not pathfindable.
+            PathComputationType::Land | PathComputationType::Air => !state.is_solid(),
         }
     }
 }

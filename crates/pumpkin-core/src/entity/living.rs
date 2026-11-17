@@ -204,7 +204,23 @@ impl EffectParticle {
     }
 }
 
-fn is_allowed_by_team_rules(
+/// Whether a scoreboard `CollisionRule` lets its team's entities push the other one.
+///
+/// Vanilla: `pushOtherTeams` only pushes entities outside the team, `pushOwnTeam` only
+/// teammates, `never` blocks every push and `always` allows all of them.
+fn collision_rule_allows(rule: crate::world::scoreboard::CollisionRule, same_team: bool) -> bool {
+    use crate::world::scoreboard::CollisionRule;
+
+    match rule {
+        CollisionRule::Always => true,
+        CollisionRule::Never => false,
+        CollisionRule::PushOtherTeams => !same_team,
+        CollisionRule::PushOwnTeam => same_team,
+    }
+}
+
+/// Vanilla scoreboard collision rule: both teams must allow the push.
+pub(crate) fn is_allowed_by_team_rules(
     own_team: Option<&crate::world::scoreboard::Team>,
     their_team: Option<&crate::world::scoreboard::Team>,
 ) -> bool {
@@ -212,23 +228,11 @@ fn is_allowed_by_team_rules(
 
     let own_rule = own_team.map_or(CollisionRule::Always, |team| team.collision_rule);
     let their_rule = their_team.map_or(CollisionRule::Always, |team| team.collision_rule);
-
-    if own_rule == CollisionRule::Never || their_rule == CollisionRule::Never {
-        return false;
-    }
-
     let same_team = own_team
         .zip(their_team)
         .is_some_and(|(own, their)| own.name == their.name);
 
-    if (own_rule == CollisionRule::PushOwnTeam || their_rule == CollisionRule::PushOwnTeam)
-        && same_team
-    {
-        return false;
-    }
-
-    (own_rule != CollisionRule::PushOtherTeams && their_rule != CollisionRule::PushOtherTeams)
-        || same_team
+    collision_rule_allows(own_rule, same_team) && collision_rule_allows(their_rule, same_team)
 }
 
 /// Who an instant effect came from: the potion or cloud, and who threw or placed it.
@@ -1939,7 +1943,7 @@ impl LivingEntity {
 
                 // Fetch safe fall distance from attribute
                 let safe_distance = self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE);
-                return distance.sqrt() <= safe_distance * safe_distance;
+                return distance <= safe_distance * safe_distance;
             }
         }
 
@@ -3096,7 +3100,7 @@ impl LivingEntity {
             // setDamageValue(maxDamage - random.nextInt(1 + random.nextInt(max(maxDamage - 3, 1))))
             if !preserved && let Some(max_damage) = item.get_max_damage() {
                 let mut rng = rand::rng();
-                let inner = rng.random_range(0..(max_damage - 3).max(1));
+                let inner = rng.random_range(0..=(max_damage - 3).max(1));
                 let outer = rng.random_range(0..=inner);
                 item.set_damage((max_damage - outer).max(0));
             }
@@ -3959,8 +3963,7 @@ impl LivingEntity {
         let mut read_effects = Vec::new();
         for effect in nbt.get_list("active_effects").unwrap_or_default() {
             if let NbtTag::Compound(effect_nbt) = effect {
-                if let Some(mut effect) = Effect::create_from_nbt(&mut effect_nbt.clone()) {
-                    effect.blend = true; // TODO: change, is taken from effect give command
+                if let Some(effect) = Effect::create_from_nbt(&mut effect_nbt.clone()) {
                     read_effects.push(effect);
                 } else {
                     warn!("Unable to read effect from nbt");
@@ -6685,5 +6688,49 @@ mod player_wall_tests {
 
         world.level.shutdown().await;
         Ok(())
+    }
+
+    fn team_with_rule(
+        name: &str,
+        rule: crate::world::scoreboard::CollisionRule,
+    ) -> crate::world::scoreboard::Team {
+        crate::world::scoreboard::Team {
+            name: name.to_string(),
+            display_name: pumpkin_util::text::TextComponent::text(""),
+            options: 0,
+            nametag_visibility: crate::world::scoreboard::NameTagVisibility::Always,
+            collision_rule: rule,
+            color: pumpkin_util::text::color::NamedColor::White,
+            player_prefix: pumpkin_util::text::TextComponent::text(""),
+            player_suffix: pumpkin_util::text::TextComponent::text(""),
+            players: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn scoreboard_collision_rules_gate_pushing() {
+        use super::is_allowed_by_team_rules;
+        use crate::world::scoreboard::CollisionRule;
+
+        let always = team_with_rule("a", CollisionRule::Always);
+        let other = team_with_rule("b", CollisionRule::Always);
+        assert!(is_allowed_by_team_rules(Some(&always), Some(&other)));
+        assert!(is_allowed_by_team_rules(None, None));
+
+        let never = team_with_rule("a", CollisionRule::Never);
+        assert!(!is_allowed_by_team_rules(Some(&never), Some(&other)));
+        assert!(!is_allowed_by_team_rules(Some(&always), Some(&never)));
+        assert!(!is_allowed_by_team_rules(Some(&never), None));
+
+        // `pushOwnTeam` only pushes teammates, `pushOtherTeams` only outsiders.
+        let own = team_with_rule("a", CollisionRule::PushOwnTeam);
+        let own_same = team_with_rule("a", CollisionRule::Always);
+        assert!(is_allowed_by_team_rules(Some(&own), Some(&own_same)));
+        assert!(!is_allowed_by_team_rules(Some(&own), Some(&other)));
+
+        let others = team_with_rule("a", CollisionRule::PushOtherTeams);
+        let others_same = team_with_rule("a", CollisionRule::Always);
+        assert!(!is_allowed_by_team_rules(Some(&others), Some(&others_same)));
+        assert!(is_allowed_by_team_rules(Some(&others), Some(&other)));
     }
 }

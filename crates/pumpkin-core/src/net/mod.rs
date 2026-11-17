@@ -500,11 +500,11 @@ pub enum EncryptionError {
     VerifyTokenMismatch,
 }
 
+/// Vanilla's `StringUtil.isValidPlayerName`: at most 16 characters, each from `!` to `~`.
+/// Non-ASCII names pass a length check but vanilla rejects them, so the byte scan doubles as
+/// the length and charset check (a valid name is ASCII, so bytes equal characters).
 fn is_valid_player_name(name: &str) -> bool {
-    if name.len() > 16 {
-        return false;
-    }
-    !name.chars().any(|c| c.is_control() || c == ' ')
+    name.len() <= 16 && name.as_bytes().iter().all(u8::is_ascii_graphic)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -709,23 +709,23 @@ mod tests {
         );
     }
 
-    /// Test case for allowed high-codepoint Unicode characters (like Chinese/CJK).
+    /// Vanilla's `StringUtil.isValidPlayerName` only accepts `!` to `~`, so CJK is rejected.
     #[test]
-    fn valid_unicode_chinese() {
+    fn invalid_unicode_chinese() {
         let name = "玩家一号"; // 4 characters, 12 bytes
         assert!(
-            is_valid_player_name(name),
-            "Chinese characters should be valid"
+            !is_valid_player_name(name),
+            "Chinese characters should be invalid"
         );
     }
 
-    /// Test case for a mix of valid ASCII and Unicode characters.
+    /// A mix of ASCII and non-ASCII is rejected too.
     #[test]
-    fn valid_mixed_chars() {
+    fn invalid_mixed_chars() {
         let name = "Player_玩家"; // 9 characters
         assert!(
-            is_valid_player_name(name),
-            "Mixed ASCII and Unicode should be valid"
+            !is_valid_player_name(name),
+            "Mixed ASCII and Unicode should be invalid"
         );
     }
 

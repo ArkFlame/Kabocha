@@ -107,15 +107,12 @@ impl NBTStorageInit for pumpkin_data::potion::Effect {
             warn!("Unable to read effect. Unknown effect type: {effect_id}");
             return None;
         };
-        let Some(show_icon) = nbt.get_byte("show_icon") else {
-            warn!("Unable to read effect. Show icon is not present");
-            return None;
-        };
+        // Vanilla MobEffectInstance.load defaults show_icon to true when the key is absent.
+        let show_icon = nbt.get_byte("show_icon").is_none_or(|b| b == 1);
         let amplifier = nbt.get_int("amplifier").unwrap_or(0) as u8;
         let duration = nbt.get_int("duration").unwrap_or(0);
         let ambient = nbt.get_byte("ambient").unwrap_or(0) == 1;
         let show_particles = nbt.get_byte("show_particles").unwrap_or(1) == 1;
-        let show_icon = show_icon == 1;
         Some(Self {
             effect_type,
             duration,
@@ -125,5 +122,21 @@ impl NBTStorageInit for pumpkin_data::potion::Effect {
             show_icon,
             blend: false,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_from_nbt_defaults_show_icon_to_true() {
+        let mut nbt = NbtCompound::new();
+        nbt.put("id", StatusEffect::REGENERATION.minecraft_name);
+        nbt.put("duration", NbtTag::Int(200));
+
+        let effect = <pumpkin_data::potion::Effect as NBTStorageInit>::create_from_nbt(&mut nbt);
+
+        assert!(effect.is_some_and(|effect| effect.show_icon));
     }
 }

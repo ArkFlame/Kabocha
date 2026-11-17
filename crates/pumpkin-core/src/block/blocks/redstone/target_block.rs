@@ -9,6 +9,7 @@ use crate::block::{
     BlockBehaviour, EmitsRedstonePowerArgs, GetRedstonePowerArgs, OnProjectileHitArgs,
     OnScheduledTickArgs, PlacedArgs,
 };
+use crate::entity::player::advancement::trigger::AdvancementTrigger;
 use crate::entity::projectile::abstract_arrow::is_abstract_arrow;
 
 fn get_redstone_strength(hit_pos: &Vector3<f64>) -> u8 {
@@ -61,6 +62,16 @@ impl BlockBehaviour for TargetBlock {
             .is_block_tick_scheduled(args.position, args.block)
         {
             let power = get_redstone_strength(args.hit_pos);
+            // Vanilla `TargetBlock.updateRedstoneOutput` fires `minecraft:target_hit` with the
+            // computed signal strength; the Bullseye advancement only matches a 15 (centre) hit.
+            if power == 15
+                && let Some(player) = args
+                    .projectile
+                    .get_projectile_owner()
+                    .and_then(|owner| owner.get_player(args.world))
+            {
+                player.trigger_advancement(AdvancementTrigger::Bullseye);
+            }
             let mut props = TargetProperties::from_state_id(args.state.id);
             props.r#power = power;
             args.world.set_block_state(
