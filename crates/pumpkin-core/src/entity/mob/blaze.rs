@@ -2,7 +2,6 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -14,7 +13,8 @@ use crate::entity::{
     Entity, EntityBase,
     ai::{
         goal::{
-            look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
+            look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+            move_towards_restriction::MoveTowardsRestrictionGoal, swim::SwimGoal,
             wander_around::WanderAroundGoal,
         },
         pathfinder::node::PathType,
@@ -76,8 +76,10 @@ impl BlazeEntity {
                 ),
             );
 
+            goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
+
             goal_selector.add_goal(
-                5,
+                7,
                 Box::new(WanderAroundGoal::water_avoiding_with_probability(1.0, 0.0)),
             );
             goal_selector.add_goal(
@@ -122,28 +124,19 @@ impl Mob for BlazeEntity {
         true
     }
 
+    /// Vanilla `Blaze.causeFallDamage` returns false: blazes never take fall damage.
+    fn cause_fall_damage(
+        &self,
+        _caller: &dyn EntityBase,
+        _fall_distance: f32,
+        _damage_modifier: f32,
+    ) -> bool {
+        false
+    }
+
     fn additional_tick_movement(&self) -> f64 {
         // Ascent contracts the old vertical velocity and adds this much from rest.
         ASCENT_ACCELERATION * ASCENT_ACCELERATION
-    }
-
-    fn mob_tick(&self, caller: &dyn EntityBase) {
-        let base_entity = &self.entity.living_entity.entity;
-        if !base_entity.is_alive() {
-            return;
-        }
-
-        let on_ground = base_entity.on_ground.load(Ordering::Relaxed);
-        let vel = base_entity.velocity.load();
-        if !on_ground && vel.y < 0.0 {
-            base_entity
-                .velocity
-                .store(Vector3::new(vel.x, vel.y * 0.6, vel.z));
-        }
-
-        if base_entity.touching_water.load(Ordering::Relaxed) {
-            caller.damage(caller, 1.0, DamageType::DROWN);
-        }
     }
 
     /// Vanilla `Blaze.customServerAiStep`: lifts toward a target above the height offset.
@@ -234,6 +227,23 @@ mod tests {
         blaze.custom_server_ai_step(blaze.as_ref());
         assert_eq!(entity.velocity.load(), ascending);
         assert!(!entity.needs_sync.load(Ordering::Relaxed));
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Vanilla `Blaze.causeFallDamage` returns false and deals no damage.
+    #[tokio::test]
+    async fn fall_damage_is_ignored() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let blaze = BlazeEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 80.0, 0.0),
+            &EntityType::BLAZE,
+        ));
+        let health = blaze.entity.living_entity.health.load();
+        assert!(!blaze.cause_fall_damage(blaze.as_ref(), 100.0, 1.0));
+        assert_eq!(blaze.entity.living_entity.health.load(), health);
         world.level.shutdown().await;
         Ok(())
     }

@@ -21,7 +21,7 @@ use crate::world::World;
 const DESCRIPTION: &str = "Spawns an entity at position.";
 const PERMISSION: &str = "minecraft:command.summon";
 
-const ERROR_FAILED_PEACEFUL: CommandErrorType<0> = CommandErrorType::new(
+pub(crate) const ERROR_FAILED_PEACEFUL: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SUMMON_FAILED_PEACEFUL,
     translation::bedrock::COMMANDS_SUMMON_FAILED,
 );
@@ -29,7 +29,7 @@ const ERROR_DUPLICATE_UUID: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SUMMON_FAILED_UUID,
     translation::bedrock::COMMANDS_SUMMON_FAILED,
 );
-const INVALID_POSITION: CommandErrorType<0> = CommandErrorType::new(
+pub(crate) const INVALID_POSITION: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SUMMON_INVALIDPOSITION,
     translation::bedrock::COMMANDS_SUMMON_OUTOFWORLD,
 );

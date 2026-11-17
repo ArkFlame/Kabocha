@@ -895,6 +895,10 @@ impl Server {
         let mut event =
             crate::plugin::api::events::world::world_init::WorldInitEvent::new(world.clone());
         self.plugin_manager.fire_blocking(self, &mut event);
+        // Startup worlds fire both events, so a world created at runtime must too.
+        let mut load_event =
+            crate::plugin::api::events::world::world_load::WorldLoadEvent::new(world.clone());
+        self.plugin_manager.fire_blocking(self, &mut load_event);
         world
     }
 
@@ -1359,8 +1363,15 @@ impl Server {
         !*closed && world.add_player(player).is_ok()
     }
 
-    /// Refuses all later joins. Returns once every join in progress is in a world
+    /// Refuses all later joins. Returns once every join in progress is in a world, so the
+    /// shutdown kick pass sees every admitted player.
     pub fn close_admission(&self) {
+        // Joining holds this lock from the admission check until the player is in a world,
+        // so waiting for it guarantees no join is between the check and the insertion.
+        let _join_guard = self
+            .player_join_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *self
             .admission_closed
             .write()
@@ -2002,12 +2013,17 @@ impl Server {
     }
 
     /// Returns the Ticks Per Second (TPS).
+    ///
+    /// Tick time measures work only, without the idle wait before the next deadline, so the
+    /// rate from MSPT alone can exceed the target. The ticker never runs faster than the
+    /// target rate, so cap there.
     pub fn get_tps(&self) -> f64 {
         let mspt = self.get_mspt();
         if mspt <= 0.0 {
             return 0.0;
         }
-        1000.0 / mspt
+        let target = 1_000_000_000.0 / self.tick_rate_manager.nanoseconds_per_tick().max(1) as f64;
+        (1000.0 / mspt).min(target)
     }
 
     /// Returns a copy of the last 100 tick times.

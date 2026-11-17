@@ -40,6 +40,7 @@ use crate::command::argument_types::resource_key::{
 use crate::command::argument_types::resource_or_tag::{ResourceOrTag, ResourceOrTagArgument};
 use crate::command::argument_types::score_holder::{ResolvedScoreHolder, ScoreHolderArgumentType};
 use crate::command::commands::bossbar::{BossbarIdArgumentType, ERROR_UNKNOWN_BOSSBAR};
+use crate::command::commands::summon::{ERROR_FAILED_PEACEFUL, INVALID_POSITION};
 use crate::command::commands::data::{
     BlockDataAccessor, DataAccessor, EntityDataAccessor, StorageDataAccessor, TargetKind,
     make_target_arg,
@@ -65,6 +66,7 @@ use crate::world::stopwatches::Stopwatches;
 use pumpkin_data::translation;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::PermissionLvl;
+use pumpkin_util::difficulty::Difficulty;
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
@@ -198,8 +200,8 @@ fn execute_positioned_over_modifier(
     };
 
     if let Some(ref world) = source.world {
-        let block_pos = BlockPos::new(block_x, pos.y.floor() as i32, block_z);
-        if !world.is_loaded(&block_pos) {
+        // Vanilla checks only that the chunk is loaded (`Level#hasChunk`), not the source y.
+        if !world.has_chunks_at(block_x, block_z, block_x, block_z) {
             return Err(ERROR_POS_NOT_LOADED.create_without_context());
         }
         source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
@@ -1357,15 +1359,27 @@ fn execute_summon_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
     let entity_type = ResourceArgument::get_summonable_entity_type(context, "entity")?;
-    let entity = from_type(
-        entity_type,
-        context.source.position,
-        context.source.world(),
-        Uuid::new_v4(),
-    );
+    let position = context.source.position;
+    let world = context.source.world();
+    // Vanilla routes this through `SummonCommand.createEntity`, so the spawnable-bounds and
+    // peaceful-difficulty checks of `/summon` apply here too.
+    if !World::is_valid(BlockPos::floored_v(position)) {
+        return Err(INVALID_POSITION.create_without_context());
+    }
+    if world.level_info.load().difficulty == Difficulty::Peaceful
+        && !entity_type.category.is_friendly
+    {
+        return Err(ERROR_FAILED_PEACEFUL.create_without_context());
+    }
+    let entity = from_type(entity_type, position, world, Uuid::new_v4());
     // Vanilla creates it like `/summon` without NBT: finalized.
-    finalize_spawn(&entity, context.source.world(), crate::entity::mob::spawn::EntitySpawnReason::Command, None);
-    context.source.world().spawn_entity(entity.clone());
+    finalize_spawn(
+        &entity,
+        world,
+        crate::entity::mob::spawn::EntitySpawnReason::Command,
+        None,
+    );
+    world.spawn_entity(entity.clone());
     let mut source = context.source.as_ref().clone();
     // Vanilla routes the new entity through withEntity, which adopts its name and display name.
     source.name = entity.get_name().get_text();
@@ -1477,23 +1491,16 @@ fn execute_on_controller_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
     let mut sources = Vec::new();
-    if let Some(ref entity) = context.source.entity {
-        if let Some(controller) = entity
-            .get_entity()
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .first()
-            .cloned()
-        {
-            let mut source = context.source.as_ref().clone();
-            let name = controller.get_name().get_text();
-            let display_name = controller.get_display_name();
-            source.entity = Some(controller);
-            source.name = name;
-            source.display_name = display_name;
-            sources.push(Arc::new(source));
-        }
+    if let Some(ref entity) = context.source.entity
+        && let Some(controller) = entity.get_controlling_passenger()
+    {
+        let mut source = context.source.as_ref().clone();
+        let name = controller.get_name().get_text();
+        let display_name = controller.get_display_name();
+        source.entity = Some(controller);
+        source.name = name;
+        source.display_name = display_name;
+        sources.push(Arc::new(source));
     }
     Ok(sources)
 }

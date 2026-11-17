@@ -98,6 +98,13 @@ pub fn mace_smash_damage_bonus(fall_distance: f64) -> f64 {
     }
 }
 
+/// Vanilla `MaceItem.getKnockbackPower`: the falloff uses the full 3D offset length,
+/// and the knockback resistance of the pushed entity scales the result.
+#[must_use]
+pub fn mace_smash_knockback_power(distance: f64, heavy: bool, resistance: f64) -> f64 {
+    (3.5 - distance) * f64::from(0.7f32) * if heavy { 2.0 } else { 1.0 } * (1.0 - resistance)
+}
+
 /// Vanilla `MaceItem.knockback`: pushes everything near the victim away from it.
 pub fn mace_smash_knockback(world: &World, attacker: &dyn EntityBase, victim: &dyn EntityBase) {
     let victim_entity = victim.get_entity();
@@ -126,24 +133,22 @@ pub fn mace_smash_knockback(world: &World, attacker: &dyn EntityBase, victim: &d
         if !mace_smash_can_knockback(attacker, victim, nearby.as_ref()) {
             continue;
         }
-        // Vanilla `MaceItem.knockback` measures the 3.5 radius on the horizontal plane only.
+        // Vanilla `MaceItem.knockback` measures the radius and the power on the full 3D
+        // offset, so a target above or below the victim is pushed less and never sideways.
         let nearby_pos = nearby.get_entity().pos.load();
-        let dx = nearby_pos.x - victim_pos.x;
-        let dz = nearby_pos.z - victim_pos.z;
-        let horizontal = dx.hypot(dz);
-        if horizontal >= 3.5 {
+        let offset = nearby_pos - victim_pos;
+        let distance = offset.length();
+        if distance > 3.5 {
             continue;
         }
         let resistance = nearby_living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
-        let power = (3.5 - horizontal)
-            * f64::from(0.7f32)
-            * if heavy { 2.0 } else { 1.0 }
-            * (1.0 - resistance);
-        if power > 0.0 && horizontal > 0.0 {
+        let power = mace_smash_knockback_power(distance, heavy, resistance);
+        if power > 0.0 {
+            let direction = offset.normalize();
             let velocity = Vector3::new(
-                dx / horizontal * power,
+                direction.x * power,
                 f64::from(0.7f32),
-                dz / horizontal * power,
+                direction.z * power,
             );
             let entity = nearby.get_entity();
             if let Some(player) = nearby.get_player() {
@@ -835,5 +840,15 @@ mod tests {
         // Stacked armour modifiers can push resistance above 1.0; the result is
         // negative and callers guard on `strength > 0.0`.
         assert!(knockback_after_resistance(0.4, 1.2) < 0.0);
+    }
+
+    #[test]
+    fn smash_knockback_power_uses_full_3d_distance() {
+        // Targets above the victim use the 3D offset: 2 blocks up is inside the radius,
+        // while a 3D length past 3.5 gives no push at all.
+        assert!((mace_smash_knockback_power(2.0, false, 0.0) - 1.05).abs() < 1e-9);
+        assert!(mace_smash_knockback_power(3.6, false, 0.0) < 0.0);
+        // Heavy smash doubles the power, resistance scales it back down.
+        assert!((mace_smash_knockback_power(2.0, true, 0.5) - 1.05).abs() < 1e-9);
     }
 }

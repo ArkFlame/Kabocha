@@ -7,6 +7,7 @@ use pumpkin_data::BlockState;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -116,7 +117,10 @@ impl BeeEntity {
                 Box::new(MeleeAttackGoal::new(1.4, true).gated_by(can_sting)),
             );
             goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, &[], false)));
+            goal_selector.add_goal(
+                3,
+                Box::new(TemptGoal::with_tag(1.25, &tag::Item::MINECRAFT_FLOWERS, false)),
+            );
             goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.25)));
             goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(9, Box::new(SwimGoal::default()));
@@ -320,7 +324,9 @@ impl Mob for BeeEntity {
         // Vanilla `Bee.customServerAiStep`: a bee that has stung keeps counting and
         // may die from its own sting once the countdown nears 1200 ticks.
         if self.has_stung() {
-            let time = self.time_since_sting.load(Ordering::Relaxed);
+            // Vanilla increments first, then rolls on multiples of 5.
+            let time = self.time_since_sting.load(Ordering::Relaxed) + 1;
+            self.time_since_sting.store(time, Ordering::Relaxed);
             if time % 5 == 0 {
                 let bound = (1200 - time).clamp(1, 1200);
                 if self.get_random().random_range(0..bound) == 0 {
@@ -328,9 +334,18 @@ impl Mob for BeeEntity {
                     living.damage(caller, living.health.load(), DamageType::GENERIC);
                 }
             }
-            self.time_since_sting.store(time + 1, Ordering::Relaxed);
         }
         self.update_persistent_anger();
+    }
+
+    /// Vanilla `Bee.doHurtTarget`: a successful sting uses up the stinger and drops the target.
+    fn on_attack(&self, _target: &dyn EntityBase) {
+        if self.has_stung() {
+            return;
+        }
+        self.set_has_stung(true);
+        self.mob_entity.set_target(None);
+        self.mob_entity.living_entity.entity.play_sound(Sound::EntityBeeSting);
     }
 
     fn mob_init_data_tracker(&self) {

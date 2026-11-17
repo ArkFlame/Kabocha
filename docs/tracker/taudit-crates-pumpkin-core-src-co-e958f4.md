@@ -26,7 +26,15 @@ Already matching vanilla (checked, no change needed):
 - Horizontal distance for structure/poi and 3D distance for biome, the `~` y
   and `/tp @s x ~ z` click command (`LocateCommand.showLocateResult`).
 - Tag result names: `#ns:path (minecraft:found)` from `asPrintable()` plus
-  the registered name.
+  the registered name (`LocateCommand.java:168` for `ResourceOrTagArgument`,
+  `:181-182` for `ResourceOrTagKeyArgument`, where the resource branch is
+  `element.identifier().toString()`); `result_name` matches both overloads.
+- `includeY` false for structure/poi, true for biome, and the `Mth` distance
+  formulas (`LocateCommand.java:196-198`, `:211-215`).
+- POI candidate filter `distSqr <= radius^2` with radius 256
+  (`PoiManager.java:376-385`, `PoiAccess.java:674` keeps `<=`).
+- Error arguments are literal text (Rust `TextComponent::text`) where vanilla
+  uses `Component.translatableEscape` (`LocateCommand.java:39-50`).
 - Biome sample Y order matches `Mth.outFromOrigin` (`out_from_origin` test in
   `biome_finder.rs`).
 
@@ -64,3 +72,15 @@ Remaining gaps:
 | `locate.rs` (`structure_set_containing`) | `ChunkGeneratorStructureState#getPlacementsForStructure` returns every placement of a structure | Only the first set containing the structure is searched, so a datapack structure placed in two sets would miss one placement (current data has no such duplicate) | Return all matching set indices and scan each | S |
 | `pumpkin-world/.../structure_finder.rs` random-spread loop | `ChunkGenerator` evaluates every placement at radius r before choosing the nearest, and returns at the first radius with any hit | The finder breaks at the first placement that hits at radius r, and `locate.rs` then compares per-set results by distance, so cross-set ordering can differ | Collect all placements' hits per ring, pick the nearest, then advance | S |
 | `pumpkin-world/.../structure_finder.rs` (`find_nearest_concentric`) | Stronghold candidates rank by `pos.distSqr` with candidate y=32 (reported y stays 0 via `getLocatePos`) | Candidate y is 0, so 3D ranking ignores the 32 block offset (unobservable unless mixed with a horizontally tied candidate) | Rank concentric candidates at y=32 | XS |
+| `locate.rs` structure arm (`:273-279`) | `LocateCommand.java:105-118` searches placement candidates only: `findNearestMapStructure` returns the nearest chunk whose placement predicate holds, without proving the structure generates there | The arm resolves a real structure start, so a candidate whose biome/validity check fails is skipped: `/locate` can report not-found or a farther position where vanilla reports the candidate | Add a key-returning variant of the potential-chunk search (`find_nearest_structure`) and report its candidate, keeping `_start` for explorer maps | S |
+| `locate.rs` `send_success` (`:298-306`, `:359-367`) | Bedrock `commands.locate.structure.success` takes (name, x, z, distance) and `commands.locate.biome.success` (name, x, y, z, distance) | `translate_cross` shares one argument list, so the 3 Java args land in the Bedrock placeholders shifted and the distance parameter is missing | Give `send_success` per-platform argument lists (or a `translate_cross` overload that accepts both key/args pairs) | M |
+
+Deep audit in this pass (no behaviour change needed):
+
+- Read `LocateCommand.java` end to end against `locate.rs`: argument types,
+  permission level `LEVEL_GAMEMASTERS` (2), `BlockPos.containing`, search
+  parameters, per-structure holder resolution, both `showLocateResult`
+  overloads, distance formulas, `~` y and the `/tp @s x ~ z` suggest-command,
+  `sendSuccess(..., false)`, and the four error types all match.
+- Confirmed there is no `TODO`/`FIXME` in the file; the tracker's 9 markers are
+  the explanatory `vanilla` comments.

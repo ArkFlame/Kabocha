@@ -1,7 +1,12 @@
 use super::BlockEntity;
+use crate::block::blocks::redstone::sculk_sensor::SculkSensorBlock;
+use crate::world::World;
+use crate::world::game_event::GameEventContext;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
-use std::sync::Mutex;
+use pumpkin_util::math::vector3::Vector3;
+use std::sync::{Arc, Mutex};
 
 pub struct CalibratedSculkSensorBlockEntity {
     pub position: BlockPos,
@@ -45,6 +50,21 @@ impl BlockEntity for CalibratedSculkSensorBlockEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    /// Vanilla VibrationSystem listener inside CalibratedSculkSensorBlockEntity.
+    fn game_event_radius(&self) -> Option<i32> {
+        Some(crate::block::blocks::redstone::sculk_sensor::CALIBRATED_LISTENER_RADIUS)
+    }
+
+    fn on_game_event(
+        &self,
+        world: &Arc<World>,
+        event: GameEvent,
+        _context: &GameEventContext<'_>,
+        source_position: Vector3<f64>,
+    ) {
+        SculkSensorBlock::on_vibration(world, &self.position, event, source_position);
     }
 }
 

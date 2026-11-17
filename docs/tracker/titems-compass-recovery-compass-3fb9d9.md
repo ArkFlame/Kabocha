@@ -1,60 +1,54 @@
-# items / Compass & Recovery Compass
+# items / Compass & Recovery Compass (RE-REVIEW-UNTRACKED)
 
-Re-audit (source changed since last review). Date: 2026-11-17.
+Reviewed: 2026-11-17, after the compass source changed in `1c14e29ee`
+(`copy_with_count` -> `transmute_copy`, + `send_content_updates`). Neither change
+introduces a parity gap: `transmute_copy` keeps `patch` (pumpkin-data/src/item_stack/mod.rs:184),
+which is what vanilla `ItemStack.consumeAndReturn`/`split` does.
 
-Implemented and matching vanilla:
-- `crates/pumpkin-core/src/item/items/compass.rs` registers `COMPASS` + `RECOVERY_COMPASS`;
-  lodestone locking matches `CompassItem.useOn` (sound `item.lodestone_compass.lock`,
-  count==1 && not creative -> set `lodestone_tracker` in place, else transmute a fresh
-  compass, shrink unless creative, insert into inventory, drop the remainder).
-- Lodestone tracker invalidation is ticked in
-  `crates/pumpkin-core/src/entity/player.rs:6838-6860` (`tick_inventory_item_components`).
-- Recovery compass target data (`last_death_location`) is recorded on death
-  (`entity/player.rs:6240-6248`) and sent on login/respawn (`world/mod.rs:4205`, `world/mod.rs:4991`).
-- Item glint: vanilla `assets/items.json` gives `recovery_compass` no
-  `enchantment_glint_override`, so no glint hook is missing (1.20.5+ removed `isFoil`).
+## Fixed in this worktree
 
-Fixed in this pass:
-- `/setworldspawn` did not push the new spawn to connected players. Vanilla
-  `ServerLevel#setDefaultSpawnPos` broadcasts `ClientboundSetDefaultSpawnPositionPacket`
-  to everyone in the level (compass needle + client respawn prediction). Now broadcast in
-  `crates/pumpkin-core/src/command/commands/setworldspawn.rs` (Java + Bedrock `WorldRespawn`).
+- `crates/pumpkin-core/src/world/mod.rs:5210-5229` (respawn path) sent
+  `CPlayerSpawnPosition` with the player's **respawn position**, and that packet is also the
+  client's compass target. Vanilla's respawn (`PlayerList.respawn` / `ServerPlayer.restoreFrom`)
+  never sends `ClientboundSetDefaultSpawnPositionPacket`; the client keeps the world spawn it got
+  at login, so a compass always points at the world spawn. Now sends the world spawn
+  (`spawn_x/y/z`, `spawn_yaw/pitch`, already read at `world/mod.rs:5016`), keeping the packet's
+  original anti-rubberband purpose.
+  Vanilla class: `CompassItem` (spawn branch), `ServerGamePacketListenerImpl`/`PlayerList`.
 
-Remaining gaps:
+## Open gaps
 
-1. Respawn overrides the default spawn position with the respawn point.
-   - Where: `crates/pumpkin-core/src/world/mod.rs:5200-5228` (`respawn_player` sends
-     `CPlayerSpawnPosition::new(position, ...)`), then `send_world_info` at `world/mod.rs:5266`.
-   - Vanilla: `ServerPlayer.respawn` never re-sends `SET_DEFAULT_SPAWN_POSITION`; the client
-     keeps the level default spawn, so a plain compass still points at the world spawn.
-     Pumpkin makes compasses point at the player's bed/respawn anchor after a death.
-   - Fix: send the level spawn (`level_info.spawn_x/y/z`, `spawn_yaw/spawn_pitch`) instead of
-     the respawn `position`, or stop sending it on respawn. The comment claims it prevents a
-     client fallback to `(0,2,0)`, so verify with a runtime check before removing.
-   - Size: S (needs runtime observation).
+1. **S** `crates/pumpkin-core/src/entity/player.rs:7022-7042` -- `tick_inventory_item_components`
+   skips the "target dimension missing" branch. Vanilla `LodestoneTracker.tick(Level)` returns
+   `new LodestoneTracker(Optional.empty(), false)` when `server.getLevel(target.dimension())` is
+   null; the Rust code leaves target and `tracked` untouched. Unreachable today because the three
+   vanilla worlds always exist, so only a dynamic-world/plugin concern.
+   Fix: clear `target` and set `tracked: false` in an `else` branch.
+2. **M**, client-only `crates/pumpkin-core/src/item/mod.rs:36-141` -- `ItemBehaviour` has no
+   `is_foil`/glint hook, so a lodestone-locked compass does not glint. Vanilla
+   `CompassItem.isFoil(stack)` returns `LODESTONE_TRACKER.tracked()`. Fix: add
+   `fn is_foil(&self, stack: &ItemStack) -> bool` to `ItemBehaviour` and consult it from
+   `ItemStack::has_foil` (crates/pumpkin-data/src/item_stack/mod.rs:248). Do not fake it with
+   `EnchantmentGlintOverrideImpl{glint:true}`: that adds a component vanilla never writes.
+3. **S**, cleanup `crates/pumpkin-core/src/entity/player.rs:4886-4894` --
+   `set_compass_target`/`get_compass_target` (plus the `compass_target` field at `:761`) are dead
+   code; if ever called they send `CPlayerSpawnPosition` and would retarget the *world* spawn
+   compass to an arbitrary/player position. Vanilla has no per-player compass target. Delete.
+4. **S**, note `crates/pumpkin-core/src/item/items/compass.rs:20` -- `RECOVERY_COMPASS` is
+   registered under `CompassItem`; vanilla uses a plain `Item`. Behaviour is guarded by
+   `item.item.id == Item::COMPASS.id` so nothing differs today; keep for shared behaviour hooks.
+5. **S**, tests -- no automated coverage for the respawn spawn-position packet or for the
+   lodestone tracker tick. A `pumpkin-gametest` asserting the packet carries the world spawn and
+   that breaking a lodestone clears the tracker would lock this in.
 
-2. Stale TODO in `send_world_info`.
-   - Where: `crates/pumpkin-core/src/world/mod.rs:4783` `// TODO: World spawn (compass stuff)`.
-   - The packet is already sent on login (`world/mod.rs:4651`) and respawn (`world/mod.rs:5215`);
-     vanilla does not re-send it on a dimension change either (client keeps the last one).
-   - Fix: delete the TODO (comment only), or move the login-path send into this function and
-     drop the duplicate.
-   - Size: S.
+## Verified matching vanilla
 
-3. Cleared lodestone tracker keeps `tracked: true`.
-   - Where: `crates/pumpkin-core/src/entity/player.rs:6848-6853` sets
-     `LodestoneTrackerImpl { target: None, tracked: true }`.
-   - Vanilla `LodestoneTracker.tick` produces `new LodestoneTracker(Optional.empty(), false)`
-     when the target is no longer a lodestone in the current dimension, so the saved NBT
-     differs (`{tracked:0}` vs `{tracked:1}`). No visible needle difference.
-   - Fix: set `tracked: false` when clearing the target.
-   - Size: S.
-
-4. Lodestone lock does not fire `GameEvent.ITEM_INTERACT_FINISH`.
-   - Where: `crates/pumpkin-core/src/item/items/compass.rs:72` returns
-     `BlockActionResult::Success`.
-   - Vanilla returns `InteractionResult.sidedSuccess` which also triggers the sculk-sensor
-     `item_interact_finish` game event at the player. Purely a vibration-parity detail.
-   - Fix: emit the game event in the success branch (or confirm `BlockActionResult::Success`
-     already does it in the block-use dispatcher).
-   - Size: S.
+- Lock behaviour: `compass.rs:25-76` matches `CompassItem.useOn` (lodestone check, sound
+  `LODESTONE_COMPASS_LOCK` on `SoundSource.PLAYERS`, in-place set when count==1 and not creative,
+  otherwise consume/copy/insert/drop, creative keeps the original).
+- Spawn compass target: `CPlayerSpawnPosition` from level data on join (`world/mod.rs:4661`) and
+  `/setworldspawn` (`command/commands/setworldspawn.rs:100`), matching
+  `ClientboundSetDefaultSpawnPositionPacket`.
+- Recovery compass target: `LastDeathLocation` set on death (`entity/player.rs:6419-6428`),
+  persisted in NBT (`:9158`), sent in login (`world/mod.rs:4255`) and respawn
+  (`world/mod.rs:5195`) via `PlayerSpawnData`, matching vanilla `ServerPlayer.lastDeathLocation`.

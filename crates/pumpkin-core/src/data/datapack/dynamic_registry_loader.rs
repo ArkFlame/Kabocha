@@ -419,7 +419,9 @@ pub fn load_dynamic_registries_from_ns<
                         let sub_path = sub_entry.path();
                         let sub_name = sub_entry.file_name().to_string_lossy().to_string();
                         if sub_path.is_dir() && !visited_paths.contains(&sub_path) {
-                            let reg_id = format!("{namespace}:worldgen/{sub_name}");
+                            // Vanilla worldgen registry keys are fixed `minecraft:` ids
+                            // (`Registries` constants), never derived from the pack namespace.
+                            let reg_id = format!("minecraft:worldgen/{sub_name}");
                             let registry_map = registries.entry(reg_id).or_default();
                             let before = registry_map.len();
                             load_registry_dir_recursive(
@@ -647,5 +649,33 @@ mod tests {
         assert_eq!(merged[1].data.as_deref(), Some(&[99][..]));
         assert_eq!(merged[2].entry_id, "custom:fluffy");
         assert_eq!(merged[2].data.as_deref(), Some(&[7, 8, 9][..]));
+    }
+
+    #[test]
+    fn unknown_worldgen_dirs_use_minecraft_registry_key() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_wg_{}", uuid::Uuid::new_v4()));
+        let ns_dir = temp_dir.join("custom");
+        let reg_dir = ns_dir.join("worldgen").join("sulfur_pool");
+        fs::create_dir_all(&reg_dir).unwrap();
+        fs::write(
+            reg_dir.join("sample.json"),
+            r#"{"asset_id":"custom:sample"}"#,
+        )
+        .unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        let loaded = load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);
+
+        // Vanilla registry keys are fixed `minecraft:` ids regardless of the datapack namespace.
+        assert_eq!(loaded, 1);
+        assert!(registries.contains_key("minecraft:worldgen/sulfur_pool"));
+        assert!(!registries.contains_key("custom:worldgen/sulfur_pool"));
+        assert!(
+            registries["minecraft:worldgen/sulfur_pool"].contains_key("custom:sample"),
+            "entry id must keep the datapack namespace"
+        );
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 }

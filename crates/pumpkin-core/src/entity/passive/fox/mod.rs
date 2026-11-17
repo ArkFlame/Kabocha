@@ -376,13 +376,13 @@ impl FoxEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
         if !self.mob_entity.is_no_ai() {
-            let in_water = entity.touching_water.load(Ordering::Relaxed);
+            let wet = entity.is_in_water_or_rain();
             if self.is_sleeping()
-                && (in_water || self.mob_entity.get_target().is_some() || world.is_thundering())
+                && (wet || self.mob_entity.get_target().is_some() || world.is_thundering())
             {
                 self.set_sleeping(false);
             }
-            if self.is_sitting() && (in_water || self.is_sleeping()) {
+            if self.is_sitting() && (wet || self.is_sleeping()) {
                 self.set_sitting(false);
             }
             // Vanilla only bursts the block when it is not air.

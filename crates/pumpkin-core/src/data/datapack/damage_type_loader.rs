@@ -217,8 +217,11 @@ fn load_damage_types_recursive<S: std::hash::BuildHasher>(
         if path.is_dir() {
             load_damage_types_recursive(namespace, base_dir, &path, registry);
         } else if path
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            .file_name()
+            .and_then(|name| name.to_str())
+            // Vanilla's SimpleJsonResourceReloadListener only strips a lowercase
+            // ".json" suffix, so ".JSON" files are not data files at all.
+            .is_some_and(|name| name.ends_with(".json"))
             && let Ok(rel_path) = path.strip_prefix(base_dir)
         {
             let mut stem_path = rel_path.to_string_lossy().to_string();
@@ -393,6 +396,25 @@ mod tests {
         let count = load_damage_types_from_dir("custom", &temp_dir, &mut registry);
         assert_eq!(count, 1);
         assert!(registry.contains_key("custom:valid"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn load_damage_types_ignores_uppercase_json_suffix() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dt_case_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(
+            temp_dir.join("upper.JSON"),
+            r#"{"message_id": "upper", "scaling": "never"}"#,
+        )
+        .unwrap();
+
+        let mut registry = HashMap::new();
+        let count = load_damage_types_from_dir("custom", &temp_dir, &mut registry);
+        assert_eq!(count, 0, "vanilla only accepts a lowercase .json suffix");
+        assert!(registry.is_empty());
 
         let _ = fs::remove_dir_all(temp_dir);
     }

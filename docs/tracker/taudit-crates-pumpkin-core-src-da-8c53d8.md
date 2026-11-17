@@ -20,6 +20,26 @@ tracker note of 4 markers is stale: the file has none at HEAD).
    `dynamic_registry_loader` already does both. Fixed: `Identifier`
    namespace/path validation + `tracing::warn!` on every skip. Commit 9f59c6a75,
    test `load_damage_types_skips_invalid_resource_location`.
+3. `load_damage_types_recursive` (damage_type_loader.rs:219) matched the
+   extension case-insensitively, so `X.JSON` was read and then rejected by the
+   resource-location check with a spurious warn. Vanilla's
+   `SimpleJsonResourceReloadListener#scanDirectory` only accepts a lowercase
+   `.json` suffix and ignores anything else. Fixed: case-sensitive
+   `file_name().ends_with(".json")`. Commit a63162b88, test
+   `load_damage_types_ignores_uppercase_json_suffix`.
+
+## Verified as already matching vanilla (no change)
+
+- `effects` is `Option<DamageEffects>` here while vanilla's codec uses
+  `optionalFieldOf("effects", DamageEffects.HURT)`. Equivalent: omitting the
+  field makes the client default to `hurt`, and the generated vanilla table
+  stores `None` for hurt too (generated/damage_type.rs:37). An explicit
+  `"effects": "hurt"` in a datapack is written back verbatim, which the
+  client still reads as `hurt`.
+- `scaling`/`death_message_type` enum names, the `exhaustion` float tag
+  and its default omission, per-file warn-and-skip on invalid ids, and ids
+  derived from the datapack-relative path all match vanilla / Paper (unmodified
+  codec path).
 
 ## Remaining gaps (not fixed)
 
@@ -35,16 +55,13 @@ tracker note of 4 markers is stale: the file has none at HEAD).
    allocates ids from the load-order registry (`RegistryDataLoader`), and the
    client accepts arbitrary ids. Suggested fix: allocate from a free-id set and
    log a warning when ids run out. Size S/M. Touches mod.rs, not this file.
-3. damage_type_loader.rs:221 - `.JSON` is accepted case-insensitively, vanilla
-   is case-sensitive and would ignore the file. Harmless superset; leave unless
-   strict parity is wanted. Size XS.
-4. mod.rs:2207 loads both `damage_type/` and `damage_types/` directories;
+3. mod.rs:2207 loads both `damage_type/` and `damage_types/` directories;
    vanilla only uses `damage_type/`. Intentional compatibility alias, documented
    here only. Size XS.
-5. dynamic_registry_loader.rs:239 - `json_to_nbt_tag` maps every JSON float to a
+4. dynamic_registry_loader.rs:239 - `json_to_nbt_tag` maps every JSON float to a
    `Double` tag, so dynamic registries whose codec declares a `Codec.FLOAT`
    field drift from vanilla bytes (same class of bug as fix 1 but generic).
    Suggested fix: per-registry typed encoding, or a float hint per field. Size M.
-6. damage_type_loader.rs:206 - a JSON file that overrides an existing id still
+5. damage_type_loader.rs:206 - a JSON file that overrides an existing id still
    counts in `load_damage_types_from_dir`'s return only when it is new; the
    count is used purely for admin statistics. Cosmetic.

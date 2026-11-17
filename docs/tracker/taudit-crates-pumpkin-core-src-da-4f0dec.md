@@ -48,3 +48,31 @@ the tracker note's "8 markers" are the word "vanilla" in doc comments/tests.
    `"datapacks"`, which is not a vanilla `data/<ns>/` layout folder and is dead weight. Fix: keep the
    allow-list for `minecraft:*` and only auto-discover namespaces that ship a registry manifest.
    Size M.
+
+## Second pass (same audit)
+
+- Fixed: unknown `worldgen/<sub>` folders discovered by auto-discovery were keyed
+  `<pack-namespace>:worldgen/<sub>` (`dynamic_registry_loader.rs:422`), so a pack's
+  `data/mypack/worldgen/<new_registry>/` landed in a registry id that no vanilla consumer or sync
+  roster can ever reference. Vanilla worldgen registry keys are the fixed `minecraft:` ids from
+  `Registries` (`Registries.BIOME` -> `minecraft:worldgen/biome`, etc.), independent of the data-pack
+  namespace; only the *element* ids carry the pack namespace. Now keyed `minecraft:worldgen/<sub>`,
+  covered by `unknown_worldgen_dirs_use_minecraft_registry_key`. Known vanilla dirs were already
+  correct through `DYNAMIC_REGISTRIES`.
+- Still open (from the list above): JSON->NBT numeric typing (L), plural directory aliases (S,
+  intentional), auto-discovery of non-worldgen folders (M).
+- New small notes, not fixed:
+  - `DYNAMIC_REGISTRIES:126-164` scans the `worldgen/carver`/`worldgen/feature` directories into
+    *both* the built-in type registry id and the `configured_*` one. Vanilla only loads
+    `worldgen/configured_carver` / `worldgen/configured_feature` (the `Registries.CARVER`/`FEATURE`
+    type registries are builtin, codec-registered in code, no data pack loader). Today harmless: those
+    two ids are absent from `pumpkin_data::registry::Registry::get_synced` and nothing reads them, so
+    the duplicate registry is server-only memory, and the entry count is not inflated (measured per
+    directory). Suggested fix when touching the table: drop the two builtin ids, keep the directory
+    aliases under `configured_*`. Size S.
+  - `DYNAMIC_REGISTRIES` also loads `item_modifier`, `slot_source`, `trade_set`, `villager_trade`,
+    `template_pool` and `processor_list`, which `datapack/mod.rs:2268-2334` parses again with their
+    dedicated loaders (same files, two parse passes and two copies). Behaviour matches vanilla (those
+    ids are real datapack registries); only the duplicated I/O remains. Size S.
+  - `EXCLUDED_REGISTRY_DIRS:352-377` still lists `"datapacks"`, which is never a `data/<ns>/` folder.
+    Dead entry, no behaviour impact. Size S.

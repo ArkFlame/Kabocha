@@ -7,11 +7,13 @@ use crate::block::{
     OnScheduledTickArgs, PlacedArgs,
 };
 use crate::entity::Entity;
+use crate::entity::EntityBase;
 use crate::entity::mob::warden::WardenEntity;
 use crate::entity::mob::warden_spawn_tracker::{MAX_WARNING_LEVEL, WardenSpawnTracker};
 use crate::entity::player::Player;
 use crate::entity::spawn_util::{SpawnStrategy, try_spawn_mob};
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
 use pumpkin_data::{
     Block, BlockId, BlockStateId,
     block_properties::SculkShriekerLikeProperties,
@@ -109,7 +111,13 @@ impl SculkShriekerBlock {
         world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_LISTENERS);
         world.schedule_block_tick(block, *pos, SHRIEKING_TICKS, TickPriority::Normal);
         world.sync_world_event(WorldEvent::ParticlesSculkShriek, *pos, 0);
-        world.emit_game_event(GameEvent::Shriek.name(), pos.to_centered_f64());
+        world.emit_game_event_with_context(
+            GameEvent::Shriek.name(),
+            pos.to_centered_f64(),
+            &GameEventContext {
+                source_entity: Some(player.as_ref() as &dyn EntityBase),
+            },
+        );
     }
 
     fn try_respond(world: &Arc<World>, pos: &BlockPos, can_summon: bool) {
