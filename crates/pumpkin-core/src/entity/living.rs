@@ -3963,8 +3963,7 @@ impl LivingEntity {
         let mut read_effects = Vec::new();
         for effect in nbt.get_list("active_effects").unwrap_or_default() {
             if let NbtTag::Compound(effect_nbt) = effect {
-                if let Some(mut effect) = Effect::create_from_nbt(&mut effect_nbt.clone()) {
-                    effect.blend = true; // TODO: change, is taken from effect give command
+                if let Some(effect) = Effect::create_from_nbt(&mut effect_nbt.clone()) {
                     read_effects.push(effect);
                 } else {
                     warn!("Unable to read effect from nbt");
