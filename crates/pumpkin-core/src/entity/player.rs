@@ -4373,6 +4373,7 @@ impl Player {
                 || entity_type == &EntityType::MANGROVE_BOAT
                 || entity_type == &EntityType::CHERRY_BOAT
                 || entity_type == &EntityType::PALE_OAK_BOAT
+                || entity_type == &EntityType::POPLAR_BOAT
                 || entity_type == &EntityType::BAMBOO_RAFT
                 || entity_type == &EntityType::OAK_CHEST_BOAT
                 || entity_type == &EntityType::SPRUCE_CHEST_BOAT
@@ -4383,6 +4384,7 @@ impl Player {
                 || entity_type == &EntityType::MANGROVE_CHEST_BOAT
                 || entity_type == &EntityType::CHERRY_CHEST_BOAT
                 || entity_type == &EntityType::PALE_OAK_CHEST_BOAT
+                || entity_type == &EntityType::POPLAR_CHEST_BOAT
                 || entity_type == &EntityType::BAMBOO_CHEST_RAFT
             {
                 return statistics::CustomStatistic::BoatOneCm;
