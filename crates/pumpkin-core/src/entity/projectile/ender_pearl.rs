@@ -135,15 +135,10 @@ impl EntityBase for EnderPearlEntity {
             if is_player {
                 let should_spawn_endermite = rand::random::<f32>() < ENDERMITE_SPAWN_CHANCE;
                 if world.should_spawn_monsters() && should_spawn_endermite {
-                    let entity = Entity::new(
-                        world.clone(),
-                        owner.get_entity().pos.load(),
-                        &EntityType::ENDERMITE,
-                    );
-                    entity.set_rotation(
-                        owner.get_entity().yaw.load(),
-                        owner.get_entity().pitch.load(),
-                    );
+                    let pearl_pos = entity.pos.load();
+                    let pearl_yaw = entity.yaw.load();
+                    let entity = Entity::new(world.clone(), pearl_pos, &EntityType::ENDERMITE);
+                    entity.set_rotation(pearl_yaw, 0.0);
                     let endermite = EndermiteEntity::new(entity);
                     finalize_spawn(
                         &(endermite.clone() as std::sync::Arc<dyn EntityBase>),
