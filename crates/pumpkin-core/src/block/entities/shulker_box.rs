@@ -4,6 +4,8 @@ use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::random::xoroshiro128::Xoroshiro;
+use pumpkin_util::random::{RandomImpl, get_seed};
 use std::any::Any;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -213,11 +215,6 @@ impl ShulkerBoxBlockEntity {
         }
     }
 
-    pub fn update_viewers(&self, world: &Arc<World>) {
-        let viewer_count = self.viewers.current.load(Ordering::Relaxed);
-        Self::play_sound(world, &self.position, i32::from(viewer_count));
-    }
-
     fn play_sound(world: &World, position: &BlockPos, viewer_count: i32) {
         let sound = if viewer_count > 0 {
             Sound::BlockShulkerBoxOpen
@@ -225,7 +222,16 @@ impl ShulkerBoxBlockEntity {
             Sound::BlockShulkerBoxClose
         };
 
-        world.play_sound(sound, SoundCategory::Blocks, &position.to_f64());
+        // Vanilla `ShulkerBoxBlockEntity.startOpen`/`stopOpen`: volume 0.5 and a
+        // random pitch in [0.9, 1.0) at the block centre.
+        let mut rng = Xoroshiro::from_seed(get_seed());
+        world.play_sound_fine(
+            sound,
+            SoundCategory::Blocks,
+            &position.to_centered_f64(),
+            0.5,
+            rng.next_f32() * 0.1 + 0.9,
+        );
     }
 }
 
