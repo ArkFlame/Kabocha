@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::Nbt;
@@ -434,15 +434,25 @@ pub fn load_dynamic_registries_from_ns<
     let mut visited_paths = HashSet::new();
 
     for &(registry_id, dir_names) in DYNAMIC_REGISTRIES {
+        // Only materialise a registry when the namespace ships entries for it:
+        // vanilla never registers an empty dynamic registry, and one empty map
+        // per known registry and namespace makes `apply_custom_registries`
+        // rebuild every vanilla registry.
+        let dirs: Vec<PathBuf> = dir_names
+            .iter()
+            .map(|dir_name| ns_path.join(*dir_name))
+            .filter(|dir| dir.is_dir())
+            .collect();
+        if dirs.is_empty() {
+            continue;
+        }
+
         let registry_map = registries.entry(registry_id.to_string()).or_default();
-        for &dir_name in dir_names {
-            let reg_dir = ns_path.join(dir_name);
-            if reg_dir.is_dir() {
-                visited_paths.insert(reg_dir.clone());
-                let before = registry_map.len();
-                load_registry_dir_recursive(namespace, &reg_dir, &reg_dir, registry_map);
-                total_loaded += registry_map.len() - before;
-            }
+        for reg_dir in dirs {
+            visited_paths.insert(reg_dir.clone());
+            let before = registry_map.len();
+            load_registry_dir_recursive(namespace, &reg_dir, &reg_dir, registry_map);
+            total_loaded += registry_map.len() - before;
         }
     }
 
@@ -744,6 +754,22 @@ mod tests {
         // Vanilla never follows pack symlinks, so `loop` is not descended into.
         assert_eq!(registry.len(), 1);
         assert!(registry.contains_key("custom:good"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn namespaces_without_registry_dirs_create_no_empty_registries() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(temp_dir.join("recipes")).unwrap();
+        fs::write(temp_dir.join("pack.mcmeta"), "{}").unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        let loaded = load_dynamic_registries_from_ns("custom", &temp_dir, &mut registries);
+
+        assert_eq!(loaded, 0);
+        assert!(registries.is_empty());
 
         let _ = fs::remove_dir_all(temp_dir);
     }
