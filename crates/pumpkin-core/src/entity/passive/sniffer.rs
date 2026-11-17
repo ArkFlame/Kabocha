@@ -54,6 +54,21 @@ const DIGGING_BB_HEIGHT_OFFSET: f32 = 0.4;
 const DIGGING_DIMENSIONS_EYE_HEIGHT: f32 = 0.81;
 const MAX_EXPLORED_POSITIONS: usize = 20;
 const HEAD_DISTANCE: f64 = 2.25;
+
+/// Prepends `newest` and keeps at most `cap` entries in total, dropping the oldest.
+fn prepend_capped<T: Copy>(
+    newest: T,
+    previous: impl Iterator<Item = T>,
+    cap: usize,
+) -> Vec<T> {
+    let mut out = Vec::with_capacity(cap);
+    if cap == 0 {
+        return out;
+    }
+    out.push(newest);
+    out.extend(previous.take(cap - 1));
+    out
+}
 const MAX_HEAD_Y_ROT: f32 = 50.0;
 const DIGGING_LOOT_TABLE: &str = "minecraft:gameplay/sniffer_digging";
 
@@ -337,14 +352,15 @@ impl SnifferEntity {
             let pos = entity.pos.load();
             BlockPos::floored(pos.x, pos.y - f64::from(1.0e-5f32), pos.z)
         });
-        let mut explored: Vec<_> = brain
-            .get(types::SNIFFER_EXPLORED_POSITIONS)
-            .into_iter()
-            .flatten()
-            .take(MAX_EXPLORED_POSITIONS)
-            .copied()
-            .collect();
-        explored.insert(0, GlobalPos::new(dimension, pos));
+        let explored = prepend_capped(
+            GlobalPos::new(dimension, pos),
+            brain
+                .get(types::SNIFFER_EXPLORED_POSITIONS)
+                .into_iter()
+                .flatten()
+                .copied(),
+            MAX_EXPLORED_POSITIONS,
+        );
         brain.set(types::SNIFFER_EXPLORED_POSITIONS, explored);
     }
 
@@ -670,6 +686,15 @@ impl Mob for SnifferEntity {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explored_positions_keep_newest_within_cap() {
+        let previous: Vec<u32> = (0..MAX_EXPLORED_POSITIONS as u32).collect();
+        let out = prepend_capped(99, previous.into_iter(), MAX_EXPLORED_POSITIONS);
+        assert_eq!(out.len(), MAX_EXPLORED_POSITIONS);
+        assert_eq!(out[0], 99);
+        assert_eq!(out.last(), Some(&(MAX_EXPLORED_POSITIONS as u32 - 2)));
+    }
     use crate::entity::ai::test_support::world;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
