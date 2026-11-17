@@ -91,7 +91,7 @@ const fn tag_type_name(tag: &NbtTag) -> &'static str {
 enum FunctionArguments {
     None,
     Inline,
-    Source { kind: TargetKind, has_path: bool },
+    Source { kind: TargetKind },
 }
 
 struct FunctionExecutor(FunctionArguments);
@@ -106,11 +106,8 @@ impl FunctionExecutor {
             FunctionArguments::Inline => Ok(Some(
                 NbtCompoundArgumentType::get(context, "arguments")?.clone(),
             )),
-            FunctionArguments::Source { kind, has_path } => {
+            FunctionArguments::Source { kind } => {
                 let accessor = kind.access(context, "source")?;
-                if !has_path {
-                    return Ok(Some(accessor.get_data()?));
-                }
                 let path = context.get_argument::<NbtPath>("path")?;
                 match get_single_tag(path, accessor.as_ref())? {
                     NbtTag::Compound(compound) => Ok(Some(compound)),
@@ -213,20 +210,12 @@ fn with_sources() -> LiteralArgumentBuilder {
         (TargetKind::Storage, "storage"),
     ] {
         with = with.then(
+            // Vanilla requires a path to the compound holding the macro arguments.
             literal(name).then(
-                make_target_arg(kind, "source_target")
-                    .executes(FunctionExecutor(FunctionArguments::Source {
-                        kind,
-                        has_path: false,
-                    }))
-                    .then(
-                        argument("path", NbtPathArgumentType).executes(FunctionExecutor(
-                            FunctionArguments::Source {
-                                kind,
-                                has_path: true,
-                            },
-                        )),
-                    ),
+                make_target_arg(kind, "source_target").then(
+                    argument("path", NbtPathArgumentType)
+                        .executes(FunctionExecutor(FunctionArguments::Source { kind })),
+                ),
             ),
         );
     }
