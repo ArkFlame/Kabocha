@@ -46,6 +46,24 @@ Start here: `docs/GOAL.md` (mission), `docs/ORCHESTRATION.md` (how workers run),
 
 **Commits.** Conventional, scope, subject line only, no body, no em dashes. A `Co-Authored-By` trailer is added by `scripts/hooks/commit-msg` (`git config core.hooksPath scripts/hooks`): Claude Sonnet 5.5 by default, OpenCode commits (`KAB_AGENT=opencode`, set by `scripts/oc-agent.sh`) end with `Co-Authored-By: opencode-agent[bot] <219766164+opencode-agent[bot]@users.noreply.github.com>`. Never write the trailer by hand; it is how we measure who works best (`scripts/leaderboard.sh`). One logical slice per commit; fold fixes into their commit. Commit and push each verified slice at once. Do not touch uncommitted work you did not make. Do not commit unrelated lockfile or generated churn. Scope: do the task; log separate bugs in `docs/QUEUE.md`.
 
+## Worker compile pitfalls (workers cannot compile: check these BEFORE finishing)
+Seen in the tracker sweep compile, each with its fix. Re-read your diff against this list.
+| Mistake | Fix |
+|---|---|
+| Import path guessed (`math::vector::Vector3`, `control::SmoothSwimmingLookControl`) | `grep -rn "use .*<Name>" crates/ \| head -3` and copy that exact `use`; modules are snake_case files (`math::vector3::Vector3`, `control::smooth_swimming_look_control::...`) |
+| Helper fn/method placed inside a trait impl (`impl Mob for X`) | Only trait methods go there; put helpers in `impl X { }` and call `self.helper()` |
+| Free fn used inside a `macro_rules!` body | Use the full path `$crate::...::fn` in the macro; names in scope at the definition site do not exist at the expansion site |
+| New field added to a struct, constructors not updated | `grep -rn "StructName {"` and add the field at every initializer |
+| `Instant`/`Arc`/`HashMap` used without `use`, or `use` removed while tests still need it | Add the import in the module that uses it; `mod tests` needs its own `use` |
+| Value moved then reused (`Arc` passed by value, then `.as_ref()`) | `.clone()` the `Arc` at the first use |
+| `.as_any()` on an `Option<Arc<dyn Trait>>` | `opt.as_ref().and_then(\|e\| e.as_any().downcast_ref::<T>())` |
+| Closure param type unknown (`\|pos\| ...` passed to a generic fn) | Annotate: `\|pos: BlockPos\|` |
+| `assert_eq!` on a type without `Debug` | `assert!(a == b)` |
+| Unstable std (`div_ceil` on signed ints, `int_roundings`) | `(a + b - 1) / b` or the `num` helper already used nearby |
+| Test code with `unwrap`/`expect`/`panic` (clippy denies them in tests too) | return `Result<(), E>` from the test, or `assert!(x.is_some())` plus `if let`; else a local `#[expect(clippy::expect_used, reason = "..")]` |
+Clippy pedantic is `-D warnings`: new fns that do not touch `self`/mutable state are `const fn`; backtick code identifiers in `///` docs (`write_packet_data`); first doc paragraph stays one short sentence; `x.then(..)`/`map_or` instead of `if let ... else`; `if` chains collapse; no redundant field names (`S { layers }`); `0.0f32` not `0.0_f32`; no `let mut` unless mutated; functions stay under 100 lines (split helpers); max 3 bool params; takes `&T` unless it consumes the value; `Self` instead of the type name inside impls.
+Process: edit only your files, re-read a file right before editing it (others edit around you), keep each fix minimal, run `rustfmt --edition 2024` on touched files, and never leave a helper half moved.
+
 ## Verify
 Workers do not compile; the orchestrator batch-checks via `scripts/integrate.sh`. Any cargo run goes through `scripts/cargo.sh` (shared warm target, 2 slots, RAM guard); see `docs/BUILD.md`.
 Do not compile what you do not need. Docs/scripts/data-only changes: no build. Code changes: `scripts/check.sh <crate>` = fmt + `cargo check -p` only. Full gate `scripts/check.sh -f <crate>` (clippy `-D warnings` + nextest on touched crates) runs only when a test must run, before landing a code slice, or on request. Never `--workspace` unless asked. `scripts/boot.sh` only for runtime changes you must observe. Debug profile only. Client-only effects (rendering, sounds, GUI, prediction): note them in the commit/QUEUE.md, do not block on them.
