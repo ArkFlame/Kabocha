@@ -692,6 +692,10 @@ impl SleepGoal {
         if fox.mob_entity.get_target().is_some() {
             return false;
         }
+        // Vanilla `FoxSleepGoal.canUse` never starts a sleep in water or rain
+        if fox.get_entity().is_in_water_or_rain() {
+            return false;
+        }
         if !world.is_bright_outside() || !Self::has_shelter(fox, world) {
             return false;
         }
