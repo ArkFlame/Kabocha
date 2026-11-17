@@ -376,20 +376,6 @@ impl EnchantmentHelper {
         ((charge_seconds * 20.0) as i32).max(0)
     }
 
-    /// Modifies durability change using data-driven item damage effects (e.g. Unbreaking).
-    #[must_use]
-    pub fn modify_durability_change(item: &ItemStack, base_change: f32) -> f32 {
-        let mut change = base_change;
-        if let Some(enchantments) = item.get_data_component::<EnchantmentsImpl>() {
-            for (enchantment, level) in enchantments.enchantment.iter() {
-                for effect in enchantment.effects.item_damage {
-                    change = effect.effect.process(*level, change);
-                }
-            }
-        }
-        change
-    }
-
     /// Modifies block experience using data-driven block experience effects (e.g. Fortune).
     #[must_use]
     pub fn modify_block_experience(tool: &ItemStack, base_xp: i32) -> i32 {
@@ -505,26 +491,6 @@ impl EnchantmentHelper {
                 conditional_effect
                     .effect
                     .apply(&world, level, None, Some(entity), position);
-            }
-        });
-    }
-
-    /// Applies hit-block enchantment effects.
-    pub fn on_hit_block(
-        weapon: &ItemStack,
-        projectile_entity: &Entity,
-        position: pumpkin_util::math::vector3::Vector3<f64>,
-    ) {
-        let world = projectile_entity.world.load_full();
-        Self::run_iteration_on_item(weapon, |enchantment, level| {
-            for conditional_effect in enchantment.effects.hit_block {
-                conditional_effect.effect.apply(
-                    &world,
-                    level,
-                    None,
-                    Some(projectile_entity),
-                    position,
-                );
             }
         });
     }
