@@ -1,6 +1,8 @@
 # Entity-family sweep (passive and hostile)
 
 Scope: constants and behaviour of the listed families, checked against vanilla 1.21.x knowledge (UNVERIFIED, no decompiled source consulted, no build run).
+
+Reference check: `/run/media/linsaftw/SDD/GitHub/ArkFlame/FlamePaper/PaperSpigot-Server/src/main/java/net/minecraft/server/` is 1.8-era NMS. It has no witch or guardian classes, so no row here is verified against it.
 Policy: fix only confident divergences; otherwise keep existing behaviour.
 
 Note: `entity/hostile/` does not exist. Hostile mobs live in `crates/pumpkin-core/src/entity/mob/`.

@@ -2,6 +2,8 @@
 
 Scope: `crates/pumpkin-core/src/block/entities`, `crates/pumpkin-inventory/src`. Read-only audit, no build run.
 
+Reference: `/run/media/linsaftw/SDD/GitHub/ArkFlame/FlamePaper/PaperSpigot-Server/src/main/java/net/minecraft/server/` (decompiled Spigot NMS, vanilla 1.8 era). It has no witch, guardian, smithing, loom, stonecutter, cartography, grindstone, smoker, blast furnace or dried kelp code, so rows that depend on post-1.8 vanilla stay UNVERIFIED.
+
 ## Checked, matches vanilla (by reading code)
 
 | Area | Evidence |
@@ -18,10 +20,12 @@ Scope: `crates/pumpkin-core/src/block/entities`, `crates/pumpkin-inventory/src`.
 
 ## Not verified (need decompiled vanilla diff)
 
-- Furnace `cooking_total_time` rounding: vanilla divisor and rounding direction not confirmed against decompiled source. Left as is.
-- Fuel burn table (lava 20000, coal 1600, blaze rod 2400, planks 300, slab 150, stick 100, dried kelp block 4000): values come from generated data, not checked in this pass.
-- Double chest left/right ordering, viewer counts, sounds, ender chest, jukebox, smithing, loom, stonecutter, cartography, grindstone XP: not read in this pass.
+- Furnace `cooking_total_time` rounding (`furnace_like_block_entity.rs:37-46`): UNVERIFIED. Reference `TileEntityFurnace.java:266` has a fixed 200 tick cook time and no speed multiplier, so the divisor and rounding cannot be checked.
+- Fuel burn table, `pumpkin-data/src/data_component_impl/utility.rs:120-137`: VERIFIED for lava 20000, coal 1600, blaze rod 2400, coal block 16000, wood block 300, wood slab 150, wood tools/large items 200, stick/sapling 100 (`TileEntityFurnace.java:329-351`). Dried kelp block is 4001 in Kabocha (earlier note said 4000). UNVERIFIED: kelp is absent from the reference. Left as 4001.
+- Double chest ordering (`chests.rs:405-422, 521-531`): UNVERIFIED. Reference `BlockChest.java:355-367` pairs by neighbour direction (west or north neighbour makes this block second). Kabocha pairs by the blockstate `ChestType`. Both agree on 1.21 semantics only if the blockstate mapping holds, which the reference cannot show. Not changed.
+- Smithing, loom, stonecutter, cartography, grindstone XP: UNVERIFIED. No reference source; these blocks postdate 1.8.
+- Viewer counts, sounds, ender chest, jukebox: not read in this pass.
 
 ## Fixes
 
-None. No confident divergence found in the read windows, so no code change and no new tests.
+None. No divergence confirmed against the reference, so no code change and no new tests.
