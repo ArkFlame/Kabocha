@@ -33,6 +33,10 @@ impl ItemBehaviour for BowItem {
         let has_arrows = Self::has_arrows(player);
         let gamemode = player.gamemode.load();
 
+        // Vanilla ServerPlayerGameMode.useItem rejects item use for spectators.
+        if gamemode == GameMode::Spectator {
+            return;
+        }
         if !has_arrows && gamemode != GameMode::Creative {
             return;
         }

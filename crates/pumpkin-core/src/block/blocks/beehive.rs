@@ -78,7 +78,7 @@ impl BeehiveBlock {
                 let anger_target = players[rng.random_range(0..players.len())].clone();
                 mob.set_mob_target(
                     Some(anger_target as Arc<dyn EntityBase>),
-                    TargetReason::Angry,
+                    TargetReason::ClosestPlayer,
                 );
             }
         }

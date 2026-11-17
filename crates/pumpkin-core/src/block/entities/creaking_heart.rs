@@ -87,7 +87,7 @@ impl CreakingHeartBlockEntity {
     pub fn is_protector(&self, creaking_uuid: Uuid) -> bool {
         self.creaking_uuid
             .load()
-            .is_none_or(|uuid| uuid == creaking_uuid)
+            .is_some_and(|uuid| uuid == creaking_uuid)
     }
 
     pub fn set_creaking_uuid(&self, uuid: Option<Uuid>) {
