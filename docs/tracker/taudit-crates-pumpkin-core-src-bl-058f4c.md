@@ -24,7 +24,7 @@ and `world/level/LevelReader.java:171-173`.
 | 3 | blocks/redstone/daylight_detector.rs:96-125 | Vanilla `tickEntity` passes the block entity's own state (DaylightDetectorBlock.java:106-110) | `update_signal_strength` re-reads `world.get_block_and_state` and decodes whatever sits there as `DaylightDetectorLikeProperties`; safe today because only the detector's BE tick and `normal_use` call it, but a stale/mis-owned call would write POWER onto the wrong block. Add an early return unless the block is `DAYLIGHT_DETECTOR` before decoding props. | S |
 | 4 | blocks/redstone/daylight_detector.rs:115-123 | Paper `callRedstoneChange` result is passed to `setBlockAndUpdate` even when the plugin leaves the current unchanged (DaylightDetectorBlock.java:60-63) | Rust returns early on cancellation and skips `set_block_state` when current is unchanged, so no redundant flag-3 neighbour update. No expected gameplay delta; revisit if a plugin test needs it. | S |
 | 5 | blocks/redstone/daylight_detector.rs:47-50 | `gameEvent(BLOCK_CHANGE, pos, Context.of(player, newState))` | Pumpkin emits `BLOCK_CHANGE` without the player/state context; no known gameplay listener. | S |
-| 6 | block/entities/daylight_detector.rs:54-56 | none | `update_power` is an unused public wrapper with no caller and no vanilla counterpart; delete on next touch. | XS |
+| 6 | block/entities/daylight_detector.rs:54-56 | none | `update_power` is an unused public wrapper with no caller and no vanilla counterpart; delete on next touch. | XS FIXED 3317ecd61 |
 
 Checked, no change: signal formula (`calculate_signal_strength`) matches `updateSignalStrength`
 (15 - i when inverted, cosine shade with `f < PI ? 0 : 2PI` offset and 0.2 lerp, `Mth.cos` LUT +
