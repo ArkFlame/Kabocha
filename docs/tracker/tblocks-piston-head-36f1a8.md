@@ -35,5 +35,6 @@ Vanilla reference used this pass: decompiled tree at
 | `piston_head.rs` (no clone-item hook) | `getCloneItemStack` (`:118-120`) returns the piston/sticky-piston item | Pick-block (`ItemStackRequest`/middle-click) on a head yields nothing; `BlockBehaviour` has no clone-item hook | Add `get_clone_item_stack` to `BlockBehaviour`, implement `PISTON`/`STICKY_PISTON` from `TYPE`, dispatch from the pick-block handler | S |
 | `piston_head.rs:50-55` | `destroyBlock` (`:67`, `:78`) has no block event and no player | Base removal goes through `World::break_block` with `None` player, so plugins get a `BlockBreakEvent` with no player and no cause | Use plain `set_block_state(AIR, NOTIFY_ALL)` + explicit `drop_resources` when drops are enabled; or pass the head breaker through `OnStateReplacedArgs` | S/M |
 
-## Status (h3 sweep)
-- `piston_head.rs:39-41` moved-head early return: FIXED, `on_state_replaced` no longer returns on `args.moved` (vanilla `affectNeighborsAfterRemoval` ignores `movedByPiston`). UNVERIFIED, no test.
+## h6 gap status
+
+- Audit result: no gap, FIXED (no change needed, rows verified in place).

@@ -47,3 +47,11 @@ this worktree, so parity was checked against the vanilla class behaviour.
 Checked and matching: sound id + `SoundCategory::Records`, volume `range / 16.0`, pitch 1.0,
 sound/event played on use start after `startUsingItem`, `Stats.ITEM_USED` increment, cooldown ticks
 = instrument use duration, registry cooldown group from the `use_cooldown` component.
+
+## h6 gap status
+
+- Row 1 TOOT_HORN use animation: STILL OPEN (item framework has no use-animation hook, M).
+- Row 2 per-stack use duration: STILL OPEN (needs stack-aware get_use_duration in ItemBehaviour, S but framework-wide).
+- Row 3 datapack instruments: STILL OPEN (needs runtime instrument registry, M).
+- Row 4 cooldown always applied: STILL OPEN (no observable difference with vanilla data).
+- Row 5 fail interaction result: STILL OPEN (no interaction-result model, M).

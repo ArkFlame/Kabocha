@@ -12,3 +12,7 @@ Compared against vanilla `NameTagItem.useOnEntity` (Item.useOnEntity override; 1
 | 1 | crates/pumpkin-core/src/item/mod.rs:71 (ItemBehaviour::use_on_entity) | useOnEntity returns PASS/SUCCESS, so a successful tag swings the arm and a failed one passes the interaction on | The trait returns (), so Pumpkin cannot signal SUCCESS/PASS; the item is still consumed correctly, but the client result is implicit. Framework-wide change, not name-tag-specific. | L |
 
 Checked, no change: CUSTOM_NAME component presence gates the action (vanilla `has(DataComponents.CUSTOM_NAME)`); `entity_type.saveable` maps to `EntityType.isSaveable`; `is_alive` guard is harmless; `decrement_unless_creative` matches `stack.consume(1, player)`; `persistence_required = true` matches `setPersistent()` (named mobs do not despawn); rename of an already-named mob works; empty custom name allowed as in vanilla.
+
+## h6 gap status
+
+- Row 1 (ItemBehaviour use_on_entity result): STILL OPEN (L, framework-wide trait change).

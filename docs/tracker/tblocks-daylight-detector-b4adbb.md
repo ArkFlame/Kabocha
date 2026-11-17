@@ -42,6 +42,11 @@ vanilla-derived tests in `daylight_detector.rs:114-164` and `world/environment.r
 5. **S** - `DaylightDetectorBlock::update_power` (`entities/daylight_detector.rs:52-54`) is an
    unused public wrapper with no vanilla counterpart; delete on next touch.
 
-## h2 parity sweep (status)
-- Item 4 FIXED (existing tree) - toggle already emits BlockChange with the player as source (`emit_game_event_with_source`).
-- Item 3 STILL OPEN - NOTIFY_LISTENERS vs flag-3 follow-up; redundant packet only, no gameplay delta, skipped.
+## h6 gap status
+
+- Dimension guard (row 1): FIXED on master (c32ce39e4).
+- Stale BE guard (row 2): FIXED (a39624655), decodes only when block is DAYLIGHT_DETECTOR. No unit test: needs a world.
+- Inversion flag (row 3): STILL OPEN (only a redundant client packet, no gameplay delta; flag choice needs vanilla source check).
+- Game event context (row 4): FIXED on master (64a75a052).
+- Unused update_power wrapper (row 5): FIXED (a39624655).
+- Tick architecture (M, row 1 table): STILL OPEN (needs scheduled-tick rework).

@@ -24,3 +24,7 @@ Reference: decompiled vanilla `net.minecraft.world.entity.animal.axolotl.Axolotl
 - Rehydration wiring: splash and lingering water potions call `rehydrate_axolotl_around` (`projectile/splash_potion.rs:94-107`, `projectile/lingering_potion.rs:126`).
 - Spawn rule: `type.rs:770-775` checks only `BlockTags.AXOLOTLS_SPAWNABLE_ON` below, as vanilla.
 - Variant pools/rare 1/1200, spawn group data and baby rule, air supply 6000/1800 and dry-out 2, bucket variant round trip, breeding/food tag, brain activities and sensors, play-dead flag, head rotation limits, `removeWhenFarAway`/`requiresCustomPersistence`, `canBeSeenAsEnemy`, `getWalkTargetValue`.
+
+## h6 gap status
+
+- Rows 1-4 (play-dead regen, bucket NBT keys, roll timing, hunting cooldown): STILL OPEN (UNVERIFIED, no decompiled vanilla in tree).

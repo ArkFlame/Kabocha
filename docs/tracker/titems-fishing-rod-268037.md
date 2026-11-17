@@ -70,7 +70,6 @@ entity and luck `hook_luck + player LUCK`; item entity velocity `delta*0.1 + sqr
 and `1..=6` XP orbs; `PlayerFishEvent` states `Fishing`, `Bite`, `FailedAttempt`,
 `CaughtEntity`, `CaughtFish` with cancellation; `FISHING_ROD_HOOKED` advancement trigger.
 
-## Gap status (h9 sweep, 2026-11-17)
-- FIXED: stale bobber id is only removed when it downcasts to `FishingBobberEntity` (`fishing_rod.rs:94`).
-- CLOSED: luck clamp stays `max(0)` (`fishing_bobber.rs:120-121`), the vanilla `FishingHook` constructor clamp; the `max(1)` suggestion is rejected.
-- STILL OPEN: gap 1 (`fish_caught` statistic only counts tagged fish, S, not touched in this pass).
+## h6 gap status
+
+- TODO removed: FIXED (50a7d1ee2).

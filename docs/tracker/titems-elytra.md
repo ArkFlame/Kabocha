@@ -39,12 +39,14 @@ are the vanilla ones, line numbers are Pumpkin's.
 
 | # | file:line | vanilla class | gap | suggested fix | size |
 |---|---|---|---|---|---|
-| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust only lowers `fall_distance` to 1.0 when it is already above 1.0; vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, which can also raise a smaller value | store 1.0 unconditionally inside the branch, after confirming against the decompiled method (observable only below the 3.0 fall-damage threshold) | S | **UNVERIFIED** (no edit: code keeps the `fallDistance > 1.0` guard; vanilla source not in ref tree)
-| 2 | `entity/player.rs:3976` | `Player#causeFoodExhaustion` | `progress_motion` still has `TODO: gliding...`; vanilla grants no exhaustion while fall flying, so the TODO looks stale | confirm and delete the TODO, or implement whatever vanilla behaviour it meant | S | **FIXED** (stale TODO removed)
+| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust only lowers `fall_distance` to 1.0 when it is already above 1.0; vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, which can also raise a smaller value | store 1.0 unconditionally inside the branch, after confirming against the decompiled method (observable only below the 3.0 fall-damage threshold) | S |
+| FIXED (5a0471a16) 2 | `entity/player.rs:3976` | `Player#causeFoodExhaustion` | `progress_motion` still has `TODO: gliding...`; vanilla grants no exhaustion while fall flying, so the TODO looks stale | confirm and delete the TODO, or implement whatever vanilla behaviour it meant | S |
 | 3 | `entity/player.rs:3869` | `LivingEntity#updateFallFlying` | no automated test covers glide stop (plugin veto) or the start gate; the veto change above is untested | add a `pumpkin-gametest` that starts a glide, cancels `EntityToggleGlideEvent` and asserts the flag stays | M |
 | 4 | `entity/player.rs:2173` | `ItemStack#hurtAndBreak` | elytra wear goes through `damage_item_in_slot`; Unbreaking / durability-enchantment application inside `damage_item_stack` was not verified without a decompiled reference | compare `damage_item_stack` against `ItemStack#hurtAndBreak` before relying on it | M |
 
-## Gap status (gapwave2 pass)
+## h6 gap status
 
-- Row 3: **STILL OPEN** (needs a `pumpkin-gametest` run; cargo not run in this pass).
-- Row 4: **UNVERIFIED** (no edit; `damage_item_stack_internal` Unbreaking path not audited against `ItemStack#hurtAndBreak` this pass).
+- Row 2 stale TODO (causeFoodExhaustion): STILL OPEN (needs confirmation against vanilla source, UNVERIFIED).
+- Row 1 fall distance: STILL OPEN (decompiled checkFallDistanceAccumulation not available in tree).
+- Row 3 glide-veto gametest: STILL OPEN (M, needs gametest harness).
+- Row 4 hurtAndBreak: STILL OPEN (M, needs decompiled reference).

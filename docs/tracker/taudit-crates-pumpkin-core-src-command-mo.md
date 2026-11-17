@@ -15,7 +15,6 @@ Fixed: command-block source yaw mapped `facing=up/down` to 270, while vanilla `D
 | mod.rs:322 console feedback | dedicated server logs console command feedback through the log file as well as stdout | route `CommandSender::Console` output through `tracing`/log sink instead of bare `println!` | S |
 | mod.rs:276 `world_or_first` | console/dummy sources use the overworld | already matches vanilla; kept as note only | none |
 
-## Status (sweep h2)
+## h6 gap status
 
-- FIXED (70986fced): command block yaw for facing up/down and TrackOutput feedback gating.
-- STILL OPEN: CustomName on CommandBlockEntity, LastExecution NBT, chain conditional on SuccessCount, console op broadcast (M/S items above).
+- Row 15 console output via tracing: STILL OPEN (console send_message is the only terminal path; changing it changes console format, needs a decision).

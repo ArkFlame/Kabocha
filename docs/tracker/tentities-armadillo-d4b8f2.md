@@ -48,9 +48,7 @@ Brush drop uses `spawn_entity` while the shed drop uses `spawn_entity_non_save`;
 tracked, persisted `ItemEntity`s, so only the chunk-save trigger differs from vanilla
 `spawnAtLocation`. Left as-is.
 
-## Status (h3 sweep)
-- Row 4 (`is_scared_by` player test): FIXED, spectators are excluded before the sprinting/riding check (armadillo.rs). UNVERIFIED, no test.
-- Rows 1-3: STILL OPEN (not changed in this pass).
+## h6 gap status
 
-## Status (h3 sweep)
-- Rows 5-6 (armadillo.rs:497 data tracker, :44-68 state ids): STILL OPEN (not changed in this pass).
+- Rows 1-5: STILL OPEN (UNVERIFIED, need vanilla Armadillo source).
+- Row 6 state-id test: STILL OPEN (S, test deferred; id order is a unit-testable constant mapping).
