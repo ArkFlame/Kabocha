@@ -124,32 +124,40 @@ impl CachedStatus {
             .collect()
     }
 
-    pub fn add_player(&mut self, player: &Player) {
+    pub fn add_player(&mut self, player: &Player, allows_listing: bool) {
         let player_id = player.gameprofile.id;
         let player_name = player.gameprofile.name.clone();
 
-        if !self.player_samples.iter().any(|(id, _)| *id == player_id) {
-            self.player_samples.push((player_id, player_name));
-            let sample = self.build_sample_list();
-
-            if let Some(players) = &mut self.status_response.players {
-                players.online = players.online.saturating_add(1);
-                players.sample = sample;
-            }
+        // Vanilla ServerStatus.Players.online counts every player; only the sample
+        // lists the players that allow server listing (ServerPlayer.allowsListing).
+        if let Some(players) = &mut self.status_response.players {
+            players.online = players.online.saturating_add(1);
         }
+
+        if !allows_listing || self.player_samples.iter().any(|(id, _)| *id == player_id) {
+            return;
+        }
+        self.player_samples.push((player_id, player_name));
+        self.refresh_sample();
     }
 
     pub fn remove_player(&mut self, player: &Player) {
         let player_id = player.gameprofile.id;
 
+        if let Some(players) = &mut self.status_response.players {
+            players.online = players.online.saturating_sub(1);
+        }
+
         if self.player_samples.iter().any(|(id, _)| *id == player_id) {
             self.player_samples.retain(|(id, _)| *id != player_id);
-            let sample = self.build_sample_list();
+            self.refresh_sample();
+        }
+    }
 
-            if let Some(players) = &mut self.status_response.players {
-                players.online = players.online.saturating_sub(1);
-                players.sample = sample;
-            }
+    fn refresh_sample(&mut self) {
+        let sample = self.build_sample_list();
+        if let Some(players) = &mut self.status_response.players {
+            players.sample = sample;
         }
     }
 

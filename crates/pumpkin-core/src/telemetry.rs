@@ -477,6 +477,8 @@ impl TelemetryClient {
     pub fn load_or_generate_key(key_path: &Path) -> Result<SigningKey, std::io::Error> {
         if key_path.exists() {
             let bytes = std::fs::read(key_path)?;
+            // The identity key is a secret; tighten permissions inherited from older versions.
+            restrict_key_permissions(key_path);
             if bytes.len() == 32 {
                 let mut seed = [0u8; 32];
                 seed.copy_from_slice(&bytes);
@@ -497,13 +499,7 @@ impl TelemetryClient {
         {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(key_path, seed)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(key_path, std::fs::Permissions::from_mode(0o600));
-        }
+        write_private_key(key_path, &seed)?;
 
         Ok(key)
     }
@@ -562,8 +558,7 @@ impl TelemetryClient {
         let (pubkey_hex, sig_hex) =
             sign_telemetry_payload(&self.signing_key, &timestamp_str, &body_bytes);
 
-        let _ = self
-            .http_client
+        self.http_client
             .post(&self.shutdown_endpoint)
             .header("Content-Type", "application/json")
             .header(HEADER_PUBLIC_KEY, pubkey_hex)
@@ -571,9 +566,48 @@ impl TelemetryClient {
             .header(HEADER_TIMESTAMP, timestamp_str)
             .body(body_bytes)
             .send()
-            .await;
+            .await?
+            .error_for_status()?;
 
         Ok(())
+    }
+}
+
+/// Restricts the identity key file to owner read/write on Unix.
+fn restrict_key_permissions(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(err) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                "Failed to restrict telemetry identity key permissions at {}: {err}",
+                path.display()
+            );
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
+/// Persists the identity key seed, creating the file with owner-only permissions.
+fn write_private_key(path: &Path, seed: &[u8; 32]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)?;
+        file.write_all(seed)?;
+        restrict_key_permissions(path);
+        Ok(())
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, seed)
     }
 }
 
@@ -852,6 +886,18 @@ fn build_heartbeat_payload_inner(
     }
 }
 
+/// Picks the heartbeat interval, honouring the delay recommended by the telemetry backend.
+///
+/// A zero recommendation means the backend did not ask for a change, and values below the
+/// 60 second floor are clamped like the configured interval.
+fn resolve_next_interval_secs(current_secs: u64, recommended_secs: u32) -> u64 {
+    if recommended_secs == 0 {
+        current_secs
+    } else {
+        u64::from(recommended_secs).max(60)
+    }
+}
+
 /// Starts the background telemetry reporting task using the server's telemetry configuration.
 pub fn start_telemetry(server: Arc<Server>) {
     let config = server.telemetry_config.clone();
@@ -897,7 +943,8 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
     let server_task = server.clone();
 
     server.spawn_task(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        let mut current_interval_secs = interval_secs;
+        let mut interval = tokio::time::interval(Duration::from_secs(current_interval_secs));
         loop {
             tokio::select! {
                 _ = interval.tick() => {}
@@ -918,6 +965,15 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
                         resp.status,
                         resp.server_public_key
                     );
+                    let next_interval_secs =
+                        resolve_next_interval_secs(current_interval_secs, resp.next_ping_seconds);
+                    if next_interval_secs != current_interval_secs {
+                        current_interval_secs = next_interval_secs;
+                        interval.reset_after(Duration::from_secs(next_interval_secs));
+                        tracing::debug!(
+                            "Telemetry backend requested a {next_interval_secs}s heartbeat interval"
+                        );
+                    }
                 }
                 Err(err) => {
                     server_task
@@ -977,6 +1033,19 @@ mod tests {
             key1.verifying_key().to_bytes(),
             key2.verifying_key().to_bytes()
         );
+
+        // A pre-existing world-readable key file is tightened when loaded.
+        std::fs::write(&key_path, key1.to_bytes()).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+            let _ = TelemetryClient::load_or_generate_key(&key_path).unwrap();
+            assert_eq!(
+                std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
 
         // Corrupted file test (less than 32 bytes)
         std::fs::write(&key_path, b"corrupted-key-data").unwrap();
@@ -1078,6 +1147,29 @@ mod tests {
         assert!(parsed["players"][1].get("client_brand").is_none());
         assert_eq!(parsed["players"][1]["joined_at"], 1_763_149_500);
         assert_eq!(parsed["players"][1]["left_at"], 1_763_149_545);
+    }
+
+    #[tokio::test]
+    async fn shutdown_request_failures_are_reported() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
+        let app = Router::new().route(
+            "/v1/shutdown",
+            post(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "nope").into_response() }),
+        );
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let endpoint = format!("http://127.0.0.1:{port}/v1/heartbeat");
+        let http_client = pumpkin_auth::client_builder().build().unwrap();
+        let client =
+            TelemetryClient::new(SigningKey::from_bytes(&[3u8; 32]), http_client, endpoint);
+
+        assert!(client.send_shutdown(None, Vec::new()).await.is_err());
     }
 
     #[test]
@@ -1306,6 +1398,22 @@ mod tests {
             .await;
         assert!(shutdown_res.is_ok());
 
+        // Transport failures must surface as errors instead of a silent Ok.
+        let unreachable_client = TelemetryClient::new(
+            SigningKey::from_bytes(&seed),
+            pumpkin_auth::client_builder()
+                .timeout(Duration::from_secs(2))
+                .build()
+                .unwrap(),
+            "http://127.0.0.1:1/v1/heartbeat".to_string(),
+        );
+        assert!(
+            unreachable_client
+                .send_shutdown(None, Vec::new())
+                .await
+                .is_err()
+        );
+
         // Test invalid signature / unauthorized
         let body_bytes = serde_json::to_vec(&payload).unwrap();
         let timestamp_str = SystemTime::now()
@@ -1343,6 +1451,13 @@ mod tests {
             legacy_shutdown,
             "https://market.pumpkinmc.org/api/v1/rest/telemetry/shutdown"
         );
+    }
+
+    #[test]
+    fn backend_recommended_interval_is_honoured_and_clamped() {
+        assert_eq!(resolve_next_interval_secs(300, 0), 300);
+        assert_eq!(resolve_next_interval_secs(300, 120), 120);
+        assert_eq!(resolve_next_interval_secs(300, 10), 60);
     }
 
     #[test]

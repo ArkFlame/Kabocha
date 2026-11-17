@@ -46,8 +46,7 @@ const ASYNC_CALLBACKS: [&str; 13] = [
     "handle-generate-phase",
 ];
 
-// Opt-level 1 because an unoptimized build of the lifted `event` variant exceeds the Wasm locals
-// limit and the component fails validation
+// Opt-level 1 keeps the fixture component small enough to validate without an optimized build
 fn fixture_path() -> &'static PathBuf {
     static FIXTURE: OnceLock<PathBuf> = OnceLock::new();
     FIXTURE.get_or_init(|| {

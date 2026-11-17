@@ -527,7 +527,11 @@ pub fn block_entity_from_nbt(nbt: &NbtCompound) -> Option<Arc<dyn BlockEntity>> 
         potent_sulfur::PotentSulfurBlockEntity::ID => Some(Arc::new(
             potent_sulfur::PotentSulfurBlockEntity::from_nbt(nbt, pos),
         )),
-        _ => None,
+        _ => {
+            // Vanilla `BlockEntity.loadStatic` warns before dropping the record.
+            tracing::warn!(id, ?pos, "Skipping block entity with unknown id");
+            None
+        }
     }
 }
 

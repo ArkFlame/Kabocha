@@ -255,8 +255,10 @@ impl WeatherData {
         let mut rng = rand::rng();
         if self.clear_weather_time > 0 {
             self.clear_weather_time -= 1;
-            self.thunder_time = i32::from(!self.thundering);
-            self.rain_time = i32::from(!self.raining);
+            // Vanilla keeps a one tick countdown for the state the clear interrupted, so
+            // it resumes once the clear time runs out.
+            self.thunder_time = i32::from(self.thundering);
+            self.rain_time = i32::from(self.raining);
             self.thundering = false;
             self.raining = false;
         } else {
@@ -593,6 +595,22 @@ impl World {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    /// Whether this world advances the cycle it follows. Of the worlds sharing one cycle
+    /// only the first advances it, so it runs once per tick like vanilla's single cycle
+    /// instead of once per world, and the worlds no longer race on the shared data.
+    fn advances_cycle(&self) -> bool {
+        let Some(server) = self.server.upgrade() else {
+            return true;
+        };
+        server
+            .worlds
+            .load()
+            .iter()
+            .filter(|world| world.can_have_weather())
+            .find(|world| Arc::ptr_eq(&world.weather_data, &self.weather_data))
+            .is_some_and(|world| std::ptr::eq(world.as_ref(), self))
+    }
+
     /// Vanilla `Level.isRaining`.
     #[must_use]
     pub fn is_raining(&self) -> bool {
@@ -767,6 +785,7 @@ impl World {
 
         if self.level_info.load().game_rules.advance_weather
             && !matches!(self.weather_cycle, WeatherCycle::Fixed { .. })
+            && self.advances_cycle()
         {
             self.change_weather(WeatherCause::Natural, WeatherData::advance_cycle);
         }
@@ -788,35 +807,21 @@ impl World {
         }
     }
 
-    /// Runs `send` for every world following the same weather cycle as this one. Like
-    /// vanilla's single cycle, all of them hear about rain starting or stopping.
-    fn for_each_cycle_world(&self, send: impl Fn(&Self)) {
-        let Some(server) = self.server.upgrade() else {
-            send(self);
-            return;
-        };
-        for world in server.worlds.load().iter() {
-            if Arc::ptr_eq(&world.weather_data, &self.weather_data) {
-                send(world);
-            }
-        }
-    }
-
+    /// Vanilla's `PlayerList.broadcastAll(.., dimension)` sends the begin or end of
+    /// rain only to the level it happened in, so a world that cannot have weather (the
+    /// nether, the end) never hears about the overworld's rain.
     fn announce_raining(&self, tick: &WeatherTick) {
         let event = if self.is_raining() {
             GameEvent::BeginRaining
         } else {
             GameEvent::EndRaining
         };
-        let begin_or_end = CGameEvent::new(event, 0.0);
+        self.broadcast_packet_all_with_world_weather(&CGameEvent::new(event, 0.0));
         let (rain_je, rain_be) = rain_level_packets(tick.rain_level);
         let (thunder_je, thunder_be) = thunder_level_packets(tick.thunder_level);
         // Bedrock has no begin or end; its level events carry both.
-        self.for_each_cycle_world(|world| {
-            world.broadcast_packet_all_with_world_weather(&begin_or_end);
-            world.broadcast_editioned(&rain_je, &rain_be);
-            world.broadcast_editioned(&thunder_je, &thunder_be);
-        });
+        self.broadcast_editioned(&rain_je, &rain_be);
+        self.broadcast_editioned(&thunder_je, &thunder_be);
     }
 
     /// Vanilla `PlayerList.sendLevelInfo`'s weather. The levels are sent when clear too,
@@ -877,16 +882,19 @@ mod test {
     #[test]
     fn clear_time_stops_the_weather() {
         let mut data = WeatherData {
-            clear_weather_time: 2,
+            clear_weather_time: 1,
             raining: true,
             thundering: true,
             ..WeatherData::default()
         };
         data.advance_cycle();
-        assert_eq!(data.clear_weather_time, 1);
+        assert_eq!(data.clear_weather_time, 0);
         assert!(!data.raining && !data.thundering);
-        // The timers are set so the weather flips back once the clear time is over.
-        assert_eq!((data.rain_time, data.thunder_time), (0, 0));
+        // Vanilla counts down the interrupted state, so the weather flips back as soon
+        // as the clear time runs out.
+        assert_eq!((data.rain_time, data.thunder_time), (1, 1));
+        data.advance_cycle();
+        assert!(data.raining && data.thundering);
     }
 
     #[test]

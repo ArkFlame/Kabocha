@@ -91,8 +91,6 @@ impl JavaClient {
 
         let mut item = inventory.get_stack_in_hand(hand);
         let before = item.clone();
-        let item_id = item.item.id;
-        player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
 
         let block = world.get_block(&position);
 
@@ -172,6 +170,13 @@ impl JavaClient {
         if should_try_decrement {
             // TODO: Config
             server.item_registry.on_placed_as_block(&mut item, player);
+        }
+
+        // Vanilla awards the item-used statistic only once the item's own use
+        // (including a successful block placement) actually consumes the action;
+        // a plain block interaction or a cancelled use must not count.
+        if item_result.consumes_action() || should_try_decrement {
+            player.increment_stat(StatisticCategory::Used, i32::from(before.item.id), 1);
         }
 
         if item_result.consumes_action() || !item.are_equal(&before) {

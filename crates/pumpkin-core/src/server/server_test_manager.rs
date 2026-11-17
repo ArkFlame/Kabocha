@@ -541,6 +541,7 @@ impl GameTestWorld for ServerGameTestWorld {
                 let chunk_pos = Vector2::new(chunk_x, chunk_z);
                 if let Some(chunk) = self.world.level.loaded_chunks.get(&chunk_pos) {
                     chunk.block_ticks.clear_area(min, max);
+                    chunk.fluid_ticks.clear_area(min, max);
                     if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
                         self.world
                             .level

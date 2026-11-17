@@ -85,6 +85,25 @@ impl Worldborder {
             .map_or(0, |lerp| (lerp.duration_ms - lerp.elapsed_ms()).max(0))
     }
 
+    /// Restores the persisted `level.dat` border. Vanilla's
+    /// `WorldBorder.applySettings` resumes an interrupted transition from the
+    /// saved current size over the saved remaining time instead of snapping to
+    /// the target.
+    pub fn apply_level_data(&mut self, size: f64, lerp_target: f64, lerp_time_ms: i64) {
+        self.old_diameter = size;
+        if lerp_time_ms > 0 {
+            self.new_diameter = lerp_target;
+            self.lerp = Some(Lerp {
+                start: Instant::now(),
+                duration_ms: lerp_time_ms,
+                from: size,
+            });
+        } else {
+            self.new_diameter = size;
+            self.lerp = None;
+        }
+    }
+
     pub fn init_client(&self, client: &JavaClient) {
         if let Ok(data) = client.serialize_packet(&CInitializeWorldBorder::new(
             self.center_x,
@@ -351,5 +370,26 @@ mod tests {
         assert_eq!(border.clamp_block(100, 100), (4, 4));
         assert_eq!(border.clamp_block(-100, -100), (-5, -5));
         assert_eq!(border.clamp_block(2, -3), (2, -3));
+    }
+
+    #[test]
+    fn apply_level_data_resumes_an_interrupted_transition() {
+        let mut border = centered_border(100.0);
+
+        border.apply_level_data(80.0, 20.0, 10_000);
+
+        assert_eq!(border.new_diameter, 20.0);
+        assert_eq!(border.remaining_ms(), 10_000);
+        assert!((20.0..=80.0).contains(&border.current_diameter()));
+    }
+
+    #[test]
+    fn apply_level_data_snaps_without_a_transition() {
+        let mut border = centered_border(100.0);
+
+        border.apply_level_data(42.0, 42.0, 0);
+
+        assert_eq!(border.current_diameter(), 42.0);
+        assert_eq!(border.remaining_ms(), 0);
     }
 }

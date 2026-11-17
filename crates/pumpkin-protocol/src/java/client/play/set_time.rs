@@ -13,6 +13,10 @@ pub struct CUpdateTime {
     pub game_time: i64,
     /// (`clock_registry_id`, `total_ticks`, `partial_tick`, rate)
     pub clock_updates: Vec<(i32, i64, f32, f32)>,
+    /// Day time and `doDaylightCycle` for clients before 26.1, which have no
+    /// clock map and read both from dedicated fields. `None` falls back to the
+    /// first clock update, then to day 0.
+    pub legacy_day_time: Option<(i64, bool)>,
 }
 
 impl CUpdateTime {
@@ -24,6 +28,7 @@ impl CUpdateTime {
         Self {
             game_time,
             clock_updates: vec![(overworld_id, day_time, partial_tick, rate)],
+            legacy_day_time: None,
         }
     }
 
@@ -38,6 +43,7 @@ impl CUpdateTime {
         Self {
             game_time,
             clock_updates: vec![(clock_id, total_ticks, partial_tick, rate)],
+            legacy_day_time: None,
         }
     }
 }
@@ -59,10 +65,14 @@ impl ClientPacket for CUpdateTime {
                 write.write_f32_be(rate)?;
             }
         } else {
-            let (day_time, rate) = self
-                .clock_updates
-                .first()
-                .map_or((0, 1.0), |&(_, total_ticks, _, rate)| (total_ticks, rate));
+            let (day_time, rate) = self.legacy_day_time.map_or_else(
+                || {
+                    self.clock_updates
+                        .first()
+                        .map_or((0, 1.0), |&(_, total_ticks, _, rate)| (total_ticks, rate))
+                },
+                |(day_time, increasing)| (day_time, if increasing { 1.0 } else { 0.0 }),
+            );
 
             let is_paused = rate == 0.0;
             let day_time = if version < &JavaMinecraftVersion::V_1_21_2 {
@@ -87,5 +97,43 @@ impl ClientPacket for CUpdateTime {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_sync_writes_day_time_and_frozen_flag() {
+        let packet = CUpdateTime {
+            game_time: 1_000,
+            clock_updates: Vec::new(),
+            legacy_day_time: Some((13_000, false)),
+        };
+        let mut buf = Vec::new();
+        packet
+            .write_packet_data(&mut buf, &JavaMinecraftVersion::V_1_21_11)
+            .unwrap();
+        // Vanilla ClientboundSetTimePacket(gameTime, dayTime, doDaylightCycle).
+        assert_eq!(&buf[0..8], &1_000i64.to_be_bytes());
+        assert_eq!(&buf[8..16], &13_000i64.to_be_bytes());
+        assert_eq!(buf[16], 0);
+        assert_eq!(buf.len(), 17);
+    }
+
+    #[test]
+    fn clock_sync_omits_legacy_fields_for_current_clients() {
+        let packet = CUpdateTime {
+            game_time: 1_000,
+            clock_updates: Vec::new(),
+            legacy_day_time: Some((13_000, false)),
+        };
+        let mut buf = Vec::new();
+        packet
+            .write_packet_data(&mut buf, &JavaMinecraftVersion::V_26_3)
+            .unwrap();
+        assert_eq!(&buf[0..8], &1_000i64.to_be_bytes());
+        assert_eq!(buf.len(), 9);
     }
 }

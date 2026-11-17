@@ -132,27 +132,33 @@ impl LevelTime {
         );
     }
 
-    /// Vanilla `ClientboundSetTimePacket(overworld.getGameTime(), Map.of())`.
+    /// Vanilla `ClientboundSetTimePacket(overworld.getGameTime(), Map.of())`,
+    /// once per world.
     /// Clock entries would rewind `clockManager` and can freeze client
     /// `getGameTime()` across two piston animation ticks.
     ///
-    /// Vanilla `PlayerList.broadcastAll`: every player, not only this world's.
-    /// Per-player serialize is intentional; version grouping is world-scoped
-    /// `broadcast_editioned`.
     /// `CUpdateTime.game_time` is global, Bedrock's `CSetTime` is a day time:
     /// the overworld's would snap a Nether or End client back to it. Runs before
     /// any world ticks, so every `time_of_day` read here is this tick's.
-    // TODO: multiversion plugin: < 26.1 reads day time from this packet; fill it from the
-    // client's last clock update instead of the empty list's day 0.
+    ///
+    /// Clients before 26.1 read day time and the frozen flag from the packet
+    /// itself, so each world's packet carries its own values next to the empty
+    /// clock list.
     pub fn send_game_time_sync(&self, server: &crate::server::Server) {
-        let java = CUpdateTime {
-            game_time: self.world_age,
-            clock_updates: Vec::new(),
-        };
         for world in server.worlds.load().iter() {
-            let time_of_day = world.get_time_of_day();
+            let advance_time = world.level_info.load().game_rules.advance_time;
+            let (day_time, _, rate) = world
+                .level_time
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .pack_network_state(advance_time);
+            let java = CUpdateTime {
+                game_time: self.world_age,
+                clock_updates: Vec::new(),
+                legacy_day_time: Some((day_time, rate != 0.0)),
+            };
             for player in world.players.load().iter() {
-                let bedrock = CSetTime::new(player.client_time_of_day(time_of_day) as _);
+                let bedrock = CSetTime::new(player.client_time_of_day(day_time) as _);
                 player.client.try_enqueue_packet_editioned(&java, &bedrock);
             }
         }

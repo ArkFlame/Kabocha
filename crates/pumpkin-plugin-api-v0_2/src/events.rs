@@ -2,12 +2,14 @@
 //!
 //! # How an event reaches your code
 //!
-//! The server fires an event, the host calls the `handle-event(id, server, event)` export, and
-//! the dispatcher looks `id` up in the table that [`Context::register_event_handler`] filled; your
-//! [`EventHandler`] gets the event data by value and hands back the data the host should use
+//! The server fires an event and the host calls the `handle-event(id, server, event)` export,
+//! passing a borrowed [`Event`] resource. The dispatcher looks `id` up in the table that
+//! [`Context::register_event_handler`] filled, copies the typed record out of the resource, and
+//! gives it to your [`EventHandler`] by value. Whatever the handler returns is written back into
+//! the same resource.
 //!
 //! Nothing is borrowed from the host across that call, so a handler can `.await` as often as it
-//! likes and the event data is still its own afterwards
+//! likes and the event data is still its own afterwards.
 //!
 //! # Where to look
 //!
@@ -25,7 +27,7 @@ use crate::{
 
 static EVENT_HANDLERS: Registry<dyn ErasedEventHandler> = Registry::new();
 
-/// Ties an event marker type to its WIT data record and [`EventType`] discriminant
+/// Ties an event marker type to its WIT record and [`EventType`] discriminant
 ///
 /// Implement it with [`define_event!`](crate::define_event) instead of by hand; a marker is a unit
 /// struct that exists so [`EventHandler`] and [`Context::register_event_handler`] can name an
@@ -37,19 +39,18 @@ pub trait FromIntoEvent: Sized {
     /// The WIT record this event carries
     type Data;
 
-    /// Extracts the event data from an [`Event`]
+    /// Copies the typed record out of the borrowed event resource
     ///
-    /// # Errors
-    ///
-    /// Returns the event back, boxed because [`Event`] is over 900 bytes, when it is a different
-    /// variant than this marker
-    ///
-    /// The dispatcher hands that event to the host untouched, so an id that points at the wrong
-    /// handler is a host bug the plugin survives instead of a trap
-    fn data_from_event(event: Event) -> Result<Self::Data, Box<Event>>;
+    /// Returns `None` when the resource carries a different record than this marker. The
+    /// dispatcher then leaves the event untouched, so an id that points at the wrong handler is a
+    /// host bug the plugin survives instead of a trap
+    fn data_from_event(event: &Event) -> Option<Self::Data>;
 
-    /// Wraps event data back into the matching [`Event`] variant
-    fn data_into_event(data: Self::Data) -> Event;
+    /// Writes the typed record back into the borrowed event resource
+    ///
+    /// Returns `false` when the resource carries a different record than this marker, so the
+    /// dispatcher can report the handler error and keep the event the host dispatched
+    fn data_into_event(event: &Event, data: Self::Data) -> bool;
 }
 
 /// The data type carried by an event
@@ -86,20 +87,19 @@ pub trait EventHandler<E: FromIntoEvent>: Send + Sync + 'static {
     /// The server handle and the event data are owned, so nothing is borrowed from the host across
     /// an await and the handler can suspend as often as it needs to
     ///
-    /// The host treats a returned variant that differs from the dispatched one as a handler error
-    /// and keeps the original event; the data type pins the variant, so this signature cannot
-    /// produce one
+    /// The server writes the returned data back into the event resource, and it ignores it for a
+    /// handler registered as a notification
     ///
     /// # Reentry
     ///
     /// The host can start another dispatch while this one is suspended, which is why the receiver
-    /// is `&self`; shared mutable state needs interior mutability, and no lock guard may be held
+    /// is `&`self`; shared mutable state needs interior mutability, and no lock guard may be held
     /// across an await
     async fn handle(&self, server: Server, event: E::Data) -> E::Data;
 }
 
 trait ErasedEventHandler: Send + Sync {
-    fn handle_erased(&self, server: Server, event: Event) -> LocalBoxFuture<'_, Event>;
+    fn handle_erased<'a>(&'a self, server: Server, event: &'a Event) -> LocalBoxFuture<'a, ()>;
 }
 
 struct HandlerWrapper<E, H> {
@@ -108,22 +108,32 @@ struct HandlerWrapper<E, H> {
 }
 
 impl<E: FromIntoEvent, H: EventHandler<E>> ErasedEventHandler for HandlerWrapper<E, H> {
-    fn handle_erased(&self, server: Server, event: Event) -> LocalBoxFuture<'_, Event> {
+    fn handle_erased<'a>(&'a self, server: Server, event: &'a Event) -> LocalBoxFuture<'a, ()> {
         Box::pin(async move {
-            match E::data_from_event(event) {
-                Ok(data) => E::data_into_event(self.handler.handle(server, data).await),
-                Err(event) => *event,
+            let Some(data) = E::data_from_event(event) else {
+                tracing::warn!(
+                    event_type = ?E::EVENT_TYPE,
+                    "Event handler id does not match the dispatched event"
+                );
+                return;
+            };
+            let data = self.handler.handle(server, data).await;
+            if !E::data_into_event(event, data) {
+                tracing::warn!(
+                    event_type = ?E::EVENT_TYPE,
+                    "Event handler returned data for a different event"
+                );
             }
         })
     }
 }
 
-pub(crate) async fn dispatch(event_id: u32, server: Server, event: Event) -> Event {
+pub(crate) async fn dispatch(event_id: u32, server: Server, event: &Event) {
     // The registry lock is released before the handler runs
     let Some(handler) = EVENT_HANDLERS.get(event_id) else {
-        return event;
+        return;
     };
-    handler.handle_erased(server, event).await
+    handler.handle_erased(server, event).await;
 }
 
 impl Context {
@@ -134,9 +144,9 @@ impl Context {
     /// the handler is async
     ///
     /// `blocking` says whether the dispatcher uses the value the handler returns, and it does not
-    /// say the callback blocks an operating system thread: the host applies the returned event for
-    /// a blocking handler and ignores it for a notification handler, so a notification handler
-    /// must not count on its edits being seen
+    /// say the callback blocks an operating system thread: the host keeps the event the handler
+    /// wrote back for a blocking handler and ignores it for a notification handler, so a
+    /// notification handler must not count on its edits being seen
     ///
     /// `event_priority` decides when this handler runs relative to the others for the same event
     ///
@@ -170,38 +180,38 @@ impl Context {
 
 /// Defines an event marker type that implements [`FromIntoEvent`]
 ///
-/// The marker name has to match both the [`Event`] variant and the [`EventType`] case, because the
-/// macro uses it for all three
+/// The marker needs the [`EventType`] case it registers under and the resource accessors that
+/// read and write its record: WIT names them `get-<case>` and `set-<case>`, which the binding
+/// generator turns into the snake_case method names passed to this macro
 ///
 /// # Examples
 ///
 /// ```rust,ignore
 /// pumpkin_plugin_api_v0_2::define_event! {
 ///     /// A player finished joining the server
-///     PlayerJoinEvent => pumpkin_plugin_api_v0_2::host::event::PlayerJoinEventData
+///     PlayerJoinEvent => PlayerJoin, get_player_join, set_player_join,
+///         pumpkin_plugin_api_v0_2::host::event::PlayerJoinEvent
 /// }
 /// ```
 #[macro_export]
 macro_rules! define_event {
-    ($(#[$meta:meta])* $name:ident => $data:ty) => {
+    (
+        $(#[$meta:meta])*
+        $name:ident => $case:ident, $get:ident, $set:ident, $data:ty
+    ) => {
         $(#[$meta])*
         pub struct $name;
 
         impl $crate::events::FromIntoEvent for $name {
-            const EVENT_TYPE: $crate::events::EventType = $crate::events::EventType::$name;
+            const EVENT_TYPE: $crate::events::EventType = $crate::events::EventType::$case;
             type Data = $data;
 
-            fn data_from_event(
-                event: $crate::events::Event,
-            ) -> ::core::result::Result<Self::Data, ::std::boxed::Box<$crate::events::Event>> {
-                match event {
-                    $crate::events::Event::$name(data) => Ok(data),
-                    other => Err(::std::boxed::Box::new(other)),
-                }
+            fn data_from_event(event: &$crate::events::Event) -> ::core::option::Option<$data> {
+                event.$get().ok()
             }
 
-            fn data_into_event(data: Self::Data) -> $crate::events::Event {
-                $crate::events::Event::$name(data)
+            fn data_into_event(event: &$crate::events::Event, data: $data) -> bool {
+                event.$set(data).is_ok()
             }
         }
     };
@@ -209,15 +219,18 @@ macro_rules! define_event {
 
 define_event! {
     /// A player finished joining the server
-    PlayerJoinEvent => crate::host::event::PlayerJoinEventData
+    PlayerJoinEvent => PlayerJoin, get_player_join, set_player_join,
+        crate::host::event::PlayerJoinEvent
 }
 
 define_event! {
     /// A player sent a chat message
-    PlayerChatEvent => crate::host::event::PlayerChatEventData
+    PlayerChatEvent => PlayerChat, get_player_chat, set_player_chat,
+        crate::host::event::PlayerChatEvent
 }
 
 define_event! {
     /// A server tick is about to run
-    ServerTickStartEvent => crate::host::event::ServerTickStartEventData
+    ServerTickStartEvent => ServerTickStart, get_server_tick_start, set_server_tick_start,
+        crate::host::event::ServerTickStartEvent
 }

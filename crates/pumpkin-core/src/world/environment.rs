@@ -66,15 +66,22 @@ impl<'a> EnvironmentAttributes<'a> {
                     0.0
                 }
             }
-            EnvironmentAttribute::VisualSunAngle => {
-                super::calculate_celestial_angle(self.world.get_time_of_day()) * 360.0
+            EnvironmentAttribute::VisualSunAngle | EnvironmentAttribute::VisualStarAngle => {
+                Self::celestial_angle_degrees(self.world.get_time_of_day())
             }
             EnvironmentAttribute::VisualMoonAngle => {
-                (super::calculate_celestial_angle(self.world.get_time_of_day()) * 360.0 + 180.0)
+                (Self::celestial_angle_degrees(self.world.get_time_of_day()) + 180.0)
                     .rem_euclid(360.0)
             }
             _ => 0.0,
         }
+    }
+
+    /// Vanilla `in_overworld` day timeline drives `visual/sun_angle` and
+    /// `visual/star_angle` with the same cubic-bezier keyframes, so the stars
+    /// share the sun rotation.
+    fn celestial_angle_degrees(time_of_day: i64) -> f32 {
+        super::calculate_celestial_angle(time_of_day) * 360.0
     }
 
     fn apply_weather_sky_light(mut level: f32, rain_level: f32, thunder_level: f32) -> f32 {
