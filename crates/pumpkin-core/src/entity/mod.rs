@@ -1423,6 +1423,18 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         if self.get_living_entity().is_some() {
             caller.damage(caller, f32::MAX, DamageType::GENERIC_KILL);
         } else {
+            // Vanilla AbstractChestBoat.remove/AbstractMinecartContainer.remove scatter the
+            // container slots on any destroying removal, so /kill on a boat or minecart with a
+            // chest keeps its contents. Entity.remove alone drops nothing.
+            if self.has_container_inventory()
+                && let Some(container) = self.get_container_inventory()
+            {
+                let entity = self.get_entity();
+                entity
+                    .world
+                    .load()
+                    .scatter_inventory_at(entity.pos.load(), &container);
+            }
             // TODO this should be removed once all entities are implemented
             self.get_entity().remove();
         }
