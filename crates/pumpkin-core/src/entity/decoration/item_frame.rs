@@ -9,7 +9,7 @@ use crate::server::Server;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::{Block, BlockDirection};
+use pumpkin_data::BlockDirection;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
@@ -101,15 +101,12 @@ impl ItemFrameEntity {
         ));
     }
 
+    /// Vanilla `ItemFrame.survives()` support test: the block behind the frame
+    /// must be solid, or a repeater/comparator for a horizontal frame.
     fn has_valid_support(&self, world: &World) -> bool {
         let facing = self.get_facing();
-        let support_pos = self
-            .entity
-            .block_pos
-            .load()
-            .offset(facing.opposite().to_offset());
-        let (block, state) = world.get_block_and_state(&support_pos);
-        state.is_side_solid(facing) || (facing.is_horizontal() && is_diode(block))
+        let (block, state) = world.get_block_and_state(&self.support_pos());
+        state.is_solid() || (facing.is_horizontal() && is_diode(block))
     }
 
     /// Vanilla `ItemFrame.survives`: free space, a valid support block and no other hanging entity.
@@ -325,19 +322,14 @@ impl ItemFrameEntity {
             .offset(Vector3::new(-offset.x, -offset.y, -offset.z))
     }
 
-    /// Vanilla `ItemFrame.survives()`: the block behind the frame must expose a
-    /// solid face towards it, unless the frame is fixed.
+    /// Vanilla `ItemFrame.survives()`: the block behind the frame must be solid,
+    /// unless the frame is fixed.
     #[must_use]
     pub fn is_supported(&self) -> bool {
         if self.is_fixed() {
             return true;
         }
-        let world = self.entity.world.load();
-        let (support_block, support_state) = world.get_block_and_state(&self.support_pos());
-        let facing = self.get_facing();
-        let is_diode = facing.is_horizontal()
-            && (support_block == &Block::REPEATER || support_block == &Block::COMPARATOR);
-        support_state.is_side_solid(facing) || support_state.is_solid() || is_diode
+        self.has_valid_support(&self.entity.world.load())
     }
 
     /// Drops the frame (and its item) when the block behind it is gone.
