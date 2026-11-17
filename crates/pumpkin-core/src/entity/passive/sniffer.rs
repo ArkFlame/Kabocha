@@ -56,11 +56,7 @@ const MAX_EXPLORED_POSITIONS: usize = 20;
 const HEAD_DISTANCE: f64 = 2.25;
 
 /// Prepends `newest` and keeps at most `cap` entries in total, dropping the oldest.
-fn prepend_capped<T: Copy>(
-    newest: T,
-    previous: impl Iterator<Item = T>,
-    cap: usize,
-) -> Vec<T> {
+fn prepend_capped<T: Copy>(newest: T, previous: impl Iterator<Item = T>, cap: usize) -> Vec<T> {
     let mut out = Vec::with_capacity(cap);
     if cap == 0 {
         return out;
