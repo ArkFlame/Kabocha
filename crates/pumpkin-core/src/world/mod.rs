@@ -3716,7 +3716,11 @@ impl World {
     ) -> Vector3<f64> {
         let mut event = PlayerSpawnLocationEvent::new(player.clone(), position);
         server.plugin_manager.fire(server, &mut event).await;
-        let chosen = event.spawn_pos;
+        let chosen = if event.cancelled {
+            position
+        } else {
+            event.spawn_pos
+        };
         if chosen.x.is_finite()
             && chosen.y.is_finite()
             && chosen.z.is_finite()
@@ -5101,7 +5105,11 @@ impl World {
         if let Some(ref s) = server {
             s.plugin_manager.fire(s, &mut spawn_loc_event).await;
         }
-        let position = spawn_loc_event.spawn_pos;
+        let position = if spawn_loc_event.cancelled {
+            position
+        } else {
+            spawn_loc_event.spawn_pos
+        };
 
         // Candidate destination world for a cross-dimension respawn.
         let candidate_world = if respawn_dimension == self.dimension {
