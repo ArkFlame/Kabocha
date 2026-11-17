@@ -627,10 +627,12 @@ impl EntityBase for ArmorStandEntity {
 
         if time - self.last_hit_time.load(Ordering::Relaxed) > 5 && !always_kills {
             world.send_entity_status(entity, EntityStatus::ArmorstandWobble, ActorEventID::None);
-            world.play_sound(
+            world.play_sound_fine(
                 Sound::EntityArmorStandHit,
                 SoundCategory::Neutral,
                 &entity.block_pos.load().to_f64(),
+                0.3,
+                1.0,
             );
             self.last_hit_time.store(time, Ordering::Relaxed);
         } else {
