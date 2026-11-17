@@ -321,6 +321,10 @@ pub struct HeartbeatPayload {
     /// Anonymous player sessions (`left_at: None` for currently online, `left_at: Some(...)` for disconnected).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub players: Vec<PlayerTelemetryInfo>,
+    /// True when more than [`MAX_TELEMETRY_PLAYERS`] were online, so some online entries
+    /// were omitted from `players`; `online_players` still reports the full count.
+    #[serde(default)]
+    pub players_truncated: bool,
     /// Whether the server has opted into public directory listing.
     pub is_public: bool,
     /// Public name of the server if opted into public directory listing.
@@ -425,22 +429,27 @@ pub fn verify_telemetry_request(
     Ok(())
 }
 
+/// Derives the shutdown endpoint from an endpoint or its heartbeat-stripped prefix.
+///
+/// Endpoints that already carry an API-version path keep that path on shutdown;
+/// bare hosts get the canonical `/v1/shutdown` suffix.
+fn shutdown_url_for(prefix: &str) -> String {
+    if prefix.ends_with("/v1")
+        || prefix.ends_with("/api/v1/telemetry")
+        || prefix.ends_with("/api/v1/rest/telemetry")
+    {
+        format!("{prefix}/shutdown")
+    } else {
+        format!("{prefix}/v1/shutdown")
+    }
+}
+
 fn resolve_telemetry_urls(endpoint: &str) -> (String, String) {
     let trimmed = endpoint.trim_end_matches('/');
     trimmed.strip_suffix("/heartbeat").map_or_else(
-        || {
-            let shutdown_url = if trimmed.ends_with("/v1")
-                || trimmed.ends_with("/api/v1/telemetry")
-                || trimmed.ends_with("/api/v1/rest/telemetry")
-            {
-                format!("{trimmed}/shutdown")
-            } else {
-                format!("{trimmed}/v1/shutdown")
-            };
-            (trimmed.to_string(), shutdown_url)
-        },
+        || (trimmed.to_string(), shutdown_url_for(trimmed)),
         |prefix| {
-            let shutdown_url = format!("{prefix}/shutdown");
+            let shutdown_url = shutdown_url_for(prefix);
             let base_url = prefix
                 .strip_suffix("/api/v1/rest/telemetry")
                 .or_else(|| prefix.strip_suffix("/api/v1/telemetry"))
@@ -872,10 +881,12 @@ fn collect_players_telemetry(
     server: &Server,
     player_salt: &[u8; 32],
     mut players: Vec<PlayerTelemetryInfo>,
-) -> Vec<PlayerTelemetryInfo> {
+) -> (Vec<PlayerTelemetryInfo>, bool) {
     let mut online_count = 0usize;
+    let mut truncated = false;
     server.for_each_player(|player| {
         if online_count >= MAX_TELEMETRY_PLAYERS {
+            truncated = true;
             tracing::debug!(
                 "Telemetry player list capped at {MAX_TELEMETRY_PLAYERS}, omitting the rest"
             );
@@ -896,7 +907,7 @@ fn collect_players_telemetry(
             left_at: None,
         });
     });
-    players
+    (players, truncated)
 }
 
 /// Builds the telemetry heartbeat payload using a precomputed per-server player salt.
@@ -931,7 +942,8 @@ fn build_heartbeat_payload_inner(
         (false, true) => (bedrock_net.max_players, bedrock_net.online_mode),
     };
 
-    let players = collect_players_telemetry(server, player_salt, completed_sessions);
+    let (players, players_truncated) =
+        collect_players_telemetry(server, player_salt, completed_sessions);
 
     let is_public = telemetry_config.public;
     let public_name = if is_public {
@@ -946,6 +958,7 @@ fn build_heartbeat_payload_inner(
         minecraft_version: pumpkin_data::packet::CURRENT_MC_VERSION.to_string(),
         protocol_version: pumpkin_data::packet::CURRENT_MC_VERSION.protocol_version(),
         online_players: server.get_player_count(),
+        players_truncated,
         max_players,
         online_mode,
         os: host.os.clone(),
@@ -973,6 +986,12 @@ fn resolve_next_interval_secs(current_secs: u64, recommended_secs: u32) -> u64 {
     }
 }
 
+/// Returns true when the configured endpoint is an http(s) URL with a host.
+fn telemetry_endpoint_is_valid(endpoint: &str) -> bool {
+    reqwest::Url::parse(endpoint)
+        .is_ok_and(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
+}
+
 /// Starts the background telemetry reporting task using the server's telemetry configuration.
 pub fn start_telemetry(server: Arc<Server>) {
     let config = server.telemetry_config.clone();
@@ -984,6 +1003,14 @@ pub fn start_telemetry(server: Arc<Server>) {
 pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig) {
     if !config.enabled {
         tracing::trace!("Telemetry is disabled in configuration.");
+        return;
+    }
+
+    if !telemetry_endpoint_is_valid(&config.endpoint) {
+        tracing::warn!(
+            "Telemetry disabled: configured endpoint is not a valid http(s) URL: {}",
+            config.endpoint
+        );
         return;
     }
 
@@ -1177,6 +1204,7 @@ mod tests {
             minecraft_version: "1.21.4".to_string(),
             protocol_version: 769,
             online_players: 42,
+            players_truncated: false,
             max_players: 100,
             online_mode: true,
             os: "Ubuntu 24.04 LTS".to_string(),
@@ -1234,6 +1262,7 @@ mod tests {
         assert_eq!(parsed["minecraft_version"], "1.21.4");
         assert_eq!(parsed["protocol_version"], 769);
         assert_eq!(parsed["online_players"], 42);
+        assert_eq!(parsed["players_truncated"], false);
         assert_eq!(parsed["max_players"], 100);
         assert_eq!(parsed["online_mode"], true);
         assert_eq!(parsed["os"], "Ubuntu 24.04 LTS");
@@ -1471,6 +1500,7 @@ mod tests {
             minecraft_version: "1.21.4".to_string(),
             protocol_version: 769,
             online_players: 1,
+            players_truncated: false,
             max_players: 20,
             online_mode: false,
             os: "Linux".to_string(),
@@ -1565,10 +1595,34 @@ mod tests {
     }
 
     #[test]
+    fn telemetry_client_resolves_short_form_shutdown_route() {
+        let (base, shutdown) = resolve_telemetry_urls("https://telemetry.example.org/heartbeat");
+        assert_eq!(base, "https://telemetry.example.org");
+        assert_eq!(shutdown, "https://telemetry.example.org/v1/shutdown");
+
+        let (base, shutdown) = resolve_telemetry_urls("https://telemetry.example.org");
+        assert_eq!(base, "https://telemetry.example.org");
+        assert_eq!(shutdown, "https://telemetry.example.org/v1/shutdown");
+    }
+
+    #[test]
     fn backend_recommended_interval_is_honoured_and_clamped() {
         assert_eq!(resolve_next_interval_secs(300, 0), 300);
         assert_eq!(resolve_next_interval_secs(300, 120), 120);
         assert_eq!(resolve_next_interval_secs(300, 10), 60);
+    }
+
+    #[test]
+    fn telemetry_endpoint_validation_requires_http_url_with_host() {
+        assert!(telemetry_endpoint_is_valid(
+            "https://telemetry.pumpkinmc.org/v1/heartbeat"
+        ));
+        assert!(telemetry_endpoint_is_valid(
+            "http://localhost:5000/v1/heartbeat"
+        ));
+        assert!(!telemetry_endpoint_is_valid(""));
+        assert!(!telemetry_endpoint_is_valid("not a url"));
+        assert!(!telemetry_endpoint_is_valid("ftp://example.com/heartbeat"));
     }
 
     fn raw_session(joined_at: u64) -> RawCompletedSession {

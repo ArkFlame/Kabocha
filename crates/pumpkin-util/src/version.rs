@@ -84,6 +84,11 @@ pub enum JavaMinecraftVersion {
     Unknown,
 }
 
+/// The last data pack major format that still uses the legacy `pack_format` field.
+///
+/// Vanilla: `PackFormat.lastPreMinorVersion(PackType.SERVER_DATA)`.
+pub const LAST_PRE_MINOR_DATA_PACK_FORMAT: u32 = 81;
+
 impl JavaMinecraftVersion {
     /// Returns the network protocol number for this version.
     ///
@@ -226,6 +231,18 @@ impl JavaMinecraftVersion {
     pub const fn has_registries(&self) -> bool {
         self.protocol_version() >= Self::V_1_16.protocol_version()
     }
+
+    /// The data pack format written to `pack.mcmeta` (vanilla `PackFormat` major).
+    ///
+    /// Pumpkin admits only the current version at runtime; unsupported versions
+    /// report `0` because no data pack format is defined for them here.
+    #[must_use]
+    pub const fn data_pack_format(&self) -> u32 {
+        match self {
+            Self::V_26_3 => 121,
+            _ => 0,
+        }
+    }
 }
 
 impl std::fmt::Display for JavaMinecraftVersion {
@@ -343,7 +360,14 @@ impl std::fmt::Display for BedrockMinecraftVersion {
 
 #[cfg(test)]
 mod tests {
-    use super::BedrockMinecraftVersion;
+    use super::{BedrockMinecraftVersion, JavaMinecraftVersion, LAST_PRE_MINOR_DATA_PACK_FORMAT};
+
+    #[test]
+    fn data_pack_format_uses_vanilla_current_version() {
+        let format = JavaMinecraftVersion::V_26_3.data_pack_format();
+        assert_eq!(format, 121);
+        assert!(format > LAST_PRE_MINOR_DATA_PACK_FORMAT);
+    }
 
     #[test]
     fn resolves_bedrock_26_60_protocol() {

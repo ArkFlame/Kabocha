@@ -148,8 +148,13 @@ impl Slot for FurnaceOutputSlot {
             stack.item.id as i32,
             stack.item_count as i32,
         );
-        // Extract accumulated experience and award to player
-        let experience = self.experience_container.extract_experience();
+        // Vanilla `FurnaceResultSlot.checkTakeAchievements` unlocks the used cooking recipe
+        // (`awardRecipes`) and fires the recipe crafted trigger when items are taken. Use the
+        // same result-slot hook the crafting, smithing and stonecutter result slots use.
+        player.on_recipe_crafted(stack);
+        // Extract accumulated experience and award to player. Vanilla spawns one orb per
+        // recipe; this path credits the player directly, so sum the per-recipe amounts.
+        let experience: i32 = self.experience_container.extract_experience().iter().sum();
         debug!("FurnaceOutputSlot: extracted experience = {experience}");
         if experience > 0 {
             debug!("FurnaceOutputSlot: awarding {experience} xp to player");
