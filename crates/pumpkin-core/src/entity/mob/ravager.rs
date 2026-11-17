@@ -1,6 +1,8 @@
-use std::sync::{Arc, Weak};
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, PoisonError, Weak};
 
 use pumpkin_data::BlockState;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
@@ -80,7 +82,35 @@ impl RavagerEntity {
     }
 }
 
+/// Vanilla `Ravager.aiStep` walk speeds: 0.35 while it has a target, 0.3 otherwise.
+const HUNTING_SPEED: f64 = 0.35;
+const WANDERING_SPEED: f64 = 0.3;
+/// Vanilla `Mth.lerp(0.1, ...)` step applied to the walk speed each tick.
+const SPEED_LERP: f64 = 0.1;
+
 impl Mob for RavagerEntity {
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        let living = &self.mob_entity.living_entity;
+        let max_speed = if self.mob_entity.get_target().is_some() {
+            HUNTING_SPEED
+        } else {
+            WANDERING_SPEED
+        };
+        let immobile = living.is_dead_or_dying();
+        let mut attributes = living
+            .attributes
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(speed) = attributes.get_mut(&Attributes::MOVEMENT_SPEED.id) {
+            speed.base_value = if immobile {
+                0.0
+            } else {
+                speed.base_value + SPEED_LERP * (max_speed - speed.base_value)
+            };
+            speed.dirty.store(true, Ordering::Relaxed);
+        }
+    }
+
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityRavagerStep, 0.15, 1.0);
     }
