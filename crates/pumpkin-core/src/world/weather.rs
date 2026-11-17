@@ -608,7 +608,7 @@ impl World {
             .iter()
             .filter(|world| world.can_have_weather())
             .find(|world| Arc::ptr_eq(&world.weather_data, &self.weather_data))
-            .is_some_and(|world| Arc::ptr_eq(world, self))
+            .is_some_and(|world| std::ptr::eq(world.as_ref(), self))
     }
 
     /// Vanilla `Level.isRaining`.

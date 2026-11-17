@@ -627,8 +627,8 @@ impl NetherPortal {
         let mut ideal_pos: Option<(BlockPos, HorizontalAxis, f64)> = None;
         let mut acceptable_pos: Option<(BlockPos, HorizontalAxis, f64)> = None;
 
-        for offset_x in -Self::SEARCH_RADIUS_CREATE_PORTAL..=Self::SEARCH_RADIUS_CREATE_PORTAL {
-            for offset_z in -Self::SEARCH_RADIUS_CREATE_PORTAL..=Self::SEARCH_RADIUS_CREATE_PORTAL {
+        for offset_x in -SEARCH_RADIUS_CREATE_PORTAL..=SEARCH_RADIUS_CREATE_PORTAL {
+            for offset_z in -SEARCH_RADIUS_CREATE_PORTAL..=SEARCH_RADIUS_CREATE_PORTAL {
                 let check_x = target_pos.0.x + offset_x;
                 let check_z = target_pos.0.z + offset_z;
 

@@ -53,6 +53,7 @@ impl ToFromWasmEvent for InventoryOpenEvent {
     fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
         Self {
             player: consume_player(state, &data.player),
+            position: data.position.map(from_wasm_block_position),
             cancelled: data.cancelled,
         }
     }
