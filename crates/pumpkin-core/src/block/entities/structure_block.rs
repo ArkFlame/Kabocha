@@ -535,7 +535,9 @@ pub fn place_structure_template_in_world(
     // drives loot table seeds, so neither affects the other's sequence.
     let mut integrity_rng = LegacyRand::from_seed(create_structure_seed(seed));
     let mut loot_rng = LegacyRand::from_seed(create_structure_seed(seed));
-    let mut placer = WorldBlockPlacer::new(world);
+    // Strict placement maps to vanilla UPDATE_SKIP_ALL_SIDEEFFECTS: the known-shape half is
+    // handled by the !strict reconnect pass below, the drop-callback half by the placer flag.
+    let mut placer = WorldBlockPlacer::new_with_skip_side_effects(world, strict);
     let pivot = Vector3::new(0, 0, 0);
 
     for block_info in palette.blocks() {

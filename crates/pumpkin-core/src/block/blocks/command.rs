@@ -153,11 +153,6 @@ impl CommandBlock {
         block_entity: Arc<dyn BlockEntity>,
         command: &str,
     ) {
-        let command_blocks_work = { world.level_info.load().game_rules.command_blocks_work };
-        if !command_blocks_work {
-            return;
-        }
-
         let Ok(command_entity) = Arc::downcast::<CommandBlockEntity>(block_entity) else {
             warn!("Failed to downcast block entity to CommandBlockEntity");
             return;
@@ -170,8 +165,9 @@ impl CommandBlock {
             return;
         }
 
-        // Vanilla `BaseCommandBlock#performCommand` easter egg.
-        if command == "Searge" {
+        // Vanilla checks the Searge easter egg with `equalsIgnoreCase` before the
+        // gamerule guard, so it fires even with command blocks disabled.
+        if command.eq_ignore_ascii_case("Searge") {
             let mut last_output = command_entity
                 .last_output
                 .lock()
@@ -181,8 +177,11 @@ impl CommandBlock {
             return;
         }
 
+        // Vanilla clears SuccessCount before the gamerule guard.
         command_entity.success_count.store(0, Ordering::Release);
-        if !command.is_empty() {
+
+        let command_blocks_work = { world.level_info.load().game_rules.command_blocks_work };
+        if command_blocks_work && !command.is_empty() {
             let Some(source) =
                 CommandSender::CommandBlock(command_entity.clone(), world).into_source(server)
             else {
