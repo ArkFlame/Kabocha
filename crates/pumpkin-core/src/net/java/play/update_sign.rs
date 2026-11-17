@@ -3,6 +3,10 @@ use super::*;
 
 impl JavaClient {
     pub fn handle_sign_update(&self, player: &Player, sign_data: &SUpdateSign<'_>) {
+        // Vanilla `isImmobile()` (dead or dying) returns before the action time is reset.
+        if player.living_entity.is_dead_or_dying() {
+            return;
+        }
         // `ServerGamePacketListenerImpl#updateSignText` resets the action time before validating.
         player.update_last_action_time();
 
@@ -33,10 +37,10 @@ impl JavaClient {
         }
 
         let lines = vec![
-            sign_data.line_1.to_string(),
-            sign_data.line_2.to_string(),
-            sign_data.line_3.to_string(),
-            sign_data.line_4.to_string(),
+            strip_formatting(sign_data.line_1),
+            strip_formatting(sign_data.line_2),
+            strip_formatting(sign_data.line_3),
+            strip_formatting(sign_data.line_4),
         ];
 
         if let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id) {
@@ -56,10 +60,10 @@ impl JavaClient {
         let text = sign_entity.get_text(sign_data.is_front_text);
 
         let new_messages = [
-            Box::<str>::from(sign_data.line_1),
-            Box::<str>::from(sign_data.line_2),
-            Box::<str>::from(sign_data.line_3),
-            Box::<str>::from(sign_data.line_4),
+            Box::<str>::from(strip_formatting(sign_data.line_1)),
+            Box::<str>::from(strip_formatting(sign_data.line_2)),
+            Box::<str>::from(strip_formatting(sign_data.line_3)),
+            Box::<str>::from(strip_formatting(sign_data.line_4)),
         ];
 
         text.set_client_messages(&new_messages);
@@ -68,5 +72,38 @@ impl JavaClient {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         world.update_block_entity(&block_entity);
+    }
+}
+
+/// Vanilla `ChatFormatting.stripFormatting`: drops `§` plus a legacy format code (`0-9`, `a-f`, `k-o`, `r`).
+fn strip_formatting(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '§'
+            && chars.peek().is_some_and(
+                |code| matches!(code.to_ascii_lowercase(), '0'..='9' | 'a'..='f' | 'k'..='o' | 'r'),
+            )
+        {
+            chars.next();
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_formatting;
+
+    #[test]
+    fn strips_legacy_format_codes() {
+        assert_eq!(strip_formatting("§aHi§L§r!"), "Hi!");
+    }
+
+    #[test]
+    fn keeps_non_format_sequences() {
+        assert_eq!(strip_formatting("§xy§"), "§xy§");
     }
 }
