@@ -4,8 +4,12 @@ use std::sync::{
 };
 
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::{entity::EntityType, world::WorldEvent};
+use pumpkin_data::{
+    entity::{EntityStatus, EntityType},
+    world::WorldEvent,
+};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 
 use crate::{
@@ -231,7 +235,13 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
             crate::entity::mob::spawn::EntitySpawnReason::Spawner,
             None,
         );
-        world.spawn_entity(entity);
+        world.spawn_entity(entity.clone());
+        // Vanilla `Mob.spawnAnim` broadcasts entity event 20 (the poof) on spawner spawns.
+        world.send_entity_status(
+            entity.get_entity(),
+            EntityStatus::SilverfishMergeAnim,
+            ActorEventID::None,
+        );
         world.sync_world_event(WorldEvent::ParticlesMobblockSpawn, position, 0);
         spawned_any = true;
     }
