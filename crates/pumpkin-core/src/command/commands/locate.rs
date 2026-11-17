@@ -176,17 +176,20 @@ fn horizontal_distance_exact(origin: &BlockPos, target: &BlockPos) -> f64 {
     dx.hypot(dz)
 }
 
-/// Vanilla reports the horizontal block distance for structures and POIs.
+/// Vanilla reports the horizontal block distance for structures and POIs as
+/// `Mth.floor((float) Math.hypot(dx, dz))`, so round through `f32`.
 fn horizontal_distance(origin: &BlockPos, target: &BlockPos) -> i32 {
-    horizontal_distance_exact(origin, target).floor().max(0.0) as i32
+    (horizontal_distance_exact(origin, target) as f32)
+        .floor()
+        .max(0.0) as i32
 }
 
-/// ... and the full 3D block distance for biomes.
+/// ... and biomes use `Mth.floor(Mth.sqrt((float) distSqr))`.
 fn absolute_distance(origin: &BlockPos, target: &BlockPos) -> i32 {
     let dx = f64::from(target.0.x - origin.0.x);
     let dy = f64::from(target.0.y - origin.0.y);
     let dz = f64::from(target.0.z - origin.0.z);
-    (dx * dx + dy * dy + dz * dz).sqrt().floor().max(0.0) as i32
+    ((dx * dx + dy * dy + dz * dz) as f32).sqrt().floor().max(0.0) as i32
 }
 
 fn send_success(
@@ -514,6 +517,17 @@ mod tests {
         assert_eq!(members.len(), 5);
         assert!(members.contains(&StructureKeys::VillagePlains));
         assert!(members.contains(&StructureKeys::VillageTaiga));
+    }
+
+    /// Vanilla computes the biome distance as `Mth.floor(Mth.sqrt((float)
+    /// distSqr))`; this 4137.9997 block distance rounds up through `f32`.
+    #[test]
+    fn biome_distance_rounds_through_f32() {
+        let origin = BlockPos::new(0, 0, 0);
+        assert_eq!(
+            absolute_distance(&origin, &BlockPos::new(1, 2871, 2980)),
+            4138
+        );
     }
 
     /// Every structure the command can name must belong to a set, or it has no
