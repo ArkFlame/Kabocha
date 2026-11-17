@@ -1,8 +1,6 @@
 use std::sync::{Arc, Weak};
 
-use rand::RngExt;
-
-use super::{Controls, Goal, to_goal_ticks};
+use super::{Controls, Goal};
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::ai::target_match::{SearchArea, TargetMatch};
@@ -19,8 +17,6 @@ const HORIZONTAL_RANGE: i32 = 16;
 const VERTICAL_RANGE: i32 = 7;
 /// Vanilla only looks this far above and below for threats.
 const THREAT_SEARCH_HEIGHT: f64 = 3.0;
-/// Vanilla `reducedTickDelay(100)`: look for a threat on 1 in 50 ticks.
-const RETRY_TICKS: i32 = 100;
 
 /// A check on the threat that was found.
 pub type ThreatFilter = fn(&dyn EntityBase) -> bool;
@@ -132,7 +128,7 @@ impl AvoidEntityGoal {
         self
     }
 
-    /// Clears the mob's target when the flee starts (vanilla `WolfAvoidEntityGoal.start`).
+    /// Clears the mob's target while fleeing.
     #[must_use]
     pub const fn dropping_target(mut self) -> Self {
         self.drop_target = true;
@@ -176,19 +172,11 @@ impl AvoidEntityGoal {
 }
 
 impl Goal for AvoidEntityGoal {
-    fn tick_reach(&self, mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
-        // The sensor branch searches as far as the follow range, not the per-type distance.
-        let reach = if self.per_type.is_some() {
-            mob.get_mob_entity()
-                .living_entity
-                .get_attribute_value(&Attributes::FOLLOW_RANGE)
-        } else {
-            self.flee_distance
-        };
+    fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
         Some(super::GoalReach {
-            entities: reach,
+            entities: self.flee_distance,
             players: if self.flee_from.matches(&EntityType::PLAYER) {
-                reach
+                self.flee_distance
             } else {
                 0.0
             },
@@ -205,10 +193,6 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
-        // Vanilla draws the retry roll before any other check.
-        if mob.get_random().random_range(0..to_goal_ticks(RETRY_TICKS)) != 0 {
-            return false;
-        }
         if self.when.is_some_and(|when| !when(mob)) {
             return false;
         }
@@ -273,6 +257,9 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
+        if self.drop_target {
+            mob.set_mob_target(None, TargetReason::Fleeing);
+        }
         if let Some(target) = self.target.as_ref().and_then(Weak::upgrade) {
             let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
             let threat_pos = target.get_entity().pos.load();
@@ -363,7 +350,7 @@ mod tests {
         world.spawn_entity(ocelot);
 
         let mut started_at = None;
-        for tick in 1..=400 {
+        for tick in 1..=30 {
             creeper
                 .get_entity()
                 .tick_count
@@ -378,7 +365,7 @@ mod tests {
 
         let started_at = started_at.ok_or("creeper never started fleeing the ocelot")?;
         assert!(
-            started_at <= 400,
+            started_at <= 20,
             "flee started on tick {started_at}, later than vanilla's retry window"
         );
         Ok(())
@@ -422,7 +409,7 @@ mod tests {
         world.spawn_entity(ocelot);
 
         let mut started_at = None;
-        for tick in 1..=400 {
+        for tick in 1..=30 {
             creeper
                 .get_entity()
                 .tick_count
@@ -437,7 +424,7 @@ mod tests {
 
         let started_at = started_at.ok_or("creeper never fled an ocelot it cannot see")?;
         assert!(
-            started_at <= 400,
+            started_at <= 20,
             "flee started on tick {started_at}, later than vanilla's retry window"
         );
         Ok(())

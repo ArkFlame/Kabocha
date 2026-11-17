@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::Nbt;
@@ -226,46 +226,6 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Widens all numeric elements of a list to the widest numeric type present.
-///
-/// NBT lists are homogeneous. Without this, a JSON array mixing integers and
-/// longs (or integers and doubles) would be encoded as a list of `{"": value}`
-/// wrapper compounds by the NBT serializer instead of plain numbers.
-fn normalize_numeric_list(list: Vec<NbtTag>) -> Vec<NbtTag> {
-    const INT: u8 = 1;
-    const LONG: u8 = 2;
-    const DOUBLE: u8 = 3;
-
-    let mut widest = INT;
-    let mut numeric = true;
-    for tag in &list {
-        let rank = match tag {
-            NbtTag::Int(_) => INT,
-            NbtTag::Long(_) => LONG,
-            NbtTag::Double(_) => DOUBLE,
-            _ => {
-                numeric = false;
-                break;
-            }
-        };
-        widest = widest.max(rank);
-    }
-
-    // Leave non-numeric and already-`Int` lists untouched.
-    if !numeric || widest == INT {
-        return list;
-    }
-
-    list.into_iter()
-        .map(|tag| match (widest, tag) {
-            (LONG, NbtTag::Int(v)) => NbtTag::Long(i64::from(v)),
-            (DOUBLE, NbtTag::Int(v)) => NbtTag::Double(f64::from(v)),
-            (DOUBLE, NbtTag::Long(v)) => NbtTag::Double(v as f64),
-            (_, other) => other,
-        })
-        .collect()
-}
-
 /// Converts a JSON `serde_json::Value` into an `NbtTag`.
 ///
 /// Returns `None` for JSON `null`, which has no NBT equivalent. Writing
@@ -288,8 +248,8 @@ pub fn json_to_nbt_tag(v: &Value) -> Option<NbtTag> {
         )),
         Value::String(s) => Some(NbtTag::String(s.clone().into())),
         Value::Array(arr) => {
-            let list: Vec<NbtTag> = arr.iter().filter_map(json_to_nbt_tag).collect();
-            Some(NbtTag::List(normalize_numeric_list(list)))
+            let list = arr.iter().filter_map(json_to_nbt_tag).collect();
+            Some(NbtTag::List(list))
         }
         Value::Object(obj) => {
             let mut compound = NbtCompound::new();
@@ -337,11 +297,6 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            // Vanilla's pack listing never follows symbolic links, and following a
-            // directory symlink here would recurse forever on a loop.
-            if entry.file_type().is_ok_and(|ft| ft.is_symlink()) {
-                continue;
-            }
             load_registry_dir_recursive(namespace, base_dir, &path, registry_map);
         } else if path
             .extension()
@@ -434,25 +389,15 @@ pub fn load_dynamic_registries_from_ns<
     let mut visited_paths = HashSet::new();
 
     for &(registry_id, dir_names) in DYNAMIC_REGISTRIES {
-        // Only materialise a registry when the namespace ships entries for it:
-        // vanilla never registers an empty dynamic registry, and one empty map
-        // per known registry and namespace makes `apply_custom_registries`
-        // rebuild every vanilla registry.
-        let dirs: Vec<PathBuf> = dir_names
-            .iter()
-            .map(|dir_name| ns_path.join(*dir_name))
-            .filter(|dir| dir.is_dir())
-            .collect();
-        if dirs.is_empty() {
-            continue;
-        }
-
         let registry_map = registries.entry(registry_id.to_string()).or_default();
-        for reg_dir in dirs {
-            visited_paths.insert(reg_dir.clone());
-            let before = registry_map.len();
-            load_registry_dir_recursive(namespace, &reg_dir, &reg_dir, registry_map);
-            total_loaded += registry_map.len() - before;
+        for &dir_name in dir_names {
+            let reg_dir = ns_path.join(dir_name);
+            if reg_dir.is_dir() {
+                visited_paths.insert(reg_dir.clone());
+                let before = registry_map.len();
+                load_registry_dir_recursive(namespace, &reg_dir, &reg_dir, registry_map);
+                total_loaded += registry_map.len() - before;
+            }
         }
     }
 
@@ -702,75 +647,5 @@ mod tests {
         assert_eq!(merged[1].data.as_deref(), Some(&[99][..]));
         assert_eq!(merged[2].entry_id, "custom:fluffy");
         assert_eq!(merged[2].data.as_deref(), Some(&[7, 8, 9][..]));
-    }
-
-    #[test]
-    fn json_numeric_lists_use_one_numeric_type() {
-        let json: Value = serde_json::json!({
-            "ints": [1, 2],
-            "longs": [1, 3_000_000_000i64],
-            "floats": [1, 2.5],
-        });
-
-        let bytes = json_to_registry_nbt_bytes(&json);
-        let mut cursor = std::io::Cursor::new(&bytes[..]);
-        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
-            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
-        );
-        let nbt = Nbt::read_unnamed(&mut reader).unwrap().root_tag;
-
-        // A homogeneous list decodes as Int/Long/Double; widening keeps that shape
-        // instead of falling back to `{"": value}` wrapper compounds.
-        let ints = nbt.get_list("ints").unwrap();
-        assert_eq!(ints.len(), 2);
-        assert!(ints.iter().all(|t| matches!(t, NbtTag::Int(_))));
-        assert!(
-            nbt.get_list("longs")
-                .unwrap()
-                .iter()
-                .all(|t| matches!(t, NbtTag::Long(_)))
-        );
-        assert!(
-            nbt.get_list("floats")
-                .unwrap()
-                .iter()
-                .all(|t| matches!(t, NbtTag::Double(_)))
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn symlinked_registry_dirs_are_not_followed() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
-        let reg_dir = temp_dir.join("reg");
-        fs::create_dir_all(&reg_dir).unwrap();
-        fs::write(reg_dir.join("good.json"), r#"{"asset_id":"custom:good"}"#).unwrap();
-        std::os::unix::fs::symlink(&temp_dir, reg_dir.join("loop")).unwrap();
-
-        let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
-        load_registry_dir_recursive("custom", &reg_dir, &reg_dir, &mut registry);
-
-        // Vanilla never follows pack symlinks, so `loop` is not descended into.
-        assert_eq!(registry.len(), 1);
-        assert!(registry.contains_key("custom:good"));
-
-        let _ = fs::remove_dir_all(temp_dir);
-    }
-
-    #[test]
-    fn namespaces_without_registry_dirs_create_no_empty_registries() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(temp_dir.join("recipes")).unwrap();
-        fs::write(temp_dir.join("pack.mcmeta"), "{}").unwrap();
-
-        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
-        let loaded = load_dynamic_registries_from_ns("custom", &temp_dir, &mut registries);
-
-        assert_eq!(loaded, 0);
-        assert!(registries.is_empty());
-
-        let _ = fs::remove_dir_all(temp_dir);
     }
 }

@@ -20,8 +20,6 @@ use crate::entity::{
 
 const ABSOLUTE_MAX_ATTEMPTS: u64 = 1024;
 const COLLISION_EPSILON: f64 = 1.0e-7;
-// ChunkGenerator.getSpawnHeight default; only FlatLevelSource overrides it.
-const DEFAULT_GENERATOR_SPAWN_HEIGHT: i32 = 64;
 
 fn spawn_search_radius(respawn_radius: i64, border_distance: f64) -> i32 {
     let distance = border_distance.floor() as i32;
@@ -266,11 +264,8 @@ impl World {
                             .len()
                             .min(self.dimension.height as usize) as i32
                 }
-                // Noise and custom generators inherit ChunkGenerator.getSpawnHeight,
-                // which is the fixed 64, not the dimension's sea level.
-                WorldGenerator::Noise(_) | WorldGenerator::Custom(_) => {
-                    DEFAULT_GENERATOR_SPAWN_HEIGHT
-                }
+                // NoiseBasedChunkGenerator.getSpawnHeight returns the generator sea level + 1.
+                WorldGenerator::Noise(_) | WorldGenerator::Custom(_) => self.sea_level + 1,
             }
         } else {
             // Cached MOTION_BLOCKING still uses the legacy solid predicate;

@@ -47,11 +47,6 @@ Fixed in this pass:
   squared radius 256^2, not the enclosing x/z square; the poi executor now
   uses `find_closest_where` with that predicate. Test
   `poi_search_is_bounded_by_3d_radius`.
-- `locate.rs` (stronghold arm) - a pending concentric-ring search no
-  longer returns early: it records the pending state and the loop keeps
-  searching the other requested structures, so a hit already found is not
-  discarded. `StructureSearch::Pending` is surfaced only when nothing was
-  found.
 - `locate.rs` (`STRUCTURE_SEARCH_RADIUS_REGIONS`) - the radius given to
   `find_nearest_structure*` is counted in placement regions, and vanilla's
   `ChunkGenerator.findNearestMapStructure` multiplies each ring offset by the
@@ -63,10 +58,9 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `locate.rs` stronghold arm (delivery) | `LocateCommand#locateStructure` blocks in `ChunkGenerator#findNearestMapStructure`; Canvas sends `Searching for <name>...` and delivers the result later | Pending stronghold rings still return the hard-coded English literal `Stronghold positions are still being calculated, try again shortly` as a command error instead of Canvas's "Searching for <name>..." plus a later delivery on the tick loop | Send the "Searching for ..." feedback and return 0 (Canvas behaviour), or add async result delivery on the tick loop | S |
+| `locate.rs` stronghold arm | `LocateCommand#locateStructure` blocks in `ChunkGenerator#findNearestMapStructure`; Canvas sends `Searching for <name>...` and delivers the result later | Pending stronghold rings return the hard-coded English literal `Stronghold positions are still being calculated, try again shortly` as a command error | Send the "Searching for ..." feedback and return 0 (Canvas behaviour), or add async result delivery on the tick loop | S |
 | `locate.rs` (`wanted_structures`) | `LocateCommand#getHolders` resolves through `Registries.STRUCTURE`, so datapack/modded structures are locatable | Non-`minecraft:` ids always fail because resolution goes through the generated `StructureKeys` enum; same for tag members | Needs a dynamic structure registry instead of `StructureKeys::from_name` | L |
 | `locate.rs` poi executor vs `pumpkin-command/src/argument_types/resource_or_tag.rs` | `ResourceOrTagArgument.resourceOrTag(Registries.POINT_OF_INTEREST_TYPE)` rejects an unknown poi id at parse time | POI ids are accepted as-is (no generated POI registry), so `/locate poi bogus:x` reports `commands.locate.poi.not_found` instead of a parse error | Generate a POI type registry in `pumpkin-data` and validate in `ResourceOrTagArgument::parse` | M |
 | `locate.rs` (`structure_set_containing`) | `ChunkGeneratorStructureState#getPlacementsForStructure` returns every placement of a structure | Only the first set containing the structure is searched, so a datapack structure placed in two sets would miss one placement (current data has no such duplicate) | Return all matching set indices and scan each | S |
 | `pumpkin-world/.../structure_finder.rs` random-spread loop | `ChunkGenerator` evaluates every placement at radius r before choosing the nearest, and returns at the first radius with any hit | The finder breaks at the first placement that hits at radius r, and `locate.rs` then compares per-set results by distance, so cross-set ordering can differ | Collect all placements' hits per ring, pick the nearest, then advance | S |
 | `pumpkin-world/.../structure_finder.rs` (`find_nearest_concentric`) | Stronghold candidates rank by `pos.distSqr` with candidate y=32 (reported y stays 0 via `getLocatePos`) | Candidate y is 0, so 3D ranking ignores the 32 block offset (unobservable unless mixed with a horizontally tied candidate) | Rank concentric candidates at y=32 | XS |
-| `pumpkin-world/src/poi/mod.rs` (`find_closest_where`) | `PoiAccess.findNearestPoiRecords` keeps records with equal squared distance and re-orders them the way vanilla iterates chunks (lower chunk z, then x) | Equal-distance POIs are resolved by Pumpkin region-iteration order | Sort equal-distance hits by chunk z then x before taking the first | XS |

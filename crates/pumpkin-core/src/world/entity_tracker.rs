@@ -427,9 +427,6 @@ impl TrackedEntity {
     }
 
     fn broadcast_to_player(&self, player: &Player) -> bool {
-        if !player.can_see_entity(&self.entity.get_entity().entity_uuid) {
-            return false;
-        }
         self.entity.get_player().is_none_or(|target_player| {
             player.can_see(&target_player.gameprofile.id)
                 && (player.gamemode.load() == GameMode::Spectator
