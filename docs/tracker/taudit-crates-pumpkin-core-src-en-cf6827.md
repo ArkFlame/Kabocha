@@ -8,6 +8,10 @@ Source: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs`. No decompile
 - `interact_at_position` ignored spectators; vanilla `ArmorStand.interactAt` returns SUCCESS for spectators without swapping items.
 - Stray `// ...` placeholder comments removed from `write_custom_nbt`/`read_custom_nbt`.
 
+## Gapwave2-2 status (h3)
+- #5 non-kill destroy paths: FIXED (VERIFIED-IN-TREE, no change this wave): bypass, explosion, creative and break paths all call `self.kill(caller)`, which emits ENTITY_DIE.
+- #6 ENTITY_DAMAGE on survivable damage: FIXED (VERIFIED-IN-TREE): wobble branch emits `EntityDamage` with the caller; `cause_damage` branches are unverified.
+
 ## Remaining gaps
 1. **Armor stand flags are never synced to clients** (size M).
    - `set_bit_field` (armor_stand.rs:149-158) only mutates the local `armor_stand_flags`; nothing calls `Entity::set_synced_data`, so Small/ShowArms/HideBasePlate/Marker never reach clients.

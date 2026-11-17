@@ -40,5 +40,6 @@ None. No gap below is both small and certain; details and sizes are recorded ins
 
 ## Gapwave2-2 status (h3)
 - TODO remove plugin command nodes on reload: STILL OPEN (L, dispatcher node removal not started)
-- blocking/non-blocking dispatch order: STILL OPEN (M, needs a concurrency contract decision)
-- handler panic isolation: STILL OPEN (M, not started in this wave)
+- blocking/non-blocking dispatch order: FIXED b9ab007b1 (handlers now run sequentially in the pre-sorted priority order, Paper/Bukkit style; non-blocking handlers lose concurrency by design; UNVERIFIED, no unit test since fire_dyn needs a live Server)
+- handler panic isolation: FIXED b9ab007b1 (each handler wrapped in AssertUnwindSafe.catch_unwind, logs `Could not pass event ... to plugin ...`; UNVERIFIED, no test)
+- TODO remove plugin command nodes on reload: STILL OPEN (L, the dispatcher node removal is not started)

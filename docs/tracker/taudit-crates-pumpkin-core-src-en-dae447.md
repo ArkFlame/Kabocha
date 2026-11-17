@@ -10,6 +10,11 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
   *this* hook. The port wrote `-1` unconditionally, so a stale hook's removal could orphan a newer
   bobber. Now a `compare_exchange` on `player.fishing_bobber`.
 
+## Gapwave2-2 status (h3)
+
+- #2 cancelled PlayerFishEvent keeps hook: FIXED 20b15d659 (reel_in returns Option, None on cancel; rod keeps the hook and skips the -1 store; UNVERIFIED, no test)
+- #3 should_stop_fishing discard: STILL OPEN (trivial, harmless today, to align with #2 rework later)
+
 ## Open gaps
 
 1. **Open-water flag missing (medium).** `catching_fish` (L549+) and `tick` never track vanilla

@@ -20,8 +20,8 @@ Note: Pumpkin models goats with goals, vanilla uses a Brain (GoatAi). The goal s
 ## Gapwave2-2 status (h3)
 - #1 ram activity: STILL OPEN (L, needs generic ram goal, out of wave scope)
 - #2 long jump: STILL OPEN (L, needs long-jump goal)
-- #3 horn drop: STILL OPEN (M, not started in this wave; needs instrument tag lookup and horn-break hook)
+- #3 horn drop: STILL OPEN (M, the drop is only triggered by RamTarget.hasRammedHornBreakingBlock, which is #1; a dropHorn helper without a caller would be dead code)
 - #4 memory init: STILL OPEN (folds into #1/#2)
 - #5 per-goat follow distance: FIXED a57f7697d (FollowParentGoal::with_min_distance, goat samples 5..=16; UNVERIFIED in game)
 - #6 spawn rule: STILL OPEN (blocked on MINECRAFT_GOATS_SPAWNABLE_ON data, needs extractor)
-- #7 head-lowering event: UNVERIFIED client-only effect, no server change
+- #7 head-lowering event: UNVERIFIED client-only effect (Vanilla handleEntityEvent 58/59 is a client animation), no server change
