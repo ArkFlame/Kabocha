@@ -23,3 +23,7 @@ Remaining gaps:
 | 3 | `block/blocks/redstone/sculk_sensor.rs:35` | `CalibratedSculkSensorBlockEntity.VibrationUser#getListenerRadius` | Calibrated radius 16 comes only from `docs/VANILLA_REF.md`; no decompiled class checked. | Cross-check the constant against the decompiled class; adjust the const if it is 8 like the regular sensor. | S | STILL OPEN (h6 budget ended, not attempted) |
 | 4 | `block/blocks/redstone/sculk_sensor.rs:114` (`trigger`) | `SculkSensorBlock.activate` | Power argument comes from the new distance formula; vanilla's exact `getPower` scale (R = listener radius vs constant 8) is taken from the digest, not decompiled source. | Verify `SculkSensorBlock.getPower` against decompiled vanilla; the formula lives in one function and one unit test. | S | STILL OPEN (h6 budget ended, not attempted) |
 
+
+## Status (h3 sweep)
+- Row 1 (no occlusion test for `#occludes_vibrations`): STILL OPEN (no occlusion check found in sculk_sensor.rs; not changed).
+- Row 2 (comparator output only while Active): STILL OPEN (get_comparator_output unchanged).

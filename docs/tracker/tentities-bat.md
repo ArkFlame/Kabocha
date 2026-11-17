@@ -47,3 +47,7 @@ Verified equal:
   Pumpkin's `IS_SOLID_BLOCK` flag is generated from the redstone-conductor notion
   (`crates/pumpkin-data/src/block_state.rs:135`), so equivalent unless a block overrides
   `isRedstoneConductor` without the flag.
+
+## Status (h3 sweep)
+- Shadow `AtomicI8` flags (bat.rs:30): STILL OPEN (accepted divergence, plugin-rewrite only; not changed).
+- Wake check `is_solid_block()` (bat.rs:92) vs `isRedstoneConductor`: STILL OPEN (equivalent via generated flag; not changed).

@@ -51,3 +51,6 @@ tracked, persisted `ItemEntity`s, so only the chunk-save trigger differs from va
 ## Status (h3 sweep)
 - Row 4 (`is_scared_by` player test): FIXED, spectators are excluded before the sprinting/riding check (armadillo.rs). UNVERIFIED, no test.
 - Rows 1-3: STILL OPEN (not changed in this pass).
+
+## Status (h3 sweep)
+- Rows 5-6 (armadillo.rs:497 data tracker, :44-68 state ids): STILL OPEN (not changed in this pass).
