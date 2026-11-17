@@ -6,18 +6,19 @@ source "$(dirname "$0")/lib.sh"
 cmd="${1:-ls}"; name="${2:-}"; base="${3:-master}"
 case "$cmd" in
   new)
-    spare=$(ls -d "$KAB_WT"/.pool-* 2>/dev/null | head -1)
-    if [ -n "$spare" ] && mkdir "$spare.take" 2>/dev/null; then   # atomic claim
+    for spare in "$KAB_WT"/.pool-*; do   # try every spare; skip claim markers (.take) and empty globs
+      case "$spare" in *.take) continue ;; esac; [ -d "$spare" ] || continue
+      mkdir "$spare.take" 2>/dev/null || continue   # atomic claim
       if git -C "$KAB_ROOT" worktree move "$spare" "$KAB_WT/$name" >&2 2>&1 \
          && git -C "$KAB_WT/$name" checkout -q -B "kab/$name" "$base" >&2 2>&1; then rmdir "$spare.take"; echo "$KAB_WT/$name"; exit 0; fi
       rmdir "$spare.take" 2>/dev/null
-    fi
+    done
     # cold fallback: serialise only this path (pool claims are atomic and need no lock)
     flock "$KAB_RUNS/wt.lock" git -C "$KAB_ROOT" worktree add -b "kab/$name" "$KAB_WT/$name" "$base" >&2; echo "$KAB_WT/$name" ;;
   warm)
     exec 6>"$KAB_RUNS/warm.lock"; flock -n 6 || exit 0
     n="${name:-12}"
-    while [ "$(ls -d "$KAB_WT"/.pool-* 2>/dev/null | grep -vc '\.take$')" -lt "$n" ]; do
+    while [ "$(ls -d "$KAB_WT"/.pool-* 2>/dev/null | grep -vc '\.take/*$')" -lt "$n" ]; do
       git -C "$KAB_ROOT" worktree add -q --detach "$KAB_WT/.pool-$(date +%s%N)" master >/dev/null 2>&1 || break
     done ;;
   rm)  git -C "$KAB_ROOT" worktree remove --force "$KAB_WT/$name"; git -C "$KAB_ROOT" branch -D "kab/$name" ;;
