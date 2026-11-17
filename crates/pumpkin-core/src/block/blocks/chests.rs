@@ -502,7 +502,13 @@ fn get_chest_screen_handler_factory(
             .world
             .get_block_entity(&args.position.offset(direction.to_offset()))
     {
-        unpack_chest_loot(&second, args.world, args.position, Some(args.player));
+        // Each half unpacks with its own block position as the loot origin.
+        unpack_chest_loot(
+            &second,
+            args.world,
+            &args.position.offset(direction.to_offset()),
+            Some(args.player),
+        );
     }
 
     let loot_pending = first_loot_pending
