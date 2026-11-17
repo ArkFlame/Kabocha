@@ -47,6 +47,12 @@ fn encode_pos(value: f64) -> i64 {
     (value * 4096.0 + 0.5).floor() as i64
 }
 
+/// Vanilla `ChunkMap.TrackedEntity.updatePlayer`: an axis-aligned box in X/Z, not a
+/// radius, so entities near the box corners stay tracked.
+fn within_tracking_range(dx: f64, dz: f64, range: f64) -> bool {
+    dx >= -range && dx <= range && dz >= -range && dz <= range
+}
+
 /// Vanilla `ServerEntity.sendChanges` packet choice.
 #[derive(Clone, Copy)]
 enum MoveSync {
@@ -468,12 +474,10 @@ impl TrackedEntity {
     ) {
         let dx = player_pos.x - entity_pos.x;
         let dz = player_pos.z - entity_pos.z;
-        let dist_sq = dx.mul_add(dx, dz * dz);
 
         let visible_range_blocks = f64::from((effective_range as i32).min(player_vd) * 16);
-        let range_sq = visible_range_blocks * visible_range_blocks;
 
-        if dist_sq <= range_sq && self.broadcast_to_player(player) {
+        if within_tracking_range(dx, dz, visible_range_blocks) && self.broadcast_to_player(player) {
             if !chunk_changed
                 && self
                     .seen_by
@@ -1377,6 +1381,17 @@ mod tests {
     use crate::entity::living::LivingEntity;
     use crate::server::Server;
     use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
+
+    /// Vanilla `ChunkMap` tracking is a box: the diagonal corner is inside the range.
+    #[test]
+    fn tracking_range_uses_vanilla_box_not_radius() {
+        let range = 160.0;
+        let corner = range * 0.8;
+        assert!(within_tracking_range(corner, corner, range));
+        assert!(within_tracking_range(-corner, -corner, range));
+        assert!(!within_tracking_range(range + 0.5, 0.0, range));
+        assert!(!within_tracking_range(0.0, -range - 0.5, range));
+    }
 
     /// `needs_sync` survives the living tick and forces a send outside the tracker interval.
     #[tokio::test]
