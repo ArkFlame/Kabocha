@@ -564,43 +564,24 @@ impl EntityBase for ItemFrameEntity {
         if self.entity.removed.load(Ordering::Relaxed) {
             return false;
         }
-        let fixed = self.is_fixed();
-        let is_creative_player = source.is_some_and(|s| {
-            s.cast_any()
-                .downcast_ref::<Player>()
-                .is_some_and(Player::is_creative)
-        });
-        let bypasses_invuln =
-            damage_type == DamageType::OUT_OF_WORLD || damage_type == DamageType::GENERIC_KILL;
-
-        if fixed {
-            if !bypasses_invuln && !is_creative_player {
-                return false;
-            }
-            self.drop_item(source, true);
-            self.entity.remove();
-            return true;
+        // Vanilla ItemFrame.hurtServer: fixed frames are indestructible and
+        // explosions never damage frames. Only losing the support block takes a
+        // frame down, through the periodic survives check.
+        if self.is_fixed()
+            || damage_type == DamageType::EXPLOSION
+            || damage_type == DamageType::PLAYER_EXPLOSION
+        {
+            return false;
         }
 
-        let has_item = !self.get_item().is_empty();
-        let is_explosion =
-            damage_type == DamageType::EXPLOSION || damage_type == DamageType::PLAYER_EXPLOSION;
-
-        if !is_explosion && has_item {
+        if self.get_item().is_empty() {
+            self.drop_item(source, true);
+            self.entity.play_sound(self.get_break_sound());
+            self.entity.remove();
+        } else {
             self.drop_item(source, false);
             self.emit_block_change(source);
             self.entity.play_sound(self.get_remove_item_sound());
-        } else {
-            self.drop_item(source, true);
-            self.entity.world.load().emit_game_event_with_context(
-                GameEvent::EntityDamage.name(),
-                self.entity.pos.load(),
-                &GameEventContext {
-                    source_entity: source,
-                },
-            );
-            self.entity.play_sound(self.get_break_sound());
-            self.entity.remove();
         }
         true
     }
