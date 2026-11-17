@@ -36,3 +36,6 @@ match; `useWithoutItem` flag `UPDATE_CLIENTS` then `NOTIFY_ALL` matches
 the block entity is only ticked when the current block still owns it
 (`block/entities/mod.rs`, `block_owns_block_entity`), matching vanilla's ticking wrapper.
 Client-only shape/outline rendering comes from generated block data.
+
+## Gapwave h3 status
+- getEffectiveSkyBrightness clamp: FIXED 1859221e7 (already clamped with max(0) in world/mod.rs effective_sky_brightness_from; row was stale, no code change this pass)
