@@ -90,20 +90,29 @@ impl ItemBehaviour for FishingRodItem {
             world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
         } else {
             // Reel in
+            let mut keep_hook = false;
             if let Some(bobber_base) = world.get_entity_by_id(bobber_id)
                 && let Some(bobber) = bobber_base.cast_any().downcast_ref::<FishingBobberEntity>()
             {
-                let damage = bobber.reel_in(player, &used_item, hand);
-                if damage > 0 {
-                    player.damage_item_in_slot(&equipment_slot, damage);
+                // `None` means a plugin cancelled the `PlayerFishEvent`: CraftBukkit returns
+                // before `discard()`, so the hook stays in the water.
+                match bobber.reel_in(player, &used_item, hand) {
+                    None => keep_hook = true,
+                    Some(damage) => {
+                        if damage > 0 {
+                            player.damage_item_in_slot(&equipment_slot, damage);
+                        }
+                        // Vanilla `FishingHook.retrieve` ends with `discard()`. Only remove the
+                        // hook itself, never an unrelated entity that reused a stale bobber id.
+                        bobber_base.get_entity().remove();
+                    }
                 }
-                // Vanilla `FishingHook.retrieve` ends with `discard()`. Only remove the hook
-                // itself, never an unrelated entity that reused a stale bobber id.
-                bobber_base.get_entity().remove();
             }
             // Vanilla `FishingRodItem.use` swings the hand when reeling in.
             player.swing_hand(hand, false);
-            player.fishing_bobber.store(-1, Ordering::Relaxed);
+            if !keep_hook {
+                player.fishing_bobber.store(-1, Ordering::Relaxed);
+            }
 
             let sound_pitch = bobber_sound_pitch(rand::random());
             world.play_sound_fine(

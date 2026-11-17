@@ -138,10 +138,10 @@ impl FishingBobberEntity {
 
     /// Matches vanilla `FishingBobberEntity.use(ItemStack usedItem)`.
     #[expect(clippy::too_many_lines)]
-    pub fn reel_in(&self, player: &Player, used_item: &ItemStack, hand: Hand) -> i32 {
+    pub fn reel_in(&self, player: &Player, used_item: &ItemStack, hand: Hand) -> Option<i32> {
         // Vanilla `FishingHook.retrieve`: a hook whose owner stopped fishing yields nothing.
         if self.should_stop_fishing(player) {
-            return 0;
+            return Some(0);
         }
 
         let world = self.entity.world.load();
@@ -161,7 +161,7 @@ impl FishingBobberEntity {
                 )
                 .is_none()
             {
-                return 0;
+                return None;
             }
 
             let player_pos = player.get_entity().pos.load();
@@ -225,7 +225,7 @@ impl FishingBobberEntity {
                     rand::random_range(1..=6),
                 ) else {
                     // Vanilla retrieve aborts the whole catch when the event is cancelled.
-                    return 0;
+                    return None;
                 };
 
                 let mut item_event =
@@ -276,7 +276,7 @@ impl FishingBobberEntity {
                 .fire_fish_event(&world, PlayerFishState::InGround, None, hand, 0)
                 .is_none()
             {
-                return 0;
+                return None;
             }
             damage = 2;
         }
@@ -287,10 +287,10 @@ impl FishingBobberEntity {
                 .fire_fish_event(&world, PlayerFishState::ReelIn, None, hand, 0)
                 .is_none()
         {
-            return 0;
+            return None;
         }
 
-        damage
+        Some(damage)
     }
 
     /// Vanilla `FishingHook.tick`: the bite motion uses a random reseeded from the hook UUID and
