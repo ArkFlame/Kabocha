@@ -312,10 +312,8 @@ fn parse_transmute(recipe_id: String, value: &Value) -> Option<OwnedCraftingReci
         .map(ToString::to_string);
     let input = parse_ingredient(value.get("input")?)?;
     let material = parse_ingredient(value.get("material")?)?;
-    let result = parse_result(value.get("result")?).unwrap_or(OwnedRecipeResult {
-        item_id: "minecraft:filled_map".to_string(),
-        count: 1,
-    });
+    // Vanilla's transmute codec requires a result; an invalid one invalidates the recipe.
+    let result = parse_result(value.get("result")?)?;
     Some(OwnedCraftingRecipe::Shapeless {
         recipe_id: Some(recipe_id),
         category,
@@ -522,6 +520,16 @@ mod tests {
             "result": {"id": "minecraft:stick"}
         }"##;
         assert!(parse_recipe("test", "space_key", space_key).is_none());
+    }
+
+    #[test]
+    fn transmute_recipe_requires_a_result() {
+        let json = r#"{
+            "type": "minecraft:crafting_transmute",
+            "input": "minecraft:filled_map",
+            "material": "minecraft:map"
+        }"#;
+        assert!(parse_recipe("test", "map_cloning", json).is_none());
     }
 
     #[test]
