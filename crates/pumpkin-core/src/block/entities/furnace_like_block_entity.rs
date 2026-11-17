@@ -692,7 +692,7 @@ macro_rules! impl_block_entity_for_cooking {
                 let cooking_time_spent =
                     AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "CookTime", "cooking_time_spent"));
                 let lit_total_time = AtomicU16::new(
-                    nbt.get_short("lit_total_time")
+                    nbt.get_numeric_short("lit_total_time")
                         .map_or(0, |lit_total_time| lit_total_time as u16),
                 );
                 let lit_time_remaining =
@@ -733,10 +733,10 @@ macro_rules! impl_block_entity_for_cooking {
             }
 
             fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
-                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
-                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
-                nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
+                nbt.put_int("CookTimeTotal", i32::from(self.get_cooking_total_time()));
+                nbt.put_int("CookTime", i32::from(self.get_cooking_time_spent()));
+                nbt.put_int("lit_total_time", i32::from(self.get_lit_total_time()));
+                nbt.put_int("BurnTime", i32::from(self.get_lit_time_remaining()));
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -820,10 +820,10 @@ macro_rules! impl_block_entity_for_cooking {
 
             fn chunk_data_nbt(&self) -> Option<pumpkin_nbt::compound::NbtCompound> {
                 let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
-                nbt.put_short("CookTimeTotal", self.get_cooking_total_time() as i16);
-                nbt.put_short("CookTime", self.get_cooking_time_spent() as i16);
-                nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("BurnTime", self.get_lit_time_remaining() as i16);
+                nbt.put_int("CookTimeTotal", i32::from(self.get_cooking_total_time()));
+                nbt.put_int("CookTime", i32::from(self.get_cooking_time_spent()));
+                nbt.put_int("lit_total_time", i32::from(self.get_lit_total_time()));
+                nbt.put_int("BurnTime", i32::from(self.get_lit_time_remaining()));
                 nbt.put_float(
                     "speed_multiplier",
                     $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
@@ -957,15 +957,15 @@ mod tests {
         use pumpkin_nbt::compound::NbtCompound;
 
         let mut nbt = NbtCompound::new();
-        nbt.put_short("BurnTime", 40);
-        nbt.put_short("CookTime", 12);
-        nbt.put_short("CookTimeTotal", 200);
+        nbt.put_int("BurnTime", 40);
+        nbt.put_int("CookTime", 12);
+        nbt.put_int("CookTimeTotal", 200);
         let furnace = FurnaceBlockEntity::from_nbt(&nbt, BlockPos::new(0, 0, 0));
         assert_eq!(furnace.get_lit_time_remaining(), 40);
         assert_eq!(furnace.get_cooking_time_spent(), 12);
         assert_eq!(furnace.get_cooking_total_time(), 200);
 
-        // Worlds saved by older builds used snake_case keys and must still load.
+        // Worlds saved by older builds used snake_case keys and short tags and must still load.
         let mut legacy = NbtCompound::new();
         legacy.put_short("lit_time_remaining", 7);
         legacy.put_short("cooking_time_spent", 3);
@@ -974,6 +974,25 @@ mod tests {
         assert_eq!(furnace.get_lit_time_remaining(), 7);
         assert_eq!(furnace.get_cooking_time_spent(), 3);
         assert_eq!(furnace.get_cooking_total_time(), 100);
+    }
+
+    #[test]
+    fn furnace_state_is_saved_with_vanilla_int_keys() {
+        use crate::block::entities::furnace::FurnaceBlockEntity;
+        use pumpkin_nbt::compound::NbtCompound;
+
+        let furnace = FurnaceBlockEntity::new(BlockPos::new(0, 0, 0));
+        furnace.set_cooking_time_spent(12);
+        furnace.set_cooking_total_time(200);
+        furnace.set_lit_time_remaining(40);
+        furnace.set_lit_total_time(40);
+
+        let mut nbt = NbtCompound::new();
+        furnace.write_nbt(&mut nbt);
+        assert_eq!(nbt.get_int("CookTime"), Some(12));
+        assert_eq!(nbt.get_int("CookTimeTotal"), Some(200));
+        assert_eq!(nbt.get_int("BurnTime"), Some(40));
+        assert_eq!(nbt.get_int("lit_total_time"), Some(40));
     }
 
     #[test]
