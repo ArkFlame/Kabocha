@@ -16,7 +16,7 @@ use crate::{
 use pumpkin_data::block_properties::{CommandBlockLikeProperties, Facing};
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation};
 
-use pumpkin_util::{GameMode, PermissionLvl, math::position::BlockPos};
+use pumpkin_util::{GameMode, math::position::BlockPos};
 use pumpkin_world::tick::TickPriority;
 use tracing::warn;
 
@@ -255,14 +255,16 @@ impl BlockBehaviour for CommandBlock {
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         {
-            if args.player.permission_lvl.load() < PermissionLvl::Two {
+            if !args.player.can_use_game_master_blocks() {
                 return BlockActionResult::Pass;
             }
             let Some(block_entity) = args.world.get_block_entity(args.position) else {
                 return BlockActionResult::Pass;
             };
+            // Vanilla `ServerPlayer#openCommandBlock`: the block entity payload is what makes
+            // the client open the editor screen.
             args.world.update_block_entity(&block_entity);
-            BlockActionResult::SuccessServer
+            BlockActionResult::Consume
         }
     }
 
