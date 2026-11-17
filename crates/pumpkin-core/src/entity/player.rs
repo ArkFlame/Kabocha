@@ -4433,17 +4433,7 @@ impl Player {
                 || entity_type == &EntityType::PALE_OAK_BOAT
                 || entity_type == &EntityType::POPLAR_BOAT
                 || entity_type == &EntityType::BAMBOO_RAFT
-                || entity_type == &EntityType::OAK_CHEST_BOAT
-                || entity_type == &EntityType::SPRUCE_CHEST_BOAT
-                || entity_type == &EntityType::BIRCH_CHEST_BOAT
-                || entity_type == &EntityType::JUNGLE_CHEST_BOAT
-                || entity_type == &EntityType::ACACIA_CHEST_BOAT
-                || entity_type == &EntityType::DARK_OAK_CHEST_BOAT
-                || entity_type == &EntityType::MANGROVE_CHEST_BOAT
-                || entity_type == &EntityType::CHERRY_CHEST_BOAT
-                || entity_type == &EntityType::PALE_OAK_CHEST_BOAT
-                || entity_type == &EntityType::POPLAR_CHEST_BOAT
-                || entity_type == &EntityType::BAMBOO_CHEST_RAFT
+                || crate::entity::vehicle::boat::is_chest_boat(entity_type)
             {
                 return statistics::CustomStatistic::BoatOneCm;
             }
