@@ -21,3 +21,13 @@ Vanilla reference class: `net.minecraft.world.entity.boss.wither.WitherBoss` (+ 
 | 7 | `wither.rs:464-478` idle head shots | side-head random offsets are `nextGaussian() * 10`, `* 5`, `* 10` | use a Gaussian sample (sum of uniforms) instead of `random_range(-10..10)` | S |
 | 8 | `wither.rs:400-408` peaceful handling | vanilla despawns through `shouldDespawnInPeaceful`, keeping death/despawn bookkeeping | prefer the shared despawn path over a bare `entity.remove()` | S |
 | 9 | `wither.rs:641-666` `pre_damage` projectile immunity | powered wither immunity is checked against `DamageTypeTags.IS_PROJECTILE` semantics | confirm the exact vanilla projectile set (arrows, spectral arrows, wind charges) against decompiled `hurt` | S |
+
+## Status (h2 pass)
+
+- 4 main head attack needs line of sight: **FIXED** (631720a94), `has_line_of_sight` gate on the main head.
+- 1 extra `+5` lift clause: **STILL OPEN** (not reached in this pass).
+- 2 spawn-animation goal guard: **STILL OPEN** (not reached in this pass).
+- 5 bossbar progress from health: **STILL OPEN** (needs the max-health accessor; not reached in this pass).
+- 7 Gaussian idle head offsets: **STILL OPEN** (not reached in this pass).
+- 8 shared despawn path: **STILL OPEN** (not reached in this pass).
+- 9 projectile immunity set: **STILL OPEN** (needs the vanilla projectile set check).

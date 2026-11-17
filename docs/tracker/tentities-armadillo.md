@@ -36,6 +36,9 @@ goal priorities (Swim 0, EscapeDanger 1, Breed 2, Tempt 3, FollowParent 4, Wande
 RandomLookAround 7), food tag, step sound volume 0.15, `roll_up` gated on `!is_scared()`, and
 `mob_interact` returning `PASS` while scared.
 
-## Worker pass (kab/h8, gapwave2-7)
-- gap 2 (`on_damage` both branches store 80, dead check): FIXED/STALE. `entity/passive/armadillo.rs:399-414` now stores `SCARE_CHECK_INTERVAL` only for a living attacker and rolls up only if `can_stay_rolled_up()`; the duplicated branch no longer exists.
-- gaps 3-6: STILL OPEN (not re-verified this pass).
+## Status (h2 pass)
+
+- 5 brush/shed scute spawn helper mismatch: **FIXED** (d712d13fa), shed scute now `spawn_entity` (saved), matching `spawnAtLocation`. Note: the tracker suggested the opposite helper, but vanilla saves both drops.
+- 2 dead `can_stay_rolled_up` branch: **STILL OPEN** (not reached in this pass).
+- 3 shell reduction gate: **STILL OPEN** (not reached in this pass).
+- 4 redundant baby flag: **STILL OPEN** (not reached in this pass).

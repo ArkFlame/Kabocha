@@ -43,3 +43,9 @@ the rest need the decompiled class or assets/codegen.
 - Leash persistence stores knots as a block position (`restore_leash_from_save`,
   `entity/mod.rs:5556`), matching the vanilla leash int array; knots are not saved as entities.
 - Client-only: `shouldRenderAtSqrDistance` (1024) rendering distance.
+
+## Status (h2 pass)
+
+- 3 `mob_griefing` gate on knot hurt: **FIXED** (already in place; `damage_with_context` only checks invulnerability, no change needed).
+- 5 `get_knot` search box misses a knot below the fence: **FIXED** (d712d13fa), box y shifted by -1.0 to match vanilla block +/-1.
+- 6 7-block transfer box asymmetry: **STILL OPEN** (cosmetic; not reached in this pass).

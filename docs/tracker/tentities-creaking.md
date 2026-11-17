@@ -28,3 +28,10 @@ before fixing the "verify" rows.
 | creaking.rs:369-372 + death flow | vanilla heart-bound creaking does not play the normal death sound/death event, only the twitch/crumble sequence | check `on_death` ordering so `EntityCreakingDeath` is not heard twice | S |
 | creaking.rs:220-237,53-54,70-71 | `eyes_glowing`/`next_flicker_time`/`check_eye_blink` unused (vanilla drives a client-side eye flicker) | client-only effect; either wire a synced flag or drop the dead code | S |
 | creaking.rs entire file (loot) | vanilla creaking drops no loot/XP while heart-bound | confirm the loot table wiring for `CREAKING` drops nothing | S |
+
+## Status (h2 pass)
+
+- `CreakingMeleeAttackGoal` `followingTargetEvenIfNotSeen = false`: **FIXED** (d712d13fa), `MeleeAttackGoal::new(1.0, false)`. UNVERIFIED: Pumpkin names the flag `pause_when_mob_idle`, so the mapping to vanilla's argument is taken from the tracker.
+- `is_looking_at_me` line of sight: **STILL OPEN** (not reached in this pass).
+- death sound ordering: **STILL OPEN** (not reached in this pass).
+- unused eye-glow fields: **STILL OPEN** (client-only; not reached in this pass).

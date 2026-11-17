@@ -46,3 +46,12 @@ decompiled reference before changing.
 
 Client-only / not testable headless: particle appearance of the cloud (`ParticlesDragonFireballSplash`,
 `dragon_breath` particle power 1.0) — noted, do not block.
+
+## Status (h2 pass)
+
+- 1 cloud wait time 20 -> 10: **FIXED** (631720a94), `create_dragon_breath`.
+- 2 harming amplifier 1 -> 0: **FIXED** (631720a94), `create_dragon_breath`.
+- 3 radius advance before wait period: **STILL OPEN** (not reached in this pass; `AreaEffectCloud.tick` needs a vanilla re-check first).
+- 4 radius_on_use -0.5: **STILL OPEN** (tracker marks it "if confirmed"; vanilla value not verified here).
+- 5 direct-hit fireball damage: **STILL OPEN** (needs the vanilla `DragonFireball` hierarchy check).
+- 6 cloud target selection: **STILL OPEN** (needs the vanilla `getEntitiesOfClass` loop re-check).
