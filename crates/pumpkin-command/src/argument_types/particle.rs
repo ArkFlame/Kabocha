@@ -67,9 +67,10 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for ParticleArgumentType {
         _context: &CommandContext<S>,
         builder: SuggestionsBuilder,
     ) -> Suggestions {
-        let particles = (0..=124u16)
-            .filter_map(Particle::from_id)
-            .map(|p| format!("{p:?}").to_lowercase())
+        // Vanilla suggests every registered particle as its resource key.
+        let particles = (0u16..)
+            .map_while(Particle::from_id)
+            .map(|p| format!("minecraft:{}", p.to_name()))
             .collect();
         builder.filter_and_suggest_lowercase(particles).build()
     }
