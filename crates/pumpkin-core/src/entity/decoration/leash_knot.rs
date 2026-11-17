@@ -39,7 +39,9 @@ impl LeashKnotEntity {
             eye_height: 1.0,
         };
 
-        let search_box = BoundingBox::new_from_pos(center.x, center.y, center.z, &search_dim);
+        // Vanilla `getOrCreateKnot` searches block +/-1 on every axis, so the box must reach
+        // one block below the knot too (a knot summoned under the fence is still found).
+        let search_box = BoundingBox::new_from_pos(center.x, center.y - 1.0, center.z, &search_dim);
         world
             .get_entities_at_box(&search_box)
             .into_iter()

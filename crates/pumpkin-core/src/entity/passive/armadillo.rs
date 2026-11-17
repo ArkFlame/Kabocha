@@ -437,7 +437,8 @@ impl Mob for ArmadilloEntity {
                         Entity::new(world.clone(), pos, &EntityType::ITEM),
                         drop_stack,
                     ));
-                    world.spawn_entity_non_save(item_entity as Arc<dyn EntityBase>);
+                    // Vanilla `spawnAtLocation`: the shed scute is saved with the chunk, like the brush drop.
+                    world.spawn_entity(item_entity);
                 }) {
                     world.play_sound(
                         Sound::EntityArmadilloScuteDrop,
