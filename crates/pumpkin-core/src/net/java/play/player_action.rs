@@ -49,6 +49,18 @@ impl JavaClient {
                         return;
                     }
 
+                    // Vanilla `blockActionRestricted` (adventure mode, map restrictions) rejects the
+                    // dig before any damage event fires, so plugins never see a blocked dig.
+                    let gamemode = player.gamemode.load();
+                    if player.cannot_mine_block(Some(server), block, gamemode) {
+                        player.try_send_client_packet(&CBlockUpdate::new(
+                            position,
+                            VarInt(i32::from(state.id.as_u16())),
+                        ));
+                        self.update_sequence(player_action.sequence.0);
+                        return;
+                    }
+
                     if let Some(server_arc) = world.server.upgrade() {
                         let mut interact_event = PlayerInteractEvent::new(
                             player,
@@ -82,17 +94,6 @@ impl JavaClient {
                             self.update_sequence(player_action.sequence.0);
                             return;
                         }
-                    }
-
-                    let gamemode = player.gamemode.load();
-                    let cannot_mine = player.cannot_mine_block(Some(server), block, gamemode);
-                    if cannot_mine {
-                        player.try_send_client_packet(&CBlockUpdate::new(
-                            position,
-                            VarInt(i32::from(state.id.as_u16())),
-                        ));
-                        self.update_sequence(player_action.sequence.0);
-                        return;
                     }
 
                     if gamemode == GameMode::Creative {
