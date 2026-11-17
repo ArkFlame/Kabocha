@@ -934,6 +934,24 @@ mod tests {
     use pumpkin_util::math::position::BlockPos;
 
     #[test]
+    fn split_experience_adds_the_fraction_only_when_the_roll_is_under_it() {
+        assert_eq!(split_experience(0.0, 0.0), 0);
+        assert_eq!(split_experience(2.0, 0.9), 2);
+        assert_eq!(split_experience(1.5, 0.25), 2);
+        assert_eq!(split_experience(1.5, 0.75), 1);
+    }
+
+    #[test]
+    fn read_saved_short_prefers_the_vanilla_key_over_the_legacy_one() {
+        let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
+        assert_eq!(read_saved_short(&nbt, "cooking_time_spent", "CookTime"), 0);
+        nbt.put_short("CookTime", 5);
+        assert_eq!(read_saved_short(&nbt, "cooking_time_spent", "CookTime"), 5);
+        nbt.put_short("cooking_time_spent", 7);
+        assert_eq!(read_saved_short(&nbt, "cooking_time_spent", "CookTime"), 7);
+    }
+
+    #[test]
     fn cooking_speed_matches_vanilla() {
         assert_eq!(cooking_total_time(&CookingRecipeKind::Smelting, 200), 200);
         assert_eq!(
