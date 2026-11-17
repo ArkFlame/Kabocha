@@ -30,6 +30,7 @@ pub struct ElderGuardianEntity {
 impl ElderGuardianEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        mob_entity.set_persistence_required();
         let guardian = Self { mob_entity };
         let mob_arc = Arc::new(guardian);
         let mob_weak: Weak<dyn Mob> = {
