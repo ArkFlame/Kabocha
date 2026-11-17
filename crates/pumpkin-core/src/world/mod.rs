@@ -573,6 +573,11 @@ impl World {
             info.border_warning_blocks as i32,
             info.border_warning_time as i32,
         );
+        worldborder.apply_level_data(
+            info.border_size,
+            info.border_size_lerp_target,
+            info.border_size_lerp_time,
+        );
         worldborder.damage_per_block = info.border_damage_per_block as f32;
         worldborder.buffer = info.border_safe_zone as f32;
         drop(info);
