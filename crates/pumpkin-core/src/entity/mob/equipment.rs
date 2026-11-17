@@ -603,7 +603,11 @@ fn equip_mob_from_def(
     match def.weapon {
         WeaponConfig::Always(item) => {
             let mut stack = create_equipment_item(item);
-            if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
+            if item == &Item::CROSSBOW {
+                // Only the pillager is `Always(CROSSBOW)`; vanilla enchants its crossbow from
+                // the pillager spawn provider, not the generic mob spawn one.
+                apply_pillager_crossbow_enchantments(&mut stack, None);
+            } else if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
                 apply_vanilla_enchantments(
                     &mut stack,
                     &EquipmentSlot::MAIN_HAND,
