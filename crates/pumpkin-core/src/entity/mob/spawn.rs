@@ -64,6 +64,9 @@ pub enum SpawnGroupData {
     Zombie {
         is_baby: bool,
         can_spawn_jockey: bool,
+        /// Vanilla `HuskGroupData.triedToSpawnCamelHusk`: guards so only one husk in a
+        /// natural spawn group attempts the camel-husk jockey.
+        tried_spawn_camel_husk: bool,
     },
     Axolotl {
         types: [AxolotlVariant; 2],

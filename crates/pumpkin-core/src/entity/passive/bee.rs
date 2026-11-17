@@ -46,6 +46,15 @@ pub const FLAG_HAS_NECTAR: u8 = 8;
 /// Vanilla `Bee.TICKS_PER_FLAP`, `Mth.ceil(1.4959966F)`.
 const TICKS_PER_FLAP: i32 = 2;
 
+/// Vanilla `Bee.TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME`.
+pub const TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME: i32 = 3600;
+
+/// Vanilla `Bee.isTiredOfLookingForNectar`. Strict `>`, matching the decompiled check:
+/// a bee is only tired once the counter exceeds 3600, not when it equals it.
+pub const fn tired_of_looking_for_nectar(ticks_without_nectar: i32) -> bool {
+    ticks_without_nectar > TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME
+}
+
 /// Vanilla `Bee.doHurtTarget` sting poison in ticks: 10 s on Normal, 18 s on Hard, none otherwise.
 const fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
     match difficulty {
@@ -330,6 +339,12 @@ impl BeeEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
     }
+
+    /// Vanilla `Bee.isTiredOfLookingForNectar`, read by the hive goals to trigger the return home.
+    #[must_use]
+    pub fn is_tired_of_looking_for_nectar(&self) -> bool {
+        tired_of_looking_for_nectar(self.ticks_without_nectar.load(Ordering::Relaxed))
+    }
 }
 
 impl AgeableMob for BeeEntity {
@@ -548,7 +563,7 @@ mod tests {
     use pumpkin_util::Difficulty;
     use pumpkin_util::math::position::BlockPos;
 
-    use super::{read_block_pos, sting_poison_ticks, write_block_pos};
+    use super::{read_block_pos, sting_poison_ticks, tired_of_looking_for_nectar, write_block_pos};
 
     #[test]
     fn sting_poison_scales_with_difficulty() {
@@ -578,5 +593,14 @@ mod tests {
             read_block_pos(&nbt, "hive_pos"),
             Some(BlockPos::new(1, 2, 3))
         );
+    }
+
+    #[test]
+    fn tired_of_looking_for_nectar_boundary() {
+        assert!(!tired_of_looking_for_nectar(0));
+        assert!(!tired_of_looking_for_nectar(3599));
+        assert!(!tired_of_looking_for_nectar(3600));
+        assert!(tired_of_looking_for_nectar(3601));
+        assert!(tired_of_looking_for_nectar(7200));
     }
 }

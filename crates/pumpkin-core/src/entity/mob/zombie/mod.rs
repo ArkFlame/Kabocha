@@ -263,11 +263,13 @@ impl ZombieEntityBase {
             Some(SpawnGroupData::Zombie {
                 is_baby: rng.random::<f32>() < BABY_CHANCE,
                 can_spawn_jockey: true,
+                tried_spawn_camel_husk: false,
             })
         });
         if let Some(SpawnGroupData::Zombie {
             is_baby,
             can_spawn_jockey,
+            ..
         }) = group_data
         {
             if is_baby {
@@ -657,6 +659,7 @@ fn convert_villager_to_zombie_villager(
                 Some(SpawnGroupData::Zombie {
                     is_baby: false,
                     can_spawn_jockey: true,
+                    tried_spawn_camel_husk: true,
                 }),
             );
             if let Some(zombie_villager) = zombie_villager {

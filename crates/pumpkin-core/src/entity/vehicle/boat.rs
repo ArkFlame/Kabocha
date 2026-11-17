@@ -420,12 +420,16 @@ impl EntityBase for BoatEntity {
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla AbstractBoat.addAdditionalSaveData writes the leash before
+        // AbstractChestBoat appends the container items.
+        self.vehicle.entity.write_leash_data(nbt);
         if let Some(inventory) = &self.inventory {
             inventory.write_nbt(nbt);
         }
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
+        self.vehicle.entity.read_leash_data(nbt);
         if let Some(inventory) = &self.inventory {
             inventory.read_nbt(nbt);
         }
@@ -474,11 +478,15 @@ impl EntityBase for BoatEntity {
         self.last_yaw.store(yaw);
         self.yaw_delta.store(delta);
         entity.update_last_pos();
-        // Vanilla Boat.tick starts with super.tick -> Entity.baseTick: fluid flags and the
-        // fluid's entityInside effects (what ignites and destroys a boat in lava), fire ticks,
-        // riding cooldown and the out-of-world check. The boat's motion is client predicted, so
-        // the fluid current push is left out.
-        entity.base_tick_without_fluid_push(caller);
+        // Vanilla Boat.tick starts with super.tick -> Entity.baseTick, which applies the fluid
+        // current to every boat. A player-steered boat leaves movement to its client, so the
+        // server skips the push there to avoid fighting it; empty and mob-ridden boats are
+        // server authoritative and must drift with the current.
+        if self.is_client_controlled() {
+            entity.base_tick_without_fluid_push(caller);
+        } else {
+            entity.base_tick(caller);
+        }
         if entity.is_removed() {
             return;
         }

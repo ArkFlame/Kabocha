@@ -6004,10 +6004,6 @@ impl Entity {
             .vehicle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::downgrade(&vehicle));
-        // Vanilla `Entity.startRiding` emits ENTITY_MOUNT at the vehicle, mirroring the dismount side
-        self.world
-            .load()
-            .emit_game_event(GameEvent::EntityMount.name(), self.pos.load());
 
         let mut passengers = self
             .passengers

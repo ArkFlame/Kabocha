@@ -695,6 +695,9 @@ pub struct Player {
     pub open_container: AtomicCell<Option<u64>>,
     /// The block position of the currently open container screen (if any).
     pub open_container_pos: AtomicCell<Option<BlockPos>>,
+    /// Exact position of the entity-backed container (chest boat/minecart) whose screen is open,
+    /// used to emit CONTAINER_CLOSE at the vehicle location like vanilla `stopOpen`.
+    pub open_container_entity_pos: AtomicCell<Option<Vector3<f64>>>,
     /// Sync id and Bedrock equipment slot of an open mount screen.
     bedrock_mount_screen: AtomicCell<Option<(u8, usize)>>,
     /// The village position where Raid Omen was triggered.
@@ -1094,6 +1097,7 @@ impl Player {
             fall_fly_ticks: AtomicI32::new(0),
             open_container: AtomicCell::new(None),
             open_container_pos: AtomicCell::new(None),
+            open_container_entity_pos: AtomicCell::new(None),
             bedrock_mount_screen: AtomicCell::new(None),
             raid_omen_position: AtomicCell::new(None),
             entered_lava_pos: AtomicCell::new(None),
@@ -7607,6 +7611,7 @@ impl Player {
             }
         }
         let closed_container_pos = self.open_container_pos.load();
+        let closed_container_entity_pos = self.open_container_entity_pos.load();
         let current_screen_handler: Arc<std::sync::Mutex<dyn ScreenHandler>> = self
             .current_screen_handler
             .lock()
@@ -7666,18 +7671,22 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             self.player_screen_handler.clone();
-        if let Some(position) = closed_container_pos
-            && !matches!(window_type, Some(WindowType::Anvil))
-        {
-            world.emit_game_event_with_source(
-                pumpkin_data::game_event::GameEvent::ContainerClose.name(),
-                position.to_centered_f64(),
-                world
-                    .get_player_by_uuid(self.gameprofile.id)
-                    .map(|p| p as Arc<dyn crate::entity::EntityBase>),
-            );
+        if !matches!(window_type, Some(WindowType::Anvil)) {
+            let position = closed_container_pos
+                .map(|pos| pos.to_centered_f64())
+                .or(closed_container_entity_pos);
+            if let Some(position) = position {
+                world.emit_game_event_with_source(
+                    pumpkin_data::game_event::GameEvent::ContainerClose.name(),
+                    position,
+                    world
+                        .get_player_by_uuid(self.gameprofile.id)
+                        .map(|p| p as Arc<dyn crate::entity::EntityBase>),
+                );
+            }
         }
         self.open_container_pos.store(None);
+        self.open_container_entity_pos.store(None);
         self.bedrock_mount_screen.store(None);
     }
 
@@ -7826,6 +7835,8 @@ impl Player {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = screen_handler;
             self.open_container_pos.store(block_pos);
+            self.open_container_entity_pos
+                .store(container_entity.map(|entity| entity.pos.load()));
             if let Some(position) = block_pos
                 && !matches!(window_type, WindowType::Anvil)
             {
@@ -7953,6 +7964,7 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = screen_handler;
         self.open_container_pos.store(None);
+        self.open_container_entity_pos.store(None);
         true
     }
 
@@ -8001,6 +8013,7 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = screen_handler;
         self.open_container_pos.store(None);
+        self.open_container_entity_pos.store(None);
     }
 
     #[allow(clippy::too_many_lines)]

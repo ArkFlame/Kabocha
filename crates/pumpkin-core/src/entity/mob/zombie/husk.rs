@@ -40,6 +40,20 @@ impl HuskEntity {
 const CAMEL_HUSK_JOCKEY_CHANCE: f32 = 0.1;
 const HUNGER_TICKS_PER_DIFFICULTY: i32 = 140;
 
+/// Vanilla `Husk.finalizeSpawn`: once empty space is found the group is marked as tried
+/// before the 10% roll, so a failed roll still stops later husks in the group from trying.
+fn claim_camel_jockey_attempt(
+    tried: &mut bool,
+    reason: EntitySpawnReason,
+    has_space: bool,
+) -> bool {
+    if *tried || reason != EntitySpawnReason::Natural || !has_space {
+        return false;
+    }
+    *tried = true;
+    true
+}
+
 impl Mob for HuskEntity {
     crate::zombie_mob_hooks!(entity);
 
@@ -49,7 +63,7 @@ impl Mob for HuskEntity {
         reason: EntitySpawnReason,
         group_data: Option<SpawnGroupData>,
     ) -> Option<SpawnGroupData> {
-        let group_data = self
+        let mut group_data = self
             .entity
             .finalize_zombie_spawn(self, world, reason, group_data);
         let mut rng = self.get_random();
@@ -60,18 +74,26 @@ impl Mob for HuskEntity {
                 rng.random::<f32>() < MobEntity::MAX_PICKUP_LOOT_CHANCE * difficulty_modifier,
             );
         }
-        let entity = self.get_entity();
-        let pos = entity.pos.load();
-        let block_pos = entity.block_pos.load();
-        if group_data.is_some()
-            && reason == EntitySpawnReason::Natural
-            && world.is_space_empty(EntityType::CAMEL_HUSK.get_spawn_aabb(
-                f64::from(block_pos.0.x) + 0.5,
-                f64::from(block_pos.0.y),
-                f64::from(block_pos.0.z) + 0.5,
-            ))
+        if let Some(SpawnGroupData::Zombie {
+            tried_spawn_camel_husk,
+            ..
+        }) = &mut group_data
+            && claim_camel_jockey_attempt(
+                tried_spawn_camel_husk,
+                reason,
+                {
+                    let block_pos = self.get_entity().block_pos.load();
+                    world.is_space_empty(EntityType::CAMEL_HUSK.get_spawn_aabb(
+                        f64::from(block_pos.0.x) + 0.5,
+                        f64::from(block_pos.0.y),
+                        f64::from(block_pos.0.z) + 0.5,
+                    ))
+                },
+            )
             && rng.random::<f32>() < CAMEL_HUSK_JOCKEY_CHANCE
         {
+            let entity = self.get_entity();
+            let pos = entity.pos.load();
             self.get_mob_entity().set_item_slot(
                 &EquipmentSlot::MAIN_HAND,
                 ItemStack::new(1, &Item::IRON_SPEAR),
@@ -160,5 +182,43 @@ mod tests {
     #[test]
     fn hunger_ticks_per_difficulty_matches_vanilla() {
         assert_eq!(HUNGER_TICKS_PER_DIFFICULTY, 140);
+    }
+
+    #[test]
+    fn camel_jockey_attempt_is_once_per_group() {
+        let mut tried = false;
+        assert!(claim_camel_jockey_attempt(
+            &mut tried,
+            EntitySpawnReason::Natural,
+            true
+        ));
+        assert!(tried);
+        assert!(!claim_camel_jockey_attempt(
+            &mut tried,
+            EntitySpawnReason::Natural,
+            true
+        ));
+    }
+
+    #[test]
+    fn camel_jockey_attempt_skips_non_natural_and_blocked_space() {
+        let mut tried = false;
+        assert!(!claim_camel_jockey_attempt(
+            &mut tried,
+            EntitySpawnReason::Conversion,
+            true
+        ));
+        assert!(!tried);
+        assert!(!claim_camel_jockey_attempt(
+            &mut tried,
+            EntitySpawnReason::Natural,
+            false
+        ));
+        assert!(!tried);
+        assert!(claim_camel_jockey_attempt(
+            &mut tried,
+            EntitySpawnReason::Natural,
+            true
+        ));
     }
 }
