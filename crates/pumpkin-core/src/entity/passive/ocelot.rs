@@ -30,7 +30,7 @@ const OCELOT_FLEES: &[Flee] = &[feline::flee_players(4, is_wary)];
 
 const OCELOT_HUNTS: &[Hunt] = &[
     Hunt::new(1, TargetMatch::Type(&EntityType::CHICKEN), false),
-    hunting::baby_turtles(1, false),
+    hunting::baby_turtles(2, false),
 ];
 
 fn is_wary(mob: &dyn Mob) -> bool {
