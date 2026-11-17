@@ -132,7 +132,8 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
             content.add_child(TextComponent::text("]"))
         }
         NbtTag::String(value) => {
-            let escaped = value.replace('"', "\\\"");
+            // Vanilla `NbtString.quoteAndEscape` escapes backslashes and quotes.
+            let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
             TextComponent::text(format!("\"{escaped}\"")).color_named(NamedColor::Green)
         }
         NbtTag::List(value) => {
@@ -1160,5 +1161,13 @@ mod tests {
         assert_eq!(substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(), "a\u{1f600}");
         assert_eq!(substring("a\u{1f600}b", 3, None).unwrap_or_default(), "b");
         assert!(substring("\u{e9}", 0, Some(2)).is_err());
+    }
+
+    #[test]
+    fn string_display_escapes_backslashes() {
+        assert_eq!(
+            snbt_colorful_display(&NbtTag::String(r"a\b".into()), 0).get_text(),
+            r#""a\\b""#
+        );
     }
 }
