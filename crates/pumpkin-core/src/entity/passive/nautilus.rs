@@ -5,6 +5,7 @@ use std::sync::{
 use uuid::Uuid;
 
 use pumpkin_data::BlockState;
+use pumpkin_data::tag::Taggable;
 use pumpkin_data::{
     data_component_impl::EquipmentSlot,
     effect::StatusEffect,
@@ -143,12 +144,11 @@ impl Animal for NautilusEntity {
         });
     }
 
+    /// Vanilla `AbstractNautilus#isFood` uses the `nautilus_food` item tag.
     fn is_food(&self, item_stack: &ItemStack) -> bool {
-        item_stack.item == &pumpkin_data::item::Item::NAUTILUS_SHELL
-            || item_stack.item == &pumpkin_data::item::Item::PUFFERFISH
-            || item_stack.item == &pumpkin_data::item::Item::COD
-            || item_stack.item == &pumpkin_data::item::Item::SALMON
-            || item_stack.item == &pumpkin_data::item::Item::TROPICAL_FISH
+        item_stack
+            .item
+            .has_tag(&pumpkin_data::tag::Item::MINECRAFT_NAUTILUS_FOOD)
     }
 }
 
