@@ -102,6 +102,8 @@ impl ItemBehaviour for FishingRodItem {
                 }
                 bobber_base.get_entity().remove();
             }
+            // Vanilla `FishingRodItem.use` swings the hand when reeling in.
+            player.swing_hand(hand, false);
             player.fishing_bobber.store(-1, Ordering::Relaxed);
 
             let sound_pitch = bobber_sound_pitch(rand::random());
