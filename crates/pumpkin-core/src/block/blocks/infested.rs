@@ -189,3 +189,16 @@ const HOST_BLOCKS: [BlockId; 7] = [
 pub fn is_compatible_host(block: &Block) -> bool {
     HOST_BLOCKS.contains(&block.id)
 }
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::Block;
+
+    use super::is_compatible_host;
+
+    #[test]
+    fn stone_is_an_infestable_host_and_dirt_is_not() {
+        assert!(is_compatible_host(&Block::STONE));
+        assert!(!is_compatible_host(&Block::DIRT));
+    }
+}
