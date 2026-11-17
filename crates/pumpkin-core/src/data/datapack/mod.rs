@@ -3223,6 +3223,7 @@ mod tests {
             let enabled: Vec<String> = enabled.iter().map(|name| (*name).to_string()).collect();
             let mut loaded = Vec::new();
             super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
+            drop(acc);
 
             functions
                 .get("test:shared")
