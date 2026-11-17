@@ -257,7 +257,10 @@ impl EntityBase for PaintingEntity {
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
-        if let Some([x, y, z]) = nbt.get_int_array("block_pos").map(|a| [a[0], a[1], a[2]]) {
+        if let Some([x, y, z]) = nbt
+            .get_int_array("block_pos")
+            .and_then(|a| <[i32; 3]>::try_from(a).ok())
+        {
             self.attached_pos
                 .store(Some(BlockPos(Vector3::new(x, y, z))));
         }
