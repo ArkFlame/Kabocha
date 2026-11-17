@@ -57,6 +57,14 @@ pub enum ParticleOptions {
         /// Life time in ticks.
         duration: i32,
     },
+    /// `minecraft:effect`, vanilla's `SpellParticleOption`: the potion colour
+    /// (encoded as `0xRRGGBB`, `-1` for the default white) and the swirl power.
+    Spell {
+        /// The particle colour, encoded as `0xRRGGBB`. `-1` renders white.
+        color: i32,
+        /// The swirl power, vanilla `SpellParticleOption.create(type, color, 1.0)`.
+        power: f32,
+    },
 }
 
 impl ParticleOptions {
@@ -65,6 +73,7 @@ impl ParticleOptions {
     pub const fn particle(&self) -> pumpkin_data::particle::Particle {
         match self {
             Self::Trail { .. } => pumpkin_data::particle::Particle::Trail,
+            Self::Spell { .. } => pumpkin_data::particle::Particle::Effect,
         }
     }
 
@@ -78,6 +87,9 @@ impl ParticleOptions {
     pub fn is_supported_by(&self, version: JavaMinecraftVersion) -> bool {
         match self {
             Self::Trail { .. } => version >= JavaMinecraftVersion::V_1_21_2,
+            // Vanilla replaced the plain `entity_effect` type with
+            // `SpellParticleOption` in 1.21.4.
+            Self::Spell { .. } => version >= JavaMinecraftVersion::V_1_21_4,
         }
     }
 
@@ -95,6 +107,11 @@ impl ParticleOptions {
                 write.write_f64_be(target.z)?;
                 write.write_i32_be(color)?;
                 write.write_var_int(&VarInt(duration))
+            }
+            Self::Spell { color, power } => {
+                // Vanilla `SpellParticleOption.STREAM_CODEC`: VAR_INT, then FLOAT.
+                write.write_var_int(&VarInt(color))?;
+                write.write_f32_be(power)
             }
         }
     }
@@ -419,6 +436,28 @@ mod tests {
             color: 16_545_810,
             duration: 23,
         }
+    }
+
+    #[test]
+    fn spell_options_match_vanilla_stream_codec() {
+        let options = ParticleOptions::Spell {
+            color: -1,
+            power: 1.0,
+        };
+        let mut payload = Vec::new();
+        options.write(&mut payload).unwrap();
+
+        // Vanilla `SpellParticleOption.STREAM_CODEC`: VAR_INT colour, FLOAT power.
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF, 0x0F]);
+        expected.extend_from_slice(&1.0f32.to_be_bytes());
+
+        assert_eq!(payload, expected);
+        assert_eq!(
+            options.particle(),
+            Particle::Effect,
+            "the payload belongs to the effect particle"
+        );
     }
 
     fn trail_packet(options: &ParticleOptions) -> Vec<u8> {
