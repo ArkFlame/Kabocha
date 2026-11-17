@@ -28,7 +28,6 @@ pub struct HopperBlockEntity {
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
-    pub facing: FacingHopper,
     pub cooldown_time: AtomicI32,
     pub ticked_game_time: AtomicI64,
     pub metadata: super::ContainerMetadata,
@@ -86,7 +85,6 @@ impl BlockEntity for HopperBlockEntity {
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
-            facing: FacingHopper::Down,
             cooldown_time: AtomicI32::from(nbt.get_int("TransferCooldown").unwrap_or(-1)),
             ticked_game_time: AtomicI64::new(0),
             metadata: super::ContainerMetadata::from_nbt(nbt),
@@ -134,11 +132,6 @@ impl BlockEntity for HopperBlockEntity {
 
     fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
         Some(self)
-    }
-
-    fn set_block_state(&mut self, block_state: BlockStateId) {
-        // TODO !!!IMPORTANT!!! set block state when loading the chunk
-        self.facing = HopperLikeProperties::from_state_id(block_state).facing;
     }
 
     fn is_comparator_dirty(&self) -> bool {
@@ -224,13 +217,12 @@ impl HopperBlockEntity {
     pub const ID: &'static str = "minecraft:hopper";
 
     #[must_use]
-    pub fn new(position: BlockPos, facing: FacingHopper) -> Self {
+    pub fn new(position: BlockPos) -> Self {
         Self {
             position,
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
-            facing,
             cooldown_time: AtomicI32::new(-1),
             ticked_game_time: AtomicI64::new(0),
             metadata: super::ContainerMetadata::default(),
@@ -887,7 +879,7 @@ mod tests {
     }
 
     fn hopper_holding(stack: ItemStack) -> HopperBlockEntity {
-        let hopper = HopperBlockEntity::new(BlockPos::new(0, 0, 0), FacingHopper::Down);
+        let hopper = HopperBlockEntity::new(BlockPos::new(0, 0, 0));
         hopper.set_stack(0, stack);
         hopper
     }
@@ -978,7 +970,7 @@ mod tests {
     fn furnace_worldly_container_respects_faces_fuel_and_empty_bucket() {
         use crate::block::entities::furnace::FurnaceBlockEntity;
         let furnace = FurnaceBlockEntity::new(BlockPos::new(0, 64, 0));
-        let dest_hopper = HopperBlockEntity::new(BlockPos::new(0, 63, 0), FacingHopper::Down);
+        let dest_hopper = HopperBlockEntity::new(BlockPos::new(0, 63, 0));
 
         // UP inserts into input slot 0
         let leftover = HopperBlockEntity::add_item(
@@ -1028,7 +1020,7 @@ mod tests {
     fn brewing_stand_worldly_container_sides_and_glass_bottle_extraction() {
         use crate::block::entities::brewing_stand::BrewingStandBlockEntity;
         let stand = BrewingStandBlockEntity::new(BlockPos::new(0, 64, 0));
-        let dest_hopper = HopperBlockEntity::new(BlockPos::new(0, 63, 0), FacingHopper::Down);
+        let dest_hopper = HopperBlockEntity::new(BlockPos::new(0, 63, 0));
 
         // UP accepts brewing reagent (Nether Wart) in slot 3, rejects non-reagents (Oak Planks)
         let bad_top = HopperBlockEntity::add_item(
@@ -1161,9 +1153,8 @@ mod tests {
 
     #[test]
     fn empty_hopper_transfer_cooldown_uses_ticked_game_time() {
-        let src = HopperBlockEntity::new(BlockPos::new(0, 65, 0), FacingHopper::Down);
-        let dst_already_ticked =
-            HopperBlockEntity::new(BlockPos::new(0, 64, 0), FacingHopper::Down);
+        let src = HopperBlockEntity::new(BlockPos::new(0, 65, 0));
+        let dst_already_ticked = HopperBlockEntity::new(BlockPos::new(0, 64, 0));
         src.ticked_game_time.store(100, Ordering::Relaxed);
         dst_already_ticked
             .ticked_game_time
@@ -1180,8 +1171,7 @@ mod tests {
         );
         assert_eq!(dst_already_ticked.cooldown_time.load(Ordering::Relaxed), 7);
 
-        let dst_not_yet_ticked =
-            HopperBlockEntity::new(BlockPos::new(0, 64, 0), FacingHopper::Down);
+        let dst_not_yet_ticked = HopperBlockEntity::new(BlockPos::new(0, 64, 0));
         dst_not_yet_ticked
             .ticked_game_time
             .store(99, Ordering::Relaxed);

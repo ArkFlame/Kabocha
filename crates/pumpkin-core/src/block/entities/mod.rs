@@ -568,7 +568,7 @@ pub fn create_block_entity_for_state(
     position: BlockPos,
 ) -> Option<Arc<dyn BlockEntity>> {
     use pumpkin_data::BlockState;
-    use pumpkin_data::block_properties::{HopperLikeProperties, StructureblockMode};
+    use pumpkin_data::block_properties::StructureblockMode;
 
     let state = BlockState::from_id(state_id);
     if state.block_entity_type == u16::MAX {
@@ -578,8 +578,7 @@ pub fn create_block_entity_for_state(
     let name = BLOCK_ENTITY_TYPES.get(state.block_entity_type as usize)?;
     match *name {
         "hopper" if block == &Block::HOPPER => {
-            let facing = HopperLikeProperties::from_state_id(state_id).facing;
-            Some(Arc::new(hopper::HopperBlockEntity::new(position, facing)))
+            Some(Arc::new(hopper::HopperBlockEntity::new(position)))
         }
         "structure_block" => {
             let mode = structure_block::StructureBlockBlockEntity::mode_from_block_state(state_id)
@@ -603,7 +602,6 @@ pub fn create_block_entity(
     block_entity_type_id: u16,
     position: BlockPos,
 ) -> Option<Arc<dyn BlockEntity>> {
-    use pumpkin_data::block_properties::FacingHopper;
     if block_entity_type_id == u16::MAX {
         return None;
     }
@@ -644,10 +642,7 @@ pub fn create_block_entity(
         "daylight_detector" => Some(Arc::new(
             daylight_detector::DaylightDetectorBlockEntity::new(position),
         )),
-        "hopper" => Some(Arc::new(hopper::HopperBlockEntity::new(
-            position,
-            FacingHopper::Down,
-        ))),
+        "hopper" => Some(Arc::new(hopper::HopperBlockEntity::new(position))),
         "comparator" => Some(Arc::new(comparator::ComparatorBlockEntity::new(position))),
         "banner" => Some(Arc::new(banner::BannerBlockEntity::new(position))),
         "structure_block" => Some(Arc::new(structure_block::StructureBlockBlockEntity::new(
@@ -722,7 +717,7 @@ mod test {
         hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity,
         smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
     };
-    use pumpkin_data::{Block, block_properties::FacingHopper, item::Item, item_stack::ItemStack};
+    use pumpkin_data::{Block, item::Item, item_stack::ItemStack};
     use pumpkin_inventory::Inventory;
     use pumpkin_nbt::compound::NbtCompound;
     use pumpkin_util::math::position::BlockPos;
@@ -741,7 +736,7 @@ mod test {
             Arc::new(ShulkerBoxBlockEntity::new(position)),
             Arc::new(DispenserBlockEntity::new(position)),
             Arc::new(DropperBlockEntity::new(position)),
-            Arc::new(HopperBlockEntity::new(position, FacingHopper::Down)),
+            Arc::new(HopperBlockEntity::new(position)),
             Arc::new(FurnaceBlockEntity::new(position)),
             Arc::new(BlastingFurnaceBlockEntity::new(position)),
             Arc::new(SmokerBlockEntity::new(position)),
