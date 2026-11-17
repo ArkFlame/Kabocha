@@ -53,8 +53,4 @@ impl DaylightDetectorBlockEntity {
     pub const fn new(position: BlockPos) -> Self {
         Self { position }
     }
-
-    pub fn update_power(world: &Arc<World>, block_pos: &BlockPos) {
-        DaylightDetectorBlock::update_signal_strength(world, block_pos);
-    }
 }
