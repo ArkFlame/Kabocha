@@ -19,6 +19,6 @@ Previously open: #4128 (disc duplication), #3643 (block-change event), #3548 (re
 `getComparatorOutput` (record-derived, `blocks/jukebox.rs:206-222`) matches vanilla's disc-derived strength and keeps the signal after playback ends; no change.
 For #4128, insert/eject/break/hopper-extract each drop the record once in the current tree (break only via `JukeboxBlockEntity::on_block_replaced`); no duplication path found.
 
-## Worker pass (kab/h8, gapwave2-7)
-- gap 3 (`writeNbt` ticks only when > 0): FIXED in tree. `entity/jukebox.rs` `write_nbt` (line ~95) and `chunk_data_nbt` (line ~154) write `ticks_since_song_started` unconditionally. No change needed.
-- gap 2, 4, 5: STILL OPEN (not re-verified this pass; gap 4 `player_placed` at `blocks/jukebox.rs:82` still re-derives HAS_RECORD).
+## Gapwave h3 status
+- #5 note particle colour: FIXED a20553e39 (nextInt(24)/24 hue, UNVERIFIED client-only, no test)
+- #3 ticks NBT persistence: STILL OPEN (S, unverified vanilla save condition; not touched this pass)
