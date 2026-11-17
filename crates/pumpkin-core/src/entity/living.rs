@@ -4939,6 +4939,13 @@ impl EntityBase for LivingEntity {
                 }
                 self.apply_consumable_effects(caller, item);
 
+                // Vanilla `Consumable.onConsume` awards ITEM_USED once, here at completion.
+                if item.get_data_component::<ConsumableImpl>().is_some()
+                    && let Some(player) = caller.get_player()
+                {
+                    player.increment_stat(StatisticCategory::Used, i32::from(item.item.id), 1);
+                }
+
                 // Handle potion consumption
                 if item
                     .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()

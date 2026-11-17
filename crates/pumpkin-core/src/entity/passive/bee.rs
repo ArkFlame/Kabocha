@@ -50,9 +50,6 @@ pub const FLAG_HAS_NECTAR: u8 = 8;
 /// Vanilla `Bee.TICKS_PER_FLAP`, `Mth.ceil(1.4959966F)`.
 const TICKS_PER_FLAP: i32 = 2;
 
-/// Vanilla Bee.isTiredOfLookingForNectar threshold.
-const MAX_TICKS_WITHOUT_NECTAR: i32 = 3600;
-
 /// Vanilla `Bee.TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME`.
 pub const TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME: i32 = 3600;
 
@@ -384,7 +381,7 @@ impl BeeEntity {
         let time = world.get_time_of_day().rem_euclid(24000);
         let night = (13000..23000).contains(&time);
         self.has_nectar()
-            || self.ticks_without_nectar.load(Ordering::Relaxed) > MAX_TICKS_WITHOUT_NECTAR
+            || self.is_tired_of_looking_for_nectar()
             || night
             || world.is_raining_at(&pos)
     }

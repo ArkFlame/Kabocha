@@ -3,9 +3,11 @@ use std::sync::{Arc, Weak};
 
 use rand::RngExt;
 
+use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::fluid::Fluid;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
@@ -14,9 +16,11 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
 
+use uuid::Uuid;
+
 use crate::entity::{
     Entity, EntityBase,
-    ageable::{AgeableData, AgeableMob},
+    ageable::{AgeableData, AgeableMob, STRIDER_BABY_SPAWN_CHANCE},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
@@ -24,10 +28,16 @@ use crate::entity::{
     },
     custom_sound::CustomSound,
     item_steerable::{ItemBasedSteering, ItemSteerable},
-    mob::{Mob, MobEntity, equipment::equip_on_target},
+    mob::{
+        Mob, MobEntity,
+        equipment::equip_on_target,
+        spawn::{EntitySpawnReason, SpawnGroupData, finalize_spawn},
+    },
     passive::animal::Animal,
     player::Player,
+    r#type::from_type,
 };
+use crate::world::World;
 
 pub struct StriderEntity {
     pub mob_entity: MobEntity,
@@ -97,8 +107,6 @@ impl AgeableMob for StriderEntity {
         &self.ageable_data
     }
 
-    // TODO: vanilla `Strider.finalizeSpawn` jockeys: 1/30 a zombified piglin rider (if monsters
-    // spawn), else 1/10 a baby strider rider; both drop the group's baby chance to 0.
     fn default_baby_spawn_chance(&self) -> f32 {
         crate::entity::ageable::STRIDER_BABY_SPAWN_CHANCE
     }
@@ -226,6 +234,34 @@ impl Mob for StriderEntity {
         true
     }
 
+    // Vanilla `Strider.StriderPathNavigation.isStableDestination`: lava counts as a
+    // stable destination so striders can target and path across lava lakes.
+    fn is_stable_destination(&self, world: &World, pos: &BlockPos) -> bool {
+        if world.get_block(pos) == &Block::LAVA {
+            return true;
+        }
+        self.get_mob_entity()
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_stable_destination(world, pos)
+    }
+
+    // Vanilla `Strider.getWalkTargetValue`: seek lava, and once in lava avoid land.
+    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
+        let entity = self.get_entity();
+        let (_, state_id) = entity.world.load().get_block_and_state_id(pos);
+        if Fluid::from_state_id(state_id)
+            .is_some_and(|fluid| fluid.has_tag(&tag::Fluid::MINECRAFT_LAVA))
+        {
+            return 10.0;
+        }
+        if entity.lava_height.load() > 0.0 {
+            return f32::NEG_INFINITY;
+        }
+        0.0
+    }
+
     fn get_item_steerable(&self) -> Option<&dyn ItemSteerable> {
         Some(self)
     }
@@ -249,6 +285,88 @@ impl Mob for StriderEntity {
             pumpkin_data::tracked_data::strider::DATA_SUFFOCATING,
             self.is_suffocating(),
         );
+    }
+
+    /// Vanilla `Strider.finalizeSpawn`: an adult may spawn with a zombified piglin jockey
+    /// (1/30 when monsters can spawn), a baby strider jockey (1/10), or neither. Either
+    /// jockey zeroes the group's baby chance so the adult strider is never a baby.
+    fn finalize_spawn(
+        &self,
+        world: &Arc<World>,
+        _reason: EntitySpawnReason,
+        group_data: Option<SpawnGroupData>,
+    ) -> Option<SpawnGroupData> {
+        if self.is_baby() {
+            return self.finalize_spawn_super(group_data);
+        }
+
+        let mut rng = self.get_random();
+        let entity = &self.mob_entity.living_entity.entity;
+        // Vanilla `spawnJockey` returns `AgeableMobGroupData(0.0F)`.
+        let jockey_group = || {
+            Some(SpawnGroupData::Ageable {
+                group_size: 0,
+                should_spawn_baby: true,
+                baby_spawn_chance: 0.0,
+            })
+        };
+
+        let group_data = if rng.random_range(0..30) == 0 && world.should_spawn_monsters() {
+            let jockey = from_type(
+                &EntityType::ZOMBIFIED_PIGLIN,
+                entity.pos.load(),
+                world,
+                Uuid::new_v4(),
+            );
+            jockey.get_entity().set_rotation(entity.yaw.load(), 0.0);
+            // Vanilla `Zombie.getSpawnAsBabyOdds`: `random.nextFloat() < 0.05F`.
+            let is_baby = rng.random::<f32>() < 0.05;
+            finalize_spawn(
+                &jockey,
+                world,
+                EntitySpawnReason::Jockey,
+                Some(SpawnGroupData::Zombie {
+                    is_baby,
+                    can_spawn_jockey: false,
+                    tried_spawn_camel_husk: false,
+                }),
+            );
+            if let Some(mob) = jockey.get_mob() {
+                mob.get_mob_entity().set_item_slot(
+                    &EquipmentSlot::MAIN_HAND,
+                    ItemStack::new(1, &Item::WARPED_FUNGUS_ON_A_STICK),
+                );
+            }
+            self.mob_entity.add_pending_rider(jockey);
+            self.mob_entity.set_item_slot_and_drop_when_killed(
+                &EquipmentSlot::SADDLE,
+                ItemStack::new(1, &Item::SADDLE),
+            );
+            jockey_group()
+        } else if rng.random_range(0..10) == 0 {
+            let jockey = from_type(
+                &EntityType::STRIDER,
+                entity.pos.load(),
+                world,
+                Uuid::new_v4(),
+            );
+            jockey.get_entity().set_rotation(entity.yaw.load(), 0.0);
+            if let Some(strider) = jockey.cast_any().downcast_ref::<StriderEntity>() {
+                strider.set_baby(true);
+            }
+            finalize_spawn(&jockey, world, EntitySpawnReason::Jockey, None);
+            self.mob_entity.add_pending_rider(jockey);
+            jockey_group()
+        } else {
+            // Vanilla `new AgeableMobGroupData(0.5F)`.
+            Some(SpawnGroupData::Ageable {
+                group_size: 0,
+                should_spawn_baby: true,
+                baby_spawn_chance: STRIDER_BABY_SPAWN_CHANCE,
+            })
+        };
+
+        self.finalize_spawn_super(group_data)
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {

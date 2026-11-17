@@ -140,7 +140,11 @@ impl GuardianAttackGoal {
 
     /// Vanilla Guardian/ElderGuardian.getAttackDuration().
     const fn attack_duration(&self) -> i32 {
-        if self.elder { ELDER_GUARDIAN_ATTACK_TIME } else { GUARDIAN_ATTACK_TIME }
+        if self.elder {
+            ELDER_GUARDIAN_ATTACK_TIME
+        } else {
+            GUARDIAN_ATTACK_TIME
+        }
     }
 }
 
@@ -469,8 +473,14 @@ mod tests {
     #[test]
     fn beam_charge_duration_matches_vanilla_elder_override() {
         use pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET;
-        assert_eq!(GuardianAttackGoal::new(false, DATA_ID_ATTACK_TARGET).attack_duration(), 80);
-        assert_eq!(GuardianAttackGoal::new(true, DATA_ID_ATTACK_TARGET).attack_duration(), 60);
+        assert_eq!(
+            GuardianAttackGoal::new(false, DATA_ID_ATTACK_TARGET).attack_duration(),
+            80
+        );
+        assert_eq!(
+            GuardianAttackGoal::new(true, DATA_ID_ATTACK_TARGET).attack_duration(),
+            60
+        );
     }
 
     #[test]
