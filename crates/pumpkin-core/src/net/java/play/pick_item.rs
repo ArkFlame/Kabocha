@@ -1,8 +1,9 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use pumpkin_data::tag::Taggable;
-
+use crate::entity::decoration::painting::PaintingEntity;
 use crate::item::items::boat::BoatItem;
+use pumpkin_data::data_component_impl::PaintingVariantImpl;
 
 impl JavaClient {
     pub fn handle_pick_item_from_block(
@@ -108,13 +109,24 @@ impl JavaClient {
             }
         }
 
-        let picked_item = found_egg
-            .and_then(Item::from_id)
-            .or_else(|| BoatItem::entity_to_item(target.get_entity().entity_type));
+        let picked_stack = if let Some(painting) =
+            target.cast_any().downcast_ref::<PaintingEntity>()
+        {
+            // Vanilla `Painting#getPickResult` returns the painting item carrying the
+            // variant of the entity that was picked.
+            let mut stack = ItemStack::new(1, &Item::PAINTING);
+            stack.set_data_component(PaintingVariantImpl {
+                value: std::borrow::Cow::Borrowed(painting.variant().to_name()),
+            });
+            Some(stack)
+        } else {
+            found_egg
+                .and_then(Item::from_id)
+                .or_else(|| BoatItem::entity_to_item(target.get_entity().entity_type))
+                .map(|item| ItemStack::new(1, item))
+        };
 
-        if let Some(item) = picked_item {
-            let stack = ItemStack::new(1, item);
-
+        if let Some(stack) = picked_stack {
             let slot_with_stack = player.inventory().get_slot_with_stack(&stack);
 
             if slot_with_stack != -1 {
