@@ -4,6 +4,8 @@
 # Own process group (setsid) so a hung `opencode run` is killed whole; idle watchdog (KAB_OC_IDLE, default 300 s);
 # one retry when a run dies without a final reply; .exit is always written.
 source "$(dirname "$0")/lib.sh"
+# own session: the wrapper subshell must outlive a stopped/expired Monitor or refill (else status shows 0 running and refill double-launches)
+[ -z "${KAB_SETSID:-}" ] && { export KAB_SETSID=1; exec setsid "$0" "$@"; }
 name="$1"; brief="$2"
 [ -f "$brief" ] || { echo "no brief $brief" >&2; exit 2; }
 dir="$KAB_WT/$name"; [ -d "$dir" ] || "$KAB_ROOT/scripts/wt.sh" new "$name" >/dev/null
