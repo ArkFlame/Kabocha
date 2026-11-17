@@ -50,6 +50,8 @@ pub struct AreaEffectCloudEntity {
     pub radius_on_use: Mutex<f32>,
     /// duration change (ticks) when an entity is affected
     pub duration_on_use: Mutex<i32>,
+    /// Vanilla `potionDurationScale`: multiplies the duration of each applied potion effect.
+    pub potion_duration_scale: Mutex<f32>,
     /// ticks to wait before the cloud becomes active and applies effects (grace period)
     pub wait_time: Mutex<i32>,
     pub owner: EntityReference,
@@ -79,6 +81,7 @@ impl AreaEffectCloudEntity {
             radius_on_tick: Mutex::new(-3.0 / 600.0), // default for lingering potions
             radius_on_use: Mutex::new(0.0),
             duration_on_use: Mutex::new(0),
+            potion_duration_scale: Mutex::new(1.0),
             wait_time: Mutex::new(20),
             owner: EntityReference::none(),
         };
@@ -113,6 +116,8 @@ impl AreaEffectCloudEntity {
             radius_on_tick: Mutex::new(-radius_in / (duration_in as f32).max(1.0)),
             radius_on_use: Mutex::new(radius_on_use_in),
             duration_on_use: Mutex::new(duration_on_use_in),
+            // Vanilla lingering potion and creeper clouds both call `setPotionDurationScale(0.25)`.
+            potion_duration_scale: Mutex::new(0.25),
             wait_time: Mutex::new(wait_time_in),
             owner: EntityReference::none(),
         };
@@ -148,6 +153,7 @@ impl AreaEffectCloudEntity {
             radius_on_tick: Mutex::new(radius_per_tick),
             radius_on_use: Mutex::new(0.0),
             duration_on_use: Mutex::new(0),
+            potion_duration_scale: Mutex::new(1.0),
             wait_time: Mutex::new(10),
             owner: EntityReference::new(owner),
         })
@@ -435,9 +441,23 @@ impl EntityBase for AreaEffectCloudEntity {
             // Apply scaled effects
             if let Some(living) = cand_clone.get_living_entity() {
                 let owner = self.owner.get(&world);
+                let potion_duration_scale = *self
+                    .potion_duration_scale
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let scaled_effects = effs_clone
+                    .into_iter()
+                    .map(|(eff, duration, amp, ambient, particles, icon)| {
+                        let duration = crate::item::potion::scale_potion_duration(
+                            duration,
+                            potion_duration_scale,
+                        );
+                        (eff, duration, amp, ambient, particles, icon)
+                    })
+                    .collect();
                 crate::item::potion::PotionContents::apply_effects_to(
                     living,
-                    effs_clone,
+                    scaled_effects,
                     scale,
                     crate::item::potion::PotionApplicationSource::AreaEffectCloud,
                     Some(crate::entity::living::EffectSource {

@@ -26,9 +26,20 @@ impl PotionApplicationSource {
 
     const fn duration_scale(self, scale: f32) -> f32 {
         match self {
-            Self::AreaEffectCloud => scale * 0.25,
+            // Cloud durations are scaled once by the cloud's `potion_duration_scale`, not by distance.
+            Self::AreaEffectCloud => 1.0,
             Self::Arrow | Self::Normal => scale,
         }
+    }
+}
+
+/// Vanilla `MobEffectInstance#withScaledDuration`: infinite stays infinite, others floor to at least 1 tick.
+#[must_use]
+pub fn scale_potion_duration(duration: i32, scale: f32) -> i32 {
+    if duration == -1 {
+        -1
+    } else {
+        ((duration as f32) * scale).floor().max(1.0) as i32
     }
 }
 
@@ -191,5 +202,12 @@ mod tests {
             20
         );
         assert_eq!(PotionApplicationSource::Arrow.instant_scale(scale), None);
+    }
+
+    #[test]
+    fn scaled_potion_duration_keeps_infinite_and_floors_to_one_tick() {
+        assert_eq!(scale_potion_duration(-1, 0.25), -1);
+        assert_eq!(scale_potion_duration(1, 0.25), 1);
+        assert_eq!(scale_potion_duration(601, 0.25), 150);
     }
 }
