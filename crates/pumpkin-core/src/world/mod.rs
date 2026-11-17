@@ -2635,7 +2635,10 @@ impl World {
                     self.save_own_weather();
                 }
             }
-            (level_time.is_night(), level_time.time_of_day)
+            // Fixed-time dimensions (Nether, End) never skip, and the night skip needs advance_time.
+            let skips_night =
+                advance_time && !self.dimension.has_fixed_time && level_time.is_night();
+            (skips_night, level_time.time_of_day)
         };
 
         // Vanilla serializes the live block entities into the chunk on every save, so a
