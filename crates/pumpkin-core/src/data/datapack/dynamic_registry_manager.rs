@@ -259,12 +259,14 @@ impl DynamicRegistryManager {
 
     #[must_use]
     pub fn get_synced_registries(&self) -> Vec<Registry> {
-        let order_guard = self
-            .synced_order
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // Same order as `apply_custom_registries` (registries before synced_order) so
+        // a concurrent datapack reload cannot deadlock against this read.
         let reg_guard = self
             .registries
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let order_guard = self
+            .synced_order
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
