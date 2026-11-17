@@ -284,8 +284,23 @@ impl Inventory for ChiseledBookshelfBlockEntity {
         removed
     }
 
-    fn remove_stack_specific(&self, slot: usize, _amount: u8) -> ItemStack {
-        self.remove_stack(slot)
+    fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
+        let removed = {
+            let mut items = self
+                .items
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if !items[slot].is_empty() && amount > 0 {
+                items[slot].split(amount)
+            } else {
+                ItemStack::EMPTY.clone()
+            }
+        };
+        if !removed.is_empty() {
+            self.sync_state_if_attached(slot);
+        }
+        self.mark_dirty();
+        removed
     }
 
     fn set_stack(&self, slot: usize, stack: ItemStack) {
