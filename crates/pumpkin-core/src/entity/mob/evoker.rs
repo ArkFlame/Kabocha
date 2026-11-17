@@ -65,6 +65,9 @@ const EVOKER_HUNTS: &[Hunt] = &[
     Hunt::new(3, TargetMatch::Type(&EntityType::IRON_GOLEM), false),
 ];
 
+/// Vanilla refuses to summon more vexes while this many are already within 16 blocks.
+const MAX_SUMMONED_VEXES: usize = 8;
+
 pub struct EvokerEntity {
     pub mob_entity: MobEntity,
     pub raider_data: RaiderData,
@@ -432,8 +435,7 @@ impl Goal for EvokerSummonSpellGoal {
             .filter(|e| *e.get_entity().entity_type == EntityType::VEX)
             .count();
 
-        let max_allowed = (rand::random::<u8>() % 8 + 1) as usize;
-        vex_count < max_allowed
+        vex_count < MAX_SUMMONED_VEXES
     }
 
     fn should_continue(&mut self, _mob: &dyn Mob) -> bool {
