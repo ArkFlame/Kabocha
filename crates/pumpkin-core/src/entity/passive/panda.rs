@@ -159,10 +159,10 @@ fn genes_from_parents(
     };
     let mut main_gene = get_one_of_genes_randomly(first, &mut next_int);
     let mut hidden_gene = get_one_of_genes_randomly(second, &mut next_int);
+    // Vanilla `else if`: the hidden gene is only rolled when the main gene did not mutate.
     if next_int(MUTATION_CHANCE) == 0 {
         main_gene = get_random_gene(&mut next_int);
-    }
-    if next_int(MUTATION_CHANCE) == 0 {
+    } else if next_int(MUTATION_CHANCE) == 0 {
         hidden_gene = get_random_gene(&mut next_int);
     }
     (main_gene, hidden_gene)
@@ -1015,10 +1015,15 @@ mod tests {
             inherit(&[(2, 0), (2, 0), (2, 1), (32, 5), (32, 7)]),
             (PandaGene::Aggressive, PandaGene::Lazy)
         );
-        // A 1 in 32 mutation hits one gene and not the other.
+        // A 1 in 32 mutation hits the main gene; the hidden gene is not rolled at all.
         assert_eq!(
-            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3), (32, 4)]),
+            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3)]),
             (PandaGene::Weak, PandaGene::Aggressive)
+        );
+        // A miss on the main gene rolls the hidden gene, which can mutate on its own.
+        assert_eq!(
+            inherit(&[(2, 1), (2, 1), (2, 0), (32, 1), (32, 0), (16, 3)]),
+            (PandaGene::Lazy, PandaGene::Weak)
         );
     }
 
