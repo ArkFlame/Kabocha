@@ -24,7 +24,7 @@ pub fn create(speed_modifier: fn(&dyn Mob) -> f32) -> OneShot {
                 return false;
             };
             if utils::entity_is_visible(&tick.visibility(), target.as_ref())
-                && utils::is_within_attack_range(tick.mob, target.as_ref())
+                && utils::is_within_attack_range(tick.mob, target.as_ref(), 0)
             {
                 tick.state.erase(types::WALK_TARGET.id());
             } else {

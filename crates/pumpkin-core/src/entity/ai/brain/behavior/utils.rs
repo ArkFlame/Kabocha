@@ -78,7 +78,7 @@ pub fn target_is_valid(
 ) -> bool {
     ctx.state.get(memory).is_some_and(|target| {
         predicate(target)
-            && target.get_entity().is_alive()
+            && is_alive(target.as_ref())
             && entity_is_visible(ctx, target.as_ref())
     })
 }
@@ -186,11 +186,51 @@ pub fn is_other_target_much_further_away_than_current_attack_target(
     dist_to_other > dist_to_current + how_much_further_away * how_much_further_away
 }
 
-/// Vanilla `BehaviorUtils.isWithinAttackRange` without its ranged weapon branch (nothing here
-/// holds a usable non-melee weapon): the melee reach.
+/// Vanilla `LivingEntity.isAlive`, health aware unlike `Entity::is_alive`.
 #[must_use]
-pub fn is_within_attack_range(body: &dyn Mob, target: &dyn EntityBase) -> bool {
-    body.get_mob_entity().is_in_attack_range(target)
+pub fn is_alive(entity: &dyn EntityBase) -> bool {
+    entity.get_entity().is_alive()
+        && entity
+            .get_living_entity()
+            .is_none_or(|living| living.health.load() > 0.0)
+}
+
+#[must_use]
+pub fn is_dead_or_dying(entity: &dyn EntityBase) -> bool {
+    entity
+        .get_living_entity()
+        .is_some_and(|living| living.health.load() <= 0.0)
+}
+
+#[must_use]
+pub fn has_passenger(body: &crate::entity::Entity, target: &dyn EntityBase) -> bool {
+    let target_id = target.get_entity().entity_id;
+    body.passengers
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .any(|passenger| passenger.get_entity().entity_id == target_id)
+}
+
+/// Vanilla `BehaviorUtils.isWithinAttackRange`, whose ranged branch applies to a mob holding a
+/// projectile weapon it can use.
+#[must_use]
+pub fn is_within_attack_range(
+    body: &dyn Mob,
+    target: &dyn EntityBase,
+    projectile_attack_range_margin: i32,
+) -> bool {
+    body.non_melee_weapon_range().map_or_else(
+        || body.get_mob_entity().is_in_attack_range(target),
+        |range| {
+            let max_allowed = f64::from(range - projectile_attack_range_margin);
+            body.get_entity()
+                .pos
+                .load()
+                .squared_distance_to_vec(&target.get_entity().pos.load())
+                < max_allowed * max_allowed
+        },
+    )
 }
 
 #[must_use]
