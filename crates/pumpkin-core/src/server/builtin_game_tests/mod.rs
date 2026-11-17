@@ -382,6 +382,14 @@ pub fn ensure_builtin_game_tests_registered() {
             pistons::test_piston_and_sticky_piston,
         );
         register_function_test(
+            "pumpkin:piston_slime_branch_chain",
+            "pumpkin:empty_6x4x6",
+            40,
+            0,
+            pistons::test_piston_slime_branch_chain,
+        );
+
+        register_function_test(
             "pumpkin:dispenser_and_dropper",
             "pumpkin:empty_6x4x6",
             40,
