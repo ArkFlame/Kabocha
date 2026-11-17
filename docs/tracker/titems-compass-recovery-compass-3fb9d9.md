@@ -24,6 +24,7 @@ which is what vanilla `ItemStack.consumeAndReturn`/`split` does.
    null; the Rust code leaves target and `tracked` untouched. Unreachable today because the three
    vanilla worlds always exist, so only a dynamic-world/plugin concern.
    Fix: clear `target` and set `tracked: false` in an `else` branch.
+   FIXED (UNVERIFIED): `tick_inventory_item_components` now unlinks with `tracked: false` when the target world is missing. No test (needs a server with a missing dimension).
 2. **M**, client-only `crates/pumpkin-core/src/item/mod.rs:36-141` -- `ItemBehaviour` has no
    `is_foil`/glint hook, so a lodestone-locked compass does not glint. Vanilla
    `CompassItem.isFoil(stack)` returns `LODESTONE_TRACKER.tracked()`. Fix: add

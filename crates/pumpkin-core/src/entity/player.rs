@@ -7042,24 +7042,37 @@ impl Player {
             if let Some(tracker) = stack.get_data_component::<LodestoneTrackerImpl>()
                 && tracker.tracked
                 && let Some(target) = &tracker.target
-                && let Some(target_world) = server
+            {
+                let target_world = server
                     .worlds
                     .load()
                     .iter()
                     .find(|world| target.dimension == world.dimension.minecraft_name)
-                    .cloned()
-            {
-                let pos = BlockPos::new(target.x, target.y, target.z);
-                // Vanilla LodestoneTracker#tick unlinks targets outside the world bounds outright.
-                if !target_world.is_in_build_limit(pos)
-                    || (target_world.level.is_chunk_loaded(&pos.chunk_position())
-                        && target_world.get_block(&pos) != &Block::LODESTONE)
-                {
-                    stack.set_data_component(LodestoneTrackerImpl {
-                        target: None,
-                        tracked: true,
-                    });
-                    changed = true;
+                    .cloned();
+                match target_world {
+                    // Vanilla LodestoneTracker#tick returns an unlinked tracker when
+                    // `server.getLevel(target.dimension())` is null.
+                    None => {
+                        stack.set_data_component(LodestoneTrackerImpl {
+                            target: None,
+                            tracked: false,
+                        });
+                        changed = true;
+                    }
+                    Some(target_world) => {
+                        let pos = BlockPos::new(target.x, target.y, target.z);
+                        // Vanilla LodestoneTracker#tick unlinks targets outside the world bounds.
+                        if !target_world.is_in_build_limit(pos)
+                            || (target_world.level.is_chunk_loaded(&pos.chunk_position())
+                                && target_world.get_block(&pos) != &Block::LODESTONE)
+                        {
+                            stack.set_data_component(LodestoneTrackerImpl {
+                                target: None,
+                                tracked: true,
+                            });
+                            changed = true;
+                        }
+                    }
                 }
             }
 
