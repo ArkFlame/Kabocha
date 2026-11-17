@@ -7237,6 +7237,18 @@ impl World {
     }
 
     pub fn drop_stack(self: &Arc<Self>, pos: &BlockPos, stack: ItemStack) {
+        self.drop_stack_at(
+            Vector3::new(
+                f64::from(pos.0.x) + 0.5,
+                f64::from(pos.0.y) + 0.5,
+                f64::from(pos.0.z) + 0.5,
+            ),
+            stack,
+        );
+    }
+
+    /// Vanilla `Entity.spawnAtLocation`: drops at the exact position, not the block origin.
+    pub fn drop_stack_at(self: &Arc<Self>, position: Vector3<f64>, stack: ItemStack) {
         if stack.is_empty() {
             return;
         }
@@ -7245,9 +7257,9 @@ impl World {
         let spawn_pos = {
             let mut r = rand::rng();
             Vector3::new(
-                f64::from(pos.0.x) + 0.5 + r.random_range(-0.25..0.25),
-                f64::from(pos.0.y) + 0.5 + r.random_range(-0.25..0.25) - half_height,
-                f64::from(pos.0.z) + 0.5 + r.random_range(-0.25..0.25),
+                position.x + r.random_range(-0.25..0.25),
+                position.y + r.random_range(-0.25..0.25) - half_height,
+                position.z + r.random_range(-0.25..0.25),
             )
         };
 

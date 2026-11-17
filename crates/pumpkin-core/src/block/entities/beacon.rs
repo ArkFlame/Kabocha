@@ -161,13 +161,26 @@ impl BeaconBlockEntity {
         }
     }
 
+    /// Vanilla `BeaconBlockEntity`: `new AABB(pos).inflate(10.0, 5.0, 10.0)` around the block cube.
+    fn construct_beacon_bounds(position: BlockPos) -> BoundingBox {
+        let BlockPos(pos) = position;
+        BoundingBox::new_array(
+            [
+                f64::from(pos.x) - 10.0,
+                f64::from(pos.y) - 5.0,
+                f64::from(pos.z) - 10.0,
+            ],
+            [
+                f64::from(pos.x) + 11.0,
+                f64::from(pos.y) + 6.0,
+                f64::from(pos.z) + 11.0,
+            ],
+        )
+    }
+
     /// Fires the `construct_beacon` criterion for players near a freshly activated beacon.
     fn trigger_construct_beacon(&self, world: &World, levels: i32) {
-        let pos = self.position.0.to_f64();
-        let bounds = BoundingBox::new_array(
-            [pos.x - 10.0, pos.y - 4.0 - 5.0, pos.z - 10.0],
-            [pos.x + 10.0, pos.y + 5.0, pos.z + 10.0],
-        );
+        let bounds = Self::construct_beacon_bounds(self.position);
         for player in world.players.load().iter() {
             if player.is_spectator()
                 || !bounds.intersects(&player.living_entity.entity.bounding_box.load())
@@ -481,5 +494,16 @@ mod tests {
                 .and_then(|actor| actor.get_string("CustomName")),
             Some("Beacon")
         );
+    }
+
+    #[test]
+    fn construct_beacon_bounds_inflate_matches_vanilla() {
+        let bounds = BeaconBlockEntity::construct_beacon_bounds(BlockPos::new(5, 64, 5));
+        assert_eq!(bounds.min.x, -5.0);
+        assert_eq!(bounds.min.y, 59.0);
+        assert_eq!(bounds.min.z, -5.0);
+        assert_eq!(bounds.max.x, 16.0);
+        assert_eq!(bounds.max.y, 70.0);
+        assert_eq!(bounds.max.z, 16.0);
     }
 }

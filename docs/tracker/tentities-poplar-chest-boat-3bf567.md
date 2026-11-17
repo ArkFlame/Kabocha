@@ -1,54 +1,51 @@
-# entities / Poplar Chest Boat — re-review
+# entities / Poplar Chest Boat (RE-REVIEW)
 
-Source: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (shared boat/chest-boat), plus
-`entity/type.rs:352-353`, `item/items/boat.rs:41-42,91-92`, `entity/player.rs:4378,4389`,
-`entity/mod.rs:1238-1244`. Generated data: `pumpkin-data/src/generated/entity_type.rs:9187-9243`
-(`POPLAR_CHEST_BOAT`, id 107, `BoatSeats { ride_height: 0.1875, single_passenger_x_offset: 0.15 }`),
-`pumpkin-data/src/generated/tag.rs:24022` (`minecraft:boat` and `c:boats` both contain
-`poplar_chest_boat`). Vanilla reference: `AbstractBoat`, `AbstractChestBoat` (`ContainerEntity`
-line, 1.21.5+). No decompiled sources in `.vendor/`, so each row names the vanilla member it must
-match.
+Re-review after the shared chest-boat source changed (`bc9600f36` drop item, `cd310a832`
+secondary-use open, `65d819a2c` damage invulnerability gate, `1b0b6471f` no container-open
+event, `b114b29da` bubble-time sync, `64ba0df4b` one-passenger cap). Shared implementation:
+`crates/pumpkin-core/src/entity/vehicle/boat.rs`,
+`entity/vehicle/minecart/container.rs`, `item/items/boat.rs`,
+generated `pumpkin-data/src/generated/entity_type.rs` (`POPLAR_CHEST_BOAT`, id 107).
+`.vendor/` is empty in this checkout, so the comparison below is against
+`net.minecraft.world.entity.vehicle.AbstractChestBoat` / `AbstractBoat` / `BoatItem`
+behaviour, not quoted decompiled source.
 
-Since the last review the source changed: `97ba2480d` (drop contents on creative break),
-`baf497b61` (no `CONTAINER_OPEN` game event on chest-boat open), `0fe61a1fb` (spectator denial),
-`570d3ea1f` (boat water physics split into `boat/{physics,block_effects,passengers,dismount}.rs`),
-and poplar was added to every hand list. Re-audited against that tree.
+## Verified parity (current code)
+
+| Behaviour | Pumpkin |
+|---|---|
+| `poplar_chest_boat` is a boat entity with generated seat data | `entity_type.rs:9187-9215` (`boat: Some(BoatSeats { ride_height 0.1875, .. })`) |
+| Chest variant detection covers every variant including poplar | `boat.rs:43-55` (+ test asserting suffix coverage) |
+| 27-slot container only for chest boats | `boat.rs:37,84-85`; `minecart/container.rs:19-33` |
+| One passenger for chest boats, two for plain boats | `boat.rs:57-65,390` |
+| Snorkel/boarding gate `ticks_underwater < 60`, bubble metadata | `boat.rs:157-189,390-402` |
+| Secondary-use-only open, spectator/alive/occupancy guard | `boat.rs:100-138,404-407` |
+| Title `entity.minecraft.<variant>`, Bedrock raft key, custom name wins | `boat.rs:125-134`; `minecart/container.rs:227` |
+| No `GameEvent.CONTAINER_OPEN` for entity containers | `minecart/container.rs:202-233` |
+| Break threshold `damage + amount*10 > 40`, creative instabuild, invulnerability first | `boat.rs:344-363` |
+| Contents scatter at exact entity `pos`; boat item dropped non-creative only | `boat.rs:365-385` |
+| `LootTable`/`LootTableSeed` deferred unpack, `Items` at container root | `minecart/container.rs:40-81` |
+| Item -> entity mapping and pick result for poplar chest boat | `item/items/boat.rs:41-42,63-71,91-92` |
+| Boat movement statistic includes `POPLAR_CHEST_BOAT` | `entity/player.rs` (earlier fix) |
 
 ## Fixed this pass
-Nothing to fix. Every poplar-chest-boat behaviour the vanilla classes define is present and
-matches; nothing was changed, so nothing can regress.
 
-## Verified as matching (poplar chest boat)
+- `minecart/container.rs:58-84` — the shared chest-vehicle NBT writer always emitted an
+  `Items` list, even for an empty 27-slot container. Vanilla
+  `AbstractChestBoat.addAdditionalSaveData` (and `AbstractMinecartContainer`) only writes the
+  list when at least one slot is filled. Now omitted when empty, with a regression test
+  `empty_container_writes_no_items_list`. Commit: fix(entity): omit empty chest vehicle items list.
 
-| Behaviour | Rust | Vanilla member |
-|---|---|---|
-| `POPLAR_CHEST_BOAT` is a `BoatEntity` | `entity/type.rs:352-353` | `EntityType.CHEST_BOAT` factory |
-| Detected as a chest boat (27-slot inventory created) | `boat.rs:51`, `boat.rs:72-73`, `boat.rs:88-90` | `AbstractChestBoat` constructor |
-| Single seat only, no mob pickup | `boat.rs:92-94`, `entity/mod.rs:1238-1250` | `AbstractChestBoat` single-seat rule |
-| Right-click opens chest when seat full or sneaking, else boards | `boat.rs:359-394` | `AbstractChestBoat.interact` |
-| Spectators never get the menu | `boat.rs:97-101` | `AbstractChestBoat.openCustomInventoryScreen` |
-| Title is entity display name; bamboo uses raft key, poplar uses boat key | `boat.rs:105-116` | `AbstractChestBoat.getDisplayName` |
-| No `CONTAINER_OPEN` game event on open (`false`) | `boat.rs:116`, `minecart/container.rs` `open` | plain `player.openMenu`, no game event |
-| `Items`/`LootTable`/`LootTableSeed` save and load | `boat.rs:227-237`, `minecart/container.rs` | `ContainerEntity` + `ContainerHelper.saveAllItems` |
-| Loot table accepted and unpacked on first access | `boat.rs:255-266`, `boat.rs:333-337` | `ContainerEntity.unpackChestVehicleLootTable` |
-| Chest contents scatter and boat item drops (with custom name) when destroyed, honouring `entity_drops`; creative scatters contents but drops no item | `boat.rs:307-357` | `AbstractBoat.hurtServer`/`destroy`, `ContainerEntity.chestVehicleDestroyed` |
-| Rider offset 0.15 from generated data, not a hardcoded branch | `boat/passengers.rs:69-75`, `boat.rs:189-214` | `AbstractBoat.getPassengerAttachmentPoint` |
-| Moves `minecraft.custom:minecraft.boat_one_cm` (also covered by `c:boats` now) | `entity/player.rs:4367-4392` | `Player.getMovementStatistic` |
-| Place from item, space/entity checks, yaw, stack decrement, `ENTITY_PLACE` | `item/items/boat.rs:107-211` | `BoatItem.use` |
-| Pick-block returns `poplar_chest_boat` | `item/items/boat.rs:52-58`, `pick_item.rs:100` | `AbstractBoat.getPickResult` |
+## Remaining gaps
 
-## Remaining gaps (shared with the other chest-boat rows)
+| # | file:line | vanilla class | gap | suggested fix | size |
+|---|---|---|---|---|---|
+| 1 | `boat.rs:365-385` | `ContainerEntity` / `Containers.dropContents` | Contents drop is nested inside `game_rules.entity_drops`; vanilla container vehicles drop contents independently of `doEntityDrops` (only the vehicle item is gated). Verify against decompiled `AbstractChestBoat`/`chestVehicleDestroyed`, then move the `claim_drops`/`scatter_inventory_at` block out of the gamerule check. | S (verify) |
+| 2 | `boat.rs:366-382` | `AbstractBoat.destroy` -> `spawnAtLocation` | Dropped chest-boat item spawns at `entity.block_pos` (integer), while vanilla uses the entity's exact position; contents already use `entity.pos`. | Add a position-based `World::drop_stack` (or reuse the scatter spawn helper) and use `entity.pos` here and in `minecart.rs:897`. | S |
+| 3 | `minecart/container.rs:202-233`, `boat.rs:100` | `AbstractContainerMenu.stillValid` / `Container.canPlayerUse` | Entity-backed screen never invalidates: no 8-block distance, entity-alive or unload check, so the 27 slots stay usable after walking away or after the boat is destroyed. | Give `MinecartScreenFactory` a validity check (`is_alive() && distance_squared <= 64`) and close the screen when it fails; applies to chest boats and chest minecarts. | M |
+| 4 | `item/items/boat.rs:107-200` | `BoatItem.use` + `minecraft:container` component (1.21.2+) | Placing a chest-boat item ignores its `minecraft:container` component, so a component-carrying chest boat spawns empty. | After `BoatEntity::new`, copy `ContainerImpl` stacks slot-for-slot (clamp to 27) before `world.spawn_entity`. | M |
+| 5 | `boat.rs:278-296`, `hopper.rs:328-350` | `AbstractChestBoat implements Container` (no `WorldlyContainer`) | `has_container_inventory` puts chest boats on the hopper entity path; confirm insertion above a boat matches vanilla (plain `Container`, so all slots are reachable) rather than extraction-only. | Add a hopper test: push into a chest boat from above and pull from below; adjust the entity container path if insertion is missing. | M |
+| 6 | `boat.rs:441-470` | `AbstractChestBoat` save/load | Tests only cover chest-boat type detection; there is no chest-boat 27-slot NBT round trip or open-guard test. | Unit test: `POPLAR_CHEST_BOAT` vs `POPLAR_BOAT` `has_container_inventory()`, and `Items` round trip through slot 26. | S |
 
-| # | Where | Vanilla member | Gap | Fix | Size |
-|---|-------|----------------|-----|-----|------|
-| 1 | `boat.rs:279-290` | `AbstractBoat.tick` float/move | With a player riding, the server zeroes velocity and skips `float_boat`/`move_boat`, so block effects and underwater counters advance but boat-vs-block/piston/entity resolution does not. Player movement is client-authoritative in Pumpkin (`docs/LEDGER.tsv` #1679), so this is a known design item, not a poplar defect | Port the vanilla input-driven float/move path instead of the early return | M |
-| 2 | `boat.rs:341-352` | `AbstractBoat.getPickResult` / `AbstractChestBoat.getDropItem` | Destroyed-boat item is resolved with `Item::from_registry_key(resource_name)` while `BoatItem::entity_to_item` already owns the entity-item mapping; two mappings can diverge for a future wood type and silently drop no item. `poplar_chest_boat` resolves today, so there is no current behaviour difference | Use `BoatItem::entity_to_item(...)` and keep the registry lookup only as fallback | S |
-| 3 | `boat.rs:41-53`, `item/items/boat.rs:21-98`, `entity/type.rs:332-353`, `entity/mod.rs:1240`, `entity/player.rs:4369-4391` | `AbstractChestBoat` subclasses | Five hand-maintained type lists; adding a wood only works if all five are edited (poplar needed exactly this). `c:boats` now covers both the movement-stat and mob-pickup paths, so the hand lists there are redundant | Derive from one `BoatKind`/flag generated from `resource_name`, then drop the redundant hand checks | M |
-| 4 | `boat.rs:307-357` | `ContainerEntity` drops | Contents scatter only through `damage_with_context`; a non-damage destroying removal (`/kill`, `discard`) drops nothing. Matches vanilla if contents are tied to `destroy`, needs the decompiled `AbstractChestBoat.destroy`/`remove` to confirm | Confirm against decompiled source; if vanilla drops on `remove(KILLED)`, add a removal hook to `EntityBase` | M |
-
-## Not gaps (checked)
-27 slots, `Items` round trip, `LootTable`/seed handling, single-seat rule and mob pickup block,
-interact ordering with sneak/occupied seat, spectator denial, no container-open game event,
-bedrock `entity.chest_boat.name`, generated seat offset 0.15, `c:boats`/`minecraft:boat`
-membership, `blocksBuilding`, `can_hit`/`is_collidable`/`is_pushable`, item placement
-volume/collision checks, pick-block, creative scatter-without-item-drop.
+Client-only effects (chest rendering, screen layout, paddle wobble) were not assessed.
+No cargo or test run was performed (worker constraint); the orchestrator batch-compiles.

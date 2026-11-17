@@ -47,9 +47,17 @@ what vanilla's `!isTunable()` (`worksAboveNoteBlock()`) means for the
 2. `note.rs:36` `NotePlayEvent` now reports `instrument.to_value()`
    (`trumpet_exposed`) instead of the Rust `Debug` name (`TrumpetExposed`).
    Plugin-API-visible string only.
+3. (second pass, 2026-11-17) note.rs:160-168 duplicated note particle: the
+   earlier fix for item 1 added the unconditional spawn_particle after the
+   sound but left the pre-existing copy inside the tunable-instrument branch,
+   so every tunable note (harp, basedrum, ... trumpet) sent the particle twice.
+   Vanilla triggerEvent calls addParticle once per event. Removed the in-branch
+   copy; the single post-sound spawn covers tunable, mob-head and custom-head
+   instruments. Client-visible only, so no automated test.
 
 ## Remaining gaps
-None found in this pass.
+None found in either pass; the only known non-parity item is the structural
+is_base_block mirror described at the end.
 
 Known untestable-by-agent detail: the particle position/velocity is only
 observable by a client, so it is covered by the vanilla source rather than by an

@@ -398,7 +398,6 @@ impl EntityBase for BoatEntity {
                 world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
             }
             if world.level_info.load().game_rules.entity_drops {
-                let position = self.vehicle.entity.block_pos.load();
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
                 if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
@@ -410,7 +409,7 @@ impl EntityBase for BoatEntity {
                                 name: custom_name.clone(),
                             });
                         }
-                        world.drop_stack(&position, stack);
+                        world.drop_stack_at(self.vehicle.entity.pos.load(), stack);
                     }
                 }
             }

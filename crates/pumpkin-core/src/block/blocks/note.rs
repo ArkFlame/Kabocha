@@ -158,13 +158,6 @@ impl BlockBehaviour for NoteBlock {
         let note_props = NoteBlockLikeProperties::from_state_id(block_state.id);
         let instrument = note_props.instrument;
         let pitch = if is_base_block(instrument) {
-            args.world.spawn_particle(
-                args.position.to_centered_f64() + Vector3::new(0.0, 0.7, 0.0),
-                Vector3::new(f32::from(note_props.note) / 24.0, 0.0, 0.0),
-                0.0,
-                1,
-                pumpkin_data::particle::Particle::Note,
-            );
             Self::get_note_pitch(u16::from(note_props.note))
         } else {
             1.0
