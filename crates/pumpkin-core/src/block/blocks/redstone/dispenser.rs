@@ -671,10 +671,9 @@ impl DispenserBlock {
             .spawn_creature(mob, CreatureSpawnReason::DispenseEgg, None)
         {
             item.decrement(1);
-            ctx.world.emit_game_event(
-                GameEvent::EntityPlace.name(),
-                ctx.position.to_centered_f64(),
-            );
+            // Vanilla `EntityType.spawn` emits ENTITY_PLACE at the spawned entity's position.
+            ctx.world
+                .emit_game_event(GameEvent::EntityPlace.name(), spawn_pos);
         }
 
         ctx.world
