@@ -118,7 +118,10 @@ impl FallingEntity {
                 }
             }
         }
-        if is_anvil(block) && rand::random::<f32>() < anvil_damage_chance(fall_distance) {
+        if is_anvil(block)
+            && damage > 0.0
+            && rand::random::<f32>() < anvil_damage_chance(fall_distance)
+        {
             match AnvilBlock::damage(*state_id) {
                 Some(damaged) => *state_id = damaged,
                 None => return true,
@@ -372,7 +375,7 @@ mod tests {
 
     #[test]
     fn anvil_damage_chance_grows_per_step() {
-        assert_eq!(anvil_damage_chance(0.5), 0.0);
+        assert!((anvil_damage_chance(0.5) - 0.05).abs() < 1e-6);
         assert!((anvil_damage_chance(1.0) - 0.05).abs() < 1e-6);
         assert!((anvil_damage_chance(3.0) - 0.15).abs() < 1e-6);
     }

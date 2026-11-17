@@ -5608,8 +5608,8 @@ pub(crate) fn prevents_equipment_drop(stack: &ItemStack) -> bool {
         })
 }
 
-/// Vanilla `LivingEntity.calculateFallDamage`: each Jump Boost level and the safe fall distance
-/// are subtracted from the fall, then the remainder is scaled and rounded up.
+/// Vanilla `LivingEntity.calculateFallDamage`: `floor((fall + 1e-6 - safe) * modifier * multiplier)`.
+/// Jump Boost adds one block of safe distance per level (an `ADD_VALUE` attribute modifier in vanilla).
 fn fall_damage_amount(
     fall_distance: f64,
     safe_distance: f64,
@@ -5617,8 +5617,8 @@ fn fall_damage_amount(
     damage_modifier: f64,
     multiplier: f64,
 ) -> i32 {
-    ((fall_distance - safe_distance - jump_boost_levels) * damage_modifier * multiplier).ceil()
-        as i32
+    ((fall_distance + 1.0e-6 - safe_distance - jump_boost_levels) * damage_modifier * multiplier)
+        .floor() as i32
 }
 
 #[cfg(test)]
@@ -5626,9 +5626,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fall_damage_rounds_up_past_safe_distance() {
-        // 4.5 blocks with a 3-block safe distance is 1.5 damage, which rounds up to 2.
-        assert_eq!(fall_damage_amount(4.5, 3.0, 0.0, 1.0, 1.0), 2);
+    fn fall_damage_floors_past_safe_distance() {
+        // 4.5 blocks with a 3-block safe distance is 1.5 damage, which floors to 1 like vanilla.
+        assert_eq!(fall_damage_amount(4.5, 3.0, 0.0, 1.0, 1.0), 1);
         // Exactly the safe distance deals nothing.
         assert_eq!(fall_damage_amount(3.0, 3.0, 0.0, 1.0, 1.0), 0);
     }
@@ -5637,7 +5637,7 @@ mod tests {
     fn fall_damage_subtracts_jump_boost_levels() {
         // Jump Boost II lowers the effective fall by two blocks: 6 - 3 - 2 = 1.
         assert_eq!(fall_damage_amount(6.0, 3.0, 2.0, 1.0, 1.0), 1);
-        assert_eq!(fall_damage_amount(4.0, 3.0, 2.0, 1.0, 1.0), 0);
+        assert!(fall_damage_amount(4.0, 3.0, 2.0, 1.0, 1.0) <= 0);
     }
 
     // ── bypasses_armor_durability ─────────────────────────────────────

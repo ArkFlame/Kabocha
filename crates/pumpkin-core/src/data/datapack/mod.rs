@@ -2788,8 +2788,23 @@ mod tests {
         assert_eq!(error, FunctionRunError::CommandChainLimitExceeded);
     }
 
-    #[tokio::test]
-    async fn recurse_through_dispatcher_and_hit_the_depth_limit() {
+    /// Debug-build dispatcher frames are large; 256 nested calls need more than the 2 MiB test stack.
+    #[test]
+    fn recurse_through_dispatcher_and_hit_the_depth_limit() {
+        let handle = std::thread::Builder::new()
+            .stack_size(256 * 1024 * 1024)
+            .spawn(|| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("runtime");
+                runtime.block_on(recurse_through_dispatcher_and_hit_the_depth_limit_body());
+            })
+            .expect("spawn test thread");
+        handle.join().expect("depth limit test panicked");
+    }
+
+    async fn recurse_through_dispatcher_and_hit_the_depth_limit_body() {
         let world_dir = tempfile::tempdir().expect("tempdir");
         let server = test_server(world_dir.path()).await;
 
