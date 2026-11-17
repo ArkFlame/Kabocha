@@ -67,6 +67,12 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
                 .iter()
                 .map(|biome| format!("minecraft:{}", biome.registry_id));
             suggestions_builder.filter_and_suggest_iter(biomes).build()
+        } else if self.0 == DIMENSION_REGISTRY {
+            let worlds = context.server().worlds.load();
+            let dimensions = worlds
+                .iter()
+                .map(|world| world.dimension.minecraft_name.to_string());
+            suggestions_builder.filter_and_suggest_iter(dimensions).build()
         } else {
             Suggestions::empty()
         }
