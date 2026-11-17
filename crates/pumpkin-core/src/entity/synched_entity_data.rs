@@ -159,17 +159,21 @@ impl SynchedEntityData {
         let mut buf = Vec::new();
         let mut has_any = false;
 
-        for item in items.values() {
-            if item.dirty {
-                let before_len = buf.len();
-                if item
-                    .serializer
-                    .write(item.tracked.id, item.tracked.r#type, &mut buf, version)
-                    .is_ok()
-                    && buf.len() > before_len
-                {
-                    has_any = true;
-                }
+        // Vanilla `SynchedEntityData.packDirty` walks `itemsById`, so entries always go out
+        // in ascending tracked-id order. A `HashMap` iteration would randomise the field
+        // order and some clients/dumps then expect field 0 to be another serializer.
+        let mut ordered: Vec<&DataItem> = items.values().filter(|item| item.dirty).collect();
+        ordered.sort_unstable_by_key(|item| item.tracked.id.get(version));
+
+        for item in ordered {
+            let before_len = buf.len();
+            if item
+                .serializer
+                .write(item.tracked.id, item.tracked.r#type, &mut buf, version)
+                .is_ok()
+                && buf.len() > before_len
+            {
+                has_any = true;
             }
         }
 
@@ -206,17 +210,22 @@ impl SynchedEntityData {
         let mut buf = Vec::new();
         let mut has_any = false;
 
-        for item in items.values() {
-            if !item.is_default {
-                let before_len = buf.len();
-                if item
-                    .serializer
-                    .write(item.tracked.id, item.tracked.r#type, &mut buf, version)
-                    .is_ok()
-                    && buf.len() > before_len
-                {
-                    has_any = true;
-                }
+        // Same ascension rule as `packDirty` (vanilla `getNonDefaultValues`).
+        let mut ordered: Vec<&DataItem> = items
+            .values()
+            .filter(|item| !item.is_default)
+            .collect();
+        ordered.sort_unstable_by_key(|item| item.tracked.id.get(version));
+
+        for item in ordered {
+            let before_len = buf.len();
+            if item
+                .serializer
+                .write(item.tracked.id, item.tracked.r#type, &mut buf, version)
+                .is_ok()
+                && buf.len() > before_len
+            {
+                has_any = true;
             }
         }
 
@@ -263,6 +272,35 @@ mod test {
         assert!(
             data.get_non_default_values_for_version(&JavaMinecraftVersion::V_26_3)
                 .is_none()
+        );
+    }
+
+    /// Vanilla packs the dirty items in ascending tracked-id order. FishingHook relies on it
+    /// for its field 0 flags byte and its BITING boolean; sending them out of order makes
+    /// clients report `Byte` vs `Boolean` for field 0 (upstream #3051).
+    #[test]
+    fn fishing_bobber_metadata_is_packed_in_ascending_id_order() {
+        use pumpkin_data::tracked_data::{
+            entity::DATA_SHARED_FLAGS_ID, fishing_bobber::{DATA_BITING, DATA_HOOKED_ENTITY},
+        };
+
+        let data = SynchedEntityData::new();
+        // Insert in reverse id order on purpose.
+        data.set(DATA_BITING, true);
+        data.set(DATA_HOOKED_ENTITY, 42i32);
+        data.set(DATA_SHARED_FLAGS_ID, 1i8);
+
+        let version = JavaMinecraftVersion::V_26_3;
+        let packed = data
+            .get_non_default_values_for_version(&version)
+            .expect("dirty values must be packed");
+
+        // [id 0, BYTE(0), 1] [id 8, INT(1), 42] [id 9, BOOLEAN(8), 1] [255]
+        let expected: &[u8] = &[0, 0, 1, 8, 1, 42, 9, 8, 1, 255];
+        assert_eq!(&*packed, expected);
+        assert_eq!(
+            data.pack_dirty_for_version(&version).as_deref(),
+            Some(expected)
         );
     }
 }
