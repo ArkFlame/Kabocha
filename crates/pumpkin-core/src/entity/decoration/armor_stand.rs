@@ -498,11 +498,8 @@ impl EntityBase for ArmorStandEntity {
             self.disabled_slots.store(disabled_slots, Ordering::Relaxed);
         }
 
-        if let Some(no_base_plate) = nbt.get_bool("NoBasePlate") {
-            if !no_base_plate {
-                flags |= ArmorStandFlags::HideBasePlate as u8;
-            }
-        } else {
+        // Vanilla `NoBasePlate` is true only when the plate is hidden.
+        if nbt.get_bool("NoBasePlate").unwrap_or(false) {
             flags |= ArmorStandFlags::HideBasePlate as u8;
         }
 
