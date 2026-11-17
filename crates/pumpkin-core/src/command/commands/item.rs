@@ -239,36 +239,31 @@ impl CommandExecutor for EntityReplaceExecutor {
         }
 
         let item_name = item.registry_key;
+        let item_component = TextComponent::text("[")
+            .add_child(item.translated_name())
+            .add_child(TextComponent::text("]"))
+            .hover_event(HoverEvent::ShowItem {
+                id: item_name.to_string().into(),
+                count: Some(count),
+                components: None,
+            });
         let msg = if targets.len() == 1 {
             TextComponent::translate_cross(
-                translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_SINGLE,
-                translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_SINGLE,
+                translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_SINGLE_KNOWN_ITEM,
+                translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_SINGLE_KNOWN_ITEM,
                 [
+                    TextComponent::text(modified_count.to_string()),
                     targets[0].as_ref().get_display_name(),
-                    TextComponent::text("[")
-                        .add_child(item.translated_name())
-                        .add_child(TextComponent::text("]"))
-                        .hover_event(HoverEvent::ShowItem {
-                            id: item_name.to_string().into(),
-                            count: Some(count),
-                            components: None,
-                        }),
+                    item_component,
                 ],
             )
         } else {
             TextComponent::translate_cross(
-                translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_MULTIPLE,
-                translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_MULTIPLE,
+                translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_MULTIPLE_KNOWN_ITEM,
+                translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_MULTIPLE_KNOWN_ITEM,
                 [
-                    TextComponent::text(modified_count.to_string()),
-                    TextComponent::text("[")
-                        .add_child(item.translated_name())
-                        .add_child(TextComponent::text("]"))
-                        .hover_event(HoverEvent::ShowItem {
-                            id: item_name.to_string().into(),
-                            count: Some(count),
-                            components: None,
-                        }),
+                    TextComponent::text(targets.len().to_string()),
+                    item_component,
                 ],
             )
         };
