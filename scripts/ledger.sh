@@ -60,6 +60,17 @@ for i, line in enumerate(readlines("docs/QUEUE.md"), 1):
     for n in nums:
         queue_state.setdefault(n, (state, ev))
 
+outcome_state = {}  # (kind, n) -> (state, evidence) from docs/OUTCOMES.tsv (worker STATUS lines)
+try:
+    for line in readlines("docs/OUTCOMES.tsv"):
+        f = line.rstrip("\n").split("\t")
+        if len(f) >= 5 and f[1].isdigit() and f[3] in ("skipped", "failed"):
+            outcome_state[(f[0], int(f[1]))] = (
+                "SKIPPED" if f[3] == "skipped" else "FAILED",
+                "OUTCOMES.tsv %s/%s: %s" % (f[3], f[2], f[4][:120]))
+except OSError:
+    pass
+
 master = {}        # n -> (hash, subject)
 try:
     log = subprocess.run(["git", "log", "master", "--format=%h %s"],
@@ -125,6 +136,8 @@ for kind, table, url in (("pr", prs, "pull"), ("issue", issues, "issues")):
             st, ev = "SKIPPED", done[n][1]
         elif n in queue_state:
             st, ev = queue_state[n]
+        elif (kind, n) in outcome_state and not [x for x in branches.get(n, []) if x in unmerged]:
+            st, ev = outcome_state[(kind, n)]
         else:
             cands = [b for b in branches.get(n, []) if b in unmerged]
             if cands:
