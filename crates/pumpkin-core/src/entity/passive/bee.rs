@@ -28,9 +28,8 @@ use crate::entity::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
         grow_crop::GrowCropGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
-        pollinate_flower::PollinateFlowerGoal,
-        reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        pollinate_flower::PollinateFlowerGoal, reset_universal_anger::ResetUniversalAngerGoal,
+        revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     ai::pathfinder::Navigator,
     mob::{
@@ -79,10 +78,12 @@ const MAX_CROPS_GROWN_SINCE_POLLINATION: i32 = 10;
 
 /// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar and has growth budget left.
 fn can_grow_crop(mob: &dyn Mob) -> bool {
-    mob.cast_any().downcast_ref::<BeeEntity>().is_some_and(|bee| {
-        bee.has_nectar()
-            && bee.crops_grown_since_pollination() < MAX_CROPS_GROWN_SINCE_POLLINATION
-    })
+    mob.cast_any()
+        .downcast_ref::<BeeEntity>()
+        .is_some_and(|bee| {
+            bee.has_nectar()
+                && bee.crops_grown_since_pollination() < MAX_CROPS_GROWN_SINCE_POLLINATION
+        })
 }
 
 /// Counts a fertilized crop; the bee loses its nectar once it has grown the maximum.
@@ -244,7 +245,9 @@ impl BeeEntity {
 
     /// Adds one fertilized crop and returns the new count.
     pub fn record_crop_grown(&self) -> i32 {
-        self.crops_grown_since_pollination.fetch_add(1, Ordering::Relaxed) + 1
+        self.crops_grown_since_pollination
+            .fetch_add(1, Ordering::Relaxed)
+            + 1
     }
 
     #[must_use]
