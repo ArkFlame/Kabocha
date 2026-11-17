@@ -67,3 +67,9 @@ decompiled class, the rest are drift risk or a missing hook, not a certain one-f
 - `vertical_speed = -self.get_gravity()` in `float_boat` (physics.rs:248) matches vanilla for normal boats
   (`0.04`) and improves parity for `NoGravity` boats (0 instead of the hard-coded sink), so replacing it
   with the constant would be a regression.
+
+## Status (gapwave2 h1)
+- Row 3 (bubble time): STILL OPEN. Vanilla cadence for `DATA_ID_BUBBLE_TIME` is not verifiable without a decompiled `AbstractBoat`; a guessed tick would be a fake fix.
+- Row 4 (rider clamp rotation, M): STILL OPEN, needs a new rider-rotation hook (M size, out of this slice).
+- Row 6 (dispenser flowing water): STILL OPEN. The note itself is marked *verify*, and recall of `BoatDispenseItemBehavior` uses `FluidTags.WATER` (which includes flowing water), so the claimed divergence is not confirmed.
+- Row 7 (`is_chest_boat` hand list): STILL OPEN, S but a tag-to-entity mapping change touches the passenger cap in two places; not done in this slice.

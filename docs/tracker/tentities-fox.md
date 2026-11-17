@@ -16,3 +16,6 @@ Verdict: implementation is complete in structure (goal list and priorities, vari
 - `fox/mod.rs:628` gates the walk-over pickup on `mob_griefing`, matching the shared `mob::pick_up_nearby_items` path (`entity/mob/mod.rs:1369`); vanilla `Mob.aiStep` has no such check, but the difference is engine-wide and not fox-specific.
 - `has_global_tick_reach` is a Pumpkin hook for the consumed teleport effect, not a vanilla `Fox` method; it matches the teleport-randomly consume path.
 - Fox render-only behaviour (head roll, sitting pose interpolation) is client side; no server change.
+
+## Status (gapwave2 h1)
+- Open gap `SleepGoal::can_sleep` (water/rain): FIXED 0ef4bb8ba, `can_sleep` rejects `is_in_water_or_rain`. UNVERIFIED against decompiled `Fox$FoxSleepGoal`. The one-in-ten retry roll was already present in `can_start`'s path (`goals.rs:730`), so only the water/rain rejection was missing. No unit test (world state needed).

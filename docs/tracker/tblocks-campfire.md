@@ -50,3 +50,6 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 
 Note: the reviewed sources did not change after the last tracker commit (`56622ca89`);
 this pass re-checked the fixable rows against vanilla.
+
+## Status (gapwave2 h1)
+- Gap 2 (items without a campfire recipe never progress): FIXED 77ed003c1. Progress now counts every stack, a stack without a recipe skips the start event and completes with its raw item, matching vanilla `cookItems`. UNVERIFIED against decompiled source (no `.vendor/` tree); no unit test, the path needs a live tick.
