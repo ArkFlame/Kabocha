@@ -21,6 +21,7 @@ pub struct Cache {
     pub x: i32,
     pub z: i32,
     pub size: i32,
+    pub seed: u64,
     pub chunks: Vec<Chunk>,
     /// The center chunk failed to read from disk. Its placeholder must not spawn entities that
     /// would then be saved in place of the unreadable chunk.
@@ -215,6 +216,10 @@ impl BlockAccessor for Cache {
 }
 
 impl GenerationCache for Cache {
+    fn world_seed(&self) -> u64 {
+        self.seed
+    }
+
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_z: i32) -> Option<&mut ProtoChunk> {
         let dx = chunk_x - self.x;
         let dz = chunk_z - self.z;
@@ -608,6 +613,7 @@ impl Cache {
             x,
             z,
             size,
+            seed: 0,
             chunks: Vec::with_capacity((size * size) as usize),
             read_failed: false,
             surface_biomes: None,
@@ -747,6 +753,7 @@ impl Cache {
             },
             StagedChunkEnum::Features => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {
+                    self.seed = noise_gen.random_config.seed;
                     ProtoChunk::generate_features_and_structure(
                         self,
                         block_registry,
@@ -754,6 +761,7 @@ impl Cache {
                     );
                 }
                 generator::WorldGenerator::Flat(flat_gen) => {
+                    self.seed = flat_gen.seed;
                     ProtoChunk::generate_flat_features(self, block_registry, flat_gen);
                 }
                 generator::WorldGenerator::Custom(custom_gen) => {

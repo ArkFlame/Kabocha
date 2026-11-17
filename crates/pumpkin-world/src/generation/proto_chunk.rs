@@ -102,6 +102,10 @@ pub trait GenerationCache: HeightLimitView + BlockAccessor {
     fn get_sea_level(&self) -> i32 {
         self.get_center_chunk().get_sea_level()
     }
+    /// World seed used by seed-derived features. Defaults to 0 for caches without a seed.
+    fn world_seed(&self) -> u64 {
+        0
+    }
 }
 
 const AIR_BLOCK: Block = Block::AIR;
