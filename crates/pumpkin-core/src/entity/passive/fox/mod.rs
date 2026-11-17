@@ -340,10 +340,11 @@ impl FoxEntity {
         self.set_flag(128, val);
     }
 
-    /// With both slots taken the second is replaced.
+    /// Vanilla drops the oldest entry once both slots are taken.
     pub fn add_trusted(&self, uuid: Uuid) {
         let trusted = match self.trusted.load() {
-            [Some(first), _] => [Some(first), Some(uuid)],
+            [Some(_), Some(second)] => [Some(second), Some(uuid)],
+            [Some(first), None] => [Some(first), Some(uuid)],
             [None, _] => [Some(uuid), None],
         };
         self.trusted.store(trusted);
