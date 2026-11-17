@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use pumpkin_data::{attributes::Attributes, sound::Sound};
+use pumpkin_nbt::compound::NbtCompound;
 
 use crate::entity::{
     Entity, EntityBase,
@@ -15,29 +16,36 @@ pub struct MagmaCubeEntity {
 
 impl MagmaCubeEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let slime = SlimeEntity::new(entity);
-        let size = slime.get_size();
-        {
-            let mut attributes = slime
-                .get_mob_entity()
-                .living_entity
-                .attributes
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(speed) = attributes.get_mut(&Attributes::MOVEMENT_SPEED.id) {
-                speed.base_value = 0.2;
-                speed.dirty.store(true, Ordering::Relaxed);
-            }
-            if let Some(damage) = attributes.get_mut(&Attributes::ATTACK_DAMAGE.id) {
-                damage.base_value = (size + 2) as f64;
-                damage.dirty.store(true, Ordering::Relaxed);
-            }
-            if let Some(armor) = attributes.get_mut(&Attributes::ARMOR.id) {
-                armor.base_value = (size * 3) as f64;
-                armor.dirty.store(true, Ordering::Relaxed);
-            }
+        let cube = Arc::new(Self {
+            slime: SlimeEntity::new(entity),
+        });
+        cube.apply_base_attributes();
+        cube
+    }
+
+    /// Vanilla MagmaCube setSize attribute side effects. Kept separate so a
+    /// size read from NBT reapplies them after the slime reset.
+    fn apply_base_attributes(&self) {
+        let size = self.slime.get_size();
+        let mut attributes = self
+            .slime
+            .get_mob_entity()
+            .living_entity
+            .attributes
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(speed) = attributes.get_mut(&Attributes::MOVEMENT_SPEED.id) {
+            speed.base_value = 0.2;
+            speed.dirty.store(true, Ordering::Relaxed);
         }
-        Arc::new(Self { slime })
+        if let Some(damage) = attributes.get_mut(&Attributes::ATTACK_DAMAGE.id) {
+            damage.base_value = (size + 2) as f64;
+            damage.dirty.store(true, Ordering::Relaxed);
+        }
+        if let Some(armor) = attributes.get_mut(&Attributes::ARMOR.id) {
+            armor.base_value = (size * 3) as f64;
+            armor.dirty.store(true, Ordering::Relaxed);
+        }
     }
 }
 
@@ -75,6 +83,15 @@ impl Mob for MagmaCubeEntity {
         index: usize,
     ) -> Option<pumpkin_util::math::vector3::Vector3<f64>> {
         self.slime.mob_passenger_attachment_point(passenger, index)
+    }
+
+    fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        self.slime.mob_write_nbt(nbt);
+    }
+
+    fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        self.slime.mob_read_nbt(nbt);
+        self.apply_base_attributes();
     }
 
     fn mob_metadata(&self) -> Option<crate::entity::mob::MobMetadata> {
