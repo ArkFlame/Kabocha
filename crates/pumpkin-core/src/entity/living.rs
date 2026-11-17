@@ -600,9 +600,12 @@ impl LivingEntity {
     fn tick_soul_speed(&self, caller: &dyn EntityBase) {
         const SOUL_SPEED_MODIFIER_ID: &str = "minecraft:soul_speed";
         let pos = self.entity.get_block_pos_below_that_affects_my_movement();
-        let on_soul_block = self.entity.world.load().get_block(&pos).has_tag(
-            &pumpkin_data::tag::Block::MINECRAFT_SOUL_SPEED_BLOCKS,
-        );
+        let on_soul_block = self
+            .entity
+            .world
+            .load()
+            .get_block(&pos)
+            .has_tag(&pumpkin_data::tag::Block::MINECRAFT_SOUL_SPEED_BLOCKS);
         let level = if on_soul_block {
             crate::enchantment::helper::EnchantmentHelper::get_enchantment_level(
                 &Enchantment::SOUL_SPEED,
@@ -635,7 +638,11 @@ impl LivingEntity {
                     });
                     changed = true;
                 }
-            } else if instance.modifiers.iter().any(|m| m.id == SOUL_SPEED_MODIFIER_ID) {
+            } else if instance
+                .modifiers
+                .iter()
+                .any(|m| m.id == SOUL_SPEED_MODIFIER_ID)
+            {
                 instance.remove_modifier(SOUL_SPEED_MODIFIER_ID);
                 changed = true;
             }
@@ -2966,6 +2973,17 @@ impl LivingEntity {
                 if amount > 0 {
                     ExperienceOrbEntity::spawn(&world, self.entity.pos.load(), amount);
                 }
+            }
+            // Vanilla `SculkCatalystBlockEntity` consumes the soul of any
+            // non-player death with experience, spreading sculk around a
+            // catalyst within 8 blocks.
+            if perished && dyn_self.get_player().is_none() && dyn_self.should_drop_experience() {
+                let soul_charge = dyn_self.get_experience_reward(killer);
+                crate::block::entities::sculk_catalyst::on_entity_death(
+                    &world,
+                    self.entity.block_pos.load(),
+                    soul_charge,
+                );
             }
             self.entity.pose.store(EntityPose::Dying);
 

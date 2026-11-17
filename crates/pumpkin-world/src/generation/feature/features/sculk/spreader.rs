@@ -166,6 +166,12 @@ impl SculkSpreader {
         }
     }
 
+    /// Returns `true` while charge cursors are still pending.
+    #[must_use]
+    pub fn has_cursors(&self) -> bool {
+        !self.cursors.is_empty()
+    }
+
     /// Clears all cursors (called between rounds).
     pub fn clear(&mut self) {
         self.cursors.clear();

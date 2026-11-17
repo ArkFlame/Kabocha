@@ -1,3 +1,4 @@
+use crate::block::entities::sculk_catalyst::SculkCatalystBlockEntity;
 use crate::block::{BlockBehaviour, BlockMetadata, OnPlaceArgs, OnScheduledTickArgs};
 use pumpkin_data::{BlockId, BlockStateId, block_properties::SculkCatalystLikeProperties};
 use pumpkin_world::world::BlockFlags;
@@ -27,6 +28,11 @@ impl BlockBehaviour for SculkCatalystBlock {
                 props.to_state_id(args.block),
                 BlockFlags::NOTIFY_ALL,
             );
+        }
+        if let Some(entity) = args.world.get_block_entity(args.position)
+            && let Some(catalyst) = entity.as_any().downcast_ref::<SculkCatalystBlockEntity>()
+        {
+            catalyst.end_bloom();
         }
     }
 }
