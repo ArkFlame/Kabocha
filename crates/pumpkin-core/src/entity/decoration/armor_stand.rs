@@ -236,7 +236,10 @@ impl ArmorStandEntity {
             .entity_equipment
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let drop_pos = entity.block_pos.load().up();
+        // Vanilla `ArmorStand.brokenByAnything` spawns `ItemEntity(getX(), getY() + 1.0, getZ())`,
+        // so equipment falls from the stand's exact position, not the block above its floor.
+        let mut drop_pos = entity.pos.load();
+        drop_pos.y += 1.0;
         // Vanilla iterates every `EquipmentSlot`, main hand included.
         for slot in [
             EquipmentSlot::MAIN_HAND,
@@ -250,7 +253,7 @@ impl ArmorStandEntity {
         ] {
             let stack = equipment.put(&slot, ItemStack::EMPTY.clone());
             if !stack.is_empty() {
-                world.drop_stack(&drop_pos, stack);
+                world.drop_stack_at(drop_pos, stack);
             }
         }
     }
