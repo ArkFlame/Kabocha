@@ -626,7 +626,9 @@ mod tests {
             .expect("shutdown result");
     }
 
-    async fn shutdown_abandons_store_that_never_drains() {
+    /// Wasmtime drops host-spawned futures once the store's driver finishes, so an
+    /// endless `accessor.spawn` task does not hold shutdown past its bound.
+    async fn shutdown_returns_when_endless_host_task_is_dropped() {
         let store = TestStore::new(test_store(StoreMode::Concurrent), StoreMode::Concurrent).await;
         let started = Arc::new(Notify::new());
         let task_started = Arc::clone(&started);
@@ -655,7 +657,7 @@ mod tests {
         )
         .await
         .expect("shutdown must not wait for an endless guest task");
-        assert!(result.is_err());
+        assert!(result.is_ok(), "{result:?}");
     }
 
     async fn explicit_discard_drains_accepted_work(mode: StoreMode) {
@@ -1507,7 +1509,7 @@ mod tests {
                 owner_drop_drains_accepted_work(mode).await;
             }
             shutdown_waits_for_joined_store_background_tasks(StoreMode::Concurrent).await;
-            shutdown_abandons_store_that_never_drains().await;
+            shutdown_returns_when_endless_host_task_is_dropped().await;
             shutdown_reentry_scenario().await;
         })
         .await
