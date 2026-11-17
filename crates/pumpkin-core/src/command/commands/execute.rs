@@ -69,6 +69,7 @@ use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::math::wrap_degrees;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
@@ -336,8 +337,9 @@ fn execute_facing_modifier(
     let dz = pos.z - from.z;
 
     let xz_dist = dx.hypot(dz);
-    let yaw = (dz.atan2(dx).to_degrees() as f32) - 90.0;
-    let pitch = -(dy.atan2(xz_dist).to_degrees() as f32);
+    // Vanilla wraps both angles in CommandSourceStack#facing.
+    let yaw = wrap_degrees((dz.atan2(dx).to_degrees() as f32) - 90.0);
+    let pitch = wrap_degrees(-(dy.atan2(xz_dist).to_degrees() as f32));
 
     source.rotation = Vector2::new(pitch, yaw);
     Ok(vec![Arc::new(source)])
@@ -360,8 +362,9 @@ fn execute_facing_entity_modifier(
         let dz = target_pos.z - from.z;
 
         let xz_dist = dx.hypot(dz);
-        let yaw = (dz.atan2(dx).to_degrees() as f32) - 90.0;
-        let pitch = -(dy.atan2(xz_dist).to_degrees() as f32);
+        // Vanilla wraps both angles in CommandSourceStack#facing.
+        let yaw = wrap_degrees((dz.atan2(dx).to_degrees() as f32) - 90.0);
+        let pitch = wrap_degrees(-(dy.atan2(xz_dist).to_degrees() as f32));
 
         source.rotation = Vector2::new(pitch, yaw);
         sources.push(Arc::new(source));
@@ -1133,9 +1136,10 @@ fn count_blocks_match(
     context: &CommandContext,
     masked: bool,
 ) -> Result<Option<i32>, CommandSyntaxError> {
-    let start = BlockPosArgumentType::get_block_pos(context, "start")?;
-    let end = BlockPosArgumentType::get_block_pos(context, "end")?;
-    let destination = BlockPosArgumentType::get_block_pos(context, "destination")?;
+    // Vanilla checkRegions resolves all three through getLoadedBlockPos, before the area check.
+    let start = BlockPosArgumentType::get_loaded_block_pos(context, "start")?;
+    let end = BlockPosArgumentType::get_loaded_block_pos(context, "end")?;
+    let destination = BlockPosArgumentType::get_loaded_block_pos(context, "destination")?;
 
     let min_x = start.0.x.min(end.0.x);
     let max_x = start.0.x.max(end.0.x);
@@ -1165,10 +1169,6 @@ fn count_blocks_match(
                 for x in min_x..=max_x {
                     let src_pos = BlockPos::new(x, y, z);
                     let dst_pos = BlockPos::new(x + dx, y + dy, z + dz);
-                    // Vanilla checks every compared block, not only the region corners.
-                    if !world.is_loaded(&src_pos) || !world.is_loaded(&dst_pos) {
-                        return Err(ERROR_POS_NOT_LOADED.create_without_context());
-                    }
                     if masked && world.get_block(&src_pos).is_air() {
                         continue;
                     }
