@@ -185,7 +185,7 @@ impl JavaClient {
             player.swing_hand(hand, true);
         }
 
-        sync_used_hand_item(player, hand, slot_index, &before, item);
+        sync_used_hand_item(player, hand, slot_index, &before, item.clone());
 
         // Vanilla falls back to the item's own use when neither the block nor the
         // item handled the click (Item#useOn defaults to Item#use), so items such
