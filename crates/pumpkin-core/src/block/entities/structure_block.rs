@@ -324,6 +324,25 @@ pub fn load_or_cache_structure_template(
     global_cache().get(&canonical_id)
 }
 
+/// Block entity ids whose vanilla class implements `RandomizableContainer`, the only ones that
+/// receive a `LootTableSeed` when a template is placed.
+fn is_randomizable_container_id(id: &str) -> bool {
+    let path = id.strip_prefix("minecraft:").unwrap_or(id);
+    matches!(
+        path,
+        "chest"
+            | "trapped_chest"
+            | "barrel"
+            | "dispenser"
+            | "dropper"
+            | "hopper"
+            | "crafter"
+            | "decorated_pot"
+            | "suspicious_sand"
+            | "suspicious_gravel"
+    ) || path.ends_with("shulker_box")
+}
+
 fn create_structure_seed(seed: i64) -> u64 {
     if seed == 0 {
         SystemTime::now()
@@ -429,7 +448,8 @@ pub fn place_structure_template_in_world(
                     placed_nbt.child_tags.insert(key.clone(), value.clone());
                 }
             }
-            if placed_nbt.get_string("LootTable").is_some() {
+            // Vanilla `StructureTemplate.placeBlock` only seeds RandomizableContainer block entities.
+            if placed_nbt.get_string("LootTable").is_some() && is_randomizable_container_id(&id) {
                 placed_nbt.put_long("LootTableSeed", loot_rng.next_i64());
             }
             placer.add_block_entity(placed_nbt);
@@ -1172,9 +1192,20 @@ impl StructureBlockBlockEntity {
 #[cfg(test)]
 mod tests {
     use super::{
-        compute_detected_bounds, is_safe_generated_structure_path, parse_structure_identifier,
+        compute_detected_bounds, is_randomizable_container_id, is_safe_generated_structure_path,
+        parse_structure_identifier,
     };
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
+
+    #[test]
+    fn loot_seed_only_for_randomizable_containers() {
+        assert!(is_randomizable_container_id("minecraft:chest"));
+        assert!(is_randomizable_container_id("minecraft:red_shulker_box"));
+        assert!(is_randomizable_container_id("minecraft:dropper"));
+        assert!(!is_randomizable_container_id("minecraft:brewing_stand"));
+        assert!(!is_randomizable_container_id("minecraft:furnace"));
+        assert!(!is_randomizable_container_id("minecraft:sign"));
+    }
 
     #[test]
     fn structure_identifier_validation_canonicalizes_and_rejects_invalid_names() {
