@@ -220,7 +220,11 @@ impl ItemPredicate {
         let durability = pred_map.get("durability").and_then(IntBounds::from_value);
 
         let mut enchantments = Vec::new();
-        if let Some(predicates) = pred_map.get("predicates").and_then(Value::as_object)
+        // 1.20.5+ serialises item component predicates under `components`; older packs use `predicates`.
+        if let Some(predicates) = pred_map
+            .get("components")
+            .or_else(|| pred_map.get("predicates"))
+            .and_then(Value::as_object)
             && let Some(enchants) = predicates
                 .get("minecraft:enchantments")
                 .and_then(Value::as_array)
@@ -2373,6 +2377,19 @@ mod tests {
         }));
         assert!(ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
         assert!(!ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 3)]));
+    }
+
+    #[test]
+    fn item_enchantment_predicate_reads_components_key() {
+        let pred = ItemPredicate::from_value(&json!({
+            "items": "minecraft:diamond_sword",
+            "components": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": {"min": 2}}
+            ]}
+        }));
+        assert!(pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 1)]));
+        assert!(!pred.matches("minecraft:iron_sword", 1, &[("minecraft:sharpness", 2)]));
     }
 
     #[test]
