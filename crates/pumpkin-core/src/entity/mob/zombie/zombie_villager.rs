@@ -284,6 +284,18 @@ impl ZombieVillagerEntity {
     fn finish_conversion(&self) {
         let entity = self.get_entity();
         let world = entity.world.load_full();
+        // Vanilla spawns a brand-new villager, so none of the zombie's effects survive.
+        let living = &self.mob_entity.mob_entity.living_entity;
+        let effects: Vec<_> = living
+            .active_effects
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .keys()
+            .copied()
+            .collect();
+        for effect in effects {
+            living.remove_effect(effect);
+        }
         let kept = self.drop_preserved_equipment();
         convert_to(
             self,
