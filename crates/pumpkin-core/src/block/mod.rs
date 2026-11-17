@@ -828,7 +828,11 @@ pub fn calculate_comparator_output(inventory: &dyn pumpkin_inventory::Inventory)
     for i in 0..size {
         let stack = inventory.get_stack(i);
         if !stack.is_empty() {
-            let max_stack = stack.get_max_stack_size() as f32;
+            // Vanilla `Container.getMaxStackSize(ItemStack)` uses the smaller of the
+            // container and item stack limits.
+            let max_stack = inventory
+                .get_max_count_per_stack()
+                .min(stack.get_max_stack_size()) as f32;
             let count = stack.item_count as f32;
             fill_sum += count / max_stack;
             non_empty_count += 1;
@@ -845,6 +849,9 @@ pub fn calculate_comparator_output(inventory: &dyn pumpkin_inventory::Inventory)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pumpkin_data::data_component_impl::MaxStackSizeImpl;
+    use pumpkin_inventory::{Clearable, Inventory};
+    use std::any::Any;
 
     struct EmptyPlacementCollision;
 
@@ -872,5 +879,57 @@ mod tests {
         assert!(!BlockIsReplacing::None.is_water());
         assert!(!BlockIsReplacing::Other.is_water());
         assert!(!BlockIsReplacing::Itself(0).is_water());
+    }
+
+    struct CappedInventory {
+        stack: ItemStack,
+        container_max: u8,
+    }
+
+    impl Clearable for CappedInventory {
+        fn clear(&self) {}
+    }
+
+    impl Inventory for CappedInventory {
+        fn size(&self) -> usize {
+            1
+        }
+
+        fn is_empty(&self) -> bool {
+            self.stack.is_empty()
+        }
+
+        fn get_stack(&self, _slot: usize) -> ItemStack {
+            self.stack.clone()
+        }
+
+        fn remove_stack(&self, _slot: usize) -> ItemStack {
+            ItemStack::EMPTY.clone()
+        }
+
+        fn remove_stack_specific(&self, _slot: usize, _amount: u8) -> ItemStack {
+            ItemStack::EMPTY.clone()
+        }
+
+        fn set_stack(&self, _slot: usize, _stack: ItemStack) {}
+
+        fn get_max_count_per_stack(&self) -> u8 {
+            self.container_max
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+    }
+
+    #[test]
+    fn comparator_output_uses_smaller_container_or_item_max_stack() {
+        let mut stack = ItemStack::new(16, &Item::IRON_SWORD);
+        stack.set_data_component(MaxStackSizeImpl { size: 64 });
+        let inventory = CappedInventory {
+            stack,
+            container_max: 16,
+        };
+        assert_eq!(calculate_comparator_output(&inventory), 15);
     }
 }
