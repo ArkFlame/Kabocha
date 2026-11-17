@@ -19,7 +19,6 @@ pub mod format;
 pub mod io;
 pub mod palette;
 
-// TODO
 pub const CHUNK_WIDTH: usize = BlockPalette::SIZE;
 pub const CHUNK_AREA: usize = CHUNK_WIDTH * CHUNK_WIDTH;
 pub const BIOME_VOLUME: usize = BiomePalette::VOLUME;
