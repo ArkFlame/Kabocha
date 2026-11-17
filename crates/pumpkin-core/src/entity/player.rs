@@ -6879,19 +6879,8 @@ impl Player {
         let drop_amount = if drop_stack { item_stack.item_count } else { 1 };
         let dropped_stack = item_stack.copy_with_count(drop_amount);
 
-        if let Some(server) = self.world().server.upgrade()
-            && let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
-        {
-            let mut event =
-                crate::plugin::api::events::player::player_drop_item::PlayerDropItemEvent::new(
-                    player_arc,
-                    dropped_stack.item.registry_key.to_string(),
-                    dropped_stack.item_count,
-                );
-            server.plugin_manager.fire_blocking(&server, &mut event);
-            if event.cancelled {
-                return;
-            }
+        if !InventoryPlayer::can_drop_item(self, &dropped_stack) {
+            return;
         }
 
         item_stack.decrement(drop_amount);
@@ -9816,6 +9805,25 @@ impl InventoryPlayer for Player {
 
     fn drop_item(&self, item: ItemStack, _retain_ownership: bool) {
         self.drop_item(item);
+    }
+
+    /// Fires `PlayerDropItemEvent` so plugins can cancel a drop made from an
+    /// open screen (inventory, chest, custom GUI).
+    fn can_drop_item(&self, item: &ItemStack) -> bool {
+        let Some(server) = self.world().server.upgrade() else {
+            return true;
+        };
+        let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) else {
+            return true;
+        };
+        let mut event =
+            crate::plugin::api::events::player::player_drop_item::PlayerDropItemEvent::new(
+                player_arc,
+                item.item.registry_key.to_string(),
+                item.item_count,
+            );
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        !event.cancelled
     }
 
     fn has_infinite_materials(&self) -> bool {
