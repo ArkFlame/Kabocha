@@ -248,7 +248,13 @@ impl ItemStack {
     pub fn has_foil(&self) -> bool {
         self.get_data_component::<EnchantmentGlintOverrideImpl>()
             .map_or_else(
-                || self.has_enchantments(),
+                || {
+                    // Vanilla: Item.isFoil -> isEnchanted; CompassItem.isFoil adds
+                    // `has(LODESTONE_TRACKER)`, which checks component presence, not `tracked()`.
+                    self.has_enchantments()
+                        || (self.item.id == Item::COMPASS.id
+                            && self.has_data_component(DataComponent::LodestoneTracker))
+                },
                 |override_glint| override_glint.glint,
             )
     }
@@ -1063,12 +1069,51 @@ mod tests {
     use super::*;
     use crate::data_component::DataComponent;
     use crate::data_component_impl::{
-        CustomDataImpl, CustomNameImpl, DataComponentImpl, EnchantmentsImpl, ItemNameImpl,
-        LoreImpl, MapDecorationsImpl, UnbreakableImpl,
+        CustomDataImpl, CustomNameImpl, DataComponentImpl, EnchantmentGlintOverrideImpl,
+        EnchantmentsImpl, ItemNameImpl, LodestoneTrackerImpl, LoreImpl, MapDecorationsImpl,
+        UnbreakableImpl,
     };
     use pumpkin_nbt::Nbt;
     use pumpkin_nbt::deserializer::NbtReadHelperJava;
     use std::io::Cursor;
+
+    #[test]
+    fn compass_foil_comes_from_lodestone_tracker_or_enchantments() {
+        let plain = ItemStack::new(1, &Item::COMPASS);
+        assert!(!plain.has_foil());
+
+        let mut tracked = ItemStack::new(1, &Item::COMPASS);
+        tracked.set_data_component(LodestoneTrackerImpl {
+            target: None,
+            tracked: true,
+        });
+        assert!(tracked.has_foil());
+
+        // Vanilla CompassItem.isFoil checks component presence, not the tracked field.
+        let mut untracked = ItemStack::new(1, &Item::COMPASS);
+        untracked.set_data_component(LodestoneTrackerImpl {
+            target: None,
+            tracked: false,
+        });
+        assert!(untracked.has_foil());
+
+        // A recovery compass is a plain Item in vanilla: no lodestone foil override.
+        let mut recovery = ItemStack::new(1, &Item::RECOVERY_COMPASS);
+        recovery.set_data_component(LodestoneTrackerImpl {
+            target: None,
+            tracked: true,
+        });
+        assert!(!recovery.has_foil());
+
+        // The glint override still wins over the compass lodestone foil.
+        let mut suppressed = ItemStack::new(1, &Item::COMPASS);
+        suppressed.set_data_component(LodestoneTrackerImpl {
+            target: None,
+            tracked: true,
+        });
+        suppressed.set_data_component(EnchantmentGlintOverrideImpl { glint: false });
+        assert!(!suppressed.has_foil());
+    }
 
     #[test]
     fn unknown_components_do_not_drop_the_stack() {

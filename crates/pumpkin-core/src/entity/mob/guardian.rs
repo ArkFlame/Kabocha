@@ -467,6 +467,13 @@ mod tests {
     }
 
     #[test]
+    fn beam_charge_duration_matches_vanilla_elder_override() {
+        use pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET;
+        assert_eq!(GuardianAttackGoal::new(false, DATA_ID_ATTACK_TARGET).attack_duration(), 80);
+        assert_eq!(GuardianAttackGoal::new(true, DATA_ID_ATTACK_TARGET).attack_duration(), 60);
+    }
+
+    #[test]
     fn thorns_reflection_blocked_matches_vanilla_tag() {
         // The avoids-guardian-thorns tag already contains thorns and magic.
         assert!(thorns_reflection_blocked(false, DamageType::THORNS));
