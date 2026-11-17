@@ -2317,7 +2317,7 @@ const fn advances_tick_count(runs_normally: bool, is_sprinting: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        advances_tick_count, can_bypass_player_limit, infer_played_before, join_gamemode,
+        advances_tick_count, can_bypass_player_limit, infer_played_before, join_gamemode, ring_tps,
         tick_time_sample,
     };
     use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
@@ -2343,6 +2343,24 @@ mod tests {
         );
         // A work time larger than the measured interval cannot yield negative idle.
         assert_eq!(tick_time_sample(10, 30), [10, 30, 0, 0]);
+    }
+
+    #[test]
+    fn ring_tps_uses_filled_samples_and_caps_at_target() {
+        const TARGET: i64 = 50_000_000; // 20 TPS
+        let ring = std::sync::Mutex::new([0i64; 4]);
+        // No samples yet: like Paper, report the ideal rate.
+        assert_eq!(ring_tps(&ring, 0, TARGET), 20.0);
+        // Only filled samples count; trailing zero slots are ignored.
+        ring.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)[0] = 50_000_000;
+        assert_eq!(ring_tps(&ring, 1, TARGET), 20.0);
+        ring.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)[1] = 100_000_000;
+        assert!((ring_tps(&ring, 2, TARGET) - 13.333333333333334).abs() < 1e-9);
+        // A ring faster than the target is capped, as Paper's getTPS() does.
+        let fast = std::sync::Mutex::new([10_000_000i64; 4]);
+        assert_eq!(ring_tps(&fast, 4, TARGET), 20.0);
     }
 
     #[test]
