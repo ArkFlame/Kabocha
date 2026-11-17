@@ -104,7 +104,6 @@ impl World {
                 .await;
             let position = self.fixup_spawn_height_up_at(suggestion);
             if self.no_collision_no_liquid_at(&position) {
-                self.release_spawn_search_chunks(&loaded_chunks);
                 return position.to_f64();
             }
         }

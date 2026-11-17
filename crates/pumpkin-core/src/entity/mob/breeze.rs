@@ -1,5 +1,5 @@
 use crate::entity::EntityBase;
-use crate::entity::damage::DamageType;
+use pumpkin_data::damage::DamageType;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use pumpkin_data::sound::Sound;
 use std::sync::atomic::Ordering;

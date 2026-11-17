@@ -123,8 +123,10 @@ impl World {
             }
             listeners
         };
-        for listener in block_listeners {
-            listener.on_game_event(self, event, context, position);
+        if let Some(world) = self.weak_self().and_then(|weak| weak.upgrade()) {
+            for listener in block_listeners {
+                listener.on_game_event(&world, event, context, position);
+            }
         }
     }
 }

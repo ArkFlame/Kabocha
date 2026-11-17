@@ -117,7 +117,7 @@ use pumpkin_protocol::java::client::play::{
 use pumpkin_protocol::java::client::play::{
     CPlayerSpawnPosition, CRecipeBookAdd, CRecipeBookSettings, CSystemChatMessage,
 };
-use crate::net::java::chunk_data::light_update_for_sections;
+use crate::net::java::chunk_data::light::light_update_for_sections;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata, ParticleOptions};
 use pumpkin_protocol::{
     BClientPacket, ClientPacket, IdOr, SoundEvent,
@@ -2253,7 +2253,8 @@ impl World {
             return;
         }
         let chunk_pos = Vector2::new(position.0.x >> 4, position.0.z >> 4);
-        self.unsent_light_sections
+        *self
+            .unsent_light_sections
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entry(chunk_pos)
@@ -7712,7 +7713,7 @@ impl World {
             .cloned()
     }
 
-    fn weak_self(&self) -> Option<Weak<Self>> {
+    pub(crate) fn weak_self(&self) -> Option<Weak<Self>> {
         self.server.upgrade().and_then(|server| {
             server
                 .worlds
