@@ -33,7 +33,14 @@ world/entity fixture; the existing `clicked_slot`/`swap_item_stacks` unit tests 
 | armor_stand.rs:529-533 (`kill`) | `ArmorStand.kill` -> `breakAndDropItem` + `brokenByAnything`, so `/kill` and void damage drop the stand plus equipment; `GameEvent.ENTITY_DIE` is emitted | call `break_and_drop_items()` and emit the death game event (resolves the existing TODO) | S |
 | armor_stand.rs:283-291 + 583-590 | burning only calls `cause_damage`, so `last_damage_taken`/hurt animation and the `entity.is_removed()` bookkeeping are never updated for the fire path | set `last_damage_taken` in `cause_damage` once the vanilla behaviour split above is settled | S |
 
-## Gapwave2-2 status
+## Status of remaining gaps (h2 pass)
 
-- `armor_stand.rs:343-349` spectator `interactAt` early return: already FIXED in code (`interact_at_position` returns true for spectators); no change.
-- other rows: STILL OPEN (drop_pos needs a position-based drop API, kill/cause_damage split needs a helper).
+- `slot_bit` (vanilla `getDisabledSlotsMask` enum order): **FIXED** (9d2aba562), `vanilla_slot_index`, test `disabled_slot_bits_follow_vanilla_enum_order`.
+- `cause_damage` (burn): **FIXED** (9d2aba562), `brokenByAnything` + discard, no stand-item drop.
+- explosion branch: **FIXED** (9d2aba562), `brokenByAnything` + discard.
+- `interactAt` spectator early return: **FIXED** (already in place at `interact_at_position`, no change needed).
+- `get_clicked_slot` small-stand scaling: **FIXED** (no-op). Vanilla `getClickedSlot` uses `d = small ? y * 2 : y`, which is exactly the existing `y / 0.5`; the double-scaling premise does not hold.
+- `clicked_slot` offhand fallback: **UNVERIFIED** (kept). Believed to match vanilla `!slotIsValid(MAINHAND) && slotIsValid(OFFHAND)`; `.vendor` absent.
+- creative break: **FIXED** (9d2aba562), goes through `kill` which runs `break_and_drop_items`; manual sound removed to avoid a double play.
+- `kill`: **FIXED** (9d2aba562), `break_and_drop_items` + remove + `GameEvent.ENTITY_DIE`.
+- `last_damage_taken` in burn path: **FIXED** (9d2aba562), stored in `cause_damage`.
