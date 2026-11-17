@@ -44,6 +44,8 @@ impl PiglinAi {
     pub const DISABLE_WALK_TO_ADMIRE_DURATION: i32 = 200;
     pub const THROW_SPEED: f64 = 0.3;
     pub const THROW_HAND_Y_DISTANCE_FROM_EYE: f64 = 0.3;
+    /// Vanilla PiglinAi.throwItemsTowardPos gives thrown barter items 40 ticks of pickup delay.
+    pub const THROWN_ITEM_PICKUP_DELAY: u8 = 40;
     pub const RANDOM_THROW_POS_RANGE_HORIZONTAL: i32 = 4;
     pub const RANDOM_THROW_POS_RANGE_VERTICAL: i32 = 2;
 
@@ -276,8 +278,12 @@ impl PiglinAi {
             entity.get_eye_y() - Self::THROW_HAND_Y_DISTANCE_FROM_EYE,
             pos.z,
         );
-        let direction =
-            Vector3::new(target.x - pos.x, target.y + 1.0 - pos.y, target.z - pos.z).normalize();
+        let direction = Vector3::new(
+            target.x - hand_pos.x,
+            target.y - hand_pos.y,
+            target.z - hand_pos.z,
+        )
+        .normalize();
         let velocity = Vector3::new(
             direction.x * Self::THROW_SPEED,
             direction.y * Self::THROW_SPEED,
@@ -292,7 +298,7 @@ impl PiglinAi {
                 Entity::new(world.clone(), hand_pos, &EntityType::ITEM),
                 item,
                 velocity,
-                ItemEntity::DEFAULT_PICKUP_DELAY,
+                Self::THROWN_ITEM_PICKUP_DELAY,
             );
             world.spawn_entity(Arc::new(item_entity));
         }
