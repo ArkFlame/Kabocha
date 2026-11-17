@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{
     Axis, CreakingHeartLikeProperties, CreakingHeartState, PaleOakWoodLikeProperties,
 };
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::{BlockStateId, Enchantment};
 use pumpkin_macros::pumpkin_block;
+use pumpkin_util::GameMode;
+use pumpkin_util::random::{RandomGenerator, get_seed, xoroshiro128::Xoroshiro};
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
@@ -16,6 +18,7 @@ use crate::block::{
     PlacedArgs,
 };
 use crate::entity::EntityBase;
+use crate::entity::experience_orb::ExperienceOrbEntity;
 
 #[pumpkin_block("minecraft:creaking_heart")]
 pub struct CreakingHeartBlock;
@@ -145,5 +148,24 @@ impl BlockBehaviour for CreakingHeartBlock {
             SoundCategory::Blocks,
             &args.position.to_f64(),
         );
+
+        // Vanilla CreakingHeartBlock#onStacksDropped: only world-gen (natural) hearts drop
+        // 20-24 experience, and never with Silk Touch (vanilla dropExperienceWhenMined).
+        let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
+        if !props.natural || args.player.gamemode.load() == GameMode::Creative {
+            return;
+        }
+        if args
+            .player
+            .inventory()
+            .held_item()
+            .get_enchantment_level(&Enchantment::SILK_TOUCH)
+            > 0
+        {
+            return;
+        }
+        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
+        let amount = 20 + random.next_bounded_i32(5) as u32;
+        ExperienceOrbEntity::spawn(args.world, args.position.to_f64(), amount);
     }
 }
