@@ -90,7 +90,7 @@ impl BlockEntity for SculkShriekerBlockEntity {
                 .warning_level
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            SculkShriekerBlock::respond(world, position, warning_level);
+            SculkShriekerBlock::summon_warden_on_removal(world, position, warning_level);
         }
     }
 

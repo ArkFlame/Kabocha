@@ -111,6 +111,9 @@ impl SculkShriekerBlock {
         world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_LISTENERS);
         world.schedule_block_tick(block, *pos, SHRIEKING_TICKS, TickPriority::Normal);
         world.sync_world_event(WorldEvent::ParticlesSculkShriek, *pos, 0);
+        // Vanilla `SculkShriekerBlockEntity#tryShriek` applies darkness as the shriek starts,
+        // not on the scheduled response tick.
+        WardenEntity::apply_darkness_around(world, pos.to_centered_f64(), DARKNESS_RADIUS);
         world.emit_game_event_with_context(
             GameEvent::Shriek.name(),
             pos.to_centered_f64(),
@@ -145,7 +148,15 @@ impl SculkShriekerBlock {
         if !Self::try_summon_warden(world, pos, warning_level) {
             Self::play_warden_reply_sound(world, pos, warning_level);
         }
-        WardenEntity::apply_darkness_around(world, pos.to_centered_f64(), DARKNESS_RADIUS);
+    }
+
+    /// Vanilla `SculkShriekerBlockEntity#preRemoveSideEffects` only attempts the warden summon:
+    /// no reply sound and no darkness when a shrieking block is broken.
+    pub fn summon_warden_on_removal(world: &Arc<World>, pos: &BlockPos, warning_level: i32) {
+        if !Self::can_respond(world, true) || warning_level <= 0 {
+            return;
+        }
+        Self::try_summon_warden(world, pos, warning_level);
     }
 
     fn try_summon_warden(world: &Arc<World>, pos: &BlockPos, warning_level: i32) -> bool {
