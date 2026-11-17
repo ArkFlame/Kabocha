@@ -10,9 +10,10 @@ use super::{Controls, Goal};
 use crate::entity::{EntityBase, mob::Mob};
 
 /// Vanilla `SonicBoom`: charge, then a ranged cone hit along the line to the target.
-const SONIC_BOOM_RANGE_SQ: f64 = 15.0 * 15.0;
+const SONIC_BOOM_HORIZONTAL_RANGE_SQ: f64 = 15.0 * 15.0;
+const SONIC_BOOM_VERTICAL_RANGE: f64 = 20.0;
 const SONIC_BOOM_CHARGE_TICKS: i32 = 34;
-const SONIC_BOOM_COOLDOWN_TICKS: i32 = 60;
+const SONIC_BOOM_COOLDOWN_TICKS: i32 = 40;
 const SONIC_BOOM_DAMAGE: f32 = 10.0;
 const SONIC_BOOM_KNOCKBACK: f64 = 0.5;
 
@@ -30,7 +31,10 @@ impl SonicBoomGoal {
             return None;
         }
         let mob_pos = mob.get_entity().pos.load();
-        if mob_pos.squared_distance_to_vec(&entity.pos.load()) > SONIC_BOOM_RANGE_SQ {
+        let delta = mob_pos.sub(&entity.pos.load());
+        if delta.x * delta.x + delta.z * delta.z > SONIC_BOOM_HORIZONTAL_RANGE_SQ
+            || delta.y.abs() > SONIC_BOOM_VERTICAL_RANGE
+        {
             return None;
         }
         if !mob.has_line_of_sight(entity) {
@@ -94,6 +98,7 @@ impl Goal for SonicBoomGoal {
 
     fn stop(&mut self, _mob: &dyn Mob) {
         self.charge_ticks = 0;
+        self.cooldown_ticks = SONIC_BOOM_COOLDOWN_TICKS;
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
@@ -102,7 +107,6 @@ impl Goal for SonicBoomGoal {
             self.charge_ticks -= 1;
             if self.charge_ticks == 0 {
                 Self::fire(mob);
-                self.cooldown_ticks = SONIC_BOOM_COOLDOWN_TICKS;
             }
         }
     }
