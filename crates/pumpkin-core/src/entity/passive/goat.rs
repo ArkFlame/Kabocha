@@ -20,6 +20,7 @@ use pumpkin_util::random::RandomImpl;
 use pumpkin_util::random::xoroshiro128::Xoroshiro;
 use rand::RngExt;
 
+use crate::entity::item::ItemEntity;
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
@@ -35,7 +36,6 @@ use crate::entity::{
     passive::animal::Animal,
     player::Player,
 };
-use crate::entity::item::ItemEntity;
 use crate::item::items::bucket::fill_bucket_stack;
 use crate::world::World;
 
@@ -528,11 +528,15 @@ mod tests {
         ));
         goat.set_screaming(true);
         let stack = goat.create_horn();
-        assert!(stack.get_data_component::<InstrumentImpl>().is_some_and(|inst| {
-            tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
-                .0
-                .contains(&inst.instrument.as_ref())
-        }));
+        assert!(
+            stack
+                .get_data_component::<InstrumentImpl>()
+                .is_some_and(|inst| {
+                    tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
+                        .0
+                        .contains(&inst.instrument.as_ref())
+                })
+        );
         world.level.shutdown().await;
         Ok(())
     }

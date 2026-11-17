@@ -5,6 +5,9 @@ use crate::entity::ageable::AgeableMob;
 use crate::entity::mob::Mob;
 use crate::entity::passive::goat::GoatEntity;
 use pumpkin_data::sound::Sound;
+use pumpkin_data::tag::Taggable;
+use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
 // Values checked against decompiled vanilla 1.21.4 GoatAi.java.
@@ -114,6 +117,47 @@ impl RamTargetGoal {
         }
         self.timer.finish_ram(now, roll_cooldown(screaming));
     }
+
+    /// Vanilla `RamTarget.hasRammedHornBreakingBlock`.
+    fn has_rammed_horn_breaking_block(&self, mob: &dyn Mob) -> bool {
+        let entity = mob.get_entity();
+        let velocity = entity.velocity.load();
+        let flat = Vector3::new(velocity.x, 0.0, velocity.z);
+        if flat.length_squared() <= MIN_KNOCKBACK_DIRECTION_LENGTH {
+            return false;
+        }
+        let facing = BlockPos::containing_vec(entity.pos.load() + flat.normalize());
+        let world = entity.world.load();
+        world
+            .get_block(&facing)
+            .has_tag(&pumpkin_data::tag::Block::MINECRAFT_SNAPS_GOAT_HORN)
+            || world
+                .get_block(&facing.up())
+                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_SNAPS_GOAT_HORN)
+    }
+
+    /// Vanilla `RamTarget.tick` horn-breaking branch: snapping a horn on a snappable block.
+    fn ram_into_block(&mut self, mob: &dyn Mob) {
+        let now = mob.get_entity().world.load().get_world_age();
+        let screaming = is_screaming(mob);
+        let impact_sound = if screaming {
+            Sound::EntityGoatScreamingRamImpact
+        } else {
+            Sound::EntityGoatRamImpact
+        };
+        self.charging = false;
+        self.preparing = false;
+        mob.get_mob_entity().stop_navigation();
+        mob.play_entity_sound(impact_sound, 1.0, 1.0);
+        let dropped = mob
+            .cast_any()
+            .downcast_ref::<GoatEntity>()
+            .is_some_and(GoatEntity::drop_horn);
+        if dropped {
+            mob.play_entity_sound(Sound::EntityGoatHornBreak, 1.0, 1.0);
+        }
+        self.timer.finish_ram(now, roll_cooldown(screaming));
+    }
 }
 
 impl Goal for RamTargetGoal {
@@ -184,6 +228,10 @@ impl Goal for RamTargetGoal {
         }
         if mob.is_in_attack_range(target.as_ref()) {
             self.impact(mob, target.as_ref());
+            return;
+        }
+        if self.has_rammed_horn_breaking_block(mob) {
+            self.ram_into_block(mob);
             return;
         }
         if self.repath_ticks > 0 {
