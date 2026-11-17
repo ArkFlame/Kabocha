@@ -41,3 +41,10 @@ doc comments that cite vanilla (lines 19, 42, 92, 111 pre-change).
    builds the `commands.scoreboard.objectives.display.set|cleared` slot argument as
    `TextComponent::text(slot_name(slot))`; vanilla passes `ScoreboardSlot.getName()`
    (also a plain string), so this matches once `slot_name` is exact. No action.
+## Re-audit 2026-11-17 (single pass, no changes)
+- Gap 2 above is closed: `slot_name` (scoreboard_slot.rs:97-118) is now an exhaustive `match` with
+  no fallback, so no dead default remains.
+- Re-read the file end to end: parse/error/suggestions/examples plumbing and the 4 tests match
+  vanilla `ScoreboardSlotArgumentType.parse` + `DisplaySlot.byName`; no TODO/FIXME; no new gap.
+- Gap 1 (`examples()`) stays open as cosmetic S: vanilla `EXAMPLES` is `sidebar`, `foo.bar`; examples
+  never reach the wire, and `foo.bar` cannot be confirmed from decompiled sources in this worktree.
