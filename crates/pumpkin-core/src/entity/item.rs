@@ -229,8 +229,6 @@ impl ItemEntity {
     /// Vanilla `ItemEntity.isMergable`.
     fn is_mergeable(&self) -> bool {
         if self.entity.removed.load(Ordering::SeqCst)
-            || self.never_pickup.load(Ordering::Relaxed)
-            || self.never_despawn.load(Ordering::Relaxed)
             || self.item_age.load(Ordering::Relaxed) >= LIFETIME
         {
             return false;
@@ -378,7 +376,7 @@ impl ItemEntity {
         drop(stack1);
         drop(stack2);
 
-        // `is_mergeable` already excluded never-despawn and never-pickup items.
+        // Vanilla ItemEntity.merge keeps the longer pickup delay.
         target.pickup_delay.fetch_max(
             source.pickup_delay.load(Ordering::Relaxed),
             Ordering::Relaxed,
@@ -451,6 +449,10 @@ impl ItemEntity {
     }
 
     fn decrement_pickup_delay(&self) {
+        // Vanilla ItemEntity.tick skips the INFINITE_PICKUP_DELAY sentinel.
+        if self.pickup_delay.load(Ordering::Relaxed) == u8::MAX {
+            return;
+        }
         self.pickup_delay
             .try_update(Ordering::Relaxed, Ordering::Relaxed, |val| {
                 Some(val.saturating_sub(1))
@@ -543,12 +545,13 @@ impl ItemEntity {
     }
 
     fn process_age_and_merge(&self) -> bool {
-        if self.never_despawn.load(Ordering::Relaxed) {
-            return true;
-        }
-
         let entity = &self.entity;
-        let age = self.item_age.fetch_add(1, Ordering::Relaxed) + 1;
+        // Vanilla keeps Age at -32768 for never-despawn items: they still merge.
+        let age = if self.never_despawn.load(Ordering::Relaxed) {
+            self.item_age.load(Ordering::Relaxed)
+        } else {
+            self.item_age.fetch_add(1, Ordering::Relaxed) + 1
+        };
 
         if age >= LIFETIME {
             let entity_id = entity.entity_id;
