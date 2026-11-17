@@ -53,6 +53,13 @@ TODO/FIXME in the file.
    `filter_and_suggest_one_prefix` helper is ready for them; each call site needs a
    per-type check first (resource-id suggestions must keep the separator matching).
    Size: S per type.
+   FIXED (fe5944ba9) for team.rs, operation.rs, scoreboard_slot.rs, score_holder.rs:
+   vanilla `suggest(...)` uses `suggestMatching`, so these now call
+   `filter_and_suggest_one_prefix`. UNVERIFIED: no unit test per call site; the
+   helper itself is covered by `filter_and_suggest_one_prefix_only_matches_from_start`.
+   STILL OPEN for entity_selector/parser.rs:610 (vanilla selector name suggestions
+   need a separate check) and the resource-id sites (template.rs, resource_key.rs),
+   which must keep separator matching.
 
 2. Criteria are raw strings, so vanilla's criterion registry is not enforced.
    - File:line: objective.rs:93 reads `ScoreboardObjective.criterion` (String,
