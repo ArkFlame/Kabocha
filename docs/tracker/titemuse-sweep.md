@@ -74,3 +74,7 @@ Scope: the h9al "not covered" list. `spear.rs` still skipped. Workers do not com
 - Bucket: 871 lines, only the evaporation rule and fluid pickup entry points were read.
 
 Status: PARTIAL. Blocked: 1. No divergences fixed (none confidently below 40 lines without a vanilla reference in `assets/`). Checks not run (workers do not compile).
+
+## Re-verification (kab/x2, decompiled vanilla)
+
+- Bucket evaporation (`BucketItem.java:158`): vanilla evaporates when `WATER_EVAPORATES` holds and `content.is(FluidTags.WATER)`. Mob buckets hold water, so they take the evaporate path. VERIFIED. Lava, powder snow and sulfur are not water and do not evaporate. VERIFIED.

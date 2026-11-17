@@ -42,3 +42,7 @@ Leftovers (UNVERIFIED, not changed):
 - Jump boost safe-fall-distance +1 attribute, slow falling fall-damage interaction.
 - Bad omen bell sound kept (not in vanilla's `BadOmenMobEffect`).
 - Infinite (-1) effects use entity age as the tick, which matches vanilla `tickCount`.
+
+## Re-verification (kab/x2, decompiled vanilla)
+
+- Absorption `onEffectStarted` (`AbsorptionMobEffect.java:24`): `max(current, 4 * (1 + amplifier))`, no stacking. VERIFIED. The attribute cap for mobs is still unchecked and stays UNVERIFIED.
