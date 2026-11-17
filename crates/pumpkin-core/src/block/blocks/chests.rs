@@ -588,12 +588,55 @@ fn broken_chest_impl(args: &BrokenArgs<'_>) {
     }
 }
 
+/// Vanilla `ChestBlock.updateShape`: detach an orphaned half and adopt a neighbouring
+/// single chest's orientation. Shared by wooden, trapped and copper chests.
+fn chest_state_for_neighbor_update(args: &GetStateForNeighborUpdateArgs<'_>) -> BlockStateId {
+    let mut props = ChestLikeProperties::from_state_id(args.state_id);
+    if props.waterlogged {
+        args.world.schedule_fluid_tick(
+            &Fluid::WATER,
+            *args.position,
+            Fluid::WATER.flow_speed as u32,
+            TickPriority::Normal,
+        );
+    }
+    let neighbor = Block::from_state_id(args.neighbor_state_id);
+    let can_connect = chest_can_connect_to(args.block, neighbor);
+    if can_connect && args.direction.is_horizontal() {
+        let neighbor_props = ChestLikeProperties::from_state_id(args.neighbor_state_id);
+        if props.r#type == ChestType::Single
+            && neighbor_props.r#type != ChestType::Single
+            && props.facing == neighbor_props.facing
+            && connected_direction(neighbor_props).to_offset() == args.direction.opposite().to_offset()
+        {
+            props.r#type = neighbor_props.r#type.opposite();
+        }
+    } else if connected_direction(props).to_offset() == args.direction.to_offset() {
+        props.r#type = ChestType::Single;
+    }
+    if can_connect
+        && props.r#type != ChestType::Single
+        && connected_direction(props).to_offset() == args.direction.to_offset()
+    {
+        props.to_state_id(neighbor)
+    } else {
+        props.to_state_id(args.block)
+    }
+}
+
 #[pumpkin_block_from_tag("c:chests/wooden")]
 pub struct ChestBlock;
 
 impl BlockBehaviour for ChestBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -777,38 +820,7 @@ impl BlockBehaviour for CopperChestBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let mut props = ChestLikeProperties::from_state_id(args.state_id);
-        if props.waterlogged {
-            args.world.schedule_fluid_tick(
-                &Fluid::WATER,
-                *args.position,
-                Fluid::WATER.flow_speed as u32,
-                TickPriority::Normal,
-            );
-        }
-        let neighbor = Block::from_state_id(args.neighbor_state_id);
-        let can_connect = chest_can_connect_to(args.block, neighbor);
-        if can_connect && args.direction.is_horizontal() {
-            let neighbor_props = ChestLikeProperties::from_state_id(args.neighbor_state_id);
-            if props.r#type == ChestType::Single
-                && neighbor_props.r#type != ChestType::Single
-                && props.facing == neighbor_props.facing
-                && connected_direction(neighbor_props).to_offset()
-                    == args.direction.opposite().to_offset()
-            {
-                props.r#type = neighbor_props.r#type.opposite();
-            }
-        } else if connected_direction(props).to_offset() == args.direction.to_offset() {
-            props.r#type = ChestType::Single;
-        }
-        if can_connect
-            && props.r#type != ChestType::Single
-            && connected_direction(props).to_offset() == args.direction.to_offset()
-        {
-            props.to_state_id(neighbor)
-        } else {
-            props.to_state_id(args.block)
-        }
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -874,6 +886,13 @@ pub struct TrappedChestBlock;
 impl BlockBehaviour for TrappedChestBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
