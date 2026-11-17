@@ -469,10 +469,6 @@ impl PatrollingMonster for WitchEntity {
     fn get_patrol_data(&self) -> &PatrolData {
         &self.raider_data.patrol_data
     }
-
-    fn can_be_leader(&self) -> bool {
-        false
-    }
 }
 
 impl Raider for WitchEntity {
