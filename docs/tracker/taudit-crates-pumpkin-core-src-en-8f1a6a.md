@@ -34,6 +34,9 @@ Remaining gaps:
 | `abstract_arrow.rs` `tick` | `AbstractArrow#tick` emits 4 CRIT particles per tick while airborne | No critical particle trail | Client-only particle, same call | S |
 | `arrow.rs:556-558` | `SpectralArrow#tick` emits an EFFECT particle every airborne tick | No spectral trail | Client-only particle, same call | S |
 | `arrow.rs:427-445` | `addAdditionalSaveData` also stores `SoundEvent`, and `onItemBreak` clears `firedFromWeapon` | Fixed hit sounds; broken bow still leaves the weapon set | Persist the sound event; clear the weapon on item break if that hook exists | S |
+| `arrow.rs:733-749` (`on_hit_entity`) | `Arrow#onHitEntity` else branch sits inside `if (pierceLevel <= 0)` | Deflect/fire-restore/stop runs for piercing arrows too, so a Piercing arrow that fails a hit bounces instead of flying on | Guard the block with `pierce == 0` (confirm the nesting against decompiled `Arrow`) | S |
+| `arrow.rs:602-614` (`playerTouch`) | pickup when `ALLOWED`, or `CREATIVE_ONLY && instabuild`, or `isNoPhysics() && ownedBy(player)` | Only the `ArrowPickup` value is checked, so a no-physics arrow owned by the touching player cannot be retrieved | Add the `no_physics && owned_by(player)` case | S |
+| `arrow.rs:704-714` (`on_hit_entity`) | `((LivingEntity) owner).setLastHurtMob(target)` before the damage call | `LivingEntity` has no `last_hurt_mob` state at all, so mob AI/anger consumers cannot read it | Engine-wide: add the field plus every consumer | M |
 
 Checked and already vanilla-correct (do not "fix"): spectral glow instance is the 3-arg
 `MobEffectInstance(GLOWING, duration, 0)` (visible + icon), arrow hit sound is
