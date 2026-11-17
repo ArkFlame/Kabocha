@@ -25,11 +25,11 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `arrow.rs:358-364`, `794-810` (`add_effect`, `do_post_hurt_effects`) | `Arrow#addEffect` = `setPotionContents(getPotionContents().withEffectAdded(effect))` | Effects live in a side `extra_effects` list: a picked-up stray/parched arrow is a plain arrow (no slowness), no green tint, not saved | Append a `StatusEffectInstance` to the stack's `PotionContentsImpl.custom_effects` (which `read_potion_effects` already merges) and delete `extra_effects` | M |
+| `arrow.rs:358-364`, `794-810` (`add_effect`, `do_post_hurt_effects`) | `Arrow#addEffect` = `setPotionContents(getPotionContents().withEffectAdded(effect))` | Effects live in a side `extra_effects` list: a picked-up stray/parched arrow is a plain arrow (no slowness), no green tint, not saved | Append a `StatusEffectInstance` to the stack's `PotionContentsImpl.custom_effects` (which `read_potion_effects` already merges) and delete `extra_effects` | M. FIXED fix(core): store arrow effects in potion contents and fix despawn and drop offset |
 | `arrow.rs:718-733` (`on_hit_entity`) | `EnchantmentHelper.modifyDamage(weapon, target, arrowDamage)` before the `ceil` | Damage enchantments are expected from `damage_with_context`; verify Power/Flame ordering matches (enchant applies to base damage before clamping) | Apply the weapon damage enchant to the pre-ceil value, or document that `damage_with_context` does it | M |
 | `arrow.rs:629-648` | Paper wraps the pickup in an `ItemEntity` only when `pickup == ALLOWED && inventory.canHold(item) > 0` | Event fires for CREATIVE_ONLY too, and no `canHold` pre-check | Build the event only for ALLOWED, add the capacity check | S |
-| `arrow.rs:776-786` | `spawnAtLocation(level, getPickupItem(), 0.1F)` | Deflected arrow respawns the item with no Y offset | Use the offset overload (or add one) | S |
-| `abstract_arrow.rs` `DESPAWN_TIME` | Paper `arrowDespawnRate` (1200), `creativeArrowDespawnRate` (200), `nonPlayerArrowDespawnRate` (1200), Spigot trident rate | One constant for every pickup state | Pick the rate from the pickup state | S |
+| `arrow.rs:776-786` | `spawnAtLocation(level, getPickupItem(), 0.1F)` | Deflected arrow respawns the item with no Y offset | Use the offset overload (or add one) | S. FIXED fix(core): store arrow effects in potion contents and fix despawn and drop offset |
+| `abstract_arrow.rs` `DESPAWN_TIME` | Paper `arrowDespawnRate` (1200), `creativeArrowDespawnRate` (200), `nonPlayerArrowDespawnRate` (1200), Spigot trident rate | One constant for every pickup state | Pick the rate from the pickup state | S. FIXED fix(core): store arrow effects in potion contents and fix despawn and drop offset |
 | `arrow.rs` (no code) | `Arrow#tick` spawns ENTITY_EFFECT particles (2 airborne, 1 per 5 ticks in ground); `handleEntityEvent(0)` puffs 20 colored particles | No tipped-arrow trail or potion puff particles | `world.spawn_particle` with the effect color from `get_effect_color` | S |
 | `abstract_arrow.rs` `tick` | `AbstractArrow#tick` emits 4 CRIT particles per tick while airborne | No critical particle trail | Client-only particle, same call | S |
 | `arrow.rs:556-558` | `SpectralArrow#tick` emits an EFFECT particle every airborne tick | No spectral trail | Client-only particle, same call | S |
@@ -47,3 +47,11 @@ decay byte, pickup byte codec, `onHitBlock` crit/pierce reset and 7-tick shake, 
 restore on deflect, bubble-column handling, and `setBaseDamageFromMob`
 (`power * 2 + triangle(difficulty * 0.11, 0.57425)`). The game event in
 `on_hit_entity` correctly goes to the shooter (`mob != ownerPlayer`); it was left unchanged.
+
+STILL OPEN (row 29, M): vanilla applies `modifyDamage` to the base damage before `pow * base` and `ceil` (`AbstractArrow.java:466-474`); Rust applies the enchant after the ceil inside `damage_with_context`. Matching needs restructuring the damage path, not a local change.
+STILL OPEN (row 30, S): needs an inventory `canHold` capacity helper, none exists in `pumpkin-inventory`; not added here.
+STILL OPEN (rows 33-35, S): vanilla emits these particles only in the `isClientSide()` branch (`Arrow.java:88-95`, `AbstractArrow.java:250`); client-only, no server-side vanilla equivalent.
+STILL OPEN (row 36, S): no Rust `onItemBreak` hook for arrows, and no arrow caller sets a non-default hit sound (`AbstractArrow.java:599`), so persisting it is a no-op today.
+STILL OPEN (row 37, S): claim contradicted by vanilla. The deflect branch is an `else if` at `AbstractArrow.java:554`, not nested under the pierce check; the Rust code already matches.
+STILL OPEN (row 38, S): claim contradicted by vanilla. `playerTouch` (`AbstractArrow.java:704`) checks only `isInGround() || isNoPhysics()`, with no owner branch.
+STILL OPEN (row 39, M): engine-wide `last_hurt_mob` field plus consumers.
