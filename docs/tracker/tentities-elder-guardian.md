@@ -64,3 +64,8 @@ so references below cite the vanilla classes.
    (`crates/pumpkin-core/src/entity/custom_sound.rs:4-6`). Fix: extend `CustomSound`
    with `ambient_sound`/`flop_sound` and implement for guardian + elder guardian.
    Size S (trait change touches every impl).
+
+## Sweep h2 status
+- Gap 4 (thorns predicate): FIXED 5902a6a62 (creative-player skip and 50% roll in `guardian.rs` `reflect_thorns`). UNVERIFIED: roll and creative check taken from this note, not decompiled vanilla; no unit test (needs world state).
+- Gap 5 (appearance effect gate): FIXED ffb980ce2 (`elder_guardian.rs` skips players already at mining fatigue amplifier >= 2). UNVERIFIED against decompiled vanilla.
+- Gaps 1-3, 6: STILL OPEN (M/S, need beam goal, restriction goal, guardian move control, and CustomSound trait extension).

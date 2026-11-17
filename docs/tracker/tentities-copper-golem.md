@@ -28,3 +28,7 @@ Vanilla reference: `net.minecraft.world.entity.animal.golem.CopperGolem` (1.21.9
 ### 4. Weathering boundary is one tick early (S)
 - Rust: `copper_golem.rs:266` uses `if game_time < next_weathering_tick { return; }`, so oxidation fires on `game_time == next_weathering_tick`; vanilla tests `getGameTime() > nextWeatheringTick`.
 - Fix: compare with `<=`. Cosmetic one-tick drift, nothing else depends on it.
+
+## Sweep h2 status
+- Gap 4 (weathering boundary one tick early): FIXED 1dae0982b (`<=` guard in weathering tick). UNVERIFIED against decompiled `CopperGolem`; no unit test.
+- Gaps 1-3: STILL OPEN (statue conversion M/L, item pickup/deposit L, NBT keys need vanilla reference).

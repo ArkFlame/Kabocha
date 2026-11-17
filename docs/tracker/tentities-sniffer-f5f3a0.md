@@ -30,3 +30,7 @@ The source changed since the last assessment (`a494cb9b5` cap at 20, `db897ff2d`
    - Only isolated task tests exist (`ai.rs:458+`, `sniffer.rs:733+`). A `pumpkin-gametest` over a dirt pad would cover the Searching -> Digging handoff and the drop-seed clock.
 ## Client-only, not blocking
 - Digging particles (`Sniffer.DIGGING_PARTICLES_AMOUNT = 30`) and the digging pose animation are client-side; not implemented server-side beyond `EntityStatus::SnifferDiggingSound`.
+
+## Sweep h2 status
+- Gap 1 (SNIFFER_SEARCHING never played): FIXED 71887ba61 (`transition_to` plays `EntitySnifferSearching` on the Searching state). UNVERIFIED against vanilla `Sniffer#setState`; no unit test.
+- Gaps 2-3: STILL OPEN (ambient interval needs vanilla reference; dig spawn position needs head-block check).
