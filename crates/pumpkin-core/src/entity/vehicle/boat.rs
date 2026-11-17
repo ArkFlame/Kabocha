@@ -14,12 +14,10 @@ use crate::entity::vehicle::minecart::container::{self, MinecartInventory};
 use crate::entity::vehicle::vehicle::VehicleEntity;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
-use crate::world::game_event::GameEventContext;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
-use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::translation;
@@ -134,18 +132,9 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
-        if opened {
-            let world = self.vehicle.entity.world.load();
-            world.emit_game_event_with_context(
-                GameEvent::ContainerOpen.name(),
-                self.vehicle.entity.pos.load(),
-                &GameEventContext {
-                    source_entity: Some(player.as_ref()),
-                },
-            );
-        }
-        opened
+        // Vanilla emits CONTAINER_OPEN only from block containers; an entity container
+        // (chest boat, chest minecart) just calls player.openMenu, so no game event here.
+        container::open(&self.vehicle.entity, player, inventory, title, false)
     }
 
     pub fn set_paddles(&self, left: bool, right: bool) {
