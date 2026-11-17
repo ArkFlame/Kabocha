@@ -1,8 +1,14 @@
 use super::BlockEntity;
+use crate::entity::EntityBase;
+use crate::entity::r#type::load_entity_from_nbt;
+use crate::world::World;
+use pumpkin_data::block_properties::Facing;
+use pumpkin_data::{Property, PropertyKey};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
-use std::sync::Mutex;
+use pumpkin_util::math::vector3::Vector3;
+use std::sync::{Arc, Mutex, PoisonError};
 
 pub struct BeehiveBlockEntity {
     pub position: BlockPos,
@@ -64,6 +70,10 @@ impl BlockEntity for BeehiveBlockEntity {
         }
     }
 
+    fn tick(&self, world: &Arc<World>) {
+        self.tick_occupants(world);
+    }
+
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         let mut nbt = NbtCompound::new();
         if let Ok(bees) = self.bees.try_lock()
@@ -110,8 +120,24 @@ impl BlockEntity for BeehiveBlockEntity {
     }
 }
 
+/// Vanilla BeehiveBlockEntity front-face offset from its facing block property.
+fn front_offset(facing: Option<Property>) -> (f64, f64) {
+    match facing {
+        Some(Property::Facing(Facing::North)) => (0.0, -1.0),
+        Some(Property::Facing(Facing::East)) => (1.0, 0.0),
+        Some(Property::Facing(Facing::South)) => (0.0, 1.0),
+        Some(Property::Facing(Facing::West)) => (-1.0, 0.0),
+        _ => (0.0, 1.0),
+    }
+}
+
 impl BeehiveBlockEntity {
     pub const ID: &'static str = "minecraft:beehive";
+    /// Vanilla BeehiveBlockEntity.MAX_OCCUPANTS.
+    pub const MAX_OCCUPANTS: usize = 3;
+    const MIN_TICKS_IN_HIVE: i32 = 600;
+    const NECTAR_TICKS_IN_HIVE: i32 = 2400;
+
     #[must_use]
     pub const fn new(position: BlockPos) -> Self {
         Self {
@@ -119,5 +145,127 @@ impl BeehiveBlockEntity {
             bees: Mutex::new(None),
             flower_pos: Mutex::new(None),
         }
+    }
+
+    #[must_use]
+    pub fn is_full(&self) -> bool {
+        self.bees
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .is_some_and(|bees| bees.len() >= Self::MAX_OCCUPANTS)
+    }
+
+    /// Vanilla BeehiveBlockEntity.addOccupant: persist the bee's entity data and remove the
+    /// live entity. Returns whether an occupant slot was available.
+    pub fn add_occupant(&self, bee: &dyn EntityBase) -> bool {
+        let mut entity_data = NbtCompound::new();
+        EntityBase::write_nbt(bee, &mut entity_data);
+        let has_nectar = entity_data.get_bool("HasNectar").unwrap_or(false);
+        let mut guard = self.bees.lock().unwrap_or_else(PoisonError::into_inner);
+        let bees = guard.get_or_insert_with(Vec::new);
+        if bees.len() >= Self::MAX_OCCUPANTS {
+            return false;
+        }
+        let mut occupant = NbtCompound::new();
+        occupant.put_compound("entity_data", entity_data);
+        occupant.put_int("ticks_in_hive", 0);
+        // Vanilla Occupant.of: nectar-carrying bees stay inside for 2400 ticks, others 600.
+        occupant.put_int(
+            "min_ticks_in_hive",
+            if has_nectar {
+                Self::NECTAR_TICKS_IN_HIVE
+            } else {
+                Self::MIN_TICKS_IN_HIVE
+            },
+        );
+        bees.push(NbtTag::Compound(occupant));
+        true
+    }
+
+    /// Vanilla BeehiveBlockEntity.tickOccupants: age stored bees and respawn the finished ones
+    /// in front of the hive. Hiving without this release would permanently delete the bee.
+    pub fn tick_occupants(&self, world: &Arc<World>) {
+        let ready: Vec<NbtCompound> = {
+            let mut guard = self.bees.lock().unwrap_or_else(PoisonError::into_inner);
+            let Some(bees) = guard.as_mut() else {
+                return;
+            };
+            let mut ready = Vec::new();
+            for bee in bees.iter_mut() {
+                let NbtTag::Compound(compound) = bee else {
+                    continue;
+                };
+                let ticks = compound.get_int("ticks_in_hive").unwrap_or(0) + 1;
+                compound.put_int("ticks_in_hive", ticks);
+                let min = compound
+                    .get_int("min_ticks_in_hive")
+                    .unwrap_or(Self::MIN_TICKS_IN_HIVE);
+                if ticks >= min
+                    && let Some(entity_data) = compound.get_compound("entity_data").cloned()
+                {
+                    ready.push(entity_data);
+                }
+            }
+            bees.retain(|bee| match bee {
+                NbtTag::Compound(c) => {
+                    c.get_int("ticks_in_hive").unwrap_or(0)
+                        < c.get_int("min_ticks_in_hive")
+                            .unwrap_or(Self::MIN_TICKS_IN_HIVE)
+                }
+                _ => true,
+            });
+            ready
+        };
+        if ready.is_empty() {
+            return;
+        }
+        let state_id = world.get_block_state_id(&self.position);
+        let facing = world
+            .get_block(&self.position)
+            .get_property(state_id, PropertyKey::Facing);
+        let (dx, dz) = front_offset(facing);
+        let pos = self.position;
+        let spawn = Vector3::new(
+            f64::from(pos.0.x) + 0.5 + 0.6 * dx,
+            f64::from(pos.0.y) + 0.5 - 0.4,
+            f64::from(pos.0.z) + 0.5 + 0.6 * dz,
+        );
+        for entity_data in ready {
+            let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
+                continue;
+            };
+            // Entity.read_placement_nbt restores the saved Pos, so override it with the
+            // front-face spawn, like vanilla Occupant.createEntity.
+            entity.get_entity().set_pos(spawn);
+            entity.get_entity().set_has_no_gravity(true);
+            world.spawn_entity(entity);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn releases_from_the_front_face() {
+        assert_eq!(
+            front_offset(Some(Property::Facing(Facing::North))),
+            (0.0, -1.0)
+        );
+        assert_eq!(
+            front_offset(Some(Property::Facing(Facing::East))),
+            (1.0, 0.0)
+        );
+        assert_eq!(
+            front_offset(Some(Property::Facing(Facing::South))),
+            (0.0, 1.0)
+        );
+        assert_eq!(
+            front_offset(Some(Property::Facing(Facing::West))),
+            (-1.0, 0.0)
+        );
+        assert_eq!(front_offset(None), (0.0, 1.0));
     }
 }
