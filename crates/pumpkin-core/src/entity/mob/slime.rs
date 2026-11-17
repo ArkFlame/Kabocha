@@ -355,7 +355,7 @@ impl Mob for SlimeEntity {
                 .entity_dimension
                 .load()
                 .width;
-            let xz_offset = width / 4.0;
+            let xz_offset = width / 2.0;
 
             for i in 0..count {
                 let xd = ((i % 2) as f32 - 0.5) * xz_offset;
