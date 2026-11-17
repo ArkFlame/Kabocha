@@ -426,7 +426,10 @@ impl BlockBehaviour for CommandBlock {
                 |entity| {
                     let command_block_entity: Option<&CommandBlockEntity> =
                         entity.as_any().downcast_ref();
-                    command_block_entity.map(|e| e.success_count.load(Ordering::Acquire) as u8)
+                    // Vanilla `ComparatorBlock` clamps the analog output at 15; casting the
+                    // raw success count to `u8` would wrap instead.
+                    command_block_entity
+                        .map(|e| e.success_count.load(Ordering::Acquire).min(15) as u8)
                 },
             )
         }
