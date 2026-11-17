@@ -1,10 +1,17 @@
 use super::BlockEntity;
 use crate::block::blocks::sculk::sculk_shrieker::SculkShriekerBlock;
+use crate::entity::EntityBase;
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+
+/// Vanilla `SculkShriekerBlockEntity.VibrationUser.getListenerRadius`.
+const GAME_EVENT_RADIUS: i32 = 8;
 
 pub struct SculkShriekerBlockEntity {
     pub position: BlockPos,
@@ -19,6 +26,39 @@ impl BlockEntity for SculkShriekerBlockEntity {
 
     fn get_position(&self) -> BlockPos {
         self.position
+    }
+
+    fn game_event_radius(&self) -> Option<i32> {
+        Some(GAME_EVENT_RADIUS)
+    }
+
+    /// Vanilla `SculkShriekerBlockEntity.VibrationUser`: only player-sourced
+    /// vibrations shriek, and a shriek never triggers another one.
+    fn on_game_event(
+        &self,
+        world: &Arc<World>,
+        event: GameEvent,
+        context: &GameEventContext<'_>,
+        _source_position: Vector3<f64>,
+    ) {
+        if event == GameEvent::Shriek {
+            return;
+        }
+        let Some(source) = context.source_entity else {
+            return;
+        };
+        let entity = source.get_entity();
+        let player = world.get_player_by_id(entity.entity_id).or_else(|| {
+            let passengers = entity
+                .passengers
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let rider = passengers.first()?;
+            world.get_player_by_id(rider.get_entity().entity_id)
+        });
+        if let Some(player) = player {
+            SculkShriekerBlock::try_shriek(world, &self.position, &player);
+        }
     }
 
     fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self

@@ -7,7 +7,10 @@ use pumpkin_util::math::{
 use pumpkin_world::generation::section_coords::section_to_block;
 
 use super::{World, entity_islands};
+use crate::block::entities::BlockEntity;
 use crate::entity::EntityBase;
+use pumpkin_util::math::vector2::Vector2;
+use std::sync::Arc;
 
 pub struct GameEventContext<'a> {
     pub source_entity: Option<&'a dyn EntityBase>,
@@ -91,6 +94,37 @@ impl World {
                 entity_islands::check_reached(entity.get_entity().entity_id);
                 listener.handle_game_event(self, event, context, position);
             });
+        }
+
+        // Vanilla `VibrationSystem` also reaches block entities, e.g. a sculk shrieker.
+        let block_listeners: Vec<Arc<dyn BlockEntity>> = {
+            let min = center
+                .offset(Vector3::new(-radius, -radius, -radius))
+                .chunk_position();
+            let max = center
+                .offset(Vector3::new(radius, radius, radius))
+                .chunk_position();
+            let mut listeners = Vec::new();
+            for x in min.x..=max.x {
+                for z in min.y..=max.y {
+                    let Some(entities) = self.block_entities.get(&Vector2::new(x, z)) else {
+                        continue;
+                    };
+                    for entity in entities.values() {
+                        let listens = entity.game_event_radius().is_some_and(|listener_radius| {
+                            entity.get_position().squared_distance(&center)
+                                <= listener_radius * listener_radius
+                        });
+                        if listens {
+                            listeners.push(Arc::clone(entity));
+                        }
+                    }
+                }
+            }
+            listeners
+        };
+        for listener in block_listeners {
+            listener.on_game_event(self, event, context, position);
         }
     }
 }
