@@ -23,6 +23,7 @@ use crate::entity::ai::control::{Control, MoveControlTrait};
 use crate::entity::ai::goal::destroy_egg::DestroyEggGoal;
 use crate::entity::ai::goal::move_to_target_pos::{MoveToTargetPos, MoveToTargetPosGoal};
 use crate::entity::ai::goal::ranged_attack::RangedAttackGoal;
+use crate::entity::ai::goal::revenge::RevengeGoal;
 use crate::entity::ai::goal::wander_around::WanderAroundGoal;
 use crate::entity::ai::goal::zombie_attack::ZombieAttackGoal;
 use crate::entity::ai::goal::{Controls, Goal, ParentHandle};
@@ -131,9 +132,15 @@ impl DrownedEntity {
         let target_selector = &mob_entity.target_selector;
         target_selector.add_goal(
             1,
+            // Vanilla `HurtByTargetGoal(this, Drowned.class).setAlertOthers(ZombifiedPiglin.class)`:
+            // drowned alert only zombified piglins, not zombies.
             Box::new(
-                ZombieEntityBase::revenge_goal()
-                    .ignoring(|entity_type| entity_type == &EntityType::DROWNED),
+                RevengeGoal::new(true)
+                    .ignoring(|entity_type| entity_type == &EntityType::DROWNED)
+                    .alerting_others()
+                    .alerting_only(|mob| {
+                        mob.get_entity().entity_type == &EntityType::ZOMBIFIED_PIGLIN
+                    }),
             ),
         );
         hunting::apply(target_selector, mob_entity, DROWNED_HUNTS);
