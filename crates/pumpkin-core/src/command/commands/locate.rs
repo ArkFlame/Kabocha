@@ -23,7 +23,7 @@ use crate::command::argument_types::resource_or_tag::{
     STRUCTURE_REGISTRY,
 };
 use crate::command::context::command_context::CommandContext;
-use crate::command::errors::error_types::{CommandErrorType, LiteralCommandErrorType};
+use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 
@@ -59,10 +59,6 @@ static STRUCTURE_NOT_FOUND_ERROR_TYPE: CommandErrorType<1> = CommandErrorType::n
     translation::bedrock::COMMANDS_LOCATE_STRUCTURE_FAIL_NOSTRUCTUREFOUND,
 );
 
-// The stronghold rings are computed in the background and a command can't wait for them.
-static STRUCTURE_PENDING_ERROR_TYPE: LiteralCommandErrorType = LiteralCommandErrorType::new(
-    "Stronghold positions are still being calculated, try again shortly",
-);
 
 static BIOME_NOT_FOUND_ERROR_TYPE: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_LOCATE_BIOME_NOT_FOUND,
@@ -263,8 +259,14 @@ impl CommandExecutor for LocateStructureExecutor {
                     });
                     match search {
                         Some(StructureSearch::Found(pos)) => Some((pos, keys[0])),
+                        // Canvas behaviour: the ring cache fills in the background,
+                        // so the command acknowledges the search and reports no result.
                         Some(StructureSearch::Pending) => {
-                            return Err(STRUCTURE_PENDING_ERROR_TYPE.create_without_context());
+                            context.source.send_feedback(
+                                TextComponent::text(format!("Searching for {}...", searched.printable())),
+                                false,
+                            );
+                            return Ok(0);
                         }
                         Some(StructureSearch::NotFound) | None => None,
                     }
