@@ -322,7 +322,11 @@ impl EntityBase for CushionEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         if let Some(color) = nbt.get_byte("Color") {
-            self.set_color(color as u8);
+            // Vanilla resolves the stored byte through `DyeColor.byId`, which
+            // falls back to white instead of syncing an out-of-range dye id.
+            let color =
+                pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(color as u8));
+            self.set_color(color.id());
         }
     }
 
