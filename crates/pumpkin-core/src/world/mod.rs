@@ -553,6 +553,10 @@ impl World {
     }
 
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "world bootstrap wires all subsystems in one constructor"
+    )]
     pub fn load(
         level: Arc<Level>,
         level_info: Arc<ArcSwap<LevelData>>,
@@ -588,7 +592,7 @@ impl World {
         let dragon_fight =
             (dimension.minecraft_name == Dimension::THE_END.minecraft_name).then(|| {
                 std::sync::Mutex::new(dragon_fight::DragonFight::new_with_seed(
-                    level.seed.0 as u64,
+                    level.seed.0,
                     BlockPos::new(0, 0, 0),
                 ))
             });
@@ -613,7 +617,7 @@ impl World {
             let _ = level.rt_handle.set(server_arc.runtime.clone());
         }
 
-        let loot_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0 as u64));
+        let loot_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let weather_enabled = weather_setup
             .enabled
             .unwrap_or_else(|| weather::can_have_weather(&dimension));
@@ -680,6 +684,10 @@ impl World {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "chunk activation bookkeeping is one sequential pass"
+    )]
     pub fn update_active_chunks(&self) {
         let sim_dist = self.server.upgrade().map_or(10, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
@@ -3714,7 +3722,6 @@ impl World {
     }
 
     /// Runs the join sequence that places a connected Bedrock player into this world.
-
     #[allow(clippy::too_many_lines)]
     pub async fn spawn_bedrock_player(
         &self,
@@ -5817,7 +5824,7 @@ impl World {
         for entity in entities {
             let base = entity.get_entity();
             let distance = base.pos.load().squared_distance_to_vec(&pos);
-            if !(distance <= radius_squared) {
+            if distance.is_nan() || distance > radius_squared {
                 continue;
             }
             entity_islands::check_reached(base.entity_id);
@@ -6362,7 +6369,7 @@ impl World {
     /// Moves a live entity to another world without treating it as removed (vanilla
     /// `Entity.changeDimension`): drops it from this world's tracking, switches its world
     /// reference, then registers it in the destination world so trackers and clients see it.
-    pub fn transfer_entity(&self, entity: &Arc<dyn EntityBase>, dest: &Arc<World>) {
+    pub fn transfer_entity(&self, entity: &Arc<dyn EntityBase>, dest: &Arc<Self>) {
         let base_entity = entity.get_entity();
         if Arc::ptr_eq(&base_entity.world.load_full(), dest) {
             return;
@@ -6754,7 +6761,6 @@ impl World {
         );
     }
 
-    #[expect(clippy::too_many_lines)]
     pub fn break_block(
         self: &Arc<Self>,
         position: &BlockPos,

@@ -205,7 +205,7 @@ impl ButtonBlock {
                 *block_pos,
             ),
             None => {
-                world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos)
+                world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
             }
         }
         world.emit_game_event(GameEvent::BlockActivate.name(), block_pos.to_centered_f64());

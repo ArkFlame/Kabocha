@@ -485,7 +485,7 @@ pub fn merge_dynamic_registry_entries<S: std::hash::BuildHasher>(
             .get(&full_id)
             .or_else(|| custom_entries.get(&entry.entry_id))
         {
-            let mut reg_entry = RegistryEntryData {
+            let reg_entry = RegistryEntryData {
                 entry_id: entry.entry_id.clone(),
                 data: custom.data.clone(),
             };

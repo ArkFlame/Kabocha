@@ -24,8 +24,10 @@ impl ChunkLightExt for CLightUpdate {
 }
 
 /// Builds a light update that only carries `sections` (indices into the chunk
-/// light arrays). Vanilla sends just the sections whose light changed, so the
-/// client keeps its existing data for every section not listed.
+/// light arrays).
+///
+/// Vanilla sends just the sections whose light changed, so the client keeps its
+/// existing data for every section not listed.
 pub fn light_update_for_sections(
     chunk: &ChunkData,
     version: JavaMinecraftVersion,

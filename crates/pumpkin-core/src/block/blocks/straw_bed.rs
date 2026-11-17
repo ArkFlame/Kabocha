@@ -232,6 +232,10 @@ impl StrawBedBlock {
         );
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "bed use mirrors vanilla BedBlock.useWithoutItem in one body"
+    )]
     fn use_bed(
         world: &Arc<World>,
         player: &Arc<Player>,

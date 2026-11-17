@@ -518,12 +518,8 @@ impl JavaClient {
         {
             return None;
         }
-        let Some(player) = self.player.load().upgrade() else {
-            return None;
-        };
-        let Some(server) = player.world().server.upgrade() else {
-            return None;
-        };
+        let player = self.player.load().upgrade()?;
+        let server = player.world().server.upgrade()?;
         if !server.plugin_manager.has_handlers::<PacketSentEvent>() {
             return None;
         }

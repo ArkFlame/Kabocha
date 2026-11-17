@@ -107,10 +107,10 @@ impl ScoreboardSlotArgumentType {
 
 /// Returns the canonical name vanilla uses for a display slot.
 ///
-/// Vanilla's DisplaySlot owns its serialized name, so every variant has one
+/// Vanilla's `DisplaySlot` owns its serialized name, so every variant has one
 /// and there is no fallback.
 #[must_use]
-pub fn slot_name(slot: ScoreboardDisplaySlot) -> &'static str {
+pub const fn slot_name(slot: ScoreboardDisplaySlot) -> &'static str {
     match slot {
         ScoreboardDisplaySlot::List => "list",
         ScoreboardDisplaySlot::Sidebar => "sidebar",

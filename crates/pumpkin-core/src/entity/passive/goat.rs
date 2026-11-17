@@ -56,7 +56,7 @@ impl GoatEntity {
             navigator.set_can_float(true);
             navigator.set_pathfinding_malus(PathType::PowderSnow, -1.0);
             navigator.set_pathfinding_malus(PathType::DangerPowderSnow, -1.0);
-        }
+        };
         let goat = Self {
             mob_entity,
             ageable_data: AgeableData::default(),

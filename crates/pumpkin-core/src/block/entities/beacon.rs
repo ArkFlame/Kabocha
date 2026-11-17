@@ -389,7 +389,10 @@ impl BlockEntity for BeaconBlockEntity {
         &self,
         _state_id: pumpkin_data::BlockStateId,
     ) -> Option<NbtCompound> {
-        let name = self.metadata.get_custom_name().map(|name| name.get_text());
+        let name = self
+            .metadata
+            .get_custom_name()
+            .map(pumpkin_util::text::TextComponent::get_text);
         Some(build_beacon_actor(
             self.position,
             self.primary_effect().map_or(0, StatusEffect::to_bedrock_id),

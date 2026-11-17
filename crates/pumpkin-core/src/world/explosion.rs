@@ -902,6 +902,7 @@ mod tests {
             level_info,
             Dimension::OVERWORLD,
             default_registry(),
+            crate::world::weather::WeatherSetup::default(),
             Weak::new(),
         ));
         level

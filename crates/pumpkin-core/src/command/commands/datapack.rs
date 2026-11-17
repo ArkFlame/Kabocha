@@ -391,8 +391,9 @@ impl CommandExecutor for DatapackDisableExecutor {
         // Built-in packs are compiled into the server and reported as enabled
         // again on every load, so disabling one is not possible.
         if is_embedded_pack(&target_pack) {
-            return Err(ERROR_DISABLE_FAILED
-                .create_without_context(TextComponent::text(target_pack.clone())));
+            return Err(
+                ERROR_DISABLE_FAILED.create_without_context(TextComponent::text(target_pack))
+            );
         }
 
         let target = target_pack.clone();

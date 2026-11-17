@@ -54,15 +54,15 @@ impl MetadataSerializer for QuaternionfSerializer {
 
 /// Packs a display brightness override the way vanilla's `Display.Brightness` does:
 /// block light in the low 16 bits, sky light in the high 16 bits.
-fn pack_brightness(block: i32, sky: i32) -> i32 {
+const fn pack_brightness(block: i32, sky: i32) -> i32 {
     (block & 0xFFFF) | ((sky & 0xFFFF) << 16)
 }
 
-fn brightness_block(packed: i32) -> i32 {
+const fn brightness_block(packed: i32) -> i32 {
     packed & 0xFFFF
 }
 
-fn brightness_sky(packed: i32) -> i32 {
+const fn brightness_sky(packed: i32) -> i32 {
     (packed >> 16) & 0xFFFF
 }
 
@@ -586,7 +586,6 @@ impl DisplayEntity {
         nbt.put("transformation", NbtTag::Compound(transform));
     }
 
-    #[expect(clippy::too_many_lines)]
     pub fn read_display_nbt(&self, nbt: &NbtCompound) {
         if let Some(dur) = nbt.get_int("interpolation_duration") {
             self.interpolation_duration.store(dur, Ordering::Relaxed);

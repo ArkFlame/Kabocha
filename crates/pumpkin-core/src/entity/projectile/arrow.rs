@@ -861,7 +861,7 @@ impl ArrowEntity {
 
     /// Vanilla `Arrow#onHitEntity` never ignites an enderman: it dodges instead.
     #[must_use]
-    fn ignites_target(target_type: &EntityType) -> bool {
+    const fn ignites_target(target_type: &EntityType) -> bool {
         target_type.id != EntityType::ENDERMAN.id
     }
 

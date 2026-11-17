@@ -911,6 +911,10 @@ impl EnderDragonEntity {
     }
 
     /// Vanilla `EnderDragon.hurtServer`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "mirrors the vanilla EnderDragon part-hurt signature"
+    )]
     pub fn hurt_part(
         &self,
         caller: &dyn EntityBase,

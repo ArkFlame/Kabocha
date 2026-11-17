@@ -217,6 +217,7 @@ impl Mob for HappyGhastEntity {
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
+        const TICKS_PER_HEAL: i32 = 600;
         let leash_time = self.leash_holder_time.load(Ordering::Relaxed);
         if leash_time > 0 {
             self.leash_holder_time.fetch_sub(1, Ordering::Relaxed);
@@ -233,7 +234,6 @@ impl Mob for HappyGhastEntity {
         }
 
         // Vanilla heals one health every 600 ticks, keyed on the entity's own age.
-        const TICKS_PER_HEAL: i32 = 600;
         let entity = self.get_entity();
         let living = &self.mob_entity.living_entity;
         if entity.is_alive()

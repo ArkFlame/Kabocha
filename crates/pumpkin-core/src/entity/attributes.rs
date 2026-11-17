@@ -317,7 +317,7 @@ fn build_attribute_packets(
 
     let je_packet = (!je_properties.is_empty())
         .then(|| JePacket::new(living.entity.entity_id.into(), je_properties));
-    let be_packet = (!be_attributes.is_empty()).then(|| BePacket {
+    let be_packet = (!be_attributes.is_empty()).then_some(BePacket {
         target_runtime_id: VarULong(living.entity.entity_id as u64),
         attribute_list: be_attributes,
         tick: VarULong(0),

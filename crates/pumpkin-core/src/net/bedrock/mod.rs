@@ -291,6 +291,10 @@ impl BedrockClient {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "outgoing packet task is one tight send loop"
+    )]
     pub fn start_outgoing_packet_task(self: &Arc<Self>) {
         const MAX_BATCH_SIZE: usize = 64;
 
@@ -701,7 +705,7 @@ impl BedrockClient {
             return None;
         }
         let (packet_id, payload) = split_raw_packet(packet_data)?;
-        let event = PacketSentEvent::new_raw(player.clone(), i32::from(packet_id), payload);
+        let event = PacketSentEvent::new_raw(player, i32::from(packet_id), payload);
         Some((server, event, current_version))
     }
 
@@ -857,6 +861,10 @@ impl BedrockClient {
     }
 
     /// Queues a clientbound packet to be sent to the connected client.
+    #[expect(
+        clippy::unused_async,
+        reason = "callers await this to keep the async packet API"
+    )]
     pub async fn enqueue_packet_data(&self, packet_data: Bytes) -> bool {
         // `PacketSentEvent` fires in the outgoing writer, so callers never block on a plugin
         // while holding tick locks.

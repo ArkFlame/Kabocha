@@ -30,7 +30,6 @@ use crate::entity::attributes::ModifierOperation;
 use crate::entity::attributes::{AttributeInstance, apply_attributes, pack_attributes};
 use crate::entity::breath::DROWNING_INTERVAL;
 use crate::entity::combat::{CombatRules, CombatTracker, FallLocation, knockback_after_resistance};
-use crate::entity::mob::Mob;
 use crate::entity::mob::equipment::DEFAULT_EQUIPMENT_DROP_CHANCE;
 use crate::entity::mob::neutral::find_by_uuid;
 use crate::entity::player::statistics::{CustomStatistic, StatisticCategory};
@@ -208,7 +207,10 @@ impl EffectParticle {
 ///
 /// Vanilla: `pushOtherTeams` only pushes entities outside the team, `pushOwnTeam` only
 /// teammates, `never` blocks every push and `always` allows all of them.
-fn collision_rule_allows(rule: crate::world::scoreboard::CollisionRule, same_team: bool) -> bool {
+const fn collision_rule_allows(
+    rule: crate::world::scoreboard::CollisionRule,
+    same_team: bool,
+) -> bool {
     use crate::world::scoreboard::CollisionRule;
 
     match rule {
@@ -1581,7 +1583,6 @@ impl LivingEntity {
         }
     }
 
-    #[expect(clippy::too_many_lines)]
     pub fn add_effect(&self, effect: Effect) {
         if !self.can_be_affected(&effect) {
             return;
@@ -2269,11 +2270,8 @@ impl LivingEntity {
 
         let mut velo = self.entity.velocity.load();
 
-        let can_powder_snow_climb = if self.entity.was_in_powder_snow.load(Relaxed) {
-            crate::block::blocks::powder_snow::can_entity_walk_on_powder_snow(caller)
-        } else {
-            false
-        };
+        let can_powder_snow_climb = self.entity.was_in_powder_snow.load(Relaxed)
+            && crate::block::blocks::powder_snow::can_entity_walk_on_powder_snow(caller);
 
         if (self.entity.horizontal_collision.load(SeqCst) || self.jumping.load(SeqCst))
             && (caller.on_climbable() || can_powder_snow_climb)

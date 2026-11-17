@@ -11,9 +11,11 @@ pub fn can_hold_fluid(block: &Block) -> bool {
     block.has_tag(&tag::Block::MINECRAFT_WASHED_AWAY_BY_FLUIDS) && !is_liquid_block_container(block)
 }
 
-/// Blocks implementing vanilla's `LiquidBlockContainer`: every `SimpleWaterloggedBlock`, plus
-/// kelp, seagrass and lily pad. The last three are in the washed-away tag but carry no
-/// `waterlogged` property, so they have to be named explicitly.
+/// Blocks implementing vanilla's `LiquidBlockContainer`.
+///
+/// Every `SimpleWaterloggedBlock` counts, plus kelp, seagrass and lily pad. The last three are
+/// in the washed-away tag but carry no `waterlogged` property, so they are named explicitly.
+#[must_use]
 pub fn is_liquid_block_container(block: &Block) -> bool {
     block.is_waterloggable()
         || block == &Block::KELP

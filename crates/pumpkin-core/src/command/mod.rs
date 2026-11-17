@@ -308,7 +308,7 @@ impl CommandSender {
             // Vanilla only gates player feedback on the sendCommandFeedback
             // gamerule; command blocks always record output (TrackOutput is
             // honoured in send_message) and broadcast per commandBlockOutput.
-            Self::CommandBlock(..) => true,
+            Self::CommandBlock(..) | Self::Console => true,
             Self::Player(player) => {
                 player
                     .world()
@@ -317,7 +317,6 @@ impl CommandSender {
                     .game_rules
                     .send_command_feedback
             }
-            Self::Console => true,
             Self::Dummy => false,
         }
     }
@@ -425,10 +424,9 @@ impl CommandSender {
 const fn command_block_y_rot(facing: Facing) -> f32 {
     match facing {
         Facing::North => 180.0,
-        Facing::South => 0.0,
         Facing::West => 90.0,
         Facing::East => 270.0,
-        Facing::Up | Facing::Down => 0.0,
+        Facing::South | Facing::Up | Facing::Down => 0.0,
     }
 }
 

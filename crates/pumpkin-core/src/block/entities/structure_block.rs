@@ -229,7 +229,7 @@ pub fn capture_structure_template_from_world(
                     .properties(state.id)
                     .map(|p| p.to_props())
                     .unwrap_or_default();
-                let mut entry = PaletteEntry::with_properties(block_name.clone(), props);
+                let mut entry = PaletteEntry::with_properties(block_name, props);
                 entry.state_id = Some(state.id);
 
                 let nbt = world.get_block_entity(&world_pos).map(|be| {

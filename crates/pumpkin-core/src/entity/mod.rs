@@ -5982,6 +5982,10 @@ impl Entity {
         clippy::needless_pass_by_value,
         reason = "callers pass owned Arc for vehicle and passenger"
     )]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "vanilla mount flow is one sequence; splitting obscures ordering"
+    )]
     pub fn add_passenger(&self, vehicle: Arc<dyn EntityBase>, passenger: Arc<dyn EntityBase>) {
         let mut mount_event =
             crate::plugin::api::events::entity::entity_mount::EntityMountEvent::new(

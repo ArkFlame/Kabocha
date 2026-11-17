@@ -22,7 +22,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
-use tracing::{info, warn};
+use tracing::info;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::registry::RegistryEntryData;
@@ -1929,11 +1929,10 @@ fn tag_contains_entry<S: std::hash::BuildHasher>(
         return false;
     };
     entry.values.iter().any(|value| {
-        if let Some(nested) = value.strip_prefix('#') {
-            tag_contains_entry(tags, nested, full_entry, raw_entry, visited)
-        } else {
-            value == full_entry || value == raw_entry
-        }
+        value.strip_prefix('#').map_or_else(
+            || value == full_entry || value == raw_entry,
+            |nested| tag_contains_entry(tags, nested, full_entry, raw_entry, visited),
+        )
     })
 }
 
@@ -3241,6 +3240,7 @@ mod tests {
             let mut trade_registry = super::TradeRegistry::new();
             let mut predicates = std::collections::HashMap::new();
             let mut item_modifiers = std::collections::HashMap::new();
+            let mut item_tags = std::collections::HashMap::new();
             let mut slot_sources = std::collections::HashMap::new();
             let mut tags = std::collections::HashMap::new();
 
@@ -3258,6 +3258,7 @@ mod tests {
                 trade_registry: &mut trade_registry,
                 predicates: &mut predicates,
                 item_modifiers: &mut item_modifiers,
+                item_tags: &mut item_tags,
                 slot_sources: &mut slot_sources,
                 tags: &mut tags,
             };

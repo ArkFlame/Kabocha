@@ -275,7 +275,7 @@ impl ArmorStandEntity {
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
     /// 0.5 or less the stand breaks and drops its equipment (not itself).
     fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
-        let entity = self.get_entity();
+        let _entity = self.get_entity();
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
             // Vanilla `ArmorStand.causeDamage` only calls `brokenByAnything`, so
@@ -389,7 +389,7 @@ impl ArmorStandEntity {
 
 /// Vanilla `ArmorStand.getDefaultDimensions`: markers collapse to a zero-size box,
 /// otherwise a small stand is `EntityDimensions.scale(0.5)`, eye height included.
-fn default_dimensions(marker: bool, small: bool) -> EntityDimensions {
+const fn default_dimensions(marker: bool, small: bool) -> EntityDimensions {
     if marker {
         return EntityDimensions::new(0.0, 0.0, 0.0);
     }

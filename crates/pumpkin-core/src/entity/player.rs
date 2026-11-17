@@ -1498,7 +1498,7 @@ impl Player {
             .is::<PlayerScreenHandler>();
         if is_player_screen {
             // The player screen fires no close event, but its cursor and crafting grid must still drop.
-            let player: &Player = self;
+            let player: &Self = self;
             let mut handler = current_screen_handler
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -2806,6 +2806,7 @@ impl Player {
     }
 
     pub fn wake_up(&self) {
+        type BedProperties = pumpkin_data::block_properties::WhiteBedLikeProperties;
         let world = self.world();
         let Some(bed_pos) = self.sleeping_bed_pos.load() else {
             self.living_entity.entity.set_pose(EntityPose::Standing);
@@ -2834,7 +2835,6 @@ impl Player {
 
         // LivingEntity#stopSleeping moves the player to the first safe
         // stand-up position (bunk-bed aware) and turns them toward the bed.
-        type BedProperties = pumpkin_data::block_properties::WhiteBedLikeProperties;
         let facing = BedProperties::from_state_id(bed_state)
             .facing
             .to_block_direction();
@@ -3359,6 +3359,7 @@ impl Player {
     /// Inbound packets go first, for all players, so every tick sees this tick's moves.
     #[expect(clippy::too_many_lines)]
     pub fn tick<'a>(&'a self, server: &'a Server) {
+        const MAX_FLYING_TICKS: u32 = 80;
         if let ClientPlatform::Bedrock(client) = self.client.as_ref() {
             client.tick_network_latency(self);
         }
@@ -3366,7 +3367,6 @@ impl Player {
 
         // Vanilla `ServerGamePacketListenerImpl.tickPlayer`: packets seen this tick are now
         // "known", and a client that keeps floating past the gravity budget is kicked.
-        const MAX_FLYING_TICKS: u32 = 80;
         self.known_move_packet_count.store(
             self.received_move_packet_count.load(Ordering::Relaxed),
             Ordering::Relaxed,
@@ -4734,6 +4734,10 @@ impl Player {
             .try_enqueue_packet_editioned(je_packet, be_packet);
     }
     /// Like [`Self::try_enqueue_packet_editioned`] but reports the local queue outcome.
+    #[expect(
+        clippy::result_unit_err,
+        reason = "mirrors the client queue outcome; callers only need the bool"
+    )]
     pub fn try_enqueue_packet_editioned_result<
         J: pumpkin_protocol::ClientPacket + Sync,
         B: pumpkin_protocol::BClientPacket + Sync,
@@ -7511,7 +7515,6 @@ impl Player {
     }
 
     pub fn on_handled_screen_closed(&self) {
-        let closed_container_pos = self.open_container_pos.load();
         // Restored on every exit, including a panic in a plugin handler, so nested closes unwind.
         struct ClosingGuard<'a>(&'a AtomicUsize, usize);
         impl Drop for ClosingGuard<'_> {
@@ -7519,6 +7522,7 @@ impl Player {
                 self.0.store(self.1, Ordering::Relaxed);
             }
         }
+        let closed_container_pos = self.open_container_pos.load();
         let current_screen_handler: Arc<std::sync::Mutex<dyn ScreenHandler>> = self
             .current_screen_handler
             .lock()
@@ -9682,11 +9686,8 @@ impl LastSeenMessagesValidator {
         let mut last_seen_entries = Vec::new();
 
         for i in 0..self.last_seen_count {
-            let is_acknowledged = if i / 8 < acknowledged.len() {
-                (acknowledged[i / 8] & (1 << (i % 8))) != 0
-            } else {
-                false
-            };
+            let is_acknowledged =
+                i / 8 < acknowledged.len() && (acknowledged[i / 8] & (1 << (i % 8))) != 0;
 
             let message = self.tracked_messages.get(i).cloned().flatten();
             if is_acknowledged {

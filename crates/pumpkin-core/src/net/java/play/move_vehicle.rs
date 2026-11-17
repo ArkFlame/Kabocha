@@ -4,6 +4,10 @@ use pumpkin_protocol::java::client::play::CMoveVehicle;
 use super::*;
 
 impl JavaClient {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "vehicle movement validation is one sequential handler"
+    )]
     pub fn handle_move_vehicle(&self, player: &Arc<Player>, packet: &SMoveVehicle) {
         if player.is_movement_locked() {
             player.reject_client_move();
@@ -71,27 +75,28 @@ impl JavaClient {
             let old_y = old_pos.y;
             vehicle_entity.set_pos(pos);
             vehicle_entity.set_rotation(packet.yaw, packet.pitch);
-            let pos = if let Some(vehicle_move) = vehicle.get_vehicle_entity() {
-                let move_result = vehicle_move.move_vehicle(old_pos, pos);
-                vehicle_entity.set_pos(move_result.position);
-                if move_result.cancelled {
-                    vehicle_entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
-                    vehicle_entity.send_velocity();
-                }
-                if move_result.position != pos {
-                    let final_pos = move_result.position;
-                    self.try_send_packet(&CMoveVehicle::new(
-                        final_pos.x,
-                        final_pos.y,
-                        final_pos.z,
-                        packet.yaw,
-                        packet.pitch,
-                    ));
-                }
-                move_result.position
-            } else {
-                pos
-            };
+            let pos = vehicle.get_vehicle_entity().map_or_else(
+                || pos,
+                |vehicle_move| {
+                    let move_result = vehicle_move.move_vehicle(old_pos, pos);
+                    vehicle_entity.set_pos(move_result.position);
+                    if move_result.cancelled {
+                        vehicle_entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
+                        vehicle_entity.send_velocity();
+                    }
+                    if move_result.position != pos {
+                        let final_pos = move_result.position;
+                        self.try_send_packet(&CMoveVehicle::new(
+                            final_pos.x,
+                            final_pos.y,
+                            final_pos.z,
+                            packet.yaw,
+                            packet.pitch,
+                        ));
+                    }
+                    move_result.position
+                },
+            );
             vehicle_entity
                 .on_ground
                 .store(packet.on_ground, Ordering::Relaxed);

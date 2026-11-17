@@ -179,11 +179,8 @@ impl Goal for MeleeAttackGoal {
             return !is_idle;
         }
 
-        let in_range = mob
-            .get_mob_entity()
-            .is_in_position_target_range_pos(&target.get_entity().block_pos.load());
-
-        in_range
+        mob.get_mob_entity()
+            .is_in_position_target_range_pos(&target.get_entity().block_pos.load())
     }
 
     fn start(&mut self, mob: &dyn Mob) {

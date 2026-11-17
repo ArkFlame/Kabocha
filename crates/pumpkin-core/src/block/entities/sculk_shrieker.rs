@@ -1,6 +1,5 @@
 use super::BlockEntity;
 use crate::block::blocks::sculk::sculk_shrieker::SculkShriekerBlock;
-use crate::entity::EntityBase;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
 use pumpkin_data::game_event::GameEvent;

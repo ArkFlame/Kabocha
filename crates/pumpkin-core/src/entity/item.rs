@@ -196,8 +196,8 @@ impl ItemEntity {
     }
 
     /// Vanilla `ItemEntity` NBT: `PickupDelay` `32767` means the item can never be picked up.
-    fn decode_pickup_delay(delay: i16) -> (u8, bool) {
-        if delay >= INFINITE_PICKUP_DELAY {
+    const fn decode_pickup_delay(delay: i16) -> (u8, bool) {
+        if delay == INFINITE_PICKUP_DELAY {
             (u8::MAX, true)
         } else if delay <= 0 {
             (0, false)

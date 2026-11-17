@@ -13,7 +13,7 @@ use rand::RngExt;
 use crate::entity::{
     Entity, EntityBase,
     ai::behavior::{
-        feline::{self, SPRINT_SPEED, TEMPT_SPEED},
+        feline,
         fleeing::{self, Flee},
         hunting::{self, Hunt},
     },

@@ -505,20 +505,20 @@ mod tests {
         }"##;
         assert!(parse_recipe("test", "unused_symbol", unused_symbol).is_none());
 
-        let multi_char_key = r##"{
+        let multi_char_key = r#"{
             "type": "minecraft:crafting_shaped",
             "pattern": ["X"],
             "key": {"XY": "minecraft:stick"},
             "result": {"id": "minecraft:stick"}
-        }"##;
+        }"#;
         assert!(parse_recipe("test", "multi_char_key", multi_char_key).is_none());
 
-        let space_key = r##"{
+        let space_key = r#"{
             "type": "minecraft:crafting_shaped",
             "pattern": ["X"],
             "key": {" ": "minecraft:stick"},
             "result": {"id": "minecraft:stick"}
-        }"##;
+        }"#;
         assert!(parse_recipe("test", "space_key", space_key).is_none());
     }
 

@@ -237,6 +237,10 @@ struct SpreadPlayersExecutor {
 }
 
 impl CommandExecutor for SpreadPlayersExecutor {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "spread algorithm is one sequential retry loop"
+    )]
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let center = Vec2ArgumentType::get_vector2(context, ARG_CENTER)?;
         let spread_distance = f64::from(FloatArgumentType::get(context, ARG_SPREAD_DISTANCE)?);

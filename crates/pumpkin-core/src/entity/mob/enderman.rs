@@ -413,7 +413,7 @@ impl EndermanEntity {
             .is_miss
     }
 
-    /// Vanilla Enderman.playStareSound: loud scream when a player starts staring,
+    /// Vanilla `Enderman.playStareSound`: loud scream when a player starts staring,
     /// at most once per STARE_SOUND_INTERVAL ticks.
     pub fn play_stare_sound(&self) {
         let entity = &self.mob_entity.living_entity.entity;

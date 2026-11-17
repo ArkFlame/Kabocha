@@ -33,6 +33,10 @@ impl BlockBehaviour for VaultBlock {
         args.world.add_block_entity(Arc::new(entity));
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "single use flow matches vanilla branch order"
+    )]
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
         if args.item_stack.is_empty() {
             return BlockActionResult::PassToDefaultBlockAction;

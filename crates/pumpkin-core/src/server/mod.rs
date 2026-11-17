@@ -1175,6 +1175,10 @@ impl Server {
         Some((world, Some(data)))
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the join sequence is kept in one ordered pass"
+    )]
     pub fn add_player(
         self: &Arc<Self>,
         client: Arc<ClientPlatform>,

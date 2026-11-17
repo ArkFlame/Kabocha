@@ -7,7 +7,6 @@ use super::{
     LootTable, LootTableHandle, RandomImpl, Taggable, Xoroshiro, add_stew_effect,
     apply_bonus_formula, check_condition, check_dynamic_condition, get_loot_table, smelt,
 };
-use crate::block::entities::BlockEntity;
 use pumpkin_data::data_component::DataComponent;
 use pumpkin_data::data_component_impl::DataComponentImpl;
 use pumpkin_data::effect::StatusEffect;
@@ -635,7 +634,7 @@ impl Generator<'_, '_> {
                         stack.patch = template.patch;
                     }
                     LootFunctionKind::CopyComponents { include, exclude } => {
-                        self.copy_components(&mut stack, include.as_deref(), exclude.as_deref())
+                        self.copy_components(&mut stack, include.as_deref(), exclude.as_deref());
                     }
                 }
             }

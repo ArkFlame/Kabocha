@@ -5,7 +5,7 @@ use crate::entity::{
 };
 
 pub const AMBIENT_SOUND_INTERVAL: i32 = 120;
-/// Vanilla WaterAnimal.WATER_ANIMAL_MAX_AIR_SUPPLY.
+/// Vanilla `WaterAnimal.WATER_ANIMAL_MAX_AIR_SUPPLY`.
 pub const WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = 4800;
 
 pub trait WaterAnimal: Mob {

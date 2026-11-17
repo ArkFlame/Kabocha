@@ -114,7 +114,7 @@ impl BlockEntity for VaultBlockEntity {
             .map(|players| players.clone())
             .unwrap_or_default();
         if !rewarded.is_empty() {
-            let mut data = server_data.take().unwrap_or_else(NbtCompound::new);
+            let mut data = server_data.take().unwrap_or_default();
             data.put("rewarded_players", rewarded_players_tag(&rewarded));
             server_data = Some(data);
         }
@@ -147,7 +147,7 @@ impl VaultBlockEntity {
     pub const ID: &'static str = "minecraft:vault";
 
     #[must_use]
-    pub fn new(position: BlockPos) -> Self {
+    pub const fn new(position: BlockPos) -> Self {
         Self {
             position,
             config: Mutex::new(None),

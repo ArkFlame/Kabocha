@@ -109,21 +109,26 @@ impl JavaClient {
             }
         }
 
-        let picked_stack =
-            if let Some(painting) = target.cast_any().downcast_ref::<PaintingEntity>() {
-                // Vanilla `Painting#getPickResult` returns the painting item carrying the
-                // variant of the entity that was picked.
-                let mut stack = ItemStack::new(1, &Item::PAINTING);
-                stack.set_data_component(PaintingVariantImpl {
-                    value: std::borrow::Cow::Borrowed(painting.variant().to_name()),
-                });
-                Some(stack)
-            } else {
-                found_egg
-                    .and_then(Item::from_id)
-                    .or_else(|| BoatItem::entity_to_item(target.get_entity().entity_type))
-                    .map(|item| ItemStack::new(1, item))
-            };
+        let picked_stack = target
+            .cast_any()
+            .downcast_ref::<PaintingEntity>()
+            .map_or_else(
+                || {
+                    found_egg
+                        .and_then(Item::from_id)
+                        .or_else(|| BoatItem::entity_to_item(target.get_entity().entity_type))
+                        .map(|item| ItemStack::new(1, item))
+                },
+                |painting| {
+                    // Vanilla `Painting#getPickResult` returns the painting item carrying the
+                    // variant of the entity that was picked.
+                    let mut stack = ItemStack::new(1, &Item::PAINTING);
+                    stack.set_data_component(PaintingVariantImpl {
+                        value: std::borrow::Cow::Borrowed(painting.variant().to_name()),
+                    });
+                    Some(stack)
+                },
+            );
 
         if let Some(stack) = picked_stack {
             let slot_with_stack = player.inventory().get_slot_with_stack(&stack);

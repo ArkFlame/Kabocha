@@ -396,13 +396,11 @@ impl FallLocation {
         living: &crate::entity::living::LivingEntity,
         world: &World,
     ) -> Option<Self> {
-        if let Some(pos) = living.climbing_pos.load() {
-            Some(Self::block_to_fall_location(world.get_block(&pos)))
-        } else if living.entity.is_in_water() {
-            Some(Self::Water)
-        } else {
-            None
-        }
+        living
+            .climbing_pos
+            .load()
+            .map(|pos| Self::block_to_fall_location(world.get_block(&pos)))
+            .or_else(|| living.entity.is_in_water().then_some(Self::Water))
     }
 }
 

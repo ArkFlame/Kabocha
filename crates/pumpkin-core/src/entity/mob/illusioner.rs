@@ -86,8 +86,8 @@ impl IllusionerEntity {
                 .entity_equipment
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            equipment.put(&EquipmentSlot::MAIN_HAND, ItemStack::new(1, &Item::BOW));
-        }
+            equipment.put(&EquipmentSlot::MAIN_HAND, ItemStack::new(1, &Item::BOW))
+        };
 
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;

@@ -121,18 +121,15 @@ impl Mob for VexEntity {
                 .limited_life_ticks
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner);
-            match life.as_mut() {
-                Some(remaining) => {
-                    *remaining -= 1;
-                    if *remaining <= 0 {
-                        *remaining = VEX_STARVE_INTERVAL_TICKS;
-                        true
-                    } else {
-                        false
-                    }
+            life.as_mut().is_some_and(|remaining| {
+                *remaining -= 1;
+                if *remaining <= 0 {
+                    *remaining = VEX_STARVE_INTERVAL_TICKS;
+                    true
+                } else {
+                    false
                 }
-                None => false,
-            }
+            })
         };
         if starve {
             self.mob_entity

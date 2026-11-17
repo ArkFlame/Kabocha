@@ -2,7 +2,7 @@
 //!
 //! Generates a 3x3 chunk square around the origin for a few fixed seeds, hashes every
 //! block-state id of every generated chunk with FNV-1a 64 and compares the digest against
-//! tests/data/block_hash.txt. When a seed has no line yet, the test fails and prints the
+//! `tests/data/block_hash.txt`. When a seed has no line yet, the test fails and prints the
 //! exact line to add, so the first run bootstraps the reference file.
 //!
 //! Reference format, one line per seed:
@@ -11,7 +11,7 @@
 //!
 //! The digest is FNV-1a 64 over the little-endian bytes of the u16 block-state ids, in
 //! chunk order (chunk x ascending, then chunk z ascending), inside each chunk in x, z, y
-//! order with y from the dimension's bottom to its top. tests/data/vanilla_block_hash.txt
+//! order with y from the dimension's bottom to its top. `tests/data/vanilla_block_hash.txt`
 //! uses the same format and is optional.
 //!
 //! Producing the vanilla reference: run a vanilla server with -Xint (interpreted mode, so
@@ -43,7 +43,7 @@ use pumpkin_world::world::WorldPortalExt;
 const SEEDS: [u64; 3] = [0, 1, 4242];
 const CHUNK_RADIUS: i32 = 1;
 
-/// Minimal WorldPortalExt used by the generator; mirrors benches/chunk_gen.rs.
+/// Minimal `WorldPortalExt` used by the generator; mirrors `benches/chunk_gen.rs`.
 struct BlockRegistry;
 impl WorldPortalExt for BlockRegistry {
     fn can_place_at(
@@ -86,7 +86,7 @@ impl WorldPortalExt for BlockRegistry {
 
 /// FNV-1a 64 over the little-endian bytes of the ids.
 fn fnv1a64(ids: &[u16]) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
     for id in ids {
         for byte in id.to_le_bytes() {
             hash ^= u64::from(byte);
@@ -193,7 +193,9 @@ fn read_raw_blocks(name: &str) -> Option<HashMap<u64, Vec<u16>>> {
             continue;
         }
         let ids = raw
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .filter_map(|pair| {
                 let text = std::str::from_utf8(pair).ok()?;
                 u16::from_str_radix(text, 16).ok()

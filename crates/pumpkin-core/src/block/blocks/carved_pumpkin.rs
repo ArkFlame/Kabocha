@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use pumpkin_data::{
     Block, BlockDirection, BlockId, BlockStateId, block_properties::WallTorchLikeProperties,
-    entity::EntityType, tag::Taggable, world::WorldEvent,
+    entity::EntityType, world::WorldEvent,
 };
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use pumpkin_world::world::BlockFlags;

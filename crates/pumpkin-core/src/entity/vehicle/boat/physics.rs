@@ -254,6 +254,10 @@ impl BoatEntity {
         self.record_movement(move_from, entity.pos.load(), event.to - move_from);
     }
 
+    #[expect(
+        dead_code,
+        reason = "client-move boat correction has no packet handler wired yet"
+    )]
     pub(crate) fn move_from_client(
         &self,
         player: &Player,

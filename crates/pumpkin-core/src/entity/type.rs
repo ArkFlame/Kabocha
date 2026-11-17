@@ -877,6 +877,7 @@ mod tests {
             Arc::new(ArcSwap::from_pointee(LevelData::default(Seed(0)))),
             Dimension::OVERWORLD,
             Arc::new(BlockRegistry::default()),
+            crate::world::weather::WeatherSetup::default(),
             Weak::new(),
         ));
 

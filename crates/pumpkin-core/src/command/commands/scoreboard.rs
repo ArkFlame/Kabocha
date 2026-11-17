@@ -712,7 +712,7 @@ impl CommandExecutor for ObjectivesSetDisplayExecutor {
         drop(scoreboard);
 
         context.source.send_feedback(message, changed);
-        Ok(if changed { 1 } else { 0 })
+        Ok(i32::from(changed))
     }
 }
 

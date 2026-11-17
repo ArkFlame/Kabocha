@@ -3,7 +3,7 @@
 //! Vanilla worldgen calls `Math.log10` and `Math.pow`, which Java routes through
 //! fdlibm (`StrictMath`) for reproducibility. Rust uses the platform libm, so the
 //! results can differ by a few ulps. The golden data was produced by
-//! `StrictMath` on OpenJDK 21 with `new Random(42)`; each line lists raw IEEE-754
+//! `StrictMath` on `OpenJDK` 21 with `new Random(42)`; each line lists raw IEEE-754
 //! bits as hex, input(s) first and the expected result last.
 //!
 //! Measured on x86_64 Linux/glibc 2.4x: `log10` differs from `StrictMath` in 18
@@ -17,7 +17,7 @@ const POW_GOLDEN: &str = include_str!("data/pow_golden.txt");
 /// Number of representable doubles between two values, treating the sign bit as
 /// a continuation of the magnitude ordering.
 fn ulp_distance(a: f64, b: f64) -> u64 {
-    fn ordered(value: f64) -> i64 {
+    const fn ordered(value: f64) -> i64 {
         let bits = value.to_bits() as i64;
         if bits < 0 {
             i64::MIN.wrapping_sub(bits)
@@ -29,6 +29,10 @@ fn ulp_distance(a: f64, b: f64) -> u64 {
     ordered(a).abs_diff(ordered(b))
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "golden data is a checked-in fixture; a bad line is a test bug"
+)]
 fn parse_bits(token: &str) -> f64 {
     f64::from_bits(u64::from_str_radix(token, 16).expect("golden data must be hex bits"))
 }

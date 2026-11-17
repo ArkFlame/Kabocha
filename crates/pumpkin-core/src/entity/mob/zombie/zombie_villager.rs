@@ -85,7 +85,7 @@ impl ZombieVillagerEntity {
     /// Vanilla default villager data: plains, unemployed, level 1. The biome type is
     /// applied on spawn and the cure keeps the profession, so a naturally spawned
     /// zombie villager heals into an unemployed villager that then claims a job site.
-    fn initialize_zombie_villager_data() -> VillagerData {
+    const fn initialize_zombie_villager_data() -> VillagerData {
         VillagerData::new(VillagerType::Plains, VillagerProfession::None, 1)
     }
 

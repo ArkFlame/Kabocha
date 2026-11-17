@@ -294,6 +294,10 @@ impl ClientPlatform {
     }
     /// Queues one packet per client edition. `Err(())` when encoding fails for the client's
     /// edition, `Ok(false)` when the outgoing queue rejected the packet.
+    #[expect(
+        clippy::result_unit_err,
+        reason = "Err(()) only signals a failed encode; callers ignore the payload"
+    )]
     pub fn try_enqueue_packet_editioned_result<J: ClientPacket, B: BClientPacket>(
         &self,
         je_packet: &J,

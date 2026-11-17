@@ -102,6 +102,10 @@ impl EntityBase for LingeringPotionEntity {
         self
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "single hit handler mirrors vanilla ThrownPotion.onHit"
+    )]
     fn on_hit(&self, hit: crate::entity::projectile::ProjectileHit) {
         let world = self.get_entity().world.load();
         let hit_pos = hit.hit_pos();

@@ -139,12 +139,12 @@ impl EntityBase for LeashKnotEntity {
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
+        // Vanilla searches a 7 block cube around the knot.
+        const SEARCH_RADIUS: f64 = 7.0;
         let world = player.world();
         let knot_id = self.entity.entity_id;
         let player_id = player.entity_id();
 
-        // Vanilla searches a 7 block cube around the knot.
-        const SEARCH_RADIUS: f64 = 7.0;
         let pos = self.entity.pos.load();
         let search_box = BoundingBox::new(
             Vector3::new(

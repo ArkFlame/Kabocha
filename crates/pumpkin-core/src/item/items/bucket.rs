@@ -418,7 +418,7 @@ fn try_place_liquid(
         return try_place_powder_snow(world, pos, direction, &mut can_place);
     }
 
-    let (block, state) = world.get_block_and_state(&pos);
+    let (block, _) = world.get_block_and_state(&pos);
     let is_water = item.id != Item::LAVA_BUCKET.id;
     // Vanilla `BucketItem.use` targets the clicked block itself when it is a
     // `LiquidBlockContainer` and the bucket holds water, even when it cannot take
@@ -711,7 +711,6 @@ impl ItemBehaviour for EmptyBucketItem {
 impl FilledBucketItem {
     /// Places the bucket contents against a clicked block face, returning whether the action was handled.
     fn place_filled_bucket(
-        &self,
         item: &Item,
         player: &Player,
         hand: Hand,
@@ -785,7 +784,7 @@ impl ItemBehaviour for FilledBucketItem {
             return;
         }
 
-        self.place_filled_bucket(item, player, hand, hit.block_pos, hit.direction);
+        Self::place_filled_bucket(item, player, hand, hit.block_pos, hit.direction);
     }
 
     fn use_on_block(
@@ -798,7 +797,7 @@ impl ItemBehaviour for FilledBucketItem {
         _block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
-        if !self.place_filled_bucket(stack.item, player, Hand::Right, location, face) {
+        if !Self::place_filled_bucket(stack.item, player, Hand::Right, location, face) {
             return BlockActionResult::Pass;
         }
         *stack = player.inventory.get_stack_in_hand(Hand::Right);

@@ -52,6 +52,7 @@ pub struct RuntimeScopedFuture<'a, T> {
 }
 
 impl<'a, T> RuntimeScopedFuture<'a, T> {
+    #[must_use]
     pub fn new(handle: tokio::runtime::Handle, future: PluginFuture<'a, T>) -> Self {
         Self { handle, future }
     }

@@ -52,7 +52,7 @@ impl BlockEntity for CalibratedSculkSensorBlockEntity {
         self
     }
 
-    /// Vanilla VibrationSystem listener inside CalibratedSculkSensorBlockEntity.
+    /// Vanilla `VibrationSystem` listener inside `CalibratedSculkSensorBlockEntity`.
     fn game_event_radius(&self) -> Option<i32> {
         Some(crate::block::blocks::redstone::sculk_sensor::CALIBRATED_LISTENER_RADIUS)
     }

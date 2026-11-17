@@ -23,7 +23,7 @@ impl MagmaCubeEntity {
         cube
     }
 
-    /// Vanilla MagmaCube setSize attribute side effects. Kept separate so a
+    /// Vanilla `MagmaCube` setSize attribute side effects. Kept separate so a
     /// size read from NBT reapplies them after the slime reset.
     fn apply_base_attributes(&self) {
         let size = self.slime.get_size();

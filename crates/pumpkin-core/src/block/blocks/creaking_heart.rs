@@ -17,7 +17,7 @@ use crate::block::{
     BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
     PlacedArgs,
 };
-use crate::entity::EntityBase;
+
 use crate::entity::experience_orb::ExperienceOrbEntity;
 
 #[pumpkin_block("minecraft:creaking_heart")]
@@ -61,8 +61,8 @@ impl CreakingHeartBlock {
         Self::is_aligned_pale_oak_log(state_a, axis) && Self::is_aligned_pale_oak_log(state_b, axis)
     }
 
-    /// Vanilla CreakingHeartBlock updateState: re-evaluates CREAKING_HEART_STATE from the two
-    /// aligned pale oak logs and the creaking_active environment attribute.
+    /// Vanilla `CreakingHeartBlock` updateState: re-evaluates `CREAKING_HEART_STATE` from the two
+    /// aligned pale oak logs and the `creaking_active` environment attribute.
     pub fn update_state(
         world: &std::sync::Arc<crate::world::World>,
         position: &pumpkin_util::math::position::BlockPos,

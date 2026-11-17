@@ -68,11 +68,8 @@ impl CommandExecutor for GiveExecutor {
             0
         };
 
-        let hide_particles = if self.has_hide_particles {
-            BoolArgumentType::get(context, "hideParticles")?
-        } else {
-            false
-        };
+        let hide_particles =
+            self.has_hide_particles && BoolArgumentType::get(context, "hideParticles")?;
 
         let mut successes = 0;
 
@@ -144,6 +141,10 @@ enum ClearMode {
 struct ClearExecutor(ClearMode);
 
 impl CommandExecutor for ClearExecutor {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per clear mode, kept together for readability"
+    )]
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let targets = match self.0 {
             ClearMode::SelfAll => {

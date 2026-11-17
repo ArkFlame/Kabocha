@@ -903,7 +903,7 @@ impl BlockRegistry {
             sound_type.place_sound as u16,
             pumpkin_data::sound::SoundCategory::Blocks,
             &final_block_pos.to_centered_f64(),
-            (sound_type.volume + 1.0) / 2.0,
+            f32::midpoint(sound_type.volume, 1.0),
             sound_type.pitch * 0.8,
         );
 

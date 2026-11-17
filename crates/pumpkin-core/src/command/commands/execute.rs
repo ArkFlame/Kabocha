@@ -102,7 +102,7 @@ const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
     translation::java::ARGUMENT_POS_UNLOADED,
 );
 
-/// Vanilla ExecuteCommand.MAX_TEST_AREA.
+/// Vanilla `ExecuteCommand.MAX_TEST_AREA`.
 const MAX_TEST_AREA: i64 = 32768;
 
 const ERROR_AREA_TOO_LARGE: CommandErrorType<2> = CommandErrorType::new(

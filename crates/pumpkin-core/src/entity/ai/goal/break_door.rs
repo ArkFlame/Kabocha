@@ -59,14 +59,14 @@ impl BreakDoorGoal {
 
     /// Restricts door breaking to raiders with an active raid.
     #[must_use]
-    pub fn requires_raid(mut self) -> Self {
+    pub const fn requires_raid(mut self) -> Self {
         self.requires_raid = true;
         self
     }
 
     /// Claims the `MOVE` control flag, as vanilla's `VindicatorBreakDoorGoal` does.
     #[must_use]
-    pub fn with_move_control(mut self) -> Self {
+    pub const fn with_move_control(mut self) -> Self {
         self.controls.insert(Controls::MOVE);
         self
     }
@@ -107,7 +107,7 @@ impl Goal for BreakDoorGoal {
             && (!self.requires_raid
                 || mob
                     .as_raider()
-                    .is_some_and(|raider| raider.has_active_raid()))
+                    .is_some_and(crate::entity::mob::raider::Raider::has_active_raid))
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {

@@ -13,6 +13,10 @@ use crate::entity::player::ClientMove;
 const MAX_CLIENT_STEP_SQUARED: f64 = 100.0;
 
 impl BedrockClient {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "auth input validation runs as one ordered pass"
+    )]
     pub fn handle_player_auth_input(
         &self,
         player: &Arc<Player>,

@@ -80,7 +80,7 @@ impl BlockBehaviour for EnderChestBlock {
             args.world.schedule_fluid_tick(
                 &Fluid::WATER,
                 *args.position,
-                Fluid::WATER.flow_speed as u32,
+                Fluid::WATER.flow_speed,
                 TickPriority::Normal,
             );
         }

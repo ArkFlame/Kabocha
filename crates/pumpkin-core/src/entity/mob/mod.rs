@@ -860,8 +860,8 @@ impl MobEntity {
                     mob,
                     time,
                 };
-                Self::apply_brain_messages(&mut tick, messages);
-            }
+                Self::apply_brain_messages(&mut tick, messages)
+            };
             brain.tick(&world, mob, time);
             let mut tick = BrainTick {
                 state: brain,

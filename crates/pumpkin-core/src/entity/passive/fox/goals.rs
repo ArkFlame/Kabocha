@@ -1052,11 +1052,12 @@ impl FoxEatBerriesGoal {
                     props.age >= 2
                 } else if block_id == Block::CAVE_VINES.id {
                     CaveVinesLikeProperties::from_state_id(world.get_block_state_id(&pos)).berries
-                } else if block_id == Block::CAVE_VINES_PLANT.id {
-                    CaveVinesPlantLikeProperties::from_state_id(world.get_block_state_id(&pos))
-                        .berries
                 } else {
-                    false
+                    block_id == Block::CAVE_VINES_PLANT.id
+                        && CaveVinesPlantLikeProperties::from_state_id(
+                            world.get_block_state_id(&pos),
+                        )
+                        .berries
                 }
             }),
         )

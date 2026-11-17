@@ -242,7 +242,7 @@ impl Mob for PiglinBruteEntity {
         let aggressive = self.mob_entity.get_target().is_some();
         let was_aggressive = self.aggressive.swap(aggressive, Ordering::Relaxed);
         if aggressive {
-            let roll = self.get_random().random_range(0.0_f32..1.0);
+            let roll = self.get_random().random_range(0.0f32..1.0);
             if !was_aggressive || roll < Self::ACTIVITY_SOUND_LIKELIHOOD_PER_TICK {
                 self.play_entity_sound(Sound::EntityPiglinBruteAngry, 1.0, 1.0);
             }

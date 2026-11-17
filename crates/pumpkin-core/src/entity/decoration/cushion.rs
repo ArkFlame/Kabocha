@@ -384,7 +384,7 @@ impl EntityBase for CushionEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
-            .and_then(|weak| weak.upgrade())
+            .and_then(std::sync::Weak::upgrade)
             .is_none_or(|vehicle| vehicle.get_entity().entity_id != self.entity.entity_id)
         {
             return false;
@@ -465,6 +465,7 @@ mod tests {
             ))),
             Dimension::OVERWORLD,
             crate::block::registry::default_registry(),
+            crate::world::weather::WeatherSetup::default(),
             Weak::new(),
         ));
         let position = Vector3::new(0.5, 64.0, 0.5);

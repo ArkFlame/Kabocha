@@ -362,6 +362,7 @@ fn is_valid_hit_position(cursor_pos: &Vector3<f32>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::is_valid_hit_position;
+    use pumpkin_util::math::vector3::Vector3;
 
     #[test]
     fn hit_position_must_be_inside_clicked_block() {
