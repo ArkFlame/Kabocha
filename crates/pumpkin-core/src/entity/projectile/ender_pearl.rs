@@ -107,7 +107,9 @@ impl EntityBase for EnderPearlEntity {
             );
         }
 
-        let teleport_pos = entity.last_pos.load();
+        // Vanilla `EnderPearlEntity#onCollision` teleports the owner to the pearl's
+        // collision position, not to where the pearl was one tick earlier.
+        let teleport_pos = entity.pos.load();
 
         // Like vanilla, a zero hit from the pearl, credited to its thrower if any.
         if let ProjectileHit::Entity {
