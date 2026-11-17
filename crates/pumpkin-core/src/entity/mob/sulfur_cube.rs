@@ -987,7 +987,8 @@ impl Mob for SulfurCubeEntity {
                 .living_entity
                 .deal_default_knockback(self, position, source, cause, amount);
         }
-        Some(true)
+        // Vanilla returns false: the block body absorbs the hit, only the knockback lands.
+        Some(false)
     }
 
     fn mob_knockback(
