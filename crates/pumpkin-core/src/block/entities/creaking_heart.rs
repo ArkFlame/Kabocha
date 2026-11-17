@@ -1,15 +1,23 @@
 use std::sync::Arc;
 
 use crossbeam::atomic::AtomicCell;
+use pumpkin_data::block_properties::{CreakingHeartLikeProperties, CreakingHeartState};
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use uuid::Uuid;
 
 use crate::block::blocks::creaking_heart::CreakingHeartBlock;
+use crate::entity::Entity;
+use crate::entity::mob::creaking::CreakingEntity;
 use crate::world::World;
 
 use super::BlockEntity;
+
+/// Player distance that wakes a creaking heart's spawn branch. UNVERIFIED against vanilla.
+const CREAKING_SPAWN_DISTANCE: f64 = 32.0;
 
 pub struct CreakingHeartBlockEntity {
     pub position: BlockPos,
@@ -66,6 +74,7 @@ impl BlockEntity for CreakingHeartBlockEntity {
             return;
         }
         CreakingHeartBlock::update_state(world, &self.position);
+        self.try_spawn_creaking(world);
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -94,11 +103,85 @@ impl CreakingHeartBlockEntity {
         self.creaking_uuid.store(uuid);
     }
 
+    /// Vanilla `CreakingHeartBlockEntity` spawn branch: an awake heart with no living bound
+    /// creaking and a player within range spawns one beside itself and binds its UUID.
+    fn try_spawn_creaking(&self, world: &Arc<World>) {
+        if self
+            .creaking_uuid
+            .load()
+            .is_some_and(|uuid| world.get_entity_by_uuid(uuid).is_some())
+        {
+            return;
+        }
+        let state_id = world.get_block_state_id(&self.position);
+        if CreakingHeartLikeProperties::from_state_id(state_id).creaking_heart_state
+            != CreakingHeartState::Awake
+        {
+            return;
+        }
+        let center = Vector3::new(
+            f64::from(self.position.0.x) + 0.5,
+            f64::from(self.position.0.y) + 0.5,
+            f64::from(self.position.0.z) + 0.5,
+        );
+        if world
+            .get_closest_player(center, CREAKING_SPAWN_DISTANCE)
+            .is_none()
+        {
+            return;
+        }
+        let Some(spawn_pos) = Self::find_free_spawn_pos(world, &self.position) else {
+            return;
+        };
+        let uuid = Uuid::new_v4();
+        let entity = Entity::from_uuid(
+            uuid,
+            world.clone(),
+            Vector3::new(
+                f64::from(spawn_pos.0.x) + 0.5,
+                f64::from(spawn_pos.0.y),
+                f64::from(spawn_pos.0.z) + 0.5,
+            ),
+            &EntityType::CREAKING,
+        );
+        let creaking = CreakingEntity::new(entity);
+        creaking.set_transient(self.position);
+        world.spawn_entity(creaking);
+        self.set_creaking_uuid(Some(uuid));
+    }
+
+    fn find_free_spawn_pos(world: &Arc<World>, heart: &BlockPos) -> Option<BlockPos> {
+        [heart.east(), heart.west(), heart.north(), heart.south()]
+            .into_iter()
+            .find(|pos| {
+                world.get_block_state_id(pos).to_state().is_air()
+                    && world.get_block_state_id(&pos.up()).to_state().is_air()
+            })
+    }
+
     pub fn creaking_hurt(&self, world: &Arc<World>) {
         world.play_sound(
             Sound::BlockCreakingHeartHurt,
             SoundCategory::Blocks,
             &self.position.to_f64(),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_util::math::position::BlockPos;
+    use uuid::Uuid;
+
+    use super::CreakingHeartBlockEntity;
+
+    #[test]
+    fn unbound_heart_protects_no_creaking() {
+        let be = CreakingHeartBlockEntity::new(BlockPos::new(0, 64, 0));
+        assert!(!be.is_protector(Uuid::new_v4()));
+        let bound = Uuid::new_v4();
+        be.set_creaking_uuid(Some(bound));
+        assert!(be.is_protector(bound));
+        assert!(!be.is_protector(Uuid::new_v4()));
     }
 }
