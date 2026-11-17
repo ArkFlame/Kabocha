@@ -65,7 +65,11 @@ fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStac
 /// Represents a Witch, a hostile ranged mob that throws splash potions and drinks restorative potions.
 ///
 /// Wiki: <https://minecraft.wiki/w/Witch>
-const WITCH_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
+const WITCH_HUNTS: &[Hunt] = &[
+    Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true),
+    Hunt::new(3, TargetMatch::VILLAGER_LIKE, false),
+    Hunt::new(3, TargetMatch::Type(&EntityType::IRON_GOLEM), true),
+];
 
 /// Vanilla `Witch` healable-raider target: any raider below its max health.
 const WITCH_HEALABLE_RAIDERS: Hunt =
