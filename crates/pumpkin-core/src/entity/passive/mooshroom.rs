@@ -21,7 +21,6 @@ use pumpkin_data::suspicious_effects::get_suspicious_effects;
 use pumpkin_data::tag::Taggable;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
-use pumpkin_util::Hand;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
@@ -239,7 +238,7 @@ impl MooshroomEntity {
         self.play_entity_sound(sound, 1.0, 1.0);
     }
 
-    fn try_shear(&self, player: &Arc<Player>, item_stack: &mut ItemStack, hand: Hand) -> bool {
+    fn try_shear(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let entity = self.get_entity();
         let world = entity.world.load();
         if let Some(server) = world.server.upgrade() {
@@ -247,7 +246,7 @@ impl MooshroomEntity {
                 crate::plugin::api::events::player::player_shear_entity::PlayerShearEntityEvent {
                     player: player.clone(),
                     entity_id: entity.entity_id,
-                    hand: hand.packet_id(),
+                    hand: 0,
                     cancelled: false,
                 };
             server.plugin_manager.fire_blocking(&server, &mut event);
@@ -263,7 +262,7 @@ impl MooshroomEntity {
                 source_entity: Some(player.as_ref()),
             },
         );
-        let _ = player.damage_held_stack(item_stack, 1, hand);
+        let _ = player.damage_item_stack(item_stack, 1);
         true
     }
 
@@ -428,18 +427,6 @@ impl Mob for MooshroomEntity {
         );
     }
 
-    fn mob_interact_with_hand(
-        &self,
-        player: &Arc<Player>,
-        item_stack: &mut ItemStack,
-        hand: Hand,
-    ) -> Option<bool> {
-        if item_stack.get_item() == &Item::SHEARS && !self.is_baby() {
-            return Some(self.try_shear(player, item_stack, hand));
-        }
-        None
-    }
-
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let item = item_stack.get_item();
         if item == &Item::BOWL && !self.is_baby() {
@@ -448,7 +435,7 @@ impl Mob for MooshroomEntity {
         }
 
         if item == &Item::SHEARS && !self.is_baby() {
-            return self.try_shear(player, item_stack, Hand::Right);
+            return self.try_shear(player, item_stack);
         }
 
         if self.get_variant() == MooshroomVariant::Brown

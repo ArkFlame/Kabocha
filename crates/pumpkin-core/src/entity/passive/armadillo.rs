@@ -204,9 +204,7 @@ impl ArmadilloEntity {
     pub fn can_stay_rolled_up(&self) -> bool {
         !self.is_panicking()
             && !self.mob_entity.living_entity.is_in_water()
-            && !self.get_entity().is_leashed()
             && !self.get_entity().has_vehicle()
-            && !self.get_entity().has_passengers()
     }
 
     pub fn roll_up(&self) {
@@ -392,15 +390,11 @@ impl Mob for ArmadilloEntity {
             && let Some(src) = source
             && src.get_entity().entity_type != &EntityType::ITEM
         {
+            self.danger_detected_recently_ticks
+                .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
             if self.can_stay_rolled_up() {
                 self.danger_detected_recently_ticks
                     .store(80, Ordering::Relaxed);
-                // Vanilla tucks into its shell on damage; the countdown above keeps it
-                // balled until the danger fades, then the state machine unrolls it.
-                self.roll_up();
-            } else {
-                self.danger_detected_recently_ticks
-                    .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
             }
         }
     }
@@ -439,23 +433,6 @@ impl Mob for ArmadilloEntity {
                 }
                 self.scute_time
                     .store(pick_next_scute_drop_time(), Ordering::Relaxed);
-            }
-        }
-
-        // Vanilla re-checks nearby threats every SCARE_CHECK_INTERVAL ticks while idle, so an
-        // armadillo rolls up on approach instead of only after it is hit.
-        if self.get_state() == ArmadilloState::Idle
-            && entity.age.load(Ordering::Relaxed) % SCARE_CHECK_INTERVAL == 0
-        {
-            let pos = entity.pos.load();
-            let threatened = world
-                .get_nearby_entities(pos, SCARE_DISTANCE_HORIZONTAL)
-                .values()
-                .any(|candidate| {
-                    candidate.get_entity().is_alive() && self.is_scared_by(candidate.as_ref())
-                });
-            if threatened {
-                self.roll_up();
             }
         }
 

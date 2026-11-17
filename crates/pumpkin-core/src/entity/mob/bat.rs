@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicI8, Ordering::Relaxed};
 
+use pumpkin_data::BlockState;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::Sound;
@@ -228,6 +229,9 @@ impl Mob for BatEntity {
     fn mob_is_flapping(&self) -> bool {
         !self.is_roosting() && self.get_entity().tick_count.load(Relaxed) % 10 == 0
     }
+
+    /// Vanilla `Bat.playStepSound` is empty: bats move silently.
+    fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
 
     fn mob_init_data_tracker(&self) {
         let entity = self.get_entity();

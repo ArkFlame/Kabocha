@@ -2,7 +2,8 @@ use std::any::Any;
 
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
-use pumpkin_data::data_component_impl::{CustomDataImpl, InstrumentImpl};
+use crate::world::game_event::GameEventContext;
+use pumpkin_data::data_component_impl::InstrumentImpl;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::instrument::Instrument;
 use pumpkin_data::item::Item;
@@ -36,17 +37,6 @@ impl ItemBehaviour for GoatHornItem {
         let Some(instrument) = stack
             .get_data_component::<InstrumentImpl>()
             .and_then(|inst| Instrument::from_name(&inst.instrument))
-            .or_else(|| {
-                stack
-                    .get_data_component::<CustomDataImpl>()
-                    .and_then(|custom| {
-                        custom
-                            .data
-                            .get_string("instrument")
-                            .or_else(|| custom.data.get_string("Instrument"))
-                    })
-                    .and_then(Instrument::from_name)
-            })
         else {
             return;
         };
@@ -72,7 +62,15 @@ impl ItemBehaviour for GoatHornItem {
             volume,
             1.0,
         );
-        world.emit_game_event(GameEvent::InstrumentPlay.name(), pos);
+        // Vanilla passes `GameEvent.Context.of(player)`, so listeners attribute the
+        // vibration to the horn player (e.g. sculk sensor / warden anger).
+        world.emit_game_event_with_context(
+            GameEvent::InstrumentPlay.name(),
+            pos,
+            &GameEventContext {
+                source_entity: Some(player),
+            },
+        );
         if duration > 0 {
             player.start_cooldown(cooldown_group, duration);
         }

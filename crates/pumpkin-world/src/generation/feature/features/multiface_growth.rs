@@ -40,17 +40,14 @@ impl MultifaceGrowthFeature {
             let placement_directions =
                 self.get_shuffled_directions_except(random, search_direction.opposite());
 
-            let mut cur_pos = pos;
-            for _ in 0..self.search_range {
-                let block_id = GenerationCache::get_block_state(chunk, &cur_pos.0).to_block_id();
-                if !Self::is_air_or_water(chunk, cur_pos) && block_id != self.place_block {
-                    break;
-                }
+            let cur_pos = pos.offset(search_direction.to_offset());
+            let block_id = GenerationCache::get_block_state(chunk, &cur_pos.0).to_block_id();
+            if !Self::is_air_or_water(chunk, cur_pos) && block_id != self.place_block {
+                continue;
+            }
 
-                if self.place_growth_if_possible(chunk, cur_pos, random, &placement_directions) {
-                    return true;
-                }
-                cur_pos = cur_pos.offset(search_direction.to_offset());
+            if self.place_growth_if_possible(chunk, cur_pos, random, &placement_directions) {
+                return true;
             }
         }
 

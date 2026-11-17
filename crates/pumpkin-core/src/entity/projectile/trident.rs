@@ -17,7 +17,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::java::client::play::Metadata;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
-use pumpkin_data::packet::CURRENT_MC_VERSION;
+use pumpkin_util::version::JavaMinecraftVersion;
 
 use super::ProjectileHit;
 use super::abstract_arrow::{self, AbstractArrow, ArrowFlight, get_entity_hit_result};
@@ -524,32 +524,32 @@ impl EntityBase for TridentEntity {
         }
     }
 
-    fn java_spawn_metadata(&self) -> Option<Box<[u8]>> {
+    fn java_spawn_metadata(&self, version: JavaMinecraftVersion) -> Option<Box<[u8]>> {
         let shared_flags = self.entity.flags.load(Ordering::Relaxed);
         let mut buf = Vec::new();
         if shared_flags != 0 {
             let _ = Metadata::new(tracked_data::trident::DATA_SHARED_FLAGS_ID, shared_flags)
-                .write(&mut buf, &CURRENT_MC_VERSION);
+                .write(&mut buf, &version);
         }
         let _ = Metadata::new(tracked_data::trident::ID_FLAGS, self.get_flags())
-            .write(&mut buf, &CURRENT_MC_VERSION);
+            .write(&mut buf, &version);
         let _ = Metadata::new(
             tracked_data::trident::PIERCE_LEVEL,
             self.pierce_level.load(Ordering::Relaxed),
         )
-        .write(&mut buf, &CURRENT_MC_VERSION);
+        .write(&mut buf, &version);
         let _ = Metadata::new(tracked_data::trident::IN_GROUND, self.flight.is_in_ground())
-            .write(&mut buf, &CURRENT_MC_VERSION);
+            .write(&mut buf, &version);
         let _ = Metadata::new(
             tracked_data::trident::ID_LOYALTY,
             self.loyalty.load(Ordering::Relaxed),
         )
-        .write(&mut buf, &CURRENT_MC_VERSION);
+        .write(&mut buf, &version);
         let _ = Metadata::new(
             tracked_data::trident::ID_FOIL,
             self.foil.load(Ordering::Relaxed),
         )
-        .write(&mut buf, &CURRENT_MC_VERSION);
+        .write(&mut buf, &version);
 
         (!buf.is_empty()).then(|| {
             buf.put_u8(255);

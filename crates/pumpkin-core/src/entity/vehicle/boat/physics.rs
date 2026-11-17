@@ -1,5 +1,4 @@
 use pumpkin_data::Block;
-use pumpkin_data::BlockDirection;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 
@@ -40,35 +39,6 @@ impl BoatEntity {
         }
         bounds.min.y = bounds.min.y.max(top);
         Some(bounds)
-    }
-
-    pub(super) fn is_eye_in_water(&self) -> bool {
-        let entity = &self.vehicle.entity;
-        let eye = entity.get_eye_pos();
-        let bounds = entity.bounding_box.load();
-        let min_y = (bounds.min.y + WATER_OFFSET).floor() as i32;
-        let max_y = (bounds.max.y - WATER_OFFSET).ceil() as i32;
-        let world = entity.world.load();
-        for y in min_y..max_y {
-            let pos = BlockPos::new(eye.x.floor() as i32, y, eye.z.floor() as i32);
-            let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
-            if !fluid.has_tag(&tag::Fluid::MINECRAFT_WATER) || eye.y < f64::from(y) {
-                continue;
-            }
-            let height = if state.is_source
-                && world
-                    .get_block_state(&pos.up())
-                    .is_side_solid(BlockDirection::Down)
-            {
-                1.0
-            } else {
-                world.get_fluid_height(&pos, fluid, &state)
-            };
-            if eye.y <= f64::from(y) + f64::from(height) {
-                return true;
-            }
-        }
-        false
     }
 
     pub(super) fn get_status(&self) -> BoatStatus {
@@ -316,7 +286,9 @@ impl BoatEntity {
         }
         entity.set_pos(event.to);
         entity.set_rotation(yaw, pitch);
-        self.last_yd.store(entity.velocity.load().y);
+        // Client-controlled boats have their velocity zeroed every tick, so the accepted
+        // vertical delta is the only source for `last_yd` (mirrors `move_boat`).
+        self.last_yd.store(movement.y);
         self.record_movement(from, event.to, movement);
         self.position_rider(player);
         true

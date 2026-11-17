@@ -22,7 +22,7 @@ use pumpkin_data::sound::Sound;
 use pumpkin_protocol::java::client::play::{CEntityStatus, CGameEvent, GameEvent, Metadata};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
-use pumpkin_data::packet::CURRENT_MC_VERSION;
+use pumpkin_util::version::JavaMinecraftVersion;
 
 /// Represents the pickup rules for arrows
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -502,7 +502,7 @@ impl EntityBase for ArrowEntity {
         }
     }
 
-    fn java_spawn_metadata(&self) -> Option<Box<[u8]>> {
+    fn java_spawn_metadata(&self, version: JavaMinecraftVersion) -> Option<Box<[u8]>> {
         let entity = self.get_entity();
         let flags = self.get_flags();
         let pierce = self.pierce_level.load(Ordering::Relaxed);
@@ -515,21 +515,21 @@ impl EntityBase for ArrowEntity {
                 pumpkin_data::tracked_data::entity::DATA_SHARED_FLAGS_ID,
                 shared_flags,
             )
-            .write(&mut buf, &CURRENT_MC_VERSION);
+            .write(&mut buf, &version);
         }
         if entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
             let _ = Metadata::new(pumpkin_data::tracked_data::spectral_arrow::ID_FLAGS, flags)
-                .write(&mut buf, &CURRENT_MC_VERSION);
+                .write(&mut buf, &version);
             let _ = Metadata::new(
                 pumpkin_data::tracked_data::spectral_arrow::PIERCE_LEVEL,
                 pierce,
             )
-            .write(&mut buf, &CURRENT_MC_VERSION);
+            .write(&mut buf, &version);
             let _ = Metadata::new(
                 pumpkin_data::tracked_data::spectral_arrow::IN_GROUND,
                 in_ground,
             )
-            .write(&mut buf, &CURRENT_MC_VERSION);
+            .write(&mut buf, &version);
         } else {
             let item_stack = self
                 .item_stack
@@ -537,14 +537,14 @@ impl EntityBase for ArrowEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let color = Self::get_effect_color(&item_stack);
             let _ = Metadata::new(pumpkin_data::tracked_data::arrow::ID_FLAGS, flags)
-                .write(&mut buf, &CURRENT_MC_VERSION);
+                .write(&mut buf, &version);
             let _ = Metadata::new(pumpkin_data::tracked_data::arrow::PIERCE_LEVEL, pierce)
-                .write(&mut buf, &CURRENT_MC_VERSION);
+                .write(&mut buf, &version);
             let _ = Metadata::new(pumpkin_data::tracked_data::arrow::IN_GROUND, in_ground)
-                .write(&mut buf, &CURRENT_MC_VERSION);
+                .write(&mut buf, &version);
             if color != -1 {
                 let _ = Metadata::new(pumpkin_data::tracked_data::arrow::ID_EFFECT_COLOR, color)
-                    .write(&mut buf, &CURRENT_MC_VERSION);
+                    .write(&mut buf, &version);
             }
         }
         (!buf.is_empty()).then(|| {

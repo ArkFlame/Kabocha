@@ -214,3 +214,44 @@ impl ItemBehaviour for BoatItem {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::BoatItem;
+    use crate::entity::vehicle::boat::is_chest_boat;
+    use crate::item::ItemMetadata;
+    use pumpkin_data::entity::EntityType;
+    use pumpkin_data::item::Item;
+
+    #[test]
+    fn every_boat_item_round_trips_through_its_entity_type() {
+        for &id in BoatItem::ids().iter() {
+            let item = Item::from_id(id).expect("boat item metadata ids must resolve");
+            let entity_type = BoatItem::item_to_entity(item);
+            let round_trip = BoatItem::entity_to_item(entity_type)
+                .expect("every boat entity type must map back to its item");
+            assert_eq!(round_trip.id, item.id, "{}", item.registry_key);
+            assert_eq!(
+                is_chest_boat(entity_type),
+                item.registry_key.ends_with("chest_boat")
+                    || item.registry_key.ends_with("chest_raft"),
+                "chest boat classification drifted for {}",
+                item.registry_key
+            );
+        }
+    }
+
+    #[test]
+    fn poplar_boats_are_wired() {
+        assert!(is_chest_boat(&EntityType::POPLAR_CHEST_BOAT));
+        assert!(!is_chest_boat(&EntityType::POPLAR_BOAT));
+        assert_eq!(
+            BoatItem::item_to_entity(&Item::POPLAR_BOAT).id,
+            EntityType::POPLAR_BOAT.id
+        );
+        assert_eq!(
+            BoatItem::item_to_entity(&Item::POPLAR_CHEST_BOAT).id,
+            EntityType::POPLAR_CHEST_BOAT.id
+        );
+    }
+}

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use pumpkin_data::{entity::EntityType, world::WorldEvent};
+use pumpkin_data::{entity::EntityType, game_event::GameEvent, world::WorldEvent};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -13,6 +13,7 @@ use crate::{
         projectile::{HurtingProjectile, ProjectileHit, ThrownItemEntity, owner::ProjectileOwner},
     },
     server::Server,
+    world::game_event::GameEventContext,
 };
 
 pub const SPLASH_RANGE: f64 = 4.0;
@@ -150,6 +151,15 @@ impl EntityBase for DragonFireballEntity {
             .as_ref()
             .filter(|o| o.get_living_entity().is_some())
             .map(|o| o.get_entity());
+
+        // Vanilla `DragonFireball.onHit` announces the burst to vibration listeners.
+        world.emit_game_event_with_context(
+            GameEvent::EntityDamage.name(),
+            fireball_pos,
+            &GameEventContext {
+                source_entity: Some(self),
+            },
+        );
 
         let cloud_entity = Entity::new(world.clone(), cloud_pos, &EntityType::AREA_EFFECT_CLOUD);
         let cloud = AreaEffectCloudEntity::create_dragon_breath(cloud_entity, living_owner);

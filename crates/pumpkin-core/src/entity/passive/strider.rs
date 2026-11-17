@@ -105,12 +105,6 @@ impl Animal for StriderEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         item_stack.item.has_tag(&tag::Item::MINECRAFT_STRIDER_FOOD)
     }
-
-    /// Vanilla `Strider#usePlayerItem` plays the happy sound whenever it is fed.
-    fn use_player_item(&self, player: &Arc<Player>, item_stack: &mut ItemStack) {
-        self.play_entity_sound(Sound::EntityStriderHappy, 1.0, 1.0);
-        item_stack.decrement_unless_creative(player.gamemode.load(), 1);
-    }
 }
 
 impl Mob for StriderEntity {
@@ -120,19 +114,6 @@ impl Mob for StriderEntity {
 
     fn mob_controlling_passenger(&self) -> Option<Arc<dyn EntityBase>> {
         self.saddled_controlling_passenger(Some(&Item::WARPED_FUNGUS_ON_A_STICK))
-    }
-
-    fn get_ambient_sound(&self) -> Option<Sound> {
-        // Vanilla `Strider.getAmbientSound` is silent while panicking or tempted.
-        if self.is_panicking()
-            || self
-                .mob_entity
-                .goals_selector
-                .is_running::<TemptGoal>()
-        {
-            return None;
-        }
-        Some(Sound::EntityStriderAmbient)
     }
 
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
@@ -182,6 +163,10 @@ impl Mob for StriderEntity {
     fn can_use_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot != EquipmentSlot::SADDLE
             || (self.mob_entity.living_entity.entity.is_alive() && !self.is_baby())
+    }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        self.get_entity().entity_type.ambient_sound
     }
 
     fn get_equip_sound(&self, slot: &EquipmentSlot) -> Option<Sound> {

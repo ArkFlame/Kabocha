@@ -107,10 +107,6 @@ impl OminousItemSpawnerEntity {
 
     fn spawn_item(&self) {
         let item = self.get_item();
-        if item.is_empty() {
-            return;
-        }
-
         let world = self.entity.world.load();
         let pos = self.entity.pos.load();
         let spawned_entity = self
@@ -351,6 +347,12 @@ impl EntityBase for OminousItemSpawnerEntity {
     fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         self.entity.tick(caller, server);
         if self.entity.is_removed() {
+            return;
+        }
+        // Vanilla `OminousItemSpawner.tick` discards the entity as soon as it has no item
+        // (for example a saved spawner whose item failed to load).
+        if self.get_item().is_empty() {
+            self.entity.remove();
             return;
         }
 

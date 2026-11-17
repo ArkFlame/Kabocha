@@ -380,7 +380,7 @@ crate::impl_abstract_horse!(
                 living.heal(2.0);
             }
             let could_set_in_love =
-                self.is_tamed() && self.get_age() == 0 && !self.mob_entity.is_in_love();
+                self.is_tamed() && self.get_age() == 0 && self.can_fall_in_love();
             if could_set_in_love {
                 self.set_in_love(player);
             }
@@ -417,6 +417,10 @@ impl Animal for CamelEntity {
         } else {
             &tag::Item::MINECRAFT_CAMEL_FOOD
         })
+    }
+
+    fn can_fall_in_love(&self) -> bool {
+        !self.is_husk() && !self.mob_entity.is_in_love()
     }
 
     fn can_mate(&self, partner: &dyn EntityBase) -> bool {

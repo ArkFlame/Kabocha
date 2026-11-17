@@ -1,0 +1,20 @@
+# entities / Tadpole
+
+Coverage: RE-REVIEW (reviewed source changed).
+Re-reviewed 2026-11-16 against vanilla `net.minecraft.world.entity.animal.Tadpole` (plus `AbstractFish`, `WaterAnimal`), after commits `556733f82` (tadpole port) and `bbbb755a8` (bucket state, sound volume).
+
+## Verified matching (no gap)
+- `tadpole.rs:41-47` constants: 24000 ticks to frog, sound volume 0.15, SmoothSwimmingMoveControl 85/10/0.02/0.1(true), SmoothSwimmingLookControl 10. Match `Tadpole` field initialisers.
+- `tadpole.rs:160-239` `fish_mob_hooks!` + `AbstractFish`: silent step, no ambient sound, flop sound, no fluid push, no leash, `removeWhenFarAway = !fromBucket && !hasCustomName`, `requiresCustomPersistence = fromBucket || vehicle || leashed` — matches `AbstractFish`.
+- `abstract_fish.rs:52-55` goals: panic 1.25, FISH_FLEES avoid, RandomSwimming(1.0, 40) — matches `AbstractFish#registerGoals`.
+- `tadpole/ai.rs:37-96` CORE/IDLE activities, 2.0 panic, 0.5 idle swim, 1.25 temptation, look-at-player 6.0/30..60, gate ORDERED/TRY_ALL weights 2/3/5 — matches `Tadpole#makeBrain`.
+- `tadpole.rs:184-194`, `279-296`: NBT/bucket `Age` + `AgeLocked` and `FromBucket`, matching `Tadpole#addAdditionalSaveData`/`saveToBucketTag`.
+- `tadpole.rs:254-257` `sound_volume = 0.15` (vanilla `getSoundVolume`), used by grow-up sound at `tadpole.rs:143`.
+- `tadpole.rs:260-277` bucket item `TADPOLE_BUCKET` / `ItemBucketFillTadpole` match `Tadpole#getBucketItemStack`/`getPickupSound`.
+- `age_up` (`tadpole.rs:120-146`) converts on server, finalizes spawn with `Conversion`, persistence required, size-change fudge, grow-up sound — matches `Tadpole#ageUp`.
+
+## Remaining gaps
+1. `crates/pumpkin-core/src/entity/passive/tadpole.rs:49` — no `TadpoleVariant` (temperate/warm/cold): no field, no synced data, no biome selection in `finalize_spawn`, no NBT/bucket key `variant`. Vanilla class: `Tadpole` / `TadpoleVariant`. `pumpkin-data` has no tadpole variant at all (`crates/pumpkin-data/src/generated/tracked_data.rs:17973-17978` only `AGE_LOCKED`), so tracked data cannot be hand-written. Fix: Extractor entry for `tadpole_variant`, codegen `TadpoleVariant` (id, name, `frog_variant`) and `DATA_VARIANT`, then field + getter/setter + `finalize_spawn` biome pick + NBT/bucket persistence. Size: L (blocked on assets/codegen).
+2. `crates/pumpkin-core/src/entity/passive/tadpole.rs:131-135` — `age_up` does not carry the tadpole's variant to the frog; the frog variant only comes from the biome at conversion time (`crates/pumpkin-core/src/entity/passive/frog.rs:260-267`). Vanilla `Tadpole#ageUp` uses `TadpoleVariant#frogVariant()`, so a tadpole grown outside its spawn biome yields the wrong frog. Fix: after gap 1, `frog.set_variant(variant.frog_variant())` in the callback (after `finalize_spawn`, so it wins). Size: M (depends on gap 1).
+3. `crates/pumpkin-core/src/entity/passive/water_animal.rs:17-27` — `handle_air_supply` refills with `MAX_AIR` (300) so tadpoles/fish drown after ~15 s on land; vanilla `WaterAnimal#handleAirSupply` refills to `WATER_ANIMAL_MAX_AIR_SUPPLY = 4800` and damages at -20. Also `crates/pumpkin-core/src/entity/breath.rs` clamps/syncs air against the fixed `MAX_AIR`, so a naive 4800 would be clamped back. Vanilla class: `WaterAnimal`. Fix: add `WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = 4800`, pass it in `WaterAnimal::handle_air_supply`, and clamp against the entity's max air in `breath.rs`. Size: M (shared by all water animals).
+4. `crates/pumpkin-core/src/entity/passive/tadpole/ai.rs:85-91` — gate weight-5 entry is a no-op `trigger_if` (`is_in_water`); vanilla `Tadpole#makeBrain` wraps `RandomLookAround(0.001F)` in `RunIf(Entity::isInWater, ...)`, so idle tadpoles never pick a random look target in water. The same placeholder exists for frog (`frog/ai.rs:107`) and axolotl (`axolotl/ai.rs:215-225`), and no `RunIf` combinator exists in `crates/pumpkin-core/src/entity/ai/brain/behavior/`. Fix: add a `run_if(predicate, Box<dyn BehaviorControl>)` wrapper and use `run_if(is_in_water, Box::new(RandomLookAround::new(0.001)))` at weight 5 (plus the two other mobs). Size: M (shared helper).

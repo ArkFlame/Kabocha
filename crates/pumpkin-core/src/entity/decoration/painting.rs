@@ -19,7 +19,7 @@ use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::Metadata;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
-use pumpkin_data::packet::CURRENT_MC_VERSION;
+use pumpkin_util::version::JavaMinecraftVersion;
 
 /// The world stores a painting facing as a horizontal value: 0 south, 1 west,
 /// 2 north, 3 east (`Direction.get2DDataValue`). The entity data, and the spawn
@@ -50,13 +50,6 @@ const fn facing_to_horizontal(direction: BlockDirection) -> u8 {
     }
 }
 
-/// Vanilla `HangingEntity#setDirection` mirrors the horizontal facing into the
-/// entity yaw (`get2DDataValue() * 90`): south 0, west 90, north 180, east 270.
-/// The yaw is what the spawn packet and the saved entity carry to the client.
-const fn yaw_from_horizontal(value: u8) -> f32 {
-    (value & 3) as f32 * 90.0
-}
-
 /// Vanilla `BlockAttachedEntity.CHECK_INTERVAL`: support is re-validated every 100 ticks.
 const SUPPORT_CHECK_INTERVAL: u32 = 100;
 
@@ -82,16 +75,6 @@ impl PaintingEntity {
             attached_pos: AtomicCell::new(None),
             ticks_since_last_check: AtomicU32::new(0),
         }
-    }
-
-    /// Vanilla `HangingEntity#setDirection`: stores the facing data index and
-    /// sets yaw so rotation and facing never disagree.
-    pub fn set_direction(&self, direction: BlockDirection) {
-        self.entity
-            .data
-            .store(i32::from(direction.to_index()), Ordering::Relaxed);
-        self.entity
-            .set_rotation(yaw_from_horizontal(facing_to_horizontal(direction)), 0.0);
     }
 
     pub fn set_attached_pos(&self, pos: BlockPos) {
@@ -281,7 +264,10 @@ impl EntityBase for PaintingEntity {
             self.attached_pos
                 .store(Some(BlockPos(Vector3::new(x, y, z))));
         }
-        self.set_direction(facing_from_nbt(nbt));
+        let facing = facing_from_nbt(nbt);
+        self.entity
+            .data
+            .store(i32::from(facing.to_index()), Ordering::Relaxed);
         if let Some(variant_str) = nbt
             .get_string("variant")
             .or_else(|| nbt.get_string("Motive"))
@@ -325,13 +311,13 @@ impl EntityBase for PaintingEntity {
         }
     }
 
-    fn java_spawn_metadata(&self) -> Option<Box<[u8]>> {
+    fn java_spawn_metadata(&self, version: JavaMinecraftVersion) -> Option<Box<[u8]>> {
         let mut metadata = Vec::new();
         Metadata::new(
             pumpkin_data::tracked_data::painting::DATA_PAINTING_VARIANT_ID,
             self.variant_holder_id(),
         )
-        .write(&mut metadata, &CURRENT_MC_VERSION)
+        .write(&mut metadata, &version)
         .ok()?;
         metadata.push(255);
         Some(metadata.into_boxed_slice())
@@ -390,22 +376,6 @@ mod tests {
             assert!(direction.is_horizontal(), "{direction:?} is vertical");
             assert_eq!(facing_to_horizontal(direction), horizontal);
         }
-    }
-
-    #[test]
-    fn facing_round_trips_through_vanilla_yaw() {
-        // `HangingEntity#setDirection`: yaw = get2DDataValue() * 90.
-        for horizontal in 0u8..4 {
-            let direction = facing_from_horizontal(horizontal);
-            assert_eq!(
-                yaw_from_horizontal(facing_to_horizontal(direction)),
-                f32::from(horizontal) * 90.0
-            );
-        }
-        assert_eq!(yaw_from_horizontal(0), 0.0);
-        assert_eq!(yaw_from_horizontal(1), 90.0);
-        assert_eq!(yaw_from_horizontal(2), 180.0);
-        assert_eq!(yaw_from_horizontal(3), 270.0);
     }
 
     #[test]

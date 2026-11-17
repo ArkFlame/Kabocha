@@ -1,5 +1,4 @@
 use std::sync::RwLock;
-use std::sync::atomic::Ordering;
 
 use crate::entity::experience_orb::ExperienceOrbEntity;
 use crate::entity::projectile::owner::ProjectileOwner;
@@ -90,9 +89,7 @@ impl EntityBase for ExperienceBottleEntity {
             block_pos,
             WATER_COLOR,
         );
-        if !entity.silent.load(Ordering::Relaxed) {
-            world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
-        }
+        world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
 
         let mut rng = rand::rng();
         let xp_count = 3 + rng.random_range(0..5) + rng.random_range(0..5);

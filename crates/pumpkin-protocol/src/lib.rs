@@ -1,11 +1,3 @@
-//! Java and Bedrock packet encoding, decoding and version dispatch.
-//!
-//! Java packet ids come from `assets/packets.json` through codegen, so packet structs use
-//! the generated constants and resolve an id per client version. Serverbound packets
-//! implement `ServerPacket::read`, clientbound ones `ClientPacket::write_packet_data`.
-//! Lengths read from the wire are client controlled: bound every one before allocating.
-//! Bedrock packets are a separate implementation with their own codecs.
-
 #![deny(clippy::unwrap_used)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 

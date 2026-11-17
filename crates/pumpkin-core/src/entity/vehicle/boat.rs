@@ -14,10 +14,12 @@ use crate::entity::vehicle::minecart::container::{self, MinecartInventory};
 use crate::entity::vehicle::vehicle::VehicleEntity;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
+use crate::world::game_event::GameEventContext;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::translation;
@@ -36,6 +38,7 @@ const BACK_SEAT_OFFSET: f32 = -0.6;
 const ANIMAL_SEAT_SHIFT: f32 = 0.2;
 const CHEST_BOAT_CONTAINER_SIZE: usize = 27;
 const TIME_TO_EJECT: f32 = 60.0;
+const MAX_PASSENGERS: usize = 2;
 
 #[must_use]
 pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
@@ -85,18 +88,25 @@ impl BoatEntity {
         }
     }
 
-    const fn is_chest_boat(&self) -> bool {
-        is_chest_boat(self.vehicle.entity.entity_type)
-    }
-
-    fn get_max_passengers(&self) -> usize {
-        if self.is_chest_boat() { 1 } else { 2 }
-    }
-
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
-        // Vanilla `AbstractChestBoat.openCustomInventoryScreen` runs `openMenu` only for a
-        // non-spectator (`ChestBoat.interact` guards with `!player.isSpectator()`).
-        if player.is_spectator() {
+        // Vanilla AbstractChestBoat.openCustomInventoryScreen opens only when the boat is
+        // alive and either empty or ridden by the opener; ChestBoat.interact also rejects
+        // spectators. A boat occupied by someone else cannot be looted.
+        if player.is_spectator() || !self.vehicle.entity.is_alive() {
+            return false;
+        }
+        let passengers = self
+            .vehicle
+            .entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let opener_is_rider = passengers
+            .iter()
+            .any(|passenger| passenger.get_entity().entity_id == player.entity_id());
+        let occupied_by_other = !passengers.is_empty() && !opener_is_rider;
+        drop(passengers);
+        if occupied_by_other {
             return false;
         }
         let Some(inventory) = &self.inventory else {
@@ -113,7 +123,18 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        container::open(&self.vehicle.entity, player, inventory, title, false)
+        let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
+        if opened {
+            let world = self.vehicle.entity.world.load();
+            world.emit_game_event_with_context(
+                GameEvent::ContainerOpen.name(),
+                self.vehicle.entity.pos.load(),
+                &GameEventContext {
+                    source_entity: Some(player.as_ref()),
+                },
+            );
+        }
+        opened
     }
 
     pub fn set_paddles(&self, left: bool, right: bool) {
@@ -159,12 +180,9 @@ impl BoatEntity {
     }
 
     fn is_client_controlled(&self) -> bool {
-        self.vehicle
-            .entity
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .first()
+        // Vanilla `AbstractBoat.isControlledByLocalInstance` goes through
+        // `getControllingPassenger`, i.e. the first passenger that is a `LivingEntity`.
+        self.get_controlling_passenger()
             .is_some_and(|passenger| passenger.get_player().is_some())
     }
 
@@ -321,9 +339,9 @@ impl EntityBase for BoatEntity {
 
         let damaged = self.vehicle.damage_with_context(amount, source);
 
-        // Vanilla `ChestBoat.remove`: any destroying removal scatters the chest contents, even an
-        // instabuild break; only the boat item drop is creative-gated.
-        if will_break && self.vehicle.entity.is_removed() {
+        // Vanilla `AbstractBoat#hurt`: a destroying break runs `destroy` (chest contents plus the
+        // boat item) only when it is not an instabuild hit, so a creative break drops nothing.
+        if will_break && !creative && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
             if world.level_info.load().game_rules.entity_drops {
                 let position = self.vehicle.entity.block_pos.load();
@@ -336,12 +354,10 @@ impl EntityBase for BoatEntity {
                         ..Default::default()
                     });
                     let inventory: Arc<dyn Inventory> = container.clone();
-                    world.scatter_inventory(&position, &inventory);
+                    world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
                 }
-                if !creative
-                    && let Some(item) =
-                        Item::from_registry_key(self.vehicle.entity.entity_type.resource_name)
-                {
+                let resource_name = self.vehicle.entity.entity_type.resource_name;
+                if let Some(item) = Item::from_registry_key(resource_name) {
                     let mut stack = ItemStack::new(1, item);
                     if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
                         stack.set_data_component(CustomNameImpl {
@@ -357,8 +373,9 @@ impl EntityBase for BoatEntity {
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
+        // Vanilla `AbstractBoat.interact` gates boarding on `outOfControlTicks < 60`
+        // and secondary use only; it never probes the eye fluid.
         let can_add_passenger = self.ticks_underwater.load() < TIME_TO_EJECT
-            && !self.is_eye_in_water()
             && !player.get_entity().has_vehicle()
             && self
                 .vehicle
@@ -367,7 +384,7 @@ impl EntityBase for BoatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .len()
-                < self.get_max_passengers();
+                < MAX_PASSENGERS;
 
         if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
             return self.open_custom_inventory_screen(player);
@@ -409,6 +426,26 @@ impl EntityBase for BoatEntity {
             0.0
         } else {
             physics::DEFAULT_GRAVITY
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_chest_boat;
+    use pumpkin_data::entity::EntityType;
+
+    #[test]
+    fn chest_boat_detection_covers_every_chest_boat_entity_type() {
+        for entity_type in EntityType::ALL {
+            let expected = entity_type.resource_name.ends_with("_chest_boat")
+                || entity_type.resource_name == "bamboo_chest_raft";
+            assert_eq!(
+                is_chest_boat(entity_type),
+                expected,
+                "{}",
+                entity_type.resource_name
+            );
         }
     }
 }

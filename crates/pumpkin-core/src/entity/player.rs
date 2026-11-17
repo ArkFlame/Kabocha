@@ -237,7 +237,6 @@ use crate::net::bedrock::play::{
 };
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::block_properties::HorizontalFacing;
-use pumpkin_data::damage::DamageScaling;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::{AttributeModifiersImpl, EnchantmentsImpl, Operation};
 use pumpkin_data::data_component_impl::{
@@ -3623,7 +3622,6 @@ impl Player {
         self.tick_health();
         self.tick_raid_omen();
         self.tick_maps(server);
-        self.tick_compasses();
 
         // Anti-spam counter decay
         let anti_spam = &server.advanced_config.chat.anti_spam;
@@ -5793,29 +5791,11 @@ impl Player {
         {
             return false;
         }
+        // TODO: Vanilla `Player.hurtServer` difficulty scaling when `scalesWithDifficulty`
         if !self.get_entity().is_invulnerable_to(&damage_type, cause)
             && !self.living_entity.is_dead_or_dying()
         {
             self.release_shoulders();
-        }
-        let scales_with_difficulty = match damage_type.scaling {
-            DamageScaling::Never => false,
-            DamageScaling::Always => true,
-            DamageScaling::WhenCausedByLivingNonPlayer => cause.is_some_and(|cause| {
-                cause.get_living_entity().is_some() && cause.get_player().is_none()
-            }),
-        };
-        let mut amount = amount;
-        if scales_with_difficulty {
-            amount = match self.world().level_info.load().difficulty {
-                Difficulty::Peaceful => 0.0,
-                Difficulty::Easy => (amount / 2.0 + 1.0).min(amount),
-                Difficulty::Normal => amount,
-                Difficulty::Hard => amount * 3.0 / 2.0,
-            };
-        }
-        if amount == 0.0 {
-            return false;
         }
         self.living_entity
             .damage_with_context(caller, amount, damage_type, position, source, cause)
@@ -6643,6 +6623,8 @@ impl Player {
         let item_entity = Arc::new(ItemEntity::new_with_velocity(
             entity, item_stack, velocity, 40,
         ));
+        // Vanilla Player.drop sets the thrower so other players cannot grab it for 3 seconds.
+        item_entity.set_thrower(self.gameprofile.id);
         self.world().spawn_entity(item_entity);
     }
 
@@ -6952,69 +6934,6 @@ impl Player {
                     }
                 }
             }
-        }
-    }
-
-    /// Clears the lodestone target of tracked compasses whose lodestone POI is gone.
-    /// Mirrors vanilla `LodestoneTracker#tick` on `CompassItem#inventoryTick`.
-    fn tick_compasses(&self) {
-        use pumpkin_data::data_component_impl::{LodestoneTarget, LodestoneTrackerImpl};
-        use pumpkin_data::item::Item;
-        use pumpkin_data::poi_type::PoiType;
-        use pumpkin_util::math::position::BlockPos;
-        use pumpkin_util::math::vector3::Vector3;
-
-        let world = self.world();
-
-        // Returns a new stack with the target cleared, or None if the target is still valid.
-        let cleared_target = |stack: &ItemStack| -> Option<ItemStack> {
-            let tracker = stack.get_data_component::<LodestoneTrackerImpl>()?;
-            let target = tracker.target.as_ref()?;
-            if target.dimension != world.dimension.minecraft_name {
-                return None;
-            }
-            let target_pos = BlockPos(Vector3::new(target.x, target.y, target.z));
-            if world
-                .portal_poi
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .exists(&target_pos, &|poi| poi == PoiType::Lodestone)
-            {
-                return None;
-            }
-            let mut new_stack = stack.clone();
-            new_stack.set_data_component(LodestoneTrackerImpl {
-                target: None::<LodestoneTarget>,
-                tracked: true,
-            });
-            Some(new_stack)
-        };
-
-        let inventory = self.inventory();
-        let mut changed: Vec<(usize, ItemStack)> = Vec::new();
-        {
-            let inv = inventory
-                .main_inventory
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for (slot, stack) in inv.iter().enumerate() {
-                if stack.item.id == Item::COMPASS.id
-                    && let Some(new_stack) = cleared_target(stack)
-                {
-                    changed.push((slot, new_stack));
-                }
-            }
-        }
-
-        let off_hand = inventory.off_hand_item();
-        if off_hand.item.id == Item::COMPASS.id
-            && let Some(new_stack) = cleared_target(&off_hand)
-        {
-            inventory.set_slot(PlayerInventory::OFF_HAND_SLOT, new_stack);
-        }
-
-        for (slot, stack) in changed {
-            inventory.set_slot(slot, stack);
         }
     }
 

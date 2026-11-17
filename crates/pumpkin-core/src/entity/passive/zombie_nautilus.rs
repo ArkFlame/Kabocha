@@ -124,7 +124,7 @@ impl ZombieNautilusEntity {
 
     #[must_use]
     pub fn get_dash_sound(&self) -> Sound {
-        if self.get_entity().is_under_water() {
+        if self.get_entity().is_in_water() {
             Sound::EntityZombieNautilusDash
         } else {
             Sound::EntityZombieNautilusDashLand
@@ -133,7 +133,7 @@ impl ZombieNautilusEntity {
 
     #[must_use]
     pub fn get_dash_ready_sound(&self) -> Sound {
-        if self.get_entity().is_under_water() {
+        if self.get_entity().is_in_water() {
             Sound::EntityZombieNautilusDashReady
         } else {
             Sound::EntityZombieNautilusDashReadyLand
@@ -193,7 +193,7 @@ impl TamableAnimal for ZombieNautilusEntity {
 
 impl CustomSound for ZombieNautilusEntity {
     fn hurt_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_under_water() {
+        Some(if self.get_entity().is_in_water() {
             Sound::EntityZombieNautilusHurt
         } else {
             Sound::EntityZombieNautilusHurtLand
@@ -201,7 +201,7 @@ impl CustomSound for ZombieNautilusEntity {
     }
 
     fn death_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_under_water() {
+        Some(if self.get_entity().is_in_water() {
             Sound::EntityZombieNautilusDeath
         } else {
             Sound::EntityZombieNautilusDeathLand
@@ -281,7 +281,7 @@ impl Mob for ZombieNautilusEntity {
     }
 
     fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().is_under_water() {
+        Some(if self.get_entity().is_in_water() {
             Sound::EntityZombieNautilusAmbient
         } else {
             Sound::EntityZombieNautilusAmbientLand
