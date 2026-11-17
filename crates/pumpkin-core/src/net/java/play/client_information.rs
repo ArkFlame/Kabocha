@@ -8,6 +8,11 @@ impl JavaClient {
         player: &Arc<Player>,
         client_information: &SClientInformationPlay<'_>,
     ) {
+        // Vanilla (Paper) rejects a negative signed view distance instead of wrapping it.
+        if client_information.view_distance < 0 {
+            self.try_kick(&TextComponent::text("Invalid client settings"));
+            return;
+        }
         if let (Ok(main_hand), Ok(chat_mode)) = (
             Hand::try_from(client_information.main_hand.0),
             ChatMode::try_from(client_information.chat_mode.0),
