@@ -3100,7 +3100,7 @@ impl LivingEntity {
             // setDamageValue(maxDamage - random.nextInt(1 + random.nextInt(max(maxDamage - 3, 1))))
             if !preserved && let Some(max_damage) = item.get_max_damage() {
                 let mut rng = rand::rng();
-                let inner = rng.random_range(0..(max_damage - 3).max(1));
+                let inner = rng.random_range(0..=(max_damage - 3).max(1));
                 let outer = rng.random_range(0..=inner);
                 item.set_damage((max_damage - outer).max(0));
             }
