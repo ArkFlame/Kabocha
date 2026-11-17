@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -339,11 +337,30 @@ impl CommandSender {
         }
     }
 
+    /// Source for a player, who always runs commands in the player's own world.
     #[must_use]
-    pub fn into_source(self, server: &Arc<Server>) -> CommandSource {
-        match self {
+    pub fn player_source(player: Arc<Player>, server: &Arc<Server>) -> CommandSource {
+        CommandSource::new(
+            Self::Player(player.clone()),
+            player.world(),
+            Some(player.clone()),
+            player.position(),
+            {
+                let (yaw, pitch) = player.rotation();
+                Vector2::new(pitch, yaw)
+            },
+            player.get_display_name().get_text(),
+            player.get_display_name(),
+            server.clone(),
+        )
+    }
+
+    /// Returns `None` when no overworld is loaded to anchor the source.
+    #[must_use]
+    pub fn into_source(self, server: &Arc<Server>) -> Option<CommandSource> {
+        Some(match self {
             Self::Console => {
-                let (world, spawn_point) = Self::get_world_and_spawn_point(server);
+                let (world, spawn_point) = Self::get_world_and_spawn_point(server)?;
                 CommandSource::new(
                     Self::Console,
                     world,
@@ -355,19 +372,7 @@ impl CommandSender {
                     server.clone(),
                 )
             }
-            Self::Player(player) => CommandSource::new(
-                Self::Player(player.clone()),
-                player.world(),
-                Some(player.clone()),
-                player.position(),
-                {
-                    let (yaw, pitch) = player.rotation();
-                    Vector2::new(pitch, yaw)
-                },
-                player.get_display_name().get_text(),
-                player.get_display_name(),
-                server.clone(),
-            ),
+            Self::Player(player) => Self::player_source(player, server),
             Self::CommandBlock(command_entity, world) => {
                 let pos = command_entity.position;
 
@@ -390,7 +395,7 @@ impl CommandSender {
                 )
             }
             Self::Dummy => {
-                let (world, spawn_point) = Self::get_world_and_spawn_point(server);
+                let (world, spawn_point) = Self::get_world_and_spawn_point(server)?;
                 CommandSource::new(
                     Self::Dummy,
                     world,
@@ -402,18 +407,18 @@ impl CommandSender {
                     server.clone(),
                 )
             }
-        }
+        })
     }
 
-    fn get_world_and_spawn_point(server: &Arc<Server>) -> (Arc<World>, Vector3<f64>) {
-        let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    fn get_world_and_spawn_point(server: &Arc<Server>) -> Option<(Arc<World>, Vector3<f64>)> {
+        let world = server.get_world_from_dimension(&Dimension::OVERWORLD)?;
         let spawn_point = {
             let level_data = world.level_info.load();
 
             Vector3::new(level_data.spawn_x, level_data.spawn_y, level_data.spawn_z)
         };
 
-        (world, spawn_point.to_f64())
+        Some((world, spawn_point.to_f64()))
     }
 }
 

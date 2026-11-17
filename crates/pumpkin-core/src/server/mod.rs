@@ -536,8 +536,9 @@ impl Server {
         // with `DEFAULT_SPAWN_Y` before any chunk exists, so replace it with the real spawn
         // height once the spawn chunk can be generated; the console command source uses this
         // position for relative coordinates.
-        if is_new_world {
-            let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+        if is_new_world
+            && let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD)
+        {
             let (spawn_x, spawn_z, fallback_y) = {
                 let info = server.level_info.load();
                 (info.spawn_x, info.spawn_z, info.spawn_y)
@@ -768,17 +769,16 @@ impl Server {
     }
 
     /// Returns the world for `dimension`, falling back to the first loaded world.
-    pub fn get_world_from_dimension(&self, dimension: &Dimension) -> Arc<World> {
+    /// Returns the world for `dimension`, falling back to the first loaded world, or `None`
+    /// when no world is loaded.
+    #[must_use]
+    pub fn get_world_from_dimension(&self, dimension: &Dimension) -> Option<Arc<World>> {
         let worlds = self.worlds.load();
         worlds
             .iter()
             .find(|w| w.dimension.minecraft_name == dimension.minecraft_name)
             .cloned()
             .or_else(|| worlds.first().cloned())
-            .unwrap_or_else(|| {
-                error!("No default world exists");
-                std::process::exit(1);
-            })
     }
 
     /// Creates a world, or returns the overworld if its dimension is disabled.
@@ -788,7 +788,9 @@ impl Server {
                 "Cannot create world '{name}': dimension {} is disabled",
                 dimension.minecraft_name
             );
-            return self.get_world_from_dimension(&Dimension::OVERWORLD);
+            if let Some(overworld) = self.get_world_from_dimension(&Dimension::OVERWORLD) {
+                return overworld;
+            }
         }
 
         self.spawn_world(name, dimension, &WorldWeatherSettings::default(), None)
@@ -1902,9 +1904,10 @@ impl Server {
         #[cfg(profiler)]
         let functions_profile =
             pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::Functions);
-        let source = crate::command::CommandSender::Console
-            .into_source(self)
-            .with_silent();
+        let Some(source) = crate::command::CommandSender::Console.into_source(self) else {
+            return;
+        };
+        let source = source.with_silent();
         // `#minecraft:load` runs from the tick, before the automatic tick functions.
         if self.datapack_manager.take_load_pending() {
             let _ = self

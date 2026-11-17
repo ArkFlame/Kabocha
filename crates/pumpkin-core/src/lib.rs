@@ -830,11 +830,13 @@ fn setup_stdin_console(server: &Arc<Server>) {
                 .plugin_manager
                 .fire(&server_clone, &mut event)
                 .await;
-            if !event.cancelled {
-                server_clone.command_dispatcher.load().handle_command(
-                    &command::CommandSender::Console.into_source(&server_clone),
-                    command.as_str(),
-                );
+            if !event.cancelled
+                && let Some(source) = command::CommandSender::Console.into_source(&server_clone)
+            {
+                server_clone
+                    .command_dispatcher
+                    .load()
+                    .handle_command(&source, command.as_str());
             }
         }
     });
@@ -902,11 +904,13 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
             if let Some(line) = result {
                 let mut event = ServerCommandEvent::new(line.clone());
                 server.plugin_manager.fire(&server, &mut event).await;
-                if !event.cancelled {
-                    server.command_dispatcher.load().handle_command(
-                        &command::CommandSender::Console.into_source(&server),
-                        &line,
-                    );
+                if !event.cancelled
+                    && let Some(source) = command::CommandSender::Console.into_source(&server)
+                {
+                    server
+                        .command_dispatcher
+                        .load()
+                        .handle_command(&source, &line);
                 }
                 let _ = tx_reply.send(1).await;
             } else {

@@ -2401,7 +2401,9 @@ impl Player {
         let world = if self.world().dimension == respawn_point.dimension {
             self.world()
         } else if let Some(server) = self.world().server.upgrade() {
-            server.get_world_from_dimension(&respawn_point.dimension)
+            server
+                .get_world_from_dimension(&respawn_point.dimension)
+                .unwrap_or_else(|| self.world())
         } else {
             self.world()
         };
@@ -8540,7 +8542,7 @@ impl Player {
     }
 
     pub fn get_command_source(self: &Arc<Self>, server: &Arc<Server>) -> CommandSource {
-        CommandSender::Player(self.clone()).into_source(server)
+        CommandSender::player_source(self.clone(), server)
     }
 
     pub fn has_advancement(

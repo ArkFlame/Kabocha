@@ -467,7 +467,9 @@ impl Completer for PumpkinCommandCompleter {
         };
 
         let dispatcher = server.command_dispatcher.load();
-        let source = CommandSender::Console.into_source(server);
+        let Some(source) = CommandSender::Console.into_source(server) else {
+            return Ok((0, Vec::new()));
+        };
 
         // Temporary setups to unify both dispatchers for now:
 

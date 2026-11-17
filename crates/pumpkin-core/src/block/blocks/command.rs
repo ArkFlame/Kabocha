@@ -170,7 +170,10 @@ impl CommandBlock {
             return;
         }
 
-        let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
+        let Some(source) = CommandSender::CommandBlock(command_entity, world).into_source(server)
+        else {
+            return;
+        };
 
         server
             .command_dispatcher

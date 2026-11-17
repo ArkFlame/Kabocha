@@ -1700,7 +1700,9 @@ impl DatapackManager {
         server: &Arc<Server>,
         name: &str,
     ) -> Result<usize, String> {
-        let source = crate::command::CommandSender::Console.into_source(server);
+        let source = crate::command::CommandSender::Console
+            .into_source(server)
+            .ok_or_else(|| "no overworld is loaded".to_string())?;
         server
             .datapack_manager
             .execute_function(server, &source, name)
@@ -2763,7 +2765,9 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert("test:fanout".to_string(), lines.into());
 
-        let source = crate::command::CommandSender::Console.into_source(&server);
+        let source = crate::command::CommandSender::Console
+            .into_source(&server)
+            .expect("test server has an overworld");
         let error = server
             .datapack_manager
             .execute_function(&server, &source, "test:fanout")
@@ -2786,7 +2790,9 @@ mod tests {
                 vec!["function test:self".to_string()].into(),
             );
 
-        let source = crate::command::CommandSender::Console.into_source(&server);
+        let source = crate::command::CommandSender::Console
+            .into_source(&server)
+            .expect("test server has an overworld");
         let error = server
             .datapack_manager
             .execute_function(&server, &source, "test:self")

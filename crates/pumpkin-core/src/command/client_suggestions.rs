@@ -26,7 +26,7 @@ pub fn send_c_commands_packet(
     dispatcher: &CommandDispatcher,
 ) {
     let mut proto_nodes: Vec<ProtoNode> = Vec::with_capacity(dispatcher.tree.len());
-    let source = &super::CommandSender::Player(player.clone()).into_source(server);
+    let source = &super::CommandSender::player_source(player.clone(), server);
     for node in &dispatcher.tree {
         let children: Box<[VarInt]> = match node {
             AttachedNode::Root(_) => {

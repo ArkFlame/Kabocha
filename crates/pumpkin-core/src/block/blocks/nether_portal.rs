@@ -138,12 +138,15 @@ impl BlockBehaviour for NetherPortalBlock {
             return;
         }
 
-        let target_world =
+        let target_dimension =
             if args.world.dimension.minecraft_name == Dimension::THE_NETHER.minecraft_name {
-                args.server.get_world_from_dimension(&Dimension::OVERWORLD)
+                &Dimension::OVERWORLD
             } else {
-                args.server.get_world_from_dimension(&Dimension::THE_NETHER)
+                &Dimension::THE_NETHER
             };
+        let Some(target_world) = args.server.get_world_from_dimension(target_dimension) else {
+            return;
+        };
 
         if Arc::ptr_eq(&target_world, args.world) {
             return;

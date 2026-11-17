@@ -30,7 +30,9 @@ async fn disconnected_players_are_released() -> Result<(), Box<dyn std::error::E
         ..Default::default()
     };
     let server = Server::new(basic, advanced, telemetry, data, Vec::new()).await?;
-    let world = server.get_world_from_dimension(&pumpkin_data::dimension::Dimension::OVERWORLD);
+    let world = server
+        .get_world_from_dimension(&pumpkin_data::dimension::Dimension::OVERWORLD)
+        .expect("test server has an overworld");
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let mut retained_players = Vec::new();
     for id in 0..16 {

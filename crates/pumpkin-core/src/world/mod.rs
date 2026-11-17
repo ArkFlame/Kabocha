@@ -5026,10 +5026,10 @@ impl World {
         let data_kept = u8::from(alive);
 
         let server = self.server.upgrade();
-        let default_world = server.as_ref().map_or_else(
-            || self.clone(),
-            |s| s.get_world_from_dimension(&Dimension::OVERWORLD),
-        );
+        let default_world = server
+            .as_ref()
+            .and_then(|s| s.get_world_from_dimension(&Dimension::OVERWORLD))
+            .unwrap_or_else(|| self.clone());
 
         // Copy spawn info from default world level_info to avoid holding lock across await
         let (spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, keep_inventory) = {

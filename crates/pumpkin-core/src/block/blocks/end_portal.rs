@@ -25,12 +25,15 @@ impl BlockBehaviour for EndPortalBlock {
             return;
         }
 
-        let target_world =
+        let target_dimension =
             if args.world.dimension.minecraft_name == Dimension::THE_END.minecraft_name {
-                args.server.get_world_from_dimension(&Dimension::OVERWORLD)
+                &Dimension::OVERWORLD
             } else {
-                args.server.get_world_from_dimension(&Dimension::THE_END)
+                &Dimension::THE_END
             };
+        let Some(target_world) = args.server.get_world_from_dimension(target_dimension) else {
+            return;
+        };
         if Arc::ptr_eq(&target_world, args.world) {
             return;
         }
