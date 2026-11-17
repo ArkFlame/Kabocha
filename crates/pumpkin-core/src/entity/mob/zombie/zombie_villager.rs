@@ -306,17 +306,11 @@ impl ZombieVillagerEntity {
                 let Some(villager) = converted.cast_any().downcast_ref::<VillagerEntity>() else {
                     return;
                 };
-                {
-                    let mut inventory = villager
-                        .inventory
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    for (slot, stack) in kept {
-                        let index = slot.get_slot_index() as usize;
-                        if let Some(inventory_slot) = inventory.get_mut(index) {
-                            *inventory_slot = stack;
-                        }
-                    }
+                // Vanilla finishConversion: setItemSlot + setDropChance(slot, 2.0F), so the
+                // binding gear stays worn and the cured villager can never drop it.
+                for (slot, stack) in kept {
+                    villager.mob_entity.set_item_slot(&slot, stack);
+                    villager.mob_entity.set_guaranteed_drop(&slot);
                 }
                 villager.set_villager_data_finalized(self.get_villager_data_finalized());
                 let mut nbt = self

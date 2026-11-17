@@ -3,6 +3,7 @@ mod dismount;
 mod passengers;
 mod physics;
 
+use pumpkin_data::tag::Taggable;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -17,6 +18,7 @@ use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use crate::server::Server;
 
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -375,11 +377,19 @@ impl EntityBase for BoatEntity {
                     let inventory: Arc<dyn Inventory> = container.clone();
                     world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
                 }
-                // Vanilla `AbstractBoat.destroy` drops the plain pick item: the entity custom
-                // name is not copied onto it.
-                let resource_name = self.vehicle.entity.entity_type.resource_name;
-                if let Some(item) = Item::from_registry_key(resource_name) {
-                    world.drop_stack(&position, ItemStack::new(1, item));
+                // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
+                // copies the entity custom name onto the dropped item.
+                if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
+                    let resource_name = self.vehicle.entity.entity_type.resource_name;
+                    if let Some(item) = Item::from_registry_key(resource_name) {
+                        let mut stack = ItemStack::new(1, item);
+                        if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
+                            stack.set_data_component(CustomNameImpl {
+                                name: custom_name.clone(),
+                            });
+                        }
+                        world.drop_stack(&position, stack);
+                    }
                 }
             }
         }

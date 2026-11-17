@@ -75,3 +75,47 @@ hearts although `can_mate` always refuses) is present in the tree: `camel.rs:382
 
 `docs/tracker/tentities-camel-husk.md` is the earlier audit of the same row (pre-`095f5c12c`); its
 "falling in love" gap is fixed and its line numbers have drifted. This file supersedes it.
+
+## Pass 3 (2026-11-17, HEAD 3a30dba8b, master 158272eac)
+
+The "source changed" signal is stale again. `git log` on `camel.rs`, `camel/ai.rs` and `husk.rs`
+still ends at `095f5c12c`, and `git log HEAD..master -- <those files> abstract_horse.rs mob/mod.rs
+animal.rs` is empty: no upstream commit touched the reviewed source between this branch base and
+current master. Re-read the whole pass-2 diff; nothing below is invalidated.
+
+### Fixed in this pass
+
+- **Camel and camel husk blocked nearby beds.** `Mob::is_preventing_player_rest` defaults to
+  `true` (`entity/mob/mod.rs:2512`), but vanilla `Animal.isPreventingPlayerRest` returns `false`,
+  and `CamelHusk` is a `Camel` (an `Animal`). Added the override in `camel.rs:465-470`, which
+  covers both the camel and the camel husk because they share `CamelEntity`. Pass-2 gap 3 is now
+  fixed for this row; the same default still affects every other `Animal` in the tree (cow, sheep,
+  ...). The family-wide fix belongs in the `Mob` default (`as_animal().is_none()` plus explicit
+  `Villager` handling), noted here but out of this row's scope. Size S.
+
+### Confirmed, not gaps
+
+- **Persistence on hand interaction** (`camel.rs:474-486`) is the same deliberately used pattern as
+  `ZombieHorseEntity::mob_interact_with_hand` (`passive/zombie_horse.rs:168-180`), so it is not
+  husk-only copy-paste. Pass-2 gap 4's persistence question is closed; `canFallInLove` and
+  `isMobControlled` readings still come from inference.
+
+### Remaining gaps (unchanged, line numbers shifted +6 after camel.rs:461)
+
+1. **Numeric constants unconfirmed** - `HUSK_STEP_VOLUME = 0.4` (`camel.rs:48`, used
+   `camel.rs:459-461`) and the `4.0` husk charge modifier (`camel.rs:434-440`, camel 1.0).
+   Plausible but unproven without `CamelHusk.java`. Fix: drop decompiled sources into `.vendor/`
+   and diff. Size M.
+2. **Jockey formation unconfirmed** - `mob/zombie/husk.rs:63-88` gives the spear to the spawning
+   husk, then mounts a parched on the new camel husk and the husk behind it (three entities). The
+   analogous zombie-horse jockey (`passive/zombie_horse.rs:86-100`) spawns exactly one rider and
+   gives that rider the spear, which suggests the husk path should keep two entities and the spear
+   on the parched, but vanilla `Husk.finalizeSpawn` is not available to confirm whether the
+   spawning husk is discarded. Fix: compare with vanilla 1.21.10+ and add a `pumpkin-gametest`
+   asserting rider count and spear holder. Size M.
+3. **`is_preventing_player_rest` family default** - still `true` at `entity/mob/mod.rs:2512`; only
+   `zombified_piglin.rs:180` overrides. Row scope fixed above; other Animals and villagers still
+   block sleep. Size S, belongs to `Mob`/`Animal` defaults.
+4. **`canFallInLove` / `isMobControlled` need `.vendor/` confirmation** - the current readings
+   (false / first passenger is a mob) are the self-consistent ones given `can_mate == false` and
+   the jockey path. Size S.

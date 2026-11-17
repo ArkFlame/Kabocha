@@ -1298,6 +1298,13 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                             && !other.is_passenger()
                             && other.is_pushable()
                             && other.get_entity().riding_cooldown.load(Relaxed) == 0
+                            // Vanilla AbstractBoat.hasEnoughSpaceFor and the
+                            // CANNOT_BE_PUSHED_ONTO_BOATS tag gate the pickup.
+                            && other.get_entity().entity_dimension.load().width
+                                < self_entity.entity_dimension.load().width
+                            && !other.get_entity().entity_type.has_tag(
+                                &tag::EntityType::MINECRAFT_CANNOT_BE_PUSHED_ONTO_BOATS,
+                            )
                             && let Some(self_arc) = world.get_entity_by_id(self_entity.entity_id)
                         {
                             self_entity.add_passenger(self_arc, other.clone());
