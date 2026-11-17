@@ -13,3 +13,9 @@ Placement path (`use_on_block`, collision-shape raycast for the `minecraft:cushi
 | cushion.rs:414 (`damage_with_context`) | `HangingEntity.hurtServer`: a hit on an already removed entity reports the hit as handled so one cushion cannot drop twice in a tick; `painting.rs:350` returns `true` there, cushion returns `false` | return `true` when `!self.entity.is_alive()` | S | **FIXED** (d9e6b4a22)
 | cushion.rs:306-314 (`write_custom_nbt` / `read_custom_nbt`) | `Cushion.addAdditionalSaveData` / `readAdditionalSaveData`: colour is a byte read back through a valid `DyeColor` (0..=15) | clamp on read with `DyeColor::by_id(...)`/`by_id_or_white` so a corrupt save cannot sync a dye id outside 0..=15 to the client | S | **FIXED** (already at HEAD)
 | cushion.rs:426 (`mod tests`) | placement and support rules of `Cushion.canBePlacedAt` / `wouldSurviveAt` and item placement | add `pumpkin-gametest` cases: place on a full block and on a slab, reject with no anchor, reject under a suffocating block, and drop the item after the support block is removed (after 100 ticks) | M |
+
+## h6 pass 2 status
+- Row drop gating (cushion.rs drop_and_remove): already gated on game_rules.entity_drops in code. Creative-attacker no-drop: STILL OPEN, not verified this pass.
+- Row game events ENTITY_MOUNT/ENTITY_DISMOUNT (M-ish S): STILL OPEN, touches shared Entity::add_passenger, out of this slice.
+- Row hit on removed entity returns true: FIXED 8ef7e78b6 (decoration/cushion.rs damage_with_context). No unit test: needs world fixture.
+- Row dye colour clamp on read: already FIXED in code (by_id_or_white in read_custom_nbt).
