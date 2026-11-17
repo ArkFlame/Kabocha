@@ -528,6 +528,20 @@ impl SpawnState {
                     <= cost.energy_budget
             })
     }
+
+    /// Mirrors vanilla `NaturalSpawner.SpawnState::afterSpawn`: a mob spawned this tick
+    /// counts towards the global cap and the nearby players' local caps immediately,
+    /// not only from the next tick's rebuilt state.
+    pub fn after_spawn(&self, world: &World, entity: &dyn EntityBase) {
+        let base_entity = entity.get_entity();
+        let category = base_entity.entity_type.category;
+        if category == &MobCategory::MISC {
+            return;
+        }
+        self.mob_category_counts.add(category);
+        self.local_mob_cap_calculator
+            .add_mob(base_entity.chunk_pos.load(), world, category);
+    }
 }
 
 #[must_use]
@@ -892,6 +906,7 @@ pub fn spawn_category_for_position(
                             crate::plugin::api::events::entity::creature_spawn::CreatureSpawnReason::Natural,
                             None,
                         ) {
+                            spawn_state.after_spawn(world, entity.as_ref());
                             world.spawn_entity_non_save(entity);
                         }
                         if cluster_size >= entity_type.limit_per_chunk {
@@ -1248,6 +1263,32 @@ mod tests {
         let entities = ArcSwap::from_pointee(vec![entity]);
 
         let state = SpawnState::new(289, &entities, &world);
+
+        assert_eq!(
+            state.mob_category_counts.0[MobCategory::MONSTER.id].load(Relaxed),
+            1
+        );
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn after_spawn_updates_category_counts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::{ai::test_support::world, r#type::from_type};
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let entities: ArcSwap<Vec<Arc<dyn EntityBase>>> = ArcSwap::from_pointee(Vec::new());
+        let state = SpawnState::new(289, &entities, &world);
+
+        let entity: Arc<dyn EntityBase> = from_type(
+            &EntityType::ZOMBIE,
+            Vector3::new(8.0, 64.0, 8.0),
+            &world,
+            Uuid::new_v4(),
+        );
+        state.after_spawn(&world, entity.as_ref());
 
         assert_eq!(
             state.mob_category_counts.0[MobCategory::MONSTER.id].load(Relaxed),
