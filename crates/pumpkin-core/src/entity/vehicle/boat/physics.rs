@@ -316,7 +316,9 @@ impl BoatEntity {
         }
         entity.set_pos(event.to);
         entity.set_rotation(yaw, pitch);
-        self.last_yd.store(entity.velocity.load().y);
+        // Client-controlled boats have their velocity zeroed every tick, so the accepted
+        // vertical delta is the only source for `last_yd` (mirrors `move_boat`).
+        self.last_yd.store(movement.y);
         self.record_movement(from, event.to, movement);
         self.position_rider(player);
         true
