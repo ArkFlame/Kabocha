@@ -48,17 +48,10 @@ impl JavaClient {
                 gameprofile.id,
                 err
             );
-            if err.is_kick() {
-                if let Some(reason) = err.client_kick_reason() {
-                    self.kick(TextComponent::text(reason)).await;
-                }
-            } else if let Some(key) = err.client_message() {
-                // Vanilla `handleMessageDecodeFailure` reports the problem to the client in red
-                // and drops the message instead of disconnecting.
-                player.send_system_message(
-                    &TextComponent::translate(key, [])
-                        .color_named(pumpkin_util::text::color::NamedColor::Red),
-                );
+            if err.is_kick()
+                && let Some(reason) = err.client_kick_reason()
+            {
+                self.kick(TextComponent::text(reason)).await;
             }
             return;
         }
@@ -175,28 +168,46 @@ impl JavaClient {
                 return Err(ChatError::ChatValidationFailed);
             }
 
-            let acknowledged = {
+            {
                 let mut cache = player
                     .signature_cache
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let acknowledged = cache
+                if !chat_message.acknowledged.is_empty() {
+                    if cache
+                        .last_seen_validator
+                        .apply_update(offset as usize, chat_message.acknowledged)
+                        .is_err()
+                    {
+                        return Err(ChatError::ChatValidationFailed);
+                    }
+                } else if cache
                     .last_seen_validator
-                    .apply_update(offset as usize, chat_message.acknowledged)
-                    .map_err(|_| ChatError::ChatValidationFailed)?;
+                    .apply_offset(offset as usize)
+                    .is_err()
+                {
+                    return Err(ChatError::ChatValidationFailed);
+                }
 
                 if cache.last_seen_validator.tracked_messages_count() > 4096 {
                     return Err(ChatError::TooManyPendingChats);
                 }
-                acknowledged
-            };
+            }
 
-            // Vanilla `LastSeenMessages.Update#verifyChecksum` hashes the entries this update
-            // acknowledges, not the local last-seen list; 0 means the client skips the check.
-            if chat_message.checksum != 0
-                && polynomial_rolling_hash(&acknowledged) != chat_message.checksum
-            {
-                return Err(ChatError::ChatValidationFailed);
+            // Validate previous signature checksum (new in 1.21.5)
+            // The client can bypass this check by sending 0
+            if chat_message.checksum != 0 {
+                let checksum = polynomial_rolling_hash(
+                    player
+                        .signature_cache
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .last_seen
+                        .as_ref(),
+                );
+                if checksum != chat_message.checksum {
+                    return Err(ChatError::ChatValidationFailed);
+                }
             }
         }
         Ok(())
@@ -210,31 +221,6 @@ impl JavaClient {
     ) {
         // Keep the chat session default if we don't want reports
         if !server.basic_config.allow_chat_reports {
-            return;
-        }
-
-        // Vanilla `ServerGamePacketListenerImpl#handleChatSessionUpdate`: a client re-sending the
-        // key data it already uses changes nothing.
-        {
-            let current = player
-                .chat_session
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if current.expires_at == session.expires_at
-                && current.public_key.as_ref() == session.public_key.as_ref()
-                && current.signature.as_ref() == session.key_signature.as_ref()
-            {
-                return;
-            }
-        }
-
-        // Vanilla ignores the update with a warning when the services profile-key validator is
-        // unavailable, instead of disconnecting the player.
-        if server.mojang_public_keys.load().is_empty() {
-            warn!(
-                "Ignoring chat session from {} due to missing services public key",
-                player.gameprofile.name
-            );
             return;
         }
 
