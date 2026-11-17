@@ -74,7 +74,6 @@ impl SkeletonEntityBase {
             goal_selector.add_goal(3, Box::new(FleeSunGoal::new(1.0)));
             fleeing::apply(goal_selector, SKELETON_FLEES);
             // Vanilla `reassessWeaponGoal`: the bow or the melee goal at 4, by the held weapon.
-            // TODO: parched attack interval (vanilla bogged overrides to 70/50, see bogged.rs).
             goal_selector.add_goal(
                 4,
                 Box::new(BowAttackGoal::new(1.0, SKELETON_ATTACK_INTERVAL, 15.0)),
