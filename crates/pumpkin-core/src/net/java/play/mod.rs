@@ -101,8 +101,8 @@ impl PumpkinError for BlockPlacingError {
 
     fn severity(&self) -> Level {
         match self {
-            Self::BlockOutOfWorld | Self::InvalidGamemode => Level::TRACE,
-            Self::BlockOutOfReach | Self::InvalidBlockFace | Self::InvalidHand => Level::WARN,
+            Self::BlockOutOfWorld | Self::InvalidGamemode | Self::BlockOutOfReach => Level::TRACE,
+            Self::InvalidBlockFace | Self::InvalidHand => Level::WARN,
         }
     }
 
