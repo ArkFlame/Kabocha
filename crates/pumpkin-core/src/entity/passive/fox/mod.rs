@@ -377,8 +377,12 @@ impl FoxEntity {
         let world = entity.world.load();
         if !self.mob_entity.is_no_ai() {
             let in_water = entity.touching_water.load(Ordering::Relaxed);
+            // Vanilla wakes the fox in powder snow as well.
             if self.is_sleeping()
-                && (in_water || self.mob_entity.get_target().is_some() || is_thundering(&world))
+                && (in_water
+                    || entity.is_in_powder_snow()
+                    || self.mob_entity.get_target().is_some()
+                    || is_thundering(&world))
             {
                 self.set_sleeping(false);
             }
