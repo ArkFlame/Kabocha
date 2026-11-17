@@ -25,6 +25,11 @@ Fixed in this pass:
   `Player.isSweepAttack` (grounded, `movement <= speed * 2.5`).
 - `combat.rs:214-223` - `handle_knockback` now interrupts the attacker's sprint like
   `LivingEntity.causeExtraKnockback`.
+- `combat.rs:129-147` - `mace_smash_knockback` used the horizontal distance for the 3.5
+  radius test, the power falloff and the push direction. Vanilla `MaceItem.knockback` uses
+  the full 3D offset (`distanceToSqr <= 12.25`, `(3.5 - offset.length()) * 0.7 * heavy *
+  (1 - resistance)`, `vec3.normalize()`), so entities above or below the victim were pushed
+  as if level with it.
 
 Remaining gaps:
 
