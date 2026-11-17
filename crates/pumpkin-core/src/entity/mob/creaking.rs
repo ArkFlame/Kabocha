@@ -18,10 +18,13 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
 use crate::entity::{
     Entity, EntityBase,
-    ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+    ai::{
+        goal::{
+            active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
+            look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
+            wander_around::WanderAroundGoal,
+        },
+        pathfinder::node::PathType,
     },
     mob::{Mob, MobEntity},
     player::Player,
@@ -57,7 +60,20 @@ pub struct CreakingEntity {
 
 impl CreakingEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        // Vanilla `Creaking` keeps it away from damaging blocks, powder snow and lava, and
+        // avoids fire entirely.
+        {
+            let navigator = mob_entity
+                .navigator
+                .get_mut()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            navigator.set_pathfinding_malus(PathType::DamageOther, 8.0);
+            navigator.set_pathfinding_malus(PathType::PowderSnow, 8.0);
+            navigator.set_pathfinding_malus(PathType::Lava, 8.0);
+            navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
+            navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
+        }
         let creaking = Self {
             mob_entity,
             can_move: AtomicBool::new(true),
