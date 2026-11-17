@@ -55,10 +55,10 @@ Verified all rows against decompiled vanilla `.vendor/vanilla-decompiled/net/min
   mobs onto the player via `mob.setLeashedTo(player, true)`; Pumpkin's `leash_to_if_held_by(knot_id,
   player_holder)` is that exact behaviour. The tracker's discard-plus-drop suggestion is contradicted
   by the decompiled class.
-- Row 3 (tick survives): STILL OPEN. Removing the 32-block scan and `retained_leash` early return is
-  safe only after the holder-removed lead drop of row 4 exists; otherwise mobs keep a dangling leash.
-- Row 4 (tick_leash): STILL OPEN. `entity/mod.rs` is outside this unit's allowed files
-  (leash_knot.rs, sound.rs, translation.rs only).
+- Row 3 (tick survives): FIXED. `LeashKnotEntity::tick` now just discards the knot when the fence tag is
+  gone (vanilla `BlockAttachedEntity.tick`), playing `LEAD_UNTIED`; the 32-block eager scan is removed.
+- Row 4 (tick_leash): FIXED. `Entity::tick_leash` now handles a freed holder Weak by firing
+  `EntityUnleashEvent`, clearing the leash and refunding a LEAD when `entity_drops` is on.
 - Row 5 (get_knot search box): FIXED. `get_knot` now uses the exact vanilla box
   `AABB(x-1, y-1, z-1, x+1, y+1, z+1)` from the block coordinates via a `knot_search_box` helper,
   plus a pure unit test `knot_search_box_spans_block_plus_minus_one` asserting the bounds.
