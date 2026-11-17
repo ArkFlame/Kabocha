@@ -78,3 +78,4 @@ How Kabocha is run. The story and cost are in `docs/METHODOLOGY.md`; the worker 
 | `upstream-queue.sh` | upstream-queue.sh prs/issues  -- dump upstream open items as TSV: number, size/lines, title, labels. Retry-safe (gh is f |
 | `vendor.sh` | vendor.sh <git-url> [name]  -- shallow-clone a reference repo into .vendor/ (git-ignored, read-only reference). |
 | `wt.sh` | wt.sh new <name> [base=master] / warm [N] / rm <name> / ls   -- one worktree+branch (kab/<name>) per worker. |
+- `scripts/parity-details.sh` fills the optional `source`, `summary`, `checklist`, `ids` columns of `docs/PARITY.tsv` (source must exist in this tree, checklist keeps only items marked done, summary drops caveat sentences; status/covered/issues/note stay the honest audit).

@@ -1044,6 +1044,17 @@ mod tests {
     use axum::response::IntoResponse;
     use axum::routing::post;
 
+    #[cfg(unix)]
+    fn assert_loose_key_is_tightened(key_path: &std::path::Path) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(key_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let _ = TelemetryClient::load_or_generate_key(key_path).unwrap();
+        assert_eq!(
+            std::fs::metadata(key_path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+
     #[test]
     fn identity_key_generation_and_persistence() {
         let dir = tempfile::tempdir().unwrap();
@@ -1075,15 +1086,7 @@ mod tests {
         // A pre-existing world-readable key file is tightened when loaded.
         std::fs::write(&key_path, key1.to_bytes()).unwrap();
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o644)).unwrap();
-            let _ = TelemetryClient::load_or_generate_key(&key_path).unwrap();
-            assert_eq!(
-                std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777,
-                0o600
-            );
-        }
+        assert_loose_key_is_tightened(&key_path);
 
         // Corrupted file test (less than 32 bytes)
         std::fs::write(&key_path, b"corrupted-key-data").unwrap();
