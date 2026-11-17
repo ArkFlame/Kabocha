@@ -167,8 +167,7 @@ impl LecternBlockEntity {
         )
     }
 
-    /// Vanilla `LecternBlockEntity.getRedstoneSignal`: `floor(progress * 14) + 1`,
-    /// or `0` without a book. A single-page book counts as fully read and emits 15.
+    /// Vanilla `LecternBlockEntity.getRedstoneSignal`, see [`redstone_signal`].
     pub fn comparator_output(&self) -> u8 {
         let book = self
             .book
@@ -177,15 +176,32 @@ impl LecternBlockEntity {
         if book.is_empty() {
             return 0;
         }
-
-        let page_count = Self::page_count_of(&book);
-        let progress = if page_count > 1 {
-            self.page.load(Ordering::Relaxed) as f32 / (page_count - 1) as f32
-        } else {
-            1.0
-        };
-        (progress * 14.0).floor() as u8 + 1
+        let page = self.page.load(Ordering::Relaxed) as i32;
+        redstone_signal(page, Self::page_count_of(&book))
     }
+}
+
+/// Clamps a page index to the book's range; a book without pages pins to `0`.
+#[must_use]
+pub fn clamp_page(page: i32, page_count: i32) -> i32 {
+    page.clamp(0, (page_count - 1).max(0))
+}
+
+/// Comparator output for a lectern page: `floor(page / (pages - 1) * 14) + 1`.
+/// Zero pages emit `0` (UNVERIFIED against decompiled vanilla); a single-page
+/// book counts as fully read and emits 15.
+#[must_use]
+pub fn redstone_signal(page: i32, page_count: i32) -> u8 {
+    if page_count <= 0 {
+        return 0;
+    }
+    let page = clamp_page(page, page_count);
+    let progress = if page_count > 1 {
+        page as f32 / (page_count - 1) as f32
+    } else {
+        1.0
+    };
+    (progress * 14.0).floor() as u8 + 1
 }
 
 impl Inventory for LecternBlockEntity {
@@ -306,6 +322,22 @@ mod tests {
         assert_eq!(nbt.get_int("page"), Some(2));
         assert_eq!(nbt.get_int("totalPages"), Some(5));
         assert!(nbt.get_compound("book").is_some());
+    }
+
+    #[test]
+    fn redstone_signal_edges() {
+        assert_eq!(redstone_signal(0, 0), 0);
+        assert_eq!(redstone_signal(0, 1), 15);
+        assert_eq!(redstone_signal(0, 3), 1);
+        assert_eq!(redstone_signal(2, 3), 15);
+        assert_eq!(redstone_signal(9, 3), 15);
+    }
+
+    #[test]
+    fn clamp_page_bounds() {
+        assert_eq!(clamp_page(-4, 5), 0);
+        assert_eq!(clamp_page(7, 5), 4);
+        assert_eq!(clamp_page(3, 0), 0);
     }
 
     #[test]

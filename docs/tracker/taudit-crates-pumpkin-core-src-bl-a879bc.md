@@ -75,6 +75,6 @@ Files: `crates/pumpkin-core/src/block/blocks/lectern.rs`,
 ## Gap status
 - Fixed in this pass section: FIXED per note (not re-spot-checked).
 - 1. Take ignores adventure mode (`LecternScreenHandler`): FIXED (may_build guard on button 3, UNVERIFIED build).
-- 2. Zero-page comparator output 1: STILL OPEN (S).
-- 3. Jump-to-page success when unchanged: STILL OPEN (S).
-- 4. `on_book_taken` missing dirty mark: STILL OPEN (S).
+- 2. Zero-page comparator output 1: FIXED (`redstone_signal` returns 0 for zero pages, UNVERIFIED vs decompiled).
+- 3. Jump-to-page success when unchanged: FIXED (returns false when id - 100 == current page).
+- 4. `on_book_taken` missing dirty mark: FIXED (mark_dirty after page reset). Page change also broadcasts the block entity update.

@@ -21,11 +21,8 @@ so every row is UNVERIFIED until checked against decompiled vanilla.
 ## Open rows
 
 1. **Comparator update priority** (`blocks/redstone/comparator.rs:177`): when the
-   target is not aligned Pumpkin uses `High`, otherwise `Normal`. Vanilla
-   `ComparatorBlock` is recalled as `EXTREMELY_HIGH` when not aligned and `HIGH`
-   otherwise. Confidence medium. Same-tick ordering only. Size S. Not fixed: needs
-   decompiled confirmation.
-2. **Sapling light source** (`plant/sapling.rs:88`): uses
-   `get_max_local_raw_brightness(up)`. Vanilla `SaplingBlock.randomTick` reads
-   `getBaseLightLevel(pos.up(), 0)`. Confidence low that the two differ for a
-   block above a sapling. Size S. Not fixed.
+   target is not aligned Pumpkin used `High`, otherwise `Normal`. Fixed to
+   `ExtremelyHigh` / `High` per vanilla recall (UNVERIFIED, same as RepeaterBlock).
+2. **Sapling light source** (`plant/sapling.rs:88`): resolved, no change. Vanilla
+   `SaplingBlock.randomTick` uses `getMaxLocalRawBrightness(pos.above()) >= 9` and
+   `nextInt(7) == 0`, which matches Pumpkin. The earlier `getBaseLightLevel` recall was wrong.

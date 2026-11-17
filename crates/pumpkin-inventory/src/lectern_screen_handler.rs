@@ -116,7 +116,11 @@ impl ScreenHandler for LecternScreenHandler {
                 true
             }
             _ if id >= Self::JUMP_TO_PAGE_OFFSET => {
-                self.controller.set_page(id - Self::JUMP_TO_PAGE_OFFSET);
+                let page = id - Self::JUMP_TO_PAGE_OFFSET;
+                if page == self.controller.current_page() {
+                    return false;
+                }
+                self.controller.set_page(page);
                 true
             }
             _ => false,

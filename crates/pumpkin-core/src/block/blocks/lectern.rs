@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use crate::block::entities::lectern::LecternBlockEntity;
+use crate::block::entities::lectern::{LecternBlockEntity, clamp_page};
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, EmitsRedstonePowerArgs, GetComparatorOutputArgs, GetRedstonePowerArgs,
@@ -52,19 +52,22 @@ impl LecternController for LecternPageController {
         let Some(entity) = self.entity() else {
             return;
         };
-        let page_count = entity.page_count();
-        let page = page.clamp(0, (page_count - 1).max(0));
+        let page = clamp_page(page, entity.page_count());
         if page == entity.page.load(Ordering::Relaxed) as i32 {
             return;
         }
         entity.page.store(page as usize, Ordering::Relaxed);
         entity.mark_dirty();
+        if let Some(block_entity) = self.world.get_block_entity(&self.position) {
+            self.world.update_block_entity(&block_entity);
+        }
         LecternBlock::pulse(&self.world, &self.position);
     }
 
     fn on_book_taken(&self) {
         if let Some(entity) = self.entity() {
             entity.page.store(0, Ordering::Relaxed);
+            entity.mark_dirty();
         }
         LecternBlock::set_has_book(&self.world, &self.position, false);
     }

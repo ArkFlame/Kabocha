@@ -176,10 +176,12 @@ impl RedstoneGateBlock<ComparatorLikeProperties> for ComparatorBlock {
 
         if i != j || props.powered != self.has_power(world, pos, state, block) {
             let priority =
+                // UNVERIFIED vs decompiled: vanilla ComparatorBlock uses EXTREMELY_HIGH
+                // for a misaligned target and HIGH otherwise (mirrors RepeaterBlock).
                 if RedstoneGateBlock::is_target_not_aligned(self, world, pos, state, block) {
-                    TickPriority::High
+                    TickPriority::ExtremelyHigh
                 } else {
-                    TickPriority::Normal
+                    TickPriority::High
                 };
 
             world.schedule_block_tick(
