@@ -208,6 +208,9 @@ impl SnifferEntity {
             SnifferState::Rising => {
                 self.play_entity_sound(Sound::EntitySnifferDiggingStop, 1.0, 1.0);
             }
+            SnifferState::Searching => {
+                self.play_entity_sound(Sound::EntitySnifferSearching, 1.0, 1.0);
+            }
             _ => {}
         }
         let entity = self.get_entity();
