@@ -28,12 +28,10 @@ impl BlockBehaviour for DaylightDetectorBlock {
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        let player_abilities = args
-            .player
-            .abilities
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if !player_abilities.allow_modify_world {
+        // Vanilla `useWithoutItem` returns PASS only when `!player.mayBuild()`, i.e. for
+        // spectators (`abilities.mayBuild` stays true in adventure, so adventure players may
+        // toggle the detector).
+        if args.player.is_spectator() {
             return BlockActionResult::Pass;
         }
 
