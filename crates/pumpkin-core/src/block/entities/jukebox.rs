@@ -6,7 +6,6 @@ use pumpkin_data::data_component_impl::JukeboxPlayableImpl;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::jukebox_song::JukeboxSong;
 use pumpkin_nbt::compound::NbtCompound;
-use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
 
@@ -139,22 +138,9 @@ impl BlockEntity for JukeboxBlockEntity {
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
+        // Shares `write_nbt` so chunk saves and NBT saves cannot drift apart.
         let mut nbt = NbtCompound::new();
-        // `try_lock` used to silently save the chunk without the disc whenever another
-        // thread held the mutex. Match `write_nbt` and wait for the lock instead.
-        let record = self
-            .record_stack
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if !record.is_empty() {
-            let mut record_nbt = NbtCompound::new();
-            record.write_item_stack(&mut record_nbt);
-            nbt.put(RECORD_ITEM_NBT_KEY, NbtTag::Compound(record_nbt));
-        }
-        nbt.put_long(
-            TICKS_SINCE_SONG_STARTED_NBT_KEY,
-            self.ticks_since_song_started.load(Ordering::Relaxed) as i64,
-        );
+        self.write_nbt(&mut nbt);
         Some(nbt)
     }
 
@@ -505,6 +491,13 @@ mod tests {
         let mut nbt = NbtCompound::new();
         jukebox.write_nbt(&mut nbt);
         assert_eq!(nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(0));
+    }
+
+    #[test]
+    fn chunk_data_nbt_carries_the_same_ticks_key_as_write_nbt() {
+        let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        let chunk = jukebox.chunk_data_nbt().expect("jukebox chunk data");
+        assert_eq!(chunk.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), Some(0));
     }
 
     #[tokio::test]
