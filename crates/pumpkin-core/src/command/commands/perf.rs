@@ -6,7 +6,7 @@ use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry
 use pumpkin_util::text::TextComponent;
 
 use crate::command::CommandSender;
-use crate::command::argument_builder::{command, literal};
+use crate::command::argument_builder::{ArgumentBuilder, command, literal};
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::CommandSource;
 use crate::command::errors::error_types::CommandErrorType;

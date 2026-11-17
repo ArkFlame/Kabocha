@@ -134,18 +134,19 @@ impl ResourceKeyArgument {
         context: &CommandContext,
         name: &str,
     ) -> Result<&'static pumpkin_data::biome::Biome, CommandSyntaxError> {
-        let resource_key: &ResourceKey =
-            Self::get_registry_key(context, name, BIOME_REGISTRY, &ERROR_INVALID_BIOME)?;
+        let argument = context.get_argument::<ResourceKey>(name)?;
+        let invalid = || {
+            ERROR_INVALID_BIOME.create_without_context_args_slice(&[
+                TextComponent::text(argument.identifier.to_string()),
+                TextComponent::text(BIOME_REGISTRY.to_string()),
+            ])
+        };
+        let resource_key = argument.cast(BIOME_REGISTRY).ok_or_else(invalid)?;
         resource_key
             .identifier
             .is_vanilla_then()
             .and_then(pumpkin_data::biome::Biome::from_name)
-            .ok_or_else(|| {
-                ERROR_INVALID_BIOME.create_without_context_args_slice(&[
-                    TextComponent::text(resource_key.identifier.to_string()),
-                    TextComponent::text(BIOME_REGISTRY.to_string()),
-                ])
-            })
+            .ok_or_else(invalid)
     }
 
     /// Returns a [`CommandContext`]'s parsed resource key argument in the form of a [`ResourceKey`].
