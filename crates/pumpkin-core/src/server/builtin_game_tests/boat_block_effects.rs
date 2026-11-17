@@ -94,7 +94,6 @@ pub(super) async fn test_birch_boat_floats_then_drops_on_break(
     Ok(())
 }
 
-
 /// A chest boat drops its own matching item when destroyed. `AbstractChestBoat.destroy`
 /// spawns the chest-boat item (and scatters any stored slots) at the boat's position.
 pub(super) async fn test_chest_boat_drops_item_on_break(
