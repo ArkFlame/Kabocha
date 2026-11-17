@@ -1072,7 +1072,9 @@ fn is_chest_blocked(world: &World, block_pos: &BlockPos) -> bool {
 fn has_block_on_top(world: &World, block_pos: &BlockPos) -> bool {
     let above_pos = block_pos.up();
     let above_state = world.get_block_state(&above_pos);
-    above_state.is_solid_block()
+    // Vanilla `ChestBlock.isBlockedChestByBlock` tests `isRedstoneConductor`, i.e. a
+    // collision-full block; slabs, stairs, walls and leaves do not block a chest.
+    above_state.is_full_cube()
 }
 
 fn is_cat_sitting_on_chest(world: &World, block_pos: &BlockPos) -> bool {
