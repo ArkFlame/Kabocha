@@ -155,7 +155,9 @@ impl BlockBehaviour for InfestedBlock {
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
-        // TODO: ugly fix, use onStacksDropped
+        // Vanilla `InfestedBlock` spawns its silverfish from `spawnAfterBreak`, which
+        // runs via `Block.onStacksDropped`. This port has no drop hook, so the same
+        // drop gates (creative, `doTileDrops`, silk touch) are checked inline here.
         if args.player.gamemode.load() == GameMode::Creative
             || !args.world.level_info.load().game_rules.block_drops
             || args
