@@ -23,6 +23,12 @@ use std::{
 /// Vanilla `Entity.getAirDrag`, applied every tick.
 const AIR_DRAG: f32 = 0.98;
 
+/// Vanilla `PrimedTnt.readAdditionalSaveData` reads `fuse` with `getShort`, so a missing tag
+/// yields 0 and the TNT detonates on its next tick.
+fn fuse_from_nbt(nbt: &NbtCompound) -> u32 {
+    nbt.get_numeric_short("fuse").unwrap_or(0).max(0) as u32
+}
+
 // TODO: vanilla `PrimedTnt.usedPortal` / `ignoreExplosion`: TNT that changed dimension
 // ignores explosions from other primed TNT. `block_state` NBT is moot while only a TNT
 // block can be primed.
@@ -101,10 +107,7 @@ impl EntityBase for TNTEntity {
 
     /// Vanilla `PrimedTnt.readAdditionalSaveData`.
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
-        let fuse = nbt
-            .get_numeric_short("fuse")
-            .map_or(Self::DEFAULT_FUSE, |fuse| fuse.max(0) as u32);
-        self.fuse.store(fuse, Relaxed);
+        self.fuse.store(fuse_from_nbt(nbt), Relaxed);
         self.power.store(
             nbt.get_numeric_float("explosion_power")
                 .unwrap_or(Self::DEFAULT_POWER)
@@ -206,5 +209,24 @@ impl EntityBase for TNTEntity {
 
     fn cast_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_fuse_tag_detonates_next_tick() {
+        assert_eq!(fuse_from_nbt(&NbtCompound::new()), 0);
+    }
+
+    #[test]
+    fn stored_fuse_is_read_and_negative_is_clamped() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_short("fuse", 40);
+        assert_eq!(fuse_from_nbt(&nbt), 40);
+        nbt.put_short("fuse", -3);
+        assert_eq!(fuse_from_nbt(&nbt), 0);
     }
 }

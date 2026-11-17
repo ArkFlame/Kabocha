@@ -106,8 +106,7 @@ impl BlockEntity for JukeboxBlockEntity {
                 self.stop_playing();
             } else {
                 if ticks.is_multiple_of(20) {
-                    // Vanilla `playNoteParticles` picks one of the 24 note hues.
-                    let random_color = rand::rng().random_range(0..24) as f32 / 24.0;
+                    let random_color = note_particle_hue(rand::rng().random::<f32>());
                     world.spawn_particle(
                         pumpkin_util::math::vector3::Vector3::new(
                             f64::from(self.position.0.x) + 0.5,
@@ -476,12 +475,27 @@ pub fn build_jukebox_actor(
     builder.finish()
 }
 
+/// Vanilla `JukeboxBlockEntity.playNoteParticles`: `random.nextFloat() * 0.25F` picks the note hue.
+const NOTE_HUE_SPAN: f32 = 0.25;
+
+/// Maps a uniform roll in `[0, 1)` to the note particle hue.
+fn note_particle_hue(roll: f32) -> f32 {
+    roll * NOTE_HUE_SPAN
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::entity::{Entity, ai::test_support::world, passive::allay::AllayEntity};
+
     use pumpkin_data::{entity::EntityType, item::Item};
     use pumpkin_util::math::{vector2::Vector2, vector3::Vector3};
+
+    #[test]
+    fn note_particle_hue_stays_within_vanilla_span() {
+        assert!(note_particle_hue(0.0).abs() < f32::EPSILON);
+        assert!(note_particle_hue(0.999_999) < NOTE_HUE_SPAN);
+    }
 
     #[test]
     fn jukebox_actor_builder() {
