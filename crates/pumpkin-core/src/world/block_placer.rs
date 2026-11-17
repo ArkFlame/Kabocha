@@ -32,6 +32,9 @@ impl World {
 
 pub struct WorldBlockPlacer<'a> {
     world: &'a Arc<World>,
+    /// Vanilla `UPDATE_SKIP_ALL_SIDEEFFECTS`: skip block-entity drop callbacks. Structure
+    /// blocks set this in strict mode, matching `StructureBlockEntity.placeStructure`.
+    skip_side_effects: bool,
     pub block_entity_nbts: Vec<NbtCompound>,
     pub changed_positions: Vec<(BlockPos, BlockStateId)>,
 }
@@ -39,8 +42,17 @@ pub struct WorldBlockPlacer<'a> {
 impl<'a> WorldBlockPlacer<'a> {
     #[must_use]
     pub const fn new(world: &'a Arc<World>) -> Self {
+        Self::new_with_skip_side_effects(world, false)
+    }
+
+    #[must_use]
+    pub const fn new_with_skip_side_effects(
+        world: &'a Arc<World>,
+        skip_side_effects: bool,
+    ) -> Self {
         Self {
             world,
+            skip_side_effects,
             block_entity_nbts: Vec::new(),
             changed_positions: Vec::new(),
         }
@@ -71,6 +83,7 @@ impl BlockPlacer for WorldBlockPlacer<'_> {
             // Like vanilla `StructureTemplate::placeInWorld`: the old contents drop, unless the
             // new block brings its own block entity, which clears the old one silently.
             if block_entity_name(Block::from_state_id(state.id)).is_none()
+                && !self.skip_side_effects
                 && let Some(entity) = self.world.get_block_entity(&block_pos)
             {
                 entity.on_block_replaced(self.world, &block_pos);

@@ -10,6 +10,7 @@ use pumpkin_data::biome::Spawner;
 use pumpkin_data::chunk::Biome;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_data::entity::{EntityType, MobCategory, SpawnLocation};
+use pumpkin_data::structures::{SpawnEntry, Structure, StructureKeys};
 use pumpkin_data::tag::Block::MINECRAFT_PREVENT_MOB_SPAWNING_INSIDE;
 use pumpkin_data::tag::Fluid::{MINECRAFT_LAVA, MINECRAFT_WATER};
 use pumpkin_data::tag::Taggable;
@@ -1007,6 +1008,84 @@ pub fn is_right_distance_to_player_and_spawn_point(
                 .contains_block(pos.0.x, pos.0.z))
 }
 
+/// Category key used by vanilla `StructureSpawnOverride` and generated structure data.
+fn mob_category_name(category: &MobCategory) -> &'static str {
+    match category.id {
+        id if id == MobCategory::MONSTER.id => "monster",
+        id if id == MobCategory::CREATURE.id => "creature",
+        id if id == MobCategory::AMBIENT.id => "ambient",
+        id if id == MobCategory::AXOLOTLS.id => "axolotls",
+        id if id == MobCategory::UNDERGROUND_WATER_CREATURE.id => {
+            "underground_water_creature"
+        }
+        id if id == MobCategory::WATER_CREATURE.id => "water_creature",
+        id if id == MobCategory::WATER_AMBIENT.id => "water_ambient",
+        id if id == MobCategory::MISC.id => "misc",
+        _ => "misc",
+    }
+}
+
+/// Spawner entries from a structure spawn override covering `pos`, like vanilla
+/// `ChunkGenerator.getMobsAt`: a matching override replaces the biome spawner list.
+fn structure_spawn_entries(
+    world: &World,
+    category: &MobCategory,
+    pos: &BlockPos,
+) -> Option<&'static [SpawnEntry]> {
+    let category_name = mob_category_name(category);
+    let key = world.level.world_gen.load().structure_spawn_override_at(*pos, |key| {
+        Structure::get(&key)
+            .spawn_overrides
+            .iter()
+            .any(|o| o.category == category_name)
+    })?;
+    Structure::get(&key)
+        .spawn_overrides
+        .iter()
+        .find(|o| o.category == category_name)
+        .map(|o| o.spawns)
+}
+
+/// A spawner from either a biome list or a structure spawn override. Both sources are
+/// `'static` generated data, so a borrowed view avoids allocating per spawn attempt.
+#[derive(Clone, Copy)]
+enum SpawnerRef<'a> {
+    Biome(&'a Spawner),
+    Structure(&'a SpawnEntry),
+}
+
+impl SpawnerRef<'_> {
+    fn r#type(self) -> &'static str {
+        match self {
+            Self::Biome(s) => s.r#type,
+            Self::Structure(s) => s.entity_type,
+        }
+    }
+
+    fn min_count(self) -> i32 {
+        match self {
+            Self::Biome(s) => s.min_count,
+            Self::Structure(s) => s.min_count as i32,
+        }
+    }
+
+    fn max_count(self) -> i32 {
+        match self {
+            Self::Biome(s) => s.max_count,
+            Self::Structure(s) => s.max_count as i32,
+        }
+    }
+}
+
+/// Picks a weighted random spawner from a structure spawn override, like vanilla
+/// `WeightedList.getRandom` on `StructureSpawnOverride.spawns()`.
+fn choose_structure_spawner<'a, R: rand::Rng + ?Sized>(
+    entries: &'a [SpawnEntry],
+    rng: &mut R,
+) -> Option<&'a SpawnEntry> {
+    entries.choose_weighted(rng, |s| s.weight).ok()
+}
+
 #[must_use]
 pub fn can_spawn_mob_at(
     world: &World,
@@ -1014,6 +1093,14 @@ pub fn can_spawn_mob_at(
     spawner_type: &'static str,
     pos: &BlockPos,
 ) -> bool {
+    let target = spawner_type
+        .strip_prefix("minecraft:")
+        .unwrap_or(spawner_type);
+    if let Some(entries) = structure_spawn_entries(world, category, pos) {
+        return entries.iter().any(|s| {
+            s.entity_type.strip_prefix("minecraft:").unwrap_or(s.entity_type) == target
+        });
+    }
     let biome = world.level.get_rough_biome(pos);
     let spawners = match category.id {
         id if id == MobCategory::MONSTER.id => biome.spawners.monster,
@@ -1028,45 +1115,45 @@ pub fn can_spawn_mob_at(
         id if id == MobCategory::MISC.id => biome.spawners.misc,
         _ => biome.spawners.misc,
     };
-    let target = spawner_type
-        .strip_prefix("minecraft:")
-        .unwrap_or(spawner_type);
     spawners.iter().any(|s| {
         let name = s.r#type.strip_prefix("minecraft:").unwrap_or(s.r#type);
         name == target
     })
 }
 
-/// Picks a weighted random spawner for `category` from the biome at `block_pos`, like
-/// vanilla `NaturalSpawner::getRandomSpawnMobAt`.
+/// Picks a weighted random spawner for `category` at `block_pos`, like vanilla
+/// `NaturalSpawner::getRandomSpawnMobAt`. A structure spawn override takes priority over
+/// the biome spawner list, as in vanilla `ChunkGenerator.getMobsAt`.
 #[must_use]
 pub fn get_random_spawn_mob_at(
     world: &Arc<World>,
     category: &'static MobCategory,
     block_pos: &BlockPos,
-) -> Option<&'static Spawner> {
+) -> Option<SpawnerRef<'static>> {
     let biome = world.level.get_rough_biome(block_pos);
     if category == &MobCategory::WATER_AMBIENT
         && biome.has_tag(&MINECRAFT_REDUCE_WATER_AMBIENT_SPAWNS)
         && rng().random::<f32>() < 0.98f32
     {
-        None
-    } else {
-        let spawners = match category.id {
-            id if id == MobCategory::MONSTER.id => biome.spawners.monster,
-            id if id == MobCategory::CREATURE.id => biome.spawners.creature,
-            id if id == MobCategory::AMBIENT.id => biome.spawners.ambient,
-            id if id == MobCategory::AXOLOTLS.id => biome.spawners.axolotls,
-            id if id == MobCategory::UNDERGROUND_WATER_CREATURE.id => {
-                biome.spawners.underground_water_creature
-            }
-            id if id == MobCategory::WATER_CREATURE.id => biome.spawners.water_creature,
-            id if id == MobCategory::WATER_AMBIENT.id => biome.spawners.water_ambient,
-            id if id == MobCategory::MISC.id => biome.spawners.misc,
-            _ => biome.spawners.misc,
-        };
-        choose_spawner(spawners, &mut rng())
+        return None;
     }
+    if let Some(entries) = structure_spawn_entries(world, category, block_pos) {
+        return choose_structure_spawner(entries, &mut rng()).map(SpawnerRef::Structure);
+    }
+    let spawners = match category.id {
+        id if id == MobCategory::MONSTER.id => biome.spawners.monster,
+        id if id == MobCategory::CREATURE.id => biome.spawners.creature,
+        id if id == MobCategory::AMBIENT.id => biome.spawners.ambient,
+        id if id == MobCategory::AXOLOTLS.id => biome.spawners.axolotls,
+        id if id == MobCategory::UNDERGROUND_WATER_CREATURE.id => {
+            biome.spawners.underground_water_creature
+        }
+        id if id == MobCategory::WATER_CREATURE.id => biome.spawners.water_creature,
+        id if id == MobCategory::WATER_AMBIENT.id => biome.spawners.water_ambient,
+        id if id == MobCategory::MISC.id => biome.spawners.misc,
+        _ => biome.spawners.misc,
+    };
+    choose_spawner(spawners, &mut rng()).map(SpawnerRef::Biome)
 }
 
 /// Picks a spawner in proportion to its weight, like vanilla `WeightedList::getRandom`.
