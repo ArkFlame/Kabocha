@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{io, net::SocketAddr, pin::Pin, sync::Arc};
 
 use axum::{
     Router,
@@ -10,13 +10,22 @@ use axum::{
     },
     response::{IntoResponse, Response},
     routing::{get, post},
+    serve::Listener,
 };
 use pumpkin_auth::{jwt::Jwks, p384::ecdsa::SigningKey};
 use pumpkin_world::{CURRENT_BEDROCK_MC_PROTOCOL, CURRENT_BEDROCK_MC_VERSION};
 use serde::Serialize;
 use tokio::{
+    io::{AsyncRead, AsyncWrite},
     net::TcpListener,
     sync::{Mutex, OnceCell, mpsc},
+};
+use tokio_rustls::{
+    TlsAcceptor,
+    rustls::{
+        ServerConfig,
+        pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+    },
 };
 use tracing::{debug, info, trace, warn};
 
@@ -48,6 +57,7 @@ impl NetherNetListener {
         let address = config.address;
         let listener = TcpListener::bind(address).await?;
         let local_addr = listener.local_addr()?;
+        let tls = TlsAcceptor::from(Arc::new(signaling_tls_config()?));
         let ice_router = Arc::new(
             IceRouter::bind(
                 ice_socket,
@@ -108,7 +118,7 @@ impl NetherNetListener {
         let stop_token = server.stop_token.clone();
         tokio::spawn(async move {
             let result = axum::serve(
-                listener,
+                SignalingListener::new(listener, tls),
                 router.into_make_service_with_connect_info::<SocketAddr>(),
             )
             .with_graceful_shutdown(stop_token.cancelled_owned())
@@ -132,6 +142,71 @@ impl NetherNetListener {
 
     pub const fn local_addr(&self) -> SocketAddr {
         self.local_addr
+    }
+}
+
+/// Builds the signaling endpoint's TLS configuration.
+///
+/// Bedrock authenticates NetherNet peers through the identity signed into the SDP
+/// offer, not through the TLS certificate, so a self-signed certificate is enough.
+fn signaling_tls_config() -> io::Result<ServerConfig> {
+    let key = rcgen::generate_simple_self_signed(vec!["localhost".to_string()])
+        .map_err(io::Error::other)?;
+    let certificate = CertificateDer::from(key.cert.der().to_vec());
+    let private_key =
+        PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key.signing_key.serialize_der()));
+    let mut config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], private_key)
+        .map_err(io::Error::other)?;
+    config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    Ok(config)
+}
+
+trait AsyncStream: AsyncRead + AsyncWrite + Send {}
+impl<T: AsyncRead + AsyncWrite + Send> AsyncStream for T {}
+
+/// Accepts both the TLS connections current Bedrock clients open and the plaintext
+/// HTTP connections older clients use on the same signaling port.
+struct SignalingListener {
+    listener: TcpListener,
+    tls: TlsAcceptor,
+}
+
+impl SignalingListener {
+    fn new(listener: TcpListener, tls: TlsAcceptor) -> Self {
+        Self { listener, tls }
+    }
+}
+
+impl Listener for SignalingListener {
+    type Io = Pin<Box<dyn AsyncStream>>;
+    type Addr = SocketAddr;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        loop {
+            let (stream, address) = match self.listener.accept().await {
+                Ok(connection) => connection,
+                Err(error) => {
+                    debug!("NetherNet signaling accept failed: {error}");
+                    continue;
+                }
+            };
+            let mut first = [0u8; 1];
+            match stream.peek(&mut first).await {
+                Ok(0) => continue,
+                Ok(_) if first[0] == 0x16 => match self.tls.accept(stream).await {
+                    Ok(stream) => return (Box::pin(stream), address),
+                    Err(error) => debug!(%address, "NetherNet TLS handshake failed: {error}"),
+                },
+                Ok(_) => return (Box::pin(stream), address),
+                Err(error) => debug!(%address, "NetherNet signaling peek failed: {error}"),
+            }
+        }
+    }
+
+    fn local_addr(&self) -> io::Result<Self::Addr> {
+        self.listener.local_addr()
     }
 }
 
@@ -237,5 +312,16 @@ async fn join(
             warn!("NetherNet negotiation with {address} failed: {error}");
             (StatusCode::BAD_REQUEST, error).into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signaling_tls_config_negotiates_http1() {
+        let config = signaling_tls_config().unwrap();
+        assert_eq!(config.alpn_protocols, vec![b"http/1.1".to_vec()]);
     }
 }
