@@ -26,5 +26,5 @@ Worker fail #1: resend exact error. Fail #2: rewrite brief or take it yourself. 
 ## Standing rules (user, 2026-11-16)
 - Always 10 native + 10 OpenCode workers running. OpenCode: `setsid nohup scripts/oc-loop.sh &` (check `pgrep -f oc-loop.sh`). Native: relaunch one per completion notification, same turn.
 - Hourly upstream sync: cron job (re-create at session start: "7 * * * *" -> scripts/sync-upstream.sh, merge upstream/master, append to docs/SYNC.md). Fork was 3 commits behind at 53 ahead on 2026-11-16.
-- Author trailers: Claude workers -> `Co-Authored-By: Claude Sonnet 5.5`, OpenCode -> `🤖 Generated with opencode` + `Co-Authored-By: opencode <noreply@opencode.ai>`; via scripts/hooks/commit-msg (core.hooksPath). Compare with `scripts/leaderboard.sh`.
+- Author trailers: Claude workers -> `Co-Authored-By: Claude Sonnet 5.5`, OpenCode -> `Co-Authored-By: opencode <noreply@opencode.ai>`; via scripts/hooks/commit-msg (core.hooksPath). Compare with `scripts/leaderboard.sh`.
 - Skipped-as-already-present PRs go to docs/DONE.md as `- #N (PR, skipped: already present) title`.
