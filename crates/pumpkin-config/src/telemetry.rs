@@ -36,7 +36,19 @@ impl Default for TelemetryConfig {
 
 impl TelemetryConfig {
     /// Validates telemetry configuration options.
-    pub const fn validate(&self) {}
+    ///
+    /// Panics if the endpoint is empty or lacks an HTTP scheme: such an endpoint
+    /// makes every heartbeat fail at runtime with no startup indication.
+    pub fn validate(&self) {
+        assert!(
+            !self.endpoint.is_empty(),
+            "Telemetry endpoint must not be empty"
+        );
+        assert!(
+            self.endpoint.starts_with("http://") || self.endpoint.starts_with("https://"),
+            "Telemetry endpoint must be an http(s) URL"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +84,26 @@ mod tests {
         assert_eq!(config.interval_secs, 60);
         assert!(config.public);
         assert_eq!(config.server_name.as_deref(), Some("Test SMP"));
+    }
+
+    #[test]
+    fn telemetry_default_validates() {
+        TelemetryConfig::default().validate();
+    }
+
+    #[test]
+    #[should_panic(expected = "Telemetry endpoint must not be empty")]
+    fn telemetry_rejects_empty_endpoint() {
+        let mut config = TelemetryConfig::default();
+        config.endpoint.clear();
+        config.validate();
+    }
+
+    #[test]
+    #[should_panic(expected = "Telemetry endpoint must be an http(s) URL")]
+    fn telemetry_rejects_non_http_endpoint() {
+        let mut config = TelemetryConfig::default();
+        config.endpoint = "ftp://example.com/heartbeat".to_string();
+        config.validate();
     }
 }
