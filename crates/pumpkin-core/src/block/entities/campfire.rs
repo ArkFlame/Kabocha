@@ -125,19 +125,17 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
-            let Some(recipe) =
-                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking)
-            else {
-                continue;
-            };
+            // Vanilla `litServerTick` counts every stack, `cookItems` drops the raw stack without a recipe
+            let recipe =
+                get_cooking_recipe_with_ingredient(stack.item, CookingRecipeKind::CampfireCooking);
 
             let total = {
                 let mut total = self.cooking_total_times[slot]
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if *total <= 0 {
-                    let mut cooking_time = recipe.cookingtime;
-                    if let Some(server) = world.server.upgrade() {
+                    let mut cooking_time = recipe.as_ref().map_or(0, |recipe| recipe.cookingtime);
+                    if let Some(server) = world.server.upgrade().filter(|_| recipe.is_some()) {
                         let mut event = crate::plugin::api::events::block::campfire_start::CampfireStartEvent::new(
                             self.position,
                             world.clone(),
@@ -172,11 +170,16 @@ impl BlockEntity for CampfireBlockEntity {
                 continue;
             }
 
-            let Some(result_item) = Item::from_registry_key(recipe.result.id) else {
-                continue;
+            let mut result = match &recipe {
+                Some(recipe) => {
+                    let Some(result_item) = Item::from_registry_key(recipe.result.id) else {
+                        continue;
+                    };
+                    Self::cooked_result(result_item, recipe.result.count)
+                }
+                // Vanilla `cookItems` falls back to the raw stack when no recipe matches
+                None => stack.clone(),
             };
-
-            let mut result = Self::cooked_result(result_item, recipe.result.count);
             if let Some(server) = world.server.upgrade() {
                 let mut event = crate::plugin::api::events::block::block_cook::BlockCookEvent::new(
                     self.position,
