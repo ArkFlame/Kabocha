@@ -774,6 +774,9 @@ impl Mob for PandaEntity {
                 .and_then(PandaGene::from_name)
                 .unwrap_or(PandaGene::Normal),
         );
+        // Vanilla Panda.readAdditionalSaveData reapplies the gene attributes once the genes are
+        // loaded, so a saved weak or lazy panda keeps its health and speed.
+        self.set_attributes();
     }
 
     fn finalize_spawn(
@@ -1062,6 +1065,40 @@ mod tests {
         loaded.read_custom_nbt(&NbtCompound::new());
         assert_eq!(loaded.get_main_gene(), PandaGene::Normal);
         assert_eq!(loaded.get_hidden_gene(), PandaGene::Normal);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn loaded_genes_reapply_their_attributes() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let source = spawn_panda(&world, 0.5, 0.5);
+        let save = |panda: &PandaEntity, gene: PandaGene| {
+            panda.set_main_gene(gene);
+            panda.set_hidden_gene(gene);
+            let mut nbt = NbtCompound::new();
+            panda.write_custom_nbt(&mut nbt);
+            nbt
+        };
+
+        let loaded = spawn_panda(&world, 0.5, 0.5);
+        loaded.read_custom_nbt(&save(&source, PandaGene::Weak));
+        assert!(
+            (loaded.mob_entity.living_entity.get_max_health() - WEAK_MAX_HEALTH).abs() < 1e-6,
+            "a loaded weak panda kept the normal max health"
+        );
+
+        let loaded = spawn_panda(&world, 0.5, 0.5);
+        loaded.read_custom_nbt(&save(&source, PandaGene::Lazy));
+        let speed = loaded
+            .mob_entity
+            .living_entity
+            .get_attribute_value(&Attributes::MOVEMENT_SPEED);
+        assert!(
+            (speed - f64::from(LAZY_MOVEMENT_SPEED)).abs() < 1e-9,
+            "a loaded lazy panda kept the normal speed"
+        );
         world.level.shutdown().await;
         Ok(())
     }
