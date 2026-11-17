@@ -337,6 +337,11 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            // Vanilla's pack listing never follows symbolic links, and following a
+            // directory symlink here would recurse forever on a loop.
+            if entry.file_type().is_ok_and(|ft| ft.is_symlink()) {
+                continue;
+            }
             load_registry_dir_recursive(namespace, base_dir, &path, registry_map);
         } else if path
             .extension()
@@ -721,5 +726,25 @@ mod tests {
                 .iter()
                 .all(|t| matches!(t, NbtTag::Double(_)))
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_registry_dirs_are_not_followed() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
+        let reg_dir = temp_dir.join("reg");
+        fs::create_dir_all(&reg_dir).unwrap();
+        fs::write(reg_dir.join("good.json"), r#"{"asset_id":"custom:good"}"#).unwrap();
+        std::os::unix::fs::symlink(&temp_dir, reg_dir.join("loop")).unwrap();
+
+        let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
+        load_registry_dir_recursive("custom", &reg_dir, &reg_dir, &mut registry);
+
+        // Vanilla never follows pack symlinks, so `loop` is not descended into.
+        assert_eq!(registry.len(), 1);
+        assert!(registry.contains_key("custom:good"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 }
