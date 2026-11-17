@@ -383,7 +383,11 @@ pub fn place_structure_template_in_world(
     } else {
         integrity.clamp(0.0, 1.0)
     };
-    let mut rng = LegacyRand::from_seed(create_structure_seed(seed));
+    // Vanilla builds two independent streams from the same seed: the structure
+    // settings random drives the integrity processor and the placement random
+    // drives loot table seeds, so neither affects the other's sequence.
+    let mut integrity_rng = LegacyRand::from_seed(create_structure_seed(seed));
+    let mut loot_rng = LegacyRand::from_seed(create_structure_seed(seed));
     let mut placer = WorldBlockPlacer::new(world);
     let pivot = Vector3::new(0, 0, 0);
 
@@ -403,16 +407,12 @@ pub fn place_structure_template_in_world(
             continue;
         }
 
-        // Vanilla IntegrityProcessor only rolls for blocks without NBT and replaces
-        // rejected blocks with air, so the region is cleared instead of left intact.
-        let state = if clamped_integrity < 1.0
-            && block_info.nbt.is_none()
-            && rng.next_f32() >= clamped_integrity
-        {
-            &Block::AIR.default_state
-        } else {
-            resolved_state
-        };
+        // Vanilla BlockRotProcessor applies to every info (with or without NBT) and
+        // drops the rejected entry, leaving any block already at that position intact.
+        if clamped_integrity < 1.0 && integrity_rng.next_f32() > clamped_integrity {
+            continue;
+        }
+        let state = resolved_state;
 
         world.remove_block_entity(&world_pos);
         placer.set_block_state(&world_vec, state);
@@ -433,7 +433,7 @@ pub fn place_structure_template_in_world(
                 }
             }
             if placed_nbt.get_string("LootTable").is_some() {
-                placed_nbt.put_long("LootTableSeed", rng.next_i64());
+                placed_nbt.put_long("LootTableSeed", loot_rng.next_i64());
             }
             placer.add_block_entity(placed_nbt);
         }
