@@ -380,7 +380,7 @@ impl BlockEntity for BeaconBlockEntity {
         let name = self
             .metadata
             .get_custom_name()
-            .map(|name| name.to_bedrock_string());
+            .map(|name| name.get_text());
         Some(build_beacon_actor(
             self.position,
             self.primary_effect().map_or(0, StatusEffect::to_bedrock_id),

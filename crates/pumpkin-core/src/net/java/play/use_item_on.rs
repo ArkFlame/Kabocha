@@ -185,7 +185,7 @@ impl JavaClient {
         if matches!(item_result, BlockActionResult::Fail) {
             player.reset_block_change(position);
             player.reset_block_change(position.offset(face.to_offset()));
-            player.sync_hand_slot(slot_index, after.clone());
+            player.sync_hand_slot(slot_index, item.clone());
         }
 
         if matches!(item_result, BlockActionResult::SuccessServer) {
