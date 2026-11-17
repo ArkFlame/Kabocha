@@ -28,6 +28,6 @@ This file is Pumpkin-owned telemetry (heartbeats to `telemetry.pumpkinmc.org`), 
 
 ## Gap status (CODER h4)
 - G1 (MissedTickBehavior::Burst after a stall): FIXED (38f31a2a0), set to `Delay`. UNVERIFIED: no unit test; timer behaviour needs a runtime check.
-- G2 (non-"ok" heartbeat status dropped sessions): FIXED (38f31a2a0), sessions restored when the backend status is not "ok". UNVERIFIED: no mock backend test.
+- G2 (non-"ok" heartbeat status dropped sessions): FIXED (38f31a2a0), sessions restored when the backend status is not "ok". VERIFIED-BY-TEST (restore order and cap: `restored_sessions_go_before_newer_ones_and_respect_the_cap`; the status branch still has no mock backend test).
 - G7 (shutdown reported untracked players as zero-length sessions): FIXED (38f31a2a0), such players are skipped. UNVERIFIED: no unit test.
 - G3, G4, G5, G6, G8: STILL OPEN (not in this slice's budget).

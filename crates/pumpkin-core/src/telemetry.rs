@@ -1517,6 +1517,46 @@ mod tests {
         assert_eq!(resolve_next_interval_secs(300, 10), 60);
     }
 
+    fn raw_session(joined_at: u64) -> RawCompletedSession {
+        RawCompletedSession {
+            player_uuid: uuid::Uuid::nil(),
+            edition: PlayerEdition::Java,
+            client_brand: None,
+            locale: None,
+            view_distance: None,
+            joined_at,
+            left_at: joined_at + 1,
+        }
+    }
+
+    #[test]
+    fn restored_sessions_go_before_newer_ones_and_respect_the_cap() {
+        let tracker = TelemetrySessionTracker::default();
+        tracker.restore_completed(vec![raw_session(1), raw_session(2)]);
+        tracker.restore_completed(vec![raw_session(3)]);
+        let order: Vec<u64> = tracker
+            .completed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|s| s.joined_at)
+            .collect();
+        assert_eq!(order, vec![3, 1, 2]);
+
+        let full: Vec<RawCompletedSession> = (0..=MAX_COMPLETED_SESSIONS_PER_HEARTBEAT as u64)
+            .map(raw_session)
+            .collect();
+        let tracker = TelemetrySessionTracker::default();
+        tracker.restore_completed(full);
+        tracker.restore_completed(vec![raw_session(9_999)]);
+        let len = tracker
+            .completed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len();
+        assert_eq!(len, MAX_COMPLETED_SESSIONS_PER_HEARTBEAT);
+    }
+
     #[test]
     fn player_uuid_anonymization_is_deterministic_per_server_and_isolated_across_servers() {
         let key_a = SigningKey::from_bytes(&[11u8; 32]);
