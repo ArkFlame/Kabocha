@@ -1370,7 +1370,12 @@ impl JavaClient {
                 self.handle_configuration_acknowledged(player);
             }
             _ => {
-                warn!("Failed to handle player packet id {}", packet_id);
+                // Vanilla resolves play packets by id while decoding: an id with no
+                // packet is a protocol error and disconnects with `disconnect.packetError`.
+                self.try_kick(&TextComponent::translate(
+                    translation::java::DISCONNECT_PACKETERROR,
+                    Vec::new(),
+                ));
             }
         }
         Ok(())
