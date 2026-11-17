@@ -25,16 +25,6 @@ impl ParchedSkeletonEntity {
 }
 
 impl Mob for ParchedSkeletonEntity {
-    /// Vanilla `Parched.getAttackInterval`: 70 ticks, 50 on hard.
-    fn get_min_attack_interval(&self) -> Option<i32> {
-        let world = self.get_entity().world.load();
-        if world.level_info.load().difficulty == pumpkin_util::Difficulty::Hard {
-            Some(50)
-        } else {
-            Some(70)
-        }
-    }
-
     fn get_arrow(&self, arrow: ArrowEntity) -> ArrowEntity {
         // vanilla Parched#getArrow: arrows apply weakness for 600 ticks
         arrow.add_effect(Effect {

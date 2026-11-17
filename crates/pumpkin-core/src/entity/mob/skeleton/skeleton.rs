@@ -42,12 +42,6 @@ impl Mob for SkeletonEntity {
         self.play_entity_sound(Sound::EntitySkeletonStep, 0.15, 1.0);
     }
 
-    /// Vanilla `Skeleton#canFreeze`: a skeleton never freezes; powder snow converts it to a
-    /// stray instead.
-    fn mob_can_freeze(&self) -> bool {
-        false
-    }
-
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
     }
