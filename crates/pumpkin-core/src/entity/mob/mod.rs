@@ -1047,7 +1047,8 @@ impl MobEntity {
             world.get_max_local_raw_brightness(pos)
         };
 
-        // TODO
+        // Vanilla samples the light test from the caller's RandomSource; a fresh
+        // Xoroshiro seed keeps the same distribution without threading one through.
         let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
         brightness <= dimension.monster_spawn_light_level.get(&mut random) as u8
     }
