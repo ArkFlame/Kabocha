@@ -361,7 +361,7 @@ impl CreakingEntity {
             Vector3::new(0.3, 0.3, 0.3),
             0.0,
             100,
-            Block::CREAKING_HEART.default_state.id,
+            Block::CREAKING_HEART.default_state.id.as_u16(),
         );
 
         self.play_sound(Sound::EntityCreakingDeath);
