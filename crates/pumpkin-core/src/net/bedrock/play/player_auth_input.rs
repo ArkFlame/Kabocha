@@ -385,12 +385,15 @@ fn digital_move(
     (up, down, left, right)
 }
 
+/// Analog stick components at or below this magnitude are controller drift, not input.
+const ANALOG_DEADZONE: f32 = 0.1;
+
 fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
     (
-        analog.y > 0.0,
-        analog.y < 0.0,
-        analog.x > 0.0,
-        analog.x < 0.0,
+        analog.y > ANALOG_DEADZONE,
+        analog.y < -ANALOG_DEADZONE,
+        analog.x > ANALOG_DEADZONE,
+        analog.x < -ANALOG_DEADZONE,
     )
 }
 
@@ -440,7 +443,14 @@ fn apply_mount_move(
 
 #[cfg(test)]
 mod tests {
-    use super::is_on_ground;
+    use super::{Vector2, analog_move, is_on_ground};
+
+    #[test]
+    fn analog_drift_inside_deadzone_is_ignored() {
+        assert_eq!(analog_move(Vector2::new(0.05, -0.05)), (false, false, false, false));
+        // Returns (y>d, y<-d, x>d, x<-d), i.e. (up, down, left, right) as wired in the caller.
+        assert_eq!(analog_move(Vector2::new(0.5, -0.5)), (false, true, true, false));
+    }
 
     #[test]
     fn landing_tick_uses_the_downward_delta() {
