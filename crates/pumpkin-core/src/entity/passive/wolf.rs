@@ -48,6 +48,9 @@ use crate::entity::{
 };
 use crate::plugin::api::events::entity::entity_target::TargetReason;
 
+/// Vanilla Wolf#tame raises the base max health from 8 to 20 and heals to full.
+const TAMED_WOLF_MAX_HEALTH: f32 = 20.0;
+
 const WOLF_PREY: TargetMatch =
     TargetMatch::AnyOf(&[&EntityType::SHEEP, &EntityType::RABBIT, &EntityType::FOX]);
 
@@ -453,6 +456,9 @@ impl Mob for WolfEntity {
             let mut rng = rand::rng();
             if rng.random_range(0..3) == 0 && self.approve_taming(player) {
                 TamableAnimal::tame(self, player.gameprofile.id);
+                let living = &self.mob_entity.living_entity;
+                living.set_max_health(TAMED_WOLF_MAX_HEALTH);
+                living.set_health(TAMED_WOLF_MAX_HEALTH);
                 self.stop_and_forget_target();
                 self.set_ordered_to_sit(true);
                 self.spawn_taming_particles(true);
