@@ -118,7 +118,12 @@ impl BlockBehaviour for NetherPortalBlock {
                 Uuid::new_v4(),
             );
             // Vanilla spawns it through `EntityType.spawn`, which finalizes the spawn.
-            finalize_spawn(&mob, args.world, crate::entity::mob::spawn::EntitySpawnReason::Structure, None);
+            finalize_spawn(
+                &mob,
+                args.world,
+                crate::entity::mob::spawn::EntitySpawnReason::Structure,
+                None,
+            );
             mob.get_entity()
                 .portal_cooldown
                 .store(300, Ordering::Relaxed);

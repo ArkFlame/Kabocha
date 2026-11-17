@@ -211,7 +211,10 @@ fn block_hash_matches_reference() {
     let mut missing = Vec::new();
     for seed in SEEDS {
         let digest = digest_for_seed(seed);
-        match reference.as_ref().and_then(|reference| reference.get(&seed)) {
+        match reference
+            .as_ref()
+            .and_then(|reference| reference.get(&seed))
+        {
             Some(expected) => assert_eq!(
                 *expected, digest,
                 "seed {seed}: terrain block hash changed, expected {expected}, got {digest}"

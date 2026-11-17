@@ -108,12 +108,14 @@ impl FishingBobberEntity {
         // `defineId(FishingHook.class, DATA_HOOKED_ENTITY, EntityDataSerializers.INT)` and
         // `DATA_BITING` with `BOOLEAN`, so the client assumes 0/false and only non-default
         // values are re-sent when a player starts tracking the hook.
-        entity
-            .synched_data
-            .define(pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY, 0i32);
-        entity
-            .synched_data
-            .define(pumpkin_data::tracked_data::fishing_bobber::DATA_BITING, false);
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
+            0i32,
+        );
+        entity.synched_data.define(
+            pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+            false,
+        );
 
         // Vanilla `FishingHook` constructor: `this.luck = Math.max(0, luck)`.
         let luck_bonus = luck_bonus.max(0);
@@ -727,9 +729,8 @@ fn can_interact_with_level(entity: &dyn EntityBase) -> bool {
 /// Vanilla `FishingHook.resetTimeUntilLured`: roll the wait, then Paper's fix for the Lure
 /// infinite loop makes a lure at or above the maximum wait leave a single tick.
 fn roll_wait_countdown(wait_time_reduction_ticks: i32) -> i32 {
-    let wait = rand::random_range(
-        FishingBobberEntity::MIN_WAIT_TIME..=FishingBobberEntity::MAX_WAIT_TIME,
-    );
+    let wait =
+        rand::random_range(FishingBobberEntity::MIN_WAIT_TIME..=FishingBobberEntity::MAX_WAIT_TIME);
     if wait_time_reduction_ticks >= FishingBobberEntity::MAX_WAIT_TIME {
         1
     } else {

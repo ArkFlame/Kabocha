@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use pumpkin_data::{
-    Block, Enchantment, damage::DamageType, data_component_impl::EquipmentSlot, effect::StatusEffect,
+    Block, Enchantment, damage::DamageType, data_component_impl::EquipmentSlot,
+    effect::StatusEffect,
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;

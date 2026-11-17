@@ -22,19 +22,37 @@ const SLOT_NAMES: [(&str, ScoreboardDisplaySlot); 19] = [
     ("sidebar", ScoreboardDisplaySlot::Sidebar),
     ("below_name", ScoreboardDisplaySlot::BelowName),
     ("sidebar.team.black", ScoreboardDisplaySlot::TeamBlack),
-    ("sidebar.team.dark_blue", ScoreboardDisplaySlot::TeamDarkBlue),
-    ("sidebar.team.dark_green", ScoreboardDisplaySlot::TeamDarkGreen),
-    ("sidebar.team.dark_aqua", ScoreboardDisplaySlot::TeamDarkAqua),
+    (
+        "sidebar.team.dark_blue",
+        ScoreboardDisplaySlot::TeamDarkBlue,
+    ),
+    (
+        "sidebar.team.dark_green",
+        ScoreboardDisplaySlot::TeamDarkGreen,
+    ),
+    (
+        "sidebar.team.dark_aqua",
+        ScoreboardDisplaySlot::TeamDarkAqua,
+    ),
     ("sidebar.team.dark_red", ScoreboardDisplaySlot::TeamDarkRed),
-    ("sidebar.team.dark_purple", ScoreboardDisplaySlot::TeamDarkPurple),
+    (
+        "sidebar.team.dark_purple",
+        ScoreboardDisplaySlot::TeamDarkPurple,
+    ),
     ("sidebar.team.gold", ScoreboardDisplaySlot::TeamGold),
     ("sidebar.team.gray", ScoreboardDisplaySlot::TeamGray),
-    ("sidebar.team.dark_gray", ScoreboardDisplaySlot::TeamDarkGray),
+    (
+        "sidebar.team.dark_gray",
+        ScoreboardDisplaySlot::TeamDarkGray,
+    ),
     ("sidebar.team.blue", ScoreboardDisplaySlot::TeamBlue),
     ("sidebar.team.green", ScoreboardDisplaySlot::TeamGreen),
     ("sidebar.team.aqua", ScoreboardDisplaySlot::TeamAqua),
     ("sidebar.team.red", ScoreboardDisplaySlot::TeamRed),
-    ("sidebar.team.light_purple", ScoreboardDisplaySlot::TeamLightPurple),
+    (
+        "sidebar.team.light_purple",
+        ScoreboardDisplaySlot::TeamLightPurple,
+    ),
     ("sidebar.team.yellow", ScoreboardDisplaySlot::TeamYellow),
     ("sidebar.team.white", ScoreboardDisplaySlot::TeamWhite),
 ];
@@ -51,9 +69,7 @@ impl ArgumentType<CommandSource> for ScoreboardSlotArgumentType {
         SLOT_NAMES
             .iter()
             .find_map(|(slot_name, slot)| (*slot_name == name.as_str()).then_some(*slot))
-            .ok_or_else(|| {
-                INVALID_DISPLAY_SLOT_ERROR.create(&*reader, TextComponent::text(name))
-            })
+            .ok_or_else(|| INVALID_DISPLAY_SLOT_ERROR.create(&*reader, TextComponent::text(name)))
     }
 
     fn client_side_parser(&'_ self) -> JavaClientArgumentType {

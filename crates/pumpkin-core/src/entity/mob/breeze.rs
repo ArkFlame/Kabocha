@@ -1,6 +1,6 @@
 use crate::entity::EntityBase;
-use pumpkin_data::damage::DamageType;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::sound::Sound;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Weak};
@@ -10,8 +10,8 @@ use pumpkin_data::entity::EntityType;
 use crate::entity::{
     Entity,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_at_entity::LookAtEntityGoal,
-        look_around::RandomLookAroundGoal, revenge::RevengeGoal, swim::SwimGoal,
+        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -82,17 +82,19 @@ impl Mob for BreezeEntity {
 
     /// Vanilla `Breeze.getAmbientSound`: ground and air idles differ.
     fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(if self
-            .mob_entity
-            .living_entity
-            .entity
-            .on_ground
-            .load(Ordering::Relaxed)
-        {
-            Sound::EntityBreezeIdleGround
-        } else {
-            Sound::EntityBreezeIdleAir
-        })
+        Some(
+            if self
+                .mob_entity
+                .living_entity
+                .entity
+                .on_ground
+                .load(Ordering::Relaxed)
+            {
+                Sound::EntityBreezeIdleGround
+            } else {
+                Sound::EntityBreezeIdleAir
+            },
+        )
     }
 
     /// Vanilla `Breeze.canAttack`: only players and iron golems are valid targets.

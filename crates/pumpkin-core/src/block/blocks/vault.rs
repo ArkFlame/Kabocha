@@ -139,7 +139,9 @@ impl BlockBehaviour for VaultBlock {
                 loot_stacks,
             );
         if let Some(server) = args.world.server.upgrade() {
-            server.plugin_manager.fire_blocking(&server, &mut dispense_event);
+            server
+                .plugin_manager
+                .fire_blocking(&server, &mut dispense_event);
         }
         for stack in dispense_event.items {
             args.world.drop_stack(args.position, stack);

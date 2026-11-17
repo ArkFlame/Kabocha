@@ -44,7 +44,9 @@ fn read_rewarded_players(server_data: &NbtCompound) -> Vec<Uuid> {
             players.push(uuid);
         }
     }
-    let excess = players.len().saturating_sub(VaultBlockEntity::MAX_REWARDED_PLAYERS);
+    let excess = players
+        .len()
+        .saturating_sub(VaultBlockEntity::MAX_REWARDED_PLAYERS);
     players.drain(..excess);
     players
 }

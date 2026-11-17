@@ -70,8 +70,7 @@ impl Worldborder {
     pub fn current_diameter(&self) -> f64 {
         match self.lerp {
             Some(lerp) if self.remaining_ms() > 0 => {
-                let progress =
-                    (lerp.elapsed_ms() as f64 / lerp.duration_ms as f64).clamp(0.0, 1.0);
+                let progress = (lerp.elapsed_ms() as f64 / lerp.duration_ms as f64).clamp(0.0, 1.0);
                 lerp.from + (self.new_diameter - lerp.from) * progress
             }
             _ => self.new_diameter,

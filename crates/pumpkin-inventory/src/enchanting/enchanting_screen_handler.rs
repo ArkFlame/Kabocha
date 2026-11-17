@@ -365,12 +365,8 @@ impl ScreenHandler for EnchantingTableScreenHandler {
 
         // Vanilla charges the chosen slot's level requirement, which plugins may adjust.
         let mut exp_level_cost = level_req;
-        if player.fire_enchant_item_event(
-            &item_stack,
-            id,
-            &mut exp_level_cost,
-            &mut enchantments,
-        ) || enchantments.is_empty()
+        if player.fire_enchant_item_event(&item_stack, id, &mut exp_level_cost, &mut enchantments)
+            || enchantments.is_empty()
         {
             return false;
         }

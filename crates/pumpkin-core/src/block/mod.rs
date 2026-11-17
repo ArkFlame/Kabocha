@@ -70,7 +70,10 @@ pub fn push_entities_up(
         Vector3::new(x, y, z),
         Vector3::new(x + 1.0, y + 1.0, z + 1.0),
     );
-    let (players, entities) = (world.get_players_at_box(&aabb), world.get_entities_at_box(&aabb));
+    let (players, entities) = (
+        world.get_players_at_box(&aabb),
+        world.get_entities_at_box(&aabb),
+    );
     for entity in players
         .iter()
         .map(|player| &**player as &dyn EntityBase)

@@ -611,9 +611,7 @@ impl PlayersOperationExecutor {
     }
 }
 
-fn display_slot_component(
-    slot: pumpkin_data::scoreboard::ScoreboardDisplaySlot,
-) -> TextComponent {
+fn display_slot_component(slot: pumpkin_data::scoreboard::ScoreboardDisplaySlot) -> TextComponent {
     TextComponent::text(slot_name(slot).to_string())
 }
 
@@ -857,12 +855,10 @@ impl CommandExecutor for PlayersListExecutor {
                 ],
             ));
             for (objective_name, value) in scores {
-                let display_name = scoreboard
-                    .get_objective(&objective_name)
-                    .map_or_else(
-                        || TextComponent::text(objective_name.clone()),
-                        |objective| objective.display_name.clone(),
-                    );
+                let display_name = scoreboard.get_objective(&objective_name).map_or_else(
+                    || TextComponent::text(objective_name.clone()),
+                    |objective| objective.display_name.clone(),
+                );
                 lines.push(TextComponent::translate_cross(
                     translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_ENTRY,
                     translation::java::COMMANDS_SCOREBOARD_PLAYERS_LIST_ENTITY_ENTRY,
@@ -878,7 +874,6 @@ impl CommandExecutor for PlayersListExecutor {
         Ok(holders.len() as i32)
     }
 }
-
 
 #[expect(
     clippy::too_many_lines,
@@ -1046,9 +1041,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                     .then(
                         literal("list")
                             .executes(PlayersListExecutor { has_targets: false })
-                            .then(argument(ARG_TARGETS, ScoreHolderArgumentType::Multiple).executes(
-                                PlayersListExecutor { has_targets: true },
-                            )),
+                            .then(
+                                argument(ARG_TARGETS, ScoreHolderArgumentType::Multiple)
+                                    .executes(PlayersListExecutor { has_targets: true }),
+                            ),
                     ),
             ),
     );

@@ -95,10 +95,10 @@ impl<'a> ChunkCursor<'a> {
 
     pub(super) fn block_state(&mut self, pos: &BlockPos) -> &'static pumpkin_data::BlockState {
         self.counters.bump(Counter::BlockState);
-        self.resolve(pos).map_or_else(
-            || Block::VOID_AIR.default_state,
-            |(chunk, cell)| Self::block_state_at(chunk, cell),
-        )
+        self.resolve(pos)
+            .map_or(Block::VOID_AIR.default_state, |(chunk, cell)| {
+                Self::block_state_at(chunk, cell)
+            })
     }
 
     pub(super) fn set_sky_light(&mut self, pos: &BlockPos, light_level: u8) -> bool {

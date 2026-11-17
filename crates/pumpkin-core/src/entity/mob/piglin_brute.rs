@@ -7,8 +7,8 @@ use rand::RngExt;
 
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::effect::StatusEffect;
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tracked_data;

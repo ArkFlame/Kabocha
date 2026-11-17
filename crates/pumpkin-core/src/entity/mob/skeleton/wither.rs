@@ -15,8 +15,8 @@ use crate::entity::{
     ai::target_match::TargetMatch,
     mob::{
         Mob, MobEntity,
-        spawn::{EntitySpawnReason, SpawnGroupData},
         skeleton::SkeletonEntityBase,
+        spawn::{EntitySpawnReason, SpawnGroupData},
     },
     projectile::arrow::ArrowEntity,
 };

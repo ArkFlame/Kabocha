@@ -86,7 +86,6 @@ pub(super) async fn test_piston_and_sticky_piston(helper: GameTestHelper) -> Gam
     Ok(())
 }
 
-
 /// Slime blocks pulled in by a branch must themselves be swept for branches.
 ///
 /// Vanilla PistonStructureResolver.resolve re-reads toPush.size every iteration, so a block

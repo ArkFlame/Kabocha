@@ -1,10 +1,7 @@
 use pumpkin_data::damage::DamageType;
 
 use crate::entity::{
-    EntityBase,
-    breath::DROWNING_DAMAGE,
-    mob::Mob,
-    passive::animal::experience_reward,
+    EntityBase, breath::DROWNING_DAMAGE, mob::Mob, passive::animal::experience_reward,
 };
 
 pub const AMBIENT_SOUND_INTERVAL: i32 = 120;

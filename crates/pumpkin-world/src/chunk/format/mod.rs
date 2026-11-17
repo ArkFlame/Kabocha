@@ -2120,7 +2120,7 @@ mod tests {
         let mut heightmaps = NbtCompound::new();
         heightmaps.put(
             "OCEAN_FLOOR",
-            NbtTag::LongArray(vec![7i64; ChunkHeightmaps::LONGS].into_boxed_slice()),
+            NbtTag::LongArray(vec![7i64; ChunkHeightmaps::LONGS]),
         );
         nbt.root_tag.put("Heightmaps", NbtTag::Compound(heightmaps));
 

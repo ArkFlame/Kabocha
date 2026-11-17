@@ -64,9 +64,9 @@ mod connection_cache;
 pub(crate) mod debug_profiler;
 pub mod enchantment;
 mod key_store;
+pub mod perf_profiler;
 #[cfg(profiler)]
 pub(crate) mod profiler;
-pub mod perf_profiler;
 pub mod recipe;
 pub mod scheduler;
 pub mod seasonal_events;
@@ -803,7 +803,10 @@ impl Server {
         weather: &WorldWeatherSettings,
     ) -> Result<Arc<World>, String> {
         if !self.is_dimension_enabled(&dimension) {
-            return Err(format!("dimension {} is disabled", dimension.minecraft_name));
+            return Err(format!(
+                "dimension {} is disabled",
+                dimension.minecraft_name
+            ));
         }
         let profile = match &weather.profile {
             Some(id) if weather.cycle == WeatherCycle::Shared => {

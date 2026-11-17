@@ -37,8 +37,8 @@ use crate::server::recipe::RecipeManager;
 use crate::world::loot::LootTableHandle;
 
 use self::context_provider_loader::ContextProviderRegistry;
-use self::tag_loader::DynamicTagEntry;
 use self::damage_type_loader::{DamageTypeDefinition, DamageTypeEntry, DamageTypeRegistry};
+use self::tag_loader::DynamicTagEntry;
 use self::test_loader::{
     TestInstance, TestInstanceRegistry, load_test_instances_from_dir, to_registry_entry,
 };
@@ -1322,27 +1322,27 @@ impl DatapackManager {
         Ok(vec![Arc::clone(lines)])
     }
 
-/// Flattens a function tag's members, following `#tag` references and skipping cycles.
-fn collect_function_tag_members<S: std::hash::BuildHasher>(
-    tags: &HashMap<String, Vec<String>, S>,
-    members: &[String],
-    names: &mut Vec<String>,
-    visited: &mut Vec<String>,
-) {
-    for member in members {
-        if let Some(nested) = member.strip_prefix('#') {
-            if visited.iter().any(|tag| tag == nested) {
-                continue;
+    /// Flattens a function tag's members, following `#tag` references and skipping cycles.
+    fn collect_function_tag_members<S: std::hash::BuildHasher>(
+        tags: &HashMap<String, Vec<String>, S>,
+        members: &[String],
+        names: &mut Vec<String>,
+        visited: &mut Vec<String>,
+    ) {
+        for member in members {
+            if let Some(nested) = member.strip_prefix('#') {
+                if visited.iter().any(|tag| tag == nested) {
+                    continue;
+                }
+                visited.push(nested.to_string());
+                if let Some(inner) = tags.get(nested) {
+                    Self::collect_function_tag_members(tags, inner, names, visited);
+                }
+            } else if !names.iter().any(|existing| existing == member) {
+                names.push(member.clone());
             }
-            visited.push(nested.to_string());
-            if let Some(inner) = tags.get(nested) {
-                Self::collect_function_tag_members(tags, inner, names, visited);
-            }
-        } else if !names.iter().any(|existing| existing == member) {
-            names.push(member.clone());
         }
     }
-}
 
     fn boundary_limit() -> Option<FunctionRunError> {
         if FUNCTION_CHAIN_HIT_COMMAND_LIMIT.with(Cell::get) {
@@ -2431,13 +2431,13 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
             .and_then(|p| p.get("description"))
             .map(|d| match d {
                 serde_json::Value::String(text) => text.clone(),
-                component => serde_json::from_value::<pumpkin_util::text::TextComponent>(
-                    component.clone(),
-                )
-                .map_or_else(
-                    |_| component.to_string(),
-                    pumpkin_util::text::TextComponent::get_text,
-                ),
+                component => {
+                    serde_json::from_value::<pumpkin_util::text::TextComponent>(component.clone())
+                        .map_or_else(
+                            |_| component.to_string(),
+                            pumpkin_util::text::TextComponent::get_text,
+                        )
+                }
             })
             .unwrap_or_default();
         let pack_format = pack
@@ -3197,10 +3197,7 @@ mod tests {
             .functions
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(
-                "test:leaf".to_string(),
-                vec!["say leaf".to_string()].into(),
-            );
+            .insert("test:leaf".to_string(), vec!["say leaf".to_string()].into());
         {
             let mut tags = manager
                 .function_tags
@@ -3292,5 +3289,4 @@ mod tests {
             "say beta"
         );
     }
-
 }

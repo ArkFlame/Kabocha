@@ -501,12 +501,13 @@ impl BedrockClient {
                             &mut stack,
                             pumpkin_util::Hand::Right,
                         );
-                        let interacted = native_interaction.unwrap_or_else(|| match event.target_position {
-                            Some(position) if event.action == ActionType::InteractAt => {
-                                event.target.interact_at(player, &mut stack, position)
-                            }
-                            _ => event.target.interact(player, &mut stack),
-                        });
+                        let interacted =
+                            native_interaction.unwrap_or_else(|| match event.target_position {
+                                Some(position) if event.action == ActionType::InteractAt => {
+                                    event.target.interact_at(player, &mut stack, position)
+                                }
+                                _ => event.target.interact(player, &mut stack),
+                            });
                         if !interacted {
                             server
                                 .item_registry

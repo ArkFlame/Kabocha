@@ -259,10 +259,7 @@ impl World {
                 // layer thickness.
                 WorldGenerator::Flat(generator) => {
                     self.get_bottom_y()
-                        + generator
-                            .layers
-                            .len()
-                            .min(self.dimension.height as usize) as i32
+                        + generator.layers.len().min(self.dimension.height as usize) as i32
                 }
                 // NoiseBasedChunkGenerator.getSpawnHeight returns the generator sea level + 1.
                 WorldGenerator::Noise(_) | WorldGenerator::Custom(_) => self.sea_level + 1,

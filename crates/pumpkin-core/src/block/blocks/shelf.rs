@@ -324,8 +324,7 @@ impl BlockBehaviour for ShelfBlock {
         properties.powered = block_receives_redstone_power(args.world, args.position);
         // Vanilla `ShelfBlock.getStateForPlacement` uses `FluidState#is(Fluids.WATER)`,
         // which is true for flowing water as well as sources.
-        properties.waterlogged =
-            matches!(args.replacing, crate::block::BlockIsReplacing::Water(_));
+        properties.waterlogged = matches!(args.replacing, crate::block::BlockIsReplacing::Water(_));
 
         properties.to_state_id(args.block)
     }

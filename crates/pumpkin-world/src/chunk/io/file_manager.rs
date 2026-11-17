@@ -32,7 +32,7 @@ use super::{FileIO, LoadedData, RegionFile, region_chunk_index, region_of, run_b
 /// A region nobody touched for this long is closed, once its staged chunks are written.
 const REGION_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
-pub(crate) trait PathFromLevelFolder {
+pub trait PathFromLevelFolder {
     fn file_path(folder: &LevelFolder, file_name: &str) -> PathBuf;
 }
 
@@ -491,8 +491,7 @@ where
         chunks_data: Vec<(Vector2<i32>, Self::Data)>,
     ) -> Result<(), ChunkWritingError> {
         #[cfg(profiler)]
-        let _profile =
-            pumpkin_profiler::cpu::async_span(pumpkin_profiler::cpu::Phase::ChunkSaving);
+        let _profile = pumpkin_profiler::cpu::async_span(pumpkin_profiler::cpu::Phase::ChunkSaving);
         let mut entries = FxHashMap::default();
         for (pos, chunk) in chunks_data {
             if chunk.is_dirty() {

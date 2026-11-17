@@ -9,7 +9,8 @@ use crate::{
         ChunkLoadEvent as ChunkLoadEventData, ChunkSaveEvent as ChunkSaveEventData,
         ChunkSendEvent as ChunkSendEventData, SpawnChangeEvent as SpawnChangeEventData,
         ThunderChangeEvent as ThunderChangeEventData, WeatherCause as WitWeatherCause,
-        WeatherChangeEvent as WeatherChangeEventData, WeatherPhaseChangeEvent as WeatherPhaseChangeEventData,
+        WeatherChangeEvent as WeatherChangeEventData,
+        WeatherPhaseChangeEvent as WeatherPhaseChangeEventData,
         WorldLoadEvent as WorldLoadEventData, WorldUnloadEvent as WorldUnloadEventData,
     },
 };

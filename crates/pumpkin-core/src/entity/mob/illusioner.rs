@@ -93,14 +93,20 @@ impl IllusionerEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, Box::new(IllusionerCastingSpellGoal::new(mob_weak.clone())));
+            goal_selector.add_goal(
+                1,
+                Box::new(IllusionerCastingSpellGoal::new(mob_weak.clone())),
+            );
             goal_selector.add_goal(2, Box::new(ObtainRaidLeaderBannerGoal));
             goal_selector.add_goal(3, Box::new(HoldGroundAttackGoal::new(10.0)));
             fleeing::apply(goal_selector, ILLUSIONER_FLEES);
             goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
             goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
             goal_selector.add_goal(4, Box::new(PathfindToRaidGoal::default()));
-            goal_selector.add_goal(4, Box::new(IllusionerMirrorSpellGoal::new(mob_weak.clone())));
+            goal_selector.add_goal(
+                4,
+                Box::new(IllusionerMirrorSpellGoal::new(mob_weak.clone())),
+            );
             goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
             goal_selector.add_goal(5, Box::new(IllusionerBlindnessSpellGoal::new(mob_weak)));
             goal_selector.add_goal(

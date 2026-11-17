@@ -52,6 +52,7 @@ pub mod wandering_trader_spawner;
 use crate::block::RandomTickArgs;
 use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::boss::ender_dragon::{EnderDragonEntity, EnderDragonPart};
+use crate::net::java::chunk_data::light::light_update_for_sections;
 use crate::world::chunker::is_within_chebyshev_distance;
 use crate::{block::BlockEvent, entity::item::ItemEntity};
 use crate::{
@@ -61,7 +62,8 @@ use crate::{
     },
     command::client_suggestions,
     entity::{
-        Entity, EntityBase, RemovalReason, decoration::item_frame::ItemFrameEntity,
+        Entity, EntityBase, RemovalReason,
+        decoration::item_frame::ItemFrameEntity,
         player::Player,
         r#type::{load_entity_from_nbt, load_static_entity_from_nbt, self_and_passengers},
     },
@@ -119,7 +121,6 @@ use pumpkin_protocol::java::client::play::{
 use pumpkin_protocol::java::client::play::{
     CPlayerSpawnPosition, CRecipeBookAdd, CRecipeBookSettings, CSystemChatMessage,
 };
-use crate::net::java::chunk_data::light::light_update_for_sections;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata, ParticleOptions};
 use pumpkin_protocol::{
     BClientPacket, ClientPacket, IdOr, SoundEvent,
@@ -584,8 +585,8 @@ impl World {
         // Load portal POI from disk (PoiStorage::new automatically loads from disk if files exist)
         let portal_poi = portal::PortalPoiStorage::new(level.level_folder.poi_folder.clone());
         let poi_chunk_receiver = level.chunk_listener.add_global_chunk_listener();
-        let dragon_fight = (dimension.minecraft_name == Dimension::THE_END.minecraft_name)
-            .then(|| {
+        let dragon_fight =
+            (dimension.minecraft_name == Dimension::THE_END.minecraft_name).then(|| {
                 std::sync::Mutex::new(dragon_fight::DragonFight::new_with_seed(
                     level.seed.0 as u64,
                     BlockPos::new(0, 0, 0),
@@ -5356,7 +5357,8 @@ impl World {
             return;
         }
         // Pos is zero since it will be read from nbt.
-        let entity = crate::entity::r#type::from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), self, uuid);
+        let entity =
+            crate::entity::r#type::from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), self, uuid);
         entity.read_nbt_non_mut(entity_nbt);
         entity.init_data_tracker();
 
@@ -5612,7 +5614,8 @@ impl World {
     fn add_dragon_parts(&self, entity: &dyn EntityBase) {
         if let Some(dragon) = entity.cast_any().downcast_ref::<EnderDragonEntity>() {
             for part in &dragon.parts {
-                self.dragon_parts.insert(part.entity.entity_id, part.clone());
+                self.dragon_parts
+                    .insert(part.entity.entity_id, part.clone());
             }
         }
     }

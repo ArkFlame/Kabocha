@@ -17,6 +17,7 @@ impl Cylindrical {
         }
     }
 
+    #[must_use]
     #[inline]
     pub fn changed_chunks(old: Self, new: Self) -> (Vec<Vector2<i32>>, Vec<Vector2<i32>>) {
         let loading = new

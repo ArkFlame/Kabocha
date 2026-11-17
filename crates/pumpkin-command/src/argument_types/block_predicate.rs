@@ -326,8 +326,8 @@ mod test {
 
         // Unknown tags may be datapack tags: they parse with no ids and resolve at execute time.
         let mut unknown = StringReader::new("#test:datapack_tag");
-        let pred = ArgumentType::<DummySource>::parse(&BlockPredicateArgumentType, &mut unknown)
-            .unwrap();
+        let pred =
+            ArgumentType::<DummySource>::parse(&BlockPredicateArgumentType, &mut unknown).unwrap();
         assert!(matches!(
             pred,
             BlockPredicate::Tag { ref block_ids, .. } if block_ids.is_empty()

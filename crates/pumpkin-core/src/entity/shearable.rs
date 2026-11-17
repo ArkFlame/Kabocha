@@ -5,9 +5,9 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::SoundCategory;
 use pumpkin_util::Hand;
 
-use crate::entity::{Entity, EntityBase};
 use crate::entity::mob::Mob;
 use crate::entity::player::Player;
+use crate::entity::{Entity, EntityBase};
 use crate::plugin::api::events::player::player_shear_entity::PlayerShearEntityEvent;
 use crate::world::game_event::GameEventContext;
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};

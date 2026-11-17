@@ -381,9 +381,15 @@ mod tests {
     #[test]
     fn registry_key_round_trip() {
         let zombie = EntityType::from_registry_key("minecraft:zombie");
-        assert_eq!(zombie.map(EntityType::resource_location), Some("minecraft:zombie"));
+        assert_eq!(
+            zombie.map(EntityType::resource_location),
+            Some("minecraft:zombie")
+        );
         assert_eq!(zombie.map(EntityType::as_str), Some("zombie"));
-        assert_eq!(EntityType::from_registry_key("zombie_horse"), Some(EntityType::ZombieHorse));
+        assert_eq!(
+            EntityType::from_registry_key("zombie_horse"),
+            Some(EntityType::ZombieHorse)
+        );
         assert_eq!(EntityType::from_registry_key("minecraft:not_a_mob"), None);
     }
 }

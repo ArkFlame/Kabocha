@@ -275,10 +275,13 @@ impl CommandExecutor for SpreadPlayersExecutor {
                 .iter()
                 .map(|target| {
                     let team = target.get_team_name();
-                    teams.iter().position(|name| *name == team).unwrap_or_else(|| {
-                        teams.push(team);
-                        teams.len() - 1
-                    })
+                    teams
+                        .iter()
+                        .position(|name| *name == team)
+                        .unwrap_or_else(|| {
+                            teams.push(team);
+                            teams.len() - 1
+                        })
                 })
                 .collect();
             (pile_of, teams.len())

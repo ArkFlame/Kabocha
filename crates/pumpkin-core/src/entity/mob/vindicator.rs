@@ -107,7 +107,11 @@ impl VindicatorEntity {
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(1, raider::revenge_goal());
             hunting::apply(target_selector, &mob_arc.mob_entity, VINDICATOR_HUNTS);
-            hunting::apply(target_selector, &mob_arc.mob_entity, VINDICATOR_JOHNNY_HUNTS);
+            hunting::apply(
+                target_selector,
+                &mob_arc.mob_entity,
+                VINDICATOR_JOHNNY_HUNTS,
+            );
         };
 
         mob_arc

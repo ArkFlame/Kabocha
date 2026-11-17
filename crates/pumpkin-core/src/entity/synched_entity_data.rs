@@ -211,10 +211,7 @@ impl SynchedEntityData {
         let mut has_any = false;
 
         // Same ascension rule as `packDirty` (vanilla `getNonDefaultValues`).
-        let mut ordered: Vec<&DataItem> = items
-            .values()
-            .filter(|item| !item.is_default)
-            .collect();
+        let mut ordered: Vec<&DataItem> = items.values().filter(|item| !item.is_default).collect();
         ordered.sort_unstable_by_key(|item| item.tracked.id.get(version));
 
         for item in ordered {
@@ -281,7 +278,8 @@ mod test {
     #[test]
     fn fishing_bobber_metadata_is_packed_in_ascending_id_order() {
         use pumpkin_data::tracked_data::{
-            entity::DATA_SHARED_FLAGS_ID, fishing_bobber::{DATA_BITING, DATA_HOOKED_ENTITY},
+            entity::DATA_SHARED_FLAGS_ID,
+            fishing_bobber::{DATA_BITING, DATA_HOOKED_ENTITY},
         };
 
         let data = SynchedEntityData::new();

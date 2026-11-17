@@ -7,7 +7,9 @@ use crate::{
 };
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::{
-    Block, BlockId, block_properties::CampfireLikeProperties, tag::{self, Taggable},
+    Block, BlockId,
+    block_properties::CampfireLikeProperties,
+    tag::{self, Taggable},
     world::WorldEvent,
 };
 use pumpkin_protocol::java::client::play::CWorldEvent;

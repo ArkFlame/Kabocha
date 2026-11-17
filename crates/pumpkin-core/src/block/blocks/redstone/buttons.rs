@@ -179,11 +179,7 @@ impl ButtonBlock {
     /// Presses the button, unless it is already pressed. Returns whether it was
     /// pressed, so callers can tell the two cases apart the way vanilla's
     /// `ButtonBlock::useWithoutItem` does.
-    pub(crate) fn press(
-        player: Option<&Player>,
-        world: &Arc<World>,
-        block_pos: &BlockPos,
-    ) -> bool {
+    pub(crate) fn press(player: Option<&Player>, world: &Arc<World>, block_pos: &BlockPos) -> bool {
         let (block, state) = world.get_block_and_state_id(block_pos);
 
         let mut button_props = ButtonLikeProperties::from_state_id(state);
@@ -208,7 +204,9 @@ impl ButtonBlock {
                 SoundCategory::Blocks,
                 *block_pos,
             ),
-            None => world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos),
+            None => {
+                world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos)
+            }
         }
         world.emit_game_event(GameEvent::BlockActivate.name(), block_pos.to_centered_f64());
 

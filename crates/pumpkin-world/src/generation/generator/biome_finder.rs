@@ -127,8 +127,8 @@ fn spiral_offsets(radius: i32) -> Vec<(i32, i32)> {
         let mut x = last_x;
         let mut z = last_z;
         let (dx, dz) = match (leg + 4) % 4 {
-            0 => (1, 0), // EAST
-            1 => (0, 1), // SOUTH
+            0 => (1, 0),  // EAST
+            1 => (0, 1),  // SOUTH
             2 => (-1, 0), // WEST
             _ => (0, -1), // NORTH
         };

@@ -168,9 +168,7 @@ impl ScreenHandler for GUIScreenHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        Clearable, InventoryHolder, SimpleInventory, entity_equipment::EntityEquipment, slot::Slot,
-    };
+    use crate::{InventoryHolder, SimpleInventory, entity_equipment::EntityEquipment};
     use pumpkin_data::item::Item;
     use std::sync::Mutex;
 

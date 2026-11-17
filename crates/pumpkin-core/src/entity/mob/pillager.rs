@@ -17,9 +17,8 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_at_entity::LookAtEntityGoal,
-        ranged_crossbow_attack::RangedCrossbowAttackGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        look_at_entity::LookAtEntityGoal, ranged_crossbow_attack::RangedCrossbowAttackGoal,
+        swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{
         Mob, MobEntity,
@@ -79,11 +78,23 @@ impl PillagerEntity {
             goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(0.6)));
             goal_selector.add_goal(
                 9,
-                Box::new(LookAtEntityGoal::new(mob_weak.clone(), &EntityType::PLAYER, 15.0, 1.0, false)),
+                Box::new(LookAtEntityGoal::new(
+                    mob_weak.clone(),
+                    &EntityType::PLAYER,
+                    15.0,
+                    1.0,
+                    false,
+                )),
             );
             goal_selector.add_goal(
                 10,
-                Box::new(LookAtEntityGoal::matching(mob_weak, TargetMatch::Mob, 15.0, 0.02, false)),
+                Box::new(LookAtEntityGoal::matching(
+                    mob_weak,
+                    TargetMatch::Mob,
+                    15.0,
+                    0.02,
+                    false,
+                )),
             );
 
             let target_selector = &mob_arc.mob_entity.target_selector;

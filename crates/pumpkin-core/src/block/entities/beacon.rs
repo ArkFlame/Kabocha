@@ -1,13 +1,13 @@
 use std::any::Any;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use pumpkin_data::Block;
 use pumpkin_data::effect::StatusEffect;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::item_stack::ItemStack;
 use pumpkin_inventory::beacon_screen_handler::{
     DATA_LEVELS, DATA_PRIMARY, DATA_SECONDARY, NUM_DATA_VALUES, decode_effect, encode_effect,
     filter_effect,
@@ -389,10 +389,7 @@ impl BlockEntity for BeaconBlockEntity {
         &self,
         _state_id: pumpkin_data::BlockStateId,
     ) -> Option<NbtCompound> {
-        let name = self
-            .metadata
-            .get_custom_name()
-            .map(|name| name.get_text());
+        let name = self.metadata.get_custom_name().map(|name| name.get_text());
         Some(build_beacon_actor(
             self.position,
             self.primary_effect().map_or(0, StatusEffect::to_bedrock_id),

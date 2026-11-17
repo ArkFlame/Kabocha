@@ -649,7 +649,9 @@ mod tests {
 
         let result = timeout(
             Duration::from_secs(5),
-            store.shutdown_with_timeout(Duration::from_millis(50), |_| Box::pin(async move { Ok(()) })),
+            store.shutdown_with_timeout(Duration::from_millis(50), |_| {
+                Box::pin(async move { Ok(()) })
+            }),
         )
         .await
         .expect("shutdown must not wait for an endless guest task");

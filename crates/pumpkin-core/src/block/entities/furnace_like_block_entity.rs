@@ -16,9 +16,7 @@ pub(crate) const fn is_cooking_block(id: BlockId) -> bool {
 
 /// Vanilla resolves the fuel's `cooking/speed_default` multiplier to 2 for smokers and blast
 /// furnaces, which is why they cook twice as fast while also burning fuel twice as fast.
-pub(crate) const fn is_fast_cooking(
-    kind: &pumpkin_data::recipes::CookingRecipeKind,
-) -> bool {
+pub(crate) const fn is_fast_cooking(kind: &pumpkin_data::recipes::CookingRecipeKind) -> bool {
     matches!(
         kind,
         pumpkin_data::recipes::CookingRecipeKind::Blasting
@@ -30,11 +28,7 @@ pub(crate) const fn is_fast_cooking(
 pub(crate) const fn cooking_speed_multiplier(
     kind: &pumpkin_data::recipes::CookingRecipeKind,
 ) -> u16 {
-    if is_fast_cooking(kind) {
-        2
-    } else {
-        1
-    }
+    if is_fast_cooking(kind) { 2 } else { 1 }
 }
 
 /// Vanilla `AbstractFurnaceBlockEntity#getTotalCookTime`: the recipe time divided by the fuel
@@ -184,10 +178,14 @@ macro_rules! impl_cooking_block_entity_base {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let awarded = recipes.iter().fold(0, |total, (recipe_id, count)| {
-                    let experience =
-                        pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
-                            * (*count as f32);
-                    total + $crate::block::entities::furnace_like_block_entity::split_experience(experience, rand::random::<f32>())
+                    let experience = pumpkin_data::recipes::get_recipe_experience(recipe_id)
+                        .unwrap_or(0.0)
+                        * (*count as f32);
+                    total
+                        + $crate::block::entities::furnace_like_block_entity::split_experience(
+                            experience,
+                            rand::random::<f32>(),
+                        )
                 });
                 recipes.clear();
                 drop(recipes);

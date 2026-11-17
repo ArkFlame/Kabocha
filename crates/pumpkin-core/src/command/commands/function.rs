@@ -147,7 +147,7 @@ impl CommandExecutor for FunctionExecutor {
                     &ERROR_UNKNOWN_FUNCTION
                 };
                 return Err(
-                    error_type.create_without_context(TextComponent::text(name_str.to_string())),
+                    error_type.create_without_context(TextComponent::text(name_str.to_string()))
                 );
             }
             Err(FunctionRunError::Instantiation(message)) => {

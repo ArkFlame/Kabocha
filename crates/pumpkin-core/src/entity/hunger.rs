@@ -127,7 +127,8 @@ impl HungerManager {
     /// Add hunger manually
     pub fn add_hunger(&self, hunger: u8) {
         let current = self.level.load();
-        self.level.store(current.saturating_add(hunger).min(MAX_FOOD));
+        self.level
+            .store(current.saturating_add(hunger).min(MAX_FOOD));
     }
 
     /// Add saturation manually

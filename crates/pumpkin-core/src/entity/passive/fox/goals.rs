@@ -727,8 +727,7 @@ impl Goal for SleepGoal {
 
         // Vanilla `Fox.FoxSleepGoal.canUse` rolls a one-in-ten retry.
         fox.is_sleeping()
-            || (self.can_sleep(fox, &world)
-                && rand::rng().random_range(0..to_goal_ticks(10)) == 0)
+            || (self.can_sleep(fox, &world) && rand::rng().random_range(0..to_goal_ticks(10)) == 0)
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {

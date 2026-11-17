@@ -122,9 +122,7 @@ impl TrackTargetGoal {
         }
 
         // Vanilla isWithinRestriction: a mob with a home never tracks past it.
-        if !mob_entity
-            .is_in_position_target_range_pos(&target.get_entity().block_pos.load())
-        {
+        if !mob_entity.is_in_position_target_range_pos(&target.get_entity().block_pos.load()) {
             return false;
         }
 

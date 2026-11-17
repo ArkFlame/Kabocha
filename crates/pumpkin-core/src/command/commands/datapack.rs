@@ -321,8 +321,9 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             .take_while(|p| is_embedded_pack(p.as_str()))
             .count();
         let Some(anchor_index) = enabled.iter().position(|p| *p == existing_pack) else {
-            return Err(ERROR_UNKNOWN_DATAPACK
-                .create_without_context(TextComponent::text(existing_pack)));
+            return Err(
+                ERROR_UNKNOWN_DATAPACK.create_without_context(TextComponent::text(existing_pack))
+            );
         };
         let insert_index = match self.0 {
             BeforeOrAfter::Before => anchor_index,
@@ -343,7 +344,10 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
                 embedded_prefix,
                 new_info.data_packs.enabled.len(),
             );
-            new_info.data_packs.enabled.insert(insert_at, target.clone());
+            new_info
+                .data_packs
+                .enabled
+                .insert(insert_at, target.clone());
             new_info
         });
 

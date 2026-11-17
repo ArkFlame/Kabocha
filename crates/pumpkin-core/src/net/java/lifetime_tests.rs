@@ -42,8 +42,7 @@ async fn disconnected_players_are_released() -> Result<(), Box<dyn std::error::E
             properties: ArcSwap::from_pointee(Vec::new()),
             profile_actions: None,
         };
-        let pending =
-            PendingConnection::new(
+        let pending = PendingConnection::new(
             stream,
             address,
             id,

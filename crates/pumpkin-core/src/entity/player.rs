@@ -235,9 +235,9 @@ impl BedrockPlayer<'_> {
 use crate::net::bedrock::play::{
     bedrock_inventory_slot, bedrock_player_inventory_slot, send_bedrock_inventory_slot,
 };
+use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::block_properties::HorizontalFacing;
-use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::{AttributeModifiersImpl, EnchantmentsImpl, Operation};
 use pumpkin_data::data_component_impl::{
@@ -280,18 +280,17 @@ use pumpkin_protocol::java::client::play::{
     CPlayerAbilities, CPlayerInfoUpdate, CPlayerPosition, CPlayerSpawnPosition, CRemovePlayerInfo,
     CRespawn, CSetCamera, CSetContainerContent, CSetContainerProperty, CSetContainerSlot,
     CSetCursorItem, CSetExperience, CSetHealth, CSetPlayerInventory, CSetSelectedSlot,
-    CSoundEffect, CStopSound, CSubtitle, CSystemChatMessage, CTabList, CTitleAnimation,
-    CTitleText, CUnloadChunk, CUpdateMobEffect, CUpdateTime, CWorldEvent, GameEvent, MapIcon,
-    MapPatch, ParticleOptions, PlayerAction, PlayerInfoFlags, PlayerSpawnData, PreviousMessage,
-    Statistic,
+    CSoundEffect, CStopSound, CSubtitle, CSystemChatMessage, CTabList, CTitleAnimation, CTitleText,
+    CUnloadChunk, CUpdateMobEffect, CUpdateTime, CWorldEvent, GameEvent, MapIcon, MapPatch,
+    ParticleOptions, PlayerAction, PlayerInfoFlags, PlayerSpawnData, PreviousMessage, Statistic,
 };
 use pumpkin_protocol::java::server::play::{
     SClickSlot, SContainerButtonClick, SRenameItem, SlotActionType,
 };
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::{
-    boundingbox::BoundingBox, experience, position::BlockPos, vector2::Vector2,
-    vector3::Vector3, wrap_degrees,
+    boundingbox::BoundingBox, experience, position::BlockPos, vector2::Vector2, vector3::Vector3,
+    wrap_degrees,
 };
 use pumpkin_util::permission::PermissionLvl;
 use pumpkin_util::resource_location::ResourceLocation;
@@ -6769,7 +6768,12 @@ impl Player {
             EquipmentSlot::HEAD,
         ]
         .into_iter()
-        .any(|slot| equipment.get(&slot).get_enchantment_level(&Enchantment::AQUA_AFFINITY) > 0)
+        .any(|slot| {
+            equipment
+                .get(&slot)
+                .get_enchantment_level(&Enchantment::AQUA_AFFINITY)
+                > 0
+        })
     }
 
     pub fn send_message(

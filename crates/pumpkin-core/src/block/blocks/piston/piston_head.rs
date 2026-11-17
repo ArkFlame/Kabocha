@@ -4,8 +4,8 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnNeighborUpdateArgs, OnStateReplacedArgs, PathComputationType,
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnNeighborUpdateArgs,
+    OnStateReplacedArgs, PathComputationType,
 };
 
 use super::piston::PistonProps;

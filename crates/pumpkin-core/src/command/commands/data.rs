@@ -497,10 +497,7 @@ fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
         NbtTag::Long(l) => Ok(l.to_string()),
         NbtTag::Float(f) => Ok(f.to_string()),
         NbtTag::Double(d) => Ok(d.to_string()),
-        _ => {
-            Err(ERROR_EXPECTED_VALUE
-                .create_without_context(TextComponent::text(tag.to_string())))
-        }
+        _ => Err(ERROR_EXPECTED_VALUE.create_without_context(TextComponent::text(tag.to_string()))),
     }
 }
 
@@ -524,7 +521,9 @@ fn substring(input: &str, start: i32, end: Option<i32>) -> Result<String, Comman
         None => len,
     };
     if abs_start >= 0 && abs_end <= len && abs_start <= abs_end {
-        Ok(String::from_utf16_lossy(&units[(abs_start as usize)..(abs_end as usize)]))
+        Ok(String::from_utf16_lossy(
+            &units[(abs_start as usize)..(abs_end as usize)],
+        ))
     } else {
         Err(ERROR_INVALID_SUBSTRING.create_without_context(
             TextComponent::text(start.to_string()),
@@ -921,14 +920,14 @@ fn with_modify_sources<B: ArgumentBuilder>(
                         source_kind: Some(source_kind),
                         source_mode: SourceMode::From { has_path: false },
                     })
-                    .then(argument("sourcePath", NbtPathArgumentType).executes(
-                        ModifyExecutor {
+                    .then(
+                        argument("sourcePath", NbtPathArgumentType).executes(ModifyExecutor {
                             target_kind,
                             modify_mode: mod_mode,
                             source_kind: Some(source_kind),
                             source_mode: SourceMode::From { has_path: true },
-                        },
-                    )),
+                        }),
+                    ),
             ),
         );
 
@@ -970,20 +969,18 @@ fn with_modify_sources<B: ArgumentBuilder>(
                                             has_end: false,
                                         },
                                     })
-                                    .then(
-                                        argument("end", IntegerArgumentType::any()).executes(
-                                            ModifyExecutor {
-                                                target_kind,
-                                                modify_mode: mod_mode,
-                                                source_kind: Some(source_kind),
-                                                source_mode: SourceMode::String {
-                                                    has_path: true,
-                                                    has_start: true,
-                                                    has_end: true,
-                                                },
+                                    .then(argument("end", IntegerArgumentType::any()).executes(
+                                        ModifyExecutor {
+                                            target_kind,
+                                            modify_mode: mod_mode,
+                                            source_kind: Some(source_kind),
+                                            source_mode: SourceMode::String {
+                                                has_path: true,
+                                                has_start: true,
+                                                has_end: true,
                                             },
-                                        ),
-                                    ),
+                                        },
+                                    )),
                             ),
                     ),
             ),
@@ -1165,7 +1162,10 @@ mod tests {
         assert_eq!(utf16_len("abc"), 3);
         assert_eq!(utf16_len("\u{e9}"), 1);
         assert_eq!(utf16_len("\u{1f600}"), 2);
-        assert_eq!(substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(), "a\u{1f600}");
+        assert_eq!(
+            substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(),
+            "a\u{1f600}"
+        );
         assert_eq!(substring("a\u{1f600}b", 3, None).unwrap_or_default(), "b");
         assert!(substring("\u{e9}", 0, Some(2)).is_err());
     }

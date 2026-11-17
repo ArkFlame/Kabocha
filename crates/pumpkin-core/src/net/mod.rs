@@ -421,13 +421,14 @@ pub async fn can_not_join(
             )),
             None => text,
         };
-        let mut event = crate::plugin::api::events::player::banned_player_join::BannedPlayerJoinEvent {
-            player_name: profile.name.clone(),
-            player_uuid: profile.id,
-            ip_address: *address,
-            kick_message,
-            cancelled: false,
-        };
+        let mut event =
+            crate::plugin::api::events::player::banned_player_join::BannedPlayerJoinEvent {
+                player_name: profile.name.clone(),
+                player_uuid: profile.id,
+                ip_address: *address,
+                kick_message,
+                cancelled: false,
+            };
         server.plugin_manager.fire(server, &mut event).await;
         if event.cancelled {
             // The plugin ignored the ban (e.g. unbanned the player), allow the join.

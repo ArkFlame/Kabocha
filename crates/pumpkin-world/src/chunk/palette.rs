@@ -225,7 +225,6 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
     }
 
     /// Builds a complete palette without paying the bookkeeping cost of individual mutations.
-    #[expect(clippy::too_many_lines)]
     pub(crate) fn from_fn(mut value_at: impl FnMut(usize, usize, usize) -> V) -> Self {
         let mut cube = Box::new([[[V::default(); DIM]; DIM]; DIM]);
         let mut indices = Box::new([[[0u8; DIM]; DIM]; DIM]);
@@ -756,8 +755,9 @@ impl BlockPalette {
                     for y in 0..Self::SIZE {
                         for z in 0..Self::SIZE {
                             let palette_index = match &data.storage {
-                                PaletteStorage::Indexed(indices) =>
-                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize,
+                                PaletteStorage::Indexed(indices) => {
+                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize
+                                }
                                 PaletteStorage::Dense(cube) => key_to_index[&cube[z][y][x]],
                             };
                             if water_states[palette_index] {
@@ -868,8 +868,9 @@ impl BlockPalette {
                             // Java has it in y, z, x order, so we need to convert it back to x, y, z
                             // Please test your code on bedrock before merging
                             let key_index = match &data.storage {
-                                PaletteStorage::Indexed(indices) =>
-                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize,
+                                PaletteStorage::Indexed(indices) => {
+                                    indices.get((z * Self::SIZE + y) * Self::SIZE + x) as usize
+                                }
                                 PaletteStorage::Dense(cube) => {
                                     key_to_index_map.get(&cube[z][y][x]).copied().unwrap_or(0)
                                 }

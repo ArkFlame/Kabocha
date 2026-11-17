@@ -391,12 +391,10 @@ impl<'a> Explosion<'a> {
             let fire_block = FireBlockBase::get_fire_type(world, pos);
             let fire_state_id = FireBlock.get_state_for_position(world, &fire_block, pos);
             // Vanilla re-checks `BlockState.isAir()`, which also covers cave and void air.
-            let _ = world.set_block_state_if(
-                pos,
-                fire_state_id,
-                BlockFlags::NOTIFY_ALL,
-                |state_id| BlockState::from_id(state_id).is_air(),
-            );
+            let _ =
+                world.set_block_state_if(pos, fire_state_id, BlockFlags::NOTIFY_ALL, |state_id| {
+                    BlockState::from_id(state_id).is_air()
+                });
         }
     }
 
@@ -869,8 +867,8 @@ mod tests {
     use arc_swap::ArcSwap;
     use pumpkin_config::world::LevelConfig;
     use pumpkin_data::{
-        Block, BlockDirection, dimension::Dimension, fluid::Fluid, particle::Particle, sound::Sound,
-        tag,
+        Block, BlockDirection, dimension::Dimension, fluid::Fluid, particle::Particle,
+        sound::Sound, tag,
     };
     use pumpkin_util::{
         math::{position::BlockPos, vector2::Vector2, vector3::Vector3},

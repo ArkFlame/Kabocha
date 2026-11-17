@@ -3327,11 +3327,7 @@ impl Entity {
 
     /// Vanilla `Entity.updateFluidInteraction`: fluid flags and current push only, without the
     /// fluid's `entityInside` effects. Returns the fluids the entity is in.
-    fn update_fluid_interaction(
-        &self,
-        caller: &dyn EntityBase,
-        push: bool,
-    ) -> Vec<&'static Fluid> {
+    fn update_fluid_interaction(&self, caller: &dyn EntityBase, push: bool) -> Vec<&'static Fluid> {
         let is_pushed = push && caller.is_pushed_by_fluids();
         let mut fluids = BTreeMap::new();
 

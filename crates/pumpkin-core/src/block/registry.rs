@@ -855,11 +855,7 @@ impl BlockRegistry {
             for shape in state.get_block_collision_shapes_at(&final_block_pos) {
                 let placed_box = shape.at_pos(final_block_pos);
 
-                if Self::has_blocking_entity_in_box(
-                    world.as_ref(),
-                    &placed_box,
-                    entity.entity_id,
-                ) {
+                if Self::has_blocking_entity_in_box(world.as_ref(), &placed_box, entity.entity_id) {
                     buildable = false;
                     break;
                 }
@@ -1694,11 +1690,7 @@ mod replacement_tests {
         let fence = &Block::OAK_FENCE;
         assert!(!fence.default_state.is_full_cube());
         assert!(fence.default_state.is_solid());
-        assert!(!registry.is_pathfindable(
-            fence,
-            fence.default_state,
-            PathComputationType::Land
-        ));
+        assert!(!registry.is_pathfindable(fence, fence.default_state, PathComputationType::Land));
         assert!(registry.is_pathfindable(
             &Block::AIR,
             Block::AIR.default_state,
@@ -1713,11 +1705,7 @@ mod replacement_tests {
         let registry = super::default_registry();
         let fence = &Block::OAK_FENCE;
         assert!(registry.get_pumpkin_block(fence.id).is_some());
-        assert!(!registry.is_pathfindable(
-            fence,
-            fence.default_state,
-            PathComputationType::Land
-        ));
+        assert!(!registry.is_pathfindable(fence, fence.default_state, PathComputationType::Land));
     }
 
     #[test]

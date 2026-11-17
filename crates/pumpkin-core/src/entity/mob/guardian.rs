@@ -120,11 +120,13 @@ impl Mob for GuardianEntity {
     }
 
     fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(if self.get_entity().touching_water.load(Ordering::Relaxed) {
-            Sound::EntityGuardianAmbient
-        } else {
-            Sound::EntityGuardianAmbientLand
-        })
+        Some(
+            if self.get_entity().touching_water.load(Ordering::Relaxed) {
+                Sound::EntityGuardianAmbient
+            } else {
+                Sound::EntityGuardianAmbientLand
+            },
+        )
     }
 
     fn on_damage_with_context(

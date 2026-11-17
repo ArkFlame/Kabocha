@@ -157,11 +157,7 @@ impl Mob for GhastEntity {
         let reflected = damage_type.id == DamageType::FIREBALL.id
             && source.is_some_and(|s| s.get_entity().entity_type == &EntityType::FIREBALL)
             && cause.is_some_and(|c| c.get_entity().entity_type == &EntityType::PLAYER);
-        if reflected {
-            1000.0
-        } else {
-            amount
-        }
+        if reflected { 1000.0 } else { amount }
     }
 
     fn xp_reward(&self) -> u32 {

@@ -156,11 +156,7 @@ impl Goal for LookAtEntityGoal {
             entities: if looks_at_players { 0.0 } else { range },
             // The player search covers every player, but candidates must be within `range`
             // (the predicate ignores visibility and distance scaling).
-            players: if looks_at_players {
-                range
-            } else {
-                0.0
-            },
+            players: if looks_at_players { range } else { 0.0 },
             links: self
                 .target
                 .as_ref()

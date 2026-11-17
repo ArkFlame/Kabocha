@@ -1108,10 +1108,9 @@ pub fn serialize_java_packet(
                 .iter()
                 .flat_map(|player| {
                     player.actions.iter().filter_map(|action| match action {
-                        WitAction::UpdateDisplayName(name) => Some(
-                            name.clone()
-                                .map(pumpkin_util::text::TextComponent::text),
-                        ),
+                        WitAction::UpdateDisplayName(name) => {
+                            Some(name.clone().map(pumpkin_util::text::TextComponent::text))
+                        }
                         _ => None,
                     })
                 })
@@ -1166,9 +1165,7 @@ pub fn serialize_java_packet(
                             WitAction::UpdateGameMode(game_mode) => {
                                 PlayerAction::UpdateGameMode(VarInt(*game_mode))
                             }
-                            WitAction::UpdateListed(listed) => {
-                                PlayerAction::UpdateListed(*listed)
-                            }
+                            WitAction::UpdateListed(listed) => PlayerAction::UpdateListed(*listed),
                             WitAction::UpdateLatency(latency) => {
                                 PlayerAction::UpdateLatency(VarInt(*latency))
                             }

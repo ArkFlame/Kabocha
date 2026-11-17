@@ -43,9 +43,10 @@ impl CommandExecutor for GamemodeExecutor {
 
         let mut succeeded: i32 = 0;
         let server = context.source.server();
-        let source_is_bedrock = context.source.output.as_player().is_some_and(|p| {
-            matches!(p.client.as_ref(), crate::net::ClientPlatform::Bedrock(_))
-        });
+        let source_is_bedrock =
+            context.source.output.as_player().is_some_and(|p| {
+                matches!(p.client.as_ref(), crate::net::ClientPlatform::Bedrock(_))
+            });
 
         for target in &targets {
             if target.gamemode.load() != gamemode {

@@ -106,8 +106,10 @@ impl BlockBehaviour for JukeboxBlock {
             Self::drop_record(args.position, args.world);
             // Update block state and emit BLOCK_CHANGE like vanilla eject path.
             Self::set_record_state(false, args.block, args.position, args.world);
-            args.world
-                .emit_game_event(GameEvent::BlockChange.name(), args.position.to_centered_f64());
+            args.world.emit_game_event(
+                GameEvent::BlockChange.name(),
+                args.position.to_centered_f64(),
+            );
             args.world.update_neighbors(args.position, None);
             return BlockActionResult::Success;
         }
@@ -131,7 +133,8 @@ impl BlockBehaviour for JukeboxBlock {
         let Some(block_entity) = world.get_block_entity(args.position) else {
             return BlockActionResult::PassToDefaultBlockAction;
         };
-        let Some(jukebox_entity) = block_entity.as_any().downcast_ref::<JukeboxBlockEntity>() else {
+        let Some(jukebox_entity) = block_entity.as_any().downcast_ref::<JukeboxBlockEntity>()
+        else {
             return BlockActionResult::PassToDefaultBlockAction;
         };
         let item_stack = &mut *args.item_stack;

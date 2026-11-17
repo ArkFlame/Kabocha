@@ -2302,7 +2302,10 @@ pub fn matches_beacon_condition(cond: &Value, level: i32) -> bool {
 /// Evaluates conditions for `minecraft:enter_block` and `minecraft:slide_down_block`.
 #[must_use]
 pub fn matches_enter_block_condition(cond: &Value, block_id: &str) -> bool {
-    let block = cond.get("blocks").or_else(|| cond.get("block")).unwrap_or(cond);
+    let block = cond
+        .get("blocks")
+        .or_else(|| cond.get("block"))
+        .unwrap_or(cond);
     TagOrIdMatcher::from_value(block).is_none_or(|m| m.matches(RegistryKey::Block, block_id))
 }
 
@@ -2422,13 +2425,7 @@ mod tests {
                     None,
                     None
                 ));
-                assert!(!pred.matches(
-                    "minecraft:dirt",
-                    "minecraft:wheat_seeds",
-                    None,
-                    None,
-                    None
-                ));
+                assert!(!pred.matches("minecraft:dirt", "minecraft:wheat_seeds", None, None, None));
                 assert!(!pred.matches(
                     "minecraft:farmland",
                     "minecraft:stone_hoe",

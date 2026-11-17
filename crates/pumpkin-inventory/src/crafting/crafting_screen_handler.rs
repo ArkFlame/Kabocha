@@ -1588,7 +1588,10 @@ mod tests {
             .drops
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let dropped: usize = drops.iter().map(|stack| usize::from(stack.item_count)).sum();
+        let dropped: usize = drops
+            .iter()
+            .map(|stack| usize::from(stack.item_count))
+            .sum();
         assert_eq!(dropped, 8);
         assert!(grid_stack(&handler, 1).is_empty());
         assert!(!handler.get_behaviour().slots[0].has_stack());

@@ -123,7 +123,10 @@ impl BlockBehaviour for ShulkerBoxBlock {
         let facing =
             EndRodLikeProperties::from_state_id(args.world.get_block_state_id(args.position))
                 .facing;
-        if !args.world.is_space_empty(lid_open_box(args.position, facing)) {
+        if !args
+            .world
+            .is_space_empty(lid_open_box(args.position, facing))
+        {
             return BlockActionResult::Success;
         }
 

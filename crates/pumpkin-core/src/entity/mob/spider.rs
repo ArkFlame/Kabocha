@@ -21,9 +21,8 @@ use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         active_target::TargetCondition, leap_at_target::LeapAtTargetGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        revenge::RevengeGoal, spider_attack::SpiderAttackGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
+        spider_attack::SpiderAttackGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{
         Mob, MobEntity,

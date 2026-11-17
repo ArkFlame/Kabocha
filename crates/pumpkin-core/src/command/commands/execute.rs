@@ -27,7 +27,9 @@ use crate::command::argument_types::coordinates::vec3::Vec3ArgumentType;
 use crate::command::argument_types::core::double::DoubleArgumentType;
 use crate::command::argument_types::core::string::StringArgumentType;
 use crate::command::argument_types::entity::EntityArgumentType;
-use crate::command::argument_types::entity_anchor::{EntityAnchor, EntityAnchorArgumentType, EntityAnchorExt};
+use crate::command::argument_types::entity_anchor::{
+    EntityAnchor, EntityAnchorArgumentType, EntityAnchorExt,
+};
 use crate::command::argument_types::identifier::IdentifierArgumentType;
 use crate::command::argument_types::loot_predicate::{LootPredicate, LootPredicateArgumentType};
 use crate::command::argument_types::nbt_path::{NbtPath, NbtPathArgumentType};
@@ -40,11 +42,11 @@ use crate::command::argument_types::resource_key::{
 use crate::command::argument_types::resource_or_tag::{ResourceOrTag, ResourceOrTagArgument};
 use crate::command::argument_types::score_holder::{ResolvedScoreHolder, ScoreHolderArgumentType};
 use crate::command::commands::bossbar::{BossbarIdArgumentType, ERROR_UNKNOWN_BOSSBAR};
-use crate::command::commands::summon::{ERROR_FAILED_PEACEFUL, INVALID_POSITION};
 use crate::command::commands::data::{
     BlockDataAccessor, DataAccessor, EntityDataAccessor, StorageDataAccessor, TargetKind,
     make_target_arg,
 };
+use crate::command::commands::summon::{ERROR_FAILED_PEACEFUL, INVALID_POSITION};
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::{
     CommandSource, ResultValueTaker, ReturnValue, ReturnValueCallable, ReturnValueCallback,
@@ -1152,9 +1154,8 @@ fn count_blocks_match(
     let min_z = start.0.z.min(end.0.z);
     let max_z = start.0.z.max(end.0.z);
 
-    let area = i64::from(max_x - min_x + 1)
-        * i64::from(max_y - min_y + 1)
-        * i64::from(max_z - min_z + 1);
+    let area =
+        i64::from(max_x - min_x + 1) * i64::from(max_y - min_y + 1) * i64::from(max_z - min_z + 1);
     if area > MAX_TEST_AREA {
         return Err(ERROR_AREA_TOO_LARGE.create_without_context(
             TextComponent::text(MAX_TEST_AREA.to_string()),
@@ -1856,7 +1857,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| check_data_matches(context, true, false),
+                                            count: |context| {
+                                                check_data_matches(context, true, false)
+                                            },
                                         }),
                                 ),
                             ),
@@ -1873,7 +1876,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| check_data_matches(context, false, true),
+                                            count: |context| {
+                                                check_data_matches(context, false, true)
+                                            },
                                         }),
                                 ),
                             ),
@@ -1890,7 +1895,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| check_data_matches(context, false, false),
+                                            count: |context| {
+                                                check_data_matches(context, false, false)
+                                            },
                                         }),
                                 ),
                             ),
@@ -2082,7 +2089,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| check_data_matches(context, true, false),
+                                            count: |context| {
+                                                check_data_matches(context, true, false)
+                                            },
                                         }),
                                 ),
                             ),
@@ -2099,7 +2108,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| check_data_matches(context, false, true),
+                                            count: |context| {
+                                                check_data_matches(context, false, true)
+                                            },
                                         }),
                                 ),
                             ),
@@ -2116,7 +2127,9 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| check_data_matches(context, false, false),
+                                            count: |context| {
+                                                check_data_matches(context, false, false)
+                                            },
                                         }),
                                 ),
                             ),

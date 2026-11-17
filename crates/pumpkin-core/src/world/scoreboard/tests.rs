@@ -346,20 +346,20 @@ fn unassigned_bedrock_objective_preserves_an_occupied_sidebar() {
 
 #[test]
 fn builder_scores_are_keyed_by_objective() {
-let board = ScoreboardBuilder::new()
-    .objective("board", TextComponent::text("Board"))
-    .display_slot(ScoreboardDisplaySlot::Sidebar, "board")
-    .score("Alice", "board", 5)
-    .build();
+    let board = ScoreboardBuilder::new()
+        .objective("board", TextComponent::text("Board"))
+        .display_slot(ScoreboardDisplaySlot::Sidebar, "board")
+        .score("Alice", "board", 5)
+        .build();
 
-assert_eq!(board.get_score_value("Alice", "board"), Some(5));
-assert_eq!(
-    board.get_scores_for_objective("board").map(FxHashMap::len),
-    Some(1)
-);
-assert_eq!(board.get_scores_for_entity("Alice").len(), 1);
-assert_eq!(
-    board.get_display_objective(ScoreboardDisplaySlot::Sidebar),
-    Some("board")
-);
+    assert_eq!(board.get_score_value("Alice", "board"), Some(5));
+    assert_eq!(
+        board.get_scores_for_objective("board").map(FxHashMap::len),
+        Some(1)
+    );
+    assert_eq!(board.get_scores_for_entity("Alice").len(), 1);
+    assert_eq!(
+        board.get_display_objective(ScoreboardDisplaySlot::Sidebar),
+        Some("board")
+    );
 }

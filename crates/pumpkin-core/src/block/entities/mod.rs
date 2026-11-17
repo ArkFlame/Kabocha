@@ -150,8 +150,7 @@ pub trait BlockEntity: Any + Send + Sync {
     /// Obtain NBT for the block entity update packet sent when the block entity changes, or `None`
     /// when the client must not receive one (vanilla's `getUpdatePacket` returning null).
     fn update_packet_nbt(&self) -> Option<NbtCompound> {
-        self.chunk_data_nbt()
-            .map(|nbt| self.client_update_tag(nbt))
+        self.chunk_data_nbt().map(|nbt| self.client_update_tag(nbt))
     }
 
     /// Obtain block actor NBT for fields Bedrock does not include in its block state.
@@ -717,11 +716,11 @@ mod test {
     use super::{
         BlockEntity, barrel::BarrelBlockEntity, blasting_furnace::BlastingFurnaceBlockEntity,
         block_entity_from_nbt, block_owns_block_entity, brewing_stand::BrewingStandBlockEntity,
-        chest::ChestBlockEntity, crafter::CrafterBlockEntity, daylight_detector::DaylightDetectorBlockEntity,
-        dispenser::DispenserBlockEntity, dropper::DropperBlockEntity, furnace::FurnaceBlockEntity,
-        has_block_block_entity, hopper::HopperBlockEntity,
-        shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity, smoker::SmokerBlockEntity,
-        trapped_chest::TrappedChestBlockEntity,
+        chest::ChestBlockEntity, crafter::CrafterBlockEntity,
+        daylight_detector::DaylightDetectorBlockEntity, dispenser::DispenserBlockEntity,
+        dropper::DropperBlockEntity, furnace::FurnaceBlockEntity, has_block_block_entity,
+        hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity,
+        smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
     };
     use pumpkin_data::{Block, block_properties::FacingHopper, item::Item, item_stack::ItemStack};
     use pumpkin_inventory::Inventory;

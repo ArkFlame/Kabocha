@@ -618,7 +618,8 @@ fn chest_state_for_neighbor_update(args: &GetStateForNeighborUpdateArgs<'_>) -> 
         if props.r#type == ChestType::Single
             && neighbor_props.r#type != ChestType::Single
             && props.facing == neighbor_props.facing
-            && connected_direction(neighbor_props).to_offset() == args.direction.opposite().to_offset()
+            && connected_direction(neighbor_props).to_offset()
+                == args.direction.opposite().to_offset()
         {
             props.r#type = neighbor_props.r#type.opposite();
         }

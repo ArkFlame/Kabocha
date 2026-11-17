@@ -119,7 +119,11 @@ impl BeeEntity {
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
                 3,
-                Box::new(TemptGoal::with_tag(1.25, &tag::Item::MINECRAFT_FLOWERS, false)),
+                Box::new(TemptGoal::with_tag(
+                    1.25,
+                    &tag::Item::MINECRAFT_FLOWERS,
+                    false,
+                )),
             );
             goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.25)));
             goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(1.0)));
@@ -345,7 +349,10 @@ impl Mob for BeeEntity {
         }
         self.set_has_stung(true);
         self.mob_entity.set_target(None);
-        self.mob_entity.living_entity.entity.play_sound(Sound::EntityBeeSting);
+        self.mob_entity
+            .living_entity
+            .entity
+            .play_sound(Sound::EntityBeeSting);
     }
 
     fn mob_init_data_tracker(&self) {

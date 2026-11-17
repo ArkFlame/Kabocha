@@ -77,9 +77,7 @@ pub fn target_is_valid(
     predicate: impl Fn(&Arc<dyn EntityBase>) -> bool,
 ) -> bool {
     ctx.state.get(memory).is_some_and(|target| {
-        predicate(target)
-            && is_alive(target.as_ref())
-            && entity_is_visible(ctx, target.as_ref())
+        predicate(target) && is_alive(target.as_ref()) && entity_is_visible(ctx, target.as_ref())
     })
 }
 

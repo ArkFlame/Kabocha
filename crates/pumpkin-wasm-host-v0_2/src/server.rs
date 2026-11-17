@@ -25,8 +25,8 @@ use crate::{
             server::{
                 BanManager as WitBanManager, BannedIpEntry, BannedPlayerEntry,
                 BedrockResourcePack as WitBedrockResourcePack, Difficulty, Dimension, OpEntry,
-                OpManager as WitOpManager, Server, SysInfo,
-                WhitelistEntry as WitWhitelistEntry, WhitelistManager as WitWhitelistManager,
+                OpManager as WitOpManager, Server, SysInfo, WhitelistEntry as WitWhitelistEntry,
+                WhitelistManager as WitWhitelistManager,
             },
             uuid::Uuid as WitUuid,
         },
@@ -468,13 +468,15 @@ impl pumpkin::plugin::server::HostServer for PluginHostState {
         config: pumpkin::plugin::server::JavaResourcePack,
     ) -> wasmtime::Result<()> {
         let server = self.require_server()?;
-        server.resource_pack.set_java(pumpkin_config::resource_pack::JavaResourcePackConfig {
-            enabled: config.enabled,
-            url: config.url,
-            sha1: config.sha1,
-            prompt_message: config.prompt_message,
-            force: config.force,
-        });
+        server
+            .resource_pack
+            .set_java(pumpkin_config::resource_pack::JavaResourcePackConfig {
+                enabled: config.enabled,
+                url: config.url,
+                sha1: config.sha1,
+                prompt_message: config.prompt_message,
+                force: config.force,
+            });
         Ok(())
     }
 
@@ -484,27 +486,29 @@ impl pumpkin::plugin::server::HostServer for PluginHostState {
         config: WitBedrockResourcePack,
     ) -> wasmtime::Result<()> {
         let server = self.require_server()?;
-        server.resource_pack.set_bedrock(pumpkin_config::resource_pack::BedrockResourcePackConfig {
-            enabled: config.enabled,
-            force: config.force,
-            packs: config
-                .packs
-                .into_iter()
-                .map(|pack| pumpkin_config::resource_pack::BedrockPack {
-                    uuid: WitUuid::from_wit(&pack.uuid),
-                    version: pack.version,
-                    size: pack.size,
-                    download_url: pack.download_url,
-                    path: pack.path.map(std::path::PathBuf::from),
-                    content_key: pack.content_key,
-                    sub_pack_name: pack.sub_pack_name,
-                    content_id: pack.content_id,
-                    has_scripts: pack.has_scripts,
-                    addon_pack: pack.addon_pack,
-                    rtx_enabled: pack.rtx_enabled,
-                })
-                .collect(),
-        });
+        server.resource_pack.set_bedrock(
+            pumpkin_config::resource_pack::BedrockResourcePackConfig {
+                enabled: config.enabled,
+                force: config.force,
+                packs: config
+                    .packs
+                    .into_iter()
+                    .map(|pack| pumpkin_config::resource_pack::BedrockPack {
+                        uuid: WitUuid::from_wit(&pack.uuid),
+                        version: pack.version,
+                        size: pack.size,
+                        download_url: pack.download_url,
+                        path: pack.path.map(std::path::PathBuf::from),
+                        content_key: pack.content_key,
+                        sub_pack_name: pack.sub_pack_name,
+                        content_id: pack.content_id,
+                        has_scripts: pack.has_scripts,
+                        addon_pack: pack.addon_pack,
+                        rtx_enabled: pack.rtx_enabled,
+                    })
+                    .collect(),
+            },
+        );
         Ok(())
     }
 

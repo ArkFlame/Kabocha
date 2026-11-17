@@ -145,11 +145,8 @@ pub fn mace_smash_knockback(world: &World, attacker: &dyn EntityBase, victim: &d
         let power = mace_smash_knockback_power(distance, heavy, resistance);
         if power > 0.0 {
             let direction = offset.normalize();
-            let velocity = Vector3::new(
-                direction.x * power,
-                f64::from(0.7f32),
-                direction.z * power,
-            );
+            let velocity =
+                Vector3::new(direction.x * power, f64::from(0.7f32), direction.z * power);
             let entity = nearby.get_entity();
             if let Some(player) = nearby.get_player() {
                 player.set_velocity(entity.velocity.load() + velocity);

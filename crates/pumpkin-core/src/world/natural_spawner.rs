@@ -81,7 +81,13 @@ impl MobCounts {
 #[inline]
 const fn category_cap(limits: &SpawnLimits, category: &MobCategory) -> i32 {
     match limits.for_category_id(category.id) {
-        Some(cap) => if cap < 0 { 0 } else { cap },
+        Some(cap) => {
+            if cap < 0 {
+                0
+            } else {
+                cap
+            }
+        }
         None => category.max,
     }
 }
@@ -1273,8 +1279,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn after_spawn_updates_category_counts()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn after_spawn_updates_category_counts() -> Result<(), Box<dyn std::error::Error>> {
         use crate::entity::{ai::test_support::world, r#type::from_type};
 
         let folder = tempfile::tempdir()?;

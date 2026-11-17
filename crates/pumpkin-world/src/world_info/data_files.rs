@@ -853,7 +853,10 @@ mod tests {
         let root_file = minecraft_data_dir(temp.path()).join("game_rules.dat");
         fs::create_dir_all(root_file.parent().unwrap()).unwrap();
         fs::write(&root_file, b"root").unwrap();
-        assert_eq!(find_data_file(temp.path(), "game_rules.dat"), Some(root_file));
+        assert_eq!(
+            find_data_file(temp.path(), "game_rules.dat"),
+            Some(root_file)
+        );
     }
 
     #[test]
@@ -865,9 +868,11 @@ mod tests {
 
         write_scheduled_events_stub(temp.path(), 1).unwrap();
 
-        assert!(!minecraft_data_dir(temp.path())
-            .join("scheduled_events.dat")
-            .exists());
+        assert!(
+            !minecraft_data_dir(temp.path())
+                .join("scheduled_events.dat")
+                .exists()
+        );
         assert_eq!(fs::read(&paper_file).unwrap(), b"paper");
     }
 

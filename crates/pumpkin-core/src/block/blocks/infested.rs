@@ -6,11 +6,7 @@ use pumpkin_data::{
     entity::{EntityStatus, EntityType},
 };
 use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
-use pumpkin_util::{
-    Difficulty, GameMode,
-    math::position::BlockPos,
-    math::vector3::Vector3,
-};
+use pumpkin_util::{Difficulty, GameMode, math::position::BlockPos, math::vector3::Vector3};
 use uuid::Uuid;
 
 use crate::{

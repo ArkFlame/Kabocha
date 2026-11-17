@@ -175,7 +175,10 @@ fn absolute_distance(origin: &BlockPos, target: &BlockPos) -> i32 {
     let dx = f64::from(target.0.x - origin.0.x);
     let dy = f64::from(target.0.y - origin.0.y);
     let dz = f64::from(target.0.z - origin.0.z);
-    ((dx * dx + dy * dy + dz * dz) as f32).sqrt().floor().max(0.0) as i32
+    ((dx * dx + dy * dy + dz * dz) as f32)
+        .sqrt()
+        .floor()
+        .max(0.0) as i32
 }
 
 fn send_success(
@@ -270,13 +273,9 @@ impl CommandExecutor for LocateStructureExecutor {
                 // are only *possible* sites: the biome at a candidate can still
                 // reject every structure in the set. Resolving the start makes
                 // sure the reported position actually holds one, and says which.
-                StructurePlacementType::RandomSpread(_) => find_nearest_structure_start(
-                    origin,
-                    set,
-                    &keys,
-                    search_radius,
-                    &world_gen,
-                ),
+                StructurePlacementType::RandomSpread(_) => {
+                    find_nearest_structure_start(origin, set, &keys, search_radius, &world_gen)
+                }
             };
 
             if let Some((pos, key)) = nearest

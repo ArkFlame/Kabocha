@@ -168,7 +168,7 @@ impl SculkSpreader {
 
     /// Returns `true` while charge cursors are still pending.
     #[must_use]
-    pub fn has_cursors(&self) -> bool {
+    pub const fn has_cursors(&self) -> bool {
         !self.cursors.is_empty()
     }
 

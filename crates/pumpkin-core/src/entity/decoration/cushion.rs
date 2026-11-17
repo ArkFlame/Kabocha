@@ -102,9 +102,8 @@ impl CushionEntity {
 
     fn is_covered_by_suffocating_blocks(world: &World, bounding_box: &BoundingBox) -> bool {
         let inner = bounding_box.contract_all(1.0e-7);
-        BlockPos::iterate(inner.min_block_pos(), inner.max_block_pos()).all(|pos| {
-            world.get_block_state(&pos).is_suffocating()
-        })
+        BlockPos::iterate(inner.min_block_pos(), inner.max_block_pos())
+            .all(|pos| world.get_block_state(&pos).is_suffocating())
     }
 
     pub const fn new(entity: Entity, color: u8) -> Self {
@@ -324,8 +323,7 @@ impl EntityBase for CushionEntity {
         if let Some(color) = nbt.get_byte("Color") {
             // Vanilla resolves the stored byte through `DyeColor.byId`, which
             // falls back to white instead of syncing an out-of-range dye id.
-            let color =
-                pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(color as u8));
+            let color = pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(color as u8));
             self.set_color(color.id());
         }
     }

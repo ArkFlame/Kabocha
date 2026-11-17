@@ -309,7 +309,8 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
             }
             let stem_path = stem_path.replace('\\', "/");
             // Vanilla rejects entry ids that are not valid resource locations.
-            if !Identifier::is_valid_namespace(namespace) || !Identifier::is_valid_path(&stem_path) {
+            if !Identifier::is_valid_namespace(namespace) || !Identifier::is_valid_path(&stem_path)
+            {
                 warn!(
                     "Skipping dynamic registry file {}: invalid resource location",
                     path.display()
@@ -319,7 +320,10 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
             let entry_id = format!("{namespace}:{stem_path}");
 
             let Ok(content) = fs::read_to_string(&path) else {
-                warn!("Skipping dynamic registry file {}: unreadable", path.display());
+                warn!(
+                    "Skipping dynamic registry file {}: unreadable",
+                    path.display()
+                );
                 continue;
             };
             let val = match serde_json::from_str::<Value>(&content) {
@@ -570,8 +574,16 @@ mod tests {
         let temp_dir =
             std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp_dir).unwrap();
-        fs::write(temp_dir.join("lower.json"), r#"{"asset_id":"custom:lower"}"#).unwrap();
-        fs::write(temp_dir.join("upper.JSON"), r#"{"asset_id":"custom:upper"}"#).unwrap();
+        fs::write(
+            temp_dir.join("lower.json"),
+            r#"{"asset_id":"custom:lower"}"#,
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.join("upper.JSON"),
+            r#"{"asset_id":"custom:upper"}"#,
+        )
+        .unwrap();
 
         let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
         load_registry_dir_recursive("custom", &temp_dir, &temp_dir, &mut registry);
@@ -595,11 +607,7 @@ mod tests {
         .unwrap();
         fs::write(temp_dir.join("array_root.json"), "[1,2]").unwrap();
         fs::write(temp_dir.join("broken.json"), "{not json").unwrap();
-        fs::write(
-            temp_dir.join("good.json"),
-            r#"{"asset_id":"custom:good"}"#,
-        )
-        .unwrap();
+        fs::write(temp_dir.join("good.json"), r#"{"asset_id":"custom:good"}"#).unwrap();
 
         let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
         load_registry_dir_recursive("custom", &temp_dir, &temp_dir, &mut registry);

@@ -764,7 +764,6 @@ impl MobEntity {
         result
     }
 
-
     /// Queues a write to this mob's brain; writing another mob's brain directly deadlocks.
     pub fn post_to_brain(&self, message: BrainMessage) {
         self.brain_inbox
@@ -2132,9 +2131,7 @@ pub trait Mob: EntityBase + Send + Sync {
     /// Vanilla LivingEntity.baseTick: run the generic air supply rules. Species with their own
     /// rules (water animals drying out on land) replace this hook.
     fn base_tick(&self, caller: &dyn EntityBase) {
-        self.get_mob_entity()
-            .living_entity
-            .tick_air_supply(caller);
+        self.get_mob_entity().living_entity.tick_air_supply(caller);
     }
 
     fn travel(&self, _caller: &dyn EntityBase) -> bool {
@@ -3423,10 +3420,12 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             return 0;
         }
         let weapon = living.held_item(killer);
-        u32::try_from(crate::enchantment::EnchantmentHelper::modify_mob_experience(
-            &weapon,
-            i32::try_from(base).unwrap_or(i32::MAX),
-        ))
+        u32::try_from(
+            crate::enchantment::EnchantmentHelper::modify_mob_experience(
+                &weapon,
+                i32::try_from(base).unwrap_or(i32::MAX),
+            ),
+        )
         .unwrap_or_default()
     }
 

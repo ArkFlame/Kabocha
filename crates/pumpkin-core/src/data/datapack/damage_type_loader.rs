@@ -230,8 +230,7 @@ fn load_damage_types_recursive<S: std::hash::BuildHasher>(
             }
             let stem_path = stem_path.replace('\\', "/");
             // Vanilla requires the datapack path to form a valid resource location id.
-            if !Identifier::is_valid_namespace(namespace)
-                || !Identifier::is_valid_path(&stem_path)
+            if !Identifier::is_valid_namespace(namespace) || !Identifier::is_valid_path(&stem_path)
             {
                 warn!(
                     "Skipping damage type file {}: invalid resource location",
@@ -357,7 +356,10 @@ mod tests {
         };
 
         let nbt = decode_root(&to_registry_nbt_bytes(&def));
-        assert!(nbt.get_float("exhaustion").is_some(), "vanilla writes a float tag");
+        assert!(
+            nbt.get_float("exhaustion").is_some(),
+            "vanilla writes a float tag"
+        );
         assert!(nbt.get_double("exhaustion").is_none());
 
         let default_def = DamageTypeDefinition {
@@ -365,7 +367,10 @@ mod tests {
             ..def
         };
         let nbt = decode_root(&to_registry_nbt_bytes(&default_def));
-        assert!(nbt.get("exhaustion").is_none(), "vanilla omits the 0.0 default");
+        assert!(
+            nbt.get("exhaustion").is_none(),
+            "vanilla omits the 0.0 default"
+        );
     }
 
     fn decode_root(bytes: &[u8]) -> NbtCompound {

@@ -3,8 +3,8 @@ use std::sync::{Arc, Weak};
 
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::food::ConsumableImpl;
 use pumpkin_data::data_component_impl::EquipmentSlot;
+use pumpkin_data::data_component_impl::food::ConsumableImpl;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::game_event::GameEvent;
@@ -21,9 +21,9 @@ use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, ranged_attack::RangedAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        ranged_attack::RangedAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     custom_sound::CustomSound,
     mob::{

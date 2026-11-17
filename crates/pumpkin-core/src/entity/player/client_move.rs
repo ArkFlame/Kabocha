@@ -245,17 +245,19 @@ impl Player {
                 .received_move_packet_count
                 .fetch_add(1, Ordering::Relaxed)
                 + 1;
-            let mut packets = received.saturating_sub(
-                self.known_move_packet_count.load(Ordering::Relaxed),
-            );
+            let mut packets =
+                received.saturating_sub(self.known_move_packet_count.load(Ordering::Relaxed));
             if packets > 5 {
                 // Vanilla resets the sample when a client floods move packets.
                 packets = 1;
             }
             let moved = pos.squared_distance_to_vec(&last_pos);
             let known_movement = entity.velocity.load().length_squared();
-            let allowance = if entity.is_fall_flying() { 300.0 } else { 100.0 }
-                * f64::from(packets);
+            let allowance = if entity.is_fall_flying() {
+                300.0
+            } else {
+                100.0
+            } * f64::from(packets);
             if moved - known_movement > allowance {
                 warn!(
                     "{} moved too quickly! {},{},{}",

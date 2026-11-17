@@ -302,10 +302,8 @@ impl VanillaGenerator {
             i32::from(shape.max_y()),
             shape.vertical_cell_block_count() as usize,
         );
-        let mut sampler = SurfaceHeightEstimateSampler::generate(
-            &self.base_router.surface_estimator,
-            &options,
-        );
+        let mut sampler =
+            SurfaceHeightEstimateSampler::generate(&self.base_router.surface_estimator, &options);
         sampler.estimate_height(x, z)
     }
 

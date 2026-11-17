@@ -107,7 +107,8 @@ impl Mob for ElderGuardianEntity {
         }
 
         if !self.mob_entity.has_position_target() {
-            self.mob_entity.set_home_to(entity.block_pos.load(), HOME_RADIUS);
+            self.mob_entity
+                .set_home_to(entity.block_pos.load(), HOME_RADIUS);
         }
 
         if (entity.tick_count.load(Ordering::Relaxed) + entity.entity_id) % EFFECT_INTERVAL == 0 {

@@ -274,8 +274,9 @@ mod tests {
     // missing terrain adaptation leaves them buried under untouched ground.
     #[test]
     fn woodland_mansion_beards_around_its_ground_level() {
-        let structure =
-            pumpkin_data::structures::Structure::get(&pumpkin_data::structures::StructureKeys::Mansion);
+        let structure = pumpkin_data::structures::Structure::get(
+            &pumpkin_data::structures::StructureKeys::Mansion,
+        );
         let bounding_box = BlockBox::new(-10, 64, -10, 10, 74, 10);
         let beardifier = Beardifier::new(
             vec![BeardifierStructure {

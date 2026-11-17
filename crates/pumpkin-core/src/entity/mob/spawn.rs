@@ -10,8 +10,8 @@ use rand::RngExt;
 use crate::entity::EntityBase;
 use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::mob::MobEntity;
-use crate::entity::passive::fox::FoxVariant;
 use crate::entity::mob::equipment::{EQUIPMENT_REGISTRY, RegionalDifficulty, equip_mob_on_spawn};
+use crate::entity::passive::fox::FoxVariant;
 use crate::world::World;
 
 pub(crate) const RANDOM_SPAWN_BONUS_ID: &str = "minecraft:random_spawn_bonus";

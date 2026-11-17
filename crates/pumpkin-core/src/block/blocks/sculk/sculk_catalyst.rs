@@ -2,8 +2,8 @@ use crate::block::entities::sculk_catalyst::SculkCatalystBlockEntity;
 use crate::block::{BlockBehaviour, BlockMetadata, OnPlaceArgs, OnScheduledTickArgs};
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{BlockId, BlockStateId, block_properties::SculkCatalystLikeProperties};
-use rand::RngExt;
 use pumpkin_world::world::BlockFlags;
+use rand::RngExt;
 
 pub struct SculkCatalystBlock;
 

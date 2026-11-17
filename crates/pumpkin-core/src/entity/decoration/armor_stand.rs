@@ -6,8 +6,8 @@ use crate::entity::{
     player::Player,
 };
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::game_event::GameEvent;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::{
     Block,
     damage::DamageType,
@@ -395,11 +395,7 @@ fn default_dimensions(marker: bool, small: bool) -> EntityDimensions {
     }
 
     let size = Entity::type_dimensions(&EntityType::ARMOR_STAND);
-    if small {
-        size.scale(0.5)
-    } else {
-        size
-    }
+    if small { size.scale(0.5) } else { size }
 }
 
 fn swap_item_stacks(
@@ -821,5 +817,4 @@ mod tests {
         assert_eq!(new_stand_stack.item_count, 1);
         assert_eq!(held.item_count, 4);
     }
-
 }

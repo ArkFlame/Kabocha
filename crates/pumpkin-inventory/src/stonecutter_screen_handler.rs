@@ -92,7 +92,7 @@ pub struct StonecutterState {
 }
 
 impl StonecutterState {
-    /// Total number of recipes sent to the client in UPDATE_RECIPES.
+    /// Total number of recipes sent to the client in `UPDATE_RECIPES`.
     fn recipe_count(&self) -> i32 {
         let dynamic = self.recipe_provider.as_ref().map_or(0, |provider| {
             provider
@@ -106,7 +106,7 @@ impl StonecutterState {
     fn is_valid_recipe_index(&self, index: i32) -> bool {
         index >= 0 && index < self.recipe_count()
     }
-    /// Resolves the client index into the full recipe list sent in UPDATE_RECIPES.
+    /// Resolves the client index into the full recipe list sent in `UPDATE_RECIPES`.
     ///
     /// The client keeps the global index of every listed recipe and only hides the
     /// ones whose ingredient does not match the input, so the index must never be
@@ -133,14 +133,13 @@ impl StonecutterState {
         for dynamic in provider.get_dynamic_recipes() {
             if let DynamicRecipe::Stonecutting(r) = dynamic {
                 if current == index {
-                    return r
-                        .ingredient
-                        .match_item(input.item)
-                        .then(|| StonecutterRecipeChoice {
+                    return r.ingredient.match_item(input.item).then_some(
+                        StonecutterRecipeChoice {
                             result_id: r.result.item_id,
                             count: r.result.count,
                             components: &[],
-                        });
+                        },
+                    );
                 }
                 current += 1;
             }

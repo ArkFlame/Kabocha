@@ -4151,7 +4151,7 @@ mod tests {
     }
 
     /// Vanilla's `BundleContents.STREAM_CODEC` only carries the contents. An
-    /// extra selected-index VarInt used to follow them and shifted every byte
+    /// extra selected-index `VarInt` used to follow them and shifted every byte
     /// after the bundle in a container sync.
     #[test]
     fn bundle_contents_stream_codec_writes_only_the_contents()

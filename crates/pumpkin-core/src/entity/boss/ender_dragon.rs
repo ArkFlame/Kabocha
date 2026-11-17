@@ -997,7 +997,15 @@ impl Mob for EnderDragonEntity {
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> Option<bool> {
-        Some(self.hurt_part(self, PART_BODY, amount, damage_type, position, source, cause))
+        Some(self.hurt_part(
+            self,
+            PART_BODY,
+            amount,
+            damage_type,
+            position,
+            source,
+            cause,
+        ))
     }
 
     /// Vanilla `checkDespawn` does nothing for the ender dragon.

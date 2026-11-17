@@ -369,10 +369,10 @@ pub fn from_type(
     // Vanilla spawns each living entity with its species' maximum air, e.g. a dolphin starts
     // with its larger supply instead of the default.
     if let Some(living) = mob.get_living_entity() {
-        living
-            .entity
-            .air_supply
-            .store(mob.get_max_air_supply(), std::sync::atomic::Ordering::Relaxed);
+        living.entity.air_supply.store(
+            mob.get_max_air_supply(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     mob

@@ -74,7 +74,9 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
             let dimensions = worlds
                 .iter()
                 .map(|world| world.dimension.minecraft_name.to_string());
-            suggestions_builder.filter_and_suggest_iter(dimensions).build()
+            suggestions_builder
+                .filter_and_suggest_iter(dimensions)
+                .build()
         } else {
             Suggestions::empty()
         }

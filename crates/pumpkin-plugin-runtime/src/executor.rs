@@ -1096,7 +1096,8 @@ where
         F: for<'a> FnOnce(LegacyGuestScope<'a, T>) -> StoreFuture<'a, R> + Send + 'static,
         R: Send + 'static,
     {
-        self.shutdown_with_timeout(SHUTDOWN_DRAIN_TIMEOUT, call).await
+        self.shutdown_with_timeout(SHUTDOWN_DRAIN_TIMEOUT, call)
+            .await
     }
 
     /// [`Self::shutdown`], but abandons the Store if it has not dropped its

@@ -233,7 +233,10 @@ impl PendingConnection {
         let payload = payload.and_then(|payload| match SerializedPacket::try_from_bytes(payload) {
             Ok(payload) => Some(payload),
             Err(err) => {
-                warn!("Failed to serialize packet for client {}: {:?}", self.id, err);
+                warn!(
+                    "Failed to serialize packet for client {}: {:?}",
+                    self.id, err
+                );
                 None
             }
         });

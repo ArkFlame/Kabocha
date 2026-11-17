@@ -1676,10 +1676,13 @@ impl LivingEntity {
                 .is_none();
             if was_absent && let Some(sound) = apply_sound {
                 let category = self.entity.entity_type.sound_source;
-                self.entity
-                    .world
-                    .load()
-                    .play_sound_fine(sound, category, &self.entity.pos.load(), 1.0, 1.0);
+                self.entity.world.load().play_sound_fine(
+                    sound,
+                    category,
+                    &self.entity.pos.load(),
+                    1.0,
+                    1.0,
+                );
             }
         }
         self.sync_effect_particles();

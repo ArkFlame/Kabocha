@@ -370,6 +370,10 @@ mod tests {
         assert!(!is_valid_hit_position(&Vector3::new(1.5, 0.5, 0.5)));
         assert!(!is_valid_hit_position(&Vector3::new(0.5, -0.5, 0.5)));
         assert!(!is_valid_hit_position(&Vector3::new(f32::NAN, 0.5, 0.5)));
-        assert!(!is_valid_hit_position(&Vector3::new(0.5, f32::INFINITY, 0.5)));
+        assert!(!is_valid_hit_position(&Vector3::new(
+            0.5,
+            f32::INFINITY,
+            0.5
+        )));
     }
 }

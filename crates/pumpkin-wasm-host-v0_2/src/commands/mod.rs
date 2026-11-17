@@ -664,7 +664,6 @@ impl pumpkin::plugin::command::HostCommandNode for PluginHostState {
         Ok(())
     }
 
-
     fn drop(&mut self, rep: Resource<CommandNode>) -> wasmtime::Result<()> {
         self.drop(rep)
     }

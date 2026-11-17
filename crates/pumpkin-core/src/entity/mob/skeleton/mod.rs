@@ -135,13 +135,11 @@ impl Mob for SkeletonEntityBase {
 
     fn get_min_attack_interval(&self) -> Option<i32> {
         let world = self.mob_entity.living_entity.entity.world.load();
-        Some(
-            if world.level_info.load().difficulty == Difficulty::Hard {
-                SKELETON_HARD_ATTACK_INTERVAL
-            } else {
-                SKELETON_ATTACK_INTERVAL
-            },
-        )
+        Some(if world.level_info.load().difficulty == Difficulty::Hard {
+            SKELETON_HARD_ATTACK_INTERVAL
+        } else {
+            SKELETON_ATTACK_INTERVAL
+        })
     }
 
     fn populate_default_equipment_slots(

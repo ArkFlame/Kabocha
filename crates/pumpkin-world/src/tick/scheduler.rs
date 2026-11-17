@@ -134,9 +134,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
                 && position.0.z < max.0.z
         };
 
-        inner
-            .overdue_ticks
-            .retain(|tick| !contains(&tick.position));
+        inner.overdue_ticks.retain(|tick| !contains(&tick.position));
         for queue in &mut inner.tick_queue {
             queue.retain(|tick| !contains(&tick.position));
         }
@@ -279,7 +277,9 @@ mod tests {
 
         let fired = fired_steps(&scheduler, 3601);
         // Delay 0 runs on the next tick, like delay 1.
-        let expected: Vec<_> = (0..).zip(delays.map(|delay| (delay as usize).max(1))).collect();
+        let expected: Vec<_> = (0..)
+            .zip(delays.map(|delay| (delay as usize).max(1)))
+            .collect();
         assert_eq!(fired, expected);
         assert!(!scheduler.has_ticks());
     }
@@ -324,15 +324,13 @@ mod tests {
 
     #[test]
     fn restored_ticks_precede_live_ticks() {
-        let saved: Vec<_> = [10, 11]
-            .into_iter()
-            .map(|x| tick_at(x, 1))
-            .collect();
+        let saved: Vec<_> = [10, 11].into_iter().map(|x| tick_at(x, 1)).collect();
         let restored = ChunkTickScheduler::from_iter(saved);
         let live = ChunkTickScheduler::default();
         live.schedule_tick(&tick_at(32, 1), 0);
 
-        let due = crate::tick::drain_containers(vec![live.step_tick(true), restored.step_tick(true)]);
+        let due =
+            crate::tick::drain_containers(vec![live.step_tick(true), restored.step_tick(true)]);
         assert_eq!(
             due.iter().map(|tick| tick.position.0.x).collect::<Vec<_>>(),
             [10, 11, 32]

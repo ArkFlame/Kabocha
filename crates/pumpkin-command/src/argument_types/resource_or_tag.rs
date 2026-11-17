@@ -249,11 +249,11 @@ mod tests {
     #[test]
     fn tags_need_hash_and_match_after_it() {
         let tagged = suggest("#is_oc");
-        assert!(tagged.contains(&"#minecraft:is_ocean".to_string()));
+        assert!(tagged.iter().any(|text| text == "#minecraft:is_ocean"));
         assert!(tagged.iter().all(|text| text.starts_with('#')));
 
         let plain = suggest("ocean");
-        assert!(plain.contains(&"minecraft:ocean".to_string()));
+        assert!(plain.iter().any(|text| text == "minecraft:ocean"));
         assert!(plain.iter().all(|text| !text.starts_with('#')));
     }
 }

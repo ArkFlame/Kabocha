@@ -179,7 +179,10 @@ impl EntityBase for MannequinEntity {
 
     fn is_pushable(&self) -> bool {
         // Vanilla Mannequin.isPushable: immovable mannequins are never pushed.
-        !self.get_immovable() && self.living_entity.can_be_pushed(EntityBase::on_climbable(self))
+        !self.get_immovable()
+            && self
+                .living_entity
+                .can_be_pushed(EntityBase::on_climbable(self))
     }
 
     fn init_data_tracker(&self) {

@@ -110,10 +110,7 @@ impl ExperienceExecutor {
             TextComponent::translate_cross(
                 format!("commands.experience.{mode_str}.{type_str}.success.single"),
                 bedrock_key,
-                [
-                    TextComponent::text(amount.to_string()),
-                    first_target_name,
-                ],
+                [TextComponent::text(amount.to_string()), first_target_name],
             )
         }
     }

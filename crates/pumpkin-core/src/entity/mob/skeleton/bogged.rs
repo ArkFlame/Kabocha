@@ -13,6 +13,7 @@ use pumpkin_util::Hand;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
+use crate::entity::EntityBase;
 use crate::entity::{
     Entity,
     custom_sound::CustomSound,
@@ -21,7 +22,6 @@ use crate::entity::{
     player::Player,
     shearable::{Shearable, shear_by_player, shearing_loot},
 };
-use crate::entity::EntityBase;
 use crate::world::World;
 
 const BOGGED_SHEAR_LOOT_TABLE: &str = "minecraft:shearing/bogged";

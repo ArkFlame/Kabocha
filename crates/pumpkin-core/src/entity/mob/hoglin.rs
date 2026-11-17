@@ -14,13 +14,14 @@ use rand::RngExt;
 
 use crate::entity::mob::spawn::SpawnGroupData;
 use crate::entity::{
-    Entity, EntityBase, living::LivingEntity,
+    Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
         swim::SwimGoal, wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity},
 };
 use crate::world::World;
@@ -287,9 +288,7 @@ pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
     let resistance = target.get_living_entity().map_or(0.0, |living| {
         living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
     });
-    let strength = attacker
-        .get_attribute_value(&Attributes::ATTACK_KNOCKBACK)
-        - resistance;
+    let strength = attacker.get_attribute_value(&Attributes::ATTACK_KNOCKBACK) - resistance;
     if strength <= 0.0 {
         return;
     }
