@@ -84,10 +84,11 @@ impl FishingBobberEntity {
         let (origin, velocity) = throw_setup(yaw, pitch, triangle);
 
         let owner_pos = owner_entity.pos.load();
-        // Move the whole entity, so the bounding box follows the eye position.
+        // Move the whole entity, so the bounding box follows the eye position. Vanilla
+        // `FishingHook` spawns at `getEyeY() - 0.1`.
         entity.set_pos(Vector3::new(
             owner_pos.x + origin.x,
-            owner_pos.y + owner_entity.get_eye_height(),
+            owner_pos.y + owner_entity.get_eye_height() - 0.1,
             owner_pos.z + origin.z,
         ));
         entity.update_last_pos();
@@ -223,8 +224,10 @@ impl FishingBobberEntity {
                         .fire_blocking(&server, &mut item_event);
                 }
                 if !item_event.cancelled {
+                    // Vanilla `new ItemEntity(level, x, y, z, stack)` keeps the default ten tick
+                    // pickup delay, so a caught fish cannot be grabbed instantly.
                     let item_entity =
-                        ItemEntity::new_with_velocity(entity, item_stack.clone(), velocity, 0);
+                        ItemEntity::new_with_velocity(entity, item_stack.clone(), velocity, 10);
                     world.spawn_entity(Arc::new(item_entity));
                 }
 

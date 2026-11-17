@@ -127,7 +127,6 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
             cleanup_world(state, &data.target_world);
         }
         Event::BlockBreakEvent(data) => {
-            cleanup_world(state, &data.world);
             if let Some(res) = &data.player {
                 cleanup_player(state, res);
             }
@@ -142,7 +141,6 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
             cleanup_world(state, &data.target_world);
         }
         Event::BlockPlaceEvent(data) => {
-            cleanup_world(state, &data.world);
             cleanup_player(state, &data.player);
         }
         Event::BedrockFormResponseEvent(data) => {
@@ -248,9 +246,7 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
             }
         }
         Event::EntityEnterLoveModeEvent(_) => {}
-        Event::EntityExplodeEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
+        Event::EntityExplodeEvent(_) => {}
         Event::EntityMountEvent(_) => {}
         Event::EntityPickupItemEvent(_) => {}
         Event::EntityPortalEvent(_) => {}
@@ -288,7 +284,6 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
             cleanup_player(state, &data.player);
         }
         Event::BlockIgniteEvent(data) => {
-            cleanup_world(state, &data.world);
             if let Some(res) = &data.player {
                 cleanup_player(state, res);
             }
@@ -297,24 +292,16 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
         Event::BlockFormEvent(_) => {}
         Event::BlockFadeEvent(_) => {}
         Event::BlockDispenseEvent(_) => {}
-        Event::BlockExplodeEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
+        Event::BlockExplodeEvent(_) => {}
         Event::BlockPhysicsEvent(_) => {}
-        Event::BlockPistonExtendEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
-        Event::BlockPistonRetractEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
+        Event::BlockPistonExtendEvent(_) => {}
+        Event::BlockPistonRetractEvent(_) => {}
         Event::NotePlayEvent(_) => {}
         Event::SignChangeEvent(data) => {
             cleanup_player(state, &data.player);
         }
         Event::SpongeAbsorbEvent(_) => {}
-        Event::TntPrimeEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
+        Event::TntPrimeEvent(_) => {}
         Event::WeatherChangeEvent(data) => {
             cleanup_world(state, &data.target_world);
         }
@@ -522,9 +509,7 @@ pub fn cleanup_event(event: &Event, state: &mut PluginHostState) {
         }
         Event::EnderDragonChangePhaseEvent(_) => {}
         Event::EntityBreakDoorEvent(_) => {}
-        Event::EntityChangeBlockEvent(data) => {
-            cleanup_world(state, &data.world);
-        }
+        Event::EntityChangeBlockEvent(_) => {}
         Event::EntityDamageByBlockEvent(_) => {}
         Event::EntityDamageByEntityEvent(_) => {}
         Event::EntityDropItemEvent(_) => {}

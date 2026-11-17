@@ -6,6 +6,7 @@
 pub mod args;
 pub mod commands;
 pub mod concurrent_store;
+pub mod error;
 pub mod logging;
 pub mod plugin;
 pub mod scheduler;

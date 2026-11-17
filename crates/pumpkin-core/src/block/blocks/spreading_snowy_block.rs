@@ -121,18 +121,24 @@ impl SpreadingSnowyBlock {
         default_block_state: &'static BlockState,
     ) {
         if !Self::can_stay_alive(state, world, pos) {
-            // Paper fires `BlockFadeEvent`; a cancelled fade keeps the spreading block.
-            let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
-                *pos,
-                state.id.to_block(),
-            );
-            if let Some(server) = world.server.upgrade() {
-                server.plugin_manager.fire_blocking(&server, &mut event);
+            // Vanilla only kills the block when the cover is dark enough and thick enough;
+            // e.g. grass under water survives, grass under an opaque block turns to dirt.
+            let above = pos.up();
+            let above_state = world.get_block_state(&above);
+            if world.get_max_local_raw_brightness(&above) < 4 && above_state.opacity > 2 {
+                // Paper fires `BlockFadeEvent`; a cancelled fade keeps the spreading block.
+                let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
+                    *pos,
+                    state.id.to_block(),
+                );
+                if let Some(server) = world.server.upgrade() {
+                    server.plugin_manager.fire_blocking(&server, &mut event);
+                }
+                if event.cancelled {
+                    return;
+                }
+                world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
             }
-            if event.cancelled {
-                return;
-            }
-            world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
         } else if world.get_max_local_raw_brightness(&pos.up()) >= 9 {
             let mut rng = rand::rng();
             for _ in 0..4 {
@@ -143,9 +149,12 @@ impl SpreadingSnowyBlock {
                 if !world.is_loaded(&test_pos) {
                     continue;
                 }
-                if world.get_block(&test_pos) == base_block
-                    && Self::can_propagate(default_block_state, world, &test_pos)
-                {
+                if world.get_block(&test_pos) == base_block {
+                    // Vanilla checks the target block state, not the new block state.
+                    let target_state = world.get_block_state(&test_pos);
+                    if !Self::can_propagate(target_state, world, &test_pos) {
+                        continue;
+                    }
                     let above_test = test_pos.up();
                     let is_snowy = if world.is_loaded(&above_test) {
                         SnowyBlock::is_snowy_setting(world.get_block_state(&above_test))

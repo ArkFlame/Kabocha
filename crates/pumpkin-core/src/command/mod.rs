@@ -149,6 +149,13 @@ impl CommandSender {
             Self::Console => println!("{}", text.to_pretty_console()),
             Self::Player(c) => c.send_system_message(&text),
             Self::CommandBlock(block_entity, _) => {
+                // Vanilla TrackOutput: when off, nothing is written to LastOutput.
+                if !block_entity
+                    .track_output
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    return;
+                }
                 let mut last_output = block_entity
                     .last_output
                     .lock()
@@ -298,9 +305,10 @@ impl CommandSender {
     #[must_use]
     pub fn should_receive_feedback(&self) -> bool {
         match self {
-            Self::CommandBlock(_, world) => {
-                world.level_info.load().game_rules.send_command_feedback
-            }
+            // Vanilla only gates player feedback on the sendCommandFeedback
+            // gamerule; command blocks always record output (TrackOutput is
+            // honoured in send_message) and broadcast per commandBlockOutput.
+            Self::CommandBlock(..) => true,
             Self::Player(player) => {
                 player
                     .world()

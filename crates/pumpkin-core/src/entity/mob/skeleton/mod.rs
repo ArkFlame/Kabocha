@@ -12,7 +12,7 @@ use crate::entity::{
     ai::behavior::fleeing::{self, Flee},
     ai::behavior::hunting::{self, Hunt},
     ai::goal::{
-        bow_attack::BowAttackGoal, look_around::RandomLookAroundGoal,
+        bow_attack::BowAttackGoal, flee_sun::FleeSunGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
         swim::SwimGoal, wander_around::WanderAroundGoal,
     },
@@ -69,10 +69,12 @@ impl SkeletonEntityBase {
             let target_selector = &mob_arc.mob_entity.target_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            // TODO: RestrictSunGoal(2) and FleeSunGoal(3), once both match vanilla.
+            // TODO: RestrictSunGoal(2) once the navigator can avoid the sun (vanilla only toggles
+            // `navigation.setAvoidSun`; the current goal does nothing).
+            goal_selector.add_goal(3, Box::new(FleeSunGoal::new(1.0)));
             fleeing::apply(goal_selector, SKELETON_FLEES);
             // Vanilla `reassessWeaponGoal`: the bow or the melee goal at 4, by the held weapon.
-            // `get_min_attack_interval` supplies the per-type, per-difficulty interval.
+            // TODO: parched attack interval (vanilla bogged overrides to 70/50, see bogged.rs).
             goal_selector.add_goal(
                 4,
                 Box::new(BowAttackGoal::new(1.0, SKELETON_ATTACK_INTERVAL, 15.0)),

@@ -57,7 +57,7 @@ pub struct ArrowEntity {
     pub owner: ProjectileOwner,
     pub item_stack: RwLock<ItemStack>,
     pub base_damage: AtomicU64,
-    pub pickup: ArrowPickup,
+    pub pickup: AtomicU8,
     pub is_critical: AtomicBool,
     pub pierce_level: AtomicU8,
     pub punch_level: AtomicU8,
@@ -97,7 +97,7 @@ impl ArrowEntity {
             owner: ProjectileOwner::new(owner),
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
-            pickup,
+            pickup: AtomicU8::new(pickup.to_byte()),
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
@@ -133,7 +133,7 @@ impl ArrowEntity {
             owner: ProjectileOwner::new(Some(shooter)),
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
-            pickup,
+            pickup: AtomicU8::new(pickup.to_byte()),
             is_critical: AtomicBool::new(false),
             pierce_level: AtomicU8::new(0),
             punch_level: AtomicU8::new(0),
@@ -398,6 +398,8 @@ impl ArrowEntity {
             &self.entity,
             &CEntityStatus::new(self.entity.entity_id, 0),
         );
+        // Vanilla Arrow#updateColor resets the effect color when the potion is gone.
+        self.entity.set_synced_data(pumpkin_data::tracked_data::arrow::ID_EFFECT_COLOR, -1);
     }
 }
 
@@ -437,7 +439,12 @@ impl EntityBase for ArrowEntity {
             "PierceLevel",
             self.pierce_level.load(Ordering::Relaxed) as i8,
         );
-        nbt.put_byte("pickup", self.pickup.to_byte() as i8);
+        nbt.put_byte("pickup", self.pickup.load(Ordering::Relaxed) as i8);
+        if let Some(weapon) = self.get_weapon_item() {
+            let mut weapon_nbt = pumpkin_nbt::compound::NbtCompound::new();
+            weapon.copy_with_count(1).write_item_stack(&mut weapon_nbt);
+            nbt.put_compound("weapon", weapon_nbt);
+        }
         if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
             // Vanilla `SpectralArrow.writeAdditionalSaveData`.
             nbt.put_int("Duration", self.duration.load(Ordering::Relaxed) as i32);
@@ -457,7 +464,25 @@ impl EntityBase for ArrowEntity {
         if let Some(damage) = nbt.get_double("damage") {
             self.set_base_damage(damage);
         }
+        let weapon = nbt
+            .get_compound("weapon")
+            .and_then(ItemStack::read_item_stack)
+            .map(|weapon| weapon.copy_with_count(1));
+        if let Some(weapon) = weapon {
+            let mut guard = self
+                .weapon
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *guard = Some(weapon);
+        }
         self.flight.read_nbt(nbt);
+        // Vanilla AbstractArrow#readAdditionalSaveData defaults a missing pickup to disallowed.
+        self.pickup.store(
+            nbt.get_byte("pickup")
+                .map_or(ArrowPickup::Disallowed, |b| ArrowPickup::from_byte(b as u8))
+                .to_byte(),
+            Ordering::Relaxed,
+        );
         if let Some(pierce) = nbt.get_byte("PierceLevel") {
             self.pierce_level
                 .store(pierce.max(0) as u8, Ordering::Relaxed);
@@ -607,7 +632,7 @@ impl EntityBase for ArrowEntity {
         }
 
         // Check pickup rules
-        match self.pickup {
+        match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
             ArrowPickup::Disallowed => return,
             ArrowPickup::CreativeOnly if !player.is_creative() => return,
             _ => {}
@@ -641,7 +666,14 @@ impl EntityBase for ArrowEntity {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut stack = Self::pickup_item_stack(&item_stack);
-        if player.is_creative() || player.inventory.insert_stack_anywhere(&mut stack) {
+        // Vanilla AbstractArrow#tryPickup only inserts the item for ALLOWED; a
+        // CREATIVE_ONLY arrow is consumed without entering the inventory.
+        let picked_up = match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+            ArrowPickup::Allowed => player.inventory.insert_stack_anywhere(&mut stack),
+            ArrowPickup::CreativeOnly => true,
+            ArrowPickup::Disallowed => false,
+        };
+        if picked_up {
             player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::PickedUp,
                 stack.item.id as i32,
@@ -758,7 +790,8 @@ impl ArrowEntity {
                 Vector3::new(0.2, 0.2, 0.2),
             );
             if entity.velocity.load().length_squared() < 1.0e-7 {
-                if self.pickup == ArrowPickup::Allowed {
+                let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
+                if pickup == ArrowPickup::Allowed {
                     let item_stack = self
                         .item_stack
                         .read()

@@ -318,7 +318,7 @@ use crate::plugin::player::inventory_interact::InventoryClickEvent;
 use crate::plugin::player::player_change_world::PlayerChangeWorldEvent;
 use crate::plugin::player::player_gamemode_change::PlayerGamemodeChangeEvent;
 use crate::plugin::player::player_permission_check::PlayerPermissionCheckEvent;
-use crate::plugin::player::player_teleport::PlayerTeleportEvent;
+use crate::plugin::player::player_teleport::{PlayerTeleportEvent, TeleportCause};
 use crate::plugin::server::packet::PacketSentEvent;
 use crate::plugin::world::chunk_send::ChunkSend;
 use crate::server::Server;
@@ -672,6 +672,11 @@ pub struct Player {
     pub last_input: AtomicI8,
     /// A counter for teleport IDs used to track pending teleports.
     pub teleport_id_count: AtomicI32,
+    /// The `tick_counter` value when the last teleport was issued.
+    pub teleport_issued_tick: AtomicI32,
+    /// Set while a dimension change awaits its teleport confirmation.
+    // TODO: vanilla also skips the portal cooldown countdown while this is set.
+    pub is_changing_dimension: AtomicBool,
     /// The pending teleport information, including the teleport ID and target location.
     pub awaiting_teleport: Mutex<Option<(VarInt, Vector3<f64>)>>,
     /// The coordinates of the chunk section the player is currently watching.
@@ -1035,6 +1040,8 @@ impl Player {
             carried_item: Mutex::new(None),
             experience_pick_up_delay: Mutex::new(0),
             teleport_id_count: AtomicI32::new(0),
+            teleport_issued_tick: AtomicI32::new(0),
+            is_changing_dimension: AtomicBool::new(false),
             mining: AtomicBool::new(false),
             mining_pos: Mutex::new(BlockPos::ZERO),
             has_delayed_destroy: AtomicBool::new(false),
@@ -1770,7 +1777,11 @@ impl Player {
         damage = damage.max(0.0);
 
         let pos = victim_entity.pos.load();
-        let attack_type = AttackType::new(self, attack_cooldown_progress as f32);
+        let attack_type = AttackType::new(
+            self,
+            attack_cooldown_progress as f32,
+            victim.get_living_entity().is_some(),
+        );
 
         let is_mace_smash = item_stack.item.id == pumpkin_data::item::Item::MACE.id
             && can_smash_attack(&self.living_entity);
@@ -2636,8 +2647,10 @@ impl Player {
     }
 
     pub fn sleep(&self, bed_head_pos: BlockPos) {
-        // TODO: Stop riding
-
+        // Vanilla `Player.startSleeping` dismounts before lying down.
+        if let Some(vehicle) = self.get_entity().get_vehicle() {
+            vehicle.get_entity().remove_passenger(self.entity_id());
+        }
         self.get_entity().set_pose(EntityPose::Sleeping);
         // Vanilla `setPosToBed`; `to_f64` already centers X and Z.
         self.living_entity
@@ -5124,13 +5137,35 @@ impl Player {
     }
 
     /// Teleports the player to a different world or dimension with an optional position, yaw, and pitch.
-    #[expect(clippy::too_many_lines)]
+    /// Moves the player to another world with an unknown teleport cause.
     pub async fn teleport_world(
         self: &Arc<Self>,
         new_world: Arc<World>,
         position: Vector3<f64>,
         yaw: Option<f32>,
         pitch: Option<f32>,
+        play_portal_sound: bool,
+    ) {
+        self.teleport_world_with_cause(
+            new_world,
+            position,
+            yaw,
+            pitch,
+            TeleportCause::Unknown,
+            play_portal_sound,
+        )
+        .await;
+    }
+
+    /// Moves the player to another world, reporting `cause` to `PlayerTeleportEvent`.
+    #[expect(clippy::too_many_lines)]
+    pub async fn teleport_world_with_cause(
+        self: &Arc<Self>,
+        new_world: Arc<World>,
+        position: Vector3<f64>,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+        cause: TeleportCause,
         play_portal_sound: bool,
     ) {
         let current_world = self.living_entity.entity.world.load_full();
@@ -5164,11 +5199,28 @@ impl Player {
                     return;
                 }
 
+                // Fired before anything moves, so a cancel leaves the player where they are.
+                let Some((position, yaw, pitch)) =
+                    self.fire_teleport_event(position, Some(yaw), Some(pitch), cause)
+                else {
+                    return;
+                };
+                // An axis a plugin cleared stays relative for the client.
+                let (event_yaw, event_pitch) = (yaw, pitch);
+                let yaw = yaw.unwrap_or_else(|| self.living_entity.entity.yaw.load());
+                let pitch = pitch.unwrap_or_else(|| self.living_entity.entity.pitch.load());
+
                 self.reset_mining();
                 self.set_client_loaded(false);
+                // The client rebuilds its player on respawn, so health, hunger
+                // and experience go out again once the client has loaded.
+                self.last_sent_health.store(-1, Ordering::Relaxed);
+                self.last_sent_food.store(u8::MAX, Ordering::Relaxed);
+                self.last_sent_xp.store(-1, Ordering::Relaxed);
                 let Some(player) = current_world.remove_player(self, false).await else {
                     return;
                 };
+                self.is_changing_dimension.store(true, Ordering::Relaxed);
                new_world.players.rcu(|current_list| {
                     let mut new_list = (**current_list).clone();
                     new_list.push(player.clone());
@@ -5255,15 +5307,15 @@ impl Player {
 
                 self.on_screen_handler_opened(&self.player_screen_handler);
 
-                self.send_health();
-
                 new_world.send_world_info(&player);
                 new_world.send_center_chunk(&player).await;
 
                 // Entities already tracked in the new world must also be sent to this player.
                 new_world.pair_new_player_with_tracked_entities(&player);
 
-                player.request_teleport(position, yaw, pitch);
+                // TODO: a world change fires both `PlayerChangeWorldEvent` and
+                // `PlayerTeleportEvent`, so plugins see two events for one teleport.
+                player.send_teleport(position, event_yaw, event_pitch);
 
                 if play_portal_sound {
                     self.try_send_client_packet(&CWorldEvent::new(
@@ -5292,53 +5344,150 @@ impl Player {
     /// `yaw` and `pitch` are in degrees.
     /// Rarly used, for example when waking up the player from a bed or their first time spawn. Otherwise, the `teleport` method should be used.
     /// The player should respond with the `SConfirmTeleport` packet.
-    pub fn request_teleport(&self, position: Vector3<f64>, yaw: f32, pitch: f32) {
-        // This is the ultra special magic code used to create the teleport id
-        // This returns the old value
-        // This operation wraps around on overflow.
-        let Some(server) = self.world().server.upgrade() else {
+    /// The next teleport id, like vanilla it restarts at 0 before `i32::MAX`.
+    pub fn next_teleport_id(&self) -> i32 {
+        self.teleport_issued_tick
+            .store(self.tick_counter.load(Ordering::Relaxed), Ordering::Relaxed);
+        let next = |id: i32| if id + 1 == i32::MAX { 0 } else { id + 1 };
+        match self
+            .teleport_id_count
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| Some(next(id)))
+        {
+            Ok(previous) | Err(previous) => next(previous),
+        }
+    }
+
+    /// Moves are ignored until the client confirms. Java clients before 1.9 have no teleport confirmation.
+    pub fn expect_teleport_confirm(&self, teleport_id: i32, position: Vector3<f64>) {
+        if matches!(
+            self.client.as_ref(),
+            ClientPlatform::Java(c) if c.version.load() < JavaMinecraftVersion::V_1_9
+        ) {
             return;
+        }
+        *self
+            .awaiting_teleport
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some((teleport_id.into(), position));
+    }
+
+    /// Whether a teleport is still unconfirmed. Resends it with a new id once
+    /// it has been pending for more than 20 ticks.
+    pub fn is_awaiting_teleport(&self) -> bool {
+        let mut awaiting = self
+            .awaiting_teleport
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some((_, position)) = *awaiting else {
+            return false;
         };
-        if let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) {
+        if self.tick_counter.load(Ordering::Relaxed)
+            - self.teleport_issued_tick.load(Ordering::Relaxed)
+            > 20
+            && let ClientPlatform::Java(client) = self.client.as_ref()
+        {
+            let id = self.next_teleport_id();
+            *awaiting = Some((id.into(), position));
+            let entity = self.get_entity();
+            if let Ok(data) = client.serialize_packet(&CPlayerPosition::new(
+                id.into(),
+                position,
+                Vector3::new(0.0, 0.0, 0.0),
+                entity.yaw.load(),
+                entity.pitch.load(),
+                Vec::new(),
+            )) {
+                client.try_enqueue_packet(data);
+            }
+        }
+        true
+    }
+
+    pub fn request_teleport(&self, position: Vector3<f64>, yaw: f32, pitch: f32) {
+        self.request_teleport_to(position, Some(yaw), Some(pitch), TeleportCause::Unknown);
+    }
+
+    /// Fires `PlayerTeleportEvent` and returns the accepted target, or `None`
+    /// when a plugin cancelled the teleport.
+    fn fire_teleport_event(
+        &self,
+        position: Vector3<f64>,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+        cause: TeleportCause,
+    ) -> Option<(Vector3<f64>, Option<f32>, Option<f32>)> {
+        let world = self.world();
+        if let Some(server) = world.server.upgrade()
+            && server.plugin_manager.has_handlers::<PlayerTeleportEvent>()
+            && let Some(player_arc) = world.get_player_by_uuid(self.gameprofile.id)
+        {
             let mut event = PlayerTeleportEvent {
                 player: player_arc,
                 from: self.living_entity.entity.pos.load(),
                 to: position,
+                yaw,
+                pitch,
+                cause,
                 cancelled: false,
             };
             server.plugin_manager.fire_blocking(&server, &mut event);
             if event.cancelled {
-                return;
+                return None;
             }
+            return Some((event.to, event.yaw, event.pitch));
         }
+        Some((position, yaw, pitch))
+    }
 
-        let i = self.teleport_id_count.fetch_add(1, Ordering::Relaxed);
+    /// Teleports to `position`. A `None` rotation axis is sent as relative, so
+    /// the client keeps looking where it currently looks.
+    /// Returns false if a plugin cancelled it.
+    pub fn request_teleport_to(
+        &self,
+        position: Vector3<f64>,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+        cause: TeleportCause,
+    ) -> bool {
+        let Some((position, yaw, pitch)) = self.fire_teleport_event(position, yaw, pitch, cause)
+        else {
+            return false;
+        };
+        self.send_teleport(position, yaw, pitch);
+        true
+    }
+
+    /// Moves the player and sends the position packet, without firing an event.
+    fn send_teleport(&self, position: Vector3<f64>, yaw: Option<f32>, pitch: Option<f32>) {
         self.chunk_send_epoch.fetch_add(1, Ordering::Relaxed);
-        let teleport_id = i + 1;
+        let teleport_id = self.next_teleport_id();
         self.living_entity.entity.set_pos(position);
         let entity = &self.living_entity.entity;
-        entity.set_rotation(yaw, pitch);
-        // Moves are ignored until the client confirms (teleport confirmation was added in 1.9).
-        if !matches!(
-            self.client.as_ref(),
-            ClientPlatform::Java(c) if c.version.load() < JavaMinecraftVersion::V_1_9
-        ) {
-            *self
-                .awaiting_teleport
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                Some((teleport_id.into(), position));
-        }
+        let (new_yaw, new_pitch) = (
+            yaw.unwrap_or_else(|| entity.yaw.load()),
+            pitch.unwrap_or_else(|| entity.pitch.load()),
+        );
+        entity.set_rotation(new_yaw, new_pitch);
+        self.expect_teleport_confirm(teleport_id, position);
         match self.client.as_ref() {
             ClientPlatform::Java(client) => {
+                // TODO: vanilla sends the entity's delta movement here, so
+                // portals and similar transitions keep the velocity.
                 let packet = CPlayerPosition::new(
                     teleport_id.into(),
                     position,
                     Vector3::new(0.0, 0.0, 0.0),
-                    yaw,
-                    pitch,
-                    // TODO
-                    Vec::new(),
+                    yaw.unwrap_or(0.0),
+                    pitch.unwrap_or(0.0),
+                    // TODO: relative position and delta flags.
+                    [
+                        yaw.is_none().then_some(PositionFlag::YRot),
+                        pitch.is_none().then_some(PositionFlag::XRot),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
                 );
                 if let Ok(data) = client.serialize_packet(&packet) {
                     client.try_enqueue_packet(data);
@@ -5367,6 +5516,9 @@ impl Player {
                 player: player_arc,
                 from: self.living_entity.entity.pos.load(),
                 to: position,
+                yaw: Some(yaw),
+                pitch: Some(pitch),
+                cause: TeleportCause::Unknown,
                 cancelled: false,
             };
             server.plugin_manager.fire_blocking(&server, &mut event);
@@ -5785,10 +5937,6 @@ impl Player {
         source: Option<&dyn crate::entity::EntityBase>,
         cause: Option<&dyn crate::entity::EntityBase>,
     ) -> bool {
-        // Vanilla `ServerPlayer.isInvulnerableTo`: nothing hurts a player still loading in
-        if !self.has_client_loaded() {
-            return false;
-        }
         if self
             .abilities
             .lock()
@@ -5797,6 +5945,17 @@ impl Player {
             && !damage_type
                 .has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY)
         {
+            return false;
+        }
+        // Vanilla `ServerPlayer.isInvulnerableTo`: nothing hurts a player still
+        // loading in. Vanilla keeps the client loaded across a dimension change,
+        // so only the flag counts there.
+        let invulnerable = if self.is_changing_dimension.load(Ordering::Relaxed) {
+            damage_type != pumpkin_data::damage::DamageType::ENDER_PEARL
+        } else {
+            !self.has_client_loaded()
+        };
+        if invulnerable {
             return false;
         }
         // TODO: Vanilla `Player.hurtServer` difficulty scaling when `scalesWithDifficulty`
@@ -6563,11 +6722,32 @@ impl Player {
             };
             speed *= fatigue_speed;
         }
-        // TODO: Handle when in water
+        // Vanilla `Player.getDestroySpeed`: water slows mining unless the player has
+        // Aqua Affinity, and the two divisors stack.
+        if self.living_entity.entity.is_submerged_in_water() && !self.has_aqua_affinity() {
+            speed /= 5.0;
+        }
         if !self.living_entity.entity.on_ground.load(Ordering::Relaxed) {
             speed /= 5.0;
         }
         speed
+    }
+
+    /// Vanilla `EnchantmentHelper.hasAquaAffinity`: any armour piece with Aqua Affinity.
+    fn has_aqua_affinity(&self) -> bool {
+        let equipment = self
+            .living_entity
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        [
+            EquipmentSlot::FEET,
+            EquipmentSlot::LEGS,
+            EquipmentSlot::CHEST,
+            EquipmentSlot::HEAD,
+        ]
+        .into_iter()
+        .any(|slot| equipment.get(&slot).get_enchantment_level(&Enchantment::AQUA_AFFINITY) > 0)
     }
 
     fn get_haste_amplifier(&self) -> u32 {
@@ -7322,6 +7502,7 @@ impl Player {
     }
 
     pub fn on_handled_screen_closed(&self) {
+        let closed_container_pos = self.open_container_pos.load();
         // Restored on every exit, including a panic in a plugin handler, so nested closes unwind.
         struct ClosingGuard<'a>(&'a AtomicUsize, usize);
         impl Drop for ClosingGuard<'_> {
@@ -7388,6 +7569,17 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             self.player_screen_handler.clone();
+        if let Some(position) = closed_container_pos
+            && !matches!(window_type, Some(WindowType::Anvil))
+        {
+            world.emit_game_event_with_source(
+                pumpkin_data::game_event::GameEvent::ContainerClose.name(),
+                position.to_centered_f64(),
+                world
+                    .get_player_by_uuid(self.gameprofile.id)
+                    .map(|p| p as Arc<dyn crate::entity::EntityBase>),
+            );
+        }
         self.open_container_pos.store(None);
         self.bedrock_mount_screen.store(None);
     }
@@ -7522,6 +7714,17 @@ impl Player {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = screen_handler;
             self.open_container_pos.store(block_pos);
+            if let Some(position) = block_pos
+                && !matches!(window_type, WindowType::Anvil)
+            {
+                self.world().emit_game_event_with_source(
+                    pumpkin_data::game_event::GameEvent::ContainerOpen.name(),
+                    position.to_centered_f64(),
+                    self.world()
+                        .get_player_by_uuid(self.gameprofile.id)
+                        .map(|p| p as Arc<dyn crate::entity::EntityBase>),
+                );
+            }
             Some(sync_id)
         } else {
             if self.is_spectator() {
@@ -8680,19 +8883,24 @@ impl EntityBase for Player {
         }
     }
 
-    fn teleport(
+    /// Teleports the player, firing `PlayerTeleportEvent`. See `EntityBase::teleport_with_cause`.
+    fn teleport_with_cause(
         &self,
         position: Vector3<f64>,
         yaw: Option<f32>,
         pitch: Option<f32>,
         world: Arc<World>,
-    ) {
+        cause: TeleportCause,
+    ) -> Option<Vector3<f64>> {
         if Arc::ptr_eq(&world, &self.world()) {
             // Same world
-            let yaw = yaw.unwrap_or_else(|| self.living_entity.entity.yaw.load());
-            let pitch = pitch.unwrap_or_else(|| self.living_entity.entity.pitch.load());
-            self.request_teleport(position, yaw, pitch);
+            if !self.request_teleport_to(position, yaw, pitch, cause) {
+                return None;
+            }
             let entity = self.get_entity();
+            // A plugin may have cancelled or moved the teleport.
+            let position = entity.pos.load();
+            let (yaw, pitch) = (entity.yaw.load(), entity.pitch.load());
             let chunk_pos = entity.chunk_pos.load();
             entity.world.load().broadcast_to_chunk_except(
                 chunk_pos,
@@ -8706,12 +8914,26 @@ impl EntityBase for Player {
                     entity.on_ground.load(Ordering::SeqCst),
                 ),
             );
+            Some(entity.pos.load())
         } else if let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) {
             self.spawn_task(async move {
+                let entity = player_arc.get_entity();
+                let yaw = yaw.unwrap_or_else(|| entity.yaw.load());
+                let pitch = pitch.unwrap_or_else(|| entity.pitch.load());
                 player_arc
-                    .teleport_world(world, position, yaw, pitch, false)
+                    .teleport_world_with_cause(
+                        world,
+                        position,
+                        Some(yaw),
+                        Some(pitch),
+                        cause,
+                        false,
+                    )
                     .await;
             });
+            Some(position)
+        } else {
+            None
         }
     }
 

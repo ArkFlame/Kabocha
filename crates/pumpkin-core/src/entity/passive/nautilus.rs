@@ -256,8 +256,10 @@ impl Mob for NautilusEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla `AbstractNautilus` adds no NBT keys of its own and the dash
+        // cooldown stays transient state. `IsTame`/`Owner` are written here
+        // because `NautilusEntity` does not implement `TamableAnimal`.
         nbt.put_bool("IsTame", self.is_tame.load(Ordering::Relaxed));
-        nbt.put_int("DashCooldown", self.dash_cooldown.load(Ordering::Relaxed));
         if let Some(owner) = self.owner.load() {
             nbt.put_uuid("Owner", owner);
         }
@@ -268,9 +270,6 @@ impl Mob for NautilusEntity {
             .read_legacy_saddle(nbt.get_bool("Saddled") == Some(true));
         if let Some(is_tame) = nbt.get_bool("IsTame") {
             self.is_tame.store(is_tame, Ordering::Relaxed);
-        }
-        if let Some(dash) = nbt.get_int("DashCooldown") {
-            self.dash_cooldown.store(dash, Ordering::Relaxed);
         }
         if let Some(owner) = nbt.get_uuid("Owner") {
             self.owner.store(Some(owner));
@@ -490,4 +489,34 @@ pub(super) fn nautilus_equip_sound(entity: &Entity, slot: &EquipmentSlot) -> Opt
     } else {
         Sound::ItemNautilusSaddleEquip
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::ai::test_support::world;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[tokio::test]
+    async fn dash_cooldown_is_not_persisted_in_nbt() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = NautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::NAUTILUS,
+        ));
+        nautilus.dash_cooldown.store(140, Ordering::Relaxed);
+        nautilus.is_tame.store(true, Ordering::Relaxed);
+
+        let mut nbt = NbtCompound::new();
+        nautilus.mob_write_nbt(&mut nbt);
+
+        assert!(nbt.get_int("DashCooldown").is_none());
+        assert_eq!(nbt.get_bool("IsTame"), Some(true));
+
+        world.level.shutdown().await;
+        Ok(())
+    }
 }

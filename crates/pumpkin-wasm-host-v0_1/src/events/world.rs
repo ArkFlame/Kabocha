@@ -10,6 +10,7 @@ use crate::{
         ThunderChangeEventData, WeatherChangeEventData, WorldLoadEventData, WorldUnloadEventData,
     },
 };
+use pumpkin_core::entity::EntityBase;
 use pumpkin_core::plugin::world::{
     chunk_load::ChunkLoad, chunk_save::ChunkSave, chunk_send::ChunkSend,
     spawn_change::SpawnChangeEvent,
@@ -516,6 +517,10 @@ impl ToFromWasmEvent for pumpkin_core::plugin::api::events::world::generic_game:
         Event::GenericGameEvent(crate::pumpkin::plugin::event::GenericGameEventData {
             event_id: self.event_key.clone(),
             pos: (self.position.x, self.position.y, self.position.z),
+            source_entity_id: self
+                .source_entity
+                .as_ref()
+                .map(|entity| entity.get_entity().entity_id),
             cancelled: self.cancelled,
         })
     }
@@ -527,6 +532,7 @@ impl ToFromWasmEvent for pumpkin_core::plugin::api::events::world::generic_game:
                 position: pumpkin_util::math::vector3::Vector3::new(
                     data.pos.0, data.pos.1, data.pos.2,
                 ),
+                source_entity: None,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

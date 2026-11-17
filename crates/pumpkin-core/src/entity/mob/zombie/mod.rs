@@ -317,16 +317,19 @@ impl ZombieEntityBase {
         let ride_nearby_chicken = rng.random::<f32>() < CHICKEN_JOCKEY_CHANCE;
         if ride_nearby_chicken {
             let area = entity.bounding_box.load().expand(5.0, 3.0, 5.0);
-            let chicken = world
+            let chickens: Vec<_> = world
                 .get_entities_of_type_at_box(&area, |entity_type| {
                     entity_type == &EntityType::CHICKEN
                 })
                 .into_iter()
-                .find(|chicken| {
+                .filter(|chicken| {
                     let chicken = chicken.get_entity();
                     chicken.is_alive() && !chicken.has_passengers() && !chicken.has_vehicle()
-                });
-            if let Some(chicken) = chicken {
+                })
+                .collect();
+            // Vanilla picks a random candidate, consuming a roll either way.
+            if !chickens.is_empty() {
+                let chicken = chickens[rng.random_range(0..chickens.len())].clone();
                 set_chicken_jockey(chicken.as_ref());
                 self.mob_entity.set_pending_vehicle(chicken);
             }
@@ -527,15 +530,10 @@ impl ZombieEntityBase {
             self.mob_entity.living_entity.update_attribute(
                 &Attributes::SPAWN_REINFORCEMENTS,
                 |attribute| {
-                    let existing = attribute
-                        .modifiers
-                        .iter()
-                        .find(|modifier| modifier.id == REINFORCEMENT_CALLER_CHARGE_ID)
-                        .map_or(0.0, |modifier| modifier.amount);
-                    attribute.remove_modifier(REINFORCEMENT_CALLER_CHARGE_ID);
+                    // Vanilla uses a fixed modifier id, so the charge does not stack.
                     attribute.add_or_replace_permanent_modifier(Modifier {
                         id: REINFORCEMENT_CALLER_CHARGE_ID.to_string(),
-                        amount: existing - REINFORCEMENT_CHARGE,
+                        amount: -REINFORCEMENT_CHARGE,
                         operation: ModifierOperation::Add,
                     });
                 },
@@ -595,7 +593,10 @@ impl ZombieEntityBase {
         if difficulty != Difficulty::Hard && mob.get_random().random::<bool>() {
             return true;
         }
-        convert_villager_to_zombie_villager(entity, &world, villager).is_none()
+        // Vanilla returns super.killedEntity, i.e. true, even when conversion is
+        // skipped or fails; a failed conversion must not suppress the victim loot.
+        let _ = convert_villager_to_zombie_villager(entity, &world, villager);
+        true
     }
 
     pub fn on_offspring_spawned_from_egg(&self, offspring: &dyn Mob) {

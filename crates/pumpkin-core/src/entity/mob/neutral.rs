@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering::Relaxed};
 
 use crossbeam::atomic::AtomicCell;
+use pumpkin_data::tracked_data::TrackedData;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use uuid::Uuid;
@@ -117,6 +118,12 @@ pub trait NeutralMob: Mob {
             .world_age
     }
 
+    /// Per-mob `DATA_ANGER_END_TIME` metadata id, for the mobs whose client shows the
+    /// angry pose from it (bee, wolf). Mobs without that metadata return `None`.
+    fn anger_end_time_data(&self) -> Option<TrackedData> {
+        None
+    }
+
     fn get_anger_end_time(&self) -> i64 {
         self.get_neutral_data().anger_end_time.load(Relaxed)
     }
@@ -125,7 +132,9 @@ pub trait NeutralMob: Mob {
         self.get_neutral_data()
             .anger_end_time
             .store(end_time, Relaxed);
-        // TODO: sync DATA_ANGER_END_TIME so the client shows the angry pose.
+        if let Some(tracked) = self.anger_end_time_data() {
+            self.get_entity().set_synced_data(tracked, end_time);
+        }
     }
 
     fn set_time_to_remain_angry(&self, ticks: i32) {

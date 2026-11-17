@@ -110,7 +110,10 @@ impl MobEntity {
         let world = entity.world.load();
         if def.can_pick_up_loot {
             let difficulty = RegionalDifficulty::at(&world, entity.pos.load());
-            self.set_can_pick_up_loot(rand::random::<f32>() < 0.55 * difficulty.special_multiplier);
+            self.set_can_pick_up_loot(
+                rand::random::<f32>()
+                    < MobEntity::MAX_PICKUP_LOOT_CHANCE * difficulty.special_multiplier,
+            );
         }
         equip_mob_on_spawn(self, &world);
     }

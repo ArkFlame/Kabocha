@@ -70,6 +70,9 @@ fn run_task(server: &Arc<Server>, task: &ScheduledTask) {
     let server_clone = server.clone();
 
     let fut = async move {
+        if plugin.report_stopped("scheduled task") {
+            return;
+        }
         let plugin_instance = plugin.plugin_instance.clone();
         let api_version = plugin.api_version;
         if let Err(error) = plugin
@@ -121,7 +124,7 @@ fn run_task(server: &Arc<Server>, task: &ScheduledTask) {
             })
             .await
         {
-            tracing::error!(handler_id, %error, "Wasm scheduled task failed");
+            plugin.report_failure(&format!("scheduled task (handler {handler_id})"), &error);
         }
     };
 

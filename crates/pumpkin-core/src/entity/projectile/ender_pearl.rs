@@ -1,6 +1,7 @@
 use crate::block::blocks::bubble_column;
 use crate::entity::mob::spawn::{EntitySpawnReason, finalize_spawn};
 use crate::entity::projectile::owner::ProjectileOwner;
+use crate::plugin::api::events::player::player_teleport::TeleportCause;
 use pumpkin_util::math::position::BlockPos;
 
 use crate::entity::projectile::ProjectileHit;
@@ -106,7 +107,9 @@ impl EntityBase for EnderPearlEntity {
             );
         }
 
-        let teleport_pos = entity.last_pos.load();
+        // Vanilla `EnderPearlEntity#onCollision` teleports the owner to the pearl's
+        // collision position, not to where the pearl was one tick earlier.
+        let teleport_pos = entity.pos.load();
 
         // Like vanilla, a zero hit from the pearl, credited to its thrower if any.
         if let ProjectileHit::Entity {
@@ -133,6 +136,12 @@ impl EntityBase for EnderPearlEntity {
         {
             let is_player = owner.get_player().is_some();
             if is_player {
+                // Vanilla `stopRiding`s the shooter before teleporting it.
+                if let Some(vehicle) = owner.get_entity().get_vehicle() {
+                    vehicle
+                        .get_entity()
+                        .remove_passenger_before_teleport(owner.get_entity().entity_id);
+                }
                 let should_spawn_endermite = rand::random::<f32>() < ENDERMITE_SPAWN_CHANCE;
                 if world.should_spawn_monsters() && should_spawn_endermite {
                     let pearl_pos = entity.pos.load();
@@ -151,11 +160,12 @@ impl EntityBase for EnderPearlEntity {
             }
 
             // In vanilla, teleport handles everything including sound
-            owner.teleport(
+            owner.teleport_with_cause(
                 teleport_pos,
-                Some(owner.get_entity().yaw.load()),
-                Some(owner.get_entity().pitch.load()),
+                None,
+                None,
                 world.clone(),
+                TeleportCause::EnderPearl,
             );
 
             // Play teleport sound at new position

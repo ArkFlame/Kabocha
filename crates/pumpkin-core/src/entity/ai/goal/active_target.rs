@@ -19,6 +19,9 @@ use uuid::Uuid;
 
 const DEFAULT_RECIPROCAL_CHANCE: i32 = 10;
 
+/// Vanilla `NearestAttackableTargetGoal.getTargetSearchArea`: the box grows 4 blocks vertically.
+const TARGET_SEARCH_VERTICAL_RANGE: f64 = 4.0;
+
 /// Extra gate on top of the target predicate, for mobs that pick targets conditionally.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum TargetCondition {
@@ -224,7 +227,8 @@ impl ActiveTargetGoal {
 
         let entity = &mob_entity.living_entity.entity;
         let world = entity.world.load();
-        let area = SearchArea::from_eyes(entity, follow_range, follow_range).players_anywhere();
+        let area = SearchArea::from_eyes(entity, follow_range, TARGET_SEARCH_VERTICAL_RANGE)
+            .players_anywhere();
 
         // Pick the nearest candidate that passes the conditions, not the nearest overall.
         let target_type = self.target_type;
@@ -276,8 +280,12 @@ impl Goal for ActiveTargetGoal {
             self.target = None;
             return false;
         }
-        // Vanilla `NonTameRandomTargetGoal`: the search test again, so no unseen memory.
+        // Vanilla `NonTameRandomTargetGoal`: taming ends the hunt, then the search test
+        // again, so no unseen memory.
         if self.condition == TargetCondition::Untamed {
+            if mob.is_tamed() {
+                return false;
+            }
             let world = mob.get_mob_entity().living_entity.entity.world.load();
             return self
                 .target

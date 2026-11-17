@@ -2545,20 +2545,9 @@ pub trait Mob: EntityBase + Send + Sync {
     /// The `finalize_spawn` of mobs without their own, for overrides that extend it.
     fn default_finalize_spawn(
         &self,
-        world: &Arc<World>,
+        _world: &Arc<World>,
         group_data: Option<spawn::SpawnGroupData>,
     ) -> Option<spawn::SpawnGroupData> {
-        let entity = self.get_entity();
-        if equipment::EQUIPMENT_REGISTRY
-            .get(entity.entity_type.resource_name)
-            .is_some_and(|def| def.can_pick_up_loot)
-        {
-            let difficulty = equipment::RegionalDifficulty::at(world, entity.pos.load());
-            self.get_mob_entity().set_can_pick_up_loot(
-                rand::random::<f32>()
-                    < MobEntity::MAX_PICKUP_LOOT_CHANCE * difficulty.special_multiplier,
-            );
-        }
         self.finalize_spawn_super(group_data)
     }
 

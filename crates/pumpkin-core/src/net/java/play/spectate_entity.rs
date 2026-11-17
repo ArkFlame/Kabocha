@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use crate::plugin::api::events::player::player_teleport::TeleportCause;
 use pumpkin_protocol::java::server::play::SSpectateEntity;
 use pumpkin_util::GameMode;
 
@@ -52,6 +53,11 @@ impl JavaClient {
 
         player.set_camera_entity_id(target_id);
 
-        player.request_teleport(target_pos, target_yaw, target_pitch);
+        player.request_teleport_to(
+            target_pos,
+            Some(target_yaw),
+            Some(target_pitch),
+            TeleportCause::Spectate,
+        );
     }
 }

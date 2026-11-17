@@ -217,6 +217,11 @@ impl NeutralMob for BeeEntity {
     fn stays_angry_with_target(&self) -> bool {
         false
     }
+
+    /// The client picks the angry eyes from this value.
+    fn anger_end_time_data(&self) -> Option<pumpkin_data::tracked_data::TrackedData> {
+        Some(pumpkin_data::tracked_data::bee::DATA_ANGER_END_TIME)
+    }
 }
 
 #[derive(Default)]

@@ -130,7 +130,12 @@ impl LookAtEntityGoal {
         target_match: TargetMatch,
         range: f32,
     ) -> TargetPredicate {
-        let mut target_predicate = TargetPredicate::create_non_attackable();
+        // Vanilla `LookAtEntityGoal` picks the nearest candidate by distance only: no line of
+        // sight and no visibility scaling, so a mob keeps looking at a player behind a wall or at
+        // an invisible one.
+        let mut target_predicate = TargetPredicate::create_non_attackable()
+            .ignore_visibility()
+            .ignore_distance_scaling_factor();
         target_predicate.base_max_distance = f64::from(range);
         if target_match.is_player() {
             target_predicate.set_predicate(move |living_entity, _world| {
@@ -313,6 +318,33 @@ mod tests {
         assert!(
             !goal.should_continue(looker.as_ref()),
             "the cleared target was kept"
+        );
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_invisible_target_is_still_looked_at() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let spawn = |x: f64| {
+            CowEntity::new(Entity::new(
+                world.clone(),
+                Vector3::new(x, 64.0, 0.5),
+                &EntityType::COW,
+            ))
+        };
+        let looker = spawn(0.5);
+        let target = spawn(4.5);
+        // Vanilla searches by distance only, so invisibility does not hide the target.
+        target.get_entity().set_invisible(true);
+        let mob: Arc<dyn Mob> = looker.clone();
+        let mut goal =
+            LookAtEntityGoal::new(Arc::downgrade(&mob), &EntityType::COW, 6.0, 1.0, false);
+
+        assert!(
+            goal.can_start(looker.as_ref()),
+            "the invisible target was not found"
         );
         world.level.shutdown().await;
         Ok(())

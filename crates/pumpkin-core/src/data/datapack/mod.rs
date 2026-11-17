@@ -951,7 +951,6 @@ impl DatapackManager {
                 "trade_rebalance" => "trade_rebalance",
                 "minecart_improvements" => "minecart_improvements",
                 "redstone_experiments" => "redstone_experiments",
-                "bundle" => "bundle",
                 _ => continue,
             };
             let pack = KnownPack {
@@ -989,7 +988,7 @@ impl DatapackManager {
     }
 
     /// Returns the enabled world feature flags (e.g. `minecraft:vanilla`, `minecraft:trade_rebalance`,
-    /// `minecraft:minecart_improvements`, `minecraft:redstone_experiments`, `minecraft:bundle`).
+    /// `minecraft:minecart_improvements`, `minecraft:redstone_experiments`).
     #[must_use]
     pub fn get_enabled_features(&self, server: &Server) -> Vec<&'static str> {
         let enabled_packs = Self::get_enabled_packs(server);
@@ -1010,14 +1009,12 @@ impl DatapackManager {
                 "redstone_experiments" | "file/redstone_experiments" => {
                     "minecraft:redstone_experiments"
                 }
-                "bundle" | "file/bundle" => "minecraft:bundle",
                 _ => {
                     if let Some(stripped) = pack_name.strip_prefix("file/") {
                         match stripped {
                             "trade_rebalance" => "minecraft:trade_rebalance",
                             "minecart_improvements" => "minecraft:minecart_improvements",
                             "redstone_experiments" => "minecraft:redstone_experiments",
-                            "bundle" => "minecraft:bundle",
                             _ => continue,
                         }
                     } else {
@@ -1113,6 +1110,10 @@ impl DatapackManager {
         let mut ids = Vec::new();
         let mut visited = Vec::new();
         collect_block_tag(&tags, tag, &mut ids, &mut visited);
+        // Vanilla tags are holder sets: a block reached directly and through a nested
+        // tag must appear once, in first-seen order.
+        let mut seen = std::collections::HashSet::with_capacity(ids.len());
+        ids.retain(|id| seen.insert(*id));
         ids
     }
 
@@ -2424,11 +2425,19 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
         && let Ok(val) = serde_json::from_str::<serde_json::Value>(&content)
     {
         let pack = val.get("pack");
+        // Vanilla renders the description as a text component: a plain string, or a
+        // component object that is flattened to its English text.
         let description = pack
             .and_then(|p| p.get("description"))
-            .map(|d| {
-                d.as_str()
-                    .map_or_else(|| d.to_string(), ToString::to_string)
+            .map(|d| match d {
+                serde_json::Value::String(text) => text.clone(),
+                component => serde_json::from_value::<pumpkin_util::text::TextComponent>(
+                    component.clone(),
+                )
+                .map_or_else(
+                    |_| component.to_string(),
+                    pumpkin_util::text::TextComponent::get_text,
+                ),
             })
             .unwrap_or_default();
         let pack_format = pack
@@ -2826,6 +2835,17 @@ mod tests {
         assert_eq!(known_packs[0].namespace, "nested");
         assert_eq!(known_packs[0].id, "pack");
         assert_eq!(known_packs[0].version, "2.0.0");
+
+        // 3. Component descriptions are flattened instead of leaking raw JSON.
+        std::fs::write(
+            pack_path.join("pack.mcmeta"),
+            r#"{"pack":{"description":{"text":"Hi ","extra":[{"text":"there"}]},"pack_format":61}}"#,
+        )
+        .unwrap();
+
+        let (desc, _, _) = super::read_pack_mcmeta(pack_path);
+        assert!(desc.contains("Hi"), "component text is kept: {desc}");
+        assert!(!desc.contains('{'), "raw JSON is not shown: {desc}");
     }
 
     #[test]
@@ -3081,6 +3101,29 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         ids
+    }
+
+    #[test]
+    fn block_tags_resolve_deduplicates_members_reached_twice() {
+        let manager = super::DatapackManager::new();
+        let stone = pumpkin_data::Block::STONE.id.as_u16();
+        let granite = pumpkin_data::Block::GRANITE.id.as_u16();
+        {
+            let mut tags = manager.block_tags.write().expect("block tags lock");
+            tags.insert(
+                "test:stones".to_string(),
+                block_tag(false, &["minecraft:stone"]),
+            );
+            tags.insert(
+                "test:rocks".to_string(),
+                block_tag(false, &["#test:stones", "minecraft:stone"]),
+            );
+            tags.insert(
+                "test:all".to_string(),
+                block_tag(false, &["#test:stones", "#test:rocks", "granite"]),
+            );
+        }
+        assert_eq!(manager.resolve_block_tag("test:all"), vec![stone, granite]);
     }
 
     #[test]

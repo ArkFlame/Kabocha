@@ -18,6 +18,9 @@ use crate::{
     server::Server,
 };
 
+/// Vanilla `Display.setPosRotInterpolationDuration` clamps the teleport duration to 0..=59.
+const TELEPORT_DURATION_MAX: i32 = 59;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Vector3fSerializer(pub f32, pub f32, pub f32);
 
@@ -47,6 +50,20 @@ impl MetadataSerializer for QuaternionfSerializer {
         writer.write_f32(self.2)?;
         writer.write_f32(self.3)
     }
+}
+
+/// Packs a display brightness override the way vanilla's `Display.Brightness` does:
+/// block light in the low 16 bits, sky light in the high 16 bits.
+fn pack_brightness(block: i32, sky: i32) -> i32 {
+    (block & 0xFFFF) | ((sky & 0xFFFF) << 16)
+}
+
+fn brightness_block(packed: i32) -> i32 {
+    packed & 0xFFFF
+}
+
+fn brightness_sky(packed: i32) -> i32 {
+    (packed >> 16) & 0xFFFF
 }
 
 pub struct DisplayEntity {
@@ -122,6 +139,7 @@ impl DisplayEntity {
     }
 
     pub fn set_teleport_duration(&self, duration: i32) {
+        let duration = duration.clamp(0, TELEPORT_DURATION_MAX);
         self.teleport_duration.store(duration, Ordering::Relaxed);
         self.entity.set_synced_data(
             pumpkin_data::tracked_data::display::TELEPORT_DURATION,
@@ -494,8 +512,8 @@ impl DisplayEntity {
 
         let brightness = self.brightness.load(Ordering::Relaxed);
         if brightness != -1 {
-            let block = brightness & 0xF;
-            let sky = (brightness >> 4) & 0xF;
+            let block = brightness_block(brightness);
+            let sky = brightness_sky(brightness);
             let mut b_compound = NbtCompound::new();
             b_compound.put_int("block", block);
             b_compound.put_int("sky", sky);
@@ -562,6 +580,10 @@ impl DisplayEntity {
             self.interpolation_start_delta_ticks
                 .store(start, Ordering::Relaxed);
         }
+        if let Some(td) = nbt.get_int("teleport_duration") {
+            self.teleport_duration
+                .store(td.clamp(0, TELEPORT_DURATION_MAX), Ordering::Relaxed);
+        }
         if let Some(vr) = nbt.get_float("view_range") {
             *self
                 .view_range
@@ -609,7 +631,7 @@ impl DisplayEntity {
             let block = b.get_int("block").unwrap_or(0);
             let sky = b.get_int("sky").unwrap_or(0);
             self.brightness
-                .store((sky << 4) | (block & 0xF), Ordering::Relaxed);
+                .store(pack_brightness(block, sky), Ordering::Relaxed);
         }
 
         if let Some(transform) = nbt.get_compound("transformation") {

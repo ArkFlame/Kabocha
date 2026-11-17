@@ -30,7 +30,7 @@ pub enum AttackType {
 }
 
 impl AttackType {
-    pub fn new(player: &Player, attack_cooldown_progress: f32) -> Self {
+    pub fn new(player: &Player, attack_cooldown_progress: f32, victim_is_living: bool) -> Self {
         let entity = &player.get_entity();
 
         let sprinting = entity.is_sprinting();
@@ -46,11 +46,33 @@ impl AttackType {
             return Self::Knockback;
         }
 
-        if is_strong && !on_ground && fall_distance > 0.0 {
+        // Vanilla `Player.canCriticalAttack`.
+        let can_crit = is_strong
+            && victim_is_living
+            && fall_distance > 0.0
+            && !on_ground
+            && !player.living_entity.on_climbable()
+            && !entity.is_in_water()
+            && player
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::BLINDNESS)
+                .is_none()
+            && !entity.has_vehicle();
+        if can_crit {
             return Self::Critical;
         }
 
-        if sword && is_strong && !is_bedrock {
+        // Vanilla `Player.isSweepAttack`: only while grounded and barely moving.
+        let movement_limit = player
+            .living_entity
+            .get_attribute_value(&Attributes::MOVEMENT_SPEED)
+            * 2.5;
+        if sword
+            && is_strong
+            && !is_bedrock
+            && on_ground
+            && entity.velocity.load().horizontal_length_squared() < movement_limit * movement_limit
+        {
             return Self::Sweeping;
         }
 
@@ -196,6 +218,8 @@ pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f6
                 Some(attacker),
             );
         }
+        // Vanilla `LivingEntity.causeExtraKnockback` interrupts the attacker's sprint.
+        attacker.set_sprinting(false);
     }
 
     let velocity = attacker.velocity.load();
@@ -227,9 +251,11 @@ pub fn spawn_sweep_particle(attacker_entity: &Entity, world: &World) {
     let scale = 0.5;
     let body_y = f64::from(attacker_entity.height()).mul_add(scale, pos.y);
 
+    // Vanilla sends the view direction as the particle's spread, which the client reads
+    // as velocity for a single particle.
     world.spawn_particle(
         Vector3::new(pos.x + d, body_y, pos.z + e),
-        Vector3::new(0.0, 0.0, 0.0),
+        Vector3::new(d as f32, 0.0, e as f32),
         0.0,
         0,
         Particle::SweepAttack,
@@ -278,8 +304,11 @@ impl CombatRules {
         breach_level: u32,
     ) -> f32 {
         let toughness = Self::BASE_ARMOR_TOUGHNESS + armor_toughness / 4.0;
+        // Vanilla `Mth.clamp` returns the max when the minimum exceeds it, which happens
+        // once datapacks push armor past 100. `f32::clamp` panics on that inverted range.
         let real_armor = (total_armor - damage / toughness)
-            .clamp(total_armor * Self::MIN_ARMOR_RATIO, Self::MAX_ARMOR);
+            .max(total_armor * Self::MIN_ARMOR_RATIO)
+            .min(Self::MAX_ARMOR);
         let mut armor_fraction = real_armor / Self::ARMOR_PROTECTION_DIVIDER;
 
         if breach_level > 0 {
@@ -331,15 +360,10 @@ impl FallLocation {
         }
     }
 
-    pub fn get_current_fall_location(
-        living: &crate::entity::living::LivingEntity,
-        world: &World,
-    ) -> Self {
-        let pos = living
-            .climbing_pos
-            .load()
-            .unwrap_or_else(|| living.entity.block_pos.load());
-        let block = world.get_block(&pos);
+    /// Vanilla `FallLocation.blockToFallLocation`. Any block reached here was climbable, so
+    /// anything without its own message is `other_climbable`.
+    #[must_use]
+    pub fn block_to_fall_location(block: &pumpkin_data::Block) -> Self {
         if block == &pumpkin_data::Block::LADDER
             || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_TRAPDOORS)
         {
@@ -356,12 +380,24 @@ impl FallLocation {
             Self::TwistingVines
         } else if block == &pumpkin_data::Block::SCAFFOLDING {
             Self::Scaffolding
-        } else if living.entity.is_in_water() {
-            Self::Water
-        } else if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_CLIMBABLE) {
-            Self::OtherClimbable
         } else {
-            Self::Generic
+            Self::OtherClimbable
+        }
+    }
+
+    /// Vanilla `FallLocation.getCurrentFallLocation`: a location only exists after a recent
+    /// climb (last climbable block) or while in water, so plain hits record `None`.
+    #[must_use]
+    pub fn get_current_fall_location(
+        living: &crate::entity::living::LivingEntity,
+        world: &World,
+    ) -> Option<Self> {
+        if let Some(pos) = living.climbing_pos.load() {
+            Some(Self::block_to_fall_location(world.get_block(&pos)))
+        } else if living.entity.is_in_water() {
+            Some(Self::Water)
+        } else {
+            None
         }
     }
 }
@@ -403,7 +439,7 @@ impl CombatTracker {
         current_tick: i64,
         is_alive: bool,
         fall_distance: f32,
-        fall_location: FallLocation,
+        fall_location: Option<FallLocation>,
         damage_type: pumpkin_data::damage::DamageType,
         damage: f32,
         source: Option<&dyn EntityBase>,
@@ -453,7 +489,7 @@ impl CombatTracker {
         let entry = CombatEntry {
             damage_type,
             damage,
-            fall_location: Some(fall_location),
+            fall_location,
             fall_distance,
             timestamp: current_tick,
             source_id: source.map(|e| e.get_entity().entity_id),
@@ -759,6 +795,21 @@ impl CombatTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn absorb_clamps_armor_above_hundred_instead_of_panicking() {
+        // `armor * MIN_ARMOR_RATIO` exceeds `MAX_ARMOR` past 100 armor (datapack
+        // attributes); vanilla `Mth.clamp` yields 20 there.
+        let damage = CombatRules::get_damage_after_absorb(10.0, 120.0, 0.0, 0);
+        assert!((damage - 2.0).abs() < 1e-6, "got {damage}");
+    }
+
+    #[test]
+    fn absorb_matches_vanilla_for_normal_armor() {
+        // f = 2 + 0/4; clamp(10 - 4/2, 2, 20) = 8 -> 8/25.
+        let damage = CombatRules::get_damage_after_absorb(4.0, 10.0, 0.0, 0);
+        assert!((damage - 4.0 * 0.68).abs() < 1e-6, "got {damage}");
+    }
 
     #[test]
     fn zero_resistance_keeps_full_strength() {

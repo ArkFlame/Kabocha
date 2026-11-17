@@ -237,14 +237,15 @@ impl EntityBase for MinecartEntity {
         // The gamerule counts blocks per second (default 8), so divide by 20 ticks.
         let max_speed = {
             let level_info = world.level_info.load();
-            let improvements = world.server.upgrade().map_or_else(
-                || {
-                    level_info.data_packs.enabled.iter().any(|p| {
-                        p == "minecart_improvements" || p == "file/minecart_improvements"
-                    })
-                },
-                |s| s.is_feature_enabled("minecraft:minecart_improvements"),
-            );
+            let improvements =
+                world.server.upgrade().map_or_else(
+                    || {
+                        level_info.data_packs.enabled.iter().any(|p| {
+                            p == "minecart_improvements" || p == "file/minecart_improvements"
+                        })
+                    },
+                    |s| s.is_feature_enabled("minecraft:minecart_improvements"),
+                );
             if improvements {
                 level_info.game_rules.max_minecart_speed as f64 / 20.0
             } else {
@@ -578,12 +579,15 @@ impl EntityBase for MinecartEntity {
             }
         }
 
-        let attempted_to =self.vehicle.entity.pos.load();
+        let attempted_to = self.vehicle.entity.pos.load();
         let move_result = self.vehicle.move_vehicle(from, attempted_to);
         let to = move_result.position;
         self.vehicle.entity.set_pos(to);
         if move_result.cancelled {
-            self.vehicle.entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
+            self.vehicle
+                .entity
+                .velocity
+                .store(Vector3::new(0.0, 0.0, 0.0));
             self.vehicle.entity.send_velocity();
         }
         if to != attempted_to {
@@ -959,7 +963,10 @@ mod tests {
             RailShape::EastWest,
             Vector3::new(0.5, 64.0, 0.5),
         );
-        assert_eq!((flat.x, flat.y, flat.z), (0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.5));
+        assert_eq!(
+            (flat.x, flat.y, flat.z),
+            (0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.5)
+        );
 
         // Vanilla snaps an ascending rail's exit Y up by half a block plus the slope progress.
         let slope = get_pos_on_rail(
@@ -1084,7 +1091,10 @@ mod tests {
         for (entity_type, drop) in [
             (&EntityType::MINECART, &Item::MINECART),
             (&EntityType::CHEST_MINECART, &Item::CHEST_MINECART),
-            (&EntityType::COMMAND_BLOCK_MINECART, &Item::COMMAND_BLOCK_MINECART),
+            (
+                &EntityType::COMMAND_BLOCK_MINECART,
+                &Item::COMMAND_BLOCK_MINECART,
+            ),
             (&EntityType::FURNACE_MINECART, &Item::FURNACE_MINECART),
             (&EntityType::HOPPER_MINECART, &Item::HOPPER_MINECART),
             (&EntityType::TNT_MINECART, &Item::TNT_MINECART),

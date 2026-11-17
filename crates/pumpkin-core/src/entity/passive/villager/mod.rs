@@ -818,6 +818,11 @@ impl VillagerEntity {
             (offer.xp, offer.reward_exp)
         };
 
+        // Vanilla `notifyTrade` resets the ambient-sound timer after every trade.
+        self.mob_entity
+            .ambient_sound_time
+            .store(-self.get_ambient_sound_interval(), Ordering::Relaxed);
+
         let mut pop_xp = 3 + self.get_random().random_range(0..4);
         let current_xp = self.xp.fetch_add(xp_gain, Ordering::Relaxed) + xp_gain;
         let villager_data = *self
@@ -851,6 +856,7 @@ impl VillagerEntity {
         }
 
         if let Some(player) = world.get_player_by_uuid(player_uuid) {
+            trigger_trade_advancement(&player);
             self.resend_offers_to_player(&player);
         }
     }
@@ -1944,6 +1950,7 @@ impl Mob for VillagerEntity {
             || self.mob_entity.living_entity.is_dead_or_dying()
             || self.is_trading.load(Ordering::Relaxed)
             || self.is_sleeping()
+            || player.get_entity().is_sneaking()
         {
             return false;
         }

@@ -121,7 +121,12 @@ impl TrackTargetGoal {
             return false;
         }
 
-        // TODO: isInPositionTargetRange (isWithinHome in Java) check
+        // Vanilla isWithinRestriction: a mob with a home never tracks past it.
+        if !mob_entity
+            .is_in_position_target_range_pos(&target.get_entity().block_pos.load())
+        {
+            return false;
+        }
 
         if self.check_can_navigate {
             self.check_can_navigate_cooldown -= 1;

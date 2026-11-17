@@ -157,7 +157,7 @@ pub fn tick_wall_climbing(
 pub fn finalize_spider_spawn(
     mob: &MobEntity,
     world: &Arc<World>,
-    reason: crate::entity::mob::spawn::EntitySpawnReason,
+    _reason: crate::entity::mob::spawn::EntitySpawnReason,
     group_data: Option<SpawnGroupData>,
 ) -> Option<SpawnGroupData> {
     mob.finalize_spawn_base();
@@ -168,7 +168,12 @@ pub fn finalize_spider_spawn(
     if rng.random_range(0..100) == 0 {
         let skeleton = from_type(&EntityType::SKELETON, pos, world, Uuid::new_v4());
         skeleton.get_entity().set_rotation(entity.yaw.load(), 0.0);
-        finalize_spawn(&skeleton, world, reason, None);
+        finalize_spawn(
+            &skeleton,
+            world,
+            crate::entity::mob::spawn::EntitySpawnReason::Jockey,
+            None,
+        );
         mob.add_pending_rider(skeleton);
     }
 
