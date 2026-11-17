@@ -551,7 +551,12 @@ pub fn block_owns_block_entity(block: &Block, id: &str) -> bool {
 
 #[must_use]
 pub fn has_block_block_entity(block: &Block) -> bool {
-    BLOCK_ENTITY_TYPES.contains(&block.name)
+    // Vanilla `PistonBlock.isMovable` checks the block state's block entity type,
+    // not the block name: `oak_sign`, `white_banner` and `white_shulker_box` all
+    // declare a block entity even though none of them is named after its type.
+    BLOCK_ENTITY_TYPES
+        .get(block.default_state.block_entity_type as usize)
+        .is_some()
 }
 
 #[must_use]
@@ -710,8 +715,9 @@ mod test {
         block_entity_from_nbt, block_owns_block_entity, brewing_stand::BrewingStandBlockEntity,
         chest::ChestBlockEntity, crafter::CrafterBlockEntity, daylight_detector::DaylightDetectorBlockEntity,
         dispenser::DispenserBlockEntity, dropper::DropperBlockEntity, furnace::FurnaceBlockEntity,
-        hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity,
-        smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
+        has_block_block_entity, hopper::HopperBlockEntity,
+        shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity, smoker::SmokerBlockEntity,
+        trapped_chest::TrappedChestBlockEntity,
     };
     use pumpkin_data::{Block, block_properties::FacingHopper, item::Item, item_stack::ItemStack};
     use pumpkin_inventory::Inventory;
@@ -761,6 +767,27 @@ mod test {
 
         let entity = block_entity_from_nbt(&nbt).map(|entity| entity.resource_location());
         assert_eq!(entity, Some("minecraft:chest"));
+    }
+
+    /// Vanilla `PistonBlock.isMovable` asks the block state for a block entity
+    /// type, so a sign or banner is immovable even though its name is not the
+    /// type name "sign"/"banner".
+    #[test]
+    fn block_entities_are_found_through_the_block_state() {
+        for block in [&Block::OAK_SIGN, &Block::WHITE_BANNER, &Block::CHEST] {
+            assert!(
+                has_block_block_entity(block),
+                "{} declares a block entity type",
+                block.name
+            );
+        }
+        for block in [&Block::STONE, &Block::OAK_PLANKS] {
+            assert!(
+                !has_block_block_entity(block),
+                "{} must stay piston-movable",
+                block.name
+            );
+        }
     }
 
     #[test]
