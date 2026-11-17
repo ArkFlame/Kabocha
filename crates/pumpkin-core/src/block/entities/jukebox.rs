@@ -106,7 +106,8 @@ impl BlockEntity for JukeboxBlockEntity {
                 self.stop_playing();
             } else {
                 if ticks.is_multiple_of(20) {
-                    let random_color = rand::rng().random_range(0..4) as f32 / 24.0;
+                    // Vanilla `playNoteParticles` picks one of the 24 note hues.
+                    let random_color = rand::rng().random_range(0..24) as f32 / 24.0;
                     world.spawn_particle(
                         pumpkin_util::math::vector3::Vector3::new(
                             f64::from(self.position.0.x) + 0.5,
