@@ -185,7 +185,22 @@ fn send_success(
     absolute_y: bool,
     distance: i32,
 ) {
-    context.source.send_feedback(
+    let is_bedrock = context.source.player_or_none().is_some_and(|player| {
+        matches!(
+            player.client.as_ref(),
+            crate::net::ClientPlatform::Bedrock(_)
+        )
+    });
+    // Bedrock's success lines take different positional arguments (structure: name, x, z,
+    // distance; biome: name, x, y, z, distance), which a shared Java-shaped list cannot
+    // satisfy, so Bedrock sources get their own argument list. Non-player sources keep the
+    // shared translate.
+    let message = if is_bedrock {
+        TextComponent::translate(
+            bedrock_key,
+            bedrock_success_args(name, target, absolute_y, distance),
+        )
+    } else {
         TextComponent::translate_cross(
             java_key,
             bedrock_key,
@@ -194,9 +209,29 @@ fn send_success(
                 coordinates_text(target, absolute_y),
                 TextComponent::text(distance.to_string()),
             ],
-        ),
-        false,
-    );
+        )
+    };
+    context.source.send_feedback(message, false);
+}
+
+/// Bedrock `commands.locate.structure.success` is (name, x, z, distance) and
+/// `commands.locate.biome.success` is (name, x, y, z, distance).
+fn bedrock_success_args(
+    name: String,
+    target: &BlockPos,
+    absolute_y: bool,
+    distance: i32,
+) -> Vec<TextComponent> {
+    let mut args = vec![TextComponent::text(name)];
+    if absolute_y {
+        args.push(TextComponent::text(target.0.x.to_string()));
+        args.push(TextComponent::text(target.0.y.to_string()));
+    } else {
+        args.push(TextComponent::text(target.0.x.to_string()));
+    }
+    args.push(TextComponent::text(target.0.z.to_string()));
+    args.push(TextComponent::text(distance.to_string()));
+    args
 }
 
 struct LocateStructureExecutor;
@@ -488,6 +523,14 @@ mod tests {
     /// The reported bug: both nether structures share `nether_complexes`, so
     /// resolving by set made `/locate structure minecraft:fortress` either
     /// fail or report a bastion.
+    /// Bedrock structure success has four positional args (no y), biome has five.
+    #[test]
+    fn bedrock_success_args_match_bedrock_arity() {
+        let pos = BlockPos::new(1, 64, 2);
+        assert_eq!(bedrock_success_args("n".into(), &pos, false, 5).len(), 4);
+        assert_eq!(bedrock_success_args("n".into(), &pos, true, 5).len(), 5);
+    }
+
     #[test]
     fn nether_structures_resolve_separately_within_one_set() {
         assert_eq!(
