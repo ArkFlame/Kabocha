@@ -69,3 +69,6 @@ sync (`id + 1`); retrieve damage `3` (item entity) / `5` (other) / `1` (fish) / 
 entity and luck `hook_luck + player LUCK`; item entity velocity `delta*0.1 + sqrt(sqrt(d2))*0.08`
 and `1..=6` XP orbs; `PlayerFishEvent` states `Fishing`, `Bite`, `FailedAttempt`,
 `CaughtEntity`, `CaughtFish` with cancellation; `FISHING_ROD_HOOKED` advancement trigger.
+
+## Fixed in fishing-rod bobber pass (UNVERIFIED by test)
+- Stale `player.fishing_bobber` id (hook removed outside `discard()`, e.g. `/kill`) blocked the next cast because the use path only checked `!= -1`. Now cleared when the id does not resolve to a `FishingBobberEntity`, `item/items/fishing_rod.rs` (1e5801143). No unit test: needs a world fixture.
