@@ -24,11 +24,13 @@ use pumpkin_protocol::bedrock::{
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::CMerchantOffers;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 
 use crate::entity::ageable::{AgeableData, AgeableMob};
 use crate::entity::ai::brain::Brain;
 use crate::entity::ai::brain::memory::PackedMemories;
+use crate::entity::ai::brain::memory::types;
 use crate::entity::mob::conversion::{ConversionParams, convert_to};
 use crate::entity::mob::spawn::EntitySpawnReason;
 use crate::entity::player::Player;
@@ -1365,6 +1367,14 @@ impl VillagerEntity {
 
     fn villager_ai_step(&self) {
         let world = self.get_entity().world.load();
+
+        if self.is_sleeping() {
+            // Vanilla sleeping villagers stay in bed: drop the walk target the brain
+            // may have re-issued and any momentum the move controller added.
+            self.mob_entity
+                .with_brain(self, |brain| brain.erase(types::WALK_TARGET.id()));
+            self.get_entity().set_velocity(Vector3::default());
+        }
 
         if self
             .increase_profession_level_on_update
