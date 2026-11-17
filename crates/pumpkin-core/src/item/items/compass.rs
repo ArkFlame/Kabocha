@@ -53,7 +53,7 @@ impl ItemBehaviour for CompassItem {
             };
 
             let gamemode = player.gamemode.load();
-            if gamemode != pumpkin_util::GameMode::Creative && item.item_count == 1 {
+            if !player.has_infinite_materials() && item.item_count == 1 {
                 item.set_data_component(tracker);
             } else {
                 let mut new_compass = item.transmute_copy(&Item::COMPASS, 1);
