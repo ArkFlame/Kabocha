@@ -16,6 +16,18 @@ use crate::world::World;
 
 pub(crate) const RANDOM_SPAWN_BONUS_ID: &str = "minecraft:random_spawn_bonus";
 
+/// Vanilla `SpecialDates.isHalloween` head roll chance (skeletons, zombies).
+pub const HALLOWEEN_HEAD_CHANCE: f32 = 0.25;
+/// Of the halloween rolls, the share that wears a jack o'lantern.
+pub const JACK_O_LANTERN_CHANCE: f32 = 0.1;
+
+/// The server's local date is October 31st (`SpecialDates.isHalloween`).
+#[must_use]
+pub fn is_halloween() -> bool {
+    let now = time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+    now.month() == time::Month::October && now.day() == 31
+}
+
 /// State shared by every mob of one spawn group (vanilla `SpawnGroupData`).
 pub enum SpawnGroupData {
     Ageable {
