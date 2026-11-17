@@ -375,11 +375,13 @@ impl WitherEntity {
                     if attack_timer <= 0 {
                         self.main_attack_timer.store(40, Ordering::Relaxed);
                         let dangerous = rand::random_range(0.0..1.0) < 0.001;
-                        let eye_h = target.get_entity().get_eye_height();
+                        // Vanilla aims at `target.getY(0.5)`, half the bounding-box height.
+                        let bb = target.get_entity().bounding_box.load();
+                        let half_height = (bb.max.y - bb.min.y) * 0.5;
                         self.perform_ranged_attack(
                             0,
                             target_pos.x,
-                            target_pos.y + eye_h * 0.5,
+                            target_pos.y + half_height,
                             target_pos.z,
                             dangerous,
                         );
@@ -486,11 +488,12 @@ impl WitherEntity {
                                 && (wither_pos - t_pos).length_squared() <= 900.0
                                 && self.has_line_of_sight(target.get_entity())
                             {
-                                let eye_h = target.get_entity().get_eye_height();
+                                let bb = target.get_entity().bounding_box.load();
+                                let half_height = (bb.max.y - bb.min.y) * 0.5;
                                 self.perform_ranged_attack(
                                     i,
                                     t_pos.x,
-                                    t_pos.y + eye_h * 0.5,
+                                    t_pos.y + half_height,
                                     t_pos.z,
                                     false,
                                 );
