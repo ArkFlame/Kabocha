@@ -291,7 +291,6 @@ impl ChunkLoading {
 }
 
 #[test]
-#[expect(clippy::print_stdout)]
 fn test() {
     let mut a = ChunkLoading::new(Arc::new(LevelChannel::new()));
 

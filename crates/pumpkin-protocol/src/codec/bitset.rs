@@ -60,7 +60,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "out of range for Bitset")]
     fn index_n_is_out_of_range() {
         let bits = Bitset::<66>::default();
         let _ = bits.get(66usize);
