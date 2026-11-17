@@ -54,7 +54,7 @@ impl ItemBehaviour for BowItem {
         Self::release_bow(player, stack);
     }
 
-    fn get_use_duration(&self) -> i32 {
+    fn get_use_duration(&self, _stack: &ItemStack) -> i32 {
         Self::USE_DURATION
     }
 

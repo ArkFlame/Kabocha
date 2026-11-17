@@ -67,12 +67,6 @@ impl ItemRegistry {
             crate::item::items::spear::SpearItem
                 .normal_use_with_rotation(item, player, yaw, pitch, hand);
         } else if stack
-            .get_data_component::<pumpkin_data::data_component_impl::InstrumentImpl>()
-            .is_some()
-        {
-            crate::item::items::goat_horn::GoatHornItem
-                .normal_use_with_rotation(item, player, yaw, pitch, hand);
-        } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::RecipesImpl>()
             .is_some()
         {
@@ -81,7 +75,7 @@ impl ItemRegistry {
         }
 
         if let Some(cooldown) = cooldown
-            && self.get_use_duration(item.id).is_none()
+            && self.get_use_duration(stack).is_none()
             && stack.get_max_use_time() == 0
         {
             player.start_cooldown(cooldown_group, (cooldown.seconds * 20.0) as i32);
@@ -121,12 +115,12 @@ impl ItemRegistry {
         }
     }
 
-    /// Returns the item's use duration in ticks, as defined by its registered behaviour.
+    /// Returns the item's use duration in ticks for `stack`, as defined by its registered behaviour.
     /// Returns `None` if the item has no registered behaviour or its duration is 0.
     #[must_use]
-    pub fn get_use_duration(&self, item_id: u16) -> Option<i32> {
-        self.get_pumpkin_item(item_id)
-            .map(|b| b.get_use_duration())
+    pub fn get_use_duration(&self, stack: &ItemStack) -> Option<i32> {
+        self.get_pumpkin_item(stack.item.id)
+            .map(|b| b.get_use_duration_for_stack(stack))
             .filter(|&d| d > 0)
     }
 

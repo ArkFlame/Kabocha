@@ -219,7 +219,7 @@ impl ItemBehaviour for BrushItem {
         BlockActionResult::Consume
     }
 
-    fn get_use_duration(&self) -> i32 {
+    fn get_use_duration(&self, _stack: &ItemStack) -> i32 {
         Self::USE_DURATION
     }
 

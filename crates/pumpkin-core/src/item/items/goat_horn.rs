@@ -7,6 +7,8 @@ use pumpkin_data::data_component_impl::InstrumentImpl;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::instrument::Instrument;
 use pumpkin_data::item::Item;
+use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::Hand;
@@ -79,8 +81,20 @@ impl ItemBehaviour for GoatHornItem {
         player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
     }
 
-    fn get_use_duration(&self) -> i32 {
-        Instrument::PonderGoatHorn.use_duration_ticks() as i32
+    fn get_use_duration(&self, stack: &ItemStack) -> i32 {
+        stack
+            .get_data_component::<InstrumentImpl>()
+            .and_then(|inst| Instrument::from_name(&inst.instrument))
+            .map_or(0, |inst| {
+                i32::try_from(inst.use_duration_ticks()).unwrap_or(i32::MAX)
+            })
+    }
+
+    fn get_use_duration_for_stack(&self, stack: &ItemStack) -> i32 {
+        stack
+            .get_data_component::<InstrumentImpl>()
+            .and_then(|inst| Instrument::from_name(&inst.instrument))
+            .map_or(0, |instrument| instrument.use_duration_ticks() as i32)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -90,4 +104,28 @@ impl ItemBehaviour for GoatHornItem {
 
 impl GoatHornItem {
     pub const USE_DURATION: i32 = Instrument::PonderGoatHorn.use_duration_ticks() as i32;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+
+    use pumpkin_data::data_component_impl::InstrumentImpl;
+    use pumpkin_data::item_stack::ItemStack;
+
+    use super::{GoatHornItem, Instrument, Item, ItemBehaviour};
+
+    #[test]
+    fn use_duration_is_read_from_the_stack_instrument() {
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        assert_eq!(GoatHornItem.get_use_duration(&stack), 0);
+
+        stack.set_data_component(InstrumentImpl {
+            instrument: Cow::Borrowed("minecraft:ponder_goat_horn"),
+        });
+        assert_eq!(
+            GoatHornItem.get_use_duration(&stack),
+            i32::try_from(Instrument::PonderGoatHorn.use_duration_ticks()).unwrap_or(i32::MAX)
+        );
+    }
 }

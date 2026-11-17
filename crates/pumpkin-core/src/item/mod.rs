@@ -94,10 +94,18 @@ pub trait ItemBehaviour: Send + Sync {
     ) {
     }
 
-    /// Returns the maximum number of ticks this item can be used for.
+    /// Returns the maximum number of ticks this item can be used for the given stack.
     /// Return 0 if the item does not have a behaviour-driven use duration.
-    fn get_use_duration(&self) -> i32 {
+    /// Vanilla derives this from the stack's instrument component; no Pumpkin behaviour
+    /// currently needs the vanilla `LivingEntity` argument.
+    fn get_use_duration(&self, _stack: &ItemStack) -> i32 {
         0
+    }
+
+    /// Stack-aware use duration, mirroring vanilla `Item.getUseDuration(ItemStack, LivingEntity)`.
+    /// Defaults to the stack-independent [`ItemBehaviour::get_use_duration`].
+    fn get_use_duration_for_stack(&self, _stack: &ItemStack) -> i32 {
+        self.get_use_duration()
     }
 
     fn can_mine(&self, _player: &Player) -> bool {

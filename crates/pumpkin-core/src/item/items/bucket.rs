@@ -886,7 +886,7 @@ impl ItemBehaviour for MilkBucketItem {
         // Drinking is handled by the consumable flow in the server (active hand + consumption tick).
     }
 
-    fn get_use_duration(&self) -> i32 {
+    fn get_use_duration(&self, _stack: &ItemStack) -> i32 {
         32
     }
 
