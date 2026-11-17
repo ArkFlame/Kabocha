@@ -117,6 +117,7 @@ pub struct ResourcePackSettings {
 }
 
 impl ResourcePackSettings {
+    /// Wraps `config` so it can be shared and mutated at runtime.
     #[must_use]
     pub fn new(config: ResourcePackConfig) -> Self {
         Self {
