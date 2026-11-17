@@ -1149,6 +1149,29 @@ mod tests {
         assert_eq!(parsed["players"][1]["left_at"], 1_763_149_545);
     }
 
+    #[tokio::test]
+    async fn shutdown_request_failures_are_reported() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
+        let app = Router::new().route(
+            "/v1/shutdown",
+            post(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "nope").into_response() }),
+        );
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let endpoint = format!("http://127.0.0.1:{port}/v1/heartbeat");
+        let http_client = pumpkin_auth::client_builder().build().unwrap();
+        let client =
+            TelemetryClient::new(SigningKey::from_bytes(&[3u8; 32]), http_client, endpoint);
+
+        assert!(client.send_shutdown(None, Vec::new()).await.is_err());
+    }
+
     #[test]
     fn heartbeat_response_deserialization() {
         let json_data = r#"{
