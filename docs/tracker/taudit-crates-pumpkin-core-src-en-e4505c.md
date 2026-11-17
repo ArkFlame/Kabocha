@@ -12,6 +12,9 @@ No TODO/FIXME markers in the file; the two tracker "markers" are the `vanilla` c
 2. `ender_pearl.rs:138` never dismounted a riding player. Vanilla does
    `if (serverPlayerEntity.hasVehicle()) serverPlayerEntity.stopRiding();` before the teleport.
    Now calls `remove_passenger_before_teleport` on the vehicle first.
+3. `ender_pearl.rs:131` had no owner-world gate, so a pearl could dimension-teleport an owner
+   that had already left its world. Vanilla requires `serverPlayerEntity.getWorld() == this.getWorld()`
+   first. Now guarded with `std::sync::Arc::ptr_eq(owner world, pearl world)`.
 
 ## Remaining gaps
 
@@ -29,6 +32,18 @@ none), so this is currently unobservable.
 ### 3. Dismount now fires cancellable plugin events - size S, intentional
 `remove_passenger_before_teleport` fires `EntityDismountEvent`/`VehicleExitEvent`, which a plugin
 can cancel; vanilla `stopRiding` cannot be cancelled. Keeping Pumpkin's existing event contract.
+
+### 4. Connection-open gate missing - size XS
+`ender_pearl.rs` teleport block: vanilla requires `serverPlayerEntity.networkHandler.isConnectionOpen()`;
+Pumpkin has no `Player::is_connected` helper, so a disconnecting player may still be teleported.
+
+### 5. Endermite gate includes difficulty - size XS
+`ender_pearl.rs:146` uses `world.should_spawn_monsters()`, which also requires `!peaceful` and the
+`spawn_monsters` gamerule; vanilla checks only `GameRules.DO_MOB_SPAWNING`.
+
+### 6. Death entity status not in vanilla - size XS
+The trailing `world.send_entity_status(entity, EntityStatus::Death, ActorEventID::Death)` has no
+vanilla counterpart (the pearl is just discarded), so clients may show an extra break effect.
 
 ## Checked and matching (not gaps)
 
