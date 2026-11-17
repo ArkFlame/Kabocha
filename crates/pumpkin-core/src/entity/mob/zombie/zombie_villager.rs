@@ -239,7 +239,8 @@ impl ZombieVillagerEntity {
         for block_x in x - radius..x + radius {
             for block_y in y - radius..y + radius {
                 for block_z in z - radius..z + radius {
-                    if special_blocks >= Self::MAX_SPECIAL_BLOCKS_COUNT {
+                    // Vanilla's loop guard is j <= 14, so it rolls fifteen candidates.
+                    if special_blocks > Self::MAX_SPECIAL_BLOCKS_COUNT {
                         return progress;
                     }
                     let block = world.get_block(&BlockPos::new(block_x, block_y, block_z));
