@@ -177,14 +177,16 @@ impl BoatEntity {
             bedrock_key,
             [],
         );
-        // Vanilla `AbstractChestBoat.interact` emits CONTAINER_OPEN after a successful open
-        // (and angers nearby piglins, which has no AI equivalent yet).
+        // Vanilla `AbstractChestBoat.interact` emits CONTAINER_OPEN and angers nearby piglins
+        // after a successful open.
         let opened = container::open(&self.vehicle.entity, player, inventory, title, false);
         if opened {
-            self.vehicle.entity.world.load().emit_game_event(
+            let world = self.vehicle.entity.world.load_full();
+            world.emit_game_event(
                 pumpkin_data::game_event::GameEvent::ContainerOpen.name(),
                 self.vehicle.entity.pos.load(),
             );
+            crate::entity::mob::piglin_ai::PiglinAi::on_guarded_block_interacted(&world, player);
         }
         opened
     }
