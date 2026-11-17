@@ -585,7 +585,12 @@ impl World {
         let portal_poi = portal::PortalPoiStorage::new(level.level_folder.poi_folder.clone());
         let poi_chunk_receiver = level.chunk_listener.add_global_chunk_listener();
         let dragon_fight = (dimension.minecraft_name == Dimension::THE_END.minecraft_name)
-            .then(|| std::sync::Mutex::new(dragon_fight::DragonFight::new()));
+            .then(|| {
+                std::sync::Mutex::new(dragon_fight::DragonFight::new_with_seed(
+                    level.seed.0 as u64,
+                    BlockPos::new(0, 0, 0),
+                ))
+            });
 
         let custom_data_path = level
             .level_folder

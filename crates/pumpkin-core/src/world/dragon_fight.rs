@@ -13,6 +13,8 @@ use pumpkin_util::{
     math::{position::BlockPos, vector2::Vector2, vector3::Vector3},
     text::TextComponent,
 };
+use pumpkin_world::chunk::ChunkHeightmapType;
+use pumpkin_world::generation::feature::features::end_spike::JavaRandom;
 use pumpkin_world::world::BlockFlags;
 
 use super::{
@@ -53,6 +55,17 @@ pub enum DragonRespawnStage {
 
 // ── DragonFight ───────────────────────────────────────────────────────────────
 
+/// Vanilla `Collections.shuffle(gateways, new Random(seed))` over `0..GATEWAY_COUNT`.
+fn shuffled_gateways(seed: u64) -> Vec<i32> {
+    let mut gateways: Vec<i32> = (0..(GATEWAY_COUNT as i32)).collect();
+    let mut rng = JavaRandom::new(seed);
+    for i in (2..=gateways.len()).rev() {
+        let j = rng.next_i32(i as i32) as usize;
+        gateways.swap(i - 1, j);
+    }
+    gateways
+}
+
 pub struct DragonFight {
     // ── Persistent state (SavedData in vanilla) ───────────────────────────────
     pub needs_state_scanning: bool,
@@ -63,6 +76,7 @@ pub struct DragonFight {
     pub dragon_uuid: Option<Uuid>,
     pub exit_portal_location: Option<BlockPos>,
     pub origin: BlockPos,
+    pub seed: u64,
     pub gateways: Vec<i32>,
     pub respawn_crystals: Vec<Uuid>,
 
@@ -92,19 +106,6 @@ impl DragonFight {
 
     #[must_use]
     pub fn new_with_seed(seed: u64, origin: BlockPos) -> Self {
-        let mut gateways: Vec<i32> = (0..(GATEWAY_COUNT as i32)).collect();
-        // Shuffle gateways with seed or thread-local rng
-        if seed != 0 {
-            use rand::SeedableRng;
-            use rand::seq::SliceRandom;
-            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-            gateways.shuffle(&mut rng);
-        } else {
-            use rand::seq::SliceRandom;
-            let mut rng = rand::rng();
-            gateways.shuffle(&mut rng);
-        }
-
         Self {
             needs_state_scanning: true,
             dragon_killed: false,
@@ -114,7 +115,8 @@ impl DragonFight {
             dragon_uuid: None,
             exit_portal_location: None,
             origin,
-            gateways,
+            seed,
+            gateways: shuffled_gateways(seed),
             respawn_crystals: Vec::new(),
             skip_arena_loaded_check: false,
             alive_crystals: 0,
@@ -128,15 +130,10 @@ impl DragonFight {
     }
 
     pub fn init(&mut self, seed: u64, origin: BlockPos) {
-        use rand::SeedableRng;
-        use rand::seq::SliceRandom;
-
+        self.seed = seed;
         self.origin = origin;
         if self.gateways.is_empty() {
-            let mut new_gateways: Vec<i32> = (0..(GATEWAY_COUNT as i32)).collect();
-            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-            new_gateways.shuffle(&mut rng);
-            self.gateways = new_gateways;
+            self.gateways = shuffled_gateways(seed);
         }
     }
 
@@ -502,8 +499,14 @@ impl DragonFight {
 
         // Place the dragon egg on the first kill.
         if !self.previously_killed {
+            // Vanilla: level.getHeightmapPos(MOTION_BLOCKING, podium location)
             let podium_pos = self.exit_portal_location.unwrap_or(self.origin);
-            let egg_pos = BlockPos::new(podium_pos.0.x, podium_pos.0.y + 4, podium_pos.0.z);
+            let egg_y = world.get_heightmap_height(
+                ChunkHeightmapType::MotionBlocking,
+                podium_pos.0.x,
+                podium_pos.0.z,
+            );
+            let egg_pos = BlockPos::new(podium_pos.0.x, egg_y, podium_pos.0.z);
             world.set_block_state(
                 &egg_pos,
                 Block::DRAGON_EGG.default_state.id,
@@ -586,7 +589,8 @@ impl DragonFight {
             return;
         };
 
-        let center = BlockPos::new(portal_loc.0.x, portal_loc.0.y + 1, portal_loc.0.z);
+        // Crystals sit beside the portal block box, not above it.
+        let center = portal_loc;
         let offsets = [
             (0, -3), // North
             (0, 3),  // South
@@ -605,7 +609,7 @@ impl DragonFight {
                 }
                 let pos = e.get_entity().pos.load();
                 (pos.x - (target_pos.0.x as f64 + 0.5)).abs() < 1.5
-                    && (pos.y - target_pos.0.y as f64).abs() < 1.5
+                    && (pos.y - (target_pos.0.y as f64 + 0.5)).abs() < 1.5
                     && (pos.z - (target_pos.0.z as f64 + 0.5)).abs() < 1.5
             });
 
@@ -907,13 +911,8 @@ impl DragonFight {
     }
 
     pub fn spawn_new_gateway(&mut self, world: &Arc<World>) {
-        use rand::seq::SliceRandom;
-
         if self.gateways.is_empty() {
-            let mut new_gateways: Vec<i32> = (0..(GATEWAY_COUNT as i32)).collect();
-            let mut rng = rand::rng();
-            new_gateways.shuffle(&mut rng);
-            self.gateways = new_gateways;
+            self.gateways = shuffled_gateways(self.seed);
         }
 
         if let Some(gateway) = self.gateways.pop() {
