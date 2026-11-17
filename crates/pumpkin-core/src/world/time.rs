@@ -54,10 +54,6 @@ impl ClockInstance {
         self.partial_tick = 0.0;
     }
 
-    pub fn add_ticks(&mut self, ticks: i64) {
-        self.total_ticks = (self.total_ticks + ticks).max(0);
-    }
-
     pub const fn set_paused(&mut self, paused: bool) {
         self.paused = paused;
     }
