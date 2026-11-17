@@ -159,7 +159,11 @@ pub fn to_registry_nbt_bytes(def: &DamageTypeDefinition) -> Box<[u8]> {
     let mut nbt = NbtCompound::new();
     nbt.put_string("message_id", def.message_id.clone());
     nbt.put_string("scaling", def.scaling.as_str().to_string());
-    nbt.put_double("exhaustion", f64::from(def.exhaustion));
+    // Vanilla encodes exhaustion with Codec.FLOAT and omits the field when it
+    // equals the 0.0 default (optionalFieldOf), so match tag type and omission.
+    if def.exhaustion != 0.0 {
+        nbt.put_float("exhaustion", def.exhaustion);
+    }
 
     if let Some(effects) = def.effects {
         nbt.put_string("effects", effects.as_str().to_string());
@@ -315,6 +319,36 @@ mod tests {
         assert_eq!(nbt.get_string("scaling"), Some("always"));
         assert_eq!(nbt.get_string("effects"), Some("freezing"));
         assert_eq!(nbt.get_string("death_message_type"), Some("fall_variants"));
+    }
+
+    #[test]
+    fn to_registry_nbt_matches_vanilla_exhaustion_encoding() {
+        let def = DamageTypeDefinition {
+            message_id: "hot_floor".to_string(),
+            scaling: DamageScalingWrapper::WhenCausedByLivingNonPlayer,
+            exhaustion: 0.1,
+            effects: None,
+            death_message_type: None,
+        };
+
+        let nbt = decode_root(&to_registry_nbt_bytes(&def));
+        assert!(nbt.get_float("exhaustion").is_some(), "vanilla writes a float tag");
+        assert!(nbt.get_double("exhaustion").is_none());
+
+        let default_def = DamageTypeDefinition {
+            exhaustion: 0.0,
+            ..def
+        };
+        let nbt = decode_root(&to_registry_nbt_bytes(&default_def));
+        assert!(nbt.get("exhaustion").is_none(), "vanilla omits the 0.0 default");
+    }
+
+    fn decode_root(bytes: &[u8]) -> NbtCompound {
+        let mut cursor = std::io::Cursor::new(bytes);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        Nbt::read_unnamed(&mut reader).unwrap().root_tag
     }
 
     #[test]
