@@ -56,6 +56,9 @@ impl BedrockClient {
             player.apply_sprint_input(server, true);
         } else if stopped_sprint && !started_sprint {
             player.apply_sprint_input(server, false);
+        } else if !started_sprint && !stopped_sprint && flags.get(InputData::SprintDown as usize) {
+            // Clients that report only the held sprint state, without the edges, still sprint.
+            player.apply_sprint_input(server, true);
         }
 
         if flags.get(InputData::StartSwimming as usize) {
