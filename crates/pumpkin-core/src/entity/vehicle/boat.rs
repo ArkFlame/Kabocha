@@ -427,3 +427,23 @@ impl EntityBase for BoatEntity {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::is_chest_boat;
+    use pumpkin_data::entity::EntityType;
+
+    #[test]
+    fn chest_boat_detection_covers_every_chest_boat_entity_type() {
+        for entity_type in EntityType::ALL {
+            let expected = entity_type.resource_name.ends_with("_chest_boat")
+                || entity_type.resource_name == "bamboo_chest_raft";
+            assert_eq!(
+                is_chest_boat(entity_type),
+                expected,
+                "{}",
+                entity_type.resource_name
+            );
+        }
+    }
+}
