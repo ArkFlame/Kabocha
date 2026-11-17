@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use pumpkin_data::entity::EntityType;
+use crate::entity::EntityBase;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;

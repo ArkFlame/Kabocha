@@ -2407,7 +2407,7 @@ impl World {
                             .is_within_distance(chunk_pos.x, chunk_pos.y)
                     })
                     .filter_map(|p| match p.client.as_ref() {
-                        ClientPlatform::Java(client) => Some(client.as_ref()),
+                        ClientPlatform::Java(client) => Some(client),
                         ClientPlatform::Bedrock(_) => None,
                     })
                     .collect();

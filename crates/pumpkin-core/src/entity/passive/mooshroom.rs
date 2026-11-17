@@ -247,7 +247,7 @@ impl MooshroomEntity {
                 crate::plugin::api::events::player::player_shear_entity::PlayerShearEntityEvent {
                     player: player.clone(),
                     entity_id: entity.entity_id,
-                    hand: i32::from(hand.packet_id()),
+                    hand: hand.packet_id(),
                     cancelled: false,
                 };
             server.plugin_manager.fire_blocking(&server, &mut event);
