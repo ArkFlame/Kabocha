@@ -242,6 +242,12 @@ impl Mob for NautilusEntity {
         })
     }
 
+    /// Vanilla `WaterAnimal` overrides `checkSpawnObstruction` with
+    /// `level.isUnobstructed`, so the water it spawns in is not an obstruction.
+    fn check_spawn_obstruction(&self, world: &crate::world::World) -> bool {
+        super::water_animal::check_spawn_obstruction(self, world)
+    }
+
     /// Vanilla `AbstractNautilus` steps silently.
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
 
