@@ -227,9 +227,11 @@ pub fn spawn_sweep_particle(attacker_entity: &Entity, world: &World) {
     let scale = 0.5;
     let body_y = f64::from(attacker_entity.height()).mul_add(scale, pos.y);
 
+    // Vanilla sends the view direction as the particle's spread, which the client reads
+    // as velocity for a single particle.
     world.spawn_particle(
         Vector3::new(pos.x + d, body_y, pos.z + e),
-        Vector3::new(0.0, 0.0, 0.0),
+        Vector3::new(d as f32, 0.0, e as f32),
         0.0,
         0,
         Particle::SweepAttack,
