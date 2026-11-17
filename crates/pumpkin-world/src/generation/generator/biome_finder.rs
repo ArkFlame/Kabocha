@@ -96,36 +96,61 @@ fn find_in_noise_world(
     };
 
     let rings = horizontal_radius / horizontal_step;
-    for radius in 0..=rings {
-        if radius == 0 {
-            if let Some(found) = check_column(origin.0.x, origin.0.z, &mut sampler) {
-                return Some(found);
-            }
-            continue;
-        }
-
-        // Perimeter of the square ring at Chebyshev distance `radius`.
-        for dx in -radius..=radius {
-            for dz in [-radius, radius] {
-                let x = origin.0.x + dx * horizontal_step;
-                let z = origin.0.z + dz * horizontal_step;
-                if let Some(found) = check_column(x, z, &mut sampler) {
-                    return Some(found);
-                }
-            }
-        }
-        for dz in (1 - radius)..radius {
-            for dx in [-radius, radius] {
-                let x = origin.0.x + dx * horizontal_step;
-                let z = origin.0.z + dz * horizontal_step;
-                if let Some(found) = check_column(x, z, &mut sampler) {
-                    return Some(found);
-                }
-            }
+    for (sample_x, sample_z) in spiral_offsets(rings) {
+        let x = origin.0.x + sample_x * horizontal_step;
+        let z = origin.0.z + sample_z * horizontal_step;
+        if let Some(found) = check_column(x, z, &mut sampler) {
+            return Some(found);
         }
     }
 
     None
+}
+
+/// The sample-column offsets in the order vanilla visits them:
+/// `BlockPos.spiralAround(BlockPos.ZERO, radius, Direction.EAST,
+/// Direction.SOUTH)`. The order matters because the first matching sample wins,
+/// so ties inside one square ring must resolve to the same cell as in vanilla.
+fn spiral_offsets(radius: i32) -> Vec<(i32, i32)> {
+    // Vanilla starts one step SOUTH of the centre and then walks clockwise in
+    // legs of 1, 1, 2, 2, 3, 3, ... cells, so the first leg steps back to the
+    // centre itself.
+    let mut cells = Vec::new();
+    let mut last_x = 0;
+    let mut last_z = 1;
+    let mut leg = -1;
+    let mut leg_size = 0;
+    let mut leg_index = 0;
+    let legs = 4 * radius;
+
+    loop {
+        let mut x = last_x;
+        let mut z = last_z;
+        let (dx, dz) = match (leg + 4) % 4 {
+            0 => (1, 0), // EAST
+            1 => (0, 1), // SOUTH
+            2 => (-1, 0), // WEST
+            _ => (0, -1), // NORTH
+        };
+        x += dx;
+        z += dz;
+        last_x = x;
+        last_z = z;
+
+        if leg_index >= leg_size {
+            if leg >= legs {
+                break;
+            }
+            leg += 1;
+            leg_index = 0;
+            leg_size = leg / 2 + 1;
+        }
+
+        leg_index += 1;
+        cells.push((x, z));
+    }
+
+    cells
 }
 
 /// The ids of every biome the given dimension's biome source can produce.
@@ -197,7 +222,7 @@ mod test {
 
     use super::super::flat::FlatGenerator;
     use super::super::{GeneratorInit, VanillaGenerator, WorldGenerator};
-    use super::{find_closest_biome_3d, out_from_origin};
+    use super::{find_closest_biome_3d, out_from_origin, spiral_offsets};
 
     fn targets(biomes: &[&Biome]) -> FxHashSet<u8> {
         biomes.iter().map(|biome| biome.id).collect()
@@ -211,6 +236,27 @@ mod test {
         );
         // Origin outside the bounds gets clamped first.
         assert_eq!(out_from_origin(-500, -63, 320, 200), vec![-63, 137]);
+    }
+
+    /// The reported spot must match vanilla: `findClosestBiome3d` walks the
+    /// sample grid with `BlockPos.spiralAround(ZERO, radius, EAST, SOUTH)`.
+    #[test]
+    fn sample_columns_follow_vanilla_spiral_order() {
+        assert_eq!(spiral_offsets(0), vec![(0, 0)]);
+        assert_eq!(
+            spiral_offsets(1),
+            vec![
+                (0, 0),
+                (1, 0),
+                (1, 1),
+                (0, 1),
+                (-1, 1),
+                (-1, 0),
+                (-1, -1),
+                (0, -1),
+                (1, -1)
+            ]
+        );
     }
 
     #[test]
