@@ -67,7 +67,7 @@ impl DungeonFeature {
         }
 
         for dx in min_x..=max_x {
-            for dy in (-1..=3i32).rev() {
+            for dy in -1..=3i32 {
                 for dz in min_z..=max_z {
                     let wall_pos = pos.0.add(&Vector3::new(dx, dy, dz));
 
