@@ -133,7 +133,7 @@ impl LevelTime {
     }
 
     /// Vanilla `ClientboundSetTimePacket(overworld.getGameTime(), Map.of())`,
-    /// once per world.
+    /// once per player (players with a custom time get their own day time).
     /// Clock entries would rewind `clockManager` and can freeze client
     /// `getGameTime()` across two piston animation ticks.
     ///
@@ -152,12 +152,20 @@ impl LevelTime {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .pack_network_state(advance_time);
-            let java = CUpdateTime {
-                game_time: self.world_age,
-                clock_updates: Vec::new(),
-                legacy_day_time: Some((day_time, rate != 0.0)),
-            };
+            let frozen = rate == 0.0;
             for player in world.players.load().iter() {
+                // A per-player `/time set ... ` override replaces the world's day
+                // time for this client, as vanilla `getPlayerTime()` does.
+                let client_day_time = if player.get_player_time().is_some() {
+                    player.client_time_of_day(day_time)
+                } else {
+                    day_time
+                };
+                let java = CUpdateTime {
+                    game_time: self.world_age,
+                    clock_updates: Vec::new(),
+                    legacy_day_time: Some((client_day_time, !frozen)),
+                };
                 let bedrock = CSetTime::new(player.client_time_of_day(day_time) as _);
                 player.client.try_enqueue_packet_editioned(&java, &bedrock);
             }
