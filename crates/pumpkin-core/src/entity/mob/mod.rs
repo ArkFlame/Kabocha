@@ -20,6 +20,7 @@ use crate::entity::ai::goal::{
 use crate::entity::ai::sensing::Sensing;
 use crate::entity::living::prevents_armor_change;
 use crate::entity::player::Player;
+use crate::entity::player::advancement::predicate::EntityDistance;
 use crate::entity::predicate::EntityPredicate;
 use crate::entity::projectile::arrow::ArrowEntity;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
@@ -2055,6 +2056,10 @@ pub trait Mob: EntityBase + Send + Sync {
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlayerShearedEquipment {
                 entity_type: format!("minecraft:{}", entity.entity_type.resource_name),
                 item_id,
+                distance: EntityDistance::between(
+                    player.get_entity().pos.load(),
+                    entity.pos.load(),
+                ),
             },
         );
         world.play_sound_event(&shearing_sound, SoundCategory::Neutral, &entity.pos.load());

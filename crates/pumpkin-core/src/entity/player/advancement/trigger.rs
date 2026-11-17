@@ -141,6 +141,7 @@ pub enum AdvancementTrigger {
         item_id: String,
         is_baby: bool,
         player_wearing_safe_armor: bool,
+        distance: EntityDistance,
     },
     ThrownItemPickedUpByEntity {
         entity_type: String,
@@ -151,6 +152,7 @@ pub enum AdvancementTrigger {
     PlayerShearedEquipment {
         entity_type: String,
         item_id: String,
+        distance: EntityDistance,
     },
     StartedRiding {
         vehicle_type: Option<String>,
@@ -873,6 +875,7 @@ impl Player {
                 item_id,
                 is_baby,
                 player_wearing_safe_armor,
+                distance,
             } => {
                 self.trigger_criterion_event("minecraft:player_interacted_with_entity", |cond| {
                     match cond {
@@ -882,7 +885,7 @@ impl Player {
                             player,
                         } => {
                             if let Some(e) = entity
-                                && !e.matches(&entity_type, None, Some(is_baby))
+                                && !e.matches(&entity_type, Some(distance), Some(is_baby))
                             {
                                 return false;
                             }
@@ -945,6 +948,7 @@ impl Player {
             AdvancementTrigger::PlayerShearedEquipment {
                 entity_type,
                 item_id,
+                distance,
             } => {
                 self.trigger_criterion_event(
                     "minecraft:player_sheared_equipment",
@@ -952,7 +956,7 @@ impl Player {
                         CriterionConditions::PlayerShearedEquipment { entity, item } => {
                             entity
                                 .as_ref()
-                                .is_none_or(|e| e.matches(&entity_type, None, None))
+                                .is_none_or(|e| e.matches(&entity_type, Some(distance), None))
                                 && item.as_ref().is_none_or(|i| i.matches(&item_id, 1, &[]))
                         }
                         CriterionConditions::Custom { .. } => true,

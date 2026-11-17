@@ -47,6 +47,7 @@ use crate::entity::mob::cube_mob::{
 };
 use crate::entity::mob::spawn::{EntitySpawnReason, SpawnGroupData};
 use crate::entity::mob::{Mob, MobEntity, conversion};
+use crate::entity::player::advancement::predicate::EntityDistance;
 use crate::entity::player::advancement::trigger::AdvancementTrigger;
 use crate::entity::projectile::arrow::ArrowEntity;
 use crate::entity::shearable::Shearable;
@@ -1164,6 +1165,10 @@ impl Mob for SulfurCubeEntity {
                 player.trigger_advancement(AdvancementTrigger::PlayerShearedEquipment {
                     entity_type: "minecraft:sulfur_cube".to_string(),
                     item_id: format!("minecraft:{}", sheared_item.item.registry_key),
+                    distance: EntityDistance::between(
+                        player.get_entity().pos.load(),
+                        entity.pos.load(),
+                    ),
                 });
                 return true;
             }
