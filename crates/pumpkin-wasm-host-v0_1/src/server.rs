@@ -467,7 +467,7 @@ impl pumpkin::plugin::server::HostServer for PluginHostState {
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
 
-        if let Some(entry) = server.enchantment_manager.get(&id) {
+        if let Some(entry) = server.enchantment_manager.get(&id).await {
             let description = self.add(entry.description)?;
             return Ok(Some(WitCustomEnchantment {
                 id: entry.id,
@@ -522,7 +522,7 @@ impl pumpkin::plugin::server::HostServer for PluginHostState {
             .server
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
-        let mut ids = server.enchantment_manager.get_all_ids();
+        let mut ids = server.enchantment_manager.get_all_ids().await;
         for enc in pumpkin_data::enchantment::Enchantment::ALL {
             ids.push(enc.name.to_string());
         }

@@ -340,7 +340,7 @@ impl SnifferEntity {
             .get(types::SNIFFER_EXPLORED_POSITIONS)
             .into_iter()
             .flatten()
-            .take(MAX_EXPLORED_POSITIONS - 1)
+            .take(MAX_EXPLORED_POSITIONS)
             .copied()
             .collect();
         explored.insert(0, GlobalPos::new(dimension, pos));
@@ -360,13 +360,7 @@ impl SnifferEntity {
                 this_entity: Some(self),
                 ..Default::default()
             };
-            // Vanilla spawns dig loot at the bottom centre of the head block.
-            let head = self.get_head_block().0;
-            let drop_pos = Vector3::new(
-                f64::from(head.x) + 0.5,
-                f64::from(head.y),
-                f64::from(head.z) + 0.5,
-            );
+            let head = self.get_head_block().0.to_f64();
             for mut stack in generate_loot_from_handle(&table, self.get_random().random(), &params)
             {
                 let mut event = EntityDropItemEvent::new(
@@ -385,7 +379,7 @@ impl SnifferEntity {
                 }
                 if !stack.is_empty() {
                     world.spawn_entity(Arc::new(ItemEntity::new(
-                        Entity::new(world.clone(), drop_pos, &EntityType::ITEM),
+                        Entity::new(world.clone(), head, &EntityType::ITEM),
                         stack,
                     )));
                 }
@@ -738,13 +732,8 @@ mod tests {
             .cast_any()
             .downcast_ref::<ItemEntity>()
             .ok_or("missing dig loot")?;
-        let head = sniffer.get_head_block().0;
-        let drop_pos = Vector3::new(
-            f64::from(head.x) + 0.5,
-            f64::from(head.y),
-            f64::from(head.z) + 0.5,
-        );
-        assert_eq!(item.get_entity().pos.load(), drop_pos);
+        let head = sniffer.get_head_block().0.to_f64();
+        assert_eq!(item.get_entity().pos.load(), head);
         assert_eq!(item.get_pickup_delay(), ItemEntity::DEFAULT_PICKUP_DELAY);
         world.level.shutdown().await;
         Ok(())
@@ -779,15 +768,12 @@ mod tests {
             let positions = brain
                 .get(types::SNIFFER_EXPLORED_POSITIONS)
                 .ok_or("missing explored positions")?;
-            assert_eq!(positions.len(), MAX_EXPLORED_POSITIONS);
+            assert_eq!(positions.len(), 21);
             assert_eq!(
                 positions[0],
                 GlobalPos::new(&Dimension::OVERWORLD, BlockPos::new(22, 63, 8))
             );
-            assert_eq!(
-                positions[MAX_EXPLORED_POSITIONS - 1].pos,
-                BlockPos::new(3, 63, 8)
-            );
+            assert_eq!(positions[20].pos, BlockPos::new(2, 63, 8));
             assert_eq!(
                 brain.time_until_expiry(types::SNIFF_COOLDOWN.id()),
                 Some(9137)

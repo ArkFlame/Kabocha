@@ -1,5 +1,5 @@
 use std::sync::{
-    Arc, Mutex, Weak,
+    Arc, Weak,
     atomic::{AtomicI32, AtomicI64, Ordering},
 };
 
@@ -70,27 +70,6 @@ impl WeatherState {
             Self::Exposed | Self::Unaffected => Self::Unaffected,
         }
     }
-
-    /// Vanilla stores the weather state as the enum name in NBT.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Unaffected => "unaffected",
-            Self::Exposed => "exposed",
-            Self::Weathered => "weathered",
-            Self::Oxidized => "oxidized",
-        }
-    }
-
-    #[must_use]
-    pub fn from_name(name: &str) -> Self {
-        match name {
-            "exposed" => Self::Exposed,
-            "weathered" => Self::Weathered,
-            "oxidized" => Self::Oxidized,
-            _ => Self::Unaffected,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -130,17 +109,11 @@ pub struct CopperGolemEntity {
     pub weather_state: AtomicI32,
     pub state: AtomicI32,
     pub next_weathering_tick: AtomicI64,
-    /// Vanilla `CopperGolem.lastLightningBoltUuid`: one bolt must deoxidize once.
-    last_lightning_bolt_uuid: Mutex<Option<uuid::Uuid>>,
 }
 
 /// Vanilla `nextIntBetweenInclusive(504000, 552000)` weathering delay in ticks.
 const MIN_WEATHERING_TICKS: i64 = 504_000;
 const MAX_WEATHERING_TICKS: i64 = 552_000;
-/// Sentinel for a waxed golem (`IGNORE_WEATHERING_TICK` in vanilla).
-const WAXED_WEATHERING_TICK: i64 = -2;
-/// Sentinel for "re-roll the next weathering tick" (`SET_WEATHERING_TICK_IMMEDIATELY`).
-const UNSET_WEATHERING_TICK: i64 = -1;
 
 impl CopperGolemEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
@@ -149,8 +122,7 @@ impl CopperGolemEntity {
             mob_entity,
             weather_state: AtomicI32::new(WeatherState::Unaffected.id()),
             state: AtomicI32::new(CopperGolemState::Idle.id()),
-            next_weathering_tick: AtomicI64::new(UNSET_WEATHERING_TICK),
-            last_lightning_bolt_uuid: Mutex::new(None),
+            next_weathering_tick: AtomicI64::new(-1),
         };
         let mob_arc = Arc::new(golem);
         let mob_weak: Weak<dyn Mob> = {
@@ -283,10 +255,10 @@ impl Mob for CopperGolemEntity {
         let game_time = world.get_world_age();
         let mut next_weathering_tick = self.next_weathering_tick.load(Ordering::Relaxed);
         // -2 means waxed: vanilla skips weathering entirely.
-        if next_weathering_tick == WAXED_WEATHERING_TICK {
+        if next_weathering_tick == -2 {
             return;
         }
-        if next_weathering_tick == UNSET_WEATHERING_TICK {
+        if next_weathering_tick == -1 {
             next_weathering_tick = game_time + self.next_weathering_delay();
             self.next_weathering_tick
                 .store(next_weathering_tick, Ordering::Relaxed);
@@ -318,18 +290,14 @@ impl Mob for CopperGolemEntity {
             "next_weather_age",
             self.next_weathering_tick.load(Ordering::Relaxed),
         );
-        // Vanilla stores the enum name, not its ordinal.
-        nbt.put_string("weather_state", self.get_weather_state().name().to_owned());
+        nbt.put_int("weather_state", self.get_weather_state().id());
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         if let Some(next) = nbt.get_long("next_weather_age") {
             self.next_weathering_tick.store(next, Ordering::Relaxed);
         }
-        if let Some(state) = nbt.get_string("weather_state") {
-            self.set_weather_state(WeatherState::from_name(state));
-        } else if let Some(state) = nbt.get_int("weather_state") {
-            // Older Pumpkin saves wrote the ordinal.
+        if let Some(state) = nbt.get_int("weather_state") {
             self.set_weather_state(WeatherState::from_id(state));
         }
     }
@@ -338,43 +306,20 @@ impl Mob for CopperGolemEntity {
         &self.mob_entity
     }
 
-    fn finalize_spawn(
-        &self,
-        world: &Arc<crate::world::World>,
-        _reason: crate::entity::mob::spawn::EntitySpawnReason,
-        group_data: Option<crate::entity::mob::spawn::SpawnGroupData>,
-    ) -> Option<crate::entity::mob::spawn::SpawnGroupData> {
-        self.play_entity_sound(Sound::EntityCopperGolemSpawn, 1.0, 1.0);
-        self.default_finalize_spawn(world, group_data)
-    }
-
     fn mob_on_lightning_strike(
         &self,
         caller: &dyn EntityBase,
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
+        self.set_weather_state(WeatherState::Unaffected);
+        // Vanilla invalidates the pending weathering tick so the golem does not
+        // re-oxidize on the next tick; a waxed golem (-2) keeps its sentinel.
+        if self.next_weathering_tick.load(Ordering::Relaxed) != -2 {
+            self.next_weathering_tick.store(-1, Ordering::Relaxed);
+        }
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);
-        // Vanilla deoxidizes one stage per bolt, not all the way to Unaffected,
-        // and remembers the bolt uuid so a multi-tick strike counts once.
-        let uuid = lightning.get_entity().entity_uuid;
-        let mut previous_bolt = self
-            .last_lightning_bolt_uuid
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if *previous_bolt == Some(uuid) {
-            return;
-        }
-        *previous_bolt = Some(uuid);
-        drop(previous_bolt);
-        let weather_state = self.get_weather_state();
-        if weather_state == WeatherState::Unaffected {
-            return;
-        }
-        self.next_weathering_tick
-            .store(UNSET_WEATHERING_TICK, Ordering::Relaxed);
-        self.set_weather_state(weather_state.previous());
     }
 
     fn mob_init_data_tracker(&self) {
@@ -417,9 +362,9 @@ impl Mob for CopperGolemEntity {
 
         // Honeycomb waxing
         if item_stack.item.id == Item::HONEYCOMB.id
-            && self.next_weathering_tick.load(Ordering::Relaxed) != WAXED_WEATHERING_TICK
+            && self.next_weathering_tick.load(Ordering::Relaxed) != -2
         {
-            self.next_weathering_tick.store(WAXED_WEATHERING_TICK, Ordering::Relaxed);
+            self.next_weathering_tick.store(-2, Ordering::Relaxed);
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
             let pos = entity.pos.load();
             world.play_sound(Sound::ItemHoneycombWaxOn, SoundCategory::Blocks, &pos);
@@ -429,8 +374,8 @@ impl Mob for CopperGolemEntity {
         // Axe scraping
         if item_stack.item.has_tag(&tag::Item::MINECRAFT_AXES) {
             let current_next = self.next_weathering_tick.load(Ordering::Relaxed);
-            if current_next == WAXED_WEATHERING_TICK {
-                self.next_weathering_tick.store(UNSET_WEATHERING_TICK, Ordering::Relaxed);
+            if current_next == -2 {
+                self.next_weathering_tick.store(-1, Ordering::Relaxed);
                 let pos = entity.pos.load();
                 world.play_sound(Sound::ItemAxeScrape, SoundCategory::Blocks, &pos);
                 let _ = player.damage_item_stack(item_stack, 1);
@@ -440,7 +385,7 @@ impl Mob for CopperGolemEntity {
             let weather_state = self.get_weather_state();
             if weather_state != WeatherState::Unaffected {
                 self.set_weather_state(weather_state.previous());
-                self.next_weathering_tick.store(UNSET_WEATHERING_TICK, Ordering::Relaxed);
+                self.next_weathering_tick.store(-1, Ordering::Relaxed);
                 let pos = entity.pos.load();
                 world.play_sound(Sound::ItemAxeScrape, SoundCategory::Blocks, &pos);
                 let _ = player.damage_item_stack(item_stack, 1);

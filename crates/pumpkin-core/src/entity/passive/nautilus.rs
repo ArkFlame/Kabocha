@@ -1,3 +1,4 @@
+use crossbeam::atomic::AtomicCell;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, AtomicI32, Ordering},
@@ -5,7 +6,6 @@ use std::sync::{
 use uuid::Uuid;
 
 use pumpkin_data::BlockState;
-use pumpkin_data::tag::Taggable;
 use pumpkin_data::{
     data_component_impl::EquipmentSlot,
     effect::StatusEffect,
@@ -24,14 +24,15 @@ use crate::entity::{
     Entity, EntityBase,
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, equipment::equip_on_target},
-    passive::{animal::Animal, tamable::{TamableAnimal, TamableData}},
+    passive::animal::Animal,
     player::Player,
 };
 
 pub struct NautilusEntity {
     pub mob_entity: MobEntity,
     pub ageable_data: crate::entity::ageable::AgeableData,
-    pub tamable_data: TamableData,
+    pub is_tame: AtomicBool,
+    pub owner: AtomicCell<Option<Uuid>>,
     pub is_dashing: AtomicBool,
     pub dash_cooldown: AtomicI32,
     pub inventory: Mutex<Vec<ItemStack>>,
@@ -43,7 +44,8 @@ impl NautilusEntity {
         let nautilus = Self {
             mob_entity,
             ageable_data: crate::entity::ageable::AgeableData::default(),
-            tamable_data: TamableData::default(),
+            is_tame: AtomicBool::new(false),
+            owner: AtomicCell::new(None),
             is_dashing: AtomicBool::new(false),
             dash_cooldown: AtomicI32::new(0),
             inventory: Mutex::new(vec![ItemStack::new(0, &pumpkin_data::item::Item::AIR); 9]),
@@ -62,6 +64,15 @@ impl NautilusEntity {
             .living_entity
             .entity
             .set_synced_data(pumpkin_data::tracked_data::nautilus::DASH, dashing);
+    }
+
+    pub fn is_tame(&self) -> bool {
+        self.is_tame.load(Ordering::Relaxed)
+    }
+
+    pub fn set_tame(&self, tame: bool, owner: Option<Uuid>) {
+        self.is_tame.store(tame, Ordering::Relaxed);
+        self.owner.store(owner);
     }
 
     pub fn get_ambient_sound(&self) -> Sound {
@@ -144,11 +155,12 @@ impl Animal for NautilusEntity {
         });
     }
 
-    /// Vanilla `AbstractNautilus#isFood` uses the `nautilus_food` item tag.
     fn is_food(&self, item_stack: &ItemStack) -> bool {
-        item_stack
-            .item
-            .has_tag(&pumpkin_data::tag::Item::MINECRAFT_NAUTILUS_FOOD)
+        item_stack.item == &pumpkin_data::item::Item::NAUTILUS_SHELL
+            || item_stack.item == &pumpkin_data::item::Item::PUFFERFISH
+            || item_stack.item == &pumpkin_data::item::Item::COD
+            || item_stack.item == &pumpkin_data::item::Item::SALMON
+            || item_stack.item == &pumpkin_data::item::Item::TROPICAL_FISH
     }
 }
 
@@ -188,12 +200,6 @@ impl CustomSound for NautilusEntity {
     }
 }
 
-impl TamableAnimal for NautilusEntity {
-    fn get_tamable_data(&self) -> &TamableData {
-        &self.tamable_data
-    }
-}
-
 impl crate::entity::ageable::AgeableMob for NautilusEntity {
     fn get_ageable_data(&self) -> &crate::entity::ageable::AgeableData {
         &self.ageable_data
@@ -211,16 +217,12 @@ impl Mob for NautilusEntity {
             || self.mob_entity.can_pick_up_loot()
     }
 
-    fn as_tamable(&self) -> Option<&dyn TamableAnimal> {
-        Some(self)
-    }
-
     fn is_tamed(&self) -> bool {
         self.is_tame()
     }
 
     fn get_owner_uuid(&self) -> Option<Uuid> {
-        self.get_owner()
+        self.owner.load()
     }
 
     fn mob_controlling_passenger(&self) -> Option<Arc<dyn EntityBase>> {
@@ -242,12 +244,6 @@ impl Mob for NautilusEntity {
         })
     }
 
-    /// Vanilla `WaterAnimal` overrides `checkSpawnObstruction` with
-    /// `level.isUnobstructed`, so the water it spawns in is not an obstruction.
-    fn check_spawn_obstruction(&self, world: &crate::world::World) -> bool {
-        super::water_animal::check_spawn_obstruction(self, world)
-    }
-
     /// Vanilla `AbstractNautilus` steps silently.
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
 
@@ -260,16 +256,24 @@ impl Mob for NautilusEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        self.write_tamable_nbt(nbt);
+        nbt.put_bool("IsTame", self.is_tame.load(Ordering::Relaxed));
         nbt.put_int("DashCooldown", self.dash_cooldown.load(Ordering::Relaxed));
+        if let Some(owner) = self.owner.load() {
+            nbt.put_uuid("Owner", owner);
+        }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         self.mob_entity
             .read_legacy_saddle(nbt.get_bool("Saddled") == Some(true));
-        self.read_tamable_nbt(nbt);
+        if let Some(is_tame) = nbt.get_bool("IsTame") {
+            self.is_tame.store(is_tame, Ordering::Relaxed);
+        }
         if let Some(dash) = nbt.get_int("DashCooldown") {
             self.dash_cooldown.store(dash, Ordering::Relaxed);
+        }
+        if let Some(owner) = nbt.get_uuid("Owner") {
+            self.owner.store(Some(owner));
         }
     }
 
@@ -300,7 +304,7 @@ impl Mob for NautilusEntity {
             player,
             item_stack,
             self.is_tame(),
-            |owner| self.tame(owner),
+            |owner| self.set_tame(true, Some(owner)),
             || self.get_eat_sound(),
         )
     }

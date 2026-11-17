@@ -3,6 +3,7 @@ use std::sync::RwLock;
 
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::registry::{Registry, RegistryEntryData};
+use pumpkin_util::version::JavaMinecraftVersion;
 
 /// Represents a single dynamic registry holding all its entries in canonical network order.
 #[derive(Clone, Debug, Default)]
@@ -103,17 +104,17 @@ pub struct DynamicRegistryManager {
 
 impl Default for DynamicRegistryManager {
     fn default() -> Self {
-        Self::new()
+        Self::new(CURRENT_MC_VERSION)
     }
 }
 
 impl DynamicRegistryManager {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(version: JavaMinecraftVersion) -> Self {
         let mut registries = HashMap::new();
         let mut synced_order = Vec::new();
 
-        let base_regs = pumpkin_data::registry::Registry::get_synced(CURRENT_MC_VERSION);
+        let base_regs = pumpkin_data::registry::Registry::get_synced(version);
         for reg in base_regs {
             let reg_id = if reg.registry_id.contains(':') {
                 reg.registry_id.clone()
@@ -284,7 +285,7 @@ mod tests {
 
     #[test]
     fn dynamic_registry_manager_initializes_with_vanilla() {
-        let manager = DynamicRegistryManager::new();
+        let manager = DynamicRegistryManager::new(CURRENT_MC_VERSION);
         let synced = manager.get_synced_registries();
         assert!(synced.len() >= 30);
 
@@ -306,7 +307,7 @@ mod tests {
 
     #[test]
     fn dynamic_registry_manager_applies_custom_entries() {
-        let manager = DynamicRegistryManager::new();
+        let manager = DynamicRegistryManager::new(CURRENT_MC_VERSION);
         let base_count = manager
             .get_registry_entries("minecraft:painting_variant")
             .len();
@@ -339,7 +340,7 @@ mod tests {
 
     #[test]
     fn dynamic_registry_manager_creates_new_custom_registry() {
-        let manager = DynamicRegistryManager::new();
+        let manager = DynamicRegistryManager::new(CURRENT_MC_VERSION);
 
         let mut custom = HashMap::new();
         let mut custom_magic = HashMap::new();

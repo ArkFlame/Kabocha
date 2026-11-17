@@ -23,8 +23,8 @@ use std::{
 /// Vanilla `Entity.getAirDrag`, applied every tick.
 const AIR_DRAG: f32 = 0.98;
 
-// TODO: `block_state` NBT tag (legacy saves and `/data`) and vanilla's `usedPortal`
-// explosion damage calculator are not modelled; the synced block state is always plain TNT.
+// TODO: `owner` (igniter, projectile owner or explosion source): NBT, kill credit, damage source.
+// TODO: `block_state` NBT tag and `usedPortal` damage calculator.
 pub struct TNTEntity {
     entity: Entity,
     power: AtomicCell<f32>,
@@ -100,11 +100,9 @@ impl EntityBase for TNTEntity {
 
     /// Vanilla `PrimedTnt.readAdditionalSaveData`.
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
-        // Vanilla `PrimedTnt.readAdditionalSaveData` uses `getShort("fuse")`, which is 0
-        // when the key is absent, so explicit NBT without a fuse detonates on the next tick.
         let fuse = nbt
             .get_numeric_short("fuse")
-            .map_or(0, |fuse| fuse.max(0) as u32);
+            .map_or(Self::DEFAULT_FUSE, |fuse| fuse.max(0) as u32);
         self.fuse.store(fuse, Relaxed);
         self.power.store(
             nbt.get_numeric_float("explosion_power")
@@ -204,34 +202,5 @@ impl EntityBase for TNTEntity {
 
     fn cast_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pumpkin_nbt::compound::NbtCompound;
-
-    #[tokio::test]
-    async fn missing_fuse_in_nbt_defaults_to_zero() -> Result<(), Box<dyn std::error::Error>> {
-        let folder = tempfile::tempdir()?;
-        let world = crate::entity::ai::test_support::world(&folder);
-        let entity = Entity::new(world.clone(), Vector3::new(0.0, 64.0, 0.0), &EntityType::TNT);
-        let tnt = TNTEntity::new(entity, TNTEntity::DEFAULT_POWER, TNTEntity::DEFAULT_FUSE);
-
-        tnt.read_custom_nbt(&NbtCompound::new());
-        assert_eq!(tnt.fuse.load(Relaxed), 0);
-
-        // A fuse written by the entity itself still round trips.
-        tnt.fuse.store(42, Relaxed);
-        let mut nbt = NbtCompound::new();
-        tnt.write_custom_nbt(&mut nbt);
-        tnt.read_custom_nbt(&NbtCompound::new());
-        assert_eq!(tnt.fuse.load(Relaxed), 0);
-        tnt.read_custom_nbt(&nbt);
-        assert_eq!(tnt.fuse.load(Relaxed), 42);
-
-        world.level.shutdown().await;
-        Ok(())
     }
 }

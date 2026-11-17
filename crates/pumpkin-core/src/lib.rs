@@ -801,7 +801,6 @@ fn setup_stdin_console(server: &Arc<Server>) {
             let command = select! {
                 command = rx.recv() => command,
                 () = STOP_INTERRUPT.cancelled() => None,
-                () = server_clone.stop_token.cancelled() => None,
             };
             let Some(command) = command else {
                 break;
@@ -880,7 +879,6 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
             let result = select! {
                 line = t1 => line,
                 () = t2 => None,
-                () = server.stop_token.cancelled() => None,
             };
 
             if let Some(line) = result {

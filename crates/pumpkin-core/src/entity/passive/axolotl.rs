@@ -181,6 +181,7 @@ fn supporting_regeneration_duration(current: Option<(i32, i32)>) -> Option<i32> 
 }
 
 /// Grants the regeneration buff (see `supporting_regeneration_duration`) and clears mining fatigue.
+/// Grants the regeneration buff (see `supporting_regeneration_duration`) and clears mining fatigue,
 fn apply_supporting_effects(player: &Player) {
     let current = player
         .get_effect(&StatusEffect::REGENERATION)

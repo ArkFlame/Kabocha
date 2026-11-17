@@ -10,7 +10,7 @@ use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
+use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::java::client::play::CEntityStatus;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -40,8 +40,6 @@ pub const CREAKING_GRAY: i32 = 6250335;
 pub const INVULNERABILITY_ANIMATION_DURATION: i32 = 8;
 pub const TWITCH_DEATH_DURATION: i32 = 45;
 pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
-/// Vanilla `Creaking#isLookingAtMe` gaze cone epsilon, divided by the distance.
-pub const GAZE_EPSILON: f64 = 0.025;
 
 pub struct CreakingEntity {
     pub mob_entity: MobEntity,
@@ -256,13 +254,12 @@ impl CreakingEntity {
         false
     }
 
-    /// Vanilla `Creaking#isLookingAtMe`: the player's normalized view vector
-    /// must point at the creaking's eye within a distance-scaled epsilon of
-    /// `GAZE_EPSILON / distance`. Vanilla samples no other point of the body.
     pub fn is_looking_at_me(&self, player: &Player) -> bool {
         let creaking_entity = &self.mob_entity.living_entity.entity;
         let creaking_pos = creaking_entity.pos.load();
-        let target = Vector3::new(creaking_pos.x, creaking_entity.get_eye_y(), creaking_pos.z);
+        let eye_y = creaking_entity.get_eye_y();
+        let feet_y = creaking_pos.y + 0.5;
+        let mid_y = f64::midpoint(eye_y, creaking_pos.y);
 
         let player_entity = player.get_entity();
         let player_eye_pos = player_entity.get_eye_pos();
@@ -277,13 +274,20 @@ impl CreakingEntity {
             (yaw.cos() * cos_pitch) as f64,
         );
 
-        let dir = target - player_eye_pos;
-        let distance = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z).sqrt();
-        if distance <= 0.001 {
-            return false;
+        let targets_y = [eye_y, feet_y, mid_y];
+        for target_y in targets_y {
+            let target = Vector3::new(creaking_pos.x, target_y, creaking_pos.z);
+            let dir = target - player_eye_pos;
+            let distance = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z).sqrt();
+            if distance > 0.001 {
+                let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
+                let dot = look_dir.dot(&norm_dir);
+                if dot > 1.0 - 0.5 / distance {
+                    return true;
+                }
+            }
         }
-        let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
-        look_dir.dot(&norm_dir) > 1.0 - GAZE_EPSILON / distance
+        false
     }
 
     fn is_player_disguised(player: &Player) -> bool {
@@ -395,24 +399,22 @@ impl Mob for CreakingEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        // Vanilla `Creaking#addAdditionalSaveData` stores `home_pos` through
-        // `NbtUtils.writeBlockPos`, i.e. as an int array `[x, y, z]`.
         if let Some(pos) = self.get_home_pos() {
-            nbt.put("home_pos", NbtTag::IntArray(vec![pos.0.x, pos.0.y, pos.0.z]));
+            let mut sub = NbtCompound::new();
+            sub.put_int("x", pos.0.x);
+            sub.put_int("y", pos.0.y);
+            sub.put_int("z", pos.0.z);
+            nbt.put_compound("home_pos", sub);
         }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
-        if let Some([x, y, z]) = nbt.get_int_array("home_pos") {
-            self.set_transient(BlockPos::new(*x, *y, *z));
-            return;
-        }
-        // Older Pumpkin saves wrote a `{x, y, z}` compound; still read it.
         if let Some(sub) = nbt.get_compound("home_pos")
             && let (Some(x), Some(y), Some(z)) =
                 (sub.get_int("x"), sub.get_int("y"), sub.get_int("z"))
         {
-            self.set_transient(BlockPos::new(x, y, z));
+            let pos = BlockPos::new(x, y, z);
+            self.set_transient(pos);
         }
     }
 
