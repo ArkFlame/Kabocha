@@ -27,6 +27,7 @@ const INITIAL_ALLOWED_HEIGHT_OFFSET: f32 = 0.5;
 const HEIGHT_OFFSET_CHANGE_INTERVAL: i32 = 100;
 const HEIGHT_OFFSET_SPREAD: f64 = 6.891;
 const ASCENT_ACCELERATION: f64 = 0.3f32 as f64;
+const FALL_DAMPING: f64 = 0.6;
 
 pub struct BlazeEntity {
     pub entity: Arc<MobEntity>,
@@ -141,6 +142,18 @@ impl Mob for BlazeEntity {
 
     /// Vanilla `Blaze.customServerAiStep`: lifts toward a target above the height offset.
     fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        // Vanilla `Blaze.aiStep` damps the fall speed before the ascent check.
+        let entity = &self.entity.living_entity.entity;
+        if !entity.on_ground.load(Ordering::Relaxed) {
+            let velocity = entity.velocity.load();
+            if velocity.y < 0.0 {
+                entity.velocity.store(Vector3::new(
+                    velocity.x,
+                    velocity.y * FALL_DAMPING,
+                    velocity.z,
+                ));
+            }
+        }
         if self
             .next_height_offset_change_tick
             .fetch_sub(1, Ordering::Relaxed)
@@ -158,7 +171,6 @@ impl Mob for BlazeEntity {
         let Some(target) = self.entity.get_target() else {
             return;
         };
-        let entity = &self.entity.living_entity.entity;
         if target.get_entity().get_eye_y()
             > entity.get_eye_y() + f64::from(self.allowed_height_offset.load())
             && self.can_attack(target.as_ref())

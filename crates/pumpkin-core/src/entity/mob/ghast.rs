@@ -281,7 +281,8 @@ impl Goal for GhastShootFireballGoal {
 
         let entity = &ghast.mob_entity.living_entity.entity;
         let ghast_pos = entity.pos.load();
-        let target_pos = target.get_entity().pos.load();
+        let target_entity = target.get_entity();
+        let target_pos = target_entity.pos.load();
         let dist_sq = ghast_pos.squared_distance_to_vec(&target_pos);
         let has_line_of_sight = mob.has_line_of_sight(target.get_entity());
 
@@ -313,13 +314,17 @@ impl Goal for GhastShootFireballGoal {
                 let view_x = -pitch_rad.cos() * yaw_rad.sin();
                 let view_z = pitch_rad.cos() * yaw_rad.cos();
 
+                // Vanilla `Ghast.GhastShootFireballGoal`: spawn and aim use the
+                // half-height points of both entities, plus 0.5 above the ghast.
+                let ghast_half_height = f64::from(entity.entity_dimension.load().height) * 0.5;
+                let target_half_height =
+                    f64::from(target_entity.entity_dimension.load().height) * 0.5;
                 let spawn_pos = Vector3::new(
                     ghast_pos.x + view_x * 4.0,
-                    ghast_pos.y + 1.0,
+                    ghast_pos.y + ghast_half_height + 0.5,
                     ghast_pos.z + view_z * 4.0,
                 );
-
-                let target_y = target_pos.y + 0.5;
+                let target_y = target_pos.y + target_half_height;
                 let dir_x = target_pos.x - spawn_pos.x;
                 let dir_y = target_y - spawn_pos.y;
                 let dir_z = target_pos.z - spawn_pos.z;
