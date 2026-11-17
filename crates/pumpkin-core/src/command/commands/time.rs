@@ -9,6 +9,7 @@ use crate::command::argument_types::identifier::IdentifierArgumentType;
 use crate::command::argument_types::registry_id::RegistryIdArgumentType;
 use crate::command::argument_types::time::TimeArgumentType;
 use crate::command::context::command_context::CommandContext;
+use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use pumpkin_util::identifier::Identifier;
@@ -18,6 +19,24 @@ const PERMISSION: &str = "minecraft:command.time";
 
 const DEFAULT_CLOCK: &str = "minecraft:overworld";
 const DAY_TIMELINE: &str = "minecraft:day";
+
+// Bedrock has no dedicated keys for these errors, so both editions use the Java text.
+const ERROR_SET_ALREADY_AT_TIME: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME,
+    translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME,
+);
+const ERROR_PAUSE_ALREADY_PAUSED: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_PAUSE_ALREADY_PAUSED,
+    translation::java::COMMANDS_TIME_PAUSE_ALREADY_PAUSED,
+);
+const ERROR_RESUME_ALREADY_RUNNING: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_PAUSE_ALREADY_RUNNING,
+    translation::java::COMMANDS_TIME_PAUSE_ALREADY_RUNNING,
+);
+const ERROR_RATE_ALREADY_SAME: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_RATE_ALREADY_SAME,
+    translation::java::COMMANDS_TIME_RATE_ALREADY_SAME,
+);
 
 #[derive(Clone, Copy)]
 enum PresetTime {
@@ -196,6 +215,14 @@ impl CommandExecutor for ActionExecutor {
                         .level_time
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if guard.time_of_day == i64::from(time_count) {
+                        return Err(ERROR_SET_ALREADY_AT_TIME.create_without_context_args_slice(
+                            &[
+                                TextComponent::text(clock_name),
+                                TextComponent::text(time_count.to_string()),
+                            ],
+                        ));
+                    }
                     guard.set_time(time_count.into());
                     guard.clone()
                 };
@@ -250,6 +277,13 @@ impl CommandExecutor for ActionExecutor {
                         .level_time
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if guard.paused {
+                        return Err(
+                            ERROR_PAUSE_ALREADY_PAUSED.create_without_context_args_slice(&[
+                                TextComponent::text(clock_name),
+                            ]),
+                        );
+                    }
                     guard.set_paused(true);
                     guard.clone()
                 };
@@ -271,6 +305,12 @@ impl CommandExecutor for ActionExecutor {
                         .level_time
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if !guard.paused {
+                        return Err(ERROR_RESUME_ALREADY_RUNNING
+                            .create_without_context_args_slice(&[TextComponent::text(
+                                clock_name,
+                            )]));
+                    }
                     guard.set_paused(false);
                     guard.clone()
                 };
@@ -293,6 +333,12 @@ impl CommandExecutor for ActionExecutor {
                         .level_time
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if (guard.rate - rate).abs() < f32::EPSILON {
+                        return Err(ERROR_RATE_ALREADY_SAME.create_without_context_args_slice(&[
+                            TextComponent::text(clock_name),
+                            TextComponent::text(format!("{rate:?}")),
+                        ]));
+                    }
                     guard.set_rate(rate);
                     guard.clone()
                 };

@@ -43,7 +43,7 @@ the explanatory `vanilla` comments at `time.rs:62` and `time.rs:386`.
 - 1. `/time set <timemarker>` markers not implemented: STILL OPEN (M; no `time_marker` symbol in `time.rs`).
 - 2. Foreign clock id mutates single `LevelTime`: STILL OPEN (M).
 - 3. `commands.time.no_default_clock` unused: STILL OPEN (S; key not referenced in `time.rs`).
-- 4. `already_paused`/`already_running`/`rate.already_same`/`set.already_at_time` unused: STILL OPEN (S; no references in `time.rs`).
+- 4. `already_paused`/`already_running`/`rate.already_same`/`set.already_at_time` unused: FIXED (UNVERIFIED; time.rs now returns the vanilla errors).
 - 5. One `LevelTime` per world, clocks not modelled: STILL OPEN (L).
 - 6. Bedrock rate key: STILL OPEN (S).
 - 7. Query day/daytime hardcoded `minecraft:day`: STILL OPEN (S).

@@ -563,9 +563,10 @@ fn substring(input: &str, start: i32, end: Option<i32>) -> Result<String, Comman
             &units[(abs_start as usize)..(abs_end as usize)],
         ))
     } else {
+        // Vanilla reports the resolved indices (after negative offsets), not the raw arguments.
         Err(ERROR_INVALID_SUBSTRING.create_without_context(
-            TextComponent::text(start.to_string()),
-            TextComponent::text(end.unwrap_or(len).to_string()),
+            TextComponent::text(abs_start.to_string()),
+            TextComponent::text(abs_end.to_string()),
         ))
     }
 }

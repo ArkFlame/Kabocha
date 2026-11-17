@@ -66,6 +66,6 @@ block-actor data dropping item components.
 - Fixed rows (`entities/jukebox.rs:180`, `blocks/jukebox.rs:101,123`): FIXED per "Fixed this pass" section; not re-spot-checked.
 - `entities/jukebox.rs:107-119` tick particle order/payload: STILL OPEN (S).
 - `entities/jukebox.rs:139` `chunk_data_nbt` always writes ticks: STILL OPEN (S).
-- `entities/jukebox.rs:230` `set_record` skips stop/HAS_RECORD: STILL OPEN (S; plugin desync risk).
-- `entities/jukebox.rs:428` `can_transfer_to`: STILL OPEN (S).
+- `entities/jukebox.rs:230` `set_record` skips stop/HAS_RECORD: ALREADY FIXED on master (UNVERIFIED; set_record calls stop_playing).
+- `entities/jukebox.rs:428` `can_transfer_to`: ALREADY FIXED on master (UNVERIFIED; checks empty or fitting partial stack).
 - `blocks/jukebox.rs:192` `on_state_replaced` delegation: STILL OPEN (design note, no behaviour gap reproduced).

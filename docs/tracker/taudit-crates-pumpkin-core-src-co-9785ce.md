@@ -39,7 +39,7 @@ New gaps:
 - `modify string` on non-string tags (`data.rs:481-495`): STILL OPEN (S).
 - Empty arrays render `[B; ]` (`data.rs:114-201`): STILL OPEN (S).
 - Compound key order is HashMap order (`data.rs:151-170`): STILL OPEN (S).
-- Substring error indices (`data.rs:497-521`): STILL OPEN (S).
+- Substring error indices (`data.rs:497-521`): FIXED (UNVERIFIED; reports resolved indices like vanilla).
 - `remove entity` at depth (`data.rs:263-271`): STILL OPEN (Second pass section not re-read this pass).
 - Block data live load (`data.rs:310-348`): STILL OPEN (M).
 - Storage persistence (`data.rs:413-431`): STILL OPEN (M).
