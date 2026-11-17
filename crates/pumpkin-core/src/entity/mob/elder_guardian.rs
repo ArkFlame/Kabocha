@@ -82,6 +82,18 @@ impl Mob for ElderGuardianEntity {
         &self.mob_entity
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.get_entity().touching_water.load(Ordering::Relaxed) {
+            Sound::EntityElderGuardianAmbient
+        } else {
+            Sound::EntityElderGuardianAmbientLand
+        })
+    }
+
+    fn get_ambient_sound_interval(&self) -> i32 {
+        160
+    }
+
     fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
