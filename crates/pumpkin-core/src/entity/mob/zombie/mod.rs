@@ -593,7 +593,10 @@ impl ZombieEntityBase {
         if difficulty != Difficulty::Hard && mob.get_random().random::<bool>() {
             return true;
         }
-        convert_villager_to_zombie_villager(entity, &world, villager).is_none()
+        // Vanilla returns super.killedEntity, i.e. true, even when conversion is
+        // skipped or fails; a failed conversion must not suppress the victim loot.
+        let _ = convert_villager_to_zombie_villager(entity, &world, villager);
+        true
     }
 
     pub fn on_offspring_spawned_from_egg(&self, offspring: &dyn Mob) {
