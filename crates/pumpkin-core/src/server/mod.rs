@@ -1504,7 +1504,9 @@ impl Server {
     ///
     /// # Note
     ///
-    /// This function does not handle the actual mob spawn options update, which is a TODO item for future implementation.
+    /// Mob spawn flags need no separate update here: every spawn query derives them
+    /// from the live difficulty (`World::should_spawn_monsters`), like vanilla's
+    /// `updateMobSpawningFlags`.
     pub fn set_difficulty(&self, difficulty: Difficulty, force_update: bool) {
         let current_info = self.level_info.load();
         if current_info.difficulty_locked && !force_update {
