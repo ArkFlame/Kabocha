@@ -287,6 +287,11 @@ impl AngerManagement {
         nbt.put("suspects", NbtTag::List(suspects));
         nbt
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     #[test]
     fn anger_extremes_map_to_calm_and_angry() {
