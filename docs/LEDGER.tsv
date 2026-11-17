@@ -757,7 +757,7 @@ issue	4485	https://github.com/Pumpkin-MC/Pumpkin/issues/4485	Worldspawn Always s
 issue	4487	https://github.com/Pumpkin-MC/Pumpkin/issues/4487	[Vanilla Parity 26.3] Missing and outdated mechanics in `ArrowEntity` (`arrow.rs`)	DONE		33fae2ef1	fix(entity): arrow potion decay and spectral duration parity (#4487)	2026-11-17
 issue	4492	https://github.com/Pumpkin-MC/Pumpkin/issues/4492	Naturally spawned skeletons have no bow, and skeleton arrows deal no damage	TODO				2026-11-17
 issue	4496	https://github.com/Pumpkin-MC/Pumpkin/issues/4496	Furnace does not award experience after smelting when the smelted product is extracted	DONE		13f31276a	fix(block): keep fractional furnace experience between takes (#4496)	2026-11-17
-issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		e8cb70b39	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
+issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		390fe9bd7	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
 issue	4513	https://github.com/Pumpkin-MC/Pumpkin/issues/4513	Client shows wrong max health for horses (26 hearts) after spawn	TODO				2026-11-17
 issue	4518	https://github.com/Pumpkin-MC/Pumpkin/issues/4518	Are there plans to support Alpine Linux?	DONE		64b8f4001	docs(readme): state glibc-only Linux binaries and no Alpine support (#4518)	2026-11-17
 issue	4521	https://github.com/Pumpkin-MC/Pumpkin/issues/4521	Expose transfer queue results to plugins	DONE		c4cce6382	feat(plugin-api): expose transfer queue results to plugins (#4521)	2026-11-17
