@@ -345,6 +345,7 @@ impl WitchEntity {
                 effects,
                 scale,
                 crate::item::potion::PotionApplicationSource::Normal,
+                None,
             );
         }
 
@@ -426,7 +427,7 @@ impl Mob for WitchEntity {
             living.entity.world.load().send_entity_status(
                 &living.entity,
                 EntityStatus::WitchHatMagic,
-                None,
+                pumpkin_protocol::bedrock::server::actor_event::ActorEventID::WitchHatMagic,
             );
         }
     }

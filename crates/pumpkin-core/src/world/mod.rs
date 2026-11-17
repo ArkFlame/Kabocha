@@ -5297,7 +5297,7 @@ impl World {
             return;
         }
         // Pos is zero since it will be read from nbt.
-        let entity = from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), self, uuid);
+        let entity = crate::entity::r#type::from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), self, uuid);
         entity.read_nbt_non_mut(entity_nbt);
         entity.init_data_tracker();
 
@@ -9287,7 +9287,8 @@ fn root_saved_vehicle(entity: &Arc<dyn EntityBase>) -> Arc<dyn EntityBase> {
             .vehicle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+            .clone()
+            .and_then(|vehicle| vehicle.upgrade());
         match vehicle {
             Some(vehicle)
                 if vehicle.get_player().is_none()
