@@ -116,6 +116,19 @@ impl Mob for StriderEntity {
         self.saddled_controlling_passenger(Some(&Item::WARPED_FUNGUS_ON_A_STICK))
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        // Vanilla `Strider.getAmbientSound` is silent while panicking or tempted.
+        if self.is_panicking()
+            || self
+                .mob_entity
+                .goals_selector
+                .is_running::<TemptGoal>()
+        {
+            return None;
+        }
+        Some(Sound::EntityStriderAmbient)
+    }
+
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         let sound = if self.get_entity().touching_lava.load(Ordering::Relaxed) {
             Sound::EntityStriderStepLava
