@@ -33,9 +33,12 @@ impl BedrockClient {
         let flags = &packet.input_data;
         // Like Geyser: the motion this tick started with was downward. Landing can already
         // have cleared the end delta (gliding into the ground).
-        let on_ground = flags.get(InputData::VerticalCollision as usize)
-            && self.client_delta.load().y < 0.0
-            && !entity.has_vehicle();
+        let on_ground = is_on_ground(
+            flags.get(InputData::VerticalCollision as usize),
+            self.client_delta.load().y,
+            entity.on_ground.load(Ordering::Relaxed),
+            entity.has_vehicle(),
+        );
         let horizontal_collision = flags.get(InputData::HorizontalCollision as usize);
 
         self.store_input_state(&packet);
@@ -135,6 +138,21 @@ impl BedrockClient {
             }
         }
     }
+}
+
+/// Bedrock has no explicit `onGround` byte: it reports `VerticalCollision` plus the delta the
+/// tick started with. A landing tick zeroes the end delta, so a downward previous delta is the
+/// landing signal; a zero delta is also what a standing client reports, which keeps the stored
+/// ground state instead of calling every standing tick airborne.
+fn is_on_ground(
+    vertical_collision: bool,
+    previous_delta_y: f64,
+    was_on_ground: bool,
+    has_vehicle: bool,
+) -> bool {
+    !has_vehicle
+        && vertical_collision
+        && (previous_delta_y < 0.0 || (previous_delta_y == 0.0 && was_on_ground))
 }
 
 impl BedrockClient {
@@ -399,5 +417,28 @@ fn apply_mount_move(
     crate::entity::position_rider(vehicle.as_ref(), player.as_ref());
     if moved {
         chunker::update_position(player);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_on_ground;
+
+    #[test]
+    fn landing_tick_uses_the_downward_delta() {
+        assert!(is_on_ground(true, -0.5, false, false));
+    }
+
+    #[test]
+    fn standing_tick_keeps_the_stored_ground_state() {
+        assert!(is_on_ground(true, 0.0, true, false));
+        assert!(!is_on_ground(true, 0.0, false, false));
+    }
+
+    #[test]
+    fn rising_or_mounted_ticks_are_airborne() {
+        assert!(!is_on_ground(true, 0.5, true, false));
+        assert!(!is_on_ground(true, -0.5, true, true));
+        assert!(!is_on_ground(false, -0.5, true, false));
     }
 }
