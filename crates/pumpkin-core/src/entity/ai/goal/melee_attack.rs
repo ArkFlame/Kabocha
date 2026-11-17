@@ -98,11 +98,11 @@ impl MeleeAttackGoal {
         self.cooldown <= 0
     }
 
+    /// Vanilla `MeleeAttackGoal.checkAndPerformAttack`: only the melee reach and the attack
+    /// cooldown are checked. Line of sight only gates path recalculation in `tick`.
     #[must_use]
     pub fn can_perform_attack(&self, mob: &dyn Mob, target: &dyn EntityBase) -> bool {
-        self.is_time_to_attack()
-            && mob.is_in_attack_range(target)
-            && mob.has_line_of_sight(target.get_entity())
+        self.is_time_to_attack() && mob.is_in_attack_range(target)
     }
 
     fn check_and_perform_attack(&mut self, mob: &dyn Mob, target: &dyn EntityBase) {
