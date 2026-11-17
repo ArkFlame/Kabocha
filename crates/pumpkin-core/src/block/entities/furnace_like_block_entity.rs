@@ -14,6 +14,43 @@ pub(crate) const fn is_cooking_block(id: BlockId) -> bool {
     )
 }
 
+/// Vanilla resolves the fuel's `cooking/speed_default` multiplier to 2 for smokers and blast
+/// furnaces, which is why they cook twice as fast while also burning fuel twice as fast.
+pub(crate) const fn is_fast_cooking(
+    kind: &pumpkin_data::recipes::CookingRecipeKind,
+) -> bool {
+    matches!(
+        kind,
+        pumpkin_data::recipes::CookingRecipeKind::Blasting
+            | pumpkin_data::recipes::CookingRecipeKind::Smoking
+    )
+}
+
+/// Vanilla's `cooking/speed_default` fuel multiplier: 2 for smokers and blast furnaces.
+pub(crate) const fn cooking_speed_multiplier(
+    kind: &pumpkin_data::recipes::CookingRecipeKind,
+) -> u16 {
+    if is_fast_cooking(kind) {
+        2
+    } else {
+        1
+    }
+}
+
+/// Vanilla `AbstractFurnaceBlockEntity#getTotalCookTime`: the recipe time divided by the fuel
+/// speed multiplier, rounded up. Smoking and blasting recipes store 200 ticks, so their total is
+/// 100 ticks, exactly like vanilla smokers and blast furnaces.
+pub(crate) const fn cooking_total_time(
+    kind: &pumpkin_data::recipes::CookingRecipeKind,
+    recipe_time: i32,
+) -> u16 {
+    if recipe_time <= 0 {
+        return 0;
+    }
+    let divisor = cooking_speed_multiplier(kind) as i32;
+    ((recipe_time + divisor - 1) / divisor) as u16
+}
+
 /// Trait for extracting smelting experience from cooking block entities.
 pub trait CookingBlockEntityBase:
     Sync + Send + Inventory + PropertyDelegate + BlockEntity + Clearable
@@ -24,7 +61,7 @@ pub trait CookingBlockEntityBase:
     fn get_lit_total_time(&self) -> u16;
 
     /// Track that a recipe was used (for XP calculation on extraction)
-    /// Uses the result item ID as the recipe identifier
+    /// Uses the recipe ID as the identifier, matching vanilla `RecipesUsed`.
     fn add_recipe_used(&self, recipe: &CookingRecipe);
     /// Extract and reset accumulated experience, returning the total as an integer
     /// Calculates XP from tracked recipes and clears the `recipes_used` map
@@ -347,7 +384,12 @@ macro_rules! impl_inventory_for_cooking {
                         stack.item,
                         $recipe_kind,
                     ) {
-                        self.set_cooking_total_time(recipe.cookingtime as u16);
+                        self.set_cooking_total_time(
+                            $crate::block::entities::furnace_like_block_entity::cooking_total_time(
+                                &$recipe_kind,
+                                recipe.cookingtime,
+                            ),
+                        );
                     } else {
                         self.set_cooking_total_time(0);
                     }
@@ -447,10 +489,7 @@ macro_rules! impl_block_entity_for_cooking {
                 let bottom_items_is_empty = bottom_item.is_empty();
                 if self.is_burning() || !bottom_items_is_empty && !is_top_items_empty {
                     if !self.is_burning() && can_accept_output {
-                        let is_fast = matches!(
-                            $recipe_kind,
-                            CookingRecipeKind::Blasting | CookingRecipeKind::Smoking
-                        );
+                        let is_fast = $crate::block::entities::furnace_like_block_entity::is_fast_cooking(&$recipe_kind);
                         let fuel_component = bottom_item
                             .get_data_component::<pumpkin_data::data_component_impl::CookingFuelImpl>();
                         let adjusted_fuel_ticks = fuel_component
@@ -527,11 +566,18 @@ macro_rules! impl_block_entity_for_cooking {
                         if !start_cancelled {
                             self.cooking_time_spent.fetch_add(1, Ordering::Relaxed);
 
-                            if self.get_cooking_time_spent() == self.get_cooking_total_time() {
+                            let cooking_total_time = self.get_cooking_total_time();
+                            if cooking_total_time != 0
+                                && self.get_cooking_time_spent() >= cooking_total_time
+                            {
                                 self.set_cooking_time_spent(0);
                                 if let Some(cooking_recipe) = furnace_recipe {
-                                    let cooking_total_time = cooking_recipe.cookingtime;
-                                    self.set_cooking_total_time(cooking_total_time as u16);
+                                    self.set_cooking_total_time(
+                                        $crate::block::entities::furnace_like_block_entity::cooking_total_time(
+                                            &$recipe_kind,
+                                            cooking_recipe.cookingtime,
+                                        ),
+                                    );
 
                                     let mut smelt_cancelled = false;
                                     if let Some(server) = world.server.upgrade() {
@@ -662,6 +708,12 @@ macro_rules! impl_block_entity_for_cooking {
                 nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
                 nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
                 nbt.put_short("lit_time_remaining", self.get_lit_time_remaining() as i16);
+                nbt.put_float(
+                    "speed_multiplier",
+                    $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
+                        &$recipe_kind,
+                    ) as f32,
+                );
 
                 // Save RecipesUsed in vanilla format (map of recipe ID -> craft count)
                 {
@@ -743,6 +795,12 @@ macro_rules! impl_block_entity_for_cooking {
                 nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
                 nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
                 nbt.put_short("lit_time_remaining", self.get_lit_time_remaining() as i16);
+                nbt.put_float(
+                    "speed_multiplier",
+                    $crate::block::entities::furnace_like_block_entity::cooking_speed_multiplier(
+                        &$recipe_kind,
+                    ) as f32,
+                );
 
                 if let Ok(recipes) = self.recipes_used.lock() {
                     if !recipes.is_empty() {
@@ -836,7 +894,20 @@ pub fn build_furnace_actor(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pumpkin_data::recipes::CookingRecipeKind;
     use pumpkin_util::math::position::BlockPos;
+
+    #[test]
+    fn cooking_speed_matches_vanilla() {
+        assert_eq!(cooking_total_time(&CookingRecipeKind::Smelting, 200), 200);
+        assert_eq!(
+            cooking_total_time(&CookingRecipeKind::CampfireCooking, 600),
+            600
+        );
+        // Smoking and blasting recipes store 200 ticks but run at the fast fuel multiplier.
+        assert_eq!(cooking_total_time(&CookingRecipeKind::Blasting, 200), 100);
+        assert_eq!(cooking_total_time(&CookingRecipeKind::Smoking, 200), 100);
+    }
 
     #[test]
     fn furnace_actor_builder() {
