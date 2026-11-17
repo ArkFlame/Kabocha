@@ -47,6 +47,7 @@ use crate::item::items::spawn_egg::prepare_egg_mob;
 use crate::plugin::api::events::block::block_shear_entity::BlockShearEntityEvent;
 use crate::plugin::api::events::entity::creature_spawn::CreatureSpawnReason;
 use crate::world::World;
+use pumpkin_util::math::boundingbox::BoundingBox;
 
 use crate::block::entities::dispenser::DispenserBlockEntity;
 use pumpkin_data::block_properties::{
@@ -655,6 +656,15 @@ impl DispenserBlock {
         let spawn_pos = Vector3::new(f64::from(target.0.x) + 0.5, y, f64::from(target.0.z) + 0.5);
 
         let mob = from_type(entity_type, spawn_pos, ctx.world, Uuid::new_v4());
+        // Vanilla `EntityType.getYOffset` lowers the mob out of block collision overhead.
+        let entity = mob.get_entity();
+        let bounds = entity.bounding_box.load();
+        let (overhead, _) = ctx.world.get_block_collisions(bounds, mob.as_ref());
+        let drop = ceiling_clearance_offset(&bounds, &overhead);
+        if drop > 0.0 {
+            entity.move_pos(Vector3::new(0.0, -drop, 0.0));
+        }
+        let spawn_pos = entity.pos.load();
         let yaw = wrap_degrees(rng().random::<f32>() * 360.0) % 360.0;
         mob.get_entity().set_rotation(yaw, 0.0);
         // A dispenser has no acting player, matching vanilla's null `user` for this source.
@@ -1529,6 +1539,26 @@ impl DispenserBlock {
     }
 }
 
+/// Largest downward shift vanilla `getYOffset` applies to a spawned mob: one block.
+const MAX_DISPENSED_MOB_DROP: f64 = 1.0;
+
+/// How far `bounds` must drop to clear the collision shapes overhead that it intersects
+/// horizontally, capped at one block. Shapes at or below the box's bottom are ignored.
+fn ceiling_clearance_offset(bounds: &BoundingBox, shapes: &[BoundingBox]) -> f64 {
+    shapes
+        .iter()
+        .filter(|shape| {
+            shape.min.y >= bounds.min.y
+                && shape.min.y < bounds.max.y
+                && shape.min.x < bounds.max.x
+                && shape.max.x > bounds.min.x
+                && shape.min.z < bounds.max.z
+                && shape.max.z > bounds.min.z
+        })
+        .map(|shape| (bounds.max.y - shape.min.y).min(MAX_DISPENSED_MOB_DROP))
+        .fold(0.0, f64::max)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1538,6 +1568,31 @@ mod tests {
     use crate::entity::passive::copper_golem::CopperGolemEntity;
     use crate::entity::passive::snow_golem::SnowGolemEntity;
     use crate::entity::shearable::Shearable;
+
+    #[test]
+    fn dispensed_mob_drops_only_under_overhead_collision() {
+        let bounds = BoundingBox {
+            min: Vector3::new(0.0, 10.0, 0.0),
+            max: Vector3::new(1.0, 12.0, 1.0),
+        };
+        let overhead = |min_y: f64, min_x: f64| BoundingBox {
+            min: Vector3::new(min_x, min_y, 0.0),
+            max: Vector3::new(min_x + 1.0, min_y + 1.0, 1.0),
+        };
+        // Ceiling 0.5 blocks into the box drops it by 0.5.
+        assert!((ceiling_clearance_offset(&bounds, &[overhead(11.5, 0.0)]) - 0.5).abs() < 1e-9);
+        // Shapes clear of the box's column or below its bottom do not move it.
+        assert_eq!(
+            ceiling_clearance_offset(&bounds, &[overhead(11.5, 2.0)]),
+            0.0
+        );
+        assert_eq!(
+            ceiling_clearance_offset(&bounds, &[overhead(9.0, 0.0)]),
+            0.0
+        );
+        // A ceiling inside the box is capped at one block.
+        assert!((ceiling_clearance_offset(&bounds, &[overhead(10.5, 0.0)]) - 1.0).abs() < 1e-9);
+    }
 
     #[tokio::test]
     async fn dispenser_cuts_leash_connections_before_shearing_the_pumpkin()

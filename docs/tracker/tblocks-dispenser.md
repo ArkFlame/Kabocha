@@ -39,17 +39,20 @@ default item ejection velocity.
    returns `consumesAction()` as the success flag. Rust writes the state directly after only a
    `replaceable()` test, so it can place inside an entity or where the block item could not be
    placed, and marks success regardless. Needs a shared `BlockItem::place` equivalent. Size M.
-3. `dispenser.rs:306-413` `dispense` - vanilla `DispenserBlock.getDispenseMethod` falls back to
+3. BLOCKED: `dispenser.rs` `dispense` - vanilla `DispenserBlock.getDispenseMethod` falls back to
    the default (drop) behavior when `!itemStack.isItemEnabled(enabledFeatures)`. Rust has no
-   feature-flag check, so items disabled by the world's enabled features still run their
-   behavior. Size S if feature sets exist in `pumpkin-data`, else M.
-4. `dispenser.rs:646-681` `dispense_spawn_egg` - vanilla `EntityType.create` then applies
-   `getYOffset` (collision snap of up to one block) after the +1 placement. Rust only applies the
-   fixed +1, so eggs dispensed under a low ceiling keep the mob inside the ceiling. Size S.
+   feature-flag check, and `pumpkin-data` carries no per-item required-feature sets (grep finds
+   no feature-flag data outside translations), so this needs Extractor output. Size M, blocked.
+4. FIXED (UNVERIFIED): `dispenser.rs` `dispense_spawn_egg` now lowers the spawned mob by
+   `ceiling_clearance_offset` (overhead block collision shapes, capped at one block), the
+   approximation of vanilla `getYOffset` applied after the +1 placement. Unit test:
+   `dispensed_mob_drops_only_under_overhead_collision`. Exact vanilla `Shapes.collide` semantics
+   unverified.
 5. Tracker issue #3972 (powder snow placed by a bucket is not shown to clients) - the placement
    path is `bucket.rs` `dispense_filled_bucket_at`, not this file; still open upstream and blocked
    on client block-update handling. Keep as open, size M.
 
 ## h2 parity sweep (status)
 - Remaining gap 1 (water bottle particles): FIXED (existing tree) - dispenser.rs mud path sends five single splash particles above the dispenser (position matches vanilla). UNVERIFIED for count/spread (no build).
-- Gap 3 (feature flags) and gap 4 (spawn egg Y snap, spawn egg code is off-limits this pass): STILL OPEN.
+- Gap 3 (feature flags): BLOCKED (needs item feature-set data from Extractor).
+- Gap 4 (spawn egg Y snap): FIXED (UNVERIFIED), see gap 4 above.
