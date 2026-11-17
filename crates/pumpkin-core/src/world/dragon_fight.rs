@@ -236,8 +236,8 @@ impl DragonFight {
     }
 
     #[must_use]
-    pub fn get_spikes() -> [EndSpike; 10] {
-        pumpkin_world::generation::feature::features::end_spike::EndSpikeFeature::get_spikes_for_seed(0)
+    pub fn get_spikes(&self) -> [EndSpike; 10] {
+        pumpkin_world::generation::feature::features::end_spike::EndSpikeFeature::get_spikes_for_seed(self.seed)
     }
 
     // ── Main tick ─────────────────────────────────────────────────────────────
@@ -617,7 +617,7 @@ impl DragonFight {
         self.ticks_since_crystals_scanned = 0;
         self.alive_crystals = 0;
 
-        let spikes = Self::get_spikes();
+        let spikes = self.get_spikes();
         let entities = world.entities.load();
 
         for spike in &spikes {
@@ -810,7 +810,7 @@ impl DragonFight {
                 let flag = time % 40 == 0;
                 let flag1 = time % 40 == 39;
                 if flag || flag1 {
-                    let spikes = Self::get_spikes();
+                    let spikes = self.get_spikes();
                     let j = (time / 40) as usize;
                     if j < spikes.len() {
                         let spike = &spikes[j];
@@ -878,7 +878,7 @@ impl DragonFight {
                 } else if time >= 80 {
                     world.sync_world_event(WorldEvent::AnimationDragonSummonRoar, origin_target, 0);
                 } else if time == 0 {
-                    let spikes = Self::get_spikes();
+                    let spikes = self.get_spikes();
                     for spike in &spikes {
                         let (min_x, min_y, min_z, max_x, max_y, max_z) = spike.top_bounding_box();
                         for entity in entities.iter() {
@@ -974,7 +974,7 @@ impl DragonFight {
     }
 
     pub fn reset_spike_crystals(&self, world: &Arc<World>) {
-        let spikes = Self::get_spikes();
+        let spikes = self.get_spikes();
         let entities = world.entities.load();
 
         for spike in &spikes {
@@ -1065,7 +1065,7 @@ impl DragonFight {
     // ── Crystal spawning ──────────────────────────────────────────────────────
 
     pub fn spawn_crystals(&mut self, world: &Arc<World>) {
-        let spikes = Self::get_spikes();
+        let spikes = self.get_spikes();
         let entities = world.entities.load();
         for spike in &spikes {
             let bb = spike.top_bounding_box();
@@ -1253,6 +1253,15 @@ mod tests {
         sorted.sort_unstable();
         let expected: Vec<i32> = (0..GATEWAY_COUNT as i32).collect();
         assert_eq!(sorted, expected);
+    }
+
+    #[test]
+    fn spikes_follow_fight_seed() {
+        let seed = 24680;
+        let fight = DragonFight::new_with_seed(seed, BlockPos::ZERO);
+        let expected =
+            pumpkin_world::generation::feature::features::end_spike::EndSpikeFeature::get_spikes_for_seed(seed);
+        assert!(fight.get_spikes() == expected);
     }
 
     #[test]

@@ -121,6 +121,10 @@ impl BlockAccessor for WorldGenerationCache {
 }
 
 impl GenerationCache for WorldGenerationCache {
+    fn world_seed(&self) -> u64 {
+        self.world.level.seed.0
+    }
+
     fn get_center_chunk_mut(&mut self) -> &mut ProtoChunk {
         &mut self.center
     }
