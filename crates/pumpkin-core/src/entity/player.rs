@@ -1914,17 +1914,28 @@ impl Player {
                         }
                     }
 
-                    let search_box = BoundingBox::new(
-                        Vector3::new(pos.x - 1.0, pos.y - 0.5, pos.z - 1.0),
-                        Vector3::new(pos.x + 1.0, pos.y + 0.5, pos.z + 1.0),
-                    );
+                    // Vanilla `Player.doSweepAttack` scans the primary victim's box inflated by
+                    // (1.0, 0.25, 1.0).
+                    let search_box = victim_entity.bounding_box.load().expand(1.0, 0.25, 1.0);
                     let yaw = f64::from(attacker_entity.yaw.load().to_radians());
                     let knockback_x = yaw.sin();
                     let knockback_z = -yaw.cos();
+                    let attacker_pos = self.living_entity.entity.pos.load();
                     let victims = world.get_all_at_box(&search_box);
                     for other_victim in victims {
+                        let other_pos = other_victim.get_entity().pos.load();
+                        // Vanilla skips allies, marker armor stands and anything 3+ blocks away.
+                        let is_marker_stand = other_victim
+                            .cast_any()
+                            .downcast_ref::<crate::entity::decoration::armor_stand::ArmorStandEntity>()
+                            .is_some_and(
+                                crate::entity::decoration::armor_stand::ArmorStandEntity::is_marker,
+                            );
                         if other_victim.get_entity().entity_id != victim_entity.entity_id
                             && other_victim.get_entity().entity_id != attacker_entity.entity_id
+                            && !attacker_entity.is_allied_to(other_victim.as_ref())
+                            && !is_marker_stand
+                            && combat::sweep_in_reach(attacker_pos, other_pos)
                         {
                             let hurt = other_victim.damage_with_context(
                                 other_victim.as_ref(),

@@ -198,6 +198,17 @@ fn mace_smash_can_knockback(
 /// Scales a knockback `strength` by a living entity's knockback resistance,
 /// mirroring vanilla `LivingEntity.knockback`: `strength *= 1.0 - resistance`.
 /// A resistance of 1.0 (iron golem, warden, ...) cancels the knockback entirely.
+/// Vanilla `Player.doSweepAttack` reach: `distanceToSqr(target) < 9.0`, measured from the
+/// attacker's feet to the target's feet.
+#[must_use]
+pub fn sweep_in_reach(attacker: Vector3<f64>, target: Vector3<f64>) -> bool {
+    const SWEEP_REACH_SQUARED: f64 = 9.0;
+    let dx = target.x - attacker.x;
+    let dy = target.y - attacker.y;
+    let dz = target.z - attacker.z;
+    dx * dx + dy * dy + dz * dz < SWEEP_REACH_SQUARED
+}
+
 pub fn knockback_after_resistance(strength: f64, resistance: f64) -> f64 {
     strength * (1.0 - resistance)
 }
@@ -797,6 +808,14 @@ impl CombatTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sweep_reach_is_strictly_under_three_blocks() {
+        let origin = Vector3::new(0.0, 0.0, 0.0);
+        assert!(sweep_in_reach(origin, Vector3::new(2.9, 0.0, 0.0)));
+        assert!(!sweep_in_reach(origin, Vector3::new(3.0, 0.0, 0.0)));
+        assert!(!sweep_in_reach(origin, Vector3::new(2.0, 2.0, 2.0)));
+    }
 
     #[test]
     fn absorb_clamps_armor_above_hundred_instead_of_panicking() {
