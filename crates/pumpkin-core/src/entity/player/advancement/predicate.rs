@@ -591,7 +591,10 @@ impl ItemUsedOnBlockPredicate {
         let mut biome = None;
 
         let mut terms = Vec::new();
-        if let Some(arr) = loc.get("terms").and_then(Value::as_array) {
+        if let Some(arr) = loc.as_array() {
+            // 1.20.2+ packs list the loot conditions of `location` directly as an array.
+            terms.extend(arr.iter());
+        } else if let Some(arr) = loc.get("terms").and_then(Value::as_array) {
             terms.extend(arr.iter());
         } else {
             terms.push(loc);
@@ -628,6 +631,7 @@ impl ItemUsedOnBlockPredicate {
                 biome = Some(b.to_string());
             }
             if let Some(i_val) = pred.get("items").or_else(|| pred.get("item")) {
+                let i_val = i_val.get("items").unwrap_or(i_val);
                 if let Some(s) = i_val.as_str() {
                     item_patterns.push(s.to_string());
                 } else if let Some(arr) = i_val.as_array() {
@@ -2392,6 +2396,48 @@ mod tests {
                 assert!(!bounds.matches(8.0));
             }
             _ => panic!("expected Levitation"),
+        }
+    }
+
+    #[test]
+    fn item_used_on_block_reads_location_array_and_item_predicate() {
+        let cond = CriterionConditions::parse(
+            "minecraft:item_used_on_block",
+            r#"{
+                "item": {"items": "minecraft:wheat_seeds"},
+                "location": [
+                    {
+                        "condition": "minecraft:location_check",
+                        "predicate": {"block": {"blocks": "minecraft:farmland"}}
+                    }
+                ]
+            }"#,
+        );
+        match &cond {
+            CriterionConditions::ItemUsedOnBlock(pred) => {
+                assert!(pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    None,
+                    None,
+                    None
+                ));
+                assert!(!pred.matches(
+                    "minecraft:dirt",
+                    "minecraft:wheat_seeds",
+                    None,
+                    None,
+                    None
+                ));
+                assert!(!pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:stone_hoe",
+                    None,
+                    None,
+                    None
+                ));
+            }
+            _ => panic!("expected ItemUsedOnBlock"),
         }
     }
 
