@@ -343,6 +343,7 @@ fn java_input_from_auth(packet: &SPlayerAuthInput, sneaking: bool) -> i8 {
     }
     if flags.get(InputData::JumpCurrentRaw as usize)
         || flags.get(InputData::JumpDown as usize)
+        || flags.get(InputData::StartJumping as usize)
         || flags.get(InputData::AutoJumpingInWater as usize)
     {
         input |= SPlayerInput::JUMP;
