@@ -65,11 +65,13 @@ impl StatusEffectInstance {
     pub fn read_data(nbt: &NbtTag) -> Option<Self> {
         let compound = nbt.extract_compound()?;
         let effect_id = Cow::Owned(compound.get_string("id")?.to_string());
-        let amplifier = compound.get_int("amplifier")?;
-        let duration = compound.get_int("duration")?;
-        let ambient = compound.get_bool("ambient")?;
-        let show_particles = compound.get_bool("show_particles")?;
-        let show_icon = compound.get_bool("show_icon")?;
+        // Vanilla `MobEffectInstance.Details.MAP_CODEC` defaults every field but `id`,
+        // and `show_icon` falls back to the `show_particles` value.
+        let amplifier = compound.get_int("amplifier").unwrap_or(0);
+        let duration = compound.get_int("duration").unwrap_or(0);
+        let ambient = compound.get_bool("ambient").unwrap_or(false);
+        let show_particles = compound.get_bool("show_particles").unwrap_or(true);
+        let show_icon = compound.get_bool("show_icon").unwrap_or(show_particles);
         Some(Self {
             effect_id,
             amplifier,
@@ -227,7 +229,8 @@ impl ConsumeEffect {
             }
             "clear_all_effects" => Some(Self::ClearAllEffects),
             "teleport_randomly" => {
-                let dst = compound.get_float("diameter")?;
+                // Vanilla defaults the diameter to 16.0 blocks.
+                let dst = compound.get_numeric_float("diameter").unwrap_or(16.0);
                 Some(Self::TeleportRandomly(dst))
             }
             "play_sound" => {
@@ -235,7 +238,8 @@ impl ConsumeEffect {
                 Some(Self::PlaySound(sound))
             }
             "apply_effects" => {
-                let probability = compound.get_float("probability")?;
+                // Vanilla defaults a missing probability to 1.0.
+                let probability = compound.get_numeric_float("probability").unwrap_or(1.0);
                 let effects_vec: Vec<StatusEffectInstance> = compound
                     .get_list("effects")?
                     .iter()
@@ -747,6 +751,43 @@ mod tests {
             .expect("tipped arrows should have a duration scale");
 
         assert_eq!(scale.scale, 0.125);
+    }
+
+    #[test]
+    fn consume_effect_reads_datapack_defaults() {
+        use super::{ConsumeEffect, StatusEffectInstance};
+        use pumpkin_nbt::compound::NbtCompound;
+        use pumpkin_nbt::tag::NbtTag;
+        use std::borrow::Cow;
+
+        let mut effect = NbtCompound::new();
+        effect.put_string("id", "minecraft:hunger".to_string());
+        let mut apply = NbtCompound::new();
+        apply.put_string("type", "apply_effects".to_string());
+        apply.put_list("effects", vec![NbtTag::Compound(effect)]);
+
+        let decoded = ConsumeEffect::read_data(&NbtTag::Compound(apply));
+        assert!(
+            matches!(&decoded, Some(ConsumeEffect::ApplyEffects((_, probability))) if (*probability - 1.0).abs() <= f32::EPSILON)
+        );
+        let expected = StatusEffectInstance {
+            effect_id: Cow::Borrowed("minecraft:hunger"),
+            amplifier: 0,
+            duration: 0,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+        };
+        assert!(
+            matches!(decoded, Some(ConsumeEffect::ApplyEffects((effects, _))) if effects.first() == Some(&expected))
+        );
+
+        let mut teleport = NbtCompound::new();
+        teleport.put_string("type", "teleport_randomly".to_string());
+        let decoded = ConsumeEffect::read_data(&NbtTag::Compound(teleport));
+        assert!(
+            matches!(decoded, Some(ConsumeEffect::TeleportRandomly(diameter)) if (diameter - 16.0).abs() <= f32::EPSILON)
+        );
     }
 }
 
