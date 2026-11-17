@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 use super::{
     DynamicLootCondition, DynamicLootEntry, DynamicLootEntryKind, DynamicLootFunction,
@@ -7,6 +7,7 @@ use super::{
     LootTable, LootTableHandle, RandomImpl, Taggable, Xoroshiro, add_stew_effect,
     apply_bonus_formula, check_condition, check_dynamic_condition, get_loot_table, smelt,
 };
+use crate::block::entities::BlockEntity;
 use pumpkin_data::data_component::DataComponent;
 use pumpkin_data::data_component_impl::DataComponentImpl;
 use pumpkin_data::effect::StatusEffect;
@@ -633,9 +634,40 @@ impl Generator<'_, '_> {
                         add_stew_effect(&mut template, effect, duration);
                         stack.patch = template.patch;
                     }
+                    LootFunctionKind::CopyComponents { include, exclude } => {
+                        self.copy_components(&mut stack, include.as_deref(), exclude.as_deref())
+                    }
                 }
             }
         }
         output.push(stack);
+    }
+
+    /// Copies the source block entity values whose registry names pass the table filters.
+    fn copy_components(
+        &self,
+        stack: &mut Stack,
+        include: Option<&[Cow<'static, str>]>,
+        exclude: Option<&[Cow<'static, str>]>,
+    ) {
+        let Some(block_entity) = &self.params.block_entity else {
+            return;
+        };
+        let mut collected = ItemStack::new(1, stack.item);
+        block_entity.collect_item_components(&mut collected);
+        let selected = |component: DataComponent| {
+            let is_named = |name: &Cow<'static, str>| {
+                DataComponent::try_from_name(name.as_ref()) == Some(component)
+            };
+            include.is_none_or(|names| names.iter().any(is_named))
+                && exclude.is_none_or(|names| !names.iter().any(is_named))
+        };
+        collected
+            .patch
+            .retain(|(component, _)| selected(*component));
+        for (component, value) in collected.patch {
+            stack.patch.retain(|(existing, _)| *existing != component);
+            stack.patch.push((component, value));
+        }
     }
 }

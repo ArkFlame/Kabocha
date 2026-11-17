@@ -17954,7 +17954,16 @@ pub static BLOCKS_BARREL: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -17986,7 +17995,16 @@ pub static BLOCKS_BEACON: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -18002,7 +18020,16 @@ pub static BLOCKS_BEE_NEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:bees",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -18020,7 +18047,16 @@ pub static BLOCKS_BEEHIVE: LootTable = LootTable {
                     weight: 1i32,
                     quality: 0i32,
                     condition: LootCondition::MatchTool(&LOOT_PREDICATE_17),
-                    functions: &[],
+                    functions: &[LootFunction {
+                        kind: LootFunctionKind::CopyComponents {
+                            include: Some(std::borrow::Cow::Borrowed(&[
+                                std::borrow::Cow::Borrowed("minecraft:bees"),
+                            ])),
+                            exclude: None,
+                        },
+                        enchantment: None,
+                        condition: LootCondition::SilkTouch,
+                    }],
                 },
                 LootEntry {
                     kind: LootEntryKind::Item("minecraft:beehive"),
@@ -18486,7 +18522,20 @@ pub static BLOCKS_BLACK_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -18690,7 +18739,19 @@ pub static BLOCKS_BLACK_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -18894,7 +18955,16 @@ pub static BLOCKS_BLAST_FURNACE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -18910,7 +18980,20 @@ pub static BLOCKS_BLUE_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -19146,7 +19229,19 @@ pub static BLOCKS_BLUE_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -19396,7 +19491,16 @@ pub static BLOCKS_BREWING_STAND: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -19490,7 +19594,20 @@ pub static BLOCKS_BROWN_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -19766,7 +19883,19 @@ pub static BLOCKS_BROWN_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -20600,7 +20729,16 @@ pub static BLOCKS_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -21553,7 +21691,16 @@ pub static BLOCKS_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -21585,7 +21732,16 @@ pub static BLOCKS_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -21909,7 +22065,16 @@ pub static BLOCKS_CREEPER_HEAD: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -22396,7 +22561,20 @@ pub static BLOCKS_CYAN_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -22600,7 +22778,19 @@ pub static BLOCKS_CYAN_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -23493,7 +23683,16 @@ pub static BLOCKS_DECORATED_POT: LootTable = LootTable {
                     weight: 1i32,
                     quality: 0i32,
                     condition: LootCondition::None,
-                    functions: &[],
+                    functions: &[LootFunction {
+                        kind: LootFunctionKind::CopyComponents {
+                            include: Some(std::borrow::Cow::Borrowed(&[
+                                std::borrow::Cow::Borrowed("minecraft:pot_decorations"),
+                            ])),
+                            exclude: None,
+                        },
+                        enchantment: None,
+                        condition: LootCondition::None,
+                    }],
                 },
             ]),
             weight: 1i32,
@@ -24257,7 +24456,16 @@ pub static BLOCKS_DISPENSER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -24289,7 +24497,16 @@ pub static BLOCKS_DRAGON_HEAD: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -24353,7 +24570,16 @@ pub static BLOCKS_DROPPER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -24427,7 +24653,16 @@ pub static BLOCKS_ENCHANTING_TABLE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -24678,7 +24913,16 @@ pub static BLOCKS_EXPOSED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -24710,7 +24954,16 @@ pub static BLOCKS_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -25129,7 +25382,16 @@ pub static BLOCKS_FURNACE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -25609,7 +25871,20 @@ pub static BLOCKS_GRAY_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -25813,7 +26088,19 @@ pub static BLOCKS_GRAY_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -25939,7 +26226,20 @@ pub static BLOCKS_GREEN_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -26143,7 +26443,19 @@ pub static BLOCKS_GREEN_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -26381,7 +26693,16 @@ pub static BLOCKS_HOPPER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -27424,7 +27745,20 @@ pub static BLOCKS_LIGHT_BLUE_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -27628,7 +27962,19 @@ pub static BLOCKS_LIGHT_BLUE_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -27754,7 +28100,20 @@ pub static BLOCKS_LIGHT_GRAY_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -27958,7 +28317,19 @@ pub static BLOCKS_LIGHT_GRAY_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -28164,7 +28535,20 @@ pub static BLOCKS_LIME_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -28368,7 +28752,19 @@ pub static BLOCKS_LIME_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -28526,7 +28922,20 @@ pub static BLOCKS_MAGENTA_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -28730,7 +29139,19 @@ pub static BLOCKS_MAGENTA_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -30467,7 +30888,20 @@ pub static BLOCKS_ORANGE_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -30749,7 +31183,19 @@ pub static BLOCKS_ORANGE_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -30987,7 +31433,16 @@ pub static BLOCKS_OXIDIZED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -31019,7 +31474,16 @@ pub static BLOCKS_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -31642,7 +32106,16 @@ pub static BLOCKS_PIGLIN_HEAD: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -31658,7 +32131,20 @@ pub static BLOCKS_PINK_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -31916,7 +32402,19 @@ pub static BLOCKS_PINK_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -32200,7 +32698,18 @@ pub static BLOCKS_PLAYER_HEAD: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:profile"),
+                        std::borrow::Cow::Borrowed("minecraft:note_block_sound"),
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -34816,7 +35325,20 @@ pub static BLOCKS_PURPLE_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -35020,7 +35542,19 @@ pub static BLOCKS_PURPLE_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -35382,7 +35916,20 @@ pub static BLOCKS_RED_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -35924,7 +36471,19 @@ pub static BLOCKS_RED_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -36911,7 +37470,19 @@ pub static BLOCKS_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -36927,7 +37498,16 @@ pub static BLOCKS_SKELETON_SKULL: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -37007,7 +37587,16 @@ pub static BLOCKS_SMOKER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -39228,7 +39817,16 @@ pub static BLOCKS_TRAPPED_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40038,7 +40636,16 @@ pub static BLOCKS_WAXED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40070,7 +40677,16 @@ pub static BLOCKS_WAXED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40276,7 +40892,16 @@ pub static BLOCKS_WAXED_EXPOSED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40308,7 +40933,16 @@ pub static BLOCKS_WAXED_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40546,7 +41180,16 @@ pub static BLOCKS_WAXED_OXIDIZED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40578,7 +41221,16 @@ pub static BLOCKS_WAXED_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40800,7 +41452,16 @@ pub static BLOCKS_WAXED_WEATHERED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -40832,7 +41493,16 @@ pub static BLOCKS_WAXED_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41054,7 +41724,16 @@ pub static BLOCKS_WEATHERED_COPPER_CHEST: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41086,7 +41765,16 @@ pub static BLOCKS_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41375,7 +42063,20 @@ pub static BLOCKS_WHITE_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41579,7 +42280,19 @@ pub static BLOCKS_WHITE_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41791,7 +42504,16 @@ pub static BLOCKS_WITHER_SKELETON_SKULL: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -41807,7 +42529,20 @@ pub static BLOCKS_YELLOW_BANNER: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:item_name"),
+                        std::borrow::Cow::Borrowed("minecraft:tooltip_display"),
+                        std::borrow::Cow::Borrowed("minecraft:banner_patterns"),
+                        std::borrow::Cow::Borrowed("minecraft:rarity"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -42089,7 +42824,19 @@ pub static BLOCKS_YELLOW_SHULKER_BOX: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[
+                        std::borrow::Cow::Borrowed("minecraft:custom_name"),
+                        std::borrow::Cow::Borrowed("minecraft:container"),
+                        std::borrow::Cow::Borrowed("minecraft:lock"),
+                        std::borrow::Cow::Borrowed("minecraft:container_loot"),
+                    ])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),
@@ -42215,7 +42962,16 @@ pub static BLOCKS_ZOMBIE_HEAD: LootTable = LootTable {
             weight: 1i32,
             quality: 0i32,
             condition: LootCondition::None,
-            functions: &[],
+            functions: &[LootFunction {
+                kind: LootFunctionKind::CopyComponents {
+                    include: Some(std::borrow::Cow::Borrowed(&[std::borrow::Cow::Borrowed(
+                        "minecraft:custom_name",
+                    )])),
+                    exclude: None,
+                },
+                enchantment: None,
+                condition: LootCondition::None,
+            }],
         }],
         rolls: LootNumberProvider::Constant(1f64),
         bonus_rolls: LootNumberProvider::Constant(0f64),

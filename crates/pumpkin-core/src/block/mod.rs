@@ -587,6 +587,7 @@ pub fn drop_loot(
                     .clone()
                     .unwrap_or_else(|| ItemStack::EMPTY.clone()),
             ),
+            block_entity: world.get_block_entity(pos),
             ..params.clone()
         };
         let items = crate::world::loot::generate_loot_from_handle(&loot_table, seed, &params);
@@ -602,13 +603,7 @@ pub fn drop_loot(
                 server.plugin_manager.fire_blocking(&server, &mut event);
             }
             if !event.cancelled {
-                let block_entity = world.get_block_entity(pos);
-                for mut stack in event.items {
-                    if let Some(block_entity) = &block_entity
-                        && Block::from_item_id(stack.item.id) == Some(loot_block)
-                    {
-                        block_entity.collect_item_components(&mut stack);
-                    }
+                for stack in event.items {
                     world.drop_stack(pos, stack);
                 }
             }

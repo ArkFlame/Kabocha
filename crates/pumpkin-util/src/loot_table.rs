@@ -113,6 +113,13 @@ pub enum LootFunctionKind {
     ApplyBonus(LootBonusFormula),
     FurnaceSmelt,
     SetStewEffect(Cow<'static, [LootStewEffect]>),
+    /// Copies the source block entity values selected by component registry name.
+    CopyComponents {
+        /// Registry names to copy; `None` copies every available component, an empty list none.
+        include: Option<Cow<'static, [Cow<'static, str>]>>,
+        /// Components never copied, even when they are included explicitly.
+        exclude: Option<Cow<'static, [Cow<'static, str>]>>,
+    },
 }
 
 #[derive(Clone, Debug)]

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde_json::Value;
 
 use super::{
@@ -56,6 +58,21 @@ fn many(value: &Value) -> &[Value] {
     value
         .as_array()
         .map_or_else(|| std::slice::from_ref(value), Vec::as_slice)
+}
+
+/// Reads an optional component filter, distinguishing an omitted list from an empty one.
+fn component_filter(
+    function: &Value,
+    key: &str,
+) -> Option<Option<Cow<'static, [Cow<'static, str>]>>> {
+    match function.get(key) {
+        None | Some(Value::Null) => Some(None),
+        Some(value) => many(value)
+            .iter()
+            .map(|name| name.as_str().map(|name| Cow::Owned(name.to_owned())))
+            .collect::<Option<Vec<_>>>()
+            .map(|names| Some(Cow::Owned(names))),
+    }
 }
 
 fn stew_effects(function: &Value) -> Option<Vec<LootStewEffect>> {
@@ -522,6 +539,16 @@ impl<R: Fn(&str) -> Option<Value>> Parser<'_, R> {
                         LootFunctionKind::LimitCount { min, max }
                     }
                     "explosion_decay" => LootFunctionKind::ExplosionDecay,
+                    "copy_components" => {
+                        let source = function.get("source").and_then(Value::as_str)?;
+                        if source.trim_start_matches("minecraft:") != "block_entity" {
+                            return None;
+                        }
+                        LootFunctionKind::CopyComponents {
+                            include: component_filter(function, "include")?,
+                            exclude: component_filter(function, "exclude")?,
+                        }
+                    }
                     "set_stew_effect" => {
                         LootFunctionKind::SetStewEffect(stew_effects(function)?.into())
                     }

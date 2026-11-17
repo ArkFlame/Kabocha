@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{borrow::Cow, fs, path::Path};
 
 use heck::ToShoutySnakeCase;
 use proc_macro2::TokenStream;
@@ -95,6 +95,19 @@ fn bonus_tokens(formula: LootBonusFormula) -> TokenStream {
             quote! { LootBonusFormula::BinomialWithBonusCount { extra: #extra, probability: #probability } }
         }
     }
+}
+
+fn component_filter_tokens(filter: &Option<Cow<'static, [Cow<'static, str>]>>) -> TokenStream {
+    filter.as_ref().map_or_else(
+        || quote! { None },
+        |names| {
+            let names = names.iter().map(|name| {
+                let name = name.as_ref();
+                quote! { std::borrow::Cow::Borrowed(#name) }
+            });
+            quote! { Some(std::borrow::Cow::Borrowed(&[#(#names),*])) }
+        },
+    )
 }
 
 impl Generator {
@@ -249,6 +262,11 @@ impl Generator {
                             quote! { LootStewEffect { effect: std::borrow::Cow::Borrowed(#name), duration: #duration } }
                         });
                         quote! { LootFunctionKind::SetStewEffect(std::borrow::Cow::Borrowed(&[#(#effects),*])) }
+                    }
+                    LootFunctionKind::CopyComponents { ref include, ref exclude } => {
+                        let include = component_filter_tokens(include);
+                        let exclude = component_filter_tokens(exclude);
+                        quote! { LootFunctionKind::CopyComponents { include: #include, exclude: #exclude } }
                     }
                 };
                 let condition = self.condition(&function.condition);

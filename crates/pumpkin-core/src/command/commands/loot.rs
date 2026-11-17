@@ -385,6 +385,7 @@ impl CommandExecutor for LootExecutor {
                         f64::from(pos.0.z) + 0.5,
                     )),
                     tool: Some(tool_stack.unwrap_or_else(|| ItemStack::EMPTY.clone())),
+                    block_entity: context.world().get_block_entity(&pos),
                     ..Default::default()
                 };
                 let seed: i64 = rand::random();
