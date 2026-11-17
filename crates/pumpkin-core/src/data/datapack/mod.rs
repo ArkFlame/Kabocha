@@ -5,6 +5,7 @@ pub mod dynamic_registry_loader;
 pub mod dynamic_registry_manager;
 pub mod function_loader;
 pub mod item_modifier_loader;
+pub mod item_tag_loader;
 pub mod loot_table_loader;
 pub mod predicate_loader;
 pub mod recipe_loader;
@@ -272,6 +273,7 @@ impl DatapackManager {
         let mut all_functions: HashMap<String, Vec<String>> = HashMap::new();
         let mut all_function_tags: HashMap<String, Vec<String>> = HashMap::new();
         let mut all_block_tags: HashMap<String, function_loader::BlockTagEntry> = HashMap::new();
+        let mut all_item_tags: HashMap<String, Vec<String>> = HashMap::new();
         let mut all_test_instances: TestInstanceRegistry = HashMap::new();
         let mut all_context_int_providers: ContextProviderRegistry = HashMap::new();
         let mut all_context_float_providers: ContextProviderRegistry = HashMap::new();
@@ -308,6 +310,7 @@ impl DatapackManager {
             functions: &mut all_functions,
             function_tags: &mut all_function_tags,
             block_tags: &mut all_block_tags,
+            item_tags: &mut all_item_tags,
             test_instances: &mut all_test_instances,
             damage_types: &mut all_damage_type_defs,
             context_int_providers: &mut all_context_int_providers,
@@ -355,6 +358,10 @@ impl DatapackManager {
             .function_tags
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = all_function_tags;
+        pumpkin_data::dynamic_tag::replace_datapack_tags(
+            pumpkin_data::tag::RegistryKey::Item,
+            all_item_tags,
+        );
         *self
             .block_tags
             .write()
@@ -1890,6 +1897,7 @@ struct PackContentAccumulators<'a> {
     functions: &'a mut HashMap<String, Vec<String>>,
     function_tags: &'a mut HashMap<String, Vec<String>>,
     block_tags: &'a mut HashMap<String, function_loader::BlockTagEntry>,
+    item_tags: &'a mut HashMap<String, Vec<String>>,
     test_instances: &'a mut TestInstanceRegistry,
     damage_types: &'a mut HashMap<String, DamageTypeDefinition>,
     context_int_providers: &'a mut ContextProviderRegistry,
@@ -2138,6 +2146,7 @@ fn load_pack_contents(
                 );
                 function_loader::load_block_tags_from_dir(&namespace, &tags_dir, acc.block_tags);
                 counts.tags += tag_loader::load_tags_from_dir(&namespace, &tags_dir, acc.tags);
+                item_tag_loader::load_item_tags_from_dir(&namespace, &tags_dir, acc.item_tags);
             }
             // Load game test instances
             let test_instance_dir = ns_path.join("test_instance");
@@ -2825,6 +2834,7 @@ mod tests {
         let mut functions = std::collections::HashMap::new();
         let mut function_tags = std::collections::HashMap::new();
         let mut block_tags = std::collections::HashMap::new();
+        let mut item_tags = std::collections::HashMap::new();
         let mut test_instances = std::collections::HashMap::new();
         let mut damage_types = std::collections::HashMap::new();
         let mut context_int_providers = std::collections::HashMap::new();
@@ -2842,6 +2852,7 @@ mod tests {
             functions: &mut functions,
             function_tags: &mut function_tags,
             block_tags: &mut block_tags,
+            item_tags: &mut item_tags,
             test_instances: &mut test_instances,
             damage_types: &mut damage_types,
             context_int_providers: &mut context_int_providers,
@@ -2901,6 +2912,7 @@ mod tests {
             let mut functions = std::collections::HashMap::new();
             let mut function_tags = std::collections::HashMap::new();
             let mut block_tags = std::collections::HashMap::new();
+            let mut item_tags = std::collections::HashMap::new();
             let mut test_instances = std::collections::HashMap::new();
             let mut damage_types = std::collections::HashMap::new();
             let mut context_int_providers = std::collections::HashMap::new();
@@ -2918,6 +2930,7 @@ mod tests {
                 functions: &mut functions,
                 function_tags: &mut function_tags,
                 block_tags: &mut block_tags,
+                item_tags: &mut item_tags,
                 test_instances: &mut test_instances,
                 damage_types: &mut damage_types,
                 context_int_providers: &mut context_int_providers,
