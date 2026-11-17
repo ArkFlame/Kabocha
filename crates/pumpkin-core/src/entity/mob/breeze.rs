@@ -1,6 +1,7 @@
 use crate::entity::EntityBase;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use pumpkin_data::sound::Sound;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::entity::EntityType;
@@ -8,8 +9,9 @@ use pumpkin_data::entity::EntityType;
 use crate::entity::{
     Entity,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, look_at_entity::LookAtEntityGoal,
+        look_around::RandomLookAroundGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -44,6 +46,8 @@ impl BreezeEntity {
                 1,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
+            // Vanilla `Breeze.registerGoals`: `new HurtByTargetGoal(this)`, no alerting.
+            target_selector.add_goal(2, Box::new(RevengeGoal::new(true)));
         };
 
         mob_arc
@@ -63,6 +67,21 @@ impl Mob for BreezeEntity {
         self.mob_entity
             .living_entity
             .cause_fall_damage(caller, fall_distance, damage_modifier)
+    }
+
+    /// Vanilla `Breeze.getAmbientSound`: ground and air idles differ.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self
+            .mob_entity
+            .living_entity
+            .entity
+            .on_ground
+            .load(Ordering::Relaxed)
+        {
+            Sound::EntityBreezeIdleGround
+        } else {
+            Sound::EntityBreezeIdleAir
+        })
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
