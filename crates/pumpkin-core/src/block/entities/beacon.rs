@@ -320,9 +320,9 @@ impl BlockEntity for BeaconBlockEntity {
                 }
             } else {
                 let opaque = world.get_block_state(&check_pos).opacity >= 15;
-                // The first block must be the beacon itself; anything opaque above it (bedrock
-                // excepted) cuts the beam.
-                if check_pos.0.y == pos.y || (opaque && block != &Block::BEDROCK) {
+                // Anything opaque above the beacon (bedrock excepted) cuts the beam. The beacon
+                // itself is a beam block, so the scan never reaches this branch at `pos.y`.
+                if opaque && block != &Block::BEDROCK {
                     self.checking_beam_blocked.store(true, Ordering::Relaxed);
                     last_check_y = last_set_block;
                     break;
@@ -491,6 +491,33 @@ mod tests {
                 .and_then(|actor| actor.get_string("CustomName")),
             Some("Beacon")
         );
+    }
+
+    #[test]
+    fn nbt_keeps_effects_and_drops_levels_on_load() {
+        let position = BlockPos::new(5, 64, 5);
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("primary_effect", "minecraft:speed".to_string());
+        nbt.put_string("secondary_effect", "minecraft:regeneration".to_string());
+        nbt.put_int("Levels", 4);
+        let beacon = BeaconBlockEntity::from_nbt(&nbt, position);
+        assert_eq!(beacon.levels(), 0);
+        assert_eq!(
+            beacon.primary_effect().map(|e| e.id),
+            Some(StatusEffect::SPEED.id)
+        );
+
+        let mut written = NbtCompound::new();
+        beacon.write_nbt(&mut written);
+        assert_eq!(
+            written.get_string("primary_effect"),
+            Some("minecraft:speed")
+        );
+        assert_eq!(
+            written.get_string("secondary_effect"),
+            Some("minecraft:regeneration")
+        );
+        assert_eq!(written.get_int("Levels"), Some(0));
     }
 
     #[test]

@@ -49,4 +49,11 @@ confidence.
    with no spectator predicate. Harmless, but confirm before changing. Size S.
 
 ## h2 parity sweep (status)
-- All four S rows STILL OPEN - each needs confirmation against decompiled `BeaconMenu`/`BeaconBlockEntity` first (no reference source in .vendor for this pass); not changed.
+- FIXED (UNVERIFIED, from vanilla knowledge; no decompiled source in worktree):
+  - Row 2: `BeaconScreenHandler::update_effects` rejects selections when `levels < 1`, so no payment is consumed.
+  - Row 3: `set_beacon.rs` awards `StatisticCategory::Used` for the consumed payment item id (`payment_item_id`).
+  - Row 4: undecodable effect ids still kick; a valid packet the pyramid cannot grant is ignored silently.
+  - Row 5: `nbt_keeps_effects_and_drops_levels_on_load` pins the NBT shape.
+  - Row 6: dead `check_pos.y == pos.y` clause removed from the opaque-block branch.
+- Row 1 (heightmap scan) and row 7 (ambient gating): kept as-is, UNVERIFIED, matches recalled vanilla `tick`.
+- Row 8 (spectators): kept as-is; vanilla `applyEffects` has no spectator filter.

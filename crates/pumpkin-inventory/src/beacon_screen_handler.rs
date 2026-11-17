@@ -191,14 +191,22 @@ impl BeaconScreenHandler {
         !self.payment.get_stack(0).is_empty()
     }
 
+    /// Item id of the payment stack, if one is inserted.
+    #[must_use]
+    pub fn payment_item_id(&self) -> Option<i32> {
+        let stack = self.payment.get_stack(0);
+        (!stack.is_empty()).then(|| stack.item.id as i32)
+    }
+
     /// Mirrors `BeaconMenu.updateEffects`: validates against the current tier, stores the
     /// effects, and consumes the payment item. Returns `false` when the request is invalid.
+    /// A beacon without a pyramid (`levels == 0`) accepts no selection, so no payment is spent.
     pub fn update_effects(
         &mut self,
         primary: Option<&'static StatusEffect>,
         secondary: Option<&'static StatusEffect>,
     ) -> bool {
-        if !self.has_payment() {
+        if !self.has_payment() || self.get_levels() < 1 {
             return false;
         }
         if !validate_effects(primary, secondary, self.get_levels()) {
