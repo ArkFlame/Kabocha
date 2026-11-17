@@ -70,6 +70,8 @@ pub struct PiglinEntity {
     pub nearest_wanted_item: Mutex<Option<Weak<dyn EntityBase>>>,
     pub nearest_visible_player: Mutex<Option<Weak<Player>>>,
     pub near_repellent: AtomicBool,
+    pub visible_adult_piglin_count: AtomicI32,
+    pub visible_adult_hoglin_count: AtomicI32,
     pub activity: AtomicCell<PiglinActivity>,
 }
 
@@ -101,6 +103,8 @@ impl PiglinEntity {
             nearest_wanted_item: Mutex::new(None),
             nearest_visible_player: Mutex::new(None),
             near_repellent: AtomicBool::new(false),
+            visible_adult_piglin_count: AtomicI32::new(0),
+            visible_adult_hoglin_count: AtomicI32::new(0),
             activity: AtomicCell::new(PiglinActivity::Idle),
         };
         let mob_arc = Arc::new(piglin);
@@ -482,6 +486,58 @@ impl PiglinEntity {
         self.refresh_nearest_wanted_item();
         self.refresh_nearest_visible_player();
         self.refresh_nearest_repellent();
+        self.refresh_visible_adult_counts();
+    }
+
+    /// Vanilla `PiglinSpecificSensor` counts: visible adult piglins and hoglins in follow range.
+    fn refresh_visible_adult_counts(&self) {
+        let living = &self.mob_entity.living_entity;
+        let entity = &living.entity;
+        let world = entity.world.load();
+        let pos = entity.pos.load();
+        let eye_pos = entity.get_eye_pos();
+        let follow_range = living.get_attribute_value(&Attributes::FOLLOW_RANGE);
+
+        let mut piglins = 0;
+        let mut hoglins = 0;
+        for candidate in world.get_nearby_entities(pos, follow_range).values() {
+            let other = candidate.get_entity();
+            if other.entity_uuid == entity.entity_uuid || !other.is_alive() {
+                continue;
+            }
+            if candidate
+                .get_living_entity()
+                .is_some_and(LivingEntity::is_baby)
+            {
+                continue;
+            }
+            let is_piglin = other.entity_type == &EntityType::PIGLIN
+                || other.entity_type == &EntityType::PIGLIN_BRUTE;
+            let is_hoglin = other.entity_type == &EntityType::HOGLIN;
+            if !(is_piglin || is_hoglin) {
+                continue;
+            }
+            let visible = world
+                .clip(&pumpkin_world::clip::ClipContext::new(
+                    eye_pos,
+                    other.get_eye_pos(),
+                    pumpkin_world::clip::ClipBlock::Visual,
+                    pumpkin_world::clip::ClipFluid::None,
+                ))
+                .is_miss;
+            if !visible {
+                continue;
+            }
+            if is_piglin {
+                piglins += 1;
+            } else {
+                hoglins += 1;
+            }
+        }
+        self.visible_adult_piglin_count
+            .store(piglins, Ordering::Relaxed);
+        self.visible_adult_hoglin_count
+            .store(hoglins, Ordering::Relaxed);
     }
 
     fn refresh_nearest_wanted_item(&self) {
