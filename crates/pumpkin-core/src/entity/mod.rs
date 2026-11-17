@@ -1338,6 +1338,12 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn on_hit(&self, _hit: crate::entity::projectile::ProjectileHit) {}
 
+    /// Fires the projectile-hit plugin event before a hit lands. `true` means a plugin
+    /// cancelled it, so the projectile passes through the hit.
+    fn fire_projectile_hit_event(&self, _hit: &crate::entity::projectile::ProjectileHit) -> bool {
+        false
+    }
+
     fn set_paddle_state(&self, _left: bool, _right: bool) {}
 
     fn is_in_love(&self) -> bool {

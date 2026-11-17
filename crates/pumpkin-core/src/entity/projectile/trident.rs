@@ -645,23 +645,11 @@ impl EntityBase for TridentEntity {
         self
     }
 
-    fn on_hit(&self, hit: ProjectileHit) {
-        let (event_pos, hit_entity_id) = match &hit {
-            ProjectileHit::Block { hit_pos, .. } => (*hit_pos, None),
-            ProjectileHit::Entity {
-                entity, hit_pos, ..
-            } => (*hit_pos, Some(entity.get_entity().entity_id)),
-        };
-        let mut hit_event =
-            crate::plugin::api::events::entity::projectile_hit::ProjectileHitEvent::new(
-                self.entity.entity_id,
-                event_pos,
-                hit_entity_id,
-            );
-        if let Some(server) = self.entity.world.load().server.upgrade() {
-            server.plugin_manager.fire_blocking(&server, &mut hit_event);
-        }
+    fn fire_projectile_hit_event(&self, hit: &ProjectileHit) -> bool {
+        crate::entity::projectile::fire_projectile_hit(&self.entity, hit)
+    }
 
+    fn on_hit(&self, hit: ProjectileHit) {
         match hit {
             ProjectileHit::Block {
                 pos,

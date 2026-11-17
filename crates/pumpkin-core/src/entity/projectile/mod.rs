@@ -1,6 +1,7 @@
 use super::{Entity, EntityBase, living::LivingEntity};
 use crate::block::blocks::bubble_column;
 use crate::entity::projectile_deflection::{ProjectileDeflection, deflect};
+use crate::plugin::api::events::entity::projectile_hit::ProjectileHitEvent;
 use crate::server::Server;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
@@ -311,8 +312,29 @@ pub fn hit_target_or_deflect_self(
             }
         }
     }
+    if projectile.fire_projectile_hit_event(&hit) {
+        return HitOutcome::Ignored;
+    }
     on_hit(projectile, hit, server);
     HitOutcome::Hit
+}
+
+/// Fires `ProjectileHitEvent` for a hit. Returns `true` when a plugin cancelled it.
+pub fn fire_projectile_hit(entity: &Entity, hit: &ProjectileHit) -> bool {
+    let (hit_pos, hit_entity) = match hit {
+        ProjectileHit::Block { hit_pos, .. } => (*hit_pos, None),
+        ProjectileHit::Entity {
+            entity: target,
+            hit_pos,
+            ..
+        } => (*hit_pos, Some(target.get_entity().entity_id)),
+    };
+    let Some(server) = entity.world.load().server.upgrade() else {
+        return false;
+    };
+    let mut event = ProjectileHitEvent::new(entity.entity_id, hit_pos, hit_entity);
+    server.plugin_manager.fire_blocking(&server, &mut event);
+    event.cancelled
 }
 
 fn on_hit(projectile: &dyn EntityBase, hit: ProjectileHit, server: &Server) {

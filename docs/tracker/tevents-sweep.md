@@ -30,3 +30,12 @@ Not fixed: cancel semantics per event are undocumented in the event files; chang
 - NOT FIXED `ProjectileHitEvent` (arrow.rs, trident.rs): cancel would need pass-through (`HitOutcome::Ignored`) in `entity/projectile/mod.rs`; skipping `on_hit` alone removes the projectile via `HitOutcome::Hit`.
 - NOT FIXED `VehicleEntityCollisionEvent`, `VehicleBlockCollisionEvent`, `ChunkPopulate`, `ChunkUnload`, `EntitiesLoad/Unload`, `WorldUnload`, `LootGenerate`, `TimeSkip`, `Raid*`, `AsyncStructure*`, `TabComplete`, `ServiceRegister/Unregister`, `PluginEnable/Disable`: fire functions have no callers, so there is no action to gate.
 - NOT FIXED `WorldSave`, `PlayerChangedWorld`, `PlayerLocaleChange`, `PlayerRecipeDiscover`, `PlayerRecipeBookSettingsChange`, `PlayerChannel`, `PlayerUnregisterChannel`, `DialogClickAction`: the fire is a post-hoc notification; the action has already happened or has no state to gate.
+
+## f5 pass (cancel plumbing)
+- FIXED `ProjectileHitEvent` (`entity/projectile/arrow.rs`, `trident.rs`, `mod.rs`): the event now fires from `hit_target_or_deflect_self` through the new `EntityBase::fire_projectile_hit_event` hook (default `false`, overridden only by arrow and trident, so other projectiles keep their current behaviour). A cancelled hit returns `HitOutcome::Ignored`, which skips `on_hit` (no block `on_projectile_hit`, no `ProjectileLand` game event, no removal) and lets the projectile continue. Order change: the event now fires before block side effects, as in Bukkit.
+  Caveat: a cancelled block or entity hit is re-tested on the next tick, so the event repeats while the projectile overlaps the same target.
+- FIXED `PlayerLocaleChangeEvent` (`net/java/play/client_information.rs`): fires before the config is stored; cancelled keeps the previous locale. Other settings still apply.
+- NO-OP `PlayerRecipeDiscoverEvent` (`net/java/play/recipe_book_seen_recipe.rs`), `PlayerRecipeBookSettingsChangeEvent` (`recipe_book_change_settings.rs`): Pumpkin stores no recipe-book state, so there is no action to gate.
+- NO-OP `PlayerChannelEvent`, `PlayerUnregisterChannelEvent` (`net/java/mod.rs`): Pumpkin keeps no plugin-channel registry; the event is the only effect.
+- NO-OP `DialogClickActionEvent` (`net/java/mod.rs`, `block/blocks/signs.rs`): the event is the whole action; nothing else runs.
+- NOT FIXED `WorldSaveEvent` (`world/mod.rs` `save`): Bukkit's WorldSaveEvent is not cancellable. Gating would skip the level and chunk writes at shutdown and risk data loss.

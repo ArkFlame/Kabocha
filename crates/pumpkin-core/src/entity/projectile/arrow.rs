@@ -625,25 +625,11 @@ impl EntityBase for ArrowEntity {
         abstract_arrow::tick(self, caller, server);
     }
 
-    fn on_hit(&self, hit: ProjectileHit) {
-        let (hit_pos, hit_entity) = match hit {
-            ProjectileHit::Block { hit_pos, .. } => (hit_pos, None),
-            ProjectileHit::Entity {
-                ref entity,
-                hit_pos,
-                ..
-            } => (hit_pos, Some(entity.get_entity().entity_id)),
-        };
-        let mut hit_event =
-            crate::plugin::api::events::entity::projectile_hit::ProjectileHitEvent::new(
-                self.entity.entity_id,
-                hit_pos,
-                hit_entity,
-            );
-        if let Some(server) = self.entity.world.load().server.upgrade() {
-            server.plugin_manager.fire_blocking(&server, &mut hit_event);
-        }
+    fn fire_projectile_hit_event(&self, hit: &ProjectileHit) -> bool {
+        crate::entity::projectile::fire_projectile_hit(&self.entity, hit)
+    }
 
+    fn on_hit(&self, hit: ProjectileHit) {
         match hit {
             ProjectileHit::Block { .. } => self.on_hit_block(),
             ProjectileHit::Entity {
