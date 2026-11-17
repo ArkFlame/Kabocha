@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["assets/", "crates/pumpkin-data/src/generated"]
+extend-exclude = ["assets/", "crates/pumpkin-data/src/generated", "TRACKER.md", "docs/*.tsv", "docs/LEDGER.md", "docs/tracker/", "docs/DONE.md", "docs/QUEUE.md", "docs/PENDING-CONFLICTS.md", "docs/TODO.md", "docs/TODO_2.md", "crates/pumpkin-world/tests/data/"]
 
 [default.extend-words]
 handled = "handled"
