@@ -817,6 +817,9 @@ impl<'a> Explosion<'a> {
                                 pos.0.z as f64,
                             )),
                             world_time: world.level_info.load().day_time as u64,
+                            // Vanilla `Explosion.finalizeExplosion` passes `getIndirectSourceEntity()`
+                            // to `Block.dropResources`, so loot tables see `this_entity`.
+                            this_entity: self.indirect_source(),
                             is_raining: Some(is_raining),
                             is_thundering: Some(is_thundering),
                             ..Default::default()
