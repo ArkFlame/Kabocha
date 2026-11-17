@@ -236,6 +236,21 @@ impl Mob for NautilusEntity {
         self.saddled_controlling_passenger(None)
     }
 
+    // UNVERIFIED: vanilla gate assumed to match camel (saddled rider); jump is a dash.
+    fn can_rider_jump(&self) -> bool {
+        self.saddled_controlling_passenger(None).is_some()
+    }
+
+    fn handle_rider_start_jump(&self, _jump_scale: i32) {
+        let entity = &self.mob_entity.living_entity.entity;
+        entity.world.load().play_sound(
+            self.get_dash_sound(),
+            SoundCategory::Neutral,
+            &entity.pos.load(),
+        );
+        self.set_dashing(true);
+    }
+
     fn mob_get_swim_sound(&self) -> Option<Sound> {
         let is_baby = self
             .mob_entity

@@ -2497,6 +2497,14 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    /// Vanilla `PlayerRideableJumping.canJump` for mounts that are not horses (e.g. nautilus).
+    fn can_rider_jump(&self) -> bool {
+        false
+    }
+
+    /// Vanilla `PlayerRideableJumping.handleStartJump` for mounts that are not horses.
+    fn handle_rider_start_jump(&self, _jump_scale: i32) {}
+
     /// How much this mob likes standing on `pos`, used to rank stroll candidates.
     /// Whether a random target position is safe to path to.
     fn is_stable_destination(&self, world: &World, pos: &BlockPos) -> bool {

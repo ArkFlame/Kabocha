@@ -7794,7 +7794,14 @@ impl Player {
         {
             return;
         }
-        let Some(horse) = vehicle.get_mob().and_then(|mob| mob.as_abstract_horse()) else {
+        let Some(mount) = vehicle.get_mob() else {
+            return;
+        };
+        let Some(horse) = mount.as_abstract_horse() else {
+            // Non-horse rideable mobs (nautilus) jump through the generic hook; no horse event.
+            if mount.can_rider_jump() && jump_scale > 0 {
+                mount.handle_rider_start_jump(jump_scale);
+            }
             return;
         };
         if !horse.can_jump() || jump_scale <= 0 {
