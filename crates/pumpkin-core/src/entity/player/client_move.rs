@@ -378,7 +378,6 @@ impl Player {
         }
         if delta.length_squared() > 1.0E-5 {
             self.update_last_action_time();
-            self.check_location_enchantments(pos, requested.on_ground);
         }
         entity.emit_client_movement(self, delta);
         self.progress_motion(delta);

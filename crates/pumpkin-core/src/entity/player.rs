@@ -2346,20 +2346,6 @@ impl Player {
         false
     }
 
-    /// Checks and triggers location-based enchantments (e.g. Frost Walker) on the player's equipped armor.
-    pub fn check_location_enchantments(&self, pos: Vector3<f64>, on_ground: bool) {
-        if on_ground {
-            let boots = self.inventory.get_slot(36);
-            if !boots.is_empty() {
-                crate::enchantment::EnchantmentHelper::on_location_changed(
-                    self.get_entity(),
-                    &boots,
-                    pos,
-                );
-            }
-        }
-    }
-
     /// Convenience wrapper – damages the currently held (main-hand) item.
     pub fn damage_held_item(&self, amount: i32) -> bool {
         self.damage_item_in_slot(&EquipmentSlot::MAIN_HAND, amount)
