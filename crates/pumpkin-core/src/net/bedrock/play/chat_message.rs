@@ -34,25 +34,23 @@ impl BedrockClient {
                     &message,
                 );
 
+                // Bedrock chat carries no Java signature, so the signed
+                // `broadcast_secure_player_chat` path does not apply even when
+                // `allow_chat_reports` is on. Always broadcast the unsigned form.
                 let entity = &player.get_entity();
-                if server.basic_config.allow_chat_reports {
-                    //TODO Alex help, what is this?
-                    //world.broadcast_secure_player_chat(player, &message, decorated_message).await;
-                } else {
-                    let je_packet = CSystemChatMessage::new(
-                        &decorated_message,
-                        false,
-                    );
+                let je_packet = CSystemChatMessage::new(
+                    &decorated_message,
+                    false,
+                );
 
-                    let be_packet = SText::chat_with_xuid(
-                        message,
-                        gameprofile.name.clone(),
-                        packet.xuid.into_owned(),
-                        packet.filtered_message.map(std::borrow::Cow::into_owned),
-                    );
+                let be_packet = SText::chat_with_xuid(
+                    message,
+                    gameprofile.name.clone(),
+                    packet.xuid.into_owned(),
+                    packet.filtered_message.map(std::borrow::Cow::into_owned),
+                );
 
-                    entity.world.load().broadcast_editioned(&je_packet, &be_packet);
-                }
+                entity.world.load().broadcast_editioned(&je_packet, &be_packet);
             }
         }}
     }
