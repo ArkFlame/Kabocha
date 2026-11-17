@@ -24,9 +24,9 @@ Scope: `crates/pumpkin-world/src` (excluding `generation/structure/placement.rs`
 
 ## Divergences logged, not fixed
 
-1. `pumpkin-util/src/lib.rs` `encompassing_bits(1)` returns 1; vanilla `Mth.ceillog2(1)` is 0. Callers may rely on 1 for single-entry palettes, so kept (UNVERIFIED impact). `count.ilog2()` also panics for `count == 0`; no current caller is known to pass 0, so left as is.
-2. Chunk save does not write `LastUpdate`. Vanilla writes the world game time on every save; this server only preserves an existing value through the passthrough of unmodelled root tags. Fixing needs the game time at serialization, which the writer does not receive. Low impact on load.
-3. `chunk/format/mod.rs` `MODELLED_ROOT_TAGS` does not list `LastUpdate`, so it rides through verbatim. Same root cause as item 2.
+1. FIXED. `pumpkin-util/src/lib.rs` `encompassing_bits` now returns 0 for 0 and 1 (vanilla `Mth.ceillog2`), removing the `ilog2(0)` panic. Palette callers that divide by bits keep 1 bit via `.max(1)` in `chunk/palette.rs` (`bedrock_palette_bits`, heterogeneous `bits_per_entry`). Test: `encompassing_bits_tests::matches_vanilla_ceillog2`.
+2. OPEN (needs game time threaded through `ChunkIO::save_chunks` -> `file_manager` -> `SingleChunkDataSerializer::to_bytes`, 4+ signatures, left logged). Chunk save does not write `LastUpdate`. Vanilla writes the world game time on every save; this server only preserves an existing value through the passthrough of unmodelled root tags. Fixing needs the game time at serialization, which the writer does not receive. Low impact on load.
+3. OPEN, same root cause as item 2. `chunk/format/mod.rs` `MODELLED_ROOT_TAGS` does not list `LastUpdate`, so it rides through verbatim. Same root cause as item 2.
 
 ## Not checked
 
