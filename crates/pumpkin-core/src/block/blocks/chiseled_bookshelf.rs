@@ -66,10 +66,9 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
                     );
                     return BlockActionResult::Success;
                 }
-            } else {
-                return BlockActionResult::Consume;
             }
         }
+        // Empty slot: vanilla `useWithoutItem` returns PASS, not CONSUME.
         BlockActionResult::Pass
     }
 
