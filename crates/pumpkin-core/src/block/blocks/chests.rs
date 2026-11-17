@@ -43,6 +43,7 @@ use pumpkin_data::BlockState;
 struct ChestScreenFactory {
     inventory: Arc<dyn Inventory>,
     loot_pending: bool,
+    name: Option<TextComponent>,
 }
 
 impl ScreenHandlerFactory for ChestScreenFactory {
@@ -67,18 +68,16 @@ impl ScreenHandlerFactory for ChestScreenFactory {
         Some(concrete_arc as SharedScreenHandler)
     }
 
+    /// Vanilla titles the menu with the first half's display name, so a renamed chest
+    /// keeps its name and a double chest still shows `container.chest` ("Large Chest"
+    /// is Bedrock only).
     fn get_display_name(&self) -> TextComponent {
-        if self.inventory.size() > 27 {
-            pumpkin_macros::translate_cross!(
-                translation::java::CONTAINER_CHESTDOUBLE,
-                translation::bedrock::CONTAINER_CHESTDOUBLE
-            )
-        } else {
+        self.name.clone().unwrap_or_else(|| {
             pumpkin_macros::translate_cross!(
                 translation::java::CONTAINER_CHEST,
                 translation::bedrock::CONTAINER_CHEST
             )
-        }
+        })
     }
 }
 
@@ -463,6 +462,18 @@ fn get_chest_screen_handler_factory(
         ChestType::Right => Some(chest_props.facing.rotate_counter_clockwise()),
     };
 
+    // Vanilla uses the first half (`ChestType::Right`) for the menu title, so opening
+    // the left half also shows the right half's custom name.
+    let first_half_name = if matches!(chest_props.r#type, ChestType::Right | ChestType::Single) {
+        first_chest.clone()
+    } else {
+        connected_towards.and_then(|direction| {
+            args.world
+                .get_block_entity(&args.position.offset(direction.to_offset()))
+        })
+    }
+    .and_then(|entity| entity.get_custom_name());
+
     // Unpack deferred loot table on first open (non-spectator only).
     if !player_is_spectator && let Some(ref entity) = first_chest {
         unpack_chest_loot(entity, args.world, args.position, Some(args.player));
@@ -520,6 +531,7 @@ fn get_chest_screen_handler_factory(
     Some(Box::new(ChestScreenFactory {
         inventory,
         loot_pending,
+        name: first_half_name,
     }))
 }
 
