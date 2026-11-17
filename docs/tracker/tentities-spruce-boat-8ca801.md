@@ -1,61 +1,65 @@
 # Tracker: entities / Spruce Boat (RE-REVIEW-UNTRACKED)
 
-Re-review date: 2026-11-17. Branch `kab/tentities-spruce-boat-8ca801`. Prior review:
-`docs/tracker/tentities-spruce-boat.md` (written before `570d3ea1f` split the boat into
-`entity/vehicle/boat/{physics,block_effects,passengers,dismount}.rs`, so its line numbers are stale).
-No decompiled vanilla sources exist in `.vendor/` in this worktree, so each row names the vanilla
-member it must match and marks items that need the decompiled method before changing code.
+Re-review date: 2026-11-17. Branch `kab/tentities-spruce-boat-8ca801`. The earlier review
+(`4df90a24e`) described a boat that still wrote no bubble time and had no damage game event;
+both landed since, so this pass re-reads the current source. No decompiled vanilla sources exist in
+`.vendor/` in this worktree, so each row names the vanilla member it must match.
 
-`SPRUCE_BOAT` / `SPRUCE_CHEST_BOAT` share the generic `BoatEntity`: the only per-variant data is
-`EntityType.boat` (`BoatSeats { ride_height: 0.1875, single_passenger_x_offset: 0.0 }`), item -> entity
-`item/items/boat.rs:25-26`, id list `item/items/boat.rs:75-76`, constructor dispatch `entity/type.rs:348-349`,
-and `is_chest_boat` (`boat.rs:45-57`) which correctly excludes `SPRUCE_BOAT` (2 seats, no inventory) and
-includes `SPRUCE_CHEST_BOAT` (1 seat, 27 slots).
+`SPRUCE_BOAT` / `SPRUCE_CHEST_BOAT` still share the generic `BoatEntity`: the only per-variant
+data is `EntityType.boat` (`BoatSeats { ride_height: 0.1875, single_passenger_x_offset: 0.0 }`),
+item -> entity `item/items/boat.rs:25-26`, id list `item/items/boat.rs:75-76`, constructor
+dispatch `entity/type.rs:348-349`, and `is_chest_boat` (`boat.rs:46-58`) which excludes
+`SPRUCE_BOAT` (2 seats) and includes `SPRUCE_CHEST_BOAT` (1 seat, 27 slots).
 
 ## Source map (current)
 
-- `entity/vehicle/boat.rs`: state, `tick` :297, `tick_underwater` :159, `damage_with_context` :341,
-  `interact` :400, seat attachment :212, chest NBT :256.
-- `entity/vehicle/boat/physics.rs`: `get_status` :44, `is_underwater` :62, `check_in_water` :89,
-  `get_water_level_above` :114, `get_ground_friction` :142, `float_boat` :185, `move_boat` :235,
-  `move_from_client` :257 (dead).
-- `entity/vehicle/boat/block_effects.rs`: `Entity.checkInsideBlocks` sweep (:24, :49, 16-step / 100-movement caps).
-- `entity/vehicle/boat/{passengers,dismount}.rs`: rider seating and the vanilla dismount search.
-- `entity/vehicle/vehicle.rs`: hurt time/damage decay (:34), wobble metadata (:167), damage/destroy (:216).
+- `entity/vehicle/boat.rs`: state :82, tick :317, tick_underwater (bubble time + 60-tick eject)
+  :179, damage_with_context :361, interact :421, seat attachment :232, chest NBT :276.
+- `entity/vehicle/boat/physics.rs`: get_status :44, is_underwater :62, check_in_water :89,
+  get_water_level_above :114, get_ground_friction :142, float_boat :185, move_boat :235,
+  move_from_client :257 (dead).
+- `entity/vehicle/boat/{passengers,dismount,block_effects}.rs`: rider seating, vanilla dismount
+  search, `checkInsideBlocks` sweep.
+- `entity/vehicle/vehicle.rs`: hurt/damage decay, wobble metadata, damage/destroy + game event.
 - `net/java/play/{paddle_boat,move_vehicle}.rs`: client input packets.
 
 ## Fixed this pass
 
-- `entity/vehicle/vehicle.rs:239-247` `damage_with_context`: no `GameEvent.ENTITY_DAMAGE` was fired for any
-  vehicle hit, so sculk sensors/wardens never heard a boat (or minecart) being hit or broken. Vanilla
-  `AbstractBoat.hurt`/`AbstractMinecart.hurt` call `gameEvent(GameEvent.ENTITY_DAMAGE, source.getEntity())`
-  right after the wobble state; the emission now runs at the same point with the attacker as source entity,
-  after the plugin cancel checks (cancelled damage still emits nothing).
+- `entity/mod.rs:1422` `EntityBase::kill`: `/kill` on a non-living entity went straight to
+  `Entity::remove`, which drops nothing, so a `SPRUCE_CHEST_BOAT` (and every chest minecart) lost
+  its 27 slots instead of scattering them. Vanilla `AbstractChestBoat.remove` /
+  `AbstractMinecartContainer.remove` call `Containers.dropContents` whenever
+  `reason.shouldDestroy()` (KILLED/DISCARDED), independent of `doEntityDrops`; the kill path now
+  scatters `get_container_inventory()` at the entity position before removal. The damage path keeps
+  its `claim_drops` guard, so a destroyed boat still scatters exactly once.
 
 ## Verified, not gaps
 
-- `physics.rs:197-206` air -> water snap: the offset is now returned unconditionally and `last_yd` is reset,
-  matching `AbstractBoat.floatBoat`; the earlier review row for this is closed.
-- `physics.rs:208` gravity: `get_gravity()` returns `no_gravity ? 0 : 0.04`, which mirrors
-  `AbstractBoat.getDefaultGravity() = 0.04` behind `Entity.getGravity()`. No gap.
-- `boat.rs:193` `is_client_controlled` uses `get_controlling_passenger` (first `LivingEntity`), matching
-  `AbstractBoat.getControllingPassenger`.
-- `boat.rs:400-438` `interact`: no eye-in-water gate, `ticks_underwater < 60`, secondary use only, chest boat
-  opens the container only on sneak - ordering matches `AbstractBoat.interact` + chest-boat open.
-- `boat.rs:341-398` damage: invulnerability first, creative = instant break with no drop, survival drop skips
-  explosions and copies the custom name - `AbstractBoat.hurt`/`destroy`.
-- `paddle_boat.rs:6` uses the direct vehicle, vanilla uses `getRootVehicle() instanceof AbstractBoat`; a player
-  can only ever ride the boat directly (boats carry no vehicle of their own), so the behaviour is identical.
-- `move_vehicle.rs:73` stores the packet yaw/pitch raw; vanilla `absMoveTo` only applies `% 360`, a cosmetic
-  normalisation with no behavioural effect for a client-authoritative boat.
+- `boat.rs:179-194` `tick_underwater` now syncs `ID_BUBBLE_TIME` from the underwater tick count
+  and ejects at 60, matching `AbstractBoat.tick` (`outOfControlTicks`, `DATA_ID_BUBBLE_TIME`).
+- Bubble columns are handled generically: `Entity::on_inside_bubble_column` /
+  `on_above_bubble_column` (`entity/mod.rs:661-678`) apply `bubble_column` constants 0.06/0.7 up,
+  0.1/1.8 at the surface, -0.03/-0.3 down (`block/blocks/bubble_column.rs:19-24`), and
+  `float_boat` then applies its per-tick friction exactly like `AbstractBoat.floatBoat`. Nothing
+  boat-specific is missing.
+- `physics.rs:142-183` `get_ground_friction`: generated block data has `slipperiness: 0.6` for
+  normal blocks (`pumpkin-data/src/generated/block.rs:548722`), i.e. the vanilla
+  `Block.getFriction()` value, so `land_friction` is right; the `-1 / ceil` scan bounds only add
+  a ring that cannot intersect the contact box.
+- `physics.rs:185-233` `float_boat`: gravity -0.04, 0.9/0.45/7.0e-4 branches, buoyancy
+  `(v + e * gravity/0.65) * 0.75`, air -> water snap with `last_yd` reset - matches
+  `AbstractBoat.floatBoat`.
+- `boat.rs:361-419` damage: invulnerability first, creative = no drops, explosion skips the item
+  drop, custom name copied - matches `AbstractBoat.hurt`/`destroy`.
+- `boat.rs:421-460` `interact`: 60-tick gate, eye-in-water gate, secondary use opens the chest
+  only, plain use boards a free seat - matches `AbstractBoat.interact` + `AbstractChestBoat`.
+- `passengers.rs:34-65` and `boat.rs:232-264` agree on the seat offsets (0.2/-0.6, animal +0.2)
+  and rotation sign; `passenger_attachment_point` is what the generic `position_rider` uses.
 
 ## Remaining gaps
 
 | # | file:line | vanilla | gap / suggested fix | size |
 |---|---|---|---|---|
-| 1 | `boat.rs:297` `tick`, `physics.rs:185` `float_boat`, `tracked_data.rs` `ID_BUBBLE_TIME` | `AbstractBoat.tickBubbleColumn`, `onInsideBubbleColumn`/`onAboveBubbleColumn`, `DATA_ID_BUBBLE_TIME` | Bubble columns are unhandled: `ID_BUBBLE_TIME` is generated but never written, and the only effect is the generic `bubble_column::push_entity` velocity, which `float_boat` then multiplies by 0.9 and re-adds gravity to. Boats do not rise/fall at vanilla speed and never show the bubble wobble. Track the bubble-column direction plus a bubble timer, apply vanilla 0.06 (0.1 at surface) acceleration with 0.7/1.8 caps and -0.03/-0.3 downward before `float_boat`, and sync `ID_BUBBLE_TIME`. Needs the decompiled `AbstractBoat` to pin the constant order. | M |
-| 2 | `passengers.rs:34` `rider_position`, `boat.rs:212` `passenger_attachment_point` | `AbstractBoat.clampRotation` | No rider-rotation clamp: vanilla clamps a mob rider's body yaw to +/-105 deg around the boat yaw and syncs head yaw. Players stay client-authoritative, so only non-player riders need the hook. Add a vehicle rider-rotation hook and the boat override. | M |
-| 3 | `physics.rs:257` `move_from_client` | n/a | Dead code: the boat MoveVehicle path is unreachable (only definition; the generic `net/java/play/move_vehicle.rs` + `client_move.rs:299` `has_new_boat_collision` supersede it). Delete it, and keep `position_rider` (still reached from `entity/mod.rs:1570`). | S |
-| 4 | `server/builtin_game_tests/` | runtime parity | No boat gametest (grep finds only the dispenser boat test), so the rewritten water physics, the 60-tick underwater ejection and the chest-boat 27-slot scatter have no runtime net. Add one gametest covering float-up after a fall, ejection after 60 submerged ticks, and scatter on break. | S |
-| 5 | `physics.rs:142-183` `get_ground_friction` | `AbstractBoat.getGroundFriction` | Uses `Block.slipperiness` as the block friction term; confirm that generated value is vanilla `Block.getFriction()` (default 0.6, ice 0.98) and not the slipperiness attribute, otherwise a boat on normal ground gets the wrong `land_friction`. Needs a data check, no code change expected. | S (verify) |
-
+| 1 | `entity/mod.rs:1570` `position_rider`, `boat.rs:232` `passenger_attachment_point` | `AbstractBoat.clampRotation` | No rider-rotation clamp for non-player riders: vanilla sets body yaw to the boat yaw, clamps the rider yaw delta to +/-105 deg and syncs head yaw after every `positionRider`. Add an `EntityBase::clamp_rotation` hook called at the end of `position_rider` (default no-op) and the boat override. Players are client-authoritative, so only mob riders change. Needs the decompiled method to pin the `yRotO` adjustment. | M |
+| 2 | `physics.rs:257-297` `move_from_client` + `correct_client_position` | n/a | Dead code: the boat MoveVehicle path is unreachable (the generic `net/java/play/move_vehicle.rs` + `has_new_boat_collision` supersede it). Delete both methods and the now-unused `Player`/`CMoveVehicle` imports; `position_rider` stays (reached from `passengers.rs:12`/`entity/mod.rs:6079`). | S |
+| 3 | `server/builtin_game_tests/` | runtime parity | No boat gametest (only the dispenser boat test). Add one covering the air -> water snap, ejection after 60 submerged ticks, and chest scatter on break + on `/kill` (the last one guards the fix above). | S |
