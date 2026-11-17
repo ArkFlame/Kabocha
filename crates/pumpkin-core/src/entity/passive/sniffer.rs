@@ -340,7 +340,7 @@ impl SnifferEntity {
             .get(types::SNIFFER_EXPLORED_POSITIONS)
             .into_iter()
             .flatten()
-            .take(MAX_EXPLORED_POSITIONS)
+            .take(MAX_EXPLORED_POSITIONS - 1)
             .copied()
             .collect();
         explored.insert(0, GlobalPos::new(dimension, pos));
@@ -768,12 +768,15 @@ mod tests {
             let positions = brain
                 .get(types::SNIFFER_EXPLORED_POSITIONS)
                 .ok_or("missing explored positions")?;
-            assert_eq!(positions.len(), 21);
+            assert_eq!(positions.len(), MAX_EXPLORED_POSITIONS);
             assert_eq!(
                 positions[0],
                 GlobalPos::new(&Dimension::OVERWORLD, BlockPos::new(22, 63, 8))
             );
-            assert_eq!(positions[20].pos, BlockPos::new(2, 63, 8));
+            assert_eq!(
+                positions[MAX_EXPLORED_POSITIONS - 1].pos,
+                BlockPos::new(3, 63, 8)
+            );
             assert_eq!(
                 brain.time_until_expiry(types::SNIFF_COOLDOWN.id()),
                 Some(9137)
