@@ -16,6 +16,7 @@ use crate::entity::{
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
         swim::SwimGoal, wander_around::WanderAroundGoal,
     },
+    ai::target_match::TargetMatch,
     living::LivingEntity,
     mob::{Mob, MobEntity, MobMetadata, hoglin::throw_target},
 };
@@ -89,7 +90,7 @@ impl ZoglinEntity {
                 2,
                 Box::new(ActiveTargetGoal::new(
                     &mob_arc.mob_entity,
-                    &EntityType::PLAYER,
+                    TargetMatch::Any,
                     10,
                     true,
                     false,
