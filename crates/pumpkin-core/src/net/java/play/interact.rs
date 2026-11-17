@@ -165,6 +165,10 @@ impl JavaClient {
                                 crate::entity::mob::piglin_ai::PiglinAi::is_wearing_safe_armor(
                                     &player.living_entity,
                                 ),
+                            distance: crate::entity::player::advancement::predicate::EntityDistance::between(
+                                player.get_entity().pos.load(),
+                                event.target.get_entity().pos.load(),
+                            ),
                         },
                     );
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
