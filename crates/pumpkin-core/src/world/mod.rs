@@ -5214,6 +5214,11 @@ impl World {
             entity_islands::check_reached(id);
             return Some(entity);
         }
+        // Vanilla keeps the ender dragon's parts in the level, so the client raycasts a
+        // part id and the server must resolve it or the attack kicks as an invalid entity.
+        if let Some(part) = self.dragon_part_by_id(id) {
+            return Some(part);
+        }
         if let Some(player) = self
             .entity_index
             .player_by_id(&self.players.load_full(), id)
@@ -5222,6 +5227,18 @@ impl World {
             return Some(player as Arc<dyn EntityBase>);
         }
         None
+    }
+
+    /// Finds an ender dragon part by its entity id. Parts are not entry ids in the
+    /// entity index, only children of the dragon that owns them.
+    fn dragon_part_by_id(&self, id: i32) -> Option<Arc<dyn EntityBase>> {
+        self.entities.load_full().iter().find_map(|entity| {
+            entity
+                .cast_any()
+                .downcast_ref::<crate::entity::boss::ender_dragon::EnderDragonEntity>()
+                .and_then(|dragon| dragon.parts.iter().find(|part| part.entity.entity_id == id))
+                .map(|part| Arc::clone(part) as Arc<dyn EntityBase>)
+        })
     }
 
     /// Gets a `Player` by a username
