@@ -2809,12 +2809,16 @@ impl LivingEntity {
         if self.is_immune_to_fall_damage() {
             return 0;
         }
-        let fall_power = f64::from(fall_distance) + 1.0E-6
-            - self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE);
-        (fall_power
-            * f64::from(damage_modifier)
-            * self.get_attribute_value(&Attributes::FALL_DAMAGE_MULTIPLIER))
-        .floor() as i32
+        let jump_boost_levels = self
+            .get_effect(&StatusEffect::JUMP_BOOST)
+            .map_or(0.0, |effect| f64::from(effect.amplifier) + 1.0);
+        fall_damage_amount(
+            f64::from(fall_distance),
+            self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE),
+            jump_boost_levels,
+            f64::from(damage_modifier),
+            self.get_attribute_value(&Attributes::FALL_DAMAGE_MULTIPLIER),
+        )
     }
 
     pub fn propagate_fall_to_passengers(&self, fall_distance: f32, damage_modifier: f32) {
@@ -5604,9 +5608,37 @@ pub(crate) fn prevents_equipment_drop(stack: &ItemStack) -> bool {
         })
 }
 
+/// Vanilla `LivingEntity.calculateFallDamage`: each Jump Boost level and the safe fall distance
+/// are subtracted from the fall, then the remainder is scaled and rounded up.
+fn fall_damage_amount(
+    fall_distance: f64,
+    safe_distance: f64,
+    jump_boost_levels: f64,
+    damage_modifier: f64,
+    multiplier: f64,
+) -> i32 {
+    ((fall_distance - safe_distance - jump_boost_levels) * damage_modifier * multiplier).ceil()
+        as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fall_damage_rounds_up_past_safe_distance() {
+        // 4.5 blocks with a 3-block safe distance is 1.5 damage, which rounds up to 2.
+        assert_eq!(fall_damage_amount(4.5, 3.0, 0.0, 1.0, 1.0), 2);
+        // Exactly the safe distance deals nothing.
+        assert_eq!(fall_damage_amount(3.0, 3.0, 0.0, 1.0, 1.0), 0);
+    }
+
+    #[test]
+    fn fall_damage_subtracts_jump_boost_levels() {
+        // Jump Boost II lowers the effective fall by two blocks: 6 - 3 - 2 = 1.
+        assert_eq!(fall_damage_amount(6.0, 3.0, 2.0, 1.0, 1.0), 1);
+        assert_eq!(fall_damage_amount(4.0, 3.0, 2.0, 1.0, 1.0), 0);
+    }
 
     // ── bypasses_armor_durability ─────────────────────────────────────
 

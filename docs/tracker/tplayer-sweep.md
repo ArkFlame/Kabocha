@@ -26,7 +26,7 @@ No code changes: no confident divergence was found. Nothing compiled (CODER poli
 
 ## Uncertain, not changed
 
-- Fall damage formula: `living.rs` `base_fall_damage` uses `floor((distance - SAFE_FALL_DISTANCE) * multiplier * modifier)`. Vanilla 1.21 may use `ceil` and a different jump-boost term. No vanilla source was verified in this pass, so the rounding was left as is.
-- Spawn protection bypass: Pumpkin bypasses for any permission level above zero. Vanilla's exact threshold per version was not verified.
+- Fall damage: resolved. `living.rs` `base_fall_damage` now uses vanilla `ceil((distance - safe - jumpBoostLevels) * modifier * FALL_DAMAGE_MULTIPLIER)` via `fall_damage_amount`, with Jump Boost subtracted (was `floor` with no Jump Boost term). Armor still applies, since vanilla fall damage is not in `bypasses_armor`; the brief's armor-ignoring claim was not adopted.
+- Spawn protection bypass: kept. Pumpkin bypasses for any permission level above zero and applies in every gamemode. Vanilla bypasses ops by op-list membership (a level-0 op would bypass in vanilla only) and, per my knowledge, also restricts creative non-ops, so the adventure/survival-only claim was not adopted. Level-0 op edge unverified.
 - Feather falling, slow falling, hay, slime reductions rely on `MINECRAFT_FALL_DAMAGE_RESETTING` tags and `PREVENT_AREA_FALL_DAMAGE_BLOCKS`; the tag contents were not audited here.
 - Burn and lava damage paths were not read in this pass.
