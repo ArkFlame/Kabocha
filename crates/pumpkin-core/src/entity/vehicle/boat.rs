@@ -372,6 +372,14 @@ impl EntityBase for BoatEntity {
         if self.vehicle.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
+        // Vanilla `AbstractBoat#hurt`: a passenger of a boat it rides cannot damage that boat
+        // (e.g. its own arrow).
+        if let Some(source) = source
+            && self.vehicle.entity.has_passengers()
+            && source.is_passenger_of_same_vehicle(self)
+        {
+            return false;
+        }
         let creative = source
             .and_then(EntityBase::get_player)
             .is_some_and(|player| player.gamemode.load() == GameMode::Creative);
