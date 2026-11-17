@@ -18,6 +18,7 @@ use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::command::suggestion::provider::{SuggestionProvider, SuggestionProviderResult};
 use crate::command::suggestion::suggestions::SuggestionsBuilder;
+use crate::data::datapack::{DatapackEnablePosition, DatapackError, DatapackManager};
 use crate::server::Server;
 
 const DESCRIPTION: &str = "Controls loaded data packs.";
@@ -53,20 +54,21 @@ static ERROR_CREATE_IO_FAILURE: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_DATAPACK_CREATE_IO_FAILURE,
 );
 
+/// Maps a typed datapack error onto the vanilla command error type.
+const fn error_type_for(error: &DatapackError) -> &'static CommandErrorType<1> {
+    match error {
+        DatapackError::Unknown(_) | DatapackError::UnknownAnchor(_) => &ERROR_UNKNOWN_DATAPACK,
+        DatapackError::AlreadyEnabled(_) => &ERROR_ENABLE_FAILED,
+        DatapackError::NotEnabled(_) | DatapackError::Embedded(_) => &ERROR_DISABLE_FAILED,
+    }
+}
+
 fn get_enabled_packs(server: &Server) -> Vec<String> {
     crate::data::datapack::DatapackManager::get_enabled_packs(server)
 }
 
 fn get_available_packs(server: &Server) -> Vec<String> {
     crate::data::datapack::DatapackManager::get_available_packs(server)
-}
-
-fn find_pack_name(server: &Server, input: &str) -> Option<String> {
-    crate::data::datapack::DatapackManager::find_pack_name(server, input)
-}
-
-fn is_embedded_pack(name: &str) -> bool {
-    crate::data::datapack::DatapackManager::is_embedded_pack(name)
 }
 
 fn format_pack(name: &str) -> TextComponent {
@@ -216,46 +218,25 @@ impl CommandExecutor for DatapackEnableExecutor {
         let name_str = StringArgumentType::get(context, "name")?;
         let server = context.server();
 
-        let Some(resolved_name) = find_pack_name(server, name_str) else {
-            return Err(ERROR_UNKNOWN_DATAPACK
-                .create_without_context(TextComponent::text(name_str.to_string())));
+        let position = match self.0 {
+            EnablePosition::First => DatapackEnablePosition::First,
+            EnablePosition::Last => DatapackEnablePosition::Last,
         };
-
-        let enabled = get_enabled_packs(server);
-        if enabled.contains(&resolved_name) {
-            return Err(
-                ERROR_ENABLE_FAILED.create_without_context(TextComponent::text(resolved_name))
-            );
-        }
-
-        let target = resolved_name.clone();
-        let pos = self.0;
-        server.level_info.rcu(|level_info| {
-            let mut new_info = (**level_info).clone();
-            new_info.data_packs.disabled.retain(|p| p != &target);
-            new_info.data_packs.enabled.retain(|p| p != &target);
-            match pos {
-                EnablePosition::First => {
-                    new_info.data_packs.enabled.insert(0, target.clone());
-                }
-                EnablePosition::Last => {
-                    new_info.data_packs.enabled.push(target.clone());
-                }
+        let resolved = match DatapackManager::enable_pack_checked(server, name_str, position) {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                let error_type = error_type_for(&err);
+                return Err(
+                    error_type.create_without_context(TextComponent::text(err.into_message()))
+                );
             }
-            new_info
-        });
-
-        if let Err(err) = server.save_world_info() {
-            error!("Failed to save world info: {err}");
-        }
-
-        server.reload_datapacks();
+        };
 
         context.source.send_feedback(
             TextComponent::translate_cross(
                 translation::java::COMMANDS_DATAPACK_MODIFY_ENABLE,
                 translation::java::COMMANDS_DATAPACK_MODIFY_ENABLE,
-                [format_pack(&resolved_name)],
+                [format_pack(&resolved)],
             ),
             true,
         );
@@ -270,12 +251,6 @@ enum BeforeOrAfter {
     After,
 }
 
-/// Maps a position in the exposed enabled list (built-in packs first) onto the
-/// list of packs whose order can be changed.
-fn configurable_index(full_index: usize, embedded_prefix: usize, len: usize) -> usize {
-    full_index.saturating_sub(embedded_prefix).min(len)
-}
-
 struct DatapackEnableExistingExecutor(BeforeOrAfter);
 
 impl CommandExecutor for DatapackEnableExistingExecutor {
@@ -284,75 +259,25 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
         let existing_str = StringArgumentType::get(context, "existing")?;
         let server = context.server();
 
-        let Some(target_pack) = find_pack_name(server, name_str) else {
-            return Err(ERROR_UNKNOWN_DATAPACK
-                .create_without_context(TextComponent::text(name_str.to_string())));
+        let position = match self.0 {
+            BeforeOrAfter::Before => DatapackEnablePosition::Before(existing_str.to_string()),
+            BeforeOrAfter::After => DatapackEnablePosition::After(existing_str.to_string()),
         };
-
-        let Some(existing_pack) = find_pack_name(server, existing_str) else {
-            return Err(ERROR_UNKNOWN_DATAPACK
-                .create_without_context(TextComponent::text(existing_str.to_string())));
+        let resolved = match DatapackManager::enable_pack_checked(server, name_str, position) {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                let error_type = error_type_for(&err);
+                return Err(
+                    error_type.create_without_context(TextComponent::text(err.into_message()))
+                );
+            }
         };
-
-        let enabled = get_enabled_packs(server);
-        if enabled.contains(&target_pack) {
-            return Err(
-                ERROR_ENABLE_FAILED.create_without_context(TextComponent::text(target_pack))
-            );
-        }
-
-        if !enabled.contains(&existing_pack) {
-            return Err(
-                ERROR_DISABLE_FAILED.create_without_context(TextComponent::text(existing_pack))
-            );
-        }
-
-        let embedded_prefix = enabled
-            .iter()
-            .take_while(|p| is_embedded_pack(p.as_str()))
-            .count();
-        let Some(anchor_index) = enabled.iter().position(|p| *p == existing_pack) else {
-            return Err(
-                ERROR_UNKNOWN_DATAPACK.create_without_context(TextComponent::text(existing_pack))
-            );
-        };
-        let insert_index = match self.0 {
-            BeforeOrAfter::Before => anchor_index,
-            BeforeOrAfter::After => anchor_index + 1,
-        };
-
-        let target = target_pack.clone();
-        server.level_info.rcu(|level_info| {
-            let mut new_info = (**level_info).clone();
-            new_info.data_packs.disabled.retain(|p| p != &target);
-            new_info.data_packs.enabled.retain(|p| p != &target);
-
-            // Built-in packs stay at the front of the exposed list and cannot
-            // be reordered, so an anchor inside that prefix clamps to the
-            // start of the configurable packs instead of appending at the end.
-            let insert_at = configurable_index(
-                insert_index,
-                embedded_prefix,
-                new_info.data_packs.enabled.len(),
-            );
-            new_info
-                .data_packs
-                .enabled
-                .insert(insert_at, target.clone());
-            new_info
-        });
-
-        if let Err(err) = server.save_world_info() {
-            error!("Failed to save world info: {err}");
-        }
-
-        server.reload_datapacks();
 
         context.source.send_feedback(
             TextComponent::translate_cross(
                 translation::java::COMMANDS_DATAPACK_MODIFY_ENABLE,
                 translation::java::COMMANDS_DATAPACK_MODIFY_ENABLE,
-                [format_pack(&target_pack)],
+                [format_pack(&resolved)],
             ),
             true,
         );
@@ -368,46 +293,21 @@ impl CommandExecutor for DatapackDisableExecutor {
         let name_str = StringArgumentType::get(context, "name")?;
         let server = context.server();
 
-        let Some(target_pack) = find_pack_name(server, name_str) else {
-            return Err(ERROR_UNKNOWN_DATAPACK
-                .create_without_context(TextComponent::text(name_str.to_string())));
-        };
-
-        let enabled = get_enabled_packs(server);
-        if !enabled.contains(&target_pack) {
-            return Err(ERROR_DISABLE_FAILED
-                .create_without_context(TextComponent::text(name_str.to_string())));
-        }
-
-        // Built-in packs are compiled into the server and reported as enabled
-        // again on every load, so disabling one is not possible.
-        if is_embedded_pack(&target_pack) {
-            return Err(
-                ERROR_DISABLE_FAILED.create_without_context(TextComponent::text(target_pack))
-            );
-        }
-
-        let target = target_pack.clone();
-        server.level_info.rcu(|level_info| {
-            let mut new_info = (**level_info).clone();
-            new_info.data_packs.enabled.retain(|p| p != &target);
-            if !new_info.data_packs.disabled.contains(&target) {
-                new_info.data_packs.disabled.push(target.clone());
+        let resolved = match DatapackManager::disable_pack_checked(server, name_str) {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                let error_type = error_type_for(&err);
+                return Err(
+                    error_type.create_without_context(TextComponent::text(err.into_message()))
+                );
             }
-            new_info
-        });
-
-        if let Err(err) = server.save_world_info() {
-            error!("Failed to save world info: {err}");
-        }
-
-        server.reload_datapacks();
+        };
 
         context.source.send_feedback(
             TextComponent::translate_cross(
                 translation::java::COMMANDS_DATAPACK_MODIFY_DISABLE,
                 translation::java::COMMANDS_DATAPACK_MODIFY_DISABLE,
-                [format_pack(&target_pack)],
+                [format_pack(&resolved)],
             ),
             true,
         );
@@ -578,14 +478,6 @@ mod tests {
         assert!(!is_valid_pack_name("folder/pack"));
         assert!(!is_valid_pack_name("pack\\test"));
         assert!(!is_valid_pack_name("invalid char"));
-    }
-
-    #[test]
-    fn embedded_anchor_clamps_to_configurable_front() {
-        assert_eq!(configurable_index(0, 2, 3), 0);
-        assert_eq!(configurable_index(1, 2, 3), 0);
-        assert_eq!(configurable_index(4, 2, 3), 2);
-        assert_eq!(configurable_index(9, 2, 3), 3);
     }
 
     #[test]
