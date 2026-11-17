@@ -27,7 +27,7 @@ B
   [ -s "$f" ] && echo "$id $KAB_WT/i$id $f"
 }
 export -f prep_issue; export KAB_RUNS KAB_WT
-python3 - "$n" <<'PY' | xargs -r -P "${KAB_PREP_JOBS:-10}" -I{} bash -c 'prep_issue {}'
+python3 - "$n" <<'PY' | xargs -r -P "${KAB_PREP_JOBS:-4}" -I{} bash -c 'prep_issue {}'
 import re,sys
 import csv
 # finished = ledger DONE/SKIPPED/COMMITTED-UNLANDED; TODO/FAILED stay eligible (requeue.sh clears them from tried-issues)

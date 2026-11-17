@@ -6,7 +6,7 @@ source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"
 exec 9>"$KAB_RUNS/refill.lock"; flock -n 9 || { echo "refill already running"; exit 0; }
 scripts/reap-mcp.sh >/dev/null 2>&1 || true; scripts/oc-collect.sh >/dev/null 2>&1 || true
 touch "$KAB_RUNS/tried" "$KAB_RUNS/tried-issues"
-SLOTS="${KAB_OC_SLOTS:-20}"; JOBS="${KAB_PREP_JOBS:-10}"
+SLOTS="${KAB_OC_SLOTS:-20}"; JOBS="${KAB_PREP_JOBS:-4}"
 free_slots() { echo $(( SLOTS - $(scripts/oc-status.sh | grep -v '^t' | grep -c ' running$' || true) )); }
 
 launch_pr() { # prep one PR and start its worker; never fails the batch
