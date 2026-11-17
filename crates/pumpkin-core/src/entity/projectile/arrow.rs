@@ -438,6 +438,11 @@ impl EntityBase for ArrowEntity {
             self.pierce_level.load(Ordering::Relaxed) as i8,
         );
         nbt.put_byte("pickup", self.pickup.load(Ordering::Relaxed) as i8);
+        if let Some(weapon) = self.get_weapon_item() {
+            let mut weapon_nbt = pumpkin_nbt::compound::NbtCompound::new();
+            weapon.copy_with_count(1).write_item_stack(&mut weapon_nbt);
+            nbt.put_compound("weapon", weapon_nbt);
+        }
         if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
             // Vanilla `SpectralArrow.writeAdditionalSaveData`.
             nbt.put_int("Duration", self.duration.load(Ordering::Relaxed) as i32);
@@ -456,6 +461,17 @@ impl EntityBase for ArrowEntity {
         }
         if let Some(damage) = nbt.get_double("damage") {
             self.set_base_damage(damage);
+        }
+        let weapon = nbt
+            .get_compound("weapon")
+            .and_then(ItemStack::read_item_stack)
+            .map(|weapon| weapon.copy_with_count(1));
+        if let Some(weapon) = weapon {
+            let mut guard = self
+                .weapon
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *guard = Some(weapon);
         }
         self.flight.read_nbt(nbt);
         // Vanilla AbstractArrow#readAdditionalSaveData defaults a missing pickup to disallowed.
