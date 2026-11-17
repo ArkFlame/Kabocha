@@ -1456,7 +1456,19 @@ fn execute_on_controller_modifier(
 fn execute_on_origin_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    execute_on_owner_modifier(context)
+    // Vanilla on origin follows TraceableEntity: the shooter of a projectile, not its tame owner.
+    let mut sources = Vec::new();
+    if let Some(ref entity) = context.source.entity
+        && let Some(origin) = entity.get_owner_entity()
+        && !origin.get_entity().is_removed()
+    {
+        let mut source = context.source.as_ref().clone();
+        source.name = origin.get_name().get_text();
+        source.display_name = origin.get_display_name();
+        source.entity = Some(origin);
+        sources.push(Arc::new(source));
+    }
+    Ok(sources)
 }
 
 fn execute_on_passengers_modifier(
