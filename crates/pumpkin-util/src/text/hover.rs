@@ -161,6 +161,8 @@ enum RawHoverEvent {
         #[serde(default)]
         count: Option<i32>,
         #[serde(default)]
+        components: Option<ItemComponents>,
+        #[serde(default)]
         contents: Option<LegacyItem>,
     },
     ShowEntity {
@@ -180,6 +182,8 @@ struct LegacyItem {
     id: Cow<'static, str>,
     #[serde(default)]
     count: Option<i32>,
+    #[serde(default)]
+    components: Option<ItemComponents>,
 }
 
 #[derive(Deserialize)]
@@ -219,17 +223,18 @@ impl TryFrom<RawHoverEvent> for HoverEvent {
             RawHoverEvent::ShowItem {
                 id,
                 count,
+                components,
                 contents,
             } => match contents {
                 Some(item) => Self::ShowItem {
                     id: item.id,
                     count: item.count,
-                    components: None,
+                    components: item.components,
                 },
                 None => Self::ShowItem {
                     id: id.ok_or("show_item hover event is missing `id`")?,
                     count,
-                    components: None,
+                    components,
                 },
             },
             RawHoverEvent::ShowEntity {
