@@ -134,6 +134,17 @@ impl SpreadingSnowyBlock {
         default_block_state: &'static BlockState,
     ) {
         if !Self::can_stay_alive(state, world, pos) {
+            // Paper fires `BlockFadeEvent`; a cancelled fade keeps the spreading block.
+            let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
+                *pos,
+                state.id.to_block(),
+            );
+            if let Some(server) = world.server.upgrade() {
+                server.plugin_manager.fire_blocking(&server, &mut event);
+            }
+            if event.cancelled {
+                return;
+            }
             world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
         } else if world.get_max_local_raw_brightness(&pos.up()) >= 9 {
             let mut rng = rand::rng();
@@ -157,6 +168,20 @@ impl SpreadingSnowyBlock {
                     let mut props = GrassBlockLikeProperties::from_state_id(default_block_state.id);
                     props.snowy = is_snowy;
                     let new_state_id = props.to_state_id(default_block_state.id.to_block());
+                    // Paper fires `BlockSpreadEvent` for grass and mycelium spreading.
+                    if let Some(server) = world.server.upgrade() {
+                        let mut event =
+                            crate::plugin::api::events::block::block_spread::BlockSpreadEvent::new(
+                                *pos,
+                                test_pos,
+                                world.clone(),
+                                new_state_id,
+                            );
+                        server.plugin_manager.fire_blocking(&server, &mut event);
+                        if event.cancelled {
+                            continue;
+                        }
+                    }
                     world.set_block_state(&test_pos, new_state_id, BlockFlags::NOTIFY_ALL);
                 }
             }
