@@ -101,6 +101,17 @@ impl FishingBobberEntity {
         entity.data.store(owner_entity.entity_id, Ordering::Relaxed);
         entity.velocity.store(velocity);
 
+        // Vanilla `FishingHook` registers both tracked values in its constructor via
+        // `defineId(FishingHook.class, DATA_HOOKED_ENTITY, EntityDataSerializers.INT)` and
+        // `DATA_BITING` with `BOOLEAN`, so the client assumes 0/false and only non-default
+        // values are re-sent when a player starts tracking the hook.
+        entity
+            .synched_data
+            .define(pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY, 0i32);
+        entity
+            .synched_data
+            .define(pumpkin_data::tracked_data::fishing_bobber::DATA_BITING, false);
+
         // Vanilla `FishingHook` constructor: `this.luck = Math.max(1, luck)`.
         let luck_bonus = luck_bonus.max(1);
         let wait_time_reduction_ticks = wait_time_reduction_ticks.max(0);
@@ -868,6 +879,38 @@ mod tests {
             (up.y / up.z - 5.0).abs() < 1e-9,
             "expected the +Y clamp, got {up:?}"
         );
+    }
+
+    /// Vanilla `FishingHook` field indexes and serializers: `DATA_HOOKED_ENTITY` is the
+    /// VarInt at index 8 (entity id + 1, 0 when unhooked) and `DATA_BITING` is the boolean
+    /// at index 9. A wrong index or serializer desyncs the client's Set Entity Data parse,
+    /// which shows up as a trailing `0xFF` read as an NBT tag.
+    #[test]
+    fn hook_metadata_uses_vanilla_field_indexes_and_serializers() {
+        use pumpkin_protocol::java::client::play::Metadata;
+        use pumpkin_util::version::JavaMinecraftVersion;
+
+        let version = JavaMinecraftVersion::V_26_3;
+
+        let mut hooked = Vec::new();
+        Metadata::new(
+            pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
+            4i32,
+        )
+        .write(&mut hooked, &version)
+        .unwrap();
+        // Index 8, INT serializer id 1, VarInt value.
+        assert_eq!(hooked, [8u8, 1u8, 4u8]);
+
+        let mut biting = Vec::new();
+        Metadata::new(
+            pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+            true,
+        )
+        .write(&mut biting, &version)
+        .unwrap();
+        // Index 9, BOOLEAN serializer id 8, one byte value.
+        assert_eq!(biting, [9u8, 8u8, 1u8]);
     }
 
     #[test]

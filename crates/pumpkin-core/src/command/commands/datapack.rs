@@ -279,6 +279,12 @@ enum BeforeOrAfter {
     After,
 }
 
+/// Maps a position in the exposed enabled list (built-in packs first) onto the
+/// list of packs whose order can be changed.
+fn configurable_index(full_index: usize, embedded_prefix: usize, len: usize) -> usize {
+    full_index.saturating_sub(embedded_prefix).min(len)
+}
+
 struct DatapackEnableExistingExecutor(BeforeOrAfter);
 
 impl CommandExecutor for DatapackEnableExistingExecutor {
@@ -310,31 +316,34 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             );
         }
 
+        let embedded_prefix = enabled
+            .iter()
+            .take_while(|p| is_embedded_pack(p.as_str()))
+            .count();
+        let Some(anchor_index) = enabled.iter().position(|p| *p == existing_pack) else {
+            return Err(ERROR_UNKNOWN_DATAPACK
+                .create_without_context(TextComponent::text(existing_pack)));
+        };
+        let insert_index = match self.0 {
+            BeforeOrAfter::Before => anchor_index,
+            BeforeOrAfter::After => anchor_index + 1,
+        };
+
         let target = target_pack.clone();
-        let existing = existing_pack;
-        let before_or_after = self.0;
         server.level_info.rcu(|level_info| {
             let mut new_info = (**level_info).clone();
             new_info.data_packs.disabled.retain(|p| p != &target);
             new_info.data_packs.enabled.retain(|p| p != &target);
 
-            if let Some(idx) = new_info
-                .data_packs
-                .enabled
-                .iter()
-                .position(|p| p == &existing)
-            {
-                let insert_pos = match before_or_after {
-                    BeforeOrAfter::Before => idx,
-                    BeforeOrAfter::After => idx + 1,
-                };
-                new_info
-                    .data_packs
-                    .enabled
-                    .insert(insert_pos, target.clone());
-            } else {
-                new_info.data_packs.enabled.push(target.clone());
-            }
+            // Built-in packs stay at the front of the exposed list and cannot
+            // be reordered, so an anchor inside that prefix clamps to the
+            // start of the configurable packs instead of appending at the end.
+            let insert_at = configurable_index(
+                insert_index,
+                embedded_prefix,
+                new_info.data_packs.enabled.len(),
+            );
+            new_info.data_packs.enabled.insert(insert_at, target.clone());
             new_info
         });
 
@@ -557,6 +566,14 @@ mod tests {
         assert!(!is_valid_pack_name("folder/pack"));
         assert!(!is_valid_pack_name("pack\\test"));
         assert!(!is_valid_pack_name("invalid char"));
+    }
+
+    #[test]
+    fn embedded_anchor_clamps_to_configurable_front() {
+        assert_eq!(configurable_index(0, 2, 3), 0);
+        assert_eq!(configurable_index(1, 2, 3), 0);
+        assert_eq!(configurable_index(4, 2, 3), 2);
+        assert_eq!(configurable_index(9, 2, 3), 3);
     }
 
     #[test]

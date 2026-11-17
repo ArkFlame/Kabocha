@@ -35,3 +35,31 @@ Non-gaps checked (do not "fix"):
   `is_frozen`), harmless and kept.
 - The overload warning clock is measured from the scheduled deadline and reset to the jumped
   deadline, matching the `nextTickTimeNanos`-based clock Paper/Canvas keeps.
+
+## Second pass (sprint/freeze gate)
+
+Fixed in this pass:
+
+- `ticker.rs:70` - `sprinting` was `manager.is_sprinting()` alone. Vanilla
+  `runServer` takes the sprint path only when `isSprinting() &&
+  checkShouldSprintThisTick()`, and `checkShouldSprintThisTick()` returns
+  false while `runGameElements` is false (TickRateManager). So `/tick freeze`
+  issued during a sprint must stop sprint ticks, not keep running them.
+- `server/mod.rs:1812` - `tick()` gated world ticking on `runsNormally() ||
+  is_sprinting()`. Vanilla `tickChildren` is gated on `runsNormally()` alone,
+  and a sprint clears the freeze, so the extra `is_sprinting()` revived world
+  ticks after a mid-sprint freeze. Removed; sprinting still ticks worlds
+  because `request_game_to_sprint` clears `is_frozen` and the next
+  `TickRateManager::tick` sets `run_game_elements = true` (same one-tick
+  settling as vanilla).
+
+Both changes are one-liners already covered by the existing ticker tests;
+the observable behaviour needs a `/tick sprint` + `/tick freeze` runtime
+scenario, so no new unit test was added.
+
+Newly noted, not changed:
+
+| Location | Vanilla | Gap | Fix | Size |
+|---|---|---|---|---|
+| `ticker.rs:182` | overload warning gate is a strict `>` on `l - lastOverloadWarningNanos` | fork uses `>=`, so an exact-equality interval warns one tick early | change to `>`, update `sustained_overload_warns_again_after_wall_clock_interval` (`[1, 6]` becomes `[1, 7]`) | XS |
+| `ticker.rs:66-71` | `checkShouldSprintThisTick()` also decrements `remainingSprintTicks` | fork decrements in `end_sprint_tick_work`; equivalent for the loop, `is_sprinting()` just stays true through the sprint work | none needed | - |

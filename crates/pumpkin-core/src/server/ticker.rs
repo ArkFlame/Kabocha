@@ -63,7 +63,11 @@ impl Ticker {
             // Doubles as the tick-duration start, so the loop reads the clock twice.
             let tick_start_nanos = elapsed_nanos(base);
             let manager = &server.tick_rate_manager;
-            let sprinting = manager.is_sprinting();
+            // Vanilla `runServer` gates the sprint path on `isSprinting() &&
+            // checkShouldSprintThisTick()`, which returns false while the game
+            // is not running normally. Without it, `/tick freeze` during a sprint
+            // keeps ticking worlds on zero-length ticks.
+            let sprinting = manager.is_sprinting() && manager.runs_normally();
             let this_tick_nanos = if sprinting {
                 0
             } else {

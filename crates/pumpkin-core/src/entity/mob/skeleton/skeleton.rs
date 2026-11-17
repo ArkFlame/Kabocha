@@ -61,6 +61,9 @@ impl Mob for SkeletonEntity {
         group_data: Option<SpawnGroupData>,
     ) -> Option<SpawnGroupData> {
         let group_data = self.default_finalize_spawn(world, group_data);
+        // Vanilla `AbstractSkeleton#finalizeSpawn` runs `populateDefaultEquipmentSlots`, which
+        // always puts the bow in the main hand.
+        self.entity.equip_default_bow();
         let mut rng = self.get_random();
         let mob = &self.entity.mob_entity;
         let has_head = !mob

@@ -114,7 +114,10 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
         NbtTag::ByteArray(value) => {
             let mut content = TextComponent::text("[")
                 .add_child(TextComponent::text("B").color_named(NamedColor::Red))
-                .add_child(TextComponent::text("; "));
+                .add_child(TextComponent::text(";"));
+            if !value.is_empty() {
+                content = content.add_child(TextComponent::text(" "));
+            }
 
             for (index, byte) in value.iter().take(128).enumerate() {
                 content = content
@@ -172,7 +175,10 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
         NbtTag::IntArray(value) => {
             let mut content = TextComponent::text("[")
                 .add_child(TextComponent::text("I").color_named(NamedColor::Red))
-                .add_child(TextComponent::text("; "));
+                .add_child(TextComponent::text(";"));
+            if !value.is_empty() {
+                content = content.add_child(TextComponent::text(" "));
+            }
             for (index, int) in value.iter().take(128).enumerate() {
                 content = content
                     .add_child(TextComponent::text(format!("{int}")).color_named(NamedColor::Gold));
@@ -188,7 +194,10 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
         NbtTag::LongArray(value) => {
             let mut content = TextComponent::text("[")
                 .add_child(TextComponent::text("L").color_named(NamedColor::Red))
-                .add_child(TextComponent::text("; "));
+                .add_child(TextComponent::text(";"));
+            if !value.is_empty() {
+                content = content.add_child(TextComponent::text(" "));
+            }
             for (index, long) in value.iter().take(128).enumerate() {
                 content = content
                     .add_child(TextComponent::text(format!("{long}")).color_named(NamedColor::Gold))
@@ -490,7 +499,7 @@ fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
         NbtTag::Double(d) => Ok(d.to_string()),
         _ => {
             Err(ERROR_EXPECTED_VALUE
-                .create_without_context(TextComponent::text(format!("{tag:?}"))))
+                .create_without_context(TextComponent::text(tag.to_string())))
         }
     }
 }
@@ -780,7 +789,7 @@ fn execute_modify(
                     }
                 } else {
                     return Err(ERROR_EXPECTED_OBJECT
-                        .create_without_context(TextComponent::text(format!("{tag:?}"))));
+                        .create_without_context(TextComponent::text(tag.to_string())));
                 }
             }
 
@@ -1159,6 +1168,17 @@ mod tests {
         assert_eq!(substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(), "a\u{1f600}");
         assert_eq!(substring("a\u{1f600}b", 3, None).unwrap_or_default(), "b");
         assert!(substring("\u{e9}", 0, Some(2)).is_err());
+    }
+
+    #[test]
+    fn empty_typed_nbt_arrays_render_without_trailing_space() {
+        for (tag, expected) in [
+            (NbtTag::ByteArray(Vec::new()), "[B;]"),
+            (NbtTag::IntArray(Vec::new()), "[I;]"),
+            (NbtTag::LongArray(Vec::new()), "[L;]"),
+        ] {
+            assert_eq!(snbt_colorful_display(&tag, 0).get_text(), expected);
+        }
     }
 
     #[test]

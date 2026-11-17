@@ -784,8 +784,7 @@ impl pumpkin::plugin::world::HostWorld for PluginHostState {
         pitch: f32,
     ) -> wasmtime::Result<()> {
         let world_ref = self.get(&world)?;
-        let sound_data = pumpkin_wasm_host_common::sound::from_variant_name(&format!("{sound:?}"))
-            .ok_or_else(|| wasmtime::Error::msg(format!("Unknown sound: {sound:?}")))?;
+        let sound_data = from_wit_sound(sound)?;
 
         let internal_category = from_wit_sound_category(category);
 
@@ -2457,6 +2456,14 @@ impl pumpkin_world::generation::generator::CustomChunkGenerator for WasmChunkGen
     }
 }
 
+pub(crate) fn from_wit_sound(
+    sound: pumpkin::plugin::sounds::Sound,
+) -> wasmtime::Result<pumpkin_data::sound::Sound> {
+    // The WIT enum is generated from the same sound list as `Sound`, in the same order.
+    pumpkin_wasm_host_common::sound::from_index(sound as usize)
+        .ok_or_else(|| wasmtime::Error::msg(format!("Invalid sound index: {}", sound as usize)))
+}
+
 #[must_use]
 pub const fn from_wit_sound_category(
     category: pumpkin::plugin::sounds::SoundCategory,
@@ -2533,6 +2540,32 @@ mod tests {
                 pumpkin_data::particle::Particle::from_id(wit as u16),
                 Some(internal)
             );
+        }
+    }
+
+    #[test]
+    fn wit_sounds_match_internal_sounds() {
+        let cases = [
+            (
+                pumpkin::plugin::sounds::Sound::EntityAllayAmbientWithItem,
+                pumpkin_data::sound::Sound::EntityAllayAmbientWithItem,
+            ),
+            (
+                pumpkin::plugin::sounds::Sound::EntityExperienceOrbPickup,
+                pumpkin_data::sound::Sound::EntityExperienceOrbPickup,
+            ),
+            (
+                pumpkin::plugin::sounds::Sound::MusicDisc11,
+                pumpkin_data::sound::Sound::MusicDisc11,
+            ),
+            (
+                pumpkin::plugin::sounds::Sound::BlockRedShrubPlace,
+                pumpkin_data::sound::Sound::BlockRedShrubPlace,
+            ),
+        ];
+
+        for (wit, internal) in cases {
+            assert_eq!(from_wit_sound(wit).ok(), Some(internal));
         }
     }
 }

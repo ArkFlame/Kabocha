@@ -85,3 +85,58 @@ pub(super) async fn test_piston_and_sticky_piston(helper: GameTestHelper) -> Gam
         .then_succeed();
     Ok(())
 }
+
+
+/// Slime blocks pulled in by a branch must themselves be swept for branches.
+///
+/// Vanilla PistonStructureResolver.resolve re-reads toPush.size every iteration, so a block
+/// appended by addBranchingBlocks is asked for its own branches. A frozen range misses that
+/// second-order chain and leaves the far block floating in place.
+pub(super) async fn test_piston_slime_branch_chain(helper: GameTestHelper) -> GameTestResult<()> {
+    build_stone_floor(&helper, 6, 6).await?;
+
+    // Piston pushes east into a slime block. That slime is stuck to a second slime above it,
+    // which is stuck to a third slime to its south. Only the third slime proves the re-sweep.
+    let piston_pos = BlockPos::new(1, 1, 1);
+    let near_slime = BlockPos::new(2, 1, 1);
+    let branch_slime = BlockPos::new(2, 2, 1);
+    let leaf_slime = BlockPos::new(2, 2, 2);
+    let power = BlockPos::new(1, 2, 1);
+
+    let mut props = StickyPistonLikeProperties::default(&Block::PISTON);
+    props.facing = Facing::East;
+    props.extended = false;
+    helper
+        .set_block(&piston_pos, props.to_state_id(&Block::PISTON))
+        .await?;
+    helper
+        .set_block_default(&near_slime, &Block::SLIME_BLOCK)
+        .await?;
+    helper
+        .set_block_default(&branch_slime, &Block::SLIME_BLOCK)
+        .await?;
+    helper
+        .set_block_default(&leaf_slime, &Block::SLIME_BLOCK)
+        .await?;
+    helper
+        .set_block_default(&power, &Block::REDSTONE_BLOCK)
+        .await?;
+
+    helper
+        .start_sequence()
+        .then_idle(6)
+        .then_execute(move |helper| async move {
+            helper
+                .assert_block_present(&BlockPos::new(3, 1, 1), &Block::SLIME_BLOCK)
+                .await?;
+            helper
+                .assert_block_present(&BlockPos::new(3, 2, 1), &Block::SLIME_BLOCK)
+                .await?;
+            helper
+                .assert_block_present(&BlockPos::new(3, 2, 2), &Block::SLIME_BLOCK)
+                .await?;
+            helper.assert_block_present(&leaf_slime, &Block::AIR).await
+        })
+        .then_succeed();
+    Ok(())
+}

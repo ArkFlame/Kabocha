@@ -1813,7 +1813,10 @@ impl Server {
         self.simulation_pool.install(|| {
             // Do not flush mid-tick; `Flush` is `flushChannel`.
             let suspended = self.suspend_player_flushes();
-            if self.tick_rate_manager.runs_normally() || self.tick_rate_manager.is_sprinting() {
+            // Vanilla `tickChildren` is gated on `runsNormally()` alone: a sprint
+            // clears the freeze, so `is_sprinting()` would wrongly revive a world
+            // tick after `/tick freeze` is issued mid-sprint.
+            if self.tick_rate_manager.runs_normally() {
                 self.tick_worlds();
                 // Always run player and network ticking, even when game is frozen
             } else {
