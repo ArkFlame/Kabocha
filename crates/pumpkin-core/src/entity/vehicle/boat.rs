@@ -38,7 +38,8 @@ const BACK_SEAT_OFFSET: f32 = -0.6;
 const ANIMAL_SEAT_SHIFT: f32 = 0.2;
 const CHEST_BOAT_CONTAINER_SIZE: usize = 27;
 const TIME_TO_EJECT: f32 = 60.0;
-const MAX_PASSENGERS: usize = 2;
+const BOAT_MAX_PASSENGERS: usize = 2;
+const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
 
 #[must_use]
 pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
@@ -53,6 +54,16 @@ pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
         || entity_type.id == EntityType::PALE_OAK_CHEST_BOAT.id
         || entity_type.id == EntityType::POPLAR_CHEST_BOAT.id
         || entity_type.id == EntityType::SPRUCE_CHEST_BOAT.id
+}
+
+/// Vanilla `AbstractBoat.getMaxPassengers` returns 2, `AbstractChestBoat` overrides it with 1.
+#[must_use]
+pub const fn max_passengers(entity_type: &EntityType) -> usize {
+    if is_chest_boat(entity_type) {
+        CHEST_BOAT_MAX_PASSENGERS
+    } else {
+        BOAT_MAX_PASSENGERS
+    }
 }
 
 pub struct BoatEntity {
@@ -389,7 +400,7 @@ impl EntityBase for BoatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .len()
-                < MAX_PASSENGERS;
+                < max_passengers(self.vehicle.entity.entity_type);
 
         if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
             return self.open_custom_inventory_screen(player);
@@ -437,7 +448,7 @@ impl EntityBase for BoatEntity {
 
 #[cfg(test)]
 mod tests {
-    use super::is_chest_boat;
+    use super::{is_chest_boat, max_passengers};
     use pumpkin_data::entity::EntityType;
 
     #[test]
@@ -451,6 +462,14 @@ mod tests {
                 "{}",
                 entity_type.resource_name
             );
+            if entity_type.boat.is_some() {
+                assert_eq!(
+                    max_passengers(entity_type),
+                    if expected { 1 } else { 2 },
+                    "{}",
+                    entity_type.resource_name
+                );
+            }
         }
     }
 }

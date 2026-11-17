@@ -1283,11 +1283,7 @@ pub trait EntityBase: Send + Sync + std::any::Any {
             // Vanilla: a mob pushed into a boat with a free seat mounts it.
             if self_entity.entity_type.boat.is_some() {
                 let max_passengers =
-                    if crate::entity::vehicle::boat::is_chest_boat(self_entity.entity_type) {
-                        1
-                    } else {
-                        2
-                    };
+                    crate::entity::vehicle::boat::max_passengers(self_entity.entity_type);
                 let has_room = self_entity
                     .passengers
                     .lock()
