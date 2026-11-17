@@ -17,17 +17,23 @@ Status: UNVERIFIED (no cargo run in this pass; wire values from Bedrock protocol
 
 ## Divergences logged, not changed
 
-- `server/command_request.rs` `CommandOriginData.type` is decoded as a string. Bedrock sends a varuint
-  CommandOriginType (player 0, command block 1, ..., automation player 5, dedicated server 7). Core does
-  not read the origin type, so impact is low. Needs a captured packet before changing the wire layout.
-- `server/inventory_transaction.rs` reads a bool-prefixed `legacy_set_item_slots` and bool-prefixed
-  `window_id` / `source_flags`. The existing decode test vectors are captured bytes that include the bool
-  prefix, so the layout is left as-is.
+- `server/command_request.rs` origin type: fixed to a varuint `CommandOriginType` (UNVERIFIED, no cargo run).
+  The player id is read only for DevConsole (3) and Test (4), else `-1`. Wire encoding of the id (LE i64)
+  is kept from the prior code and is UNVERIFIED. No captured fixture exists for this packet.
+- `server/inventory_transaction.rs` bool-prefixed `legacy_set_item_slots`, `window_id`, `source_flags`: VERIFIED
+  as-is. The existing decode test vectors (captured bytes) include the bool prefixes, so the code matches
+  fixtures. The bare-varint layout from the public spec is not used by the captured client.
 - `InventoryActionSource` lacks `Global = 1` and `UntrackedInteractionUI = 100`. Both decode to
   `Unknown(n)`, which nothing branches on today.
 - `server/modal_form_response.rs` cancel reason is a raw `u8`. Bedrock values: closed 0, busy 1. No consumer.
 - `play/player_action.rs` groups `ContinueDestroyBlock` with `StartDestroyBlock`. Ordering is handled by
   the mining position check, so behaviour is kept.
+
+## Java play sweep
+
+Checked `crates/pumpkin-core/src/net/java/play/*`: slot ranges (`set_held_item` 0..=8, creative slot 1..=45),
+sign lines (bounded 384 at decode), crafter slot index (bounds in `slot_can_be_disabled`), float finiteness
+(`move_vehicle`, `use_item`, `confirm_teleport`), chat timestamp/signature. No new gap found; no change.
 
 ## Not checked
 
