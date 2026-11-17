@@ -530,30 +530,33 @@ impl Goal for EvokerWololoSpellGoal {
             return false;
         }
 
-        // Find blue sheep within 16 blocks
-        let bb = entity.bounding_box.load().expand(16.0, 4.0, 16.0);
+        // Vanilla EvokerWololoSpellGoal: needs mob griefing, then a random blue sheep in 16x4x16.
         let world = entity.world.load();
-        let candidates = world.get_entities_at_box(&bb);
-
-        for cand in candidates {
-            if *cand.get_entity().entity_type == EntityType::SHEEP
-                && let Some(sheep) = cand
-                    .cast_any()
-                    .downcast_ref::<crate::entity::passive::sheep::SheepEntity>()
-            {
-                // Blue color is 11 in Minecraft
-                if sheep.get_color() == 11 {
-                    *evoker
-                        .wololo_target_id
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                        Some(cand.get_entity().entity_id);
-                    return true;
-                }
-            }
+        if !world.level_info.load().game_rules.mob_griefing {
+            return false;
         }
-
-        false
+        let bb = entity.bounding_box.load().expand(16.0, 4.0, 16.0);
+        let blue_sheep: Vec<i32> = world
+            .get_entities_at_box(&bb)
+            .into_iter()
+            .filter(|cand| *cand.get_entity().entity_type == EntityType::SHEEP)
+            .filter_map(|cand| {
+                let sheep = cand
+                    .cast_any()
+                    .downcast_ref::<crate::entity::passive::sheep::SheepEntity>()?;
+                // Blue color is 11 in Minecraft
+                (sheep.get_color() == 11).then(|| cand.get_entity().entity_id)
+            })
+            .collect();
+        if blue_sheep.is_empty() {
+            return false;
+        }
+        let picked = blue_sheep[rand::random_range(0..blue_sheep.len())];
+        *evoker
+            .wololo_target_id
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(picked);
+        true
     }
 
     fn should_continue(&mut self, _mob: &dyn Mob) -> bool {
