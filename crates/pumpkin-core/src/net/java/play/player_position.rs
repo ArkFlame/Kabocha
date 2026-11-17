@@ -7,7 +7,7 @@ fn position_is_finite(position: &Vector3<f64>) -> bool {
     position.x.is_finite() && position.y.is_finite() && position.z.is_finite()
 }
 
-fn rotation_is_finite(yaw: f32, pitch: f32) -> bool {
+pub(super) fn rotation_is_finite(yaw: f32, pitch: f32) -> bool {
     yaw.is_finite() && pitch.is_finite()
 }
 
@@ -28,7 +28,7 @@ mod tests {
 }
 
 impl JavaClient {
-    fn kick_invalid_player_movement(&self) {
+    pub(super) fn kick_invalid_player_movement(&self) {
         self.try_kick(&TextComponent::translate_cross(
             translation::java::MULTIPLAYER_DISCONNECT_INVALID_PLAYER_MOVEMENT,
             translation::java::MULTIPLAYER_DISCONNECT_INVALID_PLAYER_MOVEMENT,

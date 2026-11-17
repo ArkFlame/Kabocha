@@ -1,3 +1,4 @@
+use super::player_position::rotation_is_finite;
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::entity::player::ClientMove;
