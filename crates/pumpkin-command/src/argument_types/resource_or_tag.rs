@@ -96,33 +96,12 @@ fn suggest_for_registry(registry: &Identifier, builder: SuggestionsBuilder) -> S
             .filter_and_suggest_iter(biomes)
             .build()
     } else if *registry == POI_REGISTRY {
-        // There is no generated POI type registry (yet), so offer the types
-        // known from tag data plus the ones the server actually creates.
-        let poi_types = [
-            "minecraft:armorer",
-            "minecraft:butcher",
-            "minecraft:cartographer",
-            "minecraft:cleric",
-            "minecraft:farmer",
-            "minecraft:fisherman",
-            "minecraft:fletcher",
-            "minecraft:leatherworker",
-            "minecraft:librarian",
-            "minecraft:mason",
-            "minecraft:shepherd",
-            "minecraft:toolsmith",
-            "minecraft:weaponsmith",
-            "minecraft:home",
-            "minecraft:meeting",
-            "minecraft:beehive",
-            "minecraft:bee_nest",
-            "minecraft:nether_portal",
-            "minecraft:lodestone",
-            "minecraft:lightning_rod",
-        ];
+        let poi_types = pumpkin_data::poi_type::PoiType::ALL
+            .iter()
+            .map(|poi| format!("minecraft:{}", poi.name()));
         builder
             .filter_and_suggest_tags(tags(RegistryKey::PointOfInterestType))
-            .filter_and_suggest_iter(poi_types.iter().map(|&s| s.to_string()))
+            .filter_and_suggest_iter(poi_types)
             .build()
     } else {
         builder.build()
@@ -166,9 +145,8 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for ResourceOrTagKeyArgume
 /// registry.
 ///
 /// Validation happens at parse time where registry data is available, like
-/// vanilla's `ResourceOrTagArgument`: it currently covers biome ids and the
-/// tags of every registry with generated tag data; ids of registries without
-/// generated entry data (such as POI types) are accepted as-is.
+/// vanilla's `ResourceOrTagArgument`: it covers biome and POI ids plus the
+/// tags of every registry with generated tag data.
 pub struct ResourceOrTagArgument(pub Identifier);
 
 impl<S: crate::source::CommandSource> ArgumentType<S> for ResourceOrTagArgument {
@@ -179,10 +157,15 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for ResourceOrTagArgument 
 
         match &value {
             ResourceOrTag::Resource(id) => {
-                if self.0 == BIOME_REGISTRY
-                    && !(id.is_vanilla()
-                        && pumpkin_data::biome::Biome::from_name(id.path()).is_some())
-                {
+                let known = if self.0 == BIOME_REGISTRY {
+                    id.is_vanilla() && pumpkin_data::biome::Biome::from_name(id.path()).is_some()
+                } else if self.0 == POI_REGISTRY {
+                    id.is_vanilla()
+                        && pumpkin_data::poi_type::PoiType::from_name(id.path()).is_some()
+                } else {
+                    true
+                };
+                if !known {
                     return Err(ERROR_UNKNOWN_RESOURCE.create_without_context(
                         TextComponent::text(id.to_string()),
                         TextComponent::text(self.0.to_string()),
@@ -255,5 +238,22 @@ mod tests {
         let plain = suggest("ocean");
         assert!(plain.iter().any(|text| text == "minecraft:ocean"));
         assert!(plain.iter().all(|text| !text.starts_with('#')));
+    }
+
+    /// Vanilla's POI `ResourceOrTagArgument` rejects unknown ids at parse time.
+    /// The generated `PoiType` registry supplies the known ids.
+    #[test]
+    fn poi_ids_are_validated_at_parse_time() {
+        use crate::source::DummySource;
+
+        let poi = ResourceOrTagArgument(POI_REGISTRY.clone());
+        let mut known = StringReader::new("minecraft:librarian");
+        assert!(ArgumentType::<DummySource>::parse(&poi, &mut known).is_ok());
+
+        let mut unknown = StringReader::new("bogus:not_a_poi");
+        assert!(ArgumentType::<DummySource>::parse(&poi, &mut unknown).is_err());
+
+        let mut unknown_vanilla = StringReader::new("minecraft:not_a_poi");
+        assert!(ArgumentType::<DummySource>::parse(&poi, &mut unknown_vanilla).is_err());
     }
 }

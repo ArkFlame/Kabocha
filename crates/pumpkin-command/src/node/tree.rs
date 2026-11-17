@@ -2,12 +2,14 @@ use crate::context::command_context::{CommandContextBuilder, ParsedArgument};
 use crate::context::string_range::StringRange;
 use crate::errors::command_syntax_error::CommandSyntaxError;
 use crate::errors::error_types::LITERAL_INCORRECT;
-use crate::node::Redirection;
 use crate::node::attached::{
     ArgumentAttachedNode, ArgumentNodeId, AttachedNode, CommandAttachedNode, CommandNodeId,
     LiteralAttachedNode, LiteralNodeId, NodeClassification, NodeId, RootAttachedNode,
 };
 use crate::node::detached::{CommandDetachedNode, DetachedNode, GlobalNodeId};
+use crate::node::{
+    LiteralNodeMetadata, OwnedNodeData, RedirectModifier, Redirection, Requirement, Requirements,
+};
 use crate::source::{CommandSource, DummySource};
 use crate::string_reader::StringReader;
 use pumpkin_util::text::TextComponent;
@@ -416,6 +418,78 @@ impl<S: CommandSource> Tree<S> {
     #[must_use]
     pub fn get(&self, name: &str) -> Option<CommandNodeId> {
         self.command_node_mappings.get(name).copied()
+    }
+
+    /// Removes the root command named `name`, all root aliases that redirect to it
+    /// and their descendants. The executors, requirement predicates and argument
+    /// types these nodes held are dropped, so a plugin's library can be released
+    /// after a reload.
+    ///
+    /// Node ids stay stable: removed slots are replaced with inert literal nodes
+    /// that no source can use. Returns `true` when anything was removed.
+    pub fn remove_root_command(&mut self, name: &str) -> bool {
+        let Some(primary) = self.command_node_mappings.get(name).copied() else {
+            return false;
+        };
+        let primary: NodeId = primary.into();
+
+        // Root children that are the command itself or aliases redirecting to it.
+        let root_children: Vec<(String, NodeId)> = self[ROOT_NODE_ID]
+            .children_ref()
+            .iter()
+            .map(|(name, id)| (name.clone(), *id))
+            .collect();
+        let roots: Vec<(String, NodeId)> = root_children
+            .into_iter()
+            .filter(|(_, id)| {
+                *id == primary
+                    || self[*id]
+                        .redirect()
+                        .is_some_and(|redirect| self.resolve(redirect) == Some(primary))
+            })
+            .collect();
+
+        if roots.is_empty() {
+            return false;
+        }
+
+        // Collect the whole subtrees before mutating the nodes they reference.
+        let mut to_remove = Vec::new();
+        let mut stack: Vec<NodeId> = roots.iter().map(|(_, id)| *id).collect();
+        while let Some(id) = stack.pop() {
+            to_remove.push(id);
+            stack.extend(self[id].children_ref().values().copied());
+        }
+
+        // Detach from the root and forget their cached names and global ids.
+        {
+            let root = self[ROOT_NODE_ID].children_mut_ref();
+            for (name, _) in &roots {
+                root.remove(name);
+            }
+        }
+        for id in &to_remove {
+            self.ids_map.remove(&self[*id].global_id());
+            let name = self[*id].name();
+            self.command_node_mappings.remove(&name);
+        }
+
+        // Replacing the node drops the plugin code its executor and predicates held.
+        for id in to_remove {
+            self[id] = AttachedNode::Literal(LiteralAttachedNode {
+                owned: OwnedNodeData {
+                    global_id: GlobalNodeId::new(),
+                    requirements: Requirements(vec![Requirement::from(|_: &S| false)]),
+                    modifier: RedirectModifier::KeepSource,
+                    forks: false,
+                    command: None,
+                },
+                children: FxHashMap::default(),
+                redirect: None,
+                meta: LiteralNodeMetadata::new(""),
+            });
+        }
+        true
     }
 
     /// Returns an iterator to all the nodes of this tree.

@@ -170,6 +170,25 @@ impl<S: CommandSource> CommandDispatcher<S> {
         }
     }
 
+    /// Removes every root command registered by `source`, including its aliases and
+    /// descendants, dropping the plugin code they hold. Called on unload so the
+    /// plugin's library can be released instead of staying resident forever.
+    pub fn remove_commands_from_source(&mut self, source: &str) {
+        let primary_names = self
+            .tree
+            .get_root_children()
+            .into_iter()
+            .filter_map(|node_id| {
+                let metadata = &self.tree[node_id].meta;
+                (metadata.source.as_deref() == Some(source)).then(|| metadata.literal.to_string())
+            })
+            .collect::<Vec<_>>();
+
+        for name in primary_names {
+            self.tree.remove_root_command(&name);
+        }
+    }
+
     /// Returns `true` if a command is disabled or its plugin is inactive.
     #[must_use]
     pub fn is_disabled(&self, name: &str) -> bool {
@@ -1153,6 +1172,40 @@ mod test {
             );
         }
         assert_eq!(dispatcher.execute_input("other", &source), Ok(1));
+    }
+
+    #[test]
+    fn removing_plugin_commands_drops_their_executors() {
+        use std::sync::Arc;
+
+        struct Droppable(Arc<()>);
+        impl CommandExecutor for Droppable {
+            fn execute(&self, _context: &CommandContext) -> CommandExecutorResult {
+                Ok(1)
+            }
+        }
+
+        let token = Arc::new(());
+        let weak = Arc::downgrade(&token);
+        let mut dispatcher = CommandDispatcher::new();
+        dispatcher.register(
+            CommandArgumentBuilder::new("plugin-command", "A plugin command")
+                .with_source("test-plugin")
+                .executes_arc(Arc::new(Droppable(Arc::clone(&token)))),
+        );
+        assert!(weak.upgrade().is_some());
+
+        dispatcher.remove_commands_from_source("test-plugin");
+        drop(token);
+        assert!(weak.upgrade().is_none());
+        assert!(!dispatcher.has_command("plugin-command"));
+
+        let source = DummySource::dummy();
+        assert!(
+            dispatcher
+                .execute_input("plugin-command", &source)
+                .is_err_and(|error| error.error_type == &DISPATCHER_UNKNOWN_COMMAND)
+        );
     }
 
     #[test]

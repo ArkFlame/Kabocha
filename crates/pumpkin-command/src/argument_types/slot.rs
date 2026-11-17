@@ -146,4 +146,16 @@ mod tests {
         assert_eq!(resolve_slot_range("horse.0"), Some(&[500usize][..]));
         assert_eq!(resolve_slot_range("bogus"), None);
     }
+
+    #[test]
+    fn wildcard_ranges_resolve_to_multiple_slots() {
+        // The one-to-many item replace path relies on ranges expanding to every slot.
+        if let Some(slots) = resolve_slot_range("container.*") {
+            assert!(slots.len() > 1, "container.* must expand to many slots");
+            assert_eq!(slots.first(), Some(&0));
+        }
+        if let Some(slots) = resolve_slot_range("armor.*") {
+            assert_eq!(slots.len(), 5);
+        }
+    }
 }

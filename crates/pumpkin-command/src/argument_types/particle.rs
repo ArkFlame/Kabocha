@@ -19,6 +19,53 @@ pub const ERROR_UNKNOWN_PARTICLE: CommandErrorType<1> = CommandErrorType::new(
     translation::bedrock::COMMANDS_PARTICLE_NOTFOUND,
 );
 
+pub const ERROR_INVALID_OPTIONS: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::PARTICLE_INVALIDOPTIONS,
+    translation::java::PARTICLE_INVALIDOPTIONS,
+);
+
+/// Returns the first SNBT key vanilla's codec requires but the options lack.
+///
+/// Vanilla always decodes options through the particle type's codec
+/// (`ParticleArgument.readParticle`), so a missing mandatory field is a parse error,
+/// not a fall back to defaults. Simple particles and types whose codec keys are all
+/// optional (`effect`, `instant_effect`, `dragon_breath`) accept an empty map.
+fn missing_required_option(
+    particle: Particle,
+    options: Option<&NbtCompound>,
+) -> Option<&'static str> {
+    let required: &[&str] = match particle {
+        // BlockParticleOption
+        Particle::Block
+        | Particle::BlockMarker
+        | Particle::FallingDust
+        | Particle::DustPillar
+        | Particle::BlockCrumble => &["block_state"],
+        // DustParticleOptions
+        Particle::Dust => &["color", "scale"],
+        // DustColorTransitionOptions
+        Particle::DustColorTransition => &["from_color", "to_color", "scale"],
+        // ColorParticleOption
+        Particle::EntityEffect | Particle::TintedLeaves | Particle::Flash => &["color"],
+        Particle::SculkCharge => &["roll"],
+        Particle::Shriek => &["delay"],
+        Particle::Item => &["item"],
+        // VibrationParticleOption
+        Particle::Vibration => &["destination", "arrival_in_ticks"],
+        // TrailParticleOption
+        Particle::Trail => &["target", "color", "duration"],
+        // GeyserParticleOptions
+        Particle::Geyser | Particle::GeyserPlume => &["water_blocks"],
+        // GeyserBaseParticleOptions
+        Particle::GeyserBase | Particle::GeyserPoof => &["water_blocks", "burst_impulse_base"],
+        _ => return None,
+    };
+    required
+        .iter()
+        .copied()
+        .find(|key| options.is_none_or(|o| !o.has(key)))
+}
+
 pub struct ParticleArgumentType;
 
 /// A parsed particle argument: the particle type and its optional SNBT options.
@@ -47,6 +94,12 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for ParticleArgumentType {
         } else {
             None
         };
+        if let Some(field) = missing_required_option(particle, options.as_ref()) {
+            return Err(ERROR_INVALID_OPTIONS.create(
+                reader,
+                TextComponent::text(format!("Missing option '{field}' for {particle:?}")),
+            ));
+        }
         Ok(ParticleWithOptions { particle, options })
     }
 
@@ -90,5 +143,52 @@ impl ParticleArgumentType {
         name: &str,
     ) -> Result<ParticleWithOptions, CommandSyntaxError> {
         Ok(context.get_argument::<ParticleWithOptions>(name)?.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn options(pairs: &[(&str, &str)]) -> NbtCompound {
+        let mut compound = NbtCompound::new();
+        for (key, value) in pairs {
+            compound.put_string(key, value.to_string());
+        }
+        compound
+    }
+
+    #[test]
+    fn required_option_missing_when_absent_or_incomplete() {
+        assert_eq!(missing_required_option(Particle::Dust, None), Some("color"));
+        assert_eq!(
+            missing_required_option(Particle::Dust, Some(&options(&[("color", "1")]))),
+            Some("scale")
+        );
+        assert_eq!(
+            missing_required_option(Particle::Trail, Some(&options(&[("color", "1")]))),
+            Some("target")
+        );
+        assert_eq!(
+            missing_required_option(Particle::Vibration, Some(&options(&[("destination", "x")]))),
+            Some("arrival_in_ticks")
+        );
+    }
+
+    #[test]
+    fn required_options_satisfied_or_not_needed() {
+        let dust = options(&[("color", "1"), ("scale", "1")]);
+        assert_eq!(missing_required_option(Particle::Dust, Some(&dust)), None);
+
+        let transition = options(&[("from_color", "1"), ("to_color", "2"), ("scale", "1")]);
+        assert_eq!(
+            missing_required_option(Particle::DustColorTransition, Some(&transition)),
+            None
+        );
+
+        // Simple particles and all-optional codecs accept no options at all.
+        assert_eq!(missing_required_option(Particle::Crit, None), None);
+        assert_eq!(missing_required_option(Particle::Effect, None), None);
+        assert_eq!(missing_required_option(Particle::DragonBreath, None), None);
     }
 }

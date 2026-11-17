@@ -5,7 +5,7 @@ use super::super::FromIntoEvent;
 /// An event that fires at the end of every server tick.
 ///
 /// The associated [`ServerTickEndEventData`] carries:
-/// - `tick`: the 0-indexed number of the tick that just finished.
+/// - `tick`: the 1-based number of the tick that just finished.
 /// - `duration_nanos`: how long the tick took, measured from the start of
 ///   the ticker iteration to just after `Server::tick` returned.
 ///

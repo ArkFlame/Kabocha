@@ -5,7 +5,7 @@ use super::super::FromIntoEvent;
 /// An event that fires at the start of every server tick (~20 Hz under the
 /// default tick rate).
 ///
-/// The associated [`ServerTickStartEventData`] carries the 0-indexed `tick`
+/// The associated [`ServerTickStartEventData`] carries the 1-based `tick`
 /// number of the tick about to run. This event is non-cancellable.
 pub struct ServerTickStartEvent;
 impl FromIntoEvent for ServerTickStartEvent {
