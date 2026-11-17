@@ -634,12 +634,8 @@ impl TrackedEntity {
                     client.try_enqueue_packet(packet_data);
                 }
 
-                let head_yaw = target_entity.head_yaw.load();
-                // TODO: use `pumpkin_util::math::pack_degrees`.
-                let head_rot_packet = CHeadRot::new(
-                    target_id.into(),
-                    (head_yaw * 256.0 / 360.0).rem_euclid(256.0) as u8,
-                );
+                let head_yaw = pack_degrees(target_entity.head_yaw.load());
+                let head_rot_packet = CHeadRot::new(target_id.into(), head_yaw);
                 if let Ok(data) = client.serialize_packet(&head_rot_packet) {
                     client.try_enqueue_packet(data);
                 }
@@ -647,12 +643,8 @@ impl TrackedEntity {
         } else if self.entity.get_living_entity().is_some()
             && let ClientPlatform::Java(client) = player.client.as_ref()
         {
-            let head_yaw = self.entity.get_entity().head_yaw.load();
-            // TODO: use `pumpkin_util::math::pack_degrees`.
-            let head_rot_packet = CHeadRot::new(
-                self.entity_id.into(),
-                (head_yaw * 256.0 / 360.0).rem_euclid(256.0) as u8,
-            );
+            let head_yaw = pack_degrees(self.entity.get_entity().head_yaw.load());
+            let head_rot_packet = CHeadRot::new(self.entity_id.into(), head_yaw);
             if let Ok(data) = client.serialize_packet(&head_rot_packet) {
                 client.try_enqueue_packet(data);
             }
