@@ -32,3 +32,7 @@ Reference: decompiled vanilla `net.minecraft.world.entity.animal.axolotl.Axolotl
 ## Checked and matching
 
 Variant pools and rare 1/1200 roll, group-data spawning/baby rule, air supply 6000/1800 and dry-out damage 2, bucket round trip, breeding/food tag, play-dead/attack/fight brain activities, hunting cooldown memory, `onStopAttacking` killer-in-20-blocks regen, supporting-effects duration math (100 per axolotl, cap 2400), head rotation limits, hurt/death/ambient/swim sounds (from `entity_type` data plus overrides), leash (axolotls are leashable), `removeWhenFarAway`, `requiresCustomPersistence` (call site ORs `persistence_required`), `canBeSeenAsEnemy`.
+
+## h2 parity sweep (status)
+- FIXED f090717d1 - `travel_in_water` falls back to `LivingEntity::travel_in_water` when `is_no_ai()` (vanilla `Axolotl.travel` gates the swim path on `isEffectiveAi() && isInWater()`). UNVERIFIED (no build).
+- Play-dead regen constants, no-AI air path, hurt condition: STILL OPEN - need decompiled 1.21.x source to confirm; not changed.

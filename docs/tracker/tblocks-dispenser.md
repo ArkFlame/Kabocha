@@ -49,3 +49,7 @@ default item ejection velocity.
 5. Tracker issue #3972 (powder snow placed by a bucket is not shown to clients) - the placement
    path is `bucket.rs` `dispense_filled_bucket_at`, not this file; still open upstream and blocked
    on client block-update handling. Keep as open, size M.
+
+## h2 parity sweep (status)
+- Remaining gap 1 (water bottle particles): FIXED (existing tree) - dispenser.rs mud path sends five single splash particles above the dispenser (position matches vanilla). UNVERIFIED for count/spread (no build).
+- Gap 3 (feature flags) and gap 4 (spawn egg Y snap, spawn egg code is off-limits this pass): STILL OPEN.

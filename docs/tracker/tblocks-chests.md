@@ -67,3 +67,7 @@ Files: `crates/pumpkin-core/src/block/blocks/chests.rs`,
 - Container open/close game events and lid block event on viewer-count transitions
   (`block/viewer.rs:20-35`).
 - Waterlogged handling through the generic state property; no per-block fluid hook needed.
+
+## h2 parity sweep (status)
+- FIXED (existing tree) - `has_block_on_top` already uses `is_full_cube()` (chests.rs:1085-1091).
+- Other S rows (partner on state change, synced viewer count width, custom-name labels): STILL OPEN, not attempted this pass.

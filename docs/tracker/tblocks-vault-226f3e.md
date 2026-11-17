@@ -36,3 +36,6 @@ eject 20t apart, 2-5 stacks").
    spawns at `pos.getCenter() + (0, 0.4, 0)` with a small upward velocity and pickup delay. Part of gap 1. Size S.
 8. Client-only: shutter animation, VAULT_AMBIENT loop, VAULT_ACTIVATING/DEACTIVATE and particles are not driven
    server-side; no gameplay blocker.
+
+## h2 parity sweep (status)
+- Gaps 3, 5, 7 (display item, rewarded-set ordering, eject shape) STILL OPEN - need decompiled VaultBlock to verify; not changed.

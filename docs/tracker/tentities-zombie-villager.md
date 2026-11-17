@@ -71,3 +71,6 @@ villager, cured-zombie-villager advancement and `ZOMBIE_VILLAGER_CURED` reputati
 villager type applied at spawn, and `removeWhenFarAway` (`!converting && villager_xp == 0`).
 Golden apple consumption respects creative mode; the interaction is consumed with and without
 Weakness, as in vanilla.
+
+## h2 parity sweep (status)
+- All S rows STILL OPEN - not attempted this pass; the difficulty clamp suggestion needs the vanilla formula confirmed first.

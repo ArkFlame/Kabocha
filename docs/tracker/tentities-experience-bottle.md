@@ -52,3 +52,6 @@ Source audited:
 7. Silent guard scope. crates/pumpkin-core/src/entity/projectile/experience_bottle.rs:93-95 suppresses only
    the splash sound for silent bottles while particles always send; confirm against vanilla isSilent()
    placement before changing. Size S (needs .vendor).
+
+## h2 parity sweep (status)
+- All S rows STILL OPEN - need .vendor constants (orb offset, dispense arc) or are cosmetic; not changed this pass.

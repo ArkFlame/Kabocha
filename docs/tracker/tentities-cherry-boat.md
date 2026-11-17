@@ -64,3 +64,6 @@ apply to cherry boats as well.
 
 None of 1-5 is cherry-specific; they are recorded once here because the tracker rows for all boat types
 point at this file.
+
+## h2 parity sweep (status)
+- S rows STILL OPEN - need vanilla `AbstractBoat` passenger/ticks-underwater rules confirmed before changing `interact`; not changed this pass.

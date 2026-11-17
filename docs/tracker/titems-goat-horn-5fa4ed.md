@@ -60,3 +60,6 @@ default instrument = `minecraft:ponder_goat_horn`, and stack use duration via
 
 Vanilla shown values: use duration 140 t for all 8 instruments, range 256 blocks, cooldown 140 t
 (`~7 s`), sound category RECORDS, one `ITEM_USED` stat per play.
+
+## h2 parity sweep (status)
+- S rows STILL OPEN - need a stack-aware use-duration trait method (API change); not changed this pass.

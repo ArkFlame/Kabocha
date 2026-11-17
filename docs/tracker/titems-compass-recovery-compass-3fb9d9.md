@@ -52,3 +52,6 @@ which is what vanilla `ItemStack.consumeAndReturn`/`split` does.
 - Recovery compass target: `LastDeathLocation` set on death (`entity/player.rs:6419-6428`),
   persisted in NBT (`:9158`), sent in login (`world/mod.rs:4255`) and respawn
   (`world/mod.rs:5195`) via `PlayerSpawnData`, matching vanilla `ServerPlayer.lastDeathLocation`.
+
+## h2 parity sweep (status)
+- S rows 1, 3, 4, 5 STILL OPEN - not attempted this pass (player.rs component/inventory tick paths need a dedicated review).

@@ -47,3 +47,6 @@ confidence.
 8. `apply_effects` skips spectators - beacon.rs:148-153.
    Vanilla `applyEffects` iterates `level.getEntitiesOfClass(Player.class, aabb)`
    with no spectator predicate. Harmless, but confirm before changing. Size S.
+
+## h2 parity sweep (status)
+- All four S rows STILL OPEN - each needs confirmation against decompiled `BeaconMenu`/`BeaconBlockEntity` first (no reference source in .vendor for this pass); not changed.

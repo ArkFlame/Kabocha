@@ -67,3 +67,6 @@ in this worktree (.vendor/ absent), so vanilla class behaviour is from knowledge
   vanilla-source questions, 4-6 are hygiene/coverage.
 - Client-predicted boat motion, seat rendering and paddle animation are out of
   scope for this row.
+
+## h2 parity sweep (status)
+- S rows STILL OPEN - hygiene-only or needs verification of chest-boat interaction; not changed this pass.

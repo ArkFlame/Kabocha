@@ -63,3 +63,10 @@ Already covered (verified, no action):
    (`pumpkin-gametest`: place shelf, insert two books in different slots, assert the
    occupied properties, `last_interacted_slot` and comparator output 1 then 2, then
    remove one and assert the output falls back to the remaining slot + 1).
+
+## h2 parity sweep (status)
+2. FIXED f19b8d626 - empty slot now returns Pass (was Consume). UNVERIFIED (no build, no test).
+3. FIXED (existing tree) - `remove_stack_specific` already does `split(amount)` and returns EMPTY for amount 0.
+4. STILL OPEN - ordering only, identical visible result; not touched this pass.
+5. STILL OPEN - occupancy still read from blockstate; needs block-entity stack read, deferred (S, not attempted).
+6. STILL OPEN - gametest not written (M, needs pumpkin-gametest world harness).

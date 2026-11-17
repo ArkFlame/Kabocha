@@ -18,3 +18,7 @@ Method: no decompiled vanilla in `.vendor/`; compared against vanilla `Endermite
 2. OPEN `endermite.rs:101-103` - the persistence gate (`!persistence_required`) may be a Pumpkin-only guard: the recalled vanilla `customServerAiStep` increments `life` unconditionally, which would make named/persistent endermites still expire. Not changed because the vanilla body could not be confirmed here and removing the guard would be a behaviour reversal. Vanilla class: `Endermite#customServerAiStep`. Size S.
 3. OPEN `ender_pearl.rs:147` - the 5% roll uses `rand::random::<f32>()` rather than the projectile RNG, and the spawn position is the pearl's `pos` rather than `onHit`'s impact point. Statistically equivalent, not observable. Vanilla class: `EnderPearl#onHit`. Size S.
 4. OPEN `endermite.rs:131-137` - particles are broadcast as server `World::spawn_particle` packets (count 0, velocity packed into the offset/spread fields, max speed 1.0), while vanilla emits them client-side with explicit per-particle velocity. Same visual class, not fixable without a per-particle particle packet. Vanilla class: `Endermite#aiStep`. Size S.
+
+## h2 parity sweep (status)
+1. FIXED 581555367 - portal particle x/z spread now `(rng - 0.5) * width * 0.5`, i.e. +-width*0.25 as vanilla `getRandomX(0.5)`. UNVERIFIED (no build).
+2-4. STILL OPEN - not attempted this pass (persistence gate needs reference check, RNG/impact point not observable, client-side velocity packets are a protocol-level change).

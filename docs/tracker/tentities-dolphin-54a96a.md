@@ -109,3 +109,6 @@ Trigger for the re-review: `0505dd44e` "fix(entity): give all living entities an
 - Attributes from codegen: max health 10, attack damage 3, movement speed 1.2, follow range 16,
   water-creature spawn restriction, 4/chunk limit, XP 2.
 
+
+## h2 parity sweep (status)
+- S rows STILL OPEN - tag dump not extracted, and the negated conjunction needs a reference check; not changed this pass.

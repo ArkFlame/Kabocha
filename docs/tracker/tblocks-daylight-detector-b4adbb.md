@@ -41,3 +41,7 @@ vanilla-derived tests in `daylight_detector.rs:114-164` and `world/environment.r
    `GameEvent.Context.of(player, newState)`; no known gameplay listener for this event.
 5. **S** - `DaylightDetectorBlock::update_power` (`entities/daylight_detector.rs:52-54`) is an
    unused public wrapper with no vanilla counterpart; delete on next touch.
+
+## h2 parity sweep (status)
+- Item 4 FIXED (existing tree) - toggle already emits BlockChange with the player as source (`emit_game_event_with_source`).
+- Item 3 STILL OPEN - NOTIFY_LISTENERS vs flag-3 follow-up; redundant packet only, no gameplay delta, skipped.
