@@ -550,6 +550,16 @@ impl ItemEntity {
 
     fn process_age_and_merge(&self) -> bool {
         let entity = &self.entity;
+        // Vanilla `ItemEntity.tick` merges neighbours before it ages and discards the item,
+        // so the item's final tick can still merge.
+        // merge rate on `tickCount`: 2 while the item changes block cell, else 40.
+        let moved =
+            BlockPos::floored_v(entity.last_pos.load()) != BlockPos::floored_v(entity.pos.load());
+        let rate = if moved { 2 } else { 40 };
+        if entity.tick_count.load(Ordering::Relaxed) % rate == 0 {
+            self.merge_with_neighbours();
+        }
+
         // Vanilla keeps Age at -32768 for never-despawn items: they still merge.
         let age = if self.never_despawn.load(Ordering::Relaxed) {
             self.item_age.load(Ordering::Relaxed)
@@ -573,14 +583,6 @@ impl ItemEntity {
                 e.get_entity().remove();
             }
             return false;
-        }
-
-        // merge rate on `tickCount`: 2 while the item changes block cell, else 40.
-        let moved =
-            BlockPos::floored_v(entity.last_pos.load()) != BlockPos::floored_v(entity.pos.load());
-        let rate = if moved { 2 } else { 40 };
-        if entity.tick_count.load(Ordering::Relaxed) % rate == 0 {
-            self.merge_with_neighbours();
         }
 
         true
