@@ -133,11 +133,9 @@ impl EntityBase for DragonFireballEntity {
         }
 
         for candidate in candidates {
-            if candidate.get_living_entity().is_none()
-                || !candidate.get_entity().is_alive()
-                || candidate.is_spectator()
-                || self.is_owned_entity(candidate.as_ref())
-            {
+            // Vanilla picks from `getEntitiesOfClass(LivingEntity.class, box)`: the owner,
+            // spectators and dying entities are all candidates, only the type is filtered.
+            if candidate.get_living_entity().is_none() {
                 continue;
             }
             let cand_pos = candidate.get_entity().pos.load();
