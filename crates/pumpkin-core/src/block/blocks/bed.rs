@@ -304,10 +304,10 @@ impl BedBlock {
         // Make sure player is close enough
         if !player
             .position()
-            .is_within_bounds(bed_head_pos.to_f64(), 3.0, 3.0, 3.0)
+            .is_within_bounds(bed_head_pos.to_f64(), 3.0, 2.0, 3.0)
             && !player
                 .position()
-                .is_within_bounds(bed_foot_pos.to_f64(), 3.0, 3.0, 3.0)
+                .is_within_bounds(bed_foot_pos.to_f64(), 3.0, 2.0, 3.0)
         {
             player.send_system_message_raw(
                 &pumpkin_macros::translate_cross!(
@@ -347,9 +347,11 @@ impl BedBlock {
             return BlockActionResult::SuccessServer;
         }
 
-        // Make sure there are no monsters nearby
+        // Make sure there are no monsters nearby. Vanilla skips this in creative
+        // and only scans around the head (ServerPlayer#getBedResult).
         for entity in world.entities.load().iter() {
-            if !entity_prevents_sleep(entity.get_entity())
+            if player.gamemode.load() == GameMode::Creative
+                || !entity_prevents_sleep(entity.get_entity())
                 || entity
                     .get_mob()
                     .is_some_and(|mob| !mob.is_preventing_player_rest(player.as_ref()))
@@ -358,9 +360,7 @@ impl BedBlock {
             }
 
             let pos = entity.get_entity().pos.load();
-            if pos.is_within_bounds(bed_head_pos.to_f64(), 8.0, 5.0, 8.0)
-                || pos.is_within_bounds(bed_foot_pos.to_f64(), 8.0, 5.0, 8.0)
-            {
+            if pos.is_within_bounds(bed_head_pos.to_f64(), 8.0, 5.0, 8.0) {
                 player.send_system_message_raw(
                     &pumpkin_macros::translate_cross!(
                         translation::java::BLOCK_MINECRAFT_BED_NOT_SAFE,
