@@ -112,8 +112,8 @@ impl FishingBobberEntity {
             .synched_data
             .define(pumpkin_data::tracked_data::fishing_bobber::DATA_BITING, false);
 
-        // Vanilla `FishingHook` constructor: `this.luck = Math.max(1, luck)`.
-        let luck_bonus = luck_bonus.max(1);
+        // Vanilla `FishingHook` constructor: `this.luck = Math.max(0, luck)`.
+        let luck_bonus = luck_bonus.max(0);
         let wait_time_reduction_ticks = wait_time_reduction_ticks.max(0);
         // Vanilla `FishingBobberEntity.catchingFish` rolls `100..=600` minus the lure speed.
         let wait_countdown = rand::random_range(100..=600) - wait_time_reduction_ticks;
