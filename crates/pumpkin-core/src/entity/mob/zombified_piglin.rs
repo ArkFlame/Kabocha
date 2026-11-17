@@ -48,7 +48,7 @@ pub struct ZombifiedPiglinEntity {
 
 impl ZombifiedPiglinEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let entity = ZombieEntityBase::with_behaviour_goals(entity, add_behaviour_goals);
+        let entity = ZombieEntityBase::with_behaviour_goals(entity, true, add_behaviour_goals);
         entity
             .mob_entity
             .navigator

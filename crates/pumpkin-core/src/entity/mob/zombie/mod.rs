@@ -83,7 +83,7 @@ pub struct ZombieEntityBase {
 
 impl ZombieEntityBase {
     pub fn new(entity: Entity) -> Arc<Self> {
-        Self::with_behaviour_goals(entity, Self::add_behaviour_goals)
+        Self::with_behaviour_goals(entity, true, Self::add_behaviour_goals)
     }
 
     /// `HurtByTargetGoal` that alerts every nearby zombie but zombified piglins.
@@ -110,7 +110,14 @@ impl ZombieEntityBase {
         hunting::apply(target_selector, mob_entity, ZOMBIE_HUNTS);
     }
 
-    pub fn with_behaviour_goals(entity: Entity, add_behaviour_goals: fn(&MobEntity)) -> Arc<Self> {
+    /// Constructs a zombie-family mob with the shared goals. `destroy_eggs` mirrors whether the vanilla
+    /// `registerGoals` extends `Zombie#registerGoals`, which is the only place `ZombieAttackTurtleEggGoal`
+    /// is added; vanilla `Drowned` overrides it without calling `super`.
+    pub fn with_behaviour_goals(
+        entity: Entity,
+        destroy_eggs: bool,
+        add_behaviour_goals: fn(&MobEntity),
+    ) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
         let zombie = Self {
             mob_entity,
@@ -131,7 +138,9 @@ impl ZombieEntityBase {
         };
 
         let goal_selector = &mob_arc.mob_entity.goals_selector;
-        goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
+        if destroy_eggs {
+            goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
+        }
         goal_selector.add_goal(
             8,
             LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
@@ -140,6 +149,15 @@ impl ZombieEntityBase {
         add_behaviour_goals(&mob_arc.mob_entity);
 
         mob_arc
+    }
+
+    /// For a zombie-family member whose vanilla `registerGoals` does not call `super`, so it never
+    /// inherits `Zombie.ZombieAttackTurtleEggGoal` (vanilla `Drowned`).
+    pub fn without_turtle_egg_goal(
+        entity: Entity,
+        add_behaviour_goals: fn(&MobEntity),
+    ) -> Arc<Self> {
+        Self::with_behaviour_goals(entity, false, add_behaviour_goals)
     }
 
     #[must_use]

@@ -80,7 +80,7 @@ pub struct DrownedEntity {
 
 impl DrownedEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let entity = ZombieEntityBase::with_behaviour_goals(entity, |_| {});
+        let entity = ZombieEntityBase::without_turtle_egg_goal(entity, |_| {});
         let mut navigator = entity
             .mob_entity
             .navigator
