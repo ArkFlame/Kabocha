@@ -13,3 +13,8 @@ Remaining gaps:
 | docs (tracker) | n/a | No `.vendor/` decompiled reference in this worktree, so the vanilla comparison is unverified against source | S |
 
 Not compiled or tested (no cargo run per brief).
+
+## Gapwave2-2 status (h3)
+- boat.rs:150-151 piglin anger on open: STILL OPEN (M, no piglin anger hook in AI)
+- player.rs:4406-4427 hand-written boat list: STILL OPEN (S, the list is the workaround for missing c:boats entries, blocked on codegen)
+- docs row: UNVERIFIED (no .vendor decompiled reference)

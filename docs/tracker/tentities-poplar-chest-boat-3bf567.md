@@ -49,3 +49,10 @@ behaviour, not quoted decompiled source.
 
 Client-only effects (chest rendering, screen layout, paddle wobble) were not assessed.
 No cargo or test run was performed (worker constraint); the orchestrator batch-compiles.
+
+## Gapwave2-2 status (h3)
+- boat.rs:377 sneak-only open: FIXED already in code (boat.rs interact gates open_custom_inventory_screen on is_sneaking; no change)
+- boat.rs:332-357 contents on every removal: FIXED bc9cc5098 (BoatEntity::on_removed via World::remove_entity, claim-guarded scatter_chest_contents)
+- boat.rs:113-122 CONTAINER_OPEN: UNVERIFIED, emission kept (vanilla openCustomInventoryScreen emits CONTAINER_OPEN)
+- tag.rs C_BOATS poplar_chest_boat: STILL OPEN (generated data, needs codegen run)
+- passengers.rs offsets: STILL OPEN (S, not started in this wave)

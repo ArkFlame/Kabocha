@@ -22,3 +22,7 @@ None confirmed. Two items need a decompiled source or runtime check before any c
 |---|---|---|---|
 | 1 | `parrot.rs:452` | `HAPPY_GHAST` maps to `Sound::IntentionallyEmpty` and `imitate_nearby` plays it, returning true. Vanilla maps happy ghast to `SoundEvents.EMPTY`; confirm whether vanilla's imitate path skips EMPTY before deciding to filter. | S |
 | 2 | `parrot.rs:343-363` | Flap state and the `velocity.y * 0.6` descent damping are computed in the server AI step; vanilla `Parrot.calculateFlapping` runs in the client-side `aiStep` only. Pumpkin exposes flap state through `mob_is_flapping`/`mob_on_flap` and uses the same pattern for chicken, so left unchanged. Needs runtime observation of parrot fall speed. | M |
+
+## Gapwave2-2 status (h3)
+- parrot.rs:452 HAPPY_GHAST EMPTY sound: UNVERIFIED, no change (vanilla EMPTY skip not confirmed without decompiled source)
+- parrot.rs:343-363 flap state on server: STILL OPEN (M, needs runtime observation of fall speed)

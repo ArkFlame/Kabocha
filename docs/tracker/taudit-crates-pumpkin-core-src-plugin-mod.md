@@ -37,3 +37,8 @@ None. No gap below is both small and certain; details and sizes are recorded ins
 - Unload ordering/ownership, loader pinning and the library-drain timeout machinery
   (`:462-573`, `:712-830`, `:2561-2760`) have no Bukkit equivalent to diverge from and
   are covered by the module's own async tests.
+
+## Gapwave2-2 status (h3)
+- TODO remove plugin command nodes on reload: STILL OPEN (L, dispatcher node removal not started)
+- blocking/non-blocking dispatch order: STILL OPEN (M, needs a concurrency contract decision)
+- handler panic isolation: STILL OPEN (M, not started in this wave)

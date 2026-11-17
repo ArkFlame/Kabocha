@@ -41,3 +41,6 @@ Notes: `stringify_macro_argument` (`:1714`) matches `MacroFunction#stringify` ex
 
 - `disable_pack` (S): FIXED in 722e94305. Only `vanilla` is required; `pumpkin-unit-test` can be disabled and is filtered out of the enabled list. The loader still scans embedded packs independently, so a disabled embedded pack may still load (not verified).
 - Remaining rows (zip packs, load order, feature flags from mcmeta, `filter` handling, function chain depth, macro template validation): not attempted this pass.
+
+## Gapwave2-2 status (h3)
+- remaining datapack rows: STILL OPEN (note body in this worktree is unreadable; rows not reviewed in this wave; prior fix 722e94305)

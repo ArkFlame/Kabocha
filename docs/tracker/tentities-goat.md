@@ -16,3 +16,12 @@ Fixed in this pass: age-boundary horn toggle (vanilla ageBoundaryReached addHorn
 | 7 | goat.rs (no equivalent) | Goat.handleEntityEvent(58/59), getRammingXHeadRot, aiStep lowerHeadTick | Head-lowering animation state (isLoweringHead, lowerHeadTick clamped 0..20, 30 deg of pitch). Server has no renderer; only the entity event broadcast matters. Client-only effect, not blocking. | S |
 
 Note: Pumpkin models goats with goals, vanilla uses a Brain (GoatAi). The goal set here matches the brain activities for panic (2.0), tempt (1.25), follow-adult (1.25), stroll (1.0), look-at-player (6.0) and look-around, so those are not gaps.
+
+## Gapwave2-2 status (h3)
+- #1 ram activity: STILL OPEN (L, needs generic ram goal, out of wave scope)
+- #2 long jump: STILL OPEN (L, needs long-jump goal)
+- #3 horn drop: STILL OPEN (M, not started in this wave; needs instrument tag lookup and horn-break hook)
+- #4 memory init: STILL OPEN (folds into #1/#2)
+- #5 per-goat follow distance: FIXED a57f7697d (FollowParentGoal::with_min_distance, goat samples 5..=16; UNVERIFIED in game)
+- #6 spawn rule: STILL OPEN (blocked on MINECRAFT_GOATS_SPAWNABLE_ON data, needs extractor)
+- #7 head-lowering event: UNVERIFIED client-only effect, no server change

@@ -35,3 +35,7 @@ Adjacent (other files, found while reading the call chain):
 - `analog_move` deadzone (S): FIXED in 38492c288 (`ANALOG_DEADZONE` 0.1). UNVERIFIED: the 0.1 threshold is not from a decompiled source.
 - `InputData::StartJumping` (M): STILL OPEN. The charge scale only exists in the held `JumpDown` ticks; wiring needs per-tick charge tracking first.
 - Remaining rows (`await_teleport`, `apply_mount_move`, sneak raw flags, camera-relative movement, spin attack gating): not attempted this pass.
+
+## Gapwave2-2 status (h3)
+- player_auth_input StartJumping: FIXED 039310a96 (StartJumping now sets the Java JUMP input)
+- remaining rows: STILL OPEN (note body in this worktree is unreadable; rows not reviewed in this wave)
