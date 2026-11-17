@@ -397,3 +397,18 @@ impl CreeperEntity {
         self.explosion_radius.store(radius, Ordering::Relaxed);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_fuse_time_matches_vanilla() {
+        assert_eq!(DEFAULT_FUSE_TIME, 30);
+    }
+
+    #[test]
+    fn default_explosion_radius_matches_vanilla() {
+        assert_eq!(DEFAULT_EXPLOSION_RADIUS, 3);
+    }
+}

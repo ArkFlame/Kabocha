@@ -280,3 +280,13 @@ pub trait AgeableMob: Mob {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn baby_start_age_matches_vanilla() {
+        assert_eq!(BABY_START_AGE, -24000);
+    }
+}

@@ -220,3 +220,13 @@ impl Mob for OcelotEntity {
             && self.get_entity().tick_count.load(Ordering::Relaxed) > DESPAWN_AFTER_TICKS
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn despawn_after_ticks_matches_vanilla() {
+        assert_eq!(DESPAWN_AFTER_TICKS, 2400);
+    }
+}

@@ -152,3 +152,13 @@ impl Mob for HuskEntity {
         self.entity.read_nbt(self, nbt);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hunger_ticks_per_difficulty_matches_vanilla() {
+        assert_eq!(HUNGER_TICKS_PER_DIFFICULTY, 140);
+    }
+}

@@ -189,3 +189,18 @@ impl Mob for SkeletonEntityBase {
         self.equip_default_bow();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attack_interval_matches_vanilla() {
+        assert_eq!(SKELETON_ATTACK_INTERVAL, 40);
+    }
+
+    #[test]
+    fn hard_attack_interval_matches_vanilla() {
+        assert_eq!(SKELETON_HARD_ATTACK_INTERVAL, 20);
+    }
+}

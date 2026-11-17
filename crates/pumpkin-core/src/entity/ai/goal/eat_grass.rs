@@ -134,3 +134,18 @@ impl Goal for EatGrassGoal {
         self.goal_control
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regrow_interval_matches_vanilla() {
+        assert_eq!(MAX_INTERVAL, 1000);
+    }
+
+    #[test]
+    fn baby_regrow_interval_matches_vanilla() {
+        assert_eq!(BABY_INTERVAL, 50);
+    }
+}

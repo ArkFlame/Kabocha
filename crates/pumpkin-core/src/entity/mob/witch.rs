@@ -480,3 +480,13 @@ impl Raider for WitchEntity {
         Sound::EntityWitchCelebrate
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drinking_speed_modifier_matches_vanilla() {
+        assert_eq!(SPEED_MODIFIER_DRINKING_AMOUNT, -0.25);
+    }
+}

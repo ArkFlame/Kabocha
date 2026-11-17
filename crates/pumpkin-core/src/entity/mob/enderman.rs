@@ -639,3 +639,13 @@ impl Mob for EndermanEntity {
 fn as_splash_potion(entity: &dyn EntityBase) -> Option<&SplashPotionEntity> {
     entity.cast_any().downcast_ref::<SplashPotionEntity>()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn max_teleport_radius_matches_vanilla() {
+        assert_eq!(MAX_TELEPORT_RADIUS, 32);
+    }
+}

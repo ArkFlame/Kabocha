@@ -463,3 +463,13 @@ impl Goal for RandomFloatAroundGoal {
         Controls::MOVE
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_explosion_power_matches_vanilla() {
+        assert_eq!(GhastEntity::DEFAULT_EXPLOSION_POWER, 1);
+    }
+}

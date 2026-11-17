@@ -284,3 +284,13 @@ impl Goal for BreedGoal {
         Controls::MOVE | Controls::LOOK
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn breeding_cooldown_matches_vanilla() {
+        assert_eq!(BREEDING_COOLDOWN, 6000);
+    }
+}

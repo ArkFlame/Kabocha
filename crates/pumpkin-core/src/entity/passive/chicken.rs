@@ -402,3 +402,13 @@ impl Mob for ChickenEntity {
         self.animal_interact(player, item_stack)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn egg_lay_time_matches_vanilla() {
+        assert_eq!(EGG_LAY_TIME, 6000..12000);
+    }
+}

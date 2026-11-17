@@ -315,3 +315,13 @@ pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
         .velocity_dirty
         .store(true, std::sync::atomic::Ordering::SeqCst);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversion_time_matches_vanilla() {
+        assert_eq!(HoglinEntity::CONVERSION_TIME, 300);
+    }
+}
