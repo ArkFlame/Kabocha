@@ -34,7 +34,8 @@ impl MerchantOffer {
 
     pub const fn update_demand(&mut self) {
         // Vanilla clamps demand at zero, so a restock never turns into a discount.
-        self.demand = (self.demand + self.uses - (self.max_uses - self.uses)).max(0);
+        let demand = self.demand + self.uses - (self.max_uses - self.uses);
+        self.demand = if demand > 0 { demand } else { 0 };
     }
 
     pub const fn reset_uses(&mut self) {
