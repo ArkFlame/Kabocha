@@ -7058,7 +7058,8 @@ impl World {
     }
 
     fn effective_sky_brightness_from(&self, sky_light: u8) -> i32 {
-        i32::from(sky_light) - self.get_sky_darken()
+        // LevelReader#getEffectiveSkyBrightness: Math.max(skyLight - skyDarken, 0).
+        (i32::from(sky_light) - self.get_sky_darken()).max(0)
     }
 
     #[must_use]
