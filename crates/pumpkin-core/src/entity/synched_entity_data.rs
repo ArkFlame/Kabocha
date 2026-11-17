@@ -272,7 +272,7 @@ mod test {
         );
     }
 
-    /// Vanilla packs the dirty items in ascending tracked-id order. FishingHook relies on it
+    /// Vanilla packs the dirty items in ascending tracked-id order. `FishingHook` relies on it
     /// for its field 0 flags byte and its BITING boolean; sending them out of order makes
     /// clients report `Byte` vs `Boolean` for field 0 (upstream #3051).
     #[test]

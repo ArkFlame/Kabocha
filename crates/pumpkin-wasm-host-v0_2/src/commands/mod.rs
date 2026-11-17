@@ -805,7 +805,7 @@ const fn map_util_locale_to_wit(locale: pumpkin_util::translation::Locale) -> Lo
 
 #[cfg(test)]
 mod tests {
-    use pumpkin::plugin::command::HostCommand;
+    use crate::pumpkin::plugin::command::HostCommand;
     use pumpkin_wasm_host_common::state::PluginHostState;
     use wasmtime::component::Resource;
 
@@ -822,7 +822,7 @@ mod tests {
 
     #[test]
     fn message_argument_type_is_supported() {
-        use pumpkin::plugin::command::{ArgumentType, HostCommandNode};
+        use crate::pumpkin::plugin::command::{ArgumentType, HostCommandNode};
         let mut state = PluginHostState::new();
         assert!(
             state

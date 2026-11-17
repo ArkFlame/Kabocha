@@ -901,7 +901,7 @@ mod tests {
     }
 
     /// Vanilla `FishingHook` field indexes and serializers: `DATA_HOOKED_ENTITY` is the
-    /// VarInt at index 8 (entity id + 1, 0 when unhooked) and `DATA_BITING` is the boolean
+    /// `VarInt` at index 8 (entity id + 1, 0 when unhooked) and `DATA_BITING` is the boolean
     /// at index 9. A wrong index or serializer desyncs the client's Set Entity Data parse,
     /// which shows up as a trailing `0xFF` read as an NBT tag.
     #[test]

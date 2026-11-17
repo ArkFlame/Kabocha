@@ -5792,7 +5792,7 @@ mod ai_step_tests {
         );
         let mob = ProbeMob {
             mob: MobEntity::new(Entity::new(
-                world.clone(),
+                world,
                 Vector3::new(0.5, 64.0, 0.5),
                 &EntityType::COW,
             )),
@@ -6045,7 +6045,7 @@ mod ai_step_tests {
         Ok(())
     }
 
-    /// Full ticks match official 26.3 ascent; death, NoAI and the island bound hold.
+    /// Full ticks match official 26.3 ascent; death, `NoAI` and the island bound hold.
     #[tokio::test]
     async fn blaze_ascent_preserves_small_impulses_and_respects_lifecycle_and_reach() -> TestResult
     {

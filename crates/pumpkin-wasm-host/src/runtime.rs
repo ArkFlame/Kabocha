@@ -143,6 +143,10 @@ impl PluginRuntime {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one sequential plugin load: read, compile, link, instantiate"
+    )]
     pub async fn init_plugin<P: AsRef<Path>>(
         &self,
         path: P,

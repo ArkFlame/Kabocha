@@ -120,6 +120,10 @@ impl ToFromWasmEvent for BlockBreakEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockBreakEvent is applied in place by apply_wasm_event")
     }
@@ -242,6 +246,10 @@ impl ToFromWasmEvent for BlockPlaceEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockPlaceEvent is applied in place by apply_wasm_event")
     }
@@ -302,6 +310,10 @@ impl ToFromWasmEvent for BlockIgniteEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockIgniteEvent is applied in place by apply_wasm_event")
     }
@@ -409,6 +421,10 @@ impl ToFromWasmEvent for BlockExplodeEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockExplodeEvent is applied in place by apply_wasm_event")
     }
@@ -452,6 +468,10 @@ impl ToFromWasmEvent for BlockPistonExtendEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockPistonExtendEvent is applied in place by apply_wasm_event")
     }
@@ -474,6 +494,10 @@ impl ToFromWasmEvent for BlockPistonRetractEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 BlockPistonRetractEvent is applied in place by apply_wasm_event")
     }
@@ -564,6 +588,10 @@ impl ToFromWasmEvent for TNTPrimeEvent {
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 TntPrimeEvent is applied in place by apply_wasm_event")
     }

@@ -114,7 +114,7 @@ mod tests {
             runtime.handle().clone(),
             Box::pin(async move { tokio::runtime::Handle::current().id() }),
         );
-        let mut future = Box::pin(future);
+        let mut future = std::pin::pin!(future);
         let waker = std::task::Waker::noop();
         let mut context = std::task::Context::from_waker(waker);
         assert_eq!(

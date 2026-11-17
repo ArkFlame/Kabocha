@@ -430,6 +430,10 @@ const fn command_block_y_rot(facing: Facing) -> f32 {
     }
 }
 
+pub use context::command_context::CommandContext;
+pub use node::dispatcher::CommandDispatcher;
+pub use node::{Command, CommandExecutor, CommandExecutorResult};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -444,7 +448,3 @@ mod tests {
         assert_eq!(command_block_y_rot(Facing::Down), 0.0);
     }
 }
-
-pub use context::command_context::CommandContext;
-pub use node::dispatcher::CommandDispatcher;
-pub use node::{Command, CommandExecutor, CommandExecutorResult};

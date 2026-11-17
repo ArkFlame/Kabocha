@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn every_boat_item_round_trips_through_its_entity_type() {
-        for &id in BoatItem::ids().iter() {
+        for &id in &BoatItem::ids() {
             let item = Item::from_id(id).expect("boat item metadata ids must resolve");
             let entity_type = BoatItem::item_to_entity(item);
             let round_trip = BoatItem::entity_to_item(entity_type)

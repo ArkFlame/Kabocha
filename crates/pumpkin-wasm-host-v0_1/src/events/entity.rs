@@ -389,6 +389,10 @@ impl ToFromWasmEvent
         })
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 EntityExplodeEvent is applied in place by apply_wasm_event")
     }
@@ -780,6 +784,10 @@ impl ToFromWasmEvent for EntityChangeBlockEvent {
         }
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "apply_wasm_event is overridden, so from_wasm_event is never called"
+    )]
     fn from_wasm_event(_event: Event, _state: &mut PluginHostState) -> Self {
         unreachable!("v0.1 EntityChangeBlockEvent is applied in place by apply_wasm_event")
     }

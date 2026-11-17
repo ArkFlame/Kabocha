@@ -14,7 +14,6 @@ use crate::{
         WorldLoadEvent as WorldLoadEventData, WorldUnloadEvent as WorldUnloadEventData,
     },
 };
-use pumpkin_core::entity::EntityBase;
 use pumpkin_core::plugin::api::events::world::weather_change::WeatherCause;
 use pumpkin_core::plugin::world::{
     chunk_load::ChunkLoad, chunk_save::ChunkSave, chunk_send::ChunkSend,

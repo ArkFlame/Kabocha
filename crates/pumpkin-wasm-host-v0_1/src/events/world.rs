@@ -10,7 +10,6 @@ use crate::{
         ThunderChangeEventData, WeatherChangeEventData, WorldLoadEventData, WorldUnloadEventData,
     },
 };
-use pumpkin_core::entity::EntityBase;
 use pumpkin_core::plugin::world::{
     chunk_load::ChunkLoad, chunk_save::ChunkSave, chunk_send::ChunkSend,
     spawn_change::SpawnChangeEvent,

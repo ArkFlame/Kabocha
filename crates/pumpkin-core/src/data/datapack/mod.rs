@@ -3120,8 +3120,8 @@ mod tests {
             tags.insert(
                 "test:all".to_string(),
                 block_tag(false, &["#test:stones", "#test:rocks", "granite"]),
-            );
-        }
+            )
+        };
         assert_eq!(manager.resolve_block_tag("test:all"), vec![stone, granite]);
     }
 
@@ -3208,8 +3208,8 @@ mod tests {
             tags.insert(
                 "test:loop".to_string(),
                 vec!["#test:loop".to_string(), "test:leaf".to_string()],
-            );
-        }
+            )
+        };
 
         let mut visited = Vec::new();
         let executed = manager
@@ -3265,7 +3265,6 @@ mod tests {
             let enabled: Vec<String> = enabled.iter().map(|name| (*name).to_string()).collect();
             let mut loaded = Vec::new();
             super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
-            drop(acc);
 
             functions
                 .get("test:shared")
