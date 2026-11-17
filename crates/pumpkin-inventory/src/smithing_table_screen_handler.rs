@@ -21,6 +21,8 @@ use pumpkin_data::recipes::{
 };
 use pumpkin_data::screen::WindowType;
 use pumpkin_data::statistic::StatisticCategory;
+use pumpkin_data::trim_material::TrimMaterial;
+use pumpkin_data::trim_pattern::TrimPattern;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::codec::recipe::DynamicRecipe;
@@ -156,6 +158,20 @@ impl Slot for SmithingInputSlot {
     fn mark_dirty(&self) {
         self.inventory.mark_dirty();
     }
+}
+
+/// Builds a trimmed copy of `base`.
+///
+/// Vanilla stores the trim as `ArmorTrim` holders, so both the material and
+/// the pattern must resolve to a registry entry. An unresolvable name cannot
+/// be encoded for the client: the trim component serializer errors halfway
+/// through the slot update, which truncated the packet and crashed clients.
+fn build_trim_result(base: &ItemStack, material: &str, pattern: &str) -> Option<ItemStack> {
+    let material = TrimMaterial::from_name(material)?;
+    let pattern = TrimPattern::from_name(pattern)?;
+    let mut result = base.copy_with_count(1);
+    result.set_data_component(TrimImpl::new(material, pattern));
+    Some(result)
 }
 
 pub struct SmithingTableScreenHandler {
@@ -349,15 +365,11 @@ impl SmithingTableScreenHandler {
                 }
             }
 
-            let mut result = base_stack.copy_with_count(1);
-            result.set_data_component(TrimImpl {
-                material: NbtTag::String(material.to_string().into()),
-                pattern: NbtTag::String(pattern.into()),
-            });
-
-            self.output_inventory.set_stack(0, result);
-            self.has_recipe_error.store(0, Ordering::Relaxed);
-            return;
+            if let Some(result) = build_trim_result(&base_stack, material, &pattern) {
+                self.output_inventory.set_stack(0, result);
+                self.has_recipe_error.store(0, Ordering::Relaxed);
+                return;
+            }
         }
 
         self.output_inventory.set_stack(0, ItemStack::EMPTY.clone());
@@ -529,5 +541,35 @@ impl Slot for SmithingOutputSlot {
 
     fn mark_dirty(&self) {
         self.inventory.mark_dirty();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::item::Item;
+
+    #[test]
+    fn trim_result_requires_known_material_and_pattern() {
+        let base = ItemStack::new(1, &Item::DIAMOND_CHESTPLATE);
+        let trimmed = build_trim_result(&base, "minecraft:amethyst", "minecraft:bolt")
+            .expect("known trim material and pattern build a result");
+        assert_eq!(trimmed.item, &Item::DIAMOND_CHESTPLATE);
+        assert_eq!(
+            trimmed.get_data_component::<TrimImpl>().map(|t| {
+                (
+                    t.material.extract_string().unwrap_or_default().to_string(),
+                    t.pattern.extract_string().unwrap_or_default().to_string(),
+                )
+            }),
+            Some((
+                "minecraft:amethyst".to_string(),
+                "minecraft:bolt".to_string()
+            ))
+        );
+
+        // Unknown names must not produce a component the client cannot decode.
+        assert!(build_trim_result(&base, "minecraft:unobtainium", "minecraft:bolt").is_none());
+        assert!(build_trim_result(&base, "minecraft:amethyst", "minecraft:not_a_trim").is_none());
     }
 }
