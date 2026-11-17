@@ -368,15 +368,15 @@ impl EnchantmentHelper {
     /// Modifies crossbow charge time using data-driven charge time effects (e.g. Quick Charge).
     #[must_use]
     pub fn modify_crossbow_charge_time(weapon: &ItemStack, base_ticks: i32) -> i32 {
-        let mut charge_time = base_ticks as f32;
+        // Vanilla `EnchantmentHelper.modifyCrossbowChargeTime` works in seconds and passes the
+        // running value through every effect, so multiply/set effects see the base charge time.
+        let mut charge_seconds = base_ticks as f32 / 20.0;
         if let Some(enchantments) = weapon.get_data_component::<EnchantmentsImpl>() {
             for (enchantment, level) in enchantments.enchantment.iter() {
-                let mut change_sec = 0.0f32;
-                enchantment.modify_crossbow_charge_time(*level, &mut change_sec);
-                charge_time += change_sec * 20.0;
+                enchantment.modify_crossbow_charge_time(*level, &mut charge_seconds);
             }
         }
-        (charge_time as i32).max(0)
+        ((charge_seconds * 20.0) as i32).max(0)
     }
 
     /// Modifies durability change using data-driven item damage effects (e.g. Unbreaking).
