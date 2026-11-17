@@ -29,7 +29,9 @@ B
 export -f prep_issue; export KAB_RUNS KAB_WT
 python3 - "$n" <<'PY' | xargs -r -P "${KAB_PREP_JOBS:-10}" -I{} bash -c 'prep_issue {}'
 import re,sys
-done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))|{l.split('\t')[1] for l in open('docs/OUTCOMES.tsv') if l.startswith('issue')}
+import csv
+# finished = ledger DONE/SKIPPED/COMMITTED-UNLANDED; TODO/FAILED stay eligible (requeue.sh clears them from tried-issues)
+done={r[1] for r in csv.reader(open('docs/LEDGER.tsv'),delimiter='\t') if r[0]=='issue' and r[3] in ('DONE','SKIPPED','COMMITTED-UNLANDED','IN-PROGRESS')}
 tried=set(open('/tmp/kabocha-runs/tried-issues').read().split())
 rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-issues.tsv')]
 c=[r for r in rows if r[0] not in done|tried]
