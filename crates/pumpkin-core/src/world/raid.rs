@@ -253,6 +253,17 @@ impl Raid {
         world.stop_raid(reason.to_string());
     }
 
+    /// Vanilla `Raid.tick` when the centre is no longer a village: a raid with
+    /// spawned waves is lost (returns `true`), an empty one is stopped by the caller.
+    pub const fn center_lost_to_loss(&mut self) -> bool {
+        if self.groups_spawned > 0 {
+            self.status = RaidStatus::Loss;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn remove_all_players(&mut self, world: &World) {
         let players = world.players.load();
         for player in players.iter() {
@@ -570,6 +581,14 @@ impl Raid {
                 return;
             }
 
+            if !world.is_village(&self.center) {
+                if self.center_lost_to_loss() {
+                    world.finish_raid(false);
+                } else {
+                    self.stop(world);
+                }
+            }
+
             self.ticks_active += 1;
             if self.ticks_active >= 48000 {
                 self.stop(world, "timeout");
@@ -793,7 +812,10 @@ const fn is_within_raid_spawn_y(surface_y: i32, center_y: i32) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_within_raid_spawn_y;
+    use pumpkin_util::difficulty::Difficulty;
+    use pumpkin_util::math::position::BlockPos;
+
+    use super::{Raid, RaidStatus, is_within_raid_spawn_y};
 
     #[test]
     fn raid_spawn_y_bound_is_inclusive_at_96_blocks() {
@@ -801,5 +823,21 @@ mod tests {
         assert!(is_within_raid_spawn_y(64 - 96, 64));
         assert!(!is_within_raid_spawn_y(64 + 97, 64));
         assert!(!is_within_raid_spawn_y(64 - 97, 64));
+    }
+
+    #[test]
+    fn centre_lost_without_spawned_waves_stops_instead_of_losing() {
+        let mut raid = Raid::new(1, BlockPos::ZERO, Difficulty::Normal);
+        assert!(!raid.center_lost_to_loss());
+        assert_eq!(raid.status, RaidStatus::Ongoing);
+    }
+
+    #[test]
+    fn centre_lost_after_a_wave_spawned_is_a_loss() {
+        let mut raid = Raid::new(1, BlockPos::ZERO, Difficulty::Normal);
+        raid.groups_spawned = 1;
+        assert!(raid.center_lost_to_loss());
+        assert_eq!(raid.status, RaidStatus::Loss);
+        assert!(raid.is_loss());
     }
 }
