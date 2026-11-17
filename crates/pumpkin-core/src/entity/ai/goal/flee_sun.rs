@@ -32,9 +32,10 @@ impl FleeSunGoal {
         let mut rng = mob.get_random();
 
         for _ in 0..10 {
-            let offset_x = rng.random_range(-10..=10);
-            let offset_y = rng.random_range(-3..=3);
-            let offset_z = rng.random_range(-10..=10);
+            // Vanilla FleeSunGoal: nextInt(20) - 10, nextInt(6) - 3, nextInt(20) - 10.
+            let offset_x = rng.random_range(-10..10);
+            let offset_y = rng.random_range(-3..3);
+            let offset_z = rng.random_range(-10..10);
             let check_pos = BlockPos::new(
                 mob_pos.0.x + offset_x,
                 mob_pos.0.y + offset_y,
