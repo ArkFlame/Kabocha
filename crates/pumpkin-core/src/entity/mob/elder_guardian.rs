@@ -131,11 +131,13 @@ impl Mob for ElderGuardianEntity {
         }
     }
 
-    fn on_damage(&self, _damage_type: DamageType, source: Option<&dyn EntityBase>) {
-        if let Some(src) = source
-            && let Some(living) = src.get_living_entity()
-        {
-            let _ = living.damage(src, 2.0, DamageType::THORNS);
-        }
+    fn on_damage_with_context(
+        &self,
+        damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        crate::entity::mob::guardian::reflect_thorns(self.get_entity(), damage_type, cause);
+        true
     }
 }

@@ -2,6 +2,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{damage::DamageType, sound::Sound};
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
@@ -38,6 +39,26 @@ fn outside_melee_range(hunter: &dyn Mob, target: &LivingEntity, _world: &World) 
 
 pub const GUARDIAN_HUNTS: &[Hunt] =
     &[Hunt::new(1, GUARDIAN_PREY, true).matching(outside_melee_range)];
+
+/// Vanilla `Guardian#hurt`: reflect 2.0 thorns when the direct entity is a living
+/// non-guardian and the damage type is outside `minecraft:avoids_guardian_thorns`.
+pub(crate) fn reflect_thorns(
+    guardian: &dyn EntityBase,
+    damage_type: DamageType,
+    cause: Option<&dyn EntityBase>,
+) {
+    if damage_type.has_tag(&tag::DamageType::MINECRAFT_AVOIDS_GUARDIAN_THORNS) {
+        return;
+    }
+    let Some(cause) = cause else { return };
+    let cause_type = cause.get_entity().entity_type;
+    if cause_type == &EntityType::GUARDIAN || cause_type == &EntityType::ELDER_GUARDIAN {
+        return;
+    }
+    if let Some(living) = cause.get_living_entity() {
+        let _ = living.damage(guardian, 2.0, DamageType::THORNS);
+    }
+}
 
 pub struct GuardianEntity {
     pub mob_entity: MobEntity,
@@ -106,12 +127,14 @@ impl Mob for GuardianEntity {
         })
     }
 
-    fn on_damage(&self, _damage_type: DamageType, source: Option<&dyn EntityBase>) {
-        if let Some(src) = source
-            && let Some(living) = src.get_living_entity()
-        {
-            let _ = living.damage(src, 2.0, DamageType::THORNS);
-        }
+    fn on_damage_with_context(
+        &self,
+        damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        reflect_thorns(self.get_entity(), damage_type, cause);
+        true
     }
 
     fn get_ambient_sound_interval(&self) -> i32 {
