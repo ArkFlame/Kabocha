@@ -8,12 +8,14 @@ use pumpkin_util::version::JavaMinecraftVersion;
 
 #[java_packet(DISCONNECT)]
 pub struct CConfigDisconnect<'a> {
-    pub reason: &'a str,
+    /// The message shown to the player. A full text component: colour, style and
+    /// translation keys survive, like vanilla's `ClientboundDisconnectPacket(Component)`.
+    pub reason: &'a TextComponent,
 }
 
 impl<'a> CConfigDisconnect<'a> {
     #[must_use]
-    pub const fn new(reason: &'a str) -> Self {
+    pub const fn new(reason: &'a TextComponent) -> Self {
         Self { reason }
     }
 }
@@ -25,6 +27,6 @@ impl ClientPacket for CConfigDisconnect<'_> {
         version: &JavaMinecraftVersion,
     ) -> Result<(), crate::ser::WritingError> {
         // The reason is a text component (NBT since 1.20.3), not a plain string.
-        write.write_component(&TextComponent::text(self.reason.to_string()), version)
+        write.write_component(self.reason, version)
     }
 }
