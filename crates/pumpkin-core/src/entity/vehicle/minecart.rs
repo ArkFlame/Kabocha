@@ -59,6 +59,21 @@ const fn get_exits(
     }
 }
 
+/// Vanilla `OldMinecartBehavior.getSlowdownFactor`: 0.997 with a passenger, else 0.96.
+const fn rail_slowdown_factor(has_passengers: bool) -> f64 {
+    if has_passengers { 0.997 } else { 0.96 }
+}
+
+/// Vanilla `OldMinecartBehavior.moveAlongTrack` unpowered-rail halt: horizontal speed
+/// under 0.03 stops the cart, otherwise horizontal speed is halved and y is cleared.
+fn unpowered_rail_halt(velocity: Vector3<f64>) -> Vector3<f64> {
+    if velocity.x.hypot(velocity.z) < 0.03 {
+        Vector3::new(0.0, 0.0, 0.0)
+    } else {
+        Vector3::new(velocity.x * 0.5, 0.0, velocity.z * 0.5)
+    }
+}
+
 /// Vanilla `OldMinecartBehavior.getPos`: snap a position onto the rail surface,
 /// interpolating the height along ascending rails.
 fn get_pos_on_rail(
@@ -252,6 +267,12 @@ impl EntityBase for MinecartEntity {
                 0.4
             }
         };
+        // Vanilla `getMaxSpeed`: halved while the cart is in water.
+        let max_speed = if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {
+            max_speed / 2.0
+        } else {
+            max_speed
+        };
         let pos = self.vehicle.entity.pos.load();
         let mut block_pos = BlockPos(Vector3::new(
             pos.x.floor() as i32,
@@ -355,11 +376,7 @@ impl EntityBase for MinecartEntity {
                     }
                 }
             } else if is_powered_rail {
-                let mut velocity = self.vehicle.entity.velocity.load();
-                velocity = velocity.multiply(0.5, 0.5, 0.5);
-                if velocity.length() < 0.01 {
-                    velocity = Vector3::new(0.0, 0.0, 0.0);
-                }
+                let velocity = unpowered_rail_halt(self.vehicle.entity.velocity.load());
                 self.vehicle.entity.velocity.store(velocity);
                 self.vehicle.entity.send_velocity();
             }
@@ -534,7 +551,9 @@ impl EntityBase for MinecartEntity {
                     .passengers
                     .try_lock()
                     .is_ok_and(|p| !p.is_empty());
-                friction = if has_passengers { 0.99 } else { 0.96 };
+                // Vanilla `applyNaturalSlowdown`: water multiplies the factor by 0.95.
+                let in_water = self.vehicle.entity.touching_water.load(Ordering::Relaxed);
+                friction = rail_slowdown_factor(has_passengers) * if in_water { 0.95 } else { 1.0 };
             } else {
                 let below_block_pos = BlockPos(Vector3::new(
                     block_pos.0.x,
@@ -947,6 +966,16 @@ mod tests {
     use pumpkin_util::text::TextComponent;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn unpowered_rail_halt_stops_slow_and_halves_fast_carts() {
+        let slow = unpowered_rail_halt(Vector3::new(0.02, 0.3, 0.0));
+        assert_eq!((slow.x, slow.y, slow.z), (0.0, 0.0, 0.0));
+        let fast = unpowered_rail_halt(Vector3::new(0.3, 0.3, 0.4));
+        assert_eq!((fast.x, fast.y, fast.z), (0.15, 0.0, 0.2));
+        assert!((rail_slowdown_factor(true) - 0.997).abs() < f64::EPSILON);
+        assert!((rail_slowdown_factor(false) - 0.96).abs() < f64::EPSILON);
+    }
 
     #[test]
     fn rail_position_follows_ascending_slope() {

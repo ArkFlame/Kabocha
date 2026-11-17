@@ -22,3 +22,10 @@ Reference: vanilla 1.21.x decompiled `net.minecraft.world.entity.animal.*` (from
 - frog: long-jump timing `(100, 140)`, long-jump reach 2 high / 4 wide, tongue timeout 100, catch 6, tongue animation 10, eat distance 1.75, eat movement factor 0.75, in-water and out-of-water travel modifiers 0.02 / 0.1. Not verified against source, so these stay UNVERIFIED.
 - allay: duplication cooldown 6000, item pickup reach 1.0, note-block forget 600, desired-item distance 32, pickup cooldown 60. Not verified against source.
 - bee: flap interval `ceil(1.4959966)` = 2, attack goal priority 0 with sting gate, angry revenge priority 1.
+
+## Minecart re-verification (kab/x2, decompiled vanilla `OldMinecartBehavior`)
+
+- Rail slowdown: vanilla `getSlowdownFactor` is 0.997 with a passenger (or `!slowWhenEmpty`), else 0.96, then `applyNaturalSlowdown` multiplies by 0.95 in water. Kabocha used 0.99 with a passenger and no water factor on rails. FIXED: `rail_slowdown_factor` (0.997 or 0.96) and the 0.95 water factor in `entity/vehicle/minecart.rs`.
+- Unpowered powered-rail halt (`OldMinecartBehavior.java:170-177`): horizontal speed under 0.03 stops, otherwise horizontal speed halves and y is cleared. Kabocha used a 0.01 threshold on full 3D length and halved y. FIXED: `unpowered_rail_halt`.
+- Water max speed (`OldMinecartBehavior.java:420-427`): 0.2 in water, 0.4 otherwise, which is the cap halved in water. Kabocha did not halve. FIXED: `max_speed / 2` while `touching_water`.
+- Water slide gravity 0.0078125 * 0.2 and the rail friction on `NewMinecartBehavior` were checked: slide VERIFIED. Tests: `unpowered_rail_halt_stops_slow_and_halves_fast_carts`.
