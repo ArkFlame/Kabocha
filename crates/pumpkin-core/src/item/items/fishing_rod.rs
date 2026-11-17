@@ -7,6 +7,7 @@ use crate::entity::Entity;
 use crate::entity::player::Player;
 use crate::entity::projectile::fishing_bobber::FishingBobberEntity;
 use crate::item::{ItemBehaviour, ItemMetadata};
+use crate::plugin::api::events::player::fish::{PlayerFishEvent, PlayerFishState};
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
@@ -65,16 +66,8 @@ impl ItemBehaviour for FishingRodItem {
         }
 
         if bobber_id == -1 {
-            // Cast
-            let sound_pitch = bobber_sound_pitch(rand::random());
-            world.play_sound_fine(
-                Sound::EntityFishingBobberThrow,
-                SoundCategory::Neutral,
-                &player.position(),
-                0.5,
-                sound_pitch,
-            );
-
+            // Cast. Vanilla `FishingRodItem.use` builds the hook first, fires the
+            // cancellable `PlayerFishEvent.State.FISHING` carrying that hook, then throws.
             let wait_time_reduction =
                 (EnchantmentHelper::modify_fishing_time_reduction(&used_item, 0.0) * 20.0) as i32;
             let luck_bonus = EnchantmentHelper::modify_fishing_luck_bonus(&used_item, 0.0) as i32;
@@ -91,6 +84,36 @@ impl ItemBehaviour for FishingRodItem {
                 pitch,
                 luck_bonus,
                 wait_time_reduction,
+            );
+
+            if let Some(server) = world.server.upgrade()
+                && let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
+            {
+                let mut event = PlayerFishEvent::new(
+                    player_arc,
+                    None,
+                    bobber.entity.entity_uuid,
+                    String::new(),
+                    PlayerFishState::Fishing,
+                    hand,
+                    0,
+                );
+                server.plugin_manager.fire_blocking(&server, &mut event);
+                if event.cancelled {
+                    // Vanilla clears `player.fishing` and returns PASS: no throw sound,
+                    // no spawned hook and no ITEM_USED stat on a cancelled cast.
+                    player.fishing_bobber.store(-1, Ordering::Relaxed);
+                    return;
+                }
+            }
+
+            let sound_pitch = bobber_sound_pitch(rand::random());
+            world.play_sound_fine(
+                Sound::EntityFishingBobberThrow,
+                SoundCategory::Neutral,
+                &player.position(),
+                0.5,
+                sound_pitch,
             );
 
             player
