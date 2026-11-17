@@ -23,11 +23,13 @@ launch_pr() { # prep one PR and start its worker; never fails the batch
 export -f launch_pr; export KAB_ROOT KAB_RUNS
 
 need=$(free_slots); [ "$need" -le 0 ] && { echo "full"; exit 0; }
+scripts/requeue.sh >/dev/null 2>&1 || true   # never run dry: recycle TODO/FAILED work
 # 1) PR candidates
 python3 - "$need" <<'PY' | xargs -r -P "$JOBS" -I{} bash -c 'launch_pr {}'
 import re,sys,os
 need=int(sys.argv[1]); kr=os.environ.get('KAB_RUNS','/tmp/kabocha-runs')
-done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))
+import csv
+done={r[1] for r in csv.reader(open('docs/LEDGER.tsv'),delimiter='\t') if r[0]=='pr' and r[3] in ('DONE','SKIPPED','COMMITTED-UNLANDED')}
 tried=set(open(kr+'/tried').read().split())
 rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-prs.tsv')]
 m=[r for r in rows if r[4]=='false' and r[0] not in done|tried and int(r[1])>0]
