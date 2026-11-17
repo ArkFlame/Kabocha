@@ -1093,6 +1093,113 @@ pub fn serialize_java_packet(
                 .unwrap();
             Some(buf.into())
         }
+        ClientboundPacket::CPlayerInfoUpdate(data) => {
+            // Hand-written: `players` holds a nested list of actions that the
+            // generator cannot map, so its arm would otherwise fall into `_ => None`
+            // and `send-packet` would silently send nothing (#4317).
+            use crate::pumpkin::plugin::java_packets::PlayerAction as WitAction;
+            use pumpkin_protocol::java::client::play::{
+                CPlayerInfoUpdate, InitChat, Player as InfoPlayer, PlayerAction,
+            };
+
+            let texts: Vec<Option<pumpkin_util::text::TextComponent>> = data
+                .players
+                .iter()
+                .flat_map(|player| {
+                    player.actions.iter().filter_map(|action| match action {
+                        WitAction::UpdateDisplayName(name) => Some(
+                            name.clone()
+                                .map(pumpkin_util::text::TextComponent::text),
+                        ),
+                        _ => None,
+                    })
+                })
+                .collect();
+            let properties: Vec<Vec<pumpkin_protocol::Property>> = data
+                .players
+                .iter()
+                .flat_map(|player| {
+                    player.actions.iter().filter_map(|action| match action {
+                        WitAction::AddPlayer(add) => Some(
+                            add.properties
+                                .iter()
+                                .map(|property| pumpkin_protocol::Property {
+                                    name: property.name.clone().into(),
+                                    value: property.value.clone().into(),
+                                    signature: property.signature.clone().map(|s| s.into()),
+                                })
+                                .collect(),
+                        ),
+                        _ => None,
+                    })
+                })
+                .collect();
+            let mut texts_iter = texts.iter();
+            let mut properties_iter = properties.iter();
+            let actions: Vec<Vec<PlayerAction<'_>>> = data
+                .players
+                .iter()
+                .map(|player| {
+                    player
+                        .actions
+                        .iter()
+                        .map(|action| match action {
+                            WitAction::AddPlayer(add) => PlayerAction::AddPlayer {
+                                name: &add.name,
+                                properties: properties_iter
+                                    .next()
+                                    .map(|properties| properties.as_slice())
+                                    .unwrap_or_default(),
+                            },
+                            WitAction::InitializeChat(chat) => {
+                                PlayerAction::InitializeChat(chat.as_ref().map(|chat| InitChat {
+                                    session_id: uuid::Uuid::from_u64_pair(
+                                        chat.session_id.high,
+                                        chat.session_id.low,
+                                    ),
+                                    expires_at: chat.expires_at,
+                                    public_key: chat.public_key.clone().into_boxed_slice(),
+                                    signature: chat.signature.clone().into_boxed_slice(),
+                                }))
+                            }
+                            WitAction::UpdateGameMode(game_mode) => {
+                                PlayerAction::UpdateGameMode(VarInt(*game_mode))
+                            }
+                            WitAction::UpdateListed(listed) => {
+                                PlayerAction::UpdateListed(*listed)
+                            }
+                            WitAction::UpdateLatency(latency) => {
+                                PlayerAction::UpdateLatency(VarInt(*latency))
+                            }
+                            WitAction::UpdateDisplayName(_) => PlayerAction::UpdateDisplayName(
+                                texts_iter.next().and_then(|text| text.as_ref()),
+                            ),
+                            WitAction::UpdateListOrder(order) => {
+                                PlayerAction::UpdateListOrder(VarInt(*order))
+                            }
+                            WitAction::UpdateHat(hat) => PlayerAction::UpdateHat(*hat),
+                        })
+                        .collect()
+                })
+                .collect();
+            let players: Vec<InfoPlayer<'_>> = data
+                .players
+                .iter()
+                .zip(actions.iter())
+                .map(|(player, actions)| InfoPlayer {
+                    uuid: uuid::Uuid::from_u64_pair(player.uuid.high, player.uuid.low),
+                    actions,
+                })
+                .collect();
+            let p = CPlayerInfoUpdate {
+                actions: data.actions,
+                players: &players,
+            };
+            let mut buf = Vec::new();
+            pumpkin_core::net::java::JavaClient::write_packet_for_version(&p, version, &mut buf)
+                .unwrap();
+            Some(buf.into())
+        }
         _ => None,
     }
 }
