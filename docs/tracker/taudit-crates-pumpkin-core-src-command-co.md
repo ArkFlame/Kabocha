@@ -49,16 +49,11 @@ horizontal distance for structures/POIs vs 3D distance for biomes, 6400/32/64 bi
    vanilla (PoiManager.findAll / findAllClosestFirstWithType) keeps POIs with
    distSqr < radius * radius. A corner POI at ~360 blocks can be returned by /locate poi
    inside a 256 radius. Fix: compare distance_sq against radius * radius. Size S.
+   FIXED (382248023): `find_closest_where` keeps only `distance_sq < radius_sq`.
+   UNVERIFIED: no test; the region scan and sphere rule follow the note's vanilla citation.
 6. Stronghold Pending aborts a tag search: locate.rs:256-258 returns
    STRUCTURE_PENDING_ERROR_TYPE from inside the per-set loop, discarding a hit already found
    for another requested structure. Vanilla rings are precomputed, so it never aborts.
    Fix: remember the pending state and only surface it when no hit was found. Size S.
-
-## Gap status
-- Fixed section: FIXED per note (`locate.rs` out of scope for this pass).
-- 1. Shared radius-unit bug (`entity/passive/villager/mod.rs:566`): STILL OPEN (S).
-- 2. Datapack/modded structure ids rejected (`locate.rs:127-143`): STILL OPEN (M).
-- 3. Argument node type (`locate.rs:438`): STILL OPEN (S).
-- 4. Datapack biomes/POI dropped (`locate.rs:312`): STILL OPEN (M).
-- 5. POI square vs circle selection: STILL OPEN (S).
-- 6. Stronghold Pending aborts tag search (`locate.rs:256-258`): STILL OPEN (S).
+   FIXED (929a5f481): `locate.rs` records `pending` and returns the pending error only when
+   `found` is still empty. UNVERIFIED: no test; needs a gametest with a pending ring.
