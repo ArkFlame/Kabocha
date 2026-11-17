@@ -81,12 +81,14 @@ impl ProjectileWeaponItem {
 
         let num_projectiles = EnchantmentHelper::process_projectile_count(weapon, 1);
         let mut drawn = Vec::with_capacity(num_projectiles);
-        let projectile_copy = projectile.copy_with_count(1);
+        // Vanilla `draw` reuses one full copy of the ammo stack for the extra projectiles, so
+        // `useAmmo` still sees the real stack size when an effect uses more than one ammo.
+        let ammo_copy = projectile.copy_with_count(projectile.item_count);
 
         for i in 0..num_projectiles {
             let drawn_stack = Self::use_ammo(
                 weapon,
-                if i == 0 { projectile } else { &projectile_copy },
+                if i == 0 { projectile } else { &ammo_copy },
                 is_creative,
                 i > 0,
             );
