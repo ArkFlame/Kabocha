@@ -14,6 +14,14 @@ Fixed (branch kab/taudit-crates-pumpkin-core-src-ne-254fb9):
   `disconnect.timeout` instead of being ignored, matching
   `ServerGamePacketListenerImpl#handleKeepAlive` (commit "kick java clients that
   answer an unknown keep-alive id").
+- `mod.rs` keep-alive deadline is now a fixed 30 s (`KEEP_ALIVE_TIMEOUT`, Spigot
+  `settings.timeout-time`) and the non-vanilla generic `last_packet_time` inactivity
+  kick was dropped; the configured interval no longer scales the timeout (commit
+  "use a fixed 30s java keep-alive timeout").
+- `mod.rs` unknown play packet id now disconnects with `disconnect.packetError` like
+  vanilla's decoder instead of only logging; note that a plugin rewriting
+  `PacketReceivedEvent.packet_id` to an unknown id now closes the connection (commit
+  "kick java clients that send an unknown play packet id").
 
 Remaining gaps (not fixed here):
 
@@ -26,27 +34,13 @@ Remaining gaps (not fixed here):
    Fix: per-player ordered dispatch queue (or handle inline and only offload the
    expensive plugin/command work). Size M.
 
-2. `mod.rs:267-297` keep-alive timeout window - the deadline is
-   `2 * networked.java.keep_alive_time` (30 s with the default 15) plus an extra
-   `last_packet_time` inactivity check that vanilla does not have. Vanilla uses a
-   fixed 30 s unanswered-keep-alive window and kicks only for the unanswered
-   keep-alive. With a non-default `keep_alive_time` the timeout diverges.
-   Vanilla: `ServerGamePacketListenerImpl#tick` (`30000L` / `disconnect.timeout`).
-   Fix: use a fixed 30 s deadline and drop the generic inactivity clause. Size S.
-
-3. `mod.rs:651-670` `serialize_disconnect` for the Config state sends
+2. `mod.rs:651-670` `serialize_disconnect` for the Config state sends
    `reason.get_text()` through `CConfigDisconnect::new(&str)`, dropping the
    component structure (colour, translate key, click events). Vanilla
    `ClientboundDisconnectPacket` carries a `Component` in config as in play.
    Fix: make `CConfigDisconnect` take `&TextComponent` (protocol change). Size M.
 
-4. `mod.rs:1377-1379` unknown play packet id only logs a warning. Vanilla never
-   reaches a default arm: an unknown id fails decoding and disconnects as a
-   protocol error (`DecoderException` -> `onPacketError`). Fix: kick with the
-   vanilla protocol-error reason. Size S, but plugins may rewrite `packet_id` in
-   `PacketReceivedEvent`, so confirm that contract first.
-
-5. `mod.rs:772-781` `stonecutter_recipes_packet` sends only the stonecutter list.
+3. `mod.rs:772-781` `stonecutter_recipes_packet` sends only the stonecutter list.
    Vanilla `ClientboundUpdateRecipesPacket` carries every `RecipePropertySet`
    (furnace, smithing, etc.), which is what the client uses to grey out recipe
    book entries after a datapack reload. Fix: generate the property sets in

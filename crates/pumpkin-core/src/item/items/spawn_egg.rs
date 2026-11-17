@@ -427,8 +427,9 @@ impl ItemBehaviour for SpawnEggItem {
             {
                 return;
             }
-            mob.get_entity()
-                .set_rotation(rand::random::<f32>() * 360.0, 0.0);
+            // Vanilla `spawnOffspringFromSpawnEgg`: `moveTo(pos, 0.0F, 0.0F)`, so the
+            // offspring faces north instead of a random yaw.
+            mob.get_entity().set_rotation(0.0, 0.0);
             apply_entity_variant(item, mob.as_ref(), Some(player));
             if world.spawn_creature(
                 mob.clone(),

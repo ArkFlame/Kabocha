@@ -258,7 +258,7 @@ impl CommandExecutor for DatapackEnableExecutor {
             error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks(server);
+        server.reload_datapacks();
 
         context.source.send_feedback(
             TextComponent::translate_cross(
@@ -342,7 +342,7 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks(server);
+        server.reload_datapacks();
 
         context.source.send_feedback(
             TextComponent::translate_cross(
@@ -396,7 +396,7 @@ impl CommandExecutor for DatapackDisableExecutor {
             error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks(server);
+        server.reload_datapacks();
 
         context.source.send_feedback(
             TextComponent::translate_cross(

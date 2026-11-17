@@ -347,8 +347,8 @@ impl Mob for DolphinEntity {
         TOTAL_AIR_SUPPLY
     }
 
-    fn base_tick(&self) {
-        self.mob_entity.living_entity.tick_air_supply(self);
+    fn base_tick(&self, caller: &dyn EntityBase) {
+        self.mob_entity.living_entity.tick_air_supply(caller);
     }
 
     fn post_tick(&self) {
@@ -597,7 +597,7 @@ mod tests {
             &EntityType::DOLPHIN,
         ));
         let living = &dolphin.mob_entity.living_entity;
-        dolphin.base_tick();
+        dolphin.base_tick(dolphin.as_ref());
         assert_eq!(
             dolphin.get_entity().air_supply.load(Ordering::Relaxed),
             4799
@@ -611,7 +611,7 @@ mod tests {
             show_icon: true,
             blend: false,
         });
-        dolphin.base_tick();
+        dolphin.base_tick(dolphin.as_ref());
         assert_eq!(
             dolphin.get_entity().air_supply.load(Ordering::Relaxed),
             4799
@@ -625,7 +625,7 @@ mod tests {
             show_icon: true,
             blend: false,
         });
-        dolphin.base_tick();
+        dolphin.base_tick(dolphin.as_ref());
         assert_eq!(
             dolphin.get_entity().air_supply.load(Ordering::Relaxed),
             4800

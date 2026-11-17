@@ -5,7 +5,9 @@ use std::path::Path;
 use pumpkin_data::damage::{DamageEffects, DamageScaling, DamageType, DeathMessageType};
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::{Nbt, NbtCompound};
+use pumpkin_util::identifier::Identifier;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -159,7 +161,11 @@ pub fn to_registry_nbt_bytes(def: &DamageTypeDefinition) -> Box<[u8]> {
     let mut nbt = NbtCompound::new();
     nbt.put_string("message_id", def.message_id.clone());
     nbt.put_string("scaling", def.scaling.as_str().to_string());
-    nbt.put_double("exhaustion", f64::from(def.exhaustion));
+    // Vanilla encodes exhaustion with Codec.FLOAT and omits the field when it
+    // equals the 0.0 default (optionalFieldOf), so match tag type and omission.
+    if def.exhaustion != 0.0 {
+        nbt.put_float("exhaustion", def.exhaustion);
+    }
 
     if let Some(effects) = def.effects {
         nbt.put_string("effects", effects.as_str().to_string());
@@ -220,12 +226,32 @@ fn load_damage_types_recursive<S: std::hash::BuildHasher>(
                 stem_path = stem.to_string();
             }
             let stem_path = stem_path.replace('\\', "/");
+            // Vanilla requires the datapack path to form a valid resource location id.
+            if !Identifier::is_valid_namespace(namespace)
+                || !Identifier::is_valid_path(&stem_path)
+            {
+                warn!(
+                    "Skipping damage type file {}: invalid resource location",
+                    path.display()
+                );
+                continue;
+            }
             let damage_type_id = format!("{namespace}:{stem_path}");
 
-            if let Ok(content) = fs::read_to_string(&path)
-                && let Ok(definition) = serde_json::from_str::<DamageTypeDefinition>(&content)
-            {
-                registry.insert(damage_type_id, definition);
+            let content = match fs::read_to_string(&path) {
+                Ok(content) => content,
+                Err(err) => {
+                    warn!("Skipping damage type file {}: {err}", path.display());
+                    continue;
+                }
+            };
+            match serde_json::from_str::<DamageTypeDefinition>(&content) {
+                Ok(definition) => {
+                    registry.insert(damage_type_id, definition);
+                }
+                Err(err) => {
+                    warn!("Skipping damage type file {}: {err}", path.display());
+                }
             }
         }
     }
@@ -315,6 +341,60 @@ mod tests {
         assert_eq!(nbt.get_string("scaling"), Some("always"));
         assert_eq!(nbt.get_string("effects"), Some("freezing"));
         assert_eq!(nbt.get_string("death_message_type"), Some("fall_variants"));
+    }
+
+    #[test]
+    fn to_registry_nbt_matches_vanilla_exhaustion_encoding() {
+        let def = DamageTypeDefinition {
+            message_id: "hot_floor".to_string(),
+            scaling: DamageScalingWrapper::WhenCausedByLivingNonPlayer,
+            exhaustion: 0.1,
+            effects: None,
+            death_message_type: None,
+        };
+
+        let nbt = decode_root(&to_registry_nbt_bytes(&def));
+        assert!(nbt.get_float("exhaustion").is_some(), "vanilla writes a float tag");
+        assert!(nbt.get_double("exhaustion").is_none());
+
+        let default_def = DamageTypeDefinition {
+            exhaustion: 0.0,
+            ..def
+        };
+        let nbt = decode_root(&to_registry_nbt_bytes(&default_def));
+        assert!(nbt.get("exhaustion").is_none(), "vanilla omits the 0.0 default");
+    }
+
+    fn decode_root(bytes: &[u8]) -> NbtCompound {
+        let mut cursor = std::io::Cursor::new(bytes);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        Nbt::read_unnamed(&mut reader).unwrap().root_tag
+    }
+
+    #[test]
+    fn load_damage_types_skips_invalid_resource_location() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dt_bad_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(
+            temp_dir.join("valid.json"),
+            r#"{"message_id": "ok", "scaling": "never"}"#,
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.join("Bad Name.json"),
+            r#"{"message_id": "bad", "scaling": "never"}"#,
+        )
+        .unwrap();
+
+        let mut registry = HashMap::new();
+        let count = load_damage_types_from_dir("custom", &temp_dir, &mut registry);
+        assert_eq!(count, 1);
+        assert!(registry.contains_key("custom:valid"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]

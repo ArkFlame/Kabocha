@@ -9,7 +9,7 @@ use crate::server::Server;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::{Block, BlockDirection};
+use pumpkin_data::BlockDirection;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
@@ -101,15 +101,12 @@ impl ItemFrameEntity {
         ));
     }
 
+    /// Vanilla `ItemFrame.survives()` support test: the block behind the frame
+    /// must be solid, or a repeater/comparator for a horizontal frame.
     fn has_valid_support(&self, world: &World) -> bool {
         let facing = self.get_facing();
-        let support_pos = self
-            .entity
-            .block_pos
-            .load()
-            .offset(facing.opposite().to_offset());
-        let (block, state) = world.get_block_and_state(&support_pos);
-        state.is_side_solid(facing) || (facing.is_horizontal() && is_diode(block))
+        let (block, state) = world.get_block_and_state(&self.support_pos());
+        state.is_solid() || (facing.is_horizontal() && is_diode(block))
     }
 
     /// Vanilla `ItemFrame.survives`: free space, a valid support block and no other hanging entity.
@@ -325,19 +322,14 @@ impl ItemFrameEntity {
             .offset(Vector3::new(-offset.x, -offset.y, -offset.z))
     }
 
-    /// Vanilla `ItemFrame.survives()`: the block behind the frame must expose a
-    /// solid face towards it, unless the frame is fixed.
+    /// Vanilla `ItemFrame.survives()`: the block behind the frame must be solid,
+    /// unless the frame is fixed.
     #[must_use]
     pub fn is_supported(&self) -> bool {
         if self.is_fixed() {
             return true;
         }
-        let world = self.entity.world.load();
-        let (support_block, support_state) = world.get_block_and_state(&self.support_pos());
-        let facing = self.get_facing();
-        let is_diode = facing.is_horizontal()
-            && (support_block == &Block::REPEATER || support_block == &Block::COMPARATOR);
-        support_state.is_side_solid(facing) || support_state.is_solid() || is_diode
+        self.has_valid_support(&self.entity.world.load())
     }
 
     /// Drops the frame (and its item) when the block behind it is gone.
@@ -368,6 +360,12 @@ impl ItemFrameEntity {
             item_serializer,
         );
 
+        // Vanilla clears the item through `setItem(ItemStack.EMPTY, true)`, so
+        // comparators behind the frame lose their signal immediately.
+        let world = self.entity.world.load();
+        let pos = self.entity.block_pos.load();
+        world.update_neighbors(&pos, None);
+
         let is_creative_player = caused_by.is_some_and(|s| {
             s.cast_any()
                 .downcast_ref::<Player>()
@@ -377,9 +375,6 @@ impl ItemFrameEntity {
         if is_creative_player {
             return;
         }
-
-        let world = self.entity.world.load();
-        let pos = self.entity.block_pos.load();
 
         if with_frame {
             world.drop_stack(&pos, self.get_frame_item_stack_with_data());
@@ -564,43 +559,24 @@ impl EntityBase for ItemFrameEntity {
         if self.entity.removed.load(Ordering::Relaxed) {
             return false;
         }
-        let fixed = self.is_fixed();
-        let is_creative_player = source.is_some_and(|s| {
-            s.cast_any()
-                .downcast_ref::<Player>()
-                .is_some_and(Player::is_creative)
-        });
-        let bypasses_invuln =
-            damage_type == DamageType::OUT_OF_WORLD || damage_type == DamageType::GENERIC_KILL;
-
-        if fixed {
-            if !bypasses_invuln && !is_creative_player {
-                return false;
-            }
-            self.drop_item(source, true);
-            self.entity.remove();
-            return true;
+        // Vanilla ItemFrame.hurtServer: fixed frames are indestructible and
+        // explosions never damage frames. Only losing the support block takes a
+        // frame down, through the periodic survives check.
+        if self.is_fixed()
+            || damage_type == DamageType::EXPLOSION
+            || damage_type == DamageType::PLAYER_EXPLOSION
+        {
+            return false;
         }
 
-        let has_item = !self.get_item().is_empty();
-        let is_explosion =
-            damage_type == DamageType::EXPLOSION || damage_type == DamageType::PLAYER_EXPLOSION;
-
-        if !is_explosion && has_item {
+        if self.get_item().is_empty() {
+            self.drop_item(source, true);
+            self.entity.play_sound(self.get_break_sound());
+            self.entity.remove();
+        } else {
             self.drop_item(source, false);
             self.emit_block_change(source);
             self.entity.play_sound(self.get_remove_item_sound());
-        } else {
-            self.drop_item(source, true);
-            self.entity.world.load().emit_game_event_with_context(
-                GameEvent::EntityDamage.name(),
-                self.entity.pos.load(),
-                &GameEventContext {
-                    source_entity: source,
-                },
-            );
-            self.entity.play_sound(self.get_break_sound());
-            self.entity.remove();
         }
         true
     }

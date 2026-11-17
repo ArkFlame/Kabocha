@@ -296,8 +296,8 @@ macro_rules! fish_mob_hooks {
             );
         }
 
-        fn base_tick(&self) {
-            $crate::entity::passive::abstract_fish::AbstractFish::fish_base_tick(self, self);
+        fn base_tick(&self, caller: &dyn $crate::entity::EntityBase) {
+            $crate::entity::passive::abstract_fish::AbstractFish::fish_base_tick(self, caller);
         }
 
         fn remove_when_far_away(&self, _distance_sq: f64) -> bool {

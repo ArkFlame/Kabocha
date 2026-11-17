@@ -1,0 +1,18 @@
+# audit / crates/pumpkin-core/src/plugin/mod.rs
+
+Reviewed: the whole file (plugin manager: event registry and dispatch, loaders, IPC, permissions hand-off, reload/unload drain), plus `pumpkin-command/src/node/dispatcher.rs` and `plugin/api/context.rs` for the command side. The row note says 3 TODO/FIXME markers; the file has one TODO (mod.rs:481) and no FIXME, so the count is stale. Plugin hosting has no vanilla counterpart: the parity targets are Bukkit/Paper plugin semantics (event order, command registration, unload) and self-consistency of the drain path.
+
+Checked and matching (no change):
+
+- `insert_handler` (mod.rs:226-232): list is sorted descending in `EventPriority` (`Highest < ... < Lowest`), so handlers run Lowest -> Highest, registration order within one priority. Matches Bukkit's priority order; `partition_point(>=)` keeps FIFO for equal priorities.
+- Plugin command deactivate/reactivate (mod.rs:322-331, dispatcher.rs:142-171): inactive commands cannot execute, are not listed or suggested, and a re-register reactivates them. Matches the observable Paper behaviour for a disabled plugin's commands.
+- `unload_order` (mod.rs:713-759) unloads dependents before dependencies, falls back to listing order on a cycle; `reload_all_plugins` restores previously unloaded plugins in reverse on a failed rescan; `topological_sort` rejects missing dependencies and cycles without poisoning `visited`.
+- `Services::take_owned` / `Registrations::in_use` (mod.rs:398-411, 440-444): one strong count per payload, so a service registered under two names is not double-counted when draining.
+
+## Remaining gaps
+
+| file:line | vanilla / Paper | suggested fix | size |
+|---|---|---|---|
+| mod.rs:481 (TODO) | CraftBukkit/Paper removes a disabled plugin's `PluginCommand`s from the command map (`CraftServer#disablePlugin` -> `SimpleCommandMap` removal) and re-adds them on enable, so the plugin's code can be released. Pumpkin only marks the commands inactive; root nodes, executors and argument types stay in `pumpkin-command`'s `Tree`, and `Context::mark_commands` (context.rs:109-116) is a sticky bool, so `release_library` returns `CommandsResident` and leaks the library/loader until restart, even after the plugin unregistered its commands itself. | Add `CommandDispatcher::remove_commands_from_source` that drops the subtrees rooted at nodes whose `meta.source` matches plus their alias-map entries and alias indices, refresh client command providers; call it from the unload sweep after `context.seal()`. Then replace the sticky `commands` bool with a live "source still in tree" query and drop the `commands` gate in `release_library`. | M-L |
+| mod.rs:2957-2978 (`fire_dyn`) | Bukkit/Paper runs every handler of one event strictly in priority order; async handlers run sequentially on the async executor. Pumpkin runs all blocking handlers first (priority order), then all non-blocking handlers concurrently via `join_all`, so a Lowest non-blocking handler observes side effects of a Highest one in either order, and two async handlers for one event race. | Iterate the already priority-sorted list once: `handle_blocking_dyn(`&mut`).await` for blocking, `handle_dyn(`&ref`).await` for non-blocking. Ship with a test asserting cross-priority non-blocking order (fails today). Behaviour/perf change for plugins, so land deliberately. | S |
+| mod.rs:3010-3020 (`fire_blocking_dyn`) | n/a (host safety): `tokio::task::block_in_place` panics inside a current-thread runtime, and the file's tests only use a multi-thread runtime, so the panic path is untested. | Fall back to a plain `server.runtime.block_on(...)` when the ambient runtime is not multi-threaded, or assert-document the multi-thread requirement with a guarded check. | S |

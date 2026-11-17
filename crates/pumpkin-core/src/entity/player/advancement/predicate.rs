@@ -67,7 +67,7 @@ pub fn matches_float_bounds(bounds: &Value, val: f64) -> bool {
 }
 
 /// Strongly-typed bounds for integer numbers.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct IntBounds {
     pub min: Option<i64>,
     pub max: Option<i64>,
@@ -165,7 +165,7 @@ impl TagOrIdMatcher {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnchantmentPredicate {
     pub enchantment: String,
-    pub min_level: i64,
+    pub levels: IntBounds,
 }
 
 /// Strongly-typed condition for item matching.
@@ -193,7 +193,7 @@ impl ItemPredicate {
         for target_ench in &self.enchantments {
             let matched = enchantments.iter().any(|(name, level)| {
                 matches_tag_or_id(RegistryKey::Enchantment, &target_ench.enchantment, name)
-                    && i64::from(*level) >= target_ench.min_level
+                    && target_ench.levels.matches(i64::from(*level))
             });
             if !matched {
                 return false;
@@ -220,21 +220,24 @@ impl ItemPredicate {
         let durability = pred_map.get("durability").and_then(IntBounds::from_value);
 
         let mut enchantments = Vec::new();
-        if let Some(predicates) = pred_map.get("predicates").and_then(Value::as_object)
+        // 1.20.5+ serialises item component predicates under `components`; older packs use `predicates`.
+        if let Some(predicates) = pred_map
+            .get("components")
+            .or_else(|| pred_map.get("predicates"))
+            .and_then(Value::as_object)
             && let Some(enchants) = predicates
                 .get("minecraft:enchantments")
                 .and_then(Value::as_array)
         {
             for ench_cond in enchants {
                 if let Some(target_ench) = ench_cond.get("enchantments").and_then(Value::as_str) {
-                    let min_level = ench_cond
+                    let levels = ench_cond
                         .get("levels")
-                        .and_then(|l| l.get("min"))
-                        .and_then(Value::as_i64)
-                        .unwrap_or(1);
+                        .and_then(IntBounds::from_value)
+                        .unwrap_or_default();
                     enchantments.push(EnchantmentPredicate {
                         enchantment: target_ench.to_string(),
-                        min_level,
+                        levels,
                     });
                 }
             }
@@ -588,7 +591,10 @@ impl ItemUsedOnBlockPredicate {
         let mut biome = None;
 
         let mut terms = Vec::new();
-        if let Some(arr) = loc.get("terms").and_then(Value::as_array) {
+        if let Some(arr) = loc.as_array() {
+            // 1.20.2+ packs list the loot conditions of `location` directly as an array.
+            terms.extend(arr.iter());
+        } else if let Some(arr) = loc.get("terms").and_then(Value::as_array) {
             terms.extend(arr.iter());
         } else {
             terms.push(loc);
@@ -625,6 +631,7 @@ impl ItemUsedOnBlockPredicate {
                 biome = Some(b.to_string());
             }
             if let Some(i_val) = pred.get("items").or_else(|| pred.get("item")) {
+                let i_val = i_val.get("items").unwrap_or(i_val);
                 if let Some(s) = i_val.as_str() {
                     item_patterns.push(s.to_string());
                 } else if let Some(arr) = i_val.as_array() {
@@ -1391,7 +1398,10 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                                 .iter()
                                 .map(|e| EnchantmentPredicate {
                                     enchantment: e.enchantment.to_string(),
-                                    min_level: e.min_level,
+                                    levels: IntBounds {
+                                        min: Some(e.min_level),
+                                        max: None,
+                                    },
                                 })
                                 .collect(),
                         })
@@ -2004,34 +2014,19 @@ impl CriterionConditions {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:fall_from_height" => Self::FallFromHeight {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:fall_after_explosion" => Self::FallAfterExplosion {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
                 cause_entity: val
                     .get("cause")
                     .and_then(|c| c.get("predicate"))
@@ -2046,23 +2041,13 @@ impl CriterionConditions {
                 distance_horizontal: val
                     .get("distance")
                     .and_then(|d| d.get("horizontal"))
-                    .and_then(|h| h.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:ride_entity_in_lava" => {
                 let distance_horizontal = val
                     .get("distance")
                     .and_then(|d| d.get("horizontal"))
-                    .and_then(|h| h.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    });
+                    .and_then(FloatBounds::from_value);
                 let dimension = val
                     .get("player")
                     .and_then(|p| p.get("predicate"))
@@ -2352,6 +2337,109 @@ mod tests {
     use pumpkin_data::Advancement;
     use pumpkin_data::effect::StatusEffect;
     use serde_json::json;
+
+    #[test]
+    fn item_enchantment_levels_uses_full_bounds() {
+        let exact = ItemPredicate::from_value(&json!({
+            "predicates": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": 3}
+            ]}
+        }));
+        assert!(exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 3)]));
+        assert!(!exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 4)]));
+
+        let ranged = ItemPredicate::from_value(&json!({
+            "predicates": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": {"max": 2}}
+            ]}
+        }));
+        assert!(ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 3)]));
+    }
+
+    #[test]
+    fn item_enchantment_predicate_reads_components_key() {
+        let pred = ItemPredicate::from_value(&json!({
+            "items": "minecraft:diamond_sword",
+            "components": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": {"min": 2}}
+            ]}
+        }));
+        assert!(pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 1)]));
+        assert!(!pred.matches("minecraft:iron_sword", 1, &[("minecraft:sharpness", 2)]));
+    }
+
+    #[test]
+    fn distance_trigger_keeps_upper_bound() {
+        let cond = CriterionConditions::parse(
+            "minecraft:fall_from_height",
+            r#"{"distance": {"y": {"max": 5}}}"#,
+        );
+        match &cond {
+            CriterionConditions::FallFromHeight {
+                distance_y: Some(bounds),
+            } => {
+                assert!(bounds.matches(3.0));
+                assert!(!bounds.matches(6.0));
+            }
+            _ => panic!("expected FallFromHeight"),
+        }
+
+        let cond = CriterionConditions::parse("minecraft:levitation", r#"{"distance": {"y": 7}}"#);
+        match &cond {
+            CriterionConditions::Levitation {
+                distance_y: Some(bounds),
+            } => {
+                assert!(bounds.matches(7.0));
+                assert!(!bounds.matches(8.0));
+            }
+            _ => panic!("expected Levitation"),
+        }
+    }
+
+    #[test]
+    fn item_used_on_block_reads_location_array_and_item_predicate() {
+        let cond = CriterionConditions::parse(
+            "minecraft:item_used_on_block",
+            r#"{
+                "item": {"items": "minecraft:wheat_seeds"},
+                "location": [
+                    {
+                        "condition": "minecraft:location_check",
+                        "predicate": {"block": {"blocks": "minecraft:farmland"}}
+                    }
+                ]
+            }"#,
+        );
+        match &cond {
+            CriterionConditions::ItemUsedOnBlock(pred) => {
+                assert!(pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    None,
+                    None,
+                    None
+                ));
+                assert!(!pred.matches(
+                    "minecraft:dirt",
+                    "minecraft:wheat_seeds",
+                    None,
+                    None,
+                    None
+                ));
+                assert!(!pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:stone_hoe",
+                    None,
+                    None,
+                    None
+                ));
+            }
+            _ => panic!("expected ItemUsedOnBlock"),
+        }
+    }
 
     #[test]
     fn matches_id_works() {

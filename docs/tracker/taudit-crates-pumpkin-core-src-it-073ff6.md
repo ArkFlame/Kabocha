@@ -19,7 +19,14 @@ No TODO/FIXME markers in the file; the 10 "vanilla" hits are provenance comments
 - Spawn-egg-on-entity: same-type gate, `get_breed_offspring` with the clicked animal as both
   parents, frog returns null, no offspring without a baby form, `on_offspring_spawned_from_egg`.
 
-## Fixed in this audit
+## Fixed in this audit (2026-11-17 pass)
+
+- spawn_egg.rs:430-431 - `use_on_entity` gave the offspring a random yaw. Vanilla
+  `spawnOffspringFromSpawnEgg` does `breedOffspring.moveTo(pos, 0.0F, 0.0F)` (Paper 1.21.4
+  SpawnEggItem patch, hunk 2), i.e. the baby faces north, while the block/fluid spawn paths keep
+  `EntityType.spawn`'s random yaw. Now `set_rotation(0.0, 0.0)`.
+
+## Fixed in this audit (earlier pass)
 
 1. spawn_egg.rs:278-282 - `SpawnEggItem.use` checks `Level.mayInteract`/`Player.mayUseItemAt`
    before spawning into a fluid; Pumpkin had no spawn-protection gate on that path, so a
@@ -54,3 +61,23 @@ No TODO/FIXME markers in the file; the 10 "vanilla" hits are provenance comments
 7. No automated test covers spawn eggs (none in the file, none in `pumpkin-gametest`). Smallest
    useful test: spawn egg with `entity_data` for a variant mob applies the component and the
    peaceful guard blocks monsters, driven through the gametest world. Size M.
+
+## Additional gaps found in the 2026-11-17 pass
+
+8. spawn_egg.rs:413-429 - the `None` (non-animal) arm of `use_on_entity` synthesises a mob with
+   `from_type` and then makes it a baby, so a zombie egg used on a zombie consumes the egg and
+   spawns a baby zombie. Vanilla `interactLivingEntity`/ `spawnOffspringFromSpawnEgg` work from
+   `getBreedOffspring` (AgeableMob) and return PASS otherwise; the exact 26.3 guard (baby parent,
+   spawned type) must be read before changing. Size M.
+9. spawn_egg.rs:447-458 - `ItemBehaviour::use_on_entity` returns `()`, so a successful spawn never
+   reports InteractionResult.CONSUME; interact.rs:135-176 then does not swing and the client keeps
+   its own prediction. Fixing needs the trait return type changed for every item. Size M.
+10. spawn_egg.rs:359-361 - the peaceful rejection returns `BlockActionResult::Fail`; vanilla
+   `useOn` always returns CONSUME and lets `EntityType.spawn` fail internally. Client-only
+   (swing/prediction). Size S.
+11. dispenser.rs:639-682 - `dispense_spawn_egg` emits ENTITY_PLACE at the dispenser position;
+   vanilla `EntityType.spawn` emits it at the spawned entity position. Event-position only. Size S.
+12. block/entities/mob_spawner.rs:294 - `set_entity_type` only swaps the type; vanilla
+   `BaseSpawner.setEntityId` also resets pending spawn data/potentials. Pumpkin's spawner has a
+   flat `entity_type` and no potentials, so there is nothing to reset today; revisit if per-spawn
+   NBT is added. Size S (informational).

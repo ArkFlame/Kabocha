@@ -1643,7 +1643,7 @@ fn collect_function_tag_members<S: std::hash::BuildHasher>(
             tracing::error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks(server);
+        server.reload_datapacks();
         Ok(())
     }
 
@@ -1677,12 +1677,12 @@ fn collect_function_tag_members<S: std::hash::BuildHasher>(
             tracing::error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks(server);
+        server.reload_datapacks();
         Ok(())
     }
 
     pub fn reload(server: &Arc<Server>) -> Result<(), String> {
-        server.reload_datapacks(server);
+        server.reload_datapacks();
         Ok(())
     }
 

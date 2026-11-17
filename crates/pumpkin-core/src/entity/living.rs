@@ -3721,10 +3721,13 @@ impl LivingEntity {
         self.entity.air_supply.load(Relaxed) <= -DROWNING_INTERVAL
     }
 
-    pub(crate) fn tick_air_supply(&self, caller: &dyn crate::entity::mob::Mob) {
+    pub(crate) fn tick_air_supply(&self, caller: &dyn EntityBase) {
         if !self.is_alive() {
             return;
         }
+        let Some(mob) = caller.get_mob() else {
+            return;
+        };
         let entity = &self.entity;
         let current = entity.air_supply.load(Relaxed);
         let max_air = caller.get_max_air_supply();
@@ -3738,8 +3741,8 @@ impl LivingEntity {
                 .get_block(&entity.get_eye_pos().to_block_pos())
                 != &Block::BUBBLE_COLUMN
         {
-            if !caller.can_breathe_underwater() && !water_breathing && !nautilus_breathing {
-                entity.set_air_supply(caller.mob_decrease_air_supply(current));
+            if !mob.can_breathe_underwater() && !water_breathing && !nautilus_breathing {
+                entity.set_air_supply(mob.mob_decrease_air_supply(current));
                 if self.should_take_drowning_damage() {
                     entity.set_air_supply(0);
                     entity.world.load().send_entity_status(
@@ -4676,7 +4679,7 @@ impl EntityBase for LivingEntity {
         self.tick_last_hurt_by_mob();
         if let Some(mob) = caller.get_mob() {
             mob.tick_ambient_sound();
-            mob.base_tick();
+            mob.base_tick(caller);
         }
         self.tick_arrow_count();
 
@@ -5773,6 +5776,36 @@ mod ai_step_tests {
         fn is_mob_immobile(&self) -> bool {
             self.immobile || self.mob.living_entity.is_dead_or_dying()
         }
+    }
+
+    #[tokio::test]
+    async fn mob_base_tick_refills_air_out_of_water() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        world.level.loaded_chunks.insert(
+            pumpkin_util::math::vector2::Vector2::new(0, 0),
+            pumpkin_world::chunk::ChunkData::empty_sync(0, 0),
+        );
+        let mob = ProbeMob {
+            mob: MobEntity::new(Entity::new(
+                world.clone(),
+                Vector3::new(0.5, 64.0, 0.5),
+                &EntityType::COW,
+            )),
+            immobile: false,
+        };
+        let entity = mob.get_entity();
+        entity
+            .air_supply
+            .store(crate::entity::breath::MAX_AIR - 10, Ordering::Relaxed);
+
+        mob.base_tick(&mob);
+
+        assert_eq!(
+            entity.air_supply.load(Ordering::Relaxed),
+            crate::entity::breath::MAX_AIR - 6
+        );
+        Ok(())
     }
 
     #[tokio::test]
