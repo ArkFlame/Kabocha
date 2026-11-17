@@ -276,10 +276,18 @@ impl JavaClient {
                     self.update_sequence(player_action.sequence.0);
                 }
                 Status::DropItem => {
-                    player.drop_held_item(false);
+                    // Vanilla `handleBlockBreakAction` ignores item drops and hand swaps in
+                    // spectator mode.
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.drop_held_item(false);
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::DropItemStack => {
-                    player.drop_held_item(true);
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.drop_held_item(true);
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::ReleaseItemInUse => {
                     let item_in_use = player
@@ -293,11 +301,16 @@ impl JavaClient {
                     }
 
                     player.living_entity.clear_active_hand();
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::SwapItem => {
-                    player.swap_item();
+                    if player.gamemode.load() != GameMode::Spectator {
+                        player.swap_item();
+                    }
+                    self.update_sequence(player_action.sequence.0);
                 }
                 Status::SpearJab => {
+                    self.update_sequence(player_action.sequence.0);
                     if player.gamemode.load() == GameMode::Spectator {
                         return;
                     }
@@ -306,7 +319,9 @@ impl JavaClient {
                     server.item_registry.on_spear_jab(&stack, player);
                 }
                 // The block being mined does not change, so there is nothing to update
-                Status::ChangeDestroyDirection => {}
+                Status::ChangeDestroyDirection => {
+                    self.update_sequence(player_action.sequence.0);
+                }
             },
             Err(_) => self.try_kick(&TextComponent::text("Invalid status")),
         }
