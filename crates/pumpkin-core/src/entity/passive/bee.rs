@@ -5,8 +5,10 @@ use std::sync::{
 
 use pumpkin_data::BlockState;
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
@@ -43,6 +45,15 @@ pub const FLAG_HAS_NECTAR: u8 = 8;
 
 /// Vanilla `Bee.TICKS_PER_FLAP`, `Mth.ceil(1.4959966F)`.
 const TICKS_PER_FLAP: i32 = 2;
+
+/// Vanilla `Bee.doHurtTarget` sting poison in ticks: 10 s on Normal, 18 s on Hard, none otherwise.
+fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
+    match difficulty {
+        pumpkin_util::Difficulty::Normal => 10 * 20,
+        pumpkin_util::Difficulty::Hard => 18 * 20,
+        _ => 0,
+    }
+}
 
 fn is_angry(mob: &dyn Mob) -> bool {
     mob.as_neutral().is_some_and(NeutralMob::is_angry)
@@ -343,9 +354,24 @@ impl Mob for BeeEntity {
     }
 
     /// Vanilla `Bee.doHurtTarget`: a successful sting uses up the stinger and drops the target.
-    fn on_attack(&self, _target: &dyn EntityBase) {
+    fn on_attack(&self, target: &dyn EntityBase) {
         if self.has_stung() {
             return;
+        }
+        if let Some(living) = target.get_living_entity() {
+            let world = self.mob_entity.living_entity.entity.world.load();
+            let duration = sting_poison_ticks(world.level_info.load().difficulty);
+            if duration > 0 {
+                living.add_effect(Effect {
+                    effect_type: &StatusEffect::POISON,
+                    duration,
+                    amplifier: 0,
+                    ambient: false,
+                    show_particles: true,
+                    show_icon: true,
+                    blend: false,
+                });
+            }
         }
         self.set_has_stung(true);
         self.mob_entity.set_target(None);
@@ -369,5 +395,20 @@ impl Mob for BeeEntity {
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         self.animal_interact(player, item_stack)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_util::Difficulty;
+
+    use super::sting_poison_ticks;
+
+    #[test]
+    fn sting_poison_scales_with_difficulty() {
+        assert_eq!(sting_poison_ticks(Difficulty::Peaceful), 0);
+        assert_eq!(sting_poison_ticks(Difficulty::Easy), 0);
+        assert_eq!(sting_poison_ticks(Difficulty::Normal), 200);
+        assert_eq!(sting_poison_ticks(Difficulty::Hard), 360);
     }
 }
