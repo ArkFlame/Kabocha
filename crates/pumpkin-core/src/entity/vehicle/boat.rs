@@ -96,6 +96,11 @@ impl BoatEntity {
     }
 
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
+        // Vanilla `AbstractChestBoat.openCustomInventoryScreen` runs `openMenu` only for a
+        // non-spectator (`ChestBoat.interact` guards with `!player.isSpectator()`).
+        if player.is_spectator() {
+            return false;
+        }
         let Some(inventory) = &self.inventory else {
             return false;
         };
@@ -375,8 +380,7 @@ impl EntityBase for BoatEntity {
                 < self.get_max_passengers();
 
         if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
-            let _ = self.open_custom_inventory_screen(player);
-            return true;
+            return self.open_custom_inventory_screen(player);
         }
 
         if player.get_entity().is_sneaking() || !can_add_passenger {
