@@ -67,7 +67,7 @@ pub fn matches_float_bounds(bounds: &Value, val: f64) -> bool {
 }
 
 /// Strongly-typed bounds for integer numbers.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct IntBounds {
     pub min: Option<i64>,
     pub max: Option<i64>,
@@ -165,7 +165,7 @@ impl TagOrIdMatcher {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnchantmentPredicate {
     pub enchantment: String,
-    pub min_level: i64,
+    pub levels: IntBounds,
 }
 
 /// Strongly-typed condition for item matching.
@@ -193,7 +193,7 @@ impl ItemPredicate {
         for target_ench in &self.enchantments {
             let matched = enchantments.iter().any(|(name, level)| {
                 matches_tag_or_id(RegistryKey::Enchantment, &target_ench.enchantment, name)
-                    && i64::from(*level) >= target_ench.min_level
+                    && target_ench.levels.matches(i64::from(*level))
             });
             if !matched {
                 return false;
@@ -227,14 +227,13 @@ impl ItemPredicate {
         {
             for ench_cond in enchants {
                 if let Some(target_ench) = ench_cond.get("enchantments").and_then(Value::as_str) {
-                    let min_level = ench_cond
+                    let levels = ench_cond
                         .get("levels")
-                        .and_then(|l| l.get("min"))
-                        .and_then(Value::as_i64)
-                        .unwrap_or(1);
+                        .and_then(IntBounds::from_value)
+                        .unwrap_or_default();
                     enchantments.push(EnchantmentPredicate {
                         enchantment: target_ench.to_string(),
-                        min_level,
+                        levels,
                     });
                 }
             }
@@ -1391,7 +1390,10 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                                 .iter()
                                 .map(|e| EnchantmentPredicate {
                                     enchantment: e.enchantment.to_string(),
-                                    min_level: e.min_level,
+                                    levels: IntBounds {
+                                        min: Some(e.min_level),
+                                        max: None,
+                                    },
                                 })
                                 .collect(),
                         })
@@ -2352,6 +2354,26 @@ mod tests {
     use pumpkin_data::Advancement;
     use pumpkin_data::effect::StatusEffect;
     use serde_json::json;
+
+    #[test]
+    fn item_enchantment_levels_uses_full_bounds() {
+        let exact = ItemPredicate::from_value(&json!({
+            "predicates": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": 3}
+            ]}
+        }));
+        assert!(exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 3)]));
+        assert!(!exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!exact.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 4)]));
+
+        let ranged = ItemPredicate::from_value(&json!({
+            "predicates": {"minecraft:enchantments": [
+                {"enchantments": "minecraft:sharpness", "levels": {"max": 2}}
+            ]}
+        }));
+        assert!(ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
+        assert!(!ranged.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 3)]));
+    }
 
     #[test]
     fn matches_id_works() {
