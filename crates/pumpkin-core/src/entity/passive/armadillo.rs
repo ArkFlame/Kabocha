@@ -22,6 +22,7 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     item::ItemEntity,
     mob::{Mob, MobEntity, drop_from_gift_loot_table},
     passive::animal::Animal,
@@ -323,9 +324,29 @@ impl Animal for ArmadilloEntity {
     }
 }
 
+impl CustomSound for ArmadilloEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityArmadilloDeath)
+    }
+
+    /// Vanilla `Armadillo.getHurtSound` uses the muted variant while the shell covers the body.
+    fn hurt_sound(&self) -> Option<Sound> {
+        self.should_hide_in_shell()
+            .then_some(Sound::EntityArmadilloHurtReduced)
+    }
+}
+
 impl Mob for ArmadilloEntity {
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityArmadilloStep, 0.15, 1.0);
+    }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityArmadilloAmbient)
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
     }
 
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
