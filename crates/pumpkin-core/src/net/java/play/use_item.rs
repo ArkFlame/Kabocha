@@ -37,7 +37,12 @@ impl JavaClient {
         }
 
         let (item_id, _item) = (item_in_hand.item.id, item_in_hand.item);
-        player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
+        // Vanilla awards ITEM_USED inside each item's own use(). The fishing rod is
+        // awarded locally on the cast branch only (FishingRodItem.use), so reel-in and
+        // plugin-cancelled casts must not count in this generic handler.
+        if item_id != Item::FISHING_ROD.id {
+            player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
+        }
 
         let hit = player.world().clip(&pumpkin_world::clip::ClipContext::new(
             player.eye_position(),

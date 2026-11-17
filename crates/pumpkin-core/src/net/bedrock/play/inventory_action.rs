@@ -547,7 +547,8 @@ impl BedrockClient {
                     };
                     server.item_registry.on_stopped_using(&stack, player);
                 }
-                player.living_entity.clear_active_hand();
+                // Match the Java path: a release ends item use as well as the active hand.
+                player.stop_using_item();
             }
         }
 

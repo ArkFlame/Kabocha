@@ -60,6 +60,53 @@ const CATEGORY_CAMPFIRE: i32 = 12;
 
 use crate::codec::recipe::DynamicRecipe;
 
+/// Number of recipe-book display ids assigned to the built-in recipes written before any dynamic
+/// recipes. Mirrors the skip set in the write_packet_data method: special crafting and
+/// decorated-pot recipes have no recipe-book display.
+#[must_use]
+pub fn static_recipe_display_count() -> usize {
+    RECIPES_CRAFTING
+        .iter()
+        .filter(|r| {
+            !matches!(
+                r,
+                CraftingRecipeTypes::CraftingSpecial(_)
+                    | CraftingRecipeTypes::CraftingDecoratedPot { .. }
+            )
+        })
+        .count()
+        + RECIPES_COOKING.len()
+}
+
+/// Whether a dynamic recipe gets a recipe-book display entry, and therefore a display id.
+#[must_use]
+pub fn dynamic_recipe_has_display(recipe: &DynamicRecipe) -> bool {
+    matches!(
+        recipe,
+        DynamicRecipe::Crafting(_) | DynamicRecipe::Cooking(_)
+    )
+}
+
+/// Maps dynamic recipes to the display ids the write_packet_data method assigns them, in
+/// order. None for recipes with no recipe-book display (smithing, stonecutting, brewing, special
+/// crafting).
+#[must_use]
+pub fn dynamic_recipe_display_ids(recipes: &[DynamicRecipe]) -> Vec<Option<i32>> {
+    let mut next = static_recipe_display_count() as i32;
+    recipes
+        .iter()
+        .map(|recipe| {
+            if dynamic_recipe_has_display(recipe) {
+                let id = next;
+                next += 1;
+                Some(id)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 /// Clientbound packet that adds recipes to the client's recipe book.
 /// `replace = true` means the client replaces its current recipe list.
 #[java_packet(RECIPE_BOOK_ADD)]
@@ -514,23 +561,13 @@ impl ClientPacket for CRecipeBookAdd<'_> {
         let campfire = Item::from_registry_key("campfire")
             .ok_or_else(|| WritingError::Message("campfire item must exist".into()))?;
 
-        // First pass - count and skip CraftingSpecial and CraftingDecoratedPot entries.
-        let crafting_count: usize = RECIPES_CRAFTING
-            .iter()
-            .filter(|r| {
-                !matches!(
-                    r,
-                    CraftingRecipeTypes::CraftingSpecial(_)
-                        | CraftingRecipeTypes::CraftingDecoratedPot { .. }
-                )
-            })
-            .count();
+        // Entry count: built-in display entries plus dynamic recipes that have a display.
         let dynamic_count = self
             .dynamic_recipes
             .iter()
-            .filter(|r| matches!(r, DynamicRecipe::Crafting(_) | DynamicRecipe::Cooking(_)))
+            .filter(|r| dynamic_recipe_has_display(r))
             .count();
-        let total = crafting_count + RECIPES_COOKING.len() + dynamic_count;
+        let total = static_recipe_display_count() + dynamic_count;
 
         // Entry count (VarInt)
         write.write_var_int(&VarInt(total as i32))?;
@@ -622,6 +659,10 @@ impl ClientPacket for CRecipeBookAdd<'_> {
 
         // Write dynamic recipes
         for recipe in self.dynamic_recipes {
+            if !dynamic_recipe_has_display(recipe) {
+                // Non-crafting/cooking recipes are not displayed in the recipe book
+                continue;
+            }
             match recipe {
                 DynamicRecipe::Crafting(crafting) => {
                     let (group, flags) = match crafting {
@@ -701,14 +742,8 @@ impl ClientPacket for CRecipeBookAdd<'_> {
                         book_category,
                     )?;
                 }
-                DynamicRecipe::Brewing(_)
-                | DynamicRecipe::Stonecutting(_)
-                | DynamicRecipe::SmithingTransform(_)
-                | DynamicRecipe::SmithingTrim(_)
-                | DynamicRecipe::SpecialCrafting(_) => {
-                    // Non-crafting/cooking recipes are not displayed in the recipe book
-                    continue;
-                }
+                // Other variants have no recipe-book display and were skipped above.
+                _ => continue,
             }
             display_id += 1;
         }
@@ -1136,5 +1171,41 @@ mod tests {
                 stonecutter_update_recipes_data(&[], version).unwrap(),
             );
         }
+    }
+
+    #[test]
+    fn dynamic_display_ids_skip_non_displayed_recipes() {
+        use crate::codec::recipe::{
+            OwnedCraftingRecipe, OwnedRecipeIngredient, OwnedRecipeResult, OwnedStonecutterRecipe,
+        };
+
+        let crafting = |id: &str| {
+            DynamicRecipe::Crafting(OwnedCraftingRecipe::Shapeless {
+                recipe_id: Some(id.to_string()),
+                category: RecipeCategoryTypes::Misc,
+                group: None,
+                ingredients: vec![OwnedRecipeIngredient::Simple("minecraft:stone".to_string())],
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:dirt".to_string(),
+                    count: 1,
+                },
+            })
+        };
+        let stonecutting = DynamicRecipe::Stonecutting(OwnedStonecutterRecipe {
+            recipe_id: "test:stone".to_string(),
+            group: None,
+            ingredient: OwnedRecipeIngredient::Simple("minecraft:stone".to_string()),
+            result: OwnedRecipeResult {
+                item_id: "minecraft:dirt".to_string(),
+                count: 1,
+            },
+        });
+
+        let offset = static_recipe_display_count() as i32;
+        let recipes = [crafting("test:a"), stonecutting, crafting("test:b")];
+        assert_eq!(
+            dynamic_recipe_display_ids(&recipes),
+            vec![Some(offset), None, Some(offset + 1)]
+        );
     }
 }

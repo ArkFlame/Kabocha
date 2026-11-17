@@ -9,7 +9,13 @@ impl JavaClient {
         player: &Arc<Player>,
         chat_message: SChatMessage<'_>,
     ) {
-        player.update_last_action_time();
+        // Vanilla `tryHandleChat` disconnects on illegal characters before the visibility gate
+        // and only refreshes the action time for the messages it accepts.
+        if is_chat_message_illegal(chat_message.message) {
+            self.reject_chat_request(player, ChatError::IllegalCharacters)
+                .await;
+            return;
+        }
 
         if let Some(command) = chat_message.message.strip_prefix('/') {
             let command_packet = SChatCommand { command };
@@ -38,21 +44,12 @@ impl JavaClient {
             ChatMode::Enabled => {}
         }
 
+        player.update_last_action_time();
+
         let gameprofile = &player.gameprofile;
 
         if let Err(err) = self.validate_chat_message(server, player, &chat_message) {
-            log_at_level!(
-                err.severity(),
-                "{} (uuid {}) {}",
-                gameprofile.name,
-                gameprofile.id,
-                err
-            );
-            if err.is_kick()
-                && let Some(reason) = err.client_kick_reason()
-            {
-                self.kick(TextComponent::text(reason)).await;
-            }
+            self.reject_chat_request(player, err).await;
             return;
         }
 
@@ -110,6 +107,23 @@ impl JavaClient {
         }}
     }
 
+    /// Logs a rejected chat request and disconnects when the error is fatal.
+    async fn reject_chat_request(&self, player: &Player, err: ChatError) {
+        let gameprofile = &player.gameprofile;
+        log_at_level!(
+            err.severity(),
+            "{} (uuid {}) {}",
+            gameprofile.name,
+            gameprofile.id,
+            err
+        );
+        if err.is_kick()
+            && let Some(reason) = err.client_kick_reason()
+        {
+            self.kick(TextComponent::text(reason)).await;
+        }
+    }
+
     /// Runs all vanilla checks for a valid chat message
     pub fn validate_chat_message(
         &self,
@@ -123,11 +137,7 @@ impl JavaClient {
             return Err(ChatError::OversizedMessage);
         }
         // Check for illegal characters
-        if chat_message
-            .message
-            .chars()
-            .any(|c| c == '§' || c < ' ' || c == '\x7F')
-        {
+        if is_chat_message_illegal(chat_message.message) {
             return Err(ChatError::IllegalCharacters);
         }
         // These checks are only run in secure chat mode
@@ -168,46 +178,38 @@ impl JavaClient {
                 return Err(ChatError::ChatValidationFailed);
             }
 
-            {
+            let acknowledged = {
                 let mut cache = player
                     .signature_cache
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if !chat_message.acknowledged.is_empty() {
-                    if cache
+                // Pre-1.19.3 clients send no acknowledgement bitset, only the window offset.
+                let acknowledged = if chat_message.acknowledged.is_empty() {
+                    cache
+                        .last_seen_validator
+                        .apply_offset(offset as usize)
+                        .map_err(|_| ChatError::ChatValidationFailed)?;
+                    Vec::new()
+                } else {
+                    cache
                         .last_seen_validator
                         .apply_update(offset as usize, chat_message.acknowledged)
-                        .is_err()
-                    {
-                        return Err(ChatError::ChatValidationFailed);
-                    }
-                } else if cache
-                    .last_seen_validator
-                    .apply_offset(offset as usize)
-                    .is_err()
-                {
-                    return Err(ChatError::ChatValidationFailed);
-                }
+                        .map_err(|_| ChatError::ChatValidationFailed)?
+                };
 
                 if cache.last_seen_validator.tracked_messages_count() > 4096 {
                     return Err(ChatError::TooManyPendingChats);
                 }
-            }
+                acknowledged
+            };
 
-            // Validate previous signature checksum (new in 1.21.5)
-            // The client can bypass this check by sending 0
-            if chat_message.checksum != 0 {
-                let checksum = polynomial_rolling_hash(
-                    player
-                        .signature_cache
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .last_seen
-                        .as_ref(),
-                );
-                if checksum != chat_message.checksum {
-                    return Err(ChatError::ChatValidationFailed);
-                }
+            // Validate previous signature checksum (new in 1.21.5). The client can bypass this
+            // check by sending 0. Vanilla hashes the signatures acknowledged by this very
+            // update, not the sender last seen list, which would never match.
+            if chat_message.checksum != 0
+                && polynomial_rolling_hash(&acknowledged) != chat_message.checksum
+            {
+                return Err(ChatError::ChatValidationFailed);
             }
         }
         Ok(())
@@ -219,24 +221,46 @@ impl JavaClient {
         server: &Server,
         session: SPlayerSession,
     ) {
-        // Keep the chat session default if we don't want reports
-        if !server.basic_config.allow_chat_reports {
+        // Vanilla `handleChatSessionUpdate` only processes a key that actually changed, and
+        // disconnects a client replacing its key with one that expires earlier.
+        let (current_expires_at, current_public_key, current_signature) = {
+            let current = player
+                .chat_session
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            (
+                current.expires_at,
+                current.public_key.clone(),
+                current.signature.clone(),
+            )
+        };
+        if current_expires_at != 0
+            && current_expires_at == session.expires_at
+            && current_public_key.as_ref() == session.public_key.as_ref()
+            && current_signature.as_ref() == session.key_signature.as_ref()
+        {
+            return;
+        }
+        if current_expires_at != 0 && session.expires_at < current_expires_at {
+            self.reject_chat_request(player, ChatError::ExpiredPublicKey)
+                .await;
             return;
         }
 
-        if let Err(err) = self.validate_chat_session(player, server, &session).await {
-            log_at_level!(
-                err.severity(),
-                "{} (uuid {}) {}",
-                player.gameprofile.name,
-                player.gameprofile.id,
-                err
+        // Vanilla only ignores the update when the services profile-key validator is missing, and
+        // that validator is fetched only while chat reports are on. Without it the session is still
+        // stored unverified, as Canvas does with chat reporting disabled, so clients keep learning
+        // each other's keys.
+        let verifying = server.basic_config.allow_chat_reports;
+        if verifying && server.mojang_public_keys.load().is_empty() {
+            warn!(
+                "Ignoring chat session from {} due to missing Services public key",
+                player.gameprofile.name
             );
-            if err.is_kick()
-                && let Some(reason) = err.client_kick_reason()
-            {
-                self.kick(TextComponent::text(reason)).await;
-            }
+            return;
+        }
+        if verifying && let Err(err) = self.validate_chat_session(player, server, &session).await {
+            self.reject_chat_request(player, err).await;
             return;
         }
 
@@ -318,5 +342,27 @@ impl JavaClient {
         }
 
         Ok(())
+    }
+}
+
+/// Vanilla `StringUtil#isAllowedChatCharacter` inverted: the section sign, control characters
+/// and DEL are the only characters a client may not put in a chat message.
+fn is_chat_message_illegal(message: &str) -> bool {
+    message
+        .chars()
+        .any(|c| c == '\u{a7}' || c < ' ' || c == '\u{7f}')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_chat_message_illegal;
+
+    #[test]
+    fn only_section_sign_and_control_chars_are_illegal() {
+        assert!(!is_chat_message_illegal("hello world"));
+        assert!(!is_chat_message_illegal("/say <3"));
+        assert!(is_chat_message_illegal("\u{a7}c"));
+        assert!(is_chat_message_illegal("tab\there"));
+        assert!(is_chat_message_illegal("del\u{7f}"));
     }
 }

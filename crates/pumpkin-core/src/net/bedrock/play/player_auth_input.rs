@@ -1,6 +1,5 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use pumpkin_data::entity::EntityPose;
 use pumpkin_protocol::bedrock::server::player_auth_input::{InputMode, InteractionModel};
 use pumpkin_protocol::java::server::play::SPlayerInput;
 use pumpkin_util::math::vector2::Vector2;
@@ -84,9 +83,11 @@ impl BedrockClient {
         // Bedrock has no crawl pose: the client sends StartCrawling when it squeezes
         // into a one block gap, which vanilla never turns into a crawl.
 
-        if flags.get(InputData::StartSpinAttack as usize) {
-            entity.set_pose(EntityPose::SpinAttack);
-        } else if flags.get(InputData::StopSpinAttack as usize) {
+        // Vanilla derives SPIN_ATTACK from the server-side riptide state
+        // (Player.getDesiredPose -> isAutoSpinAttack), never from a client flag.
+        if flags.get(InputData::StartSpinAttack as usize)
+            || flags.get(InputData::StopSpinAttack as usize)
+        {
             player.update_player_pose();
         }
 
@@ -325,7 +326,17 @@ fn sneaking_from_auth(
     player: &Player,
     flags: &pumpkin_protocol::codec::bitset::Bitset<66>,
 ) -> bool {
-    if player.is_flying() {
+    sneaking_from_flags(player.get_entity().is_sneaking(), player.is_flying(), flags)
+}
+
+/// Some Bedrock clients only report toggle or raw sneak state and never the `Start`/`Stop`
+/// edges. Those flags drive crouching too, while the edges still win when they are present.
+fn sneaking_from_flags(
+    was_sneaking: bool,
+    flying: bool,
+    flags: &pumpkin_protocol::codec::bitset::Bitset<66>,
+) -> bool {
+    if flying {
         return flags.get(InputData::Descend as usize) || flags.get(InputData::SneakDown as usize);
     }
     // Stop wins when both edges arrive on the same tick.
@@ -333,8 +344,16 @@ fn sneaking_from_auth(
         false
     } else if flags.get(InputData::StartSneaking as usize) {
         true
+    } else if flags.get(InputData::SneakToggleDown as usize) {
+        !was_sneaking
+    } else if flags.get(InputData::SneakPressedRaw as usize) {
+        true
+    } else if flags.get(InputData::SneakReleasedRaw as usize) {
+        false
+    } else if flags.get(InputData::SneakCurrentRaw as usize) {
+        true
     } else {
-        player.get_entity().is_sneaking()
+        was_sneaking
     }
 }
 
@@ -442,6 +461,12 @@ fn apply_mount_move(
     if !controls {
         return;
     }
+    let vehicle_entity = vehicle.get_entity();
+    // The reported runtime id must name the mount being controlled; a stale id means the
+    // step belongs to a previous vehicle. Bedrock sends the runtime id as the entity id.
+    if !vehicle_id_matches(packet.vehicle_unique_id, vehicle_entity.entity_id) {
+        return;
+    }
     let delta = packet.delta.to_f64();
     let step = delta.length_squared();
     let moved = delta.x.is_finite()
@@ -449,13 +474,18 @@ fn apply_mount_move(
         && delta.z.is_finite()
         && step > 0.0
         && step <= MAX_CLIENT_STEP_SQUARED;
-    let vehicle_entity = vehicle.get_entity();
     if moved {
         vehicle_entity.set_pos(vehicle_entity.pos.load().add_raw(delta.x, delta.y, delta.z));
         vehicle_entity.emit_client_movement(vehicle.as_ref(), delta);
     }
-    // A rider's body yaw is the mount's yaw, so steering in place still turns the mount.
-    vehicle_entity.set_rotation(packet.yaw, vehicle_entity.pitch.load());
+    // Vanilla `handleMoveVehicle` snaps the mount to the packet's `targetYRot`/`targetXRot`,
+    // not the rider's body yaw. Bedrock reports that as `vehicle_rotation` (x=pitch, y=yaw).
+    let (yaw, pitch) = mount_rotation(
+        packet.vehicle_rotation,
+        packet.yaw,
+        vehicle_entity.pitch.load(),
+    );
+    vehicle_entity.set_rotation(yaw, pitch);
     vehicle_entity.on_ground.store(on_ground, Ordering::Relaxed);
     crate::entity::position_rider(vehicle.as_ref(), player.as_ref());
     if moved {
@@ -463,9 +493,33 @@ fn apply_mount_move(
     }
 }
 
+/// Bedrock reports the controlled mount's runtime id as a `VarLong` of its entity id.
+/// An absent id is fine; a present one that does not name this mount rejects the step.
+fn vehicle_id_matches(reported: Option<VarLong>, entity_id: i32) -> bool {
+    reported.is_none_or(|id| i32::try_from(id.0).is_ok_and(|id| id == entity_id))
+}
+
+/// Vanilla `handleMoveVehicle` takes the mount yaw and pitch from the movement packet.
+/// Bedrock's `vehicle_rotation` is (x=pitch, y=yaw); clients that omit it leave the rider's
+/// yaw as the only steering signal.
+fn mount_rotation(
+    vehicle_rotation: Option<Vector2<f32>>,
+    rider_yaw: f32,
+    current_pitch: f32,
+) -> (f32, f32) {
+    match vehicle_rotation {
+        Some(rotation) => (rotation.y, rotation.x),
+        None => (rider_yaw, current_pitch),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Vector2, analog_move, is_on_ground};
+    use super::{
+        Vector2, analog_move, is_on_ground, mount_rotation, sneaking_from_flags, vehicle_id_matches,
+    };
+    use pumpkin_protocol::bedrock::server::player_auth_input::InputData;
+    use pumpkin_protocol::codec::bitset::Bitset;
 
     #[test]
     fn analog_drift_inside_deadzone_is_ignored() {
@@ -496,5 +550,75 @@ mod tests {
         assert!(!is_on_ground(true, 0.5, true, false));
         assert!(!is_on_ground(true, -0.5, true, true));
         assert!(!is_on_ground(false, -0.5, true, false));
+    }
+
+    #[test]
+    fn mount_rotation_uses_the_reported_vehicle_yaw_when_present() {
+        // vehicle_rotation is (x=pitch, y=yaw): vanilla snaps the mount to yRot/xRot.
+        assert_eq!(
+            mount_rotation(Some(Vector2::new(12.0, 90.0)), 5.0, 3.0),
+            (90.0, 12.0)
+        );
+    }
+
+    #[test]
+    fn mount_rotation_falls_back_to_the_rider_yaw() {
+        assert_eq!(mount_rotation(None, 5.0, 3.0), (5.0, 3.0));
+    }
+
+    #[test]
+    fn mount_step_rejects_an_unknown_vehicle_id() {
+        use pumpkin_protocol::codec::var_long::VarLong;
+        assert!(vehicle_id_matches(None, 7));
+        assert!(vehicle_id_matches(Some(VarLong::new(7)), 7));
+        assert!(!vehicle_id_matches(Some(VarLong::new(8)), 7));
+        assert!(!vehicle_id_matches(
+            Some(VarLong::new(i64::from(i32::MAX) + 1)),
+            7
+        ));
+    }
+
+    #[test]
+    fn sneak_toggle_down_flips_the_stored_state() {
+        let mut flags = Bitset::<66>::default();
+        flags.set(InputData::SneakToggleDown as usize, true);
+        assert!(sneaking_from_flags(false, false, &flags));
+        assert!(!sneaking_from_flags(true, false, &flags));
+    }
+
+    #[test]
+    fn sneak_raw_flags_drive_the_state_without_edges() {
+        let mut held = Bitset::<66>::default();
+        held.set(InputData::SneakCurrentRaw as usize, true);
+        assert!(sneaking_from_flags(false, false, &held));
+
+        let mut pressed = Bitset::<66>::default();
+        pressed.set(InputData::SneakPressedRaw as usize, true);
+        assert!(sneaking_from_flags(false, false, &pressed));
+
+        let mut released = Bitset::<66>::default();
+        released.set(InputData::SneakReleasedRaw as usize, true);
+        assert!(!sneaking_from_flags(true, false, &released));
+    }
+
+    #[test]
+    fn sneak_edges_win_over_raw_state() {
+        let mut flags = Bitset::<66>::default();
+        flags.set(InputData::SneakCurrentRaw as usize, true);
+        flags.set(InputData::StopSneaking as usize, true);
+        assert!(!sneaking_from_flags(true, false, &flags));
+
+        let mut flags = Bitset::<66>::default();
+        flags.set(InputData::SneakReleasedRaw as usize, true);
+        flags.set(InputData::StartSneaking as usize, true);
+        assert!(sneaking_from_flags(false, false, &flags));
+    }
+
+    #[test]
+    fn flying_sneak_still_descends() {
+        let mut flags = Bitset::<66>::default();
+        flags.set(InputData::Descend as usize, true);
+        assert!(sneaking_from_flags(false, true, &flags));
+        assert!(!sneaking_from_flags(false, true, &Bitset::<66>::default()));
     }
 }

@@ -247,12 +247,8 @@ impl BedrockClient {
                 player.get_entity().set_swimming(false);
                 player.update_player_pose();
             }
-            PlayerAction::StartSpinAttack => {
-                player
-                    .get_entity()
-                    .set_pose(pumpkin_data::entity::EntityPose::SpinAttack);
-            }
-            PlayerAction::StopSpinAttack => {
+            // Vanilla derives SPIN_ATTACK from the server-side riptide state, not a client flag.
+            PlayerAction::StartSpinAttack | PlayerAction::StopSpinAttack => {
                 player.update_player_pose();
             }
             PlayerAction::StartSprinting => {

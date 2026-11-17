@@ -26,6 +26,20 @@ impl JavaClient {
             return Err(BlockPlacingError::BlockOutOfReach);
         }
 
+        let world = player.get_entity().world.load_full();
+
+        // Vanilla only reaches the block use when the position is below the build limit and
+        // `ServerLevel.mayInteract` allows it (world border, spawn protection); anything else
+        // resyncs the block to the client and stops.
+        if position.0.y > world.get_top_y() || !may_interact(player, &world, &position) {
+            let state_id = world.get_block_state_id(&position);
+            player.try_send_client_packet(&CBlockUpdate::new(
+                position,
+                VarInt(i32::from(state_id.as_u16())),
+            ));
+            return Ok(());
+        }
+
         // Vanilla validates the hit relative to the clicked block's center for every item.
         if ![cursor_pos.x, cursor_pos.y, cursor_pos.z]
             .into_iter()
@@ -45,7 +59,6 @@ impl JavaClient {
         // A vanilla client only sends this packet for a block it actually looked at, with the
         // hit position clipped to that block. Dropping impossible hits keeps modified clients
         // from placing blocks in mid air or with a rotation the client could not produce.
-        let world = player.get_entity().world.load_full();
         if world.get_block(&position) == &Block::AIR || !is_valid_hit_position(&cursor_pos) {
             return Ok(());
         }
@@ -287,6 +300,19 @@ impl JavaClient {
             }
         }
     }
+}
+
+/// Vanilla `ServerLevel.mayInteract`: a position is usable when it lies inside the
+/// world border and outside spawn protection.
+fn may_interact(player: &Player, world: &World, position: &BlockPos) -> bool {
+    let x = f64::from(position.0.x);
+    let z = f64::from(position.0.z);
+    // A poisoned border lock must not block play, so fall back to "inside".
+    let inside_border = world
+        .worldborder
+        .lock()
+        .is_ok_and(|border| border.is_within_bounds(x, z, 0.0));
+    inside_border && !world.is_in_spawn_protection(player, position)
 }
 
 fn trigger_item_used_on_block_advancement(

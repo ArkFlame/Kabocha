@@ -165,6 +165,22 @@ impl JavaClient {
                             }
                             self.sync_block_state_to_client(&world, position);
                         } else {
+                            // Vanilla handleBlockBreakAction resyncs the previous target when a
+                            // new dig starts while one is already in progress, clearing its crack.
+                            if player.mining.load(Ordering::Relaxed) {
+                                let old_pos = *player
+                                    .mining_pos
+                                    .lock()
+                                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                                if old_pos != position {
+                                    world.set_block_breaking(
+                                        entity,
+                                        old_pos,
+                                        BlockBreakingProgress::Stop,
+                                    );
+                                    self.sync_block_state_to_client(&world, old_pos);
+                                }
+                            }
                             player.mining.store(true, Ordering::Relaxed);
                             *player
                                 .mining_pos
@@ -212,12 +228,27 @@ impl JavaClient {
                             .fire_blocking(&server_arc, &mut abort_event);
                     }
 
-                    player.mining.store(false, Ordering::Relaxed);
+                    // Vanilla abortDestroyBlock clears the destroy state, stops the crack on the
+                    // stored target when it differs, and stops it on the reported position.
+                    let mined_pos = *player
+                        .mining_pos
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    player.reset_mining();
+                    *player
+                        .mining_pos
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = BlockPos::ZERO;
+                    if mined_pos != BlockPos::ZERO && mined_pos != player_action.position {
+                        world.set_block_breaking(entity, mined_pos, BlockBreakingProgress::Stop);
+                    }
                     world.set_block_breaking(
                         entity,
                         player_action.position,
                         BlockBreakingProgress::Stop,
                     );
+                    // The miner is excluded from set_block_breaking, so resync its own view.
+                    self.sync_block_state_to_client(&world, player_action.position);
                     self.update_sequence(player_action.sequence.0);
                 }
                 Status::FinishedDigging => {

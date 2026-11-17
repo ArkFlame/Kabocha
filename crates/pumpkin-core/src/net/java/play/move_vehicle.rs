@@ -24,8 +24,8 @@ impl JavaClient {
             || !packet.pitch.is_finite()
         {
             self.try_kick(&TextComponent::translate_cross(
-                translation::java::MULTIPLAYER_DISCONNECT_INVALID_PLAYER_MOVEMENT,
-                translation::java::MULTIPLAYER_DISCONNECT_INVALID_PLAYER_MOVEMENT,
+                translation::java::MULTIPLAYER_DISCONNECT_INVALID_VEHICLE_MOVEMENT,
+                translation::java::MULTIPLAYER_DISCONNECT_INVALID_VEHICLE_MOVEMENT,
                 [],
             ));
             return;
@@ -38,6 +38,10 @@ impl JavaClient {
             crate::net::clamp_vertical_position(packet.y),
             crate::net::clamp_horizontal_position(packet.z),
         );
+        // Vanilla wraps the client rotations (`Mth.wrapDegrees`) before they reach
+        // `Entity#absSnapTo`; `set_rotation` only takes the modulo.
+        let target_yaw = pumpkin_util::math::wrap_degrees(packet.yaw);
+        let target_pitch = pumpkin_util::math::wrap_degrees(packet.pitch);
         let vehicle = entity.get_vehicle();
         if let Some(vehicle) = &vehicle {
             let vehicle_entity = vehicle.get_entity();
@@ -74,7 +78,7 @@ impl JavaClient {
             let old_pos = vehicle_entity.pos.load();
             let old_y = old_pos.y;
             vehicle_entity.set_pos(pos);
-            vehicle_entity.set_rotation(packet.yaw, packet.pitch);
+            vehicle_entity.set_rotation(target_yaw, target_pitch);
             let pos = vehicle.get_vehicle_entity().map_or(pos, |vehicle_move| {
                 let move_result = vehicle_move.move_vehicle(old_pos, pos);
                 vehicle_entity.set_pos(move_result.position);
@@ -88,8 +92,8 @@ impl JavaClient {
                         final_pos.x,
                         final_pos.y,
                         final_pos.z,
-                        packet.yaw,
-                        packet.pitch,
+                        target_yaw,
+                        target_pitch,
                     ));
                 }
                 move_result.position
