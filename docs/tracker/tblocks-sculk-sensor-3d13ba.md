@@ -26,4 +26,4 @@ Remaining gaps:
 
 ## Status (h3 sweep)
 - Row 1 (no occlusion test for `#occludes_vibrations`): STILL OPEN (no occlusion check found in sculk_sensor.rs; not changed).
-- Row 2 (comparator output only while Active): STILL OPEN (get_comparator_output unchanged).
+- Row 2 (comparator output only while Active): FIXED (UNVERIFIED): `get_comparator_output` returns 0 unless the phase is Active (`sculk_sensor.rs:309-313`).

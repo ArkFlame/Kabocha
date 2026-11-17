@@ -31,5 +31,5 @@ Verified against vanilla `ShulkerBoxBlock` / `ShulkerBoxBlockEntity` / `Shulker`
 
 - Row 1 OPENING while CLOSING: STILL OPEN (M, needs animation status on the block entity).
 - Row 2 canOpen progress early return: STILL OPEN (S, blocked on row 1 state).
-- Row 3 useWithoutItem result: STILL OPEN (S, BlockActionResult semantics unverified).
+- Row 3 useWithoutItem result: FIXED (UNVERIFIED): `normal_use` returns Consume after a block-entity screen opens and Pass without one (`blocks/shulker_box.rs:148-151`).
 - Row 4 is_sided override: STILL OPEN (S, no behavioural difference).
