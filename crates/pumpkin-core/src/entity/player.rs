@@ -7014,19 +7014,25 @@ impl Player {
             return;
         }
 
-        let world = self.world();
         let mut any_changed = false;
         for (slot_idx, mut stack) in candidates {
             let mut changed = crate::world::map::resolve_map_post_processing(&mut stack, server);
 
+            // Vanilla ticks the tracker against the world named by the target, not the
+            // holder's world, so a compass is unlinked even while the player is elsewhere.
             if let Some(tracker) = stack.get_data_component::<LodestoneTrackerImpl>()
                 && tracker.tracked
                 && let Some(target) = &tracker.target
-                && target.dimension == world.dimension.minecraft_name
+                && let Some(target_world) = server
+                    .worlds
+                    .load()
+                    .iter()
+                    .find(|world| target.dimension == world.dimension.minecraft_name)
+                    .cloned()
             {
                 let pos = BlockPos::new(target.x, target.y, target.z);
-                if world.level.is_chunk_loaded(&pos.chunk_position())
-                    && world.get_block(&pos) != &Block::LODESTONE
+                if target_world.level.is_chunk_loaded(&pos.chunk_position())
+                    && target_world.get_block(&pos) != &Block::LODESTONE
                 {
                     stack.set_data_component(LodestoneTrackerImpl {
                         target: None,

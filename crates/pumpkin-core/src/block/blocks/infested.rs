@@ -7,7 +7,7 @@ use pumpkin_data::{
 };
 use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_util::{
-    GameMode,
+    Difficulty, GameMode,
     math::position::BlockPos,
     math::vector3::Vector3,
 };
@@ -75,7 +75,10 @@ impl InfestedBlock {
 
     // Vanilla `InfestedBlock.spawnInfestation`.
     pub fn spawn_infestation(world: &Arc<World>, position: &BlockPos) {
-        if !world.level_info.load().game_rules.block_drops {
+        let level_info = world.level_info.load();
+        // Vanilla discards the monster right away on Peaceful via Mob.checkDespawn;
+        // Pumpkin has no such sweep, so refuse the spawn here instead.
+        if !level_info.game_rules.block_drops || level_info.difficulty == Difficulty::Peaceful {
             return;
         }
 

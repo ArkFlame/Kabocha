@@ -1,37 +1,46 @@
 # blocks / Beds (RE-REVIEW)
 
-Target: JavaMinecraftVersion::V_26_3. Reference: `.vendor` absent, compared against the
-decompiled Paper/Canvas tree in `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft`
+Target: JavaMinecraftVersion::V_26_3. Reference: decompiled Paper/Canvas tree in
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft`
 (`world/level/block/AbstractBedBlock.java`, `BedBlock.java`, `StrawBedBlock.java`,
-`server/level/ServerPlayer.java#getBedResult`, `world/attribute/BedRule.java`).
+`world/entity/player/Player.java#freeAt`, `server/level/ServerPlayer.java#getBedResult`).
 
-Reviewed source change: `912463aed` (continue sleeping after kicking a villager out of a
-bed, issue #3581). Re-review found that vanilla returns after the kick, so the fix was
-corrected.
+Reviewed source change: `1f7ea3c59` and `d05a53dc8` (bed use flow). Re-review against
+`AbstractBedBlock#useWithoutItem` + `ServerPlayer#getBedResult`.
+
+Behaviour verified correct and left alone: explosion/destroyOnUse runs first (Paper note on
+line 101), occupied villager kick, `SLEEP_IN_STRAW_BED` stat for straw beds,
+`destroy_after_use` on leave, drop/flags handling in `broken`, `updateShape` mirroring.
 
 Fixed in this pass:
 
-- `bed.rs:289-302` - after kicking a sleeping villager, vanilla
-  `AbstractBedBlock#useWithoutItem` returns `SUCCESS_SERVER`; the player must use the bed
-  again. Previously the player slept in the same interaction.
-- `bed.rs:307-315` - sleep range is vanilla `ServerPlayer#isReachableBedBlock`: `|dx| <= 3`,
-  `|dy| <= 2`, `|dz| <= 3`. Was `3/3/3`.
-- `bed.rs:350-362` - monster scan is skipped in creative and is centred on the head only
-  (`ServerPlayer#getBedResult`); previously it also scanned around the foot.
+- `bed.rs:241`, `straw_bed.rs:264` - `AbstractBedBlock#useWithoutItem` returns `CONSUME`
+  when the partner position is not the same block with the opposite `part`. Previously a
+  lone half (`/setblock`) was sleepable and reported messages.
+- `bed.rs:246`, `straw_bed.rs:268` - occupied check moved before range/obstruction/sleep
+  rule checks; vanilla handles `OCCUPIED` before calling `startSleepInBed`.
+- `bed.rs:299-319`, `straw_bed.rs:298-318` - range (3/2/3) now runs before the obstruction
+  check, matching `ServerPlayer#getBedResult`; the combined canSleep/canSetSpawn early
+  return was dropped (vanilla reports range/obstruction first, then `rule.asProblem()`).
+- `bed.rs:322`, `straw_bed.rs:320` - obstruction uses `BlockState::is_suffocating`
+  (`Player#freeAt`) instead of `is_solid`.
+- `bed.rs:402`, `straw_bed.rs:398` - `SLEPT_IN_BED` advancement only fires when
+  `can_set_spawn` (`ServerPlayer#startSleepInBed:2525`).
+- `straw_bed.rs:334` - straw beds now set the respawn point like `getBedResult` does.
+- `straw_bed.rs` - monster scan skips creative and scans the head only, like `bed.rs` and
+  `getBedResult`.
+- `bed.rs:73`, `straw_bed.rs:69` - placement requires the head position inside the world
+  border (`AbstractBedBlock#getStateForPlacement`).
 
 Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `bed.rs:212-222` (`use_bed`) | `AbstractBedBlock#useWithoutItem` returns `CONSUME` unless the partner block is the same block with the opposite `part` | A lone bed half (e.g. `/setblock`) can still be slept in | Bail out when the other half does not match before evaluating the rule | S |
-| `bed.rs:256-268` | `ServerPlayer#bedBlocked` uses `freeAt` (`!isSuffocating`) above head and foot | Uses `BlockState::is_solid()` instead of suffocation | Port `is_suffocating` check once available on `BlockState` | S |
-| `bed.rs:270-302` vs `bed.rs:256` | `AbstractBedBlock#useWithoutItem` handles `OCCUPIED` before any range/obstruction check | Obstructed check runs first, so an occupied bed with a block above reports "obstructed" and never kicks the villager | Move the occupied/kick block above the obstruction check | S |
-| `bed.rs:224,242-243` | `AbstractBedBlock#getBedRule` evaluates `EnvironmentAttributes.BED_RULE` at the bed position | `world.dimension.bed_rule` only (dimension level); `world/environment.rs:238` ignores `pos` | Per-position environment attribute lookup for dimensions with biome overrides | M |
-| `crates/pumpkin-data/src/generated/dimension.rs:14-18` | `BedRule` record: `canSleep`, `canSetSpawn`, `destroyOnUse`, `destroyOnLeave`, `errorMessage` | Generated `BedRule` has only `can_sleep`, `can_set_spawn`, `explodes`; no `destroy_on_leave`/`error_message` | Extend codegen and regenerate from `assets/` (codegen change, not hand edit) | M |
-| `bed.rs:388-398` | `ServerPlayer#startSleepInBed` fires `SLEPT_IN_BED` only when `canSetSpawn` | Advancement fired unconditionally | Gate the trigger on `can_set_spawn` | S |
-| `bed.rs:73-86` (`can_place_at`) | `AbstractBedBlock#getStateForPlacement` also requires `level.getWorldBorder().isWithinBounds(relative)` | No world border check for the head position | Add border check when `CanPlaceAtArgs` can reach the world border | S |
-| `straw_bed.rs:229-288` | `StrawBedBlock#getSleptInBedStatType` is `Stats.SLEEP_IN_STRAW_BED`; `getBedRule` uses `STRAW_BED_RULE` | Straw bed reports `SleepInBed` and reuses `dimension.bed_rule` | Add `CustomStatistic::SleepInStrawBed` and a per-block bed rule | M |
+| `bed.rs:263-264`, `straw_bed.rs:268-269` | `AbstractBedBlock#getBedRule` evaluates `EnvironmentAttributes.BED_RULE` / `STRAW_BED_RULE` at the bed position | Uses `world.dimension.bed_rule` (dimension-level); `world/environment.rs` ignores `pos` | Per-position environment attribute lookup for biome overrides | M |
+| `crates/pumpkin-data/src/generated/dimension.rs:13-18` | `BedRule` record: `canSleep`, `canSetSpawn`, `destroyOnUse`, `destroyOnLeave`, `errorMessage` | Generated `BedRule` has `can_sleep`, `can_set_spawn`, `explodes` only; no `destroy_on_leave`/`error_message` | Extend `pumpkin-codegen` + regenerate from `assets/` | M |
+| `straw_bed.rs:268-269` | `StrawBedBlock#getBedEnvironmentAttribute` returns `STRAW_BED_RULE` | Straw bed reads the dimension bed rule | Needs the per-position attribute work above | M |
+| `straw_bed.rs` (`getSleepHeight`) | `StrawBedBlock#getSleepHeight` lowers the sleeping height to the straw surface | Not modelled | Cosmetic/client; only relevant if sleep height is sent | S |
+| `bed.rs:212`, `straw_bed.rs:235` | `ServerPlayer#getBedResult` returns `OTHER_PROBLEM` when already sleeping or dead | No explicit guard before `player.sleep` | Confirm `Player::sleep` rejects sleeping/dead players; add guard if not | S |
 
-Note: `bed.rs:224-239` explosion flow matches `BedBlock#destroyOnUse` (remove both halves,
-5.0 power, fire, bad respawn point damage, head centre), and it runs before the occupied
-check as Paper does.
+Note: `destroy_on_leave` for straw beds is already handled in
+`crates/pumpkin-core/src/entity/player.rs:2807` via `StrawBedBlock::destroy_after_use`.

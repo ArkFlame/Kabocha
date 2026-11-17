@@ -39,22 +39,25 @@ impl BlockMetadata for BeehiveBlock {
 impl BeehiveBlock {
     const MAX_HONEY_LEVEL: u8 = 5;
 
-    fn hive_contains_bees(world: &World, pos: &BlockPos) -> bool {
+    fn hive_bee_count(world: &World, pos: &BlockPos) -> i32 {
         let Some(entity) = world.get_block_entity(pos) else {
-            return false;
+            return 0;
         };
         let Some(beehive) = entity.as_any().downcast_ref::<BeehiveBlockEntity>() else {
-            return false;
+            return 0;
         };
-        beehive
+        let bees = beehive
             .bees
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .as_ref()
-            .is_some_and(|bees| !bees.is_empty())
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        i32::try_from(bees.as_ref().map_or(0, Vec::len)).unwrap_or(i32::MAX)
     }
 
-    /// Vanilla `BeehiveBlock.angerNearbyBees`.
+    fn hive_contains_bees(world: &World, pos: &BlockPos) -> bool {
+        Self::hive_bee_count(world, pos) > 0
+    }
+
+    /// Vanilla BeehiveBlock.angerNearbyBees.
     fn anger_nearby_bees(world: &World, pos: &BlockPos) {
         let min = pos.to_f64();
         let search_box = BoundingBox::new(min, min.add_raw(1.0, 1.0, 1.0)).expand(8.0, 6.0, 8.0);
@@ -237,16 +240,26 @@ impl BlockBehaviour for BeehiveBlock {
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
-        if args.player.gamemode.load() != GameMode::Creative
-            && args
-                .player
-                .inventory()
-                .held_item()
-                .get_enchantment_level(&Enchantment::SILK_TOUCH)
-                == 0
+        // Vanilla only runs playerDestroy for survival breaks.
+        if args.player.gamemode.load() == GameMode::Creative {
+            return;
+        }
+        if args
+            .player
+            .inventory()
+            .held_item()
+            .get_enchantment_level(&Enchantment::SILK_TOUCH)
+            == 0
         {
             Self::anger_nearby_bees(args.world, args.position);
         }
+        // Vanilla BeehiveBlock.playerDestroy fires BEE_NEST_DESTROYED.
+        args.player.trigger_advancement(
+            crate::entity::player::advancement::trigger::AdvancementTrigger::BeeNestDestroyed {
+                block_id: format!("minecraft:{}", args.block.name),
+                num_bees_inside: Self::hive_bee_count(args.world, args.position),
+            },
+        );
     }
 
     fn explode(&self, args: ExplodeArgs<'_>) {

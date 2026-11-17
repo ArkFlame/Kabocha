@@ -710,8 +710,9 @@ impl NetherPortal {
             return Some((pos, result_axis, false));
         }
 
-        // Vanilla: clamp between max(bottomY, 70) and topYLimit - 9
-        let fallback_y = target_pos.0.y.clamp(min_y.max(70), top_y_limit - 9);
+        // Vanilla: clamp between max(bottomY, 70) and topYLimit - 9, and return
+        // no destination when the dimension leaves no room for a portal there.
+        let fallback_y = Self::fallback_y(target_pos.0.y, min_y, top_y_limit)?;
         let fallback_pos = BlockPos(Vector3::new(
             target_pos.0.x - direction.to_offset().x,
             fallback_y,
@@ -723,6 +724,19 @@ impl NetherPortal {
             axis,
             true,
         ))
+    }
+
+    /// Clamps a fallback portal y into the vanilla-safe band
+    /// `max(min_y, 70)..=top_y_limit - 9`, or `None` when the band is empty.
+    /// Vanilla `PortalForcer#createPortal` returns `Optional.empty()` in that case
+    /// (custom datapack dimensions with a small logical height).
+    fn fallback_y(target_y: i32, min_y: i32, top_y_limit: i32) -> Option<i32> {
+        let lower = min_y.max(70);
+        let upper = top_y_limit - 9;
+        if lower > upper {
+            return None;
+        }
+        Some(target_y.clamp(lower, upper))
     }
 
     const fn is_valid_portal_air(state: &BlockState) -> bool {
@@ -974,5 +988,18 @@ mod tests {
             x_portal.calculate_teleport_yaw(45.0, Some(HorizontalAxis::Z)),
             -45.0
         );
+    }
+
+    #[test]
+    fn fallback_y_clamps_into_build_limit() {
+        assert_eq!(NetherPortal::fallback_y(10, -64, 320), Some(70));
+        assert_eq!(NetherPortal::fallback_y(100, -64, 320), Some(100));
+        assert_eq!(NetherPortal::fallback_y(500, -64, 320), Some(311));
+    }
+
+    #[test]
+    fn fallback_y_none_when_no_room() {
+        // Custom datapack dimension with a 60-block logical height.
+        assert_eq!(NetherPortal::fallback_y(10, 0, 60), None);
     }
 }

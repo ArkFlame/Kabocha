@@ -14,7 +14,6 @@ use crate::{
 use pumpkin_data::{
     BlockStateId,
     block_properties::ChiseledBookshelfLikeProperties,
-    game_event::GameEvent,
     item::Item,
     item_stack::ItemStack,
     sound::{Sound, SoundCategory},
@@ -152,7 +151,6 @@ impl ChiseledBookshelfBlock {
         entity.update_state(properties, world, slot);
 
         world.play_sound(sound, SoundCategory::Blocks, &position.to_centered_f64());
-        world.emit_game_event(GameEvent::BlockChange.name(), position.to_centered_f64());
     }
 
     fn try_remove_book(
@@ -183,7 +181,6 @@ impl ChiseledBookshelfBlock {
         entity.update_state(properties, world, slot);
 
         world.play_sound(sound, SoundCategory::Blocks, &position.to_centered_f64());
-        world.emit_game_event(GameEvent::BlockChange.name(), position.to_centered_f64());
     }
 
     const fn is_slot_used(properties: ChiseledBookshelfLikeProperties, slot: usize) -> bool {

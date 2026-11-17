@@ -1214,6 +1214,8 @@ impl DispenserBlock {
             props.honey_level = 0;
             ctx.world
                 .set_block_state(&target, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
             Self::consume_with_remainder(
                 ctx,
                 dispenser,
@@ -1226,6 +1228,8 @@ impl DispenserBlock {
 
         let fluid = ctx.world.get_fluid(&target);
         if fluid.id == Fluid::WATER.id || fluid.id == Fluid::FLOWING_WATER.id {
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
             Self::consume_with_remainder(ctx, dispenser, item, water_bottle());
             Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
             return true;
@@ -1248,13 +1252,21 @@ impl DispenserBlock {
             return false;
         }
 
-        ctx.world.spawn_particle(
-            target.to_centered_f64(),
-            Vector3::new(0.5, 0.5, 0.5),
-            1.0,
-            5,
-            Particle::Splash,
-        );
+        // Vanilla sends five single splash particles just above the dispenser.
+        for _ in 0..5 {
+            let mut random = rng();
+            ctx.world.spawn_particle(
+                Vector3::new(
+                    f64::from(ctx.position.0.x) + random.random::<f64>(),
+                    f64::from(ctx.position.0.y) + 1.0,
+                    f64::from(ctx.position.0.z) + random.random::<f64>(),
+                ),
+                Vector3::new(0.0, 0.0, 0.0),
+                1.06,
+                1,
+                Particle::Splash,
+            );
+        }
         ctx.world
             .play_block_sound(Sound::ItemBottleEmpty, SoundCategory::Blocks, *ctx.position);
         ctx.world

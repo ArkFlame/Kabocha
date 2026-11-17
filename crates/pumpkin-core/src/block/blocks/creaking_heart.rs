@@ -11,7 +11,11 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
-use crate::block::{BlockBehaviour, BrokenArgs, OnNeighborUpdateArgs, OnPlaceArgs, PlacedArgs};
+use crate::block::{
+    BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    PlacedArgs,
+};
+use crate::entity::EntityBase;
 
 #[pumpkin_block("minecraft:creaking_heart")]
 pub struct CreakingHeartBlock;
@@ -53,6 +57,38 @@ impl CreakingHeartBlock {
 
         Self::is_aligned_pale_oak_log(state_a, axis) && Self::is_aligned_pale_oak_log(state_b, axis)
     }
+
+    /// Vanilla CreakingHeartBlock updateState: re-evaluates CREAKING_HEART_STATE from the two
+    /// aligned pale oak logs and the creaking_active environment attribute.
+    pub fn update_state(
+        world: &std::sync::Arc<crate::world::World>,
+        position: &pumpkin_util::math::position::BlockPos,
+    ) {
+        let state_id = world.get_block_state_id(position);
+        let mut props = CreakingHeartLikeProperties::from_state_id(state_id);
+
+        let new_state = if Self::check_active_logs(world.as_ref(), position, props.axis) {
+            if props.creaking_heart_state == CreakingHeartState::Uprooted {
+                world.play_sound(
+                    Sound::BlockCreakingHeartSpawn,
+                    SoundCategory::Blocks,
+                    &position.to_f64(),
+                );
+            }
+            Self::active_state(world, position)
+        } else {
+            CreakingHeartState::Uprooted
+        };
+
+        if props.creaking_heart_state != new_state {
+            props.creaking_heart_state = new_state;
+            world.set_block_state(
+                position,
+                props.to_state_id(state_id.to_block()),
+                BlockFlags::NOTIFY_ALL,
+            );
+        }
+    }
 }
 
 impl BlockBehaviour for CreakingHeartBlock {
@@ -68,59 +104,39 @@ impl BlockBehaviour for CreakingHeartBlock {
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            let entity = CreakingHeartBlockEntity::new(*args.position);
-            args.world.add_block_entity(Arc::new(entity));
-
-            let state_id = args.world.get_block_state_id(args.position);
-            let mut props = CreakingHeartLikeProperties::from_state_id(state_id);
-
-            if Self::check_active_logs(args.world.as_ref(), args.position, props.axis) {
-                props.creaking_heart_state = Self::active_state(args.world, args.position);
-                args.world.set_block_state(
-                    args.position,
-                    props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-
-                args.world.play_sound(
-                    Sound::BlockCreakingHeartSpawn,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-            }
-        }
+        args.world
+            .add_block_entity(Arc::new(CreakingHeartBlockEntity::new(*args.position)));
+        Self::update_state(args.world, args.position);
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        {
-            let state_id = args.world.get_block_state_id(args.position);
-            let mut props = CreakingHeartLikeProperties::from_state_id(state_id);
+        Self::update_state(args.world, args.position);
+    }
 
-            let active_logs =
-                Self::check_active_logs(args.world.as_ref(), args.position, props.axis);
-            let new_state = if active_logs {
-                if props.creaking_heart_state == CreakingHeartState::Uprooted {
-                    args.world.play_sound(
-                        Sound::BlockCreakingHeartSpawn,
-                        SoundCategory::Blocks,
-                        &args.position.to_f64(),
-                    );
-                }
-                Self::active_state(args.world, args.position)
-            } else {
-                CreakingHeartState::Uprooted
-            };
-
-            if props.creaking_heart_state != new_state {
-                props.creaking_heart_state = new_state;
-                args.world.set_block_state(
-                    args.position,
-                    props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-            }
-        }
+    fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        // Vanilla `CreakingHeartBlockEntity#getAnalogOutputSignal`: signal strength falls off
+        // with the distance between the heart and its bound creaking, 15 close to 0 at 32.
+        // Vanilla `hasAnalogOutputSignal` is always true; no bound creaking reads 0.
+        let Some(block_entity) = args.world.get_block_entity(args.position) else {
+            return Some(0);
+        };
+        let uuid = block_entity
+            .as_any()
+            .downcast_ref::<CreakingHeartBlockEntity>()
+            .and_then(|heart| heart.creaking_uuid.load());
+        let Some(uuid) = uuid else {
+            return Some(0);
+        };
+        let Some(creaking) = args.world.get_entity_by_uuid(uuid) else {
+            return Some(0);
+        };
+        let pos = creaking.get_entity().pos.load();
+        let dx = pos.x - (f64::from(args.position.0.x) + 0.5);
+        let dy = pos.y - (f64::from(args.position.0.y) + 0.5);
+        let dz = pos.z - (f64::from(args.position.0.z) + 0.5);
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let signal = 15.0 - (distance * 15.0 / 32.0).floor();
+        Some(signal.clamp(0.0, 15.0) as u8)
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {

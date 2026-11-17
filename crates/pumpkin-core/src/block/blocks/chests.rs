@@ -43,6 +43,7 @@ use pumpkin_data::BlockState;
 struct ChestScreenFactory {
     inventory: Arc<dyn Inventory>,
     loot_pending: bool,
+    name: Option<TextComponent>,
 }
 
 impl ScreenHandlerFactory for ChestScreenFactory {
@@ -67,18 +68,16 @@ impl ScreenHandlerFactory for ChestScreenFactory {
         Some(concrete_arc as SharedScreenHandler)
     }
 
+    /// Vanilla titles the menu with the first half's display name, so a renamed chest
+    /// keeps its name and a double chest still shows `container.chest` ("Large Chest"
+    /// is Bedrock only).
     fn get_display_name(&self) -> TextComponent {
-        if self.inventory.size() > 27 {
-            pumpkin_macros::translate_cross!(
-                translation::java::CONTAINER_CHESTDOUBLE,
-                translation::bedrock::CONTAINER_CHESTDOUBLE
-            )
-        } else {
+        self.name.clone().unwrap_or_else(|| {
             pumpkin_macros::translate_cross!(
                 translation::java::CONTAINER_CHEST,
                 translation::bedrock::CONTAINER_CHEST
             )
-        }
+        })
     }
 }
 
@@ -463,6 +462,18 @@ fn get_chest_screen_handler_factory(
         ChestType::Right => Some(chest_props.facing.rotate_counter_clockwise()),
     };
 
+    // Vanilla uses the first half (`ChestType::Right`) for the menu title, so opening
+    // the left half also shows the right half's custom name.
+    let first_half_name = if matches!(chest_props.r#type, ChestType::Right | ChestType::Single) {
+        first_chest.clone()
+    } else {
+        connected_towards.and_then(|direction| {
+            args.world
+                .get_block_entity(&args.position.offset(direction.to_offset()))
+        })
+    }
+    .and_then(|entity| entity.get_custom_name());
+
     // Unpack deferred loot table on first open (non-spectator only).
     if !player_is_spectator && let Some(ref entity) = first_chest {
         unpack_chest_loot(entity, args.world, args.position, Some(args.player));
@@ -491,7 +502,13 @@ fn get_chest_screen_handler_factory(
             .world
             .get_block_entity(&args.position.offset(direction.to_offset()))
     {
-        unpack_chest_loot(&second, args.world, args.position, Some(args.player));
+        // Each half unpacks with its own block position as the loot origin.
+        unpack_chest_loot(
+            &second,
+            args.world,
+            &args.position.offset(direction.to_offset()),
+            Some(args.player),
+        );
     }
 
     let loot_pending = first_loot_pending
@@ -520,6 +537,7 @@ fn get_chest_screen_handler_factory(
     Some(Box::new(ChestScreenFactory {
         inventory,
         loot_pending,
+        name: first_half_name,
     }))
 }
 
@@ -545,6 +563,11 @@ fn normal_use_chest_impl(args: &NormalUseArgs<'_>) -> BlockActionResult {
         );
         args.player
             .open_handled_screen(factory.as_ref(), Some(*args.position));
+        // Vanilla `ChestBlock.useWithoutItem` angers nearby piglins on a successful open.
+        crate::entity::mob::piglin_ai::PiglinAi::on_guarded_block_interacted(
+            args.world,
+            args.player,
+        );
     }
 
     BlockActionResult::Success
@@ -576,12 +599,55 @@ fn broken_chest_impl(args: &BrokenArgs<'_>) {
     }
 }
 
+/// Vanilla `ChestBlock.updateShape`: detach an orphaned half and adopt a neighbouring
+/// single chest's orientation. Shared by wooden, trapped and copper chests.
+fn chest_state_for_neighbor_update(args: &GetStateForNeighborUpdateArgs<'_>) -> BlockStateId {
+    let mut props = ChestLikeProperties::from_state_id(args.state_id);
+    if props.waterlogged {
+        args.world.schedule_fluid_tick(
+            &Fluid::WATER,
+            *args.position,
+            Fluid::WATER.flow_speed as u32,
+            TickPriority::Normal,
+        );
+    }
+    let neighbor = Block::from_state_id(args.neighbor_state_id);
+    let can_connect = chest_can_connect_to(args.block, neighbor);
+    if can_connect && args.direction.is_horizontal() {
+        let neighbor_props = ChestLikeProperties::from_state_id(args.neighbor_state_id);
+        if props.r#type == ChestType::Single
+            && neighbor_props.r#type != ChestType::Single
+            && props.facing == neighbor_props.facing
+            && connected_direction(neighbor_props).to_offset() == args.direction.opposite().to_offset()
+        {
+            props.r#type = neighbor_props.r#type.opposite();
+        }
+    } else if connected_direction(props).to_offset() == args.direction.to_offset() {
+        props.r#type = ChestType::Single;
+    }
+    if can_connect
+        && props.r#type != ChestType::Single
+        && connected_direction(props).to_offset() == args.direction.to_offset()
+    {
+        props.to_state_id(neighbor)
+    } else {
+        props.to_state_id(args.block)
+    }
+}
+
 #[pumpkin_block_from_tag("c:chests/wooden")]
 pub struct ChestBlock;
 
 impl BlockBehaviour for ChestBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -765,38 +831,7 @@ impl BlockBehaviour for CopperChestBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let mut props = ChestLikeProperties::from_state_id(args.state_id);
-        if props.waterlogged {
-            args.world.schedule_fluid_tick(
-                &Fluid::WATER,
-                *args.position,
-                Fluid::WATER.flow_speed as u32,
-                TickPriority::Normal,
-            );
-        }
-        let neighbor = Block::from_state_id(args.neighbor_state_id);
-        let can_connect = chest_can_connect_to(args.block, neighbor);
-        if can_connect && args.direction.is_horizontal() {
-            let neighbor_props = ChestLikeProperties::from_state_id(args.neighbor_state_id);
-            if props.r#type == ChestType::Single
-                && neighbor_props.r#type != ChestType::Single
-                && props.facing == neighbor_props.facing
-                && connected_direction(neighbor_props).to_offset()
-                    == args.direction.opposite().to_offset()
-            {
-                props.r#type = neighbor_props.r#type.opposite();
-            }
-        } else if connected_direction(props).to_offset() == args.direction.to_offset() {
-            props.r#type = ChestType::Single;
-        }
-        if can_connect
-            && props.r#type != ChestType::Single
-            && connected_direction(props).to_offset() == args.direction.to_offset()
-        {
-            props.to_state_id(neighbor)
-        } else {
-            props.to_state_id(args.block)
-        }
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -862,6 +897,13 @@ pub struct TrappedChestBlock;
 impl BlockBehaviour for TrappedChestBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_state_for_neighbor_update(&args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -938,9 +980,15 @@ fn compute_chest_props(
     let player_facing = player.get_entity().get_horizontal_facing();
     let chest_facing = player_facing.opposite();
 
-    // Vanilla `ChestBlock.getPlacementState`: a chest placed against a horizontal
-    // face of a single chest always joins it and adopts that chest's facing, whatever
-    // the player yaw is (so a diagonal placement still extends instead of rotating).
+    // Vanilla `ChestBlock.getStateForPlacement` skips the neighbour join entirely for a
+    // crouching player (`isShiftKeyDown`), even when clicking a single chest's side.
+    if player.get_entity().pose.load() == EntityPose::Crouching {
+        return (ChestType::Single, chest_facing);
+    }
+
+    // A chest placed against a horizontal face of a single chest always joins it and
+    // adopts that chest's facing, whatever the player yaw is (so a diagonal placement
+    // still extends instead of rotating).
     if let Some(clicked_face_horiz) = face.to_horizontal_facing() {
         let (clicked_block, clicked_block_state) =
             world.get_block_and_state_id(&block_pos.offset(clicked_face_horiz.to_offset()));
@@ -956,11 +1004,6 @@ fn compute_chest_props(
                 }
             }
         }
-    }
-
-    // Crouching players never merge with a neighbour by facing; the clicked chest joined above.
-    if player.get_entity().pose.load() == EntityPose::Crouching {
-        return (ChestType::Single, chest_facing);
     }
 
     (
@@ -1041,7 +1084,9 @@ fn is_chest_blocked(world: &World, block_pos: &BlockPos) -> bool {
 fn has_block_on_top(world: &World, block_pos: &BlockPos) -> bool {
     let above_pos = block_pos.up();
     let above_state = world.get_block_state(&above_pos);
-    above_state.is_solid_block()
+    // Vanilla `ChestBlock.isBlockedChestByBlock` tests `isRedstoneConductor`, i.e. a
+    // collision-full block; slabs, stairs, walls and leaves do not block a chest.
+    above_state.is_full_cube()
 }
 
 fn is_cat_sitting_on_chest(world: &World, block_pos: &BlockPos) -> bool {

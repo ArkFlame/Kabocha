@@ -35,7 +35,9 @@ impl BlockEntity for DaylightDetectorBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
-        if world.get_world_age() % 20 == 0 && world.dimension.has_skylight {
+        // Vanilla DaylightDetectorBlock has no dimension guard: without sky light the normal
+        // detector reads 0 while the inverted one reads 15 (e.g. Nether and End).
+        if world.get_world_age() % 20 == 0 {
             DaylightDetectorBlock::update_signal_strength(world, &self.position);
         }
     }
