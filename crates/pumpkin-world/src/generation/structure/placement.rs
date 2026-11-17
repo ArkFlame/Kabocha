@@ -614,7 +614,7 @@ fn should_generate_frequency(
 ) -> bool {
     match method {
         FrequencyReductionMethod::Default => {
-            let region_seed = get_large_feature_with_salt(seed, salt as i32, chunk_x, chunk_z);
+            let region_seed = get_large_feature_with_salt(seed, chunk_x, chunk_z, salt as i32);
             let mut random = LegacyRand::from_seed(region_seed);
             random.next_f32() < frequency
         }
@@ -708,7 +708,8 @@ fn is_start_chunk_random_spread(
 #[cfg(test)]
 mod tests {
     use pumpkin_data::structures::{
-        RandomSpreadStructurePlacement, StructurePlacementCalculator, StructureSet,
+        FrequencyReductionMethod, RandomSpreadStructurePlacement, StructurePlacementCalculator,
+        StructureSet,
     };
     use pumpkin_util::random::{
         RandomGenerator, RandomImpl, get_region_seed, legacy_rand::LegacyRand,
@@ -716,7 +717,7 @@ mod tests {
 
     use crate::generation::structure::placement::{
         GlobalStructureCache, apply_frequency_reduction, get_start_chunk_random_spread,
-        is_start_chunk, should_generate_structure,
+        is_start_chunk, should_generate_frequency, should_generate_structure,
     };
 
     #[test]
@@ -765,6 +766,27 @@ mod tests {
         let region_seed = get_region_seed(123, 1, 1, 14357620);
         let mut random = RandomGenerator::Legacy(LegacyRand::from_seed(region_seed));
         assert_eq!(random.next_bounded_i32(32 - 8), 8);
+    }
+
+    #[test]
+    fn default_frequency_reduction_uses_chunk_then_salt_order() {
+        let seed = 123;
+        let salt = 14357620;
+        for (chunk_x, chunk_z) in [(1, 1), (-1002, -595), (37, -4)] {
+            let region_seed = get_region_seed(seed as u64, chunk_x, chunk_z, salt);
+            let expected = LegacyRand::from_seed(region_seed).next_f32() < 0.5;
+            assert_eq!(
+                should_generate_frequency(
+                    FrequencyReductionMethod::Default,
+                    seed,
+                    chunk_x,
+                    chunk_z,
+                    salt,
+                    0.5,
+                ),
+                expected
+            );
+        }
     }
 
     #[test]
