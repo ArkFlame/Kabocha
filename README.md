@@ -1,17 +1,23 @@
 <div align="center">
 
-# Pumpkin
+# Kabocha
 
-[![CI](https://github.com/Pumpkin-MC/Pumpkin/actions/workflows/rust.yml/badge.svg)](https://github.com/Pumpkin-MC/Pumpkin/actions/workflows/rust.yml)
-[![Discord](https://img.shields.io/discord/1268592337445978193.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/wT8XjrjKkf)
+[![CI](https://github.com/ArkFlame/Kabocha/actions/workflows/rust.yml/badge.svg)](https://github.com/ArkFlame/Kabocha/actions/workflows/rust.yml)
 [![License: GPL](https://img.shields.io/badge/License-GPLv3-yellow.svg)](https://opensource.org/licenses/gpl-3-0)
 
-[Website](https://pumpkinmc.org/) • [Download](https://pumpkinmc.org/download/) • [Docs](https://docs.pumpkinmc.org/) • [Discord](https://discord.gg/wT8XjrjKkf)
+[Website](https://kabocha.arkflame.com) (coming soon, not published yet) • [Methodology](docs/METHODOLOGY.md) • [Process](docs/PROCESS.md) • [Tracker](TRACKER.md) • [Upstream Pumpkin](https://github.com/Pumpkin-MC/Pumpkin)
 
 </div>
 
-[Pumpkin](https://pumpkinmc.org/) is a Minecraft server built entirely in Rust, offering a fast, efficient,
-and customizable experience. It prioritizes performance and player enjoyment while adhering to the core mechanics of the game.
+**Kabocha** is a fork of [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin), the Minecraft server built entirely in Rust. Pumpkin is extremely fast and
+high performance, but it does not have 100% vanilla parity yet. Kabocha works through what is left: every upstream issue, every upstream PR and every
+parity gap, driven by AI agents (Claude as orchestrator, DeepSeek as implementer). It tracks upstream hourly and stays ahead of it.
+
+- **Goal:** close all open upstream issues and PRs, then reach full vanilla parity, keeping the build green and the code clean.
+- **Status:** see [TRACKER.md](TRACKER.md) (parity gaps), [docs/LEDGER.md](docs/LEDGER.md) (issues and PRs) and [docs/GAPS_FIXED.md](docs/GAPS_FIXED.md) (what was fixed).
+- **How it is built:** [docs/METHODOLOGY.md](docs/METHODOLOGY.md) explains the approach and the cost; [docs/PROCESS.md](docs/PROCESS.md) is the runbook.
+- **Upstream:** no pull requests are opened against Pumpkin yet. The fork's `master` is kept current with `Pumpkin-MC/Pumpkin` master.
+
 <div align="center">
 
 ![Pumpkin Chunk Loading](./assets/pumpkin-chunk-loading.webp)
@@ -19,22 +25,21 @@ and customizable experience. It prioritizes performance and player enjoyment whi
 </div>
 
 > [!IMPORTANT]
-> Pumpkin is currently under heavy development.
+> Kabocha is under heavy development, like the Pumpkin project it builds on.
 >
-> [See what needs to be done before the 1.0.0 Release](https://github.com/Pumpkin-MC/Pumpkin/issues/449)
+> The checklist below is the upstream Pumpkin feature list. [Upstream release plan](https://github.com/Pumpkin-MC/Pumpkin/issues/449)
 
 ## Quick Start
 
-Install on Linux / macOS:
+Kabocha has no prebuilt releases yet. Build it from source with a stable Rust toolchain:
 
 ```sh
-curl -sSfL https://pumpkinmc.org/install.sh | sh
+git clone https://github.com/ArkFlame/Kabocha.git
+cd Kabocha
+cargo run --release
 ```
 
-Or grab a prebuilt binary from the [Download page](https://pumpkinmc.org/download/) (also available on [GitHub Releases](https://github.com/Pumpkin-MC/Pumpkin/releases)). See the [Quick Start guide](https://docs.pumpkinmc.org/#quick-start) and [Documentation](https://docs.pumpkinmc.org/) for setup details.
-
-> [!NOTE]
-> Prebuilt Linux binaries are linked against glibc and run on glibc-based distributions (Debian, Ubuntu, Fedora, ...) and on the official Docker image. Alpine Linux and other musl-based distributions are not supported: a musl build is significantly slower than glibc.
+The upstream installer and downloads at pumpkinmc.org install the original Pumpkin, not Kabocha. Release binaries and a download page will come with [kabocha.arkflame.com](https://kabocha.arkflame.com) once it is published.
 
 ## Goals
 
