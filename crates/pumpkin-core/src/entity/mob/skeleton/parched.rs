@@ -1,5 +1,7 @@
 use pumpkin_data::BlockState;
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
@@ -7,6 +9,7 @@ use std::sync::Arc;
 use crate::entity::{
     Entity, EntityBase,
     mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
+    projectile::arrow::ArrowEntity,
 };
 
 pub struct ParchedSkeletonEntity {
@@ -21,8 +24,21 @@ impl ParchedSkeletonEntity {
     }
 }
 
-// TODO: arrows inflict Weakness for 600 ticks, immune to Weakness.
 impl Mob for ParchedSkeletonEntity {
+    fn get_arrow(&self, arrow: ArrowEntity) -> ArrowEntity {
+        // vanilla Parched#getArrow: arrows apply weakness for 600 ticks
+        arrow.add_effect(Effect {
+            effect_type: &StatusEffect::WEAKNESS,
+            duration: 600,
+            amplifier: 0,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+            blend: false,
+        });
+        arrow
+    }
+
     fn wants_to_pick_up(&self, stack: &ItemStack) -> bool {
         super::wants_to_pick_up(self, stack)
     }

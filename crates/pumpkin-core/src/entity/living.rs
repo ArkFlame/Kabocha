@@ -1532,6 +1532,9 @@ impl LivingEntity {
         {
             return false;
         }
+        if entity_type == &EntityType::PARCHED && effect.effect_type == &StatusEffect::WEAKNESS {
+            return false;
+        }
         if (entity_type == &EntityType::SPIDER || entity_type == &EntityType::CAVE_SPIDER)
             && effect.effect_type == &StatusEffect::POISON
         {
