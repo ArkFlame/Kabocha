@@ -618,6 +618,9 @@ impl PlayerAdvancement {
                     advancement.id.to_string(),
                 );
             server.plugin_manager.fire_blocking(&server, &mut event);
+            if event.cancelled {
+                return;
+            }
         }
         Self::grant_reward(player, advancement.reward);
         if let Some(display) = advancement.display
