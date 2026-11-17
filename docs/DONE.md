@@ -309,3 +309,4 @@ Format: `- #N (PR|issue) title [commit]`
 - #3833 (issue, skipped: should_extend already skips the facing direction at piston.rs:313-320; head-power repro needs a live client, see OUTCOMES.tsv)
 - #4601 (issue, skipped: Bedrock swim pose is client-side; AuthInput START_SWIMMING is cleared by update_swimming, same verdict as #2104, see OUTCOMES.tsv)
 - #3456 (issue, skipped: minecraft:copy_components already on master via #3507, crates/pumpkin-util/src/loot_table/parser.rs:542 and crates/pumpkin-core/src/world/loot/generation.rs:637)
+- #3640 (PR, already present: tripwire shears durability damage at crates/pumpkin-core/src/block/blocks/redstone/tripwire.rs:109-114 via #3584, dispenser bone meal at crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs:351,982-993)
