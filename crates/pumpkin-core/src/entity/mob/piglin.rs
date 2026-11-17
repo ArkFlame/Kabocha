@@ -1188,6 +1188,28 @@ impl Mob for PiglinEntity {
         }
     }
 
+    /// Vanilla `PiglinTasks.startCelebratingIfTargetDead` and `setHuntedRecently`.
+    fn killed_entity(&self, killed: &dyn EntityBase) -> bool {
+        if self.is_adult() {
+            let killed_type = killed.get_entity().entity_type;
+            if PiglinAi::wants_to_dance(killed_type) {
+                self.admire_timer.store(0, Ordering::Relaxed);
+                self.celebration_timer
+                    .store(PiglinAi::CELEBRATION_TIME, Ordering::Relaxed);
+                self.set_dancing(true);
+            }
+            if killed_type.id == EntityType::HOGLIN.id {
+                self.hunt_cooldown_timer.store(
+                    rand::random_range(
+                        PiglinAi::MIN_TIME_BETWEEN_HUNTS..=PiglinAi::MAX_TIME_BETWEEN_HUNTS,
+                    ),
+                    Ordering::Relaxed,
+                );
+            }
+        }
+        true
+    }
+
     fn get_preferred_weapon_type(&self) -> Option<&'static tag::Tag> {
         (!self.is_baby()).then_some(&tag::Item::MINECRAFT_PIGLIN_PREFERRED_WEAPONS)
     }
