@@ -33,6 +33,17 @@ impl JavaClient {
                     let world = entity.world.load_full();
                     let (block, state) = world.get_block_and_state(&position);
 
+                    // Vanilla `ServerPlayerGameMode.handleBlockBreakAction` rejects digs above the
+                    // build limit before any other check, resyncing the block without a message.
+                    if position.0.y > world.get_top_y() {
+                        player.try_send_client_packet(&CBlockUpdate::new(
+                            position,
+                            VarInt(i32::from(state.id.as_u16())),
+                        ));
+                        self.update_sequence(player_action.sequence.0);
+                        return;
+                    }
+
                     // Vanilla `Level.mayInteract` rejects dig starts inside spawn protection
                     // before any interaction handling, so no crack animation is started.
                     if world.is_in_spawn_protection(player, &position) {
