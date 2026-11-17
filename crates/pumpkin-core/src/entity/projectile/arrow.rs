@@ -602,7 +602,7 @@ impl EntityBase for ArrowEntity {
         }
 
         match hit {
-            ProjectileHit::Block { pos, .. } => self.on_hit_block(&pos),
+            ProjectileHit::Block { .. } => self.on_hit_block(),
             ProjectileHit::Entity {
                 entity: target,
                 hit_pos,
@@ -692,17 +692,7 @@ impl EntityBase for ArrowEntity {
 }
 
 impl ArrowEntity {
-    fn on_hit_block(&self, pos: &BlockPos) {
-        let entity = self.get_entity();
-        let world = entity.world.load();
-        if world.get_block(pos) == &pumpkin_data::Block::TARGET
-            && let Some(player) = self.owner.get_player(&world)
-        {
-            player.trigger_advancement(
-                crate::entity::player::advancement::trigger::AdvancementTrigger::Bullseye,
-            );
-        }
-
+    fn on_hit_block(&self) {
         abstract_arrow::stick_in_block(self, Sound::EntityArrowHit);
         self.set_critical(false);
         self.set_pierce_level(0);
