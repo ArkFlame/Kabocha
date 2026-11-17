@@ -297,7 +297,9 @@ mod tests {
 
         tokio::time::timeout(std::time::Duration::from_secs(30), async {
             while !world.level.is_chunk_loaded(&chunk_pos) {
-                tokio::task::yield_now().await;
+                // The chunk is loaded by scheduler-spawned tokio tasks on this
+                // current_thread runtime; sleep so the runtime parks and drives them.
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         })
         .await?;
