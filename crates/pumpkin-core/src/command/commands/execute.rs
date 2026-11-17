@@ -1221,7 +1221,7 @@ fn check_data_matches(
     context: &CommandContext,
     is_block: bool,
     is_entity: bool,
-) -> Result<bool, CommandSyntaxError> {
+) -> Result<Option<i32>, CommandSyntaxError> {
     let path = context.get_argument::<NbtPath>("path")?;
     let count = if is_block {
         let pos = BlockPosArgumentType::get_block_pos(context, "pos")?;
@@ -1242,13 +1242,13 @@ fn check_data_matches(
         path.count_matching(&NbtTag::Compound(data))
     };
     // Mirrors vanilla `checkMatchingData`: a missing path counts as zero matches, not an error.
-    Ok(count > 0)
+    Ok((count > 0).then(|| i32::try_from(count).unwrap_or(i32::MAX)))
 }
 
 fn execute_if_data_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, true, false)? {
+    if check_data_matches(context, true, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1258,7 +1258,7 @@ fn execute_if_data_block_modifier(
 fn execute_if_data_entity_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, false, true)? {
+    if check_data_matches(context, false, true)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1268,7 +1268,7 @@ fn execute_if_data_entity_modifier(
 fn execute_if_data_storage_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if check_data_matches(context, false, false)? {
+    if check_data_matches(context, false, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1278,7 +1278,7 @@ fn execute_if_data_storage_modifier(
 fn execute_unless_data_block_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, true, false)? {
+    if !check_data_matches(context, true, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1288,7 +1288,7 @@ fn execute_unless_data_block_modifier(
 fn execute_unless_data_entity_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, false, true)? {
+    if !check_data_matches(context, false, true)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1298,7 +1298,7 @@ fn execute_unless_data_entity_modifier(
 fn execute_unless_data_storage_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
-    if !check_data_matches(context, false, false)? {
+    if !check_data_matches(context, false, false)?.is_some() {
         Ok(vec![context.source.clone()])
     } else {
         Ok(vec![])
@@ -1837,9 +1837,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_block_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_block_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| count_data_matches(context, true, false),
+                                        }),
                                 ),
                             ),
                         )
@@ -1853,9 +1854,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_entity_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_entity_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| count_data_matches(context, false, true),
+                                        }),
                                 ),
                             ),
                         )
@@ -1869,9 +1871,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_if_data_storage_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_if_data_storage_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: true,
+                                            count: |context| count_data_matches(context, false, false),
+                                        }),
                                 ),
                             ),
                         ),
@@ -2060,9 +2063,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_block_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_block_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| count_data_matches(context, true, false),
+                                        }),
                                 ),
                             ),
                         )
@@ -2076,9 +2080,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_entity_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_entity_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| count_data_matches(context, false, true),
+                                        }),
                                 ),
                             ),
                         )
@@ -2092,9 +2097,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                                 execute_unless_data_storage_modifier,
                                             )),
                                         )
-                                        .executes(ConditionalExecutor(
-                                            execute_unless_data_storage_modifier,
-                                        )),
+                                        .executes(NumericConditionalExecutor {
+                                            expected: false,
+                                            count: |context| count_data_matches(context, false, false),
+                                        }),
                                 ),
                             ),
                         ),
