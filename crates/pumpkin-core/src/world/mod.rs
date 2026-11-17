@@ -6817,6 +6817,16 @@ impl World {
                 cause,
             );
 
+        let new_state_id = if *self.get_fluid(position) == Fluid::WATER {
+            Block::WATER.default_state.id
+        } else {
+            Block::AIR.default_state.id
+        };
+
+        // Vanilla `ServerPlayerGameMode::destroyBlock` removes the block before calling
+        // `playerDestroy`, so loot conditions and neighbour updates see it already gone.
+        let broken_state_id = self.set_block_state(position, new_state_id, flags);
+
         if !flags.contains(BlockFlags::SKIP_DROPS) {
             let tool = cause.as_ref().and_then(|p| {
                 let item = p.inventory().held_item();
@@ -6831,19 +6841,8 @@ impl World {
                 ..Default::default()
             };
             crate::block::drop_loot(self, broken_block, position, true, &params);
-            // TODO: vanilla removes the block before `playerDestroy` drops its loot
-            if !unchanged() {
-                return None;
-            }
         }
 
-        let new_state_id = if *self.get_fluid(position) == Fluid::WATER {
-            Block::WATER.default_state.id
-        } else {
-            Block::AIR.default_state.id
-        };
-
-        let broken_state_id = self.set_block_state(position, new_state_id, flags);
         self.broadcast_destroy_block_particles(position, broken_state_id, new_state_id, cause);
 
         Some(broken_state_id)
