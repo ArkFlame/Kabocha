@@ -160,7 +160,13 @@ impl DrownedEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get_target_pos()
-            .is_some_and(|pos| entity.pos.load().squared_distance_to_vec(&pos.0.to_f64()) < 4.0)
+            .is_some_and(|pos| {
+                entity
+                    .pos
+                    .load()
+                    .squared_distance_to_vec(&pos.to_centered_f64())
+                    < 16.0
+            })
     }
 }
 
