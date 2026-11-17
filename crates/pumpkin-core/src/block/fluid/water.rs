@@ -1,11 +1,14 @@
-use super::flowing_trait::FlowingFluid;
+use super::{flowing_trait::FlowingFluid, lava::FlowingLava};
 use crate::{
     block::{FluidMetadata, fluid::FluidBehaviour},
     entity::EntityBase,
     world::World,
 };
-use pumpkin_data::BlockStateId;
-use pumpkin_data::fluid::Fluid;
+use pumpkin_data::{
+    BlockDirection, BlockStateId,
+    fluid::Fluid,
+    tag::{self, Taggable},
+};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use std::sync::Arc;
@@ -20,6 +23,23 @@ impl FluidMetadata for FlowingWater {
 
 const WATER_FLOW_SPEED: u32 = 5;
 
+impl FlowingWater {
+    /// Vanilla dispatches fluid neighbour updates, which lets lava solidify as soon as
+    /// water reaches it. Pumpkin only runs the placed hook for the fluid that changed, so
+    /// the newly placed water has to solidify the lava it touched.
+    fn solidify_neighbouring_lava(world: &Arc<World>, block_pos: &BlockPos) {
+        for dir in BlockDirection::all() {
+            let neighbor_pos = block_pos.offset(dir.to_offset());
+            if world
+                .get_fluid(&neighbor_pos)
+                .has_tag(&tag::Fluid::MINECRAFT_LAVA)
+            {
+                FlowingLava::receive_neighbor_fluids(world, &neighbor_pos);
+            }
+        }
+    }
+}
+
 impl FluidBehaviour for FlowingWater {
     fn placed(
         &self,
@@ -31,6 +51,7 @@ impl FluidBehaviour for FlowingWater {
         _notify: bool,
     ) {
         if old_state_id != state_id {
+            Self::solidify_neighbouring_lava(world, block_pos);
             world.schedule_fluid_tick(fluid, *block_pos, WATER_FLOW_SPEED, TickPriority::Normal);
         }
     }

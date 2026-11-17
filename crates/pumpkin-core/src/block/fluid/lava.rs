@@ -92,7 +92,7 @@ impl FlowingLava {
         world.set_block_state(fire_pos, fire_state_id, BlockFlags::NOTIFY_ALL);
     }
 
-    fn receive_neighbor_fluids(world: &Arc<World>, block_pos: &BlockPos) -> bool {
+    pub(crate) fn receive_neighbor_fluids(world: &Arc<World>, block_pos: &BlockPos) -> bool {
         // Logic to determine if we should replace the fluid with any of (cobble, obsidian, stone, etc.)
         let below_is_soul_soil = world
             .get_block(&block_pos.offset(BlockDirection::Down.to_offset()))
