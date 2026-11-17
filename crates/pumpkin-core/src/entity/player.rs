@@ -6109,46 +6109,44 @@ impl Player {
             return;
         }
 
-        if let Some(bad_omen) = self.get_effect(&StatusEffect::BAD_OMEN)
-            && !self.has_effect(&StatusEffect::RAID_OMEN)
+        // Vanilla BadOmenMobEffect: every tick, a player in a village (not on peaceful) gets
+        // RAID_OMEN at their block position, unless a raid there is already at max omen level.
+        let Some(bad_omen) = self.get_effect(&StatusEffect::BAD_OMEN) else {
+            return;
+        };
+        let world = self.world();
+        if !world.dimension.can_start_raid
+            || world.level_info.load().difficulty == Difficulty::Peaceful
         {
-            let world = self.world();
-            if !world.dimension.can_start_raid {
-                return;
-            }
-            let player_pos = self.living_entity.entity.block_pos.load();
-            let pos_f64 = self.living_entity.entity.pos.load();
-
-            let village_pos = world
-                .is_village(&player_pos)
-                .then_some(player_pos)
-                .or_else(|| {
-                    world.raids.try_lock().ok().and_then(|raids| {
-                        raids
-                            .get_nearby_raid(&player_pos, 64.0 * 64.0)
-                            .map(|r| r.center)
-                    })
-                });
-
-            if let Some(pos) = village_pos {
-                if let Some(p) = self.world().get_player_by_uuid(self.gameprofile.id) {
-                    let bad_omen_amplifier = bad_omen.amplifier;
-                    p.living_entity.remove_effect(&StatusEffect::BAD_OMEN);
-                    p.set_raid_omen_position(pos);
-                    let effect = Effect {
-                        effect_type: &StatusEffect::RAID_OMEN,
-                        duration: 600,
-                        amplifier: bad_omen_amplifier,
-                        ambient: false,
-                        show_particles: true,
-                        show_icon: true,
-                        blend: true,
-                    };
-                    p.add_effect(effect);
-                }
-                world.play_sound(Sound::BlockBellResonate, SoundCategory::Neutral, &pos_f64);
-            }
+            return;
         }
+        let player_pos = self.living_entity.entity.block_pos.load();
+        if !world.is_village(&player_pos) {
+            return;
+        }
+        let omen_maxed = match world.raids.try_lock() {
+            Ok(raids) => raids.get_raid_at(&player_pos).is_some_and(|raid| {
+                raid.raid_omen_level >= crate::world::raid::Raid::MAX_RAID_OMEN_LEVEL
+            }),
+            Err(_) => return,
+        };
+        if omen_maxed {
+            return;
+        }
+
+        let pos_f64 = self.living_entity.entity.pos.load();
+        self.living_entity.remove_effect(&StatusEffect::BAD_OMEN);
+        self.set_raid_omen_position(player_pos);
+        self.add_effect(Effect {
+            effect_type: &StatusEffect::RAID_OMEN,
+            duration: 600,
+            amplifier: bad_omen.amplifier,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+            blend: true,
+        });
+        world.play_sound(Sound::BlockBellResonate, SoundCategory::Neutral, &pos_f64);
     }
 
     pub fn set_health(&self, health: f32) {

@@ -13,13 +13,12 @@ impl MobEffect for RaidOmenMobEffect {
         if !world.dimension.can_start_raid {
             return;
         }
+        // Vanilla RaidOmenMobEffect: no raid without a stored raid omen position.
         if let Some(entity) = world.get_entity_by_id(living.entity.entity_id)
             && let Some(player) = entity.get_player()
             && !player.is_spectator()
+            && let Some(raid_pos) = player.get_raid_omen_position()
         {
-            let raid_pos = player
-                .get_raid_omen_position()
-                .unwrap_or_else(|| living.entity.block_pos.load());
             let mut raids = world
                 .raids
                 .lock()

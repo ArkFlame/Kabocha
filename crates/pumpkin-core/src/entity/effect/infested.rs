@@ -19,14 +19,6 @@ impl MobEffect for InfestedMobEffect {
         _damage_type: &DamageType,
         _damage_amount: f32,
     ) {
-        // Wither, ender dragon and silverfish are immune
-        if living.entity.entity_type == &EntityType::WITHER
-            || living.entity.entity_type == &EntityType::ENDER_DRAGON
-            || living.entity.entity_type == &EntityType::SILVERFISH
-        {
-            return;
-        }
-
         let world = living.entity.world.load();
 
         // 10% chance to spawn

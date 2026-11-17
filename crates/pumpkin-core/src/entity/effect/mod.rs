@@ -52,6 +52,16 @@ pub static OOZING: oozing::OozingMobEffect = oozing::OozingMobEffect;
 pub static WEAVING: weaving::WeavingMobEffect = weaving::WeavingMobEffect;
 pub static WIND_CHARGED: wind_charged::WindChargedMobEffect = wind_charged::WindChargedMobEffect;
 
+/// Vanilla `tick % (base >> amplifier) == 0`, with an interval of 0 or less applying every tick.
+/// `wrapping_shr` masks the shift to 5 bits like Java, so high amplifiers wrap the same way.
+#[must_use]
+pub fn is_interval_tick(tick: i32, base: i32, amplifier: u8) -> bool {
+    match base.wrapping_shr(u32::from(amplifier)) {
+        interval if interval > 0 => tick % interval == 0,
+        _ => true,
+    }
+}
+
 #[must_use]
 pub fn get_mob_effect(effect: &'static StatusEffect) -> Option<&'static dyn MobEffect> {
     if effect == &StatusEffect::REGENERATION {
@@ -138,5 +148,16 @@ mod tests {
         let effect = <pumpkin_data::potion::Effect as NBTStorageInit>::create_from_nbt(&mut nbt);
 
         assert!(effect.is_some_and(|effect| effect.show_icon));
+    }
+
+    #[test]
+    fn interval_tick_follows_vanilla_shift() {
+        assert!(is_interval_tick(0, 50, 0));
+        assert!(!is_interval_tick(25, 50, 0));
+        assert!(is_interval_tick(25, 50, 1));
+        assert!(is_interval_tick(3, 50, 4));
+        assert!(!is_interval_tick(2, 50, 4));
+        assert!(is_interval_tick(3, 50, 5));
+        assert!(is_interval_tick(7, 50, 6));
     }
 }

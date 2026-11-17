@@ -21,3 +21,24 @@ Source: decompiled vanilla `net/minecraft/world/effect/*` (rel-mc-backup).
 Not changed (UNVERIFIED, no vanilla source checked): fall damage with jump boost, strength and weakness
 attribute scale, slow falling, and the remaining effects with no tick logic (bad omen, darkness, infested,
 oozing, weaving, wind charged).
+
+## Second pass (CODER, unbuilt: cargo not run)
+
+Source: `rel-mc-backup` `MobEffects.java`, `MobEffectInstance.java`, `HealOrHarmMobEffect.java`, `BadOmenMobEffect.java`, `RaidOmenMobEffect.java`, `InfestedMobEffect.java`, `OozingMobEffect.java`, `WeavingMobEffect.java`, `WindChargedMobEffect.java`, `Arrow.java`, `PotionContents.java`.
+
+- Regeneration, poison, wither: FIXED. Interval was clamped at amp 4 (`min(4)`), vanilla `base >> amp` wraps only in Java 5-bit shifts. Now `is_interval_tick` (unit test in `effect/mod.rs`).
+- Infested: immunity list removed (vanilla effect has none). Chance 0.1 and count 1-2 already match.
+- Oozing: slime immunity removed (vanilla has none). Count 2 matches.
+- Raid omen: no fallback to the player block position; vanilla applies only with a stored raid omen position.
+- Bad omen (`player.rs::tick_raid_omen`): rewritten to vanilla. Peaceful and non-village blocked, RAID_OMEN set at the player block position (was raid centre or village), nearby-raid-within-64 fallback removed, max omen level check via `get_raid_at`, `!has RAID_OMEN` gate removed.
+- Weaving: count 2-3 matches. Placement still uses `is_air` and non-air below; vanilla uses `canBeReplaced` and `isFaceSturdy(UP)`. No helper found in pumpkin-core, left as is.
+- Wind charged, saturation, heal/harm, jump boost, levitation, mining fatigue: verified, no change.
+- Arrow duration 1/8 comes from `PotionDurationScale` component (default 1.0); the 0.125 scale lives in `item/potion.rs`. Splash uses scale 1.0 (vanilla `forEachEffect(..., 1.0)`), cloud 0.25 with instant 0.5.
+
+Leftovers (UNVERIFIED, not changed):
+- Oozing cramming: vanilla caps spawns via `maxEntityCramming` and nearby slimes within 2 blocks; pumpkin has no such game rule.
+- Weaving placement predicates (`canBeReplaced`, `isFaceSturdy`).
+- Luck/unluck attribute modifiers (+1/-1) and glowing/darkness client-side effects were not audited.
+- Jump boost safe-fall-distance +1 attribute, slow falling fall-damage interaction.
+- Bad omen bell sound kept (not in vanilla's `BadOmenMobEffect`).
+- Infinite (-1) effects use entity age as the tick, which matches vanilla `tickCount`.

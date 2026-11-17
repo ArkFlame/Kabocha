@@ -13,11 +13,6 @@ pub struct OozingMobEffect;
 
 impl MobEffect for OozingMobEffect {
     fn on_mob_death(&self, living: &LivingEntity, _amplifier: u8, _damage_type: &DamageType) {
-        // Slimes are immune
-        if living.entity.entity_type == &EntityType::SLIME {
-            return;
-        }
-
         let world = living.entity.world.load();
         let pos = living.entity.pos.load();
         let spawn_pos = Vector3::new(pos.x, pos.y + 0.5, pos.z);
