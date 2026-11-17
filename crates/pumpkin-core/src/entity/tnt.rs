@@ -216,15 +216,8 @@ mod tests {
     async fn missing_fuse_in_nbt_defaults_to_zero() -> Result<(), Box<dyn std::error::Error>> {
         let folder = tempfile::tempdir()?;
         let world = crate::entity::ai::test_support::world(&folder);
-        let tnt = TNTEntity::new(
-            Entity::new(
-                world.clone(),
-                Vector3::new(0.0, 64.0, 0.0),
-                &EntityType::TNT,
-            ),
-            TNTEntity::DEFAULT_POWER,
-            TNTEntity::DEFAULT_FUSE,
-        );
+        let entity = Entity::new(world.clone(), Vector3::new(0.0, 64.0, 0.0), &EntityType::TNT);
+        let tnt = TNTEntity::new(entity, TNTEntity::DEFAULT_POWER, TNTEntity::DEFAULT_FUSE);
 
         tnt.read_custom_nbt(&NbtCompound::new());
         assert_eq!(tnt.fuse.load(Relaxed), 0);
