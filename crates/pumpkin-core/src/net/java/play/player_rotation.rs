@@ -12,6 +12,10 @@ impl JavaClient {
         if !player.has_client_loaded() {
             return;
         }
+        if !rotation_is_finite(rotation.yaw, rotation.pitch) {
+            self.kick_invalid_player_movement();
+            return;
+        }
         self.received_movement_this_tick
             .store(true, Ordering::Relaxed);
         player.apply_client_move(

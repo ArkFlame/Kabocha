@@ -3,6 +3,10 @@ use super::*;
 
 impl JavaClient {
     pub fn handle_select_trade(&self, player: &Arc<Player>, packet: &SSelectTrade) {
+        // Vanilla ignores negative trade indices; they must not reach the usize offer index.
+        let Ok(selected_offer) = usize::try_from(packet.selected_slot.0) else {
+            return;
+        };
         let mut event = crate::plugin::api::events::inventory::trade_select::TradeSelectEvent::new(
             player.clone(),
             packet.selected_slot.0 as u8,
@@ -29,7 +33,7 @@ impl JavaClient {
             .as_any_mut()
             .downcast_mut::<MerchantScreenHandler>()
         {
-            merchant.set_selected_offer(packet.selected_slot.0 as usize);
+            merchant.set_selected_offer(selected_offer);
         }
     }
 }
