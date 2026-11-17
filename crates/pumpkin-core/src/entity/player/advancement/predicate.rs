@@ -2010,34 +2010,19 @@ impl CriterionConditions {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:fall_from_height" => Self::FallFromHeight {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:fall_after_explosion" => Self::FallAfterExplosion {
                 distance_y: val
                     .get("distance")
                     .and_then(|d| d.get("y"))
-                    .and_then(|y| y.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
                 cause_entity: val
                     .get("cause")
                     .and_then(|c| c.get("predicate"))
@@ -2052,23 +2037,13 @@ impl CriterionConditions {
                 distance_horizontal: val
                     .get("distance")
                     .and_then(|d| d.get("horizontal"))
-                    .and_then(|h| h.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    }),
+                    .and_then(FloatBounds::from_value),
             },
             "minecraft:ride_entity_in_lava" => {
                 let distance_horizontal = val
                     .get("distance")
                     .and_then(|d| d.get("horizontal"))
-                    .and_then(|h| h.get("min"))
-                    .and_then(Value::as_f64)
-                    .map(|min| FloatBounds {
-                        min: Some(min),
-                        max: None,
-                    });
+                    .and_then(FloatBounds::from_value);
                 let dimension = val
                     .get("player")
                     .and_then(|p| p.get("predicate"))
@@ -2390,6 +2365,34 @@ mod tests {
         assert!(pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 2)]));
         assert!(!pred.matches("minecraft:diamond_sword", 1, &[("minecraft:sharpness", 1)]));
         assert!(!pred.matches("minecraft:iron_sword", 1, &[("minecraft:sharpness", 2)]));
+    }
+
+    #[test]
+    fn distance_trigger_keeps_upper_bound() {
+        let cond = CriterionConditions::parse(
+            "minecraft:fall_from_height",
+            r#"{"distance": {"y": {"max": 5}}}"#,
+        );
+        match &cond {
+            CriterionConditions::FallFromHeight {
+                distance_y: Some(bounds),
+            } => {
+                assert!(bounds.matches(3.0));
+                assert!(!bounds.matches(6.0));
+            }
+            _ => panic!("expected FallFromHeight"),
+        }
+
+        let cond = CriterionConditions::parse("minecraft:levitation", r#"{"distance": {"y": 7}}"#);
+        match &cond {
+            CriterionConditions::Levitation {
+                distance_y: Some(bounds),
+            } => {
+                assert!(bounds.matches(7.0));
+                assert!(!bounds.matches(8.0));
+            }
+            _ => panic!("expected Levitation"),
+        }
     }
 
     #[test]
