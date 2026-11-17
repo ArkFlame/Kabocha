@@ -415,6 +415,15 @@ impl FishingBobberEntity {
         }
         self.state.store(state);
 
+        // Vanilla `FishingBobberEntity.tick`: a bobbing hook left out of water for ten ticks
+        // drops instead of waiting forever.
+        if let HookState::Bobbing { out_of_water_time } = state
+            && out_of_water_time >= HookState::MAX_OUT_OF_WATER_TIME
+        {
+            self.discard(player);
+            return;
+        }
+
         // Vanilla `FishingBobberEntity.tick`: gravity while airborne and unhooked.
         if !in_water && !entity.on_ground.load(Ordering::Relaxed) {
             velocity.y -= Self::GRAVITY;
