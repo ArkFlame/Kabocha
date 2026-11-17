@@ -97,9 +97,14 @@ for b in refs.split():
         branches[int(m.group(1))].append(b)
 
 try:
-    unmerged = set(subprocess.run(["git", "for-each-ref", "--no-merged=master",
-                                   "refs/heads/kab", "--format=%(refname:short)"],
-                                  capture_output=True, text=True, timeout=60).stdout.split())
+    cand = subprocess.run(["git", "for-each-ref", "--no-merged=master",
+                           "refs/heads/kab", "--format=%(refname:short)"],
+                          capture_output=True, text=True, timeout=60).stdout.split()
+    # integration cherry-picks, so --no-merged lies: a branch is unlanded only with a "+" in git cherry
+    unmerged = {b for b in cand if any(
+        l.startswith("+") for l in subprocess.run(["git", "cherry", "master", b],
+                                                   capture_output=True, text=True,
+                                                   timeout=60).stdout.splitlines())}
 except Exception:
     unmerged = set()
 

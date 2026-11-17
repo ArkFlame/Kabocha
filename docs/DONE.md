@@ -305,3 +305,6 @@ Format: `- #N (PR|issue) title [commit]`
 - #3907 (issue, skipped: feature request for a third-party mod, out of scope)
 - #449 (issue, skipped: release checklist, no code defect)
 - #3468 (issue, skipped: mob AI tracking epic, covered by the tracker pool)
+- #1726 (issue, skipped: open multi-item i18n tracking issue, covered by the tracker pool, see OUTCOMES.tsv)
+- #3833 (issue, skipped: should_extend already skips the facing direction at piston.rs:313-320; head-power repro needs a live client, see OUTCOMES.tsv)
+- #4601 (issue, skipped: Bedrock swim pose is client-side; AuthInput START_SWIMMING is cleared by update_swimming, same verdict as #2104, see OUTCOMES.tsv)
