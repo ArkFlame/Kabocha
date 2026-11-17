@@ -114,7 +114,10 @@ impl Mob for ElderGuardianEntity {
             let pos = entity.pos.load();
             let world = entity.world.load();
             let players = world.get_nearby_players(pos, 50.0);
-            let packet = CGameEvent::new(GameEvent::PlayElderGuardianMobAppearance, 1.0);
+            let packet = CGameEvent::new(
+                GameEvent::PlayElderGuardianMobAppearance,
+                rand::random::<f32>() * 0.25 + 0.75,
+            );
 
             for player in players {
                 player.try_send_client_packet(&packet);
