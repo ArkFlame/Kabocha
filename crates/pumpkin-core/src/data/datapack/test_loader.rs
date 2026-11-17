@@ -141,6 +141,22 @@ pub fn to_registry_entry(entry_id: String, instance: &TestInstance) -> RegistryE
     }
 }
 
+/// Builds the codec-canonical test_instance registry sent during registry sync.
+///
+/// Vanilla's `RegistrySynchronization.packRegistry` encodes every entry with
+/// `registryData.elementCodec()` (`GameTestInstance.CODEC`), filling in defaults. The generic
+/// dynamic registry loader instead forwards raw JSON-as-NBT for this directory, which the client
+/// cannot decode into a `TestData`. The typed payloads replace that duplicate before sync.
+#[must_use]
+pub fn synced_test_instance_registry(
+    instances: &TestInstanceRegistry,
+) -> HashMap<String, RegistryEntryData> {
+    instances
+        .iter()
+        .map(|(id, instance)| (id.clone(), to_registry_entry(id.clone(), instance)))
+        .collect()
+}
+
 fn json_value_to_nbt(value: &Value) -> NbtTag {
     match value {
         Value::Null => NbtTag::String(String::new().into()),
@@ -327,6 +343,43 @@ mod tests {
         // A named root would leave two extra bytes explaining the empty name, so a
         // full read proves the payload is exactly one unnamed compound.
         assert_eq!(cursor.position() as usize, data.len());
+    }
+
+    #[test]
+    fn synced_test_instance_registry_fills_codec_defaults() {
+        let mut instances = TestInstanceRegistry::new();
+        let instance: TestInstance = serde_json::from_str(
+            r#"{
+                "type": "minecraft:block_based",
+                "environment": "minecraft:default",
+                "structure": "pumpkin:sample",
+                "max_ticks": 20
+            }"#,
+        )
+        .expect("parse test instance");
+        instances.insert("pumpkin:sample".to_string(), instance);
+
+        let synced = synced_test_instance_registry(&instances);
+        assert_eq!(synced.len(), 1);
+
+        let data = synced
+            .get("pumpkin:sample")
+            .and_then(|e| e.data.as_deref())
+            .expect("typed registry payload");
+        let mut cursor = std::io::Cursor::new(data);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        let nbt = Nbt::read_unnamed(&mut reader)
+            .expect("registry payloads are unnamed NBT")
+            .root_tag;
+
+        // Defaults that raw JSON-as-NBT would omit are present in the codec payload.
+        assert_eq!(nbt.get_int("setup_ticks"), Some(0));
+        assert_eq!(nbt.get_bool("required"), Some(true));
+        assert_eq!(nbt.get_int("max_attempts"), Some(1));
+        assert_eq!(nbt.get_int("required_successes"), Some(1));
+        assert_eq!(nbt.get_string("rotation"), Some("none"));
     }
 
     #[test]

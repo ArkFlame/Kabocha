@@ -25,6 +25,7 @@ use std::sync::{Arc, RwLock};
 use tracing::info;
 
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_nbt::{NbtCompound, nbt_compress::read_gzip_compound_tag};
@@ -374,6 +375,13 @@ impl DatapackManager {
             .block_tags
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = all_block_tags;
+        // RegistrySynchronization encodes test_instance entries with GameTestInstance.CODEC,
+        // while the generic dynamic registry loader forwards raw JSON-as-NBT. Replace that
+        // duplicate with the typed codec-canonical payloads so sync matches vanilla bytes.
+        all_dynamic_registries.insert(
+            "minecraft:test_instance".to_string(),
+            test_loader::synced_test_instance_registry(&all_test_instances),
+        );
         *self
             .test_instances
             .write()
@@ -1378,10 +1386,20 @@ impl DatapackManager {
             .contains(&name)
     }
 
+    /// The compile-time gametest pack is internal infrastructure with no vanilla
+    /// equivalent: vanilla's `PackRepository` only holds the core pack and real
+    /// world datapacks. Hide it from user-facing pack lists in release builds;
+    /// debug builds keep it visible for gametests.
+    #[must_use]
+    fn is_hidden_test_pack(name: &str) -> bool {
+        !cfg!(debug_assertions) && name == "pumpkin-unit-test"
+    }
+
     pub fn get_all_known_packs(server: &Server) -> Vec<String> {
         let mut packs: Vec<String> =
             pumpkin_world::generation::structure::template::all_embedded_datapack_names()
                 .iter()
+                .filter(|name| !Self::is_hidden_test_pack(name))
                 .map(|name| (*name).to_owned())
                 .collect();
 
@@ -1438,26 +1456,36 @@ impl DatapackManager {
         packs
     }
 
-    pub fn get_enabled_packs(server: &Server) -> Vec<String> {
+    /// Builds the exposed enabled-pack list from the embedded, disabled and
+    /// world-enabled sets. Pure so the filtering can be unit tested without a
+    /// running server.
+    fn compute_enabled_packs(disabled: &[String], world_enabled: &[String]) -> Vec<String> {
         // Only the required core pack (`vanilla`) is always enabled; other
         // compile-time embedded packs follow the disabled list.
-        let level_info = server.level_info.load();
-        let disabled = &level_info.data_packs.disabled;
         let mut packs: Vec<String> =
             pumpkin_world::generation::structure::template::all_embedded_datapack_names()
                 .iter()
                 .copied()
+                .filter(|name| !Self::is_hidden_test_pack(name))
                 .filter(|name| Self::is_required_pack(name) || !disabled.iter().any(|d| d == name))
                 .map(str::to_owned)
                 .collect();
 
-        for pack in &server.level_info.load().data_packs.enabled {
+        for pack in world_enabled {
             if !packs.iter().any(|existing| existing == pack) {
                 packs.push(pack.clone());
             }
         }
 
         packs
+    }
+
+    pub fn get_enabled_packs(server: &Server) -> Vec<String> {
+        let level_info = server.level_info.load();
+        Self::compute_enabled_packs(
+            &level_info.data_packs.disabled,
+            &level_info.data_packs.enabled,
+        )
     }
 
     pub fn get_available_packs(server: &Server) -> Vec<String> {
@@ -1510,14 +1538,14 @@ impl DatapackManager {
                 "vanilla".to_string(),
                 "vanilla".to_string(),
                 "The default data pack".to_string(),
-                61,
+                CURRENT_MC_VERSION.data_pack_format(),
             )
         } else if Self::is_embedded_pack(&resolved_name) {
             (
                 resolved_name.clone(),
                 resolved_name.clone(),
                 format!("Embedded datapack: {resolved_name}"),
-                61,
+                CURRENT_MC_VERSION.data_pack_format(),
             )
         } else if let Some(stripped) = resolved_name.strip_prefix("file/") {
             let pack_path = server
@@ -1532,7 +1560,7 @@ impl DatapackManager {
                 resolved_name.clone(),
                 resolved_name.clone(),
                 format!("Bundled datapack: {resolved_name}"),
-                61,
+                CURRENT_MC_VERSION.data_pack_format(),
             )
         };
 
@@ -2549,14 +2577,14 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
                 }
             })
             .unwrap_or_default();
-        let pack_format = pack
-            .and_then(|p| {
+        let pack_format =
+            pack.and_then(|p| {
                 p.get("pack_format")
                     .or_else(|| p.get("max_format"))
                     .or_else(|| p.get("min_format"))
             })
             .and_then(serde_json::Value::as_u64)
-            .unwrap_or(61) as u32;
+            .unwrap_or(u64::from(CURRENT_MC_VERSION.data_pack_format())) as u32;
 
         let mut known_packs = Vec::new();
         let parse_item = |item: &serde_json::Value| -> Option<KnownPackData> {
@@ -2599,7 +2627,11 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
 
         return (description, pack_format, known_packs);
     }
-    (String::new(), 61, Vec::new())
+    (
+        String::new(),
+        CURRENT_MC_VERSION.data_pack_format(),
+        Vec::new(),
+    )
 }
 
 fn load_recipes_recursive(
@@ -3495,5 +3527,17 @@ mod tests {
         assert!(!super::DatapackManager::is_required_pack(
             "pumpkin-unit-test"
         ));
+    }
+
+    #[test]
+    fn enabled_pack_list_filters_hidden_test_pack_and_disabled_packs() {
+        let disabled = vec!["optional_embedded".to_string()];
+        let world_enabled = vec!["file/custom".to_string()];
+        let packs = DatapackManager::compute_enabled_packs(&disabled, &world_enabled);
+
+        assert!(packs.iter().any(|pack| pack == "vanilla"));
+        assert!(packs.iter().any(|pack| pack == "file/custom"));
+        assert!(!packs.iter().any(|pack| pack == "optional_embedded"));
+        assert!(packs.iter().any(|pack| pack == "pumpkin-unit-test") == cfg!(debug_assertions));
     }
 }

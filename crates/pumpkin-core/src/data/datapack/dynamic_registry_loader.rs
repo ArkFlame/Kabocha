@@ -11,199 +11,147 @@ use serde_json::Value;
 use tracing::warn;
 
 pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
-    ("minecraft:wolf_variant", &["wolf_variant", "wolf_variants"]),
-    ("minecraft:cat_variant", &["cat_variant", "cat_variants"]),
-    ("minecraft:frog_variant", &["frog_variant", "frog_variants"]),
-    ("minecraft:instrument", &["instrument", "instruments"]),
-    (
-        "minecraft:trim_material",
-        &["trim_material", "trim_materials"],
-    ),
-    ("minecraft:trim_pattern", &["trim_pattern", "trim_patterns"]),
-    (
-        "minecraft:banner_pattern",
-        &["banner_pattern", "banner_patterns"],
-    ),
+    ("minecraft:wolf_variant", &["wolf_variant"]),
+    ("minecraft:cat_variant", &["cat_variant"]),
+    ("minecraft:frog_variant", &["frog_variant"]),
+    ("minecraft:instrument", &["instrument"]),
+    ("minecraft:trim_material", &["trim_material"]),
+    ("minecraft:trim_pattern", &["trim_pattern"]),
+    ("minecraft:banner_pattern", &["banner_pattern"]),
     (
         "minecraft:decorated_pot_pattern",
-        &["decorated_pot_pattern", "decorated_pot_patterns"],
+        &["decorated_pot_pattern"],
     ),
-    ("minecraft:chat_type", &["chat_type", "chat_types"]),
-    ("minecraft:enchantment", &["enchantment", "enchantments"]),
-    (
-        "minecraft:enchantment_provider",
-        &["enchantment_provider", "enchantment_providers"],
-    ),
-    ("minecraft:cow_variant", &["cow_variant", "cow_variants"]),
-    (
-        "minecraft:cow_sound_variant",
-        &["cow_sound_variant", "cow_sound_variants"],
-    ),
-    ("minecraft:pig_variant", &["pig_variant", "pig_variants"]),
-    (
-        "minecraft:pig_sound_variant",
-        &["pig_sound_variant", "pig_sound_variants"],
-    ),
-    (
-        "minecraft:chicken_variant",
-        &["chicken_variant", "chicken_variants"],
-    ),
+    ("minecraft:chat_type", &["chat_type"]),
+    ("minecraft:enchantment", &["enchantment"]),
+    ("minecraft:enchantment_provider", &["enchantment_provider"]),
+    ("minecraft:cow_variant", &["cow_variant"]),
+    ("minecraft:cow_sound_variant", &["cow_sound_variant"]),
+    ("minecraft:pig_variant", &["pig_variant"]),
+    ("minecraft:pig_sound_variant", &["pig_sound_variant"]),
+    ("minecraft:chicken_variant", &["chicken_variant"]),
     (
         "minecraft:chicken_sound_variant",
-        &["chicken_sound_variant", "chicken_sound_variants"],
+        &["chicken_sound_variant"],
     ),
-    (
-        "minecraft:cat_sound_variant",
-        &["cat_sound_variant", "cat_sound_variants"],
-    ),
-    (
-        "minecraft:wolf_sound_variant",
-        &["wolf_sound_variant", "wolf_sound_variants"],
-    ),
+    ("minecraft:cat_sound_variant", &["cat_sound_variant"]),
+    ("minecraft:wolf_sound_variant", &["wolf_sound_variant"]),
     (
         "minecraft:zombie_nautilus_variant",
-        &["zombie_nautilus_variant", "zombie_nautilus_variants"],
+        &["zombie_nautilus_variant"],
     ),
-    ("minecraft:trade_set", &["trade_set", "trade_sets"]),
-    (
-        "minecraft:villager_trade",
-        &["villager_trade", "villager_trades"],
-    ),
-    (
-        "minecraft:painting_variant",
-        &["painting_variant", "painting_variants"],
-    ),
-    ("minecraft:dimension", &["dimension", "dimensions"]),
-    (
-        "minecraft:dimension_type",
-        &["dimension_type", "dimension_types"],
-    ),
-    (
-        "minecraft:item_modifier",
-        &["item_modifier", "item_modifiers"],
-    ),
-    ("minecraft:slot_source", &["slot_source", "slot_sources"]),
-    ("minecraft:jukebox_song", &["jukebox_song", "jukebox_songs"]),
-    ("minecraft:dialog", &["dialog", "dialogs"]),
-    ("minecraft:timeline", &["timeline", "timelines"]),
-    ("minecraft:world_clock", &["world_clock", "world_clocks"]),
-    (
-        "minecraft:test_environment",
-        &["test_environment", "test_environments"],
-    ),
+    ("minecraft:trade_set", &["trade_set"]),
+    ("minecraft:villager_trade", &["villager_trade"]),
+    ("minecraft:painting_variant", &["painting_variant"]),
+    ("minecraft:dimension", &["dimension"]),
+    ("minecraft:dimension_type", &["dimension_type"]),
+    ("minecraft:item_modifier", &["item_modifier"]),
+    ("minecraft:slot_source", &["slot_source"]),
+    ("minecraft:jukebox_song", &["jukebox_song"]),
+    ("minecraft:dialog", &["dialog"]),
+    ("minecraft:timeline", &["timeline"]),
+    ("minecraft:world_clock", &["world_clock"]),
+    ("minecraft:test_environment", &["test_environment"]),
     ("minecraft:test_instance", &["test_instance"]),
     (
         "minecraft:sulfur_cube_archetype",
-        &["sulfur_cube_archetype", "sulfur_cube_archetypes"],
+        &["sulfur_cube_archetype"],
     ),
-    (
-        "minecraft:block_transformer",
-        &["block_transformer", "block_transformers"],
-    ),
-    (
-        "minecraft:block_sound_set",
-        &["block_sound_set", "block_sound_sets"],
-    ),
-    (
-        "minecraft:trial_spawner",
-        &["trial_spawner", "trial_spawners"],
-    ),
-    (
-        "minecraft:worldgen/biome",
-        &["worldgen/biome", "worldgen/biomes"],
-    ),
+    ("minecraft:block_transformer", &["block_transformer"]),
+    ("minecraft:block_sound_set", &["block_sound_set"]),
+    ("minecraft:trial_spawner", &["trial_spawner"]),
+    ("minecraft:worldgen/biome", &["worldgen/biome"]),
     (
         "minecraft:worldgen/block_state_provider",
-        &[
-            "worldgen/block_state_provider",
-            "worldgen/block_state_providers",
-        ],
+        &["worldgen/block_state_provider"],
     ),
     (
         "minecraft:worldgen/carver",
-        &[
-            "worldgen/carver",
-            "worldgen/carvers",
-            "worldgen/configured_carver",
-            "worldgen/configured_carvers",
-        ],
+        &["worldgen/carver", "worldgen/configured_carver"],
     ),
     (
         "minecraft:worldgen/density_function",
-        &["worldgen/density_function", "worldgen/density_functions"],
+        &["worldgen/density_function"],
     ),
     (
         "minecraft:worldgen/feature",
-        &[
-            "worldgen/feature",
-            "worldgen/features",
-            "worldgen/configured_feature",
-            "worldgen/configured_features",
-        ],
+        &["worldgen/feature", "worldgen/configured_feature"],
     ),
     (
         "minecraft:worldgen/flat_level_generator_preset",
-        &[
-            "worldgen/flat_level_generator_preset",
-            "worldgen/flat_level_generator_presets",
-        ],
+        &["worldgen/flat_level_generator_preset"],
     ),
     (
         "minecraft:worldgen/material_condition",
-        &[
-            "worldgen/material_condition",
-            "worldgen/material_conditions",
-        ],
+        &["worldgen/material_condition"],
     ),
     (
         "minecraft:worldgen/material_rule",
-        &["worldgen/material_rule", "worldgen/material_rules"],
+        &["worldgen/material_rule"],
     ),
     (
         "minecraft:worldgen/multi_noise_biome_source_parameter_list",
-        &[
-            "worldgen/multi_noise_biome_source_parameter_list",
-            "worldgen/multi_noise_biome_source_parameter_lists",
-        ],
+        &["worldgen/multi_noise_biome_source_parameter_list"],
     ),
-    (
-        "minecraft:worldgen/noise",
-        &["worldgen/noise", "worldgen/noises"],
-    ),
+    ("minecraft:worldgen/noise", &["worldgen/noise"]),
     (
         "minecraft:worldgen/noise_settings",
         &["worldgen/noise_settings"],
     ),
     (
         "minecraft:worldgen/placed_feature",
-        &["worldgen/placed_feature", "worldgen/placed_features"],
+        &["worldgen/placed_feature"],
     ),
     (
         "minecraft:worldgen/processor_list",
-        &["worldgen/processor_list", "worldgen/processor_lists"],
+        &["worldgen/processor_list"],
     ),
     (
         "minecraft:worldgen/structure",
-        &[
-            "worldgen/structure",
-            "worldgen/structures",
-            "worldgen/configured_structure",
-            "worldgen/configured_structures",
-        ],
+        &["worldgen/structure", "worldgen/configured_structure"],
     ),
     (
         "minecraft:worldgen/structure_set",
-        &["worldgen/structure_set", "worldgen/structure_sets"],
+        &["worldgen/structure_set"],
     ),
     (
         "minecraft:worldgen/template_pool",
-        &["worldgen/template_pool", "worldgen/template_pools"],
+        &["worldgen/template_pool"],
     ),
     (
         "minecraft:worldgen/world_preset",
-        &["worldgen/world_preset", "worldgen/world_presets"],
+        &["worldgen/world_preset"],
     ),
 ];
+
+/// Field names that vanilla levelgen/datapack codecs declare as `Codec.LONG`.
+///
+/// NBT integers are not self-describing, so a JSON `5` may become either an `IntTag` or a
+/// `LongTag`. Vanilla normalizes through the element codec; without it, small values of a
+/// known long field would be sent as `IntTag` where vanilla sends `LongTag`.
+const LONG_FIELDS: &[&str] = &["seed"];
+
+fn json_number_to_nbt_tag(num: &serde_json::Number, field: Option<&str>) -> NbtTag {
+    if field.is_some_and(|name| LONG_FIELDS.contains(&name)) {
+        return num.as_i64().map_or_else(
+            || {
+                num.as_f64()
+                    .map_or(NbtTag::Long(0), |value| NbtTag::Long(value as i64))
+            },
+            NbtTag::Long,
+        );
+    }
+    num.as_i64().map_or_else(
+        || num.as_f64().map_or(NbtTag::Int(0), NbtTag::Double),
+        |i| {
+            if i32::try_from(i).is_ok() {
+                NbtTag::Int(i as i32)
+            } else {
+                NbtTag::Long(i)
+            }
+        },
+    )
+}
 
 /// Converts a JSON `serde_json::Value` into an `NbtTag`.
 ///
@@ -212,28 +160,26 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
 /// so object keys and list elements holding `null` are dropped instead.
 #[must_use]
 pub fn json_to_nbt_tag(v: &Value) -> Option<NbtTag> {
+    json_to_nbt_tag_field(v, None)
+}
+
+fn json_to_nbt_tag_field(v: &Value, field: Option<&str>) -> Option<NbtTag> {
     match v {
         Value::Null => None,
         Value::Bool(b) => Some(NbtTag::Byte(i8::from(*b))),
-        Value::Number(num) => Some(num.as_i64().map_or_else(
-            || num.as_f64().map_or(NbtTag::Int(0), NbtTag::Double),
-            |i| {
-                if i32::try_from(i).is_ok() {
-                    NbtTag::Int(i as i32)
-                } else {
-                    NbtTag::Long(i)
-                }
-            },
-        )),
+        Value::Number(num) => Some(json_number_to_nbt_tag(num, field)),
         Value::String(s) => Some(NbtTag::String(s.clone().into())),
         Value::Array(arr) => {
-            let list = arr.iter().filter_map(json_to_nbt_tag).collect();
+            let list = arr
+                .iter()
+                .filter_map(|value| json_to_nbt_tag_field(value, None))
+                .collect();
             Some(NbtTag::List(list))
         }
         Value::Object(obj) => {
             let mut compound = NbtCompound::new();
             for (k, val) in obj {
-                if let Some(tag) = json_to_nbt_tag(val) {
+                if let Some(tag) = json_to_nbt_tag_field(val, Some(k)) {
                     compound.put(k, tag);
                 }
             }
@@ -485,6 +431,31 @@ mod tests {
     }
 
     #[test]
+    fn long_typed_seed_fields_encode_as_long_tags() {
+        let json: Value = serde_json::json!({
+            "seed": 5,
+            "count": 5,
+            "nested": { "seed": 7, "count": 7 }
+        });
+
+        let bytes = json_to_registry_nbt_bytes(&json);
+        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        let nbt = Nbt::read_unnamed(&mut reader).unwrap().root_tag;
+
+        // Vanilla levelgen codecs declare `seed` as Codec.LONG; a small seed must still be
+        // a LongTag, while an ordinary numeric field stays an IntTag.
+        assert_eq!(nbt.get_long("seed"), Some(5));
+        assert_eq!(nbt.get_int("seed"), None);
+        assert_eq!(nbt.get_int("count"), Some(5));
+        let nested = nbt.get_compound("nested").unwrap();
+        assert_eq!(nested.get_long("seed"), Some(7));
+        assert_eq!(nested.get_int("count"), Some(7));
+    }
+
+    #[test]
     fn json_null_fields_are_dropped_without_truncating() {
         let json: Value = serde_json::json!({
             "asset_id": "custom:entity/cat/fluffy",
@@ -664,6 +635,29 @@ mod tests {
         assert_eq!(loaded, 0);
         assert!(!registries.contains_key("custom:config"));
         assert!(registries.is_empty());
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn plural_directory_aliases_are_not_loaded() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_plural_{}", uuid::Uuid::new_v4()));
+        let ns_dir = temp_dir.join("custom");
+        let singular = ns_dir.join("enchantment");
+        let plural = ns_dir.join("enchantments");
+        fs::create_dir_all(&singular).unwrap();
+        fs::create_dir_all(&plural).unwrap();
+        fs::write(singular.join("a.json"), r#"{}"#).unwrap();
+        fs::write(plural.join("b.json"), r#"{}"#).unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);
+
+        // Vanilla reads only the singular registry path; plural aliases are ignored.
+        let entries = &registries["minecraft:enchantment"];
+        assert!(entries.contains_key("custom:a"));
+        assert!(!entries.contains_key("custom:b"));
 
         let _ = fs::remove_dir_all(temp_dir);
     }
