@@ -388,8 +388,9 @@ impl EntityBase for BoatEntity {
         self.vehicle.entity.is_alive()
     }
 
+    // Vanilla `AbstractBoat.canBeCollidedWith` returns `!isRemoved()` (UNVERIFIED).
     fn is_collidable(&self, _entity: Option<Box<dyn EntityBase>>) -> bool {
-        true
+        !self.vehicle.entity.is_removed()
     }
 
     fn damage_with_context(
