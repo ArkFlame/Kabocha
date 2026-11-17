@@ -329,6 +329,9 @@ impl Context {
         self.server.command_dispatcher.rcu(|dispatcher| {
             let mut new_dispatcher = (**dispatcher).clone();
             new_dispatcher.deactivate_commands_from_source(&source);
+            // Dropping the nodes releases the executors and predicates holding this
+            // plugin's code, so its library no longer has to stay resident.
+            new_dispatcher.remove_commands_from_source(&source);
             Arc::new(new_dispatcher)
         });
 

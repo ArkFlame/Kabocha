@@ -3,7 +3,7 @@ use pumpkin_macros::Event;
 /// An event that fires at the end of every server tick.
 #[derive(Event, Clone)]
 pub struct ServerTickEndEvent {
-    /// 0-indexed number of the tick that just finished.
+    /// 1-based number of the tick that just finished.
     pub tick: i32,
 
     /// Duration (in nanoseconds) of the tick that just finished.

@@ -453,7 +453,6 @@ impl Registrations {
 /// Hands a plugin's library back to its loader once nothing runs its handlers, holds its
 /// services, or holds its instance.
 ///
-/// `commands`: its commands stay in the command tree, the library is kept right away.
 /// `children_unloading`: plugins from its loaders still run, the library is kept right away.
 /// A loader without `can_unload` keeps it right away too, without an error.
 ///
@@ -466,7 +465,6 @@ async fn release_library(
     instance: Option<Arc<dyn Plugin>>,
     loader: &Arc<dyn PluginLoader>,
     loader_data: Box<dyn Any + Send + Sync>,
-    commands: bool,
     children_unloading: bool,
 ) -> Result<(), LoaderError> {
     // Loader keeps the library: untracked plugin work can still run its code. That may run
@@ -476,15 +474,6 @@ async fn release_library(
         drop(instance);
         keep_library(loader, loader_data);
         return Ok(());
-    }
-    // Tree never drops nodes: executors and argument types run its code
-    // TODO: remove a plugin's nodes from the command tree after reload
-    if commands {
-        drop(registrations);
-        drop(instance);
-        warn!("Plugin {name} registered commands, keeping its library loaded");
-        keep_library(loader, loader_data);
-        return Err(LoaderError::CommandsResident);
     }
     if children_unloading {
         drop(registrations);
@@ -1583,7 +1572,6 @@ impl PluginManager {
                             None,
                             &loader_clone,
                             data,
-                            context.has_commands(),
                             children_unloading,
                         )
                         .await
@@ -2660,14 +2648,12 @@ impl PluginManager {
             .and_then(|p| p.loader_data.take());
         let unloaded = match loader_data {
             Some(data) => {
-                let commands = context.has_commands();
                 release_library(
                     name,
                     registrations,
                     instance,
                     &loader,
                     data,
-                    commands,
                     children_unloading,
                 )
                 .await
