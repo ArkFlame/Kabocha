@@ -113,6 +113,12 @@ impl BedrockClient {
             );
         }
 
+        // Item use (eat, block, place, bow) is embedded in the input tick since 1.19.80
+        // instead of arriving as a standalone `InventoryTransaction`.
+        if let Some(interaction) = packet.item_interaction {
+            self.handle_embedded_use_item(player, interaction);
+        }
+
         // Inventory moves can ride inside the input packet, like the standalone request
         if let Some(request) = packet.item_stack_request {
             self.handle_item_stack_request(
@@ -132,6 +138,45 @@ impl BedrockClient {
 }
 
 impl BedrockClient {
+    /// Routes the item use embedded in a `PlayerAuthInput` tick through the same handler as a
+    /// standalone `InventoryTransaction`, which is the only place item use is implemented.
+    fn handle_embedded_use_item(
+        &self,
+        player: &Arc<Player>,
+        interaction: pumpkin_protocol::bedrock::server::player_auth_input::PlayerInventoryAction,
+    ) {
+        use pumpkin_protocol::bedrock::server::inventory_transaction::{
+            HandSlot, UseItemTransactionData,
+        };
+
+        let data = interaction.transaction;
+        self.handle_inventory_action(
+            player,
+            SInventoryTransaction {
+                legacy_request_id: interaction.legacy_request_id,
+                legacy_set_item_slots: interaction.legacy_slots,
+                has_value: !interaction.actions.is_empty(),
+                actions: interaction.actions,
+                transaction_type: VarUInt(2),
+                transaction_data: TransactionData::UseItem(UseItemTransactionData {
+                    action_type: data.action_type,
+                    trigger_type: data.trigger_type,
+                    block_position: data.block_position,
+                    block_face: data.block_face,
+                    hot_bar_slot: data.hot_bar_slot,
+                    // Auth input item use is always the main hand.
+                    hand: HandSlot::Mainhand,
+                    item_in_hand: data.item_in_hand,
+                    player_position: data.player_position,
+                    click_position: data.click_position,
+                    block_runtime_id: data.block_runtime_id,
+                    client_prediction: data.client_prediction,
+                    client_cooldown_state: data.client_cooldown_state,
+                }),
+            },
+        );
+    }
+
     /// The Bedrock client glides straight out of creative flight, which vanilla `canGlide`
     /// forbids, so flight ends first and comes back if the glide is refused.
     pub(super) fn start_gliding(player: &Arc<Player>, server: &Arc<Server>) {
