@@ -394,6 +394,11 @@ impl LivingEntity {
     ];
 
     fn hurt_sound_for_entity(entity_type: &'static EntityType) -> Sound {
+        // Players never take the mob custom-sound path and entity_data carries no
+        // per-type sound for them, so vanilla's entity.player.hurt must be explicit.
+        if entity_type.id == EntityType::PLAYER.id {
+            return Sound::EntityPlayerHurt;
+        }
         entity_type.hurt_sound.unwrap_or(Sound::EntityGenericHurt)
     }
 
@@ -5630,6 +5635,14 @@ mod tests {
         for (entity_type, expected) in cases {
             assert_eq!(LivingEntity::hurt_sound_for_entity(entity_type), expected);
         }
+    }
+
+    #[test]
+    fn hurt_sound_for_entity_uses_player_hurt_sound() {
+        assert_eq!(
+            LivingEntity::hurt_sound_for_entity(&EntityType::PLAYER),
+            Sound::EntityPlayerHurt
+        );
     }
 
     #[test]
