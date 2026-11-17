@@ -12,7 +12,6 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_util::Hand;
 
 pub struct FishingRodItem;
@@ -86,8 +85,6 @@ impl ItemBehaviour for FishingRodItem {
 
             let bobber_arc: Arc<FishingBobberEntity> = Arc::new(bobber);
             world.spawn_entity(bobber_arc);
-
-            player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
 
             // Vanilla `ItemStack.causeUseVibration(player, ITEM_INTERACT_START)`.
             world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
