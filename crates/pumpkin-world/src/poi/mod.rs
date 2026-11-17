@@ -1061,6 +1061,21 @@ mod tests {
     }
 
     #[test]
+    fn poi_find_closest_is_a_sphere_not_a_square() {
+        let mut storage = PoiStorage::new(std::env::temp_dir().join("pumpkin_poi_sphere_test"));
+        let center = BlockPos(Vector3::new(100, 64, 100));
+        // Inside the square of radius 4 but outside the sphere (distSqr 18 >= 16).
+        storage.add(BlockPos(Vector3::new(103, 64, 103)), "minecraft:home");
+        assert!(storage.find_closest_matching(center, 4, |_| true).is_none());
+        // Inside the sphere (distSqr 9 < 16).
+        storage.add(BlockPos(Vector3::new(103, 64, 100)), "minecraft:home");
+        let (pos, _) = storage
+            .find_closest_matching(center, 4, |_| true)
+            .expect("POI inside the sphere");
+        assert_eq!(pos, BlockPos(Vector3::new(103, 64, 100)));
+    }
+
+    #[test]
     fn poi_storage_mca() {
         let dir = std::env::temp_dir().join("pumpkin_poi_mca_test");
         let _ = std::fs::remove_dir_all(&dir);
