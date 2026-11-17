@@ -570,12 +570,12 @@ impl WitherEntity {
                                     min_pos.0.z + dz,
                                 );
                                 let block = world.get_block(&bpos);
-                                if Self::can_destroy(block) {
-                                    world.set_block_state(
-                                        &bpos,
-                                        Block::AIR.default_state.id,
-                                        BlockFlags::NOTIFY_ALL,
-                                    );
+                                // Vanilla Level.destroyBlock(pos, true, this) drops the block loot.
+                                if Self::can_destroy(block)
+                                    && world
+                                        .break_block(&bpos, None, BlockFlags::NOTIFY_ALL)
+                                        .is_some()
+                                {
                                     destroyed = true;
                                 }
                             }
