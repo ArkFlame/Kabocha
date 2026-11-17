@@ -1,31 +1,37 @@
-# entities / Armadillo — audit after source change
+# entities / Armadillo — re-review
 
-Source: `crates/pumpkin-core/src/entity/passive/armadillo.rs` (+ `entity/type.rs:215`, `entity/mob/spider.rs:50`, `block/blocks/redstone/dispenser.rs:973`).
-Vanilla reference class: `net.minecraft.world.entity.animal.armadillo.Armadillo` / `Armadillo.ArmadilloState`.
+Source: `crates/pumpkin-core/src/entity/passive/armadillo.rs` (last touched by d629b8962).
+Reference: vanilla `net.minecraft.world.entity.animal.armadillo.Armadillo` and
+`Armadillo$ArmadilloState` (1.21.5+). No decompiled sources in `.vendor/`, so each row names the
+vanilla member it must match.
 
-## Fixed in this pass
-
-- Ambient sound: `Mob::get_ambient_sound` defaults to `None` (`entity/mob/mod.rs:2275`) and living entities never fall back to `EntityType.ambient_sound` (`entity/living.rs:4599` -> `tick_ambient_sound`). Vanilla `Armadillo.getAmbientSound` = `ARMADILLO_AMBIENT`, so the mob was silent except for step/roll/brush. Added the override.
-- Hurt sound while rolled up: vanilla `Armadillo.getHurtSound` returns `ARMADILLO_HURT_REDUCED` while `shouldHideInShell(inStateTicks)` is true, otherwise `ARMADILLO_HURT` (generated `entity_type.rs:518` supplies the plain one). `should_hide_in_shell` had no caller at all. Added `CustomSound` (`hurt_sound`/`death_sound`) following `mob/bat.rs:301`; `living.rs:3778` falls back to the `EntityType` sound when `hurt_sound()` is `None`, so only the shell case changes.
+## Fixed this pass
+- **Ambient sound never played.** `Mob::get_ambient_sound` defaults to `None` and mobs must override
+  it (see bat.rs:200); `EntityType::ARMADILLO.ambient_sound` is never consulted automatically.
+  Vanilla `Armadillo.getAmbientSound` -> `ARMADILLO_AMBIENT`. Added
+  `fn get_ambient_sound` (armadillo.rs:342).
+- **Hurt sound was always the loud variant.** Vanilla `Armadillo.getHurtSound` returns
+  `ARMADILLO_HURT_REDUCED` while the body is hidden in the shell and `ARMADILLO_HURT` otherwise.
+  Added `impl CustomSound` (armadillo.rs:327) returning the reduced variant only when
+  `should_hide_in_shell()` and `None` otherwise so `living.rs:3772` falls back to the
+  `pumpkin-data` hurt sound. This also gives `should_hide_in_shell` (armadillo.rs:191) its first
+  caller; it was dead code.
 
 ## Remaining gaps
 
-1. **No periodic threat scan — armadillo never rolls up on its own.** `is_scared_by` (`armadillo.rs:273`) has zero callers and `SCARE_CHECK_INTERVAL` (`armadillo.rs:34`) is only reused as a danger-counter value (`:373`), never as an interval. Vanilla `Armadillo.customServerAiStep` re-scans every 80 ticks for living entities inside `inflate(7.0, 2.0, 7.0)` and calls `rollUp()`; only the hurt path triggers the shell today.
-   Fix: in `custom_server_ai_step`, when state is `Idle` and `danger_detected_recently_ticks == 0` and `tick_count % SCARE_CHECK_INTERVAL == 0`, iterate `world.get_nearby_entities(pos, SCARE_DISTANCE_HORIZONTAL)` (`world/mod.rs:5371`), keep entities with a living entity and `self.is_scared_by(entity)`, then `self.roll_up()`. Needs the tick counter on `Entity`. Size **M**.
+| # | Where | Vanilla member | Gap | Fix | Size |
+|---|-------|----------------|-----|-----|------|
+| 1 | armadillo.rs:273 `is_scared_by`, armadillo.rs:34 `SCARE_CHECK_INTERVAL` | `Armadillo.customServerAiStep` proximity check | `is_scared_by` has **no caller**; nothing scans for nearby threats, so an armadillo never rolls up on approach, only after being hit. `SCARE_CHECK_INTERVAL` is only reused as the danger-duration value at armadillo.rs:373, never as a tick interval | In `custom_server_ai_step`, when state is `Idle` and `danger_detected_recently_ticks == 0` and `tick_count % 80 == 0`, iterate `world.get_nearby_entities(pos, 7.0)` (world/mod.rs:5371), keep living entities and `is_scared_by` hits, then `roll_up()` | M |
+| 2 | armadillo.rs:367-379 `on_damage` | `Armadillo.hurtServer` | Both branches store the same value (80), so the `can_stay_rolled_up()` check is dead. `SCARE_CHECK_INTERVAL` is used as a duration, not an interval | Collapse to one store of 80 for non-`ItemEntity` sources; confirm from vanilla whether `!can_stay_rolled_up()` zeroes it instead | S |
+| 3 | armadillo.rs:359-365 `modify_incoming_damage` | `Armadillo.getHurtSound`/shell damage handling | Reduction is applied whenever `is_scared()` (Rolling from tick 1, Scared, Unrolling until the last tick) instead of only once `should_hide_in_shell()` is true | Gate the `(amount - 1.0).max(0.0) / 2.0` reduction on `self.should_hide_in_shell()` and verify the formula against the decompiled `Armadillo` | S |
+| 4 | armadillo.rs:445-455 `mob_init_data_tracker` | `AgeableMob.defineSynchedData` | The baby flag is set by hand from `entity.age < 0`; `ageable.rs:115` already syncs `DATA_BABY_ID` on every age change, so this is redundant (and duplicates a different constant, `armadillo::BABY_ID`) | Drop the hand-set line and rely on the ageable sync | S |
+| 5 | armadillo.rs:236-271 `brush_off_scute` | `Armadillo.brushOffScute` + `AnimalMixin` drop | Drop is spawned with `world.spawn_entity` (saved) while the shed drop at armadillo.rs:405 uses `spawn_entity_non_save`; vanilla uses `spawnAtLocation` for both | Use the same spawn helper as the shed drop for consistent save semantics | S |
+| 6 | armadillo.rs:46-52 state ids | `Armadillo$ArmadilloState.fromId` | Id mapping 0..3 matches declaration order; vanilla derives ids from the same enum order, so this is only a risk if the enum is reordered | Add a compile-time/comment anchor or a unit test tying ids to declaration order | S |
 
-2. **`on_damage` conditional is dead.** `armadillo.rs:367-379` stores `SCARE_CHECK_INTERVAL` and then, if `can_stay_rolled_up()`, stores `80` — both are 80, so the branch does nothing. Vanilla sets `dangerDetectedRecently = 80` once when the source entity is not an item entity. Collapse to a single store (and confirm whether vanilla zeroes the counter when `!canStayRolledUp()`). Size **S**.
-
-3. **Damage reduction keyed on the wrong predicate.** `modify_incoming_damage` (`armadillo.rs:359`) halves damage whenever `is_scared()`, i.e. also during `Rolling`/`Unrolling` and while not yet hidden in the shell. Vanilla ties the reduction to the shell (`shouldHideInShell`), same predicate as the reduced hurt sound. Gate on `self.should_hide_in_shell()` and re-derive the exact vanilla formula (`(amount - 1.0) / 2.0` here) before changing the arithmetic. Size **S**.
-
-4. **Client-side shell pose not driven.** `should_hide_in_shell` (`armadillo.rs:191`) still has no server-side effect on the model or hitbox; vanilla's renderer hides the head via the same state ticks. Acceptable as client-only, tracked here so it is not mistaken for a server gap. Size **M** (client/plugin side).
-
-## Verified as matching vanilla (no action)
-
-- State enum ids/ordering (0..3), `animation_duration` (10/50/30), `should_hide_in_shell` thresholds (>5, true, <26), string names for NBT.
-- `SCARE_DISTANCE_HORIZONTAL` 7.0 / `SCARE_DISTANCE_VERTICAL` 2.0 and the undead-tag + sprinting/rider player checks in `is_scared_by`.
-- `scute_time` init `rand(6000) + 6000`, decrement while alive, gift-loot-table shed gated on `should_drop_loot`, reset only on drop.
-- NBT `state` (string, with int fallback) and `scute_time` (`armadillo.rs:339`).
-- Brush: baby/dead rejection, `minecraft:brush/armadillo` loot table, `ARMADILLO_BRUSH` sound, `ENTITY_INTERACT` game event, 16 durability (`armadillo.rs:236`, `:457`).
-- `mob_interact` passes while scared; food tag `#minecraft:armadillo_food`; `ARMADILLO_BABY_START_AGE` -48000; baby tracked-data resync on growth (`ageable.rs:115`).
-- Goals: swim 0, escape-danger 2 (speed 2.0 -> vanilla 1.5 double is the shared helper's choice), breed 2, tempt 3 (1.25, no-scared), follow-parent 4, wander 5, look-at-player 6 (6.0), random-look 7.
-- Spider flee target uses `is_scared()` to only flee calm armadillos (`mob/spider.rs:50`).
+## Not gaps (checked)
+State thresholds (`should_hide_in_shell` 5/26, durations 10/50/30), roll/unroll sounds + gating,
+brush loot table `minecraft:brush/armadillo` + `ENTITY_INTERACT` game event + 16 durability,
+shed loot table `minecraft:gameplay/armadillo_shed` + scute drop sound, NBT keys `state`/`scute_time`,
+goal priorities (Swim 0, EscapeDanger 1, Breed 2, Tempt 3, FollowParent 4, Wander 5, LookAtPlayer 6,
+RandomLookAround 7), food tag, step sound volume 0.15, `roll_up` gated on `!is_scared()`, and
+`mob_interact` returning `PASS` while scared.
