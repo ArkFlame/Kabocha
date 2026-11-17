@@ -313,3 +313,7 @@ Format: `- #N (PR|issue) title [commit]`
 - #3640 (PR, already present: tripwire shears durability damage at crates/pumpkin-core/src/block/blocks/redstone/tripwire.rs:109-114 via #3584, dispenser bone meal at crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs:351,982-993)
 - #3656 (PR, skipped: intent already on master via #3621, all four PR hunks present)
 - #3790 (PR, skipped: blaze height-offset constants already in crates/pumpkin-core/src/entity/mob/blaze.rs)
+- #3632 (PR, skipped: tripwire hook change already on master, crates/pumpkin-core/src/block/blocks/redstone/tripwire_hook.rs)
+- #3940 (PR, skipped: mob bucket and milk already handled by bucket_mob_pickup, give_filled_mob_bucket and fill_bucket_stack)
+- #4371 (PR, skipped: execute store score/bossbar/data already on master, crates/pumpkin-core/src/command/commands/execute.rs:843 and :2135)
+- #3428 (PR, skipped: village path terrain projection already on master via #4158 jigsaw gravity projection)
