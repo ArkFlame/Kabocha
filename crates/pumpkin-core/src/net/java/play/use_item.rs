@@ -189,7 +189,6 @@ impl JavaClient {
             return true;
         }
 
-        // TODO: Apply fishing rod durability on retrieval based on catch type.
         let mut fish_event = PlayerFishEvent::new(
             player.clone(),
             None,
