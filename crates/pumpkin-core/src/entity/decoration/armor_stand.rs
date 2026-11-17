@@ -7,6 +7,7 @@ use crate::entity::{
 };
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::{
     Block,
     damage::DamageType,
@@ -350,6 +351,10 @@ impl ArmorStandEntity {
             return false;
         }
 
+        if player.is_spectator() {
+            return true;
+        }
+
         let mut item_slot = get_equipment_slot_for_item(item_stack);
         if !item_stack.is_empty() && !self.can_use_slot(&item_slot) {
             item_slot = EquipmentSlot::MAIN_HAND;
@@ -458,7 +463,6 @@ impl EntityBase for ArmorStandEntity {
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         let disabled_slots = self.disabled_slots.load(Ordering::Relaxed);
-        // ...
 
         nbt.put_bool("Invisible", self.is_invisible());
         nbt.put_bool("Small", self.is_small());
@@ -474,7 +478,6 @@ impl EntityBase for ArmorStandEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         let mut flags = 0u8;
-        // ...
 
         if let Some(invisible) = nbt.get_bool("Invisible")
             && invisible
@@ -527,8 +530,12 @@ impl EntityBase for ArmorStandEntity {
     }
 
     fn kill(&self, _caller: &dyn EntityBase) {
-        self.get_entity().remove();
-        // TODO: emit GameEvent::ENTITY_DIE
+        let entity = self.get_entity();
+        entity.remove();
+        entity
+            .world
+            .load()
+            .emit_game_event(GameEvent::EntityDie.name(), entity.pos.load());
     }
 
     fn damage_with_context(
@@ -637,11 +644,6 @@ impl EntityBase for ArmorStandEntity {
             self.last_hit_time.store(time, Ordering::Relaxed);
         } else {
             Self::spawn_break_particles(entity);
-            world.play_sound(
-                Sound::EntityArmorStandBreak,
-                SoundCategory::Neutral,
-                &entity.block_pos.load().to_f64(),
-            );
             self.break_and_drop_items();
             entity.remove();
         }
