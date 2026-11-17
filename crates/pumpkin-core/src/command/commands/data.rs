@@ -515,9 +515,7 @@ fn substring(input: &str, start: i32, end: Option<i32>) -> Result<String, Comman
         None => len,
     };
     if abs_start >= 0 && abs_end <= len && abs_start <= abs_end {
-        Ok(String::from_utf16_lossy(
-            &units[(abs_start as usize)..(abs_end as usize)],
-        ))
+        Ok(String::from_utf16_lossy(&units[(abs_start as usize)..(abs_end as usize)]))
     } else {
         Err(ERROR_INVALID_SUBSTRING.create_without_context(
             TextComponent::text(start.to_string()),
