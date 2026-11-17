@@ -104,6 +104,18 @@ impl EntityReference {
         self.uuid.store(uuid);
         *self.resolved.lock().unwrap_or_else(PoisonError::into_inner) = None;
     }
+
+    /// Vanilla `Projectile.restoreFrom` copies the owner reference itself, not just the
+    /// persisted id, so a replacement keeps an owner still live in another dimension.
+    pub fn restore_from(&self, other: &EntityReference) {
+        let resolved = other
+            .resolved
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        self.set_uuid(other.uuid());
+        *self.resolved.lock().unwrap_or_else(PoisonError::into_inner) = resolved;
+    }
 }
 
 /// State every projectile shares: who shot it, whether it has cleared them and whether the
@@ -136,6 +148,16 @@ impl ProjectileOwner {
             has_been_shot: AtomicBool::new(false),
             last_deflected_by: AtomicCell::new(None),
         }
+    }
+
+    /// Vanilla `Entity.restoreFrom` carries over the saved projectile flags and
+    /// `Projectile.restoreFrom` also carries over the live owner reference.
+    pub fn restore_from(&self, other: &ProjectileOwner) {
+        self.owner.restore_from(&other.owner);
+        self.left_owner
+            .store(other.left_owner.load(Relaxed), Relaxed);
+        self.has_been_shot
+            .store(other.has_been_shot.load(Relaxed), Relaxed);
     }
 
     /// Start of every projectile tick: announces the shot once, then checks the owner.
@@ -316,5 +338,21 @@ mod tests {
         assert_eq!(owner.owner.uuid(), None);
         assert!(!owner.left_owner.load(Relaxed));
         assert!(!owner.has_been_shot.load(Relaxed));
+    }
+
+    #[test]
+    fn projectile_owner_restore_from_copies_owner_and_flags() {
+        let uuid = Uuid::from_u128(0xfeed_beef_1234_5678_9abc_def0_1234_5678);
+        let original = ProjectileOwner::none();
+        original.set_uuid(Some(uuid));
+        original.left_owner.store(true, Relaxed);
+        original.has_been_shot.store(true, Relaxed);
+
+        let restored = ProjectileOwner::none();
+        restored.restore_from(&original);
+
+        assert_eq!(restored.owner.uuid(), Some(uuid));
+        assert!(restored.left_owner.load(Relaxed));
+        assert!(restored.has_been_shot.load(Relaxed));
     }
 }

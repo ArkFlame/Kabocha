@@ -46,6 +46,13 @@ pub const INVULNERABILITY_ANIMATION_DURATION: i32 = 8;
 pub const TWITCH_DEATH_DURATION: i32 = 45;
 pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
 
+// Vanilla gates every Creaking activity (wander, melee, look, navigation) on canMove.
+fn creaking_can_move(mob: &dyn Mob) -> bool {
+    mob.cast_any()
+        .downcast_ref::<CreakingEntity>()
+        .is_some_and(CreakingEntity::can_move)
+}
+
 pub struct CreakingEntity {
     pub mob_entity: MobEntity,
     can_move: AtomicBool,
@@ -134,8 +141,22 @@ impl CreakingEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, false)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            // Vanilla CreakingAi gates melee and stroll on canMove and idles at 0.3 speed.
+            goal_selector.add_goal(
+                4,
+                Box::new(
+                    MeleeAttackGoal::new(1.0, false)
+                        .with_attack_interval(ATTACK_INTERVAL)
+                        .gated_by(creaking_can_move),
+                ),
+            );
+            goal_selector.add_goal(
+                5,
+                Box::new(
+                    WanderAroundGoal::new(f64::from(SPEED_MULTIPLIER_WHEN_IDLING))
+                        .with_start_condition(creaking_can_move),
+                ),
+            );
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -568,5 +589,29 @@ impl Mob for CreakingEntity {
             return false;
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::ai::test_support::world;
+
+    #[tokio::test]
+    async fn frozen_creaking_disables_goal_gate() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let creaking = CreakingEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::CREAKING,
+        ));
+        assert!(creaking_can_move(creaking.as_ref()));
+        creaking.set_can_move(false);
+        assert!(!creaking_can_move(creaking.as_ref()));
+        creaking.set_can_move(true);
+        assert!(creaking_can_move(creaking.as_ref()));
+        world.level.shutdown().await;
+        Ok(())
     }
 }

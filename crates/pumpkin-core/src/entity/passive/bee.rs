@@ -26,7 +26,8 @@ use crate::entity::{
     },
     ai::goal::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
-        grow_crop::GrowCropGoal, melee_attack::MeleeAttackGoal,
+        go_to_known_flower::GoToKnownFlowerGoal, grow_crop::GrowCropGoal,
+        melee_attack::MeleeAttackGoal,
         pollinate_flower::PollinateFlowerGoal, reset_universal_anger::ResetUniversalAngerGoal,
         revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
@@ -68,11 +69,25 @@ fn is_angry(mob: &dyn Mob) -> bool {
     mob.as_neutral().is_some_and(NeutralMob::is_angry)
 }
 
-/// Vanilla `BeePollinateGoal` only runs while the bee has no nectar.
-fn needs_nectar(mob: &dyn Mob) -> bool {
+/// Vanilla `BeePollinateGoal.canBeeUse`: no nectar and no flower-search cooldown.
+fn can_pollinate(mob: &dyn Mob) -> bool {
     mob.cast_any()
         .downcast_ref::<BeeEntity>()
-        .is_some_and(|bee| !bee.has_nectar())
+        .is_some_and(|bee| !bee.has_nectar() && bee.flower_search_cooldown() == 0)
+}
+
+/// Vanilla `BeePollinateGoal.canBeeUse` when no flower is reachable: retry in 20-60 ticks.
+fn no_flower_found(mob: &dyn Mob) {
+    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        bee.reset_flower_search_cooldown();
+    }
+}
+
+/// Vanilla `BeePollinateGoal.stop`: wait 200 ticks before locating another flower.
+fn pollination_stopped(mob: &dyn Mob) {
+    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        bee.set_flower_search_cooldown(200);
+    }
 }
 
 fn record_nectar(mob: &dyn Mob) {
@@ -153,6 +168,7 @@ pub struct BeeEntity {
     pub time_since_sting: AtomicI32,
     pub hive_pos: Mutex<Option<BlockPos>>,
     pub flower_pos: Mutex<Option<BlockPos>>,
+    pub flower_search_cooldown: AtomicI32,
 }
 
 impl BeeEntity {
@@ -193,6 +209,7 @@ impl BeeEntity {
             time_since_sting: AtomicI32::new(0),
             hive_pos: Mutex::new(None),
             flower_pos: Mutex::new(None),
+            flower_search_cooldown: AtomicI32::new(rand::rng().random_range(20..=60)),
         };
         let mob_arc = Arc::new(bee);
 
@@ -211,11 +228,18 @@ impl BeeEntity {
                 0,
                 Box::new(MeleeAttackGoal::new(1.4, true).gated_by(can_sting)),
             );
-            // UNVERIFIED: vanilla `BeePollinateGoal` priority 4.
+            // Vanilla `BeePollinateGoal` priority 4.
             goal_selector.add_goal(
                 4,
-                Box::new(PollinateFlowerGoal::new(needs_nectar, record_nectar)),
+                Box::new(PollinateFlowerGoal::new(
+                    can_pollinate,
+                    record_nectar,
+                    no_flower_found,
+                    pollination_stopped,
+                )),
             );
+            // Vanilla `BeeGoToKnownFlowerGoal` priority 6.
+            goal_selector.add_goal(6, Box::new(GoToKnownFlowerGoal::new()));
             // UNVERIFIED: vanilla `BeeGrowCropGoal` priority 7 (tracker notes say 6).
             goal_selector.add_goal(
                 7,
@@ -338,6 +362,31 @@ impl BeeEntity {
             .flower_pos
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
+    }
+
+    #[must_use]
+    pub fn ticks_without_nectar(&self) -> i32 {
+        self.ticks_without_nectar.load(Ordering::Relaxed)
+    }
+
+    #[must_use]
+    pub fn flower_search_cooldown(&self) -> i32 {
+        self.flower_search_cooldown.load(Ordering::Relaxed)
+    }
+
+    pub fn set_flower_search_cooldown(&self, ticks: i32) {
+        self.flower_search_cooldown.store(ticks, Ordering::Relaxed);
+    }
+
+    /// Vanilla `Bee.remainingCooldownBeforeLocatingNewFlower = random(20, 60)`.
+    pub fn reset_flower_search_cooldown(&self) {
+        self.set_flower_search_cooldown(rand::rng().random_range(20..=60));
+    }
+
+    /// Vanilla `Bee.dropFlower`: forget the flower and retry a search shortly.
+    pub fn drop_flower(&self) {
+        self.set_flower_pos(None);
+        self.reset_flower_search_cooldown();
     }
 
     /// Vanilla `Bee.isTiredOfLookingForNectar`, read by the hive goals to trigger the return home.
@@ -507,6 +556,10 @@ impl Mob for BeeEntity {
         // Vanilla `Bee.aiStep` decrements `stayOutOfHiveCountdown` every server tick.
         if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
             self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
+        }
+        // Vanilla `Bee.aiStep` decrements the flower-search cooldown every server tick.
+        if self.flower_search_cooldown() > 0 {
+            self.flower_search_cooldown.fetch_sub(1, Ordering::Relaxed);
         }
         self.update_persistent_anger();
     }

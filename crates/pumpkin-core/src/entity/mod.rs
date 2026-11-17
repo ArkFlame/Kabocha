@@ -384,6 +384,17 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         None
     }
 
+    /// Vanilla `Entity.restoreFrom` with the `Projectile` override: a replacement projectile
+    /// keeps its owner reference, which NBT alone cannot carry when the shooter is a live
+    /// entity in another world.
+    fn restore_from(&self, old: &dyn EntityBase) {
+        if let (Some(owner), Some(old_owner)) =
+            (self.get_projectile_owner(), old.get_projectile_owner())
+        {
+            owner.restore_from(old_owner);
+        }
+    }
+
     /// Vanilla `Projectile.getOwner`.
     fn get_owner_entity(&self) -> Option<Arc<dyn EntityBase>> {
         self.get_projectile_owner()?

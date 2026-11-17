@@ -78,18 +78,14 @@ impl Mob for HuskEntity {
             tried_spawn_camel_husk,
             ..
         }) = &mut group_data
-            && claim_camel_jockey_attempt(
-                tried_spawn_camel_husk,
-                reason,
-                {
-                    let block_pos = self.get_entity().block_pos.load();
-                    world.is_space_empty(EntityType::CAMEL_HUSK.get_spawn_aabb(
-                        f64::from(block_pos.0.x) + 0.5,
-                        f64::from(block_pos.0.y),
-                        f64::from(block_pos.0.z) + 0.5,
-                    ))
-                },
-            )
+            && claim_camel_jockey_attempt(tried_spawn_camel_husk, reason, {
+                let block_pos = self.get_entity().block_pos.load();
+                world.is_space_empty(EntityType::CAMEL_HUSK.get_spawn_aabb(
+                    f64::from(block_pos.0.x) + 0.5,
+                    f64::from(block_pos.0.y),
+                    f64::from(block_pos.0.z) + 0.5,
+                ))
+            })
             && rng.random::<f32>() < CAMEL_HUSK_JOCKEY_CHANCE
         {
             let entity = self.get_entity();

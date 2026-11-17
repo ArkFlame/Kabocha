@@ -249,11 +249,14 @@ impl BoatEntity {
     }
 
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
-        // Vanilla AbstractChestBoat.openCustomInventoryScreen has no rider check:
-        // player.openMenu succeeds even when another player rides the boat, so a full
-        // chest boat still offers its container. Spectators cannot open menus and a
-        // removed boat is not interactive.
-        if player.is_spectator() || !self.vehicle.entity.is_alive() {
+        // Vanilla AbstractChestBoat.openCustomInventoryScreen has no rider, spectator or
+        // alive check: player.openMenu(this) succeeds even when another player rides the
+        // boat, and a spectator can view a chest boat that has no loot table. Pumpkin mirrors
+        // vanilla's only spectator restriction in the screen-handler layer, which refuses
+        // loot-table containers to spectators, so do not gate spectators here. The alive check
+        // covers a boat removed before the screen opens; ongoing validity is handled by the
+        // screen's validity closure.
+        if !self.vehicle.entity.is_alive() {
             return false;
         }
         let Some(inventory) = &self.inventory else {

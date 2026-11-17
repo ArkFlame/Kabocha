@@ -42,6 +42,8 @@ pub fn nearest_flower(origin: BlockPos, is_flower: impl Fn(&BlockPos) -> bool) -
 pub struct PollinateFlowerGoal {
     gate: MobFilter,
     on_pollinated: fn(&dyn Mob),
+    on_no_flower: fn(&dyn Mob),
+    on_stop: fn(&dyn Mob),
     flower: Option<BlockPos>,
     pollinate_ticks: i32,
     repath_ticks: i32,
@@ -49,12 +51,20 @@ pub struct PollinateFlowerGoal {
 }
 
 impl PollinateFlowerGoal {
-    /// `gate` says whether the bee wants nectar. `on_pollinated` records it once the bee hovered long enough.
+    /// `gate` says whether the bee wants nectar and may search. `on_pollinated` records the
+    /// nectar; `on_no_flower` and `on_stop` drive the vanilla flower-search cooldown.
     #[must_use]
-    pub const fn new(gate: MobFilter, on_pollinated: fn(&dyn Mob)) -> Self {
+    pub const fn new(
+        gate: MobFilter,
+        on_pollinated: fn(&dyn Mob),
+        on_no_flower: fn(&dyn Mob),
+        on_stop: fn(&dyn Mob),
+    ) -> Self {
         Self {
             gate,
             on_pollinated,
+            on_no_flower,
+            on_stop,
             flower: None,
             pollinate_ticks: 0,
             repath_ticks: 0,
@@ -83,7 +93,13 @@ impl Goal for PollinateFlowerGoal {
             return false;
         }
         self.flower = nearest_flower(bee_pos, |pos| Self::is_flower_at(&world, pos));
-        self.flower.is_some()
+        if self.flower.is_some() {
+            true
+        } else {
+            // Vanilla `BeePollinateGoal.canBeeUse` sets a 20-60 tick retry when no flower is found.
+            (self.on_no_flower)(mob);
+            false
+        }
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
@@ -102,6 +118,8 @@ impl Goal for PollinateFlowerGoal {
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
+        // Vanilla `BeePollinateGoal.stop` waits 200 ticks before locating another flower.
+        (self.on_stop)(mob);
         mob.get_mob_entity().stop_navigation();
         self.flower = None;
         self.pollinate_ticks = 0;
