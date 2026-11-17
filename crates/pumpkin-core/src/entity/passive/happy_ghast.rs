@@ -137,6 +137,11 @@ impl Mob for HappyGhastEntity {
         false
     }
 
+    /// Vanilla `HappyGhast#causeFallDamage` always returns false.
+    fn should_check_fall_damage(&self) -> bool {
+        false
+    }
+
     /// Vanilla `HappyGhast` steps silently.
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
 
@@ -181,20 +186,15 @@ impl Mob for HappyGhastEntity {
             self.sync_stay_still_flag();
         }
 
-        // Continuous healing
+        // Vanilla heals one health every 600 ticks, keyed on the entity's own age.
+        const TICKS_PER_HEAL: i32 = 600;
         let entity = self.get_entity();
-        if entity.is_alive() {
-            let living = &self.mob_entity.living_entity;
-            let current_health = living.health.load();
-            let max_health = living.get_max_health();
-            if current_health < max_health {
-                let world = entity.world.load();
-                let ticks = world.get_world_age();
-                let heal_interval = 600;
-                if ticks % heal_interval == 0 {
-                    living.set_health(current_health + 1.0);
-                }
-            }
+        let living = &self.mob_entity.living_entity;
+        if entity.is_alive()
+            && entity.tick_count.load(Ordering::Relaxed) % TICKS_PER_HEAL == 0
+            && living.health.load() < living.get_max_health()
+        {
+            living.heal(1.0);
         }
     }
 
