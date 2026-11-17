@@ -6293,7 +6293,10 @@ impl Entity {
                 },
                 Relaxed,
             );
-            // TODO: world.emitGameEvent(passenger, GameEvent.ENTITY_DISMOUNT, vehicle.pos)
+            // Vanilla `Entity`: the dismounting passenger emits ENTITY_DISMOUNT at the vehicle.
+            self.world
+                .load()
+                .emit_game_event(GameEvent::EntityDismount.name(), self.pos.load());
 
             // Mirrors Cushion#removePassenger: get-up sound while the cushion stays alive.
             if self.entity_type == &EntityType::CUSHION && self.is_alive() {
