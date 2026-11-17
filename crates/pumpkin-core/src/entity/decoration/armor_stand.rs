@@ -273,12 +273,14 @@ impl ArmorStandEntity {
     }
 
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
-    /// 0.5 or less the stand breaks, dropping itself and all equipment.
+    /// 0.5 or less the stand breaks and drops its equipment (not itself).
     fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
         let entity = self.get_entity();
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
-            self.break_and_drop_items();
+            // Vanilla `ArmorStand.causeDamage` only calls `brokenByAnything`, so
+            // burn damage never drops the armor stand item itself.
+            self.broken_by_anything();
             self.kill(caller);
         } else {
             self.living_entity.health.store(new_health);
