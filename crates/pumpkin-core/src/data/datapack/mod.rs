@@ -83,6 +83,49 @@ pub enum DatapackEnablePosition {
     After(String),
 }
 
+/// Failure of a datapack enable/disable request, kept typed so callers such as
+/// the command can map it to a translation error without parsing prose.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DatapackError {
+    Unknown(String),
+    UnknownAnchor(String),
+    AlreadyEnabled(String),
+    NotEnabled(String),
+    Embedded(String),
+}
+
+impl DatapackError {
+    /// The pack id to show in the translated command error.
+    #[must_use]
+    pub fn into_message(self) -> String {
+        match self {
+            Self::Unknown(name)
+            | Self::UnknownAnchor(name)
+            | Self::AlreadyEnabled(name)
+            | Self::NotEnabled(name)
+            | Self::Embedded(name) => name,
+        }
+    }
+}
+
+impl fmt::Display for DatapackError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unknown(name) => write!(f, "Unknown datapack '{name}'"),
+            Self::UnknownAnchor(name) => write!(f, "Unknown existing datapack '{name}'"),
+            Self::AlreadyEnabled(name) => write!(f, "Datapack '{name}' is already enabled"),
+            Self::NotEnabled(name) => write!(f, "Datapack '{name}' is not enabled"),
+            Self::Embedded(name) => write!(f, "Cannot disable required datapack '{name}'"),
+        }
+    }
+}
+
+/// Maps an index in the exposed enabled list (embedded packs first) onto the
+/// configurable pack slice whose order can actually be changed.
+const fn configurable_index(full_index: usize, embedded_prefix: usize, len: usize) -> usize {
+    full_index.saturating_sub(embedded_prefix).min(len)
+}
+
 pub struct DatapackManager {
     loaded_packs: RwLock<Vec<LoadedDatapack>>,
     functions: RwLock<HashMap<String, Arc<[String]>>>,
@@ -1605,110 +1648,102 @@ impl DatapackManager {
         Self::get_enabled_packs(server).contains(&resolved)
     }
 
-    pub fn enable_pack(
+    /// Enables a pack and returns its resolved id, with a typed error so
+    /// command callers can map it to the matching translation error.
+    pub fn enable_pack_checked(
         server: &Arc<Server>,
         name: &str,
         position: DatapackEnablePosition,
-    ) -> Result<(), String> {
+    ) -> Result<String, DatapackError> {
         let Some(resolved_name) = Self::find_pack_name(server, name) else {
-            return Err(format!("Unknown datapack '{name}'"));
+            return Err(DatapackError::Unknown(name.to_string()));
         };
 
         let enabled = Self::get_enabled_packs(server);
         if enabled.contains(&resolved_name) {
-            return Err(format!("Datapack '{resolved_name}' is already enabled"));
+            return Err(DatapackError::AlreadyEnabled(resolved_name));
         }
 
+        // Resolve a before/after anchor up front; an invalid anchor must not
+        // mutate world info.
+        let after = matches!(&position, DatapackEnablePosition::After(_));
+        let (fixed_index, anchor) = match position {
+            DatapackEnablePosition::First => (Some(0), None),
+            DatapackEnablePosition::Last => (None, None),
+            DatapackEnablePosition::Before(existing) | DatapackEnablePosition::After(existing) => {
+                let Some(existing_pack) = Self::find_pack_name(server, &existing) else {
+                    return Err(DatapackError::UnknownAnchor(existing));
+                };
+                if !enabled.contains(&existing_pack) {
+                    return Err(DatapackError::NotEnabled(existing_pack));
+                }
+                (None, Some((existing_pack, after)))
+            }
+        };
+
+        let embedded_prefix = enabled
+            .iter()
+            .take_while(|p| Self::is_embedded_pack(p.as_str()))
+            .count();
+
         let target = resolved_name;
-        match position {
-            DatapackEnablePosition::First => {
-                server.level_info.rcu(|level_info| {
-                    let mut new_info = (**level_info).clone();
-                    new_info.data_packs.disabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.insert(0, target.clone());
-                    new_info
-                });
-            }
-            DatapackEnablePosition::Last => {
-                server.level_info.rcu(|level_info| {
-                    let mut new_info = (**level_info).clone();
-                    new_info.data_packs.disabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.push(target.clone());
-                    new_info
-                });
-            }
-            DatapackEnablePosition::Before(existing_name) => {
-                let Some(existing_pack) = Self::find_pack_name(server, &existing_name) else {
-                    return Err(format!("Unknown existing datapack '{existing_name}'"));
-                };
-                if !enabled.contains(&existing_pack) {
-                    return Err(format!("Datapack '{existing_pack}' is not enabled"));
+        server.level_info.rcu(|level_info| {
+            let mut new_info = (**level_info).clone();
+            new_info.data_packs.disabled.retain(|p| p != &target);
+            new_info.data_packs.enabled.retain(|p| p != &target);
+
+            let insert_at = match (fixed_index, &anchor) {
+                (Some(idx), _) => idx,
+                (None, Some((anchor_pack, after))) => {
+                    let exposed_index = enabled.iter().position(|p| p == anchor_pack).unwrap_or(0);
+                    let insert_index = exposed_index + usize::from(*after);
+                    configurable_index(
+                        insert_index,
+                        embedded_prefix,
+                        new_info.data_packs.enabled.len(),
+                    )
                 }
-                server.level_info.rcu(|level_info| {
-                    let mut new_info = (**level_info).clone();
-                    new_info.data_packs.disabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.retain(|p| p != &target);
-                    if let Some(idx) = new_info
-                        .data_packs
-                        .enabled
-                        .iter()
-                        .position(|p| p == &existing_pack)
-                    {
-                        new_info.data_packs.enabled.insert(idx, target.clone());
-                    } else {
-                        new_info.data_packs.enabled.push(target.clone());
-                    }
-                    new_info
-                });
-            }
-            DatapackEnablePosition::After(existing_name) => {
-                let Some(existing_pack) = Self::find_pack_name(server, &existing_name) else {
-                    return Err(format!("Unknown existing datapack '{existing_name}'"));
-                };
-                if !enabled.contains(&existing_pack) {
-                    return Err(format!("Datapack '{existing_pack}' is not enabled"));
-                }
-                server.level_info.rcu(|level_info| {
-                    let mut new_info = (**level_info).clone();
-                    new_info.data_packs.disabled.retain(|p| p != &target);
-                    new_info.data_packs.enabled.retain(|p| p != &target);
-                    if let Some(idx) = new_info
-                        .data_packs
-                        .enabled
-                        .iter()
-                        .position(|p| p == &existing_pack)
-                    {
-                        new_info.data_packs.enabled.insert(idx + 1, target.clone());
-                    } else {
-                        new_info.data_packs.enabled.push(target.clone());
-                    }
-                    new_info
-                });
-            }
-        }
+                (None, None) => new_info.data_packs.enabled.len(),
+            };
+            new_info
+                .data_packs
+                .enabled
+                .insert(insert_at, target.clone());
+            new_info
+        });
 
         if let Err(err) = server.save_world_info() {
             tracing::error!("Failed to save world info: {err}");
         }
 
         server.reload_datapacks();
-        Ok(())
+        Ok(target)
     }
 
-    pub fn disable_pack(server: &Arc<Server>, name: &str) -> Result<(), String> {
+    pub fn enable_pack(
+        server: &Arc<Server>,
+        name: &str,
+        position: DatapackEnablePosition,
+    ) -> Result<(), String> {
+        Self::enable_pack_checked(server, name, position)
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    /// Disables a pack and returns its resolved id.
+    pub fn disable_pack_checked(server: &Arc<Server>, name: &str) -> Result<String, DatapackError> {
         let Some(target_pack) = Self::find_pack_name(server, name) else {
-            return Err(format!("Unknown datapack '{name}'"));
+            return Err(DatapackError::Unknown(name.to_string()));
         };
 
         let enabled = Self::get_enabled_packs(server);
         if !enabled.contains(&target_pack) {
-            return Err(format!("Datapack '{target_pack}' is not enabled"));
+            return Err(DatapackError::NotEnabled(name.to_string()));
         }
 
-        if Self::is_required_pack(&target_pack) {
-            return Err(format!("Cannot disable required datapack '{target_pack}'"));
+        // Embedded packs are re-enabled on every load, so they cannot be disabled.
+        if Self::is_embedded_pack(&target_pack) {
+            return Err(DatapackError::Embedded(target_pack));
         }
 
         let target = target_pack;
@@ -1726,7 +1761,13 @@ impl DatapackManager {
         }
 
         server.reload_datapacks();
-        Ok(())
+        Ok(target)
+    }
+
+    pub fn disable_pack(server: &Arc<Server>, name: &str) -> Result<(), String> {
+        Self::disable_pack_checked(server, name)
+            .map(|_| ())
+            .map_err(|error| error.to_string())
     }
 
     pub fn reload(server: &Arc<Server>) -> Result<(), String> {
@@ -2694,6 +2735,14 @@ mod tests {
     };
     use pumpkin_nbt::NbtCompound;
     use pumpkin_nbt::tag::NbtTag;
+
+    #[test]
+    fn embedded_anchor_clamps_to_configurable_front() {
+        assert_eq!(super::configurable_index(0, 2, 3), 0);
+        assert_eq!(super::configurable_index(1, 2, 3), 0);
+        assert_eq!(super::configurable_index(4, 2, 3), 2);
+        assert_eq!(super::configurable_index(9, 2, 3), 3);
+    }
 
     #[test]
     fn substitute_macro_reports_missing_argument_by_name() {
