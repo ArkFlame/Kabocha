@@ -395,7 +395,7 @@ impl BlockBehaviour for VineBlock {
                         args.world.set_block_state(
                             &test_pos,
                             new_props.to_state_id(args.block),
-                            BlockFlags::NOTIFY_ALL,
+                            BlockFlags::NOTIFY_LISTENERS,
                         );
                     } else if ccw_has_connecting_face
                         && is_acceptable_neighbour(ccw_test_block, ccw_test_state, ccw_direction)
@@ -405,7 +405,7 @@ impl BlockBehaviour for VineBlock {
                         args.world.set_block_state(
                             &test_pos,
                             new_props.to_state_id(args.block),
-                            BlockFlags::NOTIFY_ALL,
+                            BlockFlags::NOTIFY_LISTENERS,
                         );
                     } else {
                         let opposite = test_direction.opposite();
@@ -425,7 +425,7 @@ impl BlockBehaviour for VineBlock {
                             args.world.set_block_state(
                                 &cw_test_pos,
                                 new_props.to_state_id(args.block),
-                                BlockFlags::NOTIFY_ALL,
+                                BlockFlags::NOTIFY_LISTENERS,
                             );
                         } else if ccw_has_connecting_face
                             && ccw_test_block.default_state.is_air()
@@ -440,7 +440,7 @@ impl BlockBehaviour for VineBlock {
                             args.world.set_block_state(
                                 &ccw_test_pos,
                                 new_props.to_state_id(args.block),
-                                BlockFlags::NOTIFY_ALL,
+                                BlockFlags::NOTIFY_LISTENERS,
                             );
                         } else if rand::rng().random_range(0.0..1.0f32) < 0.05
                             && is_acceptable_neighbour(
@@ -454,7 +454,7 @@ impl BlockBehaviour for VineBlock {
                             args.world.set_block_state(
                                 &test_pos,
                                 new_props.to_state_id(args.block),
-                                BlockFlags::NOTIFY_ALL,
+                                BlockFlags::NOTIFY_LISTENERS,
                             );
                         }
                     }
@@ -464,7 +464,7 @@ impl BlockBehaviour for VineBlock {
                     args.world.set_block_state(
                         args.position,
                         new_props.to_state_id(args.block),
-                        BlockFlags::NOTIFY_ALL,
+                        BlockFlags::NOTIFY_LISTENERS,
                     );
                 }
             }
@@ -478,7 +478,7 @@ impl BlockBehaviour for VineBlock {
                     args.world.set_block_state(
                         args.position,
                         new_props.to_state_id(args.block),
-                        BlockFlags::NOTIFY_ALL,
+                        BlockFlags::NOTIFY_LISTENERS,
                     );
                     return;
                 }
@@ -508,7 +508,7 @@ impl BlockBehaviour for VineBlock {
                         args.world.set_block_state(
                             &above_pos,
                             above_props.to_state_id(args.block),
-                            BlockFlags::NOTIFY_ALL,
+                            BlockFlags::NOTIFY_LISTENERS,
                         );
                     }
                     return;
@@ -543,7 +543,7 @@ impl BlockBehaviour for VineBlock {
                         args.world.set_block_state(
                             &below_pos,
                             after_props.to_state_id(args.block),
-                            BlockFlags::NOTIFY_ALL,
+                            BlockFlags::NOTIFY_LISTENERS,
                         );
                     }
                 }
