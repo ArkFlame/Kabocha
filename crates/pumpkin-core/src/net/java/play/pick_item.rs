@@ -28,9 +28,8 @@ fn pick_slot_action(slot_with_stack: i16, creative: bool) -> PickSlotAction {
                 PickSlotAction::SwapIntoHotbar(slot)
             }
         }
-        Ok(_) => PickSlotAction::Ignore,
         Err(_) if creative => PickSlotAction::InsertStack,
-        Err(_) => PickSlotAction::Ignore,
+        _ => PickSlotAction::Ignore,
     }
 }
 

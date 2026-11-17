@@ -562,7 +562,6 @@ impl Cache {
         match stage {
             StagedChunkEnum::Empty => {
                 tracing::warn!("advance called with empty stage");
-                return;
             }
             StagedChunkEnum::StructureStart => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {
@@ -659,7 +658,6 @@ impl Cache {
         match stage {
             StagedChunkEnum::Empty => {
                 tracing::warn!("advance called with empty stage");
-                return;
             }
             StagedChunkEnum::StructureStart => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {

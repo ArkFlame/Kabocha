@@ -97,8 +97,7 @@ impl GossipType {
             Self::MajorNegative => 100,
             Self::MinorNegative => 200,
             Self::MajorPositive => 20,
-            Self::MinorPositive => 25,
-            Self::Trading => 25,
+            Self::MinorPositive | Self::Trading => 25,
         }
     }
 

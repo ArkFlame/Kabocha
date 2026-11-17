@@ -58,7 +58,12 @@ impl ArgumentType<CommandSource> for BossbarIdArgumentType {
         context: &CommandContext,
         builder: SuggestionsBuilder,
     ) -> Suggestions {
-        let bossbars = context.source.server().bossbars.lock().unwrap();
+        let bossbars = context
+            .source
+            .server()
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         builder
             .filter_and_suggest_iter(bossbars.custom_bossbars.keys().cloned())
             .build()
@@ -158,12 +163,20 @@ impl CommandExecutor for AddExecutor {
         let text_component = ComponentArgumentType::get(context, "name")?;
         let server = context.source.server();
 
-        if server.bossbars.lock().unwrap().has_bossbar(&namespace) {
+        if server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .has_bossbar(&namespace)
+        {
             return Err(ERROR_CREATE_FAILED.create_without_context(TextComponent::text(namespace)));
         }
 
         let bossbar = Bossbar::new(text_component);
-        let mut bossbars = server.bossbars.lock().unwrap();
+        let mut bossbars = server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         bossbars.create_bossbar(namespace.clone(), bossbar.clone());
         let new_size = bossbars.get_bossbars_len();
@@ -189,7 +202,12 @@ impl CommandExecutor for GetExecutor {
         let namespace = BossbarIdArgumentType::get(context, "id")?;
         let server = context.source.server();
 
-        let Some(bossbar) = server.bossbars.lock().unwrap().get_bossbar(&namespace) else {
+        let Some(bossbar) = server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_bossbar(&namespace)
+        else {
             return Err(handle_bossbar_error(
                 BossbarUpdateError::InvalidResourceLocation(namespace),
             ));
@@ -296,7 +314,11 @@ struct ListExecutor;
 impl CommandExecutor for ListExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let server = context.source.server();
-        let bossbars = server.bossbars.lock().unwrap().get_all_bossbars();
+        let bossbars = server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_all_bossbars();
 
         if bossbars.is_empty() {
             context.source.send_feedback(
@@ -349,7 +371,12 @@ impl CommandExecutor for RemoveExecutor {
         let namespace = BossbarIdArgumentType::get(context, "id")?;
         let server = context.source.server();
 
-        let Some(bossbar) = server.bossbars.lock().unwrap().get_bossbar(&namespace) else {
+        let Some(bossbar) = server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_bossbar(&namespace)
+        else {
             return Err(handle_bossbar_error(
                 BossbarUpdateError::InvalidResourceLocation(namespace),
             ));
@@ -370,10 +397,14 @@ impl CommandExecutor for RemoveExecutor {
         let res = server
             .bossbars
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove_bossbar(server, namespace);
         match res {
-            Ok(()) => Ok(server.bossbars.lock().unwrap().get_bossbars_len() as i32),
+            Ok(()) => Ok(server
+                .bossbars
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get_bossbars_len() as i32),
             Err(error) => Err(handle_bossbar_error(error)),
         }
     }
@@ -387,7 +418,12 @@ impl CommandExecutor for SetExecutor {
         let namespace = BossbarIdArgumentType::get(context, "id")?;
         let server = context.source.server();
 
-        let Some(bossbar) = server.bossbars.lock().unwrap().get_bossbar(&namespace) else {
+        let Some(bossbar) = server
+            .bossbars
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_bossbar(&namespace)
+        else {
             return Err(handle_bossbar_error(
                 BossbarUpdateError::InvalidResourceLocation(namespace),
             ));
@@ -398,7 +434,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_color(server, &namespace, color)
                     .map_err(handle_bossbar_error)?;
 
@@ -419,7 +455,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_max(server, namespace.clone(), max_value)
                     .map_err(handle_bossbar_error)?;
 
@@ -442,7 +478,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_name(server, &namespace, &name)
                     .map_err(handle_bossbar_error)?;
 
@@ -462,7 +498,7 @@ impl CommandExecutor for SetExecutor {
                     server
                         .bossbars
                         .lock()
-                        .unwrap()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .set_players(server, namespace.clone(), vec![])
                         .map_err(handle_bossbar_error)?;
 
@@ -486,7 +522,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .set_players(server, namespace.clone(), players)
                     .map_err(handle_bossbar_error)?;
 
@@ -515,7 +551,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_style(server, &namespace, style)
                     .map_err(handle_bossbar_error)?;
 
@@ -535,7 +571,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_value(server, namespace.clone(), value)
                     .map_err(handle_bossbar_error)?;
 
@@ -559,7 +595,7 @@ impl CommandExecutor for SetExecutor {
                 server
                     .bossbars
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .update_visibility(server, namespace.clone(), visibility)
                     .map_err(handle_bossbar_error)?;
 
@@ -610,10 +646,16 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
     let set_node = literal("set").then(
         argument("id", BossbarIdArgumentType)
             // Vanilla lists each colour and style as a literal.
-            .then(COLORS.iter().fold(literal("color"), |node, &name| {
-                let color = parse_color(name).expect("listed colour");
-                node.then(literal(name).executes(SetExecutor(CommandValueSet::Color(color))))
-            }))
+            .then(
+                COLORS
+                    .iter()
+                    .fold(literal("color"), |node, &name| match parse_color(name) {
+                        Some(color) => node.then(
+                            literal(name).executes(SetExecutor(CommandValueSet::Color(color))),
+                        ),
+                        None => node,
+                    }),
+            )
             .then(
                 literal("max").then(
                     argument("max", IntegerArgumentType::with_min(1))
@@ -634,10 +676,16 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                             .executes(SetExecutor(CommandValueSet::Players(true))),
                     ),
             )
-            .then(STYLES.iter().fold(literal("style"), |node, &name| {
-                let style = parse_style(name).expect("listed style");
-                node.then(literal(name).executes(SetExecutor(CommandValueSet::Style(style))))
-            }))
+            .then(
+                STYLES
+                    .iter()
+                    .fold(literal("style"), |node, &name| match parse_style(name) {
+                        Some(style) => node.then(
+                            literal(name).executes(SetExecutor(CommandValueSet::Style(style))),
+                        ),
+                        None => node,
+                    }),
+            )
             .then(
                 literal("value").then(
                     argument("value", IntegerArgumentType::with_min(0))

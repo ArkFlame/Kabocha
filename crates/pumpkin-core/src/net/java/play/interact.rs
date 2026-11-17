@@ -67,6 +67,44 @@ impl JavaClient {
         }
     }
 
+    fn attack_entity(
+        &self,
+        player: &Arc<Player>,
+        server: &Arc<Server>,
+        target: &Arc<dyn crate::entity::EntityBase>,
+    ) {
+        // Paper's `pvp` setting only gates player-versus-player combat; attacks on
+        // non-player entities (mobs, boats, minecarts) always go through.
+        let config = &server.advanced_config.pvp;
+
+        if target.get_entity().entity_id == player.entity_id() {
+            self.try_kick(&TextComponent::translate_cross(
+                translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
+                translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
+                [],
+            ));
+            return;
+        }
+
+        if let Some(player_victim) = target.get_player() {
+            if !config.enabled {
+                return;
+            }
+            if player_victim.living_entity.health.load() <= 0.0 {
+                return;
+            }
+            if config.protect_creative && player_victim.gamemode.load() == GameMode::Creative {
+                player.world().play_sound(
+                    Sound::EntityPlayerAttackNodamage,
+                    SoundCategory::Players,
+                    &player_victim.position(),
+                );
+                return;
+            }
+        }
+        player.attack(target);
+    }
+
     pub(super) fn handle_entity_interaction(
         &self,
         player: &Arc<Player>,
@@ -79,42 +117,8 @@ impl JavaClient {
             return;
         }
 
-        let world = player.world();
         match event.action {
-            ActionType::Attack => {
-                // Paper's `pvp` setting only gates player-versus-player combat; attacks on
-                // non-player entities (mobs, boats, minecarts) always go through.
-                let config = &server.advanced_config.pvp;
-
-                if event.target.get_entity().entity_id == player.entity_id() {
-                    self.try_kick(&TextComponent::translate_cross(
-                        translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
-                        translation::java::MULTIPLAYER_DISCONNECT_INVALID_ENTITY_ATTACKED,
-                        [],
-                    ));
-                    return;
-                }
-
-                if let Some(player_victim) = event.target.get_player() {
-                    if !config.enabled {
-                        return;
-                    }
-                    if player_victim.living_entity.health.load() <= 0.0 {
-                        return;
-                    }
-                    if config.protect_creative
-                        && player_victim.gamemode.load() == GameMode::Creative
-                    {
-                        world.play_sound(
-                            Sound::EntityPlayerAttackNodamage,
-                            SoundCategory::Players,
-                            &player_victim.position(),
-                        );
-                        return;
-                    }
-                }
-                player.attack(&event.target);
-            }
+            ActionType::Attack => self.attack_entity(player, server, &event.target),
             ActionType::Interact | ActionType::InteractAt => {
                 if event.action == ActionType::InteractAt
                     && let Some(pos) = event.target_position

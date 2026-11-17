@@ -1798,10 +1798,7 @@ impl Server {
                 self.compute_pool.spawn(move || {
                     let _ = tx.send(KeyStore::new().map(Arc::new));
                 });
-                match rx.await {
-                    Ok(key_store) => key_store,
-                    Err(_) => KeyStore::new().map(Arc::new),
-                }
+                rx.await.unwrap_or_else(|_| KeyStore::new().map(Arc::new))
             })
             .await
     }

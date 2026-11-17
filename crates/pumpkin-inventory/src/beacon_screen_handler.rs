@@ -195,7 +195,7 @@ impl BeaconScreenHandler {
     #[must_use]
     pub fn payment_item_id(&self) -> Option<i32> {
         let stack = self.payment.get_stack(0);
-        (!stack.is_empty()).then(|| stack.item.id as i32)
+        (!stack.is_empty()).then_some(stack.item.id as i32)
     }
 
     /// Mirrors `BeaconMenu.updateEffects`: validates against the current tier, stores the

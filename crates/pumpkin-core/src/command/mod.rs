@@ -339,7 +339,7 @@ impl CommandSender {
 
     /// Source for a player, who always runs commands in the player's own world.
     #[must_use]
-    pub fn player_source(player: Arc<Player>, server: &Arc<Server>) -> CommandSource {
+    pub fn player_source(player: &Arc<Player>, server: &Arc<Server>) -> CommandSource {
         CommandSource::new(
             Self::Player(player.clone()),
             player.world(),
@@ -372,7 +372,7 @@ impl CommandSender {
                     server.clone(),
                 )
             }
-            Self::Player(player) => Self::player_source(player, server),
+            Self::Player(player) => Self::player_source(&player, server),
             Self::CommandBlock(command_entity, world) => {
                 let pos = command_entity.position;
 

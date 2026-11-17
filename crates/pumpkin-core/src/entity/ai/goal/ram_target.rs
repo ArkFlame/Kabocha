@@ -35,7 +35,7 @@ impl RamTimer {
     }
 
     /// Starts the cooldown and stun after a ram at `now`.
-    pub fn finish_ram(&mut self, now: i64, cooldown: i64) {
+    pub const fn finish_ram(&mut self, now: i64, cooldown: i64) {
         self.ready_at = Some(now + cooldown);
         self.stunned_until = now + RAM_STUN_TICKS;
     }

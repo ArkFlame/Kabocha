@@ -3,11 +3,11 @@ use super::*;
 use crate::entity::player::ClientMove;
 use pumpkin_util::math::vector3::Vector3;
 
-fn position_is_finite(position: &Vector3<f64>) -> bool {
+const fn position_is_finite(position: &Vector3<f64>) -> bool {
     position.x.is_finite() && position.y.is_finite() && position.z.is_finite()
 }
 
-pub(super) fn rotation_is_finite(yaw: f32, pitch: f32) -> bool {
+pub(super) const fn rotation_is_finite(yaw: f32, pitch: f32) -> bool {
     yaw.is_finite() && pitch.is_finite()
 }
 

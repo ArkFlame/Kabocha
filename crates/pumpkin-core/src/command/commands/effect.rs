@@ -48,7 +48,7 @@ enum Duration {
 /// Vanilla `MobEffectInstance.update`: a stronger amplifier always replaces the
 /// active effect, an equal amplifier only replaces it when it lasts longer.
 /// UNVERIFIED against decompiled 1.21.x; infinite (-1) durations use the signed compare.
-fn effect_replaces(
+const fn effect_replaces(
     existing_amplifier: u8,
     existing_duration: i32,
     new_amplifier: u8,

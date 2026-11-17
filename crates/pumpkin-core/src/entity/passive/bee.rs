@@ -48,7 +48,7 @@ pub const FLAG_HAS_NECTAR: u8 = 8;
 const TICKS_PER_FLAP: i32 = 2;
 
 /// Vanilla `Bee.doHurtTarget` sting poison in ticks: 10 s on Normal, 18 s on Hard, none otherwise.
-fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
+const fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
     match difficulty {
         pumpkin_util::Difficulty::Normal => 10 * 20,
         pumpkin_util::Difficulty::Hard => 18 * 20,

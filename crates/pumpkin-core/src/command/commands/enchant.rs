@@ -115,7 +115,7 @@ fn enchant_target(
 }
 
 /// Vanilla rejects only levels strictly above the enchantment's maximum.
-fn level_exceeds_max(level: i32, max_level: i32) -> bool {
+const fn level_exceeds_max(level: i32, max_level: i32) -> bool {
     level > max_level
 }
 

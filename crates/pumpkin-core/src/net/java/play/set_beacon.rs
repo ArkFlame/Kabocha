@@ -18,22 +18,19 @@ impl JavaClient {
                     .ok_or(())
             })
         };
-        let (primary, secondary) = match (
+        let (Ok(primary), Ok(secondary)) = (
             decode(&packet.primary_effect),
             decode(&packet.secondary_effect),
-        ) {
-            (Ok(primary), Ok(secondary)) => (primary, secondary),
-            _ => {
-                warn!(
-                    "Player {} sent undecodable beacon effects: primary {:?}, secondary {:?}",
-                    player.gameprofile.name, packet.primary_effect, packet.secondary_effect
-                );
-                self.try_kick(&TextComponent::translate(
-                    "multiplayer.disconnect.generic",
-                    &[],
-                ));
-                return;
-            }
+        ) else {
+            warn!(
+                "Player {} sent undecodable beacon effects: primary {:?}, secondary {:?}",
+                player.gameprofile.name, packet.primary_effect, packet.secondary_effect
+            );
+            self.try_kick(&TextComponent::translate(
+                "multiplayer.disconnect.generic",
+                &[],
+            ));
+            return;
         };
 
         // Vanilla `BeaconMenu.updateEffects` silently ignores selections the pyramid cannot grant.

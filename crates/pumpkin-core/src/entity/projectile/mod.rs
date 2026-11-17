@@ -66,7 +66,7 @@ pub fn apply_on_projectile_spawned(
 /// Vanilla `Projectile.shootFromRotation` adds the shooter's known movement; the vertical part
 /// only counts while the shooter is airborne.
 #[must_use]
-pub fn shooter_motion_bonus(movement: Vector3<f64>, on_ground: bool) -> Vector3<f64> {
+pub const fn shooter_motion_bonus(movement: Vector3<f64>, on_ground: bool) -> Vector3<f64> {
     Vector3::new(
         movement.x,
         if on_ground { 0.0 } else { movement.y },

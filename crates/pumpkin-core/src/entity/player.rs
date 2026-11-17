@@ -8544,7 +8544,7 @@ impl Player {
     }
 
     pub fn get_command_source(self: &Arc<Self>, server: &Arc<Server>) -> CommandSource {
-        CommandSender::player_source(self.clone(), server)
+        CommandSender::player_source(self, server)
     }
 
     pub fn has_advancement(
@@ -9845,7 +9845,7 @@ impl InventoryPlayer for Player {
     }
 
     fn may_build(&self) -> bool {
-        Player::may_build(self)
+        Self::may_build(self)
     }
 
     fn experience_level(&self) -> i32 {

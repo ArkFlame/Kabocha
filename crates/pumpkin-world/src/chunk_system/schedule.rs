@@ -671,7 +671,7 @@ impl GenerationSchedule {
                                 self.listener.process_new_chunk(pos, chunk);
                             }
                             Chunk::Proto(_) => {
-                                warn!("public chunk at {pos:?} is still a proto chunk")
+                                warn!("public chunk at {pos:?} is still a proto chunk");
                             }
                         }
                     }
@@ -1639,13 +1639,12 @@ impl GenerationSchedule {
                                         cur_edge = next;
                                         if prev_edge.is_null() {
                                             change_head = Some(next);
+                                        } else if let Some(prev) =
+                                            self.graph.edges.get_mut(prev_edge)
+                                        {
+                                            prev.next = next;
                                         } else {
-                                            if let Some(prev) = self.graph.edges.get_mut(prev_edge)
-                                            {
-                                                prev.next = next;
-                                            } else {
-                                                warn!("edge {prev_edge:?} missing while relinking");
-                                            }
+                                            warn!("edge {prev_edge:?} missing while relinking");
                                         }
                                     }
                                 }

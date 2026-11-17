@@ -483,7 +483,10 @@ pub fn get_single_tag(
     match tags.len() {
         0 => Err(ERROR_GET_NON_EXISTENT
             .create_without_context(TextComponent::text(path.as_str().to_string()))),
-        1 => Ok(tags.into_iter().next().unwrap()),
+        1 => tags.into_iter().next().ok_or_else(|| {
+            ERROR_GET_NON_EXISTENT
+                .create_without_context(TextComponent::text(path.as_str().to_string()))
+        }),
         _ => Err(ERROR_MULTIPLE_TAGS.create_without_context()),
     }
 }
@@ -749,7 +752,10 @@ fn resolve_source_tags(
             Ok(vec![val])
         }
         SourceMode::From { has_path } => {
-            let source_accessor = source_kind.unwrap().access(context, "source")?;
+            let Some(source_kind) = source_kind else {
+                return Ok(Vec::new());
+            };
+            let source_accessor = source_kind.access(context, "source")?;
             let data = source_accessor.get_data()?;
             if has_path {
                 let source_path = context.get_argument::<NbtPath>("sourcePath")?;
@@ -763,7 +769,10 @@ fn resolve_source_tags(
             has_start,
             has_end,
         } => {
-            let source_accessor = source_kind.unwrap().access(context, "source")?;
+            let Some(source_kind) = source_kind else {
+                return Ok(Vec::new());
+            };
+            let source_accessor = source_kind.access(context, "source")?;
             let data = source_accessor.get_data()?;
             let tags = if has_path {
                 let source_path = context.get_argument::<NbtPath>("sourcePath")?;

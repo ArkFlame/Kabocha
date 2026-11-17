@@ -96,6 +96,38 @@ impl FallingEntity {
     }
 }
 
+impl FallingEntity {
+    /// Hurts entities in the landing box and rolls anvil wear. Returns `true` when the anvil breaks.
+    fn damage_landing_entities(
+        &self,
+        caller: &dyn EntityBase,
+        world: &World,
+        block: &Block,
+        state_id: &mut BlockStateId,
+    ) -> bool {
+        let entity = &self.entity;
+        let Some((per_distance, max_damage, damage_type)) = landing_hurt(block) else {
+            return false;
+        };
+        let fall_distance = self.fall_distance();
+        let damage = falling_block_damage(fall_distance, per_distance, max_damage);
+        if damage > 0.0 {
+            for target in world.get_all_at_box(&entity.bounding_box.load()) {
+                if target.get_entity().entity_id != entity.entity_id {
+                    target.damage(caller, damage, damage_type);
+                }
+            }
+        }
+        if is_anvil(block) && rand::random::<f32>() < anvil_damage_chance(fall_distance) {
+            match AnvilBlock::damage(*state_id) {
+                Some(damaged) => *state_id = damaged,
+                None => return true,
+            }
+        }
+        false
+    }
+}
+
 impl EntityBase for FallingEntity {
     fn can_hit(&self) -> bool {
         !self.get_entity().is_removed()
@@ -140,25 +172,8 @@ impl EntityBase for FallingEntity {
                     return;
                 }
 
-                let mut anvil_destroyed = false;
-                if let Some((per_distance, max_damage, damage_type)) = landing_hurt(block) {
-                    let fall_distance = self.fall_distance();
-                    let damage = falling_block_damage(fall_distance, per_distance, max_damage);
-                    if damage > 0.0 {
-                        for target in world.get_all_at_box(&entity.bounding_box.load()) {
-                            if target.get_entity().entity_id != entity.entity_id {
-                                target.damage(caller, damage, damage_type);
-                            }
-                        }
-                    }
-                    if is_anvil(block) && rand::random::<f32>() < anvil_damage_chance(fall_distance)
-                    {
-                        match AnvilBlock::damage(state_id) {
-                            Some(damaged) => state_id = damaged,
-                            None => anvil_destroyed = true,
-                        }
-                    }
-                }
+                let anvil_destroyed =
+                    self.damage_landing_entities(caller, &world, block, &mut state_id);
                 let block = Block::from_state_id(state_id);
 
                 let (below_block, below_state) = world.get_block_and_state(&landing_pos.down());

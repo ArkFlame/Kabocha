@@ -108,7 +108,7 @@ const fn book_edited_too_quickly(last_edit_tick: i32, now: i32) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+mod cooldown_tests {
     use super::book_edited_too_quickly;
 
     #[test]
