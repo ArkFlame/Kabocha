@@ -321,7 +321,9 @@ fn execute_anchored_modifier(
 /// Vanilla faces from the source's anchor position (`CommandSourceStack#getAnchor().apply`).
 fn anchor_position(source: &CommandSource) -> Vector3<f64> {
     source.entity.as_ref().map_or(source.position, |entity| {
-        source.entity_anchor.transform_position(source.position, entity.get_entity())
+        source
+            .entity_anchor
+            .transform_position(source.position, entity.get_entity())
     })
 }
 
