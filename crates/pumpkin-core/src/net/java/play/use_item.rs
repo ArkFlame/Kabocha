@@ -65,17 +65,13 @@ impl JavaClient {
                 Some(hit_pos),
             )
         };
-        let (item_for_use, stack_for_use) = (item_in_hand.item, item_in_hand.clone());
+        let stack_for_use = item_in_hand.clone();
         let (use_yaw, use_pitch) = if self.version.load() >= JavaMinecraftVersion::V_1_21 {
             (use_item.yaw, use_item.pitch)
         } else {
             player.rotation()
         };
         Self::prepare_hand_item_for_use(player, hand, &mut item_in_hand);
-
-        if !Self::should_continue_use_after_fish_event(server, player, hand, item_for_use) {
-            return;
-        }
 
         send_cancellable_blocking! {{
             server;
@@ -177,33 +173,5 @@ impl JavaClient {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .send_content_updates();
         }
-    }
-
-    fn should_continue_use_after_fish_event(
-        server: &Arc<Server>,
-        player: &Arc<Player>,
-        hand: Hand,
-        item_for_use: &Item,
-    ) -> bool {
-        if item_for_use.id != Item::FISHING_ROD.id {
-            return true;
-        }
-
-        // Reeling in is reported by the hook itself (`CAUGHT_ENTITY`/`CAUGHT_FISH`).
-        if player.fishing_bobber.load(Ordering::Relaxed) != -1 {
-            return true;
-        }
-
-        let mut fish_event = PlayerFishEvent::new(
-            player.clone(),
-            None,
-            uuid::Uuid::nil(),
-            String::new(),
-            PlayerFishState::Fishing,
-            hand,
-            0,
-        );
-        server.plugin_manager.fire_blocking(server, &mut fish_event);
-        !fish_event.cancelled
     }
 }
