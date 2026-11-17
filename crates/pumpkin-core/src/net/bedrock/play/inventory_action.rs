@@ -335,13 +335,8 @@ impl BedrockClient {
                         held = client_stack;
                         player.inventory().set_stack_in_hand(hand, held.clone());
                     }
-                    if !held.is_empty() {
-                        player.increment_stat(
-                            pumpkin_data::statistic::StatisticCategory::Used,
-                            held.item.id as i32,
-                            1,
-                        );
-                    }
+                    // Vanilla awards ITEM_USED inside each item's own use path, not in the
+                    // use-item packet handler, so no generic award belongs here.
 
                     let event = PlayerInteractEvent::new(
                         player,
@@ -412,6 +407,12 @@ impl BedrockClient {
                                     !current_equipped.are_items_and_components_equal(&held)
                                 };
                                 if should_change {
+                                    // Vanilla `Equippable.swapAndEquip` awards ITEM_USED to the newly equipped item.
+                                    player.increment_stat(
+                                        pumpkin_data::statistic::StatisticCategory::Used,
+                                        i32::from(held.item.id),
+                                        1,
+                                    );
                                     player.enqueue_equipment_change(equippable.slot, &held);
 
                                     let inventory = player.inventory();
