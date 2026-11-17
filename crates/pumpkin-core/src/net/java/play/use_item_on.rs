@@ -23,7 +23,6 @@ impl JavaClient {
         let mut should_try_decrement = false;
 
         if !player.can_interact_with_block_at(&position, 1.0) {
-            // TODO: maybe log?
             return Err(BlockPlacingError::BlockOutOfReach);
         }
 
@@ -149,7 +148,6 @@ impl JavaClient {
         }
 
         if item.is_empty() {
-            // TODO item cool down
             // If the hand is empty we stop here
             return Ok(());
         }
@@ -168,7 +166,6 @@ impl JavaClient {
         }
 
         if should_try_decrement {
-            // TODO: Config
             server.item_registry.on_placed_as_block(&mut item, player);
         }
 
