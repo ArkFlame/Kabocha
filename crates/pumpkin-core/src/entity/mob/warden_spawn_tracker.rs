@@ -40,9 +40,11 @@ impl WardenSpawnTracker {
         }
 
         let mut players = Self::get_nearby_players(world, pos);
-        if !players
-            .iter()
-            .any(|player| player.entity_id() == trigger_player.entity_id())
+        // Vanilla only counts the trigger when it is a living, non-spectator player too.
+        if Self::is_eligible(trigger_player)
+            && !players
+                .iter()
+                .any(|player| player.entity_id() == trigger_player.entity_id())
         {
             players.push(trigger_player.clone());
         }
@@ -94,8 +96,12 @@ impl WardenSpawnTracker {
         world
             .get_nearby_players(pos.to_centered_f64(), PLAYER_SEARCH_RADIUS)
             .into_iter()
-            .filter(|player| !player.is_spectator() && player.get_entity().is_alive())
+            .filter(|player| Self::is_eligible(player))
             .collect()
+    }
+
+    fn is_eligible(player: &Player) -> bool {
+        !player.is_spectator() && player.get_entity().is_alive()
     }
 
     const fn increase_warning_level(&mut self) {

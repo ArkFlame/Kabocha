@@ -42,3 +42,6 @@ the vanilla classes from memory and `docs/VANILLA_REF.md`.
 | 4 | `entity/mob/warden_spawn_tracker.rs:42-48` | `WardenSpawnTracker#tryWarn` only counts non-spectator, alive nearby players | The trigger player is pushed into the list unconditionally, so a spectator/dead trigger could raise the warning when it is not already among the 16-block candidates. Filter the fallback with the same predicate | S |
 | 5 | `world/game_event.rs:114-117` | `VibrationSystem` compares listener distance against the actual event position | Distance is measured to the floored block position, so the acceptance sphere shifts up to one block at the border. Low impact (one-block edge case) | S |
 | 6 | (tests) | vanilla behaviour is observable through step/shriek state | No automated test covers a game event reaching a shrieker and setting SHRIEKING (only stepping is covered indirectly). Add a `pumpkin-gametest` case: place can_summon=false shrieker, emit a player-sourced vibration within 8 blocks, assert no shriek; with can_summon=true assert SHRIEKING and the 90t tick | M |
+
+## Status (h3 sweep)
+- Row 4 (warden_spawn_tracker.rs trigger pushed unconditionally): FIXED, try_warn adds the trigger only when alive and not spectator (is_eligible). UNVERIFIED, no test.
