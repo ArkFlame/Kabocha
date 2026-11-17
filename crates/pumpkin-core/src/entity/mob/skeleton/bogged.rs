@@ -115,6 +115,10 @@ impl Mob for BoggedSkeletonEntity {
         &self.entity.mob_entity
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityBoggedAmbient)
+    }
+
     fn get_min_attack_interval(&self) -> Option<i32> {
         let world = self.get_entity().world.load();
         if world.level_info.load().difficulty == pumpkin_util::Difficulty::Hard {
