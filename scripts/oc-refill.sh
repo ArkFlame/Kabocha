@@ -22,12 +22,16 @@ launch_pr() { # prep one PR and start its worker; never fails the batch
 }
 export -f launch_pr; export KAB_ROOT KAB_RUNS
 
+TPW=$(scripts/tune-tasks.sh)
 need=$(free_slots); [ "$need" -le 0 ] && { echo "full"; exit 0; }
+(setsid scripts/wt.sh warm 14 >/dev/null 2>&1 7>&- 8>&- 9>&- &)
+scripts/requeue.sh >/dev/null 2>&1 || true   # never run dry: recycle TODO/FAILED work
 # 1) PR candidates
 python3 - "$need" <<'PY' | xargs -r -P "$JOBS" -I{} bash -c 'launch_pr {}'
 import re,sys,os
 need=int(sys.argv[1]); kr=os.environ.get('KAB_RUNS','/tmp/kabocha-runs')
-done=set(re.findall(r'#(\d+)',open('docs/DONE.md').read()))
+import csv
+done={r[1] for r in csv.reader(open('docs/LEDGER.tsv'),delimiter='\t') if r[0]=='pr' and r[3] in ('DONE','SKIPPED','COMMITTED-UNLANDED')}
 tried=set(open(kr+'/tried').read().split())
 rows=[l.rstrip('\n').split('\t') for l in open('docs/queue-prs.tsv')]
 m=[r for r in rows if r[4]=='false' and r[0] not in done|tried and int(r[1])>0]
@@ -35,5 +39,5 @@ m.sort(key=lambda r:int(r[1])); print('\n'.join(r[0] for r in m[:need]))
 PY
 # 2) issue workers fill whatever PR work did not use (next-issue.sh prints "<id> <worktree> <brief>" as each is ready)
 need=$(free_slots)
-[ "$need" -gt 0 ] && scripts/next-issue.sh "$((need*${KAB_TASKS:-3}))" | scripts/oc-group.sh "${KAB_TASKS:-3}" | xargs -r -P "$JOBS" -L1 bash -c 'scripts/oc-agent.sh "i$0" "$2" 9>&-'
+[ "$need" -gt 0 ] && scripts/next-issue.sh "$((need*${TPW}))" | scripts/oc-group.sh "${TPW}" | xargs -r -P "$JOBS" -L1 bash -c 'scripts/oc-agent.sh "i$0" "$2" 9>&-'
 scripts/oc-status.sh | tail -1
