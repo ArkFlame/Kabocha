@@ -1725,6 +1725,20 @@ mod replacement_tests {
     }
 
     #[test]
+    fn registered_motion_blocking_block_is_not_pathfindable() {
+        // A fence is a registered behaviour that relies on the `BlockBehaviour` default, which
+        // vanilla sets to `!state.isSolid()` and not `!state.isFullCube()`.
+        let registry = super::default_registry();
+        let fence = &Block::OAK_FENCE;
+        assert!(registry.get_pumpkin_block(fence.id).is_some());
+        assert!(!registry.is_pathfindable(
+            fence,
+            fence.default_state,
+            PathComputationType::Land
+        ));
+    }
+
+    #[test]
     fn sculk_vein_can_be_replaced_when_dry_or_waterlogged() {
         let block = &Block::SCULK_VEIN;
         for waterlogged in [false, true] {
