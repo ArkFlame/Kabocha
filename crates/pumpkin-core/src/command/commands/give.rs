@@ -62,7 +62,9 @@ impl CommandExecutor for GiveExecutor {
                 stack.item_count = take as u8;
                 target.inventory().insert_stack_anywhere(&mut stack);
                 if !stack.is_empty() {
-                    target.drop_item(stack);
+                    // Vanilla GiveCommand.setTarget(player.getUUID()).
+                    let dropped = target.drop_item(stack);
+                    dropped.set_target(target.gameprofile.id);
                 }
                 remaining -= take;
             }
