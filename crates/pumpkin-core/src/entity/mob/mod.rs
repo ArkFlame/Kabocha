@@ -2670,11 +2670,6 @@ pub trait Mob: EntityBase + Send + Sync {
         Brain::default()
     }
 
-    /// Vanilla `Mob.canUseNonMeleeWeapon`, false unless the mob knows how to fire what it holds.
-    fn can_use_non_melee_weapon(&self, _stack: &crate::entity::item::ItemStack) -> bool {
-        false
-    }
-
     /// Vanilla `ProjectileWeaponItem.getDefaultProjectileRange` off the weapon a mob holds.
     fn non_melee_weapon_range(&self) -> Option<i32> {
         None

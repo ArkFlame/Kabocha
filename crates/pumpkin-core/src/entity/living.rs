@@ -2983,7 +2983,7 @@ impl LivingEntity {
                 crate::block::entities::sculk_catalyst::on_entity_death(
                     &world,
                     self.entity.block_pos.load(),
-                    soul_charge,
+                    i32::try_from(soul_charge).unwrap_or(i32::MAX),
                 );
             }
             self.entity.pose.store(EntityPose::Dying);
