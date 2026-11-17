@@ -739,8 +739,10 @@ impl NetherPortal {
         Some(target_y.clamp(lower, upper))
     }
 
+    /// Vanilla PortalForcer#createPortal scans with Level#isEmptyBlock, so only
+    /// air counts as free space: replaceable plants and snow layers are not usable.
     const fn is_valid_portal_air(state: &BlockState) -> bool {
-        state.replaceable() && !state.is_liquid()
+        state.is_air()
     }
 
     fn is_valid_portal_pos(
