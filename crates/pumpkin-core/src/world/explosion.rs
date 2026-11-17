@@ -390,10 +390,13 @@ impl<'a> Explosion<'a> {
 
             let fire_block = FireBlockBase::get_fire_type(world, pos);
             let fire_state_id = FireBlock.get_state_for_position(world, &fire_block, pos);
-            let _ =
-                world.set_block_state_if(pos, fire_state_id, BlockFlags::NOTIFY_ALL, |state_id| {
-                    state_id == Block::AIR.default_state.id
-                });
+            // Vanilla re-checks `BlockState.isAir()`, which also covers cave and void air.
+            let _ = world.set_block_state_if(
+                pos,
+                fire_state_id,
+                BlockFlags::NOTIFY_ALL,
+                |state_id| BlockState::from_id(state_id).is_air(),
+            );
         }
     }
 
@@ -948,6 +951,12 @@ mod tests {
                 world.set_block_state(
                     &BlockPos::new(x, 63, z),
                     Block::STONE.default_state.id,
+                    BlockFlags::empty(),
+                );
+                // Cave air still counts as air for vanilla fire placement.
+                world.set_block_state(
+                    &BlockPos::new(x, 64, z),
+                    Block::CAVE_AIR.default_state.id,
                     BlockFlags::empty(),
                 );
             }
