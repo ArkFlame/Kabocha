@@ -247,14 +247,14 @@ impl TelemetrySessionTracker {
             if sessions.len() >= MAX_COMPLETED_SESSIONS_PER_HEARTBEAT {
                 return;
             }
-            let (joined_at, left_at) = active.remove(&player.gameprofile.id).map_or(
-                (now_unix, now_unix),
-                |(join_instant, joined_at)| {
-                    (
-                        joined_at,
-                        joined_at.saturating_add(join_instant.elapsed().as_secs()),
-                    )
-                },
+            // A player without a recorded join has no known session; skip it instead of
+            // reporting a fake zero-length one.
+            let Some((join_instant, joined_at)) = active.remove(&player.gameprofile.id) else {
+                return;
+            };
+            let (joined_at, left_at) = (
+                joined_at,
+                joined_at.saturating_add(join_instant.elapsed().as_secs()),
             );
             let (edition, client_brand, locale, view_distance) = extract_player_client_meta(player);
             sessions.push(PlayerTelemetryInfo {
@@ -983,6 +983,9 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
     server.spawn_task(async move {
         let mut current_interval_secs = interval_secs;
         let mut interval = tokio::time::interval(Duration::from_secs(current_interval_secs));
+        // After a stall (suspend, GC pause) send one heartbeat, not a burst of
+        // back-to-back ones carrying the same drained sessions.
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             tokio::select! {
                 _ = interval.tick() => {}
@@ -998,6 +1001,16 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
 
             match telemetry_client.send_heartbeat(&payload).await {
                 Ok(resp) => {
+                    if resp.status != "ok" {
+                        // The backend did not accept the sessions, so keep them for the next heartbeat.
+                        server_task
+                            .telemetry_sessions
+                            .restore_completed(raw_completed);
+                        tracing::debug!(
+                            "Telemetry backend did not accept heartbeat (status: {})",
+                            resp.status
+                        );
+                    }
                     tracing::trace!(
                         "Telemetry heartbeat successfully transmitted (status: {}, public_key: {})",
                         resp.status,
