@@ -57,7 +57,9 @@ pub async fn run_gametests(
     runner: &mut GameTestRunner,
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
 
     let mut all_tests = vec![
         "minecraft:always_pass",

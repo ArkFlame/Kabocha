@@ -15,7 +15,9 @@ pub async fn run_world_interaction_tests(
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
     let start = Instant::now();
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
 
     let base_x = bot1.position.x.floor() as i32;
     let base_y = bot1.position.y.floor() as i32;

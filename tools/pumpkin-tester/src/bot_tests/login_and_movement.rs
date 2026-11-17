@@ -47,7 +47,9 @@ pub async fn run_login_and_movement_tests(
     );
     let mut bot1 = bot1_res?;
     let bot2 = bot2_res?;
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
     let returning = world
         .get_player_by_name("TestBot2")
         .ok_or("Nether player did not join the Overworld")?;

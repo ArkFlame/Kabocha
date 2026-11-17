@@ -18,7 +18,9 @@ pub async fn run_loot_table_tests(
     summaries: &mut Vec<String>,
 ) -> Result<(), String> {
     let start = Instant::now();
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
     let player = world
         .get_player_by_name("TestBot1")
         .ok_or("Missing TestBot1")?;
@@ -74,7 +76,7 @@ pub async fn run_loot_table_tests(
         .generate_loot_with_context(
             0,
             &pumpkin_core::world::loot::LootContextParameters {
-                world: Some(&world),
+                world: Some(world.as_ref()),
                 ..Default::default()
             },
         )

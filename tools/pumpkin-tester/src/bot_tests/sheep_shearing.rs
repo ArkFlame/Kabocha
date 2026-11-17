@@ -71,7 +71,9 @@ pub fn run_sheep_shearing_test(
     server: &Arc<Server>,
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
     let player = world
         .get_player_by_name("TestBot1")
         .ok_or("Could not find TestBot1 for the sheep shearing test")?;

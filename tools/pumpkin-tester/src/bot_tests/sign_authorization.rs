@@ -550,7 +550,9 @@ pub async fn run_sign_authorization_tests(
     addr: std::net::SocketAddr,
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
     let mut bot = HeadlessBot::connect_and_join(addr, BOT_NAME).await?;
 
     let Some(player) = world.get_player_by_name(BOT_NAME) else {

@@ -54,7 +54,10 @@ pub async fn create_test_server(temp_dir: &tempfile::TempDir) -> Result<Arc<Serv
 /// Generates the overworld spawn chunk, so a bot's join waits on the network, not on world
 /// generation, which can outlast the bot packet timeout on a slow runner.
 pub async fn prepare_spawn_chunk(server: &Server) {
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    // Best-effort warm-up: without an overworld there is no spawn chunk to prefetch.
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return;
+    };
     let info = world.level_info.load();
     let spawn_chunk = Vector2::new(info.spawn_x >> 4, info.spawn_z >> 4);
     world.level.get_or_fetch_chunk(spawn_chunk, |_| ()).await;

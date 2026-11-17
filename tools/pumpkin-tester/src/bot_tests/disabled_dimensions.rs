@@ -10,7 +10,9 @@ pub async fn run_disabled_dimensions_tests(
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
     let start = Instant::now();
-    let world = server.get_world_from_dimension(&Dimension::OVERWORLD);
+    let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
+        return Err("Overworld is not loaded".to_string());
+    };
     let Some(player) = world.get_player_by_name("TestBot1") else {
         return Err("Could not find 'TestBot1' in Overworld".to_string());
     };
