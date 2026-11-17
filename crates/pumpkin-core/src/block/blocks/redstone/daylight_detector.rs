@@ -42,9 +42,12 @@ impl BlockBehaviour for DaylightDetectorBlock {
         let new_state = props.to_state_id(args.block);
         args.world
             .set_block_state(args.position, new_state, BlockFlags::NOTIFY_LISTENERS);
-        args.world.emit_game_event(
+        // Vanilla `GameEvent.Context.of(player, newState)` records the player as the
+        // vibration source; dropping it loses the source entity for listeners and plugins.
+        args.world.emit_game_event_with_source(
             GameEvent::BlockChange.name(),
             args.position.to_centered_f64(),
+            Some(args.player.clone()),
         );
 
         Self::update_signal_strength(args.world, args.position);
