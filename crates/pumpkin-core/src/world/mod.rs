@@ -7595,7 +7595,12 @@ impl World {
 
         if new_state_id != block_state_id {
             if is_air(new_state_id) {
-                self.break_block(block_pos, None, flags | BlockFlags::NOTIFY_ALL);
+                // Vanilla `Block.updateOrDestroy`: shape updates destroy with drops off.
+                self.break_block(
+                    block_pos,
+                    None,
+                    flags | BlockFlags::SKIP_DROPS | BlockFlags::NOTIFY_ALL,
+                );
             } else {
                 self.set_block_state(block_pos, new_state_id, flags);
             }
