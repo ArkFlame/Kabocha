@@ -23,7 +23,6 @@ pub struct MeleeAttackGoal {
     target_location: Vector3<f64>,
     update_countdown_ticks: i32,
     pub cooldown: i32,
-    #[expect(dead_code)]
     attack_interval_ticks: i32,
     last_update_time: i64,
     last_target_position: Option<Vector3<f64>>,
@@ -86,7 +85,7 @@ impl MeleeAttackGoal {
 
     #[must_use]
     pub fn get_max_cooldown(&self) -> i32 {
-        self.get_tick_count(20)
+        self.get_tick_count(self.attack_interval_ticks)
     }
 
     pub fn reset_attack_cooldown(&mut self) {
