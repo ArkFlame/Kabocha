@@ -6,6 +6,7 @@ use std::sync::{
 use pumpkin_data::BlockState;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -17,6 +18,7 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
@@ -121,7 +123,55 @@ impl Animal for HappyGhastEntity {
     }
 }
 
+impl CustomSound for HappyGhastEntity {
+    /// Vanilla `HappyGhast#getDeathSound` picks the ghastling variant for babies.
+    fn death_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingDeath
+        } else {
+            Sound::EntityHappyGhastDeath
+        })
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingHurt
+        } else {
+            Sound::EntityHappyGhastHurt
+        })
+    }
+
+    /// Vanilla `HappyGhast#getSoundVolume` is 4.0 for adults and 1.0 for babies.
+    fn sound_volume(&self) -> f32 {
+        if self.is_baby() { 1.0 } else { 4.0 }
+    }
+}
+
 impl Mob for HappyGhastEntity {
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
+    /// Vanilla `HappyGhast#getAmbientSound`: ghastling cry for babies.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingAmbient
+        } else {
+            Sound::EntityHappyGhastAmbient
+        })
+    }
+
+    /// Vanilla `HappyGhast#getAmbientSoundInterval` multiplies the interval by six while carrying
+    /// passengers.
+    fn get_ambient_sound_interval(&self) -> i32 {
+        let interval = MobEntity::DEFAULT_AMBIENT_SOUND_INTERVAL;
+        if self.get_entity().has_passengers() {
+            interval * 6
+        } else {
+            interval
+        }
+    }
+
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         true
     }
