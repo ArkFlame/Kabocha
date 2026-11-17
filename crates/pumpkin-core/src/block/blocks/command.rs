@@ -152,14 +152,27 @@ impl CommandBlock {
         };
 
         command_entity.success_count.store(0, Ordering::Release);
-        if !command.is_empty() {
-            let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
-
-            server
-                .command_dispatcher
-                .load()
-                .handle_command(&source, command);
+        if command.is_empty() {
+            return;
         }
+
+        // Vanilla `BaseCommandBlock#performCommand` easter egg.
+        if command == "Searge" {
+            let mut last_output = command_entity
+                .last_output
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *last_output = "#itzlipofutzli".to_string();
+            command_entity.success_count.store(1, Ordering::Release);
+            return;
+        }
+
+        let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
+
+        server
+            .command_dispatcher
+            .load()
+            .handle_command(&source, command);
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {
