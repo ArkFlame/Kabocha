@@ -417,11 +417,10 @@ impl ItemEntity {
             contents
         };
 
-        // no pickup delay.
+        // Vanilla spills through popResource: default pickup delay and velocity.
         let pos = self.entity.pos.load();
         for item in contents.into_iter().filter(|item| !item.is_empty()) {
             let spilled = Self::new(Entity::new(world.clone(), pos, &EntityType::ITEM), item);
-            spilled.set_pickup_delay(0);
             world.spawn_entity(Arc::new(spilled));
         }
     }
