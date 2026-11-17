@@ -852,6 +852,18 @@ fn build_heartbeat_payload_inner(
     }
 }
 
+/// Picks the heartbeat interval, honouring the delay recommended by the telemetry backend.
+///
+/// A zero recommendation means the backend did not ask for a change, and values below the
+/// 60 second floor are clamped like the configured interval.
+fn resolve_next_interval_secs(current_secs: u64, recommended_secs: u32) -> u64 {
+    if recommended_secs == 0 {
+        current_secs
+    } else {
+        u64::from(recommended_secs).max(60)
+    }
+}
+
 /// Starts the background telemetry reporting task using the server's telemetry configuration.
 pub fn start_telemetry(server: Arc<Server>) {
     let config = server.telemetry_config.clone();
@@ -897,7 +909,8 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
     let server_task = server.clone();
 
     server.spawn_task(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        let mut current_interval_secs = interval_secs;
+        let mut interval = tokio::time::interval(Duration::from_secs(current_interval_secs));
         loop {
             tokio::select! {
                 _ = interval.tick() => {}
@@ -918,6 +931,15 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
                         resp.status,
                         resp.server_public_key
                     );
+                    let next_interval_secs =
+                        resolve_next_interval_secs(current_interval_secs, resp.next_ping_seconds);
+                    if next_interval_secs != current_interval_secs {
+                        current_interval_secs = next_interval_secs;
+                        interval.reset_after(Duration::from_secs(next_interval_secs));
+                        tracing::debug!(
+                            "Telemetry backend requested a {next_interval_secs}s heartbeat interval"
+                        );
+                    }
                 }
                 Err(err) => {
                     server_task
@@ -1343,6 +1365,13 @@ mod tests {
             legacy_shutdown,
             "https://market.pumpkinmc.org/api/v1/rest/telemetry/shutdown"
         );
+    }
+
+    #[test]
+    fn backend_recommended_interval_is_honoured_and_clamped() {
+        assert_eq!(resolve_next_interval_secs(300, 0), 300);
+        assert_eq!(resolve_next_interval_secs(300, 120), 120);
+        assert_eq!(resolve_next_interval_secs(300, 10), 60);
     }
 
     #[test]
