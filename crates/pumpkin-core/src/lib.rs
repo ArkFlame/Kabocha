@@ -772,6 +772,9 @@ impl PumpkinServer {
                         {
                             error!("Failed to save player data on disconnect: {error}");
                         }
+                        if let Err(e) = server.advancement_manager.save_player(&player).await {
+                            error!("Failed to save player advancement on disconnect: {e}");
+                        }
                     }
                 }
             }
