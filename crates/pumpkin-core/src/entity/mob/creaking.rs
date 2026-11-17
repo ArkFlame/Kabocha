@@ -4,12 +4,11 @@ use std::sync::{
 };
 
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::BlockState;
+use pumpkin_data::{Block, BlockState};
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
-use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::java::client::play::CEntityStatus;
@@ -354,12 +353,15 @@ impl CreakingEntity {
         let world = entity.world.load();
         let pos = entity.pos.load();
 
-        world.spawn_particle(
+        // `block_crumble` carries a block state, so it must use the block particle
+        // helper; an empty option payload makes the client fail to decode
+        // `level_particles`.
+        world.spawn_block_particle(
             pos,
             Vector3::new(0.3, 0.3, 0.3),
             0.0,
             100,
-            Particle::BlockCrumble,
+            Block::CREAKING_HEART.default_state.id,
         );
 
         self.play_sound(Sound::EntityCreakingDeath);
