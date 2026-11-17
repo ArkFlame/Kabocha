@@ -7662,7 +7662,14 @@ impl World {
 
         if new_state_id != block_state_id {
             if is_air(new_state_id) {
-                self.break_block(block_pos, None, flags | BlockFlags::NOTIFY_ALL);
+                // Vanilla updateShape clears a block that lost its support with
+                // setBlock(..., UPDATE_CLIENTS): no drops, so dependent blocks like a snow
+                // layer over a broken block must not run the break/loot path.
+                self.set_block_state(
+                    block_pos,
+                    new_state_id,
+                    flags | BlockFlags::NOTIFY_LISTENERS,
+                );
             } else {
                 self.set_block_state(block_pos, new_state_id, flags);
             }
