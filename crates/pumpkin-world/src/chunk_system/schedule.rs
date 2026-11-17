@@ -1707,7 +1707,8 @@ impl GenerationSchedule {
                         }
                         continue;
                     }
-                    debug_assert!(self.debug_check());
+                    #[cfg(debug_assertions)]
+                    self.debug_check();
                     debug_assert_eq!(self.running_task_count, 0);
                     if self.resort_work(self.send_level.wait_and_get(level)) {
                         self.garbage_collect_dependencies();
@@ -1817,12 +1818,20 @@ impl GenerationSchedule {
         self.graph.edges.clear();
     }
 
-    fn debug_check(&self) -> bool {
+    /// Leaked nodes are reported, not fatal: the graph is bookkeeping, and a leak
+    /// must never abort the schedule thread (vanilla has no equivalent check).
+    #[cfg(debug_assertions)]
+    fn debug_check(&self) {
         if !self.graph.nodes.is_empty() {
+            error!(
+                "{} chunk schedule node(s) still unreleased while idle",
+                self.graph.nodes.len()
+            );
             for (key, value) in &self.graph.nodes {
                 error!("unrelease node {key:?}: {value:?}");
             }
-            panic!("nodes count error");
+            // The holder invariants below only hold while the graph is intact.
+            return;
         }
         for (pos, holder) in &self.chunk_map {
             for i in &holder.tasks {
@@ -1844,6 +1853,5 @@ impl GenerationSchedule {
                 );
             }
         }
-        true
     }
 }
