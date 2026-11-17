@@ -36,9 +36,11 @@ impl ItemBasedSteering {
 
     pub fn tick_boost(&self) {
         if self.boosting.load(Ordering::Relaxed) {
-            let current = self.boost_time.fetch_add(1, Ordering::Relaxed) + 1;
+            // Vanilla `ItemBasedSteering#tickBoost`: `if (boostTime++ > boostTimeTotal)`,
+            // so the comparison uses the pre-increment value.
+            let previous = self.boost_time.fetch_add(1, Ordering::Relaxed);
             let total = self.boost_time_total.load(Ordering::Relaxed);
-            if current >= total {
+            if previous > total {
                 self.boosting.store(false, Ordering::Relaxed);
             }
         }
@@ -53,5 +55,23 @@ impl ItemBasedSteering {
         } else {
             1.0
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn boost_stops_after_total_plus_one_ticks() {
+        let steering = ItemBasedSteering::default();
+        steering.boosting.store(true, Ordering::Relaxed);
+        steering.boost_time_total.store(2, Ordering::Relaxed);
+        for _ in 0..3 {
+            steering.tick_boost();
+        }
+        assert!(steering.boosting.load(Ordering::Relaxed));
+        steering.tick_boost();
+        assert!(!steering.boosting.load(Ordering::Relaxed));
     }
 }
