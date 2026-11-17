@@ -51,7 +51,8 @@ fn populate(board: &mut Scoreboard, target: &impl ScoreboardTarget) {
             options: 0,
             nametag_visibility: NameTagVisibility::Always,
             collision_rule: CollisionRule::Always,
-            color: NamedColor::White,
+            color: Some(NamedColor::White),
+            death_message_visibility: NameTagVisibility::Always,
             player_prefix: TextComponent::text("Online players: "),
             player_suffix: TextComponent::text(""),
             players: vec!["entry".into()],
@@ -405,4 +406,39 @@ fn remove_score_only_announces_existing_scores() {
     board.remove_score(&target, "Alice", "board");
     assert_eq!(target.sent(), 1);
     assert_eq!(board.get_score_value("Alice", "board"), None);
+}
+
+fn plain_team(name: &str) -> Team {
+    Team {
+        name: name.into(),
+        display_name: TextComponent::text(name),
+        options: 0,
+        nametag_visibility: NameTagVisibility::Always,
+        collision_rule: CollisionRule::Always,
+        color: None,
+        death_message_visibility: NameTagVisibility::Always,
+        player_prefix: TextComponent::empty(),
+        player_suffix: TextComponent::empty(),
+        players: vec![],
+    }
+}
+
+#[test]
+fn new_team_uses_reset_colour_and_stores_death_message_visibility() {
+    let mut board = Scoreboard::new();
+    let target = NoTarget;
+    board.add_team(&target, plain_team("red"));
+    assert_eq!(board.get_team("red").map(Team::color_id), Some(-1));
+    assert_eq!(
+        board.get_team("red").map(Team::death_message_visibility),
+        Some(NameTagVisibility::Always)
+    );
+
+    let mut updated = plain_team("red");
+    updated.death_message_visibility = NameTagVisibility::HideForOwnTeam;
+    board.update_team(&target, updated);
+    assert_eq!(
+        board.get_team("red").map(Team::death_message_visibility),
+        Some(NameTagVisibility::HideForOwnTeam)
+    );
 }

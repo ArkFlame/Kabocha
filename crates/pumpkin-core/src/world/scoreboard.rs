@@ -510,7 +510,7 @@ impl Scoreboard {
             options: team.options,
             nametag_visibility: team.nametag_visibility.to_str(),
             collision_rule: team.collision_rule.to_str(),
-            color: team.color as i32,
+            color: team.color_id(),
             player_prefix: &team.player_prefix,
             player_suffix: &team.player_suffix,
         };
@@ -540,7 +540,7 @@ impl Scoreboard {
             options: team.options,
             nametag_visibility: team.nametag_visibility.to_str(),
             collision_rule: team.collision_rule.to_str(),
-            color: team.color as i32,
+            color: team.color_id(),
             player_prefix: &team.player_prefix,
             player_suffix: &team.player_suffix,
         };
@@ -718,7 +718,7 @@ impl Scoreboard {
                 options: team.options,
                 nametag_visibility: team.nametag_visibility.to_str(),
                 collision_rule: team.collision_rule.to_str(),
-                color: team.color as i32,
+                color: team.color_id(),
                 player_prefix: &team.player_prefix,
                 player_suffix: &team.player_suffix,
             };
@@ -1012,7 +1012,9 @@ pub struct Team {
     pub options: i8,
     pub nametag_visibility: NameTagVisibility,
     pub collision_rule: CollisionRule,
-    pub color: NamedColor,
+    /// `None` is vanilla `ChatFormatting.RESET`, the default colour of a new team.
+    pub color: Option<NamedColor>,
+    pub death_message_visibility: NameTagVisibility,
     pub player_prefix: TextComponent,
     pub player_suffix: TextComponent,
     pub players: Vec<String>,
@@ -1020,11 +1022,24 @@ pub struct Team {
 
 impl Team {
     pub(crate) const ALLOW_FRIENDLY_FIRE: i8 = 0x01;
+    /// Wire id for vanilla `ChatFormatting.RESET`; the packet encoder maps it to 21.
+    pub(crate) const RESET_COLOR_ID: i32 = -1;
     pub(crate) const SEE_FRIENDLY_INVISIBLES: i8 = 0x02;
 
     #[must_use]
     pub const fn is_allow_friendly_fire(&self) -> bool {
         self.options & Self::ALLOW_FRIENDLY_FIRE != 0
+    }
+
+    #[must_use]
+    pub fn color_id(&self) -> i32 {
+        self.color
+            .map_or(Self::RESET_COLOR_ID, |color| color as i32)
+    }
+
+    #[must_use]
+    pub const fn death_message_visibility(&self) -> NameTagVisibility {
+        self.death_message_visibility
     }
 
     #[must_use]

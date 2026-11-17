@@ -841,7 +841,8 @@ fn map_team_settings(
                 pumpkin_core::world::scoreboard::CollisionRule::PushOwnTeam
             }
         },
-        color: map_named_color(settings.color),
+        death_message_visibility: pumpkin_core::world::scoreboard::NameTagVisibility::Always,
+        color: Some(map_named_color(settings.color)),
         player_prefix,
         player_suffix,
         players: Vec::new(),
@@ -918,7 +919,10 @@ fn map_team_to_settings(
         pumpkin_core::world::scoreboard::CollisionRule::PushOwnTeam => CollisionRule::PushOwnTeam,
     };
 
-    let color = map_named_color_rev(team.color);
+    let color = map_named_color_rev(
+        team.color
+            .unwrap_or(pumpkin_util::text::color::NamedColor::White),
+    );
 
     Ok(TeamSettings {
         display_name,
