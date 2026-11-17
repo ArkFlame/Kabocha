@@ -604,6 +604,7 @@ impl PumpkinServer {
     pub async fn shutdown(&self, tasks: &TaskTracker) {
         self.server.close_admission();
 
+        info!("Saving players");
         if let Err(e) = self
             .server
             .player_data_storage
