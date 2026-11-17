@@ -1,45 +1,45 @@
 # entities / Leash Knot (RE-REVIEW)
 
-Source audited: `crates/pumpkin-core/src/entity/decoration/leash_knot.rs` (whole file) plus the
-leash plumbing it relies on (`entity/mod.rs`: `leash_to`, `leash_to_if_held_by`, `unleash`,
-`drop_leash`, `tick_leash`; `item/items/lead.rs`; `entity/type.rs`).  Vanilla reference is
+Source audited: `crates/pumpkin-core/src/entity/decoration/leash_knot.rs` (whole file, at commit
+5175e3efd "match vanilla leash knot sound and interact range") plus the leash plumbing it relies on
+(`entity/mod.rs`: `leash_to`, `leash_to_if_held_by`, `unleash`, `drop_leash`, `tick_leash`;
+`item/items/lead.rs`; `entity/type.rs`).  Vanilla reference is
 `net.minecraft.world.entity.decoration.LeashFenceKnotEntity` (extends `BlockAttachedEntity`) and
-`LeadItem`.  No decompiled class is available in this worktree (`.vendor/` absent, no local
-`LeashFenceKnotEntity.java`), so each item below is tagged with its confidence.
+`LeadItem`.  No decompiled class is available (`.vendor/` absent, nothing under `../`), so items
+that depend on an exact vanilla branch are marked UNCERTAIN.
 
-Verdict: the structure matches vanilla (get_or_create/get_knot over a 2 block box, 0.375 y offset,
-fence-tag survival check, right-click transfer, damage destroys the knot).  Three small divergences
-were fixed; five remain open and need the decompiled class before editing (WORKER.md rule 12).
+Verdict: structure still matches vanilla (get_or_create/get_knot, 0.375 y offset, fence-tag survival
+check, right-click transfer, damage destroys the knot).  Two further divergences are fixed below;
+the rest need the decompiled class or assets/codegen.
 
-## Fixed in this audit
-- `leash_knot.rs:63` (`create_knot`): played `item.lead.tied` itself, so `item/items/lead.rs:96`
-  played it a second time when tying to a fence and `restore_leash_from_save` (`entity/mod.rs:5556`)
-  replayed it every time a chunk with a saved leash loaded. Vanilla `LeashFenceKnotEntity.getOrCreateKnot`
-  is silent; `LeadItem.bindPlayerMobs` / `playPlacementSound` owns the sound. Removed.
-- `leash_knot.rs:141` (`interact`): searched with `EntityDimensions { width: 32, height: 32 }`, which
-  `BoundingBox::new_from_pos` turns into +/-16 blocks horizontally and `y .. y+32` vertically, so a
-  player could tie mobs from 16 blocks away and never from below the knot. Vanilla builds
-  `new AABB(x-7, y-7, z-7, x+7, y+7, z+7)`. Replaced with the 7 block cube.
-- `leash_knot.rs:172` (`interact`): set `attached_mob = true` even when `leash_to` returned false
-  (a plugin cancelling `PlayerLeashEntityEvent`), so success was reported and the placement sound
-  played with no leash moved. Now `attached_mob |= mob.leash_to(..)`.
+## Fixed in this review
+- `leash_knot.rs:92-96` (`tick`, release scan): used `BoundingBox::new_from_pos(pos, dim)`, which
+  starts the box at the knot own y and only grows upwards (`boundingbox.rs:75-81`: `min.y = y`).
+  Mobs more than about two blocks below a broken knot were never released. Now a symmetric
+  +/-16 box around the knot, matching the intent of the release scan and
+  `drop_all_leash_connections` (`entity/mod.rs:5457-5459`).
+- `leash_knot.rs:99`, `115-122` (`tick`): breaking the fence spawned a lead for every released mob
+  regardless of `doEntityDrops`, while the mob-side path (`tick_leash`, `entity/mod.rs:5591-5600`)
+  honours `entity_drops`. Lead refunds now use the same game rule.
 
 ## Remaining gaps
 
 | # | file:line | vanilla | suggested fix | size |
 |---|---|---|---|---|
-| 1 | `leash_knot.rs:169-183` (`interact`) | `LeashFenceKnotEntity.interact`: when no mob was moved off the player (`!bl`) the knot is `discard()`-ed and the sound is played; mobs still leashed to it drop their leads on their next `tickLeash`. | Replace the `leash_to_if_held_by(knot_id, player)` "give mobs back to the player" branch with `self.entity.remove()` when `!attached_mob`, then verify against decompiled `LeashFenceKnotEntity.java` (Pumpkin may have added the re-home path deliberately). High confidence on vanilla, still needs the class. | M |
-| 2 | `leash_knot.rs:107-131` (`tick` survival) | `BlockAttachedEntity.tick` discards the knot as soon as `survives()` is false (block not in `BlockTags.FENCES`); each mob then releases itself with `dropLeash(true, true)`, dropping a lead. | Rust instead keeps the knot alive while any entity within the 32 block scan is still leashed to it, so a knot on a broken fence can persist after its mobs leave the scan. Remove the `retained_leash` early return once the mob-side `tick_leash` release path is confirmed to cover the same range. | M |
-| 3 | `leash_knot.rs:110-116` (`tick` scan box) | The release scan is Pumpkin-only (vanilla releases mob-side), but as written the box is `x+/-16, z+/-16, y .. y+32`: mobs below the knot are never released. | Make the vertical extent symmetric (or reuse one shared scan helper with `lead.rs:48`, which already centres its box with `center.y - 16.0`). | S |
-| 4 | `leash_knot.rs:73`, `leash_knot.rs:196` (sounds) | Vanilla uses `SoundEvents.LEASH_KNOT_PLACE` (`block.leash_knot.place`) for placement and `LEASH_KNOT_BREAK` (`block.leash_knot.break`) when the knot is hit; `item.lead.tied`/`item.lead.untied` are the player-side tie/untie sounds. | `crates/pumpkin-data/src/generated/sound.rs:941` only knows `ItemLeadTied`/`ItemLeadUntied`; add `block.leash_knot.place`/`block.leash_knot.break` to `assets/` and regenerate with `cargo run --locked -p pumpkin-codegen`, then use them in `play_placement_sound`/`damage_with_context`. | M |
-| 5 | `leash_knot.rs:189-215` (`damage_with_context`) | `LeashFenceKnotEntity.hurt` is `isInvulnerableTo` -> (`!isClientSide && !isRemoved`) { `kill()`; `markHurt()`; play break sound } and returns true; there is no mob-griefing branch there. | Drop the `mob_griefing` gate (a mob hitting the knot should still destroy it) and call `self.entity.mark_hurt()`; confirm the gate is not inherited from `BlockAttachedEntity` in this version first. | S |
+| 1 | `leash_knot.rs:173-190` (`interact`) | UNCERTAIN. `LeashFenceKnotEntity.interact`: mobs leashed to the player are moved onto the knot; if none was moved (`!bl`) the knot is discarded, one lead is dropped when `doEntityDrops` allows, and each mob still attached drops its own lead on its next `tickLeash`. | Pumpkin instead re-homes the knot mobs onto the player with `leash_to_if_held_by`. If the vanilla branch is confirmed, replace that block with `self.entity.remove()` plus one `LEAD` drop gated on `entity_drops`, and return true. Needs the decompiled class before editing (WORKER.md rule 12). | M |
+| 2 | `leash_knot.rs:68`, `131`, `223` (sounds) | `SoundEvents.LEASH_KNOT_PLACE` (`block.leash_knot.place`) on placement and `LEASH_KNOT_BREAK` (`block.leash_knot.break`) on hit and fence break; `item.lead.tied`/`item.lead.untied` are the player-side tie/untie sounds, not the knot ones. | `pumpkin-data/src/generated/sound.rs:941-942` only knows `ItemLeadTied`/`ItemLeadUntied` (subtitles exist already: `translation.rs:17529-17531`). Add both `block.leash_knot.*` sounds to `assets/` and regenerate with `cargo run --locked -p pumpkin-codegen`, then use them in `play_placement_sound`, `tick` and `damage_with_context`. | M |
+| 3 | `leash_knot.rs:214-220` (`damage_with_context`) | `LeashFenceKnotEntity.hurtServer` is `isInvulnerableTo` -> if not removed { `kill()`; `markHurt()`; break sound } and returns true; no `mob_griefing` gate (that rule guards mob world edits, not hurting a knot). | Drop the `mob_griefing` branch and call `self.entity.mark_hurt()` (`entity/mod.rs:2401`); confirm against the decompiled `hurtServer` first, the gate is harmless for player attacks. | S |
+| 4 | `leash_knot.rs:128-131` (`tick`) | `LeashFenceKnotEntity.tick` discards the knot as soon as `survives()` is false; attached mobs then release themselves through `tick_leash` (dead-holder path, `entity/mod.rs:5591-5600`), which already drops the lead. | The `retained_leash` early return keeps a knot alive indefinitely when its mobs are outside the scan (cancelled `EntityUnleashEvent` or a plugin-held leash). Once the mob-side release is trusted, remove the scan and just `remove()` the knot. | M |
+| 5 | `leash_knot.rs:42` (`get_knot`) | `getOrCreateKnot` searches `AABB(i-1, j-1, k-1, i+1, j+1, k+1)`, +/-1 around the block on every axis. | The box here is `y .. y+2`, so a knot whose entity sits below the fence block (summoned or plugin-placed) is not found and a duplicate is created. Use `new_from_pos(center.x, center.y - 1.0, center.z, ..)`. | S |
+| 6 | `leash_knot.rs:143-155` (`interact`) | Vanilla measures the 7 block transfer area from the integer block coordinates, so the box reaches one block wider on the positive side than a box centred on the entity. | Cosmetic 0.5 block asymmetry from centring on the entity position; build the box from `pos.0` block coordinates if exact parity matters. | S |
 
 ## Notes (not gaps)
-- `get_knot` (`leash_knot.rs:27-51`) uses a 2 block box plus `block_pos` equality, the same predicate
-  vanilla uses; the asymmetric y extent cannot mis-match because of the block-pos comparison.
-- `can_hit` -> `isPickable`, the `OFFSET_Y = 0.375` spawn offset and spawning the knot through
-  `world.spawn_entity` match `LeashFenceKnotEntity`/BlockAttachedEntity.
-- `play_placement_sound` mirrors vanilla `playPlacementSound`; only its sound constant is wrong (gap 4).
-- Leash persistence (`write_leash_data`/`read_leash_data`) stores knots as a block position, matching
-  vanilla's `leash` int array, so knots are not saved as standalone entities; no gap.
-- Client-side rendering distance (`shouldRenderAtSqrDistance`) is client only.
+- `get_or_create`/`create_knot` (`leash_knot.rs:25-64`) are silent, matching vanilla; the placement
+  sound belongs to `LeadItem` (`item/items/lead.rs:94`) and to `play_placement_sound`.
+- `interact` uses `attached_mob |= mob.leash_to(..)` so a cancelled `PlayerLeashEntityEvent` no
+  longer reports success.
+- The 7 block transfer cube, `can_hit` -> `isPickable`, the `OFFSET_Y = 0.375` spawn offset and
+  spawning through `world.spawn_entity` match `LeashFenceKnotEntity`/`BlockAttachedEntity`.
+- Leash persistence stores knots as a block position (`restore_leash_from_save`,
+  `entity/mod.rs:5556`), matching the vanilla leash int array; knots are not saved as entities.
+- Client-only: `shouldRenderAtSqrDistance` (1024) rendering distance.
