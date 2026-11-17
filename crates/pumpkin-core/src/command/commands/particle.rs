@@ -255,7 +255,8 @@ fn send_particles(
         return Err(ERROR_FAILED.create_without_context());
     }
 
-    let particle_name = format!("{particle:?}").to_lowercase();
+    // Vanilla uses the registry key, e.g. `minecraft:dust_color_transition`.
+    let particle_name = format!("minecraft:{}", particle.to_name());
     source.send_feedback(
         TextComponent::translate_cross(
             translation::java::COMMANDS_PARTICLE_SUCCESS,
