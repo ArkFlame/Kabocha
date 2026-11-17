@@ -513,3 +513,20 @@ pub trait FlowingFluid: Send + Sync {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::block::fluid::water::FlowingWater;
+
+    #[test]
+    fn bubble_column_counts_as_water_for_hole_detection() {
+        // A bubble column is a water source absent from `washed_away_by_fluids`. Vanilla's
+        // `isWaterHole` still treats it as a water hole via its fluid state; `has_fluid_at`
+        // is Pumpkin's equivalent, and must not report it for lava.
+        let water = FlowingWater;
+        let bubble = Block::BUBBLE_COLUMN.default_state.id;
+        assert!(water.has_fluid_at(&Fluid::FLOWING_WATER, bubble));
+        assert!(!water.has_fluid_at(&Fluid::FLOWING_LAVA, bubble));
+    }
+}

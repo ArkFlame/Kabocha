@@ -40,39 +40,81 @@ pub enum PathComputationType {
     Air,
 }
 
+/// Pure core of `Block.pushEntitiesUp`'s `Shapes.joinUnoptimized(..., BooleanOp.ONLY_SECOND)`:
+/// the boxes of `new` not already covered by `old`, in the same (block-local) space.
+fn added_collision_boxes(
+    old: impl Iterator<Item = BoundingBox>,
+    new: impl Iterator<Item = BoundingBox>,
+) -> Vec<BoundingBox> {
+    let old: Vec<BoundingBox> = old.collect();
+    let mut added = Vec::new();
+    for new_box in new {
+        let mut pieces = vec![new_box];
+        for old_box in &old {
+            let mut next = Vec::new();
+            for piece in pieces {
+                next.extend(piece.subtract(old_box));
+            }
+            pieces = next;
+        }
+        added.extend(pieces);
+    }
+    added
+}
+
+/// Vanilla `Shapes.collide(Axis.Y, aabb, [shape], -1.0)` for one shape: the possible
+/// downward movement of an entity already raised one block. Only shapes under its
+/// footprint that are at or below its bottom clamp the descent toward zero.
+const fn collide_down_y(aabb: &BoundingBox, shape: &BoundingBox, move_y: f64) -> f64 {
+    if shape.max.x <= aabb.min.x
+        || shape.min.x >= aabb.max.x
+        || shape.max.z <= aabb.min.z
+        || shape.min.z >= aabb.max.z
+    {
+        return move_y;
+    }
+    let new_move = shape.max.y - aabb.min.y;
+    if new_move <= 0.0 {
+        if new_move > move_y { new_move } else { move_y }
+    } else {
+        move_y
+    }
+}
+
 /// Vanilla's `Block.pushEntitiesUp`: when a replacement block grows upward, raise every
-/// entity inside the block volume by the added collision height so it is not embedded.
+/// entity inside the newly added collision volume so it is not embedded.
 pub fn push_entities_up(
     world: &World,
     position: &BlockPos,
     old_state_id: BlockStateId,
     new_state_id: BlockStateId,
 ) {
-    let old_top = old_state_id
-        .to_state()
-        .get_block_collision_shapes()
-        .map(|shape| shape.max.y)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let new_top = new_state_id
-        .to_state()
-        .get_block_collision_shapes()
-        .map(|shape| shape.max.y)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let delta = new_top - old_top;
-    if !delta.is_finite() || delta <= 0.0 {
+    let added = added_collision_boxes(
+        old_state_id
+            .to_state()
+            .get_block_collision_shapes_at(position),
+        new_state_id
+            .to_state()
+            .get_block_collision_shapes_at(position),
+    );
+    if added.is_empty() {
         return;
     }
-    // The block volume itself; shapes are block-local, entities use world space.
-    let x = f64::from(position.0.x);
-    let y = f64::from(position.0.y);
-    let z = f64::from(position.0.z);
-    let aabb = BoundingBox::new(
-        Vector3::new(x, y, z),
-        Vector3::new(x + 1.0, y + 1.0, z + 1.0),
-    );
+
+    // Collision shapes are block-local; move them into world space before querying.
+    let world_shapes: Vec<BoundingBox> =
+        added.iter().map(|shape| shape.at_pos(*position)).collect();
+    let Some((first, rest)) = world_shapes.split_first() else {
+        return;
+    };
+    let mut bounds = *first;
+    for shape in rest {
+        bounds = bounds.minmax(shape);
+    }
+
     let (players, entities) = (
-        world.get_players_at_box(&aabb),
-        world.get_entities_at_box(&aabb),
+        world.get_players_at_box(&bounds),
+        world.get_entities_at_box(&bounds),
     );
     for entity in players
         .iter()
@@ -83,8 +125,16 @@ pub fn push_entities_up(
             continue;
         }
         let entity = entity.get_entity();
+        let raised = entity
+            .bounding_box
+            .load()
+            .shift(Vector3::new(0.0, 1.0, 0.0));
+        let mut move_y = -1.0;
+        for shape in &world_shapes {
+            move_y = collide_down_y(&raised, shape, move_y);
+        }
         let pos = entity.pos.load();
-        entity.set_pos(Vector3::new(pos.x, pos.y + delta, pos.z));
+        entity.set_pos(Vector3::new(pos.x, pos.y + 1.0 + move_y, pos.z));
     }
 }
 
@@ -736,12 +786,20 @@ pub enum BlockIsReplacing {
 
 impl BlockIsReplacing {
     #[must_use]
-    /// Returns true if the replaced fluid is water, source or flowing.
+    /// Returns true if the block was replaced by a water source.
     ///
-    /// Vanilla placement checks `FluidState#is(Fluids.WATER)`, which is true for both
-    /// still water (level 0) and flowing water (levels 1-7).
+    /// Vanilla `FluidState#is(Fluids.WATER)` compares the fluid owner, so `Fluids.WATER`
+    /// (a source) matches while `Fluids.FLOWING_WATER` (levels 1-8) does not.
     pub const fn is_water(&self) -> bool {
-        matches!(self, Self::Water(_))
+        matches!(self, Self::Water(0))
+    }
+
+    #[must_use]
+    /// Returns true for water that fills the block, matching vanilla
+    /// `FluidState#is(FluidTags.WATER) && FluidState#isFull()`: a source (level 0) or
+    /// falling water (level 8), both with the full amount of 8.
+    pub const fn is_full_water(&self) -> bool {
+        matches!(self, Self::Water(0 | 8))
     }
 }
 
@@ -872,13 +930,23 @@ mod tests {
     }
 
     #[test]
-    fn is_water_matches_source_and_flowing_water() {
+    fn is_water_matches_only_source_water() {
         assert!(BlockIsReplacing::Water(0).is_water());
-        assert!(BlockIsReplacing::Water(1).is_water());
-        assert!(BlockIsReplacing::Water(7).is_water());
+        assert!(!BlockIsReplacing::Water(1).is_water());
+        assert!(!BlockIsReplacing::Water(7).is_water());
+        assert!(!BlockIsReplacing::Water(8).is_water());
         assert!(!BlockIsReplacing::None.is_water());
         assert!(!BlockIsReplacing::Other.is_water());
         assert!(!BlockIsReplacing::Itself(0).is_water());
+    }
+
+    #[test]
+    fn is_full_water_matches_source_and_falling_water() {
+        assert!(BlockIsReplacing::Water(0).is_full_water());
+        assert!(BlockIsReplacing::Water(8).is_full_water());
+        assert!(!BlockIsReplacing::Water(1).is_full_water());
+        assert!(!BlockIsReplacing::Water(7).is_full_water());
+        assert!(!BlockIsReplacing::Other.is_full_water());
     }
 
     struct CappedInventory {
@@ -931,5 +999,35 @@ mod tests {
             container_max: 16,
         };
         assert_eq!(calculate_comparator_output(&inventory), 15);
+    }
+
+    #[test]
+    fn collide_down_y_matches_vanilla_shape_collision() {
+        let entity = BoundingBox::new(Vector3::new(0.0, 1.0, 0.0), Vector3::new(1.0, 2.8, 1.0));
+        let full = BoundingBox::full_block();
+        assert_eq!(collide_down_y(&entity, &full, -1.0), 0.0);
+        let half = BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.5, 1.0));
+        assert_eq!(collide_down_y(&entity, &half, -1.0), -0.5);
+        let high = entity.shift(Vector3::new(0.0, 1.0, 0.0));
+        assert_eq!(collide_down_y(&high, &full, -1.0), -1.0);
+        assert_eq!(collide_down_y(&entity, &half, -0.3), -0.3);
+        let aside = full.shift(Vector3::new(2.0, 0.0, 0.0));
+        assert_eq!(collide_down_y(&entity, &aside, -1.0), -1.0);
+    }
+
+    #[test]
+    fn added_collision_boxes_is_new_minus_old() {
+        let low = BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.75, 1.0));
+        let added =
+            added_collision_boxes([low].into_iter(), [BoundingBox::full_block()].into_iter());
+        assert_eq!(added.len(), 1);
+        assert_eq!(added.first().map(|b| (b.min.y, b.max.y)), Some((0.75, 1.0)));
+        assert!(
+            added_collision_boxes(
+                [BoundingBox::full_block()].into_iter(),
+                [BoundingBox::full_block()].into_iter()
+            )
+            .is_empty()
+        );
     }
 }

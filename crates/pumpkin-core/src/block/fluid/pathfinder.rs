@@ -17,9 +17,18 @@ pub struct PathNode {
     pub exclude_dir: BlockDirection,
 }
 
-/// Checks if a position has a hole (downward flow opportunity) below it.
-fn is_hole(world: &Arc<World>, pos: &BlockPos, fluid: &Fluid) -> bool {
-    physics::can_hold_fluid(world.get_block(&pos.down()), fluid)
+/// Mirrors vanilla `FlowingFluid.isWaterHole`: a block below holding the same fluid counts as a
+/// hole. Bubble columns are water sources but are absent from `washed_away_by_fluids`, so the tag
+/// check alone would miss them; `has_fluid_at` recognises their water fluid state.
+fn is_hole<T: FlowingFluid + Sync + ?Sized>(
+    fluid_impl: &T,
+    world: &Arc<World>,
+    pos: &BlockPos,
+    fluid: &Fluid,
+) -> bool {
+    let below = pos.down();
+    fluid_impl.has_fluid_at(fluid, world.get_block_state_id(&below))
+        || physics::can_hold_fluid(world.get_block(&below), fluid)
 }
 
 /// Determines valid spread directions for fluid flow using hole-first priority.
@@ -67,7 +76,7 @@ pub fn get_spread<T: FlowingFluid + Sync + ?Sized>(
         let new_state_id = new_fluid_props.to_state_id(fluid);
 
         // Holes get distance 0
-        let slope_dist = if is_hole(world, &side_pos, fluid) {
+        let slope_dist = if is_hole(fluid_impl, world, &side_pos, fluid) {
             0
         } else {
             get_in_flow_down_distance_iterative(
@@ -166,7 +175,7 @@ pub fn get_in_flow_down_distance_iterative<T: FlowingFluid + Sync + ?Sized>(
         }
 
         // Check for hole (downward flow opportunity)
-        if physics::can_hold_fluid(world.get_block(&node.pos.down()), fluid) {
+        if is_hole(fluid_impl, world, &node.pos, fluid) {
             return node.distance;
         }
 
