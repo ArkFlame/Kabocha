@@ -1085,6 +1085,7 @@ impl ToFromWasmEvent
             player,
             block_pos: to_wasm_block_position(self.block_pos),
             bucket: self.bucket.clone(),
+            block_face: self.block_face.clone(),
             cancelled: self.cancelled,
         })
     }
@@ -1095,6 +1096,7 @@ impl ToFromWasmEvent
                 player: consume_player(state, &data.player),
                 block_pos: from_wasm_block_position(data.block_pos),
                 bucket: data.bucket,
+                block_face: data.block_face,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -1114,6 +1116,7 @@ impl ToFromWasmEvent
             player,
             block_pos: to_wasm_block_position(self.block_pos),
             bucket: self.bucket.clone(),
+            block_face: self.block_face.clone(),
             cancelled: self.cancelled,
         })
     }
@@ -1124,6 +1127,7 @@ impl ToFromWasmEvent
                 player: consume_player(state, &data.player),
                 block_pos: from_wasm_block_position(data.block_pos),
                 bucket: data.bucket,
+                block_face: data.block_face,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

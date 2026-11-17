@@ -448,6 +448,19 @@ impl HostDisplayEntity for PluginHostState {
         Ok(())
     }
 
+    fn set_brightness_override(
+        &mut self,
+        display: Resource<DisplayEntity>,
+        block: i32,
+        sky: i32,
+    ) -> wasmtime::Result<()> {
+        let display_res = self.get(&display)?;
+        if let Some(d) = get_display_entity(display_res.as_ref()) {
+            d.set_brightness_override(block, sky);
+        }
+        Ok(())
+    }
+
     fn drop(&mut self, rep: Resource<DisplayEntity>) -> wasmtime::Result<()> {
         self.drop(rep)
     }
