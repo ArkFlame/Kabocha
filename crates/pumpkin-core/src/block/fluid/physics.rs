@@ -30,6 +30,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn kelp_and_seagrass_are_liquid_block_containers_but_stone_is_not() {
+        assert!(is_liquid_block_container(&Block::KELP));
+        assert!(is_liquid_block_container(&Block::TALL_SEAGRASS));
+        assert!(!is_liquid_block_container(&Block::STONE));
+    }
+
+    #[test]
     fn lily_pad_is_a_liquid_block_container() {
         // Vanilla `WaterlilyBlock` implements `LiquidBlockContainer` with a rejecting
         // `canPlaceLiquid`, so neither flowing fluid nor a water bucket replaces it.
