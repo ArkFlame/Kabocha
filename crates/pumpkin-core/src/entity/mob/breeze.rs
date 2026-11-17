@@ -2,7 +2,7 @@ use crate::entity::EntityBase;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::sound::Sound;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::entity::EntityType;
@@ -17,14 +17,30 @@ use crate::entity::{
     mob::{Mob, MobEntity},
 };
 
+/// Vanilla `Breeze.WHIRL_SOUND_FREQUENCY_MIN` / `_MAX`: ticks between idle whirls.
+const WHIRL_SOUND_FREQUENCY_MIN: i32 = 1;
+const WHIRL_SOUND_FREQUENCY_MAX: i32 = 80;
+
+/// Vanilla `Breeze.tick` whirl countdown. A zero countdown draws a new interval and
+/// does not play; otherwise the countdown steps down and the whirl plays when it hits zero.
+/// `roll` is only called when a new interval is needed, as vanilla consumes randomness.
+fn advance_whirl_countdown(ticks: i32, roll: impl FnOnce() -> i32) -> (i32, bool) {
+    let next = if ticks == 0 { roll() } else { ticks - 1 };
+    (next, next == 0)
+}
+
 pub struct BreezeEntity {
     pub mob_entity: MobEntity,
+    whirl_countdown: AtomicI32,
 }
 
 impl BreezeEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
-        let breeze = Self { mob_entity };
+        let breeze = Self {
+            mob_entity,
+            whirl_countdown: AtomicI32::new(0),
+        };
         let mob_arc = Arc::new(breeze);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
@@ -130,6 +146,20 @@ impl Mob for BreezeEntity {
         }
     }
 
+    /// Vanilla `Breeze.tick`: idle whirl on a random 1..=80 tick countdown.
+    fn mob_tick(&self, _caller: &dyn EntityBase) {
+        let (next, play) =
+            advance_whirl_countdown(self.whirl_countdown.load(Ordering::Relaxed), || {
+                rand::random_range(WHIRL_SOUND_FREQUENCY_MIN..=WHIRL_SOUND_FREQUENCY_MAX)
+            });
+        self.whirl_countdown.store(next, Ordering::Relaxed);
+        if play {
+            let pitch = 0.7 + 0.4 * rand::random::<f32>();
+            let volume = 0.8 + 0.2 * rand::random::<f32>();
+            self.play_entity_sound(Sound::EntityBreezeWhirl, volume, pitch);
+        }
+    }
+
     fn deflection(&self, projectile: &dyn EntityBase) -> ProjectileDeflection {
         let projectile_type = projectile.get_entity().entity_type;
         if projectile_type == &EntityType::WIND_CHARGE
@@ -143,5 +173,32 @@ impl Mob for BreezeEntity {
         } else {
             ProjectileDeflection::None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::advance_whirl_countdown;
+    use std::cell::Cell;
+
+    #[test]
+    fn whirl_plays_once_per_drawn_interval() {
+        let rolls = Cell::new(0);
+        let mut ticks = 0;
+        let mut plays = Vec::new();
+        for _ in 0..8 {
+            let (next, play) = advance_whirl_countdown(ticks, || {
+                rolls.set(rolls.get() + 1);
+                3
+            });
+            ticks = next;
+            plays.push(play);
+        }
+        assert_eq!(
+            plays,
+            [false, false, false, true, false, false, false, true]
+        );
+        // Randomness is drawn only when a new interval starts (ticks 1 and 5 of 8).
+        assert_eq!(rolls.get(), 2);
     }
 }
