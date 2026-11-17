@@ -895,6 +895,10 @@ impl Server {
         let mut event =
             crate::plugin::api::events::world::world_init::WorldInitEvent::new(world.clone());
         self.plugin_manager.fire_blocking(self, &mut event);
+        // Startup worlds fire both events, so a world created at runtime must too.
+        let mut load_event =
+            crate::plugin::api::events::world::world_load::WorldLoadEvent::new(world.clone());
+        self.plugin_manager.fire_blocking(self, &mut load_event);
         world
     }
 
