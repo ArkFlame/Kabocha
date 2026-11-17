@@ -9,7 +9,7 @@ issue	4582	Java 26.3 client disconnected ~3s after join: failed to decode client
 issue	4580	Mobs do not teleport inside of boats if near.	DONE	kab/i4580	3b5f099d3	
 issue	4579	failure to bind to assigned port	COMMITTED-UNLANDED	kab/i4579		
 issue	4560	Tracking: Items	SKIPPED			tracking umbrella, sampled sub-items already implemented: shears tripwire disarm `crates/pumpkin-core/src/block/blocks/redstone/tripwire.rs:95-99`, lodestone co
-issue	4559	Tracking: Blocks	COMMITTED-UNLANDED	kab/i4559		
+issue	4559	Tracking: Blocks	FAILED	kab/i4559		tracking issue listing 66 unchecked sub-items across 11 block families (beehive, beacon, vault, trial spawner, creaking heart, sculk family, ...), no single roo
 issue	4558	At an extremely long render distance (64 chunks), the server may stop sending da	DONE	kab/i4558	cc7c3cf85	
 issue	4550	When clicking on mob that has variants with spawn eggs, child is default variant	SKIPPED			already fixed: `spawn_egg.rs:398-410` now derives the egg baby via `animal.get_breed_offspring(entity)` (clicked mob as both parents), and `horse.rs:201-221` co
 issue	4547	Server never checks if the block rotation and position is possible from the play	DONE	kab/i4547	6a7175af0	
@@ -50,7 +50,7 @@ issue	4423	fix(entity): preserve pending knockback on player-controlled mounts	D
 issue	4422	Process fall distance and landing for client-controlled mounts	SKIPPED			already fixed: accepted vehicle moves call fall/landing once at `crates/pumpkin-core/src/net/java/play/move_vehicle.rs:99-101` (from 3b2809a19), and the client-
 issue	4421	Fix movement for Bedrock-controlled saddled mounts	DONE	kab/i4421	713dd0264	
 issue	4420	Fix wolf armor shearing advancement trigger	TODO	kab/i4420		
-issue	4411	tty hangs up after using 'stop' in "Starting save"	FAILED	kab/i4411		freeze is the unbounded `self.tasks.wait()` in crates/pumpkin-core/src/server/mod.rs:1039 reached right after "Starting save."; stop.rs now calls server.stop() 
+issue	4411	tty hangs up after using 'stop' in "Starting save"	DONE	kab/i4411	e3be3268a	
 issue	4406	Time is reset on server start	SKIPPED	kab/i4406		already fixed: startup loads time from level.dat (`crates/pumpkin-core/src/world/mod.rs:540` `level_time.load_from(info.day_time, info.game_time)`) and shutdown
 issue	4398	Advancements granted without conditions: effects_changed ignores conditions, loc	DONE		39fd553da	
 issue	4388	Bundle does not work as it should.	DONE	kab/i4388	97dce7445	
@@ -76,7 +76,7 @@ issue	4331	`PlayerSpawnLocationEvent` is not fired on join, so plugins cannot ch
 issue	4328	Server never checks if the block placment is blocked	SKIPPED	kab/i4328		exact gap already covered: `can_place_at` gate (crates/pumpkin-core/src/block/registry.rs:777) plus entity obstruction for mobs/players via `has_blocking_entity
 issue	4321	Bedrock block pick (middle click) is always ignored	DONE	kab/i4321	b67e6256b	
 issue	4320	Ghost totem	SKIPPED			death protection is implemented like vanilla: living.rs:3274 `check_totem_death_protection` (main hand first, consume, effects, status 35) called at :4472, `Dea
-issue	4317	Plugin `send-packet` drops `c-player-info-update`, so plugins cannot add tab lis	FAILED			requires pumpkin-codegen nested record (player/player-action) support plus regeneration of both wasm hosts via cargo, which this brief forbids
+issue	4317	Plugin `send-packet` drops `c-player-info-update`, so plugins cannot add tab lis	FAILED	kab/i4317		requires pumpkin-codegen nested record (player/player-action) support plus regeneration of both wasm hosts via cargo, which this brief forbids
 issue	4315	A plugin's per-player scoreboard objective reaches a joining client twice, which	DONE	kab/i4315	944cf53fa	
 issue	4314	Natural mob spawning fires no `CreatureSpawnEvent` (feature request)	DONE	kab/i4314	06301526a	
 issue	4313	`player.set-player-weather` has no effect	DONE	kab/i4313	32daaf126	
@@ -98,13 +98,13 @@ issue	4279	[TRACKER] Mob Vanilla Parity: Ender Dragon (Jean?)	SKIPPED			tracker 
 issue	4277	[TRACKER] Mob Vanilla Parity: Zolign	DONE	kab/i4277	a3fd124fd	
 issue	4275	[TRACKER] Mob Vanilla Parity: Wither Skeleton	DONE	kab/i4275	a4af6d37a	
 issue	4274	[TRACKER] Mob Vanilla Parity: Witch	DONE	kab/i4274	6a8ea06a6	
-issue	4273	[TRACKER] Mob Vanilla Parity: Warden	FAILED			87 unchecked tracker items (Warden brain AI, VibrationSystem listener, SonicBoom, path malus, darkness aura) vs existing 844-line partial impl at crates/pumpkin
+issue	4273	[TRACKER] Mob Vanilla Parity: Warden	DONE	kab/i4273	5df7eee0e	
 issue	4272	[TRACKER] Mob Vanilla Parity: Vindicator	DONE	kab/i4272	ca7eec503	
-issue	4271	[TRACKER] Mob Vanilla Parity: Vex	FAILED			whole-mob port (goals, move control, synced flag, NBT, evoker summon) spans multiple modules; omitted by design rather than shipping an incomplete fragment.
+issue	4271	[TRACKER] Mob Vanilla Parity: Vex	DONE	kab/i4271	961dbf07c	
 issue	4270	[TRACKER] Mob Vanilla Parity: Stray	DONE	kab/i4270	5a0ec80f3	
 issue	4269	[TRACKER] Mob Vanilla Parity: Silverfish	DONE		fb361086a	
 issue	4268	[TRACKER] Mob Vanilla Parity: Slime	DONE	kab/i4268	c2b5ebf15	
-issue	4267	[TRACKER] Mob Vanilla Parity: Skeleton	FAILED			tracker has no recorded gap and species port is incomplete (RestrictSun/FleeSun TODO at mob/skeleton/mod.rs:68); too large for one pass
+issue	4267	[TRACKER] Mob Vanilla Parity: Skeleton	FAILED	kab/i4267		tracker has no recorded gap and species port is incomplete (RestrictSun/FleeSun TODO at mob/skeleton/mod.rs:68); too large for one pass
 issue	4266	[TRACKER] Mob Vanilla Parity: Shulker	DONE	kab/i4266	f4a4582a7	
 issue	4265	[TRACKER] Mob Vanilla Parity: Ravager	DONE	kab/i4265	98db6d375	
 issue	4264	[TRACKER] Mob Vanilla Parity: Pillager	DONE		d752cc7ce	
@@ -115,11 +115,11 @@ issue	4259	[TRACKER] Mob Vanilla Parity: Hoglin	DONE		4aa373d5f
 issue	4257	[TRACKER] Mob Vanilla Parity: Guardian	DONE		2c654f4db	
 issue	4256	[TRACKER] Mob Vanilla Parity: Ghast	DONE	kab/i4256	09a37f22f	
 issue	4254	[TRACKER] Mob Vanilla Parity: Evoker	DONE	kab/i4254	6c0bf5f85	
-issue	4253	[TRACKER] Mob Vanilla Parity: Elder Guardian	FAILED			blocker: the tracker's core items (GuardianAttackGoal/beam, `DATA_ID_ATTACK_TARGET` synched data, elder 60-tick attack duration and +2.0 beam bonus) have no cou
+issue	4253	[TRACKER] Mob Vanilla Parity: Elder Guardian	DONE	kab/i4253	8b2b68762	
 issue	4252	[TRACKER] Mob Vanilla Parity: Creeper	DONE	kab/i4252	159cf5009	
 issue	4251	[TRACKER] Mob Vanilla Parity: Creaking	DONE	kab/i4251	6ab8fdae2	
 issue	4250	[TRACKER] Mob Vanilla Parity: Bogged	DONE	kab/i4250	34576d3e9	
-issue	4249	[TRACKER] Mob Vanilla Parity: Breeze	FAILED			Breeze is a 86-line stub (crates/pumpkin-core/src/entity/mob/breeze.rs) lacking the entire brain/AI, attributes, poses and trial-spawner wiring the tracker requ
+issue	4249	[TRACKER] Mob Vanilla Parity: Breeze	FAILED	kab/i4249		Breeze is a 86-line stub (crates/pumpkin-core/src/entity/mob/breeze.rs) lacking the entire brain/AI, attributes, poses and trial-spawner wiring the tracker requ
 issue	4247	Can't waterlog stairs or slabs	SKIPPED			bucket waterlogging of stairs/slabs already implemented at bucket.rs:413-427,446-486 by 2ce8c9e13 (#3969)
 issue	4246	[TRACKER] Mob Vanilla Parity: Blaze	DONE	kab/i4246	0079c360f	
 issue	4244	[TRACKER] Mob Vanilla Parity: Zombie Nautilus	SKIPPED			implementation already present (crates/pumpkin-core/src/entity/passive/zombie_nautilus.rs, 433 lines; registered crates/pumpkin-core/src/entity/type.rs:114; dro
@@ -128,52 +128,52 @@ issue	4241	[TRACKER] Mob Vanilla Parity: Spider	SKIPPED			all checklist behaviou
 issue	4239	[TRACKER] Mob Vanilla Parity: Polar Bear	SKIPPED			Already implemented: `crates/pumpkin-core/src/entity/passive/polar_bear.rs:108-260` (goals 0-7, melee warn/stand logic at :68-100, `DATA_STANDING_ID` synced at 
 issue	4238	[TRACKER] Mob Vanilla Parity: Piglin	FAILED	kab/i4238		Tracker spans ~80 independent parity items (registration, brain goals, bartering, zombification, sounds); Piglin is already substantially implemented at `crates
 issue	4237	[TRACKER] Mob Vanilla Parity: Panda	SKIPPED			already fixed by b93d53351 "feat(entity): vanilla parity for panda (#4482)" (panda.rs:206-905, panda/goals.rs, roll.rs, sneeze.rs, lie_on_back.rs, move_control.
-issue	4236	[TRACKER] Mob Vanilla Parity: Nautilus	COMMITTED-UNLANDED	kab/i4236		
+issue	4236	[TRACKER] Mob Vanilla Parity: Nautilus	FAILED	kab/i4236		Tracker spans a whole mob (AI brain, riding, taming/breeding, variants); the mob already exists and is wired (crates/pumpkin-core/src/entity/passive/nautilus.rs
 issue	4233	[TRACKER] Mob Vanilla Parity: Goat	DONE	kab/i4233	0949ce1d3	
 issue	4231	[TRACKER] Mob Vanilla Parity: Fox	SKIPPED			fox parity already merged as c26a9c8ed (#4093), code at crates/pumpkin-core/src/entity/passive/fox/{mod.rs,goals.rs}; tracker asks for runtime re-test, not a co
 issue	4230	[TRACKER] Mob Vanilla Parity: Drowned	DONE	kab/i4230	fe708a532	
 issue	4229	[TRACKER] Mob Vanilla Parity: Dolphin	DONE	kab/i4229	7463c912b	
 issue	4228	[TRACKER] Mob Vanilla Parity: Cave Spider	SKIPPED			all tracker checklist items already implemented, proof lines above
 issue	4227	[TRACKER] Mob Vanilla Parity: Bee	DONE	kab/i4227	44a260098	
-issue	4219	[TRACKER] Mob Vanilla Parity: Strider	COMMITTED-UNLANDED	kab/i4219		
+issue	4219	[TRACKER] Mob Vanilla Parity: Strider	DONE	kab/i4219	16192f9c3	
 issue	4217	[TRACKER] Mob Vanilla Parity: Snow Golem	SKIPPED			full golem parity already landed in 9984798bd (#4578); code matches every tracker item.
 issue	4216	[TRACKER] Mob Vanilla Parity: Sniffer	SKIPPED			already implemented in master — full vanilla sniffer is present at Pivot `crates/pumpkin-core/src/entity/passive/sniffer.rs` (SnifferState machine Idling/Sniffi
 issue	4209	[TRACKER] Mob Vanilla Parity: Ocelot	DONE	kab/i4209	c6f7b548c	
-issue	4207	[TRACKER] Mob Vanilla Parity: Mooshroom	FAILED	kab/i4207		all four remaining tracker gaps are blocked elsewhere or too large: EFFECT x4 particle needs `SpellParticleOption` protocol payload (`ParticleOptions` has only 
-issue	4206	[TRACKER] Mob Vanilla Parity: Happy Ghast	FAILED			tracker covers an entire mob (AI goals, riding/passengers, harness equip, baby brain); current happy_ghast.rs is a partial stub, too large for one pass
+issue	4207	[TRACKER] Mob Vanilla Parity: Mooshroom	DONE	kab/i4207	75be3a29b	
+issue	4206	[TRACKER] Mob Vanilla Parity: Happy Ghast	DONE	kab/i4206	911c96bcd	
 issue	4201	[TRACKER] Mob Vanilla Parity: Copper Golem	DONE	kab/i4201	95b40037c	
 issue	4197	Entities that pass through nether portals don't appears at the other side	DONE	kab/i4197	8542efc28	
 issue	4194	Can't turn off a nether portal with water	DONE		4f629731c	
 issue	4192	[TRACKER] Mob Vanilla Parity: Axolotl	SKIPPED			tracker already implemented in axolotl.rs:474-615 + entity_type.rs:743 (hitbox/eye/tracking/baby dims), buckets at bucket.rs:48; checkboxes stale, no fix needed
-issue	4191	[TRACKER] Mob Vanilla Parity: Armadillo	FAILED			tracker spans Brain AI (ARMADILLO_SCARE_DETECTED sensor, ArmadilloBallUp/PANIC activity, roll-up-on-hurt); `roll_up()` at crates/pumpkin-core/src/entity/passive
+issue	4191	[TRACKER] Mob Vanilla Parity: Armadillo	DONE	kab/i4191	028a92646	
 issue	4188	[TRACKER] Mob Vanilla Parity: Pig	DONE	kab/i4188	7692f70d0	
 issue	4187	Ender pearl don't works when you try to interract with a block with it	DONE	kab/i4187	5ed6d94a2	
-issue	4185	[TRACKER] Vanilla Parity: Mobs	COMMITTED-UNLANDED	kab/i4185		
+issue	4185	[TRACKER] Vanilla Parity: Mobs	FAILED	kab/i4185		meta-tracker with 88 child mob issues (61 unchecked) and no single root cause; per-mob parity work spans many files/weeks, exceeds one pass.
 issue	4178	Campfire dupes food	COMMITTED-UNLANDED	kab/i4178		
 issue	4177	`world.get-id` returns the same id for the overworld, the Nether and the End	DONE	kab/i4177	9aab009ea	
 issue	4176	First chunk generation in the Nether can deadlock its whole generation pool (str	DONE		d07b5dfcb	
 issue	4169	Disconnecting with the player inventory open loses the cursor item and 2x2 craft	DONE	kab/i4169	89a79191b	
 issue	4168	Some squares re-appear "is under spawn protection"	DONE	kab/i4168	33b182ade	
 issue	4166	Generate WIT types and Rust conversions for packets and events from one model	DONE	kab/i4166	d0ce3602f	
-issue	4156	Plugin callback during `pump_blocking` can deadlock the whole server	TODO			
+issue	4156	Plugin callback during `pump_blocking` can deadlock the whole server	TODO	kab/i4156		
 issue	4154	`player.play-sound` / `play-sound-at` derive the wrong sound name and trap the p	DONE	kab/i4154	746d4e641	
 issue	4148	Offline-mode UUIDs differ from vanilla	SKIPPED			already fixed: `offline_uuid` uses MD5 of "OfflinePlayer:<name>" via `Builder::from_md5_bytes` (net/mod.rs:74-75) with vanilla-value test at net/mod.rs:654-663,
 issue	4147	Permission confirmation blocks plugin loading without a console	SKIPPED	kab/i4147		already fixed: non-interactive console path warns and denies in crates/pumpkin-core/src/plugin/mod.rs:1260-1265, and docs already use `fs.read.data` (crates/pum
 issue	4146	No way to resend a player's command tree	DONE	kab/i4146	e42ec3297	
-issue	4145	Host calls inside a blocking join handler can hang the join	FAILED			hang is nested WASM reentry: `has_permission` host fn (crates/pumpkin-wasm-host-v0_1/src/player.rs:2893) fires PlayerPermissionCheckEvent from a `pump_blocking`
+issue	4145	Host calls inside a blocking join handler can hang the join	DONE		1bb33cef8	
 issue	4144	`game-profile` command arguments arrive as empty strings	SKIPPED	kab/i4144		already fixed by #4150: crates/pumpkin-wasm-host-common/src/args.rs:115-118,178-190 maps name/UUID/selector; empty branch at v0_1/mod.rs:217 is unreachable (Own
 issue	4143	Names come with or without the `minecraft:` namespace depending on the event	DONE		b10e70339	
 issue	4142	`inventory-open` event has no container position	DONE	kab/i4142	db3b0147d	
 issue	4141	Explosion events: no affected block list, and one TNT fires two events	DONE	kab/i4141	5c7a9eb27	
 issue	4140	Block, explosion and piston events carry no world	COMMITTED-UNLANDED	kab/i4140		
-issue	4139	`world.set-block-entity-nbt` has no effect on loaded block entities	TODO	kab/i4139		
+issue	4139	`world.set-block-entity-nbt` has no effect on loaded block entities	SKIPPED	kab/i4139		already fixed: crates/pumpkin-wasm-host-v0_1/src/world.rs:1193 replaces the live block entity (v0_2 :1471-1482 same); commit 58a4c2c6f (#4161) is an ancestor of
 issue	4138	Bucket events fire after the world changed; cancelling does not undo it	SKIPPED			already fixed by 10682df47 (#4152): bucket.rs:281-328/391-450 fire PlayerBucketFill/Empty before mutation via a can_place/can_pickup predicate with the changed 
 issue	4137	Event priorities are ignored	SKIPPED			handlers are inserted by priority via `insert_handler` partition_point (crates/pumpkin-core/src/plugin/mod.rs:227) and covered by test `handlers_run_by_priority
 issue	4136	Typing a plugin command with server-side suggestions into the console crashes th	DONE	kab/i4136	86ae549ae	
 issue	4135	Evokers do not drop totems	SKIPPED			evoker totem already wired: unconditional totem pool crates/pumpkin-data/src/generated/loot_table.rs:55509-55521, all pools rolled in crates/pumpkin-core/src/wo
 issue	4130	Several issues	FAILED			Bedrock Edition report bundling 5 unrelated inventory-sync symptoms with no deterministic repro; needs a Bedrock client runtime repro and per-symptom investigat
 issue	4128	Jukebox music disc duplication	SKIPPED			clear-before-spawn eject + decremented held-stack sync already match vanilla (jukebox.rs:46-66, entities/jukebox.rs:249-260, use_item_on.rs:337-338)
-issue	4127	Low RAM usage but High CPU usage	FAILED			no repro/profile data; maintainer suspects musl build, upstream asks for glibc retest, so it needs runtime profiling not code
+issue	4127	Low RAM usage but High CPU usage	FAILED	kab/i4127		no repro/profile data; maintainer suspects musl build, upstream asks for glibc retest, so it needs runtime profiling not code
 issue	4126	Dolphins have several issues relating to their behavior.	SKIPPED			all three behaviours already present: swimming/jump/play goals crates/pumpkin-core/src/entity/passive/dolphin/goals.rs:60,67,70; dry-out damage crates/pumpkin-c
 issue	4124	Villages do not appear to spawn villagers or iron golems	SKIPPED			Vanilla path is already implemented and matches: village jigsaws attach (can_attach mirrors vanilla, `structure/structures/jigsaw_placement.rs:828-839`, village
 issue	4123	Server does not appear to send the packet for the animation when a warden hits y	SKIPPED			warden already broadcasts the attack animation: crates/pumpkin-core/src/entity/mob/warden.rs:367-370 sends EntityStatus::StartAttacking (=4, pumpkin-data/src/ge
@@ -211,8 +211,8 @@ issue	3899	Flying in creative while flying with a elytra you move strangly	DONE	
 issue	3888	Taking damage/getting killed while sleeping doesn't wake the player up	SKIPPED			already fixed by fad16fdd0 "wake sleeping players before applying damage (#3904)": crates/pumpkin-core/src/entity/living.rs:4151-4155 calls `player.wake_up()` a
 issue	3879	Floating snow in Snowy Taiga village	FAILED	kab/i3879		needs runtime repro with the reported seed; no confirmed code defect in the snow/village generation path (freeze-top-layer already vanilla-aligned, structure-be
 issue	3867	Tracking: GameTest framework issues	DONE	kab/i3867	093fd952b	
-issue	3858	Indiscriminate use of `tokio::sync` throughout the codebase	FAILED			repo-wide refactor request with no single target: 108 `tokio::sync` uses across 20+ files in 5 crates (`crates/pumpkin-core/src/net/java/outgoing.rs` alone has 
-issue	3855	Breaking block below snow carpet bugs out in random ways	FAILED			four distinct runtime/client symptoms (block not removed, random loot item, creative drops, shovel re-appear); needs snow-biome world + client repro to isolate,
+issue	3858	Indiscriminate use of `tokio::sync` throughout the codebase	DONE	kab/i3858	fc316f423	
+issue	3855	Breaking block below snow carpet bugs out in random ways	DONE	kab/i3855	4fb2d0478	
 issue	3847	dupe with chiseled bookshelfs	DONE	kab/i3847	938f285bb	
 issue	3844	Crossbow Loading results in client kick	TODO	kab/i3844		
 issue	3841	Plugin API: Mutable (bedrock) resource pack configuration	FAILED	kab/i3841		gap real (crates/pumpkin-config/src/resource_pack.rs:7-40 config is plain immutable data; both consumers read `&server.advanced_config.resource_pack.{java,bedro
@@ -237,15 +237,15 @@ issue	3758	/execute store rejects valid vanilla commands	SKIPPED			already fixed
 issue	3742	Villagers move while sleeping	DONE		0d07e7730	
 issue	3738	Bedrock 1.26.51 cannot join via NetherNet – TLS ClientHello receives plaintext H	FAILED			root cause endpoint.rs:110 serves 19132 plain HTTP; fix requires NetherNet TLS termination + cert/dep changes, unverifiable without a Bedrock client
 issue	3737	Breaking Block Sound only plays shortly after starting to break a block	DONE	kab/i3737	b353ed5d7	
-issue	3735	I would like to be able to support more Bedrock versions of Java in parallel, in	FAILED	kab/i3735		`crates/pumpkin-data/src/generated/packet.rs:3-5` hardcodes `CURRENT_MC_VERSION = LOWEST_SUPPORTED_MC_VERSION = V_26_3` and every codec path uses that const; pa
-issue	3734	Plugin API: per-player entity visibility (show/hide entity, visible-by-default) 	FAILED	kab/i3734		gap is real (only `player-hide-entity`/`player-show-entity` events at crates/pumpkin-plugin-wit/v0.1/event.wit:1048, no `hide-entity`/`set-visible-by-default`/`
+issue	3735	I would like to be able to support more Bedrock versions of Java in parallel, in	FAILED			`crates/pumpkin-data/src/generated/packet.rs:3-5` hardcodes `CURRENT_MC_VERSION = LOWEST_SUPPORTED_MC_VERSION = V_26_3` and every codec path uses that const; pa
+issue	3734	Plugin API: per-player entity visibility (show/hide entity, visible-by-default) 	COMMITTED-UNLANDED	kab/i3734		
 issue	3712	PumpkinMC does not generate some structures correctly	FAILED			floating ruined portal at seed 1788432585647225554 / 27 97 -274 is a worldgen parity artifact needing a runtime repro against vanilla; the placement path (crate
 issue	3702	TypeScript Wasm plugin fails after registering a command during `on-load`	DONE	kab/i3702	8da3e5c97	
 issue	3701	Building a plugin with pumpkin-plugin-utils' init fails	FAILED	kab/i3701		Root cause: `crates/pumpkin-plugin-utils/Cargo.toml:24` enables `reqwest` unconditionally, and reqwest 0.13.5 only special-cases `wasm32-unknown/none` — on `was
 issue	3690	End crystals damage, knockback and placement are not working as the intended way	SKIPPED			already fixed by 3a75722b3 "fix: correct end crystal combat behavior (#3694)", ancestor of HEAD: placement entity check at crates/pumpkin-core/src/item/items/en
 issue	3688	WIT: player-action-add-player.properties reuses attribute-shaped property struct	DONE	kab/i3688	fc1084ee6	
 issue	3672	Falling blocks don't slow with cobwebs	SKIPPED			cobweb slowdown path (cobweb.rs:20 → mod.rs:6185/3369 → falling.rs:68-72) is implemented and velocity overwrite removed by 5feb68ef2; runtime repro required to 
-issue	3659	Fire may stay floating mid air after burning down a tree/forest	FAILED			floating fire needs runtime repro: unsupported fire is already removed both on tick (`crates/pumpkin-core/src/block/blocks/fire/fire.rs:242-255`) and on neighbo
+issue	3659	Fire may stay floating mid air after burning down a tree/forest	FAILED	kab/i3659		floating fire needs runtime repro: unsupported fire is already removed both on tick (`crates/pumpkin-core/src/block/blocks/fire/fire.rs:242-255`) and on neighbo
 issue	3646	Chiseled bookshelf book changes emit no block-change game event	SKIPPED			already fixed by 49d36ca65 (#3658), present in HEAD: `crates/pumpkin-core/src/block/blocks/chiseled_bookshelf.rs:155` (add) and `:183` (remove) call `world.emit
 issue	3631	Bells never resonate or reveal nearby raiders	DONE	kab/i3631	0358946df	
 issue	3628	Add support for arm/v7	FAILED			builds only X64/X64-v3/ARM64 (`.github/workflows/release.yml:27-45`) and Docker rejects non-amd64/arm64 (`Dockerfile:28`); arm/v7 needs a new cross-compile targ
@@ -277,7 +277,7 @@ issue	3514	Uncharged respawn anchors explode outside the Nether	SKIPPED			alread
 issue	3512	Older periodic player snapshots can overwrite newer disconnect saves	SKIPPED			generation-based stale-write guard already present at HEAD; gh issue body returned empty so scope was taken from title + code
 issue	3511	Player data saves truncate the last good file before the new write succeeds	SKIPPED			already fixed by f67773e11: `save_player_data` now writes to `<uuid>.dat.tmp.<pid>.<n>` via `write_atomically` (`crates/pumpkin-world/src/data/player_data.rs:14
 issue	3489	Arrows dont hurt	FAILED	kab/i3489		blocker: symptom is arrows frozen in air (projectile motion/tick needs runtime observation); damage path is present and correct in code (crates/pumpkin-core/src
-issue	3487	Cant Connect on Bedrock	IN-PROGRESS	kab/i3487		
+issue	3487	Cant Connect on Bedrock	FAILED	kab/i3487		Bedrock support absent from tree (no raknet/bedrock crate under crates/), issue is a client-connect/config report needing runtime repro; skipped nothing beyond 
 issue	3468	Tracking: Mob AI	TODO			
 issue	3464	Pressing against a mob after taking knockback launches the player upwards (serve	SKIPPED			already fixed: `push_by` only sets `velocity_dirty` (crates/pumpkin-core/src/entity/mod.rs:3047-3053) and the player velocity flush sends that motion to watcher
 issue	3456	Implement the minecraft:copy_components loot function (block entity data is lost	FAILED	kab/i3456		`copy_components` is entirely absent: `LootFunctionKind` (crates/pumpkin-util/src/loot_table.rs:99-116) has no such variant, parser (crates/pumpkin-util/src/loo
@@ -293,7 +293,7 @@ issue	3388	Arrows have glitchy particles	SKIPPED			server-side critical arrow pa
 issue	3385	Entities persist after leaving simulation distance causing them to become invali	DONE	kab/i3385	aae9c7dbe	
 issue	3382	Attacking ender dragon disconnected me	DONE	kab/i3382	b83b7a585	
 issue	3376	Mobs do not aggro on player, and only sometimes do when attacked with weapon	FAILED	kab/i3376		targeting path grepped end-to-end (`active_target.rs`, `target_predicate.rs`, `track_target.rs`, `hunting.rs`, player gamemode/abilities gates) and every gate m
-issue	3368	Items floating in water for an extended amount of time can't be picked up	FAILED			needs runtime/client repro (5-min water float, ghost vs unindexed item undecidable statically); removal broadcast and pickup paths already correct
+issue	3368	Items floating in water for an extended amount of time can't be picked up	FAILED	kab/i3368		needs runtime/client repro (5-min water float, ghost vs unindexed item undecidable statically); removal broadcast and pickup paths already correct
 issue	3367	game_rules/weather/wandering_trader read from root only, Paper-Purpur worlds sil	DONE	kab/i3367	773610986	
 issue	3340	Problems with the proxy server	SKIPPED			already fixed at connection_cache.rs:211 (advertises CURRENT_MC_VERSION 776 for generic probes) since commit 70c39335f; no change needed
 issue	3276	Datapack load functions execute during reload while game ticks are frozen	DONE	kab/i3276	7afde19da	
@@ -301,7 +301,7 @@ issue	3246	GUI dashboard	FAILED	kab/i3246		no GUI/dashboard code exists (grep `d
 issue	3239	Lava and water interaction	DONE	kab/i3239	f90d43542	
 issue	3166	Soulspeed does not work	DONE	kab/i3166	1a1d81a87	
 issue	3163	Plugin API: get-command-sender-type and require-with-handler-id are stubs that t	DONE	kab/i3163	653443ca4	
-issue	3144	Extended piston client desync	FAILED			needs in-game vanilla-client repro: inspected `piston_head.rs:39-72` (helper removes base with `NOTIFY_ALL`) and the `set_block_state`/`send_block_updated`/`upd
+issue	3144	Extended piston client desync	FAILED	kab/i3144		needs in-game vanilla-client repro: inspected `piston_head.rs:39-72` (helper removes base with `NOTIFY_ALL`) and the `set_block_state`/`send_block_updated`/`upd
 issue	3143	Free affect's - Switch Exploit.	DONE	kab/i3143	20ea4026a	
 issue	3133	Lever: on_state_replaced ignores the piston `moved` flag, and normal_use returns	SKIPPED			already fixed: lever.rs:62-69 guards `on_state_replaced` with `if !args.moved`, and lever.rs:39-41 `normal_use` returns `BlockActionResult::Success`; nothing ch
 issue	3126	Trees Got Clipped at Chunk Border	FAILED			tree writes already cross-chunk correctly; clipping needs in-game worldgen repro to identify the dropping path, out of scope for one pass
@@ -311,8 +311,8 @@ issue	3114	Sulfur Cube mobs do not have AI	SKIPPED			Sulfur cube AI already impl
 issue	3108	Player disconnects when picking up any painting into the inventory.	COMMITTED-UNLANDED	kab/i3108		
 issue	3107	Sculk Shrieker doesnt activate	FAILED	kab/i3107		Requires new block-entity vibration-listener feature, not a one-pass fix: `SculkSensorBlock::trigger` (crates/pumpkin-core/src/block/blocks/redstone/sculk_senso
 issue	3105	Observers doesnt work	DONE	kab/i3105	f155d9be1	
-issue	3103	Cant place paintings or itemframes	COMMITTED-UNLANDED	kab/i3103		
-issue	3100	Swamp huts dont generate	COMMITTED-UNLANDED	kab/i3100		
+issue	3103	Cant place paintings or itemframes	FAILED	kab/i3103		issue reports a client-side protocol error while placing, no error text/log in the report and its own comment links #3108 (painting pickup/inventory path) - roo
+issue	3100	Swamp huts dont generate	DONE	kab/i3100	fada81637	
 issue	3099	Magma blocks generated in the terrain dont produce bubbles underwater.	DONE	kab/i3099	2ea5d1cbb	
 issue	3098	Village paths are not generating correctly.	SKIPPED			terrain-matching jigsaw fixes #4158/#4037 already in HEAD; issue is screenshot-only, no seed, needs runtime repro
 issue	3096	Tracking: API	FAILED			tracking issue with 23 unchecked API items (complex/merchant/potion/smithing/stonecutting recipes, GAME_EVENT, TRIM_*, variants); not a single fix, exceeds one 
@@ -325,47 +325,47 @@ issue	3071	Minecarts not going uphill	DONE	kab/i3071	e7da968c4
 issue	3069	Trident Drowned Only Attack in Melee Range	SKIPPED			trident-ranged behaviour already present: goal registered at priority 2 (`crates/pumpkin-core/src/entity/mob/zombie/drowned.rs:110-115`), `perform_ranged_attack
 issue	3068	Boats cannot be broken by hand	FAILED	kab/i3068		no defect found: bare-hand attacks do route to `Player::attack` (net/java/play/attack.rs:31) and BoatEntity forwards to the shared vehicle damage path that dest
 issue	3065	Eyeblossom state changes send malformed Trail particle data and disconnect 26.2 	SKIPPED			already fixed by #3079; Trail payload now target+color+duration, nothing changed
-issue	3064	take damages when you get closer to a block	FAILED			Bedrock-client desync repro required; net/bedrock layer applies no damage, needs live Bedrock 26.44 client to identify which damage source fires
+issue	3064	take damages when you get closer to a block	COMMITTED-UNLANDED	kab/i3064		
 issue	3062	Sweeping attack effect appears in the wrong position	SKIPPED			already fixed in HEAD: `crates/pumpkin-core/src/entity/combat.rs:221-222` now uses `attacker_entity.pos.load()` and `crates/pumpkin-core/src/entity/player.rs:19
 issue	3061	Incorrect boat placement. Boats do not drop boat item after breaking.	SKIPPED			already fixed: boat item drop added 2026-11-15 in `crates/pumpkin-core/src/entity/vehicle/boat.rs:267-276` (row `world.drop_stack(&position, stack)` lands via `
-issue	3060	Mushrooms break unexpectedly	IN-PROGRESS	kab/i3060		
+issue	3060	Mushrooms break unexpectedly	COMMITTED-UNLANDED	kab/i3060		
 issue	3053	Spectator mode interactions	SKIPPED			already fixed: pressure plate and tripwire exclude spectators at `crates/pumpkin-core/src/block/blocks/redstone/pressure_plate/mod.rs:35,plate.rs:96,weighted.rs
-issue	3051	Fishing rod is broken	FAILED	kab/i3051		client dumps show malformed clientbound set_entity_data for FishingHook (field 0 Byte vs Boolean, plus invalid NBT tag -1); root cause is a metadata component s
-issue	3049	Windows Defender	FAILED	kab/i3049		requires Authenticode code signing certificate/publisher identity (external infra), no code change possible in one pass
+issue	3051	Fishing rod is broken	COMMITTED-UNLANDED	kab/i3051		
+issue	3049	Windows Defender	FAILED			requires Authenticode code signing certificate/publisher identity (external infra), no code change possible in one pass
 issue	3040	Seagrass floating on-top of water ravines	FAILED	kab/i3040		root cause not statically determinable: carvers provably run before features per stage deps and masks are chunk-local, so a runtime ocean+ravine sample is neede
 issue	3020	Campfire block cannot cook and cannot be extinguished by potion	DONE	kab/i3020	160be0bc2	
 issue	3005	Stronghold ring placement samples biomes from the triggering chunk	SKIPPED			already fixed: `search_ring` samples the world-space multi-noise router via `MultiNoiseBiomeSupplier::OVERWORLD.biome(noise_x, 0, noise_z, &mut sampler)` at `cr
 issue	3004	Server logs interpolation	SKIPPED			already fixed by e49a41474 (#3337): unknown-command argument is supplied and interpolated, proven by the passing expectation at crates/pumpkin-command/src/node/
 issue	3002	Bell animation missing	DONE	kab/i3002	854207884	
 issue	2981	Player not kicked on server stop	DONE	kab/i2981	f1bb161f2	
-issue	2976	Bug: Furnace Interaction Restores Tool Durability in Survival Mode	FAILED			root cause not statically reachable; all container-open/ItemStack/serializer paths preserve the Damage component, so reproducing needs a live client to tell ser
+issue	2976	Bug: Furnace Interaction Restores Tool Durability in Survival Mode	FAILED	kab/i2976		root cause not statically reachable; all container-open/ItemStack/serializer paths preserve the Damage component, so reproducing needs a live client to tell ser
 issue	2901	Advancements show up in unparsed form	DONE	kab/i2901	95daa20a0	
-issue	2885	Incorrect Glow Lichen generation (full blocks and surface level)	FAILED	kab/i2885		unreproducible in one pass: no seed/coords in the report, symptom needs generated-world visual check; current tree already gates glow_lichen with `SurfaceRelati
+issue	2885	Incorrect Glow Lichen generation (full blocks and surface level)	DONE	kab/i2885	b71dffa72	
 issue	2883	set-max-health allows values below 1	DONE	kab/i2883	dc7e0b0e6	
 issue	2879	Mineshaft has too many fences	FAILED	kab/i2879		visual worldgen parity report; fences only come from `place_support` (mineshaft.rs:1086-1089, 2 blocks `y0..y1-1` per side) and `fill_pillar_down_or_chain_up` (
 issue	2877	Trail ruins generate with only suspicious gravel	FAILED	kab/i2877		: worldgen parity bug needs a seeded runtime world repro (generate ruin at seed 1786974970787779124 and inspect), which is out of scope here; archaeology path i
 issue	2872	Enderman floating and walking in mid-air	SKIPPED			same mid-air symptom already fixed in this tree: commit c01ddb7b6 "fix(enderman): synchronize teleport landing (#2522)" is an ancestor of HEAD and enderman tele
 issue	2871	Banned Player Join Event	DONE	kab/i2871	d2c5d8fc3	
-issue	2861	Build fails with rustc SIGSEGV while compiling cranelift-codegen	FAILED			rustc crashes while building third-party cranelift-codegen pulled in by wasmtime (Cargo.toml:271); hardware/toolchain issue, no in-repo fix, no runtime repro av
+issue	2861	Build fails with rustc SIGSEGV while compiling cranelift-codegen	COMMITTED-UNLANDED	kab/i2861		
 issue	2854	Numa Awareness	FAILED			perf/NUMA architecture request needing perf profiling on a 72-core host and pool-placement redesign; no NUMA code exists to repair
 issue	2827	Crash related to Storage blocks	SKIPPED			all 7 crash logs show the same root cause (tokio `RwLock::write` via `block_on` inside `from_nbt`, called from `World::tick` on a `tokio-rt-worker`); current co
 issue	2810	Plugin API: world-editing follow-ups for WorldEdit-style plugins	DONE		bc213c97d	
 issue	2781	Birch tress generating next to each other	FAILED	kab/i2781		needs a runtime/world sample: issue has no seed or coordinates (comments only ask for them), and the tree placement path already matches vanilla data (`TreesBir
 issue	2741	Lock issue with high player count - concurrent command run	SKIPPED			crash was `pumpkin-inventory/src/slot.rs:118` "Timed out while trying to acquire lock" from the pre-refactor per-slot `Arc<Mutex<ItemStack>>` timed lock, remove
-issue	2699	Redstone state updates are lost / desynced when activated	FAILED	kab/i2699		desync needs live client repro; no droppable update queue exists (world/mod.rs:2150-2179, server/mod.rs:1465) and wire flow matches vanilla (redstone_wire.rs:28
+issue	2699	Redstone state updates are lost / desynced when activated	COMMITTED-UNLANDED	kab/i2699		
 issue	2632	Add mutable enchanting-table events to the plugin API	DONE	kab/i2632	f95115400	
 issue	2626	Chunk writer drops block_entities, structures and PostProcessing when saving a v	DONE	kab/i2626	4bf8dd3e5	
 issue	2601	Redstone is freaking out	FAILED			Observer logic already matches vanilla (observer.rs:25-47 tick/power cycle, 49-65 updateShape scheduling, 71-82 power emission); the report ("redstone stopped u
 issue	2600	Spectator Mode / 2 Accounts	SKIPPED			already fixed: `broadcast_to_player` at `crates/pumpkin-core/src/world/entity_tracker.rs:423-429` only tracks a spectator target for spectator viewers (non-spec
-issue	2592	execute if block ignores its predicate; blockstate args, forceload and CLightUpd	FAILED			remaining repros (forceload generation/persistence, runtime CLightUpdate) need live-server/client repro and exceed one pass; `execute if block` predicate and bl
+issue	2592	execute if block ignores its predicate; blockstate args, forceload and CLightUpd	FAILED	kab/i2592		remaining repros (forceload generation/persistence, runtime CLightUpdate) need live-server/client repro and exceed one pass; `execute if block` predicate and bl
 issue	2573	Saturation effect tweaking	DONE	kab/i2573	10b01fba8	
-issue	2552	Server crashes when testing	FAILED			root cause is a chunk-system DAG node/dependency leak proving debug_check() at schedule.rs:1703/1813; needs runtime chunk-churn repro to isolate, and the only s
+issue	2552	Server crashes when testing	COMMITTED-UNLANDED	kab/i2552		
 issue	2520	/Effect command desynchronizing, When Leaving / Joining	DONE	kab/i2520	60fdcd0bc	
 issue	2516	Add functionality to resolve file-based secrets for Velocity configuration. (Exa	DONE	kab/i2516	b6b2497b9	
 issue	2501	Structures are generated incorrectly	FAILED	kab/i2501		Multi-symptom worldgen report (blacksmith spacing, invisible blocks/chests, nether fence facing, unreachable end portals) with no seed/version/repro; needs runt
 issue	2478	Proposal: Adopt AGPLv3 for future contributions	FAILED	kab/i2478		licensing/governance proposal (labels documentation, question) needs a maintainer + copyright-holder/legal decision on relicensing (AGPLv3 vs GPLv3 split, DCO/C
 issue	2466	Something wrong in the nether	SKIPPED			already fixed by 32035e824 (#3271): per-tree biome leaf cache, dimension supplier for monument check, empty-range guards in Uniform/VeryBiasedToBottom providers
-issue	2427	Lighting not updating properly	FAILED			needs client/runtime repro plus the reporter's 1.13 world sample; no reproducible server-side gap identified (light engine present at crates/pumpkin-world/src/l
+issue	2427	Lighting not updating properly	DONE	kab/i2427	308ba4f78	
 issue	2370	Bedrock Connection Issues	SKIPPED			already fixed; Java tab entry + spawn broadcast at world/mod.rs:3830-3860, name at bedrock/login/login.rs:82-98, chat at bedrock/play/chat_message.rs:15-49
 issue	2362	Incorrect terrain generation in the Jungle	FAILED	kab/i2362		seed-specific worldgen diff (terrain noise + jungle/cactus feature placement) needs runtime generation vs vanilla repro, no code pointer to a single-pass fix
 issue	2359	a few bugs i found	SKIPPED			sheep wool death drop already implemented: nested color tables + components/type_specific predicates at crates/pumpkin-core/src/world/loot/predicates.rs:206 & 2
@@ -377,7 +377,7 @@ issue	2220	Ender Dragon collision bug	DONE	kab/i2220	9ca0c2c3a
 issue	2211	Block IDs table for plugin developers	SKIPPED			block tag/grouping API for plugin devs already exists: WIT `crates/pumpkin-plugin-wit/v0.2/world.wit:1280-1291` (is-block-in-tag, get-blocks-in-tag, get-block-i
 issue	2194	mobs can walk in air/ground	COMMITTED-UNLANDED	kab/i2194		
 issue	2174	I see SNK wall	FAILED	kab/i2174		pure worldgen screenshot report (no seed/coords); pinpointing interpolation vs surface-rule vs aquifer needs a running server + vanilla diff, not a static fix
-issue	2162	Drowned Zombie burn in water when jumping	FAILED			needs runtime observation of drowned jumping/burning and no vanilla source in .vendor to confirm goal/water-protection parity; burn path already gated by touchi
+issue	2162	Drowned Zombie burn in water when jumping	FAILED	kab/i2162		needs runtime observation of drowned jumping/burning and no vanilla source in .vendor to confirm goal/water-protection parity; burn path already gated by touchi
 issue	2151	Visible clear-cut biome borders directly at chunk boundaries in Badlands/mesa bi	SKIPPED			biome map is sampled per 4-block quart with vanilla fuzzy blending (proto_chunk.rs:1035-1095, biome.rs:8-95, surface/mod.rs:258-292); no per-chunk quantization 
 issue	2104	Player floating and stuck in swim state(WARN: Terible english)	SKIPPED			requires live Android Bedrock client repro (visual floating/screenshot); `update_swimming` (player.rs:2700) and `update_player_pose` (player.rs:2769) already ma
 issue	2098	Feat: dynamic storage types	TODO	kab/i2098		
@@ -389,29 +389,29 @@ issue	2056	WASM Plugin re-entry/concurrency issue	SKIPPED			re-entry gap already
 issue	2027	Weird terrain generation, random blocks generating in the middle of grass and un	FAILED	kab/i2027		screenshots-only report with no seed/world/version; cannot reproduce, and the three suspect paths match vanilla (crates/pumpkin-world/src/generation/height_prov
 issue	1960	Blazes can't fly	SKIPPED			already fixed: vanilla Blaze gravity damping is in `crates/pumpkin-core/src/entity/mob/blaze.rs:130-136` (mob_tick, matching vanilla `aiStep` `multiply(1, 0.6, 
 issue	1949	Worldgen: Incorrect ore/stone generation	FAILED	kab/i1949		ore/scattered_ore features verified faithful to vanilla (ore.rs:35-204, scattered_ore.rs:29-56); defect lies in surface/stone layering vs Features stage, needs 
-issue	1922	player bugs	FAILED			unsplit 4-bug report, body truncated in capture and the only named item (auto-jump wall-climbing) was explicitly not reproducible by a maintainer without video/
+issue	1922	player bugs	DONE	kab/i1922	aa107766f	
 issue	1871	cannot place Scaffolding like usual	DONE	kab/i1871	f963bd1bc	
 issue	1800	attemping to attack an invalid entity	DONE		4e607d9ff	
-issue	1781	Bot Connection Issue - Compression Protocol Incompatibility with mineflayer	IN-PROGRESS	kab/i1781		
+issue	1781	Bot Connection Issue - Compression Protocol Incompatibility with mineflayer	FAILED	kab/i1781		same hard blocker, no commit possible
 issue	1726	Tracking: Translations	FAILED	kab/i1726		issue is an open multi-item tracking tracker (server locale, log translations, public translation system/Crowdin, command-description translations, plugin-API c
-issue	1679	Players in boats don't move	FAILED			needs full vanilla AbstractBoat physics port + client repro; boat tick (boat.rs:208) reads no driver input, only paddle metadata (paddle_boat.rs:5)
+issue	1679	Players in boats don't move	DONE	kab/i1679	482b3d5f8	
 issue	1674	When spawning water based animals on land. The water based animals will not suff	SKIPPED			already fixed on master: water_animal.rs:17-39 drains air and applies drown damage, wired via squid.rs:317 and abstract_fish.rs:299 plus existing test water_ani
 issue	1583	Dying in the Nether without setting a spawnpoint, respawns on top of nether roof	SKIPPED			Already fixed in HEAD by f2d25e154: respawn fallback now uses the overworld's spawn (crates/pumpkin-core/src/world/mod.rs:4737-4740,4787-4797) instead of `self.
 issue	1564	Flying machines bring unpredictable behavior	DONE	kab/i1564	22e97925a	
 issue	1555	Memory leak when loading void chunks	FAILED	kab/i1555		memory leak only reproduces with an imported vanilla void world (region files) plus RSS/heap profiling; one pass over the code found no void-specific retention 
 issue	1552	Riptide Tridents inconsistently work while it's raining	SKIPPED			durability already implemented (`crates/pumpkin-core/src/item/items/trident.rs:239`, landed in ee7d1166a 2026-11-14, after the report) and the rain gate (`tride
 issue	1551	Elytra State & Using Fireworks with (and without) one equipped.	DONE	kab/i1551	8978beaa1	
-issue	1482	Tracking: Codebase Docs	FAILED	kab/i1482		tracking epic, 8 crates still have zero crate-level docs (pumpkin-protocol/world/data/core lib.rs)
-issue	1404	Tracking: Combat	TODO	kab/i1404		
+issue	1482	Tracking: Codebase Docs	DONE		ad3336864	
+issue	1404	Tracking: Combat	SKIPPED	kab/i1404		meta tracking epic with no single gap; combat pieces exist independently (`crates/pumpkin-core/src/entity/attributes.rs:291` attack_damage attribute, `entity/ve
 issue	1336	Zombie path block detection broken	DONE	kab/i1336	5544c1491	
 issue	1330	When you Crit even tho the cooldown is fully charged (you can make a crit in nor	SKIPPED			crit-before-sweep ordering already correct at crates/pumpkin-core/src/entity/combat.rs:49-55 (sweep only when not crit, matching vanilla `bl5 = bl2 && !bl`); re
 issue	1300	Coral reef biome spawns broken coral patterns	DONE		6022f3806	
 issue	1280	Configurable API server endpoints	SKIPPED			already configurable: pumpkin-config/src/networking/auth.rs:12-36 + authentication.rs:54-60 match requested defaults
 issue	1274	Elytra Bug , Fire work 2&3 rocket crash the server , wind charge Not working ,Po	FAILED			multi-symptom report (elytra glide, firework/potion crash, wind charge, spear, nether spawns) with no crash log; all named paths already implemented (e.g. wind_
-issue	1220	A fog problem in my server	FAILED			client-side fog rendering (no fog code in protocol; issue labeled invalid, comments call it client-side/world-import) — needs a client repro and world sample to
-issue	1199	Unable to quit/infinite loop during save after client fails to connect	FAILED			deadlock is in unconditional await in save path (crates/pumpkin-world/src/level.rs:395-464, crates/pumpkin-core/src/server/mod.rs:740-771); localizing the stuck
+issue	1220	A fog problem in my server	FAILED	kab/i1220		client-side fog rendering (no fog code in protocol; issue labeled invalid, comments call it client-side/world-import) — needs a client repro and world sample to
+issue	1199	Unable to quit/infinite loop during save after client fails to connect	FAILED	kab/i1199		deadlock is in unconditional await in save path (crates/pumpkin-world/src/level.rs:395-464, crates/pumpkin-core/src/server/mod.rs:740-771); localizing the stuck
 issue	877	Naturally generated water sometimes doesn't flow.	DONE	kab/i877	78ca708cb	
-issue	731	Create unified registry system to load data packs, including the vanilla data pa	FAILED	kab/i731		umbrella tracker; pumpkin-registry exists, remaining work is a multi-crate migration/loaders/reload-parity redesign, not one pass
+issue	731	Create unified registry system to load data packs, including the vanilla data pa	FAILED			umbrella tracker; pumpkin-registry exists, remaining work is a multi-crate migration/loaders/reload-parity redesign, not one pass
 issue	635	Add Persistent Data Container	SKIPPED			PDC already implemented end to end: WIT v0.2 set/get/remove/has-custom-data (crates/pumpkin-plugin-wit/v0.2/item-stack.wit:139, world.wit:542, block-entity.wit:
 issue	626	KnockbackSync, custom Knockback, legacy PVP	TODO	kab/i626		
 issue	449	Release Pumpkin 1.0.0	FAILED	kab/i449		release/milestone checklist with no single code defect; version/tag/changelog untouched
@@ -629,7 +629,7 @@ pr	3827	217	DONE			DONE.md
 pr	3826	4	DONE			DONE.md
 pr	3821	1239	DONE	kab/oc3821	97beb89a3	
 pr	3820	229	DONE	kab/n3820	a92dda1df	
-pr	3819	14501	COMMITTED-UNLANDED	kab/oc3819		
+pr	3819	14501	DONE	kab/oc3819	e1c067fa0	
 pr	3816	115	DONE	kab/n3816	0a5829211	
 pr	3813	359	DONE	kab/n3813	3d0504755	
 pr	3811	80	DONE	kab/oc3811	7c26abe42	
