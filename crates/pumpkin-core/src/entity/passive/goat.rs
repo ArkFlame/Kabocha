@@ -19,8 +19,9 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        ram_target::RamTargetGoal, revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
     ai::pathfinder::node::PathType,
     custom_sound::CustomSound,
@@ -75,6 +76,8 @@ impl GoatEntity {
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
+            // UNVERIFIED: ram sits in the fight slot, after panic, ahead of breeding.
+            goal_selector.add_goal(2, Box::new(RamTargetGoal::default()));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
                 3,
@@ -96,6 +99,13 @@ impl GoatEntity {
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+        };
+        {
+            // UNVERIFIED: a hit goat turns on its attacker, which gives the ram a target.
+            mob_arc
+                .mob_entity
+                .target_selector
+                .add_goal(1, Box::new(RevengeGoal::new(true)));
         };
 
         mob_arc

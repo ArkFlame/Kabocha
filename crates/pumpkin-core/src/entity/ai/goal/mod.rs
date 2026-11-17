@@ -52,6 +52,7 @@ pub mod random_stand;
 pub mod random_swimming;
 pub mod ranged_attack;
 pub mod ranged_crossbow_attack;
+pub mod ram_target;
 pub mod reset_universal_anger;
 pub mod restrict_sun;
 pub mod revenge;
