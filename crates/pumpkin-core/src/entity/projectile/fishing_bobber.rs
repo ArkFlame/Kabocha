@@ -84,10 +84,11 @@ impl FishingBobberEntity {
         let (origin, velocity) = throw_setup(yaw, pitch, triangle);
 
         let owner_pos = owner_entity.pos.load();
-        // Move the whole entity, so the bounding box follows the eye position.
+        // Move the whole entity, so the bounding box follows the eye position. Vanilla
+        // `FishingHook` spawns at `getEyeY() - 0.1`.
         entity.set_pos(Vector3::new(
             owner_pos.x + origin.x,
-            owner_pos.y + owner_entity.get_eye_height(),
+            owner_pos.y + owner_entity.get_eye_height() - 0.1,
             owner_pos.z + origin.z,
         ));
         entity.update_last_pos();
