@@ -26,8 +26,9 @@ use crate::entity::{
     },
     ai::goal::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, pollinate_flower::PollinateFlowerGoal,
+        grow_crop::GrowCropGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
+        pollinate_flower::PollinateFlowerGoal,
         reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
@@ -70,6 +71,27 @@ fn needs_nectar(mob: &dyn Mob) -> bool {
 fn record_nectar(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
         bee.set_has_nectar(true);
+    }
+}
+
+/// Vanilla `Bee.MAX_CROPS_GROWN` per pollination cycle.
+const MAX_CROPS_GROWN_SINCE_POLLINATION: i32 = 10;
+
+/// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar and has growth budget left.
+fn can_grow_crop(mob: &dyn Mob) -> bool {
+    mob.cast_any().downcast_ref::<BeeEntity>().is_some_and(|bee| {
+        bee.has_nectar()
+            && bee.crops_grown_since_pollination() < MAX_CROPS_GROWN_SINCE_POLLINATION
+    })
+}
+
+/// Counts a fertilized crop; the bee loses its nectar once it has grown the maximum.
+fn record_crop_grown(mob: &dyn Mob) {
+    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        let grown = bee.record_crop_grown();
+        if grown >= MAX_CROPS_GROWN_SINCE_POLLINATION {
+            bee.set_has_nectar(false);
+        }
     }
 }
 
@@ -146,6 +168,11 @@ impl BeeEntity {
                 4,
                 Box::new(PollinateFlowerGoal::new(needs_nectar, record_nectar)),
             );
+            // UNVERIFIED: vanilla `BeeGrowCropGoal` priority 7 (tracker notes say 6).
+            goal_selector.add_goal(
+                7,
+                Box::new(GrowCropGoal::new(can_grow_crop, record_crop_grown)),
+            );
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
                 3,
@@ -208,6 +235,16 @@ impl BeeEntity {
 
     pub fn set_has_nectar(&self, val: bool) {
         self.set_flag(FLAG_HAS_NECTAR, val);
+    }
+
+    #[must_use]
+    pub fn crops_grown_since_pollination(&self) -> i32 {
+        self.crops_grown_since_pollination.load(Ordering::Relaxed)
+    }
+
+    /// Adds one fertilized crop and returns the new count.
+    pub fn record_crop_grown(&self) -> i32 {
+        self.crops_grown_since_pollination.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     #[must_use]

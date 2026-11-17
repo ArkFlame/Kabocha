@@ -27,6 +27,7 @@ pub mod follow_parent;
 pub mod go_to_wanted_item;
 pub mod goal_selector;
 pub mod golem_random_stroll_in_village;
+pub mod grow_crop;
 pub mod interact;
 pub mod leap_at_target;
 pub mod llama_follow_caravan;

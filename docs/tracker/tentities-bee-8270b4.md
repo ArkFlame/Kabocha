@@ -46,3 +46,9 @@ API, which is the blocker for gaps 1-4.
 
 ## Status (h3 sweep)
 - Items 1-5 (no hive, flower memory, crop growth, hive exit, goal priorities): STILL OPEN (M/L, not changed; needs goal ports).
+
+## Status (h2al sweep)
+- Gap 3 (crop growth): FIXED (UNVERIFIED). `entity/ai/goal/grow_crop.rs` `GrowCropGoal` at priority 7, gated by `can_grow_crop` (has nectar and fewer than 10 crops grown since pollination). Each eligible tick rolls 1 in 30. On success it checks the two blocks below, fertilizes growable crops and sweet berry bushes via `block_registry.bone_meal` (which checks maturity and fires the fertilize event), and counts each success. Reaching 10 clears `HasNectar`. Pure helper test `growable_positions_*` in `grow_crop.rs`.
+- Conflicts left open: this tracker says 5% per tick and priority 6, the 1-in-30 roll and priority 7 come from the h2al brief and sweep2. Vanilla `canBeeUse` may also have a 30% reject roll and a cooldown; not implemented. Needs a decompile check.
+- Growth goes through the bonemeal path, so the crop's own random success roll applies; vanilla sets age + 1 directly with event 2005. Client-only particles (2005) not sent.
+- Items 1-5 above: item 3 done, the rest still open.

@@ -30,3 +30,8 @@ Scope: `block/fluid/*`, `block/blocks/redstone/*`. Memory-based comparison again
 
 - Comparator item-frame/block signal combination order (comparator.rs not read in pass 2).
 - Repeater delay and target block signal already listed above; recheck only if a test fails.
+
+## Comparator item-frame combination (h2al sweep)
+- `block/blocks/redstone/comparator.rs` `get_input_signal` (around :242-268): reads the attached item frame only when the target block is solid and the signal is below 15, combines frame and block with `max`, and returns `None` when more than one frame hangs on the block (`get_attached_itemframe_level`, :309-330).
+- `entity/decoration/item_frame.rs` `get_analog_output` (:302-313): 0 when the frame is empty, else `rotation % 8 + 1`. Matches vanilla `getItem().isEmpty() ? 0 : getRotation() % 8 + 1`.
+- Status: already implemented, no code change. Verified by reading only (no decompile in the worktree), so UNVERIFIED for the max-versus-block ordering when the target block is analog-output and also has a frame.
