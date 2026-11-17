@@ -1,13 +1,16 @@
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::packet::clientbound::play::RECIPE_BOOK_ADD;
+use pumpkin_data::potion_brewing::BREWING_RECIPES;
 use pumpkin_data::recipes::{
     CookingRecipeType, CraftingRecipeTypes, RECIPES_COOKING, RECIPES_CRAFTING,
-    RECIPES_STONECUTTING, RecipeCategoryTypes, RecipeIngredientTypes, RecipeResultStruct,
+    RECIPES_SMITHING_TRANSFORM, RECIPES_SMITHING_TRIM, RECIPES_STONECUTTING, RecipeCategoryTypes,
+    RecipeIngredientTypes, RecipeResultStruct,
 };
 use pumpkin_macros::java_packet;
 use pumpkin_util::version::JavaMinecraftVersion;
 use std::borrow::Cow;
+use std::collections::BTreeSet;
 use std::{collections::HashMap, io::Write};
 
 use crate::codec::item_stack_seralizer::ItemStackTemplateSerializer;
@@ -1005,16 +1008,136 @@ fn write_dynamic_cooking_entry(
     Ok(())
 }
 
-/// Builds the `UPDATE_RECIPES` payload: no item property sets, then the stonecutter recipe list.
+/// Adds the concrete item ids an ingredient accepts to `set`.
 ///
-/// Entry order must match `StonecutterScreenHandler::get_available_recipes`, since the client
-/// sends the chosen option as an index into its filtered list.
+/// Mirrors vanilla `Ingredient#items` so the client can test membership in a `RecipePropertySet`.
+fn add_ingredient_items(
+    set: &mut BTreeSet<i32>,
+    ingredient: &RecipeIngredientTypes,
+    version: JavaMinecraftVersion,
+) {
+    match ingredient {
+        RecipeIngredientTypes::Simple(id) => {
+            if let Some(item) = Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id))
+            {
+                set.insert(item.id as i32);
+            }
+        }
+        RecipeIngredientTypes::OneOf(ids) => {
+            for id in *ids {
+                if let Some(item) =
+                    Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id))
+                {
+                    set.insert(item.id as i32);
+                }
+            }
+        }
+        RecipeIngredientTypes::Tagged(tag) => {
+            if let Some(items) = resolve_item_tag(tag, version) {
+                for item in items {
+                    set.insert(item.id as i32);
+                }
+            }
+        }
+    }
+}
+
+/// Builds the nine vanilla `RecipeManager#RECIPE_PROPERTY_SETS`.
+///
+/// Each station's item set is derived from its recipe ingredients, as
+/// `RecipeManager#finalizeRecipeLoading` does.
+fn recipe_property_sets(version: JavaMinecraftVersion) -> Vec<(&'static str, Vec<i32>)> {
+    let mut furnace = BTreeSet::new();
+    let mut blast_furnace = BTreeSet::new();
+    let mut smoker = BTreeSet::new();
+    let mut campfire = BTreeSet::new();
+    for recipe in RECIPES_COOKING {
+        match recipe {
+            CookingRecipeType::Smelting(r) => {
+                add_ingredient_items(&mut furnace, &r.ingredient, version);
+            }
+            CookingRecipeType::Blasting(r) => {
+                add_ingredient_items(&mut blast_furnace, &r.ingredient, version);
+            }
+            CookingRecipeType::Smoking(r) => {
+                add_ingredient_items(&mut smoker, &r.ingredient, version);
+            }
+            CookingRecipeType::CampfireCooking(r) => {
+                add_ingredient_items(&mut campfire, &r.ingredient, version);
+            }
+        }
+    }
+
+    let mut smithing_base = BTreeSet::new();
+    let mut smithing_template = BTreeSet::new();
+    let mut smithing_addition = BTreeSet::new();
+    let smithing = RECIPES_SMITHING_TRIM
+        .iter()
+        .map(|r| (&r.template, &r.base, &r.addition))
+        .chain(
+            RECIPES_SMITHING_TRANSFORM
+                .iter()
+                .map(|r| (&r.template, &r.base, &r.addition)),
+        );
+    for (template, base, addition) in smithing {
+        add_ingredient_items(&mut smithing_template, template, version);
+        add_ingredient_items(&mut smithing_base, base, version);
+        add_ingredient_items(&mut smithing_addition, addition, version);
+    }
+
+    let mut brewing_input = BTreeSet::new();
+    let mut brewing_reagent = BTreeSet::new();
+    for recipe in BREWING_RECIPES {
+        brewing_input.insert(recipe.from_item().id as i32);
+        brewing_reagent.insert(recipe.reagent().id as i32);
+    }
+
+    [
+        ("minecraft:smithing_base", smithing_base),
+        ("minecraft:smithing_template", smithing_template),
+        ("minecraft:smithing_addition", smithing_addition),
+        ("minecraft:furnace_input", furnace),
+        ("minecraft:blast_furnace_input", blast_furnace),
+        ("minecraft:smoker_input", smoker),
+        ("minecraft:campfire_input", campfire),
+        ("minecraft:brewing_input", brewing_input),
+        ("minecraft:brewing_reagent", brewing_reagent),
+    ]
+    .into_iter()
+    .map(|(key, items)| (key, items.into_iter().collect()))
+    .collect()
+}
+
+/// Writes vanilla's `Map<ResourceKey<RecipePropertySet>, RecipePropertySet>` for `UPDATE_RECIPES`.
+///
+/// The map is a varint size followed by each resource location and its varint item-id list.
+/// Item sets are membership-tested by the client, so their order is irrelevant.
+fn write_recipe_property_sets(
+    write: &mut impl Write,
+    version: JavaMinecraftVersion,
+) -> Result<(), WritingError> {
+    let sets = recipe_property_sets(version);
+    write.write_var_int(&VarInt(sets.len() as i32))?;
+    for (key, items) in sets {
+        write.write_string(key)?;
+        write.write_var_int(&VarInt(items.len() as i32))?;
+        for item in items {
+            write.write_var_int(&VarInt(item))?;
+        }
+    }
+    Ok(())
+}
+
+/// Builds the `UPDATE_RECIPES` payload: the item property sets followed by the stonecutter list.
+///
+/// Entry order in the stonecutter list must match `StonecutterScreenHandler::get_available_recipes`,
+/// since the client sends the chosen option as an index into its filtered list.
 pub fn stonecutter_update_recipes_data(
     dynamic_recipes: &[DynamicRecipe],
     version: JavaMinecraftVersion,
 ) -> Result<Vec<u8>, WritingError> {
     let mut write = Vec::new();
-    write.write_var_int(&VarInt(0))?;
+    write_recipe_property_sets(&mut write, version)?;
     let dynamic: Vec<_> = dynamic_recipes
         .iter()
         .filter_map(|r| match r {
@@ -1137,7 +1260,8 @@ mod tests {
         let version = JavaMinecraftVersion::V_26_3;
         let data = stonecutter_update_recipes_data(&recipes, version).unwrap();
         let vanilla = stonecutter_update_recipes_data(&[], version).unwrap();
-        let mut count_prefix = vec![0u8];
+        let mut count_prefix = Vec::new();
+        write_recipe_property_sets(&mut count_prefix, version).unwrap();
         count_prefix.extend(var(RECIPES_STONECUTTING.len() as i32 + 2));
         assert!(data.starts_with(&count_prefix));
         assert!(data.ends_with(&expected));
@@ -1206,5 +1330,27 @@ mod tests {
             dynamic_recipe_display_ids(&recipes),
             vec![Some(offset), None, Some(offset + 1)]
         );
+    }
+
+    #[test]
+    fn update_recipes_includes_vanilla_property_sets() {
+        let version = JavaMinecraftVersion::V_26_3;
+        let data = stonecutter_update_recipes_data(&[], version).unwrap();
+        for key in [
+            "minecraft:smithing_base",
+            "minecraft:smithing_template",
+            "minecraft:smithing_addition",
+            "minecraft:furnace_input",
+            "minecraft:blast_furnace_input",
+            "minecraft:smoker_input",
+            "minecraft:campfire_input",
+            "minecraft:brewing_input",
+            "minecraft:brewing_reagent",
+        ] {
+            assert!(
+                data.windows(key.len()).any(|w| w == key.as_bytes()),
+                "missing property set {key}"
+            );
+        }
     }
 }
