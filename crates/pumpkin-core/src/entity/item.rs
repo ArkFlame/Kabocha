@@ -381,6 +381,11 @@ impl ItemEntity {
             source.pickup_delay.load(Ordering::Relaxed),
             Ordering::Relaxed,
         );
+        // Vanilla stores PickupDelay as an int, so the 32767 never-pickup sentinel wins the
+        // max; mirror that on the flag, otherwise the saved NBT writes 255 instead.
+        if source.never_pickup.load(Ordering::Relaxed) {
+            target.never_pickup.store(true, Ordering::Relaxed);
+        }
         target
             .item_age
             .fetch_min(source.item_age.load(Ordering::Relaxed), Ordering::Relaxed);

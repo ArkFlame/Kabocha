@@ -136,18 +136,8 @@ pub enum ChatError {
 }
 
 impl PumpkinError for ChatError {
-    /// Vanilla only disconnects for illegal characters, ack window/checksum failures and an
-    /// invalid session key. Message decode failures (`SignedMessageChain.DecodeException`) are
-    /// reported to the client as a red `chat.disabled.*` line and the message is dropped.
     fn is_kick(&self) -> bool {
-        matches!(
-            self,
-            Self::OversizedMessage
-                | Self::IllegalCharacters
-                | Self::TooManyPendingChats
-                | Self::ChatValidationFailed
-                | Self::InvalidPublicKey
-        )
+        true
     }
 
     fn severity(&self) -> Level {
@@ -165,7 +155,14 @@ impl PumpkinError for ChatError {
                 )
                 .get_text(),
             ),
-            Self::UnsignedChat => None,
+            Self::UnsignedChat => Some(
+                TextComponent::translate_cross(
+                    translation::java::MULTIPLAYER_DISCONNECT_UNSIGNED_CHAT,
+                    translation::java::MULTIPLAYER_DISCONNECT_UNSIGNED_CHAT,
+                    [],
+                )
+                .get_text(),
+            ),
             Self::TooManyPendingChats => Some(
                 TextComponent::translate_cross(
                     translation::java::MULTIPLAYER_DISCONNECT_TOO_MANY_PENDING_CHATS,
@@ -182,8 +179,22 @@ impl PumpkinError for ChatError {
                 )
                 .get_text(),
             ),
-            Self::OutOfOrderChat => None,
-            Self::ExpiredPublicKey => None,
+            Self::OutOfOrderChat => Some(
+                TextComponent::translate_cross(
+                    translation::java::MULTIPLAYER_DISCONNECT_OUT_OF_ORDER_CHAT,
+                    translation::java::MULTIPLAYER_DISCONNECT_OUT_OF_ORDER_CHAT,
+                    [],
+                )
+                .get_text(),
+            ),
+            Self::ExpiredPublicKey => Some(
+                TextComponent::translate_cross(
+                    translation::java::MULTIPLAYER_DISCONNECT_EXPIRED_PUBLIC_KEY,
+                    translation::java::MULTIPLAYER_DISCONNECT_EXPIRED_PUBLIC_KEY,
+                    [],
+                )
+                .get_text(),
+            ),
             Self::InvalidPublicKey => Some(
                 TextComponent::translate_cross(
                     translation::java::MULTIPLAYER_DISCONNECT_INVALID_PUBLIC_KEY_SIGNATURE,
@@ -192,24 +203,6 @@ impl PumpkinError for ChatError {
                 )
                 .get_text(),
             ),
-        }
-    }
-}
-
-impl ChatError {
-    /// Translation key of the red `chat.disabled.*` notice vanilla sends for a decode failure
-    /// (`ServerGamePacketListenerImpl#handleMessageDecodeFailure`).
-    #[must_use]
-    pub fn client_message(&self) -> Option<&'static str> {
-        match self {
-            Self::UnsignedChat => Some(translation::java::CHAT_DISABLED_MISSINGPROFILEKEY),
-            Self::OutOfOrderChat => Some(translation::java::CHAT_DISABLED_OUT_OF_ORDER_CHAT),
-            Self::ExpiredPublicKey => Some(translation::java::CHAT_DISABLED_EXPIREDPROFILEKEY),
-            Self::OversizedMessage
-            | Self::IllegalCharacters
-            | Self::TooManyPendingChats
-            | Self::ChatValidationFailed
-            | Self::InvalidPublicKey => None,
         }
     }
 }

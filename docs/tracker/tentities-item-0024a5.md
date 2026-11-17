@@ -1,65 +1,64 @@
 # Tracker: entities / Item
 
 Reviewed: `crates/pumpkin-core/src/entity/item.rs` at branch `kab/tentities-item-0024a5`
-(re-review: the source changed after the `kab/tentities-item` review, so every row below was
-re-checked against the current file).
+(re-review after the earlier `kab/tentities-item` review; every row re-checked against the
+current file).
 Vanilla reference: `net.minecraft.world.entity.item.ItemEntity` (1.21.x), `Player.drop`,
-`Player.take`, `Player.giveExperiencePoints`, `Containers.dropContents`, `BundleItem.onDestroyed`.
+`Player.take`, `Containers.dropContents`, `BundleItem.onDestroyed`. No decompiled tree is
+checked out in this worktree (`.vendor/` is absent), so the ordering claims below are marked as
+needing a decompiled confirmation.
 
 ## Fixed in this review
 
 | Gap | Change |
 |---|---|
-| `is_mergeable` refused never-despawn (`Age: -32768`) and never-pickup (`PickupDelay: 32767`) items, and `process_age_and_merge` returned before merging them, so vanilla items that should stack never did. Vanilla `isMergable` only checks `!isRemoved()` and `count < getMaxStackSize()`. | Removed both guards (`item.rs:230`) and let never-despawn items fall through to the merge block with a frozen age (`item.rs:546`). |
-| `decrement_pickup_delay` counted the `INFINITE_PICKUP_DELAY` sentinel (`u8::MAX`) down, so a merged never-pickup stack became collectable after ~255 ticks. Vanilla `ItemEntity.tick` skips `pickupDelay == 32767`. | Early return on `u8::MAX` (`item.rs:450`). |
-| Spilled container/bundle contents were spawned with `set_pickup_delay(0)`; vanilla spills through `popResource` -> `new ItemEntity(...)`, which keeps the default 10-tick delay. | Removed the reset (`item.rs:398` `on_destroyed`), so `Self::new` keeps `DEFAULT_PICKUP_DELAY`. |
-| Player drops never recorded a thrower, so the owner pickup protection could not work. Vanilla `Player.drop(stack, dropAround)` delegates to `drop(..., traceItem = true)` and calls `setThrower(this)`. | `item_entity.set_thrower(self.gameprofile.id)` in `Player::drop_item` (`player.rs:6628`). |
-| `on_player_collision` ignored the thrower entirely; vanilla `ItemEntity.playerTouch` only lets the thrower (or any player after `age > 60`) collect. | Early return while `item_age <= 60` and the thrower resolves to a different player (`item.rs:768`). Non-player throwers (allay, fox) do not block, matching the previous review note. |
-
-Death drops are unaffected: `Player` death uses `world.drop_stack` (`player.rs:6271`), which
-spawns items without a thrower, like vanilla `Inventory.dropAll` with `traceItem = false`.
+| A merged never-pickup stack lost the flag. Vanilla `PickupDelay` is an `int`, so `Math.max` keeps `32767` across a merge; Pumpkin's `u8` field saturates at `255` and `never_pickup` was not copied, so `write_custom_nbt` saved `PickupDelay = 255` (which decodes back as a 255-tick delay, not the sentinel). | `target.never_pickup` is now set from the source in `try_merge_with` (`item.rs:383`). |
 
 ## Remaining gaps
 
-### 1. Despawn still runs before the merge check - size S
+### 1. Despawn runs before the merge check - size S, needs decompiled confirmation
 
-`item.rs:546` (`process_age_and_merge`). The function increments `age`, discards at `LIFETIME`
-and returns `false`, and only the surviving path calls `merge_with_neighbours` (`item.rs:575`).
-Vanilla `ItemEntity.tick` merges neighbours before the `age >= 6000` discard, so the last tick
-of a 6000-tick item can still merge into a neighbour. One tick of skew. Fix: run the merge block
-before the despawn block and return `false` after a successful despawn.
+`item.rs:551` (`process_age_and_merge`): the `age >= LIFETIME` branch discards and returns `false`
+before `merge_with_neighbours` (`item.rs:583`). If vanilla `ItemEntity.tick` merges neighbours
+before the `age >= 6000` discard, the last tick of a 6000-tick item can still merge into a
+neighbour in vanilla but never in Pumpkin. Fix: run the merge block first, then the discard.
+Confirm the order in decompiled `ItemEntity.tick` before changing it.
 
 ### 2. `is_mergeable` keeps an age guard vanilla does not have - size S
 
-`item.rs:232`. Vanilla `isMergable` is `!isRemoved() && count < getMaxStackSize()`; Pumpkin also
-rejects `item_age >= LIFETIME`. Observable only on the despawn tick, so it is harmless today but
-it becomes a divergence once gap 1 is fixed (the item must merge on that tick). Remove the guard
-together with gap 1.
+`item.rs:232`. Vanilla `isMergable` is `isAlive() && getCount() < getMaxStackSize()`. The
+`item_age >= LIFETIME` guard is unreachable today (the merge only runs when
+`process_age_and_merge` returned `true`), so this is dead code, not an observable divergence.
+Remove it together with gap 1.
 
-### 3. A merged never-pickup stack does not carry the flag - size S
+### 3. Persisted `Health` tag is Pumpkin-only - size S
 
-`item.rs:380` (`try_merge_with`). `pickup_delay` is merged with `fetch_max`, which saturates at
-`u8::MAX` and therefore keeps the item unpickable, but `never_pickup` is not propagated.
-`write_custom_nbt` (`item.rs:889`) then writes `PickupDelay = 255` instead of the `32767`
-sentinel, and a reload decodes 255 as never-pickup, so the value self-heals but the chunk NBT is
-not byte-compatible with vanilla. Fix: `target.never_pickup.store(target || source)` before
-`on_count_changed`.
+`item.rs:916` writes `Health` and `item.rs:948` reads it back. Vanilla `ItemEntity` has an
+in-memory `health = 5` field and `addAdditionalSaveData` stores only `Item`, `Age`,
+`PickupDelay`, `Thrower`/`Owner`; health resets to 5 on load. Saving the extra tag makes chunk
+NBT differ from vanilla byte-for-byte (harmless to vanilla readers). Fix: drop the write and the
+read.
 
-### 4. Merger takes the minimum age, vanilla leaves the target age - size S
+### 4. Owner and Thrower are collapsed into one UUID - size M, needs decompiled confirmation
 
-`item.rs:385`. `target.item_age.fetch_min(source.item_age)` shortens the target's lifetime when
-merging into a fresher item; vanilla `ItemEntity.merge` only takes the max pickup delay and does
-not touch `age` (only `target` survives, with its own age). Low impact, but it is an invented
-rule; delete the `fetch_min` if vanilla ordering is confirmed against decompiled source.
+`item.rs:773` (`on_player_collision`) gates only when the thrower resolves to a player
+(`get_player_by_uuid`), so an allay/fox-thrown item is collectable immediately. Vanilla keeps a
+separate `owner` (used by `playerTouch`) from `thrower`, and writes both `Owner` and `Thrower` to
+NBT (`item.rs:918`). Confirm the 1.21 field split and the exact `playerTouch` condition before
+porting.
 
 ## Reviewed and matching
 
 Velocity/gravity 0.04, water and lava drag with buoyancy, `noPhysics` push-out, every-4th-tick
 resting movement, block friction and half-speed bounce, merge radius 0.5 with rate 2/40 and the
-64 cap, atomic reservation plus `ItemMergeEvent` cancel, Bedrock `UpdateStackSize` resync,
-`can_be_hurt_by` fire immunity, integer health with `mobGriefing`, container and bundle spill on
-destroy, advancement `ThrownItemPickedUpByPlayer` and the `PickedUp` statistic, Java item
-metadata on spawn, `Item`/`Age`/`PickupDelay`/`Health`/`Thrower` NBT round trip, pickup sound.
+64 cap, atomic reservation plus `ItemMergeEvent` cancel, larger stack becomes the merge target,
+max pickup delay and min age on merge (vanilla `ItemEntity.merge` sets
+`target.age = Math.min(target.age, source.age)`; the earlier review flagged this as invented, it
+is vanilla), Bedrock `UpdateStackSize` resync, `can_be_hurt_by` fire immunity and integer item
+health with `mobGriefing`, container and bundle spill on destroy with the default pickup delay,
+advancement `ThrownItemPickedUpByPlayer` and the `PickedUp` statistic, Java item metadata on
+spawn, `Item`/`Age`/`PickupDelay`/`Thrower` NBT round trip, pickup sound, thrower pickup
+protection and the `-32768`/`32767` sentinels.
 
 Known intentional deviation: creative players destroy a stack that fits nowhere
-(`item.rs:790`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.
+(`item.rs:810`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.

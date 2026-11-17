@@ -39,14 +39,6 @@ impl Goal for ChasePlayerGoal {
             return false;
         };
 
-        let entity = &mob_entity.living_entity.entity;
-        let mob_pos = entity.pos.load();
-        let target_pos = target.get_entity().pos.load();
-        if mob_pos.squared_distance_to_vec(&target_pos) > 256.0 {
-            self.target = None;
-            return false;
-        }
-
         if !enderman.is_player_staring(player) {
             self.target = None;
             return false;
@@ -71,8 +63,24 @@ impl Goal for ChasePlayerGoal {
                 .look_control
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            look_control.look_at(mob, player_pos.x, eye_y, player_pos.z);
+            // Vanilla EndermanFreezeWhenLookedAt turns the head with 30 deg limits.
+            look_control.look_at_with_range(player_pos.x, eye_y, player_pos.z, 30.0, 30.0);
         }
+    }
+
+    fn should_continue(&mut self, _mob: &dyn Mob) -> bool {
+        let Some(enderman) = self.enderman.upgrade() else {
+            return false;
+        };
+        let Some(target) = self.target.as_ref().and_then(Weak::upgrade) else {
+            return false;
+        };
+        if !target.get_entity().is_alive() {
+            return false;
+        }
+        target
+            .get_player()
+            .is_some_and(|player| enderman.is_player_staring(player))
     }
 
     fn controls(&self) -> Controls {

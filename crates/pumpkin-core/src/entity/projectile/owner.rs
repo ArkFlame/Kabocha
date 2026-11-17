@@ -185,9 +185,7 @@ impl ProjectileOwner {
             .expand_all(1.0);
         let root = owner.get_entity().get_root_vehicle();
         !Self::any_self_or_passenger(root.as_deref().unwrap_or(owner), &|entity| {
-            // Vanilla EntitySelector.CAN_BE_PICKED, i.e. isPickable: removed entities never count.
-            !entity.get_entity().is_removed()
-                && !entity.is_spectator()
+            !entity.is_spectator()
                 && entity.can_hit()
                 && entity.get_entity().bounding_box.load().intersects(&area)
         })

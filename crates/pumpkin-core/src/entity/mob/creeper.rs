@@ -98,10 +98,11 @@ impl CreeperEntity {
 
     pub fn set_fuse_speed(&self, speed: i32) {
         self.fuse_speed.store(speed, Ordering::Relaxed);
-        self.mob_entity
-            .living_entity
-            .entity
-            .set_synced_data(pumpkin_data::tracked_data::creeper::FUSE_ID, VarInt(speed));
+        let entity = &self.mob_entity.living_entity.entity;
+        entity.set_synced_data(pumpkin_data::tracked_data::creeper::FUSE_ID, VarInt(speed));
+        if let Some(meta) = self.mob_metadata() {
+            entity.send_bedrock_actor_data(&meta.to_bedrock_actor_data());
+        }
     }
 
     pub fn explode(&self) {
@@ -224,10 +225,7 @@ impl Mob for CreeperEntity {
         if self.is_ignited() {
             meta = meta.ignited(true);
         }
-        let fuse = self.fuse_speed.load(Ordering::Relaxed);
-        if fuse != -1 {
-            meta = meta.fuse_speed(fuse);
-        }
+        meta = meta.fuse_speed(self.fuse_speed.load(Ordering::Relaxed));
         Some(meta)
     }
 

@@ -37,28 +37,6 @@ fn get_recipe_id(recipe: &DynamicRecipe) -> String {
     )
 }
 
-/// Number of recipe book entries the add packet carries for `dynamic_recipes`: the static
-/// crafting and cooking entries first, then the dynamic ones, which is the display id numbering
-/// `CRecipeBookAdd` writes. Special and decorated pot crafting have no display entry.
-fn recipe_book_entry_count(dynamic_recipes: &[DynamicRecipe]) -> usize {
-    let static_crafting = RECIPES_CRAFTING
-        .iter()
-        .filter(|r| {
-            !matches!(
-                r,
-                CraftingRecipeTypes::CraftingSpecial(_)
-                    | CraftingRecipeTypes::CraftingDecoratedPot { .. }
-            )
-        })
-        .count();
-    static_crafting
-        + RECIPES_COOKING.len()
-        + dynamic_recipes
-            .iter()
-            .filter(|r| matches!(r, DynamicRecipe::Crafting(_) | DynamicRecipe::Cooking(_)))
-            .count()
-}
-
 struct RecipeSuggestionProvider;
 
 impl SuggestionProvider for RecipeSuggestionProvider {
@@ -116,13 +94,7 @@ impl CommandExecutor for RecipeGiveExecutor {
                 .create_without_context(TextComponent::text(recipe_str.clone())));
         }
 
-        // Vanilla reports the recipes it awarded: for '*' that is every recipe book entry the
-        // add packet carries, not just the datapack recipes.
-        let recipe_count = if is_all {
-            recipe_book_entry_count(&matching_recipes)
-        } else {
-            matching_recipes.len()
-        };
+        let recipe_count = matching_recipes.len();
         let packet = CRecipeBookAdd::new(false, &matching_recipes);
         for player in &targets {
             player.try_send_client_packet(&packet);
@@ -140,12 +112,11 @@ impl CommandExecutor for RecipeGiveExecutor {
             );
             context.source.send_feedback(msg, true);
         } else {
-            // Vanilla sums the awarded count over every target for the multiple message.
             let msg = TextComponent::translate_cross(
                 translation::java::COMMANDS_RECIPE_GIVE_SUCCESS_MULTIPLE,
                 translation::java::COMMANDS_RECIPE_GIVE_SUCCESS_MULTIPLE,
                 [
-                    TextComponent::text((recipe_count * targets.len()).to_string()),
+                    TextComponent::text(recipe_count_str),
                     TextComponent::text(targets.len().to_string()),
                 ],
             );
@@ -252,12 +223,11 @@ impl CommandExecutor for RecipeTakeExecutor {
             );
             context.source.send_feedback(msg, true);
         } else {
-            // Vanilla sums the removed count over every target for the multiple message.
             let msg = TextComponent::translate_cross(
                 translation::java::COMMANDS_RECIPE_TAKE_SUCCESS_MULTIPLE,
                 translation::java::COMMANDS_RECIPE_TAKE_SUCCESS_MULTIPLE,
                 [
-                    TextComponent::text((taken_count * targets.len()).to_string()),
+                    TextComponent::text(taken_count_str),
                     TextComponent::text(targets.len().to_string()),
                 ],
             );

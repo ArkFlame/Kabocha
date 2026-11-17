@@ -26,7 +26,7 @@ use crate::entity::{
             Brain, BrainTick,
             memory::{PackedMemories, types},
         },
-        pathfinder::node::PathType,
+        pathfinder::{Navigator, node::PathType},
     },
     bucketable::{Bucketable, bucket_mob_pickup},
     mob::{
@@ -228,6 +228,11 @@ impl AxolotlEntity {
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Box::new(AxolotlLookControl::default());
+        // Vanilla `Axolotl.createNavigation`: `new WaterBoundPathNavigation(this, level)`.
+        *mob_entity
+            .navigator
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Navigator::water_bound(false);
         // `setPathfindingMalus(PathType.WATER, 0.0F)`: water costs nothing to path through.
         mob_entity
             .navigator
@@ -1303,13 +1308,11 @@ mod tests {
         };
 
         for _ in 0..300 {
-            let _ =
-                axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
+            let _ = axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
         }
         let before = play_dead_ticks();
         for _ in 0..300 {
-            let _ =
-                axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
+            let _ = axolotl.mob_hurt_server(0.1, DamageType::MOB_ATTACK, None, source, source);
             EntityBase::on_damage_with_context(
                 axolotl.as_ref(),
                 DamageType::MOB_ATTACK,
@@ -1412,6 +1415,35 @@ mod tests {
         assert!(!has_cooldown);
 
         world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// A ground navigator accepts the solid stone as a stable destination; vanilla's
+    /// `WaterBoundPathNavigation` only accepts positions that are not solid.
+    #[tokio::test]
+    async fn navigation_is_water_bound_like_vanilla() -> TestResult {
+        use crate::entity::ai::pathfinder::PathNavigationTrait;
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);
+        for y in [63, 64] {
+            chunk.set_block_absolute_y(0, y, 0, pumpkin_data::Block::STONE.default_state.id);
+        }
+        let key = pumpkin_util::math::vector2::Vector2::new(0, 0);
+        world.level.loaded_chunks.insert(key, chunk);
+        let axolotl = axolotl(&world);
+        let pos = BlockPos::new(0, 64, 0);
+
+        let stable = axolotl
+            .mob_entity
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_stable_destination(&world, &pos);
+        world.level.shutdown().await;
+
+        assert!(!stable);
         Ok(())
     }
 }
