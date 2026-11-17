@@ -4,7 +4,6 @@ use crate::block::entities::BlockEntity;
 use crate::block::entities::chest::ChestBlockEntity;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{ChestLikeProperties, ChestType, HorizontalFacing};
-use pumpkin_data::entity::EntityPose;
 use pumpkin_data::loot_table::get_loot_table;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::{Block, BlockDirection, translation};
@@ -636,39 +635,23 @@ fn compute_chest_props(
     let player_facing = player.get_entity().get_horizontal_facing();
     let chest_facing = player_facing.opposite();
 
-    if player.get_entity().pose.load() == EntityPose::Crouching
-        && let Some(horizontal_face) = face.to_horizontal_facing()
-    {
+    // Vanilla `ChestBlock.getPlacementState`: a chest placed against a horizontal
+    // face of a single chest always joins it and adopts that chest's facing, whatever
+    // the player yaw is (so a diagonal placement still extends instead of rotating).
+    if let Some(clicked_face_horiz) = face.to_horizontal_facing() {
         let (clicked_block, clicked_block_state) =
-            world.get_block_and_state_id(&block_pos.offset(horizontal_face.to_offset()));
+            world.get_block_and_state_id(&block_pos.offset(clicked_face_horiz.to_offset()));
 
         if clicked_block == block {
             let clicked_props = ChestLikeProperties::from_state_id(clicked_block_state);
 
             if clicked_props.r#type == ChestType::Single {
-                if clicked_props.facing.rotate_clockwise() == horizontal_face {
+                if clicked_props.facing.rotate_clockwise() == clicked_face_horiz {
                     return (ChestType::Left, clicked_props.facing);
-                } else if clicked_props.facing.rotate_counter_clockwise() == horizontal_face {
+                } else if clicked_props.facing.rotate_counter_clockwise() == clicked_face_horiz {
                     return (ChestType::Right, clicked_props.facing);
                 }
             }
-        }
-    }
-
-    if let Some(clicked_face_horiz) = face.to_horizontal_facing()
-        && let Some(_props) = get_chest_properties_if_can_connect(
-            world,
-            block,
-            block_pos,
-            chest_facing,
-            clicked_face_horiz,
-            ChestType::Single,
-        )
-    {
-        if clicked_face_horiz == chest_facing.rotate_clockwise() {
-            return (ChestType::Left, chest_facing);
-        } else if clicked_face_horiz == chest_facing.rotate_counter_clockwise() {
-            return (ChestType::Right, chest_facing);
         }
     }
 
