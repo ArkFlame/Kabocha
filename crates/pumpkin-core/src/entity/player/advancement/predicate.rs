@@ -1058,7 +1058,13 @@ pub struct PlacedBlockPredicate {
 
 impl PlacedBlockPredicate {
     #[must_use]
-    pub fn matches(&self, block_id: &str, item_id: Option<&str>) -> bool {
+    pub fn matches(
+        &self,
+        block_id: &str,
+        item_id: Option<&str>,
+        item_count: u32,
+        enchantments: &[(&str, u32)],
+    ) -> bool {
         if let Some(b) = &self.block
             && !b.matches(RegistryKey::Block, block_id)
         {
@@ -1068,7 +1074,7 @@ impl PlacedBlockPredicate {
             let Some(actual_item) = item_id else {
                 return false;
             };
-            if !item_pred.matches(actual_item, 1, &[]) {
+            if !item_pred.matches(actual_item, item_count, enchantments) {
                 return false;
             }
         }
@@ -2265,8 +2271,14 @@ pub fn matches_damage_condition(
 
 /// Evaluates conditions for `minecraft:placed_block` and `minecraft:item_used_on_block`.
 #[must_use]
-pub fn matches_placed_block_condition(cond: &Value, block_id: &str, item_id: Option<&str>) -> bool {
-    PlacedBlockPredicate::from_value(cond).matches(block_id, item_id)
+pub fn matches_placed_block_condition(
+    cond: &Value,
+    block_id: &str,
+    item_id: Option<&str>,
+    item_count: u32,
+    enchantments: &[(&str, u32)],
+) -> bool {
+    PlacedBlockPredicate::from_value(cond).matches(block_id, item_id, item_count, enchantments)
 }
 
 /// Evaluates conditions for `minecraft:changed_dimension`.
@@ -2283,8 +2295,8 @@ pub fn matches_recipe_condition(cond: &Value, recipe_id: &str) -> bool {
 
 /// Evaluates conditions for `minecraft:consume_item`, `minecraft:filled_bucket`, `minecraft:fishing_rod_hooked`, `minecraft:used_totem`.
 #[must_use]
-pub fn matches_item_condition(cond: &Value, item_key: &str) -> bool {
-    ItemPredicate::from_value(cond).matches(item_key, 1, &[])
+pub fn matches_item_condition(cond: &Value, item_key: &str, count: u32) -> bool {
+    ItemPredicate::from_value(cond).matches(item_key, count, &[])
 }
 
 /// Evaluates conditions for `minecraft:target_hit`.
@@ -2945,5 +2957,27 @@ mod tests {
             &effects,
             Some("minecraft:axolotl")
         ));
+    }
+
+    #[test]
+    fn item_count_bounds_use_actual_stack_count() {
+        let cond = json!({"item": {"items": "minecraft:stone", "count": {"min": 2}}});
+        assert!(!matches_placed_block_condition(
+            &cond,
+            "minecraft:stone",
+            Some("minecraft:stone"),
+            1,
+            &[]
+        ));
+        assert!(matches_placed_block_condition(
+            &cond,
+            "minecraft:stone",
+            Some("minecraft:stone"),
+            2,
+            &[]
+        ));
+        let consume = json!({"items": "minecraft:stone", "count": {"min": 2}});
+        assert!(!matches_item_condition(&consume, "minecraft:stone", 1));
+        assert!(matches_item_condition(&consume, "minecraft:stone", 2));
     }
 }
