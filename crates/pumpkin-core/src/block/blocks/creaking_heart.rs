@@ -9,7 +9,7 @@ use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{BlockStateId, Enchantment};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::GameMode;
-use pumpkin_util::random::{RandomGenerator, get_seed, xoroshiro128::Xoroshiro};
+use pumpkin_util::random::{RandomGenerator, RandomImpl, get_seed, xoroshiro128::Xoroshiro};
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;

@@ -180,7 +180,7 @@ impl BeaconBlockEntity {
 
     /// Fires the `construct_beacon` criterion for players near a freshly activated beacon.
     fn trigger_construct_beacon(&self, world: &World, levels: i32) {
-        let bounds = construct_beacon_bounds(self.position);
+        let bounds = Self::construct_beacon_bounds(self.position);
         for player in world.players.load().iter() {
             if player.is_spectator()
                 || !bounds.intersects(&player.living_entity.entity.bounding_box.load())
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn construct_beacon_bounds_inflate_matches_vanilla() {
-        let bounds = construct_beacon_bounds(BlockPos::new(5, 64, 5));
+        let bounds = BeaconBlockEntity::construct_beacon_bounds(BlockPos::new(5, 64, 5));
         assert_eq!(bounds.min.x, -5.0);
         assert_eq!(bounds.min.y, 59.0);
         assert_eq!(bounds.min.z, -5.0);
