@@ -6105,7 +6105,8 @@ mod ai_step_tests {
             blaze.mob_tick(blaze.as_ref());
             living.tick_movement(blaze.as_ref());
 
-            assert!((living.entity.pos.load().y - 90.0 - displacement).abs() < 1.0e-12);
+            // The official displacements were recorded from f32 motion, so allow f32 rounding.
+            assert!((living.entity.pos.load().y - 90.0 - displacement).abs() < 1.0e-6);
             assert_eq!(
                 living.entity.needs_sync.load(Ordering::Relaxed),
                 !dead && !no_ai
