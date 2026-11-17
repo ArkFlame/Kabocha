@@ -34,6 +34,8 @@ use crate::entity::{
     projectile::splash_potion::SplashPotionEntity,
 };
 
+use crate::plugin::api::events::entity::entity_target::TargetReason;
+
 fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStack {
     use pumpkin_data::data_component::DataComponent;
     use pumpkin_data::data_component_impl::{DataComponentImpl, PotionContentsImpl};
@@ -57,6 +59,16 @@ fn create_potion_stack(item: &'static Item, potion: &'static Potion) -> ItemStac
 ///
 /// Wiki: <https://minecraft.wiki/w/Witch>
 const WITCH_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
+
+/// Vanilla `Witch` healable-raider target: any raider below its max health.
+const WITCH_HEALABLE_RAIDERS: Hunt =
+    Hunt::new(2, TargetMatch::Any, false).only_mobs(is_injured_raider);
+
+/// Vanilla `Witch` healable-raider predicate.
+fn is_injured_raider(mob: &dyn Mob) -> bool {
+    let living = &mob.get_mob_entity().living_entity;
+    mob.as_raider().is_some() && living.health.load() < living.get_max_health()
+}
 
 /// Vanilla `Witch.SPEED_MODIFIER_DRINKING`: -0.25 `ADD_VALUE` while drinking.
 const SPEED_MODIFIER_DRINKING_ID: &str = "minecraft:drinking";
@@ -109,7 +121,11 @@ impl WitchEntity {
             goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
 
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true).ignoring(is_raider)));
-            // TODO: NearestHealableRaiderTargetGoal at 2, attack goal off while healing in a raid.
+            hunting::apply(
+                target_selector,
+                &mob_arc.mob_entity,
+                &[WITCH_HEALABLE_RAIDERS],
+            );
             hunting::apply(target_selector, &mob_arc.mob_entity, WITCH_HUNTS);
         };
 
@@ -163,16 +179,28 @@ impl WitchEntity {
         let mut potion = &Potion::HARMING;
 
         if let Some(target_living) = target.get_living_entity() {
-            let r: f32 = rand::random();
-            if dist >= 8.0 && !target_living.has_effect(&StatusEffect::SLOWNESS) {
-                potion = &Potion::SLOWNESS;
-            } else if target_living.health.load() >= 8.0
-                && !target_living.has_effect(&StatusEffect::POISON)
-            {
-                potion = &Potion::POISON;
-            } else if dist <= 3.0 && !target_living.has_effect(&StatusEffect::WEAKNESS) && r < 0.25
-            {
-                potion = &Potion::WEAKNESS;
+            if is_raider(target_entity.entity_type) {
+                // Vanilla `Witch.performRangedAttack`: heal low raiders, otherwise regenerate.
+                if target_living.health.load() <= 4.0 {
+                    potion = &Potion::HEALING;
+                    self.set_mob_target(None, TargetReason::Unknown);
+                } else {
+                    potion = &Potion::REGENERATION;
+                }
+            } else {
+                let r: f32 = rand::random();
+                if dist >= 8.0 && !target_living.has_effect(&StatusEffect::SLOWNESS) {
+                    potion = &Potion::SLOWNESS;
+                } else if target_living.health.load() >= 8.0
+                    && !target_living.has_effect(&StatusEffect::POISON)
+                {
+                    potion = &Potion::POISON;
+                } else if dist <= 3.0
+                    && !target_living.has_effect(&StatusEffect::WEAKNESS)
+                    && r < 0.25
+                {
+                    potion = &Potion::WEAKNESS;
+                }
             }
         }
 
