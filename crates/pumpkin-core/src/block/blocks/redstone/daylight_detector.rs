@@ -7,8 +7,8 @@ use pumpkin_util::math::{cos, position::BlockPos};
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockActionResult, BlockBehaviour, BrokenArgs, EmitsRedstonePowerArgs, GetRedstonePowerArgs,
-    NormalUseArgs, PlacedArgs,
+    BlockActionResult, BlockBehaviour, BrokenArgs, EmitsRedstonePowerArgs, GetComparatorOutputArgs,
+    GetRedstonePowerArgs, NormalUseArgs, PlacedArgs,
 };
 use crate::world::World;
 
@@ -57,6 +57,11 @@ impl BlockBehaviour for DaylightDetectorBlock {
     fn get_weak_redstone_power(&self, args: GetRedstonePowerArgs<'_>) -> u8 {
         let props = DaylightDetectorProperties::from_state_id(args.state.id);
         props.power
+    }
+
+    /// Vanilla getAnalogOutputSignal: comparators read the stored power.
+    fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        Some(DaylightDetectorProperties::from_state_id(args.state.id).power)
     }
 
     fn emits_redstone_power(&self, _args: EmitsRedstonePowerArgs<'_>) -> bool {
