@@ -311,3 +311,5 @@ Format: `- #N (PR|issue) title [commit]`
 - #4601 (issue, skipped: Bedrock swim pose is client-side; AuthInput START_SWIMMING is cleared by update_swimming, same verdict as #2104, see OUTCOMES.tsv)
 - #3456 (issue, skipped: minecraft:copy_components already on master via #3507, crates/pumpkin-util/src/loot_table/parser.rs:542 and crates/pumpkin-core/src/world/loot/generation.rs:637)
 - #3640 (PR, already present: tripwire shears durability damage at crates/pumpkin-core/src/block/blocks/redstone/tripwire.rs:109-114 via #3584, dispenser bone meal at crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs:351,982-993)
+- #3656 (PR, skipped: intent already on master via #3621, all four PR hunks present)
+- #3790 (PR, skipped: blaze height-offset constants already in crates/pumpkin-core/src/entity/mob/blaze.rs)
