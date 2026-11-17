@@ -17,7 +17,7 @@ use crate::{
         RandomTickArgs,
     },
     entity::{EntityBase, mob::spawn::finalize_spawn, r#type::from_type},
-    world::{World, portal::nether::NetherPortal},
+    world::World,
 };
 
 #[pumpkin_block("minecraft:nether_portal")]
@@ -58,10 +58,13 @@ impl BlockBehaviour for NetherPortalBlock {
         // Vanilla logic: keep portal if direction is horizontal AND different from portal axis
         let is_horizontal_and_different =
             args.direction.is_horizontal() && direction_axis != state_axis_full;
+        // Vanilla keeps the portal block only when the neighbour is another portal block or
+        // the obsidian frame. Anything else in the portal plane (water flowing on it, a block
+        // placed next to it) destroys it, which is how water turns a portal off.
+        let neighbor_block = Block::from_state_id(args.neighbor_state_id);
         if is_horizontal_and_different
-            || args.neighbor_state_id == args.state_id
-            || NetherPortal::get_on_axis(args.world, args.position, state_axis)
-                .is_some_and(|e| e.was_already_valid())
+            || neighbor_block == &Block::NETHER_PORTAL
+            || neighbor_block == &Block::OBSIDIAN
         {
             return args.state_id;
         }
