@@ -256,15 +256,25 @@ impl Mob for NautilusEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        // Vanilla `AbstractNautilus`/`Nautilus` add no NBT keys of their own;
-        // the charge cooldown is transient brain state.
-        self.write_tamable_nbt(nbt);
+        nbt.put_bool("IsTame", self.is_tame.load(Ordering::Relaxed));
+        nbt.put_int("DashCooldown", self.dash_cooldown.load(Ordering::Relaxed));
+        if let Some(owner) = self.owner.load() {
+            nbt.put_uuid("Owner", owner);
+        }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         self.mob_entity
             .read_legacy_saddle(nbt.get_bool("Saddled") == Some(true));
-        self.read_tamable_nbt(nbt);
+        if let Some(is_tame) = nbt.get_bool("IsTame") {
+            self.is_tame.store(is_tame, Ordering::Relaxed);
+        }
+        if let Some(dash) = nbt.get_int("DashCooldown") {
+            self.dash_cooldown.store(dash, Ordering::Relaxed);
+        }
+        if let Some(owner) = nbt.get_uuid("Owner") {
+            self.owner.store(Some(owner));
+        }
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
