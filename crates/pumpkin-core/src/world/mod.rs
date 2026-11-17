@@ -4,6 +4,7 @@ use crate::block::entities::{
 use crossbeam::channel::Receiver;
 use dashmap::DashMap;
 use pumpkin_data::chunk::Biome;
+use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_data::item::{BedrockItem, BedrockItemVersion};
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::poi_type::PoiType;
@@ -2689,7 +2690,14 @@ impl World {
         self.tick_weather();
 
         if self.should_skip_night() && is_night {
-            let skip_to = (time_of_day + 24000) - (time_of_day + 24000) % 24000;
+            // Vanilla resolves the `wake_up_from_sleep` marker on the day timeline
+            // (ServerClockManager.resolveTimerMove), rather than hardcoding the next
+            // day boundary. Datapack timeline overrides are not loaded yet.
+            let skip_to = crate::world::time::resolve_time_to_move_to(
+                time_of_day,
+                i64::from(DayTimeline::WAKE_UP_FROM_SLEEP_TIME_MARKER),
+                i64::from(DayTimeline::PERIOD_TICKS),
+            );
             // A cancelled skip keeps the night and the sleepers where they are.
             if self.skip_time(skip_to - time_of_day) {
                 let level_time = {
@@ -5031,18 +5039,25 @@ impl World {
         let result = explosion.explode(self);
         let particle = explosion.particle();
         let sound = IdOr::<SoundEvent>::Id(explosion.sound() as u16);
+        // Vanilla passes `source == null || !source.isSilent()` as the packet's `playSound` flag.
+        let play_sound = explosion
+            .source()
+            .is_none_or(|source| !source.get_entity().is_silent());
         for player in self.players.load().iter() {
             if player.position().squared_distance_to_vec(&position) > 4096.0 {
                 continue;
             }
-            player.try_send_client_packet(&CExplosion::new(
-                position,
-                power,
-                result.block_count as i32,
-                result.player_knockback.get(&player.entity_id()).copied(),
-                VarInt(particle as i32),
-                sound.clone(),
-            ));
+            player.try_send_client_packet(
+                &CExplosion::new(
+                    position,
+                    power,
+                    result.block_count as i32,
+                    result.player_knockback.get(&player.entity_id()).copied(),
+                    VarInt(particle as i32),
+                    sound.clone(),
+                )
+                .with_play_sound(play_sound),
+            );
         }
     }
 

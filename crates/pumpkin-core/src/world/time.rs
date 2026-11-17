@@ -1,6 +1,21 @@
+use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_protocol::{bedrock::client::set_time::CSetTime, java::client::play::CUpdateTime};
 
 use super::World;
+
+/// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`: advance to the next marker
+/// occurrence without rewinding. Drives the sleep skip toward the
+/// `wake_up_from_sleep` marker on the day timeline.
+#[must_use]
+pub(crate) fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
+    let from = total_ticks.rem_euclid(period);
+    let duration = ticks - from;
+    if duration > 0 {
+        total_ticks + duration
+    } else {
+        total_ticks + period + duration
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClockInstance {
@@ -220,6 +235,15 @@ impl LevelTime {
 mod tests {
     use super::*;
     use crate::world::time::ClockInstance;
+
+    #[test]
+    fn wake_up_marker_resolves_forward_to_next_day() {
+        let marker = i64::from(DayTimeline::WAKE_UP_FROM_SLEEP_TIME_MARKER);
+        let period = i64::from(DayTimeline::PERIOD_TICKS);
+        // Night values advance to the next day boundary, never rewind.
+        assert_eq!(resolve_time_to_move_to(18_000, marker, period), 24_000);
+        assert_eq!(resolve_time_to_move_to(23_999, marker, period), 24_000);
+    }
 
     #[test]
     fn clock_instance_ticking() {

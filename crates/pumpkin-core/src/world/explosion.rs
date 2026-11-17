@@ -787,7 +787,7 @@ impl<'a> Explosion<'a> {
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .next_bounded_i32(3),
             )
-            .unwrap_or(0)
+            .unwrap_or_default()
         });
         ExplosionResult {
             block_count,
