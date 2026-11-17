@@ -1680,7 +1680,9 @@ impl BlockRegistry {
                 PathComputationType::Water => {
                     World::get_fluid_from_state_id(state.id).has_tag(&tag::Fluid::MINECRAFT_WATER)
                 }
-                PathComputationType::Land | PathComputationType::Air => !state.is_full_cube(),
+                // Vanilla BlockBehaviour.isPathfindable defaults to !state.isSolid(): fences,
+                // chests and other motion-blocking non-full cubes are not pathfindable.
+                PathComputationType::Land | PathComputationType::Air => !state.is_solid(),
             },
             |pumpkin_block| pumpkin_block.is_pathfindable(state, computation_type),
         )
@@ -1690,10 +1692,31 @@ impl BlockRegistry {
 #[cfg(test)]
 mod replacement_tests {
     use super::can_replace_with_other_block;
+    use crate::block::PathComputationType;
     use pumpkin_data::{
         Block, BlockState,
         block_properties::{GlowLichenLikeProperties, SnowLikeProperties},
     };
+
+    #[test]
+    fn default_pathfinding_uses_motion_blocking() {
+        let registry = super::BlockRegistry::default();
+        // A fence is not a full cube but it blocks movement, so vanilla default
+        // pathfinding (!state.isSolid()) keeps mobs from moving through it.
+        let fence = &Block::OAK_FENCE;
+        assert!(!fence.default_state.is_full_cube());
+        assert!(fence.default_state.is_solid());
+        assert!(!registry.is_pathfindable(
+            fence,
+            fence.default_state,
+            PathComputationType::Land
+        ));
+        assert!(registry.is_pathfindable(
+            &Block::AIR,
+            Block::AIR.default_state,
+            PathComputationType::Air
+        ));
+    }
 
     #[test]
     fn sculk_vein_can_be_replaced_when_dry_or_waterlogged() {
