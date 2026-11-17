@@ -141,7 +141,13 @@ pub trait FlowingFluid: Send + Sync {
         props: &FlowingFluidProperties,
     ) {
         let below_pos = block_pos.down();
-        let is_hole = physics::can_hold_fluid(world.get_block(&below_pos));
+        let below_block = world.get_block(&below_pos);
+        // Vanilla lava may fall into water, where its `spread_to` turns the water into
+        // stone. Other fluids never enter another fluid block: water flowing onto lava
+        // leaves the lava to its own obsidian/cobblestone conversion.
+        let is_hole = physics::can_hold_fluid(below_block)
+            || (below_block == &Block::WATER
+                && (fluid.id == Fluid::LAVA.id || fluid.id == Fluid::FLOWING_LAVA.id));
 
         // Try to flow down first
         if is_hole {
