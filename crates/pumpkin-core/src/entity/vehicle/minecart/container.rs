@@ -76,7 +76,11 @@ impl MinecartInventory {
                     list.push(pumpkin_nbt::tag::NbtTag::Compound(compound));
                 }
             }
-            nbt.put("Items", pumpkin_nbt::tag::NbtTag::List(list));
+            // Vanilla `AbstractChestBoat.addAdditionalSaveData` (and the chest minecart
+            // equivalent) omits the slot list entirely when no slot is filled.
+            if !list.is_empty() {
+                nbt.put("Items", pumpkin_nbt::tag::NbtTag::List(list));
+            }
         }
     }
 
@@ -311,6 +315,14 @@ mod tests {
         inventory.write_nbt(&mut unpacked);
         assert!(unpacked.get_string("LootTable").is_none());
         assert!(unpacked.get_list("Items").is_some());
+    }
+
+    #[test]
+    fn empty_container_writes_no_items_list() {
+        let inventory = MinecartInventory::new(27);
+        let mut nbt = NbtCompound::new();
+        inventory.write_nbt(&mut nbt);
+        assert!(nbt.get_list("Items").is_none());
     }
 
     #[test]
