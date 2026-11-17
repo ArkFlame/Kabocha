@@ -867,7 +867,8 @@ impl DispenserBlock {
         Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
     }
 
-    /// Places `stack` into the first empty slot, returning it back if every slot is occupied.
+    /// Inserts `stack` like vanilla `DispenserBlockEntity.insertItem`: merge into matching
+    /// stacks with room, then fill empty slots. Returns the part that did not fit.
     /// The slot currently being dispensed from still holds its pre-dispense stack, so it is
     /// never considered free.
     fn add_to_first_free_slot(
@@ -878,11 +879,24 @@ impl DispenserBlock {
             .items
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut stack = stack;
         for slot in items.iter_mut() {
             if slot.is_empty() {
                 *slot = stack;
                 dispenser.mark_dirty();
                 return None;
+            }
+            if slot.are_items_and_components_equal(&stack) {
+                let room = slot.get_max_stack_size().saturating_sub(slot.item_count);
+                if room > 0 {
+                    let moved = room.min(stack.item_count);
+                    slot.item_count += moved;
+                    stack.item_count -= moved;
+                    dispenser.mark_dirty();
+                    if stack.is_empty() {
+                        return None;
+                    }
+                }
             }
         }
         Some(stack)
