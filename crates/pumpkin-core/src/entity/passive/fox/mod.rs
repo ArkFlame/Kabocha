@@ -384,14 +384,17 @@ impl FoxEntity {
             if self.is_sitting() && (in_water || self.is_sleeping()) {
                 self.set_sitting(false);
             }
+            // Vanilla only bursts the block when it is not air.
             if self.is_faceplanted() && rand::random::<f32>() < 0.2 {
                 let pos = entity.block_pos.load();
-                let state = world.get_block_state_id(&pos);
-                world.sync_world_event(
-                    WorldEvent::ParticlesAndSoundDestroyBlock,
-                    pos,
-                    i32::from(state.as_u16()),
-                );
+                let state = world.get_block_state(&pos);
+                if !state.is_air() {
+                    world.sync_world_event(
+                        WorldEvent::ParticlesAndSoundDestroyBlock,
+                        pos,
+                        i32::from(state.id.as_u16()),
+                    );
+                }
             }
         }
         let crouch = if self.is_crouching() {
