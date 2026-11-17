@@ -53,3 +53,6 @@ Reviewed source: `crates/pumpkin-core/src/block/blocks/beehive.rs`,
   not be checked; the glass-bottle-from-hive dispense in particular looks non-vanilla and should be
   confirmed before it is kept.
 - `BeehiveBlock#animateTick` honey drip particles are client-side only in vanilla; no server work.
+
+## h3 wave status
+- `beehive.rs` `angerNearbyBees` reason (S): FIXED 5610b37a9. Uses `TargetReason::ClosestPlayer` (UNVERIFIED in game).

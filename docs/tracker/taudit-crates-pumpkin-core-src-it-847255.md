@@ -46,3 +46,6 @@ No `TODO`/`FIXME` markers remain; the two "Vanilla" mentions are explanatory com
   real slot and removes empty stacks.
 - Shoot sound: `1.0 / (rand * 0.4 + 1.2) + power * 0.5`, `PLAYERS` category, broadcast after the
   projectile spawn, matching `Level.playSound(... ARROW_SHOOT ...)`.
+
+## h3 wave status
+- `bow.rs:24-47` spectator item use (S): FIXED 5610b37a9. `normal_use_with_rotation` returns early for spectators, matching `ServerPlayerGameMode.useItem` (UNVERIFIED in game).

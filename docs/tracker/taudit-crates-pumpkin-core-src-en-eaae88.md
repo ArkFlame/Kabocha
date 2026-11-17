@@ -24,3 +24,10 @@ Coverage: AUDIT. 3 vanilla-reference doc comments at lines 655, 683, 2324 (pre-a
 11. :2014 distance triggers now honour y/horizontal min+max but still ignore x/z/absolute; only one axis of DistancePredicate is applied. S.
 12. :581 ItemUsedOnBlockPredicate merges all location terms with last-wins for state, smokey and biome; all_of/any_of/inverted semantics are not modelled. M.
 13. :2327 matches_effects_changed_condition passes None distance to the source entity predicate, so a source predicate with a distance field can never match. S.
+
+## h3 wave status
+- 7 (:1064 PlacedBlock item count/enchantments): FIXED a98a6f3ec. Takes the placed stack count and enchantments; no current caller of `matches_placed_block_condition`.
+- 8 (:2302 item condition count): FIXED a98a6f3ec. `matches_item_condition` takes the stack count (UNVERIFIED in game; test `item_count_bounds_use_actual_stack_count`).
+- 9 (:2035 fall_after_explosion cause): STILL OPEN. Needs the cause entity predicate; the generated `AC::FallAfterExplosion` carries only the type string, so the full predicate cannot be built from that path yet.
+- 11 (:2014 distance x/z/absolute): STILL OPEN. Needs the trigger to pass all axes of the player position delta.
+- 13 (:2327 effects_changed source distance): STILL OPEN. Caller `living.rs:1755` must supply the source distance before the predicate can use it.

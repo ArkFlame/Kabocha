@@ -38,3 +38,6 @@ against the vanilla `CreakingHeartBlock`/`CreakingHeartBlockEntity` classes as k
 | `entity/mob/creaking.rs:119,120-124` | creaking-specific wander/melee goals (`enable_creaking_melee_attack`) | see `docs/tracker/tentities-creaking.md`, same root cause from the mob side | M |
 | `entities/creaking_heart.rs:97` (`creaking_hurt`) | vanilla heart also emits its hurt particle and `setChanged` when the creaking is hit | left as-is: sound + sway already reproduce the observable effect | S |
 | piston behaviour | vanilla creaking heart cannot be pushed | not actionable in this crate: `pumpkin-data`'s `Block` has no push-reaction field and no piston push code consults one, so there is nothing per-block to fix here | M |
+
+## h3 wave status
+- `creaking_heart.rs:87-91` `is_protector` unbound heart (S): FIXED 5610b37a9. An unbound heart no longer protects any creaking, requiring the stored UUID to match (UNVERIFIED in game).
