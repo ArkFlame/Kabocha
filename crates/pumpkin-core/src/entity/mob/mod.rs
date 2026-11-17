@@ -2414,6 +2414,12 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    /// Vanilla `LivingEntity.isBaby`. Mobs that store baby state outside `age` override this.
+    fn is_baby(&self) -> bool {
+        self.as_ageable()
+            .is_some_and(crate::entity::ageable::AgeableMob::is_baby)
+    }
+
     /// turns the mob into a baby. False when it has no baby form.
     fn spawn_as_baby(&self) -> bool {
         self.as_ageable().is_some_and(|ageable| {

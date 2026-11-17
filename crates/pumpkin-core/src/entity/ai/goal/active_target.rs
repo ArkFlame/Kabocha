@@ -1,6 +1,5 @@
 use super::{Controls, Goal, to_goal_ticks};
 
-use crate::entity::ageable::AgeableMob;
 use crate::entity::ai::behavior::hunting::TargetPredicateFn;
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::goal::track_target::TrackTargetGoal;
@@ -42,8 +41,7 @@ impl TargetCondition {
             Self::AngryAt => mob.as_neutral().is_some_and(|neutral| {
                 neutral.get_persistent_anger_target().is_some() || neutral.is_angry()
             }),
-            // TODO: `Mob::is_baby()` once baby state is unified.
-            Self::Adult => !mob.as_ageable().is_some_and(AgeableMob::is_baby),
+            Self::Adult => !mob.is_baby(),
             Self::Untamed => !mob.is_tamed(),
             Self::Always | Self::NoDaylight => true,
         }

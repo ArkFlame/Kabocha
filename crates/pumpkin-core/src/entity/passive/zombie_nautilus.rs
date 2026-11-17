@@ -9,6 +9,7 @@ use pumpkin_data::{
     attributes::Attributes,
     data_component::DataComponent,
     data_component_impl::{DataComponentImpl, EquipmentSlot, ZombieNautilusVariantImpl},
+    entity::EntityType,
     item_stack::ItemStack,
     sound::{Sound, SoundCategory},
     tag::{self, Taggable},
@@ -24,7 +25,11 @@ use crate::{
         Entity, EntityBase,
         ageable::{AgeableData, AgeableMob},
         ai::{
-            goal::tempt::TemptGoal,
+            goal::{
+                look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+                melee_attack::MeleeAttackGoal, random_swimming::RandomSwimmingGoal,
+                revenge::RevengeGoal, tempt::TemptGoal,
+            },
             pathfinder::{Navigator, node::PathType},
         },
         custom_sound::CustomSound,
@@ -123,6 +128,23 @@ impl ZombieNautilusEntity {
                 false,
             )),
         );
+        {
+            // Vanilla ZombieNautilusAi.IDLE has no panic or breed: swim, look,
+            // then charge a hostile in water.
+            let goals = &nautilus.mob_entity.goals_selector;
+            goals.add_goal(3, Box::new(RandomSwimmingGoal::new(1.0, 10)));
+            goals.add_goal(4, Box::new(RandomLookAroundGoal::default()));
+            let mob_weak = Arc::downgrade(&(nautilus.clone() as Arc<dyn Mob>));
+            goals.add_goal(
+                5,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
+            );
+            goals.add_goal(6, Box::new(MeleeAttackGoal::new(0.5, true)));
+        }
+        nautilus
+            .mob_entity
+            .target_selector
+            .add_goal(1, Box::new(RevengeGoal::new(true)));
 
         nautilus
     }

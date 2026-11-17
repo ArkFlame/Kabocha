@@ -479,7 +479,8 @@ pub fn apply_vanilla_enchantments(stack: &mut ItemStack, special_multiplier: f32
     // [minCost, minCost + (int)(specialMultiplier * maxCostSpan)].
     let max_cost = min_cost + (special_multiplier * max_cost_span as f32) as i32;
     let cost = rand::rng().random_range(min_cost..=max_cost);
-    for (enchantment, level) in EnchantmentProvider::select_by_cost(stack.item, enchantments, cost) {
+    for (enchantment, level) in EnchantmentProvider::select_by_cost(stack.item, enchantments, cost)
+    {
         stack.enchant(enchantment, level);
     }
 }

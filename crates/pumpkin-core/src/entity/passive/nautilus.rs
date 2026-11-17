@@ -10,7 +10,7 @@ use pumpkin_data::attributes::Attributes;
 use pumpkin_data::{
     data_component_impl::EquipmentSlot,
     effect::StatusEffect,
-    entity::EntityStatus,
+    entity::{EntityStatus, EntityType},
     item_stack::ItemStack,
     particle::Particle,
     potion::Effect,
@@ -31,8 +31,9 @@ use crate::entity::{
         },
         goal::{
             breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-            look_around::RandomLookAroundGoal, random_swimming::RandomSwimmingGoal,
-            tempt::TemptGoal,
+            look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+            melee_attack::MeleeAttackGoal, random_swimming::RandomSwimmingGoal,
+            revenge::RevengeGoal, tempt::TemptGoal,
         },
         pathfinder::{Navigator, node::PathType},
     },
@@ -110,7 +111,18 @@ impl NautilusEntity {
             goals.add_goal(3, Box::new(FollowParentGoal::new(1.3)));
             goals.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             goals.add_goal(5, Box::new(RandomLookAroundGoal::default()));
+            // Vanilla NautilusAi.IDLE: look-at target, then charge a hostile in water.
+            let mob_weak = Arc::downgrade(&(nautilus.clone() as Arc<dyn Mob>));
+            goals.add_goal(
+                6,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
+            );
+            goals.add_goal(7, Box::new(MeleeAttackGoal::new(0.6, true)));
         };
+        nautilus
+            .mob_entity
+            .target_selector
+            .add_goal(1, Box::new(RevengeGoal::new(true)));
         nautilus
     }
 

@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::block::blocks::redstone::is_diode;
 use crate::entity::decoration::hanging::{self, DEPTH, WALL_OFFSET};
@@ -16,6 +16,7 @@ use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::{Block, BlockDirection};
+use pumpkin_inventory::{Clearable, Inventory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata};
@@ -42,6 +43,77 @@ pub struct ItemFrameEntity {
     /// vanilla `CHECK_INTERVAL` cadence.
     ticks_since_last_check: AtomicU32,
     fixed: AtomicBool,
+}
+
+/// Single-slot view of a frame's item, exposed to hoppers and droppers through
+/// `EntityBase::get_container_inventory` (vanilla `ItemFrame.getSlot(0)`).
+struct ItemFrameInventory {
+    world: Weak<World>,
+    entity_id: i32,
+}
+
+impl ItemFrameInventory {
+    fn with_frame<T>(&self, f: impl FnOnce(&ItemFrameEntity) -> T) -> Option<T> {
+        let world = self.world.upgrade()?;
+        let entity = world.get_entity_by_id(self.entity_id)?;
+        let frame = entity.cast_any().downcast_ref::<ItemFrameEntity>()?;
+        Some(f(frame))
+    }
+}
+
+impl Clearable for ItemFrameInventory {
+    fn clear(&self) {
+        self.with_frame(|frame| frame.set_item(ItemStack::EMPTY.clone(), true));
+    }
+}
+
+impl Inventory for ItemFrameInventory {
+    fn size(&self) -> usize {
+        1
+    }
+
+    fn is_empty(&self) -> bool {
+        self.with_frame(|frame| frame.get_item().is_empty())
+            .unwrap_or(true)
+    }
+
+    fn get_stack(&self, slot: usize) -> ItemStack {
+        if slot != 0 {
+            return ItemStack::EMPTY.clone();
+        }
+        self.with_frame(ItemFrameEntity::get_item)
+            .unwrap_or_else(|| ItemStack::EMPTY.clone())
+    }
+
+    fn remove_stack(&self, slot: usize) -> ItemStack {
+        self.remove_stack_specific(slot, 1)
+    }
+
+    fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
+        if slot != 0 || amount == 0 {
+            return ItemStack::EMPTY.clone();
+        }
+        self.with_frame(|frame| {
+            let item = frame.get_item();
+            frame.set_item(ItemStack::EMPTY.clone(), true);
+            item
+        })
+        .unwrap_or_else(|| ItemStack::EMPTY.clone())
+    }
+
+    fn set_stack(&self, slot: usize, stack: ItemStack) {
+        if slot == 0 {
+            self.with_frame(|frame| frame.set_item(stack, true));
+        }
+    }
+
+    fn get_max_count_per_stack(&self) -> u8 {
+        1
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl ItemFrameEntity {
@@ -483,6 +555,17 @@ impl EntityBase for ItemFrameEntity {
 
     fn get_entity(&self) -> &Entity {
         &self.entity
+    }
+
+    fn has_container_inventory(&self) -> bool {
+        true
+    }
+
+    fn get_container_inventory(&self) -> Option<Arc<dyn Inventory>> {
+        Some(Arc::new(ItemFrameInventory {
+            world: Arc::downgrade(&self.entity.world.load_full()),
+            entity_id: self.entity.entity_id,
+        }))
     }
 
     fn get_living_entity(&self) -> Option<&LivingEntity> {

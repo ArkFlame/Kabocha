@@ -844,7 +844,7 @@ impl EntityBase for ArmorStandEntity {
 }
 
 /// Applies one vanilla `ArmorStand` client flag bit to the synched flag byte.
-fn with_client_flag(current: u8, flag: ArmorStandFlags, set: bool) -> u8 {
+const fn with_client_flag(current: u8, flag: ArmorStandFlags, set: bool) -> u8 {
     if set {
         current | flag as u8
     } else {
