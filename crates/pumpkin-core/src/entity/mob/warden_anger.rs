@@ -287,4 +287,10 @@ impl AngerManagement {
         nbt.put("suspects", NbtTag::List(suspects));
         nbt
     }
+
+    #[test]
+    fn anger_extremes_map_to_calm_and_angry() {
+        assert!(AngerLevel::by_anger(0) == AngerLevel::Calm);
+        assert!(AngerLevel::by_anger(i32::MAX) == AngerLevel::Angry);
+    }
 }
