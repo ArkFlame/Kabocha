@@ -94,13 +94,28 @@ pub use versions::BedrockVersions;
 pub struct OutgoingPacket {
     pub data: Bytes,
     pub completion: Option<oneshot::Sender<()>>,
+    /// Run the packet through version translation in the outgoing writer; `Some(observe)`
+    /// also fires `PacketSentEvent` for current-version clients when `observe` is set.
+    /// `None` for packets that are already translated.
+    pub translate: Option<bool>,
 }
 
 impl OutgoingPacket {
+    /// Already-translated packet queued exactly as is (no `PacketSentEvent`).
     pub const fn normal(data: Bytes) -> Self {
         Self {
             data,
             completion: None,
+            translate: None,
+        }
+    }
+
+    /// Packet to translate (and usually fire `PacketSentEvent` for) in the writer.
+    pub const fn with_translation(data: Bytes, observe: bool) -> Self {
+        Self {
+            data,
+            completion: None,
+            translate: Some(observe),
         }
     }
 
@@ -108,6 +123,7 @@ impl OutgoingPacket {
         Self {
             data,
             completion: Some(completion),
+            translate: None,
         }
     }
 }
@@ -316,14 +332,40 @@ impl BedrockClient {
                 }
 
                 let mut wire_buf = Vec::new();
-                for packet in packet_batch {
-                    let packet_len = packet.data.len();
-                    let Some((packet_id, payload)) = split_raw_packet(&packet.data) else {
+                let mut pending_packets: std::collections::VecDeque<OutgoingPacket> =
+                    packet_batch.into();
+                while let Some(packet) = pending_packets.pop_front() {
+                    // Reserved bytes were counted on the pre-translation length.
+                    let reserved_len = packet.data.len();
+                    // `PacketSentEvent` runs here, not while enqueuing: packets are queued from
+                    // the tick, often while it holds world and entity-tracker locks, and firing
+                    // there starves the Tokio workers that need those same locks.
+                    let (translated, extras) = match packet.translate {
+                        Some(observe) => {
+                            client.translate_outgoing_async(packet.data, observe).await
+                        }
+                        None => (Some(packet.data), Vec::new()),
+                    };
+                    // Extra packets a handler injected go out right after this one.
+                    for extra in extras.into_iter().rev() {
+                        if client.reserve_bytes(extra.len()).is_none() {
+                            break;
+                        }
+                        pending_packets.push_front(OutgoingPacket::normal(extra));
+                    }
+                    let Some(packet_data) = translated else {
+                        decrement_pending_bytes(&client.pending_bytes, reserved_len);
+                        if let Some(completion) = packet.completion {
+                            let _ = completion.send(());
+                        }
+                        continue;
+                    };
+                    let Some((packet_id, payload)) = split_raw_packet(&packet_data) else {
                         warn!(
                             "Dropping malformed outgoing Bedrock packet for {}",
                             client.address
                         );
-                        decrement_pending_bytes(&client.pending_bytes, packet_len);
+                        decrement_pending_bytes(&client.pending_bytes, reserved_len);
                         continue;
                     };
                     wire_buf.clear();
@@ -339,11 +381,11 @@ impl BedrockClient {
                             "Failed to encode Bedrock packet {packet_id} for {}: {error}",
                             client.address
                         );
-                        decrement_pending_bytes(&client.pending_bytes, packet_len);
+                        decrement_pending_bytes(&client.pending_bytes, reserved_len);
                         continue;
                     }
                     let Some(data) = wire_buf.strip_prefix(&[BEDROCK_GAME_PACKET]) else {
-                        decrement_pending_bytes(&client.pending_bytes, packet_len);
+                        decrement_pending_bytes(&client.pending_bytes, reserved_len);
                         continue;
                     };
                     if let Err(error) = client.session.send(Bytes::copy_from_slice(data)).await {
@@ -351,12 +393,12 @@ impl BedrockClient {
                             "Failed to send NetherNet packet to {}: {error}",
                             client.address
                         );
-                        decrement_pending_bytes(&client.pending_bytes, packet_len);
+                        decrement_pending_bytes(&client.pending_bytes, reserved_len);
                         client.close().await;
                         return;
                     }
 
-                    decrement_pending_bytes(&client.pending_bytes, packet_len);
+                    decrement_pending_bytes(&client.pending_bytes, reserved_len);
 
                     if let Some(completion) = packet.completion {
                         let _ = completion.send(());
@@ -816,14 +858,9 @@ impl BedrockClient {
 
     /// Queues a clientbound packet to be sent to the connected client.
     pub async fn enqueue_packet_data(&self, packet_data: Bytes) -> bool {
-        if self.is_closed() {
-            return false;
-        }
-        let (packet_data, extras) = self.translate_outgoing_async(packet_data, true).await;
-        match packet_data {
-            Some(packet_data) => self.queue_translated_packet(packet_data, extras),
-            None => self.queue_extra_packets(extras),
-        }
+        // `PacketSentEvent` fires in the outgoing writer, so callers never block on a plugin
+        // while holding tick locks.
+        self.try_enqueue_packet_data(packet_data)
     }
 
     /// `false` when the packet was dropped instead of queued.
@@ -850,14 +887,13 @@ impl BedrockClient {
     }
 
     fn try_enqueue_packet_data_inner(&self, packet_data: Bytes, observe: bool) -> bool {
-        if self.is_closed() {
+        let Some(packet_len) = self.reserve_bytes(packet_data.len()) else {
             return false;
-        }
-        let (packet_data, extras) = self.translate_outgoing(packet_data, observe);
-        match packet_data {
-            Some(packet_data) => self.queue_translated_packet(packet_data, extras),
-            None => self.queue_extra_packets(extras),
-        }
+        };
+        self.queue_outgoing(
+            OutgoingPacket::with_translation(packet_data, observe),
+            packet_len,
+        )
     }
 
     pub fn write_raw_packet<P: BClientPacket>(
