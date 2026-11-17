@@ -28,7 +28,7 @@ already replaced by `f64::from(range)`); the two `vanilla` mentions are doc comm
 copied from there: a target 2 blocks above a cow can be picked although vanilla cannot.
 Suggested fix: pass `0.0` vertical and confirm against the decompiled class. Size: S.
 
-### 2. Player reach is declared 10x too large (S)
+### 2. Player reach is declared 10x too large (S) - FIXED fix(core): bound look-at player reach by range
 `look_at_entity.rs:155` sets `players: range * MobVisibilityImpl::MAX_VISIBILITY` (10x).
 `MAX_VISIBILITY` is the bound of the `minecraft:mob_visibility` data component, not a
 game range; the predicate's real maximum is `range * visibility_percent <= range`.
@@ -61,3 +61,8 @@ the panda goal the matching distance. Size: S.
 it can run alongside `RandomLookAroundGoal` (the later goal wins the look control each
 tick). Pumpkin's flag makes the two mutually exclusive. Matching vanilla would need the
 goal arbitration to allow overlapping flags; low behavioural impact. Size: S/M.
+STILL OPEN (1): no decompiled reference; the audit's "horizontal only" claim conflicts with vanilla `LookAtPlayerGoal`, which I recall as `inflate(lookDistance, 3.0, lookDistance)`. Code matches that, so the 3.0 is not changed without `.vendor/` evidence.
+STILL OPEN (3): wiring vanilla `onlyHorizontal` callers needs the decompiled callers list, not available.
+STILL OPEN (4): PandaLookAtPlayerGoal's behaviour (rider filter) cannot be verified without a decompiled reference.
+STILL OPEN (5): sulk-range vanilla behaviour cannot be verified; clamping is a behaviour choice, not certain.
+STILL OPEN (6): needs goal-arbitration change for overlapping flags, which is M/L and not certain.
