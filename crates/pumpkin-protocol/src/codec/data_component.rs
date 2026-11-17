@@ -1453,6 +1453,9 @@ impl DataComponentCodec<Self> for BundleContentsImpl {
         for item in &self.items {
             serialize_item_stack_template(item, seq)?;
         }
+        // Vanilla `BundleContents.STREAM_CODEC` also carries the selected
+        // index, so a container sync keeps the client's scroll selection.
+        seq.write_var_int(&VarInt::from(self.selected_item))?;
         Ok(())
     }
 
@@ -1471,7 +1474,8 @@ impl DataComponentCodec<Self> for BundleContentsImpl {
         for _ in 0..len {
             items.push(deserialize_item_stack_template(seq)?);
         }
-        Ok(Self::new(items))
+        let selected_item = seq.get_var_int()?.0;
+        Ok(Self { items, selected_item })
     }
 }
 
@@ -4145,6 +4149,27 @@ mod tests {
             CanBreakImpl::deserialize(&mut encoded.as_slice()),
             Err(ReadingError::TooLarge(_))
         ));
+    }
+
+    /// Vanilla's bundle stream codec carries the selected index, otherwise a
+    /// container sync would reset the player's scroll selection every tick.
+    #[test]
+    fn bundle_contents_stream_codec_keeps_selected_item() -> Result<(), Box<dyn std::error::Error>>
+    {
+        use pumpkin_data::item::Item;
+        use pumpkin_data::item_stack::ItemStack;
+
+        let items = vec![ItemStack::new(1, &Item::STONE), ItemStack::new(1, &Item::DIRT)];
+        let bundle = BundleContentsImpl {
+            items,
+            selected_item: 1,
+        };
+        let mut encoded = Vec::new();
+        bundle.serialize(&mut encoded)?;
+        let decoded = BundleContentsImpl::deserialize(&mut encoded.as_slice())?;
+        assert_eq!(decoded.items.len(), 2);
+        assert_eq!(decoded.selected_item, 1);
+        Ok(())
     }
 
     #[test]
