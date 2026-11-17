@@ -31,10 +31,10 @@ impl JavaClient {
             command_block.set_last_output(None);
         }
 
+        // Vanilla `handleSetCommandMinecart` always applies the command and re-syncs,
+        // the `commandBlocksWork` gamerule only gates execution.
+        command_block.on_updated(&minecart.vehicle.entity);
         let enabled = world.level_info.load().game_rules.command_blocks_work;
-        if enabled {
-            command_block.on_updated(&minecart.vehicle.entity);
-        }
 
         if !packet.command.is_empty() {
             let key = if enabled {
