@@ -25,11 +25,32 @@ Status: UNVERIFIED. Compiled and tested from memory of vanilla 1.21.x; no cargo 
 - CSpawnEntity field order (id, uuid, type, pos, [LpVec3 for 1.21.9+], pitch, yaw, head yaw, data, legacy velocity).
 - CLogin play 1.20.2+ field order through dimension, hashed seed, game modes.
 
+- `codec/bitset.rs` `Bitset<N>`: `get`/`set` asserted `index <= N`; now `index < N` with an
+  index-out-of-range message. Tests: `last_valid_index_is_n_minus_one`, `index_n_is_out_of_range`.
+  Bedrock only (`PlayerAuthInput`). UNVERIFIED (no cargo run).
+
+## Java packet sweep (1.21.x), 15 packets
+
+Checked field order and types against vanilla from memory. No confident divergence found, so no wire change:
+
+- login: entity id, hardcore, dimension names, max players, view/sim distance, debug info, respawn screen, limited crafting, spawn info, secure chat. Partial check only.
+- set_entity_motion (`CEntityVelocity`): VarInt id, LpVec3 1.21.9+, legacy i16 triple before.
+- move_entity pos / pos_rot (`CUpdateEntityPosRot`): VarInt id, i16 deltas, u8 yaw/pitch, bool on_ground.
+- level_chunk_with_light: i32 chunk xz, heightmaps, data, block entities, then light (trust edges 1.16 to 1.19.4, BitSet masks 1.17+, VarInt arrays).
+- block_update: BlockPos, VarInt state.
+- section_blocks_update: packed section long, suppress-light bool only 1.16 to 1.19.4, VarLong `(state << 12) | local`.
+- entity_event: i32 id, i8 status.
+- level_event: i32 event, BlockPos, i32 data, bool global.
+- sound: holder id or inline name, category, i32 xyz, f32 volume, f32 pitch, i64 seed 1.19+.
+- set_equipment: VarInt id, slot byte with 0x80 continuation, ItemStack.
+- boss_event: UUID, VarInt action 0 to 5 (add, remove, health, name, style, flags).
+- player_info_update: action bits 0x01 to 0x80 in vanilla enum order, data written in bit order.
+- update_attributes: VarInt id, count, per property id, f64, modifiers. Modifier id string 1.21+ (UUID before). Operation is u8 here and VarInt in vanilla; the bytes match for values 0 to 127.
+- set_entity_data (`CSetEntityData`): VarInt id, metadata slice. Only the outer frame was checked.
+
 ## Open (not fixed)
 
-- `codec/bitset.rs` `Bitset<N>`: `get`/`set` assert `index <= N` (should be `< N`), and the
-  read format is 7-bit groups with continuation bits, which is not a vanilla wire format.
-  Only Bedrock `PlayerAuthInput` uses it. Bedrock is out of scope here. Confidence in the
-  format mismatch: medium. Needs a Bedrock-side check.
+- `codec/bitset.rs` read format: 7-bit groups with continuation bits. This is not a vanilla
+  Bedrock wire format as far as I know. Bedrock only, confidence medium. Left as is per policy.
 - `codec/bit_set.rs` `BitSet::MAX_LENGTH = 1024` longs on read. Vanilla bounds it only by
   the packet size. Low impact, not changed.

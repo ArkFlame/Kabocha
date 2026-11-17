@@ -10,13 +10,13 @@ pub struct Bitset<const N: usize> {
 impl<const N: usize> Bitset<N> {
     pub fn get<T: Into<usize>>(&self, index: T) -> bool {
         let index: usize = index.into();
-        assert!(index <= N, "");
+        assert!(index < N, "bit index {index} out of range for Bitset<{N}>");
         (self.bits & (1 << index)) != 0
     }
 
     pub fn set<T: Into<usize>>(&mut self, index: T, value: bool) {
         let index: usize = index.into();
-        assert!(index <= N, "");
+        assert!(index < N, "bit index {index} out of range for Bitset<{N}>");
         if value {
             self.bits |= 1 << index;
         } else {
@@ -44,5 +44,25 @@ impl<const N: usize> PacketRead for Bitset<N> {
             }
         }
         Err(Error::new(ErrorKind::InvalidData, "Bitset too large"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Bitset;
+
+    #[test]
+    fn last_valid_index_is_n_minus_one() {
+        let mut bits = Bitset::<66>::default();
+        bits.set(65usize, true);
+        assert!(bits.get(65usize));
+        assert!(!bits.get(64usize));
+    }
+
+    #[test]
+    #[should_panic]
+    fn index_n_is_out_of_range() {
+        let bits = Bitset::<66>::default();
+        let _ = bits.get(66usize);
     }
 }
