@@ -166,6 +166,24 @@ impl CommandExecutor for RecipeTakeExecutor {
 
         let is_all = recipe_str == "*";
 
+        // Vanilla resolves the id against the recipe manager, so a recipe that exists but has no
+        // recipe book display (smithing, stonecutting, special crafting) is still valid here.
+        let matches = |recipe: &DynamicRecipe| {
+            let id = get_recipe_id(recipe);
+            id == recipe_str || id.strip_prefix("minecraft:").unwrap_or(&id) == recipe_str
+        };
+
+        let matched_count = if is_all {
+            0
+        } else {
+            all_recipes.iter().filter(|r| matches(r)).count()
+        };
+
+        if !is_all && matched_count == 0 {
+            return Err(ERROR_RECIPE_NOT_FOUND
+                .create_without_context(TextComponent::text(recipe_str.clone())));
+        }
+
         let recipe_ids_to_remove: Vec<VarInt> = if is_all {
             (0..(dynamic_recipe_offset + displayable_recipes.len()))
                 .map(|id| VarInt(id as i32))
@@ -175,25 +193,22 @@ impl CommandExecutor for RecipeTakeExecutor {
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, r)| {
-                    let id = get_recipe_id(r);
-                    let is_match = id == recipe_str
-                        || id.strip_prefix("minecraft:").unwrap_or(&id) == recipe_str;
-
-                    is_match.then_some(VarInt((dynamic_recipe_offset + idx) as i32))
+                    matches(r).then_some(VarInt((dynamic_recipe_offset + idx) as i32))
                 })
                 .collect()
         };
 
-        if recipe_ids_to_remove.is_empty() {
-            return Err(ERROR_RECIPE_NOT_FOUND
-                .create_without_context(TextComponent::text(recipe_str.clone())));
-        }
+        let taken_count = if is_all {
+            recipe_ids_to_remove.len()
+        } else {
+            matched_count
+        };
 
-        let taken_count = recipe_ids_to_remove.len();
-
-        let packet = CRecipeBookRemove::new(&recipe_ids_to_remove);
-        for player in &targets {
-            player.try_send_client_packet(&packet);
+        if !recipe_ids_to_remove.is_empty() {
+            let packet = CRecipeBookRemove::new(&recipe_ids_to_remove);
+            for player in &targets {
+                player.try_send_client_packet(&packet);
+            }
         }
 
         let taken_count_str = taken_count.to_string();
