@@ -412,6 +412,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn facing_to_yaw_matches_vanilla_direction_yaw() {
+        // Vanilla `Direction.toYRot`: south 0, west 90, north 180, east 270.
+        assert!((facing_to_yaw(BlockDirection::South) - 0.0).abs() < f32::EPSILON);
+        assert!((facing_to_yaw(BlockDirection::West) - 90.0).abs() < f32::EPSILON);
+        assert!((facing_to_yaw(BlockDirection::North) - 180.0).abs() < f32::EPSILON);
+        assert!((facing_to_yaw(BlockDirection::East) - 270.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
     fn horizontal_and_3d_facings_round_trip() {
         for horizontal in 0u8..4 {
             let direction = facing_from_horizontal(horizontal);
