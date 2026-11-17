@@ -658,6 +658,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    /// Vanilla `Entity.getPickRadius`: extra reach for the boat placement eye check.
+    fn get_pick_radius(&self) -> f32 {
+        0.0
+    }
+
     /// Called while the entity is at the top of a bubble column. Projectiles get the uncapped push.
     fn on_above_bubble_column(&self, drag_down: bool, pos: &BlockPos) {
         let entity = self.get_entity();
