@@ -155,7 +155,8 @@ impl CommandBlockMinecart {
         }
 
         let command = self.get_command();
-        if command.eq_ignore_ascii_case("Searge") {
+        // Vanilla `BaseCommandBlock#performCommand` uses `"Searge".equals(command)`.
+        if command == "Searge" {
             self.set_last_output(Some(TextComponent::text("#itzlipofutzli")));
             self.success_count.store(1, Ordering::Relaxed);
             self.on_updated(entity);
