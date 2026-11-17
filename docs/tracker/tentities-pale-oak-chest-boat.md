@@ -1,69 +1,57 @@
 # Tracker: entities / Pale Oak Chest Boat
 
-Reviewed: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (whole file),
-`crates/pumpkin-core/src/entity/vehicle/boat/passengers.rs`,
-`crates/pumpkin-core/src/entity/type.rs:319-355`,
-`crates/pumpkin-core/src/item/items/boat.rs:21-98`,
-generated `crates/pumpkin-data/src/generated/entity_type.rs:7987-8043`,
-at branch `kab/tentities-pale-oak-chest-boat` (after `feat: improve boat water physics`
-#4073, `fix(entity): burn boats in lava` #4386, `feat(inventory): implement 26.3 worldly
-container ... vehicle container parity`).
-Vanilla reference: `net.minecraft.world.entity.vehicle.AbstractChestBoat`,
-`AbstractBoat` and `net.minecraft.world.item.BoatItem` (1.21.x). No `.vendor` tree is
-present in this checkout, so parity below was checked against the vanilla class bodies.
+Re-review (RE-REVIEW-UNTRACKED). Source: `crates/pumpkin-core/src/entity/vehicle/boat.rs`
+(shared by every chest boat/raft), `entity/type.rs:332-356`,
+`item/items/boat.rs:21-98`, `entity/vehicle/minecart/container.rs`,
+generated `pumpkin-data/src/generated/entity_type.rs:7987-8043`.
+No decompiled tree is present in this checkout (`.vendor/` empty), so the vanilla
+comparison below is against `net.minecraft.world.entity.vehicle.AbstractChestBoat` /
+`AbstractBoat` / `BoatItem` behaviour, not quoted source.
 
-## Verified parity (no change needed)
+The re-review was triggered by three shared chest-boat changes after the previous audit:
+`0fe61a1fb` (spectator guard), `baf497b61` (container-open game event removed) and
+`97ba2480d` (contents drop on creative break). All three are present and consistent with
+the vanilla destroy/spawn paths below.
+
+## Verified parity
 
 | Behaviour | Pumpkin |
 |---|---|
-| Entity type is created as a boat, not a generic entity | `entity/type.rs:319-355` lists `PALE_OAK_CHEST_BOAT`. |
-| Chest boat is a chest variant | `boat.rs:43-55` `is_chest_boat` includes `PALE_OAK_CHEST_BOAT` (and `BAMBOO_CHEST_RAFT`). |
-| 27-slot container, `Items` NBT, loot table/seed, `claim_drops` | `boat.rs:74-75, 235-245` + `MinecartInventory` (`minecart/container.rs:40-80`). |
-| One seat, not two | `boat.rs:94-96` (`get_max_passengers` = 1 for chest boats). |
-| Chest-boat single-rider X offset 0.15 and `height / 3` ride height (bamboo `* 0.8888889`) | `passengers.rs:53-80`; `AbstractBoat#getPassengerAttachmentPoint/getRideYOffset`. |
-| Open container when sneaking or when the seat is taken | `boat.rs:364-400`. |
-| Container title `entity.minecraft.<type>`, custom name wins, container-open game event | `boat.rs:98-125`, custom name applied in `container::open` (`minecart/container.rs:227`). |
-| Breaking drops the chest contents (scattered) and the boat item, honouring `doEntityDrops` and creative | `boat.rs:315-362`; chest boat item resolved from `resource_name` = `pale_oak_chest_boat`. |
-| Boat item places the matching entity and consumes one | `item/items/boat.rs:39-40` (map), `:89-94` (ids), `:152-203` (`use`). |
-| Entity dimensions 1.375 x 0.5625, eye 0.5625, single_passenger_x_offset 0.15 | generated `entity_type.rs:8023-8042`; matches `EntityType.CHEST_BOAT`. |
-| Passengers persisted (`Passengers` NBT) so a ridden chest boat survives restart | `entity/mod.rs:5989`. |
+| Variant is created as a boat entity | `entity/type.rs:332-356` includes `PALE_OAK_CHEST_BOAT` |
+| Chest variant detection for all 11 boats/rafts | `boat.rs:41-53` |
+| 27-slot container only for chest boats | `boat.rs:37,72-73,92-94`; `minecart/container.rs:23-38` |
+| One passenger seat (regular boats keep two) | `boat.rs:92-94`; mob pickup `entity/mod.rs:1237-1250` |
+| Seat offset/ride height from generated `BoatSeats` | `boat/passengers.rs:64-88`, `boat.rs:183-215` |
+| Board when a seat is free, open when sneaking or full | `boat.rs:374-409` |
+| Menu only for non-spectators, alive, and not occupied by another entity | `boat.rs:96-121` (fixed this pass) |
+| Title `entity.minecraft.<variant>`, Bedrock chest-boat/raft key, custom name wins | `boat.rs:120-129`, `minecart/container.rs:227` |
+| No `GameEvent.CONTAINER_OPEN` from entity containers (block containers only) | `minecart/container.rs:202-233` |
+| Break threshold `damage + amount*10 > 40`, creative instabuild | `boat.rs:322-341` |
+| `doEntityDrops` gating: contents always scatter, boat item non-creative only | `boat.rs:341-369`, vanilla `ChestBoat.destroy` + `AbstractBoat.hurt` |
+| Boat item resolved from `resource_name`, keeps custom name | `boat.rs:359-368`, `item/items/boat.rs:21-58` |
+| `Items` NBT round trip at container root | `boat.rs:242-252`, `minecart/container.rs:40-81` |
+| Item places matching entity, consumes one, increments stat | `item/items/boat.rs:159-210` |
+| Boat movement statistic includes pale oak chest boat | `entity/player.rs:4388` |
 
-The previous "partial" assessment predates #4073/#4386 and the vehicle-container parity
-work (water physics, lava destruction, container open/game event, break drops). Those fill
-the gaps the row was tracking.
+## Fixed this pass
+
+- `boat.rs:96-121` — `open_custom_inventory_screen` now also refuses when the boat is dead
+  or ridden by a different entity (`!passengers.is_empty() && !hasPassenger(player)`),
+  matching `AbstractChestBoat.openCustomInventoryScreen`. Previously a non-sneaking
+  stranger clicking a chest boat occupied by another player opened its 27 slots. The rider
+  itself can still open its own boat, and `interact` now falls through to `false` (PASS)
+  for the stranger instead of consuming the click.
 
 ## Remaining gaps
 
-### 1. Chest boat opens its container when the seat is occupied and the player is not sneaking - size S
+| # | Location | Vanilla class | Gap | Suggested fix | Size |
+|---|---|---|---|---|---|
+| 1 | `minecart/container.rs:202-233`, `boat.rs:96` | `AbstractChestBoat.canPlayerUse` / `AbstractContainerMenu.stillValid` | Entity-backed screen never becomes invalid: no 8-block distance or entity-liveness check, so the menu survives walking away, the boat being destroyed or unloaded. | Give `MinecartScreenFactory` a validity closure (`is_alive() && squaredDistance <= 64`) and close the menu when it fails; use it for chest boats and chest minecarts. | M |
+| 2 | `item/items/boat.rs:187-198` | `BoatItem.use` + `minecraft:container` component (1.21.2+) | Placing a chest boat item ignores the `minecraft:container` component, so a serialized boat with contents spawns empty. | After `BoatEntity::new`, copy `ContainerImpl` stacks slot-for-slot (clamp 27) before `world.spawn_entity`. Confirm the target-version `BoatItem` still forwards the component. | M |
+| 3 | `boat.rs:266-281`, hopper path | `AbstractChestBoat implements Container` only | `has_container_inventory` exposes the chest boat as a worldly container, so a hopper above may insert; vanilla chest boats are plain `Container` (extract only). Verify the hopper/worldly-container path before changing. | Gate insertion per vehicle kind if the hopper path currently allows it. | M |
+| 4 | `boat.rs:348-354` | `Containers.dropContents(level, entity, container)` | Scattered contents use `entity.block_pos` (block origin) instead of the entity's exact `pos`. Cosmetic item-spawn offset only. | Add a position-based `World::scatter_inventory` variant and use `entity.pos` here and in `minecart.rs`. | S |
+| 5 | `boat.rs:242-252` | `AbstractChestBoat` save/load | No automated test for the chest-boat 27-slot NBT round trip or the new open guard. | Unit test: `BoatEntity` for `PALE_OAK_CHEST_BOAT` vs `PALE_OAK_BOAT`, assert `has_container_inventory()` and an `Items` round trip through slot 26. | S |
 
-`crates/pumpkin-core/src/entity/vehicle/boat.rs:377`
+Client-only effects (chest rendering, screen layout, paddle wobble) were not assessed.
+No cargo/test run (worker constraint); the orchestrator batch-compiles.
 
-```rust
-if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
-    let _ = self.open_custom_inventory_screen(player);
-    return true;
-}
-```
-
-Vanilla `AbstractChestBoat.interact` delegates to `AbstractBoat.interact`, which only opens
-the container for `player.isSecondaryUseActive()` (sneak); when the boat is full and the
-player is not sneaking the interaction is `PASS` (nothing happens). Pumpkin additionally
-opens the inventory for a non-sneaking player whenever the 1 chest-boat seat is taken.
-
-Fix (needs the vanilla method body confirmed first, it is the only item here that could not
-be verified without the decompiled tree): gate the open on `player.get_entity().is_sneaking()`
-and let the full-boat case fall through to `return false`.
-
-### 2. No automated test for chest-boat container persistence - size S
-
-`crates/pumpkin-core/src/entity/vehicle/boat.rs:235-245`
-
-`write_custom_nbt`/`read_custom_nbt` delegate to `MinecartInventory`, but nothing exercises
-the boat path with the 27-slot size. Add a `pumpkin-gametest`/unit test that builds a
-`PALE_OAK_CHEST_BOAT` `BoatEntity`, writes an `ItemStack` into slot 26, round-trips the NBT
-and asserts the stack (and that a plain `OAK_BOAT` has no inventory).
-
-### 3. Client-only behaviour not verifiable here
-
-Container screen title layout, chest-boat rendering and paddle wobble are client-side; not
-audited, not blocking.
