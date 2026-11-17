@@ -967,13 +967,18 @@ impl BlockRegistry {
 
         Ok(Some((final_block_pos, new_state)))
     }
-    #[allow(clippy::expect_used)]
     pub fn register<T: BlockBehaviour + BlockMetadata + 'static>(&mut self, block: T) {
         let ids = T::ids();
-        let idx = u16::try_from(self.behaviours.len())
+        let Some(idx) = u16::try_from(self.behaviours.len())
             .ok()
             .filter(|idx| *idx != NO_BEHAVIOUR)
-            .expect("Too many block behaviours for the index table");
+        else {
+            tracing::error!(
+                "Too many block behaviours for the index table; skipping {}",
+                std::any::type_name::<T>()
+            );
+            return;
+        };
         self.behaviours.push(Arc::new(block));
         for i in ids {
             self.block_indices[i.as_u16() as usize] = idx;

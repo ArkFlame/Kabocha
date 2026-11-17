@@ -57,7 +57,7 @@ pub trait LoadJSONConfiguration {
                 "Make sure the server has permission to write to its working directory. \
                  This often fails in Docker when the container runs as a non-root user."
             );
-            std::process::exit(1);
+            return Self::default();
         }
         let path = data_dir.join(Self::get_path());
 

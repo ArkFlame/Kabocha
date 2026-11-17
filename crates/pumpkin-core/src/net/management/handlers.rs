@@ -813,7 +813,7 @@ async fn execute_method(
             let s = server.clone();
             tokio::spawn(async move {
                 s.shutdown().await;
-                std::process::exit(0);
+                crate::stop_server();
             });
             Ok(json!(true))
         }
