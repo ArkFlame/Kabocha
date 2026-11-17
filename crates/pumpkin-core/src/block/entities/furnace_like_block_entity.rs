@@ -858,8 +858,9 @@ macro_rules! impl_block_entity_for_cooking {
                 Some(nbt)
             }
 
-            fn client_update_tag(&self, _saved: pumpkin_nbt::compound::NbtCompound) -> pumpkin_nbt::compound::NbtCompound {
-                pumpkin_nbt::compound::NbtCompound::new()
+            // Vanilla `getUpdateTag` carries the items and cook/burn state, same as the saved data.
+            fn client_update_tag(&self, saved: pumpkin_nbt::compound::NbtCompound) -> pumpkin_nbt::compound::NbtCompound {
+                saved
             }
 
             fn bedrock_block_actor_data(&self, _state_id: pumpkin_data::BlockStateId) -> Option<pumpkin_nbt::compound::NbtCompound> {
