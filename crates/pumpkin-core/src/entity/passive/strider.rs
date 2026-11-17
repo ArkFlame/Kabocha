@@ -184,6 +184,10 @@ impl Mob for StriderEntity {
             || (self.mob_entity.living_entity.entity.is_alive() && !self.is_baby())
     }
 
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        self.get_entity().entity_type.ambient_sound
+    }
+
     fn get_equip_sound(&self, slot: &EquipmentSlot) -> Option<Sound> {
         (*slot == EquipmentSlot::SADDLE).then_some(Sound::EntityStriderSaddle)
     }
