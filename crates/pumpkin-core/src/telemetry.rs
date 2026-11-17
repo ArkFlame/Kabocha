@@ -12,7 +12,10 @@ use crate::entity::player::Player;
 use crate::net::ClientPlatform;
 use crate::server::Server;
 
-/// Maximum number of player breakdown entries included in a single heartbeat payload.
+/// Maximum number of online player entries included in a single heartbeat payload.
+///
+/// Completed sessions buffered since the previous heartbeat are reported on top of this,
+/// bounded separately by [`MAX_COMPLETED_SESSIONS_PER_HEARTBEAT`].
 pub const MAX_TELEMETRY_PLAYERS: usize = 500;
 
 /// Maximum number of completed player sessions buffered between heartbeats.
