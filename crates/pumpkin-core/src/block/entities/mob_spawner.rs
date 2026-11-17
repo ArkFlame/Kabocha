@@ -125,7 +125,10 @@ fn reset_spawner_delay<F: FnOnce()>(
     on_reset();
 }
 
-#[expect(clippy::too_many_lines, reason = "mirrors vanilla BaseSpawner.serverTick as one routine")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "mirrors vanilla BaseSpawner.serverTick as one routine"
+)]
 pub(crate) fn tick_spawner<F: FnOnce()>(
     world: &Arc<World>,
     position: BlockPos,

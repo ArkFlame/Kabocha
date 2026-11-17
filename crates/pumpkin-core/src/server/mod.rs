@@ -541,8 +541,7 @@ impl Server {
         // with `DEFAULT_SPAWN_Y` before any chunk exists, so replace it with the real spawn
         // height once the spawn chunk can be generated; the console command source uses this
         // position for relative coordinates.
-        if is_new_world
-            && let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD)
+        if is_new_world && let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD)
         {
             let (spawn_x, spawn_z, fallback_y) = {
                 let info = server.level_info.load();
