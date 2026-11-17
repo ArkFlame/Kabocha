@@ -1,12 +1,15 @@
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{damage::DamageType, sound::Sound};
 use pumpkin_util::GameMode;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
+use crate::entity::ai::control::move_control::{MoveControl, Operation};
+use crate::entity::ai::control::{Control, MoveControlTrait};
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::living::LivingEntity;
@@ -47,8 +50,10 @@ pub(crate) fn reflect_thorns(
     guardian: &dyn EntityBase,
     damage_type: DamageType,
     cause: Option<&dyn EntityBase>,
+    moving: bool,
 ) {
-    if damage_type.has_tag(&tag::DamageType::MINECRAFT_AVOIDS_GUARDIAN_THORNS) {
+    // Vanilla `Guardian#hurt` skips the reflection while the guardian is swimming.
+    if moving || damage_type.has_tag(&tag::DamageType::MINECRAFT_AVOIDS_GUARDIAN_THORNS) {
         return;
     }
     let Some(cause) = cause else { return };
@@ -70,14 +75,82 @@ pub(crate) fn reflect_thorns(
 /// Thorns damage reflected by guardians.
 const THORNS_DAMAGE: f32 = 2.0;
 
+const GUARDIAN_SPEED_LERP: f32 = 0.125;
+const GUARDIAN_PUSH_SCALE: f64 = 0.05;
+
+/// Vanilla `Guardian.GuardianMoveControl`: swims toward the wanted position with a wave push
+/// and marks the guardian as moving, which gates thorns reflection. The look-at update is not
+/// ported yet.
+pub struct GuardianMoveControl {
+    inner: MoveControl,
+    moving: Arc<AtomicBool>,
+}
+
+impl Control for GuardianMoveControl {}
+
+impl MoveControlTrait for GuardianMoveControl {
+    fn tick(&mut self, mob: &dyn Mob) {
+        let mob_entity = mob.get_mob_entity();
+        let living = &mob_entity.living_entity;
+        let entity = &living.entity;
+        if self.inner.operation != Operation::MoveTo || mob_entity.steered().navigator().is_done() {
+            mob_entity.set_speed(0.0);
+            self.moving.store(false, Ordering::Relaxed);
+            return;
+        }
+        let pos = entity.pos.load();
+        let xd = self.inner.wanted_x - pos.x;
+        let yd = self.inner.wanted_y - pos.y;
+        let zd = self.inner.wanted_z - pos.z;
+        let length = (xd * xd + yd * yd + zd * zd).sqrt().max(f64::EPSILON);
+        let (xd, yd, zd) = (xd / length, yd / length, zd / length);
+
+        let yaw = MoveControl::rotlerp(
+            entity.yaw.load(),
+            zd.atan2(xd).to_degrees() as f32 - 90.0,
+            MoveControl::MAX_TURN,
+        );
+        entity.yaw.store(yaw);
+        entity.body_yaw.store(yaw);
+
+        let target_speed = (self.inner.speed_modifier
+            * living.get_attribute_value(&Attributes::MOVEMENT_SPEED))
+            as f32;
+        let speed = living.get_speed() + GUARDIAN_SPEED_LERP * (target_speed - living.get_speed());
+        mob_entity.set_speed(speed);
+
+        let time =
+            f64::from(entity.tick_count.load(Ordering::Relaxed)) + f64::from(entity.entity_id);
+        let push = (time * 0.5).sin() * GUARDIAN_PUSH_SCALE;
+        let y_push = (time * 0.75).sin() * GUARDIAN_PUSH_SCALE;
+        let yaw_rad = f64::from(yaw).to_radians();
+        let (sin, cos) = (yaw_rad.sin(), yaw_rad.cos());
+        entity.velocity.store(entity.velocity.load().add_raw(
+            push * cos,
+            y_push * (sin + cos) * 0.25 + f64::from(speed) * yd * 0.1,
+            push * sin,
+        ));
+        self.moving.store(true, Ordering::Relaxed);
+    }
+}
+
 pub struct GuardianEntity {
     pub mob_entity: MobEntity,
+    moving: Arc<AtomicBool>,
 }
 
 impl GuardianEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
-        let guardian = Self { mob_entity };
+        let moving = Arc::new(AtomicBool::new(false));
+        let mut mob_entity = MobEntity::new(entity);
+        *mob_entity
+            .move_control
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Box::new(GuardianMoveControl {
+            inner: MoveControl::default(),
+            moving: moving.clone(),
+        });
+        let guardian = Self { mob_entity, moving };
         let mob_arc = Arc::new(guardian);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
@@ -147,7 +220,12 @@ impl Mob for GuardianEntity {
     ) -> bool {
         // Vanilla reflects only when the direct entity (`source`) is living, so an arrow shot by
         // a player does not reflect thorns onto that player.
-        reflect_thorns(self.get_entity(), damage_type, source);
+        reflect_thorns(
+            self.get_entity(),
+            damage_type,
+            source,
+            self.moving.load(Ordering::Relaxed),
+        );
         true
     }
 

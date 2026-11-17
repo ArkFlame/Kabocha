@@ -158,7 +158,8 @@ impl Mob for ElderGuardianEntity {
         source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> bool {
-        crate::entity::mob::guardian::reflect_thorns(self.get_entity(), damage_type, source);
+        // Elder guardians do not track a moving flag yet, so the moving gate is not applied.
+        crate::entity::mob::guardian::reflect_thorns(self.get_entity(), damage_type, source, false);
         true
     }
 }
