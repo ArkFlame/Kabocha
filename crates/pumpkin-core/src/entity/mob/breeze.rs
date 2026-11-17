@@ -1,4 +1,5 @@
 use crate::entity::EntityBase;
+use pumpkin_data::damage::DamageType;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use pumpkin_data::sound::Sound;
 use std::sync::atomic::Ordering;
@@ -55,6 +56,16 @@ impl BreezeEntity {
 }
 
 impl Mob for BreezeEntity {
+    /// Vanilla `Breeze.isInvulnerableTo`: damage from another breeze is ignored.
+    fn pre_damage_with_context(
+        &self,
+        _damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
+        !cause.is_some_and(|entity| entity.get_entity().entity_type == &EntityType::BREEZE)
+    }
+
     fn cause_fall_damage(
         &self,
         caller: &dyn EntityBase,

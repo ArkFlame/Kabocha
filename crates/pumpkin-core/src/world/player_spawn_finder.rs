@@ -151,10 +151,15 @@ impl World {
                     continue;
                 };
                 if let Some(position) = self.check_spawn_column(x, z, &mut loaded_chunks).await {
+                    self.release_spawn_search_chunks(&loaded_chunks);
                     return position.to_f64();
                 }
             }
         }
+
+        // Vanilla drops the chunks the search fetched; a void world scans the whole
+        // radius, and they would otherwise stay resident forever.
+        self.release_spawn_search_chunks(&loaded_chunks);
 
         // Adventure mode fixes height without a SPAWN_SEARCH chunk load.
         if !default_adventure {
@@ -222,6 +227,16 @@ impl World {
         position.up()
     }
 
+    /// Drops chunks fetched only for the spawn search, unless a player already watches them.
+    fn release_spawn_search_chunks(&self, chunks: &FxHashSet<Vector2<i32>>) {
+        for pos in chunks {
+            if !self.level.is_chunk_watched(pos) {
+                self.level.loaded_chunks.remove(pos);
+                self.level.chunks_with_scheduled_ticks.remove(pos);
+            }
+        }
+    }
+
     pub(super) async fn check_spawn_column(
         &self,
         x: i32,
@@ -229,7 +244,8 @@ impl World {
         loaded_chunks: &mut FxHashSet<Vector2<i32>>,
     ) -> Option<BlockPos> {
         let chunk_pos = Vector2::new(x >> 4, z >> 4);
-        if loaded_chunks.insert(chunk_pos) || !self.level.is_chunk_loaded(&chunk_pos) {
+        if !self.level.is_chunk_loaded(&chunk_pos) {
+            loaded_chunks.insert(chunk_pos);
             self.level.get_or_fetch_chunk(chunk_pos, |_| ()).await;
         }
         let feet = self.get_level_respawn_pos(x, z)?;

@@ -20,6 +20,7 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     item_steerable::{ItemBasedSteering, ItemSteerable},
     mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
@@ -105,9 +106,38 @@ impl Animal for StriderEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         item_stack.item.has_tag(&tag::Item::MINECRAFT_STRIDER_FOOD)
     }
+
+    /// Vanilla `Strider#usePlayerItem` plays the happy sound whenever it is fed.
+    fn use_player_item(&self, player: &Arc<Player>, item_stack: &mut ItemStack) {
+        self.play_entity_sound(Sound::EntityStriderHappy, 1.0, 1.0);
+        item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+    }
+}
+
+impl CustomSound for StriderEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityStriderDeath)
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityStriderHurt)
+    }
 }
 
 impl Mob for StriderEntity {
+    /// Vanilla `Strider.getAmbientSound`: happy while saddled, ambient otherwise.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.is_saddled() {
+            Sound::EntityStriderHappy
+        } else {
+            Sound::EntityStriderAmbient
+        })
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot == EquipmentSlot::SADDLE || self.mob_entity.can_pick_up_loot()
     }
@@ -163,10 +193,6 @@ impl Mob for StriderEntity {
     fn can_use_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot != EquipmentSlot::SADDLE
             || (self.mob_entity.living_entity.entity.is_alive() && !self.is_baby())
-    }
-
-    fn get_ambient_sound(&self) -> Option<Sound> {
-        self.get_entity().entity_type.ambient_sound
     }
 
     fn get_equip_sound(&self, slot: &EquipmentSlot) -> Option<Sound> {

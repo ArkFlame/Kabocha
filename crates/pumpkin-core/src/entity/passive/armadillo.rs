@@ -202,9 +202,12 @@ impl ArmadilloEntity {
     }
 
     pub fn can_stay_rolled_up(&self) -> bool {
+        let entity = self.get_entity();
         !self.is_panicking()
             && !self.mob_entity.living_entity.is_in_water()
-            && !self.get_entity().has_vehicle()
+            && !entity.is_leashed()
+            && !entity.is_passenger()
+            && !entity.is_vehicle()
     }
 
     pub fn roll_up(&self) {
@@ -385,17 +388,20 @@ impl Mob for ArmadilloEntity {
         }
     }
 
-    fn on_damage(&self, _damage_type: DamageType, source: Option<&dyn EntityBase>) {
-        if self.get_entity().is_alive()
-            && let Some(src) = source
-            && src.get_entity().entity_type != &EntityType::ITEM
-        {
+    /// Vanilla `Armadillo#actuallyHurt`: a living attacker is remembered for 80 ticks and
+    /// triggers `rollUp`; environmental panic damage without a living attacker rolls out.
+    fn on_damage(&self, damage_type: DamageType, source: Option<&dyn EntityBase>) {
+        if !self.get_entity().is_alive() {
+            return;
+        }
+        if source.is_some_and(|attacker| attacker.get_living_entity().is_some()) {
             self.danger_detected_recently_ticks
                 .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
             if self.can_stay_rolled_up() {
-                self.danger_detected_recently_ticks
-                    .store(80, Ordering::Relaxed);
+                self.roll_up();
             }
+        } else if damage_type.has_tag(&tag::DamageType::MINECRAFT_PANIC_ENVIRONMENTAL_CAUSES) {
+            self.roll_out();
         }
     }
 

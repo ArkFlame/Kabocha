@@ -11,3 +11,6 @@ Rules (implemented in scripts/lib.sh):
 
 ## Nightly (enabled 2026-11-16, user-approved)
 rustup + nightly (1.102) installed in ~/.cargo/bin with rustc-codegen-cranelift-preview and rust-src. scripts/lib.sh switches every script to it (PATH, RUSTUP_TOOLCHAIN=nightly, RUSTFLAGS `-Zthreads=6`, target /tmp/kab-target-nightly; `KAB_NIGHTLY=0` opts out). Measured: `cargo check -p pumpkin-util` 33 s cold with -Zthreads=6. Master needs rustc newer than system 1.97 (`map_or_default`), nightly satisfies it. For test/boot builds add `-Zcodegen-backend=cranelift` (`CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift` with `-Zcodegen-backend`) once verified; first nightly build of the workspace is cold (~10 min) then warm.
+
+## Low-stack / mobile builds (#2861)
+On aarch64 Termux/Android, rustc can SIGSEGV while compiling `cranelift-codegen`: the backtrace is in `rustc_parse` with "cycle encountered" and "recursed" frames, i.e. the parser overflows the process stack on cranelift's very large generated expressions. This is not codegen: `CARGO_BUILD_JOBS=1` and `RUST_MIN_STACK` (which only sizes spawned threads) do not help. Raise the shell stack limit for the build instead: `ulimit -s 65536` (or `ulimit -s unlimited` where the platform allows it), then `cargo run --release`.

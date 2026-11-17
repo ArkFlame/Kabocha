@@ -502,8 +502,13 @@ impl DynamicLightEngine {
         let (chunk_coordinate, relative) = position.chunk_and_chunk_relative_position();
         level
             .read_chunk_sync(&chunk_coordinate, |chunk| {
-                let section_index =
-                    (relative.y - chunk.section.min_y) as usize / BlockPalette::SIZE;
+                let relative_y = relative.y - chunk.section.min_y;
+                // Below the world vanilla light is 0; the negative offset used to wrap when
+                // cast to `usize` and fall into the "above the world" branch below.
+                if relative_y < 0 {
+                    return 0;
+                }
+                let section_index = relative_y as usize / BlockPalette::SIZE;
 
                 let light_engine = chunk
                     .light_engine
@@ -584,8 +589,13 @@ impl DynamicLightEngine {
         let (chunk_coordinate, relative) = position.chunk_and_chunk_relative_position();
         level
             .read_chunk_sync(&chunk_coordinate, |chunk| {
-                let section_index =
-                    (relative.y - chunk.section.min_y) as usize / BlockPalette::SIZE;
+                let relative_y = relative.y - chunk.section.min_y;
+                // Below the world vanilla light is 0; the negative offset used to wrap when
+                // cast to `usize` and fall into the "above the world" branch below.
+                if relative_y < 0 {
+                    return 0;
+                }
+                let section_index = relative_y as usize / BlockPalette::SIZE;
 
                 let light_engine = chunk
                     .light_engine

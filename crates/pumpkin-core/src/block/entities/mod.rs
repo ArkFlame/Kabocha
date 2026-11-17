@@ -1,13 +1,16 @@
 use std::{any::Any, sync::Arc};
 
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, block_properties::BLOCK_ENTITY_TYPES};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::experience_orb::ExperienceOrbEntity;
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
 use pumpkin_data::BlockStateId;
 use pumpkin_inventory::Inventory;
 
@@ -79,6 +82,23 @@ pub trait BlockEntity: Any + Send + Sync {
     fn tick(&self, _world: &Arc<World>) {}
     fn resource_location(&self) -> &'static str;
     fn get_position(&self) -> BlockPos;
+
+    /// Blocks within which a game event reaches this block entity, vanilla
+    /// `VibrationSystem.Listener`. `None` for block entities that never listen.
+    fn game_event_radius(&self) -> Option<i32> {
+        None
+    }
+
+    /// Called for every game event within [`Self::game_event_radius`], vanilla
+    /// `VibrationSystem.Listener.handleGameEvent`.
+    fn on_game_event(
+        &self,
+        _world: &Arc<World>,
+        _event: GameEvent,
+        _context: &GameEventContext<'_>,
+        _source_position: Vector3<f64>,
+    ) {
+    }
 
     /// Atomically takes the pending loot-table key and seed from this block entity.
     ///

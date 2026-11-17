@@ -249,7 +249,10 @@ mod tests {
         let pos = BlockPos::new(0, 64, 0);
 
         let closed = transform_particle(&Block::CLOSED_EYEBLOSSOM, &pos, &mut rng);
-        let ParticleOptions::Trail { color, .. } = closed;
+        assert!(matches!(closed, ParticleOptions::Trail { .. }));
+        let ParticleOptions::Trail { color, .. } = closed else {
+            return;
+        };
         assert_eq!(color, CLOSED_PARTICLE_COLOR);
         assert_ne!(CLOSED_PARTICLE_COLOR, OPEN_PARTICLE_COLOR);
     }

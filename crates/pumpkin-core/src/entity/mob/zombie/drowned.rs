@@ -441,7 +441,10 @@ impl MoveControlTrait for DrownedMoveControl {
         let mob_entity = mob.get_mob_entity();
         let living = &mob_entity.living_entity;
         let entity = &living.entity;
-        if drowned.wants_to_swim() && entity.is_in_water() {
+        // Vanilla `DrownedMoveControl.tick` takes the swim branch whenever the mob is in
+        // water; the land control below jumps on collision, which throws a drowned out of
+        // shallow water where it then takes sun damage (#2162).
+        if entity.is_in_water() {
             let rising = mob_entity
                 .get_target()
                 .is_some_and(|target| target.get_entity().pos.load().y > entity.pos.load().y)
@@ -647,7 +650,7 @@ impl DrownedGoToWaterGoal {
 impl Goal for DrownedGoToWaterGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
         let entity = mob.get_entity();
-        if entity.world.load().is_bright_outside() || entity.is_in_water() {
+        if !entity.world.load().is_bright_outside() || entity.is_in_water() {
             return false;
         }
         let Some(wanted) = Self::water_pos(mob) else {

@@ -82,6 +82,24 @@ impl Mob for ElderGuardianEntity {
         &self.mob_entity
     }
 
+    /// Vanilla `ElderGuardian.getAmbientSound`: inherits `Guardian`'s 160 tick interval.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        let entity = self.get_entity();
+        Some(if entity.touching_water.load(Ordering::Relaxed) {
+            Sound::EntityElderGuardianAmbient
+        } else {
+            Sound::EntityElderGuardianAmbientLand
+        })
+    }
+
+    fn get_ambient_sound_interval(&self) -> i32 {
+        160
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
+        Some(self)
+    }
+
     fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {

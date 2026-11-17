@@ -796,11 +796,14 @@ fn setup_stdin_console(server: &Arc<Server>) {
     });
     let server_clone = server.clone();
     server.spawn_task(async move {
+        // The stop command cancels this server's token only, so watch that instead of the
+        // process-wide one; the per-server token is also cancelled when the process stops.
+        let stop = server_clone.stop_token.clone();
         while !SHOULD_STOP.load(Ordering::Relaxed) {
             // stdin may never reach EOF (a pipe), so stopping must wake this up too
             let command = select! {
                 command = rx.recv() => command,
-                () = STOP_INTERRUPT.cancelled() => None,
+                () = stop.cancelled() => None,
             };
             let Some(command) = command else {
                 break;
@@ -874,7 +877,8 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
     server.clone().spawn_task(async move {
         while !SHOULD_STOP.load(Ordering::Relaxed) {
             let t1 = rx.recv();
-            let t2 = STOP_INTERRUPT.cancelled();
+            // Watches the per-server token: stop cancels that one, not the process-wide one.
+            let t2 = server.stop_token.cancelled();
 
             let result = select! {
                 line = t1 => line,

@@ -21,6 +21,7 @@ use pumpkin_data::suspicious_effects::get_suspicious_effects;
 use pumpkin_data::tag::Taggable;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
+use pumpkin_protocol::java::client::play::ParticleOptions;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
@@ -176,6 +177,34 @@ impl MooshroomEntity {
         }
     }
 
+    /// Brown mooshrooms puff the accepted stew effect into the air: vanilla
+    /// `MushroomCow.spawnEffectParticle` sends four `EFFECT` particles carrying
+    /// `SpellParticleOption.create(EFFECT, -1, 1.0)`.
+    fn spawn_effect_particles(&self) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let pos = entity.pos.load();
+        let y = entity.get_y(0.5);
+        let options = ParticleOptions::Spell {
+            color: -1,
+            power: 1.0,
+        };
+        let mut rng = self.get_random();
+        for _ in 0..4 {
+            world.spawn_particle_with_options(
+                Vector3::new(
+                    pos.x + rng.random::<f64>() / 2.0,
+                    y,
+                    pos.z + rng.random::<f64>() / 2.0,
+                ),
+                Vector3::new(0.0, 0.0, 0.0),
+                0.0,
+                0,
+                &options,
+            );
+        }
+    }
+
     pub fn shear(&self, category: SoundCategory, tool: &ItemStack) {
         let entity = self.get_entity();
         let world = entity.world.load_full();
@@ -279,6 +308,7 @@ impl MooshroomEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(effects);
             self.play_entity_sound(Sound::EntityMooshroomEat, 2.0, 1.0);
+            self.spawn_effect_particles();
         }
         true
     }

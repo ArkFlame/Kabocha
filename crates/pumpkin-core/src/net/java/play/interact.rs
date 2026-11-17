@@ -82,10 +82,9 @@ impl JavaClient {
         let world = player.world();
         match event.action {
             ActionType::Attack => {
+                // Paper's `pvp` setting only gates player-versus-player combat; attacks on
+                // non-player entities (mobs, boats, minecarts) always go through.
                 let config = &server.advanced_config.pvp;
-                if !config.enabled {
-                    return;
-                }
 
                 if event.target.get_entity().entity_id == player.entity_id() {
                     self.try_kick(&TextComponent::translate_cross(
@@ -97,6 +96,9 @@ impl JavaClient {
                 }
 
                 if let Some(player_victim) = event.target.get_player() {
+                    if !config.enabled {
+                        return;
+                    }
                     if player_victim.living_entity.health.load() <= 0.0 {
                         return;
                     }

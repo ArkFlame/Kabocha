@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 use pumpkin_data::entity::EntityType;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
+use crate::entity::ai::control::flying_move_control::FlyingMoveControl;
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::mob::raider;
 use crate::entity::{
@@ -14,6 +15,9 @@ use crate::entity::{
     mob::{Mob, MobEntity},
 };
 
+/// Vanilla `VexMoveControl` turn rate.
+const VEX_MAX_TURN: i32 = 20;
+
 const VEX_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
 
 pub struct VexEntity {
@@ -23,12 +27,20 @@ pub struct VexEntity {
 impl VexEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        *mob_entity
+            .move_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Box::new(FlyingMoveControl::new(VEX_MAX_TURN, true));
         let vex = Self { mob_entity };
         let mob_arc = Arc::new(vex);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
         };
+
+        // Vanilla `Vex.tick` calls `setNoGravity(true)` on every tick and the vex never walks.
+        mob_arc.mob_entity.living_entity.entity.set_has_no_gravity(true);
 
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;

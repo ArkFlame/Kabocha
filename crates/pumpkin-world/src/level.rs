@@ -398,6 +398,9 @@ impl Level {
         self.cancel_token.cancel();
         self.shut_down_chunk_system.store(true, Ordering::Relaxed);
         self.level_channel.notify();
+        // Nothing will ever deliver these chunks now; unblock their waiters so
+        // shutdown cannot wait on them forever.
+        self.chunk_listener.close();
 
         self.tasks.close();
         self.chunk_system_tasks.close();

@@ -96,6 +96,19 @@ impl CommandExecutor for ForceloadAddExecutor {
 
         world.update_active_chunks();
 
+        // A force ticket only asks the chunk system to keep the chunk at full
+        // level; the chunk is still fetched on demand, so load it here like
+        // vanilla's force-loaded chunks are always resident and saved.
+        let chunks: Vec<Vector2<i32>> = (min_x..=max_x)
+            .flat_map(|x| (min_z..=max_z).map(move |z| Vector2::new(x, z)))
+            .collect();
+        let load_world = world.clone();
+        context.server().spawn_task(async move {
+            for chunk in chunks {
+                load_world.level.get_or_fetch_chunk(chunk, |_| ()).await;
+            }
+        });
+
         let dimension_name = world.dimension.minecraft_name.to_string();
 
         let text = if total_chunks == 1 {

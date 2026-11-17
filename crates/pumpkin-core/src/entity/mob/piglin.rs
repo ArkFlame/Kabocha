@@ -34,6 +34,7 @@ use crate::entity::{
         ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     mob::{
         Mob, MobEntity, crossbow_attack_mob::CrossbowAttackMob, equipment::RegionalDifficulty,
         piglin_ai::PiglinAi,
@@ -866,7 +867,21 @@ impl PiglinEntity {
     }
 }
 
+impl CustomSound for PiglinEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityPiglinDeath)
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityPiglinHurt)
+    }
+}
+
 impl Mob for PiglinEntity {
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
     fn get_ambient_sound(&self) -> Option<Sound> {
         Some(PiglinAi::get_sound_for_activity(self, self.activity.load()))
     }
@@ -1255,5 +1270,13 @@ impl CrossbowAttackMob for PiglinEntity {
 
     fn is_charging_crossbow(&self) -> bool {
         self.is_charging_crossbow()
+    }
+
+    /// Vanilla `Piglin.onCrossbowAttackPerformed`: shooting resets the idle counter.
+    fn on_crossbow_attack_performed(&self) {
+        self.mob_entity
+            .living_entity
+            .no_action_time
+            .store(0, Ordering::Relaxed);
     }
 }
