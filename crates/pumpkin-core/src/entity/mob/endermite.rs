@@ -118,10 +118,12 @@ impl Mob for EndermiteEntity {
         let position = entity.pos.load();
         let mut rng = self.get_random();
         for _ in 0..2 {
+            // Vanilla `getRandomX(0.5)`: offset in +-width * 0.25 (half the box width, scaled by 0.5).
+            let half_spread = f64::from(dimensions.width) * 0.5;
             let particle_position = pumpkin_util::math::vector3::Vector3::new(
-                position.x + (rng.random::<f64>() - 0.5) * f64::from(dimensions.width),
+                position.x + (rng.random::<f64>() - 0.5) * half_spread,
                 position.y + rng.random::<f64>() * f64::from(dimensions.height),
-                position.z + (rng.random::<f64>() - 0.5) * f64::from(dimensions.width),
+                position.z + (rng.random::<f64>() - 0.5) * half_spread,
             );
             let velocity = pumpkin_util::math::vector3::Vector3::new(
                 (rng.random::<f64>() - 0.5) * 2.0,
