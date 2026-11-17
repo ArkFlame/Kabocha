@@ -91,14 +91,32 @@ macro_rules! assert_eq_delta {
     };
 }
 
-/// The minimum number of bits required to represent this number
+/// The minimum number of bits required to represent this number, matching
+/// vanilla `Mth.ceillog2`: zero and one entry need no index bits.
 #[inline]
 #[must_use]
 pub fn encompassing_bits(count: usize) -> u8 {
-    if count == 1 {
-        1
+    if count <= 1 {
+        0
     } else {
         count.ilog2() as u8 + u8::from(!count.is_power_of_two())
+    }
+}
+
+#[cfg(test)]
+mod encompassing_bits_tests {
+    use super::encompassing_bits;
+
+    #[test]
+    fn matches_vanilla_ceillog2() {
+        assert_eq!(encompassing_bits(0), 0);
+        assert_eq!(encompassing_bits(1), 0);
+        assert_eq!(encompassing_bits(2), 1);
+        assert_eq!(encompassing_bits(3), 2);
+        assert_eq!(encompassing_bits(4), 2);
+        assert_eq!(encompassing_bits(5), 3);
+        assert_eq!(encompassing_bits(256), 8);
+        assert_eq!(encompassing_bits(257), 9);
     }
 }
 

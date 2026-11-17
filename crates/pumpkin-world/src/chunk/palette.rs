@@ -12,7 +12,7 @@ use tracing::warn;
 use super::format::{ChunkSectionBiomes, ChunkSectionBlockStates};
 
 fn bedrock_palette_bits(palette_len: usize) -> u8 {
-    match encompassing_bits(palette_len) {
+    match encompassing_bits(palette_len).max(1) {
         bits @ 0..=6 => bits,
         7..=8 => 8,
         _ => 16,
@@ -275,7 +275,7 @@ impl<V: Hash + Eq + Copy + Default, const DIM: usize> PalettedContainer<V, DIM> 
     fn bits_per_entry(&self) -> u8 {
         match self {
             Self::Homogeneous(_) => 0,
-            Self::Heterogeneous(data) => encompassing_bits(data.counts.len()),
+            Self::Heterogeneous(data) => encompassing_bits(data.counts.len()).max(1),
         }
     }
 
