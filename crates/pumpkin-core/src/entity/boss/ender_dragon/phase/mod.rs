@@ -64,14 +64,7 @@ pub enum EnderDragonPhase {
 impl EnderDragonPhase {
     #[must_use]
     pub const fn is_sitting(self) -> bool {
-        matches!(
-            self,
-            Self::LandingApproach
-                | Self::Landing
-                | Self::SitAttacking
-                | Self::SitBreathing
-                | Self::TakingOff
-        )
+        matches!(self, Self::SitAttacking | Self::SitBreathing | Self::Hovering)
     }
 
     #[must_use]

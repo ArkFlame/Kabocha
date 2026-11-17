@@ -51,6 +51,7 @@ pub mod wandering_trader_spawner;
 
 use crate::block::RandomTickArgs;
 use crate::entity::ai::pathfinder::node::PathType;
+use crate::entity::boss::ender_dragon::{EnderDragonEntity, EnderDragonPart};
 use crate::world::chunker::is_within_chebyshev_distance;
 use crate::{block::BlockEvent, entity::item::ItemEntity};
 use crate::{
@@ -307,6 +308,9 @@ pub struct World {
     /// A map of active entities within the world, keyed by their unique UUID.
     /// This does not include players.
     pub entities: ArcSwap<Vec<Arc<dyn EntityBase>>>,
+    /// Ender dragon hitboxes, keyed by entity id. They are addressable and hit-testable,
+    /// but never ticked, saved or tracked on their own.
+    pub dragon_parts: DashMap<i32, Arc<EnderDragonPart>>,
     pub(crate) entity_index: Arc<EntityIndex>,
     island_schedule: std::sync::Mutex<entity_islands::Schedule>,
     /// The world's scoreboard, used for tracking scores, objectives, and display information.
@@ -586,6 +590,7 @@ impl World {
             level_info,
             players: ArcSwap::new(Arc::new(Vec::new())),
             entities: ArcSwap::new(Arc::new(Vec::new())),
+            dragon_parts: DashMap::new(),
             entity_index: Arc::default(),
             island_schedule: std::sync::Mutex::default(),
             scoreboard: std::sync::Mutex::new(Scoreboard::default()),
@@ -5240,13 +5245,26 @@ impl World {
     /// Finds an ender dragon part by its entity id. Parts are not entry ids in the
     /// entity index, only children of the dragon that owns them.
     fn dragon_part_by_id(&self, id: i32) -> Option<Arc<dyn EntityBase>> {
-        self.entities.load_full().iter().find_map(|entity| {
-            entity
-                .cast_any()
-                .downcast_ref::<crate::entity::boss::ender_dragon::EnderDragonEntity>()
-                .and_then(|dragon| dragon.parts.iter().find(|part| part.entity.entity_id == id))
-                .map(|part| Arc::clone(part) as Arc<dyn EntityBase>)
-        })
+        self.dragon_parts
+            .get(&id)
+            .map(|part| Arc::clone(part.value()) as Arc<dyn EntityBase>)
+    }
+
+    /// Vanilla `onTrackingStart`: parts are addressable by id, but never tracked.
+    fn add_dragon_parts(&self, entity: &dyn EntityBase) {
+        if let Some(dragon) = entity.cast_any().downcast_ref::<EnderDragonEntity>() {
+            for part in &dragon.parts {
+                self.dragon_parts.insert(part.entity.entity_id, part.clone());
+            }
+        }
+    }
+
+    /// Vanilla `onTrackingEnd`. Keyed by uuid, removal also comes in as a bare `Entity`.
+    fn remove_dragon_parts(&self, entity: &Entity) {
+        if entity.entity_type == &EntityType::ENDER_DRAGON {
+            self.dragon_parts
+                .retain(|_, part| part.dragon_uuid != entity.entity_uuid);
+        }
     }
 
     /// Gets a `Player` by a username
@@ -5274,10 +5292,18 @@ impl World {
 
     // Gets all non Player entities at a Box
     pub fn get_entities_at_box(&self, aabb: &BoundingBox) -> Vec<Arc<dyn EntityBase>> {
-        self.entity_index
+        let mut found: Vec<Arc<dyn EntityBase>> = self
+            .entity_index
             .query(self.entities.load_full(), *aabb)
             .inspect(|entity| entity_islands::check_reached(entity.get_entity().entity_id))
-            .collect()
+            .collect();
+        // Vanilla `Level.getEntities` merges the ender dragon parts in.
+        for part in &self.dragon_parts {
+            if part.entity.bounding_box.load().intersects(aabb) {
+                found.push(Arc::clone(part.value()) as Arc<dyn EntityBase>);
+            }
+        }
+        found
     }
 
     /// Non-player entities at a box whose type passes `matches`, in list order.
@@ -5784,6 +5810,7 @@ impl World {
     pub fn spawn_entity_non_save(&self, entity: Arc<dyn EntityBase>) {
         let _base_entity = entity.get_entity();
         self.entity_tracker.add_entity(&entity, self);
+        self.add_dragon_parts(entity.as_ref());
         self.spawn_state.load().add_entity(self, entity.as_ref());
 
         self.entities.rcu(|current_entities| {
@@ -5952,6 +5979,7 @@ impl World {
         // serialized at once (which would double it on the next reload).
         self.spawn_state.load().add_entity(self, entity.as_ref());
         self.entity_tracker.add_entity(&entity, self);
+        self.add_dragon_parts(entity.as_ref());
 
         self.entities.rcu(|current_entities| {
             let mut new_entities = (**current_entities).clone();
@@ -6011,6 +6039,7 @@ impl World {
 
         self.spawn_state.load().remove_entity(self, entity);
         self.entity_tracker.remove_entity(entity, self);
+        self.remove_dragon_parts(base_entity);
         self.entities.rcu(|current_entities| {
             let mut new_entities = (**current_entities).clone();
             new_entities.retain(|e| e.get_entity().entity_uuid != base_entity.entity_uuid);
@@ -6059,6 +6088,7 @@ impl World {
                 base.removed.store(true, Ordering::Release);
             }
             self.entity_tracker.remove_entity(entity.as_ref(), self);
+            self.remove_dragon_parts(entity.get_entity());
             self.spawn_state.load().remove_entity(self, entity.as_ref());
             if let Some(mob) = entity.get_mob() {
                 mob.get_mob_entity().finish_removal(mob);
