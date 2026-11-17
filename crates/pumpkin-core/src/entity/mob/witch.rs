@@ -220,10 +220,10 @@ impl WitchEntity {
                 // Vanilla `Witch.performRangedAttack`: heal low raiders, otherwise regenerate.
                 if target_living.health.load() <= 4.0 {
                     potion = &Potion::HEALING;
-                    self.set_mob_target(None, TargetReason::Unknown);
                 } else {
                     potion = &Potion::REGENERATION;
                 }
+                self.set_mob_target(None, TargetReason::Unknown);
             } else {
                 let r: f32 = rand::random();
                 if dist >= 8.0 && !target_living.has_effect(&StatusEffect::SLOWNESS) {
