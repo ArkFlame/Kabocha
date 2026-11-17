@@ -334,7 +334,10 @@ impl EntityBase for PaintingEntity {
     }
 
     fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
-        if self.ticks_since_last_check.fetch_add(1, Ordering::Relaxed) < SUPPORT_CHECK_INTERVAL {
+        // fetch_add returns the previous count, so +1 is this tick's count: the check
+        // fires on tick 100, 200, ... like vanilla `tickCount % 100 == 0`.
+        if self.ticks_since_last_check.fetch_add(1, Ordering::Relaxed) + 1 < SUPPORT_CHECK_INTERVAL
+        {
             return;
         }
         self.ticks_since_last_check.store(0, Ordering::Relaxed);

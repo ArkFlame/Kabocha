@@ -55,6 +55,9 @@ impl ItemBehaviour for HangingEntityItem {
             if face == BlockDirection::Up || face == BlockDirection::Down {
                 return BlockActionResult::Fail;
             }
+            if !world.is_in_build_limit(target_pos) {
+                return BlockActionResult::Fail;
+            }
 
             let variant = if let Some(comp) = item.get_data_component::<PaintingVariantImpl>() {
                 if let Some(v) = PaintingVariant::from_name(&comp.value) {
