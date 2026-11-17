@@ -578,7 +578,7 @@ pub fn drop_loot(
         .loot_table
         .and_then(|key| world.get_loot_table(key))
     {
-        let seed: i64 = rand::random();
+        let seed = world.next_loot_seed();
         let params = LootContextParameters {
             world: Some(world),
             tool: Some(

@@ -321,6 +321,9 @@ pub struct World {
     pub min_y: i32,
     /// The world's weather, including rain and thunder levels.
     pub weather: std::sync::Mutex<Weather>,
+    /// Vanilla draws loot seeds from the level random source, not from fresh OS
+    /// entropy, so a given world seed reproduces the same drops.
+    pub loot_random: std::sync::Mutex<Xoroshiro>,
     /// Block Behaviour
     pub block_registry: Arc<BlockRegistry>,
     pub server: Weak<Server>,
@@ -576,6 +579,7 @@ impl World {
             let _ = level.rt_handle.set(server_arc.runtime.clone());
         }
 
+        let loot_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0 as u64));
         Self {
             uuid: Uuid::new_v4(),
             level,
@@ -589,6 +593,7 @@ impl World {
             level_time: std::sync::Mutex::new(level_time),
             dimension,
             weather: std::sync::Mutex::new(Weather::new()),
+            loot_random,
             block_registry,
             sea_level: generation_settings.sea_level,
             min_y: i32::from(generation_settings.shape.min_y),
@@ -6467,6 +6472,16 @@ impl World {
         }
     }
 
+    /// Next seed for a loot roll, drawn from the world-seeded level random
+    /// source (vanilla `Level.getRandom()`), keeping drops reproducible.
+    #[must_use]
+    pub fn next_loot_seed(&self) -> i64 {
+        self.loot_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_i64()
+    }
+
     #[must_use]
     pub fn get_block_drops(
         self: &Arc<Self>,
@@ -6488,7 +6503,7 @@ impl World {
         let Some(loot_table) = block.loot_table.and_then(|key| self.get_loot_table(key)) else {
             return Vec::new();
         };
-        let seed: i64 = rand::random();
+        let seed = self.next_loot_seed();
         let params = crate::world::loot::LootContextParameters {
             world: Some(self),
             tool: Some(tool.unwrap_or_else(|| ItemStack::EMPTY.clone())),

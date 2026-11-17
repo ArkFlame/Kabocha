@@ -3207,7 +3207,7 @@ impl LivingEntity {
             let seed = mob
                 .map(|mob| mob.death_loot_table_seed.load(Relaxed))
                 .filter(|seed| *seed != 0)
-                .unwrap_or_else(rand::random);
+                .unwrap_or_else(|| world.next_loot_seed());
             let pos = self.entity.block_pos.load();
             for stack in crate::world::loot::generate_loot_from_handle(&loot_table, seed, params) {
                 world.drop_stack(&pos, stack);
