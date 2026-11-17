@@ -17,7 +17,7 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        look_at_entity::LookAtEntityGoal,
         ranged_crossbow_attack::RangedCrossbowAttackGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
@@ -74,14 +74,17 @@ impl PillagerEntity {
             goal_selector.add_goal(3, Box::new(RangedCrossbowAttackGoal::new(1.0, 8.0)));
             goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
             goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
-            goal_selector.add_goal(4, Box::new(PathfindToRaidGoal::default()));
+            goal_selector.add_goal(3, Box::new(PathfindToRaidGoal::default()));
             goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(0.6)));
             goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
+                9,
+                LookAtEntityGoal::new(mob_weak.clone(), &EntityType::PLAYER, 15.0, 1.0, false),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(
+                10,
+                LookAtEntityGoal::matching(mob_weak, TargetMatch::Mob, 15.0, 0.02, false),
+            );
 
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(1, raider::revenge_goal());
