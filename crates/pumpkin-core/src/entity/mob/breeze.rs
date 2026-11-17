@@ -95,6 +95,13 @@ impl Mob for BreezeEntity {
         })
     }
 
+    /// Vanilla `Breeze.canAttack`: only players and iron golems are valid targets.
+    fn can_attack(&self, target: &dyn EntityBase) -> bool {
+        let target_type = target.get_entity().entity_type;
+        (target_type == &EntityType::PLAYER || target_type == &EntityType::IRON_GOLEM)
+            && self.can_attack_base(target)
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
