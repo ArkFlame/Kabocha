@@ -8,6 +8,7 @@ use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::java::client::play::CSetContainerSlot;
+use pumpkin_protocol::ser::json_to_nbt_tag;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
@@ -26,6 +27,7 @@ use crate::command::argument_types::item::ItemStackArgumentType;
 use crate::command::argument_types::item_modifier::{ItemModifier, ItemModifierArgumentType};
 use crate::command::argument_types::slot::SlotArgumentType;
 use crate::command::context::command_context::CommandContext;
+use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
@@ -42,6 +44,11 @@ const ERROR_NOT_CONTAINER: CommandErrorType<3> = CommandErrorType::new(
 const ERROR_NO_SUCH_SLOT: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_ITEM_TARGET_NO_SUCH_SLOT,
     translation::java::COMMANDS_ITEM_TARGET_NO_SUCH_SLOT,
+);
+
+const ERROR_UNKNOWN_ITEM_MODIFIER: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENT_ID_UNKNOWN,
+    translation::java::ARGUMENT_ID_UNKNOWN,
 );
 
 struct BlockReplaceExecutor {
@@ -524,6 +531,26 @@ fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
     }
 }
 
+/// Resolves the `modifier` argument, which is either an inline function or the id of a
+/// datapack `item_modifier` (vanilla `ResourceOrInlineArgument`).
+fn resolve_item_modifier(context: &CommandContext) -> Result<NbtTag, CommandSyntaxError> {
+    match ItemModifierArgumentType::get(context, "modifier")? {
+        ItemModifier::Inline(tag) => Ok(tag.clone()),
+        ItemModifier::Reference(id) => {
+            let id = id.to_string();
+            let value = context
+                .source
+                .server()
+                .datapack_manager
+                .get_item_modifier(&id)
+                .ok_or_else(|| {
+                    ERROR_UNKNOWN_ITEM_MODIFIER.create_without_context(TextComponent::text(id))
+                })?;
+            Ok(json_to_nbt_tag(&value))
+        }
+    }
+}
+
 /// `item modify block <pos> <slot> <modifier>`.
 struct BlockModifyExecutor;
 
@@ -531,12 +558,9 @@ impl CommandExecutor for BlockModifyExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
         let slot = SlotArgumentType::get(context, "slot")?;
-        let ItemModifier::Inline(modifier) = ItemModifierArgumentType::get(context, "modifier")?
-        else {
-            return Ok(0);
-        };
+        let modifier = resolve_item_modifier(context)?;
         set_block_slot(context, &pos, slot, |mut stack| {
-            apply_item_modifier(&mut stack, modifier);
+            apply_item_modifier(&mut stack, &modifier);
             stack
         })
     }
@@ -549,14 +573,11 @@ impl CommandExecutor for EntityModifyExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let targets = EntityArgumentType::get_entities(context, "targets")?;
         let slot = SlotArgumentType::get(context, "slot")?;
-        let ItemModifier::Inline(modifier) = ItemModifierArgumentType::get(context, "modifier")?
-        else {
-            return Ok(0);
-        };
+        let modifier = resolve_item_modifier(context)?;
         let mut count = 0;
         for target in &targets {
             if let Some(mut stack) = read_entity_slot(target, slot) {
-                apply_item_modifier(&mut stack, modifier);
+                apply_item_modifier(&mut stack, &modifier);
                 if write_entity_slot(target, slot, &stack) {
                     count += 1;
                 }
