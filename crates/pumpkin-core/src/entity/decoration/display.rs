@@ -66,6 +66,21 @@ fn brightness_sky(packed: i32) -> i32 {
     (packed >> 16) & 0xFFFF
 }
 
+/// Reads a fixed-length float list such as a transformation vector/quaternion
+/// field. Vanilla codec requires every element, so a missing, short or
+/// non-numeric list invalidates the whole transformation.
+fn float_list<const N: usize>(compound: &NbtCompound, key: &str) -> Option<[f32; N]> {
+    let list = compound.get_list(key)?;
+    if list.len() != N {
+        return None;
+    }
+    let mut values = [0.0; N];
+    for (value, tag) in values.iter_mut().zip(list) {
+        *value = tag.extract_float()?;
+    }
+    Some(values)
+}
+
 pub struct DisplayEntity {
     pub entity: Entity,
     pub interpolation_start_delta_ticks: AtomicI32,
@@ -634,53 +649,35 @@ impl DisplayEntity {
                 .store(pack_brightness(block, sky), Ordering::Relaxed);
         }
 
-        if let Some(transform) = nbt.get_compound("transformation") {
-            if let Some(t_list) = transform.get_list("translation")
-                && t_list.len() >= 3
-            {
-                let x = t_list[0].extract_float().unwrap_or(0.0);
-                let y = t_list[1].extract_float().unwrap_or(0.0);
-                let z = t_list[2].extract_float().unwrap_or(0.0);
-                *self
-                    .translation
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Vector3::new(x, y, z);
-            }
-            if let Some(s_list) = transform.get_list("scale")
-                && s_list.len() >= 3
-            {
-                let x = s_list[0].extract_float().unwrap_or(1.0);
-                let y = s_list[1].extract_float().unwrap_or(1.0);
-                let z = s_list[2].extract_float().unwrap_or(1.0);
-                *self
-                    .scale
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Vector3::new(x, y, z);
-            }
-            if let Some(lr_list) = transform.get_list("left_rotation")
-                && lr_list.len() >= 4
-            {
-                let x = lr_list[0].extract_float().unwrap_or(0.0);
-                let y = lr_list[1].extract_float().unwrap_or(0.0);
-                let z = lr_list[2].extract_float().unwrap_or(0.0);
-                let w = lr_list[3].extract_float().unwrap_or(1.0);
-                *self
-                    .left_rotation
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = [x, y, z, w];
-            }
-            if let Some(rr_list) = transform.get_list("right_rotation")
-                && rr_list.len() >= 4
-            {
-                let x = rr_list[0].extract_float().unwrap_or(0.0);
-                let y = rr_list[1].extract_float().unwrap_or(0.0);
-                let z = rr_list[2].extract_float().unwrap_or(0.0);
-                let w = rr_list[3].extract_float().unwrap_or(1.0);
-                *self
-                    .right_rotation
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = [x, y, z, w];
-            }
+        // Vanilla decodes transformation as a single value, so a malformed or partial
+        // tag leaves the whole transform unchanged instead of applying only the
+        // fields that happen to parse.
+        if let Some(transform) = nbt.get_compound("transformation")
+            && let (Some(translation), Some(scale), Some(left_rotation), Some(right_rotation)) = (
+                float_list::<3>(transform, "translation"),
+                float_list::<3>(transform, "scale"),
+                float_list::<4>(transform, "left_rotation"),
+                float_list::<4>(transform, "right_rotation"),
+            )
+        {
+            *self
+                .translation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Vector3::new(translation[0], translation[1], translation[2]);
+            *self
+                .scale
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Vector3::new(scale[0], scale[1], scale[2]);
+            *self
+                .left_rotation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = left_rotation;
+            *self
+                .right_rotation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = right_rotation;
         }
     }
 }
