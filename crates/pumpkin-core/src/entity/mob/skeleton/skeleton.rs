@@ -35,6 +35,10 @@ impl Mob for SkeletonEntity {
         &self.entity.mob_entity
     }
 
+    fn get_min_attack_interval(&self) -> Option<i32> {
+        Mob::get_min_attack_interval(self.entity.as_ref())
+    }
+
     fn get_ambient_sound(&self) -> Option<Sound> {
         Some(Sound::EntitySkeletonAmbient)
     }
