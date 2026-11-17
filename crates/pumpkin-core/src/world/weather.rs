@@ -255,8 +255,10 @@ impl WeatherData {
         let mut rng = rand::rng();
         if self.clear_weather_time > 0 {
             self.clear_weather_time -= 1;
-            self.thunder_time = i32::from(!self.thundering);
-            self.rain_time = i32::from(!self.raining);
+            // Vanilla keeps a one tick countdown for the state the clear interrupted, so
+            // it resumes once the clear time runs out.
+            self.thunder_time = i32::from(self.thundering);
+            self.rain_time = i32::from(self.raining);
             self.thundering = false;
             self.raining = false;
         } else {
@@ -877,16 +879,19 @@ mod test {
     #[test]
     fn clear_time_stops_the_weather() {
         let mut data = WeatherData {
-            clear_weather_time: 2,
+            clear_weather_time: 1,
             raining: true,
             thundering: true,
             ..WeatherData::default()
         };
         data.advance_cycle();
-        assert_eq!(data.clear_weather_time, 1);
+        assert_eq!(data.clear_weather_time, 0);
         assert!(!data.raining && !data.thundering);
-        // The timers are set so the weather flips back once the clear time is over.
-        assert_eq!((data.rain_time, data.thunder_time), (0, 0));
+        // Vanilla counts down the interrupted state, so the weather flips back as soon
+        // as the clear time runs out.
+        assert_eq!((data.rain_time, data.thunder_time), (1, 1));
+        data.advance_cycle();
+        assert!(data.raining && data.thundering);
     }
 
     #[test]
