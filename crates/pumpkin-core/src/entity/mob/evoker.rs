@@ -11,6 +11,7 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::entity::ai::behavior::fleeing::{self, Flee};
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::mob::vex::{VEX_SUMMON_LIFE_JITTER_SECONDS, VexEntity, summoned_vex_life_ticks};
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
@@ -26,7 +27,6 @@ use crate::entity::{
         },
     },
     projectile::evoker_fangs::EvokerFangsEntity,
-    r#type::from_type,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -483,7 +483,13 @@ impl Goal for EvokerSummonSpellGoal {
                     evoker_pos.z + offset_z,
                 );
 
-                let vex = from_type(&EntityType::VEX, spawn_pos, &world, Uuid::new_v4());
+                let entity =
+                    Entity::from_uuid(Uuid::new_v4(), world.clone(), spawn_pos, &EntityType::VEX);
+                let vex = VexEntity::new(entity);
+                // Vanilla `Evoker.SummonVex` sets `setLimitedLife(20 * (30 + nextInt(90)))`.
+                vex.set_limited_life(summoned_vex_life_ticks(rand::random_range(
+                    0..VEX_SUMMON_LIFE_JITTER_SECONDS,
+                )));
                 world.spawn_entity(vex);
             }
         }

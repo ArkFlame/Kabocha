@@ -29,6 +29,15 @@ const VEX_CHARGE_STEER_DISTANCE_SQ: f64 = 9.0;
 const VEX_CHARGE_START_DISTANCE_SQ: f64 = 4.0;
 /// Vanilla `Vex.tick` starves the vex once per this many ticks at the end of its life.
 const VEX_STARVE_INTERVAL_TICKS: i32 = 20;
+/// Vanilla `Evoker.SummonVex` lifetime: `20 * (30 + nextInt(90))` ticks.
+const VEX_SUMMON_LIFE_BASE_SECONDS: i32 = 30;
+pub(crate) const VEX_SUMMON_LIFE_JITTER_SECONDS: i32 = 90;
+
+/// Limited life for an evoker-summoned vex, given a roll in `0..VEX_SUMMON_LIFE_JITTER_SECONDS`.
+#[must_use]
+pub fn summoned_vex_life_ticks(roll: i32) -> i32 {
+    20 * (VEX_SUMMON_LIFE_BASE_SECONDS + roll.clamp(0, VEX_SUMMON_LIFE_JITTER_SECONDS - 1))
+}
 
 const VEX_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
 
@@ -268,5 +277,20 @@ impl Goal for VexRandomMoveGoal {
 
     fn controls(&self) -> Controls {
         Controls::MOVE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{VEX_SUMMON_LIFE_JITTER_SECONDS, summoned_vex_life_ticks};
+
+    #[test]
+    fn summoned_vex_life_spans_vanilla_range() {
+        assert_eq!(summoned_vex_life_ticks(0), 600);
+        assert_eq!(
+            summoned_vex_life_ticks(VEX_SUMMON_LIFE_JITTER_SECONDS - 1),
+            2380
+        );
+        assert_eq!(summoned_vex_life_ticks(1000), 2380);
     }
 }
