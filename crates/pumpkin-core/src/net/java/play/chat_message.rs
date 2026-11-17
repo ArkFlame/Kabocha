@@ -18,6 +18,26 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl#tryHandleChat`: a client that hid chat is never
+        // broadcast, and a commands-only client is told why. Both are dropped before the event.
+        match &player.config.load().chat_mode {
+            ChatMode::Hidden => {
+                player.send_system_message(
+                    &TextComponent::translate(translation::java::CHAT_DISABLED_OPTIONS, [])
+                        .color_named(pumpkin_util::text::color::NamedColor::Red),
+                );
+                return;
+            }
+            ChatMode::CommandsOnly => {
+                player.send_system_message(
+                    &TextComponent::translate(translation::java::CHAT_CANNOTSEND, [])
+                        .color_named(pumpkin_util::text::color::NamedColor::Red),
+                );
+                return;
+            }
+            ChatMode::Enabled => {}
+        }
+
         let gameprofile = &player.gameprofile;
 
         if let Err(err) = self.validate_chat_message(server, player, &chat_message) {
