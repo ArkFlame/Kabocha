@@ -379,8 +379,11 @@ crate::impl_abstract_horse!(
             if could_heal {
                 living.heal(2.0);
             }
-            let could_set_in_love =
-                self.is_tamed() && self.get_age() == 0 && self.can_fall_in_love();
+            // Vanilla CamelHusk cannot breed: no love state, so no hearts or mating.
+            let could_set_in_love = !self.is_husk()
+                && self.is_tamed()
+                && self.get_age() == 0
+                && self.can_fall_in_love();
             if could_set_in_love {
                 self.set_in_love(player);
             }
