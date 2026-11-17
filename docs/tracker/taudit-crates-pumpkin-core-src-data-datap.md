@@ -36,3 +36,8 @@ Remaining gaps:
 Notes: `stringify_macro_argument` (`:1714`) matches `MacroFunction#stringify` exactly
 (`DecimalFormat("#")`, 15 fraction digits, Locale.ROOT). `build_damage_type_registry`
 `next_custom_id = 51` matches the 51 generated vanilla damage types (max id 50).
+
+## Gapwave2-2 status
+
+- `disable_pack` (S): FIXED in 722e94305. Only `vanilla` is required; `pumpkin-unit-test` can be disabled and is filtered out of the enabled list. The loader still scans embedded packs independently, so a disabled embedded pack may still load (not verified).
+- Remaining rows (zip packs, load order, feature flags from mcmeta, `filter` handling, function chain depth, macro template validation): not attempted this pass.

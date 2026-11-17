@@ -84,3 +84,8 @@ Deep audit in this pass (no behaviour change needed):
   `sendSuccess(..., false)`, and the four error types all match.
 - Confirmed there is no `TODO`/`FIXME` in the file; the tracker's 9 markers are
   the explanatory `vanilla` comments.
+
+## Gapwave2-2 status
+
+- `locate.rs` stronghold arm (S): FIXED in 8b30557a5 (sends "Searching for ..." feedback, returns 0; Canvas behaviour, UNVERIFIED against vanilla since vanilla blocks).
+- Remaining rows (POI registry validation, multi-set placements, ring-order, structure-validity arm, Bedrock argument shape): not attempted this pass.
