@@ -655,6 +655,7 @@ impl ItemBehaviour for EmptyBucketItem {
         }
 
         let block_pos = hit.block_pos;
+        let block_face = block_face_name(hit.direction);
 
         // Vanilla BucketItem.use gates the whole interaction on Level.mayInteract.
         if world.is_in_spawn_protection(player, &block_pos) {
@@ -670,6 +671,7 @@ impl ItemBehaviour for EmptyBucketItem {
                         player_arc,
                         pos,
                         format!("minecraft:{}", filled.registry_key),
+                        block_face.to_owned(),
                     );
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 if event.cancelled {
@@ -764,6 +766,7 @@ impl FilledBucketItem {
                         player_arc,
                         target,
                         format!("minecraft:{}", item.registry_key),
+                        block_face_name(direction).to_owned(),
                     );
                     server.plugin_manager.fire_blocking(&server, &mut event);
                     if event.cancelled {
@@ -892,5 +895,33 @@ impl ItemBehaviour for MilkBucketItem {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+/// Maps a clicked face to the Bukkit-style name exposed to plugins.
+#[must_use]
+const fn block_face_name(direction: BlockDirection) -> &'static str {
+    match direction {
+        BlockDirection::Down => "DOWN",
+        BlockDirection::Up => "UP",
+        BlockDirection::North => "NORTH",
+        BlockDirection::South => "SOUTH",
+        BlockDirection::West => "WEST",
+        BlockDirection::East => "EAST",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_face_names_match_bukkit() {
+        assert_eq!(block_face_name(BlockDirection::Down), "DOWN");
+        assert_eq!(block_face_name(BlockDirection::Up), "UP");
+        assert_eq!(block_face_name(BlockDirection::North), "NORTH");
+        assert_eq!(block_face_name(BlockDirection::South), "SOUTH");
+        assert_eq!(block_face_name(BlockDirection::West), "WEST");
+        assert_eq!(block_face_name(BlockDirection::East), "EAST");
     }
 }
