@@ -38,7 +38,7 @@ const CREEPER_FLEES: &[Flee] = &[
     Flee::new(3, TargetMatch::Type(&EntityType::CAT), 6.0, 1.0, 1.2),
 ];
 
-const CREEPER_HUNTS: &[Hunt] = &[Hunt::new(1, TargetMatch::Type(&EntityType::PLAYER), true)];
+const CREEPER_HUNTS: &[Hunt] = &[Hunt::new(2, TargetMatch::Type(&EntityType::PLAYER), true)];
 
 pub struct CreeperEntity {
     pub mob_entity: MobEntity,
@@ -49,7 +49,6 @@ pub struct CreeperEntity {
     pub explosion_radius: AtomicI32,
     pub ignited: AtomicBool,
     pub charged: AtomicBool,
-    pub dropped_skulls: AtomicBool,
 }
 
 impl CreeperEntity {
@@ -64,7 +63,6 @@ impl CreeperEntity {
             explosion_radius: AtomicI32::new(DEFAULT_EXPLOSION_RADIUS),
             ignited: AtomicBool::new(false),
             charged: AtomicBool::new(false),
-            dropped_skulls: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(entity);
         let mob_weak: Weak<dyn Mob> = {
@@ -91,8 +89,8 @@ impl CreeperEntity {
             );
             goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
 
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             hunting::apply(target_selector, &mob_arc.mob_entity, CREEPER_HUNTS);
-            target_selector.add_goal(2, Box::new(RevengeGoal::new(true)));
         };
 
         mob_arc
@@ -238,11 +236,7 @@ impl Mob for CreeperEntity {
         caller: &dyn EntityBase,
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
-        self.charged.store(true, Ordering::Relaxed);
-        self.mob_entity
-            .living_entity
-            .entity
-            .set_synced_data(pumpkin_data::tracked_data::creeper::CHARGED, true);
+        self.set_charged(true);
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);
@@ -330,12 +324,10 @@ impl Mob for CreeperEntity {
         true
     }
 
-    // Creeper.killedEntity: a charged creeper drops the victim's mob head once.
+    // Creeper.killedEntity: a charged creeper makes every victim drop its mob head.
     fn killed_entity(&self, killed: &dyn EntityBase) -> bool {
-        if self.charged.load(Ordering::Relaxed)
-            && self.mob_entity.living_entity.should_drop_loot()
-            && !self.dropped_skulls.swap(true, Ordering::Relaxed)
-        {
+        // Every victim of a charged creeper drops its own head, not just the first.
+        if self.charged.load(Ordering::Relaxed) && killed.should_drop_loot() {
             let world = killed.get_entity().world.load_full();
             if let Some(table) = world.get_loot_table("minecraft:charged_creeper/root") {
                 let params = crate::world::loot::LootContextParameters {
