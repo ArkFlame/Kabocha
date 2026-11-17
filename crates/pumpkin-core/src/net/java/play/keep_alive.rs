@@ -27,10 +27,17 @@ impl JavaClient {
             );
             self.wait_for_keep_alive.store(false, Ordering::Relaxed);
         } else {
+            // Vanilla `ServerGamePacketListenerImpl#handleKeepAlive` disconnects on an
+            // unsolicited or stale keep-alive reply instead of ignoring it.
+            drop(pending);
             debug!(
-                "Ignored unexpected or duplicate keep alive id {} from player {}",
+                "Unexpected or duplicate keep alive id {} from player {}",
                 keep_alive.keep_alive_id, player.gameprofile.name
             );
+            self.try_kick(&pumpkin_macros::translate_cross!(
+                pumpkin_data::translation::java::DISCONNECT_TIMEOUT,
+                pumpkin_data::translation::bedrock::DISCONNECT_TIMEOUT
+            ));
         }
     }
 }
