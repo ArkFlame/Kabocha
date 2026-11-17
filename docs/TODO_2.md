@@ -183,3 +183,10 @@ Each row has a tracker note that only says the source changed. A worker compares
   AI audits find candidates, humans (here: us) file concrete issues, and the audit output is actually read.
 
 
+
+## 7. Pass h9 (entity/mob, entity/ai, item re-review)
+
+- FIXED d4ac58548: Name Tag (section 4, items). Vanilla `NameTagItem.interactLivingEntity` names any saveable living entity and only sets persistence on a `Mob`; Rust returned early for non-mob living entities (e.g. armor stand). Gap was real, fixed with `get_living_entity` guard. Pure test not added: the behaviour needs a live entity, so it belongs in a gametest (UNVERIFIED).
+- STILL OPEN T2-005 Illusioner (L): needs RangedBowAttackGoal and spell state; too large for this pass.
+- STILL OPEN re-review rows (not audited this pass, no TODO markers in source): Bogged, Breeze, Creaking, Creeper, Drowned, Elder Guardian, Enderman, Endermite, Guardian, Piglin, Sulfur Cube, Zombie Villager, Bat, Fishing Rod, Mace, Compass and Recovery Compass, Goat Horn, Lodestone. Reason: each needs a per-file vanilla audit worker (section 5 item 2).
+- Out of scope per brief: Hoglin, Wolf, boat, minecart, raid, wasm-host consume refactor, BLOCKED-DATA rows. Ender Chest, Piston, Infested, Sculk Catalyst touch blocks, not entity/mob, entity/ai or item.
