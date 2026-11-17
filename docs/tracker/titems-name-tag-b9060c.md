@@ -16,3 +16,11 @@ Checked, no change: CUSTOM_NAME component presence gates the action (vanilla `ha
 ## h6 gap status
 
 - Row 1 (ItemBehaviour use_on_entity result): STILL OPEN (L, framework-wide trait change).
+
+## Result
+
+- Row 1 (ItemBehaviour use_on_entity result): STILL OPEN. Reason: returning PASS/SUCCESS requires a framework-wide trait change in crates/pumpkin-core/src/item/mod.rs, outside this unit's permitted files (armor_stand.rs, name_tag.rs). No action taken.
+- Re-verified the prior "Fixed in this audit" Mob guard against vanilla NameTagItem.interactLivingEntity and found it was a regression. Vanilla gates on custom name presence plus target type serializability (canSerialize/isSaveable), sets the custom name on any LivingEntity, and applies setPersistenceRequired() only when the target is a Mob. The get_mob() outer guard wrongly blocked naming ArmorStand and other non-mob living entities. Fixed in name_tag.rs: name is now set via get_living_entity(); persistence is applied conditionally via get_mob().
+- ArmorStand is a serializable LivingEntity but not a Mob, so it is now nameable again, matching vanilla; it simply does not get persistence_required.
+- No pure unit-test seam: use_on_entity needs a live Player, ItemStack and EntityBase, with no helper isolating the naming rule. Test skipped.
+- Files changed: name_tag.rs only; rustfmt --edition 2024 applied.

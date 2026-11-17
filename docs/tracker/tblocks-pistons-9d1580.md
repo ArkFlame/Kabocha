@@ -73,3 +73,21 @@ destroy-vs-block reactions) and the retract fast-retract `TRIGGER_DROP` gate
 - Row 1 (world border in `is_movable`): FIXED in tree at HEAD (`piston.rs:62` `contains_block` check).
 - Row 2 (air moved-block place then break): FIXED bb9367799 (as the note states).
 - Row 3 (head slab anchored on far face): STILL OPEN, needs the six `PistonHeadBlock` AABBs and end-crystal re-check.
+
+
+## Result
+
+Row 3 (head slab anchoring, the only row marked STILL OPEN): VERIFIED against the current decompiled vanilla, no code change needed.
+
+- Vanilla `PistonHeadBlock` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/PistonHeadBlock.java:37-40`) builds the head collision shape from `SHAPE_PLATFORM = Block.boxZ(16.0, 0.0, 4.0)` (x 0-16, y 0-16, z 0-4) plus a thin arm, then `Shapes.rotateAll` (Shapes.java:504-520) maps NORTH to identity and EAST to `BLOCK_ROT_Y_90` which is `ROT_90_Y_NEG`. The platform therefore sits on the side the head FACES for every direction: EAST x 0.75-1.0, WEST x 0-0.25, UP y 0.75-1.0, DOWN y 0-0.25, SOUTH z 0.75-1.0, NORTH z 0-0.25.
+- `PistonBlockEntity::head_shape_aabb` (`entities/piston.rs:165-178`) already produces exactly these six slabs, so it matches current vanilla. The tracker's cited `EAST_AABB = box(0,0,0,4,16,16)` and 8-pixel `SHORT_*` variants are an older MC shape convention and do not apply to the decompiled target. Current vanilla keeps the platform 4 pixels thick for both normal and short heads; `SHORT` only changes the arm length (z 4-16 vs z 4-20), which Pumpkin intentionally does not model for the sweep.
+- End-crystal push geometry is unchanged, so no re-check is needed.
+
+Added pure unit test `head_shape_slab_sits_on_facing_side` (`entities/piston.rs:347-376`) that locks all six directions so a future review does not "fix" already-correct code.
+
+Other remaining gaps left open:
+- Row 1 (non-cancellable destroy): needs a new non-cancellable destroy path in `World`, a cross-crate refactor outside this unit's files.
+- Row 2 (collision-shape entity sweep): needs a `VoxelShape`/collision-shape API from another crate, cross-crate refactor.
+- Row 4 (players excluded from pushes): intentional divergence, client-authoritative movement (`docs/LEDGER.tsv` #1679).
+
+Files touched: `crates/pumpkin-core/src/block/entities/piston.rs` (test/import only, no behaviour change); `rustfmt --edition 2024` ran clean on it.

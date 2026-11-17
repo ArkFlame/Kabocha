@@ -82,3 +82,35 @@ the tracker note's "8 markers" are the word "vanilla" in doc comments/tests.
 - 1. JSON streamed to NBT bypassing codec (`json_to_nbt_tag:229-268`): STILL OPEN (L).
 - 2. Plural directory aliases (`DYNAMIC_REGISTRIES:11-225`): STILL OPEN (S).
 - 3. Auto-discovery of unknown folders (`dynamic_registry_loader.rs:367-406`): STILL OPEN (S).
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/resources/RegistryDataLoader.java`,
+`core/registries/Registries.java` and `FileToIdConverter.java`.
+
+- Gap 3 (auto-discovery of unknown folders, S): FIXED. `load_dynamic_registries_from_ns` no
+  longer turns arbitrary `data/<ns>/<dir>` folders into `<ns>:<dir>` registries; only worldgen
+  subfolders are auto-discovered (already keyed `minecraft:worldgen/<sub>`). Vanilla loads only
+  the fixed `RegistryDataLoader` set and ignores unknown folders. Removed the now-unused
+  `EXCLUDED_REGISTRY_DIRS` const (also drops the dead `datapacks` entry noted in pass 2).
+  Test: `unknown_non_worldgen_folders_are_ignored`.
+- New small note (duplicate builtin carver/feature registries, S): FIXED. Removed the
+  `minecraft:worldgen/configured_carver` and `minecraft:worldgen/configured_feature` entries from
+  `DYNAMIC_REGISTRIES`. Decompiled vanilla loads `Registries.CARVER` -> `worldgen/carver` and
+  `Registries.FEATURE` -> `worldgen/feature` into those canonical ids; `configured_*` registry ids
+  do not exist in this version (the type registries are `worldgen/carver_type`/`feature_type`,
+  builtin with no datapack loader). The legacy `configured_*` directories remain aliases under the
+  canonical ids, so old packs still load into the right registry. Test:
+  `configured_carver_entries_load_into_canonical_registry`.
+- Gap 1 (JSON streamed to NBT bypassing codecs, L): STILL OPEN - correct long-vs-int typing needs
+  each registry's element codec (schema lives in generated data / other crates); out of scope for
+  this file.
+- Gap 2 (plural directory aliases, S): STILL OPEN - documented intentional leniency; removing it
+  is a behaviour change for non-vanilla packs that needs a migration note, and it is not a
+  vanilla-correctness bug for valid packs.
+- New small note (duplicated I/O for item_modifier/slot_source/etc.): STILL OPEN - requires changes
+  to `datapack/mod.rs`, a file outside this unit.
+
+Files touched: crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs (rustfmt applied).
+Checks not run here (orchestrator compiles/nextests the batch).

@@ -62,3 +62,15 @@ mob and assert it is not picked (4 block vanilla box).
 ## Gap status
 
 - STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+
+## Result
+
+Audited 2026-11-17 against `.vendor/vanilla-decompiled` (MC 26.3). Smallest gaps first.
+
+- Gap 4 (Untamed target reason): FIXED. Decompiled `NearestAttackableTargetGoal.start()` always sets `CLOSEST_PLAYER`/`CLOSEST_ENTITY` by target type, and `NonTameRandomTargetGoal` does not override `start`, so untamed wolves/cats never fire `RANDOM_TARGET`. Removed the `Untamed -> RandomTarget` arm in `active_target.rs::start`; it now uses the player/entity split. XS, plugin-visible event payload only. No pure seam for a unit test (needs a live `Mob`).
+- Gap 1 (Adult uses AgeableMob): LEFT OPEN - proper fix is a unified `Mob::is_baby()` trait method (cross-file refactor, outside this unit). Verified Pumpkin `AgeableMob::is_baby()` = `can_be_a_baby() && age<0` matches decompiled `AgeableMob.isBaby()`; sole user is the polar bear, so no parity bug today.
+- Gap 2 (Untamed continuation): LEFT OPEN - note premise is wrong. Decompiled `NonTameRandomTargetGoal.canContinueToUse()` re-tests `targetConditions.test(level, mob, target)`; it does NOT call `super.canContinueToUse()`, so there is no 60-tick unseen-memory window for untamed mobs. Current `accepts()` re-test already mirrors the re-test; adding the suggested window would diverge. No change.
+- Gap 3 (mustReach / can_navigate): LEFT OPEN - `can_navigate_to_entity` still needs the path navigator (size M, cross-crate), out of scope. Note is also wrong on the polar-bear flag: decompiled `PolarBear.PolarBearAttackPlayersGoal` calls `super(..., 20, true, true, null)` => `mustReach=true`, so `polar_bear_attack_players.rs:24` passing `true` is correct; do NOT flip it to false.
+- Gap 5 (NoDaylight comment): no change. Verified decompiled `Spider.SpiderTargetGoal` only overrides `canUse`; daylight is checked only in `can_start`, which is correct.
+
+Observation (out of STILL OPEN scope, for a later pass): the prior 'Fixed in this pass' note claims `getTargetSearchArea(d)` inflates vertically by 4.0, but the vendored decompiled source uses `inflate(followDistance, followDistance, followDistance)` (full follow range vertically). `TARGET_SEARCH_VERTICAL_RANGE = 4.0` in `active_target.rs` therefore diverges from this reference; left as-is to avoid undoing prior verified work without an explicit ticket.

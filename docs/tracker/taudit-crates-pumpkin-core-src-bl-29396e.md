@@ -48,3 +48,11 @@ vanilla `WaterlilyBlock`.
 - 1. Source water never waterlogs a LiquidBlockContainer (`block/fluid/physics.rs:4-8`): STILL OPEN (M, needs world tick test).
 - 2. `bubble_column` missing from `washed_away_by_fluids` (`physics.rs:10-12`): BLOCKED-DATA (note says confirm against vanilla tag data).
 - 3. Dead lava/water clause in `try_flow`: STILL OPEN (not re-read this pass).
+
+
+## Result
+
+- 1. Source water never waterlogs a `LiquidBlockContainer`: STILL OPEN (out of unit). Verified against vanilla `FlowingFluid.spreadTo` and `SimpleWaterloggedBlock.placeLiquid`: a source water state does waterlog a dry waterloggable block. In Pumpkin the waterloggable target is filtered before `spread_to` by `pathfinder.rs:54` and by `try_flow`'s `can_hold_fluid` hole check; widening `can_hold_fluid` would also let lava into those blocks. A correct fix needs `pathfinder.rs` (side targets) and a lava guard in `lava.rs`, both outside this unit. Note the doc's `Level::L0` is `Level::L8` in Pumpkin.
+- 2. `bubble_column` missing from `washed_away_by_fluids`: STILL OPEN (out of unit). Confirmed against vanilla datapack `assets/datapack/data/minecraft/tags/block/washed_away_by_fluids.json`: vanilla also omits `bubble_column`, so the generated tag is correct and must not be hand-edited. Vanilla treats it as a water hole via `bottomState.getFluidState().isSame(water)`, which Pumpkin's tag-only `can_hold_fluid` does not model; fixing that needs fluid-state-aware hole detection in `pathfinder.rs`, outside this unit.
+- 3. Dead lava/water clause in `try_flow`: FIXED. Confirmed `water` is in the vanilla `#minecraft:washed_away_by_fluids` tag and is not a liquid container, so `can_hold_fluid(WATER)` is already true for lava. Removed the redundant `below_block == WATER && fluid is lava` clause in `flowing_trait.rs` and added a pure unit test asserting `can_hold_fluid(&Block::WATER)`.
+- Files changed: `crates/pumpkin-core/src/block/fluid/flowing_trait.rs`, `crates/pumpkin-core/src/block/fluid/physics.rs`. Worker did not run cargo or tests (per task); `rustfmt --edition 2024` succeeded on both files; orchestrator to compile and test.

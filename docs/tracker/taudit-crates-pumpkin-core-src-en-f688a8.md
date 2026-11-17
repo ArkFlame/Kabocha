@@ -32,3 +32,12 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - 5 teleport broadcast only to destination chunk (entity/mod.rs:5110): STILL OPEN, M.
 - 6 set_rotation normalisation: FIXED at entity/mod.rs:4372-4376 (yaw mod 360, finite check).
 - 7 kill fallback for non-living entities (entity/mod.rs:1387): STILL OPEN, S, cleanup only.
+
+## Result
+- Row 1 (get_display_name team decoration): FIXED. Verified vanilla `Entity.getDisplayName` -> `PlayerTeam.formatNameForTeam(getTeam(), getName())` (Entity.java:6231, PlayerTeam.java:162-168,113-115). Built prefix + name + suffix with team colour applied to the root component, then applied hover/insertion to the whole result; `Team` already exposed prefix/suffix/colour and `get_team()` exists, so no cross-crate change was needed. Added pure unit test `team_formatting_adds_prefix_suffix_and_colour`.
+- Row 2 (fire clears freeze): FIXED. Verified vanilla `Entity.igniteForTicks` -> `clearFreeze()` -> `setTicksFrozen(0)` (Entity.java:1168-1174, 4083-4086). `set_on_fire_for_ticks` now calls `set_frozen_ticks(0)` when the entity is frozen.
+- Row 3 (Bedrock climate_variant): STILL OPEN. Needs the Bedrock `climate_variant` property id plus biome-temperature classification and a `PropertySyncData` entry; that property data is outside this unit and would risk generated/Bedrock data changes.
+- Row 4 (tick_block_underneath stub): FIXED. Behaviour is already wired in `LivingEntity` tick via `block_registry.on_entity_step` (living.rs:4794-4811, campfire/magma effects), so the gap as written is stale; removed the unused dead-code stub in entity/mod.rs.
+- Row 5 (teleport broadcast only to destination chunk): STILL OPEN. Correct fix requires routing the position sync through the entity tracker's current `seen_by` set and the cross-chunk re-track plus Bedrock teleport packet flow; a partial single-file edit risks duplicate packets or a `seen_by` read lock during tracker updates. Network path outside a safe single-file change.
+- Row 7 (kill fallback for non-living entities): STILL OPEN. Not a behaviour bug: verified vanilla `Entity.kill` removes (Entity.java:765-768) while `LivingEntity.kill` damages, matching Pumpkin's split. Tracking-only TODO cleanup, no fix required.
+- Verified with rustfmt --edition 2024 on entity/mod.rs (exit 0). Cargo/test execution forbidden by task scope, so compilation of the new test is UNVERIFIED.

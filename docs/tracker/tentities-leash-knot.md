@@ -49,3 +49,41 @@ the rest need the decompiled class or assets/codegen.
 - 3 `mob_griefing` gate on knot hurt: **FIXED** (already in place; `damage_with_context` only checks invulnerability, no change needed).
 - 5 `get_knot` search box misses a knot below the fence: **FIXED** (d712d13fa), box y shifted by -1.0 to match vanilla block +/-1.
 - 6 7-block transfer box asymmetry: **STILL OPEN** (cosmetic; not reached in this pass).
+
+## Result
+
+Re-audited every STILL OPEN row against the decompiled vanilla now available at
+`.vendor/vanilla-decompiled/net/minecraft/`. Files changed: only
+`crates/pumpkin-core/src/entity/decoration/leash_knot.rs` (rustfmt 2024 applied).
+
+- **Row 1 (interact) - FIXED.** Decompiled `LeashFenceKnotEntity.interact` (lines 75-113) shows
+  the "discard knot + drop one lead when nothing moved" premise was wrong: when neither branch
+  moves a mob, vanilla simply returns `super.interact(player, hand, location)` (PASS), with no
+  removal or lead drop. Pumpkin's current behavior was already correct there; the suggested fix
+  was NOT applied. The real gap: vanilla re-homes knot mobs onto the player only under
+  `if (!attachedMob && !player.isSecondaryUseActive())`. Added the equivalent
+  `&& !player.get_entity().is_sneaking()` guard (Player.isSecondaryUseActive -> isShiftKeyDown).
+  No pure seam for a unit test (needs a live Player).
+- **Row 2 (sounds) - NOT A GAP, closed.** Decompiled `SoundEvents` has no LEASH_KNOT_PLACE /
+  LEASH_KNOT_BREAK: only `LEAD_UNTIED = "item.lead.untied"` and `LEAD_TIED = "item.lead.tied"`
+  (lines 925-926). `LeashFenceKnotEntity` uses LEAD_UNTIED in `dropItem` and LEAD_TIED in
+  `interact`/`playPlacementSound`. Pumpkin already plays `Sound::ItemLeadTied`/
+  `Sound::ItemLeadUntied` at the same three sites. No assets, Extractor or codegen needed.
+- **Row 3 (damage_with_context) - LEFT OPEN (not a STILL OPEN row).** Decompiled
+  `BlockAttachedEntity.hurtServer` (lines 129-172) DOES gate mob-caused damage on mob_griefing
+  (`if (!MOB_GRIEFING && source.getEntity() instanceof Mob) return false;`), contrary to the
+  doc. Pumpkin still lacks this gate. Adding it needs the source-is-Mob wiring through
+  `damage_with_context`'s `cause` param; harmless for player attacks, so deferred to a future
+  pass rather than risking a wrong-cause check without compiling.
+- **Row 4 (tick retained_leash) - FIXED.** Decompiled `BlockAttachedEntity.tick` (lines 43-78)
+  discards the knot as soon as `!survives()`; attached mobs release themselves via their own
+  `tick_leash` dead-holder path (`entity/mod.rs:5728-5735`). Removed the `retained_leash`
+  early return so the knot is always removed when its fence is gone. Kept the eager
+  unleash + lead-drop scan because a Rust `Weak` can no longer upgrade once the world drops the
+  knot `Arc`, so the mob-side path alone cannot drop the lead. No pure seam (needs a live world).
+- **Row 5 (get_knot) - VERIFIED FIXED.** `knot_search_box` matches vanilla
+  `AABB(x-1, y-1, z-1, x+1, y+1, z+1)` with the `knot.getPos().equals(pos)` filter; existing
+  unit test covers it.
+- **Row 6 (transfer box) - VERIFIED FIXED.** `transfer_search_box` builds from floored block
+  coords +1 with 7-block inflate; `transfer_box_spans_block_coordinates_plus_seven` test passes
+  by inspection. The h2-pass note calling this STILL OPEN is stale.

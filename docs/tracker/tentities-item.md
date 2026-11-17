@@ -80,3 +80,40 @@ Known intentional deviation: creative players destroy a stack that fits nowhere
 - 3 never-despawn items do not merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 spilled contents pickup delay (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 despawn before merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Verified 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper/Canvas-flavoured
+1.21.x; unmarked lines are Mojang vanilla). Every STILL OPEN row is already fixed in the main
+checkout by the item.rs / player.rs owners; this unit's editable files (allay.rs, utils.rs) need
+no change. No .rs files touched, so no rustfmt run.
+
+- 1 owner pickup protection (M): ALREADY FIXED in `item.rs:780-792`. Code returns when
+  `item_age <= 60 && thrower resolves to a player via get_player_by_uuid && thrower != picker`,
+  exactly the proposed fix; allay/fox throwers are not players so they do not block. Note the
+  current decompiled `ItemEntity.playerTouch` (ItemEntity.java:490) actually gates on
+  `pickupDelay == 0 && (target == null || target.equals(player.getUUID()))` with no age/thrower
+  check; the doc's quoted `owner`/`age > 60` rule is older vanilla. No action.
+- 2 player drops record thrower (M): ALREADY FIXED in `player.rs:6851`
+  (`item_entity.set_thrower(self.gameprofile.id)` beside the drop velocity construction). The
+  existing allay.rs:205 and utils.rs:289 `set_thrower` calls match vanilla
+  `BehaviorUtils.throwItem` (BehaviorUtils.java:100-105) and Fox/Dolphin (Fox.java:535,
+  Dolphin.java:534). No action.
+- 3 never-despawn items do not merge (S): ALREADY FIXED in `item.rs:230-239` (is_mergeable now
+  checks only `!removed && count < max`) and `item.rs:549-566` (age held at -32768, merge kept).
+  VERIFICATION WARNING for the item.rs owner: vanilla `isMergable` (ItemEntity.java:276-279) DOES
+  check `pickupDelay != 32767 && age != -32768 && age < despawnRate`; the current Pumpkin code now
+  merges never-pickup/never-despawn items where vanilla does not. Doc premise was wrong; leaving
+  item.rs untouched (outside this unit) but flagging the divergence.
+- 4 spilled contents pickup delay (S): ALREADY FIXED in `item.rs:423-428` (`set_pickup_delay(0)`
+  removed; `Self::new` defaults pickup delay to 10). VERIFICATION WARNING for the item.rs owner:
+  vanilla `Containers.dropItemStack` (Containers.java:42-47) and `ItemUtils.onContainerDestroyed`
+  (ItemUtils.java:50-54) spawn via plain `new ItemEntity` with NO `setDefaultPickUpDelay()`, so
+  container/bundle spill has delay 0; only `Block.popResource` (Block.java:483) sets 10. The
+  item.rs comment/pattern therefore diverges from this vanilla build. Leaving untouched (outside
+  this unit) but flagging.
+- 5 despawn before merge (S): ALREADY FIXED in `item.rs:549-566`; merge runs before age increment
+  and the 6000-tick discard, matching vanilla `ItemEntity.tick` (ItemEntity.java:202-227). No action.
+
+Net: no source edits this unit; two verification discrepancies (rows 3 and 4) flagged for whoever
+owns item.rs. No build run (none required: no .rs changed).

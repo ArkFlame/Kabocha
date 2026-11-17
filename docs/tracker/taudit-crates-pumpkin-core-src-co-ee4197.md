@@ -62,3 +62,30 @@ error split for `enable`, count of `enable`/`disable`, and `pack.mcmeta` JSON sh
 - 4. `reload_datapacks` result discarded (`datapack.rs:261,345,399`): STILL OPEN (S).
 - 5. `pumpkin-unit-test` exposed (`data/datapack/mod.rs:1399`): STILL OPEN (S).
 - 6. Suggestion ids are Pumpkin-internal (`datapack.rs:73-122`): STILL OPEN (S).
+
+
+## Result
+
+Verification used the unmodded MC 26.2 source at
+/run/media/linsaftw/SDD/GitHub/ArkFlame/FlameMC/folia-server/.gradle/caches/paperweight/mache/base/sources/net/minecraft/server/commands/DataPackCommand.java
+(the vanilla-decompiled copy in .vendor is Canvas-modded: register and the anchor Inserter are stripped).
+
+- 1. pack_format: 61 hardcoded - LEFT OPEN. Needs a version -> data pack format table plus the
+  format for V_26_3; pumpkin-util/src/version.rs exposes only protocol_version, no data pack version.
+  Cross-crate data change, outside this unit (only datapack.rs editable).
+- 2. Duplicate enable/disable logic - LEFT OPEN. Requires refactoring DatapackManager::enable_pack
+  and disable_pack in data/datapack/mod.rs (basename mod.rs, outside this unit).
+- 3. Anchor known but not enabled error type - VERIFIED MATCHING, NO CHANGE. Unmodded vanilla
+  resolves the before/after anchor via getPack(c, "existing", false); a known-but-not-selected anchor
+  throws ERROR_PACK_ALREADY_DISABLED (commands.datapack.disable.failed). Pumpkin's
+  ERROR_DISABLE_FAILED already matches. The tracker claim of ERROR_UNKNOWN_DATAPACK is incorrect
+  for this version.
+- 4. reload_datapacks result discarded - LEFT OPEN. Requires Server::reload_datapacks
+  (server/mod.rs) to return Result; outside this unit.
+- 5. pumpkin-unit-test exposed - LEFT OPEN. data/datapack/mod.rs is outside this unit.
+- 6. Suggestion ids - FIXED. Both providers now suggest each pack id once, quoting ids containing
+  spaces or slashes (required because read_string cannot parse an unquoted slash). Removed the
+  internal file/<name> short-name duplicates. Matches vanilla UNSELECTED_PACKS / SELECTED_PACKS.
+  No pure unit test seam exists (suggestion providers need a CommandContext), so no test added.
+
+Edits: crates/pumpkin-core/src/command/commands/datapack.rs; rustfmt --edition 2024 applied.

@@ -66,3 +66,37 @@ covers NBT round trip, `TrackOutput=false`, cooldown and the Searge output.
 ## Gap status
 - Remaining-gap items 1-5 (CustomName/LastOutput persistence, performCommand gating, etc.): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 6 (risk, not a gap): n/a, no action
+
+
+## Result
+
+Verified against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java` and
+`.../world/entity/vehicle/minecart/MinecartCommandBlock.java` (now present in `.vendor`).
+
+- Row 1 (success_count reset when gamerule off): NO GAP. Vanilla `performCommand` sets
+  `successCount = 0` at line 105, before the `isCommandBlockEnabled()` guard at line 106, so a
+  disabled cart does reset it. Pumpkin already does this. No code change.
+- Row 2 (Searge skips lastExecution bookkeeping): NO GAP. Vanilla returns from the Searge branch
+  at line 102, before the `lastExecution` write at lines 134-138. Pumpkin already does this. No
+  code change.
+- Row 3 (custom_name duplicated on command-block state): NO GAP. Vanilla `BaseCommandBlock`
+  keeps its own `customName` field (line 32) and `getName()` returns it or "@" (lines 147-149),
+  independent of the entity name. Pumpkin matches. No code change.
+- Row 4 (hardcoded `JavaMinecraftVersion::V_26_3`): STILL OPEN (BLOCKED). Needs a cross-crate
+  refactor to thread the target protocol version through entity NBT saving; repo-wide convention
+  (16 other sites) and outside this unit's files.
+- Row 5 (gamerule-off test): FIXED. Added `command_block_minecart_perform_command_gamerule` in
+  `minecart.rs`. It asserts the vanilla behaviour: a normal command with `commandBlocksWork=false`
+  resets SuccessCount to 0 and does not execute; the Searge easter egg still fires. The doc's
+  suggested assertion "success_count unchanged" is contradicted by vanilla line 105 and was not
+  used.
+- Row 6 (no server GUI fallback): n/a, no action.
+
+Additional divergence found while verifying rows 1/2 and fixed: Pumpkin gated the Searge easter
+egg behind `commandBlocksWork` and compared the command case-sensitively. Vanilla checks it
+before the gamerule guard and uses `equalsIgnoreCase`, so lowercase "searge" fires with command
+blocks disabled. Changed `command_block.rs` to `eq_ignore_ascii_case("Searge")` before the guard.
+
+Files touched: `command_block.rs`, `minecart.rs`. `rustfmt --edition 2024` run on both (rc 0).
+No compile/test run by this worker (orchestrator compiles once).

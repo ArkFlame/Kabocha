@@ -70,3 +70,44 @@ Last change reviewed: `c6f7b548c` "ocelot despawn, crouch pose and spawn obstruc
 - 2 STILL OPEN: breeding trust inheritance UNVERIFIED; vanilla breeding for ocelots not confirmed.
 - 3 STILL OPEN: sound table entries, S/M, not attempted in sweep.
 - 4 STILL OPEN: stepping-carefully override, UNVERIFIED against vanilla.
+
+
+## Result
+
+Re-verified all 4 STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/feline/Ocelot.java`
+(1.21, package moved to `animal/feline`).
+
+1. `mob_interact` distance gate — **NO CHANGE, verified matching vanilla**.
+   Vanilla `Ocelot.mobInteract` (line 169) explicitly requires
+   `player.distanceToSqr(this) < 9.0` alongside `isFood` and `!isTrusting()`.
+   The tracker premise (range check belongs only to 1.12) was wrong; Pumpkin's
+   `dist_sqr < 9.0` is correct. (Vanilla also gates on
+   `temptGoal == null || temptGoal.isRunning()`, not in scope of this row.)
+
+2. `get_breed_offspring` — **NO CHANGE, verified matching vanilla**. Vanilla
+   `Ocelot.getBreedOffspring` (line 230) simply creates a fresh `OCELOT` via
+   `EntityTypes.OCELOT.create(..., BREEDING)`; it does NOT copy the parent's
+   trusting state. Pumpkin's inherited `Animal::get_breed_offspring` spawns a
+   plain ocelot with `is_trusting = false`, which matches. Tracker premise was
+   wrong.
+
+3. Mob sounds — **FIXED**. Vanilla `Ocelot` defines `getAmbientSound` =
+   `OCELOT_AMBIENT` (line 147) and `getAmbientSoundInterval` = `900` (line 152).
+   Added `get_ambient_sound()` (returns `entity_type.ambient_sound`, i.e.
+   `EntityOcelotAmbient`) and `get_ambient_sound_interval()` (900, as
+   `OCELOT_AMBIENT_SOUND_INTERVAL`) to `impl Mob for OcelotEntity`, plus a pure
+   unit test for the interval constant. Hurt/death sounds already resolve from
+   generated `entity_type` data (`EntityOcelotHurt`/`EntityOcelotDeath`), so no
+   `CustomSound` impl is needed. Vanilla `Ocelot` has no step-sound override
+   (tracker's `CAT_STEP` claim is wrong), so default block step sound stands.
+
+4. `mob_is_stepping_carefully` — **NO CHANGE, verified matching vanilla**.
+   Vanilla `Ocelot.isSteppingCarefully` (line 279) is
+   `isCrouching() || super.isSteppingCarefully()` =
+   `pose == CROUCHING || isShiftKeyDown()`. Pumpkin already returns
+   `pose == Crouching || is_sneaking()` (sneaking = shift flag), an exact match.
+   Cat uses the identical pair of overrides, so both already match vanilla.
+
+`rustfmt --edition 2024` run on the one touched .rs file. Not compiled by me
+(orchestrator gate). No generated data, WIT or cross-crate changes needed.

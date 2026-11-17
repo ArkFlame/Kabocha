@@ -98,3 +98,20 @@ Paper only adds the `CreatureSpawnEvent` hook, which Pumpkin already fires.
 
 ## Status (h3 sweep)
 - Two divergent `adjust_spawn_*` (natural_spawner.rs:767 `adjust_spawn_position_cache`, :786 `adjust_spawn_position`): STILL OPEN (confirmed both exist, M, not changed).
+
+
+## Result
+
+- **Two divergent `adjust_spawn_*` (h3 sweep row): FIXED.** Verified against
+  decompiled vanilla `SpawnPlacementTypes.java:45-48`: `ON_GROUND.adjustSpawnPosition`
+  steps down only when the block below is `isPathfindable(PathComputationType.LAND)`,
+  whose default (`BlockBehaviour.java:130-136`) is `!isCollisionShapeFullBlock`.
+  `natural_spawner.rs:786 adjust_spawn_position` already followed that rule via the
+  block registry; `:767 adjust_spawn_position_cache` instead used an ad hoc
+  `!is_full_cube && !is_liquid` test (the `!is_liquid` clause is not in vanilla:
+  liquids are not full collision blocks and are pathfindable on land). Both now
+  delegate to a single `adjust_spawn_position_down(pos, below_is_pathfindable)` helper;
+  the cache path passes `!state.is_full_cube()` (vanilla's `!isCollisionShapeFullBlock`).
+  Added pure unit test `adjust_spawn_position_down_follows_land_pathfindable`.
+  Files: crates/pumpkin-core/src/world/natural_spawner.rs. `rustfmt --edition 2024`
+  run on the file (exit 0). Compilation/tests not run by this worker (orchestrator gate).

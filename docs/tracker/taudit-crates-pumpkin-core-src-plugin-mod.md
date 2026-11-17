@@ -43,3 +43,21 @@ None. No gap below is both small and certain; details and sizes are recorded ins
 - blocking/non-blocking dispatch order: FIXED b9ab007b1 (handlers now run sequentially in the pre-sorted priority order, Paper/Bukkit style; non-blocking handlers lose concurrency by design; UNVERIFIED, no unit test since fire_dyn needs a live Server)
 - handler panic isolation: FIXED b9ab007b1 (each handler wrapped in AssertUnwindSafe.catch_unwind, logs `Could not pass event ... to plugin ...`; UNVERIFIED, no test)
 - TODO remove plugin command nodes on reload: STILL OPEN (L, the dispatcher node removal is not started)
+
+## Result
+
+Verified against the current source (no vanilla reference exists for a plugin system; Paper
+`HandlerList`/`CommandMap` used as the behavioural reference).
+
+| Row | Result |
+|---|---|
+| Remove plugin command nodes from the tree after reload | OPEN (reason: node removal needs `Tree` surgery in `pumpkin-command/src/node/tree.rs` plus dropping the `commands` early return in `release_library`, both outside this unit's files; L) |
+| Blocking/non-blocking dispatch order | FIXED (b9ab007b1). `fire_dyn` now iterates the pre-sorted vector once, no separate blocking pass; matches Paper's sequential `HandlerList.fire` |
+| Per-handler panic isolation | FIXED (b9ab007b1). Each handler runs under `AssertUnwindSafe(..).catch_unwind()` and logs `Could not pass event {event} to plugin {source}` via `tracing`, then continues |
+
+Small addition: `deactivating_one_plugin_leaves_other_plugin_commands_alone` in
+`crates/pumpkin-command/src/node/dispatcher.rs` pins the source-scoped behaviour the
+unload path relies on (deactivating one plugin hides its command and its `/`-variant
+alias while another plugin's command keeps executing).
+
+Files touched: `crates/pumpkin-command/src/node/dispatcher.rs` (test only).

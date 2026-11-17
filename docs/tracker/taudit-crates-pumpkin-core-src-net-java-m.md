@@ -67,3 +67,30 @@ splitting on `\0`, no disconnect packet in handshake/status (`serialize_disconne
 
 ## Gap status
 - Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
+
+## Result
+
+- Config-state disconnect component: VERIFIED already fixed in this checkout. `config_disconnect.rs`
+  holds `&TextComponent` and writes it with `write_component`; `pending.rs`/`mod.rs` pass the full
+  component. No change needed.
+- Row 1 (command/chat/session ordering): STILL OPEN - the `server.spawn_task` sites are in
+  `net/java/mod.rs` (outside this unit); an ordered per-connection queue needs that file, so it
+  cannot be completed here.
+- Row 2 (keep-alive single challenge): VERIFIED, NO CHANGE. Vendored vanilla is Paper
+  (`ServerCommonPacketListenerImpl#handleKeepAlive` 103-144, `#keepConnectionAlive` 268-305,
+  `KEEPALIVE_LIMIT` line 54 = 30 s): Paper keeps a *queue* of pending challenges, sends a new one
+  every second, and disconnects an unmatched/out-of-order id. `play/keep_alive.rs` plus
+  `mod.rs:262-318` already mirror this (pending queue, 30 s `KEEP_ALIVE_TIMEOUT`, disconnect on
+  unmatched id). The doc premise of one challenge, 15 s and log-and-ignore does not match the
+  vendored source. The send loop is in `mod.rs` (outside this unit).
+- Row 3 (UPDATE_RECIPES item property sets): STILL OPEN - writing real `itemSets` needs generated
+  `RecipePropertySet` resource keys plus recipe/tag data and a cross-crate change to the protocol
+  payload builder (`recipe_book_add.rs:1018` still writes `VarInt(0)`); generated data is forbidden.
+- Row 4 (per-tick packet cap): FIXED - removed `MAX_PACKETS_PER_TICK = 64` in `player.rs`;
+  `process_inbound_packets` now drains the whole `SegQueue` like vanilla. Ingress rate limiting in
+  `JavaClient` (`mod.rs:331-349`) bounds abuse, so no per-tick cap is required.
+- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is `net/java/mod.rs:1370-1372`
+  (outside this unit).
+
+Checked with `rustfmt --edition 2024` on `player.rs`. No build/test run here (orchestrator compiles
+once after all workers). No pure seam exists for the packet-drain loop, so no unit test was added.

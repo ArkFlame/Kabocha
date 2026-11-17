@@ -80,3 +80,41 @@ Notes (checked, not gaps):
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+Re-reviewed each gap against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`
+(`AbstractBoat.java`, `AbstractChestBoat.java`) and `VehicleEntity.java`, smallest rows first.
+
+- Row 7 (`get_controlling_passenger`, S): FIXED. `AbstractBoat.java:845-847` returns the first
+  passenger only when it is a `Player`, else `super.getControllingPassenger()` (null for
+  `VehicleEntity`). `boat.rs` filtered on `get_living_entity`, so a non-player mob rider was
+  wrongly treated as the controller. Now filters on `get_player().is_some()` and the
+  `is_client_controlled` comment was updated to match. All callers (`entity/mod.rs`, `boat.rs`,
+  `player_auth_input.rs`) already expect a player, so no caller change was needed. No pure unit
+  test seam: the filter needs a live `BoatEntity` with passengers plus a `Player`, and a
+  getter/filter mirror test is forbidden by the test rules.
+- Delta-rotation accumulation (h6 STILL OPEN): CLOSED as not a server gap. Vanilla
+  `AbstractBoat.positionRider` (`AbstractBoat.java:696-706`) adds `deltaRotation` to rider
+  yaw/yHeadRot only under `passenger.isLocalInstanceAuthoritative()`, which is false on a dedicated
+  server for player passengers (`Player.isClientAuthoritative()` returns true and
+  `Entity.isLocalInstanceAuthoritative()` is `!isClientAuthoritative()` when `!level.isClientSide`).
+  The server-relevant `clampRotation` half is already ported (bd8b9bf97). No code change.
+- Row 5 (destroy-removal chest scatter, M): CLOSED, already fixed. `on_removed` and the destroy
+  branch in `damage_with_context` both call `scatter_chest_contents`, with
+  `MinecartInventory::claim_drops` making it run once; matches `AbstractChestBoat.remove`.
+- Row 1 (piglin anger, M): CLOSED, already wired. `open_custom_inventory_screen` calls
+  `PiglinAi::on_guarded_block_interacted` on a successful open.
+- Row 6 (`CONTAINER_CLOSE`, S): STILL OPEN. Needs a close hook that emits at the vehicle exact
+  position; `Player::on_handled_screen_closed` emits from a `BlockPos` (`player.rs`, outside this
+  unit). Passing a block pos from `container::open` would double-emit `CONTAINER_OPEN` and run
+  block lock checks, so it is not a safe local fix.
+- Row 3 (bubble column, M): STILL OPEN. Needs the bubble-column block inside-path wiring plus new
+  boat state fields and tick velocity; cross-cutting, outside the editable files.
+- Row 4 (leash, M): STILL OPEN. Needs lead-on-entity interaction (currently mobs only) and
+  `write_leash_data`/`read_leash_data` in the boat NBT path; cross-crate/cross-cutting.
+- Row 8 (fluid push, L): STILL OPEN. Engine-wide client-authority difference; skip unless server
+  divergence is observed, per the vanilla-port guide.
+
+Verification: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/vehicle/boat.rs` succeeded.
+No cargo run (CODER rule); compile UNVERIFIED.

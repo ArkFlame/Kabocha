@@ -69,3 +69,11 @@ accurate, not TODOs). No TODO/FIXME markers in the file.
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+- Row 1 (explosion immunity): FIXED. Decompiled `Display` does not override `ignoreExplosion`; `Entity#ignoreExplosion` returns false by default (Entity.java:6469) and `ServerExplosion.hurtEntities` (ServerExplosion.java:482,556) processes entities where `!ignoreExplosion`, applying `pushFromExplosion` knockback even to non-living entities. Pumpkin's display `damage_with_context` already returns false, so no damage. Changed all three `is_immune_to_explosion()` overrides (Block/Item/Text display) from `true` to `false`, so explosions now push display entities without damaging them.
+- Row 2 (TextDisplay flags reset on load): VERIFIED, NO CODE CHANGE. Decompiled `Display.TextDisplay.readAdditionalSaveData` (Display.java:765-777) also rebuilds flags from `(byte)0` via `loadFlag`, and `input.read("alignment", Align.CODEC)` yields `Optional.empty()` for an unknown name, leaving alignment bits unset. This matches Pumpkin exactly. The doc's note about `TextAlignment.CODEC.byName` leaving flags untouched came from older 1.21 mappings; current decompiled vanilla starts from zero.
+- Row 3 (`text` NBT key skipped on serialization failure): FIXED. Decompiled `addAdditionalSaveData` (Display.java:802) calls `output.store("text", ComponentSerialization.CODEC, ...)` unconditionally. Pumpkin now always writes the `text` key, falling back to an empty JSON string if serialization fails.
+- Row 4 (`set_brightness` takes a pre-packed int): OPEN, out of scope. Fixing it requires changing the plugin/WASM host API (`pumpkin-wasm-host-v0_1/-v0_2` display.rs) and likely WIT, outside this unit's files (display.rs, explosion.rs).
+
+Files changed: `crates/pumpkin-core/src/entity/decoration/display.rs` only (explosion.rs needed no change). No pure unit-test seam exists for the fixed rows: `is_immune_to_explosion` and `write_custom_nbt` are `EntityBase` trait methods requiring a live `Entity`/`World`, so no test was added. `rustfmt --edition 2024` ran with exit 0. Build/tests were not run by this worker (orchestrator compiles once after all workers finish).

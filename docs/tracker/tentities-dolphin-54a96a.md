@@ -115,3 +115,34 @@ Trigger for the re-review: `0505dd44e` "fix(entity): give all living entities an
 - 2 dolphin_food tag: BLOCKED-DATA (tag not extracted into assets/)
 - 3 DolphinJumpGoal clause grouping: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 PlayWithItemsGoal split priorities 7/8: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Re-review against the decompiled tree now present at
+`.vendor/vanilla-decompiled/net/minecraft/` (MC source for this branch). All four rows were
+verified smallest-first; every one resolves to NO GAP, so no source file was changed.
+
+- Row 1 (ageable, M): NO GAP. Decompiled `Dolphin.java:74` declares
+  `public class Dolphin extends AgeableWaterCreature`, and `mobInteract` calls `canAgeUp()` /
+  `ageUp()` at `:328-330`. Pumpkin's `impl AgeableMob` + `impl AgeableWaterCreature`
+  (`dolphin.rs:148-158`) and age-up branch (`:417-423`) match vanilla. The prior audit assumed
+  `Dolphin extends WaterAnimal` with no breeding; that is false for this MC version, so the
+  proposed de-ageable refactor (and the cross-crate `entity/type.rs` edit) must NOT be applied.
+- Row 2 (FISHES vs dolphin_food, S): NO GAP. Decompiled `Dolphin.java:323` gates on
+  `itemStack.is(ItemTags.FISHES)`; there is no `DOLPHIN_FOOD_ITEMS` check. Pumpkin uses
+  `tag::Item::MINECRAFT_FISHES` (`dolphin.rs:414`), which matches. The BLOCKED-DATA
+  `dolphin_food` tag is not needed; do not hardcode ids.
+- Row 3 (DolphinJumpGoal clause grouping, S): NO GAP. Decompiled
+  `DolphinJumpGoal.java:56-60` is exactly
+  `(!(yd*yd < 0.03) || getXRot()==0 || !(abs(getXRot()) < 10) || !isInWater()) && !onGround()`,
+  i.e. the OR grouping Pumpkin uses. Keep the current `should_continue` condition.
+- Row 4 (PlayWithItemsGoal split priorities 7/8, S): NO GAP. Decompiled `Dolphin.java:176-177`
+  registers `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals, with the
+  cooldown only on `MoveToItemGoal` (`:559-604`) and `PlayWithItemsGoal` dropping in both
+  `stop()` and `tick()` (`:606-621`). Pumpkin's split matches; the proposed merge into one goal
+  at 7 would diverge from vanilla.
+- Verification source: `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java`
+  and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
+- Files touched: none (docs only). rustfmt not applicable. No unit test added because there is no
+  code seam to guard.

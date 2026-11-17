@@ -43,3 +43,27 @@ Rust override. `isOnFire` returning the charged flag is already ported.
 - 1 STILL OPEN (no-op): `Mob::get_random` (`entity/mob/mod.rs:1634`) also returns `rand::rng()`, so the suggested per-entity RNG does not change the stream in this codebase.
 - 2 STILL OPEN: ordering vs goal tick not confirmed, S.
 - 3 STILL OPEN: `position_target` init not verified in this sweep, S.
+
+
+## Result
+
+- Gap 1 (S, fireball spread RNG): FIXED in `blaze_attack.rs`. Vanilla `BlazeAttackGoal.tick` aims with
+  `this.blaze.getRandom().triangle(...)`; `shoot_fireball` now takes the shooter's RNG via the
+  `Mob::get_random` seam (`let mut rng = blaze.get_random()`) instead of calling the global
+  `rand::rng()` directly, matching vanilla's structure. Behaviourally a no-op today because
+  `Mob::get_random` (`entity/mob/mod.rs:1672`) also returns `rand::rng()`; converting that trait
+  method to a real per-entity seeded RNG is a cross-crate refactor outside this unit's files
+  (`entity/mob/mod.rs`, `MobEntity`), so the seed-sharing concern remains open there.
+- Gap 2 (S, AI-step ordering): VERIFIED CORRECT, no change. Vanilla `Mob.serverAiStep`
+  (`Mob.java:826-852`) runs sensing, goal/target tick, navigation, then `customServerAiStep`, then
+  move/look/jump controls. Pumpkin `MobEntity::server_ai_step` (`entity/mob/mod.rs:482-534`) uses
+  the identical order: goals at 495-499, navigation at 502, `mob.custom_server_ai_step` at 521,
+  controls after. The ascent hook fires after goal ticking, so it cannot be overwritten in the
+  same tick.
+- Gap 3 (S, restriction/home init): VERIFIED CORRECT, no change. Vanilla initialises
+  `homePosition=BlockPos.ZERO`, `homeRadius=-1` and `isWithinHome` returns true when radius==-1,
+  so `MoveTowardsRestrictionGoal.canUse` is false with no home. Pumpkin mirrors this exactly:
+  `position_target=BlockPos::ZERO`, `position_target_range=-1` (`entity/mob/mod.rs:316-317`),
+  `is_in_position_target_range_pos` returns true when range==-1 (398-404), and
+  `MoveTowardsRestrictionGoal::can_start` returns false (goal line 33-35). Blazes do not walk to
+  the world origin.

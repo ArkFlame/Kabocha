@@ -36,3 +36,29 @@ Remaining gaps:
 | `bed.rs:352-361` | `ServerPlayer#getBedResult:2476` returns `rule.asProblem()`, the per-dimension message | Hardcoded `BLOCK_MINECRAFT_BED_NO_SLEEP`; nether/respawn-anchor style messages and `BedRule.errorMessage` ignored | Needs the `error_message` field above | M | STILL OPEN (blocked on BedRule error_message codegen; M) |
 | `bed.rs` failure paths (307-386) | Paper `AbstractBedBlock:112-135` fires `PlayerBedFailEnterEvent` for each `BedSleepingProblem` and allows plugins to override/explode | Only `PlayerBedEnterEvent` is fired, and only on the success path | Add the fail event on each early return | M | STILL OPEN (PlayerBedFailEnterEvent not attempted; M) |
 | `player.rs:2658` | `LivingEntity#setPosToBed:4801` uses `AbstractBedBlock#getSleepHeight`; `StrawBedBlock#getSleepHeight:63` resolves head->foot and returns the straw surface height | Player sleep height is hardcoded `0.6875`; villager `get_sleep_height` uses the raw state's max collision height without head->foot resolution | Shared `BedBlock::get_sleep_height(state, world, pos)` helper | S | FIXED 8c2003a3e (player and villager use bed collision top + 0.125; straw head->foot resolution UNVERIFIED) |
+
+
+## Result
+
+Verified all four STILL OPEN rows against decompiled vanilla 26.3 (`AbstractBedBlock.java`,
+`BedRule.java`, `BedBlock.java`) and Paper's `PlayerBedFailEnterEvent`. Every one needs work
+outside this unit (generated data / plugin API), so no source file was changed this pass.
+
+- `bed.rs:263-264` / `straw_bed.rs:268-269` (per-position bed rule): OPEN - vanilla
+  `AbstractBedBlock#getBedRule` calls `environmentAttributes().getValue(BED_RULE, pos)`, but the
+  generated `Biome` stores only `boolean_attributes` (no BedRule compound), so supporting a biome
+  override needs a pumpkin-codegen change plus regenerated data. No vanilla biome overrides
+  `bed_rule`, so the current dimension-level value is behaviourally equivalent for vanilla data.
+- `crates/pumpkin-data/src/generated/dimension.rs` (BedRule fields): OPEN - generated file is
+  off-limits; adding `destroy_on_leave`/`error_message` requires extending pumpkin-codegen and
+  regenerating from `assets/`.
+- `bed.rs:352-361` (rule error message): OPEN - vanilla `BedRule#asProblem` sends
+  `BedRule.errorMessage()`; blocked on adding the `error_message` field to generated `BedRule`
+  (codegen), so the hardcoded `BLOCK_MINECRAFT_BED_NO_SLEEP` stays.
+- `bed.rs` failure paths (`PlayerBedFailEnterEvent`): OPEN - no such event exists in Pumpkin;
+  adding it requires a new WIT event type plus plugin-api/host/SDK bindings (cross-crate,
+  outside this unit).
+
+Rechecked row 38 (already FIXED): `player_sleep_height`/`sleep_shape_pos` in `bed.rs` and the
+`straw_bed_sleep_shape_is_the_lower_foot_surface` unit test already cover the straw head->foot
+resolution; no change needed.

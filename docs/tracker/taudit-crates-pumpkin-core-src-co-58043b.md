@@ -35,3 +35,26 @@ Doc comment says "first (overworld) world" but `server.worlds.load().first()` is
 - 1. Command block custom name ignored (M): STILL OPEN.
 - 2. `LastOutput` plain text not text-component JSON (M): STILL OPEN.
 - 3. Player source text name (`command/mod.rs`): STILL OPEN.
+
+## Result
+
+- Row 1 (custom name): PARTIAL fixed in this unit. Added `custom_name:
+  StdMutex<Option<TextComponent>>` to `CommandBlockEntity`, initialised it in
+  `new`/`from_nbt`, read/wrote the `CustomName` NBT key via `CustomNameImpl`
+  (compound text-component, matching vanilla `ComponentSerialization.CODEC`),
+  passed it into `build_command_block_actor` instead of `None`, dropped the
+  CustomName todo, and added a round-trip unit test. Verified against
+  `BaseCommandBlock.java#getName/save/load` and
+  `CommandBlockEntity.java#createCommandSourceStack`. Remaining outside this
+  unit: `command/mod.rs#into_source` must use the custom name as the source
+  name instead of literal `@`, and the `CommandBlockEntity { .. }` literal in
+  `net/java/play/set_command_block.rs` must initialise the new field or the
+  crate will not compile.
+- Row 2 (`LastOutput` as text-component JSON): OPEN. Changing `last_output`
+  from `String` to `TextComponent` is a cross-crate refactor that also requires
+  `command/mod.rs`, `block/blocks/command.rs`, and both
+  `pumpkin-wasm-host-v0_1/v0_2/src/block_entity.rs` (all outside this unit).
+  Verified with `BaseCommandBlock.java#save/load/sendSystemMessage`.
+- Row 3 (player source text name): OPEN. Entirely in `command/mod.rs#player_source`,
+  a file outside this unit. Verified against vanilla
+  `ServerPlayer#createCommandSourceStack`.

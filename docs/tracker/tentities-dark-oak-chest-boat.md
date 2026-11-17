@@ -34,3 +34,18 @@ Reference: vanilla `net.minecraft.world.entity.vehicle.boat.AbstractChestBoat` /
 - 3 dropped item inherits CustomName (boat.rs:418-420): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 ride height from pumpkin-data heights (boat/passengers.rs:71-79): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 chest boat inventory WorldlyContainer exposure (boat.rs:259-274): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/` (26.3, Paper). The doc's vanilla claims were written without those sources and most are stale. All five STILL OPEN rows were checked smallest-first.
+
+| # | Outcome | Vanilla evidence | Pumpkin state |
+|---|---------|------------------|---------------|
+| 1 | PARTIAL FIX | `AbstractChestBoat.interact` (AbstractChestBoat.java:90-94) and `openCustomInventoryScreen` (:99-106) DO emit `GameEvent.CONTAINER_OPEN` with the player as source (`GameEvent.Context.of(player)`), so the doc's "entity containers emit nothing" claim is wrong and the emit must stay. The real gap was the missing vibration source. | boat.rs `open_custom_inventory_screen`: changed `emit_game_event` to `emit_game_event_with_source(.., Some(player.clone()))` so the player is the source, matching vanilla. |
+| 2 | CLOSED, no change | `BoatItem.getBoat` (BoatItem.java:93-104) applies only `createDefaultStackConfig`; `Entity.applyComponentsFromItemStack` (Entity.java:7215-7217) -> `applyImplicitComponents` (:7210-7213) applies only CUSTOM_NAME and CUSTOM_DATA. Chest boat items are registered with no `minecraft:container` component (Items.java:1515-1518), and AbstractChestBoat/ContainerEntity never apply one. Vanilla does NOT copy container contents on placement, so a placed chest boat spawns empty. | item/items/boat.rs already spawns empty and applies only entity-variant data; matches vanilla. Doc premise wrong. |
+| 3 | CLOSED, no change | `VehicleEntity.destroy(ServerLevel, Item)` (VehicleEntity.java:94-99) does `itemStack.set(DataComponents.CUSTOM_NAME, this.getCustomName())`, reached via `AbstractChestBoat.destroy` (:65-68). Vanilla DOES copy the custom name onto the dropped boat item. | boat.rs `damage_with_context` already sets `CustomNameImpl` from `custom_name`; matches vanilla. Conflicting evidence resolved in favour of copying. |
+| 4 | CLOSED, no change | Vanilla `Boat.rideHeight(dimensions)` (Boat.java:14-17) is `dimensions.height()/3.0`, and the generated `BoatSeats.ride_height` carries that same value. | boat/passengers.rs:71-77 and boat.rs `passenger_attachment_point` already read `entity_type.boat.ride_height` from data; the doc's suggested fix is already applied, so no formula/data desync remains. |
+| 5 | CLOSED, no change | `AbstractChestBoat` implements only `Container` (via `ContainerEntity`), not `WorldlyContainer`. `HopperBlockEntity.addItem` (:612-628) iterates every slot for a plain Container, so a hopper above a chest boat DOES insert and one below DOES extract. | `MinecartInventory` is not sided (`Inventory::is_sided` default is false, pumpkin-inventory/src/inventory/inventory.rs:115-117), so the hopper path (hopper.rs:343-365) also uses all slots; matches vanilla. Doc premise wrong. |
+
+The changed line is entity/world/game-event integration with no pure unit-test seam, so no test was added. No generated data, WIT, cross-crate refactor or out-of-unit file was touched.

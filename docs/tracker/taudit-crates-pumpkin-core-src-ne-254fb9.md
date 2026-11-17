@@ -52,3 +52,10 @@ Remaining gaps (not fixed here):
 - 2 config disconnect loses Component (mod.rs:651-670): STILL OPEN, M, protocol change.
 - 3 stonecutter-only recipe packet (mod.rs:772-781): STILL OPEN, M, data/codegen.
 - Keep-alive pending, unknown id disconnect, fixed 30 s timeout (mod.rs:107 KEEP_ALIVE_TIMEOUT verified): FIXED per note.
+
+## Result
+
+- Row 1 (chat/command/session spawned off-thread, mod.rs): STILL OPEN, M, needs a per-player ordered dispatch queue in `mod.rs`, outside this unit's `keep_alive.rs`.
+- Row 2 (config disconnect loses Component, mod.rs 651-670): STILL OPEN, M, protocol change in `pumpkin-protocol`, outside this unit.
+- Row 3 (stonecutter-only recipe packet, mod.rs 772-781): STILL OPEN, M, needs generated recipe property sets in `pumpkin-data`/`recipe_helper`, outside this unit.
+- `play/keep_alive.rs`: collapsed the duplicated "pending list" vtable path and the fallback `keep_alive_id` comparison into one `outstanding_keep_alive` helper. Only one keep-alive can be outstanding now, so the two branches were identical and the fallback allowed accepting a reply after the pending entry had been trimmed. Verified against `ServerCommonPacketListenerImpl#handleKeepAlive`: any id that is not an outstanding challenge disconnects with `disconnect.timeout`. Added unit test `only_an_outstanding_challenge_is_accepted`. FIXED.

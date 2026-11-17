@@ -36,3 +36,22 @@ need that source before editing; the rest are proven by in-tree evidence.
 - Controlling passenger goes through `saddled_controlling_passenger(None)` (`nautilus.rs:228-230`); the duplicate was removed in `efaa388d8` and nothing else registers one.
 - Silent step (`nautilus.rs:248`); baby/land ambient, hurt, death, eat and swim sound selection.
 - Feeding consumes nautilus-bucket food by filling a water bucket (`nautilus.rs:401-414`).
+
+## Result
+
+| # | Result |
+|---|---|
+| 1 | FIXED. Ported the vanilla `NautilusAi` list into `NautilusEntity::new`: panic 1.6 (core), `BreedGoal` 0.4, `TemptGoal` 1.3 on `MINECRAFT_NAUTILUS_FOOD`, `FollowParentGoal` 1.3, `RandomSwimmingGoal` 1.0/10, `RandomLookAroundGoal`. |
+| 2 | FIXED. The `PlayerRideableJumping` hook already reached `NautilusEntity`; `handle_rider_start_jump` now also scales the impulse by `MOVEMENT_SPEED` and the block speed factor, as vanilla `executeRidersJump` does. Same correction applied in `zombie_nautilus.rs`. |
+| 3 | FIXED. The dead 9-slot `inventory` field is deleted (vanilla `getInventoryColumns` is 0, so this mob has no mount screen). `zombie_nautilus.rs` had the same dead field and lost it too. |
+| 4 | FIXED. The `nautilus_food` and `nautilus_taming_items` tags are generated, so `is_food` uses them: vanilla `AbstractNautilus#isFood` picks the taming tag for a wild adult and the food tag otherwise. |
+| 5 | FIXED. `new()` installs `Navigator::water_bound(false)`, the WATER malus of 0.0, `SmoothSwimmingMoveControl(85, 10, 0.011, 0.0, true)` and `SmoothSwimmingLookControl(10)`, all from the vanilla constructor. |
+| 6 | LEFT OPEN. Nothing in the decompiled tree reads `SoundEvents.NAUTILUS_RIDING`: `AbstractNautilus` only calls `startRiding` and `applyEffects`, and the client-side riding loop is not vendored. Needs the client source before adding a sound with an unknown interval. |
+| 7 | VERIFIED, no change. Natural spawning is data driven: the spawner reads `biome.spawners.water_creature` (nine biomes list `minecraft:nautilus`, weight 2, 1-1) and `check_spawn_rules` already has the nautilus water/sea-level branch. `zombie_nautilus` is `MONSTER`/`Unrestricted` and absent from the biome assets, so it needs no registration. |
+| 8 | FIXED. `mob_write_nbt` writes only `Owner` (vanilla `TamableAnimal`); `mob_read_nbt` derives taming from it, dropping the non-vanilla `IsTame` key. Tame state and owner now sync through `DATA_FLAGS_ID`/`DATA_OWNERUUID_ID` on tame and on tracker init. |
+| 9 | VERIFIED, no change. `TamableAnimal#feed` heals `2.0 * nutrition` with a `1.0` fallback, matching the code. |
+
+Also picked up in the same vanilla file: `isPushedByFluid` false, `checkSpawnObstruction` via `is_unobstructed`, `removeWhenFarAway` always true, and `requiresCustomPersistence` true when tamed.
+
+Tests: replaced the stale dash-cooldown NBT test with `taming_persists_as_vanilla_owner_only` (owner-only NBT plus read-back) and added `wild_adult_only_eats_taming_items` (cooked cod is not food for a wild adult, pufferfish is, a tamed nautilus eats both). Not compiled here, per the wave brief.
+

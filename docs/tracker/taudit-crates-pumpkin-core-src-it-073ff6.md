@@ -94,3 +94,45 @@ No TODO/FIXME markers in the file; the 10 "vanilla" hits are provenance comments
 - Gap 8: STILL OPEN: the non-animal arm needs the vanilla AgeableMob/getBreedOffspring guard for 26.3 before changing.
 - Gap 9: STILL OPEN: trait return type change across every ItemBehaviour impl; cross-cutting.
 - Gap 12: STILL OPEN: informational; Pumpkin spawner has no pending spawn data or potentials to reset.
+
+## Result
+
+Verified each STILL OPEN row against the decompiled Paper 1.21.4 source in
+`.vendor/vanilla-decompiled/net/minecraft/`. Two fixes applied to `spawn_egg.rs`; the rest are
+false positives or need files/refactors outside this unit.
+
+- Gap 1: CLOSED (false positive). `Mob.checkAndHandleImportantInteractions` ->
+  `SpawnEggItem.spawnOffspringFromSpawnEgg` has no adult gate on the clicked mob: it calls
+  `ageableMob.getBreedOffspring(level, ageableMob)` regardless of the parent's age. Pumpkin's
+  lack of an adult gate matches vanilla.
+- Gap 2: FIXED. `TypedEntityData.loadInto` merges the authored tag over `saveWithoutId` then
+  calls `Entity.load`, which reads `Pos`, so an op-authored `Pos` moves the mob; only `id`
+  (ignored by `load`) and `UUID` (restored by `loadInto` after `load`) are stripped now.
+- Gap 3: STILL OPEN. Vanilla `TrialSpawnerBlockEntity.setEntityId` calls
+  `TrialSpawner.overrideEntityToSpawn`: `data.reset()` + `config.overrideEntity(type)` +
+  `setState(INACTIVE)`. Porting that reset/regeneration lives in `trial_spawner.rs`, outside
+  this unit's files.
+- Gap 4: FIXED (consumption half). Vanilla's spawner branch uses `itemStack.shrink(1)` while
+  the `spawnMob` paths use `consume(1, user)` (creative-aware). Both spawner/trial-spawner
+  branches now use `decrement(1)`. Block-update half needs no change: the block state is
+  unchanged and spawners have no comparator output, so `update_block_entity` already sends
+  the client the data vanilla's `sendBlockUpdated(..., UPDATE_ALL)` sends.
+- Gap 5: STILL OPEN. Root fix needs `ItemBehaviour` to return an `InteractionResult` so
+  `use_item.rs` can award `ITEM_USED` only on consumption; cross-cutting trait refactor
+  touching every item and the Bedrock path, outside this unit's scope.
+- Gap 6: CLOSED (false premise). Decompiled `Player.mayUseItemAt` checks `abilities.mayBuild`
+  and adventure-mode `canPlaceOnBlockInAdventureMode`, not the world border; there is no
+  world-border gate to port. (Adventure-mode placement restrictions remain a separate feature.)
+- Gap 7: STILL OPEN. Needs a `pumpkin-gametest` scenario (file outside this unit) plus a
+  compiled run, neither permitted in this pass.
+- Gap 8: CLOSED (false positive). `spawnOffspringFromSpawnEgg` keeps non-`AgeableMob` parents:
+  the `else` branch does `type.create(level, SPAWN_ITEM_USE)` then `setBaby(true)`, so a zombie
+  egg on a zombie spawns a baby zombie in vanilla. Pumpkin's `None => from_type(...)` plus
+  `spawn_as_baby` already matches.
+- Gap 9: STILL OPEN. Requires changing `ItemBehaviour::use_on_entity` return type across
+  every implementation; cross-cutting refactor outside this unit's files.
+- Gap 12: STILL OPEN (informational). Pumpkin's spawner stores a flat `entity_type` with no
+  pending spawn data or potentials, so vanilla `BaseSpawner.setEntityId`'s reset is a no-op.
+
+No pure unit test added: `apply_entity_data` and the consumption paths need a live
+`EntityBase`/world, so the only meaningful coverage is the gametest in gap 7.

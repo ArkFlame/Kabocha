@@ -48,3 +48,17 @@ Note: `destroy_on_leave` for straw beds is already handled in
 ## h6 gap status
 - Row 5 (sleep rejected for sleeping or dead player): FIXED in tree at HEAD (`bed.rs:303` returns the problem for `is_sleeping() || !is_alive()`).
 - Row 4 (straw bed sleep height): STILL OPEN, cosmetic and only matters if sleep height is sent.
+
+## Result
+
+- Row: straw bed getSleepHeight (h6 row 4) - FIXED. Verified against decompiled
+  StrawBedBlock.java#getSleepHeight: the head half redirects to the connected
+  foot's shape (4/16 = 0.25) instead of the head's pillow shape (5/16 = 0.3125).
+  player.rs#sleep does send the height via set_pos, so this was observable.
+  Added bed.rs::player_sleep_height (uses the foot's shape for straw beds, the
+  head's for other beds) and wired player.rs#sleep to it. Pure unit test added.
+- Rows 39-41 (per-position bed rule / generated BedRule record) were not marked
+  STILL OPEN and were left alone; they need generated-data/codegen changes.
+- Files touched: crates/pumpkin-core/src/block/blocks/bed.rs,
+  crates/pumpkin-core/src/entity/player.rs. Ran rustfmt --edition 2024 on both.
+- Did not compile (per task: no cargo); orchestrator verifies.

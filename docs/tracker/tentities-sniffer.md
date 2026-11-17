@@ -24,7 +24,17 @@ No decompiled `net.minecraft.world.entity.animal.sniffer.Sniffer` in this worktr
 
 ## Gap status
 - 1 explored-position list holds 21 entries: FIXED (crates/pumpkin-core/src/entity/passive/sniffer.rs:341-345 via prepend_capped, cap 20 total; test sniffer.rs explored_positions_keep_newest_within_cap; UNVERIFIED: not compiled)
-- 2 dig loot spawn position floored block corner: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 ambient-sound interval: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 digging game-event position: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 5 end-to-end chain test (M): STILL OPEN (size M)
+- 2 dig loot spawn position floored block corner: RESOLVED no change (decompiled vanilla `dropSeed` spawns at floored `getHeadBlock()`; Pumpkin matches; doc premise invalid)
+- 3 ambient-sound interval: FIXED (restored 120; decompiled `Animal.getAmbientSoundInterval()` overrides Mob's 80; sniffer.rs get_ambient_sound_interval)
+- 4 digging game-event position: FIXED (decompiled emits at `Vec3.atCenterOf(getHeadBlock())`; sniffer.rs mob_tick now emits at head-block center with source entity)
+- 5 end-to-end chain test (M): STILL OPEN (needs gametest in crates/pumpkin-gametest/, outside this unit's files)
+
+
+## Result
+Verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/` (now present, reversing the earlier "absent" note). Sizes: S first.
+
+- Row 1 (explored-position cap): already FIXED in a prior pass (prepend_capped, cap 20); confirmed vanilla `storeExploredPosition` does `limit(20)` then `add(0, ...)`, matching. No further change.
+- Row 2 (dig loot spawn position): RESOLVED, no change. Decompiled `Sniffer.dropSeed` spawns the seed at `BlockPos head = getHeadBlock()` and `new ItemEntity(level, head.getX(), head.getY(), head.getZ(), itemStack)`, i.e. the floored head block. Pumpkin `sniffer.rs:376` uses `get_head_block().0.to_f64()`, which matches. The doc's premise (continuous head/entity position, `get_head_position()`) is contradicted by the decompiled source; applying it would break parity.
+- Row 3 (ambient-sound interval): FIXED. Decompiled `Mob.getAmbientSoundInterval()` returns 80, but `Animal.getAmbientSoundInterval()` overrides it to 120, and Sniffer does not override. `sniffer.rs get_ambient_sound_interval` had been changed from 120 to 80 on the wrong "Mob default" assumption; restored to 120 with a corrected comment.
+- Row 4 (digging game-event position): FIXED. Decompiled `emitDiggingParticles` emits `gameEvent(GameEvent.ENTITY_ACTION, getHeadBlock(), Context.of(this))`; `LevelAccessor.gameEvent(Holder, BlockPos, Context)` uses `Vec3.atCenterOf(pos)`. `sniffer.rs mob_tick` now emits via `world.emit_game_event_with_context(EntityAction.name(), get_head_block().to_centered_f64(), ...)` with the sniffer as source, instead of `emit_own_game_event` at the entity position. No clean test seam (no injectable event sink), so no unit test added.
+- Row 5 (sniffing -> walk -> dig end-to-end test, M): STILL OPEN. Needs a `pumpkin-gametest` scenario over dirt, which lives in the `crates/pumpkin-gametest/` crate, outside this unit's allowed files (ai.rs, sniffer.rs only).

@@ -65,3 +65,16 @@ vanilla counterpart (the pearl is just discarded), so clients may show an extra 
 - 4 connection-open gate: STILL OPEN, XS, no Player::is_connected helper.
 - 5 endermite gate uses should_spawn_monsters: FIXED at ender_pearl.rs:149-150 (now gates on game_rules.spawn_mobs, DO_MOB_SPAWNING only).
 - 6 death entity status: STILL OPEN, XS.
+
+## Result
+
+Verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java` (Paper/Folia mappings).
+
+- Row 1 (portal particle distribution): STILL OPEN, cosmetic. Vanilla uses `nextGaussian()` for the X/Z velocity and no X/Z position spread; rand 0.10.3 core has no gaussian distribution and `rand_distr` is not a dependency, so a faithful fix needs a Cargo.toml change / shared helper outside this unit. Client-only effect, noted not fixed.
+- Row 2 (teleport sound for non-player owners): CLOSED, verified matching, no change. Vanilla calls `playSound(PLAYER_TELEPORT)` in BOTH the player and non-player branches (ThrownEnderpearl.java:148,152,234,248), so Pumpkin playing it for all owners is correct; the doc claim was a false positive.
+- Row 3 (cancellable dismount events): STILL OPEN, intentional Pumpkin extension. Vanilla `unRide` is uncancellable; preserving Pumpkin's existing event contract, no change.
+- Row 4 (connection-open gate): FIXED. Added `owner.get_player().is_none_or(|player| !player.client.closed())` to the teleport guard, matching vanilla `player.connection.isAcceptingMessages()` (ServerGamePacketListenerImpl.java:495). Non-player owners are unaffected, as in vanilla.
+- Row 5: already fixed in a prior pass (game_rules.spawn_mobs / DO_MOB_SPAWNING only).
+- Row 6 (death entity status): FIXED. Vanilla `onHit` only discards the pearl and never broadcasts entity event 3, so removed the spurious `send_entity_status(EntityStatus::Death, ActorEventID::Death)` and the now-unused `EntityStatus` / `ActorEventID` imports. Entity removal is still handled by `ThrownItemEntity::process_tick`.
+
+No pure unit-test seam exists (all logic is inside `on_hit` with World/Player dependencies), so no test added. Ran `rustfmt --edition 2024` on ender_pearl.rs (passed); compile not run per worker rules.

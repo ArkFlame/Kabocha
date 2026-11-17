@@ -76,3 +76,24 @@ constructing `BoatEntity` for `OAK_CHEST_BOAT` vs `OAK_BOAT` and asserting
 
 ## Gap status
 - Table rows (27-slot inventory, single seat, seat offset): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`,
+`.../minecart/AbstractMinecartContainer.java`, `.../ContainerEntity.java` and `.../Containers.java`.
+
+STILL OPEN table rows (all resolved, already match vanilla; no edit needed):
+- 27-slot inventory: VERIFIED. Vanilla `CONTAINER_SIZE = 27` / `getContainerSize() = 27`; Pumpkin `CHEST_BOAT_CONTAINER_SIZE = 27` (boat.rs:42) is used only for chest boats (boat.rs:183-184).
+- Single passenger seat: VERIFIED. Vanilla `AbstractChestBoat.getMaxPassengers() = 1` (vs 2 in `AbstractBoat`); Pumpkin `max_passengers()` returns 1 for chest boats, 2 otherwise (boat.rs:74-80).
+- Seat offset 0.15: VERIFIED. Vanilla `getSinglePassengerXOffset() = 0.15F`; generated `single_passenger_x_offset = 0.15f32` for chest boats (pumpkin-data entity_type.rs:7705) consumed by `passenger_attachment` (boat.rs:148-155). Generated data; not edited.
+
+Remaining gaps:
+- Gap 1 (screen validity): left open - needs a liveness/distance callback in `minecart/container.rs`, a file outside this unit.
+- Gap 2 (chest open states): left open - fix belongs in `boat.rs`, outside this unit.
+- Gap 3 (spill position): boat.rs side already uses `scatter_inventory_at` (other worker). FIXED minecart.rs side - container destroy now scatters at `entity.pos.load()` via `scatter_inventory_at`, matching vanilla `Containers.dropContents(level, entity, container)`.
+- Gap 4 (chest-boat test): left open - needs a boat.rs unit test, outside this unit.
+
+No new pure unit test: this fix is a one-line call to the already-shared `scatter_inventory_at` helper (covered by its other callers); no new pure seam exists in minecart.rs for it.
+
+Files edited: `crates/pumpkin-core/src/entity/vehicle/minecart.rs` (rustfmt --edition 2024 rc 0), this doc.

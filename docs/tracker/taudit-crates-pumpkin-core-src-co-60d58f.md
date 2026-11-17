@@ -97,3 +97,20 @@ TODO/FIXME in the file.
 - Criteria are raw strings, no vanilla registry: STILL OPEN (M).
 - Argument errors without cursor context: STILL OPEN (M).
 - Per-world scoreboards vs server-wide vanilla: STILL OPEN (L).
+
+
+## Result
+
+Reference: `.vendor/vanilla-decompiled/net/minecraft/` (protocol 777 = target `V_26_3`, confirmed via `SharedConstants.RELEASE_NETWORK_PROTOCOL_VERSION` and `version.rs`).
+
+1. Prefix matching on other `filter_and_suggest*` call sites (S): FIXED by correcting the earlier change, not by extending it.
+   - The audit's premise is wrong for this version: there is no `CommandSource.suggestMatching` in the decompiled source (0 hits). All of `ObjectiveArgument.listSuggestions` (line 61), `TeamArgument` (48), `ScoreHolderArgument` (43), `ScoreboardSlotArgument` (48) and `OperationArgument` (51) call `SharedSuggestionProvider.suggest(...)`, which filters with `matchesSubStr` (`MATCH_SPLITTER` = `._/`), i.e. segment-aware substring matching. Typing `red` does suggest `team_red` in vanilla.
+   - Therefore the prior switch to `filter_and_suggest_one_prefix` was a regression. Reverted 5 call sites to `filter_and_suggest_one`: objective.rs:64, team.rs:37, operation.rs:122, scoreboard_slot.rs:85, score_holder.rs:134. objective.rs comment updated to cite `SharedSuggestionProvider.suggest`.
+   - Remaining sites checked against vanilla and left as-is: parser.rs:505 (sort options, `SharedSuggestionProvider.suggest` -> `filter_and_suggest` correct), parser.rs:610 (selector player names, `EntityArgument`/`GameProfileArgument` use `SharedSuggestionProvider.suggest` -> `filter_and_suggest_one` correct), template.rs:28 and resource_key.rs:55/61/68 (resource ids use `suggestResource`/`filterResources` -> `filter_and_suggest_iter` correct).
+   - `filter_and_suggest_one_prefix` helper kept in suggestions.rs (its test lives in `suggestion/mod.rs`, outside this unit); its doc comment no longer claims a vanilla `suggestMatching` equivalent.
+   - Pure unit coverage already exists: `suggestion/mod.rs::filter_and_suggest_one_prefix_only_matches_from_start` asserts `filter_and_suggest_one("team_red")` with input `red` is non-empty. No new test needed.
+2. Criteria are raw strings, no vanilla registry (M): STILL OPEN. Fix requires a criterion table plus validation at objective creation in `commands/scoreboard.rs` (and storing the resolved read-only flag), a multi-file change whose command-layer file is outside this unit.
+3. Argument errors without cursor context (M): STILL OPEN. `createWithContext` requires converting error types across the argument-type fleet; files outside this unit.
+4. Per-world scoreboards vs server-wide vanilla (L): STILL OPEN. Scoreboard ownership move across the server/world layers, tracked separately; files outside this unit.
+
+No compile/test run (worker rule); orchestrator batch-checks. rustfmt --edition 2024 run on all touched .rs files.

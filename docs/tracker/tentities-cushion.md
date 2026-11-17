@@ -19,3 +19,10 @@ Placement path (`use_on_block`, collision-shape raycast for the `minecraft:cushi
 - Row game events ENTITY_MOUNT/ENTITY_DISMOUNT (M-ish S): STILL OPEN, touches shared Entity::add_passenger, out of this slice.
 - Row hit on removed entity returns true: FIXED 8ef7e78b6 (decoration/cushion.rs damage_with_context). No unit test: needs world fixture.
 - Row dye colour clamp on read: already FIXED in code (by_id_or_white in read_custom_nbt).
+
+## Result (RE-REVIEW pass)
+Both rows marked STILL OPEN were verified against decompiled vanilla. Neither needed a code change in this unit; both are already implemented at HEAD. No .rs file was touched, so no rustfmt run.
+
+- Creative-attacker no-drop (cushion.rs drop_and_remove, lines 193-212): RESOLVED (already at HEAD). Vanilla Cushion.dropItem (Cushion.java:58-69) gates the item on GameRules.ENTITY_DROPS and skips it when causedBy is a Player with hasInfiniteMaterials(); Pumpkin gates on entity_drops and skips drop_stack for a caused_by that downcasts to a creative Player (Player::is_creative == GameMode::Creative, player.rs:8357). Source threading is correct: a player attack passes Some(self) as source (player.rs:1814-1827) and damage_with_context forwards it to drop_and_remove (cushion.rs:429). No pure seam for a unit test: the creative check needs a real Player fixture. Note (client-only, not changed): vanilla plays CUSHION_BREAK unconditionally, while Pumpkin gates the sound on entity_drops (copied from Painting.dropItem, which does gate it); a sound difference, so left as-is.
+- Game events ENTITY_MOUNT / ENTITY_DISMOUNT: OPEN (out of unit). The fix lives in shared Entity::add_passenger / remove_passenger in entity/mod.rs, which is not one of this unit's allowed files. Verified the events are already emitted at HEAD at the vehicle position: mount at entity/mod.rs:6000-6003 and 6059-6062, dismount at 6312-6315, matching vanilla Entity.startRiding / stopRiding. Also observed a duplicate ENTITY_MOUNT emission at 6000-6003 and 6059-6062 in the same function (out of scope, left for the owning unit). No code change made here.
+

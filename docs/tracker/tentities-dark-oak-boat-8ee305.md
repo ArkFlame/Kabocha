@@ -26,3 +26,15 @@ Compared against vanilla BoatItem (use/clip/entity check), AbstractBoat (interac
 ## Gap status
 - 1 paddle/bubble sound and tick ordering (boat.rs:286-311, block_effects.rs:49): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 2 ground friction zero when no collision (boat/physics.rs:142-183): STILL OPEN (file is in the h6 excluded list; not touched)
+
+
+## Result
+
+Verified both STILL OPEN rows against decompiled vanilla (AbstractBoat.java getPaddleSound/tick, ServerGamePacketListenerImpl.handlePaddleBoat, Boat.java getGroundFriction) and the matching Pumpkin code.
+
+| # | Result | One-line reason |
+|---|---|---|
+| 1 | STILL OPEN | Paddle/land sound is emitted from AbstractBoat.tick via getPaddleSound(); the fix belongs in entity/vehicle/boat.rs and boat/block_effects.rs, which are outside this unit's editable files (paddle_boat.rs, spawn_egg.rs). paddle_boat.rs only mirrors vanilla handlePaddleBoat (setPaddleState) and needs no change. |
+| 2 | STILL OPEN here (already fixed elsewhere) | Vanilla returns 0.0 when no supporting block has collision; boat/physics.rs already has the average_ground_friction count==0 guard + unit test (lines 257-274), added by another worker, but that file is outside this unit's editable files so no change was made here. |
+
+No source files changed: both rows require files outside this unit, and the two in-scope files (paddle_boat.rs, spawn_egg.rs) already match vanilla per the audit's Checked/no change notes. No .rs file touched, so rustfmt was not needed.

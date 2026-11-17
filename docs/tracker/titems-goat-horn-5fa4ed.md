@@ -63,3 +63,40 @@ Vanilla shown values: use duration 140 t for all 8 instruments, range 256 blocks
 
 ## h2 parity sweep (status)
 - S rows STILL OPEN - need a stack-aware use-duration trait method (API change); not changed this pass.
+
+## Result
+Verified all STILL OPEN gaps against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. This version folds the goat horn into
+`world/item/InstrumentItem.java` (no separate `GoatHornItem.java`). No source file was edited:
+no row has a correct fix inside this unit's editable files that does not need a framework,
+generated-data, or cross-cutting change.
+
+- 1 Used stat double increment: CONFIRMED, left OPEN. Vanilla `ServerGamePacketListenerImpl.handleUseItem`
+  (net/minecraft/server/network/ServerGamePacketListenerImpl.java:2387-2441) never awards
+  `Stats.ITEM_USED`; `InstrumentItem.use` (:47) awards it exactly once. Pumpkin awards it in
+  `use_item.rs:40` on every right-click AND in ~40 item behaviours (`goat_horn.rs:79`, bow, bucket, ...);
+  food relies solely on the packet increment. Removing the packet increment regresses every item that
+  does not self-award, so the correct fix needs a net-layer audit of all self-incrementing items across
+  files outside this unit. Local removal from goat_horn.rs was deliberately not done (unit doc forbids it).
+- 2 TOOT_HORN use animation: OPEN, out of unit / client-only. Vanilla `InstrumentItem.getUseAnimation`
+  (:65-68) returns `ItemUseAnimation.TOOT_HORN`; needs a use-animation hook on the `ItemBehaviour` trait
+  (`item/mod.rs`, not an editable basename here) plus third-person pose plumbing.
+- 3 Per-stack use duration: OPEN, out of unit. Vanilla `getUseDuration(ItemStack, LivingEntity)`
+  (InstrumentItem.java:54-58) reads the stack instrument and returns 0 without one. Pumpkin's
+  `ItemBehaviour::get_use_duration(&self)` has no stack parameter, so this needs a trait signature change
+  (`item/mod.rs`). Masked today: all 8 vanilla instruments are 140 t, the live use path reads
+  `ItemStack::get_max_use_time`, and `registry.rs:84` only uses the value to gate component cooldowns.
+- 4 Instrument dispatch for non-goat-horn items: OPEN, out of unit. `item/registry.rs:69-75` is not an
+  editable file in this unit; deleting the generic `InstrumentImpl` branch needs a check that nothing
+  relies on it.
+- 5 Datapack/custom instruments: OPEN, blocked. `pumpkin-data/src/generated/instrument.rs` is generated
+  (forbidden to edit) and `Instrument::from_name` only resolves the 8 vanilla names; a real fix needs the
+  synced instrument registry.
+- 6 Cooldown when duration is 0: CLOSED as not-a-gap. The row premise is wrong: decompiled
+  `InstrumentItem.use` (:42-45) guards with `if (instrumentCooldown > 0.0F)`, so `goat_horn.rs:74-78`'s
+  `if duration > 0` already matches vanilla. No code change.
+- 7 Fail interaction result: OPEN, out of unit. Vanilla returns `InteractionResult.FAIL` with no instrument
+  (InstrumentItem.java:49-51); `ItemBehaviour::normal_use` returns `()`, so an interaction-result model is
+  needed in the item framework.
+
+No .rs file touched, so no rustfmt run and no unit test added (no behaviour change to test).

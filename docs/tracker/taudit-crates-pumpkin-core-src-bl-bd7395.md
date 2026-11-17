@@ -42,3 +42,44 @@ The two "vanilla" mentions in the file are doc comments (lines 26, 167: `Multifa
 - 3. `is_air()` on default state (`vine.rs:377,421,431,486,521-522`): STILL OPEN (XS).
 - 4. Placement direction order (`vine.rs:195-225,237-246`): STILL OPEN (S, unverified).
 - 5. `can_place_at` duplicates placement loop (`vine.rs:257-319`): STILL OPEN (M).
+
+
+## Result
+
+Verified each STILL OPEN row against decompiled vanilla (`VineBlock.java`,
+`MultifaceBlock.java`) on 2026-11-17.
+
+- 1. `get_updated_state` (row 1): tracker premise is FALSE. Decompiled vanilla
+  `getUpdatedState` (VineBlock.java:117-142) recomputes every horizontal face plus UP on
+  each update, exactly as Pumpkin already does; it does NOT recompute only the changed
+  face. Did not apply the proposed "matching face only" change (it would diverge from
+  vanilla). REAL DISCREPANCY FIXED: vanilla's UP recompute calls
+  `isAcceptableNeighbour(level, abovePos, Direction.DOWN)` (checks the above block's TOP
+  face via `canAttachTo -> isFaceFull(shape, opposite)`), while Pumpkin passed
+  `BlockDirection::Up` (bottom face). Changed get_updated_state UP branch to
+  `BlockDirection::Down` with a comment explaining the vanilla quirk. This is the only
+  behavioural change in this pass.
+
+- 2. Dead `above_props` fallback (row 2): VERIFIED, no change. Decompiled vanilla
+  `getUpdatedState` (VineBlock.java:129-135) contains the identical fallback after a
+  failed `canSupportAtFace`; it is behaviourally dead in vanilla too. Left intact to
+  stay faithful to vanilla.
+
+- 3. `default_state.is_air()` (row 3): FIXED. Six checks now use the fetched state's
+  `is_air()` (`edge_state`, `cw_test_state`, `ccw_test_state`,
+  `get_block_state(&above_pos)`, `below_state`), matching vanilla's `isAir()` /
+  `isEmptyBlock()` instead of assuming single-state air blocks.
+
+- 4. Placement direction order (row 4): LEFT OPEN. Needs a shared `orderedByNearest`
+  helper in entity facing-order code (outside vine.rs) to replace
+  `get_entity_facing_order`; also marked unverified. Reason: cross-file refactor,
+  out of this unit's scope.
+
+- 5. `can_place_at` duplication (row 5): LEFT OPEN. M-sized refactor into one
+  `getStateForPlacement` helper; behaviourally equivalent today. Reason: refactor
+  carries untested risk without a compile/gametest and is not a parity bug.
+
+Test: skipped. The UP-face parity case needs an asymmetric block (solid top vs bottom)
+to observe; reliable side_flags for such a state cannot be confirmed without running
+tests, and no compile is available in this pass. `rustfmt --edition 2024` was run on
+vine.rs (exit 0).

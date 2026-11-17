@@ -33,3 +33,11 @@ Verified against vanilla `ShulkerBoxBlock` / `ShulkerBoxBlockEntity` / `Shulker`
 - Row 2 canOpen progress early return: STILL OPEN (S, blocked on row 1 state).
 - Row 3 useWithoutItem result: FIXED (UNVERIFIED): `normal_use` returns Consume after a block-entity screen opens and Pass without one (`blocks/shulker_box.rs:148-151`).
 - Row 4 is_sided override: STILL OPEN (S, no behavioural difference).
+
+
+## Result
+
+- Row 1 (OPENING while CLOSING): FIXED (UNVERIFIED). Decompiled `ShulkerBoxBlockEntity.triggerEvent` (lines 205-225) sets OPENING for count 1 regardless of the previous status and always returns true; it never drops the event. Removed the drop branch from `AnimationState::on_open_count` (counts 0/1 set CLOSING/OPENING, higher counts leave status unchanged) and made `on_synced_block_event` always update the status and return true so the animation is broadcast. New test `opening_event_reverses_closing_and_extra_viewers_keep_status` covers the reversal and count>1 case.
+- Row 2 (canOpen progress early return): FIXED (UNVERIFIED). `ShulkerBoxBlock.canOpen` (lines 78-85) returns true for any non-CLOSED status and runs the lid collision test only for a CLOSED box, then opens the menu. Replaced the prior `is_fully_open()` early `Success` (which skipped opening the menu) with a `!is_closed()` gate on the collision check; a not-closed box now opens directly and a closed box still respects obstruction. Added `AnimationState::is_closed` as the pure seam.
+- Row 3 (useWithoutItem result): unchanged; still FIXED from the prior pass (Consume with a block entity, Pass without).
+- Row 4 (is_sided override): no change needed. Vanilla `ShulkerBoxBlockEntity` implements `WorldlyContainer` with `getSlotsForFace` returning all 27 slots and face-independent insert/take rules. Pumpkin's `is_sided() == true`, `SHULKER_SLOTS` (0..27) and `is_valid_slot_for` (rejects shulker-box items) already match, so the override is meaningful and behaviourally correct.

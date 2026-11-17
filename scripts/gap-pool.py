@@ -18,6 +18,9 @@ for f in sorted(glob.glob(f'{ROOT}/docs/tracker/*.md')):
     t = open(f).read()
     if 'STILL OPEN' not in t: continue
     units.append((b[:-3], f, set(re.findall(r'([A-Za-z0-9_]+\.rs)', t)) - {'mod.rs', 'lib.rs', 'main.rs', 'tests.rs', 'registry.rs'}))
+import collections
+hub = {f for f, n in collections.Counter(f for u in units for f in u[2]).items() if n >= 8}  # hub files named by many docs would serialize the whole queue
+units = [(n, p, fs - hub) for n, p, fs in units]
 by = {u[0]: u for u in units}
 done = {os.path.basename(p)[:-5] for p in glob.glob(f'{RUNS}/*.exit')}
 running = {}  # name -> dict(proc|pid, files, t0, lane)
@@ -36,7 +39,8 @@ def launch(u, lane):
     log = open(f'{RUNS}/{name}.log', 'w')
     p = subprocess.Popen(['opencode', 'run', '-m', LANES[lane]['model'], '--auto', '--title', 'pool:' + name, brief], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     running[name] = dict(proc=p, files=files, t0=time.time(), lane=lane)
-def busy(files): return any(files & r['files'] for r in running.values())
+MAX_PER_FILE = int(os.environ.get('KAB_POOL_PER_FILE', '2'))  # edit tool re-reads the file per edit, so 2 units per file rarely collide
+def busy(files): return any(sum(1 for r in running.values() if f in r['files']) >= MAX_PER_FILE for f in files)
 def lane_n(l): return sum(1 for r in running.values() if r['lane'] == l)
 last = 0
 while queue or running:
@@ -49,7 +53,7 @@ while queue or running:
         elif alive(r): continue
         else: rc, timed = (r['proc'].returncode if 'proc' in r else 0), False
         tail = open(f'{RUNS}/{name}.log').read()[-600:]
-        if timed or (rc != 0 and re.search(r'usage limit|Insufficient balance|rate.?limit|429|timed out|timeout', tail, re.I)):
+        if timed or (rc != 0 and re.search(r'usage limit|Insufficient balance|rate.?limit|429|timed out|timeout|tier_limit_exceeded|concurrency limit|rpm limit|Provider blocked', tail, re.I)):
             queue.insert(0, by[name]); del running[name]; L['hits'] += 1; L['cool'] = time.time() + 120 * L['hits']
             L['cap'] = max(0, L['cap'] // 2) if r['lane'] == 'ds' else max(2, L['cap'] * 3 // 4)
             print(time.strftime('%H:%M:%S'), name, r['lane'], 'LIMIT/TIMEOUT -> requeued, lane cap now', L['cap'], flush=True); continue
@@ -57,7 +61,8 @@ while queue or running:
         L['done' if rc == 0 else 'fail'] += 1; L['secs'] += el
         print(time.strftime('%H:%M:%S'), name, r['lane'], 'exit', rc, f'{el:.0f}s | running', len(running), 'queued', len(queue), flush=True)
     for u in list(queue):
-        lane = next((l for l in ('hy4', 'ds') if lane_n(l) < LANES[l]['cap'] and time.time() >= LANES[l]['cool']), None)
+        ok = [l for l in LANES if lane_n(l) < LANES[l]['cap'] and time.time() >= LANES[l]['cool']]
+        lane = min(ok, key=lambda l: lane_n(l) / max(1, LANES[l]['cap'])) if ok else None  # fill lanes proportionally
         if lane is None: break
         if not busy(u[2]): queue.remove(u); launch(u, lane)
     if time.time() - last > 300:

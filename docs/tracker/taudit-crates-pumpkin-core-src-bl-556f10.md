@@ -75,3 +75,19 @@ Additional gaps found in this pass, not listed above:
 | `BlockFertilizeEvent` is fired with `vec![]` before `perform_bonemeal`, so plugins never see the states the growth changed | `registry.rs:577-591` (`bone_meal`) | Bukkit `CraftEventFactory.callBlockFertilizeEvent` passes the list of changed block states to `BlockFertilizeEvent.getBlocks()` | Let the `perform_bonemeal` path collect changed positions (or diff the world before/after) and fire the event with them; Paper region protection reads that list | S-M (plugin API). STILL OPEN: changes the `BlockFertilizeEvent` payload and needs a plugin-API decision |
 | `TestBlock` registered twice, burning a behaviour index | `registry.rs:320` and `registry.rs:382` | n/a | delete the second `register(TestBlock)` | trivial. STILL OPEN: trivial, outside the S/M scope of this pass |
 | Flowing/still fluid sharing is keyed on hardcoded ids 2/4 | `registry.rs:1560-1570` (`get_pumpkin_fluid`) | still/flowing fluids share the same `Fluid` behaviour | resolve the still id from the flowing fluid (or from pumpkin-data) instead of literals; breaks silently if generated ids move | S. FIXED fix(block): play java place sound and drop dead post_process_state |
+
+
+## Result
+
+Audited all STILL OPEN rows against .vendor/vanilla-decompiled/net/minecraft/
+(BlockBehaviour, BlockItem, BlockPlaceContext, SlabBlock, MultifaceBlock, LiquidBlock).
+
+| Row | Disposition | Evidence |
+|---|---|---|
+| can_update_at face convention (row 28) | FIXED | Vanilla canBeReplaced uses one convention, getClickedFace(). Pumpkin used raw face in the clicked branch but opposite in the destination branch. Standardised both on the placement direction (opposite of raw face, already used by on_place, snow and sculk vein), and converted in slabs.rs via direction.opposite(). This also fixes snow stacking and sculk-vein attachment when the clicked block is replaced. Changed registry.rs:663 and slabs.rs can_update_at. |
+| BlockIsReplacing Other/None (row 29) | VERIFIED, NO CHANGE | Vanilla BlockPlaceContext.replaceClicked is true only for the clicked block. Pumpkin's Other (first branch) vs None (second branch) correctly encodes that bit and drives the rotation in torches.rs:41, ladder.rs:20/36, lanterns.rs:24 to match getNearestLookingDirections(). No inconsistency in observable behaviour. |
+| Inside-collision shape (row 31) | OPEN | Needs an API change outside this unit: get_inside_collision_shape returns one BoundingBox, so a union of get_block_collision_shapes_at needs entity/mod.rs and the powder-snow/cauldron/campfire overrides updated too. |
+| isPathfindable Water default (row 32) | VERIFIED, NO CHANGE | Vanilla BlockBehaviour.isPathfindable (BlockBehaviour.java:130-137) returns state.getFluidState().is(FluidTags.WATER) for WATER. Pumpkin's fallback already matches. Added pure test water_pathfinding_matches_vanilla_fluid_tag_default. |
+| player_placed direction (row 35) | OPEN | PlayerPlacedArgs.direction is read by no implementation and vanilla setPlacedBy has no face parameter, so either choice is a guess. No observable behaviour to fix. |
+| BlockFertilizeEvent payload (row 75) | OPEN | Requires a plugin-API payload change (BlockFertilizeEvent.getBlocks list) outside this unit. |
+| TestBlock registered twice (row 76) | FIXED | Removed the second manager.register(TestBlock) (was registry.rs:382). It burned a behaviour index; indices are runtime-assigned so removing it is safe. |

@@ -66,3 +66,38 @@ Newly noted, not changed:
 
 ## Status (code-verified sweep)
 FIXED: OVERLOADED_THRESHOLD_NANOS is 1s (server/ticker.rs:17-18). STILL OPEN: game-test freeze gate ordering and sprint redundancy not re-read.
+
+
+## Result
+
+Vanilla reference used: both `.vendor/vanilla-decompiled` and the mc-proof Paper/Canvas
+tree have replaced the classic overload gate with `tickSchedule`; the vanilla gate is the
+well-known strict `>` on `l - lastOverloadWarningNanos` (`MinecraftServer.runServer`).
+
+- FIXED (XS) `ticker.rs:186-188` - overload warning gate changed `>=` to `>` so an
+  exact 15s interval no longer warns one tick early. Updated
+  `sustained_overload_warns_again_after_wall_clock_interval` expectation `[1, 6]` ->
+  `[1, 7]` (tick 6 is exactly 15s and is skipped; tick 7 at 18s warns).
+  Verified with `rustfmt --edition 2024 crates/pumpkin-core/src/server/ticker.rs` (rc 0).
+  No compile/test run (per unit rules); arithmetic re-derived by hand.
+
+Rows left OPEN (reasons):
+
+- `ticker.rs:90,122` tick_count-at-start: cross-file refactor needs
+  `server/mod.rs:1591` (`update_tick_times`) + the `sync_game_time` `+1` patch and
+  an audit of every in-tick reader, all outside this unit's files. Size M.
+- `ticker.rs:97-118` try/catch crash report: size L, needs cross-crate wiring to the
+  `pumpkin` binary's global panic hook (`crates/pumpkin/src/main.rs` `CrashReport`) plus
+  `catch_unwind` scaffolding; outside this unit's files. Vanilla report writing is not
+  reproducible in ticker.rs alone.
+- `ticker.rs:62-139` pause-when-empty: size L, the config lives in
+  `net/management/hub.rs:22,52` and the paused branch needs connection-tick + autosave
+  hooks in `server/mod.rs`, both outside this unit's files.
+
+Verified, no change needed:
+
+- `ticker.rs:66-71` sprint decrement in `end_sprint_tick_work` is equivalent to vanilla
+  `checkShouldSprintThisTick`; behaviour matches the loop.
+- `ticker.rs:114-118` game-test gate already runs after `server.tick()` next to the
+  runner (vanilla `MinecraftServer.java:1929-1930` `runsNormally()` gate); `|| sprinting`
+  is redundant but harmless.

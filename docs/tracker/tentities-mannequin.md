@@ -32,3 +32,13 @@ Gap 1 is the only behaviour that is certainly absent from vanilla parity and nee
 - 1 equip via right-click (M): STILL OPEN (size M)
 - 2-4 interaction and push gaps (entity/mod.rs:614, 1064): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 client-only pose and death: STILL OPEN (client-only, not gated)
+
+## Result
+
+- 1 equip via right-click (M): left open, no parity fix. Decompiled vanilla world/entity/decoration/Mannequin.java (world version 5023) defines no interact/mobInteract; minecraft.wiki confirms mannequins cannot pick up items and are equipped only by commands or dispensers. Adding right-click equip would be non-vanilla behaviour.
+- 2 can_hit: already correct in mannequin.rs (!is_removed()), matching the vanilla canBeHitByProjectile shape used by ArmorStand/Falling. No change.
+- 3 is_pushable: FIXED. Removed the incorrect !get_immovable() gate. Vanilla Mannequin does not override isPushable; it inherits LivingEntity.isPushable (= isCollidable(false)), and isImmobile only blocks its own travel, not external pushes. Now mirrors living.rs:5078. Updated the NBT test to assert an immovable mannequin stays pushable.
+- 4 pose restriction: verified correct. Vanilla Mannequin.POSE_CODEC validates against VALID_POSES = {standing, crouching, swimming, fall_flying, sleeping} (minecraft.wiki lists the same five); parse_valid_pose already matches. No change.
+- 5 client-only pose/death: left open (client-only, not gated).
+
+Touched: crates/pumpkin-core/src/entity/decoration/mannequin.rs (rustfmt --edition 2024, exit 0). Cargo/git intentionally not run per unit rules.

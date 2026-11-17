@@ -70,3 +70,19 @@ decompiled class, the rest are drift risk or a missing hook, not a certain one-f
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+Re-review against `.vendor/vanilla-decompiled/net/minecraft` (AbstractBoat / BoatItem / BoatDispenseItemBehavior / EntitySelector / Player).
+
+- Row 1 (interact / eye in water): verified no change. Vanilla `AbstractBoat.canAddPassenger` (AbstractBoat.java:836-838) is `size < max && !isEyeInFluid(WATER)`; `interact` reaches it via `player.startRiding`. Rust already applies the same gate at boat.rs:621-631. No fix.
+- Row 2 (destroy drop position): verified already fixed. `drop_stack_at(self.vehicle.entity.pos.load())` at boat.rs:565 and `scatter_inventory_at(position)` at 213/220 use the entity position, matching vanilla `spawnAtLocation`/`dropContents`. No fix.
+- Row 3 (BUBBLE_TIME): STILL OPEN. Decompiled `AbstractBoat` drives `DATA_ID_BUBBLE_TIME` only from bubble columns (`onAboveBubbleColumn` sets 60 at line 170, `tickBubbleColumn` decrements at 368-370), never from `UnderWater`/`UnderFlowingWater`. Rust additionally writes underwater ticks into that id (boat.rs:286-291), which diverges and needs a client-effect regression check outside this unit. Left open with reason.
+- Row 4 (clampRotation): verified already fixed. `clamp_rider_yaw` / `rider_yaw_with_delta` (boat.rs:707-723) applied in `on_rider_positioned` (666-677); players excluded (668-670). No fix.
+- Row 5 (BoatItem.use sweep): FIXED. Vanilla (BoatItem.java:40-70) filters the eye-block sweep with `EntitySelector.CAN_BE_PICKED` (= `Entity::isPickable`, EntitySelector.java:19; Player.isPickable excludes spectators) and has no post-clip entity/player pass, only `noCollision`. Deleted the extra `get_entities_at_box`/`get_players_at_box` block at `item/items/boat.rs`. No pure unit-test seam for the removed world query.
+- Row 6 (dispenser water): FIXED. Decompiled `BoatDispenseItemBehavior` (lines 34/37) tests `getFluidState(pos).is(FluidTags.WATER)`, which matches flowing water as well as a source; the tracker's `isStill` claim is stale for this version. Relaxed the Rust `is_still_water` closure to `fluid.has_tag(&tag::Fluid::MINECRAFT_WATER)` at `block/blocks/redstone/dispenser.rs`. No pure unit-test seam.
+- Row 7 (is_chest_boat): verified already fixed. `is_chest_boat` now derives from resource-name suffix (boat.rs:62-65) and `max_passengers` (74-80) is the shared helper; no hardcoded 11-type list remains. No fix.
+- Row 8 (boat gametest): STILL OPEN. Needs a new file under `crates/pumpkin-gametest`, outside the source files named in this unit. Left open with reason.
+- h6 (delta rotation): verified already fixed per code. `yaw_delta` field (boat.rs:169), computed at 433-439 and applied via `rider_yaw_with_delta` at 673, replaces the missing accumulation noted in the previous pass. No fix.
+
+Rustfmt `--edition 2024` run on both edited .rs files (exit 0). Did not compile (CODER rule).

@@ -39,3 +39,23 @@ loot/damage helpers in `entity/vehicle/vehicle.rs`.
 | 4 | `boat.rs:256` | `ChestBoat.destroy` / `ContainerHelper.dropContents` | Contents are dropped only when `doEntityDrops` is on and never on a creative break; vanilla drops the 27 slots regardless of the gamerule (only the boat item is gamerule-gated). No `.vendor` copy to confirm ordering | Unconditional `scatter_inventory`, keep the item drop gated | S, STILL OPEN: stale row, boat.rs already scatters the chest contents before the gamerule gate; needs a live check |
 | 5 | `boat.rs:270` + `vehicle.rs:190` | `Boat.destroy` (hardcoded drop) | `kill_and_drop_self` also rolls `minecraft:entities/<type>` and `boat.rs` drops the item from code: a datapack table makes the boat drop twice | Skip the loot-table roll for boats (`is_chest_boat`/boat types) or drop only from one place | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | 6 | `boat.rs:215` | `Entity.updateFluidInteraction` push | Fluid current push deliberately skipped for boats (client predicted); vanilla boats are pushed by flowing water/in water columns | Only if server-side divergence is observed: apply the push when no controlling passenger | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+## Result
+
+- #1 (canBeCollidedWith): already fixed; verified `is_collidable` returns `!is_removed()`.
+- #2 (interact alive guard): already fixed; verified `AbstractBoat::interact` rejects a dead boat.
+- #3 (bubble column): FIXED. `boat.rs` overrides `on_above_bubble_column`/`on_inside_bubble_column`
+  and runs `tick_bubble_column` from `tick`. Upward contact arms a 60-tick countdown that sets
+  y velocity to 0.6; downward sets current y minus 0.7 and ejects riders; inside-column contact
+  uses the capped base push. Pure unit test added for the impulse helper.
+- #4 (chest contents vs gamerule): already fixed; `scatter_chest_contents()` runs unconditionally
+  before the `entity_drops` gate at `boat.rs`, and vanilla `RemovalReason::KILLED` and
+  `DISCARDED` both have `shouldDestroy() = true`, so scattering on any removal is correct.
+  No change needed.
+- #5 (double boat drop): FIXED. `vehicle.rs::kill_and_drop_self` now skips the
+  `minecraft:entities/<type>` loot roll for all boat types (`entity_type.boat.is_some()`),
+  leaving the single hardcoded item drop in `boat.rs` as the only boat drop. Pure unit test added.
+- #6 (fluid current push): LEFT OPEN. Applying the push needs changes to
+  `base_tick_without_fluid_push` in `entity/mod.rs`, outside this unit, and the tracker only
+  authorises it on observed server-side divergence; boat motion is client-predicted, so adding
+  it unprompted risks fighting the client.

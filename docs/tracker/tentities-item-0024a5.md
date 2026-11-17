@@ -64,7 +64,38 @@ Known intentional deviation: creative players destroy a stack that fits nowhere
 (`item.rs:810`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.
 
 ## Gap status
-- 1 despawn before merge check (S, needs decompile): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 is_mergeable age guard (S, dead code after gap 1): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 Pumpkin-only Health NBT tag (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 owner and thrower collapsed (M): STILL OPEN (size M)
+- 1 despawn before merge check (S): RESOLVED (decompile verified; already merged before age/despawn in code; see Result)
+- 2 is_mergeable age guard (S): RESOLVED (no age guard remains; matches vanilla; see Result)
+- 3 Pumpkin-only Health NBT tag (S): RESOLVED (vanilla persists Health; doc premise wrong; no change; see Result)
+- 4 owner and thrower collapsed (M): STILL OPEN (needs owner-setting call sites outside item.rs; see Result)
+
+## Result
+
+Verified against .vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java
+(Paper/Folia 1.21.x fork behind the symlink).
+
+- 1 despawn before merge check (S): RESOLVED, no change needed. Decompiled ItemEntity.tick
+  runs mergeWithNeighbours() (line 203) before age++ (line 206) and the
+  "age >= despawnRate" discard (line 215), so a final-tick item can still merge. The current
+  process_age_and_merge (item.rs:549) already does exactly this: merge, then age, then the
+  despawn check, returning false only after merge/age. The comment already records the vanilla
+  ordering. Left as-is.
+- 2 is_mergeable age guard (S): RESOLVED, no change needed. Current is_mergeable
+  (item.rs:230) checks only !removed and count < maxStackSize, matching vanilla
+  "isAlive() && getCount() < getMaxStackSize()". No item_age >= LIFETIME guard remains.
+- 3 Pumpkin-only Health NBT tag (S): RESOLVED, no change needed; the doc premise was wrong.
+  Decompiled addAdditionalSaveData (line 385) writes putShort("Health", ...), and
+  readAdditionalSaveData (line 402) reads getShortOr("Health", 5). Vanilla DOES persist Health,
+  so Pumpkin's write (item.rs:916) and read (item.rs:949) are correct. Nothing dropped.
+- 4 owner and thrower collapsed (M): STILL OPEN (out of unit). Decompiled source confirms a
+  real field split: thrower is an EntityReference written as "Thrower" and used by getOwner,
+  while target is a UUID written as "Owner" (line 389) and is the sole owner gate in
+  playerTouch (target == null || target == player.getUUID(), line 490) and in tryToMerge
+  (Objects.equals(this.target, other.target), line 284). A faithful port needs a new owner
+  field plus Owner NBT and pickup/merge checks in item.rs, AND call sites that set the owner
+  (GiveCommand.setTarget(player.getUUID()), player drops) which live outside item.rs.
+  Replacing the existing thrower-based 60-tick head start also changes behaviour for freshly
+  thrown items, so this cannot be completed within this unit's file scope. No code change made.
+
+No .rs file was modified, so no pure unit test was added (no new seam introduced) and rustfmt
+was not required.

@@ -55,3 +55,37 @@ sound/event played on use start after `startUsingItem`, `Stats.ITEM_USED` increm
 - Row 3 datapack instruments: STILL OPEN (needs runtime instrument registry, M).
 - Row 4 cooldown always applied: STILL OPEN (no observable difference with vanilla data).
 - Row 5 fail interaction result: STILL OPEN (no interaction-result model, M).
+
+
+## Result
+
+Re-verified all STILL OPEN rows against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java`
+(the 1.21.x name for the old `GoatHornItem`; `GoatHornItem.java` is absent from the decompile).
+
+- Row 1 (TOOT_HORN use animation): STILL OPEN. Vanilla `getUseAnimation` returns
+  `ItemUseAnimation.TOOT_HORN` (`InstrumentItem.java:65-68`), but `ItemBehaviour` has no
+  use-animation hook. Needs a hook in `item/mod.rs` plus third-person client packet plumbing,
+  files outside this unit. Client-visible only.
+- Row 2 (per-stack use duration): STILL OPEN. Vanilla `getUseDuration(ItemStack, LivingEntity)`
+  returns the instrument's duration or 0 (`InstrumentItem.java:54-58`). Pumpkin's
+  `ItemBehaviour::get_use_duration(&self)` has no stack parameter and is read by
+  `item/registry.rs:127`, both outside this unit. Masked in practice by
+  `ItemStack::get_max_use_time`, which is already per-instrument.
+- Row 3 (datapack/custom instruments): STILL OPEN. Vanilla resolves a `Holder<Instrument>` from
+  the `INSTRUMENT` registry via `Instrument.CODEC` (`InstrumentItem.java:60-63`). Pumpkin stores
+  only a string and resolves it through the vanilla-only `Instrument::from_name`. Needs a runtime
+  instrument registry and datapack codec (cross-crate/generated data), outside this unit.
+- Row 4 (cooldown): FIXED. The previous assumption was wrong: decompiled vanilla adds the
+  cooldown only when `useDuration > 0` (`InstrumentItem.java:42-45`:
+  `if (instrumentCooldown > 0.0F) { addCooldown(stack, floor(useDuration * 20)) }`), not
+  unconditionally. The unconditional `player.start_cooldown` and its comment were corrected to
+  `if duration > 0 { ... }` in `goat_horn.rs:74-78`. All vanilla instruments have duration 7.0s
+  (140 ticks), so no observable difference with vanilla data, but the code now matches vanilla.
+- Row 5 (fail interaction result): STILL OPEN. Vanilla returns `InteractionResult.FAIL` when the
+  stack has no instrument (`InstrumentItem.java:49-50`); `normal_use` returns `()`, and there is no
+  interaction-result model in `ItemBehaviour` (`item/mod.rs`, outside this unit).
+
+No unit test added: the behaviour is entirely side-effectful (world sound/event, player cooldown
+and stats) with no pure seam in `goat_horn.rs`; extracting a `duration > 0` helper would be a
+formula-mirroring test, which the rules exclude.

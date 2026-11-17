@@ -145,3 +145,70 @@ test; gaps 3-8 are the ones a gametest could pin cheaply (rail + cart + rider sc
 - minecart 10 (TNT priming, minecart.rs:840-868): STILL OPEN, M, verify.
 - minecart 11 (portal skipped, minecart.rs:225): BLOCKED-DATA, needs entity dimension change.
 - minecart 12 (sneak interact, minecart.rs:176-219): STILL OPEN, S, verify.
+
+
+---
+
+## Result
+
+Verification used `.vendor/vanilla-decompiled/net/minecraft/` (Canvas/Paper 26.x, present in
+this checkout). Several tracker vanilla claims are wrong for this version; they are corrected
+below. Two rows were fixed, six were verified faithful or already addressed, eight remain open.
+
+- block_effects 1 (non-lily-pad dispatch): STILL OPEN, M. `tick_block_collisions`
+  (`entity/mod.rs:3173`) is the generic endpoint pass that already dispatches every block;
+  making the sweep dispatch all blocks would double-fire at the destination. A correct fix must
+  change that shared pass, so it is outside this unit's files and cannot be landed safely here.
+- block_effects 2 (endpoint double dispatch): STILL OPEN, M. Same root cause as row 1; needs
+  one coordinated change to the sweep plus the shared endpoint pass, plus a runtime check.
+- block_effects 3 (chunk loaded guard): FIXED. Added `world.level.is_chunk_loaded(...)` guard
+  per visited pos in `block_effects.rs:77-84`. Vanilla `Entity.checkInsideBlocks` uses
+  `getChunkIfLoaded(chunkX, chunkZ)` and treats an unloaded chunk as air.
+- block_effects 4 (take before early return): verified, no change. Vanilla
+  `Entity.applyEffectsFromBlocks` returns early when `!isAffectedByBlocks()` but
+  `clearMovementThisTick()` still clears the recorded movements each tick; consuming the
+  queue here is faithful and avoids replaying a plugin-set teleport on re-enable.
+- block_effects 5 (requested-movement axis split): verified faithful, no change. Vanilla
+  `checkInsideBlocks(List,...)` splits per axis only when
+  `axisDependentOriginalMovement().isPresent() && delta.lengthSqr() > 0`; Pumpkin's
+  `requested_movement.filter(|_| movement != default)` matches (block_effects.rs:123).
+- block_effects 6 (gametest): STILL OPEN, M. Needs a `pumpkin-gametest` scenario (boat over
+  lily pads / campfire); no gametest harness seam in this unit's files.
+- minecart 3 (activator rail ejects riders): verified faithful, NO change. Decompiled
+  `Minecart.activateMinecart` (the plain rideable cart) DOES call `ejectPassengers()` and then
+  setHurtDir/setHurtTime(10)/setDamage(50.0) when powered. The tracker's claim that only
+  command-block/TNT/hopper override it is wrong. The Rideable arm must stay.
+- minecart 4 (push direction): verified faithful, NO change. Vanilla non-experimental
+  `AbstractMinecart.pushOtherMinecart` uses the normalized cart-to-cart vector `dir` against
+  yaw `facing` with `abs(dot) < 0.8` skip (AbstractMinecart.java:614-628); Pumpkin matches
+  (minecart.rs:750-764). The "horizontal delta movement / <1.0 upper bound" in the doc is the
+  experimental-movement path, not the default, and the `1.0E-4` check is a lower bound.
+- minecart 5 (powered-rail boost on 3D length): FIXED. New pure helper `powered_rail_boost`
+  (minecart.rs:198-211) uses horizontal speed (`x.hypot(z)`), adds 0.06 along the horizontal
+  direction and preserves Y, matching `OldMinecartBehavior.java:233-262`; call site updated
+  (minecart.rs:343-360). Added unit test `powered_rail_boost_uses_horizontal_speed_and_preserves_y`.
+  Remaining sub-gap: the standing-cart fallback still uses entity yaw rather than rail shape.
+- minecart 6 (container friction): verified faithful, NO change. Decompiled
+  `AbstractMinecartContainer.applyNaturalSlowdown` (lines 103-115) DOES override with
+  `0.98 + emptiness * 0.001`, zeroes Y and multiplies by 0.95 in water; Pumpkin's container
+  path matches. The tracker's "does not override friction" claim is wrong; do not delete.
+- minecart 7 (passenger repositioning): STILL OPEN, S, behavioural. Needs vanilla
+  `AbstractMinecart.move` displacement semantics plus a runtime check before changing it.
+- minecart 8 (slope tests): STILL OPEN, S. Test-only, but expected positions must come from
+  vanilla `OldMinecartBehavior.getPos` computed with a runner; no runner available here.
+- minecart 9 (double move_entity): STILL OPEN, M, verify. Needs a collision/push scenario to
+  confirm the residual is not applied twice.
+- minecart 10 (TNT priming): STILL OPEN, M. Vanilla `MinecartTNT.destroy` (lines 84-94)
+  primes on high speed with fuse `rand(20)+rand(20)` rather than exploding immediately;
+  burning-arrow damage explodes in `hurtServer` (lines 74-82). Fuse handling lives in
+  `minecart/tnt.rs`, outside this unit's editable files.
+- minecart 11 (portal skipped): BLOCKED-DATA, unchanged. Needs entity dimension change.
+- minecart 12 (sneak interact): verified faithful, NO change. `RideableMinecart::interact`
+  (`minecart/rideable.rs:9`) already returns false when `player.get_entity().is_sneaking()`.
+  Container carts follow vanilla `ContainerEntity.interactWithContainerVehicle`, which does
+  not gate on sneak. A redundant central check was added then reverted.
+
+Note for orchestrator: minecart 1 was marked FIXED after removing the rideable-cart damage
+(from `Minecart.activateMinecart`). That removal is a parity regression for this vanilla
+version; the eject arm and damage should both be present. Not re-added here because that row
+is not marked STILL OPEN.

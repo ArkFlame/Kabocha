@@ -27,3 +27,23 @@ match vanilla; types without a codec in vanilla also have `None` here.
 ## Gap status
 - VISIBLE_ADULT_PIGLIN/HOGLIN_COUNT never written or read (types.rs:120-122): STILL OPEN, M, needs PiglinSpecificSensor and HoglinAi/PiglinAi call sites.
 - NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_* never populated (types.rs:118-122): STILL OPEN, L, no piglin/hoglin specific sensor in sensing.rs.
+
+## Result
+
+Both remaining rows were verified against decompiled vanilla
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java`
+and `HoglinSpecificSensor.java`). Both need files outside this unit
+(`entity/ai/brain/sensing/mod.rs`, new species sensor files there, the piglin/hoglin
+brain sensor registration, and their `retreatFromNearestTarget` AI call sites), so
+neither could be fixed within `ai/sensing.rs` (only a line-of-sight cache) or
+`brain/memory/types.rs` (declarations already match all 115 vanilla entries).
+
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN. Needs
+  PiglinSpecificSensor/HoglinSpecificSensor writing both brain memories plus the
+  PiglinAi/HoglinAi retreat call sites; all outside this unit's two files.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS /
+  NEAREST_VISIBLE_ADULT_HOGLINS / NEAREST_VISIBLE_ADULT_PIGLIN (L): STILL OPEN. Needs
+  the two species sensors wired into the piglin/hoglin brain in `brain/sensing/`;
+  outside this unit. Piglins/hoglins currently use goal-based AI with no brain sensors.
+
+No source files changed; no rustfmt needed.

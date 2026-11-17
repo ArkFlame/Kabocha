@@ -44,3 +44,37 @@ Notes: `stringify_macro_argument` (`:1714`) matches `MacroFunction#stringify` ex
 
 ## Gapwave2-2 status (h3)
 - remaining datapack rows: STILL OPEN (note body in this worktree is unreadable; rows not reviewed in this wave; prior fix 722e94305)
+
+
+## Result
+
+Reviewed against .vendor/vanilla-decompiled/net/minecraft (StringTemplate.java,
+FunctionBuilder.java, TagLoader.java, FeatureFlags.java, FeatureFlagsMetadataSection.java,
+PackRepository.java). Fixed rows (mod.rs):
+
+- get_tag_values strips a leading # and normalizes the category/tag id; falls back to
+  pumpkin_data::tag::get_tag_values for pure builtin tags. Test added.
+- Generic tag queries (get_tag_values, get_tag_entries) now expand nested #tag references
+  recursively with a visited set and first-seen dedup, matching TagLoader#tryBuildTag's
+  LinkedHashSet. Test added. Builtin members are appended only for tags with no datapack
+  definition, because DynamicTagEntry drops the replace flag.
+- Macro templates are validated at load time in validate_macro_functions using
+  validate_macro_template, mirroring StringTemplate#fromString (unterminated variable,
+  invalid/empty name, no variables). Invalid macro lines are dropped with a warning.
+  Test added. The optional 8-entry instantiation cache was not added.
+- load_all: bundled packs are now loaded before world packs, so world packs override
+  built-in packs like vanilla's selected-list priority.
+- disable_pack: already fixed in 722e94305; verified is_required_pack accepts only vanilla.
+
+Still open (one-line reasons):
+
+- zip packs: needs a zip reader dependency in pumpkin-core/Cargo.toml (outside this unit).
+- feature flags from features.enabled metadata: resolve_enabled_features is a pure
+  function over pack names with no metadata access; threading mcmeta features changes its
+  signature and breaks its existing test.
+- pack format ranges / compatibility: needs a generated current pack-format constant in
+  pumpkin-data plus a compatibility enum propagated through DatapackInfo consumers.
+- filter handling: requires threading block/namespace filters into every pack scanner.
+- maxCommandChainLength gamerule: budget is a const thread-local; needs the gamerule
+  threaded into outermost chain start.
+- function chain depth: needs an iterative dispatch refactor to drop the 256-deep limit.

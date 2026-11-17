@@ -20,3 +20,8 @@ Verdict: structure complete (goal list/priorities, variants, spawn variant, bree
 - `mod.rs:628` gates walk-over pickup on `mob_griefing`, matching the shared `mob::pick_up_nearby_items` path; vanilla `Mob.aiStep` has no such check but the difference is engine-wide, not fox-specific.
 - `has_global_tick_reach` is a Pumpkin hook for the consumed teleport effect, not a vanilla `Fox` method.
 - Render-only fox behaviour (head roll, pose interpolation) is client side; no server change.
+
+
+## Result
+- `mod.rs:877` (`get_ambient_sound`, the only STILL OPEN row): CLOSED as not a gap. Decompiled vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fox/Fox.java:693` reads `if (!this.level().isBrightOutside() && this.random.nextFloat() < 0.1F)`, so vanilla uses `isBrightOutside()`, not `isDay()`. Rust `mod.rs:877` uses `!world.is_bright_outside() && rand::rng().random_range(0..10) == 0`, which matches. The screech volume/pitch (`Fox.java:681` vs `mod.rs:899`) and nearby-player/spectator check (`Fox.java:694-698` vs `mod.rs:879-884`) also match. No code change warranted; row also targets mod.rs, outside this unit's editable file (goals.rs only).
+- No STILL OPEN rows remained in goals.rs, so no source files were edited and no unit tests were added. No rustfmt run needed.

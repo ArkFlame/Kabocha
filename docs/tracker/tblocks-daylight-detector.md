@@ -40,3 +40,12 @@ Client-only shape/outline rendering comes from generated block data.
 ## h6 gap status
 - Row 1 (negative effective sky brightness): FIXED in tree at HEAD (`world/mod.rs:7075-7078` uses `.max(0)`); no h6 commit needed.
 - Row 2 (plugin same-state redundant update): STILL OPEN, no vanilla-visible change; left as-is per note.
+
+
+## Result
+
+Verified against decompiled Paper 26.3 DaylightDetectorBlock.java and Level.java#setBlock / Block.UPDATE_*.
+
+- Row (plugin same-state redundant update, S) - FIXED. Vanilla lines 60-63 always call setBlockAndUpdate(pos, state.setValue(POWER, target)) after callRedstoneChange, using flags UPDATE_NEIGHBORS|UPDATE_CLIENTS (3), so neighbours/clients are updated even when a plugin sets newCurrent back to the old power. daylight_detector.rs:update_signal_strength previously skipped set_block_state whenever the resolved power equalled the old power. It now always writes NOTIFY_ALL | FORCE_STATE; FORCE_STATE is required because world/mod.rs:6651 otherwise early-returns same-state writes with no update. Normal power changes are unaffected (state differs, so that early return never fired for them). No pure unit-test seam exists for the event path; the existing calculate_signal_strength tests already cover the signal math.
+- Row (effective sky brightness can go negative, S) - already FIXED at HEAD and outside this unit: world/mod.rs:7100 effective_sky_brightness_from uses .max(0).
+- Row (shape-based light occlusion / 6px column, L) - left OPEN. Needs a generated use_shape_for_light_occlusion flag (generated data, forbidden to hand-edit) plus a cross-crate light-engine change to occlude by shape; both are outside this unit's files.

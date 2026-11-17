@@ -50,3 +50,40 @@ the explanatory `vanilla` comments at `time.rs:62` and `time.rs:386`.
 - 8. f32/i64 `to_string` formatting: STILL OPEN (S).
 - 9. Pause/resume/rate return value 1: STILL OPEN (S).
 - 10. `/time add` negative amount bounds: STILL OPEN (S; vanilla bound unverified).
+
+## Result
+
+Verified STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java`
+(26.3, Paper/Canvas patched) and `TimeArgument.java`. Smallest rows first.
+
+- `/time rate` Bedrock message (gap-status first row): VERIFIED, no change. `Action::Rate`
+  emits `COMMANDS_TIME_SET` with the rate for Bedrock clients (time.rs:346-350).
+- 8. f32/i64 `to_string` formatting: VERIFIED, no change. Rate uses `format!("{rate:?}")`
+  at time.rs:339/349/356, matching Java `Float.toString` for ordinary values; tick counts
+  are integers where Rust `to_string()` already matches Java.
+- 10. `/time add` negative amount bounds: VERIFIED, no change. Vanilla `addTime` uses
+  `TimeArgument.time(Integer.MIN_VALUE)` (TimeCommand.java:104), matching
+  `TimeArgumentType::new(i32::MIN)` at time.rs:394. The doc's "time(0)" concern is about
+  `/time set`, not `/time add`, so it does not apply.
+- 9. pause/resume/rate return value: FIXED (3 lines). The doc premise was inverted:
+  vanilla `setPaused`/`setRate` return `Command.SINGLE_SUCCESS` (1), NOT the clock tick
+  count (TimeCommand.java:281,295). Only set/add/query return `wrapTime(ticks)`. Changed
+  time.rs:300/327/361 from `Ok(wrap_time(level_time.time_of_day))` to `Ok(1)`.
+  Risk: this reverts a prior wrap_time change; it is correct for vanilla parity.
+- 3. `commands.time.no_default_clock`: LEFT OPEN. Needs the dimension type `default_clock`
+  value from generated data (outside this unit).
+- 6. Bedrock rate key: LEFT OPEN. Needs a new translation key, but keys are generated
+  (crates/pumpkin-data/src/generated, cannot edit); current `COMMANDS_TIME_SET` fallback kept.
+- 7. query day/daytime hardcoded `minecraft:day`: LEFT OPEN. Requires clock/timeline
+  resolution from gap 5 (outside this unit).
+- 1. `/time set <timemarker>`: LEFT OPEN. Needs ClockTimeMarkers timeline registry data and
+  world/time.rs (outside this unit).
+- 2. foreign clock id mutates single LevelTime: LEFT OPEN. Needs world_clock registry
+  validation and per-clock instances (gap 5, world/time.rs, outside this unit); the generic
+  `RegistryIdArgumentType::parse` cannot resolve registry contents.
+- 5. one LevelTime per world / clocks not modelled: LEFT OPEN. L-sized, requires the
+  ServerClockManager model in world/time.rs (outside this unit).
+
+Test: no pure seam exists for a command executor's return literal, so no new unit test
+was added; the existing `wrap_time` test is unchanged.
+Files touched: crates/pumpkin-core/src/command/commands/time.rs.

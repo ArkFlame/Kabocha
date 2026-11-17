@@ -75,3 +75,38 @@ STILL OPEN: gap 7 (S) whether vanilla unpacks loot on destroy is marked verify; 
 STILL OPEN: gap 8 (S) vanilla `comeOffTrack` ground/water source is marked verify.
 STILL OPEN: gap 9 (S) vanilla `positionRider` attachment offset is marked verify.
 STILL OPEN: gap 10 (S) test-only; expected rail positions would be derived from the implementation rather than vanilla, and tests could not be compiled without cargo.
+
+## Result
+
+Verified against decompiled vanilla in `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`.
+
+- Fixed gap 3 (S): `MinecartFurnace.tick` calls `super.tick()` (movement) before its fuel countdown and
+  smoke particle, so Pumpkin's pre-move call was one tick early. Moved the furnace tick to the end of
+  `MinecartEntity::tick`. Kept the command-block tick counter before rail activation: vanilla increments
+  `Entity.tickCount` at the start of `Entity.tick`, which the 4-tick activation cooldown compares against.
+- Gap 4 (S) verified, no change: current vanilla `MinecartTNT` has no `interact` override and neither
+  `FlintAndSteelItem` nor `FireChargeItem` references TNT minecarts; flint-and-steel does not prime them,
+  so Pumpkin returning false for TNT is correct.
+- Gap 5 (S) open (partial): fuse `rand(0..20)+rand(0..20)` matches vanilla `MinecartTNT.destroy` exactly.
+  The `set_fuse` branch when `tntExplodes` is off differs from vanilla `primeFuse` (which no-ops), but
+  removing it orphans `TntMinecart::set_fuse` in tnt.rs, a file outside this unit.
+- Gap 6 (S) verified, no change: decompiled `AbstractMinecart.pushOtherMinecart` uses the position
+  direction vector (`other.getX()-this.getX()`) with `minecart_improvements` off, not motion; Pumpkin's
+  `dir`/`facing` dot >= 0.8 test matches.
+- Fixed gap 7 (S): vanilla `AbstractMinecartContainer.destroy` drops only the stacks already inside
+  (loot is unpacked only in `createMenu`). Removed `unpack_loot` from Pumpkin's destroy path; kept it in
+  `get_container_inventory`.
+- Gap 8 (S) open: vanilla `comeOffTrack` uses `onGround()` only, but Pumpkin's minecart movement path
+  does not update `on_ground`, so the block probe is the only ground signal; changing it needs general
+  vehicle physics outside this unit.
+- Fixed gap 9 (S): vanilla `Entity.positionRider` offsets passengers by the seat/attachment point.
+  Replaced the manual `set_pos(to)` loop with `crate::entity::position_riders(self)`.
+- Fixed gap 10 (S): added table-driven `rail_position_snap_covers_north_south_and_curve` unit test for
+  north-south flat and south-east curve snapping; expected values taken from decompiled
+  `OldMinecartBehavior.getPos`.
+- Gap 1 (M) open: NBT keys confirmed (`DisplayState` block-state codec, `DisplayOffset` int default 6)
+  from `AbstractMinecart`, but wiring a block-state NBT codec into tracked data needs generated-data /
+  serializer support outside these files.
+- Gap 2 (M) open: still needs non-player dimension-change infrastructure that does not exist yet.
+
+Files: minecart.rs only. `rustfmt --edition 2024` run; no cargo or git run.

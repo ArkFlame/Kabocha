@@ -42,3 +42,27 @@ RandomLookAround 7), food tag, step sound volume 0.15, `roll_up` gated on `!is_s
 - 2 dead `can_stay_rolled_up` branch: **STILL OPEN** (not reached in this pass).
 - 3 shell reduction gate: **FIXED (UNVERIFIED)**, reduction gated on `should_hide_in_shell()` in `modify_incoming_damage`; formula unverified against decompiled `hurtServer`.
 - 4 redundant baby flag: **STILL OPEN** (not reached in this pass).
+
+
+## Result (CODER pass, 2026-11-17)
+
+Vanilla reference: decompiled `net.minecraft.world.entity.animal.armadillo.Armadillo` and
+`ArmadilloAi` from the Paper upstream cache (no `.vendor/vanilla-decompiled` copy exists).
+
+- **2 dead `can_stay_rolled_up` branch: VERIFIED, no code change.** Current `on_damage` matches
+  decompiled `actuallyHurt`: the 80-tick `DANGER_DETECTED_RECENTLY` lifetime is stored only for
+  living-attacker sources (vanilla `source.getEntity() instanceof LivingEntity`), then
+  `roll_up()` is gated on `can_stay_rolled_up()`. Vanilla does not zero the memory when
+  `!canStayRolledUp()`. `SCARE_CHECK_INTERVAL` (80) is the documented memory lifetime; the 5-tick
+  probe is the separate `SCARE_SCAN_INTERVAL`.
+- **4 redundant baby flag: FIXED.** Removed the hand-set `DATA_BABY_ID` write from
+  `mob_init_data_tracker`; `AgeableMob::set_age` already syncs the flag on every age boundary and
+  is the only writer of armadillo `age`. Kept the compile-time assert tying `armadillo::BABY_ID`
+  to `ageable_mob::DATA_BABY_ID`.
+- **3 shell damage formula: VERIFIED (bonus), no code change.** Decompiled `hurtServer` is exactly
+  `if (isScared()) damage = (damage - 1.0F) / 2.0F;`, matching current `modify_incoming_damage`.
+  The tracker's suggested `should_hide_in_shell()` gate and `.max(0.0)` do not match vanilla.
+- **1 proximity scan: already implemented in source** (5-tick `get_all_at_box` probe using
+  `is_scared_by`, matching the vanilla sensor). **6 state-id mapping: already guarded** by
+  `state_ids_and_names_match_vanilla_order`. Added pure test `shell_thresholds_match_vanilla`.
+- No generated-data, WIT, cross-crate changes or files outside this unit.

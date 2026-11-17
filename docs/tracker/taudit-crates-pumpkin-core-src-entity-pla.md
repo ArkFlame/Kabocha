@@ -32,3 +32,21 @@ Remaining TODO/FIXME and known vanilla gaps after this pass.
 - 8 fall-flying exhaustion (player.rs:3976): STILL OPEN, S.
 - 9 bed respawn offsets (player.rs:2431,2479,2520): STILL OPEN, M.
 - 10 XP fields not atomic (player.rs:7013): STILL OPEN, M.
+
+
+## Result
+
+Audited all STILL OPEN rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. This unit's only editable source is `world/scoreboard.rs`; row 4 is the only row whose data lives there, and it is already fixed elsewhere.
+
+- Row 4 (team color in display name, scoreboard.rs `Team`): VERIFIED against vanilla. `PlayerTeam.getFormattedName(Component)` = `applyColor(empty + playerPrefix + name + playerSuffix)` (PlayerTeam.java:162-164), `applyColor` sets root colour only when present (113-116); `PlayerTeam.formatNameForTeam` = `team == null ? name.copy() : team.getFormattedName(name)` (166-168); `Entity.getDisplayName` = `formatNameForTeam(getTeam(), getName())` + hover/insertion (Entity.java:6231-6234). `Team` in scoreboard.rs already carries `color`/`player_prefix`/`player_suffix` (lines 1016-1019), so no source change is needed here. The actual decoration already landed outside this unit: `entity/mod.rs:257 format_name_for_team` (test asserts order, null case and red colour at 7140-7144) and `player.rs:10481 format_team_name` (test at 10520-10528). No unused `decorate_name` duplicate added to scoreboard.rs.
+- Row 1 (enchantment damage TODO): left open - lives in player.rs, outside this unit.
+- Row 2 (merge stacks in drop): left open - lives in player.rs/ItemEntity, outside this unit.
+- Row 3 (submerged mining speed): left open - lives in player.rs, outside this unit.
+- Row 5 (effect particle metadata): left open - lives in living.rs, outside this unit (already covered by sync_effect_particles).
+- Row 6 (hunger across reconnect): left open - lives in player.rs, outside this unit.
+- Row 7 (CPlayerSpawnPosition on join): left open - lives in player.rs, outside this unit.
+- Row 8 (fall-flying exhaustion): left open - lives in player.rs, outside this unit.
+- Row 9 (bed respawn offsets): left open - lives in player.rs, outside this unit.
+- Row 10 (XP fields not atomic): left open - lives in player.rs, outside this unit.
+
+No `.rs` file edited; scoreboard.rs exposes no broken pure seam for row 4 (decoration and its tests already exist in entity/mod.rs and player.rs), and scoreboard/tests.rs is network-transport based, so no new unit test was added. No rustfmt run required.

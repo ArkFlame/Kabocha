@@ -101,3 +101,16 @@ Re-review of `ea78fadb3`: the new `ENTITY_DAMAGE` emission matches vanilla place
 gap. Two previous rows closed as "not a gap" (destroy threshold, sneak boarding). Remaining: row 1
 (non-player rider rotation, M, needs the decompiled `clampRotation` before editing), row 2 (bubble
 counter cap, verify), row 3 (missing gametest).
+
+## Result
+
+Decompiled tree is present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`
+(`AbstractBoat.java`, `Boat.java`, `Raft.java`), so the *verify* rows were checked against source.
+
+| # | Outcome |
+|---|---|
+| 1 | FIXED. `AbstractBoat.positionRider` skips `EntityTypeTags.CAN_TURN_IN_BOATS`, applies `deltaRotation`, then `clampRotation`. `BoatEntity::on_rider_positioned` now skips that tag, uses `calculatePassengerBodyYRot` (animal in a full boat sits at hull heading +90/+270 by entity id parity), sets body yaw, gives plain riders the +/-105 window and `Mob` riders the hull heading with `clampHeadRotationToBody` (`get_max_head_rotation`). Helpers `rider_body_yaw` / `clamp_head_to_body`, tests `animal_in_a_full_boat_sits_sideways` and the reworked delta test. |
+| 2 | FIXED. Vanilla writes `DATA_ID_BUBBLE_TIME` only in the bubble-column path: `onAboveBubbleColumn` arms 60 when it is 0, `tickBubbleColumn` clears it to 0 whenever the boat is no longer above a column, otherwise decrements once per tick and at 0 ejects on a downward column and applies the impulse only when the boat can simulate movement. `tick_underwater` no longer writes the counter (it only drives `outOfControlTicks`), a new `bubble_column_above` flag cancels the countdown on leaving the column, and the launch/sink impulse is skipped for a client-controlled boat while the downward eject still runs. |
+| 3 | STILL OPEN. No `pumpkin-gametest` boat scenario; the crate is outside this unit's file list. |
+
+Commands: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/vehicle/boat.rs` (ok). No cargo run in this pass.

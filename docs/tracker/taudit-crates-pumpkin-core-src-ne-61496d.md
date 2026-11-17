@@ -62,3 +62,36 @@ Remaining gaps:
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+
+Verified against .vendor/vanilla-decompiled (Paper/Canvas tree, includes the 1.21.5
+LastSeenMessages.Update checksum / verifyChecksum).
+
+Fixed in this pass (crates/pumpkin-core/src/net/java/play/chat_message.rs):
+
+- Illegal-character check now runs first, before the command split and the chat-visibility
+  gate, and resetLastActionTime only fires for accepted messages (tryHandleChat order). The
+  same applies to the command path, as vanilla does.
+- checksum row: resolved from decompiled source, not guessed. Vanilla
+  LastSeenMessagesValidator.applyUpdate returns the signatures acknowledged by this very
+  update and Update.verifyChecksum hashes that list, not the player last_seen list. Pumpkin
+  now hashes the list returned by apply_update, so a nonzero checksum can pass.
+- Pre-1.19.3 clients send no acknowledgement bitset (only the window offset); that branch now
+  calls apply_offset instead of feeding an empty bitset to apply_update.
+- handle_chat_session_update no longer returns early when chat reports are off: the session is
+  stored and INITIALIZE_CHAT broadcast, matching vanilla. Validation and the missing Services
+  public key warning still only happen when reports are on, i.e. when the profile-key
+  validator exists. Added vanilla's early return for an unchanged key. The expired-key
+  disconnect moved out of validate_chat_session so it also applies when verification is
+  skipped.
+- Added reject_chat_request so both call sites share one log-and-kick path.
+- Smallest unit test: is_chat_message_illegal (mod tests in the same file).
+
+Still open:
+
+- Message signature verification and the per-player SignedMessageChain (CHAIN_BROKEN,
+  OUT_OF_ORDER_CHAT monotonic timestamp, 5 min hasExpiredServer) - size L, needs chain state
+  on Player in entity/player.rs and a SignatureUpdater in net/chat, both outside this unit.
+- A leading slash parsed as a command out of the chat packet - size S, but vanilla never does
+  this and removing it needs chat_command.rs and the signed command packet, outside this unit.

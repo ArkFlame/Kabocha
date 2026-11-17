@@ -78,3 +78,39 @@ The tracker note "3 TODO/FIXME/vanilla markers" is 3 `vanilla` mentions in comme
 - 4. Potted variants (`flower_pots.rs:84-119`): STILL OPEN (M).
 - 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:118`): STILL OPEN (S).
 - Poison-bee-from-closed-only: FIXED (commit 977e9c71c, per Re-audit section).
+
+
+## Result
+
+Audit against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`
+(`world/level/block/EyeblossomBlock.java`, `world/level/block/FlowerPotBlock.java`,
+`world/entity/animal/bee/Bee.java`). rustfmt run on both touched files.
+
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:90-92`): STILL OPEN -> VERIFIED EQUAL, no change.
+  Vanilla `EyeblossomBlock#entityInside` explicitly requires
+  `level.getDifficulty() != Difficulty.PEACEFUL`; the guard is correct.
+- 3. Shared RNG per state change (`eyeblossom.rs:131`): STILL OPEN -> left open. Vanilla uses the
+  level `RandomSource` for both particle and delays; Pumpkin uses `rand::rng()`. Behaviourally
+  identical for gameplay (only a seeded draw-for-draw differential test would differ), and
+  swapping in the world RNG needs a cross-crate world-RNG accessor outside this unit.
+- 4. Potted variants (`flower_pots.rs:84-129`): STILL OPEN -> PARTIALLY FIXED.
+  Vanilla `FlowerPotBlock#randomTick` spawns the trail transform particle on state change, which
+  Pumpkin omitted. Reused `eyeblossom::spawn_transform_particle` (now `pub(crate)`), passing the
+  ground counterpart of the new potted type so the color is that of the state turned into.
+  No pure unit test added: the shared `transform_particle` helper already has tests covering both
+  colors, and the potted path has no pure seam beyond that helper.
+  The "never schedules ticks on neighbouring flowers" half of the row was WRONG: vanilla
+  `FlowerPotBlock#randomTick` has no neighbourhood loop, so Pumpkin is already correct there;
+  only the ground-form `EyeblossomBlock#tryChangingState` schedules neighbours.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:117`, `flower_pots.rs:93`):
+  STILL OPEN -> VERIFIED EQUAL, no change. Vanilla reads
+  `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)`, i.e. the fallback is the current
+  type's open value, exactly `unwrap_or(is_open)`. The earlier "default false" claim was wrong.
+
+Out-of-scope observation (FIXED row, not changed): `Bee.attractsBees` checks the BEE_ATTRACTIVE
+tag, which contains `open_eyeblossom` (not closed). Vanilla therefore poisons bees standing in an
+*open* eyeblossom, while commit 977e9c71c made Pumpkin poison only the *closed* one. Flagging for
+the orchestrator; left untouched because it is a closed/re-audited row outside this unit.
+
+Files touched: `crates/pumpkin-core/src/block/blocks/plant/eyeblossom.rs`,
+`crates/pumpkin-core/src/block/blocks/flower_pots.rs`, this doc.

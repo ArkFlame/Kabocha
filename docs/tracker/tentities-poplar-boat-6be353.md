@@ -80,3 +80,32 @@ consistent with the poplar entries.
 - 1 seat offset magic numbers (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 2 break drop resolves by registry key (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 3 is_chest_boat id allow-list (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Verified against .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/
+(AbstractBoat.java, AbstractChestBoat.java). All three open rows are fixed in
+crates/pumpkin-core/src/entity/vehicle/boat.rs and boat/passengers.rs.
+
+- 1 seat offset magic numbers (S): FIXED. A single 'passenger_seat_offset' helper plus
+  a shared 'passenger_attachment' now drive both 'entity::passenger_attachment_point'
+  and the mount-positioning path in passengers.rs. Vanilla constants confirmed: lone
+  rider uses the type offset (0.0 boat / 0.15 chest boat), two riders use +0.2 / -0.6,
+  animal rider adds +0.2. Pure unit test
+  'boat_seat_offset_follows_vanilla_single_multi_rider_and_animal_shift' pins the
+  offsets; no magic numbers remain duplicated.
+- 2 break drop resolves by registry key (S): FIXED. 'boat_drop_item' resolves through
+  'BoatItem::entity_to_item' first (the same mapping as pick-block) with a registry-key
+  fallback, so a renamed key no longer silently drops nothing.
+  'every_boat_entity_type_resolves_a_drop_item' and
+  'named_boat_keeps_its_drop_when_creative' cover it. Vanilla 'getPickResult' returns
+  'new ItemStack(dropItem.get())', i.e. the item recorded per entity type.
+- 3 is_chest_boat id allow-list (S): FIXED. 'is_chest_boat' now derives the ChestBoat
+  distinction from the generated entity resource-name suffix ('_chest_boat' /
+  'bamboo_chest_raft') instead of enumerating 11 ids, matching vanilla's class-based
+  distinction. A new wood needs no extra entry here. 'max_passengers' is no longer const
+  (str::ends_with is not const); it has no const callers. Existing coverage tests
+  'chest_boat_detection_covers_every_chest_boat_entity_type' and
+  'boat_stat_classification_covers_every_boat_entity_type' verify all entity types.
+
+No generated data, WIT, or cross-crate changes were needed. Rustfmt run on boat.rs.

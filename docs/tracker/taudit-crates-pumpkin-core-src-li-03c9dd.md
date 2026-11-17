@@ -45,3 +45,29 @@ stopServer plus second-signal behaviour.
 - 5 console EOF warning (lib.rs:785-787): STILL OPEN, S.
 - 6 fallback kick overwrites rejection (server/mod.rs:942): FIXED in part, server/mod.rs:1268 uses the shutdown key; the overwrite itself STILL OPEN, S.
 - 7 bedrock_clients keyed by SocketAddr (lib.rs:713): STILL OPEN, S.
+
+## Result
+
+- Row 3 IP masking shape (lib.rs:925-931): FIXED. `scrub_address` now masks every non
+  separator char with `#` and keeps `.` and `:`, so `1.2.3.4:25565` logs as
+  `#.#.#.#:#####` (Paper scrub-ips shape) instead of `x.x.x.x:xxxxx`. Added the pure unit
+  test `scrub_address_keeps_separators`.
+- Row 5 console EOF warning (lib.rs:799-801): FIXED. The final-line-without-newline warning
+  is gone; vanilla's `BufferedReader` treats such a line as a valid command, so the comment
+  now records that a short read is EOF, not a malformed command.
+- Row 1 early reject at accept loop: OPEN. Neither vanilla `ServerConnectionListener` nor the
+  other vendored sources reject before the handshake; an early close would have to invent a
+  login-phase disconnect before the protocol state exists, so it is left as a deliberate
+  difference rather than a blind port.
+- Row 2 per-IP connection throttle: OPEN. Needs a new `settings.connection-throttle` field in
+  `crates/pumpkin-config` plus a tick-cleaned map, i.e. files outside this unit.
+- Row 4 player stats persistence: OPEN. New manager module plus `world/stats` format work,
+  well beyond this unit's scope.
+- Row 6 fallback kick overwrite: OPEN. The remaining change is in `server/mod.rs`, outside
+  this unit (the shutdown key replacement noted earlier is already in place).
+- Row 7 bedrock_clients keyed by SocketAddr: OPEN. Keying by client id changes
+  `net/bedrock/mod.rs` (field type, `new` signature, `close`) together with this file, so it
+  is outside this unit.
+
+Files touched: `crates/pumpkin-core/src/lib.rs` (rustfmt --edition 2024, exit 0).
+

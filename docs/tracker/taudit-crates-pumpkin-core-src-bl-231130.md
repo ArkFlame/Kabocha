@@ -50,3 +50,28 @@ Audited clean:
 | `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | `furnace_like_block_entity.rs:856-858` | `getUpdateTag` includes items and cook/burn state | `client_update_tag` returns an empty compound | emit the same keys as `chunk_data_nbt` | S, FIXED d047c4b2d |
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` (`serverTick` 246-328, `canBurn` 358-371, `getSpeedMultiplier`/`getTotalCookTime` 416-440, `getRecipesToAwardAndPopExperience`/`createExperience` 531-577).
+
+- **furnace_like_block_entity.rs:867-876 (Bedrock `StoredXPInt`, S)** -- FIXED. `bedrock_block_actor_data` now passes the XP accrued from `RecipesUsed` (new `stored_experience` helper) instead of hardcoded `0`.
+- **furnace_like_block_entity.rs:235-274 (result data components, S)** -- FIXED. New `assemble_cooking_result` helper applies `recipe.result.components` to the output stack; used by both `can_accept_recipe_output` (canBurn comparison) and `craft_recipe` (stored stack).
+- **furnace_like_block_entity.rs:225 (`isSameItemSameComponents`, S)** -- SATISFIED by existing `are_items_and_components_equal` calls; with result components now assembled, the comparison covers them too. No new change needed.
+- **furnace_like_block_entity.rs:30-38,511 (data-driven fuel `speed_multiplier`, M)** -- OPEN: needs a persisted `speed_multiplier` field on the furnace/smoker/blast-furnace entity structs (furnace.rs, smoker.rs, blast_furnace.rs) outside this unit, plus load/restore.
+- **furnace_like_block_entity.rs:511-535 (rescale timer on relight, S)** -- OPEN: depends on the persisted per-entity multiplier above; with only a block-kind multiplier there is no differing multiplier to rescale against.
+- **furnace_like_block_entity.rs:177-198 (one XP orb per recipe, S)** -- OPEN: `ExperienceContainer::extract_experience` returns a summed `i32`; emitting one orb per recipe needs a cross-crate return-type change in pumpkin-inventory (`window_property.rs`), outside this unit.
+- **furnace_like_slot.rs take path (unlock recipes in recipe book, M)** -- OPEN: the slot only receives summed XP from `ExperienceContainer`; exposing `RecipesUsed` ids to `awardRecipes`/`triggerRecipeCrafted` needs a new cross-crate method, outside this unit.
+
+Tests: added `assemble_cooking_result_applies_recipe_components` and `stored_experience_floors_each_recipes_accrued_xp` (pure unit tests). `rustfmt --edition 2024` run on furnace_like_block_entity.rs. No compile check run (worker rule).
+
+
+## Result (follow-up pass)
+
+- **furnace_like_block_entity.rs:30-38,511 (data-driven fuel `speed_multiplier`, M)** -- FIXED. Vanilla `AbstractFurnaceBlockEntity` persists a `speedMultiplier` float (NBT key `speed_multiplier`, default 1.0), reads it from the fuel item's `CookingFuel.speedMultiplier` at ignition and divides recipe time by it via `getTotalCookTime`. Added a persisted `speed_multiplier_bits: AtomicU32` field to the furnace, smoker and blasting-furnace entities; the cooking macros now read/write the float key, derive `cooking_total_time` from the stored multiplier (no longer hardcoded 1 or 2 per block kind), and set it from `CookingFuelImpl::get_speed_multiplier(is_fast)` at ignition.
+- **furnace_like_block_entity.rs:511-535 (rescale timer on relight, S)** -- FIXED. Added `rescale_cooking_after_relight`, applying vanilla's `cookingTimer = ceil(timer / oldTotal * newTotal)` while `timer < oldTotal`, called at ignition with the new fuel multiplier.
+- **furnace_like_block_entity.rs:177-198 (one XP orb per recipe, S)** -- OPEN: vanilla `getRecipesToAwardAndPopExperience` spawns one orb per recipe id; `ExperienceContainer::extract_experience` returns a summed `i32` and its second consumer `block/entities/mod.rs` (outside this unit) spawns a single orb, so per-recipe orbs need a cross-file return-type change.
+- **furnace_like_slot.rs take path (unlock recipes in recipe book, M)** -- OPEN: needs `awardRecipes`/`triggerRecipeCrafted` on `InventoryPlayer` (screen_handler.rs) and the player implementation, both outside this unit.
+
+Tests: added `cooking_time_divides_by_the_persisted_multiplier`, `relight_rescales_progress_by_the_multiplier_change` and `furnace_speed_multiplier_round_trips_through_nbt` (pure unit tests); replaced the obsolete block-kind `cooking_speed_matches_vanilla`. `rustfmt --edition 2024` run on all four edited .rs files. No compile check run (worker rule).

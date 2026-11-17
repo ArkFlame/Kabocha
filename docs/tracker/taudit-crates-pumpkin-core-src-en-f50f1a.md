@@ -69,3 +69,25 @@ behavior. No `TODO`/`FIXME` left in these files: the tracker markers are the
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+
+- Row 14 (causing-entity check): verified already fixed. The play-dead roll uses
+  `source.is_some() || cause.is_some()`, matching vanilla Axolotl.hurtServer condition
+  `(source.getEntity() != null || source.getDirectEntity() != null)`; `cause` is the causing
+  entity (DamageSource#getEntity, living.rs:4229) and `source` the direct entity. No change.
+- Row 15 (pre-hit health): verified already fixed. `mob_hurt_server` snapshots health before
+  `living_entity.damage_with_context` applies the hit; the roll uses that snapshot. No change.
+- Row 22 (support regen range): verified already correct against vanilla
+  Axolotl.onStopAttacking, which uses the expanded AABB `body.getBoundingBox().inflate(20.0)`
+  (Pumpkin `expand_all(20.0)`), not a distance sphere. The suggested `distanceToSqr <= 400`
+  change would diverge from vanilla. No change.
+- Row 23 (blocked-hit play-dead roll): FIXED. Vanilla evaluates the roll before super.hurtServer
+  even when the hit deals no damage, but Pumpkin only called `on_damage_with_context` when
+  damaged. Extracted `try_play_dead` and call it from `post_damage_with_context` (always run)
+  as well as `on_damage_with_context` (damaged only), guarded by `play_dead_roll_pending` so
+  the roll and its RNG draws happen exactly once per hit. Added regression test
+  `a_blocked_hit_still_rolls_for_play_dead`. Ran rustfmt --edition 2024 on axolotl.rs.
+- Row 24 (play-dead regen duration): verified already correct: vanilla PlayDead.start grants
+  MobEffects.REGENERATION, 200, 0, matching `PLAY_DEAD_REGENERATION_DURATION = 200`.
+  No change.

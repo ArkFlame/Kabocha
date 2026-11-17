@@ -34,3 +34,17 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+
+Verified against decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `world/level/block/TntBlock.java` (Paper/CraftBukkit, protocol V_26_3). No source files changed: every STILL OPEN row is either a stale-premise false positive or outside this unit.
+
+| # | Outcome | Evidence |
+|---|---------|----------|
+| 3 | LEFT OPEN | Decompiled `PrimedTnt` does NOT override `ignoreExplosion(Explosion)` (only Warden/ArmorStand/BlockAttachedEntity/VehicleEntity/ItemEntity do). `usedPortal` is set in `postChangeDimension()` and only swaps in `USED_PORTAL_DAMAGE_CALCULATOR` (nether-portal blast resistance), so the claimed cross-dimension chain-immunity does not exist in this version. Implementing any portal behaviour also needs `EntityBase` / `Entity::change_dimension` (files outside this unit). |
+| 5 | LEFT OPEN (false positive) | Vanilla `addAdditionalSaveData` runs `EntityReference.store(this.owner, output, "owner")` and `readAdditionalSaveData` reads it back; Pumpkin's `owner.write_nbt` / `read_nbt` pair matches. The `addAdditionalSaveData` doc comment is accurate. No change. |
+| 6 | LEFT OPEN (false positive) | Vanilla `readAdditionalSaveData` uses `Mth.clamp(input.getFloatOr("explosion_power", 4.0F), 0.0F, 128.0F)`; Pumpkin's `.clamp(0.0, 128.0)` matches exactly. No change. |
+| 7 | LEFT OPEN | Real gap (prime path fires `ExplosionPrimeEvent` with `DEFAULT_POWER` and drops a modified radius), but the fix belongs in `block/blocks/tnt.rs`, a file outside this unit. |
+| 8 | LEFT OPEN (false positive) | Vanilla `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation, so a TNT primed before the gamerule is disabled is cancelled in vanilla too. Pumpkin's tick-time re-check matches. No change. |
+
+Out-of-scope finding (row 4 is marked FIXED, not STILL OPEN, so left untouched): decompiled `readAdditionalSaveData` reads `fuse` as `input.getShortOr("fuse", (short)80)`, i.e. a missing tag defaults to 80; `fuse_from_nbt` in `tnt.rs` currently returns 0. Flagged for orchestrator decision.

@@ -51,3 +51,32 @@ h6 pass: no elytra code changed. Gap 1 (fall-distance clamp) matches vanilla `ch
 | 2 | `entity/player.rs:3977` | `Player` movement withdrawal (exhaustion) | `progress_motion` still carries `TODO: gliding...`; the swim / in-water / climb / on-ground chain already falls through to `return` while gliding, so nothing looks implementable, but the original intent was never checked against the decompiled method | confirm vanilla adds no gliding exhaustion, then delete the stale TODO on the next touch | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | 3 | `entity/player.rs:3869` | `LivingEntity#updateFallFlying` | no automated test covers glide stop (plugin veto) or the start gate, including the water-only fix from 5a422185e | add a `pumpkin-gametest`: start a glide, cancel `EntityToggleGlideEvent`, assert the flag stays; same for landing | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | 4 | `entity/player.rs:2173` | `ItemStack#hurtAndBreak` | elytra wear goes through `damage_item_in_slot` -> `damage_item_stack`; Unbreaking and durability-enchantment handling there was not verified without a decompiled reference | compare `damage_item_stack` with `ItemStack#hurtAndBreak` (Unbreaking `1/(level+1)`, 1 durability per call) before relying on it | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+
+## Result
+
+Re-review against .vendor/vanilla-decompiled (Paper/Canvas), now available in this worktree.
+
+- Row ee43e7835 (subject 'vanilla-parity fixes for gliding and flight state'): the commit's only
+  change is crates/pumpkin-wasm-host-v0_2/src/player.rs (outside this unit). That change IS present:
+  set_flying now calls player.set_flying(flying), which resets fall distance, calls
+  stop_glide_for_flight, sets abilities.flying, and sends the abilities update. Subject verified
+  against code; no code change possible here (wasm-host file outside scope).
+- Firework boost entity/projectile/firework_rocket.rs: vanilla FireworkRocketEntity#tick formula
+  movement + look*0.1 + (look*1.5 - movement)*0.5 matches Pumpkin exactly. Verified, no change.
+- StartFlyingElytra net/java/play/player_command.rs: vanilla
+  ServerGamePacketListenerImpl START_FALL_FLYING -> tryToStartFallFlying() else stopFallFlying();
+  LivingEntity#stopFallFlying vetoes via CraftEventFactory#callToggleGlideEvent(false), matching
+  Pumpkin's glide_stop_allowed() gate. Verified, no change.
+- Profile data_component_impl/utility.rs: vanilla PlayerSkin.Patch MAP_CODEC fields
+  texture/cape/elytra/model match ProfileImpl; elytra read/write/hash present. Verified, no change.
+- FIXED in this unit: entity/projectile/firework_rocket.rs now uses horizontal acceleration 1.0
+  when horizontal_collision is set, else 1.15, matching vanilla 'horizontalCollision ? 1.0 : 1.15'
+  (decompiled ref: FireworkRocketEntity.java:192-193). rustfmt --edition 2024 applied.
+- No pure unit test added: boost/stop/acceleration logic lives in tick()/network handler with no
+  pure seam; a formula-mirroring test would be low-value and is discouraged by the test rules.
+- Gaps 1-4 remain STILL OPEN: all target entity/player.rs, a file outside this unit.
+  1. fall-distance clamp: needs entity/player.rs (outside unit); confirm vanilla checkFallDistanceAccumulation there.
+  2. stale gliding-exhaustion TODO: needs entity/player.rs (outside unit).
+  3. glide-stop/start gametest: needs entity/player.rs / pumpkin-gametest harness (outside unit).
+  4. Unbreaking/durability in damage_item_stack: needs entity/player.rs (outside unit).

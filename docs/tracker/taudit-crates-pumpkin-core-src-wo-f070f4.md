@@ -25,3 +25,13 @@ Checked, no change: display-slot persistence names match vanilla (`list`, `sideb
 
 ## Status (code-verified sweep)
 STILL OPEN: BedrockScoreboard wrapping_add row not found in world/scoreboard.rs; score map orientation not re-read.
+
+
+## Result
+
+Re-read both STILL OPEN verification items against the code and decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/`, target V_26_3).
+
+- STILL OPEN "BedrockScoreboard wrapping_add": VERIFIED FIXED, no change. `BedrockScoreboard::add_score` (`world/scoreboard.rs:1298`) uses `current.wrapping_add(delta)` and the JE path `Scoreboard::add_score` (`:450`) uses `current_val.wrapping_add(delta)`. Vanilla `Score.value(int)` (`world/scores/Score.java:38-40`) is a plain Java `int` assignment, so wrapping on overflow is the correct emulation; a Rust debug `+` would panic. No pure unit-test seam exists: `add_score` needs a live `Player` with a Bedrock client.
+- STILL OPEN "score map orientation": VERIFIED FIXED, no change. `ScoreboardBuilder::score` (`world/scoreboard.rs:1436-1440`) inserts with `.entry(obj_s).or_default().insert(entity_s, score)`, i.e. objective as the outer key, matching every reader (`get_score` `:187-189` indexes `self.scores.get(objective_name)?.get(entity_name)`). Decompiled vanilla (`world/scores/Scoreboard.java:39,231`) keys `scoresByName` by player first then objective, the inverse of Pumpkin's layout, but Pumpkin is consistently objective-first across readers and packet senders, so the builder must follow that. `world/scoreboard/tests.rs:352` (`builder_scores_are_keyed_by_objective`) already pins the orientation.
+
+No source file changed: both items were already applied by a prior pass and this pass only re-verified them. No rustfmt run (no `.rs` file touched). No test added (orientation already pinned; no pure seam for the Bedrock overflow path).

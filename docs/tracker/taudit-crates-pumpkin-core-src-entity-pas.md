@@ -48,3 +48,34 @@ synced `EAT_COUNTER`/`SNEEZE_COUNTER` are assumed to drive the vanilla client an
 - 4 playAttackSound path (panda.rs:863-866): STILL OPEN, S, looks covered, unverified.
 - 5 sneeze after-jump and tick_reach (panda/sneeze.rs:84-109): STILL OPEN, S, audit before has_audited_tick.
 - Fixes in note: panda/roll.rs:84-97 FIXED; panda.rs thunder_scares FIXED (per note).
+
+
+## Result
+
+Verified each STILL OPEN row against decompiled vanilla `net/minecraft/world/entity/animal/panda/Panda.java`
+(FlameMC/Paper backup, protocol 777). No code changes were needed; the audit rows were stale.
+
+- Row 1 (genes, `panda.rs:150-170`): FALSE POSITIVE, no edit. `genes_from_parents` already matches vanilla
+  `setGeneFromParents` two-parent branch: one `nextBoolean` picks the parent order, then
+  `get_one_of_genes_randomly` draws one gene from each parent, then two independent `nextInt(32)` mutation
+  rolls with `Gene.getRandom` (`nextInt(16)`, weights checked against vanilla at `Panda.java:755-770`).
+  RNG call order matches; `foal_genes_come_from_the_parents_and_mutate_independently` (`panda.rs:1003`)
+  already covers it (commits `ee723d73a`, `428d1b58f`).
+- Row 2 (bamboo range, `goals.rs:134-149`): FALSE POSITIVE, no edit. Vanilla `canFindBamboo` scans
+  concentric square rings `r in 0..8`, `y in 0..3` (`Panda.java:834-852`), covering exactly the same block
+  set as Rust's `x,z in -7..=7`, `y in 0..=2`. Bamboo at +/-7 is in range in both; the audit's "7 out of
+  range" claim was a misread. Read order differs but the reads are pure.
+- Row 3 (mobInteract guard, `panda.rs:619-622`): LEFT OPEN. Decompiled reference (older, protocol 777)
+  guards the food branch with `isSitting() || isInWater()` (`Panda.java:644`), but the target is 1.26.3;
+  the deliberate fix `0fab7dbc5` switched Rust to `!can_perform_action()` with a test. `is_scared` and
+  `is_on_back` are already handled before `sit_and_eat`, so only `is_eating`/`is_rolling` differ. Cannot
+  confirm the newer-vanilla guard without a 1.26 decompiled source; fix retained.
+- Row 4 (playAttackSound, `panda.rs:871-874`): verified covered, no edit. `on_attack` plays
+  `EntityPandaBite` only when `try_attack` returns true; vanilla `LivingEntity.doHurtTarget` plays the
+  sound only when the hit lands (`LivingEntity.java:3620-3626`). `did_bite` is set on every swing in both.
+- Row 5 (sneeze reach / tick_reach, `sneeze.rs:84-109`): LEFT OPEN, out of scope. `after_sneeze` matches
+  vanilla (`Panda.java:506-531`: inflate 10, jump eligible pandas, drop gift). Enabling `has_audited_tick`
+  requires auditing the full panda tick/AI/Brain and the entity-island reach system, which is cross-crate
+  and outside this unit's files; the module already documents why the flag is false.
+
+Status: no code changes; open rows 3 and 5 remain for the reasons above.

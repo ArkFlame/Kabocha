@@ -55,3 +55,41 @@ STILL OPEN (row 36, S): no Rust `onItemBreak` hook for arrows, and no arrow call
 STILL OPEN (row 37, S): claim contradicted by vanilla. The deflect branch is an `else if` at `AbstractArrow.java:554`, not nested under the pierce check; the Rust code already matches.
 STILL OPEN (row 38, S): claim contradicted by vanilla. `playerTouch` (`AbstractArrow.java:704`) checks only `isInGround() || isNoPhysics()`, with no owner branch.
 STILL OPEN (row 39, M): engine-wide `last_hurt_mob` field plus consumers.
+
+
+## Result
+
+Re-verified every STILL OPEN row against decompiled vanilla
+(`tmp/mc-proof/ref/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java`, `Arrow.java`,
+`SpectralArrow.java`). One fix applied; the rest stay open.
+
+- Row 29 (enchant ordering, M): already vanilla-correct, no change. `item/items/projectile_weapon.rs:55`
+  applies `EnchantmentHelper::modify_damage` to `base_damage` at fire time, i.e. before the
+  `velocity * base` multiply and `ceil`, matching `AbstractArrow.java:466-474`. Arrows carry only the
+  target-independent Power damage enchant, so no hit-time restructure is needed; the doc's
+  "after the ceil inside damage_with_context" claim is stale.
+- Row 30 (pickup `canHold` pre-check, S): open - needs an inventory `canHold` helper in
+  `pumpkin-inventory`; no such helper exists (cross-crate refactor, outside this unit).
+- Row 33 (tipped-arrow trail / potion puff particles, S): open - vanilla emits the trail only in the
+  `isClientSide()` branch (`Arrow.java:88-95`); a vanilla client renders it from the synced
+  ID_EFFECT_COLOR, so there is no server-side behaviour to replicate. The decay puff / color reset is
+  already done in `decay_exposed_potion`.
+- Row 34 (crit particle trail, S): open - vanilla's 4 CRIT particles run client-side only
+  (`AbstractArrow.java:246-255`, `Level.addParticle` is a no-op on the server); client renders from the
+  synced crit flag.
+- Row 35 (spectral trail particle, S): open - vanilla emits the EFFECT particle only when
+  `level().isClientSide()` (`SpectralArrow.java:36-39`); client render only.
+- Row 36 (sound/weapon NBT, S): open - no Rust `onItemBreak` hook and no arrow sets a non-default hit
+  sound, so persisting SoundEvent is a no-op today (engine hook outside this unit). Weapon NBT is
+  already persisted.
+- Row 37 (pierce deflect branch, S): FIXED - removed the incorrect `pierce == 0 &&` guard from the
+  deflect `else if` in `arrow.rs:on_hit_entity`. Vanilla `AbstractArrow.java:554` makes that branch the
+  `else` of the `hurtOrSimulate` hit with no pierce-level guard, so piercing arrows also deflect; the
+  old guard made them bounce-stop instead. `arrow.rs` edited and `rustfmt --edition 2024` run.
+- Row 38 (no-physics owner pickup, S): open - claim contradicted by vanilla. `playerTouch`
+  (`AbstractArrow.java:703-704`) checks only `(inGround || noPhysics) && shake <= 0` and `tryPickup`
+  (`724-729`) has no owner branch; no fix needed.
+- Row 39 (last_hurt_mob, M): open - engine-wide field plus every consumer (cross-crate refactor,
+  outside this unit).
+
+No pure unit-test seam exists for the row 37 change (it needs a live world/target); no test added.

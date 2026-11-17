@@ -41,3 +41,27 @@ Remaining gaps:
 - STILL OPEN: projectile NBT persistence (owner/LeftOwner/HasBeenShot have no caller, owner.rs:218-249, verified by grep: no call sites for ProjectileOwner::write_nbt outside owner.rs in pumpkin-core entity).
 - STILL OPEN: EntityReference weak/UUID pre-registration owner (owner.rs:33-38), is_pickable predicate (owner.rs:189), vanish check (owner.rs:210-216), restore_from hook (owner.rs:112-118).
 - STILL OPEN: lastDeflectedBy entity_id, marked None in note (no action).
+
+## Result
+
+- FIXED (is_pickable, owner.rs:186-192): added an is_removed() guard to the any_self_or_passenger
+  predicate in outside_owner_collision_range. Decompiled vanilla
+  Projectile#isOutsideOwnerCollisionRange filters getRootVehicle().getSelfAndPassengers() by
+  EntitySelector.CAN_BE_PICKED = Entity::isPickable; LivingEntity#isPickable is
+  !isRemoved() and collides (Player adds !isSpectator()). Pumpkin can_hit() already covers the
+  player spectator case, so the missing parity was the removed-entity filter. Paper
+  LivingEntity.collides (setCollidable) still has no Pumpkin equivalent; that sub-case is
+  unmatched. Ran rustfmt --edition 2024 on owner.rs. No pure unit-test seam: the predicate is in
+  a private method needing a live Entity/World, so no test added.
+- LEFT OPEN (projectile NBT persistence, owner.rs:218-249): write_nbt/read_nbt/remove_nbt still
+  have no caller; no projectile type implements NBTStorage. Wiring needs every projectile type's
+  save/load (files outside this unit; only owner.rs and evoker_fangs.rs are editable here).
+  evoker_fangs.rs already saves its own EntityReference owner.
+- LEFT OPEN (EntityReference weak/UUID pre-registration owner, owner.rs:33-38): callers pass
+  Option and Entity, which carries no Weak of EntityBase; seeding one needs a weak-self on
+  Entity (entity/mod.rs) or a new() signature change across all callers, both outside this unit.
+- LEFT OPEN (vanish check, owner.rs:210-216): needs a vanish/canSee API that does not exist yet.
+- LEFT OPEN (restore_from hook, owner.rs:112-118): needs a restore_from method on EntityBase in
+  entity/mod.rs (outside this unit); owner is still dropped on entity replace.
+- NO ACTION (lastDeflectedBy entity_id, owner.rs:159-165): vanilla uses a nullable entity reference,
+  but ids are not reused within a session, so this is equivalent today (tracker marked None).

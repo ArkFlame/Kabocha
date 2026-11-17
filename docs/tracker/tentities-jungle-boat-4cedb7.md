@@ -55,3 +55,44 @@ not available to diff).
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+Audit against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/{AbstractBoat,Boat}.java`
+and `world/entity/vehicle/VehicleEntity.java`. All rows resolved; no generated-data, WIT or
+cross-crate change needed.
+
+- Row 40 (rider yaw delta + clamp): FIXED. `AbstractBoat.positionRider` (L696-705) applies
+  `deltaRotation` before `clampRotation`; `clampRotation` (L740-754) clamps to +/-105 deg.
+  `BoatEntity` now samples consecutive server yaw (`last_yaw`/`yaw_delta`) and applies it through
+  `rider_yaw_with_delta` for non-player riders; `clamp_rider_yaw` enforces the window. Tests:
+  `rider_yaw_clamps_to_boat_heading_window`, `rider_yaw_follows_boat_yaw_delta_then_clamps`.
+- Row 41 (bubble time metadata): FIXED. `AbstractBoat` publishes `DATA_ID_BUBBLE_TIME` from bubble
+  columns (L169, L351-385). `BoatEntity` now tracks `bubble_column_time`/`bubble_column_drag_down`
+  and publishes it; `bubble_column_vertical_velocity` test added. `ticks_underwater` remains the
+  separate eject counter.
+- Row 42 (eject counter / flowing water): VERIFIED, NO CHANGE. Decompiled `AbstractBoat.tick`
+  (L243) increments `outOfControlTicks` for BOTH `UNDER_WATER` and `UNDER_FLOWING_WATER`;
+  Pumpkin's `status.is_underwater()` matches. The doc's suggested split of flowing water out of
+  the counter would diverge from vanilla and was not applied.
+- Row 43 (leash): FIXED. `AbstractBoat` implements `Leashable`; `Entity.interact` handles leads.
+  `BoatEntity::interact` now has the LEAD branch (tie to player / untie with lead drop, sound,
+  creative handling), `tick` calls `entity.tick_leash`, and `support_quad_leash` returns true.
+- Row 44 (custom name on drop): VERIFIED. `VehicleEntity.destroy` (L94-100) copies
+  `CUSTOM_NAME` onto the dropped item, so Pumpkin's `CustomNameImpl` copy is correct; the doc's
+  suggestion to remove it was wrong. Separately fixed `drops_item_when_destroyed`: vanilla
+  `hurtServer` (L59-80) discards on an instabuild hit with no drop regardless of name, so the
+  helper now returns `!creative` (the prior `!creative || named` contradicted its own test).
+- Row 45 (push-mount passenger cap): VERIFIED, already fixed. `entity/mod.rs` uses the shared
+  `boat::max_passengers(entity_type)` helper for push-mount and `interact` alike.
+- Row 46 (shared seat-offset helper): FIXED. `passenger_seat_offset`/`passenger_attachment` are
+  used by both `passenger_attachment_point` and `passengers.rs::get_passenger_attachment_point`,
+  including the +0.2 animal shift.
+- Row 47 (pure-function tests): FIXED. Added tests for seat offsets (single/multi/animal), rider
+  yaw delta + clamp, bubble-column velocity, create break drop, chest container gating and boat
+  drop-item resolution.
+
+Also tightened `damage_with_context` with the vanilla `isRemoved()` early return before the
+invulnerability check. Edited `boat.rs` directly (rustfmt --edition 2024 run); `passengers.rs`
+and `entity/mod.rs` changes came from concurrent work in the same checkout. No cargo/git run
+(worker constraint); code is syntax-reviewed, not compiled.

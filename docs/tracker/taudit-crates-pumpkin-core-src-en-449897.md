@@ -23,3 +23,11 @@ Checked, no change: `getDamageAfterMagicAbsorb` 0.15 multiplier (85% resistance)
 
 - FIXED (4a6ff56f3): witch no longer overrides `can_be_leader`; it uses the PatrollingMonster default (true). UNVERIFIED: from the note's vanilla claim, not checked against decompiled Witch.
 - STILL OPEN: items 1-2 (performRangedAttack speed, Raider goal priorities) need decompiled source.
+
+
+## Result
+
+- Item 1 (performRangedAttack speed): CLOSED, verified, no behaviour change. Decompiled `Witch.java:268` uses `dist <= 2.0 ? 0.45F : 0.75F`, so Pumpkin's close-range 0.45 was already correct. Extracted the branch into pure `potion_throw_speed` and added a unit test pinning 2.0 -> 0.45 / >2.0 -> 0.75.
+- Item 2 (Raider goal priorities): CLOSED, verified, no behaviour change. Decompiled `Witch.registerGoals` (`Witch.java:63-76`) registers target goals itself: HurtByTarget(1, ignoring raiders), healRaiders(2), attackPlayers(3); `Raider.registerGoals` adds no target goals. Pumpkin already matches (RevengeGoal at 1 ignoring raiders, WITCH_HEALABLE_RAIDERS at 2, WITCH_HUNTS at 3).
+- Item 3 (can_be_leader): FIXED (regression from prior h2 sweep). Decompiled `Witch.java:299-301` DOES override `canBeLeader()` to return false (base `PatrollingMonster.canBeLeader` returns true). The prior removal of the override was wrong; restored `fn can_be_leader(&self) -> bool { false }` on `impl PatrollingMonster for WitchEntity`. This was flagged UNVERIFIED in the Status section and is now verified against decompiled source.
+- No generated data, WIT, or cross-crate changes needed. Only witch.rs edited; rustfmt --edition 2024 applied. Cargo not run per worker rules.

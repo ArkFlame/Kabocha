@@ -16,3 +16,16 @@ Changed: `can_start` now builds the vanilla `createPath(target, 0)` route (falli
 - 3 perceived box-to-hitbox distance (melee_attack.rs:247-262): STILL OPEN, S.
 - 4 constructor arg naming and inverted meaning (melee_attack.rs:19,38; creaking.rs:119): STILL OPEN, S, creaking.rs is out of scope this pass.
 - 5 attack_interval_ticks unused (melee_attack.rs:26,86): STILL OPEN, S.
+
+## Result
+
+Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java` and current source. The audit's line numbers are stale; the file has drifted. Three rows are already resolved in the current code, two remain open. No source edits were needed.
+
+- Row 1 (M, melee_attack.rs:266 TODO) OPEN: `MeleeAttackGoal.tick` +15 backoff on failed `moveTo` (vanilla line 115-117) cannot be implemented here. Pumpkin defers path creation to the navigator (`set_progress` -> `update_path` -> `create_path`); the navigator records no success/failure signal. Clean fix needs a `last_path_search_failed` flag + getter in `pathfinder/mod.rs` (outside this unit), then read it next tick. Self-contained alternative (calling synchronous `create_path`+`move_to_path` in `tick`) would bypass the pathfinding time budget (`can_start_path_search`) and change navigation for every mob; too risky without a build. Left open with reason: cross-file navigator change required.
+- Row 2 (S) RESOLVED, already fixed: current `stop()` (melee_attack.rs:213-222) has no ForgotTarget block; `MobEntity::get_target` (mob/mod.rs:982-992) filters creative/spectator on every read, so vanilla's `stop()` target clear (MeleeAttackGoal.java:77-80) is unreachable. No change needed.
+- Row 3 (S) OPEN: available decompiled vanilla uses `this.mob.distanceToSqr(target)` (MeleeAttackGoal.java:108) for the +10/+5 thresholds, i.e. centre-to-centre, which matches current `squared_distance_to_vec`. `getPerceivedTargetDistanceSquareForMeleeAttack` does not exist anywhere in the vendor tree (grep across `.vendor/vanilla-decompiled/net/minecraft/` returns nothing), so the audit's box-to-hitbox gap cannot be verified against the provided source. Left open with reason: requires the newer 26.3 vanilla source; box reach for the actual hit is already correct via `is_in_attack_range`/`get_attack_box`.
+- Row 4 (S) RESOLVED, already fixed: field/arg renamed to `follow_even_if_unseen` (melee_attack.rs:34,52); usages in `should_continue` (191-198) and `tick` (239-240) match vanilla's `followingTargetEvenIfNotSeen` (MeleeAttackGoal.java:61-63,97). `creaking.rs:135` passes `false`. No change needed.
+- Row 5 (S) RESOLVED, already fixed: `get_max_cooldown` (melee_attack.rs:101-103) returns `get_tick_count(self.attack_interval_ticks)`; `reset_attack_cooldown` uses it. No change needed.
+
+Pure-unit-test seam: none added. The recalculation gate already has pure tests (melee_attack.rs tests module); the two open rows have no pure seam in these two files (row 1 failure flag lives in the navigator, row 3 needs external vanilla data).
+

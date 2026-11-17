@@ -160,3 +160,53 @@ crates/pumpkin-core/src/world/mod.rs:3025, row 9 below.
 
 ## Status (h3 sweep)
 - `canSpawnEntitiesInChunk` check (world/mod.rs:3295 still `// TODO this.level.canSpawnEntitiesInChunk`): STILL OPEN (M, not changed in this pass).
+
+
+## Result
+
+Re-verified every gap against .vendor/vanilla-decompiled (1.21.x). Fixed the one
+safe, in-file row; the rest were either already correct or need files/crates
+outside this unit.
+
+- Row 1 (local mob-cap player window): LEFT OPEN. Needs the chunk player-tracking
+  set / configured view distance, which lives outside natural_spawner.rs.
+- Row 2 (cached vs fallback player paths): LEFT OPEN. Same root as row 1; a single
+  shared predicate needs the tracking source, out of unit.
+- Row 3 (chunk-gen honours doMobSpawning): VERIFIED MATCHING. Vanilla
+  NaturalSpawner.spawnMobsForChunkGeneration gates on GameRules.SPAWN_MOBS
+  (NaturalSpawner.java:599). Pumpkin's spawn_mobs check stays. No change.
+- Row 4 (level RandomSource threading): LEFT OPEN. L-sized refactor threading the
+  level RNG through spawn_for_chunk / spawn_category_for_position; too broad for a
+  no-build pass.
+- Row 5 (initial cluster size): VERIFIED MATCHING. Vanilla uses
+  Mth.ceil(fastRandom.nextFloat() * 4.0F) (NaturalSpawner.java:354), identical to
+  Pumpkin's (rng().random::<f32>() * 4.0).ceil(). The audit's randomBetweenInclusive
+  premise was wrong. No change.
+- Row 6 (ON_GROUND head-block check): VERIFIED MATCHING. Vanilla
+  SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk checks isValidSpawn on the block
+  below and isValidEmptySpawnBlock on both feet and head (SpawnPlacementTypes.java
+  30-33). Pumpkin does the same. No change.
+- Row 7 (chunk-gen vs live adjust_spawn_position): PARTLY VERIFIED. Vanilla's default
+  isPathfindable(LAND) is !state.isCollisionShapeFullBlock (BlockBehaviour.java
+  132), so the cache path's !is_full_cube() matches the default and both paths
+  agree for normal blocks. Exact parity for blocks overriding isPathfindable would
+  need a block registry in GenerationCache (pumpkin-world), out of unit. Left open
+  for that narrow case only.
+- Row 8 (shared-spawn bubble / ticking-chunk): VERIFIED MATCHING. Vanilla applies the
+  respawn-point check only when respawnData.dimension() == level.dimension()
+  (NaturalSpawner.java:453-457), i.e. the overworld for standard worlds, matching
+  Pumpkin's OVERWORLD gate. The trailing chunk check is a Canvas optimisation in
+  vanilla. No change.
+- Row 9 (canSpawnEntitiesInChunk gate): LEFT OPEN. Caller is world/mod.rs, outside
+  this unit's file (basenames: natural_spawner.rs).
+- Row 10 (structure spawn overrides): LEFT OPEN. Needs a world.structure_manager /
+  StructureSpawnOverride query (cross-crate), size M.
+- Row 11 (unknown spawner aborts chunk-gen): FIXED. EntityType::from_name failure now
+  logs via tracing::warn and continues the probability loop instead of returning,
+  so one malformed spawner name no longer aborts spawning for the chunk, matching
+  vanilla skipping an unresolvable entry. Risk: a datapack setting spawn probability
+  to 1.0 with an invalid name would spin; vanilla data uses probabilities below 1.
+- h3-sweep row (canSpawnEntitiesInChunk TODO, world/mod.rs:3295): LEFT OPEN. File is
+  outside this unit.
+
+Files changed: crates/pumpkin-core/src/world/natural_spawner.rs; this doc.

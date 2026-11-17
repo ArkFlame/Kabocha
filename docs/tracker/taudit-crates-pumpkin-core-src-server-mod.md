@@ -36,3 +36,24 @@ classes by name and behaviour. Paper/Spigot behaviour noted where it differs.
 
 - row 6 (`remove_player` sample ticket): FIXED (UNVERIFIED). `ConnectionCache::add_player` returns whether it pushed the ticket; the join stores it on the player and leave only removes a ticket that connection holds. No unit test: `Player` construction is too heavy for a pure test; needs a gametest or live duplicate-UUID join check.
 - rows 1-4, 7: STILL OPEN.
+
+## Result
+
+Re-checked against `ServerPlayer.load` / `WorldBorder` / `MinecraftServer` behaviour described
+above. No decompiled vanilla copy and no Paper/Spigot source are present under `.vendor/`, so
+rows that needed exact vanilla layouts or cross-file refactors were left open.
+
+| # | result | detail |
+|---|---|---|
+| 1 | FIXED (UNVERIFIED) | `Player::read_nbt` already restores `playerGameType`, so the final saved mode was correct; the join now also constructs the player with the saved mode (or the forced/level default) to avoid a transient default gamemode, and `force_gamemode` overrides the saved value via the NBT copy before `read_nbt` applies abilities. Pure unit tests added in `server/mod.rs`. |
+| 2 | OPEN | Needs a per-`World` map-id counter and per-dimension persistence in `world/` (outside this unit: `server/mod.rs` only). |
+| 3 | OPEN | `send_game_time_sync` in `world/time.rs` already broadcasts to every world's players using the caller's world age; sending a per-level `gameTime` needs that helper changed (outside this unit) and the exact 1.21 packet source is not vendored here. |
+| 4 | OPEN | Vanilla `DebugSampleType.TICK_TIME` layout is not decompiled here; the current 4-value sample cannot be verified or mirrored safely. |
+| 5 | no change | `get_tps` already clamps to the tick-rate target, matching Paper's `[0, tps]` clamp. |
+| 6 | no change | Already fixed in a prior pass (sample ticket recorded per connection). |
+| 7 | FIXED (UNVERIFIED) | `HasPlayedBefore` is now read from the saved tag (via `read_nbt`) and the Pos-based fallback applies only when the tag is absent, so a stored `false` is no longer overwritten. Pure unit tests added. |
+
+Files touched: `crates/pumpkin-core/src/server/mod.rs` (imports, `add_player`, two pure helpers,
+`#[cfg(test)] mod tests`). `rustfmt --edition 2024` ran on that file with exit 0. No build or test
+run: shell/cargo access is blocked in this session; orchestrator verification required.
+

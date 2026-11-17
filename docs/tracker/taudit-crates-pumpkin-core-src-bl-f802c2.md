@@ -52,3 +52,14 @@ All in `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`
 - `:558-569` cool-down branch: STILL OPEN (S).
 - `:200-202` result merge requires component equality: FIXED (`:229,261` component-aware compare).
 - `:112-145` XP float accumulation: STILL OPEN (S).
+
+
+## Result
+
+Verified all three STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` (`serverTick`, `createExperience`). The current `furnace_like_block_entity.rs` shared macro already matches vanilla in every case, so no source change was required. The tick reset/cool-down decisions live inside the macro-generated `tick` (needs `Arc<World>` + plugin manager), so there is no pure seam to add a test for them; the XP seam (`split_experience`, `stored_experience`) is already directly unit-tested below.
+
+- `:555-557` lit with blocked output: CLOSED (no change). Current macro resets `cooking_time_spent` when lit and `can_accept_output == false` (the `else if is_top_items_empty || furnace_recipe.is_some()` arm of `if is_burning && can_accept_output`). Vanilla `serverTick` line 320 does the same (`cookingTimer = 0` when `canBurn` is false). The row's premise that vanilla leaves progress untouched is not true for this decompiled 1.21.x source (also true in Mojang 1.21.x: blocked output -> `canAcceptRecipeOutput` false -> reset).
+- `:558-569` cool-down branch: CLOSED (no change). Current macro decays progress only in the outer `else`, reached when `!is_burning && (fuel_empty || input_empty)`, matching vanilla `serverTick` line 326 `else if cookingTimer > 0 { clamp(cookingTimer - 2, 0, cookingTotalTime) }`. An unloadable input (ingredient present, recipe null) stays inside the outer `if` and freezes progress, matching vanilla's recipe-null path. The row's claimed extra `canAcceptRecipeOutput`/input-fuel guard does not exist in vanilla's cool-down branch.
+- `:112-145` XP float accumulation: CLOSED (no change). `extract_experience_from_recipes` now derives XP from `RecipesUsed` at take time with one `split_experience` roll per recipe (`floor(count * xp) + P(roll < frac)`), matching vanilla `createExperience` lines 550-555 and clearing the map like `awardUsedRecipesAndPopExperience` line 528. `split_experience` and `stored_experience` have direct unit tests.
+
+Source files changed: none. rustfmt: not applicable (no .rs file touched).

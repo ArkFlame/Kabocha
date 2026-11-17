@@ -69,3 +69,34 @@ block-actor data dropping item components.
 - `entities/jukebox.rs:230` `set_record` skips stop/HAS_RECORD: ALREADY FIXED on master (UNVERIFIED; set_record calls stop_playing).
 - `entities/jukebox.rs:428` `can_transfer_to`: ALREADY FIXED on master (UNVERIFIED; checks empty or fitting partial stack).
 - `blocks/jukebox.rs:192` `on_state_replaced` delegation: STILL OPEN (design note, no behaviour gap reproduced).
+
+
+## Result
+
+Audit pass 3 (2026-11-17). Decompiled vanilla sources are now present in `.vendor/vanilla-decompiled`;
+all three `STILL OPEN` rows were re-checked against them.
+
+- `entities/jukebox.rs` tick particle order/payload (was STILL OPEN): verified correct, no code
+  change. `JukeboxSongPlayer.tick` (JukeboxSongPlayer.java:64-77) emits `JUKEBOX_PLAY` and particles
+  while `ticks % 20 == 0` *before* the increment (tick 0, 20, 40, ...). `spawnMusicParticles`
+  (lines 83-89) uses `nextInt(4) / 24`, count 0, offset `(hue, 0, 0)`, speed 1.0 at `pos+0.5,+1.2,+0.5`.
+  Pumpkin's `tick` and `note_particle_hue` match exactly; the pass-1 offset claim was stale.
+- `entities/jukebox.rs` `chunk_data_nbt` / `write_nbt` ticks (was STILL OPEN): FIXED. Decompiled
+  `JukeboxBlockEntity.saveAdditional` (JukeboxBlockEntity.java:129-138) writes
+  `ticks_since_song_started` only when `JukeboxSongPlayer.song != null`. Pumpkin wrote the key
+  unconditionally, so a stopped/finished jukebox round-tripped a zero playback position and
+  `from_nbt` restarted the song on chunk load. `write_nbt` now gates the key on
+  `song_length_ticks > 0`; `chunk_data_nbt` already reused `write_nbt`, so both are corrected.
+  Tests: `write_nbt_omits_ticks_since_song_started_when_stopped` (fails without the fix),
+  `write_nbt_writes_ticks_since_song_started_while_playing`, `chunk_data_nbt_omits_ticks_when_stopped`.
+- `blocks/jukebox.rs:192` `on_state_replaced` delegation (was STILL OPEN): no code change, no
+  behaviour gap reproduced. Vanilla `JukeboxBlock.affectNeighborsAfterRemoval` (JukeboxBlock.java:
+  79-82) only calls `Containers.updateNeighboursAfterDestroy`, mapped to
+  `update_neighbour_for_output_signal`. Record drop is `preRemoveSideEffects -> popOutTheItem`
+  (JukeboxBlockEntity.java:193-196), mapped to `JukeboxBlockEntity::on_block_replaced`; no double
+  drop.
+
+Note: the pass-2 claim that vanilla writes the ticks key with no song is contradicted by the
+decompiled `saveAdditional` and is corrected here.
+
+Status: PASS

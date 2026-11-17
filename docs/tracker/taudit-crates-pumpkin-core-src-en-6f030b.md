@@ -35,3 +35,14 @@ chances, `should_drop_loot` / `should_drop_experience`, `server_ai_step` orderin
 - FIXED (c30b42908): animal spawn light check uses raw brightness.
 - FIXED (b9dc8cb44): monsters despawn on Peaceful via checkDespawn.
 - FIXED (b66466f15): mob experience reward applies Looting from the killer weapon.
+
+## Result
+
+Unit scope: only `entity/living.rs` may be edited.
+
+- `entity/living.rs` sculk catalyst soul charge (row 22, previously marked FIXED with `None`): re-verified against decompiled vanilla 26.3. `SculkCatalystBlockEntity.handleGameEvent` calls `mob.getExperienceReward(level, Optionull.map(lastDamageSource, DamageSource::getEntity))`, and `LivingEntity.getExperienceReward` -> `EnchantmentHelper.processMobExperience` applies Looting from that killer's equipment. The `None` fix was stale (older vanilla passed null). Changed the call to pass `killer` (`cause.or(source)`), matching the normal XP drop in the same function; comment updated accordingly. No `unwrap`/`expect`/`panic` added.
+- `entity/mob/mod.rs:3433` `PathAwareEntity::can_spawn` (the only STILL OPEN row): left open, file outside this unit (living.rs only). Fix needs a `MobSpawnType` parameter and new natural_spawner/EntityType call sites.
+- All other rows target `entity/mob/mod.rs`, outside this unit, so untouched.
+- No pure unit-test seam: the changed call sits inside `LivingEntity::on_death` and requires a full world/entity setup, so no test was added.
+
+Commands: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/living.rs` (exit 0). Cargo/git intentionally not run per worker contract.

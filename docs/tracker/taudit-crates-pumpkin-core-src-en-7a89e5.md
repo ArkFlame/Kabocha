@@ -73,3 +73,30 @@ AbstractSkeleton.performRangedAttack.
 ## Gap status
 
 - STILL OPEN: bow_attack.rs arrow spawn position and difficulty cast (excluded from this sweep by scope: no change made).
+
+
+## Result
+
+Verified the single STILL OPEN row (the two "Unverified suspicions") against the decompiled
+Paper/vanilla source. Both are already correct in Pumpkin; no source change was needed.
+
+- Arrow spawn position (doc :123, current bow_attack.rs:92 and :130) - CLOSED, no issue.
+  `shoot()` creates the arrow entity at the mob's feet, but immediately passes it to
+  `ArrowEntity::new_shot_with_weapon` (arrow.rs:146), which delegates to `new_shot`
+  (arrow.rs:111-119). `new_shot` overwrites the position with
+  `shooter.pos + eye_height - 0.1`, exactly vanilla's `AbstractArrow(LivingEntity, ...)`
+  (AbstractArrow.java:130: `mob.getX(), mob.getEyeY() - 0.1F, mob.getZ()`). The `dy` in
+  `shoot` reads `arrow.entity.pos.load().y`, i.e. the already eye-offset Y, matching
+  vanilla `target.getY(1/3) - arrow.getY()` (AbstractSkeleton.java:182). The feet position
+  seen at construction is never the final spawn position. No fix.
+
+- Difficulty cast (doc :150-153, current bow_attack.rs:108 and :136) - CLOSED, no issue.
+  `pumpkin-util/src/difficulty.rs:16-25` declares `Difficulty` with explicit discriminants
+  Peaceful=0, Easy=1, Normal=2, Hard=3, matching vanilla `Difficulty.getId()` (0..3). Both
+  consumers match decompiled formulas: `AbstractArrow.setBaseDamageFromMob`
+  (AbstractArrow.java:790-791: `power*2 + triangle(difficulty.getId()*0.11, 0.57425)`) vs
+  arrow.rs:331-338 (identical); `RangedAttackMob.rangedAttackUncertainty`
+  (RangedAttackMob.java:9-10: `14 - difficulty.getId()*4`) vs bow_attack.rs:136 (identical).
+  No fix.
+
+No .rs files changed, so rustfmt was not applicable. Only this doc was updated.

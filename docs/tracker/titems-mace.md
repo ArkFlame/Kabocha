@@ -17,3 +17,11 @@ The player smash attack matches vanilla `MaceItem`: damage bonus curve (`4*f`, `
 
 ## h9 status
 - `combat.rs` `can_smash_attack` (on-ground gate): FIXED, UNVERIFIED. Dropped `!on_ground`; the gate is now vanilla `MaceItem.canSmashAttack` (`fallDistance > 1.5 && !isFallFlying`) via `smash_fall_ready`, with a unit test. No gametest; stale-fall-distance after ground-only packets is the risk to watch.
+
+## Result
+
+Re-review against decompiled net/minecraft/world/item/MaceItem.java (26.3, Paper-patched):
+- combat.rs can_smash_attack / smash_fall_ready (row 13): CONFIRMED matches vanilla canSmashAttack = fallDistance > 1.5 && !isFallFlying; no on-ground gate in current code. No change.
+- combat.rs mace_smash_knockback_power (row 15): CONFIRMED matches vanilla getKnockbackPower = (3.5 - dist) * 0.7 * heavy * (1 - resistance) with a fixed 0.7 vertical push and full 3D distance. No change.
+- Rows 11, 12, 14 target files outside this unit (mob/mod.rs, player.rs); already recorded FIXED/UNVERIFIED, not touched.
+- Row 16 STILL OPEN: asks for a pumpkin-gametest (drop player onto cow, assert base+bonus damage, knockback and no fall damage). A gametest fixture lives outside this unit's editable files (client_move.rs, combat.rs, mace.rs), so it cannot be added here. Added the smallest pure-unit seam instead: mace_smash_damage_curve_matches_vanilla_branches in combat.rs verifies the three linear segments at their 3/8-block boundaries against vanilla getAttackDamageBonus.

@@ -67,3 +67,21 @@ STILL OPEN: `/pumpkin` one-off send and server-link still call `resolve_identity
 - `TelemetryConfig::validate` being empty matches the crate-wide pattern
   (`BasicConfig::validate` and `AdvancedConfig::validate` are empty too), so it is
   not counted as a gap; runtime clamping covers `interval_secs`.
+
+## Result
+
+Audited all seven STILL OPEN rows. Telemetry has no decompiled-vanilla analogue, so Paper/Spigot
+bStats and the module own documented wire format were used where applicable. No cargo or git run
+by this worker (the orchestrator compiles the batch); rustfmt --edition 2024 applied to the edited file.
+
+| Row (doc line) | Result | Evidence / reason |
+|---|---|---|
+| Short-form shutdown route (38) | OPEN | Needs backend route confirmation; no vanilla/Paper analogue. Unifying the paths would break the legacy /api/v1/rest/telemetry/shutdown route asserted by telemetry_client_resolves_canonical_and_legacy_urls. |
+| online_mode aggregation (39) | FIXED | Field doc now states true only when every enabled listener enforces online mode, matching the existing && aggregation; contract resolved by documentation, no wire change. |
+| read_used_ram_mb naming/doc (40) | VERIFIED | Already resolved in the tree: function is read_process_ram_mb reporting process RSS and the field doc says Resident memory of the server process in MiB. No new change needed. |
+| Replay nonce (41) | OPEN | Breaking wire change needing backend co-design (M); cannot be delivered from this crate alone. |
+| TelemetryConfig::validate (42) | OPEN | Lives in crates/pumpkin-config/src/telemetry.rs, outside this unit; making validate fallible is a cross-crate config-load API change. |
+| online_players vs capped players (43) | OPEN | Wire contract choice (truncation flag vs capping the count) with no vanilla reference; needs backend agreement. |
+| One-off signing key reuse (44) | FIXED | resolve_identity_key() now prefers the running heartbeat client live key via LIVE_SIGNING_KEY, so callers in command/commands/pumpkin.rs reuse it without being edited; pure seam test live_signing_key_is_preferred_over_disk added. |
+
+Files touched: crates/pumpkin-core/src/telemetry.rs (plus this doc).

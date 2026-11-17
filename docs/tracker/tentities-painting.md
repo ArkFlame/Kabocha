@@ -70,3 +70,34 @@ Remaining gaps (not fixed):
 - Row 4 build-limit check: FIXED, painting branch of `hanging_entity.rs` now checks `is_in_build_limit`. UNVERIFIED (no cargo).
 - Row 6 support re-check interval: FIXED, first check now on tick 100 (`painting.rs` tick). UNVERIFIED (no cargo).
 - Rows 1, 3, 5: STILL OPEN.
+
+
+## Result
+
+Re-review on 2026-11-17 against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (Paper/Folia 26.3 sources).
+
+- Row 1 (hit box variant sized): FIXED in code and verified. `painting.rs`
+  `hanging_bounding_box()`/`recalculate_bounding_box()` store a variant-sized AABB
+  (width perpendicular to facing, height on Y, `DEPTH` along the facing axis) into
+  `entity.bounding_box` on `set_variant`, `set_facing` and `read_custom_nbt`, which
+  matches vanilla `Painting.calculateBoundingBoxStatic`. Extracted the pure
+  `painting_box_size()` helper and added test `painting_box_size_matches_vanilla_axes`.
+  The generated `entity_type.rs` `[0.5, 0.5]` dimension is intentionally left alone
+  (generated file, runtime box overrides it).
+- Row 2 (yaw from facing): already fixed by prior sweep; vanilla
+  `HangingEntity.setDirection` (`get2DDataValue() * 90`) confirmed in `facing_to_yaw`.
+- Row 3 (front-space check): LEFT OPEN - the doc's premise does not hold in 26.3.
+  Vanilla `HangingEntity#survives` uses collision-shape `noBlockCollision` on the
+  AABB (via `hasLevelCollision`), not an is-air cell test; torches/signs/water have
+  no collision shape and are allowed. Pumpkin already enforces the real collision
+  check in `survives()` through `World::is_space_empty(bounding_box)`, so switching
+  the `painting_fits` front cell to `is_air()` would wrongly reject those blocks.
+  True per-cell parity needs voxel-shape collision at filter time (cross-crate).
+- Row 4 (build-limit check): already fixed by prior sweep; re-confirmed in
+  `hanging_entity.rs` painting branch.
+- Row 5 (variant RNG): LEFT OPEN - the doc's premise does not hold in 26.3.
+  Both `Level.getRandom()` (`Level.random = ThreadLocalRandomSource.INSTANCE`) and
+  `Entity.random` (`SHARED_RANDOM`) resolve to thread-local RNG in the bundled
+  Paper/Folia source, so `rand::rng()` is functionally equivalent; there is no
+  world-seeded RNG seam to adopt within this unit's files.

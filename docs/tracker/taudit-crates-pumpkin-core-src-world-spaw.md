@@ -48,3 +48,8 @@ Remaining gaps:
 ## Status (h3 sweep)
 - `player_spawn_finder.rs:99-109` stored-Y path: STILL OPEN (deliberate, commented in code at :119-123; needs the keep-or-drop decision).
 - `player_spawn_finder.rs:110-117` adventure gate on server defaultgamemode: STILL OPEN (confirmed in code; S, needs level game type accessor, not changed).
+
+
+## Result
+- `player_spawn_finder.rs:99-109` stored-Y path: FIXED. Decompiled `ServerPlayer.adjustSpawnLocation` calls `PlayerSpawnFinder.findSpawn` on respawn too, and `findSpawn` has no stored-Y path: with `RESPAWN_RADIUS=0` the only candidate resolves through `getLevelRespawnPos` (column surface), and the suggestion's Y is used only as the final fallback. Dropped the stored-Y early-return branch, the linked raw-suggestion early return (`findSpawn` always randomises inside the radius first), and the now-unused `fixup_spawn_height_up_at`. Updated `zero_radius_uses_the_stored_spawn_height` to `zero_radius_uses_the_column_surface_not_the_stored_height` asserting surface Y 65. `rustfmt --edition 2024` run on both touched files.
+- `player_spawn_finder.rs:110-117` adventure gate: STILL OPEN. Vanilla reads `serverLevelData.getGameType()` from level.dat, but Pumpkin `LevelData` (pumpkin-world) has no game-type field, so using the level's own type needs a cross-crate field plus serialization and `/defaultgamemode` persistence changes, outside this unit.

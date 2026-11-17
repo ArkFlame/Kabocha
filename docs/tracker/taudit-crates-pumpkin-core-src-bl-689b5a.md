@@ -91,3 +91,46 @@ Remaining gaps:
 | `furnace_like_block_entity.rs:535-560` | on (re)ignition with a different multiplier, `cookingTimer` is rescaled to `ceil(timer / oldTotal * newTotal)` | no rescale (only observable once the multiplier is data-driven) | rescale after the data-driven multiplier lands | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | `furnace_like_block_entity.rs:252-275` | `canBurn`/`burn` use `recipe.assemble(input)`, which includes the recipe result's data components | the output stack is built from `result.id`/`result.count` only; `recipe.result.components` is dropped | build the result stack with the recipe result components | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | `furnace_like_block_entity.rs:521-533` | Paper `FurnaceBurnEvent#setConsumeFuel(false)` keeps the furnace lit without consuming the fuel item | the event has no `consume_fuel` field | add the field to the event (additive plugin API) and honour it | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+
+## Result
+
+Verified every STILL OPEN row against `AbstractFurnaceBlockEntity.java` in the
+`mc-proof/ref` tree (Paper/Canvas, MC 26.3). All in-scope rows are already fixed in the
+current tree, so no source change was needed. The one row left open requires a plugin
+API change outside the files named in this unit.
+
+- First table row 44 / re-audit row 90 (data-driven speed multiplier, M): FIXED in tree.
+  `tick` resolves the fuel multiplier with `CookingFuelImpl::get_speed_multiplier(is_fast)`
+  (`furnace_like_block_entity.rs:574-575,607`), `cooking_total_time` divides the recipe
+  time by it (`:32-41`), and `from_nbt` restores the persisted `speed_multiplier` float
+  (`:773-777`) while `write_nbt`/`chunk_data_nbt` save it (`:819,901`). Matches vanilla
+  `getSpeedMultiplier` (`ResolvableFloat.getFromItem(..., 1.0F)`) and
+  `getTotalCookTimeVanilla` (`ceil(cookingTime / speedMultiplier)` at
+  `AbstractFurnaceBlockEntity.java:420-421,428-432`). Tests:
+  `cooking_time_divides_by_the_persisted_multiplier`,
+  `furnace_speed_multiplier_round_trips_through_nbt`.
+- First table row 45 (FurnaceStartSmeltEvent total, S): FIXED in tree.
+  `furnace_like_block_entity.rs:647-665` computes the event total from the current
+  recipe via `cooking_total_time` with a default of 200, matching Paper's
+  `getTotalCookTime(level, entity)` (`AbstractFurnaceBlockEntity.java:295-305,434-440`).
+  The computation is covered by `cooking_time_divides_by_the_persisted_multiplier`.
+- First table row 46 (result count, S): FIXED in tree.
+  `furnace_like_block_entity.rs:314-315` increments the output slot by
+  `recipe.result.count` and `can_accept_recipe_output` (`:285-289`) checks room for the
+  whole count, matching vanilla `burn`/`canBurn`.
+- First table row 47 / re-audit row 91 (relight rescale, S): FIXED in tree.
+  `rescale_cooking_after_relight` (`:46-62`) implements
+  `cookingTimer = ceil(timer / oldTotal * newTotal)` under the same `oldTotal > 0 &&
+  spent < oldTotal` guard and is called at ignition (`:600-609`), matching
+  `AbstractFurnaceBlockEntity.java:278-282`. Test:
+  `relight_rescales_progress_by_the_multiplier_change`.
+- Re-audit row 92 (recipe result components, S): FIXED in tree.
+  `assemble_cooking_result` (`:86-100`) applies `recipe.result.components` to the output
+  stack and is used by both `can_accept_recipe_output` (`:281`) and `craft_recipe`
+  (`:310`), matching vanilla `recipe.assemble(input)` in `canBurn`/`burn` (`:256-257`).
+  Test: `assemble_cooking_result_applies_recipe_components`.
+- Re-audit row 93 (FurnaceBurnEvent `consume_fuel`, M): STILL OPEN. Reason: adding the
+  additive `consume_fuel` field to the plugin event and honouring it requires edits to
+  `pumpkin-core/src/plugin/api/events/inventory/furnace_burn.rs`, the matching
+  `pumpkin-plugin-api` event and host/SDK wiring, all outside this unit's two files.

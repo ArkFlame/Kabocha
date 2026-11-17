@@ -39,3 +39,24 @@ Adjacent (other files, found while reading the call chain):
 ## Gapwave2-2 status (h3)
 - player_auth_input StartJumping: FIXED 039310a96 (StartJumping now sets the Java JUMP input)
 - remaining rows: STILL OPEN (note body in this worktree is unreadable; rows not reviewed in this wave)
+
+
+## Result
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/` this pass. Fixes are written but not compiled
+(the unit forbids cargo); rustfmt 2024 was run on all touched .rs files.
+
+| row | outcome | evidence |
+|---|---|---|
+| spin attack flags (S) | FIXED | `Player.getDesiredPose()` returns `SPIN_ATTACK` only when `isAutoSpinAttack()`. `player_auth_input.rs` no longer calls `set_pose(SpinAttack)` on a client flag; both spin flags now call `update_player_pose()`, which derives the pose from the server-side riptide state. Same duplicate fixed in bedrock `player_action.rs`. |
+| sneak raw flags (S) | FIXED | New pure `sneaking_from_flags` reads `SneakToggleDown` as a toggle edge and `SneakPressedRaw`/`SneakReleasedRaw`/`SneakCurrentRaw` as a fallback; `Start`/`StopSneaking` still win. Four pure unit tests added. Bedrock-only flags, no vanilla/Paper/Spigot reference; UNVERIFIED against a live Bedrock client. |
+| `inventory_action.rs` `ReleaseItem` (adjacent, S) | FIXED | Java path calls `stop_using_item()`; Bedrock path only called `clear_active_hand()`, leaving `using_item` set. Now `player.stop_using_item()`. |
+| `apply_mount_move` (M) | ALREADY FIXED in this worktree | `mount_rotation` uses `vehicle_rotation` (x=pitch, y=yaw) when present and `vehicle_id_matches` verifies `vehicle_unique_id`; matches vanilla `handleMoveVehicle` (`getControllingPassenger() == player`, `absSnapTo(targetX/targetY/targetYRot/targetXRot)`). Existing unit tests cover both helpers. No edit needed. |
+| `await_teleport` (M) | OPEN | Needs a `Teleport` struct with transaction id added to `SPlayerAuthInput` in `pumpkin-protocol`, a file outside this unit (cross-crate protocol change). Position proximity + 20-input resend stays as fallback. |
+| camera-relative movement (S) | OPEN | Needs the Bedrock `camera_orientation` rotation math. No decompiled vanilla, Paper/Spigot, Geyser source or protocol fixture in `.vendor` to verify signs of the (x,z) rotation; a wrong sign would invert movement bits. Packet fields are already parsed. |
+| vehicle branch, boats/minecarts (L) | OPEN | `apply_mount_move` still returns for non-mob vehicles. Needs server-side boat/minecart steering integration in `entity/vehicle/boat.rs` and the minecart input path; beyond an auth-input-only fix. |
+| `player_action.rs` `// TODO` catch-all (adjacent, M) | OPEN | Adding sneak/item-use actions here would duplicate the auth-input side effects already applied every tick; needs a coordinated pass over both handlers, not a one-file fix. |
+
+Already fixed before this pass, confirmed unchanged: `StartJumping` (rides JUMP/charge),
+`analog_move` deadzone (`ANALOG_DEADZONE`), `on_ground`/delta handling.

@@ -35,3 +35,14 @@ FIXED (UNVERIFIED): writes `next_weathering_tick` (long) and reads it with fallb
 - 2 item pickup / chest deposit (L): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 3 weathering NBT keys (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 weathering boundary one tick early (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Verified all four STILL OPEN rows against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java (present this pass; the doc's "no decompiled copy" note is stale).
+
+- Row 1 (oxidized golem to statue, M/L): ALREADY FIXED, no change. post_tick -> update_weathering plus turn_to_statue in copper_golem.rs implement vanilla canTurnToStatue/turnToStatue: oxidized + air + chance <= 0.0058, EntityChangeBlockEvent, oxidized statue block with random pose and facing, create_statue (custom name transfer in copper_golem_statue.rs), drop_preserved_equipment, entity remove, become-statue sound, leash drop. Matches vanilla lines 277-321.
+- Row 2 (item pickup / chest deposit, L): ALREADY FIXED, no change. TransportItemsBetweenContainers brain behavior (entity/ai/brain/behavior/transport_items_between_containers.rs), registered in copper_golem_ai.rs, drives all CopperGolemState variants through set_state. Those files are outside this unit's allowed set.
+- Row 3 (weathering NBT keys, S): FIXED in copper_golem.rs. Vanilla addAdditionalSaveData writes next_weather_age (long) and weather_state via a string codec (CopperGolem.java lines 166-176). Pumpkin wrote next_weathering_tick. Now writes next_weather_age through a shared constant; next_weathering_tick kept as a read fallback for older Pumpkin saves. weather_state string names already matched vanilla. rustfmt applied.
+- Row 4 (weathering boundary one tick early, S): NO BUG, no change. Vanilla uses gameTime >= nextWeatheringTick (line 270), not > as the doc recalled. Effective progression runs in update_weathering (post_tick) using >=, matching vanilla; the <= in tick_weathering is redundant because post_tick progresses first at the boundary.
+
+Test: no pure unit-test seam (NBT read/write require a live entity and world), so none added.

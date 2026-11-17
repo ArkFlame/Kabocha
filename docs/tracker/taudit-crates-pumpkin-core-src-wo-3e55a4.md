@@ -22,3 +22,21 @@ Compared against vanilla `ServerLevel`, `ServerChunkCache`, `ServerPlayerGameMod
 
 ## Status (h3 sweep)
 - Ender dragon handling (world/mod.rs:5978 still `// TODO: Implement ender dragon handling`): STILL OPEN (M, not changed in this pass).
+
+
+## Result
+
+Re-verified the remaining/STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/` (26.3 + Paper). No source file was changed: this unit may edit `player.rs` only, and every open row's fix lives in `world/mod.rs` (a file outside this unit). The two player.rs helpers row 3 needs already exist (`Player::send_difficulty_update` :4563 and `Player::send_active_effects` :7281), so there is no in-unit seam to fix.
+
+| # | Size | Result |
+|---|---|---|
+| 1 | M | STILL OPEN - neighbouring-chunk light-section masks belong in `set_block_state`/`mark_unsent_light` (world/mod.rs), outside this unit. |
+| 2 | M | STILL OPEN - player-proximity spawn gate belongs in `tick_chunk` (world/mod.rs), outside this unit. |
+| 3 | S | STILL OPEN - verified vanilla `ServerPlayer.restoreFrom` (:3003) sets `lastSentExp = -1` for the next-tick XP resend; Paper comments out the effect re-copy (:3014-3016). Pumpkin's `player.rs` helpers already exist; the missing two calls go after `send_world_info` in the respawn path (world/mod.rs:5309), outside this unit. |
+| 4 | S | STILL OPEN - Bedrock `CSetSpawnPosition` belongs in `spawn_bedrock_player` (world/mod.rs), outside this unit. |
+| 5 | L | STILL OPEN - EnderDragonPart collection needs the dragon-fight rewrite (world/mod.rs), outside this unit and not a local patch. |
+| 6 | XS | STILL OPEN - stale-comment deletion in world/mod.rs, outside this unit. |
+| 7 | XS | STILL OPEN - marker/comment-only cleanup in world/mod.rs, outside this unit. |
+| h3 | M | STILL OPEN - Ender dragon TODO (world/mod.rs:5978), outside this unit; needs dragon-fight rewrite. |
+
+No .rs file was edited, so no rustfmt was run. No unit test added: there is no behaviour change in this unit, and a helper-method mirror test would be a forbidden constant/derive test.

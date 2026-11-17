@@ -61,3 +61,22 @@ the 1.21 `Enderman` / `EndermanLookForPlayerGoal` / `EndermanFreezeWhenLookedAt`
 - Gap 2 (double teleport after non-hurting splash potion): FIXED 99fa5cfb8. Post-damage only teleports for water-sensitive potions; pre-damage already handles the rest.
 - Gap 1 (projectile immunity keyed on damage type): STILL OPEN. Needs a direct-entity projectile helper; not done in this sweep.
 - Gap 3 (freeze look limits 30/30 and re-check): FIXED (UNVERIFIED), already in code: `goal/chase_player.rs:67` uses `look_at_with_range(.., 30.0, 30.0)`.
+
+## Result
+
+- Gap 1 (projectile immunity): FIXED. Verified against decompiled `Enderman.hurtServer`
+  (`.vendor/vanilla-decompiled/.../monster/Enderman.java:395-399`): vanilla gates the dodge on
+  `source.is(DamageTypeTags.IS_PROJECTILE)` (a damage *type* tag), not on the direct entity, so the
+  tracker premise was wrong. The real defect was in Pumpkin's `is_projectile_damage`: it compared
+  the tag's registry-name list (`tag.0`) against `message_id` (translation keys), which differ for
+  `mob_projectile`/`mob`, `unattributed_fireball`/`onFire`, `wither_skull`/`witherSkull`,
+  `wind_charge`/`mob` -> those projectiles were never dodged. Replaced with
+  `damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)` (canonical numeric-id check used
+  in `living.rs`, includes dynamic tags), added bug-repro unit test `projectile_damage_uses_damage_type_tag`.
+  Ran `rustfmt --edition 2024` on `enderman.rs`.
+- Gap 2 (double splash-potion teleport): already FIXED (99fa5cfb8). Re-verified in
+  `enderman.rs:613-636`: post-damage teleports only for water-sensitive potions; pre-damage handles
+  the rest, so one teleport per hit. No change.
+- Gap 3 (freeze look limits): already FIXED. Re-verified in `chase_player.rs:57-84`:
+  `look_at_with_range(.., 30.0, 30.0)`, no 256-block gate in `can_start`, and `should_continue`
+  re-checks `is_player_staring`. No change.

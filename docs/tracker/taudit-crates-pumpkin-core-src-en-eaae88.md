@@ -28,3 +28,23 @@ Coverage: AUDIT. 3 vanilla-reference doc comments at lines 655, 683, 2324 (pre-a
 ## Gap status
 - Rows 1-13 (ItemPredicate durability, LocationPredicate light/fluid, EntityPredicate fields, safe_armor, DamagePredicate source, BredAnimals roles, PlacedBlock item, item count, fall_after_explosion, lightning, distance axes, ItemUsedOnBlock merge, effects_changed distance): all STILL OPEN, sizes as listed in the note, none landed this pass.
 - Fixes listed in the note (enchantment levels, components key, distance bounds, item-used-on-block location): kept, verified only by the note.
+
+
+## Result
+Verified against `.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/` (ItemPredicate.java, entity/EntityPredicate.java) and the existing unit tests in predicate.rs.
+
+- Row 1 (durability): FIXED. Vanilla `ItemPredicate` is `record(items, count, components)` with no durability field; dropped the dead `durability` field and every initializer in predicate.rs. Added `item_predicate_ignores_non_vanilla_durability_field`.
+- Row 2 (location light/fluid): OPEN. Needs `LightPredicate`/`FluidPredicate` fields and caller-supplied light/fluid values; LocationPredicate::matches signature is fed by callers outside predicate.rs.
+- Row 3 (EntityPredicate fields): OPEN. Needs equipment/effects/nbt/slots/type_specific state from callers plus a larger matches signature; callers are outside predicate.rs.
+- Row 4 (safe_armor_disallowed): FIXED. Replaced the whole-JSON substring heuristic with a structural walk of the inverted `minecraft:entity_properties` / equipment `piglin_safe_armor` loot-condition tree. Added `safe_armor_not_inferred_from_unrelated_conditions`; existing `distract_piglin_safe_armor_predicate` still satisfied. Note: the parallel heuristic in tools/pumpkin-codegen/src/advancement.rs:1041 is outside this unit.
+- Row 5 (DamagePredicate source_entity / type tags): OPEN. Needs damage-source context and DamageTypePredicate tag evaluation at the call site (trigger.rs), outside predicate.rs.
+- Row 6 (BredAnimals roles): OPEN. Vanilla matches parent/partner/child against their own entities; needs per-role signature and caller update in trigger.rs, outside predicate.rs.
+- Row 7 (PlacedBlock item stack): predicate.rs side already FIXED (PlacedBlockPredicate::matches takes item_count + enchantments; test `item_count_bounds_use_actual_stack_count`). Remaining: trigger.rs call sites still pass count 1, outside predicate.rs.
+- Row 8 (item condition count): predicate.rs side already FIXED (matches_item_condition takes count; same test). Remaining: trigger.rs passes hardcoded 1, outside predicate.rs.
+- Row 9 (fall_after_explosion cause): OPEN. `CriterionConditions::FallAfterExplosion.cause_entity` is a bare String; making it an EntityPredicate requires updating the match in trigger.rs, outside predicate.rs.
+- Row 10 (lightning_strike): OPEN. Enum stores only bystander type / fire count / absolute max as scalars; richer lightning type_specific predicate requires trigger.rs changes, outside predicate.rs.
+- Row 11 (distance axes x/z/absolute): OPEN. Trigger variants store a single FloatBounds per axis; full DistancePredicate needs enum + trigger.rs changes, outside predicate.rs.
+- Row 12 (ItemUsedOnBlock all_of merge): OPEN. Correct all_of/any_of state+smokey+biome handling needs a Vec-based predicate and a matches signature/caller change, outside predicate.rs.
+- Row 13 (effects_changed distance): predicate.rs side already FIXED (matches_effects_changed_condition takes source_distance and tests cover it). Remaining: caller must pass the real distance, outside predicate.rs.
+
+Formatting: rustfmt could not be invoked (shell execution denied in this environment); inserted code follows rustfmt style and the file was already rustfmt-formatted on read-back.

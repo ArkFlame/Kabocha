@@ -36,3 +36,18 @@ Compared against vanilla `LivingEntity` / `Entity` (`hurtServer`, `tickEffects`,
 - 6. `MobEffectInstance` NBT fields (`living.rs:3962`): STILL OPEN (S).
 - 7. `bypasses_armor` tag as bitmask (`living.rs:5504`, TODO): BLOCKED-DATA (needs data tag generation).
 - 8. Looting from killing blow (`living.rs:3073`): STILL OPEN (S).
+
+## Result
+
+All edits below are in `crates/pumpkin-core/src/entity/living.rs`.
+
+- 1. `add_effect` instance update: FIXED. `add_effect` now merges the incoming instance into the stored one through a new pure `update_effect` helper before touching attributes, and only resends the effect when the stored instance changed, matching `MobEffectInstance.update` (stronger amplifier wins, equal amplifier only extends, weaker or shorter is ignored, an infinite stored duration is never shortened). The hidden-effect chain is deliberately not modelled. Unit tests `effect_update_tests`.
+- 2. Negative heal without `die`: FIXED (comment only). Vanilla `LivingEntity.heal` returns nothing and has no guard either, so the clamp at 0 is already parity; the TODO is replaced by a note that vanilla has no switch.
+- 3. Fall damage prevention FIXME: left OPEN by this unit, but no longer a gap. Vanilla decides fall damage from the landed block state in `Entity.checkFallDamage` / `Block.fallOn` and only resets fall distance from the `ClipContext.Block.FALLDAMAGE_RESETTING` raycast inside `Entity.move`. A concurrent change to the same file already replaced the 3x3 radius scan with the single landed-block check plus the `fall_damage_resetting` tag, which I verified against both call sites; the remaining raycast needs the move collision result, outside this file.
+- 4. Effective gravity below the world: FIXED (comment only). Vanilla's `getY() > getMinY()` branch only runs on the client (the `!level.isClientSide()` short circuit), so the server always subtracts effective gravity; the dead TODO is now a comment saying so.
+- 5. Climbing sneak clamp: already applied in the working tree (`climbing_descent_blocked` plus the `handleOnClimbable` clamp order) before this pass, verified against `LivingEntity.handleOnClimbable`; nothing changed.
+- 6. `MobEffectInstance` NBT fields: already matching. `create_from_nbt` sets `blend: false` and `write_nbt` omits blend, like vanilla's transient `BlendState`; no change needed.
+- 7. `bypasses_armor` data tag: BLOCKED-DATA, unchanged, needs the generated damage-type tag.
+- 8. Looting from the killing blow: FIXED. The looting level and loot `tool` now come from the killing blow's attacker through `get_living_entity` + `held_item` (vanilla `EnchantmentHelper.processEquipmentDropChance` / `LootContext` accept any living attacker, not only a player), and `drop_equipment` only rolls a random chance for a player kill, matching `Mob.dropCustomDeathLoot` (`killedByPlayer || preserve`).
+
+Checks: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/living.rs` (exit 0). No cargo run; the orchestrator batch-compiles.

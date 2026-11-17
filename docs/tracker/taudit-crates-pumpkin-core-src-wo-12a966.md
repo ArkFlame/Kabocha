@@ -34,3 +34,15 @@ because master still has the empty-map TODO and the old writer.
 | 7 | `world/time.rs:130,149`, `entity/player.rs:4555,4567` | `Holder<WorldClock>` registry id | `clock id 0` hardcoded for `minecraft:overworld`: correct only while the generated registry keeps overworld first | read the id from the `pumpkin-data` world-clock registry | S (verify) |
 | 8 | `entity/player.rs:4568` vs `world/time.rs:131` | Bedrock `SetTime` field | join path sends `query_daytime()` (0..23999) while the broadcast path sends absolute `time_of_day`; one of them is wrong for day counts | decide against a Bedrock client and use the same value in both | S (needs client) |
 | 9 | `world/time.rs:167-169` | `TimeCommand.addTime` | `add_time` clamps to 0; vanilla (`/time add -x` at day 0) leaves the day time negative | drop the clamp only if negative absolute day time is accepted downstream (`%`/`/` already match vanilla) | S - STILL OPEN: negative absolute day time downstream unverified |
+
+## Result
+
+Row 9 (STILL OPEN): resolved by verification, no production change needed. Decompiled
+vanilla `ServerClockManager.addTicks` (`world/clock/ServerClockManager.java:146-148`) is
+`instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`, so vanilla clamps at 0
+and does NOT leave the day time negative after `/time add -x` at day 0. The row's premise
+is disproven. Pumpkin's `LevelTime::add_time` (`(self.time_of_day + time).max(0)`) already
+matches; dropping the clamp would break parity, so it stays. The existing
+`level_time_set_and_add` unit test already covers the negative clamp, now annotated with
+the vanilla source. No generated data, WIT, cross-crate or out-of-unit work needed.
+Rows 1-8 were not marked STILL OPEN and are out of scope for this pass.

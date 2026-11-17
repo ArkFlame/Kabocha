@@ -89,3 +89,29 @@ are comments that mention vanilla behaviour.
 - 4. `if function` missing: STILL OPEN (M).
 - 5. `on origin` exact only for projectiles (`execute.rs:1508`): STILL OPEN (S).
 - 6. Positioned over ocean_floor fallback (`execute.rs:194`): STILL OPEN (S).
+
+
+## Result
+
+- 1. if blocks block-entity comparison: FIXED. `count_blocks_match` now compares the block
+  entity's `resource_location()` and custom `write_nbt` data (vanilla `saveCustomOnly`) for both
+  positions when the source has one, after the state-id check (ExecuteCommand.java:977-1005).
+  Pumpkin has no components API, so the custom NBT comparison covers the data; id/x/y/z are not
+  written by `write_nbt`, so no stripping is needed.
+- 2. Predicate reference and inline shape: STILL OPEN. `LootPredicate::Reference` needs a loaded
+  datapack predicate registry, which Pumpkin does not have; this Paper/Canvas tree also comments
+  out the whole `if predicate` branch (ExecuteCommand.java:697-709). Out of unit / needs data.
+- 3. `if items` missing: STILL OPEN. Requires a new slot-source argument type (a file outside
+  this unit); no such argument exists in Pumpkin.
+- 4. `if function` missing: STILL OPEN. Pumpkin has no datapack functions in this command tree.
+- 5. `on origin` exact only for projectiles: FIXED. Added `traceable_owner` in execute.rs; beside
+  `get_owner_entity` (projectiles + item entities) it resolves the `EntityReference` of primed TNT,
+  area effect clouds and evoker fangs, matching vanilla `TraceableEntity` implementors
+  (TraceableEntity.java; ExecuteCommand.java:1071-1075). Vex has no owner tracking in Pumpkin yet.
+- 6. Positioned over ocean_floor fallback: STILL OPEN. Needs an `OceanFloor` variant added to
+  `ChunkHeightmapType` in pumpkin-world and mapped in `execute_positioned_over_modifier`;
+  cross-crate change outside this unit.
+
+No pure unit-test seam exists for these command modifiers (they need a live World/context), so
+no tests were added. `rustfmt --edition 2024` was run on execute.rs. No compile was run per unit
+rules; orchestrator batch-checks.

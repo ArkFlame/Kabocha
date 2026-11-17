@@ -44,3 +44,21 @@ Vanilla reference: decompiled Canvas/Paper tree at
 - Row 5 (clock registry, timemarkers, timelines): STILL OPEN (L, skipped per brief).
 - Row 6 (per-player day time in the periodic sync): FIXED (4919c6e14) for pre-26.1 clients, which read the day time from the packet. 26.1+ clients get no clock entries in the periodic sync, so custom time is unchanged there. UNVERIFIED: no unit test, since building a `Player` is not feasible in a unit test.
 - Row 7 (overworld clock id hardcoded to 0): STILL OPEN. The world-clock registry is absent from `assets/` and `pumpkin-data`, so the id cannot be read (needs Extractor, blocked).
+
+
+## Result (wave CODER re-audit)
+
+All three STILL OPEN rows were re-checked against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/clock/`. None can be closed inside
+this unit (files: `player.rs`, `set_time.rs`, `time.rs`); no source edits made.
+
+| # | Verdict | One-line reason |
+|---|---|---|
+| 3 | STILL OPEN | `ServerClockManager.resolveTimerMove` (row 3) is driven by `ClockTimeMarker`/timeline data and the sleep-skip call site is `world/mod.rs` (now lines 2663/2671), outside this unit; needs timeline data support (L). |
+| 5 | STILL OPEN | Clock registry + `/time set <timemarker>` + `custom:clock` need `command/commands/time.rs` (outside unit), a WORLD_CLOCK registry absent from `pumpkin-data`, and timeline data (cross-crate refactor, L). |
+| 7 | STILL OPEN | `WorldClocks.bootstrap` fixes overworld clock id 0 (THE_END is 1), so the hardcoded 0 is currently correct; replacing it with a registry lookup needs the WORLD_CLOCK registry, which is absent from `assets/`/`pumpkin-data` (blocked, needs Extractor). |
+
+No pure unit-test seam exists for these rows: row 3 needs a world/sleep harness,
+row 5 needs command + registry plumbing, row 7 is a single registry id constant.
+Existing `time.rs` tests (`clock_instance_ticking`, `level_time_set_and_add`)
+and `set_time.rs` packet tests already cover the pure seams in this unit.

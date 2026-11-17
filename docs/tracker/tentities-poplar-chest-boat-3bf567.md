@@ -57,3 +57,35 @@ No cargo or test run was performed (worker constraint); the orchestrator batch-c
 - 4 BoatItem container component (item/items/boat.rs:107-200): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 hopper WorldlyContainer (boat.rs:278-296): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 6 save/load test coverage (boat.rs:441-470): STILL OPEN (needs test, unverified)
+
+
+## Result
+
+Re-verified against the (now populated) `.vendor/vanilla-decompiled` tree:
+`world/entity/vehicle/ContainerEntity.java`, `VehicleEntity.java`,
+`boat/AbstractChestBoat.java`, `minecart/AbstractMinecartContainer.java`,
+`world/Containers.java`, `world/entity/Entity.java` (`spawnAtLocation`, `RemovalReason`).
+
+- 1 contents drop gated by `doEntityDrops`: FIXED for chest minecarts (`minecart.rs`
+  `damage_with_context`: the `claim_drops`/`scatter_inventory_at` block moved out of the
+  `entity_drops` check; vanilla `AbstractMinecartContainer.remove` drops contents on any
+  destroying removal while `VehicleEntity.destroy` gates only the cart item). The chest-boat side
+  was already correct (`boat.rs` scatters before the gamerule check); `boat.rs` is outside this
+  unit file list, no edit needed.
+- 2 dropped item spawn position: FIXED for minecarts (`minecart.rs` now drops via
+  `world.drop_stack_at(entity.pos)` instead of `block_pos`). `boat.rs` already used
+  `drop_stack_at`.
+- 3 `stillValid` / `canPlayerUse`: STILL OPEN. Needs `ScreenHandler::can_use` in
+  `pumpkin-inventory` plus `MinecartScreenFactory` (`entity/vehicle/minecart/container.rs`) and
+  `player.rs` reach logic; all outside this unit allowed files.
+- 4 `BoatItem` `minecraft:container` component: STILL OPEN. Fix lives in
+  `crates/pumpkin-core/src/item/items/boat.rs`, outside this unit.
+- 5 hopper path over a chest vehicle: FIXED (verified). Vanilla chest vehicles are plain
+  `Container` (not `WorldlyContainer`), so every slot is reachable from any face; Pumpkin
+  `is_sided()` default `false` already gives that. Added
+  `hopper_moves_items_both_ways_with_a_plain_entity_container` in
+  `block/entities/hopper.rs` covering insertion from above and extraction from below against a
+  27-slot `MinecartInventory`.
+- 6 chest-boat NBT round-trip test: STILL OPEN. The test belongs to `boat.rs`, outside this unit.
+
+`rustfmt --edition 2024` run on both touched files (exit 0). No cargo run (worker constraint).

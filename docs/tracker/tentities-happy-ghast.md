@@ -56,3 +56,41 @@ Source: `crates/pumpkin-core/src/entity/passive/happy_ghast.rs`.
 ## Gap status
 - 1-4 (remaining gaps, incl. ghastling baby flag and age reset): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 still_timeout NBT key not vanilla (happy_ghast.rs:151-166): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Vanilla source checked: `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/happyghast/HappyGhast.java`.
+
+- **1 flying movement (M): FIXED (method adapted to Pumpkin).** `get_mob_gravity -> 0.0` and
+  `get_mob_y_velocity_drag -> Some(0.95)` now mirror `mob/ghast.rs`, so the ghast hovers instead
+  of sinking under the generated 0.08 gravity attribute. The ground `WanderAroundGoal` was
+  replaced by `HappyGhastFloatAroundGoal` (copy of `Ghast.RandomFloatAroundGoal`) gated on
+  `is_on_still_timeout()`. Pumpkin has no `GhastMoveControl` type, so movement stays the
+  velocity-based float used by the existing ghast; the observable hover/roam behaviour matches.
+  No generated data touched.
+- **2 `server_still_timeout` never set (M): FIXED.** Vanilla trigger is NOT leash/passengers as
+  guessed: `HappyGhast.tick` calls `scanPlayerAboveGhast()` and, when a non-spectator player (or
+  its root vehicle, excluding one riding a Happy Ghast) is inside a box just above the ghast,
+  calls `setServerStillTimeout(10)` (MAX_STILL_TIMEOUT). Implemented `scan_player_above_ghast`
+  plus a pure `still_detection_box` helper, called from `mob_tick`; the 60-tick no-decrement
+  grace is now the named `STILL_TIMEOUT_GRACE`. The collidability rule in
+  `world/player_spawn_finder.rs:78-82` already consumes `is_on_still_timeout()`, so it now fires
+  in gameplay. Added a pure unit test for the detection-box extents.
+- **3 `leash_holder_time` never incremented (S): LEFT OPEN.** Vanilla sets it to 5 in
+  `notifyLeashHolder(Leashable)` when `entity.supportQuadLeash()`. Pumpkin has no
+  `notify_leash_holder` hook on `EntityBase`; adding one and calling it from the leash-attach path
+  requires editing `entity/mod.rs`, a file outside this unit.
+- **4 harness / rider control (L): LEFT OPEN.** Needs generic harness equipment, a four-seat
+  layout and `mob_controlling_passenger` support across multiple files outside this unit.
+- **5 `still_timeout` NBT key not vanilla (S): RESOLVED, NO CHANGE.** The decompiled class writes
+  `tag.putInt("still_timeout", this.serverStillTimeout)` (line 532) and reads
+  `setServerStillTimeout(tag.getIntOr("still_timeout", 0))` (line 538). The existing Pumpkin NBT
+  code is already correct; the tracker claim was wrong.
+- **6 baby metadata never cleared (S): RESOLVED, NO CHANGE.** Generic `AgeableMob::set_age`
+  (ageable.rs:113-115) writes `ageable_mob::DATA_BABY_ID` on every age sign change, and
+  `happy_ghast::BABY_ID` is an alias (tracked_data.rs:9408) of that same tracked id 16, so aging
+  up clears the client baby flag. No separate reset is needed.
+
+Files changed: `crates/pumpkin-core/src/entity/passive/happy_ghast.rs` (rustfmt --edition 2024,
+exit 0). Not compiled, per CODER rules.

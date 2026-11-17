@@ -70,3 +70,20 @@ Notes that are **not** gaps (checked against the decompile this pass):
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java` on the main checkout. Every gap in this unit is ALREADY FIXED; no source edits were needed this pass.
+
+| # | Row | Status | Evidence |
+|---|-----|--------|----------|
+| 1 | canAddPassenger / eye-in-water boarding gate (S) | FIXED | boat.rs:621-622 checks ticks_underwater < TIME_TO_EJECT && !is_eye_in_water(...); is_eye_in_water at boat.rs:100-108 samples the eye block with fluid height. Matches vanilla AbstractBoat.canAddPassenger (AbstractBoat.java:836-837). Pushed-mob path also gated at entity/mod.rs:1320. |
+| 2 | positionRider + clampRotation + deltaRotation (M) | FIXED | boat.rs:666-676 (on_rider_positioned) applies rider_yaw_with_delta then stores body/head yaw; helpers clamp_rider_yaw / rider_yaw_with_delta at boat.rs:710-723; per-tick delta derived at boat.rs:433-439 (last_yaw/yaw_delta). Pure unit tests rider_yaw_clamps_to_boat_heading_window and rider_yaw_follows_boat_yaw_delta_then_clamps at boat.rs:734-752. |
+| 3 | Bubble-time metadata (M) | FIXED | ID_BUBBLE_TIME written on arming (boat.rs:490-493) and decremented/written each tick (boat.rs:319-340); impulse + BOAT_SINK eject at count zero. Test bubble_column_impulse_matches_vanilla_boat_effect at boat.rs:755-758. |
+| 4 | Leashable (M) | FIXED | Shared entity leash path: boat tick() calls entity.tick_leash(caller) (boat.rs:450-451) and support_quad_leash returns true (boat.rs:682-685); leashed_to / tick_leash exist in entity/mod.rs:1829,5708. |
+| 5 | hasEnoughSpaceFor width gate (S) | FIXED | entity/mod.rs:1330-1334 checks other.width < self.width plus CANNOT_BE_PUSHED_ONTO_BOATS tag before boarding. Matches AbstractBoat.java:691-693. |
+| 6 | deltaRotation decay / server-side prediction (L) | NO ACTION (by design) | Client-authoritative engine difference; the doc already recommends no action. |
+
+The h6 status note is stale: delta-rotation accumulation and the +/-105 rider yaw clamp are both implemented in boat.rs (not passengers.rs) under the names rider_yaw_with_delta / clamp_rider_yaw, with unit tests. Marking them resolved.
+
+No .rs files touched, so rustfmt was not run.

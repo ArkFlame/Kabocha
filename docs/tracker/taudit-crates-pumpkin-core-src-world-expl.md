@@ -54,3 +54,19 @@ call sites in this repo; items marked *verify* need a decompiled-source check be
 
 ## Status (code-verified sweep)
 FIXED: getBlockExplosionResistance returns None for air with empty fluid (world/explosion.rs:58-70).
+
+
+## Result
+
+Verification against `.vendor/vanilla-decompiled/net/minecraft/` (target version), 2026-11-17:
+
+- Row 1 (BlockExplodeEvent/EntityExplodeEvent block list + yield): LEFT OPEN. M-sized plugin event API change; `EntityExplodeEvent` and the packet fan-out are outside this unit's two files.
+- Row 2 (unloaded-chunk force-load): LEFT OPEN. `explode()` is sync in the tick and uses the non-loading `read_chunk_sync`, so unloaded chunks count as air; vanilla `getChunk` force-loads and needs an async prefetch before the sync tick (cross-cutting, outside these files).
+- Row 3 (entity blast resistance with custom calculator): VERIFIED MATCHING, no change. `ServerExplosion` only wraps the source in `EntityBasedExplosionDamageCalculator` when `damageCalculator == null` (ServerExplosion.java:316,323-325); a custom calculator skips the entity hook, which is what `explosion.rs:518-524` already does. The doc premise was inverted.
+- Row 4 (seeded level RNG): LEFT OPEN. Vanilla draws from `level.getRandom()`; there is no dedicated level RNG here, only `world.loot_random` (world/mod.rs:341). Reusing it would perturb loot rolls and adding a field is outside this unit.
+- Row 5 (is_small Keep clause): VERIFIED MATCHING, no change. Vanilla `isSmall() = radius < 2.0F || !interactsWithBlocks()` with `interactsWithBlocks() = blockInteraction != KEEP` (ServerExplosion.java:725-727,770-772), identical to `explosion.rs:346-350`.
+- Row 6 (ClientboundExplodePacket blockCount): LEFT OPEN. Packet construction is in world/mod.rs (outside this unit); client-visual only. Note: `explode()` returns the destroyed-block count, whereas vanilla returns `toBlow.size()`, which also includes air positions when the explosion creates fire.
+- Row 7 (damage type): FIXED. `DamageSources.explosion(explosion)` selects `PLAYER_EXPLOSION` whenever both direct and indirect sources exist (DamageSources.java:251-256), and `Explosion.getIndirectSourceEntity` returns the living source itself for creepers/withers or the living owner for TNT/projectiles (Explosion.java:17-24). `damage_type()` now gates on `source.is_some() && indirect_source().is_some()`. Added unit test `entity_explosion_uses_player_explosion_damage_type`.
+- Row 8 (finalizeExplosion particles/sound): LEFT OPEN. world/mod.rs:4711-4725 is outside this unit; client-visual only.
+
+Changed: crates/pumpkin-core/src/world/explosion.rs. Check: `rustfmt --edition 2024` on that file (exit 0). No cargo/git run (per task).

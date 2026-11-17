@@ -57,3 +57,33 @@ vanilla source exists under `.vendor/`, so each row names the vanilla member it 
 - 6 bubble time publish (boat.rs:268-293): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 7 container entity line (boat.rs:227-266): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 8 pick result and drop item (boat.rs:341-344): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+No decompiled vanilla source exists under `.vendor/vanilla-decompiled/`, so rows were checked
+against the vanilla members named in the table and the current source, not against a decompile.
+
+- 1 canPlayerUse (minecart/container.rs): OPEN - the generic 9x3 handler has no validity hook; adding
+  an alive + 8-block check needs a `can_use`/`validity_check` field on `GenericContainerScreenHandler`
+  in pumpkin-inventory (cross-crate, outside this unit).
+- 2 instabuild with custom name (boat.rs): FIXED - destruction now uses
+  `drops_item_when_destroyed(creative, named)`, so a named boat keeps its item drop in creative.
+  Added pure test `named_boat_keeps_its_drop_when_creative`.
+- 3 hurt passenger branch (boat.rs): FIXED (already present, verified) - `damage_with_context`
+  returns false when the damage source is a passenger of the same vehicle.
+- 4 destroying removal spills container (boat.rs): FIXED (already present, verified) - `on_removed`
+  calls `scatter_chest_contents`, whose `claim_drops` guard makes the spill run once for every
+  removal reason.
+- 5 interact open condition (boat.rs): OPEN - no decompiled or Paper/Spigot source to confirm the
+  `AbstractChestBoat.interact` ordering; the current code already opens on sneak and lets boarding
+  fail in the other gated states, but the "occupied opens the chest" branch is unverified.
+- 6 bubble time publish (boat.rs): FIXED (already present, verified) - `tick_underwater` syncs
+  `ID_BUBBLE_TIME` whenever the underwater counter changes.
+- 7 container entity line (boat.rs): FIXED (already present, verified) - `without_loot_table`
+  strips `LootTable`/`LootTableSeed` before chest-boat NBT is read.
+- 8 pick result and drop item (boat.rs): FIXED - the drop now resolves via
+  `BoatItem::entity_to_item` with the registry-key lookup as fallback, matching the pickup path.
+  Added pure test `every_boat_entity_type_resolves_a_drop_item`.
+
+`rustfmt --edition 2024` was run on `crates/pumpkin-core/src/entity/vehicle/boat.rs`. Cargo was not
+run (worker rule: orchestrator batch-compiles), so the added tests are unexecuted here.

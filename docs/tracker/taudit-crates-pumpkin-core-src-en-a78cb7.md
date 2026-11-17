@@ -26,3 +26,29 @@ None confirmed. Two items need a decompiled source or runtime check before any c
 ## Gap status
 - 1 HAPPY_GHAST EMPTY sound (parrot.rs:452): STILL OPEN, needs decompiled imitate path.
 - 2 server-side flap/descent damping (parrot.rs:343-363): STILL OPEN, needs runtime observation.
+
+## Result
+
+Decompiled vanilla is available: .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/parrot/Parrot.java
+(plus ShoulderRidingEntity.java, TamableAnimal.java and server/level/ServerPlayer.java).
+
+- Row 1 (imitate EMPTY, parrot.rs:452): VERIFIED MATCHING, no change. Vanilla
+  imitateNearbyMobs (Parrot.java:234-249) builds candidates with NOT_PARROT_PREDICATE =
+  MOB_SOUND_MAP.containsKey, which INCLUDES HAPPY_GHAST -> SoundEvents.EMPTY. It plays
+  getImitatedSound(type) (EMPTY for happy ghast) at 0.7 volume and returns true, with no
+  skip/filter of EMPTY. Pumpkin imitate_nearby does the same. Left unchanged.
+- Row 2 (server-side flap/descent, parrot.rs:343-363): VERIFIED MATCHING, no change.
+  Vanilla calculateFlapping (Parrot.java:216-232) runs from aiStep() with NO isClientSide
+  guard, so it runs server-side too. Its flapSpeed += (onGround||passenger ? -1 : 4) * 0.3,
+  clamp 0..1, and !onGround && movement.y<0 -> multiply(1.0,0.6,1.0) all match Pumpkin
+  mob_ai_step exactly. Flap-phase fields (flap/flapping/oFlap) are render-only; Pumpkin
+  exposes the equivalent via mob_is_flapping/mob_on_flap. Left unchanged.
+- Bonus parity fix (live code): vanilla Parrot.getAmbient (Parrot.java:333-340) picks a
+  random key from the WHOLE MOB_SOUND_MAP.keySet(), including HAPPY_GHAST -> EMPTY, so the
+  shoulder-parrot ambient (ServerPlayer.java:1202-1221 -> Pumpkin shoulders.rs:127) can
+  occasionally be silent. Pumpkin ambient_candidates wrongly filtered HAPPY_GHAST out.
+  Removed the filter so ambient() can return Sound::IntentionallyEmpty, matching vanilla.
+  Updated the unit test (renamed to ambient_imitation_includes_the_happy_ghast_silent_entry):
+  it now asserts all IMITATIONS are candidates and IntentionallyEmpty is present.
+- Files touched: crates/pumpkin-core/src/entity/passive/parrot.rs (rustfmt --edition 2024 OK).
+  No generated data, WIT, or cross-crate changes needed.

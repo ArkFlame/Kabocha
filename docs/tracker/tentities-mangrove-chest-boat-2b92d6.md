@@ -16,3 +16,17 @@ Not compiled or tested (no cargo run per brief).
 
 ## Gap status
 - Remaining-gap table rows (docs and container size helpers): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Verified against .vendor/vanilla-decompiled/net/minecraft/ (now present in this worktree). No cargo run per brief; rustfmt --edition 2024 passed on both edited .rs files.
+
+| row | result | evidence |
+|---|---|---|
+| boat.rs piglin anger on open | FIXED (already implemented, verified) | Vanilla AbstractChestBoat.interact and openCustomInventoryScreen call PiglinAi.angerNearbyPiglins(level, player, true). Pumpkin already calls PiglinAi.on_guarded_block_interacted when the chest boat opens; that helper scans nearby entities and the piglin hook targets huntable adults and plays the angry sound. No edit needed. |
+| player.rs hand-written boat statistic list | FIXED | Vanilla ServerPlayer.checkRidingStatistics awards BOAT_ONE_CM for any AbstractBoat. Replaced the 14-entry hand-written type list with a pure is_boat() helper in boat.rs (C_BOATS tag plus is_chest_boat()) and used it in get_movement_statistic. Added the pure unit test boat_stat_classification_covers_every_boat_entity_type. |
+| docs / no decompiled reference | FIXED (verified) | .vendor/vanilla-decompiled/net/minecraft/ is present; compared AbstractChestBoat.java, BoatItem.java, PiglinAi.java, ServerPlayer.java. |
+
+Note: the generated MINECRAFT_BOATS tag carries ids (975+) that do not match entity registry ids (for example OAK_BOAT.id is 90), so it cannot be used with Taggable::has_tag. Classification uses C_BOATS plus is_chest_boat(); poplar_chest_boat (id 107) is missing from C_BOATS and is covered by the helper.
+
+Open rows: none.

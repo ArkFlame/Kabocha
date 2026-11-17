@@ -29,3 +29,17 @@ comments referencing vanilla behaviour. Behaviour gaps found are listed below.
 | mod.rs:500, 884 | `Tag#getEntries` (flattened holder set) | `get_tag_values` / `get_tag_entries` return raw `#tag` reference strings; vanilla returns the flattened member list. | Reuse the `tag_contains_entry` recursion to expand nested references. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | function_loader.rs:30, mod.rs:2465 | `FolderRepositorySource` | Loaders skip symlinked files/dirs (`entry.file_type()`), while vanilla's directory source follows them; a pack symlinking shared content silently loads nothing. | Use `path.is_dir()` / `path.is_file()` in the recursive loaders. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 | mod.rs:2409 | `PackMetadataSection` format range | An incompatible `pack_format` is accepted without warning; vanilla marks the pack incompatible and refuses to enable it. | Compare `pack_format` (or min/max range) against the current format and reject/skip with a log. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+
+## Result
+
+- function_loader.rs:30 (symlinks skipped by `entry.file_type()`): FIXED. Verified against
+  vanilla `PackDetector.detectPackResources` (`.vendor/vanilla-decompiled/.../PackDetector.java:31-49`),
+  which resolves `Files.readSymbolicLink` and tests the target with `Files.isDirectory`, so symlinked
+  packs/content are followed. Replaced `entry.file_type()` with `path.is_dir()` / `path.is_file()` in
+  `load_functions_recursive` and `load_tags_recursive` (matching `load_block_tags_recursive`, which
+  already used `path.is_dir()`). Updated the two tests that asserted the old skip behaviour to assert
+  symlinked functions and function-tag directories are now loaded. Ran `rustfmt --edition 2024` on the
+  file (exit 0). No compile/test run: per unit instructions (orchestrator compiles once after workers).
+- All other STILL OPEN rows reference `mod.rs` (or generated data / cross-crate work), which is outside
+  this unit's only editable file (`function_loader.rs`); left open, not in scope.

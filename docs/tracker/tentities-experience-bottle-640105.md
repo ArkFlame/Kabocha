@@ -76,3 +76,46 @@ Source audited:
 - 3 thrown bottle spawns at player feet (M, shared throw path across 4 items): STILL OPEN (size M)
 - 4 no automated test (M): STILL OPEN (size M)
 - 5 splash potion sound pointer: STILL OPEN (pointer only, splash_potion.rs out of scope)
+
+
+## Result
+
+Verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`
+(protocol 777 / V_26_3). Rows smallest first.
+
+- Row 2 (dispenser launch power): VERIFIED, NO CHANGE. Vanilla
+  `ExperienceBottleItem.createDispenseConfig()` sets power = `DEFAULT.power() * 1.25`
+  (1.1 * 1.25 = 1.375) and uncertainty = `DEFAULT.uncertainty() * 0.5` (6.0 * 0.5 = 3.0).
+  Pumpkin already uses `POTION_PROJECTILE_POWER` 1.375 / `POTION_PROJECTILE_UNCERTAINTY` 3.0.
+  The tracker speculation that the bottle uses the generic config was wrong. Closed.
+
+- Row 3 (thrown items spawn at feet): FIXED for snowball / egg / ender pearl.
+  `ThrowableItemProjectile(owner, ...)` spawns at `owner.getEyeY() - 0.1`; all three
+  vanilla classes route through that constructor. Added the same `throw_spawn_pos`
+  helper already used by the experience bottle to `item/items/{snowball,egg,ender_pearl}.rs`.
+  Sound still plays at the feet, matching vanilla. Closed.
+
+- Row 5 (splash potion sound): FIXED. Vanilla `AbstractThrownPotion.splash` emits
+  particles 2002 (or 2007 for instant) AND sound 1053 (or 1054 for instant).
+  `splash_potion.rs` now broadcasts the matching sound event with data 0 alongside
+  the particle event. Closed.
+
+- Row 1 (XP orbs never merged): FIXED. Vanilla `ExperienceOrb.awardWithDirection`
+  splits into `getExperienceValue` tiers then calls `tryMergeToExisting`, which absorbs
+  an equal-valued orb inside a 1x1x1 box (sum amount, reset age). Implemented directly
+  in `ExperienceOrbEntity::spawn_with_direction`, so all 13 existing award call sites
+  get merge behaviour without touching files outside this unit. `amount` became
+  `AtomicU32` so an existing orb can absorb the value. Closed.
+
+- Row 4 (no automated test): PARTIALLY FIXED. Added a pure unit test for the vanilla
+  XP split tiers (`orb_sizes`: 11 -> [7,3,1], 14 -> [7,7], 0 -> []). The suggested
+  on_hit integration test needs a live `World` and is not a pure unit test, so it is
+  left for the orchestrator's gametest pass. Left open (integration test).
+
+Files changed: `crates/pumpkin-core/src/entity/experience_orb.rs`,
+`crates/pumpkin-core/src/item/items/snowball.rs`,
+`crates/pumpkin-core/src/item/items/egg.rs`,
+`crates/pumpkin-core/src/item/items/ender_pearl.rs`,
+`crates/pumpkin-core/src/entity/projectile/splash_potion.rs`.
+All touched `.rs` files formatted with `rustfmt --edition 2024`. Build not run
+(orchestrator compiles once after all workers finish).

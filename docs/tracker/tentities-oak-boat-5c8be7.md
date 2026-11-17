@@ -62,3 +62,45 @@ rule 12; the worktree has no `.vendor/` reference to check against.
 - 6 paddle boat handler (paddle_boat.rs:6-10): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 7 dead move_from_client path (physics.rs:267): STILL OPEN (dead-code cleanup, size S, physics excluded)
 - 8 no boat gametest coverage: STILL OPEN (needs gametest, not in scope)
+
+
+## Result
+
+Verified against decompiled vanilla at .vendor/vanilla-decompiled (symlink to
+/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup), specifically
+net/minecraft/server/network/ServerGamePacketListenerImpl.java (handleMoveVehicle :578,
+handlePaddleBoat :2464) and net/minecraft/world/entity/Entity.java (getControlledVehicle :6661).
+
+- Row 1 (bubble time publish, boat.rs/physics.rs/generated tracked_data): LEFT OPEN -
+  file outside this unit plus needs generated tracked-data write; one-line reason: requires
+  boat.rs, physics.rs and generated data edits outside this unit.
+- Row 2 (rider position clamp, passengers.rs/boat.rs): LEFT OPEN - files outside this
+  unit (boat.rs already carries an AbstractBoat.clampRotation hook at on_rider_positioned,
+  but that file is not editable here).
+- Row 3 (float_boat air-to-water snapping, physics.rs): LEFT OPEN - physics.rs is
+  outside this unit.
+- Row 4 (floatBoat gravity constant, physics.rs): LEFT OPEN - physics.rs is outside
+  this unit.
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED, no change needed.
+  Vanilla handleMoveVehicle uses targetYRot = Mth.wrapDegrees(movingTo.yRot()) and
+  targetXRot = Mth.wrapDegrees(movingTo.xRot()) and passes them to vehicle.absSnapTo.
+  Pumpkin already wraps at move_vehicle.rs:43-44 into target_yaw/target_pitch and applies
+  them via set_rotation at :81; client_move.rs:418 etc. also wrap. No edit required.
+- Row 6 (paddle boat handler, paddle_boat.rs): FIXED. Vanilla handlePaddleBoat:
+  if (player.getControlledVehicle() instanceof AbstractBoat boat)
+  boat.setPaddleState(packet.getLeft(), packet.getRight()).
+  getControlledVehicle returns the immediate vehicle only when the player is its
+  controlling passenger. Rewrote handle_paddle_boat to: require the vehicle be its
+  controlling passenger (is_controlling via get_controlling_passenger entity-id match),
+  downcast with cast_any to BoatEntity, then set_paddle_state. This stops arbitrary
+  vehicles receiving paddle state and stops non-controlling passengers paddling.
+  Note: the doc suggested get_root_vehicle; decompiled vanilla uses getControlledVehicle
+  (immediate vehicle), so the implementation matches vanilla, not that suggestion.
+- Row 7 (dead move_from_client path, physics.rs): LEFT OPEN - physics.rs is outside
+  this unit.
+- Row 8 (boat gametest coverage, server/builtin_game_tests): LEFT OPEN - gametest
+  files are outside this unit.
+
+No pure unit-test seam exists for these packet handlers (they require a live Player,
+world and vehicle graph), so none was added. rustfmt --edition 2024 run on the one
+touched Rust file (paddle_boat.rs).

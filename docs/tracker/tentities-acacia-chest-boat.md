@@ -71,3 +71,40 @@ in this worktree (.vendor/ absent), so vanilla class behaviour is from knowledge
 ## h6 gap status
 
 - Rows 1-6: STILL OPEN (chest-boat contents and seat logic, M; needs gametest harness).
+
+
+## Result
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/`
+(`AbstractBoat`, `AbstractChestBoat`, `VehicleEntity`, `BoatItem`). Rows 1, 2, 4 and 5 were
+already fixed in the checkout by the time of this pass; row 3 was fixed here.
+
+1. FIXED (pre-existing). `BoatEntity::on_removed` calls `scatter_chest_contents`, guarded by
+   `claim_drops`. Verified `World::remove_entity` calls `on_removed` only with
+   `RemovalReason::Discarded` (`should_destroy() == true`); chunk-unload and dimension-transfer
+   paths skip it, matching `AbstractChestBoat.remove`'s `reason.shouldDestroy()` gate. Vanilla
+   `VehicleEntity.hurtServer` runs `destroy` -> `chestVehicleDestroyed`, which the damage path
+   already mirrors. No new code needed.
+2. FIXED (pre-existing). `boat_drop_item` uses `BoatItem::entity_to_item` first with a registry
+   fallback; `every_boat_entity_type_resolves_a_drop_item` covers all boat types. Vanilla has the
+   single `dropItem` supplier used by both `getDropItem` and `getPickResult`. No new code needed.
+3. FIXED (this pass). Vanilla `AbstractBoat.canAddPassenger` checks only seat count and
+   eye-in-water; `outOfControlTicks < 60` and `startRiding` (player already riding) belong to
+   `AbstractBoat.interact` and must NOT open the chest. The old inline `can_add_passenger`
+   folded all four together, so a plain use on an out-of-control boat or by a mounted player
+   opened the container (vanilla returns PASS and does nothing). Extracted a pure
+   `boat_interact_outcome` + `BoatInteractOutcome` model, used by `interact`, and added
+   `chest_boat_interact_follows_vanilla_mount_container_nothing_chain` covering the full table.
+4. FIXED (pre-existing). `boat::max_passengers` is the single rule used by both `boat.rs` and
+   `entity/mod.rs:1312`; `chest_boat_detection_covers_every_chest_boat_entity_type` asserts 1 vs 2.
+5. FIXED (pre-existing). `player.rs:4443` uses `boat::is_boat(entity_type)` instead of an
+   explicit boat/chest-boat list; `boat_stat_classification_covers_every_boat_entity_type` covers it.
+6. OPEN. A pumpkin-gametest needs the gametest harness and a build run, neither available under
+   this worker's no-cargo/no-new-file constraints. A pure unit test for the interact decision was
+   added under row 3 as the smallest in-file seam.
+
+Also repaired a pre-existing compile error in `seat_and_container_tests`: `EntityType` was used
+without being imported in that module.
+
+Verification: `rustfmt --edition 2024` applied cleanly to
+`crates/pumpkin-core/src/entity/vehicle/boat.rs`. Cargo/clippy not run (worker constraint).

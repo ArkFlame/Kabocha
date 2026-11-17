@@ -47,3 +47,25 @@ Remaining gaps:
 ## Gap status
 
 - STILL OPEN: all combat.rs/player.rs rows (mace push, can_smash_attack !on_ground intentional, record_damage hooks, sweep damage, causeExtraKnockback, bedrock sweep kept). Not re-verified in h3 sweep.
+
+## Result
+
+- `combat.rs` `mace_smash_knockback` (S) - FIXED. The impulse now goes through
+  `Entity::push_by`, which marks velocity dirty and keeps Bedrock's predicted push in step,
+  and a motion packet is still sent to each pushed player, mirroring vanilla
+  `MaceItem.knockback` (`push(x, 0.7, z, attacker)` + `ClientboundSetEntityMotionPacket`).
+  Added `non_living_knockback_impulse` helper plus a pure unit test for it.
+- `combat.rs` `record_damage` combat enter/leave hooks (M) - OPEN. Firing
+  `mob.onEnterCombat()`/`onLeaveCombat()` needs the owning entity passed into the tracker
+  and the hooks fired at the call sites in `entity/living.rs`, which is outside this unit.
+- `combat.rs` `get_message_for_assisted_fall` live main-hand item (S) - OPEN. Reading the
+  attacker's current main hand at message time requires passing the attacker entity into
+  `CombatTracker::get_death_message` from the `entity/living.rs` call site, outside this unit.
+- `player.rs` sweep damage (M) - OPEN. Vanilla V_26_3 `doSweepAttack` needs the sweep damage
+  source/model; no sweep damage type exists in `pumpkin-data` generated data, so a faithful
+  port needs generated data this unit cannot add.
+- `player.rs` `causeExtraKnockback` non-living push (S) - FIXED. Non-living victims now get the
+  raw push with vanilla's opposite horizontal sign and 0.1 lift, the attacker stops sprinting,
+  and its velocity decays by 0.6. Verified against decompiled `Player.causeExtraKnockback`.
+- `player.rs` sweep ally/marker/distance checks, knockback and box - already match vanilla in
+  the current checkout; no change needed.

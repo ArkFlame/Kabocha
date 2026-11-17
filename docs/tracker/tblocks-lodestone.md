@@ -52,3 +52,16 @@ proven by in-tree evidence.
 - Rows 1 and 6 (`compass.rs`): STILL OPEN, `compass.rs` is out of scope for this sweep.
 - Row 2 (dead POI hooks in `lodestone.rs`): STILL OPEN, deletion not done this pass.
 - Row 5 (unloaded chunk skip): STILL OPEN by design, keep as-is per note.
+
+## Result
+
+Re-reviewed against `.vendor/vanilla-decompiled` (Paper-mapped 26.x tree, now present). One code fix applied; all other STILL OPEN rows verified as no-gap or out of unit scope.
+
+- Row 1 (compass.rs:35,59, recovery compass locking): NO CHANGE. Vanilla `Items.RECOVERY_COMPASS` is a plain `Item` (Items.java:2037); there is no `RecoveryCompassItem` class and no `useOn` override, so a recovery compass never locks on a lodestone. `CompassItem.useOn` (CompassItem.java:46-70) gates only on the clicked block being `LODESTONE`. Pumpkin already prevents recovery-compass locking via the `item.item.id == Item::COMPASS.id` guard, which is required because `CompassItem::ids()` also lists RECOVERY_COMPASS. The suggested fix would make the recovery compass lock, diverging from vanilla.
+- Row 2 (lodestone.rs:10-24, duplicate POI hooks): FIXED. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides (Blocks.java:4973). The engine `World::update_poi` (world/mod.rs:6621) derives POI from `PoiType::from_state_id`; lodestone default state 25187 maps to `PoiType::Lodestone`, so the block-level `placed`/`on_state_replaced` hooks were dead duplicates. Replaced them with an empty `impl BlockBehaviour` (structure_void.rs pattern).
+- Row 3 (proto_chunk.rs, generated POI): NO CHANGE, already covered. Generated chunks are scanned on completion through the global chunk listener (`process_new_chunk`, schedule.rs:1225), and `poi_scan::scan_chunk` detects every `PoiType::from_state_id` state including lodestone 25187, so bastion/ruined-portal lodestones get POIs without a proto_chunk change. A proto_chunk-side hook would be redundant.
+- Row 4 (player.rs:6822-6826, missing dimension): OUT OF UNIT SCOPE (player.rs not in this unit's file list). The h6 note records it as already fixed in e34445644.
+- Row 5 (player.rs:6823, unloaded chunk skip): OUT OF UNIT SCOPE (player.rs not in this unit's file list). Deliberate design choice to avoid a synchronous chunk load inside the player tick; keep as-is.
+- Row 6 (compass.rs:62, insert order): NO CHANGE. `insert_stack_anywhere` -> `add_stack` tries `get_occupied_slot_with_room_for_stack` (selected -> offhand -> main slots 0..36) then `get_empty_slot` (0..36), matching vanilla `Inventory#add` -> `getSlotWithRemainingSpace` (selected -> SLOT_OFFHAND -> 0..36) then `getFreeSlot` (0..36). No ordering gap.
+
+Files changed: crates/pumpkin-core/src/block/blocks/lodestone.rs (rustfmt --edition 2024 applied). No pure unit-test seam for the row 2 fix (POI add/remove needs a live World/PoiStorage); the existing poi_scan test already covers state-id to POI detection.

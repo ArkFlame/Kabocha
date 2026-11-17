@@ -51,3 +51,40 @@ adds `UPDATE_SKIP_ALL_SIDEEFFECTS` to the placement flags (`StructureBlockEntity
 
 ## h6 status
 - Structure block rows (addToLists shape, non-strict neighbour updates, LootTableSeed, placeInWorld void filter, empty palette with entities): STILL OPEN, not attempted this pass (h6 budget spent on jukebox/boat slices).
+
+## Result
+
+Re-verified every STILL OPEN row against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft`. Smallest rows first.
+
+- Row 45 (LootTableSeed, S/M): FIXED. A randomizable-container gate
+  (`is_randomizable_container_id`) was already present, but it carried an extra
+  `LootTable`-presence check that vanilla does not have. Vanilla
+  `StructureTemplate.placeInWorld` (`StructureTemplate.java:322-324`) calls
+  `blockInfo.nbt.putLong("LootTableSeed", random.nextLong())` for *every* placed
+  `RandomizableContainer`, so the placement RNG advances once per container even when there is
+  no LootTable tag. Removed the `LootTable` check so Pumpkin consumes the same RNG sequence;
+  otherwise a later container's seed diverges from vanilla. Comment corrected.
+- Row 44 (structure_void, S/M): NON-GAP, no change. Vanilla ignores STRUCTURE_VOID only during
+  capture (`StructureBlockEntity.java:348-350` passes `Stream.of(Blocks.STRUCTURE_VOID)` to
+  `fillFromWorld`); `placeInWorld` has no void filter (`StructureTemplate.java:288-311`).
+  Pumpkin skips void at capture (`structure_block.rs:223`) and places every palette entry with no
+  void filter. Match.
+- Row 46 (empty palette + entities, S): LEFT OPEN. Needs the entity capture/place pass (rows 39-40,
+  L) to be meaningful; out of scope for this unit's three files. A palette with no blocks but
+  entities still returns early (`structure_block.rs:394-399`).
+- Row 43 (LegacyRand, M): NON-GAP, no change. In this target `RandomSource.create(seed)` returns
+  `new LegacyRandomSource(seed)` (`RandomSource.java:23-25`), a 48-bit LCG with multiplier
+  `25214903917` and increment `11` (`LegacyRandomSource.java:32-48`), identical to Pumpkin's
+  `LegacyRand` (`legacy_rand.rs:36-54`). Both integrity and loot placement use
+  `createRandom(this.seed)` (`StructureBlockEntity.java:419,429`). The doc's proposed switch to
+  the non-legacy `RandomImpl` is wrong for this version and was NOT applied.
+- Row 42 (non-strict neighbour shapes, M): ALREADY FIXED in the current source, no new change.
+  `place_structure_template_in_world` (`structure_block.rs:470-487`) runs a `!strict` pass calling
+  `world.update_from_neighbor_shapes` then `world.update_neighbors_at` per placed position, with
+  `set_block_state(..., NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE)` for changed states, matching
+  `StructureTemplate.java:376-401`. Residual minor gap: vanilla's `updateShapeAtEdge`
+  (`StructureTemplate.java:388,434-463`) also reshapes blocks just outside the template box; not
+  implemented (complexity beyond the fix described in the row).
+
+File changed: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 45 only).

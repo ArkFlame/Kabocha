@@ -83,3 +83,36 @@ markers before this pass).
 
 ## Gap status
 - Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
+
+## Result
+
+Pass 2026-11-17 (no decompiled sources in `.vendor/`; vanilla is `ServerGamePacketListenerImpl.handleUseItemOn`
++ `ServerPlayerGameMode.useItemOn`/`ServerLevel.mayInteract` from memory, per the header notes).
+
+- FIXED **max build height gate**: `handle_use_item_on` now returns early (block resync to the
+  client, no action) when `position.y > world.get_top_y()`, i.e. `y >= maxBuildHeight`. No new
+  `World` accessor was needed: `get_top_y()` already equals `min_y + height - 1`.
+- FIXED **`ServerLevel.mayInteract`**: new local `may_interact(player, world, position)` helper
+  (`use_item_on.rs`) checks the world border via `Worldborder::is_within_bounds(x, z, 0.0)` and
+  rejects spawn protection via `World::is_in_spawn_protection`. Called from the same early return
+  as the build-height gate (vanilla order: build height, then mayInteract). No spawn-protection
+  chat message is sent, matching vanilla `mayInteract` (only `break_block`/placement do). The
+  duplicated `world` load further down was removed and reused.
+- STALE **`increment_stat(Used, ...)` unconditional**: the call is already gated on
+  `item_result.consumes_action() || should_try_decrement`; nothing to change.
+- OPEN **`isItemEnabled(level.enabledFeatures())`**: needs a new `Item::is_enabled`/feature helper
+  in `pumpkin-data` (generated/data layer), outside this unit.
+- OPEN **`awaitingPositionFromClient` guard**: `JavaClient` keeps no teleport-ack state; needs
+  cross-file net state.
+- OPEN **`PlayerInteractEvent` for spectators**: deliberate superset of Paper (lets plugins block
+  spectator inventory opening); left as is, no behaviour change.
+- OPEN **item `on_use` fallback** and **hit-position epsilon check**: both need a runtime client
+  capture to decide; no change.
+- `hub.rs`: no open rows (only the management `spawn_protection_radius` atomic, unused by this
+  path; `World::is_in_spawn_protection` reads `BasicConfiguration` directly).
+- `worldborder.rs`: no open rows; `is_within_bounds`/`contains` already match
+  `WorldBorder.isWithinBounds` and are covered by existing tests.
+- No new unit test: `may_interact` needs a live `World`/`Player`, so there is no pure seam; the
+  border half it relies on is already covered by `world/border.rs` tests.
+
+Gap status: 2 fixed, 2 stale, 4 open (reasons above).

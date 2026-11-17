@@ -64,3 +64,15 @@ The source changed since the last review: the damage pipeline now runs
 ## Gap status
 - 1 projectile dodge keyed on damage type (M): STILL OPEN (size M)
 - 2 stare line-of-sight 128-block cap (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Re-verified both STILL OPEN rows against the decompiled source now present under .vendor/vanilla-decompiled/net/minecraft/. The previous audit had no decompiled tree and guessed vanilla from memory; both rows rest on incorrect premises. Pumpkin already matches the real source. No code changes were needed and no test was added (no behaviour change to test; a constant mirror test would be a forbidden formula/constant test).
+
+### Row 1 (M) projectile dodge: NO GAP, closed
+- Vanilla Enderman.hurtServer (world/entity/monster/Enderman.java:390-412) uses source.is(DamageTypeTags.IS_PROJECTILE) with !this.isPassenger(), i.e. the damage-type TAG. It does NOT use getDirectEntity() instanceof Projectile. The only direct-entity check there is getDirectEntity() instanceof AbstractThrownPotion for the water-sensitivity splash branch. The tracker premise was wrong.
+- Pumpkin is_projectile_damage (enderman.rs:70-72) checks has_tag(MINECRAFT_IS_PROJECTILE); pre_damage_with_context (:600) gates it on !entity.has_vehicle() then calls repeatedly_try_to_teleport (:249, 64 attempts). has_vehicle() is exactly vanilla isPassenger() (vehicle.is_some()). This matches vanilla. Keep the tag check as is.
+
+### Row 2 (S) stare line-of-sight 128-block cap: NO GAP, closed
+- Vanilla LivingEntity.hasLineOfSight (world/entity/LivingEntity.java:4121-4132) DOES cap at 128 blocks: to.distanceToSqr(from) > Mth.square(128.0) fails the check. The tracker "unbounded block clip" claim is wrong (the Paper patch only rewrote it to squared distance).
+- Pumpkin LINE_OF_SIGHT_RANGE = 128.0 check (enderman.rs:65, :402-404) matches that cap. The cone check also matches isLookingAtMe(player, 0.025, true, false, getEyeY()) (LivingEntity.java:2276-2296), endpoints and eye heights included.

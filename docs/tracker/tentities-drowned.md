@@ -72,3 +72,31 @@ is empty — the Rust guard matches. No change expected; listed only because the
 - 3 trident goal continue condition: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 equipment roll distribution (needs Drowned.java): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 nautilus shell drop chance (needs decompile): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Verified 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 1.21.x, Mojang mappings).
+
+- 1 turtle egg goal: FIXED. Decompiled `Zombie#registerGoals` adds `ZombieAttackTurtleEggGoal` at priority 4 and
+  calls `addBehaviourGoals()`; `Drowned` overrides only `addBehaviourGoals()` (no `registerGoals` override), so it
+  inherits the egg goal and does trample turtle eggs. The old doc premise (Drowned overrides `registerGoals`
+  without `super`) does not hold in this source. `drowned.rs::DrownedEntity::new` now registers
+  `DestroyEggGoal::new(1.0, 3)` at priority 4. In-scope fix, no `mod.rs` change needed.
+- 2 trident attack hand: VERIFIED MATCH, no change. Decompiled `DrownedTridentAttackGoal#start` uses
+  `startUsingItem(InteractionHand.MAIN_HAND)` and `performRangedAttack` reads `getMainHandItem()`. Pumpkin uses
+  `Hand::Right` (documented as the primary/main hand) and the `MAIN_HAND` stack. The doc's `getWeaponHoldingHand`
+  premise does not match this source; for any normal main-hand trident the behaviour is identical.
+- 3 trident goal continue condition: VERIFIED MATCH, no change. `RangedAttackGoal#canContinueToUse` is
+  `canUse() || target.isAlive() && !navigation.isDone()`; `Drowned` overrides only `canUse`. Rust `should_continue`
+  = `self.can_start(mob) || self.ranged.target_alive() && !mob.is_navigator_idle()`, where `can_start` is the
+  trident-aware `canUse` override. This is a faithful mirror; the doc concern was unfounded.
+- 4 equipment roll distribution: VERIFIED MATCH, no change. Decompiled `populateDefaultEquipmentSlots` is
+  `nextFloat() > 0.9` then `nextInt(16) < 10`; Rust is `random::<f32>() > 0.9` then `random_range(0..16) < 10`.
+  Same uniform second roll; no decompile-driven edit required.
+- 5 nautilus shell drop chance: VERIFIED MATCH, no change. Decompiled `finalizeSpawn` guards on empty OFFHAND and
+  `nextFloat() < 0.03F`, then `setItemSlot` + `setGuaranteedDrop(OFFHAND)`. Rust matches with
+  `set_item_slot_and_drop_when_killed` under the same `OFFHAND.is_empty() && random < 0.03` guard.
+
+No pure unit-test seam exists for goal registration (needs constructed entities); no test added. Only `drowned.rs`
+was edited (plus this doc); rustfmt --edition 2024 applied and clean.

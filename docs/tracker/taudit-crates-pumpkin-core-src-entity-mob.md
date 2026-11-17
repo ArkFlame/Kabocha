@@ -71,3 +71,40 @@ Remaining gaps:
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/` (Mob.java,
+world/entity/monster/skeleton/{AbstractSkeleton,WitherSkeleton}.java,
+server/level/{ServerLevel,WorldGenRegion}.java). Smallest rows first.
+
+- **Row 2 (S) FIXED.** `AbstractSkeleton.finalizeSpawn` (lines 131-143) rolls
+  `setCanPickUpLoot` for every skeleton, but `WitherSkeleton.populateDefaultEquipmentEnchantments`
+  (lines 78-80) is an empty override. So `enchanted: false` was already correct;
+  `can_pick_up_loot: false` was wrong. Set `can_pick_up_loot: true` for the
+  wither_skeleton registry entry and added `wither_skeleton_spawn_flags_match_vanilla`.
+- **Row 3 (S) FIXED.** `Mob.populateDefaultEquipmentSlots` (lines 1146-1158) guards
+  armor with `if (itemStack.isEmpty())`. `equip_mob_on_spawn` now skips any armor
+  slot whose current stack is non-empty (weapon slots still match the skeleton
+  overrides, which set MAINHAND unconditionally).
+- **Row 6 (S) OPEN.** Dropping the unused `_slot` parameter would break the caller
+  at `mod.rs:2727`, a file outside this unit; change reverted.
+- **Row 4 (M) NO CHANGE - verified faithful.** `ServerLevel.getCurrentDifficultyAt`
+  (lines 2703-2712) reads `getChunk(..., ChunkStatus.FULL, false)` and uses 0
+  inhabited time when no such chunk exists; `WorldGenRegion.getCurrentDifficultyAt`
+  (lines 525-531) explicitly passes `0L` during generation. The current
+  `loaded_chunks` lookup with a 0 fallback matches vanilla.
+- **Row 7 (M) NO CHANGE - verified faithful.** Base `Mob.finalizeSpawn`
+  (lines 1256-1269) does not roll can-pick-up-loot; each species does so in its
+  own override (`AbstractSkeleton.java:139`). Pumpkin's per-definition roll is
+  already species-scoped.
+- **Row 1 (L) OPEN.** Duplicate dispatch / dead overrides require a multi-file
+  refactor across `skeleton/mod.rs`, `zombie/mod.rs` and `mod.rs:2570`, all outside
+  this unit.
+- **Row 5 (M) OPEN.** Threading a level `RandomSource` through every random draw
+  spans `equip_mob_from_def`, `select_vanilla_armor`, `should_happen`,
+  `equip_mob_on_spawn` and `spawn.rs`; too large to type-check without a compile.
+
+Files edited: `crates/pumpkin-core/src/entity/mob/equipment.rs` (rustfmt --edition 2024 applied).
+`piglin.rs` untouched: no row maps to it. No compile/test run (forbidden for this role).

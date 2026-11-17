@@ -61,3 +61,31 @@ paths were re-checked against the decompiled reference.
 
 Note: no test added; `docs/WORKER.md` forbids running cargo in this pass, and the changed paths
 are tick-order and event-ordering fixes with no existing harness.
+
+## Result
+
+Verified against `.../mc-proof/ref/net/minecraft/world/entity/projectile/FishingHook.java` and
+`.../mc-proof/ref/net/minecraft/world/item/FishingRodItem.java`.
+
+- `world/loot/predicates.rs:389-437` (open water): fixed the loot predicate to follow vanilla
+  `FishingHook.calculateOpenWater`: each 5x5 layer must be uniform, air may only sit above water and
+  the bottom layer must be water; lily pads count as air. Added the pure
+  `water_above_air_is_not_open_water` unit test. Per-tick `openWater` caching on the bobber is not
+  added; the predicate now applies the same layer rule at loot time instead.
+- `entity/type.rs:143` (bobber arm): STILL OPEN - needs a `from_loaded` constructor and owner-NBT
+  rehydration; the plain `Entity` fallback never reaches `process_tick`'s no-owner discard.
+- `fishing_bobber.rs` (Lured event state): STILL OPEN - needs an additive `PlayerFishState::Lured`
+  in native + WIT + host, outside this unit's files.
+- `item/items/fishing_rod.rs` (Fishing event on cast): STILL OPEN - the event is already fired and
+  cancellable in out-of-unit `net/java/play/use_item.rs:192`; passing the real hook UUID requires
+  editing that file.
+- `fishing_bobber.rs:473-478` (rotation + block effects): fixed - call `Entity::check_block_collision`
+  and `update_rotation` after the move, matching `FishingHook.tick:260-269`.
+- `fishing_bobber.rs:847-857` (removal clears owner): fixed - `on_removed()` clears
+  `player.fishing_bobber` on every removal path, matching vanilla `preRemove`/`onClientRemoval`.
+- `fishing_bobber.rs:161-199` (reel_in re-check): fixed - re-reads the hooked entity after the
+  `CaughtEntity` event and requires `!is_removed()` before pulling; also fires the entity-path
+  empty-list `FISHING_ROD_HOOKED` advancement (vanilla `retrieve:521-527`).
+- Per-item `FishedItem` trigger: left as-is - `AdvancementTrigger::FishedItem` carries a single item
+  id, so a single full-list trigger needs a trigger API change outside this unit; firing once per
+  item is equivalent for the `fishing_rod_hooked` predicate.

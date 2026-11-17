@@ -47,3 +47,25 @@ metadata pairing (vehicle.rs:167-188), seat indices 0.2/-0.6 for two passengers,
 ## h6 status
 - get_ground_friction NaN with no supporting block: FIXED 426efffdc (returns 0.0). No unit test: needs a world fixture.
 - Row 1 (chest interact result discarded), row 2 (eye-in-water mount gate), row 3 (damage prediction coupling), row 5 (client velocity vs last_yd): STILL OPEN, not attempted this pass, needs decompiled interact ordering or a shared vehicle destroy return value.
+
+
+## Result
+
+All four STILL OPEN rows require edits to files outside this unit's only editable source file
+(`spawn_egg.rs`), and no decompiled boat source exists under `.vendor/vanilla-decompiled/` to ground
+a change, so each is left open with a one-line reason. No source file was edited, so no rustfmt run.
+
+- Row 1 (chest-boat interact result discarded): OPEN - code is in `entity/vehicle/boat.rs`
+  (`interact` / `open_custom_inventory_screen`), outside this unit's editable file (`spawn_egg.rs`);
+  no decompiled source to confirm vanilla chest-boat interact ordering.
+- Row 2 (eye-in-water mount gate): OPEN - code is in `entity/vehicle/boat.rs` (`is_eye_in_water`
+  gate in `interact`), outside this unit's editable file (`spawn_egg.rs`); no decompiled source to
+  confirm the vanilla mount gate.
+- Row 3 (damage prediction coupling): OPEN - code is in `entity/vehicle/boat.rs` and
+  `entity/vehicle.rs` (`damage_with_context`); cross-file refactor outside this unit's editable
+  file (`spawn_egg.rs`).
+- Row 5 (client velocity vs last_yd): OPEN - code is in `entity/vehicle/boat.rs` and
+  `entity/vehicle/boat/physics.rs` (`last_yd`), outside this unit's editable file (`spawn_egg.rs`);
+  no decompiled source to confirm the vanilla client-authoritative path.
+
+Row 4 was already FIXED in a prior pass.

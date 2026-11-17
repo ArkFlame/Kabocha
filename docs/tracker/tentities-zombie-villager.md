@@ -74,3 +74,43 @@ Weakness, as in vanilla.
 
 ## h2 parity sweep (status)
 - All S rows STILL OPEN - not attempted this pass; the difficulty clamp suggestion needs the vanilla formula confirmed first.
+
+
+## Result
+
+Verified against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/ZombieVillager.java`
+and `net/minecraft/world/entity/{Mob,DropChances,ConversionType,ConversionParams}.java`.
+
+1. Strength amplifier: checked. Vanilla `startConverting` uses
+   `Math.min(difficulty.getId() - 1, 0)`; `cure_strength_amplifier` already maps
+   Peaceful to None and Easy/Normal/Hard to Some(0). The Peaceful amplifier -1 in
+   vanilla grants no attribute bonus and hostile mobs are removed there, so the
+   difference is cosmetic. Existing pure unit test `cure_strength_skipped_only_on_peaceful`
+   covers it. No change.
+2. Special-block scan: FIXED. Vanilla's `getConversionProgress` guards every candidate
+   with `specialBlocksCount < 14`, so at most fourteen blocks are counted. Pumpkin
+   used `> MAX_SPECIAL_BLOCKS_COUNT`, allowing fifteen. Changed to
+   `>= MAX_SPECIAL_BLOCKS_COUNT` and corrected the comment.
+3. Equipment on cure: checked. Decompiled `finishConversion` calls
+   `dropPreservedEquipment(level, stack -> !has(stack, PREVENT_ARMOR_CHANGE))` and
+   `Mob.dropPreservedEquipment` drops only when `dropChances.isPreserved(slot)`,
+   i.e. `byEquipment(slot) > 1.0F`. Pumpkin's `prevents_armor_change` predicate and
+   `drop_chance(slot) > 1.0` already match. The retained `set_guaranteed_drop` is a
+   harmless older-vanilla extra. A cure gametest would live outside this unit's
+   files, so none added. No change.
+4. Cured villager effects: FIXED. Vanilla `ConversionType.convertCommon` copies every
+   active effect onto the converted mob, so the cured villager inherits the
+   leftover Strength. Removed the block that stripped all effects before
+   `convert_to`; `convert_common` now supplies the vanilla behaviour.
+5. `set_villager_data` offers: checked. Vanilla `ZombieVillager.setVillagerData`
+   clears `tradeOffers` when the profession changes. Pumpkin already drops the
+   stored `Offers` on a profession change, so the doc's claim that vanilla never
+   touches offers was wrong. No change.
+
+Also confirmed the cure duration in `mob_interact` uses `nextInt(2401) + 3600`
+(3600..=6000 inclusive), matching this decompiled vanilla; the earlier doc note
+claiming an exclusive upper bound was wrong for this target.
+
+Files touched: `crates/pumpkin-core/src/entity/mob/zombie/zombie_villager.rs`
+(rustfmt --edition 2024 applied, exit 0). No build run per worker rules.

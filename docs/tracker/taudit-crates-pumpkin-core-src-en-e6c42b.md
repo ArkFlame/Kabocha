@@ -86,3 +86,20 @@ starts one tick late.
 
 ## Gap status
 - Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft` (Paper/CraftBukkit-patched, MC 26.x). No .rs file in this unit needs a change: the four villager event structs are already correct, merchant_offers.rs already carries its clamp fix, and every genuinely real gap requires editing mod.rs, which is outside this unit's editable basenames. rustfmt: not applicable (no .rs file touched).
+
+| Row | Status | Finding |
+|---|---|---|
+| 1 plugin events never fired | OPEN, needs mod.rs | Confirmed no fire site in pumpkin-core/src. Structs in this unit are correct; firing plus cancelled() handling belongs at the add_trades/restock/increase_merchant_career/gossip call sites in mod.rs (outside unit). |
+| 2 level-up XP bonus +5 | CLOSED, no change | Vanilla rewardTradeXp does `popXp += 5` on level up (Villager.java:621), so Pumpkin matches the tracker's vanilla reference. |
+| 3 catch_up_demand resets uses | CLOSED, no change | Vanilla catchUpDemand calls `offer.resetUses()` per offer (Villager.java:421, Spigot event-wrapped); Pumpkin matches. |
+| 4 LastGossipShare write-only | OPEN, needs mod.rs | Vanilla persists only LastGossipDecay (Villager.java:501/520); drop the share key from the write side in mod.rs (outside unit). |
+| 5 wants_to_pick_up VillagerFood | CLOSED, no change | Vanilla includes `DataComponents.VILLAGER_FOOD` in the predicate (Villager.java:835); Pumpkin matches. |
+| 6 should_restock moves restock time | CLOSED, no change | Vanilla sets `lastRestockGameTime = gameTime` in the day-change branch (Villager.java:407); Pumpkin matches. |
+| 7 special prices computed once | CLOSED, no change | Vanilla MerchantMenu.slotsChanged only calls updateSellItem (MerchantMenu.java:67-70); no per-update special-price recompute, so no port needed. |
+| 8 talked-to stat without trade | CLOSED, no change | Vanilla awards `TALKED_TO_VILLAGER` on MAIN_HAND before the noOffers check (Villager.java:306); Pumpkin matches. |
+| 9 regen effect placement | OPEN, needs mod.rs | Vanilla applies REGENERATION inside rewardTradeXp (Villager.java:618) immediately, not in aiStep; fix requires mod.rs (outside unit). |

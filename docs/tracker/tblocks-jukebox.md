@@ -22,3 +22,9 @@ For #4128, insert/eject/break/hopper-extract each drop the record once in the cu
 ## Gapwave h3 status
 - #5 note particle colour: FIXED a20553e39 (nextInt(24)/24 hue, UNVERIFIED client-only, no test)
 - #3 ticks NBT persistence: STILL OPEN (S, unverified vanilla save condition; not touched this pass)
+
+## Result
+- #3 ticks NBT persistence: FIXED, verified. Decompiled `JukeboxBlockEntity.saveAdditional` writes `ticks_since_song_started` only when `JukeboxSongPlayer.getSong() != null` (i.e. `song != null`), not when `ticks > 0` as the gap table claimed. Pumpkin's `write_nbt` gates on `song_length_ticks > 0` (its `song != null` proxy) and `chunk_data_nbt` delegates to `write_nbt`, so both omit the key when stopped and persist it even at ticks=0 while a song is loaded. Added `write_nbt_keeps_zero_ticks_while_song_is_loaded` to lock in vanilla gating. UNVERIFIED (no cargo run; NBT detail only).
+- #1 dynamic registry song resolution: LEFT OPEN. Needs dynamic `jukebox_song` registry access at the four call sites (generated-data / cross-crate change outside this unit).
+- #2 duplicate stop on eject/break: RESOLVED in current tree; no code change needed. Vanilla `JukeboxSongPlayer.stop` early-returns on `song == null` and `JukeboxBlockEntity.setRemoved` emits stop once; Pumpkin's `clear_record` -> `stop_playing` emits the single stop event + 1011 sound for both eject and `on_block_replaced`, which no longer resend them.
+- #4 `player_placed` HAS_RECORD: NOT A GAP; no code change needed. Decompiled `JukeboxBlock.setPlacedBy` sets `HAS_RECORD` when the placed item's `BLOCK_ENTITY_DATA` contains `RecordItem`; Pumpkin's `player_placed` mirrors this via the block entity's record.

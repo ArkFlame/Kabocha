@@ -76,3 +76,41 @@ Reviewed: 2026-11-16, MC 26.3 (`CURRENT_MC_VERSION`), vanilla classes
 - 5 STILL OPEN: no server-side boat movement, L.
 - 6 STILL OPEN (partial): invulnerable early-out present at `boat.rs:372`; `isRemoved` early-out and return value at `boat.rs:381` not changed.
 - 7 FIXED: `boat.rs:459` returns `has_passenger` after `add_passenger`.
+
+## Result
+
+Re-verified 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft`
+(MC 26.3): `AbstractBoat`/`VehicleEntity`, `AbstractChestBoat`,
+`ContainerEntity`, `VehicleEntity`, `BoatItem`, `Leashable`, `Entity`.
+
+- 1 FIXED (prior review): `tick_underwater` gates the counter on
+  `BoatStatus::is_underwater()`, matching vanilla `Boat.updateBubbleTime`.
+- 2 CLOSED - not a gap in this vanilla: `AbstractChestBoat.destroy` drops a
+  plain boat item via `VehicleEntity.destroy` (CUSTOM_NAME only) and scatters
+  the slots through `chestVehicleDestroyed`; no `minecraft:container` component
+  is written by any boat class. Pumpkin's `scatter_chest_contents` already
+  matches, so no code change.
+- 3 CLOSED - not a gap in this vanilla: `BoatItem.getBoat` only applies
+  `EntityType.createDefaultStackConfig`, whose `applyImplicitComponents` reads
+  CUSTOM_NAME/CUSTOM_DATA only; no container component is read on placement.
+  Pumpkin's empty `MinecartInventory` on placement already matches.
+- 4 FIXED - verified vanilla: `AbstractBoat implements Leashable` with
+  `getLeashOffset` and `supportQuadLeash() == true`, and generic `Entity.interact`
+  handles leads. Added lead tie/untie at the top of `BoatEntity::interact`, a
+  per-tick `Entity::tick_leash` call in `tick`, and `support_quad_leash() -> true`
+  in `boat.rs`.
+- 5 CLOSED - not a gap in this vanilla: server-side buoyancy, water/land friction
+  and movement already live in `boat/physics.rs` (`float_boat`, `move_boat`,
+  `VehicleMoveEvent`). Vanilla calls `controlBoat()` only on the client
+  (`AbstractBoat.tick:268-270`), so there is no server-side paddle path to port.
+- 6 FIXED - vanilla `VehicleEntity.hurtServer` checks `isRemoved()` first and
+  returns true. Added that early-out before the invulnerability check in
+  `BoatEntity::damage_with_context`; invulnerable still returns false.
+- 7 FIXED (prior review): `interact` returns `has_passenger` after
+  `add_passenger`.
+
+Files touched: `crates/pumpkin-core/src/entity/vehicle/boat.rs` only
+(`rustfmt --edition 2024` clean). No pure unit-test seam exists for the leash or
+damage paths without a live world/player, so none was added. `physics.rs` and
+`place_on_water.rs` needed no edits. Risk: another worker edited the same
+`boat.rs` concurrently; my edits were re-read and confirmed present afterwards.

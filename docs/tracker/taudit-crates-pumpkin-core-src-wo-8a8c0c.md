@@ -57,3 +57,29 @@ collision shapes, the height fixup boundaries, removed collidable entities, the 
 
 ## Status (code-verified sweep)
 FIXED: NoiseBasedChunkGenerator and Custom spawn height uses sea_level + 1 (world/player_spawn_finder.rs:264-265). STILL OPEN: scan range row 2 and can_be_collided_with row 3 not re-read.
+
+## Result
+
+Re-read against decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/`, target V_26_3).
+
+- STILL OPEN row 2 (scan range, `player_spawn_finder.rs:293`): VERIFIED MATCHING, no change. Vanilla
+  `server/level/PlayerSpawnFinder.java:179` runs `for (int y = topY + 1; y >= level.getMinY(); y--)`. It has no
+  clamp at the top. Pumpkin's `(get_bottom_y()..=top + 1).rev()` walks the identical range from `top + 1` down to
+  the min Y, so reading `get_top_y() + 1` is exactly what vanilla does. The note's claim that vanilla clamps the
+  loop is false for this decompile. `spawn_tests.rs:284` already pins the top boundary.
+- STILL OPEN row 3 (`can_be_collided_with`, `player_spawn_finder.rs:63-83`): VERIFIED MATCHING, no change. A
+  tree-wide search for `canBeCollidedWith` finds only three non-base overrides: `AbstractBoat.java:129` returns
+  `true`, `Shulker.java:496` returns `isAlive()` (health > 0), and `HappyGhast.java:574`. The base
+  `Entity.java:3522` returns `false`. For the null source used at `EntityGetter.java:112`, the ghast condition
+  reduces to `!isBaby() && isAlive() && isOnStillTimeout()` because its client-side-Player and vehicle-HappyGhast
+  arms require a non-null `other`. Pumpkin implements exactly these three; no minecart, armor stand or end
+  crystal override exists in this version, so adding arms would be wrong. `spawn_tests.rs:203,227` already pin it.
+- Flagged, out of scope (row 1, previously recorded FIXED): `world/level/chunk/ChunkGenerator.java:568-570`
+  returns the constant 64 from `getSpawnHeight`, and `NoiseBasedChunkGenerator` does not override it; only
+  `FlatLevelSource.java:67` does, which matches the Flat arm at `player_spawn_finder.rs:260-263`. The recorded
+  `self.sea_level + 1` at line 265 therefore disagrees with vanilla for non-overworld sea levels. Left unchanged:
+  it is not a STILL OPEN row and `spawn_tests.rs:404` encodes the current value, so correcting it needs a
+  coordinated code + test rewrite outside this pass.
+
+No source file changed: both STILL OPEN rows were already correct. No pure unit test was added (existing tests
+`spawn_tests.rs:284` and `:203,227` cover them) and rustfmt was not needed.

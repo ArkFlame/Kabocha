@@ -36,3 +36,15 @@ Variant pools and rare 1/1200 roll, group-data spawning/baby rule, air supply 60
 ## h2 parity sweep (status)
 - FIXED f090717d1 - `travel_in_water` falls back to `LivingEntity::travel_in_water` when `is_no_ai()` (vanilla `Axolotl.travel` gates the swim path on `isEffectiveAi() && isInWater()`). UNVERIFIED (no build).
 - Play-dead regen constants, no-AI air path, hurt condition: STILL OPEN - need decompiled 1.21.x source to confirm; not changed.
+
+## Result
+
+Verified the rows marked STILL OPEN against the decompiled vanilla source under .vendor/vanilla-decompiled/net/minecraft/.
+
+- Row 2 (play-dead regeneration): decompiled world/entity/animal/axolotl/PlayDead.java:32 uses new MobEffectInstance(MobEffects.REGENERATION, 200, 0). Pumpkin PLAY_DEAD_REGENERATION_DURATION = 200 with amplifier 0 already matches; the doc's guessed (100, 1) was wrong. No change.
+- Row 3 (no-AI air path): verified Axolotl.baseTick (Axolotl.java:184-189), handleAirSupply (Axolotl.java:256-266) and the inline standard air rules in LivingEntity.baseTick (LivingEntity.java:507-528). Vanilla always runs the standard air rules and runs the axolotl dry-out handler only with AI. Pumpkin's no-AI branch runs tick_air_supply (standard rules) and its AI branch runs handle_air_supply (dry-out), which sets air supply in both of its branches, so the net air and dry-out damage match vanilla. No change.
+- Row 4 (hurt play-dead condition): the roll/half-health OR, damage < health ordering and water/attacker checks in plays_dead_when_hurt already match Axolotl.hurtServer (Axolotl.java:396-408). Found and fixed one real mismatch: vanilla checks (source.getEntity() != null || source.getDirectEntity() != null), but on_damage_with_context only checked the causing entity (cause.is_some()) and ignored the direct entity. Changed it to source.is_some() || cause.is_some() and updated the only_source repro assertion to Some(200). The source/cause mapping (direct entity vs causing entity) is confirmed by the lightning and arrow damage call sites.
+
+Outcome: fixed 1 row (row 4); rows 2 and 3 verified already correct. Row 1 (travel effective-AI guard) was already fixed in a prior pass; row 6 (duplicated doc comment) is already a single line. Row 5 (bucket NBT keys) left open: needs checking against generated bucket data and is outside the explicit STILL OPEN set.
+
+Only axolotl.rs was edited; rustfmt --edition 2024 on it exited 0. No cargo/git run (per task rules), so compilation and tests are UNVERIFIED.

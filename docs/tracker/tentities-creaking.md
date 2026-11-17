@@ -37,3 +37,26 @@ before fixing the "verify" rows.
 - `is_looking_at_me` line of sight: **STILL OPEN** (not reached in this pass).
 - death sound ordering: **STILL OPEN** (not reached in this pass).
 - unused eye-glow fields: **STILL OPEN** (client-only; not reached in this pass).
+
+
+## Result
+
+- `is_looking_at_me` line of sight (was STILL OPEN): FIXED in `creaking.rs`. Verified against decompiled
+  `LivingEntity.isLookingAtMe` (LivingEntity.java:2276) and `Creaking.checkCanMove` (Creaking.java:460): vanilla
+  passes `coneSize=0.5, adjustForDistance=false`, so the cone threshold is a constant `1.0 - 0.5 = 0.5`; the Rust
+  code wrongly divided by distance (`1.0 - 0.5 / distance`, the Enderman-style branch). Replaced with named const
+  `GAZE_CONE_SIZE` and constant `1.0 - GAZE_CONE_SIZE`. The existing LOS call already uses `ClipBlock::Visual`,
+  matching vanilla's `seeThroughTransparentBlocks=true`, and the three sample heights (eye, y+0.5, midpoint) match.
+  No pure unit test: the check requires live `Player`/`Entity` world state; extracting a dot-product helper would be
+  a formula-mirroring test (discouraged). UNVERIFIED (no compile in this role; orchestrator checks).
+- death sound ordering (was STILL OPEN): verified against decompiled vanilla, NO code change. `Creaking.creakingDeathEffects`
+  (Creaking.java:329) calls `die()`, which broadcasts `EntityEvent.DEATH` (client plays `getDeathSound()` =
+  CREAKING_DEATH) and then plays CREAKING_TWITCH; `tearDown()` (Creaking.java:292) plays `getDeathSound()` again.
+  Vanilla therefore intentionally plays CREAKING_DEATH twice. Pumpkin matches: `on_death` (living.rs:2947) plays the
+  death sound and broadcasts the Death event, `creaking_death_effects` plays the twitch, and `tear_down` replays
+  `EntityCreakingDeath`. The doc premise that vanilla suppresses the normal death sound is incorrect; there is no
+  "heard twice" divergence to fix.
+- unused eye-glow fields (was STILL OPEN): LEFT OPEN. Client-only effect: vanilla runs `setupAnimationStates` /
+  `checkEyeBlink` only when `isClientSide()` (Creaking.java:262-265). Reason: needs generated synced-data to wire a
+  flag (outside this unit); the fields/methods are private to `creaking.rs`, so removing them has no server-observable
+  effect and is not worth the churn.

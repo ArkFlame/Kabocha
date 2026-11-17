@@ -66,3 +66,48 @@ STILL OPEN (3): wiring vanilla `onlyHorizontal` callers needs the decompiled cal
 STILL OPEN (4): PandaLookAtPlayerGoal's behaviour (rider filter) cannot be verified without a decompiled reference.
 STILL OPEN (5): sulk-range vanilla behaviour cannot be verified; clamping is a behaviour choice, not certain.
 STILL OPEN (6): needs goal-arbitration change for overlapping flags, which is M/L and not certain.
+
+
+## Result
+
+Re-audited every STILL OPEN row against the vendored decompiled vanilla
+(.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java,
+world/entity/animal/panda/Panda.java and the full new LookAtPlayerGoal(...) caller list).
+No Pumpkin source change was required: each open row rested on a premise that the missing
+decompiled reference now disproves. No .rs file was touched, so rustfmt was not run and
+no new unit test was added (there is no behaviour change to lock in).
+
+### 1. Entity box inflated 3 blocks vertically - CONFIRMED VANILLA (no change)
+LookAtPlayerGoal.java:67 searches non-player entities in
+getBoundingBox().inflate(lookDistance, 3.0, lookDistance) - the 3.0 vertical is genuinely
+vanilla, copied from this very goal (not AvoidEntityGoal as the audit guessed).
+SearchArea::from_eyes(entity, range, 3.0) expands the box by (range, 3.0, range) and ranks
+from eye height, so the current value matches. The audit's "horizontal only" suggestion was
+based on a misremembered signature; do not pass 0.0.
+
+### 3. look_forward flag - IMPLEMENTATION CORRECT; only caller out of scope (LEFT OPEN)
+LookAtPlayerGoal.java:21,97 drives onlyHorizontal exactly as tick already does
+(self.look_forward ? own eye Y : target eye Y). Across all decompiled callers the only one
+passing true is Shulker (Shulker.java:101: new LookAtPlayerGoal(this, Player.class, 8.0F, 0.02F, true));
+every other caller, including all in-scope files, passes false and already matches.
+Left open solely because wiring Shulker needs shulker.rs, outside this unit's files.
+
+### 4. Rider filter - CONFIRMED VANILLA (no change)
+LookAtPlayerGoal.java:42-44 applies EntitySelector.notRiding(mob) to the targeting
+conditions for every Player.class look-at goal (inherited unchanged by
+PandaLookAtPlayerGoal, Panda.java:917-967). EntityPredicate::Rides returns false for a
+rider, so the goal's predicate keeps non-riders and rejects riders - identical to vanilla.
+The audit's "getNearestPlayer has no such filter" claim was wrong; keep the filter.
+
+### 5. Slot target not range-checked at set time - CONFIRMED VANILLA (no change)
+PandaBreedGoal.canUse (Panda.java:823-824) sets the look target from BREED_TARGETING,
+range 8.0 (Panda.java:82), while PandaLookAtPlayerGoal has lookDistance 6.0
+(Panda.java:276). Vanilla PandaLookAtPlayerGoal.canUse (:935-959) does NOT range-check a
+preset target; canContinueToUse (:930-932, via super :80-82) drops it once past 6.0.
+Pumpkin's "start at any distance, drop on next tick" behaviour matches this exactly. Do not
+clamp the slot target and do not widen the goal's distance.
+
+### 6. Controls::LOOK vs "empty flag set" - CONFIRMED VANILLA (no change)
+LookAtPlayerGoal.java:41 calls setFlags(EnumSet.of(Goal.Flag.LOOK)). Pumpkin's
+goal_control: Controls::LOOK matches; no goal-arbitration change is needed and the two
+goals are mutually exclusive in vanilla too. The audit's "calls no setFlags" premise was wrong.

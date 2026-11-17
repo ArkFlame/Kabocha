@@ -54,3 +54,13 @@ expresses this through `hurt`/`isInvulnerableTo`, which the file also overrides
 (`damage_with_context -> false`). Verify the explosion path in
 `crates/pumpkin-core/src/entity/mod.rs` honours the same rule before removing either.
 Size: S.
+
+
+## Result
+Verified all three STILL OPEN rows against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (1.21.x Paper/Spigot). No source changes required; no
+unit-test seam (only constant values and a flag were in question, so a test would just mirror constants).
+
+- Row 2 (experience-bottle config): CHECKED, no change. `ExperienceBottleItem.createDispenseConfig()` = power `DEFAULT.power()*1.25 = 1.1*1.25 = 1.375`, uncertainty `DEFAULT.uncertainty()*0.5 = 6.0*0.5 = 3.0`, numerically identical to `ThrowablePotionItem` (splash/lingering). Pumpkin's `POTION_PROJECTILE_POWER` (1.375) / `POTION_PROJECTILE_UNCERTAINTY` (3.0) are already correct for the experience bottle in both `ominous_item_spawner.rs` and `dispenser.rs`.
+- Row 3 (particle data flag): CHECKED, no change. `OminousItemSpawner.spawnItem` calls `level.levelEvent(PARTICLES_TRIAL_SPAWNER_SPAWN_ITEM, this.blockPosition(), 1)`; data flag `1` confirmed correct.
+- Row 5 (explosion immunity): CHECKED, no change. Vanilla only overrides `hurtServer` -> false (total damage immunity) and leaves `ignoreExplosion` at its Entity default false, so vanilla still runs the entity through explosion processing. Pumpkin honours `is_immune_to_explosion` (`world/explosion.rs:573`) and `damage_with_context` -> false covers all other damage; both overrides are used and consistent with vanilla invulnerability, so removing either would be wrong. Sole divergence is explosion knockback, a no-op because the spawner sets `no_physics`.

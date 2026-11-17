@@ -77,3 +77,28 @@ fixes 96093cfc7 #4451 and b388d9d7a #4478).
 - Gap 2 (placed without can_place_at): FIXED in code, `placed` removes the block when `can_place_at` fails (fire.rs:186-200). UNVERIFIED.
 - Gap 3 (TNT replaced before priming): STILL OPEN (deliberate ordering, identical effect while TNT is stateless; S).
 - Gap 4 (waterlogged neighbour odds): STILL OPEN (unchecked; S).
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java` and `BaseFireBlock.java` (Paper-decompiled build).
+
+- Gap 1 (burn-out/spread rain gate): verified matching. `checkBurnOut` uses `level.isRainingAt(pos)` (vanilla:275 -> fire.rs:152); the spread loop uses `isNearRain(testPos)` (vanilla:216 -> fire.rs:427). Pumpkin's `is_raining_at` already checks global rain, so vanilla's extra `level.isRaining()` guard is redundant. No change.
+- Gap 2 (placed without can_place_at): verified matching. `BaseFireBlock.onPlace` removes fire when `!state.canSurvive` (vanilla:179 -> fire.rs:190-207). No change.
+- Gap 3 (TNT replaced before priming): verified matching, no change. This vanilla `checkBurnOut` also removes/overwrites the TNT before `TntBlock.prime` (vanilla:279, 289-291); Pumpkin's replace-then-`spawn_primed` (fire.rs:158-166) has the same ordering, and `spawn_primed` is correct because `prime` atomically claims a still-present TNT that is already gone here. The tracker's "primes the still-present TNT" premise does not hold in this reference.
+- Gap 4 (waterlogged neighbour odds): FIXED. Vanilla `getIgniteOdds(BlockState)` returns 0 for waterlogged states; Pumpkin's `get_burn_chance` only skipped fluid neighbours and read the block-level spread chance. Added pure `FireBlock::get_ignite_odds(state_id)` (waterlogged -> 0, else registry spread chance), now shared by `is_flammable` and `get_burn_chance`. Added unit test `waterlogged_flammable_has_zero_ignite_odds` (dry oak slab > 0, waterlogged oak slab == 0).
+- Suspicion 1 (extra long fire tick on block below over infiniburn): not present in this decompiled version. `tick` only schedules its own next tick (vanilla:153); there is no block-below scheduling. No change needed.
+- Suspicion 2 (sentinel + rain guard): rain checks are equivalent because `is_raining_at` returns false when it is not globally raining. `fire_spread_radius_around_player` is Paper-only with no decompiled source in `.vendor`; the -1 unlimited / 0 off sentinel is left unchanged and unverified.
+- Suspicion 3 (entity subtype for extended fire ticks): verified matching, file out of scope. `BaseFireBlock.fireIgnite` extends ticks only for `ServerPlayer` via `nextInt(1, 3)` (vanilla:142-166); fire `mod.rs:128-133` uses `EntityType::PLAYER` + `random_range(1..3)`. No change (mod.rs is not in this unit's file list).
+
+Files touched: `crates/pumpkin-core/src/block/blocks/fire/fire.rs` (only code edit; `rustfmt --edition 2024` applied, exit 0). No cargo/git run, per instructions; verification is source-level only.
+
+
+## Result
+
+Re-verification 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java` (Paper build). Both rows still flagged STILL OPEN in the Status section were already resolved in code; no new source edits were needed this pass.
+
+- Gap 3 (TNT replaced before priming): verified matching, no change. Vanilla `checkBurnOut` (FireBlock.java:257-293) also clears/overwrites the TNT before `TntBlock.prime` (line 279 skips the early removal for TNT, line 289 removes it, line 291 primes; the re-age branch at line 277 overwrites with fire first). Pumpkin's `try_spreading_fire` (fire.rs:151-168) sets the state (air or re-aged fire) and then calls `spawn_primed`, the same ordering. The tracker premise that vanilla primes a still-present TNT does not hold in this reference.
+- Gap 4 (waterlogged neighbour odds): verified matching, no change. Vanilla `getIgniteOdds(BlockState)` (FireBlock.java:251-255) returns 0 when WATERLOGGED is true. Pumpkin `FireBlock::get_ignite_odds` (fire.rs:39-48) does the same and is shared by `is_flammable` and `get_burn_chance`; the pure unit test `waterlogged_flammable_has_zero_ignite_odds` (fire.rs:479-489) covers dry vs waterlogged oak slab.
+- Reconfirmed surrounding behaviour: burn-out uses the single-position `isRainingAt` (vanilla:275 -> fire.rs:154) while spread uses the 5-column `isNearRain` gated by global rain (vanilla:216 -> fire.rs:427-430); `placed` removes fire when `can_place_at` fails (vanilla tick canSurvive:155 -> fire.rs:190-209); no extra block-below fire tick exists in this vanilla `tick` (vanilla:152-153).
+
+No .rs file was touched this pass, so rustfmt was not required. No cargo/git run, per instructions; verification is source-level only.

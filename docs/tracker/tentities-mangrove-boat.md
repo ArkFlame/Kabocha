@@ -40,3 +40,26 @@ re-verified and is correct, so no fix was needed for the row itself:
 - 1 float_boat/bubble time: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 2 interact mounting: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 3 passenger attachment point: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+- Row 1 (bubble-column physics / bubble time): verified against decompiled vanilla
+  .vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:4145,4181
+  (handleOnAboveBubbleColumn: up min(y+0.1,1.8), down max(y-0.03,-0.9);
+  handleOnInsideBubbleColumn: up min(y+0.06,0.7), down max(y-0.03,-0.3)) and
+  AbstractBoat.java:240,351,607. The boat timer/impulse/ID_BUBBLE_TIME side lives in
+  boat.rs + physics.rs + generated tracked_data.rs (outside this unit, needs generated
+  data), so that part stays OPEN. In this unit's file I fixed the push cap:
+  bubble_column_vertical_velocity now uses -0.9 for a downward column at its top (was -0.3
+  for both cases) and added pure unit test downward_push_cap_depends_on_surface.
+  Upward caps and the -0.03/-0.3 inside-downdraft already matched.
+- Row 2 (interact mounting): verified decompiled AbstractBoat.java:779-784: the gate is
+  isSecondaryUseActive() || !(outOfControlTicks < 60) || (!clientSide && !startRiding),
+  with NO isEyeInWater check. boat.rs:622 still has !is_eye_in_water(...), so that
+  check is wrong, but the edit is in boat.rs (outside this unit) -> left OPEN.
+- Row 3 (passenger attachment point): verified decompiled AbstractBoat.java:143-161,687
+  and Boat.java:14-17 (rideHeight = height/3, multi-rider offsets 0.2/-0.6,
+  boat getSinglePassengerXOffset = 0). Dedup of the hardcoded seating is in
+  passengers.rs (outside this unit) -> left OPEN.
+- Changed: crates/pumpkin-core/src/block/blocks/bubble_column.rs (constant, match arm,
+  unit test). rustfmt --edition 2024 exit 0. No cargo/git run (per task).

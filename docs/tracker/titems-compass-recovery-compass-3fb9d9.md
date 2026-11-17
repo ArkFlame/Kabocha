@@ -56,3 +56,14 @@ which is what vanilla `ItemStack.consumeAndReturn`/`split` does.
 
 ## h2 parity sweep (status)
 - S rows 1, 3, 4, 5 STILL OPEN - not attempted this pass (player.rs component/inventory tick paths need a dedicated review).
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/` this pass.
+
+- FIXED (in scope): `setworldspawn.rs` used `BlockPosArgumentType::get_block_pos` for the `pos` and `pos rotation` variants. Vanilla `SetWorldSpawnCommand.setSpawn` uses `BlockPosArgument.getSpawnablePos` for both (`SetWorldSpawnCommand.java:25,28`), which bounds-checks via `Level.isInSpawnableBounds`. Switched both variants to the existing `get_spawnable_pos` helper. `SelfPos` stays `floored_v` on the source position, matching vanilla's `BlockPos.containing` self path (line 22). `rustfmt --edition 2024` passed on the file. No compile check (shell/cargo forbidden for this unit).
+- Row 1 STILL OPEN, out of scope: lives in `entity/player.rs`, not an allowed file. Body already marks it FIXED (UNVERIFIED). Note: decompiled `LodestoneTracker.tick` (Paper/Folia) returns `this` unchanged when `target.dimension() != level.dimension()` and returns `new LodestoneTracker(Optional.empty(), true)` when the lodestone is gone; the doc's "tracked: false on missing world" description does not match this source. Left for the `player.rs` owner.
+- Row 2 STILL OPEN, out of scope: needs `ItemBehaviour::is_foil` plus `ItemStack::has_foil` (crates/pumpkin-core/src/item/mod.rs and crates/pumpkin-data/src/item_stack/mod.rs). Cannot add a glint hook from `compass.rs`.
+- Row 3 STILL OPEN, out of scope: dead `compass_target` field and methods are in `entity/player.rs`.
+- Row 4 STILL OPEN, verified no change needed (in-scope `compass.rs`): `RECOVERY_COMPASS` shares `CompassItem`, but the only behaviour hook is `use_on_block`, guarded by `item.item.id == Item::COMPASS.id` (`compass.rs:35`), so a recovery compass can never acquire a `LODESTONE_TRACKER`. No observable difference from vanilla's plain `Item`; kept for shared hooks as the doc recommends.
+- Row 5 STILL OPEN, out of scope: a `pumpkin-gametest` needs a new test file, not an allowed file. No pure seam in either in-scope file for a unit test (`use_on_block` needs Player/Server/World, `execute` needs CommandContext).

@@ -28,3 +28,14 @@ Reference: decompiled vanilla `net.minecraft.world.entity.animal.axolotl.Axolotl
 ## h6 gap status
 
 - Rows 1-4 (play-dead regen, bucket NBT keys, roll timing, hunting cooldown): STILL OPEN (UNVERIFIED, no decompiled vanilla in tree).
+
+## Result
+
+Vanilla decompiled source is now available at `.vendor/vanilla-decompiled/net/minecraft/`, so all four re-review rows were verified directly.
+
+- **Row 1 (play-dead regeneration) - MATCHES, no change.** Decompiled `Axolotl/PlayDead.java:32` is `body.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 200, 0))` (200 ticks, amplifier 0). `axolotl/ai.rs:39-40,356-364` already uses `PLAY_DEAD_REGENERATION_DURATION = 200` and `amplifier: 0`. The doc's "100 ticks / Regeneration II" suspicion was wrong: `100` is `REGEN_BUFF_BASE_DURATION`, which belongs to the separate player `applySupportingEffects` path, already handled elsewhere.
+- **Row 2 (bucket NBT keys) - MATCHES, no change.** `Axolotl.java:427-438` writes `Age`, `AgeLocked` and a conditional `HuntingCooldown = getTimeUntilExpiry(HAS_HUNTING_COOLDOWN)` on top of `Bucketable.saveDefaultDataToBucketTag` (Health/NoAI/Silent/NoGravity/Glowing/Invulnerable/PersistenceRequired); no Age/age-lock duplication and the cooldown key is real. `axolotl.rs:373-393` matches exactly, and `load_from_bucket_tag` matches `Axolotl.java:441-450`.
+- **Row 3 (roll timing/health basis) - FIXED in `axolotl.rs`.** `Axolotl.java:396-408` snapshots `currentHealth = getHealth()` and performs the entire roll *before* `super.hurtServer` applies the hit; the survival test is `damage < currentHealth` and the half-health ratio uses that same pre-hit health. Pumpkin's `on_damage_with_context` read post-hit `living.health`, which could skip play dead for a survivable below-half hit (post-hit health <= damage). Added `last_hurt_health: AtomicU32`, captured in `mob_hurt_server` before the base damage code runs, consumed in `on_damage_with_context` for the roll. Added regression test `play_dead_roll_uses_pre_hit_health_like_vanilla` (pre-hit full health, damage = half, hit applied; the pre-hit snapshot must be used or no play dead). rustfmt clean.
+- **Row 4 (hunting cooldown arming) - MATCHES, no change.** `AxolotlAi.java:150-159` skips re-picking while old activity is PLAY_DEAD and arms `HAS_HUNTING_COOLDOWN` for 2400 ticks only when leaving FIGHT for a non-FIGHT activity; `ai.rs:245-260` is exact. Breeding erases `ATTACK_TARGET` (fight) and `PLAY_DEAD_TICKS` (play dead) via `EraseMemoryIf` in both vanilla and `ai.rs:76-77,103-105`. `AxolotlAttackablesSensor.java` guard `!hasMemoryValue(HAS_HUNTING_COOLDOWN)` also matches the Pumpkin sensor.
+
+Only `crates/pumpkin-core/src/entity/passive/axolotl.rs` was edited. No generated data, WIT or cross-crate changes needed. `rustfmt --edition 2024` passed on the touched file; cargo was not run (forbidden by task), so compilation is unverified.

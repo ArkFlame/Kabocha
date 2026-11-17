@@ -51,3 +51,23 @@ Verified equal:
 ## Status (h3 sweep)
 - Shadow `AtomicI8` flags (bat.rs:30): STILL OPEN (accepted divergence, plugin-rewrite only; not changed).
 - Wake check `is_solid_block()` (bat.rs:92) vs `isRedstoneConductor`: STILL OPEN (equivalent via generated flag; not changed).
+
+## Result
+
+Re-verified both STILL OPEN rows against decompiled vanilla `Bat.java` (26.3) and
+`BlockBehaviour.java`; neither is fixable inside this unit's files.
+
+- Shadow `AtomicI8` flags (bat.rs:30): STILL OPEN, no in-scope fix. Vanilla `isResting`/
+  `setResting`/NBT (Bat.java:103-114,212-220) all read/write the synced `DATA_ID_FLAGS` byte.
+  Matching that needs a typed `get` on `SynchedEntityData`
+  (crates/pumpkin-core/src/entity/synched_entity_data.rs), outside this unit. Within our code the
+  shadow is the only writer of DATA_ID_FLAGS and stays in sync, so a divergence requires an external
+  plugin rewriting tracked data, which Pumpkin's plugin API cannot do. No reachable behaviour gap.
+- Wake check `is_solid_block()` (bat.rs:92,193) vs `isRedstoneConductor`: STILL OPEN, no in-scope
+  fix. Vanilla default predicate is `isCollisionShapeFullBlock` (BlockBehaviour.java:1247), exactly
+  Pumpkin's `IS_SOLID_BLOCK` flag from full collision shape (block_registry.rs:1198-1201), and the
+  established stand-in used by redstone wire/comparator/ender chest. The only gap is blocks that
+  override the predicate with `never`/`always` (Blocks.java), encoded nowhere in generated
+  `BlockState` data, so a fix needs generated data plus codegen outside this unit. Passing `pos`
+  (Bat.java:136) vs `above` (Bat.java:178) is inert: the default and both overrides ignore the
+  position argument.

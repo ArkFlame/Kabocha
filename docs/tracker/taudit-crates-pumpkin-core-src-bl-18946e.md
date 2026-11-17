@@ -67,3 +67,38 @@ must be confirmed against decompiled vanilla before editing.
 
 ## Gap status
 - Items 1-7 (bounds, base/beam gating, beam obstruction, pyramid validation, effect flags, NBT shape, `on_block_replaced`): STILL OPEN. The note itself asks for vanilla confirmation; not re-audited in this pass.
+
+
+## Result
+
+Verified each STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
+(Paper-decompiled; Paper/CraftBukkit/Folia patches identified and stripped for vanilla parity).
+
+- Row 1 (construct-beacon bounds): NO CHANGE. Current `construct_beacon_bounds` matches vanilla
+  `new AABB(x, y, z, x, y - 4, z).inflate(10.0, 5.0, 10.0)` -> min `(x-10, y-9, z-10)`, max
+  `(x+10, y+5, z+10)`, with no spectator skip (vanilla `getEntitiesOfClass(ServerPlayer)` includes
+  them). Test `construct_beacon_bounds_inflate_matches_vanilla` already pins the corners. The
+  doc's earlier "new AABB(pos)" suggestion was wrong; commit 56d42148b already corrected it.
+- Row 2 (beam gating): FIXED. Decompiled vanilla gates both `updateBase` and `applyEffects` on
+  `!entity.beamSections.isEmpty()` inside the `% 80` branch. Commit 477959128 had removed that
+  gate on an unverified belief that indoor beacons grant effects. Restored a single `beam_active`
+  snapshot used for both the pyramid recompute and the effect/ambient-sound branch.
+- Row 3 (beam obstruction opacity): NO CHANGE. `BlockState.opacity` is documented as light
+  dampening (0 transparent, 15 opaque), i.e. vanilla `getLightDampening()`. `opacity >= 15` plus
+  the `BEDROCK` exception matches vanilla exactly.
+- Row 4 (pyramid base): NO CHANGE. Tag `MINECRAFT_BEACON_BASE_BLOCKS`, `min_y` break, and
+  `(2*step+1)^2` layer scan match vanilla `updateBase`.
+- Row 5 (effect flags): NO CHANGE. Duration `(9+2*levels)*20`, range `levels*10+10`, amplifier 1
+  only at level 4 with primary == secondary, secondary only at level 4 when different, and
+  `ambient/show_particles/show_icon = true, blend = false` all match vanilla `applyEffects`.
+- Row 6 (NBT shape): NO CHANGE. `storeEffect`/`loadEffect` write/read effect resource-location
+  strings only when set, as implemented. `Levels` is written always but not loaded: vanilla
+  `loadAdditional` does not read it; the `getIntOr("Levels", 0)` in the decompiled source is a
+  CraftBukkit SPIGOT-5053 patch, so Pumpkin correctly ignores it. Test
+  `nbt_keeps_effects_and_drops_levels_on_load` pins the round trip.
+- Row 7 (on_block_replaced): NO CHANGE. Unconditional `BlockBeaconDeactivate` matches vanilla
+  `setRemoved`; the conditional form in the decompiled source is Paper's MC-153086 fix, not vanilla.
+
+No new pure unit test added for Row 2: the gate depends on live `World` block state and has no
+pure seam; the existing bounds and NBT tests remain the pinned pure tests for this file.

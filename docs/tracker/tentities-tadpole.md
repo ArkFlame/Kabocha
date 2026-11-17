@@ -16,3 +16,46 @@ Reviewed: 2026-11-16 against vanilla `net.minecraft.world.entity.animal.Tadpole`
 - Gap 1 (variant data): STILL OPEN. L, blocked on Extractor assets.
 - Gap 2 (age-up variant mapping): STILL OPEN. M, depends on gap 1.
 - Gap 3 (max air 4800 for water animals): STILL OPEN. M, touches shared `breath.rs`.
+
+## Result
+
+Verified each STILL OPEN row against the vendored decompiled vanilla (Java 26.3) and `assets/`.
+
+- Gap 1 (tadpole variant): CLOSED, false premise, no code change. Decompiled
+  `net/minecraft/world/entity/animal/frog/Tadpole.java` has NO `DATA_VARIANT` /
+  `TadpoleVariant` (whole class read, lines 1-260); only `Frog` has
+  `FrogVariant` (temperate/warm/cold). `assets/` has `frog_variant`, `wolf_variant`,
+  `cow_variant`, etc. but no `tadpole_variant` registry, and
+  `assets/entity_variants.json` has no tadpole entry. The reviewer conflated
+  `FrogVariant` with a nonexistent tadpole variant. Pumpkin correctly has none.
+- Gap 2 (age-up variant mapping): CLOSED, false premise, no code change. Depends on
+  gap 1. Decompiled `Tadpole#ageUp` (Tadpole.java:236-250) just calls
+  `convertTo(EntityTypes.FROG, ConversionParams.single(...))` with no variant
+  mapping; the frog variant is chosen from the biome in `Frog.finalizeSpawn`.
+  Pumpkin `tadpole.rs:120-146` matches. Also needs generated data/Extractor and
+  files outside this unit (`crates/pumpkin-data/src/generated/tracked_data.rs`),
+  so it could not be implemented here regardless.
+- Gap 3 (water animal max air): FIXED (code change, `water_animal.rs:8-10`).
+  Decompiled `WaterAnimal#handleAirSupply`
+  (`net/minecraft/world/entity/animal/fish/WaterAnimal.java:39-49`) hardcodes
+  `this.setAirSupply(300)`; there is NO `getMaxAirSupply()` override in
+  `WaterAnimal`, so base `Entity.getMaxAirSupply()` returns `maxAirTicks` =
+  `Entity.TOTAL_AIR_SUPPLY` (300, Entity.java:245,4058-4060). Only `Dolphin`
+  overrides to 4800 (Dolphin.java:78,204-211). Therefore the 4800 value written by
+  the previous pass was wrong: fish refilled to 4800 and took ~4 min to drown on
+  land instead of vanilla ~15 s. Set `WATER_ANIMAL_MAX_AIR_SUPPLY` back to 300 and
+  corrected the doc comment. `abstract_fish.rs:304-306` (`mob_max_air_supply`
+  override) and `bucketable.rs:193-196` (regression assert) both reference this
+  constant, so they now reflect vanilla 300 with no edits needed there.
+  `breath.rs` left unchanged: it is player-only (BreathManager::tick takes
+  `&Player`) and 300 is correct for players.
+
+Note for orchestrator: `bucketable.rs:192` has a stale inline comment saying
+"(4800)" that is now inaccurate; it is outside this unit and was not edited.
+Also out of scope (not a STILL OPEN row): the "Fixed in this pass" from_bucket
+claim is contradicted by decompiled `Tadpole.java:172-179`, where `fromBucket()`
+returns `true` and `setFromBucket()` is a no-op, unlike `AbstractFish`. Pumpkin's
+tadpole now stores `from_bucket`, which differs from vanilla for that mob.
+
+Verification: decompiled vanilla + assets read directly; `rustfmt --edition 2024`
+run on `water_animal.rs` (exit 0). No cargo/git run per task rules.

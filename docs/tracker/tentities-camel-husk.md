@@ -52,3 +52,32 @@ No code change committed from this audit: nothing above is certain enough to edi
 ## Gap status (h6 sweep)
 - Row 1 husk love gate: FIXED, `could_set_in_love` now requires `!is_husk()` (`camel.rs`). UNVERIFIED (no cargo).
 - Rows 2-5: STILL OPEN.
+
+## Result
+
+Re-review with decompiled vanilla available at `.vendor/vanilla-decompiled/net/minecraft/`
+(the earlier audit had no vanilla tree). No source edits were needed: the only open row with a
+genuine parity gap needs a file outside this unit.
+
+- Row 1 (husk love gate): CONFIRMED. `CamelHusk.java:71` overrides `canFallInLove()` to `false`;
+  `camel.rs:382-386` gates love on `!is_husk()` and `camel.rs:425-427` returns false from
+  `can_fall_in_love()` for husks. Already fixed before this pass.
+- Row 2 (love/tempt goals in husk brain): CLOSED, no change. `CamelHusk.java` does not override
+  `createBrain`, so vanilla husks run `CamelAi.initIdleActivity`, which includes
+  `AnimalMakeLove(EntityTypes.CAMEL)` and `FollowTemptation` (`CamelAi.java:60-65`). Pumpkin
+  `camel/ai.rs:72,75` matches. `AnimalMakeLove` starts only when `is_in_love()` is set
+  (`animal_make_love.rs:97-99`), which a husk never gets after row 1, so the goals are inert.
+- Row 3 (`is_preventing_player_rest`): FIXED in the source already. `camel.rs:467-471` overrides it
+  to `false`. In vanilla only `Monster.java:140` returns true; `Animal` and camel inherit the
+  base `false`. Verified, no further change.
+- Row 4 (numeric constants): CLOSED, no change. `CamelHusk.java:81-86` plays step sounds at 0.4F,
+  `Camel.java:360-366` at 1.0F, `CamelHusk.java:130` returns 4.0F from `chargeSpeedModifier()`,
+  and `Mob.java:1718` defaults to 1.0F. Pumpkin `camel.rs:48,437-443,449-460` matches exactly.
+- Row 5 (jockey pairing): STILL OPEN. Vanilla `Husk.java:99-127` uses
+  `HuskGroupData.triedToSpawnCamelHusk` to allow a single camel-jockey attempt per spawn group;
+  Pumpkin `husk.rs:66-88` lets every husk in a group roll `CAMEL_HUSK_JOCKEY_CHANCE` on its own.
+  One-line reason: the fix needs a `tried_spawn_camel_husk` field on `SpawnGroupData::Zombie` in
+  `entity/mob/spawn.rs`, a file outside this unit, plus a gametest for the two-rider layout.
+
+No unit test added: no pure seam exists for the bridge code, and constants-only tests are
+excluded by the repository test rules. No .rs file was touched, so rustfmt was not run.

@@ -52,3 +52,18 @@ Two fresh findings this pass: the boat item drop still used the block origin
 
 Client-only effects (chest rendering, screen layout, paddle wobble) were not
 assessed. No cargo/test run (worker constraint); the orchestrator batch-compiles.
+
+
+## Result
+
+Re-review against the decompiled tree at
+`.vendor/vanilla-decompiled/net/minecraft/` (now present). Smallest rows first.
+
+| # | Verdict | Detail |
+|---|---|---|
+| 4 | FIXED (test) | Added `chest_boat_last_slot_round_trips_through_items_nbt` in `minecart/container.rs`: slot 26 (last of 27) survives the `Items` NBT round trip through `MinecartInventory`. The paired "open refuses a foreign passenger" test is intentionally not added: vanilla `AbstractChestBoat.openCustomInventoryScreen` has no rider check (`player.openMenu(this)`), and current `boat.rs:223-258` deliberately allows a full chest boat to open, so such a test would lock in non-vanilla behaviour. |
+| 2 | NOT A GAP (no change) | `Entity.applyComponentsFromItemStack` (Entity.java:7215) only applies `CUSTOM_NAME` and `CUSTOM_DATA`; boat items have no `minecraft:container` component (`Items.java:1513-1600`). Vanilla never copies container contents into a placed boat, so the suggested slot copy would be a parity regression. |
+| 3 | NOT A GAP (no change) | `HopperBlockEntity.getEntityContainer` selects any alive `Container` entity (`EntitySelector.CONTAINER_ENTITY_SELECTOR = entity instanceof Container && entity.isAlive()`) and `AbstractChestBoat extends ... implements ContainerEntity extends Container`. Vanilla hoppers can insert into chest boats; Pumpkin exposing the inventory through `has_container_inventory`/`get_container_inventory` matches. |
+| 1 | FIXED | `ContainerEntity.isChestVehicleStillValid` = `!isRemoved() && player.isWithinEntityInteractionRange(boundingBox, 4.0)` (not the tracker's 8-block guess). Added `EntityContainerScreenHandler`, a thin `ScreenHandler` wrapper in `minecart/container.rs` that overrides `can_use` with a validity closure capturing the vehicle id plus `Arc<World>`; it checks `is_alive() && can_interact_with_entity(vehicle, 4.0)`. `can_use` already gates slot clicks (`player.rs:7950`) and drives the periodic screen close (`player.rs:3468-3476`), so the menu now invalidates on walking away, destruction, or unload. `as_any`/`as_any_mut` delegate to the inner `GenericContainerScreenHandler` so plugin-host downcasts keep working. Covers chest boat, chest minecart and hopper minecart via the shared `open()`. |
+
+Files changed: `crates/pumpkin-core/src/entity/vehicle/minecart/container.rs` (rustfmt --edition 2024 applied). No cargo/test run per worker constraint; orchestrator batch-compiles.

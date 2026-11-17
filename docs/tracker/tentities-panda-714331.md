@@ -51,3 +51,22 @@ client animation. Needs a client to confirm, no server behaviour change.
 
 ## Gap status
 - 1-6 (panda.rs and panda/goals.rs, sneeze.rs): STILL OPEN (file is in the h6 excluded list; not touched)
+
+## Result
+
+Re-review against the authoritative decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` and
+`world/entity/Mob.java`. No `.rs` source change was needed: all six STILL OPEN rows are already
+at parity with vanilla or already fixed in the current checkout. The remembered-vanilla claims in
+rows 2, 3 and 5 are contradicted by the decompiled class.
+
+| # | verdict | evidence |
+|---|---|---|
+| 1 | at parity | `Mob.doHurtTarget` (Mob.java:1604-1625) calls `playAttackSound()` only inside `if (wasHurt)`. `panda/goals.rs:215-217` calls `panda.on_attack` (which plays `EntityPandaBite`, panda.rs:871-874) only when `try_attack` returns true; `try_attack` (mob/mod.rs:1166,1224) returns `damaged` from `damage_with_context`, i.e. whether the hit landed. Sound gating matches. |
+| 2 | at parity, doc claim wrong | `PandaBreedGoal.canFindBamboo` (Panda.java:834-852) walks Chebyshev rings r=0..7 at yOff=0..2; the union is exactly x and z in -7..=7 with y offset 0..=2, which is what `goals.rs:140-148` scans. Bamboo at (-7,+2,+7) is reachable in both, so the test at panda.rs:1176-1178 is correct. Iteration order cannot change the boolean result. |
+| 3 | at parity, doc claim wrong | `setGeneFromParents` (Panda.java:583-589) uses two independent `if (nextInt(32) == 0)` statements, not else-if; both genes may mutate. `panda.rs:162-168` matches, and the test `foal_genes_come_from_the_parents_and_mutate_independently` (panda.rs:1003-1029) already covers both mutations. |
+| 4 | already fixed | `sit_and_eat` (panda.rs:619-631) already gates on `is_baby() || !can_perform_action() || is_in_water()`, which is the row's suggested fix (can_perform_action plus water check). Kept as is. Note: the decompiled Paper `mobInteract` (Panda.java:626-660) checks `isSitting() || isInWater()` in its final sub-branch rather than `canPerformAction()`; the stricter guard is retained deliberately because it is a superset that excludes rolling/eating/on-back/scared pandas and preserves the row's intent. |
+| 5 | at parity, verified | `addEatingParticles` (Panda.java:424-426) plays `PANDA_EAT` when `getEatCounter() % 5 == 0` with volume `0.5 + 0.5 * nextInt(2)` and pitch `(nextFloat - nextFloat) * 0.2 + 1`. `panda.rs:582-587` matches (counter % EATING_EFFECT_INTERVAL, bool volume, mul_add pitch). `EATING_EFFECT_INTERVAL = 5` and `MUTATION_CHANCE = 32` (panda.rs:104,107) match vanilla. |
+| 6 | at parity / safe | `after_sneeze` (sneeze.rs:84-109) reads and jumps pandas within `expand(10.0)` with the same predicates as vanilla `afterSneeze` (Panda.java:506-531). Panda keeps `has_audited_tick = false`, so the conservative entity-island reach applies; `PandaSneezeGoal.tick_reach` (sneeze.rs:172-175) covers the flag raise, and `PandaSitGoal`/`PandaBreedGoal` correctly return the default `None` reach while the species is unaudited. Revisit only if `has_audited_tick` is ever set true. |
+
+Resolution: fixed=0 (no code defects remained), open=0 (all rows verified at parity or already fixed).

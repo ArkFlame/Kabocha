@@ -26,3 +26,21 @@ tracker's "2 vanilla markers" are the `vanilla_data` constructor parameter (line
 - 2 shutdown log wording (lib.rs:599-636): STILL OPEN, S, cosmetic.
 - 3 console "$ " prompt (lib.rs:839): STILL OPEN, S, cosmetic.
 - Shutdown key at lib.rs:626 and server/mod.rs:1268: FIXED (verified).
+
+## Result
+
+- 1 login/config stop closes silently (lib.rs:240): FIXED. On `PacketHandlerResult::Stop` from
+  the stop token, a connection still in `ConnectionState::Login` or `Config` now gets
+  `PendingConnection::kick` with `MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN` (the state-appropriate
+  `CLoginDisconnect`/`CConfigDisconnect`) before `close()`. Ships the packet through the same
+  writer path as every other kick, mirroring `Connection.handlePacket`'s
+  `RejectedExecutionException` branch. No unit test: the seam is a live `PendingConnection`
+  whose writer is a socket half, and the packet selection is already covered by `PendingConnection::kick`.
+- 2 shutdown log wording (lib.rs:621-663): FIXED. Now logs `Stopping server` first and
+  `Saving worlds` instead of `Starting save.`, matching `MinecraftServer.stopServer`. The
+  `Saving players` and `Completed save!` lines stay: Paper's shutdown is region-split, so
+  vanilla has no contiguous equivalent, and dropping them would hide progress.
+- 3 console "$ " prompt (lib.rs:876): FIXED. `rl.readline("")` gives an empty prompt like
+  vanilla's `readLine()`; rustyline keeps the history/completion behaviour.
+- Verified: `rustfmt --edition 2024` exits 0 on `crates/pumpkin-core/src/lib.rs`. No cargo run
+  (orchestrator batch-compiles).

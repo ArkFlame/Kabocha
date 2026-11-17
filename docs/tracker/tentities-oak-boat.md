@@ -38,3 +38,14 @@ seat offsets, dismount search and damage/drop match `AbstractBoat`. Rider positi
 
 ## Gap status
 - Remaining-gap items (lines 29-37, incl. missing boat gametest coverage): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Verified each STILL OPEN row against `.vendor/vanilla-decompiled` (symlink -> Paper 1.21.x `AbstractBoat.java`, WORLD_VERSION 5023 / protocol 777). That decompile is OLDER than the tracker's target (Pumpkin `CURRENT_MC_VERSION` = V_26_3): its `floatBoat` uses `getGravity()` with a `noCollision`-guarded snap and its bubble push lives in `handleBubbleColumnEffect` at `0.6 / -0.7`, whereas the tracker and Pumpkin's own `block/blocks/bubble_column.rs` (`0.06 / 0.1`, caps `0.7 / 1.8`, `-0.03 / -0.3`) describe the newer vanilla. No source changes made: the rows below are either already correct, unverifiable without the 26.3 decompile, or out of this unit's scope.
+
+- Row `physics.rs:218` gravity (S): VERIFIED ALREADY CORRECT, no change. Decompiled `AbstractBoat.floatBoat` starts `double vspeed = -this.getGravity()`, and `Entity.getGravity()` returns 0 when `noGravity` is set; Pumpkin's `-self.get_gravity()` matches exactly. The tracker's "vanilla applies the constant regardless" does not match the available decompile, so replacing it with `DEFAULT_GRAVITY` would diverge. No unit-test seam needed.
+- Row `physics.rs:188-216` air->water snap (S): LEFT OPEN. Decompiled vanilla guards the surface snap with `level().noCollision(...)` and sets `IN_WATER` unconditionally; current Pumpkin already returns the offset unconditionally. Adding a `noCollision` gate requires changing `float_boat` + `move_boat` together (collision helper plus event/position application), a multi-function refactor, and the tracker's opposite description cannot be verified against this older decompile.
+- Row bubble-column `ID_BUBBLE_TIME` (M): LEFT OPEN. Needs new `BoatEntity` state (`is_above_bubble_column` / direction / timer), `on_above_bubble_column`/`on_inside_bubble_column` overrides (currently absent on boats), tick metadata writes and entity events, plus generated `tracked_data` constants; cross-cutting and the available decompile's bubble model differs from the target. `ID_BUBBLE_TIME` is already written by `tick_underwater` (`boat.rs:224-227`), so the tracker's "never written" note is stale.
+- Row rider-rotation clamp (M): LEFT OPEN. Needs a new vehicle `positionRider`/`onPassengerTurned` rotation hook and mob head-clamp wiring across the entity island; `rider_position` (`passengers.rs:28-35`) is player-only. Cross-crate/cross-file refactor, out of scope.
+- Row boat gametest (S): LEFT OPEN. `server/builtin_game_tests/` is not a source file named in this unit; adding/running a gametest is outside this unit's allowed files and cannot be verified here.

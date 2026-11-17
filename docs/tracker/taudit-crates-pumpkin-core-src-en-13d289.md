@@ -32,3 +32,21 @@ Compared against vanilla 1.21.4 ServerPlayer/Player/Entity and Paper (no extra b
 ## Gap status
 
 - STILL OPEN: all 12 rows (player.rs respawn food copy, attack cooldown enchant split, difficulty scaling, sneaking/gliding stats, team display name, teleport relative flags, stale TODOs, XP races); not re-verified in h3 sweep.
+
+## Result
+Re-verified each STILL OPEN row against `vanilla-decompiled` 1.21.4 (Paper where noted). `rustfmt --edition 2024 crates/pumpkin-core/src/entity/player.rs` ran clean. Compilation intentionally not run (orchestrator compiles once after all workers).
+
+- Row 1 (respawn FoodData/breath copy): LEFT OPEN. Vanilla `ServerPlayer(Server, ..., ServerPlayer that)` copies food/saturation/exhaustion/tickTimer and breath manager; Pumpkin's `Player::new` uses defaults. Fix needs the old player plumbed into the constructor used by the respawn path (multi-file change), outside this unit's single-file scope.
+- Row 2 (stale spawn-position TODO): FIXED. Removed the TODO at the constructor; the join path already sends `CPlayerSpawnPosition` with proper pos/yaw/pitch/dimension in `world/mod.rs:4692`.
+- Row 3 (attack cooldown / enchant damage order): VERIFIED, NO CHANGE. Vanilla 1.21.4 `Player.attack` computes `magicBoost = attackStrengthScale * (getEnchantedDamage - baseDamage)`, then `totalDamage = baseDamage * baseDamageScaleFactor() + magicBoost`. The enchantment bonus IS cooldown-scaled, so Pumpkin's `extra_ench_damage * attack_cooldown_progress` is correct; the doc's premise was inverted. No multiplier to drop.
+- Row 4 (gliding movement statistics): LEFT OPEN. `progress_motion` here only grants food exhaustion; AVIATE_ONE_CM stat awarding and the `isFallFlying()` walk/swim skip live in the entity statistics path (M, separate work), not this function.
+- Row 5 (difficulty damage scaling): LEFT OPEN. Needs generated data (`scales_with_difficulty` flag on DamageType) added first; editing `pumpkin-data/src/generated` is forbidden.
+- Row 6 (duplicate effect-removal packets): FIXED. Removed the extra self `CRemoveMobEffect` sends in `Player::remove_effect`/`remove_all_effects` and the stale `// TODO broadcast metadata`. `LivingEntity::remove_effect` already calls `World::send_remove_mob_effect` (send to tracking players AND self) and `sync_effect_particles`, matching vanilla's single removal packet.
+- Row 7 (team colour on display name): FIXED. `Player.getName` is correctly the plain profile name, so the TODO was misleading; implemented `PlayerTeam.formatNameForTeam` in `get_display_name` (prefix + name + suffix, team colour applied to the aggregate) via a pure `format_team_name` helper. Hover tooltip keeps the plain `getName()` per vanilla `Entity.createHoverEvent`. Added a pure unit test for prefix/name/suffix order.
+- Row 8 (dimension-change duplication): LEFT OPEN. Vanilla also shares the transfer logic; deduplicating the two copies is a cross-crate/multi-file refactor, outside scope.
+- Row 9 (relative teleport flags): VERIFIED, NO CHANGE. Relative teleports are already supported via `request_teleport_with_flags` which builds the `PositionFlag` list; `send_teleport` sets YRot/XRot when yaw/pitch are None. Absolute teleports send zero velocity, matching vanilla `ServerPlayer.teleportTo`.
+- Row 10 (drop-time merging TODO): already FIXED in a prior pass (11d974fc7); no action.
+- Row 11 (experience state atomicity): LEFT OPEN. Needs a mutex-guarded struct replacing the three separate atomics (`experience_level`/`experience_progress`/`experience_points`) plus `last_sent_xp`, an M-sized refactor spanning the file.
+- Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED, NO CHANGE. Vanilla also never updates `previousGameMode` in a plain `setGameMode`; the commented segment documents this deliberate parity. Left intact.
+
+Files edited: `crates/pumpkin-core/src/entity/player.rs` (rows 2, 6, 7). No changes to living.rs/item.rs were needed: the row 6 root cause was the duplicate sends in player.rs, and living.rs already broadcasts correctly.

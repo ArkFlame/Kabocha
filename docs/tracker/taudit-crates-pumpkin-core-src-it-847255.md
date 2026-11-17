@@ -49,3 +49,9 @@ No `TODO`/`FIXME` markers remain; the two "Vanilla" mentions are explanatory com
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+
+- Row 1 (M) - LEFT OPEN. Systemic fix needs files outside this unit (`entity/living.rs` death/respawn/item-break sites, `entity/player.rs:8313 stop_using_item`) plus a registry/server handle threaded to every `clear_active_hand` caller. The only in-unit site, `net/bedrock/play/inventory_action.rs:27 correct_rejected_food_use`, is a food-rejection correction where `on_stopped_using` is a no-op, so fixing it alone cannot close the row.
+- Row 2 (XS) - FIXED in `bow.rs`. Verified vanilla: `BowItem.releaseUsing` passes `player.getUsedItemHand()` to `ProjectileWeaponItem.shoot`, which applies `weapon.hurtAndBreak(1, shooter, hand.asEquipmentSlot())` to the exact used stack. Replaced the `active_hand` mutex read and `unwrap_or(MAIN_HAND)` fallback (silently damaged the wrong hand if the shared flag was cleared first) with a match on the released stack's network id against the off-hand stack, via the pure helper `damage_slot_for`. Added unit test `bow_damage_slot_matches_used_hand`.
+- Row 3 (S) - VERIFIED, no code change. Vanilla `ServerPlayerGameMode.useItem` (line 474) rejects spectators before item use; `bow.rs:36-39` already carries the equivalent `GameMode::Spectator` guard, so a spectator holding arrows cannot start a draw.

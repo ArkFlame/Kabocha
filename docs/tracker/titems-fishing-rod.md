@@ -38,3 +38,14 @@ edits reviewed against the vanilla call chain only; the orchestrator batch build
 ## h6 gap status
 - Row 3 (stale durability TODO in `use_item.rs`): FIXED 50a7d1ee2 (TODO removed; durability is applied in `item/items/fishing_rod.rs:96-98`).
 - Row 4 (hook origin X/Z offset): STILL OPEN, UNVERIFIED against the 26.3 constructor; not changed.
+
+## Result
+
+Re-review against decompiled vanilla in .vendor/vanilla-decompiled (final pass).
+
+- Row 2 (ITEM_USED stat, scoped): FIXED. Vanilla ItemStack.use (ItemStack.java:525-536) does not award ITEM_USED; each item awards in its own use() (FishingRodItem.java:69, cast branch only). Pumpkin's generic award in use_item.rs:40 plus local awards double-counted, and the rod also counted reel-in. Changes: the generic handler now skips the fishing rod; fishing_rod.rs awards on the cast branch after the plugin-cancel check and before the start vibration; the redundant local awards were removed from snowball.rs, egg.rs and spyglass.rs. Cast now counts once, reel-in and plugin-cancelled casts count zero. The remaining systemic fix (roughly 35 other items that still double-award) spans files outside this unit and is left open as a cross-crate refactor.
+- Row 3: already fixed in a prior pass, no change.
+- Row 4 (hook origin X/Z offset): VERIFIED, NO CHANGE NEEDED. The row's premise was wrong. Vanilla 26.3 FishingHook(Player,Level,int,int) (FishingHook.java:100-112) spawns at getX() - ySin * 0.3, getEyeY(), getZ() - yCos * 0.3. Pumpkin's throw_setup (fishing_bobber.rs:777-782) reproduces this exactly and already has unit tests at :895-905, so no offset needs dropping.
+- Row 1: already fixed in a prior pass, not re-opened.
+
+No unit test added: the stat decision needs a live Player so there is no pure seam, and row 4's origin math is already covered by the existing throw_setup tests. rustfmt --edition 2024 passed on all five edited files. Compilation and tests are deferred to the orchestrator batch build.

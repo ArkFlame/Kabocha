@@ -44,3 +44,18 @@ Vanilla reference: `net.minecraft.commands.arguments.ResourceKeyArgument`,
 - 2. Dimension suggestions only loaded worlds: STILL OPEN (S).
 - 3. `ERROR_NOT_SUMMONABLE_ENTITY`/`ERROR_INVALID` (`resource_key.rs:29`): STILL OPEN (S).
 - 4. No automated test for suggestions (needs live `CommandContext`): STILL OPEN (gametest candidate).
+
+## Result
+
+- 3. FIXED: removed the unused `ERROR_NOT_SUMMONABLE_ENTITY` and `ERROR_INVALID`
+  constants from `resource_key.rs` (the summonable-entity check lives in
+  `pumpkin-command`'s `ResourceArgument`, verified unused repo-wide).
+- Added two pure `parse` unit tests (registry preserved; bare path defaults to
+  the `minecraft` namespace), the only seam that needs no live `CommandContext`.
+- 1. LEFT OPEN: resolving `get_advancement`/`get_biome` against datapack
+  registries needs a dynamic registry lookup and a return type other than
+  `&'static` generated data (cross-crate refactor, outside this unit).
+- 2. LEFT OPEN: advertising datapack dimensions requires a dimension registry;
+  Pumpkin only has instantiated worlds (outside this unit).
+- 4. LEFT OPEN: suggestion/`get_*` tests need a live server `CommandContext`
+  (pumpkin-gametest candidate, outside this unit).

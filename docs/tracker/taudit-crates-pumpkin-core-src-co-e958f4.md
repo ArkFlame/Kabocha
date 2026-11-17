@@ -94,3 +94,22 @@ Deep audit in this pass (no behaviour change needed):
 - Stronghold distance ranking (`structure_finder.rs` `find_nearest_concentric`): STILL OPEN (S).
 - Structure arm placement candidates (`locate.rs:273-279`): STILL OPEN (M).
 - Bedrock success arguments (`locate.rs:298-306,359-367`): STILL OPEN (S).
+
+
+## Result
+
+Verified every STILL OPEN row against decompiled vanilla; fixed the in-scope
+rows. `rustfmt --edition 2024` run on both touched files (exit 0).
+
+| Row | Outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | Already matches vanilla Canvas (`LocateCommand.java:103-112`): the `StructureSearch::Pending` arm sends `Searching for <name>...` and returns 0. No change made. |
+| Datapack/modded structures via registry (`wanted_structures`) | STILL OPEN: needs a dynamic `worldgen/structure` registry in generated `pumpkin-data`; `StructureKeys::from_name` cannot resolve custom ids (generated-data / cross-crate change). |
+| POI argument type (`resource_or_tag.rs`) | STILL OPEN: needs a generated POI type registry in `pumpkin-data` so `ResourceOrTagArgument::parse` can reject unknown ids; no such registry exists (generated-data change). |
+| All placements per structure set (`structure_set_containing`) | FIXED: renamed to `structure_sets_containing`, returning every set index (vanilla `ChunkGeneratorStructureState.getPlacementsForStructure` returns a list); the executor scans each set; added `all_sets_containing_a_structure_are_returned`. |
+| Random-spread nearest ordering (`structure_finder.rs`) | FIXED: `find_nearest_structure` now evaluates every placement at a radius, keeps the nearest hit, and advances only after the full ring (vanilla `ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | FIXED: ring candidates are ranked with y=32 while the reported position stays y=0 (vanilla `ChunkGenerator.java:296-297`). |
+| Structure arm placement candidates (`locate.rs:273-279`) | STILL OPEN: vanilla `getStructureGeneratingAt` (`ChunkGenerator.java:349-362`) checks `checkStructurePresence`, so it does not report pure placement-only candidates; the row's premise needs re-verification before adding a key-returning candidate search (multi-pass change). |
+| Bedrock success arguments (`locate.rs`) | Already fixed for Bedrock player sources via `bedrock_success_args`. The remaining cross-cutting split needs `pumpkin-util/src/text/mod.rs`, outside this unit (out of scope). |
+
+Files changed: `locate.rs`, `structure_finder.rs`.

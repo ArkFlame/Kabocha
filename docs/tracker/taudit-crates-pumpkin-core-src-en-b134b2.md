@@ -57,3 +57,37 @@ Line numbers are post-fix.
 - Chicken jockey candidate filter (zombie/mod.rs:332): FIXED, dropped the extra !has_vehicle() check to match ENTITY_NOT_BEING_RIDDEN. No unit test: filter needs a live world.
 - Reinforcement RNG order (summon_reinforcements): STILL OPEN, S, changes the random stream; not landed this pass.
 - Halloween timezone (is_halloween): STILL OPEN, S, needs the level-local date source.
+
+## Result
+
+Decompiled vanilla is now present at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Zombie.java`
+(the earlier audit had no `.vendor/`). Verified both STILL OPEN rows against it,
+smallest first. Both live in files outside this unit's editable set
+(zombie/mod.rs and mob/spawn.rs, neither in the allowed basename list), so no
+source was edited; both are left open with reasons below.
+
+- **Halloween timezone (`is_halloween`, zombie/mod.rs:297; defined in
+  mob/spawn.rs:26)** - LEFT OPEN. Vanilla gates the head on
+  `SpecialDates.isHalloween` reading the ServerLevel's date; Pumpkin uses
+  `OffsetDateTime::now_local()` with a UTC fallback, i.e. the host OS clock.
+  Fix needs spawn.rs (and a level-local date source threaded through mod.rs),
+  both outside this unit's editable files. Cosmetic only.
+- **Reinforcement condition/RNG order (`summon_reinforcements`,
+  zombie/mod.rs:463-483)** - LEFT OPEN. Vanilla chain (Zombie.java:296-300) is
+  `target != null && difficulty == HARD && random.nextFloat() < chance &&
+  level.isSpawningMonsters()`; Pumpkin is `difficulty == HARD && resolve target &&
+  random roll && should_spawn_monsters()`. Neither target resolution nor the
+  difficulty check consumes RNG, so the random stream is in fact identical; the
+  only divergence is the difficulty/target short-circuit order. Fix needs
+  zombie/mod.rs, outside this unit's editable files. No behaviour change.
+
+Extra verification from the newly available source (not STILL OPEN, no edits):
+
+- Fire-on-hit main-hand guard (`do_hurt_target`, zombie/mod.rs:561) - the
+  decompiled 1.21 `Zombie#doHurtTarget` (Zombie.java:349-353) DOES contain
+  `this.getMainHandItem().isEmpty() && this.isOnFire() && random < difficulty*0.3`,
+  so Pumpkin's existing `main_hand_empty` guard matches vanilla. The former
+  BLOCKED-DATA row resolves as correct-as-is.
+- No `.rs` files were edited, so rustfmt was not run.
+

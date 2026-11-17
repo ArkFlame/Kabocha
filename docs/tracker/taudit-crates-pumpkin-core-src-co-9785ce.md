@@ -47,3 +47,20 @@ New gaps:
 - Numeric to_string in `modify string` (`data.rs:482-496`): STILL OPEN (S).
 - `SET` with empty source writes End (`data.rs:767-770`): STILL OPEN (S).
 - `expected_list` argument text (`nbt_path.rs:632-636`): STILL OPEN (S).
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft` (repo target `CURRENT_MC_VERSION = V_26_3`).
+
+- Entity data accessor (`data.rs:229-241,273-275`): no change. `EntityDataAccessor.getData()` calls `NbtPredicate.getEntityTagToCompare`, which at `NbtPredicate.java:42-55` adds a synthetic `SelectedItem` for players, so the current `entity_nbt_with_selected_item` matches vanilla. The 1.21.x claim in the first table does not apply to this version.
+- `modify string` on non-string tags / numeric to_string (`data.rs:481-495`): fixed. `DataCommands.getAsText` (lines 172-178) returns the raw value for `StringTag` and `PrimitiveTag.toString()` for every numeric tag, throwing `expected_value` only for compound/list/array/end. `get_as_text` now stringifies Byte/Short/Int/Long/Float/Double with Java number formatting and SNBT suffixes; test `modify_string_source_stringifies_primitives` replaces the old rejection test.
+- Empty arrays render `[B; ]` (`data.rs:114-201`): no change. Already fixed; `StringTagVisitor.visitByteArray/IntArray/LongArray` emits `[B;]`/`[I;]`/`[L;]` for empty arrays, matching `snbt_colorful_display`.
+- Compound key order (`data.rs:151-170`): no change. Cosmetic only; keys are sorted for determinism while vanilla iterates an arbitrary map.
+- Double formatting in translatable (`data.rs:300-309,386-399,453-464`): fixed. All three vanilla `getPrintSuccess(path, scale, value)` implementations use `String.format(Locale.ROOT, "%.2f", scale)`; replaced `java_double_to_string(scale)` with `format!("{scale:.2}")` at all three sites.
+- `SET` with empty source writes End (`data.rs:767-770`): fixed. Vanilla uses `Iterables.getLast(source)` and fails before writing; SET now returns `ERROR_GET_NON_EXISTENT` naming the source path instead of inserting `NbtTag::End`.
+- `expected_list` argument text (`nbt_path.rs:632-636`): fixed. Vanilla `ERROR_EXPECTED_LIST.create(targetTag)` renders the tag through its `toString()` (SNBT); replaced Rust `Debug` with `Display`.
+
+Still open:
+- `remove entity` at depth (`data.rs:263-271`): vanilla mutates the full compound then calls `setData`; whether nested removals persist needs a live entity repro, and a nested-aware `remove_nbt` lives outside these two files.
+- Block data live load (`data.rs:310-348`): no concrete lossy block entity identified; current NBT rebuild approach retained, a real fix needs cross-crate `block_entity_from_nbt` changes.
+- Storage persistence (`data.rs:413-431`): deciding whether command storage is written on world save requires the server save loop, outside this unit.

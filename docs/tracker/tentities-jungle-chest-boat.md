@@ -24,3 +24,27 @@ Verified present (vanilla `ChestBoat` / `AbstractChestBoat`):
 | boat.rs:351-355 | `AbstractBoat.destroy` is `spawnAtLocation(this.getDropItem())`, which does not copy the entity custom name onto the dropped item; Pumpkin sets `CustomNameImpl` on the drop | confirm in decompiled `Boat`/`AbstractBoat`; if no name transfer exists, drop the `CustomNameImpl` block | S (verify) |
 | boat.rs:335 vs 356 | vanilla `chestVehicleDestroyed` scatters the container at the entity position (`getX/Y/Z`); Pumpkin passes `block_pos` to `world.scatter_inventory` | pass the entity position to `scatter_inventory` and keep `block_pos` only for `drop_stack` | S, FIXED ff30569c9 (already on master) |
 | boat.rs:276-301 | `AbstractBoat` also maintains bubble/air state while a player rides underwater; no `DATA_ID_BUBBLE_TIME` (tracked_data id 13) is ever sent for any boat | set/publish bubble-time metadata from the underwater tick, shared by all boat types | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+## Result
+
+Checked the single STILL OPEN row (boat.rs:276-301, bubble time) against decompiled
+vanilla AbstractBoat.java and Entity.java under .vendor/vanilla-decompiled/.
+
+- Vanilla DATA_ID_BUBBLE_TIME is the bubble-column countdown, not an underwater air
+  counter. onAboveBubbleColumn(dragDown, pos) sets it to BUBBLE_TIME (60); tickBubbleColumn
+  decrements it and, at zero, ejects passengers and broadcasts BOAT_SINK (downward ->
+  drag-down velocity) or BOAT_LAUNCH (upward -> y = 0.6). The separate 60-tick underwater
+  passenger ejection is the plain outOfControlTicks field in AbstractBoat.tick, which
+  Pumpkin already models via ticks_underwater.
+- The row literal suggestion is already in the code: tick_underwater publishes
+  ID_BUBBLE_TIME from the underwater tick (boat.rs:221-228). That value counts UP 1..60,
+  which is not the vanilla countdown and can drive spurious client bubble rendering for a
+  merely submerged boat; the comment at boat.rs:222-223 misstates vanilla.
+
+Left OPEN (one-line reason): true vanilla bubble-time parity needs a bubble-column state
+machine (a BoatEntity on_above_bubble_column override setting a 60-tick countdown,
+handleBubbleColumnEffect sink/launch velocity, and BOAT_SINK/BOAT_LAUNCH entity events), a
+cross-cutting feature spanning the block callback, world-event and client render paths;
+deferred to its own verified pass because it cannot be compiled here.
+
+No source files changed (fix out of unit scope); no rustfmt needed.

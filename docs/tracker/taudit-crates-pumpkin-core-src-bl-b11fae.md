@@ -65,3 +65,16 @@ Remaining gaps:
 - 5 STILL OPEN: no live caller bug; S, not attempted.
 - 6 STILL OPEN: consolidation S, not attempted.
 - 7 STILL OPEN: cleanup only, not attempted.
+
+
+## Result
+
+- Row 1 (get_inside_collision_shape): LEFT OPEN. Decompiled `BlockBehaviour.getEntityInsideCollisionShape` returns `Shapes.block()` by default (BlockBehaviour.java:336); only specific blocks (TripWire, EndPortal, powdered snow, cauldrons) override with a real shape, so Pumpkin's `BoundingBox::full_block()` default already matches. The audit's "empty-shape fallback" premise is from a different MC version.
+- Row 2 (comparator output): LEFT OPEN. Decompiled `AbstractContainerMenu.getRedstoneSignalFromContainer` divides by `container.getMaxStackSize(itemStack)` (line 915) = min(container max, item max). Adding a getter to `pumpkin_inventory::Inventory` is a cross-crate change and there is no live difference (container max 64 >= every item max). No edit.
+- Row 3 (pushEntitiesUp): LEFT OPEN. Decompiled `Block.pushEntitiesUp` uses `Shapes.joinUnoptimized(..., BooleanOp.ONLY_SECOND)` and `Shapes.collide` against entity AABBs (Block.java:158); these VoxelShape boolean ops do not exist in this codebase, so parity needs a cross-crate shape API. The audit's "new top >= 1.0 / inflate AABB" description does not match the decompiled class. No edit.
+- Row 4 (BlockDropItemEvent player): LEFT OPEN. Threading `Option<&Player>` requires changing `World::break_block`/`break_block_naturally` (world/mod.rs), explosion.rs and leaves.rs, all outside this unit. No edit.
+- Row 5 (BlockPlaceContext::at): FIXED. `at` now mirrors the vanilla constructor by gating on `can_replace_with_other_block`, returning `None` for non-replaceable positions instead of always `Other`. Verified against BlockPlaceContext.java:30 and the existing registry.rs placement path, which uses the same helper as the replaceability gate.
+- Row 6 (consolidation): FIXED. `has_placement_collision()` now defaults to `!can_place_inside_entities()`, so scaffolding's override can no longer leave the two paths out of sync. Added pure unit test `placement_collision_mirrors_can_place_inside_entities`.
+- Row 7 (silk touch): FIXED. Replaced the per-break name lookup with the generated `Enchantment::SILK_TOUCH` constant, matching the pattern used across pumpkin-core.
+
+Edited: crates/pumpkin-core/src/block/mod.rs (rustfmt --edition 2024 applied). No compile/test run (worker constraint).

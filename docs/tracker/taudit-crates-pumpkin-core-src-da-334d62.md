@@ -28,3 +28,36 @@ markers, only prose mentions of vanilla (`GameTestInstance.CODEC`, two test name
 - Unused `get_test_instance_registry_entries` (`mod.rs:922`): STILL OPEN (S).
 - Lowercase `.json` only in dynamic loader (`dynamic_registry_loader.rs:92-95`): STILL OPEN (S).
 - Required `structure` field (`model.rs:85`): STILL OPEN (S).
+
+
+## Result
+
+Verified every STILL OPEN row against decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/.
+
+- test_loader.rs:93-98 / model.rs:109 (environment codec) -> FIXED. Vanilla TestData.CODEC uses
+  TestEnvironmentDefinition.CODEC = RegistryCodecs.holder(..., allowInline=true), which decodes only
+  a string resource-key reference or an inline object dispatched by a "type" field
+  (RegistryFileCodec.decode). GameTestDefinition::is_valid now rejects null/number/bool/array and
+  objects without "type". Added pure unit tests is_valid_accepts_holder_shaped_environment and
+  is_valid_rejects_non_holder_environment in model.rs. Skips silently at the load gate (no warn),
+  matching the existing parse-failure handling.
+- test_loader.rs:91 (bad ResourceLocation id) -> FIXED. Added Identifier::is_valid_namespace /
+  is_valid_path guard with warn! before inserting, mirroring dynamic_registry_loader.rs. Added unit
+  test load_test_instances_skips_invalid_resource_location_ids.
+- mod.rs:922 + dynamic_registry_loader.rs:93 (unused typed encoder) -> STILL OPEN. Wiring the typed
+  test_instance encoder into registry sync requires editing mod.rs, which is outside this unit
+  (only dynamic_registry_loader.rs, model.rs, test_loader.rs are in scope).
+- dynamic_registry_loader.rs:94 (directory / extension) -> FIXED. Lowercase-only .json was already
+  enforced (existing only_lowercase_json_files_are_loaded test). Removed the plural test_instances
+  alias; vanilla registry key is test_instance (Registries.TEST_INSTANCE), so datapack files live
+  only in data/<ns>/test_instance/. Added unit test test_instance_registry_uses_singular_directory_only.
+- model.rs:85 (required structure) -> VERIFIED, NO CHANGE NEEDED. Decompiled TestData.CODEC uses
+  Identifier.CODEC.fieldOf("structure") (required, no optionalFieldOf), so vanilla also requires
+  structure. Pumpkin's "structure: String" without #[serde(default)] already matches; the doc's
+  "vanilla keeps structure optional" premise does not hold for this vanilla version.
+
+Touched files: crates/pumpkin-gametest/src/model.rs,
+crates/pumpkin-core/src/data/datapack/test_loader.rs,
+crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs.
+All three formatted with rustfmt --edition 2024 (exit 0). No compile/test run: workers do not build
+in this checkout.

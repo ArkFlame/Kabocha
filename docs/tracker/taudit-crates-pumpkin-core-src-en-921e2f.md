@@ -29,3 +29,19 @@ DifficultyInstance math (0.75 base, /1440000 global term, /3600000 inhabited ter
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass (sweep tooling truncated it); nothing verified.
+
+## Result
+- Row 1: PARTIAL. Pillager's spawn crossbow provider is now gated to vanilla's 1/300 roll and the inherited `0.25*specialMultiplier` main-hand roll runs for it (equipment.rs). Raid-buff enchanting stays open: it needs `Raid::get_enchant_odds` from world/raid.rs, outside this unit.
+- Row 2: OPEN. Zombie/Husk/Drowned/ZombifiedPiglin/Villager equipment is already produced by the Mob trait overrides in zombie/* (outside this unit); adding them to `EQUIPMENT_REGISTRY` would double-equip on spawn.
+- Row 3: CLOSED, no change. Vanilla `WitherSkeleton` overrides `populateDefaultEquipmentEnchantments` with an empty body, so `enchanted: false` is correct.
+- Row 4: FIXED. Pillager `enchanted` set to true (vindicator was already true); both now receive the inherited `0.25*specialMultiplier` main-hand enchantment roll as vanilla does.
+- Row 5: FIXED. Deleted the two unused `MOB_SPAWN_ENCHANT_*` constants; the generated provider stays the single source.
+- Row 6: OPEN. The deterministic cost is in `crates/pumpkin-data/src/generated/enchantment_provider.rs`; fixing it needs a `tools/pumpkin-codegen` change (generated data, outside this unit).
+- Row 7: CLOSED, no change. Vanilla `Mob.canReplaceEqualItem` checks enchantment count first, then damage, then custom name last; `can_replace_equal_item` matches exactly.
+- Row 8: CLOSED, no change. `World::get_time_of_day` already uses a blocking lock with poison recovery, not a `try_lock` zero fallback (world/mod.rs, outside this unit).
+- Row 9: FIXED. `moon_brightness` uses `rem_euclid` so the phase is non-negative like vanilla `Math.floorMod` (the old `.abs()` mapping happened to be equivalent for the brightness table).
+- Row 10: FIXED. Removed the dead `entity_type` field and its seven literals; the registry key is the single source of the entity name.
+- Row 11: CLOSED, no change. Verified vanilla `Mob.populateDefaultEquipmentSlots`: base `nextInt(3)`, three upgrades at 0.1087, capped by diamond; Pumpkin matches.
+- Row 12: CLOSED, no change. Vanilla `equipItemIfPossible` uses `max(rand-0.1,0) < dropChance` and `setItemSlotAndDropWhenKilled` calls `setGuaranteedDrop`; Pumpkin matches both.
+- Row 13: OPEN. `Equippable.swapWithEquipmentSlot` is a player/item path outside this unit; low priority.
+- Files touched: `crates/pumpkin-core/src/entity/mob/equipment.rs` (`rustfmt --edition 2024` applied). No new test: the fixed rows have no deterministic pure seam (registry constants, random rolls, symmetric brightness mapping).

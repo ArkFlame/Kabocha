@@ -76,3 +76,43 @@ Coverage: AUDIT. No `TODO`/`FIXME` markers exist in the file; the tracker's
 - 5 hardcoded Hand::Right (bucket.rs:783-798): STILL OPEN, M, trait change.
 - 6 event payload lacks face/stack (bucket.rs:642-654, 726-736): STILL OPEN, M, additive WIT change.
 - 7 dispenser break_block without SKIP_DROPS (redstone/dispenser.rs:910-923): STILL OPEN, S.
+
+
+## Result
+
+Verified all seven STILL OPEN rows against .vendor/vanilla-decompiled (BucketItem,
+MobBucketItem, SimpleWaterloggedBlock, SolidBucketItem, BlockBehaviour, Level,
+DispenseItemBehavior). No cargo/git run (forbidden for this worker); rustfmt --edition 2024
+re-run on bucket.rs with exit 0.
+
+- Row 1 (waterlogged pickup can_survive, bucket.rs:309-318): VERIFIED, no new change.
+  SimpleWaterloggedBlock.pickupBlock sets WATERLOGGED=false then destroyBlock(pos, true)
+  when the state can no longer survive; the existing dried-state can_place_at + break_block
+  (drops) reproduces that. Already fixed in a prior pass.
+- Row 2 (sneak waterlogging, bucket.rs:423): VERIFIED, no change. BucketItem.emptyContents
+  computes canPlaceFluidInsideBlock with a !shiftKeyDown check, so sneaking recurses to the
+  adjacent position instead of waterlogging the clicked block. Pumpkin's !is_sneaking
+  already matches vanilla; the doc's proposed removal would be wrong.
+- Row 3 (ultrawarm mob bucket, bucket.rs:540-577): FIXED. Vanilla DOES spawn the mob
+  (MobBucketItem.checkExtraContent runs after emptyContents returns true, including the
+  fire-extinguish evaporation branch), but vanilla skips playEmptySound on evaporation.
+  Removed the extra mob empty-sound branch in finish_empty_filled_bucket; kept the spawn;
+  evaporation sound still comes from try_place_liquid. The doc's premise (no spawn) was wrong.
+- Row 4 (mayInteract / spawn protection, bucket.rs:291-338): FIXED. Added
+  world.is_in_spawn_protection(player, &pos) gates to both player-facing paths:
+  EmptyBucketItem::normal_use_with_rotation (pickup) and FilledBucketItem::place_filled_bucket
+  (place), mirroring BucketItem.use's level.mayInteract(player, pos). mayUseItemAt is
+  spectator/region-only and is covered upstream/by plugin events.
+- Row 5 (hardcoded Hand::Right, bucket.rs:783-798): STILL OPEN. Needs ItemBehaviour::use_on_block
+  signature change threaded through all implementors (files outside this unit).
+- Row 6 (event payload lacks face/stack, bucket.rs:642-654/726-736): STILL OPEN. Additive WIT
+  / plugin event payload change outside this unit.
+- Row 7 (dispenser break_block drops, redstone/dispenser.rs:910-923): VERIFIED, no change.
+  Vanilla filled-bucket dispensing calls BucketItem.emptyContents, which runs
+  destroyBlock(pos, true) for replaceable blocks (BlockBehaviour.canBeReplaced(state, fluid)
+  = canBeReplaced() or not isSolid()), so rolling loot is correct. The doc's "replaces without
+  drops" premise was wrong; adding SKIP_DROPS would break parity.
+
+Files changed this pass: crates/pumpkin-core/src/item/items/bucket.rs (rows 3, 4).
+dispenser.rs left untouched after verification. No pure unit-test seam exists for the
+sound/spawn-protection changes (both require a live World), so no test added.

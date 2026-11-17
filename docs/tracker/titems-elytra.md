@@ -50,3 +50,30 @@ are the vanilla ones, line numbers are Pumpkin's.
 - Row 1 fall distance: STILL OPEN (decompiled checkFallDistanceAccumulation not available in tree).
 - Row 3 glide-veto gametest: STILL OPEN (M, needs gametest harness).
 - Row 4 hurtAndBreak: STILL OPEN (M, needs decompiled reference).
+
+
+## Result
+
+Re-audited on 2026-11-17. No decompiled vanilla source exists in this worktree
+(`.vendor/vanilla-decompiled/net/minecraft/` absent; no Paper/Spigot sources either), so
+rows needing a vanilla reference could not be confirmed here. All four STILL OPEN rows
+point at `crates/pumpkin-core/src/entity/player.rs`, which is outside this unit's
+editable files (client_move.rs, firework_rocket.rs, player_auth_input.rs,
+player_command.rs, use_item.rs). Per scope rules they are left open with reasons,
+and no source file in this unit was changed.
+
+- Row 1 (fall distance, player.rs ~3954): LEFT OPEN (out of scope + no vanilla ref).
+  Fix belongs in `tick_fall_flying` in entity/player.rs; decompiled
+  `checkFallDistanceAccumulation` is not in the tree to confirm the unconditional store.
+- Row 2 (stale gliding TODO, player.rs ~3976): LEFT OPEN (out of scope). Current
+  `progress_motion` (~4052) has no `TODO: gliding...`; it now carries an explanatory
+  comment and an explicit `return` for airborne movement, so this looks resolved in the
+  tree. Still outside this unit; needs a re-check by the player.rs owner.
+- Row 3 (glide-veto gametest, player.rs ~3869): LEFT OPEN (out of scope). Needs a new
+  pumpkin-gametest plus flag handling in entity/player.rs, neither in this unit's files.
+- Row 4 (hurtAndBreak, player.rs ~2173): LEFT OPEN (out of scope + no vanilla ref).
+  `damage_item_stack_internal` is in entity/player.rs; no decompiled
+  `ItemStack#hurtAndBreak` in tree to compare Unbreaking/durability handling against.
+
+Files touched: docs/tracker/titems-elytra.md (this doc) only. No .rs files changed,
+so rustfmt was not applicable.

@@ -40,3 +40,17 @@ defend_village_target.rs, fox/goals.rs, trader_llama.rs, teleport_towards_player
 
 ## Gap status
 - can_navigate_to_entity pathfinder (row 1): STILL OPEN, no path-finding API (only NavigatorGoal, entity/mob/mod.rs:955). Prior fix track_target.rs:125 FIXED.
+
+## Result
+
+- Row 1 (can_navigate_to_entity pathfinder): FIXED. The prior blocker (no path
+  API) is obsolete: crates/pumpkin-core/src/entity/ai/pathfinder/mod.rs now
+  provides Navigator::create_path. Verified against decompiled vanilla
+  .vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/target/TargetGoal.java
+  (canReach): set the reducedTickDelay(10 + nextInt(5)) cooldown, build
+  createPath(target, 0), require a non-null end node within squared 2.25 blocks
+  of the target block position. Implemented in track_target.rs using the same
+  steered/navigator() pattern as move_through_village.rs and sniffer.rs; the
+  path check stays in can_start via can_track, so a failed path cannot evict
+  the current target goal. Added a pure unit test for the end-node tolerance.
+  Ran rustfmt --edition 2024 on track_target.rs: clean.

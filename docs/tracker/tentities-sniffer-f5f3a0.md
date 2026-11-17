@@ -39,3 +39,17 @@ The source changed since the last assessment (`a494cb9b5` cap at 20, `db897ff2d`
 - 5 explored-position success flag (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 6 dimension/pose constants (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 7 end-to-end sniff-walk-dig test (M): STILL OPEN (size M)
+
+
+## Result
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/{Sniffer,SnifferAi}.java` and `Mob.java` (now present in this worktree).
+
+- **1 SNIFFER_SEARCHING sound (S): RESOLVED, no code change.** `transition_to(Searching)` already plays `Sound::EntitySnifferSearching` (`sniffer.rs:222-224`); the doc premise that it is unreferenced is stale. Vanilla `Sniffer.tick()` -> `playSearchingSound()` gates on `level().isClientSide()` and repeats every 20 ticks at volume/pitch 1.0, so vanilla clients self-generate the loop from the synced SEARCHING state and no server-side cadence is needed.
+- **2 ambient sound interval (S): FIXED.** Vanilla `Sniffer` does not override `getAmbientSoundInterval()`; `Mob` default is 80 (Pumpkin `MobEntity::DEFAULT_AMBIENT_SOUND_INTERVAL` = 80). `get_ambient_sound` already matches vanilla (idle for every state except Digging/Searching). Changed `get_ambient_sound_interval` from 120 to 80 in `sniffer.rs`. No unit test added: a constant-mirroring assertion is excluded by the MVP test rules.
+- **3 dig loot spawn position (S): VERIFIED, no change.** Vanilla `dropSeed()` spawns each `ItemEntity` at `head.getX(), head.getY(), head.getZ()` (integer block corner from `getHeadBlock()`); Pumpkin `get_head_block().0.to_f64()` matches. The existing `digging_drops_gift_loot_at_the_head_on_the_entity_clock` test already pins this position.
+- **4 can_sniff/can_dig water test (S): VERIFIED, no change.** Both vanilla `canSniff()` and `canDig()` gate on `!this.isInWater()`, not `isInWaterOrRain()`; Pumpkin uses `!entity.is_in_water()` in both predicates.
+- **5 explored-position success flag / cooldown (S): VERIFIED, no change.** Pumpkin `ai.rs` matches `SnifferAi`: Digging (160-180 ticks) sets `SNIFF_COOLDOWN` for 9600 ticks on timeout else `reset_sniffing`; FinishedDigging (40 ticks) starts RISING then on stop calls `onDiggingComplete(timed_out)`, erases SNIFFER_DIGGING and sets SNIFFER_HAPPY. Durations, cooldown and entry conditions all match.
+- **6 dimension/pose constants (S): VERIFIED, no change.** Vanilla `DIGGING_BB_HEIGHT_OFFSET 0.4`, `withEyeHeight(0.81)`, `DIGGING_DIMENSIONS` applied only while DIGGING, head distance 2.25 and `MAX_HEAD_Y_ROT 50` all match the Pumpkin constants and `refresh_state_dimensions`.
+- **7 end-to-end sniff -> walk -> dig test (M): STILL OPEN.** Reason: needs a `pumpkin-gametest` over a dirt pad with multi-tick state transitions; no minimal pure unit-test seam exists in these files, and it exceeds this pass's scope.
+
+Files edited: `crates/pumpkin-core/src/entity/passive/sniffer.rs` (one literal + one explanatory comment). No generated data, WIT, or cross-crate changes; no other basename in this unit needed edits.

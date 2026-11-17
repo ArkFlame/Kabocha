@@ -32,3 +32,16 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
 ## h6 gap status
 - Row 2 (`NotePlayEvent` instrument serialized id): FIXED in tree at HEAD (`note.rs:37` passes `to_value()`, the serialized id).
 - Row 1 (custom head sound range): STILL OPEN, needs the sound registry range lookup.
+
+## Result
+- Row 1 (custom head sound range): STILL OPEN premise is factually wrong; verified NO CHANGE NEEDED.
+  NoteBlock#triggerEvent wraps custom head sounds in Holder.direct(SoundEvent.createVariableRangeEvent(id))
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/NoteBlock.java:172).
+  SoundEvent.createVariableRangeEvent(id) returns new SoundEvent(id, Optional.empty())
+  (net/minecraft/sounds/SoundEvent.java:35-37): no fixed range and no sound-registry lookup.
+  SoundEvent.getRange(volume) computes 16, or 16 * volume when volume > 1, at play time (:43-45).
+  Pumpkin's range: None (note.rs:186) passes unchanged to the protocol as an absent fixed range
+  (pumpkin-protocol/src/codec/data_component.rs:39), so it already matches vanilla. Setting a fixed
+  range would diverge. Added a short comment so the quirk is not fixed incorrectly later.
+- Rows: fixed=0, open=0. No test added: no behaviour change, and on_synced_block_event needs a live
+  World so there is no pure seam in this file.

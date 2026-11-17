@@ -59,3 +59,29 @@ Remaining gaps (not fixed: need codegen or cross-file behaviour change):
 ## Gap status
 
 - STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+
+
+## Result
+
+Verified each remaining gap against decompiled vanilla (`Enchantments.java`, `EnchantmentHelper.java`,
+`LivingEntity.java`, `Level.java`) on 2026-11-17. Smallest rows first:
+
+- Gap 4 (helper.rs:237 `is_world_thundering`): FIXED. Vanilla's `Level.isThundering()` already includes
+  `canHaveWeather()` (Level.java:2451-2452 + 2447-2448); Pumpkin's `World::is_thundering()` already
+  gates on `weather_enabled` (derived from dimension). Removed the redundant
+  `has_skylight && !has_ceiling && dimension != THE_END` checks and the now-unused `Dimension`
+  import. `rustfmt --edition 2024` passed on helper.rs.
+- Gap 1 (helper.rs:115 `on_post_attack` requirements): LEFT OPEN - needs a `requirements` field on
+  generated `ConditionalEffect` (codegen / generated data, outside this unit).
+- Gap 2 (helper.rs:500 `on_location_changed` Frost Walker `is_on_ground`): LEFT OPEN - the correct fix
+  is the requirement evaluation from gap 1 (codegen). The doc's proposed equip-call removal was
+  rejected: vanilla explicitly fires location_changed effects on equip (LivingEntity.java:3703), so
+  removing it would diverge from vanilla.
+- Gap 3 (helper.rs:516 generic `on_hit_block`): LEFT OPEN - moving the Channeling gate into shared
+  requirements depends on gap 1's codegen; the fn is currently callerless (safe to keep for now).
+- Gap 5 (helper.rs:384 `modify_durability_change` floor + clamp + single-path wiring): LEFT OPEN -
+  wiring the single path needs callers outside this unit plus the generated helper
+  (pumpkin-data/src/generated/enchantment.rs), which this unit may not edit.
+
+No pure unit-test seam exists for the gap 4 change (`is_world_thundering` needs a live `World`),
+so no test was added.

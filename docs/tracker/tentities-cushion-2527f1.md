@@ -37,3 +37,36 @@ chain.
 
 ## Gap status
 - All remaining-gap items (cushion.rs): STILL OPEN (file is in the h6 excluded list; not touched)
+
+## Result
+
+- `entity/mod.rs:6217/5883` (mount/dismount game events): LEFT OPEN - needs
+  `entity/mod.rs` (outside this unit's files) and possible `pumpkin-data`
+  `GameEvent` additions. Note: current checkout already emits
+  `GameEvent::EntityMount` (`add_passenger`, lines ~5997/6056) and
+  `GameEvent::EntityDismount` (`remove_passenger_internal`, line ~6312), so this
+  looks resolved upstream of this unit; verify during integration.
+- `cushion.rs:393-394` (`interact` seat): FIXED. Replaced the hardcoded
+  `dimension[1] - 0.6` with `crate::entity::position_rider(vehicle, passenger)`.
+  Verified against vanilla `Entity.positionRider` / `getPassengerRidingPosition`
+  (`Entity.java:3540-3564`): seat = cushion `passenger` point `[[0,0.25,0]]`
+  minus the rider `vehicle` point `[0,0.6,0]`; `position_rider` computes exactly
+  this from the generated attachment data. `awaiting_teleport` target still
+  updated from the resulting position. Numeric result is unchanged (0.25-0.6),
+  but now follows the real attachment points.
+- `cushion.rs:489` (placement/support gametests): LEFT OPEN - needs
+  `pumpkin-gametest` world block manipulation (cross-crate), not a pure unit
+  seam. Added the smallest safe pure unit test in this file instead:
+  `subtract_box_underpins_anchor_buried_detection`, covering the overlap and
+  full-cover cases that drive `Cushion.isAnchorBuried`.
+- `cushion.rs:186-189` (`drop_and_remove` cancelled dismount): FIXED. Removed the
+  early `return` on `has_passengers()`. Verified against decompiled vanilla
+  `BlockAttachedEntity.hurtServer` (`kill()` then `dropItem()`, both
+  unconditional) and `Entity.setRemoved` (`getPassengers().forEach(stopRiding)`
+  but removal happens regardless of a cancelled dismount). The cushion now
+  always breaks and drops even if a plugin cancels the dismount, matching
+  vanilla. Note: existing test `breaking_an_occupied_cushion_detaches_its_passenger`
+  still holds (no plugin cancellation there).
+
+Formatting: `rustfmt --edition 2024` run successfully on cushion.rs. Build/tests
+not run (CODER cannot compile); orchestrator verifies in the batch check.

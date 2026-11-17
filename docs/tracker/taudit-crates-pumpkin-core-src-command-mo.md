@@ -18,3 +18,8 @@ Fixed: command-block source yaw mapped `facing=up/down` to 270, while vanilla `D
 ## h6 gap status
 
 - Row 15 console output via tracing: STILL OPEN (console send_message is the only terminal path; changing it changes console format, needs a decision).
+
+
+## Result
+
+- Row 15 console output via tracing: STILL OPEN. Reason: the only console terminal path is the `println!` in `crates/pumpkin-core/src/command/mod.rs:147`, a file outside this unit's editable files (basenames command.rs / command_block.rs / command_source.rs), and routing it through tracing changes the console format (needs a decision). Verified against decompiled vanilla `net/minecraft/commands/CommandSourceStack.java:524-552` (console/admin feedback goes through `source.sendSystemMessage` / `server.sendSystemMessage`, a Pumpkin-side sink choice, not a parity defect in an in-scope file). No source file edited; no unit test added (no behaviour change); no rustfmt run needed.

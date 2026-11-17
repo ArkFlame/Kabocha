@@ -86,3 +86,22 @@ frame intact, fixed frame survives punching and `/kill` (M).
 ## Gap status
 - 5 FIXED: `entity/decoration/item_frame.rs:559-563` `damage_with_context` returns false for invulnerable sources (`is_invulnerable_to`) after the removed check. No automated test added (needs entity/world harness); compile not run in this worktree.
 - 1, 2, 3, 4, 6, 7, 8, 9, 10: STILL OPEN, not attempted in this sweep (2 and 7 are S, 4 is M and needs a game-rule store).
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java`
+(1.21.x with Paper patches). Files edited: `crates/pumpkin-core/src/entity/decoration/item_frame.rs`.
+
+- Row 1 (STILL OPEN): needs `neighborChanged`/`updateShape` block-update hooks across world files (outside this unit) before the 20-tick `survives` check can be aligned to vanilla's `tickCount % 100 == 0`.
+- Row 2 FIXED: `set_item` now plays the add-item sound only when `update_neighbours` is set, matching decompiled `setItem` (`!empty && updateNeighbours && playSound`).
+- Row 3 (STILL OPEN): requires a comparator-only `updateNeighbourForOutputSignal` helper in the `world` crate (outside this unit).
+- Row 4 (STILL OPEN): `doEntityDrops` needs a game-rule store absent from `pumpkin-core`.
+- Row 5: already fixed in prior pass (invulnerable-source guard present).
+- Row 6 FIXED: `is_invisible`/`set_invisible` now use the shared `Entity` invisible flag and tracker; the private duplicate field was removed; NBT still writes/reads `Invisible` via that flag, matching decompiled vanilla.
+- Row 7 FIXED: `get_frame_item_stack_with_data` copies the custom name as plain text via `get_text()` instead of ANSI `to_pretty_console()`, closer to vanilla's verbatim `CUSTOM_NAME` copy (Pumpkin's `ItemStack` API stores a String, so full component styles still cannot be preserved).
+- Row 8 verified, no change: decompiled `dropItem` gives creative players no frame or item drop; current early return matches it. The earlier note claiming otherwise was wrong.
+- Row 9 (STILL OPEN): 1.21.5+ `ItemFrame` implements `Container`; a cross-crate/WIT API change out of scope for this unit.
+- Row 10 (STILL OPEN): needs a drop-stack API y-offset in the `world` crate (outside this unit) for the -0.6 DOWN-facing fix.
+
+No test added: no pure seam exists (all affected behaviour needs a `World` plus fixture); `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed by the project rules.

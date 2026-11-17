@@ -30,3 +30,16 @@ Verdict: the port remains structurally complete and faithful (status/water probe
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+Verified STILL OPEN rows against decompiled vanilla (`world/entity/vehicle/boat/AbstractBoat.java`, `world/entity/Entity.java`, `server/network/ServerGamePacketListenerImpl.java`). The only editable source in this unit is `net/java/play/paddle_boat.rs`; it needs no change, and every gap below lives in a file outside this unit.
+
+- Row 19 (bubble column): verified vs `AbstractBoat.tickBubbleColumn`/`handleBubbleColumnEffect`/`getBubbleTime`/`setBubbleTime` (decompiled 351-405, 823-828). Already implemented in `boat.rs:309-372,729-734` (`ID_BUBBLE_TIME` sync, drag/vertical push, passenger eject, client decay) by another worker; file outside my unit, no change. Verified fixed, close.
+- Row 20 (clampRotation): verified vs `AbstractBoat.clampRotation`/`positionRider`/`onPassengerTurned` (740-766). Already implemented with tests in `boat.rs:695-706,736-752` by another worker; outside my unit. Verified fixed, close. Vanilla `calculatePassengerBodyYRot` animal +/-90/270 nuance still unimplemented (out of scope).
+- Row 21 (floatBoat air->water, S verify): verified vs decompiled 607-625. `physics.rs:191-205` now returns the surface offset unconditionally and zeroes y velocity, matching vanilla ordering; outside my unit. Verified fixed, close. Minor residual: Rust zeroes y velocity unconditionally while vanilla gates it on noCollision.
+- Row 22 (getGravity, S verify): vanilla `AbstractBoat` has no `getGravity` override (only a call at 608), so Entity's 0.0-if-noGravity else -0.04 applies and `boat.rs:720-726` matches. Close, no change.
+- Row 23 (boat gametest): needs a gametest file, outside my unit. Left open with reason.
+- h6 delta-rotation: verified fixed by another worker: `rider_yaw_with_delta` + test `rider_yaw_follows_boat_yaw_delta_then_clamps` in `boat.rs:747-779`; outside my unit. Close.
+
+`paddle_boat.rs` checked against vanilla `handlePaddleBoat` (decompiled 2464-2468) and `Entity.getControlledVehicle` (6661): the `get_vehicle()` + controlling-passenger-id check + downcast to `BoatEntity` is equivalent to `getControlledVehicle() instanceof AbstractBoat` (player-only front seat, immediate vehicle). No gap; no source edit in this unit.

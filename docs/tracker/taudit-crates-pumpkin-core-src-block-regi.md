@@ -97,3 +97,9 @@ from vanilla `blocksBuilding = false` overrides. Size: M.
 ## Gap status
 - Registry obstruction check counting placing player: FIXED (per "Fixed" section; not re-spot-checked).
 - 1. `get_inside_collision_shape` fallback (`block/registry.rs`): STILL OPEN (not re-read this pass).
+
+## Result
+
+- 1. get_inside_collision_shape fallback (block/registry.rs:1630, trait default block/mod.rs:249): LEFT OPEN. Fix needs files outside this unit (registry.rs, mod.rs) plus a multi-AABB shape type in BoundingBox (cross-crate refactor). Decompiled note: BlockBehaviour.getEntityInsideCollisionShape defaults to Shapes.block() (BlockBehaviour.java:336-338); only TripWireBlock/EndPortalBlock/LayeredCauldronBlock/LavaCauldronBlock/PowderSnowBlock override it, so the doc premise about returning state.getCollisionShape does not hold in this decompiled version and Pumpkin full-block fallback matches the default. No in-scope change.
+- 3. relative-position BlockIsReplacing::None (gap-3 consumer files): no in-scope code change. Root fix is in block/registry.rs:705 (outside this unit). Decompiled BlockPlaceContext.getNearestLookingDirections (context/BlockPlaceContext.java:71-90) reorders looking directions only when replaceClicked is false (clicked block not replaceable, i.e. placement at the relative pos). The consumers == None condition already reorders for the relative-position air/replaceable case and skips it for the clicked-position case. The doc proposed None to Other change would suppress that reordering (air is replaceable via state.replaceable, so the relative branch would report Other and no consumer would reorder), breaking vanilla parity. Left open with reason: root cause in registry.rs, outside unit.
+Files touched: none (all STILL OPEN rows are out of scope); no rustfmt, no pure-unit-test seam introduced.

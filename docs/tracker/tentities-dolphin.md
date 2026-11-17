@@ -93,5 +93,37 @@ classes. The change that triggered this re-review is `0a35a87c3` (entity cycles 
   budget for the two movement goals (jump 0.6/0.7, breathe 0.015, follow 0.01, 4 moves/tick).
 
 ## Gap status
-- 1 ageable/breedable model (M): STILL OPEN (size M, shared refactor)
-- 2 dolphin_food tag: BLOCKED-DATA (tag not extracted into assets/)
+- 1 ageable/breedable model (M): CLOSED, NO GAP (verified against decompiled vanilla 26.3)
+- 2 dolphin_food tag: CLOSED, NO GAP (vanilla uses FISHES; not data-blocked)
+- 3 DolphinJumpGoal::should_continue (S): CLOSED, NO GAP (matches decompiled vanilla)
+
+
+## Result
+
+Verified every gap against the decompiled vanilla shipped in this worktree
+(`.vendor/vanilla-decompiled/net/minecraft/`), which targets Pumpkin's protocol version 26.3.
+That vanilla differs from the 1.21 classes this tracker was originally written from: `Dolphin`
+extends `AgeableWaterCreature`, has babies and breeding, and gates feeding on `ItemTags.FISHES`.
+All three gaps are therefore invalid for the target version and no code change was needed.
+
+- Gap 1 (ageable/breedable model, was STILL OPEN): NO GAP, closed. Decompiled `Dolphin.java:74` is
+  `public class Dolphin extends AgeableWaterCreature`, with `BABY_SCALE` (`:81`), `getBreedOffspring`
+  (`:108`) and `finalizeSpawn` using `new AgeableMobGroupData(0.1F)` (`:103`). Pumpkin's
+  `impl AgeableMob` + `impl AgeableWaterCreature`, `default_baby_spawn_chance` 0.1
+  (`dolphin.rs:148-158`), `finalize_ageable_spawn` (`:325`) and `DATA_BABY_ID`/`AGE_LOCKED` tracker
+  writes (`:328-340`) match vanilla. Removing them as the gap proposed would break parity, so no
+  shared refactor was made.
+- Gap 2 (dolphin_food tag, was BLOCKED-DATA): NO GAP, closed, not data-blocked. Decompiled
+  `Dolphin.mobInteract` (`:321-339`) gates on `ItemTags.FISHES` (`:323`); for fish it ages up via
+  `ageUp(getSpeedUpSecondsWhenFeeding(-age), true)` when `canAgeUp()` else sets `GotFish`. Pumpkin
+  `dolphin.rs:412-431` checks `MINECRAFT_FISHES`, plays `EntityDolphinEat`, decrements the stack and
+  uses the same age-up/else-GotFish branching. This vanilla has no `dolphin_food` tag, so the
+  generated-data blocker does not apply.
+- Gap 3 (DolphinJumpGoal::should_continue, no status in the original tracker): NO GAP, confirmed
+  correct. Decompiled `DolphinJumpGoal.canContinueToUse` (`:56-60`) is
+  `(!(yd*yd < 0.03) || xRot == 0 || !(abs(xRot) < 10) || !isInWater()) && !onGround()`; Pumpkin
+  `goals.rs:427-435` is its exact boolean equivalent (including `pitch.abs() >= 10.0` as the
+  negation of `abs(xRot) < 10`). The proposed negated-conjunction rewrite would be wrong, so no
+  change was made.
+
+No `.rs` file was touched, so no rustfmt run and no unit test added (no code seam changed).

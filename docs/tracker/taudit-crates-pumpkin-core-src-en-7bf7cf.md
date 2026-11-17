@@ -37,3 +37,15 @@ Client-only: eat particles and the sneeze particle rely on the synced `EAT_COUNT
 ## Gap status
 
 - STILL OPEN: panda rows (excluded from this sweep by scope).
+
+
+## Result
+
+Verified all four STILL OPEN rows against decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (now present).
+
+- Row 1 `genes_from_parents` (panda.rs:149-170) - CLOSED, no change. Vanilla `setGeneFromParents` (Panda.java:566-590) rolls mutation with two INDEPENDENT `if (random.nextInt(32) == 0)` blocks, both always evaluated; both genes can mutate and both draws are always taken. The unit doc's "else-if / at most one mutation" memory was wrong. Pumpkin already matches and `foal_genes_come_from_the_parents_and_mutate_independently` (panda.rs:1003) pins it.
+- Row 2 `sit_and_eat` (panda.rs:619-631) - CLOSED, no change. Vanilla `mobInteract` food branch (Panda.java:615-664) handles isScared/isOnBack first, returns PASS for a baby in the `!canAgeUp` else, and gates the final eat branch on `isSitting() || isInWater()`. Pumpkin already gates on `is_baby() || !can_perform_action() || is_in_water()`, which IS the recorded fix (can_perform_action plus the water check) and is pinned by `feeding_a_panda_that_cannot_breed_swaps_its_item_for_the_food` (panda.rs:1448). Pumpkin is deliberately stricter than vanilla (also rejects eating/rolling); left as-is per recorded intent and the existing test.
+- Row 3 `can_find_bamboo` (panda/goals.rs:134-149) - CLOSED, no change. Vanilla `canFindBamboo` (Panda.java:834-852) loops yOff 0..3 and square rings r 0..8, covering exactly x,z in [-7,7], y in [0,2]. Pumpkin scans the same box; the doc's "i,j<7 and y range may differ" memory was wrong. `breeding_needs_bamboo_nearby_and_sulks_once_per_cooldown` (panda.rs:1138) already checks x=8/y=+3 out and (-7,66,7) in.
+- Row 4 `after_sneeze` island note (panda/sneeze.rs:81-109) - STILL OPEN. `after_sneeze` reads the world and jumps pandas within 10 blocks from the mob tick; pandas do not set `has_audited_tick`, so the conservative entity-island reach already covers it and there is no current bug. Left open: a full mob tick/AI/Brain reach audit across the panda goals plus setting `has_audited_tick` is a broad behavioural change beyond a smallest fix; defer to a dedicated pass.
+
+No .rs source changed (rows 1-3 verified at/intended parity, each already covered by a test); no rustfmt needed. No new pure test: the two pure seams (gene mutation, bamboo box) are already tested; the mobInteract/sneeze seams need world state.

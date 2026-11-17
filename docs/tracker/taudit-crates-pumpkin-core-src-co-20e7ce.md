@@ -31,3 +31,16 @@ Markers: the tracker note counts 3 markers, all are doc comments that mention "v
 - `count` is applied to the stack before writing; `IntegerArgumentType::new(1, 99)` matches vanilla.
 - Block target requires a loaded position and a block entity exposing an inventory; error args are x, y, z.
 - `set_damage` clamps the durability fraction to 0..=1 and inverts it into damage like `SetDamageFunction`.
+
+
+## Result
+
+- Row 5 (number providers): FIXED for context-free forms. Verified against vanilla SetItemCountFunction / SetItemDamageFunction and the ContextIntProvider / ContextFloatProvider codecs in .vendor/vanilla-decompiled. number_provider now strips the minecraft: namespace (real SNBT uses namespaced type ids, so the old plain uniform match silently fell through to the 1.0 default), accepts all numeric NBT tag kinds, and supports uniform (nested min/max), binomial (n, p) and sum (inputs). score, storage and the remaining provider types require a LootContext (scoreboard / storage / level) that the item command does not build; that plumbing is outside this unit. Added 3 pure unit tests.
+- Row 6 (set_count clamp): FIXED. Vanilla ItemStack.setCount(int) assigns the raw int (world/item/ItemStack.java:1305) without clamping to max stack size. Removed the get_max_stack_size() clamp; only the u8 representable range is kept.
+- Row 8 (modify feedback): FIXED. Both item modify executors now send commands.item.block.modify.success (count, x, y, z) and commands.item.entity.modify.success.single/multiple (count + target name, or entity count), matching the generated translation strings.
+- Row 1: OPEN - slot-source iteration needs the executor rewrite that resolves one-to-many slots and emits commands.item.target.failed*; M-sized, deferred.
+- Row 2: OPEN - separate item set subcommand with its own single-slot executors and set-success feedback; M-sized, deferred.
+- Row 3: OPEN - mob/horse/chest-boat inventories and the crafting grid need inventory APIs outside this unit's files.
+- Row 4: OPEN (L) - the rest of the loot-function set needs component, enchantment and data-component APIs outside this unit.
+- Row 7: OPEN - BlockEntity::mark_dirty lives in block/entities/mod.rs (outside this unit); item.rs cannot set the saved flag.
+- Row 9: OPEN - pure maintenance dedup with no behavioural difference; skipped to avoid risk during parallel edits.

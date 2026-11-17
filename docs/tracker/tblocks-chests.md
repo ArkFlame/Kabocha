@@ -71,3 +71,45 @@ Files: `crates/pumpkin-core/src/block/blocks/chests.rs`,
 ## h2 parity sweep (status)
 - FIXED (existing tree) - `has_block_on_top` already uses `is_full_cube()` (chests.rs:1085-1091).
 - Other S rows (partner on state change, synced viewer count width, custom-name labels): STILL OPEN, not attempted this pass.
+
+
+## Result
+
+Re-reviewed against decompiled vanilla (`ChestBlock.java`, `ChestBlockEntity.java`)
+2026-11-17. The STILL OPEN rows from the h2 pass (1, 3, 4) were each checked.
+No `cargo` was run by this worker (per unit rules). `rustfmt --edition 2024` was
+run on `chests.rs`.
+
+- **Row 1 (partner half detached on non-player removal): FIXED, already in tree.**
+  All three chest blocks implement `get_state_for_neighbor_update` ->
+  `chest_state_for_neighbor_update` (chests.rs), a faithful port of vanilla
+  `ChestBlock.updateShape` (decompiled lines 172-200): a lone half flips back to
+  `ChestType.SINGLE` when its connected neighbour changes. This hook is reached on
+  every state change via `World::on_block_state_set` ->
+  `BlockRegistry::update_neighbors` -> `replace_with_state_for_neighbor_update`,
+  so break/explosion//setblock are all covered; no `on_state_replaced` needed.
+  No code change made.
+- **Row 2 (blocked-chest predicate): FIXED, already in tree.** `has_block_on_top`
+  uses `state.is_full_cube()` (chests.rs:1109). Confirmed vanilla
+  `isBlockedChestByBlock` tests the block above with `isRedstoneConductor` (a
+  collision-full block), so slabs/stairs/walls/leaves do not block. No change.
+- **Row 3 (lid event viewer count truncated to u8): STILL OPEN (out of unit).**
+  Vanilla `ChestBlockEntity` sends the viewer count as an `int`
+  (`EVENT_SET_OPEN_COUNT = 1`), but `add_synced_block_event` takes `data: u8`
+  (world/mod.rs:1331) and `OnSyncedBlockEventArgs.data` is `u8` (block/mod.rs),
+  so `on_viewer_count_update` must cast `new as u8` (chest_like_block_entity.rs:344).
+  Widening to `i32` requires edits to world/mod.rs (BlockEvent + signature +
+  `CBlockEvent` broadcast), block/mod.rs and the protocol block-event packet, all
+  outside this unit's files. Reason: cross-crate/protocol API change required.
+- **Row 4 (double-chest menu title): FIXED.** Verified against vanilla
+  `ChestBlock.MENU_PROVIDER_COMBINER.getDisplayName` (decompiled lines 130-135):
+  first (RIGHT) half custom name, else second (LEFT) half custom name, else
+  `container.chestDouble` ("Large Chest") for double chests; single chests use
+  `container.chest`. The old tree dropped the second half's name and always
+  fell back to `container.chest`. `chests.rs` now resolves both halves' custom
+  names and selects the default key by `double_chest`; added pure unit test
+  `chest_menu_title_matches_vanilla`.
+
+Files changed: `crates/pumpkin-core/src/block/blocks/chests.rs` (row 4 + test).
+Other unit files (chest_like_block_entity.rs, hopper.rs, player_action.rs,
+viewer.rs) needed no change.

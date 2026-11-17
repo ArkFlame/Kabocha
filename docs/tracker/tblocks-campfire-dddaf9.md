@@ -58,3 +58,30 @@ remaining cook time to continue from the pre-extinguish progress.
 - Row 6 (`cool_down` clamp): FIXED 5694877b6 (clamps to `[0, cooking_total_times]`).
 - Row 4 (neighbour update clears `lit` when waterlogged): STILL OPEN, needs decompiled `CampfireBlock.getStateForNeighborUpdate` to confirm.
 - Row 5 (`isSmokeyPos` collision vs solid stop): STILL OPEN, needs decompiled `isSmokeyPos`.
+
+## Result
+
+Verified against decompiled vanilla `net/minecraft/world/level/block/CampfireBlock.java`
+(via `.vendor/vanilla-decompiled` symlink to
+`/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup`).
+
+- Row 4 (neighbour update clears `lit` when waterlogged): VERIFIED, no change needed.
+  Decompiled `CampfireBlock.updateShape` only schedules the `Fluids.WATER` tick when
+  waterlogged and recomputes `SIGNAL_FIRE` on a `DOWN` neighbour update; it never
+  writes `LIT`. Current `blocks/campfire.rs:get_state_for_neighbor_update` already
+  has no `props.lit = false`, so it matches vanilla. Confirmation only.
+- Row 5 (`isSmokeyPos` smoke stop): FIXED. Decompiled `CampfireBlock.isSmokeyPos`
+  DOES use collision-shape intersection with the 4x16 `SHAPE_VIRTUAL_POST`
+  (0.375..0.625), so Pumpkin's collision predicate was already correct; the real
+  gap was the stop case: vanilla returns `isLitCampfire(posToCheck.below())` when
+  the column is blocked, while Pumpkin returned `false`. `is_smokey_pos` now
+  delegates to a pure `is_smokey_pos_from` seam that checks the cell directly
+  below the blocker before stopping, with a unit test covering lit-in-range,
+  lit-blocker, lit-below-blocker, blocked-with-nothing-below and beyond-distance.
+  Smoke/crackle visuals remain client-only; no gametest was added (needs a world
+  tick loop, which this pass cannot compile/run).
+
+Only `crates/pumpkin-core/src/block/blocks/campfire.rs` changed (rustfmt run).
+Rows 1, 2 and 7 in the 'Remaining gaps' table are not marked STILL OPEN and need
+event-timing/world-tick/client hooks; left unchanged. No generated data, WIT,
+cross-crate refactors or files outside this unit were touched.

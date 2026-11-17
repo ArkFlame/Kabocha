@@ -43,3 +43,18 @@ Remaining gaps:
 - Row 37 (spectator filter in `applyEffects` and construct-beacon loop): FIXED aec846a93 (both loops now skip only out-of-bounds players).
 - Row 38 (`set_property` sound deferred one tick): STILL OPEN, needs a world handle in the property delegate (not a one-line change).
 - Row 39 (stale `levels` while beam blocked): STILL OPEN, parity-neutral watch item; no change made.
+
+## Result
+
+- Row 36 (beam sections / client beam): LEFT OPEN. Requires a client-side beacon beam rendering
+  path that spans crates (colour, glass tint, section height), outside the beacon.rs unit.
+- Row 37 (spectator filter): already fixed in aec846a93; no change this pass.
+- Row 38 (deferred BEACON_POWER_SELECT sound): FIXED. `BeaconBlockEntity` now stores a
+  `OnceLock<Weak<World>>` populated by `BlockEntity::set_world` (same pattern as
+  `JukeboxBlockEntity`). `set_property(DATA_PRIMARY, ...)` plays the sound immediately when the
+  beam is active, matching vanilla's `dataAccess.set` handler. The `play_select_sound` flag and
+  its deferred playback in `tick` were removed. No pure unit-test seam exists for sound playback
+  (needs a live World/player broadcaster), so no test was added.
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla only recomputes levels
+  when `beamSections` is non-empty (beacon.rs gates on `beam_active`); parity already matches.
+- Row 40 (Levels not loaded from NBT): documented upstream difference; no change.

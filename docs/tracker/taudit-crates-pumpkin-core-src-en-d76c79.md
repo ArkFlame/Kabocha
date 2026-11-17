@@ -57,3 +57,33 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
 - 3 tick_reach searches flee_distance not FOLLOW_RANGE (avoid_entity.rs:175-194): STILL OPEN, S.
 - 4 drop_target per-tick clear (avoid_entity.rs:247-263): STILL OPEN, S, needs vanilla override confirmation.
 - Default targeting conditions (avoid_entity.rs:69-74): FIXED in the note (already landed); not re-grepped this pass.
+
+## Result
+
+2026-11-17 second pass. Verified each STILL OPEN row against decompiled vanilla.
+
+- Row 1 (brain-sensor threats reuse goal path logic): LEFT OPEN. `AvoidEntityGoal::nearest_of` /
+  `Flee::nearest_of` are dead code (no `.nearest_of(` caller in `crates/pumpkin-core/src`).
+  Matching vanilla requires porting `VillagerHostilesSensor` -> `SetWalkTargetAwayFrom`
+  (`VillagerGoalPackages`: re-arms only when no WALK_TARGET, only within 6 blocks) and wiring
+  it to villagers, both outside this unit's files and a cross-crate/cross-file refactor.
+- Row 2 (confirm on ranked nearest only): FIXED. Decompiled `Wolf.WolfAvoidEntityGoal.canUse`
+  calls `super.canUse()` first (nearest found with targeting selectors only), then applies
+  `avoidLlama` to the already-ranked nearest, drawing RNG once. The tracker premise that
+  `scares_wolves` is a `predicateOnAvoidEntity` candidate filter is wrong: the 5-arg
+  `super(wolf, avoidClass, maxDist, walk, sprint)` sets it to `NO_CREATIVE_OR_SPECTATOR` with
+  `avoidPredicate = t -> true`. Moved `confirm` out of the `find_nearest` accept closure into
+  `can_start` after path creation, so one RNG draw happens on the nearest threat. Matches the
+  `confirmed_by` doc comment ("The nearest threat must also pass filter").
+- Row 3 (tick_reach range): already FIXED in the current tree. `tick_reach` reports
+  `Attributes::FOLLOW_RANGE` when `per_type.is_some()`, matching `find_threat`'s sensor predicate;
+  no change needed.
+- Row 4 (drop_target per-tick clear): FIXED by restoring it. Decompiled
+  `Wolf.WolfAvoidEntityGoal` overrides both `start()` and `tick()` and calls `setTarget(null)`
+  in each. The tracker premise that vanilla clears only once was wrong; `tick()` now clears the
+  mob target when `drop_target` is set, matching vanilla's intentional wipe of a target picked
+  up mid-flee.
+- Tests: no pure unit seam exists for these paths (they need a spawned mob/world and, for
+  `confirm`, a controlled RNG); the existing `#[tokio::test]` flee tests cover goal behaviour.
+  No test added. Not compiled here per worker rules; orchestrator will batch-check.
+- Files touched: crates/pumpkin-core/src/entity/ai/goal/avoid_entity.rs (rustfmt --edition 2024 run, exit 0).

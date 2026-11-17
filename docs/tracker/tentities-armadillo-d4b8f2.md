@@ -52,3 +52,18 @@ tracked, persisted `ItemEntity`s, so only the chunk-save trigger differs from va
 
 - Rows 1-5: STILL OPEN (UNVERIFIED, need vanilla Armadillo source).
 - Row 6 state-id test: STILL OPEN (S, test deferred; id order is a unit-testable constant mapping).
+
+## Result
+
+All six STILL OPEN rows verified against decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/`). No generated data, WIT or cross-crate changes were needed. Only `armadillo.rs` was edited; `ageable.rs` was read only.
+
+- **Row 1 FIXED.** `Armadillo.hurtServer` (lines 280-286) gates on `isScared()`, not `shouldHideInShell()`, and uses `(damage - 1.0F) / 2.0F` with no `.max(0)` clamp. `modify_incoming_damage` now uses `self.is_scared()` and `(amount - 1.0) / 2.0`.
+- **Row 2 FIXED (cadence).** The threat scan is `SensorType.armadillo_scare_detected = MobSensor<>(5, Armadillo::isScaredBy, Armadillo::canStayRolledUp, DANGER_DETECTED_RECENTLY, 80)` (SensorType.java:27). Vanilla rate is 5 ticks, not per-tick and not 80. Added `SCARE_SCAN_INTERVAL = 5` and switched the modulo to it; the 80-tick `SCARE_CHECK_INTERVAL` is kept as the danger-memory lifetime. Residual (MVP, not this row): the scan is still `Idle`-only and does not refresh the 80-tick counter the way vanilla's sensor refreshes `DANGER_DETECTED_RECENTLY` every 5 ticks while a threat is present, so a threat that persists after rolling up does not hold the armadillo scared indefinitely.
+- **Row 3 FIXED.** `Armadillo.actuallyHurt` (lines 290-305) branch order and counter writes already matched: living attacker stores 80 ticks then rolls up only via `canStayRolledUp`/`rollUp`'s own `!isScared` gate; panic-environmental rolls out and leaves the counter alone; non-living non-panic sources do nothing. Added the missing `!this.isNoAi()` guard (via `self.mob_entity.is_no_ai()`).
+- **Row 4 NO CHANGE (verified already correct).** `EntityBase::is_passenger()` in `entity/mod.rs:1079` is implemented as `self.get_entity().has_vehicle()`, so Pumpkin `has_vehicle()` is exactly vanilla `isPassenger()`. The `!living_entity.is_spectator()` exclusion is already present at armadillo.rs:299, matching vanilla's `!player.isSpectator()`.
+- **Row 5 FIXED (assert).** `ageable_mob::DATA_BABY_ID` and `armadillo::BABY_ID` are both `TrackedId(16u8)` / `BOOLEAN` in the generated `tracked_data.rs`. Added a compile-time `const` assert on their ids; kept the hand-set with a comment.
+- **Row 6 FIXED.** Added a pure `#[cfg(test)]` test binding ids 0..3 to Idle/Rolling/Scared/Unrolling and to the NBT names idle/rolling/scared/unrolling, plus `from_id`/`from_name` round-trips.
+
+Additional finding during verification: the doc's "Not gaps" claim that `CustomSound::hurt_sound` matches `getHurtSound` was wrong. Vanilla `getHurtSound` (line 358) gates on `isScared()`, not `shouldHideInShell()`. Changed `hurt_sound()` to `self.is_scared()`; `None` still falls back to the normal hurt sound.
+
+`rustfmt --edition 2024` ran successfully on `armadillo.rs`. No cargo/git run per unit rules; compilation left to the orchestrator.

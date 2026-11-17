@@ -39,3 +39,34 @@ Remaining gaps:
 - `:57-64` `get_amount` generic for any fluid: STILL OPEN (M; world fluid normalisation is WATER/LAVA only).
 - `:80-95` `LAYERS == 1` short-circuit and light block: STILL OPEN (S).
 - `:121-150` randomTick test coverage: STILL OPEN (needs `pumpkin-gametest` scenario; no unit test possible).
+
+## Result
+
+Verified against decompiled vanilla 1.21. The .vendor/vanilla-decompiled symlink resolves to a real
+source tree in this checkout; files consulted: SnowyBlock.java, SpreadingSnowyBlock.java,
+GrassBlock.java, MyceliumBlock.java, FluidState.java, LightEngine.java.
+
+- Row 1 (on_place on grass/mycelium/podzol): RESOLVED, no code change. Vanilla SnowyBlock.getStateForPlacement
+  exists (SnowyBlock.java:41-44) and sets SNOWY from the block above. GrassBlock and MyceliumBlock inherit
+  it; neither overrides it. Pumpkin SnowyBlock::on_place is correct, so do NOT drop on_place. The doc's
+  "vanilla waits for an update" assumption was wrong.
+- Row 2 (get_amount generic for any fluid): left OPEN, out of unit. Vanilla FluidState.isFull() is
+  getAmount() == 8 for any fluid, but Pumpkin normalizes only WATER/LAVA in
+  World::fluid_state_from_block_state (crates/pumpkin-core/src/world/mod.rs:7660), a file outside this
+  unit. Vanilla 1.21 ships only WATER/LAVA/EMPTY, so there is no observable vanilla-parity gap. Generic
+  support needs a cross-crate change.
+- Row 3 (LAYERS == 1 short-circuit, light block): RESOLVED, no code change. Both match vanilla:
+  SpreadingSnowyBlock.canStayAlive checks SNOW && LAYERS == 1 and calls
+  getLightDampeningInto(..., aboveState.getLightDampening()). Pumpkin uses BlockState::opacity as the
+  light block; equal for all vanilla blocks. A distinct per-state light-block value needs generated data
+  or cross-crate changes, so no fix here.
+- Row 4 (randomTick coverage): partially addressed. Added pure unit tests for can_stay_alive_with_above
+  (snow-layer-1 quirk, full-fluid death, clear-air survival). Full randomTick still needs a
+  pumpkin-gametest scenario with a live world (light + fluid + rng); left OPEN, out of unit.
+
+Correction to the "Fixed in this pass" notes: the claim that the randomTick death branch needs a
+brightness or cover gate is incorrect. Decompiled vanilla fades to the base block whenever canStayAlive
+is false, with no such gate (SpreadingSnowyBlock.java:68-75); the current file already matches. The
+is_full_fluid and canPropagate parameter notes are accurate.
+
+Files touched: spreading_snowy_block.rs (unit tests only), this doc.

@@ -50,3 +50,31 @@ Remaining gaps:
 - `world/explosion.rs:805-837` `onExplosionHit` before removal: STILL OPEN (M).
 - `buttons.rs:52-67`, `:172-206` Paper `BlockRedstoneEvent` / interact event: STILL OPEN (M; plugin API).
 - `buttons.rs:185-192` `press` ordering: STILL OPEN (S).
+
+
+## Result
+
+- `buttons.rs:76-81` arrow bounds from shape: FIXED. `on_scheduled_tick` now unions the
+  state's `get_block_outline_shapes_at(pos)` boxes (each `.at_pos(pos)`) as vanilla
+  `state.getShape(level, pos).bounds().move(pos)` does, instead of `BoundingBox::from_block`
+  (the full cube). An arrow lodged in the supporting wall no longer holds a wooden button.
+- `buttons.rs:98-106`, `:203` game-event source and player: FIXED. `World` already exposes
+  `emit_game_event_with_source` / `emit_game_event_with_context` and `GameEventContext`, so no
+  cross-crate change was needed. Added `ButtonBlock::press_with_source(player, source, ..)`;
+  hand presses pass the player, arrow triggers (`on_entity_collision`) pass the arrow, and the
+  wind-charge path passes no source, matching vanilla `gameEvent(player/firstArrow, ..)`. The
+  public `press` signature is preserved (still called by `server_test_manager.rs`).
+- `world/explosion.rs:805-837` `onExplosionHit` before removal: LEFT OPEN. Moving `explode`
+  ahead of `set_block_state(AIR)` alone would wrongly extinguish candles/candle cakes on every
+  destroy blast: vanilla `AbstractCandleBlock#onExplosionHit` gates on `explosion.canTriggerBlocks()`
+  and Pumpkin's candle `explode` hooks only self-gate via a "block still present" check that
+  currently fails because they run after removal. A correct fix needs an explicit
+  `can_trigger_blocks()` guard added to `candle.rs`/`candle_cake.rs`, files outside this unit.
+- `buttons.rs:52-67`, `:172-206` Paper events: LEFT OPEN. `BlockRedstoneEvent` is already fired
+  on press/release. The missing `EntityInteractEvent` for arrow-triggered wooden buttons needs a
+  new plugin API event and host wiring, outside this unit (plugin API / WIT changes forbidden).
+- `buttons.rs:185-192` `press` ordering: FIXED. `press_with_source` now calls `update_neighbors`
+  before `schedule_block_tick`, matching vanilla `press` (setBlockAndUpdate, updateNeighbours,
+  scheduleTick, sound, game event).
+
+Files changed: `crates/pumpkin-core/src/block/blocks/redstone/buttons.rs` (rustfmt applied), this doc.

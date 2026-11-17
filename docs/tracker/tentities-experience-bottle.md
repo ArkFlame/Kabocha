@@ -57,3 +57,25 @@ Source audited:
 - 2 orb drop offset: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 3 dispenser launch power: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 sculk vibration per projectile type: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Re-reviewed all three STILL OPEN rows against .vendor/vanilla-decompiled (now present).
+
+- 2 orb drop offset: FIXED. Vanilla ExperienceOrb(Vec3,roughly,...) sets
+  setPos(pos.add(roughly.normalize().scale(size * 0.5))) and random-flips velocity against roughly.
+  Pumpkin already reproduced this in ExperienceOrbEntity::new_with_direction, but the bottle passed
+  a zero direction (ExperienceOrbEntity::spawn), so no offset was applied. Vanilla
+  ThrownExperienceBottle.onHit passes the block face unit vector (block hits) or -deltaMovement
+  (entity hits). Changed entity/projectile/experience_bottle.rs on_hit to compute that direction with
+  the new pure helper orb_award_direction and call ExperienceOrbEntity::spawn_with_direction. Added a
+  pure unit test orb_direction_uses_block_face_normal. File: crates/pumpkin-core/src/entity/projectile/experience_bottle.rs.
+- 3 dispenser launch power: VERIFIED MATCH, no code change. Vanilla ProjectileItem.DispenseConfig.DEFAULT
+  has power 1.1F / uncertainty 6.0F; ExperienceBottleItem.createDispenseConfig uses power*1.25 = 1.375
+  and uncertainty*0.5 = 3.0. ThrowablePotionItem (parent of splash/lingering potions) uses the same
+  multipliers, so POTION_PROJECTILE_POWER = 1.375 and POTION_PROJECTILE_UNCERTAINTY = 3.0 in dispenser.rs
+  are correct for all three projectiles; no per-projectile split needed.
+- 4 sculk vibration per projectile type (tracker row 5): VERIFIED MATCH (false positive), no code change.
+  Vanilla Projectile.onHit emits GameEvent.PROJECTILE_LAND for both entity and block hits in the base
+  class; ThrowableItemProjectile does not override onHit, and ThrownExperienceBottle.onHit calls
+  super.onHit. Pumpkin's shared on_hit helper therefore correctly emits ProjectileLand for thrown items.

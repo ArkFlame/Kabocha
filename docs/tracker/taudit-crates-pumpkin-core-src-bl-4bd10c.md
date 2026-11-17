@@ -63,3 +63,37 @@ Still open (unchanged from the first pass): `BlockFadeEvent` has no `new_state_i
 - `spreading_snowy_block.rs:60-76` `is_full_fluid` hardcoded: STILL OPEN (S).
 - `spreading_snowy_block.rs:100-106` opacity not position-aware: STILL OPEN (S).
 - `spreading_snowy_block.rs:123-141` invented brightness/opacity gate on fade: FIXED (fade branch at `:122-139` has no gate; gate remains only on the spread branch, which is vanilla's `>= 9` check).
+
+
+## Result
+
+Verified each STILL OPEN row against decompiled vanilla (`SpreadingSnowyBlock.java`,
+`SnowyBlock.java`, `LightEngine.java`, `BlockBehaviour.java`) and the current tree.
+
+- `plugin/api/events/block/block_fade.rs:8-14` (new-state field): left OPEN. Reason:
+  needs a WIT event-data change plus regenerated plugin bindings and a
+  `PLUGIN_API_VERSION` bump across crates outside this unit.
+- `spreading_snowy_block.rs:60-76` (`is_full_fluid` hardcoded): already fixed in the
+  current tree. `is_full_fluid` now calls `world.get_fluid_and_fluid_state(pos)` and
+  checks `!fluid_state.is_empty && fluid_state.level == 8`, matching vanilla
+  `aboveState.getFluidState().isFull()` (`getAmount() == 8`) including waterlogged and
+  fluid-container blocks. No code change needed.
+- `spreading_snowy_block.rs:100-106` (opacity not position-aware): left OPEN. Reason:
+  vanilla `canStayAlive` passes `aboveState.getLightDampening()`, a fixed per-block
+  value (`solid_render ? 15 : propagatesSkylightDown ? 0 : 1`) that equals Pumpkin's
+  `above_state.opacity`, so the call site is correct; the only real divergence is the
+  face-occlusion heuristic inside `LightEngine::get_light_dampening_into` in
+  `pumpkin-world/src/lighting/engine.rs`, outside this unit, and no block that can sit
+  above grass differs.
+
+Fixed this pass, from the "Still open" prose at line 57:
+
+- `spreading_snowy_block.rs:148-153` (`can_propagate` argument): `random_tick` passed the
+  target dirt state to `can_propagate`; vanilla `SpreadingSnowyBlock.randomTick` passes
+  `this.defaultBlockState()`. Changed the call to pass `default_block_state` and removed
+  the misleading comment. Behaviour is unchanged for opaque full cubes, but the call
+  now matches vanilla. Verified type-correct (parameter is `&'static BlockState`) and
+  ran `rustfmt --edition 2024` on the file (exit 0).
+
+No pure test seam exists for the verified rows (`is_full_fluid` needs a live `World`;
+`can_stay_alive_with_above` would only mirror its own logic), so none was added.

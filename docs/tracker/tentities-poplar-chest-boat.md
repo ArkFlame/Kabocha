@@ -18,3 +18,20 @@ Fixed: `Player::get_movement_statistic` listed every boat wood type except popla
 
 ## Gap status
 - Remaining-gap items (section lines 9+): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+
+## Result
+
+Verified on 2026-11-17 against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/ (AbstractBoat.java, AbstractChestBoat.java) and VehicleEntity.java.
+
+- Row "interact opens container only when sneaking / full boat returns PASS" (doc line 13): NO GAP, already correct. AbstractChestBoat.interact returns PASS only when super.interact is PASS AND canAddPassenger(player) && !isSecondaryUseActive(); a full chest boat has canAddPassenger == false, so it DOES open the container on a plain click. Current chest_opens_container = has_inventory && (is_sneaking || !can_add_passenger) matches vanilla exactly; the doc premise was inverted. No code change.
+
+- Row "contents dropped on every destroying removal, not only damage break" (doc line 14): NO GAP, already correct. Vanilla AbstractChestBoat.remove scatters when reason.shouldDestroy() and destroy scatters on break. Current EntityBase::on_removed (invoked from World::remove_entity with RemovalReason::Discarded) scatters via scatter_chest_contents, damage_with_context also scatters on break, claim_drops prevents a double scatter, and EntityBase::kill scatters container inventory for /kill. Unload paths set a non-destroying removal reason without calling on_removed, matching vanilla. No code change.
+
+- Row "drop extra CONTAINER_OPEN game event" (doc line 15): NO GAP, already correct. Decompiled AbstractChestBoat.interact AND openCustomInventoryScreen both emit gameEvent(GameEvent.CONTAINER_OPEN, player) and call PiglinAi.angerNearbyPiglins. Current open_custom_inventory_screen emits ContainerOpen with the player as source and calls PiglinAi::on_guarded_block_interacted; matches vanilla. No code change.
+
+- Row "c:boats missing poplar_chest_boat" (doc line 16): STILL OPEN, needs codegen. The value lives in generated crates/pumpkin-data/src/generated/tag.rs, which must not be hand-edited; regenerate with cargo run --locked -p pumpkin-codegen. No functional gap remains because is_boat() already covers poplar_chest_boat through is_chest_boat (the _chest_boat suffix).
+
+- Row "passenger offsets use generated seat data" (doc line 17): NO GAP, already correct. boat/passengers.rs delegates to super::passenger_attachment, which reads the generated entity.entity_type.boat seat data (ride_height, single_passenger_x_offset); the local is_chest_boat/bamboo branches are gone. No code change.
+
+Also corrected the stale inline comment in boat.rs about the instabuild drop path to match verified vanilla VehicleEntity.hurtServer (instabuild discards directly and drops nothing) and the existing function doc comment. No new unit test: boat.rs already covers these seams (chest_boat_offers_container_only_when_no_seat_or_secondary_use, boat_seat_offset_follows_vanilla_single_multi_rider_and_animal_shift, named_boat_keeps_its_drop_when_creative, chest_boat_detection_covers_every_chest_boat_entity_type), so adding tests would duplicate them.

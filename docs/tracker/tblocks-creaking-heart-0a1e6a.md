@@ -44,3 +44,22 @@ against the vanilla `CreakingHeartBlock`/`CreakingHeartBlockEntity` classes as k
 - Row 2 (isProtector UUID match): STILL OPEN (S, blocked on the missing creaking spawn/bind path in tick, L).
 - Row 1, 3, 4, 6: STILL OPEN (L/M, need spawn loop and creaking AI teardown; piston row needs push-reaction data).
 - Row 5 hurt particle: STILL OPEN (S, left as-is by design).
+
+
+## Result
+
+Verified against decompiled vanilla (`CreakingHeartBlock.java`, `CreakingHeartBlockEntity.java`,
+`Creaking.java` in `.vendor/vanilla-decompiled/net/minecraft/`), now present in this worktree.
+
+| row | outcome | evidence |
+|---|---|---|
+| 1 spawn/despawn loop in heart tick | FIXED | `CreakingHeartBlockEntity.java:101-136`: added `try_despawn_creaking` in `tick` (day break, >34 blocks, player-stuck, persistence, missing-entity clear) and added the hostile/mob-spawning gates to `try_spawn_creaking`. |
+| 2 `is_protector` UUID match | VERIFIED (already correct) | current `is_some_and(|uuid| uuid == creaking_uuid)` matches `CreakingHeartBlockEntity.java:333-335` (`map(c -> c == creaking).orElse(false)`); existing `unbound_heart_protects_no_creaking` test covers it. |
+| 3 mob 34-block distance | RESOLVED via row 1 | `Creaking.java:241-258` mob side only checks `isProtector` then sets health 0 (already present in `creaking.rs:504-521`); the 34-block rule lives heart-side (`CreakingHeartBlockEntity.java:130`) and is now implemented. No mob edit needed. |
+| 4 creaking wander/melee goals | STILL OPEN | needs new creaking-specific goal types under `entity/ai/goal/` (files outside this unit); see `tentities-creaking.md`. |
+| 5 hurt particle / setChanged | STILL OPEN | vanilla emits client-only particles and resin clumps; sound + sway already reproduce the observable effect, and client-only effects do not block. |
+| 6 piston push-reaction | STILL OPEN | needs a push-reaction field on generated `pumpkin-data` `Block` plus piston push code (generated data / cross-crate), nothing per-block to fix here. |
+
+Also: comparator rounding is now verified as vanilla `Redstone.SIGNAL_MAX - (int)floor(clamp(distance,0,32)/32*15)`
+(`CreakingHeartBlockEntity.java:341-348`), matching `blocks/creaking_heart.rs:141-142`. Not compiled here (orchestrator batch check).
+Added pure unit test `creaking_too_far_boundary` for the vanilla 34-block threshold. Formatted with rustfmt.

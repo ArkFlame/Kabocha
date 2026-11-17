@@ -50,3 +50,28 @@ vanilla-derived tests in `daylight_detector.rs:114-164` and `world/environment.r
 - Game event context (row 4): FIXED on master (64a75a052).
 - Unused update_power wrapper (row 5): FIXED (a39624655).
 - Tick architecture (M, row 1 table): STILL OPEN (needs scheduled-tick rework).
+
+## Result
+
+Both rows marked STILL OPEN were re-checked against the decompiled vanilla tree now present at
+`.vendor/vanilla-decompiled/net/minecraft/` (the original write-up had no tree, so it relied on
+memory and guessed wrong). In both cases the decompiled source contradicts the gap write-up;
+per `docs/VANILLA_REF.md:3` the source wins, so no code change was made.
+
+- Inversion flag (h6 row 3 / Remaining gaps row 3): vanilla `DaylightDetectorBlock.useWithoutItem`
+  calls `level.setBlock(pos, newState, Block.UPDATE_CLIENTS)` (`DaylightDetectorBlock.java:76`).
+  `Block.UPDATE_CLIENTS` is `2` (`Block.java:93`), which equals Pumpkin
+  `BlockFlags::NOTIFY_LISTENERS` (`pumpkin-world/src/world.rs:18`), already used at
+  `daylight_detector.rs:45`. The write-up's "vanilla uses flag 4" is wrong: flag 4 is
+  `UPDATE_INVISIBLE`. Already correct; no change.
+- Tick architecture (Remaining gaps table row 1, M): vanilla ticks this block with a
+  `BlockEntityTicker` from `getTicker` (`DaylightDetectorBlock.java:100-110`), guarded by
+  `dimensionType().hasSkyLight()` and cadence `getRedstoneGameTime() % 20 == 0`. It does NOT
+  use a scheduled block tick. Pumpkin's `DaylightDetectorBlockEntity::tick`
+  (`entities/daylight_detector.rs:37-46`) already matches (skylight guard + `get_world_age()
+  % 20 == 0`; Pumpkin has no separate redstone clock). The proposed scheduled-tick rework would
+  diverge from vanilla, so it is rejected. Left open only because the write-up's premise is
+  incorrect, not because of a real gap.
+- No pure unit-test seam exists for either row (both require a live `World`); the existing pure
+  formula/cosine-boundary tests in `daylight_detector.rs` remain valid. No `.rs` file edited,
+  so rustfmt was not required.

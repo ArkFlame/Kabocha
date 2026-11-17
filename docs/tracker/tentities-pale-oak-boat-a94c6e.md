@@ -52,3 +52,14 @@ lily-pad entity collision and the 100-movement/16-step vanilla travel cut-offs i
 
 ## h6 status
 - Rows 1-4 (chest interact fall-through, damage prediction, paddle audio, shared attachment helper): STILL OPEN, not attempted this pass. Vanilla interact ordering not in .vendor; row 4 needs a shared passenger offset helper.
+
+## Result
+
+| # | Outcome |
+|---|---------|
+| 1 | FIXED. Decompiled `AbstractChestBoat.interact` runs the ride attempt (`super.interact`) first, then offers the container only when the ride did not consume the click (secondary use, or no free seat). The doc's "failed open falls through to mounting" guess is disproved: sneaking blocks riding in vanilla. Added pure `chest_opens_container` helper so a plain click on a full chest boat opens its inventory; pure unit tests added in a new test module. |
+| 2 | ALREADY FIXED (no edit). Current `damage_with_context` tests `is_removed()` after the vehicle hit via the `was_alive && !creative && ...is_removed()` guard; no `will_break` prediction remains, so the destroy threshold cannot drift. |
+| 3 | OPEN (deferred). Decompiled `AbstractBoat` emits no UnderWater bubble particles in this version; the only boat particle is SPLASH in `onAboveBubbleColumn`. Paddle audio (`BOAT_PADDLE_WATER`/`BOAT_PADDLE_LAND`) is a real M-sized server-only effect needing per-side paddle-phase state and sound packets; outside this pass. |
+| 4 | FIXED. Added shared `passenger_attachment`/`passenger_seat_offset` helper in boat.rs; both the engine's `passenger_attachment_point` and the mount-positioning path in passengers.rs now call it, so animals keep the 0.2 seat shift on both and the seat/yaw math cannot drift. Two pure unit tests added. |
+
+Files touched: `crates/pumpkin-core/src/entity/vehicle/boat.rs`, `crates/pumpkin-core/src/entity/vehicle/boat/passengers.rs`, this doc. Decompiled references: `world/entity/vehicle/boat/AbstractBoat.java`, `AbstractChestBoat.java`, `Boat.java`. Other workers concurrently edited boat.rs (leads, bubble columns, rider yaw); their changes were preserved. No cargo or git run; rustfmt applied to both .rs files. Cargo/test verification belongs to the orchestrator.

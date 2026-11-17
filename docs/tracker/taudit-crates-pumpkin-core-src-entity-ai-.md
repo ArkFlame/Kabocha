@@ -45,3 +45,22 @@ checked against. Vanilla reference: `net.minecraft.world.entity.ai.goal.MeleeAtt
 
 ## Gap status
 - Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
+
+## Result (2026-11-17)
+
+Vanilla checked: `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java` (present, matches `CURRENT_MC_VERSION`), plus `PolarBear.PolarBearMeleeAttackGoal` and `Mob.isWithinHome`.
+
+| # | Result | Detail |
+|---|---|---|
+| 1 | NOT A GAP, corrected | Vanilla `canContinueToUse`: `!followingTargetEvenIfNotSeen ? !navigation.isDone() : isWithinHome(target.blockPosition()) && !(player creative/spectator)`. The note had the branches swapped; Pumpkin's `should_continue` already ports it (the `!is_idle` check on the false branch, `is_in_position_target_range_pos` on the true one, the creative/spectator half being covered by `get_target`). Only the flag was renamed (row 5). |
+| 2 | FIXED | `can_start` now mirrors vanilla: `self.path = createPath(target, 0)` then `self.path.is_some() \|\| mob.is_in_attack_range(target)`. A synchronous `create_path` already existed (`PathNavigationTrait::create_path`), so no navigator work was needed; the stale-path case (a failed search keeping an old path) is gone too. |
+| 3 | STILL OPEN | `set_progress` returns `()`, so the `if (!moveTo(...)) ticks += 15` penalty has no synchronous result to read. Needs a path-request-result field on `Navigator` (pathfinder files, outside this unit). |
+| 4 | FIXED | `start()` no longer seeds `last_target_position`, so the first `tick` recalculates like vanilla's zeroed `pathedTarget*` sentinel. |
+| 5 | FIXED | `pause_when_mob_idle` renamed to `follow_even_if_unseen` (field, ctor arg, both uses), matching `MeleeAttackGoal.followingTargetEvenIfNotSeen`. |
+| 6 | unchanged | Correct as written, no vanilla hook. |
+
+Correction to the "Fixed in this audit" section: its row 1 (LOS removed from `can_perform_attack`) contradicts the decompiled source. Vanilla `canPerformAttack` is `isTimeToAttack() && isWithinMeleeAttackRange(target) && getSensing().hasLineOfSight(target)`; LOS is restored through `mob.has_line_of_sight` (the per-tick sensing cache).
+
+Tests: `melee_attack.rs` gained pure unit tests for the new `should_recalculate_path` helper (timer, moved-block threshold, 5 percent roll, and that the roll is not drawn when the target moved, which is vanilla's short-circuit).
+
+Other unit files: `polar_bear.rs`, `piglin.rs`, `ravager.rs`, `wolf.rs`, `iron_golem.rs` only register the goal; their `new(speed, true)` calls mean `followingTargetEvenIfNotSeen == true`, which matches vanilla for Ravager, IronGolem, Wolf, Rabbit, Panda and Fox, so no call site changed.

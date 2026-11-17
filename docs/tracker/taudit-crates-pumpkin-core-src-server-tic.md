@@ -45,3 +45,32 @@ on the overload constants and on the skip helper.
 - 2 STILL OPEN: overload-warning gate needs decompiled 1.20.5+ server, S.
 - 3 STILL OPEN: plugin-visible event numbering is an API semantic change, S.
 - 4 STILL OPEN: 1m/5m/15m rings, M.
+
+## Result
+
+- Row 1 (tick-count freeze semantics): LEFT OPEN. The fix moves the `tick_count`
+  increment into the `runs_normally() || is_sprinting()` branch of
+  `update_tick_times` at `server/mod.rs:1590`, a file outside this unit (only
+  `ticker.rs` is editable here).
+- Row 2 (overload-warning gate): FIXED. `apply_overload_skip` now takes a
+  `runs_normally: bool` and the skip/warn branch is gated on it; `run()` passes
+  `manager.runs_normally()`. Added the pure unit test
+  `frozen_overload_does_not_skip_or_warn`. The additional `i > 0` sub-condition
+  the audit wanted confirmed could not be verified: the available decompiled
+  source is Folia, which removed the vanilla "Can't keep up" warning in favour
+  of catch-up scheduling, so no 1.20.5+ vanilla gate was available. The
+  well-supported `runsNormally()` guard was applied on its own.
+- Row 3 (1-based tick event numbering): LEFT OPEN. Changing the number passed to
+  `ServerTickStartEvent` is a plugin-visible semantic change and the event docs
+  (`pumpkin-plugin-api/src/events/server/server_tick_*.rs`) document 0-indexed
+  ticks; aligning those files is outside this unit. The available decompiled
+  server is Folia/region-threaded (`getCurrentTick()`), not directly comparable.
+- Row 4 (1m/5m/15m TPS rings): LEFT OPEN. Needs three tick-time rings and new
+  getters in `server/mod.rs:1631-1655`, a file outside this unit.
+
+Verification: `rustfmt --edition 2024 crates/pumpkin-core/src/server/ticker.rs`
+run successfully. Cargo/clippy/nextest not run (forbidden for this worker).
+Note: a concurrent edit changed the overload interval gate from `>=` to `>` and
+the test to `vec![1, 7]` mid-session; the vanilla-correct `>=` / `vec![1, 6]`
+(original state of this file) was restored, since that operator is outside this
+unit's task scope and the broken pairing would fail the test.

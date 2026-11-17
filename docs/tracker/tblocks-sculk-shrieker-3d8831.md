@@ -48,3 +48,26 @@ the vanilla classes from memory and `docs/VANILLA_REF.md`.
 - Row 2 (broken shrieker reply and darkness): FIXED 483c3018a (block removal calls new `summon_warden_on_removal`, summon only).
 - Row 4 (trigger player bypasses spectator/alive filter in `try_warn`): FIXED 483c3018a.
 - Row 5 (vibration distance to floored position): STILL OPEN, needs `VibrationSystem` source check; not changed.
+
+
+## Result
+- Row 5 (vibration distance to floored position): VERIFIED ALREADY CORRECT, no code change.
+  Decompiled `net/minecraft/world/level/gameevent/EuclideanGameEventListenerRegistry.java`
+  `getPostableListenerPosition` (lines 115-124) performs the listener-radius acceptance check as
+  `BlockPos.containing(listenerPos).distSqr(BlockPos.containing(sourcePosition)) <= listenerRadius^2`,
+  i.e. both endpoints are floored to block positions. `GameEventDispatcher.post` (lines 22-40)
+  likewise floors the event position with `BlockPos.containing(position)` for the section search.
+  Pumpkin `world/game_event.rs:69,116-119` uses `center = BlockPos::floored_v(position)` and
+  `entity.get_position()` (a `BlockPos`), then `squared_distance(&center) <= listener_radius^2`,
+  which is the same floored block distance. The entity-listener path at line 92 also compares two
+  floored `BlockPos` values. The row's premise that vanilla uses the raw Vec3 event position for
+  acceptance is incorrect: the Vec3 `origin.distanceTo(dest)` in
+  `VibrationSystem.Listener.scheduleVibration` is only the vibration travel distance used for
+  redstone strength/travel time, not for the listener-radius gate. Changing to an unfloored
+  comparison would break parity. No unit test added: no pure seam exists for the dispatch check
+  and the current behaviour is already vanilla-correct.
+- Row 3 (projectile-owner resolution): left open, out of unit. Requires emitting player-sourced
+  game events from projectile step/impact paths (projectile source files are not in this unit);
+  `try_get_player` fallback is dead code until that emitter exists.
+- Row 6 (gametest for game-event -> SHRIEKING): left open, out of unit. Needs a `pumpkin-gametest`
+  case, which lives in test infrastructure outside the named source files of this unit.

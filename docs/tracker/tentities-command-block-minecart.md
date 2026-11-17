@@ -54,3 +54,14 @@ remaining items below are marked when they are inferred rather than confirmed.
 
 ## Gap status
 - Remaining-gap items (lines 43, 47, 50: entity display name, repo-wide CustomName convention, gamerule-off test): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+All three STILL OPEN rows re-verified against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/` (2026-11-17).
+
+- Gap 4 (entity display name, doc line 43): no code change. Decompiled `world/level/BaseCommandBlock.java` keeps its own `customName` field (line 32), `getName()` returns it (lines 147-149), and NBT stores it under `CustomName` (lines 53, 68). `MinecartCommandBlock.java` embeds a `BaseCommandBlock`, so Pumpkin's `CommandBlockMinecart.custom_name` mirrors vanilla rather than wrongly duplicating it; the doc premise "vanilla keeps the name on the entity, not on BaseCommandBlock" is false. Dropping the copy would diverge from vanilla, so the proposed fix was not applied.
+- Gap 5 (hardcoded V_26_3, doc line 47): left open. Threading a target `JavaMinecraftVersion` through `Entity` NBT saving is a cross-crate refactor across ~16 sites, outside this unit's files.
+- Gap 6 (gamerule-off test, doc line 50): no new test needed. `minecart.rs::tests::command_block_minecart_perform_command_gamerule` (lines 1114-1155) already sets `command_blocks_work = false`, asserts `success_count == 0` and empty output for a normal command, and asserts the case-insensitive Searge path still fires.
+
+Adjacent observations, left unchanged as outside STILL OPEN scope:
+- `net/java/play/set_command_minecart.rs:36` calls `on_updated` unconditionally, while vanilla `ServerGamePacketListenerImpl#handleSetCommandMinecart` (lines 1112-1115) gates `onUpdated` behind `commandBlocksWork`; only `setCommand`/`setTrackOutput` are unconditional in vanilla.
+- `block/blocks/command.rs:155-158,171` gates Searge behind the gamerule and compares case-sensitively, while vanilla `BaseCommandBlock#performCommand` (lines 99-106) uses `equalsIgnoreCase` before the gamerule guard.

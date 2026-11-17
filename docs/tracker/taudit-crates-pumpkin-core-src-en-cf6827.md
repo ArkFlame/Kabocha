@@ -42,3 +42,15 @@ Source: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs`. No decompile
 - 6 ENTITY_DAMAGE on survivable damage: STILL OPEN, S.
 - 7 break particle block state (armor_stand.rs:265-279): STILL OPEN, S.
 - 8 bare drop_stack for equipment: STILL OPEN, S, cosmetic.
+
+## Result
+- Row 1 (flags not synced): OPEN, out of scope. It was BLOCKED-DATA, not STILL OPEN. The generated tracked data now exposes `DATA_CLIENT_FLAGS` (index 15), so the blocker is gone; syncing the four flag bits is a follow-up in armor_stand.rs.
+- Row 2 (pose not synced): FIXED. `new()` and `unpack_rotation()` now write all six ROTATIONS synched entries (indices 16-21) as `Vector3<f32>` Euler triples, matching decompiled `ArmorStand.defineSynchedData`/`setArmorStandPose`.
+- Row 3 (clicked slot hitboxes): VERIFIED, NO CODE CHANGE. Decompiled `ArmorStand.getClickedSlot` matches `clicked_slot` exactly: feet `0.1 .. 0.1 + (small ? 0.8 : 0.45)`, chest `0.9 + (small ? 0.3 : 0.0) .. 0.9 + (small ? 1.0 : 0.7)`, legs `0.4 .. 0.4 + (small ? 1.0 : 0.8)`, head `>= 1.6`, and `/ (scale * ageScale)` equals the existing `/ 0.5` for small stands. The doc note's older thresholds were from a different MC version. Decompiled source now available, so the BLOCKED-DATA reason no longer applies. Added a small-stand regression test.
+- Row 4 (PlayerArmorStandManipulateEvent never fired): FIXED. `swap_item` fires the existing event with `fire_blocking` after the disabled-slot checks and returns `true` without touching either stack when cancelled, matching Paper's `swapItem`/`PlayerArmorStandManipulateEvent` cancellation.
+- Row 5 (ENTITY_DIE on destroy paths): FIXED. The explosion branch and the `cause_damage` break branch now emit `EntityDie` after removal; bypass-invulnerability, creative and normal break paths already routed through `kill()`.
+- Row 6 (ENTITY_DAMAGE on survivable damage): FIXED. `cause_damage` emits `EntityDamage` with the damaging entity on the surviving branch. Burn callers now pass `cause.or(source)` instead of the stand itself.
+- Row 7 (break particle block state): VERIFIED, NO CODE CHANGE. Decompiled `showBreakingParticles` uses `Blocks.OAK_PLANKS.defaultBlockState()`, count 10, speed 0.05 and `getY(0.6667)`; current code matches. The doc note about deriving from the block below was stale.
+- Row 8 (bare drop_stack for equipment): VERIFIED, NO CODE CHANGE. `drop_stack_at` spawns an `ItemEntity` with random +/-0.25 offsets at the stand position + 1.0, so cosmetic-only randomness is already present.
+
+Files changed: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs` only. `rustfmt --edition 2024` ran with exit 0. Build/tests were not run by this worker (orchestrator compiles once after all workers finish).

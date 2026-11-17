@@ -27,3 +27,9 @@ Remaining gaps:
 ## Status (h3 sweep)
 - Row 1 (no occlusion test for `#occludes_vibrations`): STILL OPEN (no occlusion check found in sculk_sensor.rs; not changed).
 - Row 2 (comparator output only while Active): FIXED (UNVERIFIED): `get_comparator_output` returns 0 unless the phase is Active (`sculk_sensor.rs:309-313`).
+
+
+## Result
+
+- Row 1 (no occlusion test for `#occludes_vibrations`): FIXED and VERIFIED against decompiled vanilla. `net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java:270-283` (`Listener.isOccluded`) centers origin and destination with floor+0.5, nudges the source by 1e-5 along each `Direction`, and occludes only when every line crosses an `OCCLUDES_VIBRATION_SIGNALS` block. Pumpkin's shared `world/game_event.rs::is_occluded` (`:139-152`) matches this exactly, and `SculkSensorBlock::on_vibration` (`block/blocks/redstone/sculk_sensor.rs:100`) calls it before `trigger`. The allay listener still uses the same helper. No code change was needed: the fix described in the table is already applied in this checkout. Covered by the existing allay gametest `wool_occludes_notes_but_a_solid_stone_block_does_not` (`entity/passive/allay/vibration.rs:357`). No new pure unit test seam exists: `is_occluded` needs a live `World` with block state, and the direction/traverse logic has no pure boundary worth extracting. No generated data, WIT, or cross-crate refactor required.
+- Rows 2-4: already resolved in the table above (FIXED / CONFIRMED-INTENTIONAL); not marked STILL OPEN, so out of scope for this pass.

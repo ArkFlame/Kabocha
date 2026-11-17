@@ -44,3 +44,34 @@ No decompiled RecipeCommand in .vendor; comparisons are against vanilla `RecipeC
 - 3. Display-id layout duplicated (`recipe.rs:160`): STILL OPEN (S).
 - 4. Suggestion provider ids (`recipe.rs:40-57`): STILL OPEN (S).
 - 5. Raw argument in error text (`recipe.rs:24-25`): STILL OPEN (S).
+
+
+## Result
+
+Verification against decompiled vanilla: server/commands/RecipeCommand.java,
+commands/arguments/ResourceKeyArgument.java, stats/ServerRecipeBook.java.
+
+- 5. Raw argument in error text (XS): VERIFIED, no code change needed. Vanilla
+  ResourceKeyArgument passes the parsed ResourceLocation to recipe.notFound; Pumpkin already
+  passes context.get_argument::<Identifier>().to_string(), which always renders namespace:path
+  (default minecraft:), so the echoed value matches. Only the cosmetic fallback literal differs.
+- 4. Suggestion provider ids (S): FIXED. Added pure helper recipe_suggestion_ids in recipe.rs:
+  suggests only DynamicRecipe::recipe_id() manager keys, skips SpecialCrafting (vanilla
+  LEARNABLE_RECIPE filter from ResourceKeyArgument.key) and deduplicates. Provider now uses it.
+  Added pure unit test recipe_suggestions_are_unique_and_skip_special.
+- 3. Display-id layout duplicated (S): FIXED. Added static_recipe_display_count,
+  dynamic_recipe_has_display and dynamic_recipe_display_ids in recipe_book_add.rs. The packet
+  writer (entry count and skip decision) and /recipe take (offset and per-recipe ids) now share
+  these helpers, so the skip set and prefix offset have one source of truth. Added pure unit
+  test dynamic_display_ids_skip_non_displayed_recipes.
+- 1. No server-side recipe book (M): STILL OPEN. Needs a per-player known-recipe set persisted
+  like vanilla RecipeBook NBT (cross-crate Player state, outside these two files).
+- 2. take remove packet always sent / wrong success count (M): STILL OPEN. Depends on gap 1;
+  without server-side book state there is no way to know what each player actually knows.
+
+Files touched:
+- crates/pumpkin-core/src/command/commands/recipe.rs
+- crates/pumpkin-protocol/src/java/client/play/recipe_book_add.rs
+
+Checks run: rustfmt --edition 2024 on both touched .rs files (rc 0, no errors). No cargo run per
+worker rules; compilation and tests left to orchestrator batch check.

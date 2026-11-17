@@ -57,3 +57,40 @@ marker in this module tree is `memory/types.rs:123` (TODO: nothing fills
 
 - FIXED: UTF-16 truncation of memory dump text, entity/ai/brain/memory/mod.rs:155-170, test `truncate_counts_utf16_units`.
 - STILL OPEN: empty-collection set semantics (memory/mod.rs:243,321), setMemoryInternal unregistered put (memory/mod.rs:240-242), negative ttl (memory/mod.rs:124-131, no vanilla caller: leave by design), dump ttl wording (memory/mod.rs:136-141), VISIBLE_ADULT_PIGLIN/HOGLIN counts unpopulated (memory/types.rs:118-123).
+
+## Result
+
+Re-checked every STILL OPEN row against the vendored decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed in this unit's files
+(`types.rs`, `value.rs`): the original gaps were guesses made before decompiled source was
+available and most do not hold against 1.21.x vanilla.
+
+- empty-collection set semantics (mod.rs:243,321 / value.rs:23-26): NOT A GAP. Both
+  `Brain.setMemoryInternal` overloads do `if (isEmptyCollection(value)) value = null;` then
+  `slot.clear()` (Brain.java:214-262), and the load path `setMemoryInternal(MemoryMap.Value)`
+  routes through those same overloads (Brain.java:205-212). Pumpkin's
+  `MemoryValue::is_empty_collection` special case matches vanilla exactly. The old suggested
+  fix (delete the special case) was wrong and would have broken parity; kept as-is.
+- setMemoryInternal unregistered put (mod.rs:240-242): NOT A GAP. Vanilla
+  `getMemorySlotIfPresent` returns null for an unregistered type (Brain.java:157-159) and
+  both `setMemoryInternal` overloads return early when the slot is null (Brain.java:215-216,
+  240-241). Pumpkin drops writes to unregistered slots, matching vanilla. Also in mod.rs,
+  outside this unit.
+- negative ttl (mod.rs:124-131): NOT A GAP. Vanilla `MemorySlot.hasExpired()` is
+  `timeToLive <= 0L` (MemorySlot.java:61-63) and `tick()` clears when `hasExpired()`
+  (MemorySlot.java:16-24). Pumpkin's `self.ttl <= 0` matches, including negative values.
+  Also in mod.rs, outside this unit.
+- dump ttl wording (mod.rs:136-141): the stale comment is actually accurate for the newer
+  dump. `DebugBrainDump.accept(type, value, timeToLive)` passes `timestamp` as the displayed
+  ttl (DebugBrainDump.java:158-160), while `MemorySlot.toString` prints the real ttl
+  (MemorySlot.java:69-72). Pumpkin deliberately prints the real ttl; behaviour is unchanged.
+  Comment and code are in mod.rs, outside this unit, so left open.
+- VISIBLE_ADULT_PIGLIN/HOGLIN counts (types.rs:122-123): the two memory types are declared
+  with the correct ids and names (confirmed against MemoryModuleType.java:116-117). Vanilla
+  fills them in `PiglinSpecificSensor` (lines 107-108) and `HoglinSpecificSensor` (lines
+  56-57), and reads them in PiglinAi.java:780-781 / HoglinAi.java:179-180 for retreat.
+  Populating them requires editing the sensor tick files, outside this unit's allowed files
+  (types.rs, value.rs), so left open.
+
+No unit test added: value.rs has no genuine gap to test, and mod.rs already covers
+empty-collection clearing with `setting_an_empty_collection_clears_the_slot`.

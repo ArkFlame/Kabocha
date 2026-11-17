@@ -39,3 +39,31 @@ eject 20t apart, 2-5 stacks").
 
 ## h2 parity sweep (status)
 - Gaps 3, 5, 7 (display item, rewarded-set ordering, eject shape) STILL OPEN - need decompiled VaultBlock to verify; not changed.
+
+## Result
+
+Verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`
+(`VaultBlock.java`, `VaultBlockEntity.java`, `VaultServerData.java`, `VaultState.java`,
+`VaultSharedData.java`).
+
+- Gap 3 (display item): FIXED. `entities/vault.rs::VaultBlockEntity::set_display_item` now writes
+  `ItemStack` into `shared_data.display_item` (removing it for an empty stack); it is sent to clients by
+  `chunk_data_nbt`. `blocks/vault.rs::use_with_item` fires `VaultDisplayItemEvent` with the next item to eject
+  (vanilla `Server.unlock` -> `setDisplayItem(getNextItemToEject())`), honours `cancelled()`, and stores the
+  resulting item. Still open: the periodic 20-tick ACTIVE display cycle (`cycleDisplayItemFromLootTable`)
+  needs gap 1's scheduled tick; it is a client-only visual (gap 8), no gameplay blocker.
+- Gap 5 (check ordering): NO CHANGE NEEDED. Decompiled `VaultBlockEntity.Server.tryInsertKey` tests
+  `isValidToInsert` first (line 274) and only then `hasRewardedPlayer` (line 276). Pumpkin already validates
+  the key (blocks/vault.rs:58-71) before the rewarded set (:75-82), so the doc's claim that vanilla checks the
+  rewarded set first is false. The 15-tick insert-fail sound buffer (`last_insert_fail_timestamp`) is a
+  separate gap 4 concern and was not touched.
+- Gap 7 (ejection shape): FIXED. Replaced `World::drop_stack` with a spawn at
+  `Vec3.atBottomCenterOf(pos).relative(Direction.UP, 1.2)` = (x+0.5, y+1.2, z+0.5), upward velocity ~0.6 with
+  small gaussian jitter (vanilla `DefaultDispenseItemBehavior#spawnItem` speed 2, Direction.UP) and pickup
+  delay 10. Added a pure unit test `ejection_spawns_at_bottom_center_raised_to_vanilla_height`.
+  Still open: one stack is dropped per tick across the UNLOCKING -> EJECTING -> ACTIVE state machine (gap 1),
+  which is a separate, larger change outside this pass.
+
+Files edited: `crates/pumpkin-core/src/block/blocks/vault.rs`,
+`crates/pumpkin-core/src/block/entities/vault.rs`. Both formatted with `rustfmt --edition 2024`.
+Not compiled (worker restriction); orchestrator batch-checks.

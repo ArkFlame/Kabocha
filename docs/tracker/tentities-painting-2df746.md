@@ -67,3 +67,31 @@ Not gaps (checked, no change):
 ## Gap status
 - 1 front-space check accepts any non-solid block (M): STILL OPEN (painting.rs excluded; needs vanilla confirm)
 - 2 placement space and hanging-entity check (M): STILL OPEN (painting.rs excluded)
+
+
+## Result
+
+- Row 1 (front-space check): VERIFIED, NO CHANGE. Decompiled vanilla
+  `HangingEntity#survives` (net/minecraft/world/entity/decoration/HangingEntity.java:82-93)
+  does not require air in front. It uses `hasLevelCollision(getPopBox())`, which
+  resolves to `CollisionGetter#noBlockCollision` over `getBlockCollisions`
+  (CollisionGetter.java:59-67, i.e. non-empty `BlockState` collision shapes)
+  plus `isSupportingBlock` = `isSolid() || DiodeBlock.isDiode`. Torches, signs
+  and water have empty collision shapes, so current vanilla allows them in
+  front of a painting. Switching `!front_state.is_solid()` to `is_air()` would
+  make Pumpkin stricter than vanilla and break parity; the existing check is a
+  valid approximation. The row's premise reflects old (pre-1.13) `isAirBlock`
+  behaviour, not this version.
+- Row 2 (placement space / hanging-entity check): FIXED. Added
+  `PaintingEntity::survives()` (painting.rs) mirroring `ItemFrameEntity::survives`:
+  requires `world.is_space_empty(variant-sized box)`, a solid supporting wall
+  via `painting_fits`, and `!hanging::overlaps_hanging_entity`. Called it in
+  `HangingEntityItem::use_on_block` (hanging_entity.rs) after the variant,
+  facing and attachment position are applied and before sounds/game-event and
+  `world.spawn_entity`, returning `Consume` on failure like vanilla's
+  `InteractionResult.CONSUME`.
+- No pure unit test added: both fixes require a live `World` and entity state,
+  so no side-effect-free seam exists that would fail without the change.
+- Files edited (rustfmt --edition 2024 clean):
+  `crates/pumpkin-core/src/entity/decoration/painting.rs`,
+  `crates/pumpkin-core/src/item/items/hanging_entity.rs`.

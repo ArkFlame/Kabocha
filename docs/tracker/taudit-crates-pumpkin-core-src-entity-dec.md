@@ -85,3 +85,38 @@ Reference: `PaperMC/Paper/paper-server/src/minecraft/java/net/minecraft/world/en
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`
+(Paper 1.21 decompiled) on 2026-11-17. Only armor_stand.rs was edited (plus this doc).
+
+1. Markers still have physics / fall: FIXED at the smallest seam. Vanilla
+   `hasPhysics() = !isMarker() && !isNoGravity()` gates travel; Pumpkin's equivalent
+   gravity consumer is LivingEntity::get_effective_gravity, so get_gravity now returns
+   0.0 for markers. No synced NoGravity flag or NoGravity NBT is written, matching
+   vanilla (markers only set the internal noPhysics). Piston push reaction and the
+   travel gate have no EntityBase hook in this crate and stay unrepresented.
+2. Explosion immunity: PARTIALLY FIXED. Added is_immune_to_explosion() returning
+   is_invisible(), which the explosion loop in world/explosion.rs:577 already honours
+   for both damage and knockback, matching vanilla ignoreExplosion's invisible clause.
+   Still open: !explosion.shouldAffectBlocklikeEntities() depends on the explosion's
+   BlockInteraction, which the no-argument trait method cannot observe.
+3. Paper plugin events: PARTIALLY FIXED. The manipulation event (swap_item) was already
+   present. Added EntityDeathEvent in broken_by_anything, the single seam shared by
+   kill, cause_damage and the explosion path, before the equipment lock is taken.
+   Still open: Pumpkin's EntityDeathEvent is not cancellable and cannot move equipment
+   clearing past the event; that needs the event struct outside this unit.
+4. skipAttackInteraction / may_interact: FIXED. The player-attacker branch of
+   damage_with_context now also calls world.is_in_spawn_protection(player, block_pos)
+   alongside the mayBuild check, mirroring vanilla skipAttackInteraction.
+5. Potion immunity: OPEN (one-line reason). Vanilla isAffectedByPotions() returning false
+   has no Pumpkin EntityBase method and the effect-application filter lives outside this
+   unit, so it needs a cross-file trait change.
+6. Paper no-tick equipment: OPEN (one-line reason). Requires Paper.CanTickOverride NBT
+   and a tick hook outside this file; optimisation only, no gameplay effect.
+7. Client-only parity: no action needed, as documented.
+
+No pure seam exists for the state-dependent methods above, so no new unit test was added;
+the existing pure tests in armor_stand.rs were left intact.

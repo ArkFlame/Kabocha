@@ -79,3 +79,25 @@ Client-only / not required: vanilla's early client-side `CONSUME` in `useItemOn`
 - `block/mod.rs:667-673` `BlockIsReplacing::water_source` source-only: STILL OPEN (M; 46 call sites).
 - Shelf shape/occlusion (`shelf.rs`, absent): BLOCKED-DATA (generated shape data for `#minecraft:wooden_shelves`).
 - Piston push reaction for shelves: STILL OPEN (engine-level, no moveability concept).
+
+
+## Result
+
+Verified against decompiled vanilla `ShelfBlock.java` (real source at
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/world/level/block/ShelfBlock.java`;
+`.vendor/` absent).
+
+- Shelf in flowing water not waterlogged (`shelf.rs:327`): RESOLVED, no code change needed.
+  `ShelfBlock.getStateForPlacement` (Java :125-130) sets
+  `WATERLOGGED = replacedFluidState.is(Fluids.WATER)`, true for flowing water as well as
+  sources. Pumpkin already uses `matches!(args.replacing, BlockIsReplacing::Water(_))`
+  at `shelf.rs:327`, and `BlockPlaceContext::at` populates `Water(level)` for every level
+  of the WATER block (flowing water included). No pure unit-test seam exists for this
+  one-line property decision (would be formula-mirroring), so no test added.
+- `BlockIsReplacing::water_source` source-only (`mod.rs:739-745`, 46 call sites):
+  LEFT OPEN. Adding `is_water()` and migrating all call sites touches source files
+  outside this unit (only mod.rs and shelf.rs are in scope); cross-file refactor.
+- Shelf shape/occlusion: LEFT OPEN, BLOCKED-DATA. Needs generated collision/occlusion
+  shape data for `#minecraft:wooden_shelves`; engine/codegen work, not shelf.rs.
+- Piston push reaction for shelves: LEFT OPEN. Pumpkin has no engine-level piston
+  push-reaction / moveability concept, and the fix is outside this unit.

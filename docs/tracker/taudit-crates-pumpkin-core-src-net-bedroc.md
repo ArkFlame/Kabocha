@@ -28,3 +28,20 @@ eat / block / bow / place from `PlayerAuthInput` never reached the item use code
 - 5 sprint from SprintDown fallback (player_auth_input.rs:50-56): STILL OPEN, S.
 - 6 unclamped stored delta (player_auth_input.rs:43): STILL OPEN, S.
 - Crawl flags (player_auth_input.rs:66-67): no gap, documented.
+
+## Result
+
+Re-audit against decompiled vanilla (ServerGamePacketListenerImpl.handleMoveVehicle,
+handlePlayerCommand, ServerboundMoveVehiclePacket, ServerboundMovePlayerPacket).
+
+| row | outcome |
+|---|---|
+| 1 await_teleport / Teleport ack | STILL OPEN. Vanilla handleAcceptTeleportation clears the pending teleport by id; Bedrock's ack needs a new Teleport value in SPlayerAuthInput (pumpkin-protocol) plus id-based clearing in await_teleport. That is a protocol packet + cross-crate change outside this unit's files, so the proximity/20-input resend fallback stays. |
+| 2 StartJumping on saddled mounts | Already implemented in this file: StartJumping swaps the held JumpDown charge (0..90) into start_riding_jump, which gates on controlling passenger, mob and jump_scale > 0, matching vanilla handlePlayerCommand START_RIDING_JUMP. Verified, no further change. |
+| 3 vehicle_rotation / vehicle_unique_id | FIXED. apply_mount_move now rejects a present-but-mismatched vehicle_unique_id before applying the step, and snaps the mount to vehicle_rotation (x=pitch, y=yaw) when present, falling back to the rider's yaw; matches vanilla handleMoveVehicle using the packet's targetYRot/targetXRot. Pure tests added for the rotation mapping and the id check. |
+| 4 on_ground zero delta | Already implemented via is_on_ground (zero delta keeps the stored ground state) with unit tests. Verified, no further change. |
+| 5 sprint SprintDown fallback | Already implemented: StartSprinting/StopSprinting edges first, SprintDown held state when neither edge is set. Verified, no further change. |
+| 6 unclamped stored delta | Already implemented: store_input_state zeroes non-finite or over-budget deltas using the shared MAX_CLIENT_STEP_SQUARED. Verified, no further change. |
+
+Touched: crates/pumpkin-core/src/net/bedrock/play/player_auth_input.rs (rustfmt 2024).
+1 row resolved in this pass, 1 left open (protocol change outside unit), 4 confirmed already fixed.

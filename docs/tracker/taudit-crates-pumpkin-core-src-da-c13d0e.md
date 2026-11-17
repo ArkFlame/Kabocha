@@ -55,3 +55,36 @@ Remaining gaps:
 - FIXED: parse_result count outside 1..=99 now rejected, recipe_loader.rs:~101-110 (`MAX_RESULT_COUNT`), test `parse_result_rejects_out_of_range_count`.
 - FIXED: parse_cooking cookingtime out of i32 range rejects recipe, non-finite experience rejects recipe, recipe_loader.rs parse_cooking.
 - STILL OPEN: parse_ingredient tag/item mixing and both-keys rule, parse_category strict enums, crafting_special_* suffix, brewing/transmute/dye/decorated_pot/imbue shapes (structural, not done in this pass).
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/item/crafting/`:
+`CraftingBookCategory.java`, `CookingBookCategory.java`, `CraftingRecipe.java`,
+`AbstractCookingRecipe.java`, `CustomRecipe.java`, `RecipeSerializers.java`.
+
+- FIXED (this pass), parse_category strict enums (S): replaced the single lenient lowercase
+  matcher with `parse_crafting_category` (building/redstone/equipment/misc) and
+  `parse_cooking_category` (food/blocks/misc). Vanilla `StringRepresentable` codecs accept only
+  exact serialized names and default to MISC when absent, so the `restone` typo, wrong case,
+  cross-enum values and non-strings now reject the recipe. Shaped/shapeless/transmute/dye/
+  decorated_pot/imbue use the crafting enum; smelting/blasting/smoking/campfire use the cooking
+  enum. Tests: `category_codecs_are_strict_and_separate`, `invalid_category_rejects_the_recipe`.
+- PARTIAL, crafting_special_* suffix: the match now accepts only the eight serializers vanilla
+  registers in `RecipeSerializers` (bookcloning, mapextending, firework_rocket, firework_star,
+  firework_star_fade, bannerduplicate, shielddecoration, repairitem); unknown suffixes are
+  rejected and the category is always MISC (vanilla `CustomRecipe.category()`). Test:
+  `crafting_special_rejects_unregistered_suffixes`. Still open: keeping type-specific fields for
+  display needs `OwnedSpecialCraftingRecipe` (pumpkin-protocol) extended and its consumers
+  updated, a cross-crate refactor.
+- PARTIAL, parse_ingredient mixed item/tag alternatives: the both-keys rule
+  (`{"item":..,"tag":..}` rejected) had already been fixed earlier. The mixed `OneOf` tag list
+  is still open: it needs a tag representation on `OwnedRecipeIngredient::OneOf` plus updates to
+  `crates/pumpkin-core/src/net/bedrock/recipe.rs` and the plugin API Ingredient encoders (WIT /
+  plugin API refactor).
+- LEFT OPEN, brewing/transmute/dye/decorated_pot/imbue shapes (M, structural): modelling potion
+  lists, an `OwnedRecipeIngredient` reagent and component-carrying results needs changes to
+  pumpkin-protocol types and pumpkin-inventory brewing matching, a cross-crate refactor.
+- VERIFIED, parse_result count 1..=99 and parse_cooking checked int/float conversion: both were
+  already fixed in an earlier pass; no change needed this pass.
+
+Status: UNVERIFIED (code written without compiling per worker rules; orchestrator compiles once).

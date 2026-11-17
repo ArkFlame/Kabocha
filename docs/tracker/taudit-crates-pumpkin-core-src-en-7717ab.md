@@ -65,3 +65,41 @@ is from knowledge of 1.21.x `NeutralMob` / `AngerManagement` / `Mob`, not 26.3 s
 ## Gap status
 
 - STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+
+
+## Result
+
+Re-audited all six remaining gaps against the decompiled vanilla tree in
+.vendor/vanilla-decompiled (Paper/1.21.x sources), now present in the worktree.
+
+1. Timer refresh semantics - NOT A BUG. NeutralMob.updatePersistentAnger
+   (net/minecraft/world/entity/NeutralMob.java:62-93) does
+   "if (newTarget || stayAngryIfTargetPresent) startPersistentAngerTimer()"; the timer
+   is re-rolled, never counted down. All vanilla implementors pass true except Bee
+   (Bee.java:412 passes false), matching Pumpkin's default
+   stays_angry_with_target() = true plus the Bee override. Added the pure helper
+   should_refresh_anger_timer used at the decision site and two unit tests that
+   lock the rule in; no countdown was introduced.
+2. Death-notice box - NOT A BUG. ServerPlayer.tellNeutralMobsThatIDied
+   (ServerPlayer.java:1507-1513) builds new AABB(this.blockPosition()).inflate(32, 10, 32),
+   i.e. a block-position box, exactly what Pumpkin uses. Added a comment noting the
+   vanilla quirk.
+3. World-seeded RNG - STILL OPEN. Pumpkin's Mob::get_random returns a
+   ThreadRng; there is no world RNG to sample with. Needs a cross-crate RNG
+   refactor and only affects seeded determinism. Reason: cross-crate refactor.
+4. Spawn-packet metadata define - STILL OPEN. Needs a SynchedEntityData.define
+   beside the other trackers in entity/passive/bee.rs and entity/passive/wolf.rs,
+   which are outside this unit. The client default of -1 hides it in practice.
+   Reason: files outside unit.
+5. Iron golem / polar bear / zombified piglin accessor - STILL OPEN. Needs the
+   extractor/codegen to regenerate crates/pumpkin-data/src/generated/tracked_data.rs;
+   hand edits to generated data are forbidden. Reason: generated data.
+6. NBT write shape - NOT A BUG. NeutralMob.addPersistentAngerSaveData
+   (NeutralMob.java:34-37) always putLong("anger_end_time", ...) and uses
+   storeNullable("angry_at", ...) (key omitted when null), which matches Pumpkin.
+   Added a comment.
+
+Only crates/pumpkin-core/src/entity/mob/neutral.rs was changed. No cargo run
+(CODER policy); orchestrator compiles once. rustfmt --edition 2024 run on the file.
+
+Status: PASS fixed=1 (timer rule made explicit + tests) verified-no-change=2 (death box, NBT) open=3 files=crates/pumpkin-core/src/entity/mob/neutral.rs

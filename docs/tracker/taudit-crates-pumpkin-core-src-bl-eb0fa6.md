@@ -50,3 +50,10 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
 - Piston block entity facing from state (`mod.rs:571-590`): STILL OPEN (S).
 - Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): FIXED (UNVERIFIED): ids not in `BLOCK_ENTITY_TYPES` are filtered before the count is written (`block_entity_type_id`, unit test).
 - Remaining rows in the note's table not re-read in this pass.
+
+## Result
+
+- Row `mod.rs:571-590` (`create_block_entity_for_state`, moving-piston facing): STILL OPEN, BLOCKED by scope. The fix is a new piston match arm in `block/entities/mod.rs`, which is NOT one of this unit's editable files (`chest_like_block_entity.rs`, `piston.rs`, `v1_18.rs`); no code changed. Diagnosis confirmed in-repo: `world/mod.rs:6693-6700` and `block/registry.rs:1322` call `create_block_entity_for_state` for states whose `block_entity_type` is set; `moving_piston` has that type but no arm, so it falls through to `create_block_entity` -> `PistonBlockEntity::from_nbt(empty)` (`block/entities/piston.rs:268-290`), giving facing `Down`, `extending = false`, pushed state air. The vanilla reference (`PistonMovingBlockEntity(BlockPos, BlockState)` reading state `FACING`, fresh extension at progress 0) is from the audit note only: `.vendor/vanilla-decompiled` is empty in this checkout, so no decompile could be re-checked. Whoever owns `mod.rs` should add the arm using `MovingPistonLikeProperties::from_state_id(state_id).facing`, matching `block/blocks/piston/piston.rs:448-500`.
+- Row `v1_18.rs:166-175` (chunk block entity registry id): verified already FIXED. `block_entity_type_id` (`v1_18.rs:309-315`) resolves the NBT `id` to a `BLOCK_ENTITY_TYPES` position, the writer filters unknown ids before writing the count (`v1_18.rs:154-171`), and the unit test `unknown_block_entity_id_is_dropped` (`v1_18.rs:328-334`) covers the Pumpkin-only `bed`/`map` case. No change needed.
+- `chest_like_block_entity.rs`: no STILL OPEN row names this file; left untouched.
+- No `.rs` file was modified, so rustfmt was not run.

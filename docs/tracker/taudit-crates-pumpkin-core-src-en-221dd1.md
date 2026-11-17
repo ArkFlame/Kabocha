@@ -45,3 +45,33 @@ one of the deliberate deviations above. No code change was made.
 ## Gap status
 
 - STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+
+
+## Result
+
+Re-audited both in-scope files against decompiled vanilla (`Activity`,
+`Behavior`, `BehaviorControl`, `Brain`) on 2026-11-17.
+
+- `activity.rs`: `activity_slot` correctly reproduces Java `HashMap` spreading
+  (`h ^ (h >>> 16)`) and the load-factor resize (`activities > cap/4*3`), with the
+  registry-name hash from `pumpkin_data::environment_attribute::Activity::name()`.
+  `ALL_ACTIVITIES` matches the vanilla registry order exactly (26 entries, Dig=25).
+  `ActivitySet` is a bitset over enum discriminants; `iter()` yields registry order,
+  matching vanilla's `ActivityBitSet`. No code gap.
+- `timed.rs`: `try_start`, `tick_or_stop`, `do_stop`, `timed_out` and defaults match
+  vanilla `Behavior` step for step. `stop_with_timeout` is a superset that is
+  behaviourally identical to vanilla's `stop` (no in-tree behavior overrides it).
+  The `.max(1)` clamp on the random range is a safe deviation (vanilla throws on a
+  misconfigured max<min). No code gap.
+
+The single STILL OPEN row was the meta note "note has no gap rows; extraction empty,
+needs re-audit". Re-audit is now complete: no fixable gaps exist in these two files.
+
+Fix applied: added a pure unit test `activity_slot_matches_java_hash_map_buckets` in
+`activity.rs` pinning the Java HashMap bucket values for core=1, idle=5, fight=14 at
+capacity 16 (verified against the Java algorithm and the existing mod.rs ordering
+test). `rustfmt --edition 2024` run on `activity.rs`.
+
+Remaining open: none in scope. Deviation rows #1-#3 in the parent note remain
+deliberate / out-of-scope (memory ttl clock and debug formatting live in
+`memory/mod.rs`; #1 is the documented hash-order deviation).

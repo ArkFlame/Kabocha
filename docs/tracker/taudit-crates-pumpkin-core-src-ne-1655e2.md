@@ -75,3 +75,40 @@ Tracker note "5 TODO/FIXME/vanilla markers": 3 TODOs and 2 `vanilla` prose comme
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+
+## Result
+
+Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled` (2026-11-17), smallest first:
+
+1. Reach log level: RESOLVED, no change in this unit. `net/java/play/mod.rs:104` already maps
+   `BlockOutOfReach` to `Level::TRACE` (not WARN); the doc claim is stale. Vanilla
+   `ServerGamePacketListenerImpl#handleUseItemOn:2316` silently ignores out-of-reach hits. Nothing to
+   change in `use_item_on.rs`.
+2. Air check: NO CHANGE. `handleUseItemOn` has no air check; Pumpkin's
+   `world.get_block(&position) == &Block::AIR` early return (`use_item_on.rs:62`) is deliberate
+   anti-cheat hardening (stricter than vanilla, not looser). Documented only.
+3. Hit-position window: NO CHANGE. `handleUseItemOn:2317-2319` uses
+   `abs(hit - blockCenter) < 1.0000001`, which a real client always satisfies; Pumpkin's
+   `-0.5..1.5` window plus `1e-3` clip is intentionally stricter (commit `6a7175af0`). The pure
+   `is_valid_hit_position` test already covers this seam.
+4. Default block use hand gate: NO CHANGE, premise disproven. `ServerPlayerGameMode#useItemOn:625`
+   resolves `TryEmptyHandInteraction` -> `useWithoutItem` only when `hand == MAIN_HAND`; Pumpkin's
+   `equipment_slot == MAIN_HAND` check in `call_use_item_on` (`use_item_on.rs:252`) matches vanilla.
+   Dropping it would break off-hand placement parity.
+5. Advancement `state`: STILL OPEN. `AdvancementTrigger::ItemUsedOnBlock.state` is
+   `Option<(String, String)>` (`entity/player/advancement/trigger.rs:62`); vanilla matches a generic
+   `StatePropertiesPredicate` against the clicked block's own properties. Needs a map type plus
+   generic serialization across `entity/player/advancement` (file outside this unit).
+6. Enabled-feature gate: STILL OPEN. Vanilla `useItemOn:539` checks `block.isEnabled(features)` and
+   `handleUseItemOn:2307` / `handleUseItem:2397` check `itemStack.isItemEnabled(features)`. Pumpkin's
+   `Block`/`Item` data has no feature-flag field and no `is_item_enabled` exists; needs generated data
+   plus datapack feature resolution (outside this unit).
+7. `ITEM_USED` stat in `use_item.rs:40`: STILL OPEN. Vanilla awards `Stats.ITEM_USED` inside individual
+   item implementations (e.g. `BowItem:54`, `CauldronInteractions`), never centrally, and only after
+   the cooldown gate in `ServerPlayerGameMode#useItem:478`. `ItemRegistry::on_use_with_rotation`
+   returns `()`, so a correct fix needs a consume-result API change across item behaviours (outside
+   this unit).
+
+No `.rs` file was changed, so no rustfmt run; no new pure test seam exists in either handler beyond
+the existing `is_valid_hit_position` test.

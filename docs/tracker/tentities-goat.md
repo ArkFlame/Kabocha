@@ -26,3 +26,18 @@ Note: Pumpkin models goats with goals, vanilla uses a Brain (GoatAi). The goal s
 - #6 spawn rule: STILL OPEN (blocked on MINECRAFT_GOATS_SPAWNABLE_ON data, needs extractor)
 - #7 head-lowering event: UNVERIFIED client-only effect (Vanilla handleEntityEvent 58/59 is a client animation), no server change
 - ram/horn-break (#3 horn drop, #4 memory init) re-check h3: STILL OPEN (horn drop M is only reached through RamTarget.hasRammedHornBreakingBlock, which is the L ram activity from #1; no S/M part is standalone)
+
+
+## Result
+
+Verified every STILL OPEN row against decompiled vanilla 1.21.4 (`Goat.java` / `GoatAi.java`). No `.rs` edits: each actionable row needs files outside this unit (`goat.rs`, `tag.rs`), so it is left open with a one-line reason. No `tag.rs` in this unit relates to goats (only `command/commands/tag.rs` and generated data, which is off-limits).
+
+- #1 ram activity: STILL OPEN - a basic `RamTargetGoal` is already wired (goat.rs:80), but the implementation lives in the out-of-unit `entity/ai/goal/ram_target.rs` and uses from-memory constants (speed 2.0, trigger 8 blocks, knockback 1.5, cooldown 600..2400) vs vanilla (speed 3.0, prepare 4..7, knockback 2.5 adult / 1.0 baby, cooldown 600..6000 / screamer 100..300); `PrepareRamNearestTarget` is absent. Alignment needs ram_target.rs, outside this unit.
+- #2 long jump: STILL OPEN - vanilla `LongJumpToRandomPos` needs a new goal (cooldown 600..1200, max 5x5, velocity multiplier 3.5714288, LONG_JUMPING pose 0.9x1.3 scaled 0.7, long-jump sound); no such goal exists and adding one is a new file outside this unit.
+- #3 horn drop: STILL OPEN - the data blocker is resolved (`tag::Instrument::MINECRAFT_REGULAR_GOAT_HORNS` / `MINECRAFT_SCREAMING_GOAT_HORNS` now exist in pumpkin-data), but the only vanilla caller is `RamTarget.hasRammedHornBreakingBlock` in the out-of-unit ram_target.rs (same dependency as #1), so a `dropHorn` helper here would be dead code.
+- #4 memory init: STILL OPEN - vanilla `GoatAi.initMemories` seeds LONG_JUMP/RAM cooldowns in the Brain; Pumpkin has no brain-memory and `RamTimer` self-seeds, so this folds into #1/#2 and needs their out-of-unit goal files.
+- #6 spawn rule: ALREADY FIXED (verified) - `entity/type.rs:672-678` already applies `MINECRAFT_GOATS_SPAWNABLE_ON` plus `is_bright_enough_to_spawn` for GOAT, and the tag now exists in pumpkin-data. No change needed; the fix is in an out-of-unit file that is already correct.
+
+Already-resolved rows re-checked while verifying (no change):
+- #5 per-goat follow distance: correct (goat.rs:90-95 samples 5..=16 at speed 1.25, matching `ADULT_FOLLOW_RANGE`).
+- #7 head lowering: client-only animation (`handleEntityEvent` 58/59, `aiStep` pitch), no server-observable behaviour.

@@ -112,3 +112,37 @@ hits are comments on `parse_structure_identifier`, `compute_detected_bounds` and
 - 7. `chunk_data_nbt` drops payload (`structure_block.rs:673-695`): STILL OPEN (S).
 - 8. Redstone SAVE does not write disk (`blocks/structure_block.rs:78-81`): STILL OPEN (M).
 - 9. Multiblock bucketing by `is_solid_render` (`structure_block.rs:246`): STILL OPEN (S).
+
+## Result
+
+Verified each STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft/
+(StructureBlockEntity, templatesystem/StructureTemplate, BlockState) on 2026-11-17.
+
+- 1. Entity capture on save: OPEN. Vanilla fillFromWorld calls fillEntityList to save live entities
+  unless ignoreEntities. Needs entity-NBT capture plus entity creation on placement; spawning/save
+  APIs are outside these files (cross-crate).
+- 2. ignoreEntities/StructurePlaceSettings: OPEN. Pumpkin never spawns template entities at all,
+  so honouring the flag has no observable effect until cross-crate entity placement exists.
+- 3. Wall-clock seed when seed == 0: NOT A BUG. Vanilla StructureBlockEntity.createRandom is exactly
+  seed == 0 ? RandomSource.create(Util.getMillis()) : RandomSource.create(seed); Pumpkin matches. No change.
+- 4. Name canonicalisation: NOT A BUG. Vanilla loadAdditional -> setStructureName ->
+  Identifier.tryParse, which adds minecraft: and rejects invalid/uppercase names as null/empty.
+  parse_structure_identifier matches this. No change.
+- 5. Offset clamp +-48 on load: NOT A BUG. Vanilla loadAdditional clamps posX/posY/posZ to -48..48.
+  Pumpkin matches. No change.
+- 6. detectSize enumerates block entities: OPEN. Vanilla uses
+  level.findBlocksIn(...).filterState(STRUCTURE_BLOCK); no equivalent block-iteration API here, and
+  the doc says fix only on a differential miss. Left open.
+- 7. chunk_data_nbt drops payload: FIXED. Per-field try_lock().ok()? replaced with the blocking
+  lock().unwrap_or_else(std::sync::PoisonError::into_inner) already used by the getters, so transient
+  contention can no longer make an entity save nothing. File: block/entities/structure_block.rs.
+- 8. Redstone SAVE does not write disk: FIXED. Vanilla no-arg saveStructure() calls
+  saveStructure(true); on_neighbor_update now passes true. File: block/blocks/structure_block.rs.
+- 9. Multiblock/hasDynamicShape bucketing: OPEN. Vanilla addToLists uses
+  !hasDynamicShape() && isCollisionShapeFullBlock; Pumpkin is_full_cube() covers the second half,
+  but pumpkin-data exposes no has_dynamic_shape flag (generated data, outside this unit).
+
+Files changed: crates/pumpkin-core/src/block/blocks/structure_block.rs,
+crates/pumpkin-core/src/block/entities/structure_block.rs. Both run through
+rustfmt --edition 2024. No cargo/git run (per brief). No new unit test: neither fix has a pure seam
+(mutex-contention timing / redstone tick) testable without a live world.

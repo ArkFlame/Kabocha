@@ -15,6 +15,7 @@ Why: worktrees cost minutes each and cause merge conflicts; per-worker compiles 
 
 ## Rules learned
 - Lanes: primary model lane (cap 40) + experimental lane (cap 10). A rate-limit/timeout/usage-limit hit requeues the unit, shrinks that lane (experimental halves to 0; primary x3/4), backs off 120s*hits, and the pool stops after repeated hits. Finished units (exit file 0) are skipped on rerun; live workers are adopted when the pool restarts.
+- open-design deepseek limits: concurrency 10, 100 rpm (error tier_limit_exceeded): keep that lane at <=6 workers. Non-zero exits must requeue, never count as done.
 - Measure before scaling: TTFT/TPS from OpenCode DB (`~/.local/share/opencode/opencode.db`, tables session_v2/session_message; assistant message `time.firstToken - time.created`, `tokens.output+reasoning / (streamed - firstToken)`). Hy4 flash free: TTFT ~3s median, ~200 tok/s; do not raise past ~40-50 concurrent.
 - Free tiers hit usage limits under bursts: start with the cap, not 84 failed launches. Verify the model with a one-line `opencode run -m <model> "Reply with exactly: OK"` first; list with `opencode models`.
 - Never start the pool with a tight `while true`; it is bounded and exits on POOL DONE.

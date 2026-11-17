@@ -59,3 +59,46 @@ the worker brief forbids running cargo); the palettes themselves are covered by
 
 ## h6 status
 - Structure block rows: STILL OPEN, not attempted this pass (see tblocks-structure-block.md h6 status).
+
+## Result
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft/
+(StructureTemplate.java, StructureBlockEntity.java, ServerLevel.java, ServerGamePacketListenerImpl.java).
+
+- Non-strict shape reconnect (Remaining gaps row at old line 51): FIXED.
+  place_structure_template_in_world now calls World::update_from_neighbor_shapes on every placed
+  position after the whole template is written, writes the shaped state with
+  NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE, then calls update_neighbors_at with the shaped block.
+  The pass stays behind !strict, matching StructurePlaceSettings.setKnownShape(this.strict) and
+  updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE (StructureTemplate.java:391-401,
+  StructureBlockEntity.java:417,429). The single block-update flush moved after the pass so the
+  shaped states reach clients together. File: crates/pumpkin-core/src/block/entities/structure_block.rs.
+
+- Entity capture and placement (old line 49): LEFT OPEN. Vanilla fills entityInfoList in
+  fillFromWorld (StructureTemplate.java:133-137,175-193) and calls placeEntities when
+  !isIgnoreEntities (:414-425). The pumpkin-world template module has no entity-info field or
+  spawn path, so this needs cross-crate work outside this unit.
+
+- Collision-shape-full + hasDynamicShape palette split (old line 50): LEFT OPEN. The collision-shape
+  half is already correct: BlockState::is_full_cube() is derived from the extracted collision boxes
+  in pumpkin-data (derive_state_data), and the existing test
+  palette_full_block_uses_collision_shape_not_occlusion covers glass. The remaining
+  !hasDynamicShape() predicate (StructureTemplate.java:150) has no generated flag in pumpkin-data,
+  so it needs a codegen/data change outside this unit.
+
+- Strict placement side effects (old line 53): LEFT OPEN for the literal ask. Vanilla maps strict to
+  both setKnownShape and UPDATE_SKIP_ALL_SIDEEFFECTS (StructureBlockEntity.java:428-430). The
+  setKnownShape half is now covered by the row-51 fix; the skip-side-effects half would need
+  WorldBlockPlacer changes in crates/pumpkin-core/src/world/block_placer.rs (outside this unit).
+  Observable behaviour already matches: the placer writes straight to the chunk and
+  world.remove_block_entity(&pos) runs before every write, so drops are suppressed regardless.
+
+- handleSetStructureBlock trailing update (old line 54): VERIFIED, NO ACTION.
+  ServerLevel.sendBlockUpdated (ServerLevel.java:3498-3574) only calls blockChanged(pos),
+  invalidates the path cache and recomputes navigation when collision shapes differ. It sends no
+  neighbour update. World::register_block_change already invalidates path caches and queues the
+  client block update, so the current code matches vanilla.
+
+No pure seam exists for the shape-update pass (it needs Arc<World>), so no new unit test was added;
+the existing palette/identifier tests in the same file still cover the data-only rows.
+rustfmt --edition 2024 was run on the one touched .rs file. Compile deferred to the orchestrator.

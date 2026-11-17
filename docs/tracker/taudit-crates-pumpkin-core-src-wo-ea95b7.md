@@ -54,3 +54,15 @@ STILL OPEN: gap 7 (S): note itself says verify against decompiled `spawnNewGatew
 STILL OPEN: gap 9 (S): which origin convention vanilla `hasActiveExitPortal` uses is unconfirmed; default origin is identical either way.
 STILL OPEN: gap 10 (S): vanilla `updatePlayers` centre (origin vs origin + y128) not confirmed against decompiled code.
 STILL OPEN: gap 11 (S): note says verify intent; the legacy-scan dragon spawn path is unconfirmed against vanilla.
+
+
+## Result
+- gap 1 (M): LEFT OPEN. Requires threading the world seed into pumpkin-world feature generation: `GenerationCache` has no seed accessor and the generated config supplies `spikes: vec![]`, so `EndSpikeFeature::generate` can only fall back to seed 0. Fixing `get_spikes()` in the fight alone would desync fight crystals from the seed-0 worldgen pillars; full fix needs files outside this unit.
+- gap 2 (M): LEFT OPEN. Needs `SavedData` NBT (de)serialisation for the whole fight wired into the save path; cross-cutting, out of scope.
+- gap 3 (S): LEFT OPEN. Early return when no player/arena unloaded is a deliberate server-cost tradeoff; pausing the respawn stage machine needs a design decision.
+- gap 4 (S): FIXED. `spawn_exit_portal` now uses `get_heightmap_height(MOTION_BLOCKING_NO_LEAVES, origin).below()`, skips bedrock while y > 63, and clamps to `min_y + 1`, matching vanilla `spawnExitPortal` (END_PODIUM_LOCATION is ZERO so podium x/z is origin x/z).
+- gap 7 (S): VERIFIED MATCHING VANILLA, no change. `spawnNewGateway(pos)` places `END_GATEWAY_DELAYED`; vanilla `EndGatewayFeature.place` writes the same bedrock/air shell (betweenClosed origin.offset(-1,-2,-1)..offset(1,2,1)), so the shell writes are the delayed feature, not extra noise.
+- gap 9 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `hasActiveExitPortal` also iterates absolute chunks -8..=8 while `findExitPortal` offsets by origin chunk; the asymmetry is a vanilla quirk, default origin is identical either way.
+- gap 10 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `validPlayer` uses `withinDistance(origin.x, 128 + origin.y, origin.z, 192.0)`, so the origin + (0,128,0) sphere centre is correct.
+- gap 11 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `scanState` also sets `dragonKilled = false` when `!hasPreviouslyKilledDragon && dragonKilled`.
+- Test: added pure unit test `gateway_shuffle_is_deterministic_per_seed` in dragon_fight.rs guarding the deterministic (seeded) gateway order from gap 8.

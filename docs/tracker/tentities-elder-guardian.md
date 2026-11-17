@@ -67,3 +67,32 @@ so references below cite the vanilla classes.
 
 ## Gap status
 - Remaining-gap items (lines 26-49, incl. Guardian.hurt source checks): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java`,
+`ElderGuardian.java` and `world/effect/MobEffectUtil.java`.
+
+- Gap 1 (guardian beam attack): OPEN. Needs the synced `DATA_ID_ATTACK_TARGET` field, the
+  `GUARDIAN_ATTACK_SOUND` entity-event packet, and indirect-magic/melee damage on the server tick.
+  The synced-data field and packet are generated/protocol surface outside these three files.
+- Gap 2 (monument restriction): FIXED. Added `MoveTowardsRestrictionGoal::new(1.0)` at vanilla
+  priority 5 to both `GuardianEntity` and `ElderGuardianEntity`. The goal no-ops without a home;
+  the elder already sets home in `custom_server_ai_step`, matching `ElderGuardian`.
+- Gap 3 (`GuardianMoveControl`): VERIFIED already fixed in this checkout (custom move control and
+  `travel_in_water` present in `guardian.rs`, used by both mobs). No change needed.
+- Gap 4 (thorns reflect): FIXED. Decompiled `Guardian.hurtServer` has no 0.5 roll and no
+  guardian-attacker exclusion; `minecraft:avoids_guardian_thorns` already contains `thorns` and
+  `magic`. Removed the extra guardian exclusion and added a pure `thorns_reflection_blocked` seam
+  with a unit test over the tag contents. The creative-player guard stays because Pumpkin's
+  `damage()` lacks vanilla's creative immunity, so it preserves the observable behaviour.
+- Gap 5 (appearance effect gating): VERIFIED already fixed and correct. `should_apply_fatigue`
+  matches `MobEffectUtil.addEffectToPlayersAround` (`displayEffectLimit - 1` == duration < 1200,
+  survival/adventure only), with a boundary test. No change needed.
+- Gap 6 (ambient/flop): PARTIAL. Water/land ambient split is already implemented via
+  `get_ambient_sound` overrides and matches vanilla; no `CustomSound` change needed. Flop sound is
+  still OPEN: vanilla plays it from `Guardian.aiStep` on landing, and there is no generic flop hook
+  on Pumpkin's Mob/entity tick (only fish have one), so adding it needs a file outside this unit.
+
+Files changed: `guardian.rs`, `elder_guardian.rs`, this doc. `rustfmt --edition 2024` applied to both
+`.rs` files. No cargo/git run (per unit rules).

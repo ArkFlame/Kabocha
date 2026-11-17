@@ -57,3 +57,44 @@ change shared boat behaviour for all 11 chest variants.
 - 5 instabuild destroy skip (boat.rs:356-363): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 6 passenger damage to own boat (boat.rs:339-359): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 7 drop item resolution (boat.rs:380-382): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+
+## Result
+
+Decompiled vanilla is now available at `.vendor/vanilla-decompiled` (symlink to the rel-mc backup);
+the previous "no decompile" blocker no longer applies. Verified each STILL OPEN row against
+`net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`, `AbstractBoat.java`,
+`net/minecraft/world/entity/vehicle/VehicleEntity.java`, `ContainerEntity.java` and
+`net/minecraft/world/entity/projectile/Projectile.java`.
+
+- Row 1 (chest boat interact ordering): FIXED (verified). `AbstractChestBoat.interact` opens the
+  container when the `canAddPassenger` check fails (seat taken) or on secondary use;
+  `boat_interact_outcome` / `chest_opens_container` in `boat.rs` now mirror that chain, with a
+  pure unit test covering seat-taken, sneaking, out-of-control and already-riding cases.
+- Row 2 (failed boarding result): NOT A BUG (verified matching). `AbstractBoat.interact` returns
+  `InteractionResult.PASS` when sneaking, when `outOfControlTicks >= 60`, or when
+  `player.startRiding(this)` fails. Pumpkin returning `false` (PASS) on those paths is correct;
+  the tracker's "sided success" claim is contradicted by the decompiled source.
+- Row 3 (canPlayerUse / stillValid): STILL OPEN. `ContainerEntity.isChestVehicleStillValid` is
+  `!isRemoved() && within 4.0`, but `MinecartScreenFactory` builds a
+  `pumpkin-inventory::GenericContainerScreenHandler` whose `can_use` always returns `true` and has
+  no validity hook. Needs a cross-crate change (validity closure on the handler) outside this unit.
+- Row 4 (container-entity loot tables): FIXED (verified). Decompiled `AbstractChestBoat` implements
+  `ContainerEntity` with `lootTable` / `lootTableSeed`, reads/writes them in save data and calls
+  `unpackLootTable` from `createMenu`, so vanilla chest boats DO honour loot tables. Removed the
+  `without_loot_table` NBT filter in `boat.rs` so a chest boat now keeps and unpacks
+  `LootTable` / `LootTableSeed` like vanilla. The loot JSONs exist in
+  `assets/datapack/data/minecraft/loot_table/`, so the old BLOCKED-DATA note did not hold.
+- Row 5 (instabuild destroy skip): NOT A BUG (verified matching). `VehicleEntity.hurtServer` calls
+  `discard(DEATH)` on a creative hit and skips `destroy(level, source)`, so no boat item drops;
+  there is no `hasCustomName()` clause. Contents still scatter through
+  `AbstractChestBoat.remove`, which Pumpkin mirrors via `on_removed` -> `scatter_chest_contents`.
+- Row 6 (passenger damage to own boat): NOT A BUG (verified matching). No `hurtServer` guard
+  exists; the vanilla protection is in `Projectile.canHitEntity`
+  (`!owner.isPassengerOfSameVehicle(entity)`). Pumpkin's `damage_with_context` guard uses the
+  equivalent `root_vehicle_id` comparison, so the observable behaviour matches.
+- Row 7 (drop item resolution): FIXED (verified). `boat_drop_item` prefers
+  `BoatItem::entity_to_item` and keeps the registry-key lookup only as a fallback, matching the
+  suggested fix; `every_boat_entity_type_resolves_a_drop_item` covers all 11 chest variants.
+
+Files changed: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (row 4 loot-table NBT path).
+No build run (worker rule: orchestrator compiles). `rustfmt --edition 2024 --check` passes.

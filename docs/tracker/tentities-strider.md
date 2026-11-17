@@ -23,3 +23,12 @@ Source: `crates/pumpkin-core/src/entity/passive/strider.rs` (registered at `crat
 - Row `strider.rs:35` navigation: STILL OPEN. M, needs a per-mob navigation hook.
 - Row `strider.rs:96` jockey spawn: STILL OPEN. M, needs jockey selection and baby-chance override.
 - Row `strider.rs:178` passenger attachment: STILL OPEN. UNVERIFIED offset, no vanilla source in tree.
+
+## Result
+- FIXED `strider.rs` retreat sound (row strider.rs:109): vanilla `Strider.tick` plays `STRIDER_RETREAT` when `isPanicking()` with a 1/60 tick chance; added to `mob_tick`. Happy sound already fixed earlier.
+- FIXED `strider.rs` + `strider_temperature_change.rs` shivering sync (row strider.rs:81): ported the vanilla `Strider.tick` temperature update (warm blocks at/below, lava height, riding a warm strider) into `mob_tick`; on a flip, `StriderTemperatureChangeEvent` is fired via `fire_blocking` and `set_suffocating` only when the event is not cancelled. Added `StriderTemperatureChangeEvent::new`.
+- STILL OPEN `strider.rs:35` navigation: needs a per-mob `create_navigation` hook (Mob trait) plus `AmphibiousNodeEvaluator` wiring in `entity/ai/pathfinder/mod.rs`, both outside this unit's files.
+- STILL OPEN `strider.rs:96` jockey spawn: needs a `finalizeSpawn` hook, `SpawnGroupData` baby-chance override and spawning separate jockey entities (zombified piglin / baby strider), cross-cutting spawn infrastructure outside this unit.
+- STILL OPEN `strider.rs:178` passenger attachment: vanilla applies the rider offset only when `level().isClientSide()`, i.e. client-only visual effect; no server behaviour to port here.
+- No pure unit-test seam exists (environment/RNG/plugin-driven); skipped per MVP test rules.
+- rustfmt --edition 2024 applied to both touched .rs files (rc 0).

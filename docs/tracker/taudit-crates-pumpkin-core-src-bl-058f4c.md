@@ -43,3 +43,17 @@ for this assets version.
 - Row 4 Paper redstone-change ordering: STILL OPEN (`blocks/redstone/daylight_detector.rs:115-123`; S, needs plugin test).
 - Row 5 BLOCK_CHANGE game-event context: STILL OPEN (no listener; S).
 - Row 6 unused `update_power` wrapper: STILL OPEN (`block/entities/daylight_detector.rs:57`, no caller; XS, not removed this pass).
+
+
+## Result
+
+Re-audited every row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`, `Level.java`, `LevelChunk.java` and the current Pumpkin sources. No source edits were needed: the fixable rows are already fixed in the checkout, the rest are blocked by engine/API limits outside this unit.
+
+- Row 1 (comparator analog flag): still BLOCKED-DATA. `assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector/tripwire_hook/target, so `get_comparator_output` stays unreachable. Needs Extractor; generated data must not be hand-edited.
+- Row 2 (shape light occlusion): left open. `BlockBehaviour` exposes no `get_shape`/`use_shape_for_light_occlusion` seam and the light engine treats blocks as full cubes; adding column occlusion is a cross-crate engine refactor outside this unit.
+- Row 3 (tickEntity re-reads block): verified already fixed, no change. `DaylightDetectorBlock::update_signal_strength` (blocks/redstone/daylight_detector.rs:98-104) re-reads `(block, state)` and returns early unless `block == BLOCK::DAYLIGHT_DETECTOR` before decoding props. Equivalent to vanilla `tickEntity` passing the detector's own state; a stale BE can no longer write POWER onto a different block.
+- Row 4 (Paper callRedstoneChange ordering): verified equivalent, no change. Vanilla `LevelChunk.setBlockState` returns null when `oldState == state`, so `Level.setBlockAndUpdate` with an unchanged POWER is a no-op. Skipping `set_block_state` when `power == props.power` matches vanilla; always calling it would add neighbour updates vanilla does not perform.
+- Row 5 (BLOCK_CHANGE game-event context): partially fixed, remainder left open. The player is already forwarded as the vibration source via `emit_game_event_with_source(..., Some(player))` (blocks/redstone/daylight_detector.rs:48-52). The `newState` part of `Context.of(player, newState)` cannot be added because `world/game_event.rs::GameEventContext` only carries `source_entity` (and the plugin `GenericGameEvent` payload is outside this unit). No listener consumes a state today, so no gameplay delta.
+- Row 6 (unused `update_power` wrapper): verified already fixed, no change. No `update_power` method remains in `block/entities/daylight_detector.rs`; the impl block only holds `ID` and `new`.
+
+Unit-test note: the pure seam for this block is `calculate_signal_strength`, already covered by the two vanilla-derived tests in blocks/redstone/daylight_detector.rs. Rows 2-5 have no pure seam (World/engine/API coupling), so no new test was added.

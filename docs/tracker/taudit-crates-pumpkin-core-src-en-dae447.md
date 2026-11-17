@@ -63,3 +63,40 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
 - 4 rod durability path (fishing_rod.rs:98): STILL OPEN, verify.
 - 5 random f64 vs f32: STILL OPEN, cosmetic, accepted by note.
 - L542 discard compare-exchange: FIXED at fishing_bobber.rs:554 (verified).
+
+
+## Result
+
+Verified each STILL OPEN row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`. Findings below supersede the "Gap status" list above.
+
+- **Row 1 (open-water flag, M): LEFT OPEN.** The loot side of this gap is already resolved outside
+  this unit: `crate::world/loot/predicates.rs` handles `fishing_hook.in_open_water` via
+  `get_fishing_hook_in_open_water`/`is_open_water`, and the treasure table condition
+  (`pumpkin-data generated/loot_table.rs` `LOOT_PREDICATE_562`, `in_open_water: true`) is therefore
+  gated, contrary to the audit's "loot generation ignores it" claim. The only residual piece is a
+  stored `openWater` field plus an `isOpenWaterFishing()` API for the `FishingHookPredicate`
+  advancement predicate; that needs entity-field + predicate work in files outside this unit.
+  Reason: cross-file (advancement/predicate) work outside the two permitted files.
+- **Row 2 (cancelled PlayerFishEvent removes hook, S): VERIFIED CORRECT, no change needed.**
+  `FishingBobberEntity::reel_in` returns `Option<i32>` (`None` on a cancelled
+  CAUGHT_ENTITY/CAUGHT_FISH/IN_GROUND/REEL_IN event), and `fishing_rod.rs` keeps the hook and
+  `player.fishing_bobber` on `None`, removing only on `Some`. This matches CraftBukkit
+  `FishingHook.retrieve`, which returns 0 early on a cancelled event *before* the `discard()` at the
+  end (FishingHook.java lines 518-520, 544-546, 573-575, 582-584 vs 588).
+- **Row 3 (should_stop_fishing does not discard, trivial): VERIFIED CORRECT, no change needed.**
+  `should_stop_fishing` calls `self.discard(player)` before returning `true`
+  (fishing_bobber.rs:538), matching vanilla `FishingHook.shouldStopFishing` (FishingHook.java:289).
+- **Row 4 (rod durability path, S): VERIFIED CORRECT, no change needed.**
+  `player.damage_item_in_slot` -> `damage_item_stack_internal` -> `stack.damage_item` applies
+  Unbreaking (`pumpkin-data/item_stack/mod.rs` lines 475-483) and fires `PlayerItemDamageEvent`,
+  `PlayerItemBreakEvent`, the break sound and the equipment-break entity status
+  (`entity/player.rs` lines 2159-2244). This covers the audit's two verification points for vanilla
+  `stack.hurtAndBreak(dmg, player, slot)` (`FishingRodItem.java:27`).
+- **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by
+  note. Reason: cosmetic, no fix planned.
+
+**Tests:** no new pure unit-test seam exists for rows 2-4: the only pure helpers in these two files
+(`bob_velocity`, `throw_setup`, `bobber_sound_pitch`) are either already covered or trivial
+formula-mirrors that the project's test rules discourage, and the row-2/3/4 behaviour requires a
+live `Player`/`World`. No `.rs` file was changed, so no rustfmt was required.

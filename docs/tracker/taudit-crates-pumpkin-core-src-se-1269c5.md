@@ -38,3 +38,21 @@ No `TODO`/`FIXME` markers in the file; the 8 greps are `vanilla` mentions in doc
 
 ## Status (code-verified sweep)
 FIXED: close_admission holds player_join_lock (server/mod.rs:1375-1381). STILL OPEN: spawn_world WorldInitEvent and get_tps rows not re-read.
+
+## Result
+
+Unit files: `crates/pumpkin-core/src/world/border.rs`, `crates/pumpkin-world/src/world_info/anvil.rs`,
+`crates/pumpkin-core/src/server/ticker.rs` (`server/mod.rs` itself is out of scope for this unit).
+
+| # | Outcome |
+|---|---|
+| 1 | FIXED (NBT contract). Re-checked vanilla `WorldBorder.Settings`: `lerp_time` is `extent.getLerpTime()` = `MovingBorderExtent#lerpProgress`, a **remaining tick count that decrements every tick**, not an absolute game-time deadline, so `applySettings` treats it as a duration. Pumpkin stored milliseconds in `BorderSizeLerpTime`; `anvil.rs` now converts ticks to the internal milliseconds on read (`saturating_mul(50)`) and back with `div_ceil(50)` on write, and `border.rs` sends the protocol/command lerp value in ticks (`remaining_ticks()`, `speed / 50`), matching `ClientboundInitializeBorderPacket` / `ClientboundSetBorderLerpSizePacket` and `/worldborder ... time`. Bounds helpers (`contains`, `within_bounds`, `distance_to_border`, `clamp_*`, collision shape) now use `current_diameter()` rather than the lerp target, as vanilla clamps against `extent` min/max. Tests: `border_lerp_time_is_stored_in_game_ticks`, `bounds_follow_the_running_transition_not_the_target`, `remaining_ticks` assertion in the apply test. |
+| 2 | OPEN: restore of per-world forced chunks belongs in `crates/pumpkin-core/src/server/mod.rs` `spawn_world`, outside this unit. |
+| 3 | OPEN: freeze gate split lives in `server/mod.rs` `tick` / `tick_worlds`, outside this unit. Verified against Paper 1.21 `MinecraftServer.tickChildren`: `getFunctions().tick()` is called before the `runsNormally()` gate, and that method itself gates `#minecraft:tick` / `#minecraft:load` on `runsNormally()`, so Pumpkin's placement inside `tick_worlds` matches function execution; only plugin loader ticks and `/schedule` differ and need the `mod.rs` split. |
+| 4 | OPEN: `/reload` load-tag timing is `server/mod.rs` + datapack manager, outside this unit. |
+| 5 | OPEN: `get_world_from_dimension` `process::exit` is `server/mod.rs`, outside this unit. |
+| 7 | OPEN: double flush is `server/mod.rs`, outside this unit (behaviourally harmless). |
+| 8 | OPEN: debug sample gating is `server/mod.rs` `update_tick_times`, outside this unit. |
+
+`ticker.rs` re-read: overload skip, warning rate limit, sprint deadline reset and the park loop match
+Paper `runServer` / `waitUntilNextTick`; no change needed.

@@ -41,3 +41,9 @@ Nothing exercises `BoatEntity::passenger_attachment_point` for the two-seat `0.2
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+## Result
+
+- Delta-rotation accumulation (h6 status, the only row marked STILL OPEN): FIXED in `entity/vehicle/boat.rs`. Verified against decompiled `AbstractBoat.positionRider` / `controlBoat` / `floatBoat` (`.vendor/.../boat/AbstractBoat.java:66,642,670,696-705`): vanilla publishes `deltaRotation` as the per-tick yaw change from steering, adds it to a rider's yaw/head yaw, then clamps. Pumpkin's boat yaw instead arrives from the client's vehicle-move packet, so `BoatEntity` now stores `last_yaw`/`yaw_delta`, derives the delta each tick as `wrap_degrees(current_yaw - last_yaw)`, and `on_rider_positioned` adds it to non-player riders' yaw before the existing `+/-105` clamp through the pure helper `rider_yaw_with_delta`. Players keep steering themselves (unchanged early return). Added pure unit test `rider_yaw_follows_boat_yaw_delta_then_clamps`. Rustfmt applied. Not compiled here (orchestrator gate).
+- Rider yaw clamp (h6 status): already FIXED in the current code as `clamp_rider_yaw`, no change needed.
+- Remaining "Remaining gaps" table rows were not marked STILL OPEN in this unit doc and were left untouched by this pass; the seat-offset / custom-name / chest-capacity rows are out of scope of the explicit STILL OPEN instruction (and any generated-data or cross-crate work would be left open with that reason).

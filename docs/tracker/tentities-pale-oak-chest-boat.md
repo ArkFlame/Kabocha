@@ -62,3 +62,28 @@ No cargo/test run (worker constraint); the orchestrator batch-compiles.
 - 3 hopper path Container-only (boat.rs:266-281): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 4 scattered contents source (boat.rs:348-354): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
 - 5 save/load test coverage (boat.rs:242-252): STILL OPEN (needs test, unverified)
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled` (`Containers`, `ContainerEntity`,
+`AbstractChestBoat`, `AbstractMinecartContainer`, `BoatItem`). This unit may edit only
+files whose basename is `minecart.rs`; neither `minecart.rs` file needs a change.
+
+- Gap 1 (canPlayerUse/stillValid): OUT OF UNIT. Files `entity/vehicle/minecart/container.rs`
+  (basename `container.rs`) and `entity/vehicle/boat.rs`. Vanilla `ContainerEntity.isChestVehicleStillValid`
+  checks `!isRemoved() && player.isWithinEntityInteractionRange(getBoundingBox(), 4.0)`
+  (4-block interaction range, not the 8 blocks stated in the gap).
+- Gap 2 (BoatItem container component): OUT OF UNIT. File `item/items/boat.rs`. Decompiled
+  `BoatItem.getBoat` only calls `EntityType.createDefaultStackConfig(...).apply(boat)`;
+  no explicit container copy in this version, so the gap claim needs re-check in that unit.
+- Gap 3 (hopper/worldly-container): OUT OF UNIT. File `entity/vehicle/boat.rs` (`has_container_inventory`).
+- Gap 4 (scattered contents source): VERIFIED FIXED, no change. `entity/vehicle/minecart.rs:919-921`
+  calls `world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory)`, matching
+  vanilla `Containers.dropContents(level, entity, container)` which feeds `entity.getX/Y/Z`
+  into `dropItemStack` (floors each axis, so the entity fraction matters). `boat.rs:245-252`
+  likewise uses `entity.pos.load()`. Row table FIXED note confirmed on checkout.
+- Gap 5 (save/load test): OUT OF UNIT. File `entity/vehicle/boat.rs`; no pure test seam
+  for chest-boat NBT in either `minecart.rs`.
+
+No .rs file edited, so no rustfmt run. No build/test run (worker constraint).

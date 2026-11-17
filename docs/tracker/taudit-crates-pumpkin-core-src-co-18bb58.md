@@ -46,3 +46,43 @@ Remaining gaps:
 - Player-centre range check (`particle.rs:225-241`): FIXED in code (`is_particle_viewer_in_range`, test `viewer_range_measures_from_block_centre`); row was stale.
 - Item particle component-less ItemStackTemplate (`particle.rs:107-131`): STILL OPEN (S).
 - 26.x packet layout (`pumpkin-protocol/.../particle.rs:280-320`): STILL OPEN (M).
+
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/core/particles/ParticleTypes.java`
+and the per-option codecs. Smallest rows first:
+
+- **Item particle component-less `ItemStackTemplate` (`particle.rs:107-131`): STILL OPEN.**
+  Vanilla `ItemParticleOption.CODEC` uses `ItemStackTemplate.CODEC`. No `ItemStackTemplate`
+  type exists in this crate; adding one is a cross-crate change. No edit made.
+- **Vibration options ignored (`particle.rs:157-197`): STILL OPEN.**
+  `VibrationParticleOption.STREAM_CODEC` is `PositionSource.STREAM_CODEC` (registry id, then
+  `BlockPos` as a version-dependent long) plus a VAR_INT `arrival_in_ticks`. No position-source
+  SNBT decoder or version-aware block-pos encoder exists in this command crate. No edit made.
+- **Codec validation of options instead of command parser (`particle.rs:157-197`,
+  `pumpkin-command/src/argument_types/particle.rs:52-60`): STILL OPEN.**
+  Vanilla `ParticleArgument.readParticle` parses with the particle codec and throws
+  `particle.invalidOptions` for required fields. This needs per-particle codec validation in
+  `pumpkin-command`, a different crate that owns the error type; out of this unit's file.
+- **`dust_pillar`/`block_crumble`/`item_cobweb`/`geyser*`/`firefly`/`sulfur_cube_goo`
+  payloads (`particle.rs:157-197`): FIXED (geyser rows only).**
+  `ParticleTypes` shows `dust_pillar` and `block_crumble` are `BlockParticleOption` and are
+  already encoded via the `block_state` branch; `item_cobweb`, `firefly` and `sulfur_cube_goo`
+  are `SimpleParticleType` (no payload) so the existing empty payload is correct. Added
+  `Particle::Geyser | Particle::GeyserPlume` (INT `water_blocks`) and
+  `Particle::GeyserBase | Particle::GeyserPoof` (INT `water_blocks` + FLOAT
+  `burst_impulse_base`), matching `GeyserParticleOptions`/`GeyserBaseParticleOptions`
+  `STREAM_CODEC`. Two unit tests: `geyser_writes_water_blocks_int` and
+  `geyser_base_writes_water_blocks_and_burst_impulse`.
+- **26.x packet layout (`pumpkin-protocol/.../particle.rs:280-320`): STILL OPEN.**
+  Lives in `pumpkin-protocol`, outside this unit's file; needs a dedicated byte-exact audit
+  against a vanilla packet dump. No edit made.
+
+Note: the `entity_effect`/`tinted_leaves` per-viewer version gate noted under the spell/colour
+row was not itself marked STILL OPEN and is unchanged; it still needs per-viewer packet
+encoding.
+
+Rustfmt: `rustfmt --edition 2024` run on
+`crates/pumpkin-core/src/command/commands/particle.rs` (exit 0). No cargo run (forbidden here);
+compilation left to the orchestrator.

@@ -51,3 +51,23 @@ Remaining gaps:
 - Row 47 (useOn creative branch): STILL OPEN (spectators cannot reach useOn, so no observable delta).
 - Lodestone bounds row: FIXED on master (0717776e9).
 - World spawn tracker row: FIXED on master (49c988f7c).
+
+
+## Result
+
+- Row 47 (useOn `hasInfiniteMaterials` branch): FIXED. Verified against decompiled
+  `net/minecraft/world/item/CompassItem.java:56`, which uses
+  `!player.hasInfiniteMaterials() && itemStack.getCount() == 1`. Changed
+  `crates/pumpkin-core/src/item/items/compass.rs:56` from `!player.is_creative()` to
+  `!player.has_infinite_materials()` (the existing `pumpkin_inventory::screen_handler::InventoryPlayer`
+  ability check, imported alongside `ScreenHandler`, same pattern as `item/items/bucket.rs`).
+  `decrement_unless_creative(gamemode, 1)` is left unchanged: it is the standard codebase pattern
+  and vanilla's `itemStack.consume(1, player)`. Today Pumpkin's `InventoryPlayer::has_infinite_materials`
+  is itself `gamemode == Creative` and spectators cannot reach `use_on_block`, so there is no
+  observable delta; using the ability-named check tracks any future fix to the underlying ability
+  (including the spectator `instabuild` case) without a further edit here.
+- No pure unit-test seam exists in `compass.rs`: `use_on_block` needs a full `Player`/world/inventory
+  (sound, transmute, insert, drop), so no automated test was added.
+- Lodestone world-bounds row and world-spawn tracker row were already marked FIXED on master in the
+  h6 gap status above and were not touched.
+- Build not run (this worker may not invoke cargo); `rustfmt --edition 2024` ran clean on the edited file.

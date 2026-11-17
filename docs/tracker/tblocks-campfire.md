@@ -55,3 +55,13 @@ this pass re-checked the fixable rows against vanilla.
 - Cancelled-event refire (row 13): FIXED in tree at HEAD (`cooking_cancelled` flag skips the slot in `litServerTick`, `campfire.rs:121-126`); no h6 commit needed.
 - Cooked result spawn position (row 14): FIXED in tree at HEAD (`spawn_cooked_item` uses block centre, `y + 1.0`, `campfire.rs:374-384`).
 - Row 12 (`isSmokeyPos` obstruction probe): STILL OPEN, needs decompiled source to confirm the stop rule.
+
+
+## Result
+
+Row 12 (isSmokeyPos obstruction probe): VERIFIED, already fixed in tree, no code change. Decompiled CampfireBlock.isSmokeyPos (CampfireBlock.java:268-284) stops at the first collision shape crossing the 0.375..0.625 virtual post, then returns isLitCampfire(posToCheck.below()), i.e. only the single cell directly below the blocker. Rust is_smokey_pos_from (block/blocks/campfire.rs:63-76) does exactly this via state_at(dy + 1).0, and is_smokey_pos derives blocks_smoke from the same post intersection. The existing pure test smoke_scans_five_cells_and_stops_at_a_blocker (:261) already asserts lit-under-blocker true and unlit-under-blocker false, so no new test was needed.
+
+Reviewed but not in the STILL OPEN set (no change made):
+- Remaining gaps rows 1-2 are already fixed in tree: cooking_cancelled flag skips cancelled slots (entities/campfire.rs:119-124); progress increments for every non-empty stack with a raw-stack fallback when no recipe matches (:126-128, 162, 178-179), matching CampfireBlockEntity.cookTick.
+- Row 3 (cooked result count split) left open: latent, no current campfire recipe yields more than one result; splitting into vanilla random 10-30 chunks adds complexity for no observable gain.
+- Vanilla passes the origin pos (not posToCheck) to getCollisionShape; Rust passes check_pos. Kept as-is: static collision shapes are position-independent and using the actual cell is correct, so this vanilla quirk is not worth copying.

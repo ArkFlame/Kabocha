@@ -70,3 +70,31 @@ Already covered (verified, no action):
 4. STILL OPEN - ordering only, identical visible result; not touched this pass.
 5. STILL OPEN - occupancy still read from blockstate; needs block-entity stack read, deferred (S, not attempted).
 6. STILL OPEN - gametest not written (M, needs pumpkin-gametest world harness).
+
+## Result
+
+Verification: decompiled ChiseledBookshelf source is not present in `.vendor/`; reviewed
+against the 1.21 class behaviour recorded in this doc plus Pumpkin's dispatch path
+(`net/java/play/use_item_on.rs:239`: `PassToDefaultBlockAction` -> `normal_use`), which
+confirms the `TRY_WITH_EMPTY_HAND` mapping. No build run (worker mandate).
+
+4. FIXED - `use_with_item` now resolves the hit slot and checks the block-entity
+   stack before the bookshelf-books tag, returning `PassToDefaultBlockAction`
+   for an occupied slot regardless of held item (vanilla TRY_WITH_EMPTY_HAND),
+   and `Pass` for a non-book on an empty slot. UNVERIFIED (no build).
+5. FIXED - occupancy is now read from the block-entity stack via new
+   `ChiseledBookshelfBlockEntity::has_book(slot)` in both `normal_use` and
+   `use_with_item` (blockstate flags are render hints only, can disagree after
+   /setblock). `try_remove_book` returns false -> `Pass` (no pickup sound, no
+   `last_interacted_slot`/comparator change) when the stack is empty, matching
+   vanilla's `removeBook`->empty->PASS. Removed the now-unused `is_slot_used`.
+   UNVERIFIED (no build).
+6. PARTIALLY ADDRESSED - full insert/remove/comparator gametest still needs the
+   `pumpkin-gametest` world harness (test file outside this unit's allowed files).
+   Added the smallest pure unit tests at the available seam in
+   `entities/chiseled_bookshelf.rs`: `has_book` tracks slot contents, respects
+   `amount == 0`, and is false for out-of-range slots. UNVERIFIED (no build).
+
+Files touched: `crates/pumpkin-core/src/block/blocks/chiseled_bookshelf.rs`,
+`crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs` (both rustfmt'd).
+`hopper.rs` unchanged: no STILL OPEN row implicates it; its `remove_stack_specific(slot, 1)` call is correct.

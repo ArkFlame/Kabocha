@@ -29,3 +29,13 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 
 - FIXED (943af6183): skeleton registers FleeSunGoal at priority 3.
 - STILL OPEN: RestrictSunGoal at priority 2 (TODO in skeleton/mod.rs), pathfinding malus for lava and per-species attack intervals.
+
+## Result
+
+Re-audit against .vendor/vanilla-decompiled/net/minecraft/ (1.21.x), smallest rows first. No source file needed editing: the baseline already matches vanilla on every row inside this unit's scope.
+
+- Row 2 (RestrictSunGoal): VERIFIED FIXED, no change. Decompiled RestrictSunGoal.java:16-32 canUse = isBrightOutside() && HEAD.isEmpty() && hasGroundPathNavigation; start/stop toggle setAvoidSun(true/false). restrict_sun.rs already calls navigator().set_avoid_sun(true/false) in start/stop and can_start = is_bright_outside() && !sun_burn::is_protected (protection slot defaults to HEAD, mob/mod.rs:1759), i.e. bright + empty head; ground navigation is implicit for skeletons. Vanilla has no target/isDay check despite the tracker note. The flag is real: pathfinder/mod.rs:1090 truncates sunlit path nodes when avoid_sun is set. Registration at priority 2 is present (mod.rs:73). Native avoid-sun flag and mod.rs registration were already in place, so no cross-crate work remained.
+- Row 3 (Parched attack interval): VERIFIED FIXED, no change. Decompiled Parched.java:56-64 overrides getHardAttackInterval()=50 and getAttackInterval()=70. parched.rs:59-66 returns Some(50) on Hard / Some(70) otherwise, and bow_attack.rs:272 consumes get_min_attack_interval() (default None, mod.rs:2432), so the override is live. The docs/VANILLA_REF.md omission that seeded this row was wrong.
+- Row 4 (lava pathfinding malus): LEFT OPEN, out of scope. Requires a per-mob path-type malus API plus a constructor edit in mod.rs, neither of which is a file in this unit (bogged.rs/parched.rs/restrict_sun.rs). Premise also does not hold for this mob: decompiled AbstractSkeleton.java:71-74 constructor has no setPathfindingMalus call; the LAVA 8.0F malus is in WitherSkeleton.java:34, not AbstractSkeleton.
+
+No pure unit-test seam exists for these one-line goal/interval behaviours without constructing a full Mob/world, so none was added. No .rs file touched, no rustfmt run.

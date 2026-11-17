@@ -39,3 +39,23 @@ Cake needs no special case: `panda_eats_from_ground` already contains `cake`
 Eating item particles (`Panda.addEatingParticles`) and the sneeze particle are not sent as
 entities or packets; the synced `EAT_COUNTER`/`SNEEZE_COUNTER` are assumed to drive the vanilla
 client animation. Needs a client to confirm, no server behaviour change.
+
+## Result
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java`
+(`doHurtTarget`/`playAttackSound` 324-335, `handleRoll` 485-504, `afterSneeze` 506-526,
+`setGeneFromParents` 566-590, `mobInteract` 615-664, `PandaBreedGoal.canFindBamboo` 834-852)
+and `world/level/Level.java:2447-2457` (`canHaveWeather`/`isThundering`).
+
+| # | result | detail |
+|---|--------|--------|
+| 1 | KEEP | `goals.rs::bite` calls `on_attack` (PANDA_BITE) only when `try_attack` returns `damaged`, matching vanilla `playAttackSound` from `doHurtTarget` on a damaging hit. |
+| 2 | CORRECTED | The doc's memory-only reading was wrong: vanilla `handleRoll` sets `(0, onGround ? 0.27 : movement.y, 0)` on hops 7/15/23. `roll.rs::roll_velocity` now zeroes the horizontal push on hops; `a_rolling_panda_pushes_hops_and_stops_after_thirty_two_steps` updated for both the direct case and the 32-step loop. |
+| 3 | KEEP | Vanilla's ring loops (radius 0..7, yOff 0..2) enumerate exactly the same 225 cells as Rust's `-7..=7` square (checked by enumeration); the "bamboo at exactly 7 blocks is Rust-only" claim was wrong. |
+| 4 | ALREADY FIXED | `genes_from_parents` already uses two independent `if (nextInt(32) == 0)` statements, matching decompiled `setGeneFromParents:583-589`; the foal-gene test asserts independent mutations. The doc's `else if` suggestion would be wrong. |
+| 5 | ALREADY FIXED | `sit_and_eat` already gates on `can_perform_action()` plus the water check. |
+| 6 | FIXED | `thunder_scares` already gated on sky light and no ceiling; added the missing `Dimension::THE_END` exclusion from vanilla `canHaveWeather` and extended the pure `a_dimension_without_sky_light_never_thunders` test with the End case. |
+| 7 | KEEP | AI-island note only: `after_sneeze` still reads/jumps pandas within 10 blocks from the panda tick and sit/breed goals define no `tick_reach`; pandas do not override `has_audited_tick` (false by default in `Mob`), and `sneeze.rs:81-83` documents why. Audit before ever enabling it. |
+
+Files changed: `crates/pumpkin-core/src/entity/passive/panda.rs`, `crates/pumpkin-core/src/entity/passive/panda/roll.rs`.
+`rustfmt --edition 2024` run on both. No cargo run (orchestrator compiles). No generated data, WIT or cross-crate work was needed.

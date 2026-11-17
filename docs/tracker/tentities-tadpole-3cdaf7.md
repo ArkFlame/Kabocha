@@ -69,3 +69,34 @@ Re-reviewed 2026-11-17 against vanilla `net.minecraft.world.entity.animal.Tadpol
 - 2 STILL OPEN: depends on gap 1.
 - 3 STILL OPEN: RunIf combinator missing under `entity/ai/brain/behavior/`, M.
 - 4 STILL OPEN: squid max air supply, S, not attempted in sweep (vanilla WaterAnimal value UNVERIFIED).
+
+## Result
+
+Re-verified every STILL OPEN row against the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled`. No code change was warranted: all three row premises are false for this
+vanilla version. No source file was touched, so no rustfmt run was needed.
+
+- Row 2 (carry tadpole variant into frog on age_up) - NO GAP, premise false. Vanilla
+  `net/minecraft/world/entity/animal/frog/Tadpole.java` has no `TadpoleVariant`, no variant synched
+  data, no `variant` NBT or bucket key; its `ageUp()` callback (lines 236-249) only calls
+  `frog.finalizeSpawn`, `frog.setPersistenceRequired`, `fudgePositionAfterSizeChange` and `playSound`.
+  No `TadpoleVariant.java` exists anywhere under `.vendor/vanilla-decompiled`. The frog variant is
+  chosen from the biome inside `Frog#finalizeSpawn` (`Frog.java:263`, `VariantUtils.selectVariantToSpawn`),
+  which Pumpkin already does (`frog.rs:146-148`). Left open: it depends on BLOCKED-DATA gap 1, whose
+  tracked data does not exist (`tracked_data.rs:17973+` has no tadpole variant); generating it needs
+  an Extractor entry and codegen, and `crates/pumpkin-data/src/generated` must not be hand-edited.
+- Row 3 (RunIf + RandomLookAround gate) - NO GAP, premise false. Vanilla
+  `net/minecraft/world/entity/animal/frog/TadpoleAi.java:64` uses
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a no-op, exactly matching Pumpkin's
+  `trigger_if(... is_in_water)` at `tadpole/ai.rs:85-90`. There is no `RandomLookAround` or `RunIf`
+  in the tadpole brain in this version. Left open also because the proposed fix needs files outside
+  this unit: a new `run_if.rs` under `entity/ai/brain/behavior/` and edits to `tadpole/ai.rs`,
+  `frog/ai.rs` and `axolotl/ai.rs` (basename `ai.rs` is not an allowed file for this unit).
+- Row 4 (squid max air supply) - NO GAP, premise false. Vanilla
+  `net/minecraft/world/entity/animal/AgeableWaterCreature.java:37-47` `handleAirSupply` refills to
+  `300`, and squid does not override `getMaxAirSupply`; Pumpkin's default
+  `Mob::mob_max_air_supply` is `MAX_AIR = 300` (`mob/mod.rs:2078-2080`). `ageable_water_creature.rs:16-26`
+  passes `MAX_AIR = 300`, which is correct. The 4800 value is Dolphin-only (`Dolphin.java:78`
+  `TOTAL_AIR_SUPPLY = 4800`), already handled in `dolphin.rs:342-347`. Current
+  `water_animal.rs:10` and `abstract_fish.rs:303-306` use `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, matching
+  vanilla, so the "Fixed in this pass" note claiming 4800 is stale and must not be re-applied.

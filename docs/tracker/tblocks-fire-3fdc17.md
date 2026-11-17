@@ -88,3 +88,35 @@ Tracker note: the reviewed source changed after that audit. Two commits touched
 
 ## Status (code-verified sweep)
 FIXED: fire tick delay is 30 + rand(0..10) (block/blocks/fire/fire.rs:33-34). STILL OPEN: getStateForPosition shape and canSurvive neighbour rule not re-read.
+
+
+## Result
+
+Re-review against `.vendor/vanilla-decompiled/.../FireBlock.java` + `BaseFireBlock.java`.
+
+- STILL OPEN "canSurvive neighbour rule": FIXED. `FireBlock::is_flammable` (fire.rs:37)
+  used `burn_chance` (vanilla burnOdds, only used by checkBurnOut). Vanilla `canBurn`
+  uses ignite odds (`spread_chance`, the field the spread loop already reads). Switched
+  to `spread_chance`. No current data has one field zero and the other nonzero, so no
+  behaviour change today, but it now matches vanilla semantics exactly.
+- Gap 1 (age >= 15 gate): already resolved. Current fire.rs has no such gate; the
+  age==15 extinguish chance at fire.rs:321-328 matches vanilla `FireBlock.tick:181`.
+- Gap 2 (spread odds / rain): FIXED. Decompiled `FireBlock.tick:216` gates the spread
+  loop on `isNearRain(testPos)` (5 columns), but the prior re-review had replaced it
+  with single-column `is_raining_at`. Restored `Self::is_near_rain`. The
+  `!isRaining() ||` term in vanilla is redundant because is_raining_at already
+  short-circuits when it is not raining globally. Waterlogged flammable neighbours
+  are still excluded by the existing fluid skip.
+- Gap 3 (getStateForPosition shape): verified matching, no change. `is_side_solid(Up)`
+  is documented in pumpkin-data as Java `isFaceSturdy`; vanilla `getStateForPlacement`
+  uses `isFaceSturdy(UP)`, not `isFaceFull`. The doc's isFaceFull concern does not
+  apply to this version.
+- STILL OPEN "getStateForPosition shape": verified matching (see Gap 3), no change.
+- Gap 4 (TNT replace ordering): left open. Net effect matches vanilla and it is low
+  value; changing it needs TNTBlock, a file outside this unit.
+- Gap 5 (fire tick timer, mod.rs): left open. mod.rs is outside this unit's files.
+- Gap 6 (can_place_at portal variant, mod.rs): left open. mod.rs is outside this unit's files.
+- Suspicion (fire_spread_radius_around_player sentinel): left open, no code seam to
+  verify without a runtime test; behaviour is a Pumpkin-only gamerule.
+
+Files touched: crates/pumpkin-core/src/block/blocks/fire/fire.rs (rustfmt --edition 2024 OK).

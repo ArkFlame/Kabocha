@@ -47,3 +47,27 @@ matches vanilla apart from the rows above. No test added: this pass is not allow
 
 ## Status (code-verified sweep)
 FIXED: block entity tick re-syncs state every 20 ticks (block/entities/creaking_heart.rs tick); awake heart with a player in 32 blocks spawns a bound creaking (try_spawn_creaking); is_protector requires a bound UUID (no fallback). UNVERIFIED: spawn distance 32 and free-spot search are from memory. STILL OPEN: idle heartbeat, teardown of bound creaking when heart goes uprooted, break sound routing.
+
+## Result
+
+- idle heartbeat (Sound::BlockCreakingHeartIdle): VERIFIED, no code change. Decompiled
+  net/minecraft/world/level/block/CreakingHeartBlock.java:64-73 plays CREAKING_HEART_IDLE only from
+  animateTick (client-side), with 1-in-16 chance, CREAKING_ACTIVE true, state != UPROOTED and
+  isSurroundedByLogs. No server tick path exists. Per Kabocha rule client-only sounds are noted and
+  skipped, so this row is resolved by verification, not a code fix.
+- teardown of bound creaking when heart goes uprooted: FIXED. Decompiled
+  CreakingHeartBlockEntity.updateCreakingState (lines 140-149) uproots only when there are no
+  required logs AND creakingInfo == null; a bound heart stays awake/dormant so its protector is
+  never orphaned. CreakingHeartBlock::update_state now computes should_uproot(has_logs, bound)
+  from the bound creaking UUID on the block entity, so a bound heart no longer reverts to UPROOTED
+  when its logs are removed. Added pure unit test bound_heart_never_uproots_without_logs.
+- break sound routing: FIXED. Decompiled CreakingHeartBlock.java has no break-sound override
+  (playerWillDestroy only awards XP). Pumpkin already plays the break sound client-side from the
+  block SoundType (generated break_sound = BlockCreakingHeartBreak, broadcast via the
+  ParticlesDestroyBlock world event where Java predicts its own break effect), so the old
+  block/blocks/creaking_heart.rs broken() play_sound(BlockCreakingHeartBreak) double-played. Removed
+  it; the XP-drop logic in broken() is unchanged.
+
+Verification: rustfmt --edition 2024 run on the touched .rs file (passed). Cargo/git deliberately not
+run per worker contract, so compile/test result is UNVERIFIED. No generated data, WIT, cross-crate or
+out-of-unit files were touched. All prior STILL OPEN rows are resolved; open = 0.

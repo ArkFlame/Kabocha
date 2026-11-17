@@ -57,3 +57,22 @@ No decompiled vanilla tree is vendored in this worktree; comparison is against
 - Gap 3 (GuardianMoveControl): STILL OPEN. M, needs custom move control.
 - Gap 5 (elder effect broadness): STILL OPEN. Low impact; packet spam only.
 - Gap 6 (fluid push): STILL OPEN. UNVERIFIED, no vanilla source to confirm.
+
+## Result (2026-11-17, verified against vendored decompiled vanilla)
+- Gap 6 (fluid push): FIXED by removing the incorrect override. Vanilla `Guardian` does not
+  override `isPushedByFluid()`; `Entity` returns `true` and the `Mob` trait default in Pumpkin is
+  also `true`. Removed `mob_is_pushed_by_fluids -> false` from guardian.rs and elder_guardian.rs.
+- Gap 2 (water travel): FIXED. Both entities now override `travel_in_water` with vanilla
+  `Guardian#travelInWater`: `moveRelative(0.1)`, move SELF, uniform 0.9 drag, and a -0.005 y sink
+  only while not moving and with no target. Constants are shared from guardian.rs.
+- Gap 5 (elder effect broadness): FIXED. The effect loop now skips creative/spectator players and
+  reapplies only when the held mining fatigue is weaker or ends within 1200 ticks, matching vanilla
+  `MobEffectUtil.addEffectToPlayersAround`. The game-event amplitude now comes from `is_silent()`
+  instead of `rand::random`. Added a pure unit test for the reapply predicate.
+- Gap 3 (GuardianMoveControl): PARTIAL. The wave push, speed lerp and moving flag were already
+  present for guardians; added a `new` constructor, installed the same move control on elder
+  guardians, and wired its moving flag into elder thorns reflection and the travel sink. The
+  remaining look-at update is still OPEN: it needs `LookControl::isLookingAtTarget` plus a wanted
+  position getter in `entity/ai/control/look_control.rs`, outside this unit.
+- Gap 1 (beam attack): STILL OPEN. Needs a new goal file, a synced attack-target metadata index,
+  INDIRECT_MAGIC damage wiring and cancel-on-hurt clearing; all outside this unit.

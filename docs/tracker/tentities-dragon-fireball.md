@@ -49,3 +49,36 @@ Client-only / not testable headless: particle appearance of the cloud (`Particle
 
 ## h6 pass 2 status
 - Rows 1-6 (S): STILL OPEN, not attempted this pass. Cloud wait time, potion amplifier, radius-per-tick timing, radius_on_use, direct-hit damage and nearest-target filter all need decompiled DragonFireball/AreaEffectCloud confirmation before a change; numerics from memory are not reliable enough to land.
+
+## Result
+
+Re-review against decompiled vanilla under .vendor/vanilla-decompiled/net/minecraft/ (now vendored).
+
+- Row 1 (cloud wait time) - FIXED. DragonFireball.onHit never calls setWaitTime
+  (hurtingprojectile/DragonFireball.java:31-64); AreaEffectCloud.waitTime defaults to 20
+  (world/entity/AreaEffectCloud.java:53). Pumpkin's create_dragon_breath used 10, making the
+  cloud active 10 ticks too early. Changed area_effect_cloud.rs:157 to Mutex::new(20) and replaced
+  the misleading Potions.HARMING / 10-tick comment.
+- Row 2 (potion amplifier) - no change. Vanilla uses new MobEffectInstance(INSTANT_DAMAGE, 1, 1)
+  (DragonFireball.java:46): amplifier 1, not 0. Pumpkin already stores amplifier 1. The doc's
+  Potions.HARMING amplifier-0 premise does not apply to this class. The separate sitting-flame
+  cloud uses new MobEffectInstance(INSTANT_DAMAGE)
+  (boss/enderdragon/phases/DragonSittingFlamingPhase.java:89), amplifier 0, so sit_breathing.rs
+  storing 0 is also correct. Both match vanilla.
+- Row 3 (radius per tick timing) - no change. Vanilla grows radius only inside if (!shouldWait)
+  (AreaEffectCloud.java:205-220), i.e. after the wait period. Pumpkin's if age < wait_time return
+  (area_effect_cloud.rs:303) matches. Doc premise was inverted.
+- Row 4 (radius on use) - no change. Vanilla DragonFireball never calls setRadiusOnUse, so the
+  default 0.0 applies (AreaEffectCloud.java:56); Pumpkin uses 0.0 (area_effect_cloud.rs:155).
+- Row 5 (direct-hit damage) - no change. Projectile.onHitEntity is empty
+  (projectile/Projectile.java:525-526) and neither AbstractHurtingProjectile nor DragonFireball
+  overrides it, so a direct hit deals no damage; the cloud's INSTANT_DAMAGE is the only damage.
+  Pumpkin matches. Doc's 'inherits the 6.0 fireball damage' premise is false.
+- Row 6 (nearest-target filter) - no change. Vanilla loops getEntitiesOfClass(LivingEntity.class, box)
+  and picks the first entity with dist < 16.0 (DragonFireball.java:47-55), no spectator/alive filter.
+  Pumpkin (dragon_fireball.rs:134-145) filters only on get_living_entity() and breaks on the first
+  in-range candidate. Already matching.
+
+Files touched: crates/pumpkin-core/src/entity/area_effect_cloud.rs only. No pure unit-test seam:
+create_dragon_breath requires a live Entity/World, and a bare constant assertion would be a
+discouraged constant-mirroring test. rustfmt --edition 2024 run on the touched file (exit 0).

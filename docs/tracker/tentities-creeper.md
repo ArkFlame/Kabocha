@@ -35,3 +35,14 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - 5 swell direction Bedrock metadata: FIXED (creeper.rs:99-106)
 - 6 readAdditionalSaveData sync: FIXED (no gap per creeper-0de8b3 row 6)
 - 7 charged_creeper/root loot table: BLOCKED-DATA (no loot_table JSON in assets/)
+
+## Result
+
+Re-review against the decompiled tree now present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` (Paper 1.21.x). No source edits were required to `creeper.rs` or `creeper_ignite.rs`.
+
+- Row 4 (spawnLingeringCloud cloud params): NO GAP. Vanilla calls `setRadius(2.5F)`, `setRadiusOnUse(-0.5F)`, `setWaitTime(10)`, `setDuration(300)`, `setPotionDurationScale(0.25F)`, `setRadiusPerTick(-radius/duration)`. The tracker's `setDuration(600)` claim is incorrect. `creeper.rs:154-165` already passes duration 300, radius 2.5, reapplication delay 20 (vanilla default), wait 10, radius-on-use -0.5, duration-on-use 0 (vanilla default); `AreaEffectCloudEntity::create` computes radius-on-tick as -2.5/300 and hardcodes potion scale 0.25. Matches vanilla.
+- Row 6 (readAdditionalSaveData sync): NO GAP. Vanilla writes `DATA_IS_POWERED`/`DATA_IS_IGNITED` straight into synced data on load. Pumpkin stores atomics in `mob_read_nbt`; the spawn path `java_spawn_metadata` -> `mob_java_spawn_metadata` -> `mob_metadata()` serialises charged/ignited/fuse_speed from those atomics (`MobMetadata::charged/ignited/fuse_speed` push Java entries CHARGED/IS_IGNITED/FUSE_ID plus Bedrock flags). Same observable behavior; the seam is already unit-tested in `entity/mob/metadata.rs`.
+- Row 7 (charged_creeper/root loot table): RESOLVED BY DATA. `assets/datapack/data/minecraft/loot_table/charged_creeper/root.json` is now shipped and registered in generated `pumpkin-data/src/generated/loot_table.rs` as `charged_creeper/root`. `killed_entity` calls `world.get_loot_table("minecraft:charged_creeper/root")`, which resolves via the static table. Assets are outside this unit, so no edit was possible or needed.
+- No new unit test: the inline cloud parameters have no pure seam, and the creeper metadata seam is already covered by an existing test. No `.rs` file was touched, so no rustfmt run.
+
+Observation (out of scope, not changed): the same decompiled class gates charged-creeper heads behind `this.droppedSkulls` (one head per explosion), while the row 2 change on master removed that gate. Flagging only; row 2 is outside the STILL OPEN set for this unit.

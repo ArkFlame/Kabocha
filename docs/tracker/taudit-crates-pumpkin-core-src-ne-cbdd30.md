@@ -66,3 +66,42 @@ Re-audit 2026-11-17: no remaining gap in this file is both small and certain. Al
 
 ## Gap status
 - Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+
+## Result
+
+Re-audit 2026-11-17 (second pass). Fixed 2, left open 4.
+
+### 2. Server-full checked before ban/whitelist, and twice (M) - FIXED (pre-auth half)
+- Removed the early max-players kick from login/login_start.rs. Vanilla runs
+  PlayerList#canPlayerLogin (ban -> whitelist -> ip-ban -> full) only after authentication,
+  so a banned or non-whitelisted client no longer sees "server full" first.
+- The limit is still enforced once per join in Server::join_rejection (server/mod.rs:1345-1355),
+  which runs after net::can_not_join, so the effective order now matches vanilla.
+- The duplicate copy is gone; no early pre-auth count check remains.
+
+### 3. No op bypass for the player limit (S) - OPEN, outside this unit
+- Bypass belongs in Server::join_rejection (crates/pumpkin-core/src/server/mod.rs), which this
+  unit may not edit. Pumpkin's max_players = 0 unlimited extension also needs a decision there.
+
+### 4. Ban date has no timezone name (S, cosmetic) - OPEN, outside this unit
+- net/mod.rs FORMAT_DESCRIPTION; needs a tz-aware format in can_not_join.
+
+### 5. PlayerConfig defaults differ from ServerPlayer (S) - OPEN, outside this unit
+- net/mod.rs PlayerConfig::default plus the server view distance seed at profile creation.
+
+### 6. try_enqueue_spawn_packet is not fallible (S, internal) - OPEN, outside this unit
+- net/mod.rs; no vanilla counterpart, no caller needs the signal.
+
+### Extra findings in the granted move_vehicle.rs (both fixed)
+- Invalid-movement kick used multiplayer.disconnect.invalid_player_movement; vanilla
+  ServerGamePacketListenerImpl#handleMoveVehicle disconnects with
+  multiplayer.disconnect.invalid_vehicle_movement. Fixed.
+- Vehicle yaw/pitch were passed to Entity#set_rotation raw; vanilla wraps both with
+  Mth.wrapDegrees before Entity#absSnapTo (set_rotation only takes the modulo, so 270 stayed
+  270 instead of -90). Now wrapped once into target_yaw/target_pitch and reused for the
+  correction packet.
+
+No pure unit test seam exists for either move_vehicle change (both need a JavaClient and an
+entity); login_start change is a deletion of an early check covered by join_rejection.
+
+No cargo/git run (forbidden for this worker): UNVERIFIED.
