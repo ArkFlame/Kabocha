@@ -23,6 +23,63 @@ impl ChunkLightExt for CLightUpdate {
     }
 }
 
+/// Builds a light update that only carries `sections` (indices into the chunk
+/// light arrays). Vanilla sends just the sections whose light changed, so the
+/// client keeps its existing data for every section not listed.
+pub fn light_update_for_sections(
+    chunk: &ChunkData,
+    version: JavaMinecraftVersion,
+    sections: &[usize],
+) -> Result<CLightUpdate, WritingError> {
+    if version < JavaMinecraftVersion::V_1_18 {
+        return CLightUpdate::from_chunk(chunk, version);
+    }
+
+    let light_engine = chunk
+        .light_engine
+        .lock()
+        .map_err(|_| WritingError::Message("light_engine lock poisoned".into()))?;
+
+    let mut sky_light_mask = 0u64;
+    let mut block_light_mask = 0u64;
+    let mut sky_light_empty_mask = 0u64;
+    let mut block_light_empty_mask = 0u64;
+    let mut sky_light_arrays = Vec::new();
+    let mut block_light_arrays = Vec::new();
+
+    for &section_index in sections {
+        let bit_index = section_index + 1;
+        push_section(
+            light_engine.sky_light.get(section_index),
+            bit_index,
+            &mut sky_light_mask,
+            &mut sky_light_empty_mask,
+            &mut sky_light_arrays,
+        );
+        push_section(
+            light_engine.block_light.get(section_index),
+            bit_index,
+            &mut block_light_mask,
+            &mut block_light_empty_mask,
+            &mut block_light_arrays,
+        );
+    }
+
+    Ok(CLightUpdate {
+        chunk_x: VarInt(chunk.x),
+        chunk_z: VarInt(chunk.z),
+        light_data: LightData {
+            trust_edges: true,
+            sky_light_mask: BitSet::from_u64(sky_light_mask),
+            block_light_mask: BitSet::from_u64(block_light_mask),
+            empty_sky_light_mask: BitSet::from_u64(sky_light_empty_mask),
+            empty_block_light_mask: BitSet::from_u64(block_light_empty_mask),
+            sky_light_arrays,
+            block_light_arrays,
+        },
+    })
+}
+
 /// Adds one section to the light masks, sending a uniform non-zero section as a full array.
 fn push_section(
     container: Option<&LightContainer>,

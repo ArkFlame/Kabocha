@@ -117,6 +117,7 @@ use pumpkin_protocol::java::client::play::{
 use pumpkin_protocol::java::client::play::{
     CPlayerSpawnPosition, CRecipeBookAdd, CRecipeBookSettings, CSystemChatMessage,
 };
+use crate::net::java::chunk_data::light_update_for_sections;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata, ParticleOptions};
 use pumpkin_protocol::{
     BClientPacket, ClientPacket, IdOr, SoundEvent,
@@ -334,6 +335,9 @@ pub struct World {
     synced_block_event_queue: std::sync::Mutex<Vec<BlockEvent>>,
     /// A map of unsent block changes, keyed by block position.
     unsent_block_changes: std::sync::Mutex<HashMap<BlockPos, BlockStateId>>,
+    /// Light sections a block change dirtied, keyed by chunk position (bit mask of
+    /// section indices), like vanilla's `ChunkHolder` light section filters.
+    unsent_light_sections: std::sync::Mutex<HashMap<Vector2<i32>, u64>>,
     /// Persisted vanilla POI storage for portal and villager lookups.
     pub portal_poi: std::sync::Mutex<portal::PortalPoiStorage>,
     poi_chunk_receiver: std::sync::Mutex<Receiver<(ChunkPos, Weak<ChunkData>)>>,
@@ -604,6 +608,7 @@ impl World {
             min_y: i32::from(generation_settings.shape.min_y),
             synced_block_event_queue: std::sync::Mutex::new(Vec::new()),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
+            unsent_light_sections: std::sync::Mutex::new(HashMap::new()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             poi_chunk_receiver: std::sync::Mutex::new(poi_chunk_receiver),
             wandering_trader_spawner: wandering_trader_spawner::WanderingTraderSpawner::default(),
@@ -2231,6 +2236,30 @@ impl World {
         self.floor_level_cache.remove(&position.up());
     }
 
+    /// Records the light sections a block change may have altered so
+    /// [`flush_block_updates`](Self::flush_block_updates) can broadcast them,
+    /// like vanilla's `ChunkHolder` sky/block light section filters.
+    fn mark_unsent_light(&self, position: BlockPos) {
+        let section_y = position.0.y.div_euclid(16);
+        let min_section = self.min_y.div_euclid(16);
+        let mut mask = 0u64;
+        for y in (section_y - 1)..=(section_y + 1) {
+            let index = y - min_section;
+            if (0..64).contains(&index) {
+                mask |= 1u64 << (index as u32);
+            }
+        }
+        if mask == 0 {
+            return;
+        }
+        let chunk_pos = Vector2::new(position.0.x >> 4, position.0.z >> 4);
+        self.unsent_light_sections
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(chunk_pos)
+            .or_insert(0) |= mask;
+    }
+
     #[expect(clippy::too_many_lines)]
     pub fn flush_block_updates(&self) {
         let mut block_state_updates_by_chunk_section: HashMap<
@@ -2383,6 +2412,27 @@ impl World {
                     }
                 }
             }
+        }
+        let light_changes = {
+            let mut guard = self
+                .unsent_light_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            std::mem::take(&mut *guard)
+        };
+        for (chunk_pos, mask) in light_changes {
+            let Some(chunk) = self.level.loaded_chunks.get(&chunk_pos) else {
+                continue;
+            };
+            let sections: Vec<usize> = (0..64u32)
+                .filter(|index| mask & (1u64 << index) != 0)
+                .map(|index| index as usize)
+                .collect();
+            let Ok(packet) = light_update_for_sections(&chunk, CURRENT_MC_VERSION, &sections)
+            else {
+                continue;
+            };
+            self.broadcast_to_chunk(chunk_pos, &packet);
         }
     }
 
@@ -6349,6 +6399,7 @@ impl World {
             self.level
                 .light_engine
                 .update_lighting_at(&self.level, *position);
+            self.mark_unsent_light(*position);
         }
 
         replaced_block_state_id
