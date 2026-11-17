@@ -12,6 +12,7 @@ port `crates/pumpkin-core/src/block/blocks/redstone/dispenser.rs` (same
   and dropped the now unreachable guard inside `spawn_item`.
 ## Remaining gaps
 ### 1. Launch sound missing for most projectile items (S)
+FIXED fix(entity): ominous spawner launch sound and spawn origin
 `ominous_item_spawner.rs:147-265` — only fireworks, fire charge and wind charge emit a
 `WorldEvent` sound. Vanilla builds every `ProjectileItem` from its `DispenseConfig` and
 plays `LevelEvent.SOUND_DISPENSER_PROJECTILE_LAUNCH` (1002) for it, so arrows, tridents,
@@ -23,6 +24,7 @@ Suggested fix: emit `WorldEvent::SoundDispenserProjectileLaunch` at
 trident, snowball, egg, potion and experience-bottle branches.
 Size: S.
 ### 2. Experience bottle uses the potion dispense config (S)
+STILL OPEN: exact vanilla ExperienceBottleItem power/uncertainty needs the decompiled class, not vendored here.
 `ominous_item_spawner.rs:246-258` — the experience bottle is thrown with
 `POTION_PROJECTILE_POWER = 1.375` / `POTION_PROJECTILE_UNCERTAINTY = 3.0`. Vanilla
 `ExperienceBottleItem.DISPENSE_CONFIG` is its own `DispenseConfig` (not the potion one);
@@ -31,18 +33,21 @@ The dispenser port also lumps it with potions (`dispenser.rs:735`), so both call
 would be fixed together.
 Size: S.
 ### 3. Particle event data flag unverified (S)
+STILL OPEN: vanilla 0 vs 1 flag cannot be confirmed without the decompiled class.
 `ominous_item_spawner.rs:123-127` sends `WorldEvent::ParticlesTrialSpawnerSpawnItem`
 (3021) with data `1`. Vanilla `OminousItemSpawner.spawnItem` passes the flag the client
 uses to pick the ominous particle tint; confirm `0` vs `1` against the decompiled class
 before touching it (the trial spawner's own item event is emitted elsewhere).
 Size: S.
 ### 4. Spawn origin uses entity position, not bounding-box center (S)
+FIXED fix(entity): ominous spawner launch sound and spawn origin
 `ominous_item_spawner.rs:111-113` spawns at `self.entity.pos`. Vanilla uses
 `this.getBoundingBox().getCenter()`; for the registered 0.25 x 0.25 hitbox these agree,
 but a height change in `pumpkin-data` would silently shift the projectile origin.
 Suggested fix: use the bounding-box center.
 Size: S.
 ### 5. Explosion immunity not traced to a vanilla override (S)
+STILL OPEN: explosion path in entity/mod.rs needs tracing against the decompiled override chain before either check changes.
 `ominous_item_spawner.rs:405-407` returns `true` from `is_immune_to_explosion`; vanilla
 expresses this through `hurt`/`isInvulnerableTo`, which the file also overrides
 (`damage_with_context -> false`). Verify the explosion path in
