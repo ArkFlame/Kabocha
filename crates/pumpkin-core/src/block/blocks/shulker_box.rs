@@ -56,6 +56,10 @@ type EndRodLikeProperties = pumpkin_data::block_properties::EndRodLikeProperties
 
 /// Vanilla `Shulker.getProgressDeltaAabb(1.0, facing, 0.0, 0.5, bottom_center)`,
 /// deflated by `1e-6`: the space the opening lid sweeps through.
+///
+/// The lid sits on the block face in `facing` while closed and moves half a
+/// block outward as it opens, so the swept volume is the half block just
+/// outside that face.
 fn lid_open_box(position: &BlockPos, facing: Facing) -> BoundingBox {
     let dir: Vector3<f64> = match facing {
         Facing::North => Vector3::new(0.0, 0.0, -1.0),
@@ -65,24 +69,32 @@ fn lid_open_box(position: &BlockPos, facing: Facing) -> BoundingBox {
         Facing::Up => Vector3::new(0.0, 1.0, 0.0),
         Facing::Down => Vector3::new(0.0, -1.0, 0.0),
     };
-    let mut min = Vector3::new(-0.5, 0.0, -0.5);
-    let mut max = Vector3::new(0.5, 1.0, 0.5);
-    // `expandTowards(dir * 0.5)` then `contract(-dir)`: the box moves half a block
-    // and shrinks to the far half of the neighbouring block.
-    min = min.add_raw(dir.x.min(0.0) * 0.5, dir.y.min(0.0) * 0.5, dir.z.min(0.0) * 0.5);
-    max = max.add_raw(dir.x.max(0.0) * 0.5, dir.y.max(0.0) * 0.5, dir.z.max(0.0) * 0.5);
-    min = min.add_raw(dir.x.max(0.0), dir.y.max(0.0), dir.z.max(0.0));
-    max = max.add_raw(dir.x.min(0.0), dir.y.min(0.0), dir.z.min(0.0));
+    // The block spans x/z -0.5..0.5 around the bottom centre and y 0..1.
+    let (x_min, x_max) = lid_axis(dir.x, -0.5, 0.5);
+    let (y_min, y_max) = lid_axis(dir.y, 0.0, 1.0);
+    let (z_min, z_max) = lid_axis(dir.z, -0.5, 0.5);
     let center = Vector3::new(
         f64::from(position.0.x) + 0.5,
         f64::from(position.0.y),
         f64::from(position.0.z) + 0.5,
     );
     BoundingBox::new(
-        min.add_raw(center.x, center.y, center.z),
-        max.add_raw(center.x, center.y, center.z),
+        Vector3::new(x_min + center.x, y_min + center.y, z_min + center.z),
+        Vector3::new(x_max + center.x, y_max + center.y, z_max + center.z),
     )
     .expand_all(-1.0e-6)
+}
+
+/// On the opening axis, the half block outside the face in `dir`; on the other
+/// axes the full block cross-section.
+fn lid_axis(dir: f64, lo: f64, hi: f64) -> (f64, f64) {
+    if dir > 0.0 {
+        (hi, hi + 0.5)
+    } else if dir < 0.0 {
+        (lo - 0.5, lo)
+    } else {
+        (lo, hi)
+    }
 }
 
 impl BlockBehaviour for ShulkerBoxBlock {
@@ -170,5 +182,13 @@ mod tests {
         let pos = BlockPos::new(0, 64, 0);
         let space = lid_open_box(&pos, Facing::Down);
         assert!(space.min.y >= 63.5 && space.max.y <= 64.0);
+    }
+
+    #[test]
+    fn lid_open_box_sweeps_the_neighbour_when_facing_east() {
+        let pos = BlockPos::new(0, 64, 0);
+        let space = lid_open_box(&pos, Facing::East);
+        assert!(space.min.x >= 1.0 && space.max.x <= 1.5);
+        assert!(space.min.y >= 64.0 && space.max.y <= 65.0);
     }
 }
