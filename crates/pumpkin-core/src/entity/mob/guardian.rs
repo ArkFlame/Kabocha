@@ -4,6 +4,7 @@ use std::sync::{Arc, Weak};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{damage::DamageType, sound::Sound};
+use pumpkin_util::GameMode;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
@@ -51,14 +52,28 @@ pub(crate) fn reflect_thorns(
         return;
     }
     let Some(cause) = cause else { return };
+    if cause
+        .get_player()
+        .is_some_and(|player| player.gamemode.load() == GameMode::Creative)
+    {
+        return;
+    }
     let cause_type = cause.get_entity().entity_type;
     if cause_type == &EntityType::GUARDIAN || cause_type == &EntityType::ELDER_GUARDIAN {
         return;
     }
+    if rand::random::<f32>() >= THORNS_CHANCE {
+        return;
+    }
     if let Some(living) = cause.get_living_entity() {
-        let _ = living.damage(guardian, 2.0, DamageType::THORNS);
+        let _ = living.damage(guardian, THORNS_DAMAGE, DamageType::THORNS);
     }
 }
+
+/// Chance that a guardian's hit reflects thorns (vanilla `Guardian#hurt` roll).
+const THORNS_CHANCE: f32 = 0.5;
+/// Thorns damage reflected by guardians.
+const THORNS_DAMAGE: f32 = 2.0;
 
 pub struct GuardianEntity {
     pub mob_entity: MobEntity,
