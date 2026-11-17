@@ -125,7 +125,7 @@ pub fn to_registry_entry(entry_id: String, instance: &TestInstance) -> RegistryE
 
     RegistryEntryData {
         entry_id,
-        data: Some(Nbt::from(nbt).write().to_vec().into_boxed_slice()),
+        data: Some(Nbt::from(nbt).write_unnamed().to_vec().into_boxed_slice()),
     }
 }
 
@@ -272,6 +272,49 @@ mod tests {
             Some("minecraft:always_pass")
         );
         assert_eq!(always_pass.structure, "minecraft:empty");
+    }
+
+    #[test]
+    fn to_registry_entry_writes_unnamed_compound_root() {
+        let instance: TestInstance = serde_json::from_str(
+            r#"{
+                "type": "minecraft:function",
+                "environment": "minecraft:default",
+                "function": "minecraft:always_pass",
+                "structure": "minecraft:empty",
+                "max_ticks": 1,
+                "max_attempts": 3,
+                "required_successes": 2,
+                "sky_access": true
+            }"#,
+        )
+        .expect("parse test instance");
+
+        let entry = to_registry_entry("minecraft:always_pass".to_string(), &instance);
+        let data = entry.data.expect("registry payload");
+
+        let mut cursor = std::io::Cursor::new(&data[..]);
+        let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+            pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+        );
+        let nbt = Nbt::read_unnamed(&mut reader)
+            .expect("vanilla sends registry entry payloads as unnamed NBT")
+            .root_tag;
+
+        assert_eq!(nbt.get_string("type"), Some("minecraft:function"));
+        assert_eq!(nbt.get_string("environment"), Some("minecraft:default"));
+        assert_eq!(nbt.get_string("function"), Some("minecraft:always_pass"));
+        assert_eq!(nbt.get_string("structure"), Some("minecraft:empty"));
+        assert_eq!(nbt.get_string("rotation"), Some("none"));
+        assert_eq!(nbt.get_int("max_ticks"), Some(1));
+        assert_eq!(nbt.get_int("max_attempts"), Some(3));
+        assert_eq!(nbt.get_int("required_successes"), Some(2));
+        assert_eq!(nbt.get_bool("required"), Some(true));
+        assert_eq!(nbt.get_bool("sky_access"), Some(true));
+        assert_eq!(nbt.get_int("padding"), Some(0));
+        // A named root would leave two extra bytes explaining the empty name, so a
+        // full read proves the payload is exactly one unnamed compound.
+        assert_eq!(cursor.position() as usize, data.len());
     }
 
     fn try_create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
