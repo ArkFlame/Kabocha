@@ -265,3 +265,7 @@ issue	4357	already-fixed	skipped	already fixed by 2a80f4024: `/setblock` fails w
 issue	4388	other	skipped	selection packet handled (bundle_item_selected.rs:25 -> screen_handler.rs:784 toggle_selected_item, vanilla AbstractContainerMenu.setSelectedBundleItemIndex) and left-click insert into slot bundle implemented (screen_handler.rs:1173-1191), both from commit aabd2fb79; covered by tests plugin/api/gui.	i4388
 issue	4130	needs-runtime	failed	Bedrock Edition report bundling 5 unrelated inventory-sync symptoms with no deterministic repro; needs a Bedrock client runtime repro and per-symptom investigation, exceeds one pass	i4420
 issue	4456	already-fixed	skipped	riptide spin flag already set+synced in living.rs:276/1123 (commit ee7d1166a), issue predates it.	i4456
+issue	3907	too-large	failed	feature request to implement the Footprint mod (entity movement tracking + particle footprints), multi-file feature, beyond one pass	i1726
+issue	1726	too-large	failed	issue is an open multi-item tracking tracker (server locale, log translations, public translation system/Crowdin, command-description translations, plugin-API custom translations, `to_translated` optimization), too large for one pass and no single concrete gap to fix.	i3833
+issue	449	other	failed	release/milestone checklist with no single code defect; version/tag/changelog untouched	i3838
+issue	3833	needs-runtime	failed	should_extend already skips the facing direction (piston.rs:313-320); verifying/diagnosing head-powering needs a live redstone repro and no vanilla source is vendored.	i4156
