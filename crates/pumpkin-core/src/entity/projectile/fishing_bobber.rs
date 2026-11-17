@@ -209,7 +209,8 @@ impl FishingBobberEntity {
                     hand,
                     rand::random_range(1..=6),
                 ) else {
-                    continue;
+                    // Vanilla retrieve aborts the whole catch when the event is cancelled.
+                    return 0;
                 };
 
                 let mut item_event =
@@ -255,7 +256,23 @@ impl FishingBobberEntity {
         }
 
         if self.entity.on_ground.load(Ordering::Relaxed) {
+            // Bukkit PlayerFishEvent: a hook at rest is the IN_GROUND outcome.
+            if self
+                .fire_fish_event(&world, PlayerFishState::InGround, None, hand, 0)
+                .is_none()
+            {
+                return 0;
+            }
             damage = 2;
+        }
+
+        // Bukkit PlayerFishEvent: reeling in with nothing caught is the REEL_IN outcome.
+        if damage == 0
+            && self
+                .fire_fish_event(&world, PlayerFishState::ReelIn, None, hand, 0)
+                .is_none()
+        {
+            return 0;
         }
 
         damage

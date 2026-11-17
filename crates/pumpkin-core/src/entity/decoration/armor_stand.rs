@@ -281,12 +281,12 @@ impl ArmorStandEntity {
 
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
     /// 0.5 or less the stand breaks, dropping itself and all equipment.
-    fn cause_damage(&self, amount: f32) {
+    fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
         let entity = self.get_entity();
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
             self.break_and_drop_items();
-            entity.remove();
+            self.kill(caller);
         } else {
             self.living_entity.health.store(new_health);
         }
@@ -355,25 +355,28 @@ impl ArmorStandEntity {
             return true;
         }
 
-        let mut item_slot = get_equipment_slot_for_item(item_stack);
-        if !item_stack.is_empty() && !self.can_use_slot(&item_slot) {
-            item_slot = EquipmentSlot::MAIN_HAND;
-        }
-
-        let clicked_slot = position.map_or(EquipmentSlot::MAIN_HAND, |position| {
-            self.get_clicked_slot(position)
-        });
+        let item_slot = get_equipment_slot_for_item(item_stack);
         let slot = if item_stack.is_empty() {
-            &clicked_slot
+            // Vanilla: a disabled clicked slot falls back to the item's own slot,
+            // which for an empty hand is the main hand.
+            let clicked_slot = position.map_or(EquipmentSlot::MAIN_HAND, |position| {
+                self.get_clicked_slot(position)
+            });
+            if self.is_slot_disabled(&clicked_slot) {
+                item_slot
+            } else {
+                clicked_slot
+            }
         } else {
-            &item_slot
+            // Vanilla fails outright when the item's slot cannot be used; it never
+            // redirects to the main hand.
+            if !self.can_use_slot(&item_slot) {
+                return false;
+            }
+            item_slot
         };
 
-        if !self.can_use_slot(slot) {
-            return false;
-        }
-
-        self.swap_item(player, slot, item_stack)
+        self.swap_item(player, &slot, item_stack)
     }
 
     const fn slot_bit(slot: &EquipmentSlot, offset: i32) -> i32 {
@@ -452,6 +455,29 @@ fn clicked_slot(
     slot
 }
 
+impl ArmorStandEntity {
+    /// Vanilla `ArmorStand/readAdditionalSaveData`: rebuild the client flag byte.
+    /// `NoBasePlate` is stored negated, so only `true` sets the hide flag.
+    fn read_flags(nbt: &NbtCompound) -> u8 {
+        let mut flags = 0u8;
+
+        if nbt.get_bool("Small") == Some(true) {
+            flags |= ArmorStandFlags::Small as u8;
+        }
+        if nbt.get_bool("ShowArms") == Some(true) {
+            flags |= ArmorStandFlags::ShowArms as u8;
+        }
+        if nbt.get_bool("NoBasePlate") == Some(true) {
+            flags |= ArmorStandFlags::HideBasePlate as u8;
+        }
+        if nbt.get_bool("Marker") == Some(true) {
+            flags |= ArmorStandFlags::Marker as u8;
+        }
+
+        flags
+    }
+}
+
 impl EntityBase for ArmorStandEntity {
     fn can_hit(&self) -> bool {
         !self.get_entity().is_removed() && !self.is_marker()
@@ -459,6 +485,11 @@ impl EntityBase for ArmorStandEntity {
 
     fn can_be_seen_by_anyone(&self) -> bool {
         !self.is_invisible() && !self.is_marker()
+    }
+
+    /// Vanilla `ArmorStand.isIgnoringBlockTriggers`: markers never trip blocks.
+    fn is_ignoring_block_triggers(&self) -> bool {
+        self.is_marker()
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
@@ -477,42 +508,18 @@ impl EntityBase for ArmorStandEntity {
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
-        let mut flags = 0u8;
-
         if let Some(invisible) = nbt.get_bool("Invisible")
             && invisible
         {
             self.get_entity().set_invisible(invisible);
         }
 
-        if let Some(small) = nbt.get_bool("Small")
-            && small
-        {
-            flags |= ArmorStandFlags::Small as u8;
-        }
-
-        if let Some(show_arms) = nbt.get_bool("ShowArms")
-            && show_arms
-        {
-            flags |= ArmorStandFlags::ShowArms as u8;
-        }
-
         if let Some(disabled_slots) = nbt.get_int("DisabledSlots") {
             self.disabled_slots.store(disabled_slots, Ordering::Relaxed);
         }
 
-        // Vanilla `NoBasePlate` is true only when the plate is hidden.
-        if nbt.get_bool("NoBasePlate").unwrap_or(false) {
-            flags |= ArmorStandFlags::HideBasePlate as u8;
-        }
-
-        if let Some(marker) = nbt.get_bool("Marker")
-            && marker
-        {
-            flags |= ArmorStandFlags::Marker as u8;
-        }
-
-        self.armor_stand_flags.store(flags, Ordering::Relaxed);
+        self.armor_stand_flags
+            .store(Self::read_flags(nbt), Ordering::Relaxed);
         self.update_dimensions();
 
         if let Some(pose_tag) = nbt.get("Pose") {
@@ -529,18 +536,16 @@ impl EntityBase for ArmorStandEntity {
         Some(&self.living_entity)
     }
 
-    fn kill(&self, _caller: &dyn EntityBase) {
-        let entity = self.get_entity();
-        entity.remove();
-        entity
-            .world
-            .load()
-            .emit_game_event(GameEvent::EntityDie.name(), entity.pos.load());
+    fn kill(&self, caller: &dyn EntityBase) {
+        self.get_entity().remove();
+        // Vanilla `ArmorStand.kill`: removal followed by the death game event.
+        self.get_entity()
+            .emit_own_game_event(caller, GameEvent::EntityDie);
     }
 
     fn damage_with_context(
         &self,
-        _caller: &dyn EntityBase,
+        caller: &dyn EntityBase,
         _amount: f32,
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
@@ -569,7 +574,7 @@ impl EntityBase for ArmorStandEntity {
         }
 
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY) {
-            entity.remove();
+            self.kill(caller);
             return false;
         }
 
@@ -580,14 +585,14 @@ impl EntityBase for ArmorStandEntity {
 
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION) {
             self.broken_by_anything();
-            entity.remove();
+            self.kill(caller);
             return false;
         }
 
         // Mirrors vanilla IGNITES_ARMOR_STANDS: ignite once, then burn health down.
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IGNITES_ARMOR_STANDS) {
             if entity.fire_ticks.load(Ordering::Relaxed) > 0 {
-                self.cause_damage(0.15);
+                self.cause_damage(self, 0.15);
             } else {
                 self.set_on_fire_for(5.0);
             }
@@ -597,7 +602,7 @@ impl EntityBase for ArmorStandEntity {
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BURNS_ARMOR_STANDS)
             && self.living_entity.health.load() > 0.5
         {
-            self.cause_damage(4.0);
+            self.cause_damage(self, 4.0);
             return false;
         }
 
@@ -620,8 +625,13 @@ impl EntityBase for ArmorStandEntity {
             {
                 return false;
             } else if player.is_creative() {
+                world.play_sound(
+                    Sound::EntityArmorStandBreak,
+                    SoundCategory::Neutral,
+                    &entity.pos.load(),
+                );
                 Self::spawn_break_particles(entity);
-                entity.remove();
+                self.kill(caller);
                 return true;
             }
         }
@@ -633,19 +643,17 @@ impl EntityBase for ArmorStandEntity {
             .query_gametime();
 
         if time - self.last_hit_time.load(Ordering::Relaxed) > 5 && !always_kills {
+            // Vanilla broadcasts the wobble event; clients play `ARMOR_STAND_HIT`
+            // themselves from `handleEntityEvent`, so the server only emits the
+            // damage game event.
             world.send_entity_status(entity, EntityStatus::ArmorstandWobble, ActorEventID::None);
-            world.play_sound_fine(
-                Sound::EntityArmorStandHit,
-                SoundCategory::Neutral,
-                &entity.block_pos.load().to_f64(),
-                0.3,
-                1.0,
-            );
+            entity.emit_own_game_event(caller, GameEvent::EntityDamage);
             self.last_hit_time.store(time, Ordering::Relaxed);
         } else {
             Self::spawn_break_particles(entity);
+            // `broken_by_anything` already plays the break sound.
             self.break_and_drop_items();
-            entity.remove();
+            self.kill(caller);
         }
 
         true
@@ -756,6 +764,24 @@ mod tests {
         let mut empty_hand = ItemStack::EMPTY.clone();
         assert!(swap_item_stacks(&stand_stack, &mut empty_hand, false, false, true).is_none());
         assert!(empty_hand.is_empty());
+    }
+
+    #[test]
+    fn read_flags_keeps_the_base_plate_unless_no_base_plate_is_true() {
+        let mut nbt = NbtCompound::new();
+        assert_eq!(ArmorStandEntity::read_flags(&nbt) & 8, 0);
+
+        nbt.put_bool("NoBasePlate", false);
+        assert_eq!(ArmorStandEntity::read_flags(&nbt) & 8, 0);
+
+        nbt.put_bool("NoBasePlate", true);
+        nbt.put_bool("Small", true);
+        nbt.put_bool("Marker", true);
+        let flags = ArmorStandEntity::read_flags(&nbt);
+        assert_eq!(flags & 8, ArmorStandFlags::HideBasePlate as u8);
+        assert_eq!(flags & 1, ArmorStandFlags::Small as u8);
+        assert_eq!(flags & 16, ArmorStandFlags::Marker as u8);
+        assert_eq!(flags & 4, 0);
     }
 
     #[test]

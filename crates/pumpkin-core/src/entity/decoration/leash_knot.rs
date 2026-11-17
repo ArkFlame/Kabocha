@@ -101,6 +101,7 @@ impl EntityBase for LeashKnotEntity {
             let search_box = BoundingBox::of_size(pos, 32.0, 32.0, 32.0);
             let entities = world.get_entities_at_box(&search_box);
 
+            let drop_lead = world.level_info.load().game_rules.entity_drops;
             let mut retained_leash = false;
             for entity_base in entities {
                 let ent = entity_base.get_entity();
@@ -116,7 +117,8 @@ impl EntityBase for LeashKnotEntity {
                     })
                     .unwrap_or(false);
 
-                if is_attached_to_knot && ent.unleash() {
+                let unleashed = is_attached_to_knot && ent.unleash();
+                if unleashed && drop_lead {
                     let lead_item = pumpkin_data::item_stack::ItemStack::new(
                         1,
                         &pumpkin_data::item::Item::LEAD,

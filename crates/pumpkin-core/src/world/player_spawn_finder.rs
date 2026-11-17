@@ -255,14 +255,14 @@ impl World {
         let surface = self.get_heightmap_height(ChunkHeightmapType::WorldSurface, x, z);
         let top = if self.dimension.has_ceiling {
             match self.level.world_gen.load().as_ref() {
+                // FlatLevelSource.getSpawnHeight uses the layer count, not the summed
+                // layer thickness.
                 WorldGenerator::Flat(generator) => {
                     self.get_bottom_y()
                         + generator
                             .layers
-                            .iter()
-                            .map(|layer| i64::from(layer.height))
-                            .sum::<i64>()
-                            .min(i64::from(self.dimension.height)) as i32
+                            .len()
+                            .min(self.dimension.height as usize) as i32
                 }
                 // NoiseBasedChunkGenerator.getSpawnHeight returns the generator sea level + 1.
                 WorldGenerator::Noise(_) | WorldGenerator::Custom(_) => self.sea_level + 1,

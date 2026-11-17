@@ -4353,9 +4353,10 @@ impl Entity {
         self.frozen_ticks.load(Ordering::Relaxed)
     }
 
-    /// Sets the `Entity` yaw & pitch rotation
+    /// Sets the `Entity` yaw & pitch rotation, vanilla `Entity#setRotation`.
     pub fn set_rotation(&self, yaw: f32, pitch: f32) {
-        // TODO
+        // Vanilla `setYRot` zeroes non-finite yaw instead of storing NaN.
+        let yaw = if yaw.is_finite() { yaw % 360.0 } else { 0.0 };
         self.yaw.store(yaw);
         // Java players have no separate head-yaw packet from the client- look yaw is also head yaw.
         // Bedrock `MovePlayer` / `MoveActorDelta` need this field, not only `yaw`.
@@ -4364,7 +4365,12 @@ impl Entity {
     }
 
     pub fn set_pitch(&self, pitch: f32) {
-        self.pitch.store(pitch.clamp(-90.0, 90.0) % 360.0);
+        // Vanilla `setXRot`: clamp to [-90, 90], zero non-finite pitch.
+        self.pitch.store(if pitch.is_finite() {
+            pitch.clamp(-90.0, 90.0)
+        } else {
+            0.0
+        });
     }
 
     /// Removes the `Entity` from their current `World`

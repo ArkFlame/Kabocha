@@ -173,6 +173,10 @@ impl MannequinEntity {
 }
 
 impl EntityBase for MannequinEntity {
+    fn can_hit(&self) -> bool {
+        !self.get_entity().is_removed()
+    }
+
     fn init_data_tracker(&self) {
         let entity = &self.living_entity.entity;
         entity.set_synced_data(
@@ -345,6 +349,7 @@ mod tests {
 
         assert!(mannequin.is_effective_ai());
         assert_eq!(mannequin.get_layers_mask(), ALL_LAYERS);
+        assert!(mannequin.can_hit());
 
         let mut nbt = NbtCompound::new();
         let profile = ProfileImpl {

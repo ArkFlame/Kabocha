@@ -1242,7 +1242,13 @@ impl Server {
             'after: {
                 player.screen_handler_sync_handler.store_player(&(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>));
                 if !self.admit_player(&world, &player) {
-                    player.kick(DisconnectReason::Shutdown, &TextComponent::text("Server stopped"));
+                    player.kick(
+                        DisconnectReason::Shutdown,
+                        &TextComponent::translate(
+                            pumpkin_data::translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+                            [],
+                        ),
+                    );
                     player.client.clear_player();
                     return None;
                 }
@@ -1374,7 +1380,7 @@ impl Server {
         self.tasks.wait().await;
         debug!("Done awaiting tasks for server");
 
-        info!("Starting worlds");
+        info!("Stopping worlds");
         for world in self.worlds.load().iter() {
             world.shutdown().await;
         }
@@ -1390,7 +1396,7 @@ impl Server {
         {
             error!("Failed to save level.dat: {err}");
         }
-        info!("Completed worlds");
+        info!("Stopped worlds");
         #[cfg(profiler)]
         {
             let counters = profiler::counters(self);
@@ -1498,7 +1504,9 @@ impl Server {
     ///
     /// # Note
     ///
-    /// This function does not handle the actual mob spawn options update, which is a TODO item for future implementation.
+    /// Mob spawn flags need no separate update here: every spawn query derives them
+    /// from the live difficulty (`World::should_spawn_monsters`), like vanilla's
+    /// `updateMobSpawningFlags`.
     pub fn set_difficulty(&self, difficulty: Difficulty, force_update: bool) {
         let current_info = self.level_info.load();
         if current_info.difficulty_locked && !force_update {

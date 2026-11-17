@@ -126,15 +126,25 @@ pub fn mace_smash_knockback(world: &World, attacker: &dyn EntityBase, victim: &d
         if !mace_smash_can_knockback(attacker, victim, nearby.as_ref()) {
             continue;
         }
-        let direction = nearby.get_entity().pos.load() - victim_pos;
+        // Vanilla `MaceItem.knockback` measures the 3.5 radius on the horizontal plane only.
+        let nearby_pos = nearby.get_entity().pos.load();
+        let dx = nearby_pos.x - victim_pos.x;
+        let dz = nearby_pos.z - victim_pos.z;
+        let horizontal = dx.hypot(dz);
+        if horizontal >= 3.5 {
+            continue;
+        }
         let resistance = nearby_living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
-        let power = (3.5 - direction.length())
+        let power = (3.5 - horizontal)
             * f64::from(0.7f32)
             * if heavy { 2.0 } else { 1.0 }
             * (1.0 - resistance);
-        if power > 0.0 {
-            let push = direction.normalize() * power;
-            let velocity = Vector3::new(push.x, f64::from(0.7f32), push.z);
+        if power > 0.0 && horizontal > 0.0 {
+            let velocity = Vector3::new(
+                dx / horizontal * power,
+                f64::from(0.7f32),
+                dz / horizontal * power,
+            );
             let entity = nearby.get_entity();
             if let Some(player) = nearby.get_player() {
                 player.set_velocity(entity.velocity.load() + velocity);
@@ -171,14 +181,6 @@ fn mace_smash_can_knockback(
         .cast_any()
         .downcast_ref::<ArmorStandEntity>()
         .is_some_and(ArmorStandEntity::is_marker)
-    {
-        return false;
-    }
-    if victim_entity
-        .pos
-        .load()
-        .squared_distance_to_vec(&nearby_entity.pos.load())
-        > 3.5 * 3.5
     {
         return false;
     }

@@ -1860,7 +1860,7 @@ impl Player {
             self.living_entity.fall_distance.store(0.0);
         }
 
-        player_attack_sound(&pos, &world, attack_type);
+        player_attack_sound(&self.living_entity.entity.pos.load(), &world, attack_type);
 
         if matches!(attack_type, AttackType::Critical) {
             let je_packet =
@@ -6706,11 +6706,12 @@ impl Player {
                 .living_entity
                 .get_attribute_value(&Attributes::MINING_EFFICIENCY) as f32;
         }
-        // Haste
-        if self.living_entity.has_effect(&StatusEffect::HASTE)
-            || self.living_entity.has_effect(&StatusEffect::CONDUIT_POWER)
-        {
-            speed *= ((self.get_haste_amplifier() + 1) as f32).mul_add(0.2, 1.0);
+        // Vanilla multiplies Haste and Conduit Power separately, by their own amplifiers.
+        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::HASTE) {
+            speed *= ((u32::from(effect.amplifier) + 1) as f32).mul_add(0.2, 1.0);
+        }
+        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::CONDUIT_POWER) {
+            speed *= ((u32::from(effect.amplifier) + 1) as f32).mul_add(0.2, 1.0);
         }
         // Fatigue
         if let Some(fatigue) = self.living_entity.get_effect(&StatusEffect::MINING_FATIGUE) {
@@ -6748,18 +6749,6 @@ impl Player {
         ]
         .into_iter()
         .any(|slot| equipment.get(&slot).get_enchantment_level(&Enchantment::AQUA_AFFINITY) > 0)
-    }
-
-    fn get_haste_amplifier(&self) -> u32 {
-        let mut i = 0;
-        let mut j = 0;
-        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::HASTE) {
-            i = effect.amplifier;
-        }
-        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::CONDUIT_POWER) {
-            j = effect.amplifier;
-        }
-        u32::from(i.max(j))
     }
 
     pub fn send_message(

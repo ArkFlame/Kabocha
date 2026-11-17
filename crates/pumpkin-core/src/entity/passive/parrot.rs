@@ -33,6 +33,13 @@ const AMBIENT_IMITATION_INTERVAL: i32 = 1000;
 const NEARBY_IMITATION_INTERVAL: i32 = 400;
 const IMITATION_VOLUME: f32 = 0.7;
 
+/// Vanilla `Parrot.isFood`: the `parrot_food` tag. Cookies are poisonous food, not food.
+fn is_parrot_food(item_stack: &ItemStack) -> bool {
+    item_stack
+        .get_item()
+        .has_tag(&tag::Item::MINECRAFT_PARROT_FOOD)
+}
+
 /// Represents a Parrot, a passive flying mob that can mimic nearby mob sounds.
 ///
 /// Wiki: <https://minecraft.wiki/w/Parrot>
@@ -211,8 +218,8 @@ impl ParrotEntity {
 }
 
 impl super::animal::Animal for ParrotEntity {
-    fn is_food(&self, _stack: &ItemStack) -> bool {
-        false
+    fn is_food(&self, stack: &ItemStack) -> bool {
+        is_parrot_food(stack)
     }
     fn can_mate(&self, _partner: &dyn EntityBase) -> bool {
         false
@@ -396,7 +403,7 @@ impl Mob for ParrotEntity {
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         use super::tamable::TamableAnimal;
-        if !self.is_tame() && item_stack.item.has_tag(&tag::Item::MINECRAFT_PARROT_FOOD) {
+        if !self.is_tame() && is_parrot_food(item_stack) {
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
             let pitch =
                 1.0 + (self.get_random().random::<f32>() - self.get_random().random::<f32>()) * 0.2;
@@ -427,6 +434,8 @@ impl Mob for ParrotEntity {
             if self.get_entity().on_ground.load(Ordering::Relaxed)
                 && self.is_tame()
                 && self.is_owned_by(&player.gameprofile.id)
+                // Vanilla only toggles sitting when the held item is not parrot food.
+                && !is_parrot_food(item_stack)
             {
                 self.order_to_sit(!self.is_ordered_to_sit());
                 return true;
@@ -542,6 +551,12 @@ mod tests {
     fn parrot_food_is_not_poisonous() {
         assert!(!Item::WHEAT_SEEDS.has_tag(&tag::Item::MINECRAFT_PARROT_POISONOUS_FOOD));
         assert!(!Item::COOKED_CHICKEN.has_tag(&tag::Item::MINECRAFT_PARROT_POISONOUS_FOOD));
+    }
+
+    #[test]
+    fn seeds_are_parrot_food_and_cookies_are_not() {
+        assert!(is_parrot_food(&ItemStack::new(1, &Item::WHEAT_SEEDS)));
+        assert!(!is_parrot_food(&ItemStack::new(1, &Item::COOKIE)));
     }
 
     /// Vanilla `Parrot.getAmbient` never picks the happy ghast's silent imitation.

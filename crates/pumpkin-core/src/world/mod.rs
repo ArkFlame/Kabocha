@@ -560,7 +560,6 @@ impl World {
         weather_setup: weather::WeatherSetup,
         server: Weak<Server>,
     ) -> Self {
-        // TODO
         let generation_settings = NoiseSettings::from_dimension(&dimension);
         let mut level_time = LevelTime::new();
         let info = level_info.load();
@@ -4242,14 +4241,14 @@ impl World {
                     .java
                     .view_distance
                     .get()
-                    .into(), //  TODO: view distance
+                    .into(),
                 server
                     .advanced_config
                     .networking
                     .java
                     .simulation_distance
                     .get()
-                    .into(), // TODO: sim view dinstance
+                    .into(),
                 false,
                 enabled_respawn_screen,
                 false,
