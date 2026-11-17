@@ -402,29 +402,19 @@ async fn waterlogged_support_and_partial_top_faces_are_not_spawn_floors() {
 }
 
 #[tokio::test]
-async fn ceiling_dimensions_start_the_spawn_column_at_the_generator_sea_level() {
+async fn ceiling_dimensions_use_the_fixed_get_spawn_height() {
     let mut fixture = SpawnWorld::new();
     fixture.world.dimension.has_ceiling = true;
-    // NoiseBasedChunkGenerator.getSpawnHeight is the generator sea level + 1.
+    // NoiseBasedChunkGenerator does not override getSpawnHeight, so the base
+    // ChunkGenerator constant 64 is used regardless of the generator sea level.
     fixture.world.sea_level = 32;
-    fixture.set_block(BlockPos::new(0, 32, 0), Block::STONE.default_state.id);
     let mut loaded_chunks = FxHashSet::default();
     assert_eq!(
         fixture
             .world
             .check_spawn_column(0, 0, &mut loaded_chunks)
             .await,
-        Some(BlockPos::new(0, 33, 0)),
-    );
-    // The column starts at y=33, so the fixture's stone at y=64 is out of range.
-    fixture.set_block(BlockPos::new(0, 32, 0), Block::AIR.default_state.id);
-    let mut loaded_chunks = FxHashSet::default();
-    assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
-        None,
+        Some(BlockPos::new(0, 65, 0)),
     );
     fixture.shutdown().await;
 }

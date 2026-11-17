@@ -2414,13 +2414,36 @@ impl World {
         if mask == 0 {
             return;
         }
-        let chunk_pos = Vector2::new(position.0.x >> 4, position.0.z >> 4);
-        *self
+
+        // Vanilla's light engine calls SectionPos.aroundAndAtBlockPos for a
+        // changed block, dirtying the 3x3x3 section neighbourhood. A block on a
+        // chunk border therefore also changes light in the adjacent chunk, so
+        // that chunk needs a light packet too or clients keep stale light.
+        let chunk_x = position.0.x >> 4;
+        let chunk_z = position.0.z >> 4;
+        let x_chunks = if (position.0.x & 15) == 0 {
+            [chunk_x - 1, chunk_x]
+        } else if (position.0.x & 15) == 15 {
+            [chunk_x, chunk_x + 1]
+        } else {
+            [chunk_x, chunk_x]
+        };
+        let z_chunks = if (position.0.z & 15) == 0 {
+            [chunk_z - 1, chunk_z]
+        } else if (position.0.z & 15) == 15 {
+            [chunk_z, chunk_z + 1]
+        } else {
+            [chunk_z, chunk_z]
+        };
+        let mut guard = self
             .unsent_light_sections
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .entry(chunk_pos)
-            .or_insert(0) |= mask;
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for x in x_chunks {
+            for z in z_chunks {
+                *guard.entry(Vector2::new(x, z)).or_insert(0) |= mask;
+            }
+        }
     }
 
     #[expect(clippy::too_many_lines)]
@@ -5347,7 +5370,6 @@ impl World {
         // Vanilla carries FoodData (level/saturation/exhaustion/tickTimer) over on
         // respawn. The same Player instance is reused, so leave its hunger intact.
 
-
         // Registered after positioning; a same-dimension respawn keeps its client entities.
         if target_world.uuid == self.uuid {
             // Clients never remove a dead entity themselves, so viewers would keep the corpse.
@@ -5764,10 +5786,19 @@ impl World {
         aabb: &BoundingBox,
         matches: impl Fn(&'static EntityType) -> bool,
     ) -> Vec<Arc<dyn EntityBase>> {
-        self.entity_index
-            .query_types(self.entities.load_full(), *aabb, matches)
+        let mut found: Vec<Arc<dyn EntityBase>> = self
+            .entity_index
+            .query_types(self.entities.load_full(), *aabb, &matches)
             .inspect(|entity| entity_islands::check_reached(entity.get_entity().entity_id))
-            .collect()
+            .collect();
+        // Vanilla `addToGetEntities` merges ender dragon parts into typed queries too.
+        for part in &self.dragon_parts {
+            if part.entity.bounding_box.load().intersects(aabb) && matches(part.entity.entity_type)
+            {
+                found.push(Arc::clone(part.value()) as Arc<dyn EntityBase>);
+            }
+        }
+        found
     }
 
     // Gets all Player entities at a Box
@@ -6056,7 +6087,16 @@ impl World {
             if list.len() > max_list_capacity {
                 return;
             }
-            // TODO: Implement ender dragon handling
+        }
+        // Vanilla merges ender dragon parts into whole-level entity enumerations so
+        // commands and area effects can target a dragon's individual body parts.
+        for part in self.dragon_parts.iter() {
+            if predicate(part.value().as_ref()) {
+                list.push(Arc::clone(part.value()) as Arc<dyn EntityBase>);
+                if list.len() > max_list_capacity {
+                    return;
+                }
+            }
         }
     }
 
@@ -9704,6 +9744,53 @@ mod tests {
         assert_eq!(sound_event_audible_chunks(&fixed(Some(16.0))), 1);
         assert_eq!(sound_event_audible_chunks(&fixed(Some(17.0))), 2);
         assert_eq!(sound_event_audible_chunks(&fixed(Some(64.0))), 4);
+    }
+
+    #[test]
+    fn border_block_dirties_light_sections_in_adjacent_chunks()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::ai::test_support::world;
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let dirty = || {
+            world
+                .unsent_light_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        };
+
+        // A block away from the border only dirties its own chunk.
+        world.mark_unsent_light(BlockPos::new(8, 64, 8));
+        {
+            let map = dirty();
+            assert!(map.contains_key(&Vector2::new(0, 0)));
+            assert_eq!(map.len(), 1);
+        }
+        dirty().clear();
+
+        // A block on the west border also dirties the chunk to the west.
+        world.mark_unsent_light(BlockPos::new(0, 64, 8));
+        {
+            let map = dirty();
+            assert!(map.contains_key(&Vector2::new(0, 0)));
+            assert!(map.contains_key(&Vector2::new(-1, 0)));
+            assert_eq!(map.len(), 2);
+        }
+        dirty().clear();
+
+        // A block at the chunk corner dirties all four surrounding chunks.
+        world.mark_unsent_light(BlockPos::new(15, 64, 15));
+        {
+            let map = dirty();
+            for x in [0, 1] {
+                for z in [0, 1] {
+                    assert!(map.contains_key(&Vector2::new(x, z)));
+                }
+            }
+            assert_eq!(map.len(), 4);
+        }
+        Ok(())
     }
 
     fn record(uuid: Option<Uuid>, id: &str) -> NbtCompound {
