@@ -28,3 +28,6 @@ Never run grep/find/rg on `../` or `../..`: it contains every worker worktree (h
 
 ## Vanilla reference
 `docs/VANILLA_REF.md` is a condensed, non-decompiled numeric digest for entities/blocks/items in the parity tracker. Use it to cross-check values; decompiled vanilla and `assets/` win on any disagreement.
+
+## Shell is denied here
+The plain shell tool returns "Permission denied: shell". Run every command (git, gh, grep, sed) through `ctx_execute` with language `shell`; never retry the plain shell tool. If `ctx_execute` is also denied, report BLOCKED once and stop.
