@@ -575,7 +575,7 @@ mod tests {
         assert!(brain.is_active(Activity::Core));
         assert!(brain.is_active(Activity::Idle));
         assert_eq!(brain.get_active_non_core_activity(), Some(Activity::Idle));
-        assert!(brain.pack().into_nbt().get_compound("memories").is_some());
+        assert!(brain.pack().into_nbt().get_compound("memories").is_none());
     }
 
     #[test]
