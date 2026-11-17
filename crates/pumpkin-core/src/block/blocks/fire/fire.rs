@@ -3,7 +3,7 @@ use pumpkin_data::block_properties::HorizontalAxis;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
 use pumpkin_data::fluid::Fluid;
-use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, BlockDirection};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
@@ -257,19 +257,11 @@ impl BlockBehaviour for FireBlock {
         let block_state = world.get_block_state(pos);
         let block_below = world.get_block(&pos.down());
 
-        // Check for infiniburn blocks (depending on dimension)
-        let infiniburn = match world.dimension.id {
-            id if id == Dimension::OVERWORLD.id => {
-                block_below.has_tag(&tag::Block::MINECRAFT_INFINIBURN_OVERWORLD)
-            }
-            id if id == Dimension::THE_NETHER.id => {
-                block_below.has_tag(&tag::Block::MINECRAFT_INFINIBURN_NETHER)
-            }
-            id if id == Dimension::THE_END.id => {
-                block_below.has_tag(&tag::Block::MINECRAFT_INFINIBURN_END)
-            }
-            _ => false,
-        };
+        // Vanilla reads this from the dimension type's infiniburn tag, so
+        // custom (data-driven) dimension types behave correctly too.
+        let infiniburn = block_below
+            .is_tagged_with(world.dimension.infiniburn)
+            .unwrap_or(false);
 
         let mut fire_props = FireProperties::from_state_id(block_state.id);
         let age = fire_props.age;
