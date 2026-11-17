@@ -149,9 +149,12 @@ impl SpreadingSnowyBlock {
                 if !world.is_loaded(&test_pos) {
                     continue;
                 }
-                if world.get_block(&test_pos) == base_block
-                    && Self::can_propagate(default_block_state, world, &test_pos)
-                {
+                if world.get_block(&test_pos) == base_block {
+                    // Vanilla checks the target block state, not the new block state.
+                    let target_state = world.get_block_state(&test_pos);
+                    if !Self::can_propagate(target_state, world, &test_pos) {
+                        continue;
+                    }
                     let above_test = test_pos.up();
                     let is_snowy = if world.is_loaded(&above_test) {
                         SnowyBlock::is_snowy_setting(world.get_block_state(&above_test))
