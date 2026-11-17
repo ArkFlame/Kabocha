@@ -1,4 +1,3 @@
-use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_protocol::{bedrock::client::set_time::CSetTime, java::client::play::CUpdateTime};
 
 use super::World;
@@ -235,6 +234,7 @@ impl LevelTime {
 mod tests {
     use super::*;
     use crate::world::time::ClockInstance;
+    use pumpkin_data::environment_attribute::DayTimeline;
 
     #[test]
     fn wake_up_marker_resolves_forward_to_next_day() {

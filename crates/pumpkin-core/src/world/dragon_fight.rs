@@ -17,6 +17,9 @@ use pumpkin_world::chunk::ChunkHeightmapType;
 use pumpkin_world::generation::feature::features::end_spike::JavaRandom;
 use pumpkin_world::world::BlockFlags;
 
+use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::tag::NbtTag;
+
 use super::{
     World,
     bossbar::{Bossbar, BossbarColor, BossbarDivisions, BossbarFlags},
@@ -36,6 +39,10 @@ pub const GATEWAY_Y: i32 = 75;
 pub const DRAGON_SPAWN_Y: i32 = 128;
 pub const ARENA_RADIUS: f64 = 192.0;
 pub const EVENT_DISPLAY_NAME: &str = "entity.minecraft.ender_dragon";
+
+/// Top-level key for the End dragon fight state in `pumpkin_custom_data.nbt`
+/// (vanilla stores an `EnderDragonFight` SavedData).
+pub const DRAGON_FIGHT_SAVE_KEY: &str = "PumpkinDragonFight";
 
 // ── End Spike definition ─────────────────────────────────────────────────────
 
@@ -64,6 +71,27 @@ fn shuffled_gateways(seed: u64) -> Vec<i32> {
         gateways.swap(i - 1, j);
     }
     gateways
+}
+
+fn stage_name(stage: DragonRespawnStage) -> &'static str {
+    match stage {
+        DragonRespawnStage::Start => "start",
+        DragonRespawnStage::PreparingToSummonPillars => "preparing_to_summon_pillars",
+        DragonRespawnStage::SummoningPillars => "summoning_pillars",
+        DragonRespawnStage::SummoningDragon => "summoning_dragon",
+        DragonRespawnStage::End => "end",
+    }
+}
+
+fn stage_from_name(name: &str) -> Option<DragonRespawnStage> {
+    match name {
+        "start" => Some(DragonRespawnStage::Start),
+        "preparing_to_summon_pillars" => Some(DragonRespawnStage::PreparingToSummonPillars),
+        "summoning_pillars" => Some(DragonRespawnStage::SummoningPillars),
+        "summoning_dragon" => Some(DragonRespawnStage::SummoningDragon),
+        "end" => Some(DragonRespawnStage::End),
+        _ => None,
+    }
 }
 
 pub struct DragonFight {
@@ -135,6 +163,72 @@ impl DragonFight {
         if self.gateways.is_empty() {
             self.gateways = shuffled_gateways(seed);
         }
+    }
+
+    /// Serialises the persistent fight state using the vanilla
+    /// `EnderDragonFight` SavedData field names.
+    #[must_use]
+    pub fn write_nbt(&self) -> NbtCompound {
+        let mut nbt = NbtCompound::new();
+        nbt.put_bool("needs_state_scanning", self.needs_state_scanning);
+        nbt.put_bool("dragon_killed", self.dragon_killed);
+        nbt.put_bool("previously_killed", self.previously_killed);
+        nbt.put_string(
+            "respawn_stage",
+            self.respawn_stage
+                .map(stage_name)
+                .unwrap_or_default()
+                .to_owned(),
+        );
+        nbt.put_int("respawn_time", self.respawn_time);
+        if let Some(uuid) = self.dragon_uuid {
+            nbt.put_uuid("dragon_uuid", uuid);
+        }
+        if let Some(pos) = self.exit_portal_location {
+            nbt.put(
+                "exit_portal_location",
+                NbtTag::IntArray(vec![pos.0.x, pos.0.y, pos.0.z]),
+            );
+        }
+        nbt.put("gateways", NbtTag::IntArray(self.gateways.clone()));
+        nbt.put_list(
+            "respawn_crystals",
+            self.respawn_crystals
+                .iter()
+                .copied()
+                .map(NbtTag::uuid)
+                .collect(),
+        );
+        nbt
+    }
+
+    /// Restores the persistent fight state; fields missing from older saves
+    /// keep the fresh-fight defaults from [`Self::new_with_seed`].
+    #[must_use]
+    pub fn from_nbt(nbt: &NbtCompound, seed: u64, origin: BlockPos) -> Self {
+        let mut fight = Self::new_with_seed(seed, origin);
+        fight.needs_state_scanning = nbt.get_bool("needs_state_scanning").unwrap_or(true);
+        fight.dragon_killed = nbt.get_bool("dragon_killed").unwrap_or(false);
+        fight.previously_killed = nbt.get_bool("previously_killed").unwrap_or(false);
+        fight.respawn_stage = nbt.get_string("respawn_stage").and_then(stage_from_name);
+        fight.respawn_time = nbt.get_int("respawn_time").unwrap_or(0);
+        fight.dragon_uuid = nbt.get_uuid("dragon_uuid");
+        fight.exit_portal_location = nbt.get_int_array("exit_portal_location").and_then(|pos| {
+            let [x, y, z] = pos else {
+                return None;
+            };
+            Some(BlockPos::new(*x, *y, *z))
+        });
+        if let Some(gateways) = nbt.get_int_array("gateways")
+            && !gateways.is_empty()
+        {
+            fight.gateways = gateways.to_vec();
+        }
+        fight.respawn_crystals = nbt
+            .get_list("respawn_crystals")
+            .map(|crystals| crystals.iter().filter_map(NbtTag::extract_uuid).collect())
+            .unwrap_or_default();
+        fight
     }
 
     pub const fn skip_arena_loaded_check(&mut self) {
@@ -1159,5 +1253,35 @@ mod tests {
         sorted.sort_unstable();
         let expected: Vec<i32> = (0..GATEWAY_COUNT as i32).collect();
         assert_eq!(sorted, expected);
+    }
+
+    #[test]
+    fn dragon_fight_nbt_round_trip() {
+        let uuid = Uuid::from_u128(0x0123_4567_89ab_cdef_0123_4567_89ab_cdef);
+        let mut fight = DragonFight::new_with_seed(4321, BlockPos::ZERO);
+        fight.dragon_killed = true;
+        fight.previously_killed = true;
+        fight.respawn_stage = Some(DragonRespawnStage::SummoningPillars);
+        fight.respawn_time = 77;
+        fight.dragon_uuid = Some(uuid);
+        fight.exit_portal_location = Some(BlockPos::new(3, 66, -2));
+        fight.respawn_crystals = vec![uuid];
+
+        let saved = fight.write_nbt();
+        let loaded = DragonFight::from_nbt(&saved, 9999, BlockPos::new(7, 8, 9));
+
+        assert!(loaded.dragon_killed);
+        assert!(loaded.previously_killed);
+        assert_eq!(
+            loaded.respawn_stage,
+            Some(DragonRespawnStage::SummoningPillars)
+        );
+        assert_eq!(loaded.respawn_time, 77);
+        assert_eq!(loaded.dragon_uuid, Some(uuid));
+        assert_eq!(loaded.exit_portal_location, Some(BlockPos::new(3, 66, -2)));
+        assert_eq!(loaded.gateways, fight.gateways);
+        assert_eq!(loaded.respawn_crystals, vec![uuid]);
+        assert_eq!(loaded.seed, 9999);
+        assert_eq!(loaded.origin, BlockPos::new(7, 8, 9));
     }
 }

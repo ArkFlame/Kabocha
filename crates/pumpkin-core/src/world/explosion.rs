@@ -424,9 +424,11 @@ impl<'a> Explosion<'a> {
     ) -> (
         FxHashMap<BlockPos, (&'static Block, &'static BlockState)>,
         FxHashSet<BlockPos>,
+        u32,
     ) {
         let mut map = FxHashMap::default();
         let mut affected_positions = FxHashSet::default();
+        let mut to_blow_positions = FxHashSet::default();
 
         let mut chunk_cache: FxHashMap<
             pumpkin_util::math::vector2::Vector2<i32>,
@@ -548,7 +550,16 @@ impl<'a> Explosion<'a> {
                                 && calc.should_block_explode(self, world, &block_pos, block, h)
                             {
                                 map.insert(block_pos, (block, state));
+                                // Vanilla adds every destroyable position to `toBlow`, and
+                                // `explode()` returns `toBlow.size()` for the client smoke count.
+                                to_blow_positions.insert(block_pos);
                             }
+                        } else if self.create_fire
+                            && h > 0.0
+                            && calc.should_block_explode(self, world, &block_pos, block, h)
+                        {
+                            // Vanilla keeps air positions in `toBlow` when fire is enabled.
+                            to_blow_positions.insert(block_pos);
                         }
 
                         pos_x += dir_x * 0.3;
@@ -559,7 +570,7 @@ impl<'a> Explosion<'a> {
                 }
             }
         }
-        (map, affected_positions)
+        (map, affected_positions, to_blow_positions.len() as u32)
     }
 
     fn damage_entities(&self, world: &Arc<World>) -> FxHashMap<i32, Vector3<f64>> {
@@ -799,13 +810,13 @@ impl<'a> Explosion<'a> {
         match self.block_interaction {
             BlockInteraction::Keep => {
                 if self.create_fire {
-                    let (_, affected_positions) = self.get_blocks_to_destroy(world);
+                    let (_, affected_positions, _) = self.get_blocks_to_destroy(world);
                     Self::place_fire(world, &affected_positions, &mut fire_roll);
                 }
                 0
             }
             BlockInteraction::TriggerBlock => {
-                let (blocks, affected_positions) = self.get_blocks_to_destroy(world);
+                let (blocks, affected_positions, _) = self.get_blocks_to_destroy(world);
                 for (pos, (block, _state)) in &blocks {
                     let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
                     if let Some(pumpkin_block) = pumpkin_block {
@@ -845,7 +856,7 @@ impl<'a> Explosion<'a> {
                     }
                 }
 
-                let (blocks, affected_positions) = self.get_blocks_to_destroy(world);
+                let (blocks, affected_positions, to_blow_count) = self.get_blocks_to_destroy(world);
                 let decay_drops = self.block_interaction == BlockInteraction::DestroyWithDecay;
                 let explosion_radius = decay_drops.then_some(self.power);
 
@@ -892,7 +903,7 @@ impl<'a> Explosion<'a> {
                     Self::place_fire(world, &affected_positions, &mut fire_roll);
                 }
 
-                blocks.len() as u32
+                to_blow_count
             }
         }
     }
@@ -1012,6 +1023,27 @@ mod tests {
         assert_eq!(destroyed, 0);
         assert!(fire_was_created);
         assert!(floor_remains);
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn incendiary_block_count_includes_air_positions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (world, level, _folder) = test_world()?;
+        let center = Vector3::new(8.5, 64.0, 8.5);
+
+        // The loaded chunk is all air, so no blocks are destroyed. Only a fire-enabled
+        // explosion counts those air positions, matching vanilla's `toBlow.size()` that
+        // the client uses for its smoke-particle count.
+        let incendiary = Explosion::new(4.0, center, BlockInteraction::Destroy).with_fire();
+        let with_fire = incendiary.explode_with_fire_roll(&world, || 0);
+        let non_incendiary = Explosion::new(4.0, center, BlockInteraction::Destroy);
+        let without_fire = non_incendiary.explode_with_fire_roll(&world, || 0);
+
+        level.shutdown().await;
+
+        assert_eq!(without_fire, 0);
+        assert!(with_fire > 0);
         Ok(())
     }
 

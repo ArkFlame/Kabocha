@@ -624,6 +624,17 @@ impl World {
             NbtCompound::new()
         };
 
+        if let (Some(fight_mutex), Some(saved)) = (
+            dragon_fight.as_ref(),
+            custom_data.get_compound(dragon_fight::DRAGON_FIGHT_SAVE_KEY),
+        ) {
+            let loaded =
+                dragon_fight::DragonFight::from_nbt(saved, level.seed.0, BlockPos::new(0, 0, 0));
+            *fight_mutex
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = loaded;
+        }
+
         if let Some(server_arc) = server.upgrade() {
             let _ = level.rt_handle.set(server_arc.runtime.clone());
         }
@@ -9083,10 +9094,16 @@ impl World {
         self.save_own_weather();
 
         {
-            let custom_data = self
+            let mut custom_data = self
                 .custom_data
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(ref fight_mutex) = self.dragon_fight {
+                let fight = fight_mutex
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                custom_data.put_compound(dragon_fight::DRAGON_FIGHT_SAVE_KEY, fight.write_nbt());
+            }
             if !custom_data.is_empty() {
                 let custom_data_path = self
                     .level
