@@ -33,7 +33,8 @@ impl MerchantOffer {
     }
 
     pub const fn update_demand(&mut self) {
-        self.demand += self.uses - (self.max_uses - self.uses);
+        // Vanilla clamps demand at zero, so a restock never turns into a discount.
+        self.demand = (self.demand + self.uses - (self.max_uses - self.uses)).max(0);
     }
 
     pub const fn reset_uses(&mut self) {
@@ -295,6 +296,11 @@ mod tests {
         assert_eq!(offer.demand, 4);
         assert_eq!(offer.uses, 0);
         assert!(!offer.needs_restock());
+
+        let mut lightly_used = offer();
+        lightly_used.uses = 1;
+        lightly_used.update_demand();
+        assert_eq!(lightly_used.demand, 0);
     }
 
     #[test]
