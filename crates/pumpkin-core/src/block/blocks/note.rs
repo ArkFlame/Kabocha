@@ -34,7 +34,7 @@ impl NoteBlock {
         if !is_base_block(props.instrument) || world.get_block_state(&pos.up()).is_air() {
             let mut event = crate::plugin::api::events::block::note_play::NotePlayEvent::new(
                 *pos,
-                format!("{:?}", props.instrument),
+                props.instrument.to_value().to_owned(),
                 props.note,
             );
             if let Some(server) = world.server.upgrade() {
