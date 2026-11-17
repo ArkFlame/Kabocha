@@ -45,6 +45,19 @@ enum Duration {
     Infinite,
 }
 
+/// Vanilla `MobEffectInstance.update`: a stronger amplifier always replaces the
+/// active effect, an equal amplifier only replaces it when it lasts longer.
+/// UNVERIFIED against decompiled 1.21.x; infinite (-1) durations use the signed compare.
+fn effect_replaces(
+    existing_amplifier: u8,
+    existing_duration: i32,
+    new_amplifier: u8,
+    new_duration: i32,
+) -> bool {
+    new_amplifier > existing_amplifier
+        || (new_amplifier == existing_amplifier && new_duration > existing_duration)
+}
+
 struct GiveExecutor {
     duration: Duration,
     has_amplifier: bool,
@@ -77,9 +90,14 @@ impl CommandExecutor for GiveExecutor {
             let Some(living) = target.get_living_entity() else {
                 continue;
             };
-            let should_skip = living
-                .get_effect(effect)
-                .is_some_and(|existing| existing.amplifier >= amplifier);
+            let should_skip = living.get_effect(effect).is_some_and(|existing| {
+                !effect_replaces(
+                    existing.amplifier,
+                    existing.duration,
+                    amplifier,
+                    duration_ticks,
+                )
+            });
 
             if !should_skip {
                 living.add_effect(Effect {
@@ -358,4 +376,26 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
             .then(clear_node)
             .then(give_node),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::effect_replaces;
+
+    #[test]
+    fn stronger_amplifier_replaces_regardless_of_duration() {
+        assert!(effect_replaces(0, 6000, 1, 100));
+    }
+
+    #[test]
+    fn weaker_amplifier_never_replaces() {
+        assert!(!effect_replaces(2, 100, 1, 6000));
+    }
+
+    #[test]
+    fn equal_amplifier_replaces_only_when_longer() {
+        assert!(effect_replaces(1, 100, 1, 200));
+        assert!(!effect_replaces(1, 200, 1, 200));
+        assert!(!effect_replaces(1, 200, 1, 100));
+    }
 }

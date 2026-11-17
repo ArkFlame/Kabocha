@@ -57,6 +57,13 @@ enum FilterMode {
     KeepAir,
 }
 
+/// A position counts once when it actually changed: destroyed, placed, or both.
+/// Vanilla `FillCommand` only reports blocks it modified.
+/// UNVERIFIED against decompiled 1.21.x.
+const fn fill_count_increment(affected: bool, placed: bool) -> i32 {
+    if affected || placed { 1 } else { 0 }
+}
+
 #[expect(clippy::too_many_lines)]
 fn fill_blocks(
     source: &CommandSource,
@@ -160,14 +167,11 @@ fn fill_blocks(
                     continue;
                 }
 
-                if world.place_block_input(&pos, input, place_flags) {
-                    if !strict {
-                        update_positions.push((pos, old_state_id));
-                    }
-                    count += 1;
-                } else if affected {
-                    count += 1;
+                let placed = world.place_block_input(&pos, input, place_flags);
+                if placed && !strict {
+                    update_positions.push((pos, old_state_id));
                 }
+                count += fill_count_increment(affected, placed);
             }
         }
     }
@@ -292,4 +296,19 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                 .then(argument("to", BlockPosArgumentType).then(block_arg)),
         ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fill_count_increment;
+
+    #[test]
+    fn unchanged_position_is_not_counted() {
+        assert_eq!(fill_count_increment(false, false), 0);
+    }
+
+    #[test]
+    fn destroy_then_place_counts_once() {
+        assert_eq!(fill_count_increment(true, true), 1);
+    }
 }
