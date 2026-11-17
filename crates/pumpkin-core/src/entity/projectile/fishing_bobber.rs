@@ -349,7 +349,6 @@ impl FishingBobberEntity {
             return;
         };
         if self.should_stop_fishing(player) {
-            self.discard(player);
             return;
         }
 
@@ -520,7 +519,8 @@ impl FishingBobberEntity {
         );
     }
 
-    /// Vanilla `FishingBobberEntity.shouldStopFishing(Player)`.
+    /// Vanilla `FishingBobberEntity.shouldStopFishing(Player)`, which discards the hook when it
+    /// returns `true`.
     fn should_stop_fishing(&self, player: &Player) -> bool {
         let owner = player.get_entity();
         // Vanilla `Entity.canInteractWithLevel` gates the checks below.
@@ -531,9 +531,12 @@ impl FishingBobberEntity {
             if holding_rod {
                 let owner_pos = owner.pos.load();
                 let bobber_pos = self.entity.pos.load();
-                return owner_pos.squared_distance_to_vec(&bobber_pos) > 1024.0;
+                if owner_pos.squared_distance_to_vec(&bobber_pos) <= 1024.0 {
+                    return false;
+                }
             }
         }
+        self.discard(player);
         true
     }
 
