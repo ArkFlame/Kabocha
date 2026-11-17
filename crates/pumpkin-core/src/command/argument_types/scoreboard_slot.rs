@@ -90,12 +90,32 @@ impl ScoreboardSlotArgumentType {
 }
 
 /// Returns the canonical name vanilla uses for a display slot.
+///
+/// Vanilla's DisplaySlot owns its serialized name, so every variant has one
+/// and there is no fallback.
 #[must_use]
 pub fn slot_name(slot: ScoreboardDisplaySlot) -> &'static str {
-    SLOT_NAMES
-        .iter()
-        .find_map(|(slot_name, known)| (*known == slot).then_some(*slot_name))
-        .unwrap_or("sidebar")
+    match slot {
+        ScoreboardDisplaySlot::List => "list",
+        ScoreboardDisplaySlot::Sidebar => "sidebar",
+        ScoreboardDisplaySlot::BelowName => "below_name",
+        ScoreboardDisplaySlot::TeamBlack => "sidebar.team.black",
+        ScoreboardDisplaySlot::TeamDarkBlue => "sidebar.team.dark_blue",
+        ScoreboardDisplaySlot::TeamDarkGreen => "sidebar.team.dark_green",
+        ScoreboardDisplaySlot::TeamDarkAqua => "sidebar.team.dark_aqua",
+        ScoreboardDisplaySlot::TeamDarkRed => "sidebar.team.dark_red",
+        ScoreboardDisplaySlot::TeamDarkPurple => "sidebar.team.dark_purple",
+        ScoreboardDisplaySlot::TeamGold => "sidebar.team.gold",
+        ScoreboardDisplaySlot::TeamGray => "sidebar.team.gray",
+        ScoreboardDisplaySlot::TeamDarkGray => "sidebar.team.dark_gray",
+        ScoreboardDisplaySlot::TeamBlue => "sidebar.team.blue",
+        ScoreboardDisplaySlot::TeamGreen => "sidebar.team.green",
+        ScoreboardDisplaySlot::TeamAqua => "sidebar.team.aqua",
+        ScoreboardDisplaySlot::TeamRed => "sidebar.team.red",
+        ScoreboardDisplaySlot::TeamLightPurple => "sidebar.team.light_purple",
+        ScoreboardDisplaySlot::TeamYellow => "sidebar.team.yellow",
+        ScoreboardDisplaySlot::TeamWhite => "sidebar.team.white",
+    }
 }
 
 #[cfg(test)]
@@ -123,5 +143,20 @@ mod tests {
             ScoreboardSlotArgumentType.parse(&mut reader),
             Ok(ScoreboardDisplaySlot::BelowName)
         );
+    }
+
+    #[test]
+    fn slot_name_and_parse_agree_for_every_known_name() {
+        for (name, slot) in SLOT_NAMES {
+            assert_eq!(slot_name(slot), name);
+            let mut reader = StringReader::new(name);
+            assert_eq!(ScoreboardSlotArgumentType.parse(&mut reader), Ok(slot));
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_slot_name() {
+        let mut reader = StringReader::new("foo.bar");
+        assert!(ScoreboardSlotArgumentType.parse(&mut reader).is_err());
     }
 }
