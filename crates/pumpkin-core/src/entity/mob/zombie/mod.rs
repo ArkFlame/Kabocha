@@ -530,15 +530,10 @@ impl ZombieEntityBase {
             self.mob_entity.living_entity.update_attribute(
                 &Attributes::SPAWN_REINFORCEMENTS,
                 |attribute| {
-                    let existing = attribute
-                        .modifiers
-                        .iter()
-                        .find(|modifier| modifier.id == REINFORCEMENT_CALLER_CHARGE_ID)
-                        .map_or(0.0, |modifier| modifier.amount);
-                    attribute.remove_modifier(REINFORCEMENT_CALLER_CHARGE_ID);
+                    // Vanilla uses a fixed modifier id, so the charge does not stack.
                     attribute.add_or_replace_permanent_modifier(Modifier {
                         id: REINFORCEMENT_CALLER_CHARGE_ID.to_string(),
-                        amount: existing - REINFORCEMENT_CHARGE,
+                        amount: -REINFORCEMENT_CHARGE,
                         operation: ModifierOperation::Add,
                     });
                 },
