@@ -263,6 +263,9 @@ impl ScreenHandler for StonecutterScreenHandler {
                 .selected_recipe_index
                 .store(button_id, Ordering::Relaxed);
             self.state.setup_result_slot(button_id);
+            // The client only shows the result once the server pushes the changed output slot,
+            // as vanilla `StonecutterScreenHandler.onButtonClick` does with `sendContentUpdates`.
+            self.send_content_updates();
         }
         true
     }
