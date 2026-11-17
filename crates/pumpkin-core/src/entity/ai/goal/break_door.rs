@@ -113,19 +113,8 @@ impl Goal for BreakDoorGoal {
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
         let world = mob.get_entity().world.load();
         let level_info = world.level_info.load();
-        let mob_pos = mob.get_entity().pos.load();
-        let door_pos = self.door_interact_goal.door_pos;
-        let center_x = f64::from(door_pos.0.x) + 0.5;
-        let center_y = f64::from(door_pos.0.y) + 0.5;
-        let center_z = f64::from(door_pos.0.z) + 0.5;
-        let dx = center_x - mob_pos.x;
-        let dy = center_y - mob_pos.y;
-        let dz = center_z - mob_pos.z;
-        let dist_sq = dx * dx + dy * dy + dz * dz;
-
         self.break_time <= self.get_door_break_time()
-            && !DoorBlock::is_open(&world, &door_pos)
-            && dist_sq < 4.0
+            && !DoorBlock::is_open(&world, &self.door_interact_goal.door_pos)
             && self.is_valid_difficulty(level_info.difficulty)
     }
 
