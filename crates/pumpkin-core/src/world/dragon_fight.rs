@@ -840,10 +840,10 @@ impl DragonFight {
                             pumpkin_data::block_properties::OakFenceLikeProperties::default(
                                 &Block::IRON_BARS,
                             );
-                        props.north = x_edge && dz != 2;
-                        props.south = x_edge && dz != -2;
-                        props.west = z_edge && dx != 2;
-                        props.east = z_edge && dx != -2;
+                        props.north = x_edge && dz != -2;
+                        props.south = x_edge && dz != 2;
+                        props.west = z_edge && dx != -2;
+                        props.east = z_edge && dx != 2;
 
                         let bar_state = props.to_state_id(&Block::IRON_BARS);
                         world.set_block_state(
@@ -870,7 +870,7 @@ impl DragonFight {
             &EntityType::END_CRYSTAL,
         );
         let crystal = Arc::new(EndCrystalEntity::new(entity));
-        crystal.set_show_bottom(true);
+        crystal.set_show_bottom(spike.guarded);
         crystal.set_invulnerable(false);
         world.spawn_entity_non_save(crystal);
     }
