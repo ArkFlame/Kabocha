@@ -477,6 +477,8 @@ impl TelemetryClient {
     pub fn load_or_generate_key(key_path: &Path) -> Result<SigningKey, std::io::Error> {
         if key_path.exists() {
             let bytes = std::fs::read(key_path)?;
+            // The identity key is a secret; tighten permissions inherited from older versions.
+            restrict_key_permissions(key_path);
             if bytes.len() == 32 {
                 let mut seed = [0u8; 32];
                 seed.copy_from_slice(&bytes);
@@ -497,13 +499,7 @@ impl TelemetryClient {
         {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(key_path, seed)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(key_path, std::fs::Permissions::from_mode(0o600));
-        }
+        write_private_key(key_path, &seed)?;
 
         Ok(key)
     }
@@ -574,6 +570,44 @@ impl TelemetryClient {
             .error_for_status()?;
 
         Ok(())
+    }
+}
+
+/// Restricts the identity key file to owner read/write on Unix.
+fn restrict_key_permissions(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(err) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                "Failed to restrict telemetry identity key permissions at {}: {err}",
+                path.display()
+            );
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
+/// Persists the identity key seed, creating the file with owner-only permissions.
+fn write_private_key(path: &Path, seed: &[u8; 32]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)?;
+        file.write_all(seed)?;
+        restrict_key_permissions(path);
+        Ok(())
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, seed)
     }
 }
 
@@ -999,6 +1033,19 @@ mod tests {
             key1.verifying_key().to_bytes(),
             key2.verifying_key().to_bytes()
         );
+
+        // A pre-existing world-readable key file is tightened when loaded.
+        std::fs::write(&key_path, key1.to_bytes()).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+            let _ = TelemetryClient::load_or_generate_key(&key_path).unwrap();
+            assert_eq!(
+                std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
 
         // Corrupted file test (less than 32 bytes)
         std::fs::write(&key_path, b"corrupted-key-data").unwrap();
