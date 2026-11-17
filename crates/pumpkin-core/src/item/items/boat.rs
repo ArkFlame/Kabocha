@@ -147,10 +147,10 @@ impl ItemBehaviour for BoatItem {
                 continue;
             }
 
-            // Vanilla: expand by getTargetingMargin() (0.0 for most entities)
+            // Vanilla: `entity.getBoundingBox().inflate(0.3).contains(player.getEyePosition())`
             let entity_box = entity.get_entity().bounding_box.load();
-            // Check if entity's bounding box contains the player's eye position
-            if entity_box.intersects(&BoundingBox::new(player_eye_pos, player_eye_pos)) {
+            // Check if entity's inflated bounding box contains the player's eye position
+            if entity_box.expand_all(0.3).contains(player_eye_pos) {
                 // Entity is blocking the line of sight at eye position
                 return;
             }
