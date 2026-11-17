@@ -53,3 +53,11 @@ No code changes in this pass. No fix was confident enough to land without a deco
 - `generation/structure/placement.rs` (owned elsewhere).
 - Full `BlendedNoise` constants (`684.412`, `12.75`, `0.999_984_74`, `SMEARED_RANGE_BASE`) and `STANDARD_DEVIATION`: no decompiled reference consulted, kept.
 - Light nibble packing and `LightContainer` layout, bedrock palette bit table.
+
+## h8 pass (S/M open gaps)
+
+- Item 2 LastUpdate save: FIXED (already in tree, 7911189485 writes `put_long("LastUpdate", last_update_clock())` in `chunk/format/mod.rs`; 8ee11b06ce sets the clock each world tick in `world/mod.rs` `tick_environment`). Process-wide clock, so with several worlds the last ticked wins. No new test in this pass; existing coverage only checks passthrough of a pre-existing value.
+- Item 3 `MODELLED_ROOT_TAGS` lacks `LastUpdate`: FIXED (already in tree). `LastUpdate` is listed at `chunk/format/mod.rs` line ~59, so it is modelled, not passed through.
+- BlendedNoise constants (684.412, 0.99998474F, 12.75, -15, -7, smear range base 2.0): CLOSED, match `BlendedNoise.java` and `SmearedPerlinNoise.range`. `STANDARD_DEVIATION` does not appear in the vanilla BlendedNoise source: CLOSED, not a vanilla constant there.
+- Light nibble packing: FIXED (verified, 56f2e2e1d). Pumpkin `LightContainer::index` is `y*256 + z*16 + x`, byte `>>1`, nibble `&1`, matching vanilla `DataLayer.getIndex`/`get`/`set`. No code change; regression pin `chunk::format::tests::light_nibbles_follow_vanilla_datalayer_index_order`.
+- Bedrock palette bit table: BLOCKED-DATA. No Bedrock reference in `.vendor/vanilla-decompiled`.

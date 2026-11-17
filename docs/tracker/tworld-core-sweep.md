@@ -25,3 +25,10 @@ Scope: `crates/pumpkin-core/src/world/` (time, weather, sleeping, random tick, s
 - Difficulty effects in `world/mod.rs`: only Peaceful gating (`set_difficulty`, mob spawn gate at line ~2853, 8078) was looked at. Hunger, regeneration and per-difficulty damage live in entity code and were not swept.
 - `is_night` uses `12000..=23999` on the daytime value; vanilla boundary not re-derived here (UNVERIFIED).
 - Clear weather delay/duration is a `set_durations` command value, not a profile constant; no vanilla default was compared.
+
+## h8 pass (S/M open gaps)
+
+- `is_night` boundary: FIXED (56f2e2e1d). Vanilla has no `isNight`; the overworld night window is `Timelines.OVERWORLD_DAY` `nightStart` 12600 to `nightEnd` 23401 (exclusive), now used by `LevelTime::is_night`. Test: `time::tests::overworld_night_window_matches_vanilla_timeline`. Residual: vanilla `Level.isDarkOutside` (bed rule) is sky-light based (`skyDarken >= 4`) and is not modelled; the consumer `should_skip_night` still gates on this window.
+- World difficulty accessor: FIXED (56f2e2e1d). Added `World::difficulty()` (vanilla `Level.getDifficulty()`), raid callers switched. No unit test: a test would need a live `World` or would only mirror the getter. UNVERIFIED test coverage.
+- Difficulty effects in entity code: STILL OPEN, out of scope for `crates/pumpkin-core/src/world`.
+- Clear weather durations: not a gap, `set_durations` command value.
