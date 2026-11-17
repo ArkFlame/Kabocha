@@ -35,9 +35,9 @@ const ARG_STRUCTURE: &str = "structure";
 const ARG_BIOME: &str = "biome";
 const ARG_POI: &str = "poi";
 
-/// The maximum structure search radius in chunk regions, matching vanilla's
-/// `findNearestMapStructure` call in `LocateCommand`.
-const STRUCTURE_SEARCH_RADIUS: i32 = 100;
+/// Vanilla's `LocateCommand` asks `findNearestMapStructure` for a structure
+/// within 100 chunks of the source.
+const STRUCTURE_SEARCH_RADIUS_CHUNKS: i32 = 100;
 
 /// Biome search parameters from vanilla's `LocateCommand`: a 6400 block
 /// radius probed every 32 blocks horizontally and every 64 blocks vertically.
@@ -153,6 +153,21 @@ fn structure_set_containing(key: StructureKeys) -> Option<usize> {
         .position(|set| set.structures.iter().any(|entry| entry.structure == key))
 }
 
+/// The structure finder counts chunk-region rings, and one region is
+/// `spacing` chunks wide. Rounding up keeps every region the vanilla
+/// chunk-radius scan reaches, since a region's candidate chunk can sit up to
+/// `spacing - 1` chunks inside the boundary.
+fn structure_search_rings(set: &StructureSet) -> i32 {
+    match &set.placement.placement_type {
+        StructurePlacementType::RandomSpread(placement) => {
+            STRUCTURE_SEARCH_RADIUS_CHUNKS / placement.spacing + 1
+        }
+        // Concentric-ring placements come from the stronghold cache, which
+        // ignores the radius.
+        StructurePlacementType::ConcentricRings(_) => STRUCTURE_SEARCH_RADIUS_CHUNKS,
+    }
+}
+
 /// Unfloored horizontal distance, for picking the nearest of several hits
 /// without two candidates collapsing onto the same integer.
 fn horizontal_distance_exact(origin: &BlockPos, target: &BlockPos) -> f64 {
@@ -237,6 +252,7 @@ impl CommandExecutor for LocateStructureExecutor {
         let mut found: Option<(BlockPos, StructureKeys)> = None;
         for (set_index, keys) in scans {
             let set = &StructureSet::ALL[set_index];
+            let search_radius = structure_search_rings(set);
             let nearest = match &set.placement.placement_type {
                 // Strongholds come out of the pre-computed ring cache, which
                 // already holds positions they really occupy. A concentric-ring
@@ -246,7 +262,7 @@ impl CommandExecutor for LocateStructureExecutor {
                         find_nearest_structure(
                             origin,
                             &[&set.placement],
-                            STRUCTURE_SEARCH_RADIUS,
+                            search_radius,
                             seed as i64,
                             global_cache,
                         )
@@ -267,7 +283,7 @@ impl CommandExecutor for LocateStructureExecutor {
                     origin,
                     set,
                     &keys,
-                    STRUCTURE_SEARCH_RADIUS,
+                    search_radius,
                     &world_gen,
                 ),
             };
