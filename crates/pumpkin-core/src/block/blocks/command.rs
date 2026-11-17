@@ -16,7 +16,7 @@ use crate::{
 use pumpkin_data::block_properties::{CommandBlockLikeProperties, Facing};
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation};
 
-use pumpkin_util::{GameMode, PermissionLvl, math::position::BlockPos};
+use pumpkin_util::{GameMode, math::position::BlockPos};
 use pumpkin_world::tick::TickPriority;
 use tracing::warn;
 
@@ -152,14 +152,27 @@ impl CommandBlock {
         };
 
         command_entity.success_count.store(0, Ordering::Release);
-        if !command.is_empty() {
-            let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
-
-            server
-                .command_dispatcher
-                .load()
-                .handle_command(&source, command);
+        if command.is_empty() {
+            return;
         }
+
+        // Vanilla `BaseCommandBlock#performCommand` easter egg.
+        if command == "Searge" {
+            let mut last_output = command_entity
+                .last_output
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *last_output = "#itzlipofutzli".to_string();
+            command_entity.success_count.store(1, Ordering::Release);
+            return;
+        }
+
+        let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
+
+        server
+            .command_dispatcher
+            .load()
+            .handle_command(&source, command);
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {
@@ -242,14 +255,16 @@ impl BlockBehaviour for CommandBlock {
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         {
-            if args.player.permission_lvl.load() < PermissionLvl::Two {
+            if !args.player.can_use_game_master_blocks() {
                 return BlockActionResult::Pass;
             }
             let Some(block_entity) = args.world.get_block_entity(args.position) else {
                 return BlockActionResult::Pass;
             };
+            // Vanilla `ServerPlayer#openCommandBlock`: the block entity payload is what makes
+            // the client open the editor screen.
             args.world.update_block_entity(&block_entity);
-            BlockActionResult::SuccessServer
+            BlockActionResult::Consume
         }
     }
 
@@ -411,7 +426,10 @@ impl BlockBehaviour for CommandBlock {
                 |entity| {
                     let command_block_entity: Option<&CommandBlockEntity> =
                         entity.as_any().downcast_ref();
-                    command_block_entity.map(|e| e.success_count.load(Ordering::Acquire) as u8)
+                    // Vanilla `ComparatorBlock` clamps the analog output at 15; casting the
+                    // raw success count to `u8` would wrap instead.
+                    command_block_entity
+                        .map(|e| e.success_count.load(Ordering::Acquire).min(15) as u8)
                 },
             )
         }

@@ -51,14 +51,18 @@ impl FallingEntity {
             .store(i32::from(block_state_id.as_u16()), Ordering::Relaxed);
     }
 
-    /// Replaced the current Block and Spawns a new Falling one (synchronous)
+    /// Replaces the current block with its fluid and spawns a falling one (synchronous)
     pub fn replace_spawn(world: &Arc<World>, position: BlockPos, block_state: BlockStateId) {
-        // Replace the original block, TODO: use fluid state
-        world.set_block_state(
-            &position,
-            Block::AIR.default_state.id,
-            BlockFlags::NOTIFY_ALL,
-        );
+        let replacement = if block_state.is_waterlogged() {
+            Block::WATER.default_state.id
+        } else {
+            Block::AIR.default_state.id
+        };
+        world.set_block_state(&position, replacement, BlockFlags::NOTIFY_ALL);
+        let block_state = block_state
+            .to_state()
+            .set_waterlogged(false)
+            .map_or(block_state, |state| state.id);
 
         let position = position.0.to_f64().add_raw(0.5, 0.0, 0.5);
         let entity = Entity::new(world.clone(), position, &EntityType::FALLING_BLOCK);
@@ -132,6 +136,11 @@ impl EntityBase for FallingEntity {
                         && let Some(concrete) = Block::from_name(name)
                     {
                         state_id = concrete.default_state.id;
+                    }
+                    if world.is_water_source(&landing_pos)
+                        && let Some(waterlogged) = state_id.to_state().set_waterlogged(true)
+                    {
+                        state_id = waterlogged.id;
                     }
                     let block = Block::from_state_id(state_id);
                     let mut event = crate::plugin::api::events::entity::entity_change_block::EntityChangeBlockEvent::new(

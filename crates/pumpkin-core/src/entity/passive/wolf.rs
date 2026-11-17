@@ -175,6 +175,37 @@ impl Animal for WolfEntity {
         // item (handled in mob_interact) and must not heal tamed wolves.
         item.has_tag(&tag::Item::MINECRAFT_WOLF_FOOD)
     }
+
+    /// Vanilla Wolf#getBreedOffspring: a tame parent passes its owner, collar colour,
+    /// variant and sound variant (each picked at random from both parents) to the pup.
+    fn get_breed_offspring(&self, partner: &dyn EntityBase) -> Arc<dyn EntityBase> {
+        let entity = self.get_entity();
+        let baby = Self::new(Entity::new(
+            entity.world.load_full(),
+            entity.pos.load(),
+            &EntityType::WOLF,
+        ));
+        if let Some(partner) = partner.cast_any().downcast_ref::<Self>() {
+            if self.is_tame() {
+                baby.set_owner(self.get_owner());
+                baby.set_tame(true);
+                baby.set_collar_color(self.collar_color.load(Ordering::Relaxed));
+            }
+            let variant = if self.get_random().random::<bool>() {
+                self.variant.load(Ordering::Relaxed)
+            } else {
+                partner.variant.load(Ordering::Relaxed)
+            };
+            baby.set_variant_id(variant);
+            let sound_variant = if self.get_random().random::<bool>() {
+                self.sound_variant.load(Ordering::Relaxed)
+            } else {
+                partner.sound_variant.load(Ordering::Relaxed)
+            };
+            baby.set_sound_variant_id(sound_variant);
+        }
+        baby
+    }
 }
 
 impl TamableAnimal for WolfEntity {

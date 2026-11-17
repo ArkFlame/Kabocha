@@ -102,7 +102,12 @@ impl BlockBehaviour for JukeboxBlock {
         let state_id = args.world.get_block_state(args.position).id;
 
         // Vanilla: if (state.get(HAS_RECORD) && world.getBlockEntity(pos) instanceof JukeboxBlockEntity lv)
-        if Self::has_record_state(args.block, state_id) {
+        if Self::has_record_state(args.block, state_id)
+            && args
+                .world
+                .get_block_entity(args.position)
+                .is_some_and(|entity| entity.as_any().is::<JukeboxBlockEntity>())
+        {
             // Drop the record
             Self::drop_record(args.position, args.world);
             // Stop the music and update block state
@@ -124,6 +129,14 @@ impl BlockBehaviour for JukeboxBlock {
             return BlockActionResult::PassToDefaultBlockAction;
         }
 
+        // Vanilla: `JukeboxPlayableComponent.tryPlayStack` does nothing without the block entity,
+        // so the disc must not be consumed either.
+        let Some(block_entity) = world.get_block_entity(args.position) else {
+            return BlockActionResult::PassToDefaultBlockAction;
+        };
+        let Some(jukebox_entity) = block_entity.as_any().downcast_ref::<JukeboxBlockEntity>() else {
+            return BlockActionResult::PassToDefaultBlockAction;
+        };
         let item_stack = &mut *args.item_stack;
 
         // Vanilla: JukeboxPlayableComponent lv = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE)
@@ -149,15 +162,11 @@ impl BlockBehaviour for JukeboxBlock {
         let record = item_stack.split_unless_creative(args.player.gamemode.load(), 1);
 
         // Vanilla: lv4.setStack(lv3)
-        if let Some(block_entity) = world.get_block_entity(args.position)
-            && let Some(jukebox_entity) = block_entity.as_any().downcast_ref::<JukeboxBlockEntity>()
-        {
-            jukebox_entity.set_world(Arc::downgrade(world));
-            jukebox_entity.set_record(record);
-            jukebox_entity.start_playing(
-                jukebox_song.length_in_ticks() + JukeboxBlockEntity::SONG_END_PADDING_TICKS,
-            );
-        }
+        jukebox_entity.set_world(Arc::downgrade(world));
+        jukebox_entity.set_record(record);
+        jukebox_entity.start_playing(
+            jukebox_song.length_in_ticks() + JukeboxBlockEntity::SONG_END_PADDING_TICKS,
+        );
 
         // Update block state to has_record = true
         Self::set_record_state(true, args.block, args.position, world);

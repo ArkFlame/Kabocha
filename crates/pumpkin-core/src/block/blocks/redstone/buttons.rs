@@ -19,7 +19,7 @@ use crate::block::blocks::abstract_wall_mounting::WallMountedBlock;
 use crate::block::blocks::redstone::lever::LeverLikePropertiesExt;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, EmitsRedstonePowerArgs, GetRedstonePowerArgs,
+    BlockBehaviour, CanPlaceAtArgs, EmitsRedstonePowerArgs, ExplodeArgs, GetRedstonePowerArgs,
     GetStateForNeighborUpdateArgs, NormalUseArgs, OnEntityCollisionArgs, OnPlaceArgs,
     OnScheduledTickArgs, OnStateReplacedArgs,
 };
@@ -55,6 +55,16 @@ impl BlockBehaviour for ButtonBlock {
         } else {
             BlockActionResult::Consume
         }
+    }
+
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        // `onExplosionHit`: a wind charge presses an unpowered button the way a hand
+        // does. The destroy path calls this after removing the block, so only act
+        // while the button itself is still placed.
+        if args.world.get_block_and_state_id(args.position).0 != args.block {
+            return;
+        }
+        Self::press(None, args.world, args.position);
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {

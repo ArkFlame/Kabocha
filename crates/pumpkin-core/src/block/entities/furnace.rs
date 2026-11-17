@@ -32,10 +32,11 @@ pub struct FurnaceBlockEntity {
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
 
     /// Tracks recipes used for XP calculation (vanilla `RecipesUsed` NBT format)
-    /// Maps result item ID -> craft count
+    /// Maps recipe ID -> craft count
     pub recipes_used: StdMutex<HashMap<String, u32>>,
-    /// Accumulated smelting experience not yet awarded, kept as a fraction
-    /// like vanilla AbstractFurnaceBlockEntity.experience.
+    /// Smelting experience not yet awarded, accumulated with its fractional
+    /// part carried over between takes (vanilla stores only `RecipesUsed` and
+    /// recomputes the experience per recipe when the output is taken).
     pub experience: StdMutex<f32>,
     pub metadata: super::ContainerMetadata,
 }

@@ -7,9 +7,11 @@ use crate::{
     },
     pumpkin::plugin::event::{
         ChunkLoadEventData, ChunkSaveEventData, ChunkSendEventData, Event, SpawnChangeEventData,
-        ThunderChangeEventData, WeatherChangeEventData, WorldLoadEventData, WorldUnloadEventData,
+        ThunderChangeEventData, WeatherCause as WitWeatherCause, WeatherChangeEventData,
+        WeatherPhaseChangeEventData, WorldLoadEventData, WorldUnloadEventData,
     },
 };
+use pumpkin_core::plugin::api::events::world::weather_change::WeatherCause;
 use pumpkin_core::plugin::world::{
     chunk_load::ChunkLoad, chunk_save::ChunkSave, chunk_send::ChunkSend,
     spawn_change::SpawnChangeEvent,
@@ -88,9 +90,11 @@ impl ToFromWasmEvent for ChunkLoad {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -142,9 +146,11 @@ impl ToFromWasmEvent for ChunkSave {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -192,9 +198,11 @@ impl ToFromWasmEvent for ChunkSend {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -218,6 +226,7 @@ impl ToFromWasmEvent
         Event::WeatherChangeEvent(WeatherChangeEventData {
             target_world,
             to_weather_state: self.to_weather_state,
+            cause: to_wit_cause(self.cause),
             cancelled: self.cancelled,
         })
     }
@@ -227,6 +236,7 @@ impl ToFromWasmEvent
             Event::WeatherChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_weather_state: data.to_weather_state,
+                cause: from_wit_cause(data.cause),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -245,6 +255,7 @@ impl ToFromWasmEvent
         Event::ThunderChangeEvent(ThunderChangeEventData {
             target_world,
             to_thunder_state: self.to_thunder_state,
+            cause: to_wit_cause(self.cause),
             cancelled: self.cancelled,
         })
     }
@@ -254,10 +265,60 @@ impl ToFromWasmEvent
             Event::ThunderChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_thunder_state: data.to_thunder_state,
+                cause: from_wit_cause(data.cause),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
         }
+    }
+}
+
+impl ToFromWasmEvent
+    for pumpkin_core::plugin::api::events::world::weather_change::WeatherPhaseChangeEvent
+{
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
+        let target_world = state
+            .add(self.world.clone())
+            .expect("failed to add world resource");
+
+        Event::WeatherPhaseChangeEvent(WeatherPhaseChangeEventData {
+            target_world,
+            phase: self.phase.clone(),
+            to_active: self.to_active,
+            cause: to_wit_cause(self.cause),
+            cancelled: self.cancelled,
+        })
+    }
+
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::WeatherPhaseChangeEvent(data) => Self {
+                world: consume_world(state, &data.target_world),
+                phase: data.phase,
+                to_active: data.to_active,
+                cause: from_wit_cause(data.cause),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
+        }
+    }
+}
+
+const fn to_wit_cause(cause: WeatherCause) -> WitWeatherCause {
+    match cause {
+        WeatherCause::Natural => WitWeatherCause::Natural,
+        WeatherCause::Command => WitWeatherCause::Command,
+        WeatherCause::Plugin => WitWeatherCause::Plugin,
+        WeatherCause::Sleep => WitWeatherCause::Sleep,
+    }
+}
+
+const fn from_wit_cause(cause: WitWeatherCause) -> WeatherCause {
+    match cause {
+        WitWeatherCause::Natural => WeatherCause::Natural,
+        WitWeatherCause::Command => WeatherCause::Command,
+        WitWeatherCause::Plugin => WeatherCause::Plugin,
+        WitWeatherCause::Sleep => WeatherCause::Sleep,
     }
 }
 

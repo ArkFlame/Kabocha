@@ -617,7 +617,7 @@ impl Goal for FoxSeekShelterGoal {
         let entity = fox.get_entity();
         let world = entity.world.load();
         let pos = entity.block_pos.load();
-        if super::is_thundering(&world) && world.can_see_sky(&pos) {
+        if world.is_thundering() && world.can_see_sky(&pos) {
             self.wanted = Self::find_hide_pos(mob);
             return self.wanted.is_some();
         }

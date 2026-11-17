@@ -322,7 +322,10 @@ impl BlockBehaviour for ShelfBlock {
 
         properties.facing = args.player.get_entity().get_horizontal_facing().opposite();
         properties.powered = block_receives_redstone_power(args.world, args.position);
-        properties.waterlogged = args.replacing.water_source();
+        // Vanilla `ShelfBlock.getStateForPlacement` uses `FluidState#is(Fluids.WATER)`,
+        // which is true for flowing water as well as sources.
+        properties.waterlogged =
+            matches!(args.replacing, crate::block::BlockIsReplacing::Water(_));
 
         properties.to_state_id(args.block)
     }

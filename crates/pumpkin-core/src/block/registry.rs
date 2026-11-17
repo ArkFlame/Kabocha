@@ -31,6 +31,7 @@ use crate::block::blocks::decorated_pot::DecoratedPotBlock;
 use crate::block::blocks::dirt_path::DirtPathBlock;
 use crate::block::blocks::doors::DoorBlock;
 use crate::block::blocks::dripstone::DripstoneBlock;
+use crate::block::blocks::dynamic::DynamicBlock;
 use crate::block::blocks::end_gateway::EndGatewayBlock;
 use crate::block::blocks::end_portal::EndPortalBlock;
 use crate::block::blocks::end_portal_frame::EndPortalFrameBlock;
@@ -190,6 +191,7 @@ use pumpkin_data::block_properties::SnowLikeProperties;
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::fluid::Fluid;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
@@ -204,6 +206,7 @@ use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use super::BlockIsReplacing;
+use super::BlockPlaceContext;
 use super::blocks::plant::crop::gourds::attached_stem::AttachedStemBlock;
 use super::blocks::plant::crop::gourds::stem::StemBlock;
 use super::fluid::FluidBehaviour;
@@ -516,8 +519,11 @@ impl BlockActionResult {
 const NO_BEHAVIOUR: u16 = u16::MAX;
 
 pub struct BlockRegistry {
+    /// Behaviour index by block id, for the generated blocks.
     block_indices: [u16; pumpkin_data::BlockId::COUNT as usize],
     behaviours: Vec<Arc<dyn BlockBehaviour>>,
+    /// The behaviour of every plugin-registered block.
+    dynamic_behaviour: Arc<dyn BlockBehaviour>,
     fluids: FxHashMap<u16, Arc<dyn FluidBehaviour>>,
 }
 
@@ -526,6 +532,7 @@ impl Default for BlockRegistry {
         Self {
             block_indices: [NO_BEHAVIOUR; pumpkin_data::BlockId::COUNT as usize],
             behaviours: Vec::new(),
+            dynamic_behaviour: Arc::new(DynamicBlock),
             fluids: FxHashMap::default(),
         }
     }
@@ -738,30 +745,36 @@ impl BlockRegistry {
             _ => {}
         }
 
-        if location.0.y + face.to_offset().y < world.get_bottom_y() {
-            return Err(BlockPlacingError::BlockOutOfWorld);
-        }
-
-        if location.0.y + face.to_offset().y > world.get_top_y() {
-            player.send_system_message_raw(
-                &pumpkin_util::text::TextComponent::translate_cross(
-                    pumpkin_data::translation::java::BUILD_TOOHIGH,
-                    pumpkin_data::translation::bedrock::BUILD_TOOHIGH,
-                    vec![pumpkin_util::text::TextComponent::text(
-                        (world.get_top_y()).to_string(),
-                    )],
-                )
-                .color_named(pumpkin_util::text::color::NamedColor::Red),
-                true,
-            );
-            return Err(BlockPlacingError::BlockOutOfWorld);
-        }
-
         let Some((final_block_pos, final_face, replacing)) =
             self.placement_target(&world, player, placed_block, use_item_on, location, face)
         else {
             return Ok(None);
         };
+
+        let context = BlockPlaceContext {
+            position: final_block_pos,
+            clicked_face: final_face.opposite(),
+            inside: use_item_on.inside_block,
+            replacing,
+        };
+        let Some(context) = server.item_registry.update_placement_context(
+            placed_block.item_id,
+            &world,
+            player,
+            context,
+        ) else {
+            return Ok(None);
+        };
+        let final_block_pos = context.position;
+        let final_face = context.clicked_face.opposite();
+        let replacing = context.replacing;
+
+        if !world.is_in_height_limit(final_block_pos.0.y) {
+            if final_block_pos.0.y > world.get_top_y() {
+                player.send_build_too_high_message(world.get_top_y());
+            }
+            return Err(BlockPlacingError::BlockOutOfWorld);
+        }
 
         if world.is_in_spawn_protection(player, &final_block_pos) {
             player.send_system_message(&pumpkin_util::text::TextComponent::translate_cross(
@@ -774,17 +787,19 @@ impl BlockRegistry {
             return Ok(None);
         }
 
-        if !self.can_place_at(
-            Some(server),
-            Some(&*world),
-            &*world,
-            Some(player),
-            placed_block,
-            placed_block.default_state,
-            &final_block_pos,
-            Some(final_face),
-            Some(use_item_on),
-        ) {
+        if server.item_registry.must_survive(placed_block.item_id)
+            && !self.can_place_at(
+                Some(server),
+                Some(&*world),
+                &*world,
+                Some(player),
+                placed_block,
+                placed_block.default_state,
+                &final_block_pos,
+                Some(final_face),
+                Some(use_item_on),
+            )
+        {
             return Ok(None);
         }
 
@@ -879,6 +894,16 @@ impl BlockRegistry {
             "place",
             &final_block_pos.to_centered_f64(),
             BlockState::to_be_network_id(new_state) as i32,
+        );
+
+        // Vanilla BlockItem.place fires GameEvent.BLOCK_PLACE with the placing player so
+        // sculk sensors and the warden attribute the vibration to them.
+        world.emit_game_event_with_context(
+            GameEvent::BlockPlace.name(),
+            final_block_pos.to_f64(),
+            &crate::world::game_event::GameEventContext {
+                source_entity: Some(player.as_ref()),
+            },
         );
 
         if let Some(ref stack) = held_stack
@@ -1182,6 +1207,12 @@ impl BlockRegistry {
             });
         }
         true
+    }
+
+    #[must_use]
+    pub fn has_placement_collision(&self, block: &Block) -> bool {
+        self.get_pumpkin_block(block.id)
+            .is_none_or(|pumpkin_block| pumpkin_block.has_placement_collision())
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -1509,6 +1540,9 @@ impl BlockRegistry {
     #[inline]
     #[must_use]
     pub fn get_pumpkin_block(&self, block: BlockId) -> Option<&Arc<dyn BlockBehaviour>> {
+        if block.as_u16() >= BlockId::COUNT {
+            return Some(&self.dynamic_behaviour);
+        }
         let idx = self.block_indices[block.as_u16() as usize];
         if idx == NO_BEHAVIOUR {
             None

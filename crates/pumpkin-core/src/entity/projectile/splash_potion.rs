@@ -75,13 +75,13 @@ pub(crate) fn stack_hurts_water_sensitive(stack: &ItemStack) -> bool {
     else {
         return false;
     };
-    let (names, ids) = pumpkin_data::tag::Potion::MINECRAFT_HURTS_WATER_SENSITIVE_ENTITIES;
+    let (names, ids, _) = pumpkin_data::tag::Potion::MINECRAFT_HURTS_WATER_SENSITIVE_ENTITIES;
     names.contains(&potion.name) || ids.contains(&u16::from(potion.id))
 }
 
 /// Whether the potion carries the `minecraft:rehydrates_axolotls` tag.
 fn rehydrates_axolotls(stack: &ItemStack) -> bool {
-    let (names, ids) = pumpkin_data::tag::Potion::MINECRAFT_REHYDRATES_AXOLOTLS;
+    let (names, ids, _) = pumpkin_data::tag::Potion::MINECRAFT_REHYDRATES_AXOLOTLS;
     stack
         .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
         .and_then(|contents| contents.potion_id)

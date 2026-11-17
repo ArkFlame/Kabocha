@@ -4628,7 +4628,7 @@ impl Player {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 (
-                    w.raining,
+                    w.is_raining(),
                     w.rain_level.clamp(0.0, 1.0),
                     w.thunder_level.clamp(0.0, 1.0),
                 )
@@ -6734,6 +6734,19 @@ impl Player {
             _ => SText::system_message(text.0.to_bedrock_legacy(locale)),
         };
         self.try_enqueue_packet_editioned(&je_packet, &be_packet);
+    }
+
+    /// Vanilla `ServerPlayer.sendBuildLimitMessage(true, maxY)`.
+    pub fn send_build_too_high_message(&self, max_y: i32) {
+        self.send_system_message_raw(
+            &pumpkin_macros::translate_cross!(
+                translation::java::BUILD_TOOHIGH,
+                translation::bedrock::BUILD_TOOHIGH,
+                TextComponent::text(max_y.to_string())
+            )
+            .color_named(NamedColor::Red),
+            true,
+        );
     }
 
     pub fn tick_experience(&self) {

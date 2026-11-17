@@ -65,8 +65,9 @@ const STARE_CONE_SIZE: f64 = 0.025;
 const LINE_OF_SIGHT_RANGE: f64 = 128.0;
 
 fn is_projectile_damage(dt: DamageType) -> bool {
-    let (names, _) = pumpkin_data::tag::DamageType::MINECRAFT_IS_PROJECTILE;
-    names.contains(&dt.message_id)
+    pumpkin_data::tag::DamageType::MINECRAFT_IS_PROJECTILE
+        .0
+        .contains(&dt.message_id)
 }
 
 const ENDERMAN_HUNTS: &[Hunt] = &[Hunt::new(

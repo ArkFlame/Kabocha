@@ -1,7 +1,6 @@
 use super::BlockEntity;
 use crate::world::World;
 use pumpkin_data::block_properties::{SculkCatalystLikeProperties, WaterLikeProperties};
-use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{BlockId, BlockState, BlockStateId};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -122,7 +121,6 @@ impl SculkCatalystBlockEntity {
         let mut props = SculkCatalystLikeProperties::from_state_id(state_id);
         props.bloom = true;
         world.set_block_state(&pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
-        world.play_block_sound(Sound::BlockSculkCatalystBloom, SoundCategory::Blocks, pos);
         world.schedule_block_tick(block, pos, BLOOM_DURATION, TickPriority::Normal);
     }
 }

@@ -1,3 +1,5 @@
+use pumpkin_data::block_registry::BlockDrops;
+use pumpkin_data::item::Item;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockId, BlockState};
 
@@ -21,6 +23,7 @@ use crate::block::registry::BlockActionResult;
 use crate::entity::EntityBase;
 use crate::server::Server;
 use pumpkin_data::BlockDirection;
+use pumpkin_data::block_properties::WaterLikeProperties;
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::item_stack::ItemStack;
@@ -248,6 +251,14 @@ pub trait BlockBehaviour: Send + Sync {
 
     fn get_inside_collision_shape(&self, _args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
         BoundingBox::full_block()
+    }
+
+    /// Whether entities in the way stop this block from being placed.
+    ///
+    /// Vanilla checks placement against `getCollisionShape`, which is empty for a placement
+    /// context for some blocks, scaffolding included.
+    fn has_placement_collision(&self) -> bool {
+        true
     }
 
     fn mirror(&self, block: &Block, state_id: BlockStateId, mirror: Mirror) -> &'static BlockState {
@@ -566,6 +577,57 @@ fn loot_table_block(block: &Block) -> &Block {
         })
 }
 
+/// The items a block drops: its loot table, or what the registration of a custom block says.
+fn block_loot(world: &Arc<World>, block: &Block, params: &LootContextParameters) -> Vec<ItemStack> {
+    // The loot conditions and nested table lookups below read the world and the held tool, which
+    // callers may not have filled in.
+    let params = LootContextParameters {
+        world: Some(world),
+        tool: Some(
+            params
+                .tool
+                .clone()
+                .unwrap_or_else(|| ItemStack::EMPTY.clone()),
+        ),
+        ..params.clone()
+    };
+    let Some(info) = block.dynamic_info() else {
+        return loot_table_block(block)
+            .loot_table
+            .map(|key| loot_table_items(world, key, &params))
+            .unwrap_or_default();
+    };
+    match &info.registration.drops {
+        BlockDrops::Nothing => Vec::new(),
+        BlockDrops::LootTable(key) => loot_table_items(world, key, &params),
+        BlockDrops::SelfItem => {
+            // The `survives_explosion` condition of the vanilla block loot tables.
+            if params
+                .explosion_radius
+                .is_some_and(|radius| rand::random::<f32>() > 1.0 / radius)
+            {
+                return Vec::new();
+            }
+            Item::from_id(block.item_id)
+                .filter(|_| block.item_id != 0)
+                .map(|item| vec![ItemStack::new(1, item)])
+                .unwrap_or_default()
+        }
+    }
+}
+
+fn loot_table_items(
+    world: &Arc<World>,
+    key: &str,
+    params: &LootContextParameters,
+) -> Vec<ItemStack> {
+    let Some(loot_table) = world.get_loot_table(key) else {
+        return Vec::new();
+    };
+    let seed = world.next_loot_seed();
+    crate::world::loot::generate_loot_from_handle(&loot_table, seed, params)
+}
+
 pub fn drop_loot(
     world: &Arc<World>,
     block: &Block,
@@ -574,38 +636,38 @@ pub fn drop_loot(
     params: &LootContextParameters,
 ) {
     let loot_block = loot_table_block(block);
-    if let Some(loot_table) = loot_block
-        .loot_table
-        .and_then(|key| world.get_loot_table(key))
-    {
-        let seed = world.next_loot_seed();
-        let params = LootContextParameters {
-            world: Some(world),
-            tool: Some(
-                params
-                    .tool
-                    .clone()
-                    .unwrap_or_else(|| ItemStack::EMPTY.clone()),
-            ),
-            block_entity: world.get_block_entity(pos),
-            ..params.clone()
+    let params = LootContextParameters {
+        world: Some(world),
+        tool: Some(
+            params
+                .tool
+                .clone()
+                .unwrap_or_else(|| ItemStack::EMPTY.clone()),
+        ),
+        block_entity: world.get_block_entity(pos),
+        ..params.clone()
+    };
+    let items = block_loot(world, block, &params);
+    if !items.is_empty() {
+        let mut event = crate::plugin::block::block_drop_item::BlockDropItemEvent {
+            block_pos: *pos,
+            world: world.clone(),
+            player: None,
+            items,
+            cancelled: false,
         };
-        let items = crate::world::loot::generate_loot_from_handle(&loot_table, seed, &params);
-        if !items.is_empty() {
-            let mut event = crate::plugin::block::block_drop_item::BlockDropItemEvent {
-                block_pos: *pos,
-                world: world.clone(),
-                player: None,
-                items,
-                cancelled: false,
-            };
-            if let Some(server) = world.server.upgrade() {
-                server.plugin_manager.fire_blocking(&server, &mut event);
-            }
-            if !event.cancelled {
-                for stack in event.items {
-                    world.drop_stack(pos, stack);
+        if let Some(server) = world.server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if !event.cancelled {
+            let block_entity = world.get_block_entity(pos);
+            for mut stack in event.items {
+                if let Some(block_entity) = &block_entity
+                    && Block::from_item_id(stack.item.id) == Some(loot_block)
+                {
+                    block_entity.collect_item_components(&mut stack);
                 }
+                world.drop_stack(pos, stack);
             }
         }
     }
@@ -669,6 +731,36 @@ impl BlockIsReplacing {
             // Level 0 means the water is a source block
             Self::Water(level) => *level == 0,
             _ => false,
+        }
+    }
+}
+
+/// Where a block item places its block, like vanilla's `BlockPlaceContext`.
+pub struct BlockPlaceContext {
+    /// `getClickedPos`: the position the block is placed at.
+    pub position: BlockPos,
+    pub clicked_face: BlockDirection,
+    /// `isInside`: the click came from inside the clicked block.
+    pub inside: bool,
+    pub replacing: BlockIsReplacing,
+}
+
+impl BlockPlaceContext {
+    /// `BlockPlaceContext.at`: places into the replaceable block at `position` as if its
+    /// `direction` face was clicked.
+    #[must_use]
+    pub fn at(world: &World, position: BlockPos, direction: BlockDirection) -> Self {
+        let state_id = world.get_block_state_id(&position);
+        let replacing = if Block::from_state_id(state_id) == &Block::WATER {
+            BlockIsReplacing::Water(WaterLikeProperties::from_state_id(state_id).level)
+        } else {
+            BlockIsReplacing::Other
+        };
+        Self {
+            position,
+            clicked_face: direction,
+            inside: false,
+            replacing,
         }
     }
 }

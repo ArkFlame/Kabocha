@@ -73,7 +73,6 @@ pub mod vault;
 pub use furnace_like_block_entity::ExperienceContainer;
 pub use pumpkin_inventory::PropertyDelegate;
 
-//TODO: We need a mark_dirty for chests
 pub trait BlockEntity: Any + Send + Sync {
     fn write_nbt(&self, nbt: &mut NbtCompound);
     fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self
@@ -385,9 +384,10 @@ pub fn block_entity_from_nbt(nbt: &NbtCompound) -> Option<Arc<dyn BlockEntity>> 
         namespaced = format!("minecraft:{id}");
         namespaced.as_str()
     };
-    let x = nbt.get_int("x")?;
-    let y = nbt.get_int("y")?;
-    let z = nbt.get_int("z")?;
+    // Vanilla `NbtHelper.toBlockPos` reads missing coordinates as 0.
+    let x = nbt.get_int("x").unwrap_or(0);
+    let y = nbt.get_int("y").unwrap_or(0);
+    let z = nbt.get_int("z").unwrap_or(0);
     let pos = BlockPos::new(x, y, z);
     match id {
         barrel::BarrelBlockEntity::ID => {
@@ -551,7 +551,12 @@ pub fn block_owns_block_entity(block: &Block, id: &str) -> bool {
 
 #[must_use]
 pub fn has_block_block_entity(block: &Block) -> bool {
-    BLOCK_ENTITY_TYPES.contains(&block.name)
+    // Vanilla `PistonBlock.isMovable` checks the block state's block entity type,
+    // not the block name: `oak_sign`, `white_banner` and `white_shulker_box` all
+    // declare a block entity even though none of them is named after its type.
+    BLOCK_ENTITY_TYPES
+        .get(block.default_state.block_entity_type as usize)
+        .is_some()
 }
 
 #[must_use]
@@ -710,8 +715,9 @@ mod test {
         block_entity_from_nbt, block_owns_block_entity, brewing_stand::BrewingStandBlockEntity,
         chest::ChestBlockEntity, crafter::CrafterBlockEntity, daylight_detector::DaylightDetectorBlockEntity,
         dispenser::DispenserBlockEntity, dropper::DropperBlockEntity, furnace::FurnaceBlockEntity,
-        hopper::HopperBlockEntity, shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity,
-        smoker::SmokerBlockEntity, trapped_chest::TrappedChestBlockEntity,
+        has_block_block_entity, hopper::HopperBlockEntity,
+        shulker_box::ShulkerBoxBlockEntity, sign::SignBlockEntity, smoker::SmokerBlockEntity,
+        trapped_chest::TrappedChestBlockEntity,
     };
     use pumpkin_data::{Block, block_properties::FacingHopper, item::Item, item_stack::ItemStack};
     use pumpkin_inventory::Inventory;
@@ -761,6 +767,38 @@ mod test {
 
         let entity = block_entity_from_nbt(&nbt).map(|entity| entity.resource_location());
         assert_eq!(entity, Some("minecraft:chest"));
+    }
+
+    /// Vanilla `PistonBlock.isMovable` asks the block state for a block entity
+    /// type, so a sign or banner is immovable even though its name is not the
+    /// type name "sign"/"banner".
+    #[test]
+    fn block_entities_are_found_through_the_block_state() {
+        for block in [&Block::OAK_SIGN, &Block::WHITE_BANNER, &Block::CHEST] {
+            assert!(
+                has_block_block_entity(block),
+                "{} declares a block entity type",
+                block.name
+            );
+        }
+        for block in [&Block::STONE, &Block::OAK_PLANKS] {
+            assert!(
+                !has_block_block_entity(block),
+                "{} must stay piston-movable",
+                block.name
+            );
+        }
+    }
+
+    /// Vanilla `NbtHelper.toBlockPos` reads missing coordinates as 0, so NBT
+    /// without x/y/z must still produce an entity instead of dropping it.
+    #[test]
+    fn block_entity_without_coordinates_loads_at_the_origin() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", "chest".to_string());
+
+        let position = block_entity_from_nbt(&nbt).map(|entity| entity.get_position());
+        assert_eq!(position, Some(BlockPos::new(0, 0, 0)));
     }
 
     #[test]

@@ -88,9 +88,11 @@ impl ToFromWasmEvent for ChunkLoad {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -142,9 +144,11 @@ impl ToFromWasmEvent for ChunkSave {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -192,9 +196,11 @@ impl ToFromWasmEvent for ChunkSend {
                     status: pumpkin_data::chunk::ChunkStatus::Empty,
                     blending_data: None,
                     dirty: std::sync::atomic::AtomicBool::new(false),
+                    holds_unregistered_blocks: std::sync::atomic::AtomicBool::new(false),
                     inhabited_time: std::sync::atomic::AtomicU64::new(0),
                     custom_data: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
                     preserved_tags: std::sync::Mutex::new(pumpkin_nbt::compound::NbtCompound::new()),
+                    sky_light_height_cache: std::sync::atomic::AtomicU32::new(0),
                 };
                 Self {
                     world,
@@ -222,11 +228,20 @@ impl ToFromWasmEvent
         })
     }
 
+    // v0.1 events carry no cause, so the original one is kept.
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        let cause = self.cause;
+        *self = Self::from_wasm_event(event, state);
+        self.cause = cause;
+    }
+
     fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::WeatherChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_weather_state: data.to_weather_state,
+                cause:
+                    pumpkin_core::plugin::api::events::world::weather_change::WeatherCause::Plugin,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
@@ -249,11 +264,20 @@ impl ToFromWasmEvent
         })
     }
 
+    // v0.1 events carry no cause, so the original one is kept.
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        let cause = self.cause;
+        *self = Self::from_wasm_event(event, state);
+        self.cause = cause;
+    }
+
     fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::ThunderChangeEvent(data) => Self {
                 world: consume_world(state, &data.target_world),
                 to_thunder_state: data.to_thunder_state,
+                cause:
+                    pumpkin_core::plugin::api::events::world::weather_change::WeatherCause::Plugin,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

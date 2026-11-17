@@ -185,25 +185,6 @@ pub fn generated_structure_file_path(
     Some(full_path)
 }
 
-fn is_full_cube_template_block(name: &str) -> bool {
-    let stripped = name.strip_prefix("minecraft:").unwrap_or(name);
-    !(stripped.contains("air")
-        || stripped.contains("stair")
-        || stripped.contains("slab")
-        || stripped.contains("fence")
-        || stripped.contains("wall")
-        || stripped.contains("door")
-        || stripped.contains("torch")
-        || stripped.contains("pane")
-        || stripped.contains("lantern")
-        || stripped.contains("carpet")
-        || stripped.contains("chain")
-        || stripped.contains("iron_bars")
-        || stripped.contains("candle")
-        || stripped.contains("bell")
-        || stripped.contains("scaffolding"))
-}
-
 pub fn capture_structure_template_from_world(
     world: &World,
     origin: BlockPos,
@@ -262,7 +243,7 @@ pub fn capture_structure_template_from_world(
                 let info = StructureBlockInfo::new(rel_pos, Arc::new(entry), nbt);
                 if info.nbt.is_some() {
                     block_entity_blocks.push(info);
-                } else if is_full_cube_template_block(&block_name) {
+                } else if state.is_solid_render() {
                     full_blocks.push(info);
                 } else {
                     other_blocks.push(info);

@@ -240,6 +240,12 @@ impl BlockBehaviour for LecternBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         let mut props =
             LecternLikeProperties::from_state_id(args.world.get_block_state(args.position).id);
+        // Vanilla `scheduledTick` only clears the pulse while `POWERED`: taking the
+        // book during the two-tick window calls `resetBookState`, which clears
+        // `powered` and leaves this stale tick with nothing to do.
+        if !props.powered {
+            return;
+        }
         props.powered = false;
         args.world.set_block_state(
             args.position,
