@@ -487,8 +487,10 @@ impl EnchantmentHelper {
         position: pumpkin_util::math::vector3::Vector3<f64>,
     ) {
         let world = entity.world.load_full();
-        let frost_walker_allowed =
-            meets_frost_walker_requirements(entity.on_ground.load(Ordering::Relaxed), entity.has_vehicle());
+        let frost_walker_allowed = meets_frost_walker_requirements(
+            entity.on_ground.load(Ordering::Relaxed),
+            entity.has_vehicle(),
+        );
         Self::run_iteration_on_item(item, |enchantment, level| {
             // Vanilla checks each entry requirements before applying it. Generated data drops
             // them, so Frost Walker own ground plus vehicle gate is applied here.
