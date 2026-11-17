@@ -213,6 +213,31 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl#handleChatSessionUpdate`: a client re-sending the
+        // key data it already uses changes nothing.
+        {
+            let current = player
+                .chat_session
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if current.expires_at == session.expires_at
+                && current.public_key.as_ref() == session.public_key.as_ref()
+                && current.signature.as_ref() == session.key_signature.as_ref()
+            {
+                return;
+            }
+        }
+
+        // Vanilla ignores the update with a warning when the services profile-key validator is
+        // unavailable, instead of disconnecting the player.
+        if server.mojang_public_keys.load().is_empty() {
+            warn!(
+                "Ignoring chat session from {} due to missing services public key",
+                player.gameprofile.name
+            );
+            return;
+        }
+
         if let Err(err) = self.validate_chat_session(player, server, &session).await {
             log_at_level!(
                 err.severity(),
