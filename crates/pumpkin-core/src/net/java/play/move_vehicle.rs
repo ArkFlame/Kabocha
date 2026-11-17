@@ -119,10 +119,9 @@ impl JavaClient {
                 }
                 let dx = pos.x - start_pos.x;
                 let dz = pos.z - start_pos.z;
-                let distance_horizontal = dx.hypot(dz);
                 player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::RideEntityInLava {
-                        distance_horizontal,
+                        delta: (dx, pos.y - start_pos.y, dz),
                         dimension: world.dimension.minecraft_name.to_string(),
                         vehicle_type: Some(format!(
                             "minecraft:{}",
