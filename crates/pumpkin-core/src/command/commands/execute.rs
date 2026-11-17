@@ -27,7 +27,7 @@ use crate::command::argument_types::coordinates::vec3::Vec3ArgumentType;
 use crate::command::argument_types::core::double::DoubleArgumentType;
 use crate::command::argument_types::core::string::StringArgumentType;
 use crate::command::argument_types::entity::EntityArgumentType;
-use crate::command::argument_types::entity_anchor::{EntityAnchorArgumentType, EntityAnchorExt};
+use crate::command::argument_types::entity_anchor::{EntityAnchor, EntityAnchorArgumentType, EntityAnchorExt};
 use crate::command::argument_types::identifier::IdentifierArgumentType;
 use crate::command::argument_types::loot_predicate::{LootPredicate, LootPredicateArgumentType};
 use crate::command::argument_types::nbt_path::{NbtPath, NbtPathArgumentType};
@@ -91,6 +91,11 @@ const ERROR_CONDITIONAL_FAILED_COUNT: CommandErrorType<1> = CommandErrorType::ne
     translation::java::COMMANDS_EXECUTE_CONDITIONAL_FAIL_COUNT,
 );
 
+const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
+    translation::java::ARGUMENT_POS_UNLOADED,
+    translation::java::ARGUMENT_POS_UNLOADED,
+);
+
 fn execute_as_modifier(context: &CommandContext) -> crate::command::node::RedirectModifierResult {
     let targets = EntityArgumentType::get_optional_entities(context, "targets")?;
     let mut sources = Vec::new();
@@ -150,6 +155,8 @@ fn execute_positioned_modifier(
     let pos = Vec3ArgumentType::get_vector3(context, "pos")?;
     let mut source = context.source.as_ref().clone();
     source.position = pos;
+    // Vanilla resets the anchor to the feet when the position is overridden.
+    source.entity_anchor = EntityAnchor::Feet;
     Ok(vec![Arc::new(source)])
 }
 
