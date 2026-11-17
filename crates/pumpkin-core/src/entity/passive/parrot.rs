@@ -91,12 +91,25 @@ impl ParrotEntity {
         (rng.random::<f32>() - rng.random::<f32>()) * 0.2 + 1.0
     }
 
+    /// Imitation sounds `getAmbient` may pick. Vanilla `Parrot.getAmbient` filters out
+    /// `HAPPY_GHAST`, whose map entry is deliberately silent.
+    fn ambient_candidates() -> impl Iterator<Item = Sound> {
+        IMITATIONS
+            .iter()
+            .filter(|(kind, _)| *kind != &EntityType::HAPPY_GHAST)
+            .map(|(_, sound)| *sound)
+    }
+
     pub(crate) fn ambient(world: &crate::world::World) -> Sound {
         let mut rng = rand::rng();
         if world.level_info.load().difficulty != pumpkin_util::Difficulty::Peaceful
             && rng.random_range(0..AMBIENT_IMITATION_INTERVAL) == 0
         {
-            IMITATIONS[rng.random_range(0..IMITATIONS.len())].1
+            let count = Self::ambient_candidates().count();
+            let index = rng.random_range(0..count);
+            Self::ambient_candidates()
+                .nth(index)
+                .unwrap_or(Sound::EntityParrotAmbient)
         } else {
             Sound::EntityParrotAmbient
         }
@@ -529,6 +542,15 @@ mod tests {
     fn parrot_food_is_not_poisonous() {
         assert!(!Item::WHEAT_SEEDS.has_tag(&tag::Item::MINECRAFT_PARROT_POISONOUS_FOOD));
         assert!(!Item::COOKED_CHICKEN.has_tag(&tag::Item::MINECRAFT_PARROT_POISONOUS_FOOD));
+    }
+
+    /// Vanilla `Parrot.getAmbient` never picks the happy ghast's silent imitation.
+    #[test]
+    fn ambient_imitation_excludes_the_happy_ghast() {
+        let sounds: Vec<Sound> = ParrotEntity::ambient_candidates().collect();
+        assert_eq!(sounds.len(), IMITATIONS.len() - 1);
+        assert!(!sounds.is_empty());
+        assert!(!sounds.contains(&Sound::IntentionallyEmpty));
     }
 
     #[test]
