@@ -1152,6 +1152,8 @@ impl DatapackManager {
         for tag in tags.keys() {
             names.push(format!("#{tag}"));
         }
+        // Vanilla suggests function names alphabetically; HashMap order is arbitrary.
+        names.sort_unstable();
         names
     }
 
