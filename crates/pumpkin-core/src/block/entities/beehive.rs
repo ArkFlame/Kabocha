@@ -231,7 +231,14 @@ impl BeehiveBlockEntity {
             f64::from(pos.0.y) + 0.5 - 0.4,
             f64::from(pos.0.z) + 0.5 + 0.6 * dz,
         );
-        for entity_data in ready {
+        for mut entity_data in ready {
+            // Vanilla HONEY_DELIVERED release calls Bee.dropOffNectar, which resets the
+            // no-nectar timer; without this a released forager would re-enter immediately.
+            if entity_data.get_bool("HasNectar").unwrap_or(false) {
+                entity_data.put_bool("HasNectar", false);
+                entity_data.put_int("TicksSincePollination", 0);
+                entity_data.put_int("CropsGrownSincePollination", 0);
+            }
             let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
                 continue;
             };
