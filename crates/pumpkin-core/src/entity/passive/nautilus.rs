@@ -22,6 +22,7 @@ use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::{
     Entity, EntityBase,
+    ai::pathfinder::node::PathType,
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
@@ -40,7 +41,13 @@ pub struct NautilusEntity {
 
 impl NautilusEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        // Vanilla `Nautilus` constructor: water is free to path through.
+        mob_entity
+            .navigator
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .set_pathfinding_malus(PathType::Water, 0.0);
         let nautilus = Self {
             mob_entity,
             ageable_data: crate::entity::ageable::AgeableData::default(),
