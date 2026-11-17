@@ -59,7 +59,9 @@ impl ArgumentType<CommandSource> for ObjectiveArgumentType {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for objective_name in scoreboard.get_objectives().keys() {
-            builder = builder.filter_and_suggest_one(objective_name.as_str());
+            // Vanilla `CommandSource.suggestMatching` filters on a plain prefix,
+            // not the segment-aware matching used for resource ids.
+            builder = builder.filter_and_suggest_one_prefix(objective_name.as_str());
         }
         builder.build()
     }

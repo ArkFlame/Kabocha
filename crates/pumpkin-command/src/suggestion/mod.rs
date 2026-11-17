@@ -393,6 +393,23 @@ mod test {
     }
 
     #[test]
+    fn filter_and_suggest_one_prefix_only_matches_from_start() {
+        let prefix = SuggestionsBuilder::new("red", 0).filter_and_suggest_one_prefix("team_red");
+        let prefix_ok = SuggestionsBuilder::new("red", 0).filter_and_suggest_one_prefix("red_team");
+        let substring = SuggestionsBuilder::new("red", 0).filter_and_suggest_one("team_red");
+
+        assert!(prefix.build().is_empty());
+        assert!(!substring.build().is_empty());
+        assert_eq!(
+            prefix_ok.build().suggestions,
+            vec![Suggestion::without_tooltip(
+                StringRange::between(0, 3),
+                "red_team"
+            )]
+        );
+    }
+
+    #[test]
     fn suggest_append() {
         let suggestions = SuggestionsBuilder::new("Hello w", 6)
             .suggest("world!")

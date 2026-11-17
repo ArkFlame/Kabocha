@@ -154,6 +154,26 @@ impl SuggestionsBuilder {
         self
     }
 
+    /// Takes the value only if its lowercased text starts with the current
+    /// builder prefix, like vanilla's `CommandSource.suggestMatching`.
+    ///
+    /// Use this for names vanilla suggests with `suggestMatching` (scoreboard
+    /// objectives, teams, ...); [`Self::filter_and_suggest_one`] also matches
+    /// after `.`, `_`, `/` and `:` separators, which vanilla only does for
+    /// resource suggestions.
+    #[must_use]
+    pub fn filter_and_suggest_one_prefix(mut self, value: impl Into<SuggestionText>) -> Self {
+        let value = value.into();
+        if value
+            .cached_text()
+            .to_lowercase()
+            .starts_with(self.remaining_lowercase())
+        {
+            self = self.suggest(value);
+        }
+        self
+    }
+
     /// Takes only the values that satisfy the current builder prefix, and
     /// suggests them.
     ///
