@@ -132,7 +132,7 @@ impl AvoidEntityGoal {
         self
     }
 
-    /// Clears the mob's target while fleeing.
+    /// Clears the mob's target when the flee starts (vanilla `WolfAvoidEntityGoal.start`).
     #[must_use]
     pub const fn dropping_target(mut self) -> Self {
         self.drop_target = true;
@@ -273,9 +273,6 @@ impl Goal for AvoidEntityGoal {
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
-        if self.drop_target {
-            mob.set_mob_target(None, TargetReason::Fleeing);
-        }
         if let Some(target) = self.target.as_ref().and_then(Weak::upgrade) {
             let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
             let threat_pos = target.get_entity().pos.load();
