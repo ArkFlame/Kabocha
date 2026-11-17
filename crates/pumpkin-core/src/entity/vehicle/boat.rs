@@ -94,9 +94,24 @@ impl BoatEntity {
     }
 
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
-        // Vanilla `AbstractChestBoat.openCustomInventoryScreen` runs `openMenu` only for a
-        // non-spectator (`ChestBoat.interact` guards with `!player.isSpectator()`).
-        if player.is_spectator() {
+        // Vanilla AbstractChestBoat.openCustomInventoryScreen opens only when the boat is
+        // alive and either empty or ridden by the opener; ChestBoat.interact also rejects
+        // spectators. A boat occupied by someone else cannot be looted.
+        if player.is_spectator() || !self.vehicle.entity.is_alive() {
+            return false;
+        }
+        let passengers = self
+            .vehicle
+            .entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let opener_is_rider = passengers
+            .iter()
+            .any(|passenger| passenger.get_entity().entity_id == player.entity_id());
+        let occupied_by_other = !passengers.is_empty() && !opener_is_rider;
+        drop(passengers);
+        if occupied_by_other {
             return false;
         }
         let Some(inventory) = &self.inventory else {
