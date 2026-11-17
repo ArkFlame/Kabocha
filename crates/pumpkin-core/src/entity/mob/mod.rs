@@ -2322,7 +2322,13 @@ pub trait Mob: EntityBase + Send + Sync {
 
     fn on_eating_grass(&self) {}
 
-    fn modify_incoming_damage(&self, amount: f32, _damage_type: DamageType) -> f32 {
+    fn modify_incoming_damage(
+        &self,
+        amount: f32,
+        _damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        _cause: Option<&dyn EntityBase>,
+    ) -> f32 {
         amount
     }
 
@@ -3186,7 +3192,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             return false;
         }
         // Mob-specific damage modifier (e.g. shulker armor when closed).
-        let amount = self.modify_incoming_damage(amount, damage_type);
+        let amount = self.modify_incoming_damage(amount, damage_type, source, cause);
         let damaged = self.get_mob_entity().living_entity.damage_with_context(
             caller,
             amount,
