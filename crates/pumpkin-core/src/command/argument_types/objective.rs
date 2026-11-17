@@ -7,7 +7,7 @@ use crate::command::{
     string_reader::StringReader,
     suggestion::suggestions::{Suggestions, SuggestionsBuilder},
 };
-use crate::world::scoreboard::{Scoreboard, ScoreboardObjective};
+use crate::world::scoreboard::{Scoreboard, ScoreboardObjective, resolve_criterion};
 use pumpkin_data::translation;
 use pumpkin_util::text::TextComponent;
 
@@ -22,10 +22,7 @@ pub(crate) const OBJECTIVE_READ_ONLY_ERROR: CommandErrorType<1> = CommandErrorTy
 );
 
 pub(crate) fn criterion_is_read_only(criterion: &str) -> bool {
-    matches!(
-        criterion,
-        "health" | "food" | "air" | "armor" | "xp" | "level"
-    )
+    resolve_criterion(criterion).is_some_and(|resolved| resolved.read_only)
 }
 
 /// Represents an argument type parsing a scoreboard objective name.

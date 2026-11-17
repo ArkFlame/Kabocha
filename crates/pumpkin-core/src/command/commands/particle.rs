@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::borrow::Cow;
 
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::particle::Particle;
 use pumpkin_data::translation;
 use pumpkin_data::{Block, Property};
@@ -13,6 +14,7 @@ use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::{CParticle, ParticleOptions};
 use pumpkin_protocol::ser::NetworkWriteExt;
 use pumpkin_util::PermissionLvl;
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
@@ -109,6 +111,24 @@ fn tag_as_vec3(tag: &NbtTag) -> Option<Vector3<f64>> {
     }
 }
 
+/// Reads a vanilla block PositionSource ({type, pos:[x,y,z]}) used as the
+/// vibration particle destination. The option codec rejects entity sources,
+/// so a block source is the only one the /particle command can produce.
+fn block_position_source(tag: &NbtTag) -> Option<BlockPos> {
+    let NbtTag::Compound(compound) = tag else {
+        return None;
+    };
+    let parts = match compound.get("pos")? {
+        NbtTag::IntArray(values) => values.iter().copied().collect::<Vec<_>>(),
+        NbtTag::List(values) => values.iter().map(tag_as_i32).collect::<Option<Vec<_>>>()?,
+        _ => return None,
+    };
+    match parts.as_slice() {
+        [x, y, z] => Some(BlockPos::new(*x, *y, *z)),
+        _ => None,
+    }
+}
+
 /// Resolves a vanilla block state (`"minecraft:stone"` or `{Name:..,Properties:{..}}`) to its id.
 fn block_state_id(tag: &NbtTag) -> Option<u16> {
     let (name, props) = match tag {
@@ -145,24 +165,10 @@ fn block_state_id(tag: &NbtTag) -> Option<u16> {
     Some(block.from_properties(&props).to_state_id(block).as_u16())
 }
 
-/// Builds an item stack from vanilla's `item` option (`"stone"` or `{id:..,count:..}`).
+/// Decodes the `item` option through `ItemStackTemplate.CODEC`, the codec used by
+/// `ItemParticleOption`: a bare item id, or `{id, count (1..=99), components?}`.
 fn item_stack(tag: &NbtTag) -> Option<ItemStack> {
-    match tag {
-        NbtTag::String(id) => {
-            let mut c = NbtCompound::new();
-            c.put_string("id", id.to_string());
-            c.put_int("count", 1);
-            ItemStack::read_item_stack(&c)
-        }
-        NbtTag::Compound(c) => {
-            let mut c = c.clone();
-            if c.get("count").is_none() {
-                c.put_int("count", 1);
-            }
-            ItemStack::read_item_stack(&c)
-        }
-        _ => None,
-    }
+    ItemStack::read_item_stack_template(tag)
 }
 
 /// Encodes the network data of a particle with options, matching vanilla's stream codecs.
@@ -189,7 +195,7 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
                 .and_then(|()| buf.write_i32_be(to & 0x00FF_FFFF))
                 .and_then(|()| buf.write_f32_be(scale))
         }
-        Particle::EntityEffect | Particle::TintedLeaves => {
+        Particle::EntityEffect | Particle::TintedLeaves | Particle::Flash => {
             let color = opt("color").and_then(tag_as_color).unwrap_or(-1);
             buf.write_i32_be(color)
         }
@@ -226,6 +232,18 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
                 .unwrap_or(0.0);
             buf.write_i32_be(water_blocks)
                 .and_then(|()| buf.write_f32_be(burst_impulse_base))
+        }
+        Particle::Vibration => {
+            // Vanilla VibrationParticleOption.STREAM_CODEC: the position source
+            // (registry id VAR_INT, then the block pos as a long), followed by
+            // VAR_INT arrival_in_ticks. block is position-source registry id 0.
+            let pos = opt("destination")
+                .and_then(block_position_source)
+                .unwrap_or_else(|| BlockPos::new(0, 0, 0));
+            let arrival = opt("arrival_in_ticks").and_then(tag_as_i32).unwrap_or(0);
+            buf.write_var_int(&VarInt(0))
+                .and_then(|()| buf.write_block_pos(&pos, &CURRENT_MC_VERSION))
+                .and_then(|()| buf.write_var_int(&VarInt(arrival)))
         }
         Particle::SculkCharge => {
             // Vanilla `SculkChargeParticleOptions.STREAM_CODEC`: a single float roll.
@@ -273,6 +291,26 @@ fn is_particle_viewer_in_range(player_pos: Vector3<f64>, pos: Vector3<f64>, forc
     dx * dx + dy * dy + dz * dz < radius * radius
 }
 
+/// Vanilla turned `entity_effect`, `tinted_leaves` and `flash` into
+/// `ColorParticleOption` (a single INT colour) in 1.21.4. Older clients still
+/// render these particles as `SimpleParticleType` and read no payload, so the
+/// colour bytes must be omitted for those viewers.
+fn color_particle_payload<'a>(
+    particle: Particle,
+    version: pumpkin_util::version::JavaMinecraftVersion,
+    data: &'a [u8],
+) -> &'a [u8] {
+    if matches!(
+        particle,
+        Particle::EntityEffect | Particle::TintedLeaves | Particle::Flash
+    ) && version < pumpkin_util::version::JavaMinecraftVersion::V_1_21_4
+    {
+        &[]
+    } else {
+        data
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn send_particles(
     source: &CommandSource,
@@ -290,16 +328,7 @@ fn send_particles(
     let offset = Vector3::new(delta.x as f32, delta.y as f32, delta.z as f32);
     let data = encode_particle_options(particle.particle, particle.options.as_ref());
     let particle = particle.particle;
-    let packet = CParticle::new(
-        force,
-        false,
-        pos,
-        offset,
-        speed,
-        count,
-        VarInt(i32::from(particle.to_id())),
-        &data,
-    );
+    let particle_id = VarInt(i32::from(particle.to_id()));
 
     let mut sent_count = 0;
 
@@ -307,10 +336,22 @@ fn send_particles(
         if !Arc::ptr_eq(&player.world(), &world) {
             continue;
         }
-        if is_particle_viewer_in_range(player.position(), pos, force) {
-            player.try_send_client_packet(&packet);
-            sent_count += 1;
+        if !is_particle_viewer_in_range(player.position(), pos, force) {
+            continue;
         }
+        let payload = color_particle_payload(particle, player.protocol_version(), &data);
+        let packet = CParticle::new(
+            force,
+            false,
+            pos,
+            offset,
+            speed,
+            count,
+            particle_id,
+            payload,
+        );
+        player.try_send_client_packet(&packet);
+        sent_count += 1;
     }
 
     if sent_count == 0 {
@@ -553,6 +594,36 @@ mod tests {
     }
 
     #[test]
+    fn colour_payload_is_stripped_for_pre_1_21_4_viewers() {
+        use pumpkin_util::version::JavaMinecraftVersion;
+        let colour = [0x12u8, 0x34, 0x56, 0x78];
+        for particle in [
+            Particle::EntityEffect,
+            Particle::TintedLeaves,
+            Particle::Flash,
+        ] {
+            for version in [JavaMinecraftVersion::V_26_3, JavaMinecraftVersion::V_1_21_4] {
+                assert_eq!(
+                    color_particle_payload(particle, version, &colour),
+                    colour.as_slice(),
+                    "{particle:?} on {version:?} should keep its colour"
+                );
+            }
+            for version in [JavaMinecraftVersion::V_1_21, JavaMinecraftVersion::V_1_8] {
+                assert!(
+                    color_particle_payload(particle, version, &colour).is_empty(),
+                    "{particle:?} on {version:?} must not read a colour"
+                );
+            }
+        }
+        // Other particles keep their payload on every version.
+        assert_eq!(
+            color_particle_payload(Particle::Dust, JavaMinecraftVersion::V_1_8, &colour),
+            colour.as_slice()
+        );
+    }
+
+    #[test]
     fn geyser_writes_water_blocks_int() {
         let mut options = NbtCompound::new();
         options.put_int("water_blocks", 12);
@@ -569,6 +640,47 @@ mod tests {
         let mut expected = Vec::new();
         expected.extend_from_slice(&3i32.to_be_bytes());
         expected.extend_from_slice(&2.5f32.to_be_bytes());
+        assert_eq!(data, expected);
+    }
+
+    #[test]
+    fn item_option_decodes_through_item_stack_template() {
+        // The `Item.CODEC` alternative of `ItemStackTemplate.CODEC` uses count 1.
+        let bare = item_stack(&NbtTag::String("minecraft:stone".to_string()));
+        assert!(matches!(
+            bare,
+            Some(ref s) if s.item.registry_key == "stone" && s.item_count == 1
+        ));
+
+        // The map form accepts an in-range count.
+        let mut compound = NbtCompound::new();
+        compound.put_string("id", "minecraft:stone");
+        compound.put_int("count", 5);
+        let counted = item_stack(&NbtTag::Compound(compound));
+        assert!(matches!(counted, Some(ref s) if s.item_count == 5));
+
+        // `ItemStackTemplate.CODEC` bounds count to 1..=99 and rejects AIR; the raw
+        // `ItemStack` reader used before accepted count 0.
+        let mut zero = NbtCompound::new();
+        zero.put_string("id", "minecraft:stone");
+        zero.put_int("count", 0);
+        assert!(item_stack(&NbtTag::Compound(zero)).is_none());
+        assert!(item_stack(&NbtTag::String("minecraft:air".to_string())).is_none());
+    }
+
+    #[test]
+    fn vibration_writes_block_source_and_arrival() {
+        let mut options = NbtCompound::new();
+        let mut destination = NbtCompound::new();
+        destination.put_string("type", "minecraft:block".to_string());
+        destination.put("pos", NbtTag::IntArray(vec![1, 64, -2]));
+        options.put("destination", NbtTag::Compound(destination));
+        options.put_int("arrival_in_ticks", 10);
+        let data = encode_particle_options(Particle::Vibration, Some(&options));
+        let mut expected = vec![0u8]; // block position source registry id
+        let pos = BlockPos::new(1, 64, -2);
+        expected.extend_from_slice(&pos.as_long_for_version(&CURRENT_MC_VERSION).to_be_bytes());
+        expected.push(10); // arrival in ticks (VAR_INT)
         assert_eq!(data, expected);
     }
 }

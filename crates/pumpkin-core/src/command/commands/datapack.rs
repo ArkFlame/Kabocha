@@ -1,10 +1,12 @@
 use std::fs;
 
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::color::NamedColor;
+use pumpkin_util::version::LAST_PRE_MINOR_DATA_PACK_FORMAT;
 use tracing::error;
 
 use crate::command::argument_builder::{ArgumentBuilder, argument, command, literal};
@@ -424,6 +426,27 @@ fn is_valid_pack_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
 }
 
+/// Builds the `pack.mcmeta` content for a newly created data pack.
+///
+/// Vanilla switches from the legacy `pack_format` field to `min_format`/`max_format`
+/// once the format passes `LAST_PRE_MINOR_DATA_PACK_FORMAT`.
+fn pack_mcmeta_content(description: &serde_json::Value) -> serde_json::Value {
+    let format = CURRENT_MC_VERSION.data_pack_format();
+    let pack = if format > LAST_PRE_MINOR_DATA_PACK_FORMAT {
+        serde_json::json!({
+            "min_format": format,
+            "max_format": format,
+            "description": description
+        })
+    } else {
+        serde_json::json!({
+            "pack_format": format,
+            "description": description
+        })
+    };
+    serde_json::json!({ "pack": pack })
+}
+
 struct DatapackCreateExecutor;
 
 impl CommandExecutor for DatapackCreateExecutor {
@@ -453,12 +476,7 @@ impl CommandExecutor for DatapackCreateExecutor {
                 .create_without_context(TextComponent::text(name_str.to_string())));
         }
 
-        let mcmeta_content = serde_json::json!({
-            "pack": {
-                "pack_format": 61,
-                "description": description
-            }
-        });
+        let mcmeta_content = pack_mcmeta_content(&description);
 
         let mcmeta_path = pack_dir.join("pack.mcmeta");
         let mcmeta_str = match serde_json::to_string_pretty(&mcmeta_content) {
@@ -578,14 +596,12 @@ mod tests {
 
     #[test]
     fn pack_mcmeta_json_structure() {
-        let mcmeta_content = serde_json::json!({
-            "pack": {
-                "pack_format": 61,
-                "description": "Test description"
-            }
-        });
-        let mcmeta_str = serde_json::to_string(&mcmeta_content).unwrap();
-        assert!(mcmeta_str.contains("\"pack_format\":61"));
+        let description = serde_json::Value::String("Test description".to_string());
+        let mcmeta_str = serde_json::to_string(&pack_mcmeta_content(&description)).unwrap();
+        let format = CURRENT_MC_VERSION.data_pack_format();
+        assert!(mcmeta_str.contains(&format!("\"min_format\":{format}")));
+        assert!(mcmeta_str.contains(&format!("\"max_format\":{format}")));
+        assert!(!mcmeta_str.contains("\"pack_format\""));
         assert!(mcmeta_str.contains("\"description\":\"Test description\""));
     }
 }

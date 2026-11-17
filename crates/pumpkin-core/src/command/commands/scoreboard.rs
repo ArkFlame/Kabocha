@@ -14,7 +14,7 @@ use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::world::scoreboard::{
-    Scoreboard, ScoreboardObjective, ScoreboardScore, ScoreboardTarget,
+    Scoreboard, ScoreboardObjective, ScoreboardScore, ScoreboardTarget, resolve_criterion,
 };
 use pumpkin_data::translation;
 use pumpkin_protocol::codec::var_int::VarInt;
@@ -56,6 +56,11 @@ const FAILED_ENABLE_ERROR: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SCOREBOARD_PLAYERS_ENABLE_FAILED,
 );
 
+const INVALID_CRITERION_ERROR: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENT_CRITERIA_INVALID,
+    translation::java::ARGUMENT_CRITERIA_INVALID,
+);
+
 struct ObjectivesAddExecutor {
     has_display_name: bool,
 }
@@ -64,6 +69,10 @@ impl CommandExecutor for ObjectivesAddExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let objective_name = StringArgumentType::get(context, ARG_OBJECTIVE)?;
         let criterion = StringArgumentType::get(context, ARG_CRITERION)?;
+        let resolved = resolve_criterion(criterion).ok_or_else(|| {
+            INVALID_CRITERION_ERROR
+                .create_without_context(TextComponent::text(criterion.to_string()))
+        })?;
 
         let display_name = if self.has_display_name {
             ComponentArgumentType::get(context, ARG_DISPLAY_NAME)?
@@ -91,7 +100,7 @@ impl CommandExecutor for ObjectivesAddExecutor {
         let new_objective = ScoreboardObjective::new(
             &objective_name_owned,
             display_name_clone.clone(),
-            RenderType::Integer,
+            resolved.render_type,
             None,
             &criterion_owned,
         );

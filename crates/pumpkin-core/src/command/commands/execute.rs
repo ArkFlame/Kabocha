@@ -30,7 +30,9 @@ use crate::command::argument_types::entity::EntityArgumentType;
 use crate::command::argument_types::entity_anchor::{
     EntityAnchor, EntityAnchorArgumentType, EntityAnchorExt,
 };
+use crate::command::argument_types::function::FunctionArgumentType;
 use crate::command::argument_types::identifier::IdentifierArgumentType;
+use crate::command::argument_types::item_predicate::ItemPredicateArgumentType;
 use crate::command::argument_types::loot_predicate::{LootPredicate, LootPredicateArgumentType};
 use crate::command::argument_types::nbt_path::{NbtPath, NbtPathArgumentType};
 use crate::command::argument_types::objective::{ObjectiveArgumentType, criterion_is_read_only};
@@ -41,6 +43,7 @@ use crate::command::argument_types::resource_key::{
 };
 use crate::command::argument_types::resource_or_tag::{ResourceOrTag, ResourceOrTagArgument};
 use crate::command::argument_types::score_holder::{ResolvedScoreHolder, ScoreHolderArgumentType};
+use crate::command::argument_types::slot::SlotsArgumentType;
 use crate::command::commands::bossbar::{BossbarIdArgumentType, ERROR_UNKNOWN_BOSSBAR};
 use crate::command::commands::data::{
     BlockDataAccessor, DataAccessor, EntityDataAccessor, StorageDataAccessor, TargetKind,
@@ -54,20 +57,24 @@ use crate::command::context::command_source::{
     CommandSource, ResultValueTaker, ReturnValue, ReturnValueCallable, ReturnValueCallback,
 };
 use crate::command::errors::command_syntax_error::CommandSyntaxError;
-use crate::command::errors::error_types::CommandErrorType;
+use crate::command::errors::error_types::{CommandErrorType, LiteralCommandErrorType};
 use crate::command::node::attached::{CommandNodeId, NodeId};
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::tree::Tree;
 use crate::command::node::{
     CommandExecutor, CommandExecutorResult, RedirectModifier, RedirectModifierResult, Redirection,
 };
+use crate::data::datapack::FunctionRunError;
 use crate::entity::EntityBase;
 use crate::entity::mob::spawn::finalize_spawn;
 use crate::entity::r#type::from_type;
 use crate::world::World;
 use crate::world::scoreboard::{NoTarget, Scoreboard, ScoreboardObjective, ScoreboardTarget};
 use crate::world::stopwatches::Stopwatches;
+use pumpkin_data::data_component_impl::EquipmentSlot;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::translation;
+use pumpkin_inventory::Inventory;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::PermissionLvl;
@@ -97,6 +104,31 @@ const ERROR_CONDITIONAL_FAILED: CommandErrorType<0> = CommandErrorType::new(
 const ERROR_CONDITIONAL_FAILED_COUNT: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_EXECUTE_CONDITIONAL_FAIL_COUNT,
     translation::java::COMMANDS_EXECUTE_CONDITIONAL_FAIL_COUNT,
+);
+
+static ERROR_UNKNOWN_FUNCTION: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENTS_FUNCTION_UNKNOWN,
+    translation::java::ARGUMENTS_FUNCTION_UNKNOWN,
+);
+static ERROR_UNKNOWN_FUNCTION_TAG: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+    translation::java::ARGUMENTS_FUNCTION_TAG_UNKNOWN,
+);
+static ERROR_FUNCTION_CHAIN_LIMIT: LiteralCommandErrorType =
+    LiteralCommandErrorType::new("Maximum number of nested function calls reached");
+static ERROR_FUNCTION_COMMAND_CHAIN_LIMIT: LiteralCommandErrorType =
+    LiteralCommandErrorType::new("Maximum number of commands in a function chain reached");
+static ERROR_FUNCTION_MISSING_ARGUMENTS: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENTS,
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENTS,
+);
+static ERROR_FUNCTION_MISSING_ARGUMENT: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENT,
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENT,
+);
+static ERROR_FUNCTION_INSTANTIATION: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_FUNCTION_INSTANTIATIONFAILURE,
+    translation::java::COMMANDS_FUNCTION_INSTANTIATIONFAILURE,
 );
 
 const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
@@ -196,19 +228,28 @@ fn execute_positioned_over_modifier(
     let pos = source.position;
     let block_x = pos.x.floor() as i32;
     let block_z = pos.z.floor() as i32;
-    // Vanilla reads the requested heightmap; ocean_floor has no stored heightmap in Pumpkin yet.
-    let heightmap = match context.get_argument::<String>("heightmap")?.as_str() {
-        "motion_blocking" => ChunkHeightmapType::MotionBlocking,
-        "motion_blocking_no_leaves" => ChunkHeightmapType::MotionBlockingNoLeaves,
-        _ => ChunkHeightmapType::WorldSurface,
-    };
+    let heightmap_name = context.get_argument::<String>("heightmap")?.as_str();
 
     if let Some(ref world) = source.world {
         // Vanilla checks only that the chunk is loaded (`Level#hasChunk`), not the source y.
         if !world.has_chunks_at(block_x, block_z, block_x, block_z) {
             return Err(ERROR_POS_NOT_LOADED.create_without_context());
         }
-        source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
+        // OCEAN_FLOOR is a live-world heightmap: vanilla computes it from block states and it
+        // ignores fluids, unlike the three persisted heightmaps.
+        let y = match heightmap_name {
+            "motion_blocking" => {
+                world.get_heightmap_height(ChunkHeightmapType::MotionBlocking, block_x, block_z)
+            }
+            "motion_blocking_no_leaves" => world.get_heightmap_height(
+                ChunkHeightmapType::MotionBlockingNoLeaves,
+                block_x,
+                block_z,
+            ),
+            "ocean_floor" => world.get_ocean_floor_height(block_x, block_z),
+            _ => world.get_heightmap_height(ChunkHeightmapType::WorldSurface, block_x, block_z),
+        };
+        source.position.y = f64::from(y + 1);
     }
     Ok(vec![Arc::new(source)])
 }
@@ -250,17 +291,23 @@ fn test_predicate(context: &CommandContext) -> Result<bool, CommandSyntaxError> 
         LootPredicate::Inline(NbtTag::Compound(condition)) => {
             crate::data::predicate::test_condition(condition, this)
         }
-        // An inline list behaves like `all_of`.
-        LootPredicate::Inline(NbtTag::List(conditions)) => conditions.iter().all(|condition| {
-            condition
-                .extract_compound()
-                .is_some_and(|condition| crate::data::predicate::test_condition(condition, this))
-        }),
+        // Vanilla parses an inline predicate as a single LootItemCondition, so a bare
+        // list is not a valid condition and cannot match.
         LootPredicate::Inline(_) => false,
-        LootPredicate::Reference(id) => {
-            tracing::debug!("Predicate {id} is not loaded");
-            false
-        }
+        LootPredicate::Reference(id) => context
+            .source
+            .server
+            .as_deref()
+            .and_then(|server| server.datapack_manager.get_predicate(&id.to_string()))
+            .is_some_and(|value| {
+                let params = crate::world::loot::LootContextParameters {
+                    world: context.source.world.as_deref(),
+                    this_entity: this,
+                    position: Some(context.source.position),
+                    ..Default::default()
+                };
+                crate::world::loot::evaluate_predicate_value(&value, &params)
+            }),
     })
 }
 
@@ -284,6 +331,65 @@ fn execute_unless_predicate_modifier(
     })
 }
 
+/// Runs a datapack function as an execute if|unless function condition and returns the
+/// function's result value, like vanilla ExecuteIfFunctionCustomModifier.
+fn function_condition_value(context: &CommandContext) -> Result<i32, CommandSyntaxError> {
+    let name = FunctionArgumentType::get(context, "name")?;
+    let server = context.server();
+    let result = server
+        .datapack_manager
+        .execute_function_with(server, &context.source, name, None)
+        .map_err(|error| match error {
+            FunctionRunError::Unknown(_) => {
+                let error_type = if name.starts_with('#') {
+                    &ERROR_UNKNOWN_FUNCTION_TAG
+                } else {
+                    &ERROR_UNKNOWN_FUNCTION
+                };
+                error_type.create_without_context(TextComponent::text(name.to_string()))
+            }
+            FunctionRunError::ChainLimitExceeded => {
+                ERROR_FUNCTION_CHAIN_LIMIT.create_without_context()
+            }
+            FunctionRunError::CommandChainLimitExceeded => {
+                ERROR_FUNCTION_COMMAND_CHAIN_LIMIT.create_without_context()
+            }
+            FunctionRunError::MissingArguments => ERROR_FUNCTION_MISSING_ARGUMENTS
+                .create_without_context(TextComponent::text(name.to_string())),
+            FunctionRunError::MissingArgument(argument) => ERROR_FUNCTION_MISSING_ARGUMENT
+                .create_without_context(
+                    TextComponent::text(name.to_string()),
+                    TextComponent::text(argument),
+                ),
+            FunctionRunError::Instantiation(message) => ERROR_FUNCTION_INSTANTIATION
+                .create_without_context(
+                    TextComponent::text(name.to_string()),
+                    TextComponent::text(message),
+                ),
+        })?;
+    Ok(result.returned.unwrap_or(result.executed as i32))
+}
+
+fn execute_if_function_modifier(
+    context: &CommandContext,
+) -> crate::command::node::RedirectModifierResult {
+    Ok(if function_condition_value(context)? != 0 {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
+fn execute_unless_function_modifier(
+    context: &CommandContext,
+) -> crate::command::node::RedirectModifierResult {
+    Ok(if function_condition_value(context)? == 0 {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
 fn execute_if_entity_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
@@ -302,6 +408,193 @@ fn execute_unless_entity_modifier(
     } else {
         Ok(vec![])
     }
+}
+
+static ERROR_ITEMS_NOT_CONTAINER: CommandErrorType<3> = CommandErrorType::new(
+    translation::java::COMMANDS_ITEM_SOURCE_NOT_A_CONTAINER,
+    translation::java::COMMANDS_ITEM_SOURCE_NOT_A_CONTAINER,
+);
+
+/// Maps a vanilla armor/hand slot index to the equipment slot it names, as used by
+/// the `entity` slot source of `execute if items`.
+const fn items_equipment_slot(mojang_slot: usize) -> Option<EquipmentSlot> {
+    match mojang_slot {
+        98 => Some(EquipmentSlot::MAIN_HAND),
+        99 => Some(EquipmentSlot::OFF_HAND),
+        100 => Some(EquipmentSlot::FEET),
+        101 => Some(EquipmentSlot::LEGS),
+        102 => Some(EquipmentSlot::CHEST),
+        103 => Some(EquipmentSlot::HEAD),
+        105 => Some(EquipmentSlot::BODY),
+        106 => Some(EquipmentSlot::SADDLE),
+        _ => None,
+    }
+}
+
+/// Reads the stack in a vanilla slot index of an entity, or `None` if it has no such slot.
+fn items_in_entity_slot(target: &Arc<dyn EntityBase>, mojang_slot: usize) -> Option<ItemStack> {
+    if let Some(player) = target.get_player() {
+        if (200..=226).contains(&mojang_slot) {
+            let ender_slot = mojang_slot - 200;
+            return (ender_slot < player.ender_chest_inventory.size())
+                .then(|| player.ender_chest_inventory.get_stack(ender_slot));
+        }
+        let inventory = player.inventory();
+        let slot = match mojang_slot {
+            98 => inventory.get_selected_slot() as usize,
+            99 => 40,
+            100 => 36,
+            101 => 37,
+            102 => 38,
+            103 => 39,
+            0..=35 => mojang_slot,
+            _ => return None,
+        };
+        return (slot < inventory.size()).then(|| inventory.get_stack(slot));
+    }
+    let living = target.get_living_entity()?;
+    let eq = items_equipment_slot(mojang_slot)?;
+    Some(
+        living
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&eq),
+    )
+}
+
+/// Vanilla `ExecuteCommand.countItems`: the summed counts of the stacks in `slots`
+/// that pass `predicate`; `None` when nothing matched.
+fn count_items_entity(context: &CommandContext) -> Result<Option<i32>, CommandSyntaxError> {
+    let targets = EntityArgumentType::get_entities(context, "target")?;
+    let slots = SlotsArgumentType::get(context, "slots")?;
+    let predicate = ItemPredicateArgumentType::get(context, "item_predicate")?;
+
+    let mut count = 0;
+    for target in &targets {
+        for &slot in slots {
+            if let Some(stack) = items_in_entity_slot(target, slot)
+                && predicate.test(&stack)
+            {
+                count += i32::from(stack.item_count);
+            }
+        }
+    }
+    Ok((count > 0).then_some(count))
+}
+
+/// The `block` variant of `countItems`, reading a container's inventory.
+fn count_items_block(context: &CommandContext) -> Result<Option<i32>, CommandSyntaxError> {
+    let world = context.source.world();
+    let pos = BlockPosArgumentType::get_loaded_block_pos(context, "target")?;
+    let slots = SlotsArgumentType::get(context, "slots")?;
+    let predicate = ItemPredicateArgumentType::get(context, "item_predicate")?;
+
+    let inventory = world
+        .get_block_entity(&pos)
+        .and_then(<dyn crate::block::entities::BlockEntity>::get_inventory)
+        .ok_or_else(|| {
+            ERROR_ITEMS_NOT_CONTAINER.create_without_context(
+                TextComponent::text(pos.0.x.to_string()),
+                TextComponent::text(pos.0.y.to_string()),
+                TextComponent::text(pos.0.z.to_string()),
+            )
+        })?;
+
+    let mut count = 0;
+    for &slot in slots {
+        if slot < inventory.size() {
+            let stack = inventory.get_stack(slot);
+            if predicate.test(&stack) {
+                count += i32::from(stack.item_count);
+            }
+        }
+    }
+    Ok((count > 0).then_some(count))
+}
+
+fn execute_if_items_entity_modifier(context: &CommandContext) -> RedirectModifierResult {
+    Ok(if count_items_entity(context)?.is_some() {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
+fn execute_unless_items_entity_modifier(context: &CommandContext) -> RedirectModifierResult {
+    Ok(if count_items_entity(context)?.is_none() {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
+fn execute_if_items_block_modifier(context: &CommandContext) -> RedirectModifierResult {
+    Ok(if count_items_block(context)?.is_some() {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
+fn execute_unless_items_block_modifier(context: &CommandContext) -> RedirectModifierResult {
+    Ok(if count_items_block(context)?.is_none() {
+        vec![context.source.clone()]
+    } else {
+        vec![]
+    })
+}
+
+/// Builds the `items` branch shared by `if` and `unless`, mirroring the vanilla
+/// `ItemCommands.SOURCE_PROVIDERS` loop inside `ExecuteCommand.addConditionals`.
+fn items_conditional_node(
+    expected: bool,
+    entity_modifier: fn(&CommandContext) -> RedirectModifierResult,
+    block_modifier: fn(&CommandContext) -> RedirectModifierResult,
+    count_entity: fn(&CommandContext) -> Result<Option<i32>, CommandSyntaxError>,
+    count_block: fn(&CommandContext) -> Result<Option<i32>, CommandSyntaxError>,
+) -> LiteralArgumentBuilder {
+    let slots = || {
+        argument(
+            "slots",
+            ClientParsed::new(SlotsArgumentType, JavaClientArgumentType::SlotSource),
+        )
+    };
+    literal("items")
+        .then(
+            literal("entity").then(
+                argument("target", EntityArgumentType::Entities).then(
+                    slots().then(
+                        argument("item_predicate", ItemPredicateArgumentType)
+                            .fork(
+                                Redirection::Root,
+                                RedirectModifier::Custom(Arc::new(entity_modifier)),
+                            )
+                            .executes(NumericConditionalExecutor {
+                                expected,
+                                count: count_entity,
+                            }),
+                    ),
+                ),
+            ),
+        )
+        .then(
+            literal("block").then(
+                argument("target", BlockPosArgumentType).then(
+                    slots().then(
+                        argument("item_predicate", ItemPredicateArgumentType)
+                            .fork(
+                                Redirection::Root,
+                                RedirectModifier::Custom(Arc::new(block_modifier)),
+                            )
+                            .executes(NumericConditionalExecutor {
+                                expected,
+                                count: count_block,
+                            }),
+                    ),
+                ),
+            ),
+        )
 }
 
 fn execute_align_modifier(
@@ -1538,7 +1831,10 @@ fn traceable_owner(entity: &dyn EntityBase, world: &World) -> Option<Arc<dyn Ent
         any.downcast_ref::<crate::entity::area_effect_cloud::AreaEffectCloudEntity>()
     {
         Some(&cloud.owner)
-    } else { any.downcast_ref::<crate::entity::projectile::evoker_fangs::EvokerFangsEntity>().map(|fangs| &fangs.owner) }?;
+    } else {
+        any.downcast_ref::<crate::entity::projectile::evoker_fangs::EvokerFangsEntity>()
+            .map(|fangs| &fangs.owner)
+    }?;
     reference.get(world)
 }
 
@@ -1731,12 +2027,29 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
         )
         .then(
             literal("if")
+                .then(items_conditional_node(
+                    true,
+                    execute_if_items_entity_modifier,
+                    execute_if_items_block_modifier,
+                    count_items_entity,
+                    count_items_block,
+                ))
                 .then(literal("predicate").then(
                     argument("predicate", LootPredicateArgumentType).redirect_with_modifier(
                         Redirection::Root,
                         RedirectModifier::Custom(Arc::new(execute_if_predicate_modifier)),
                     ),
                 ))
+                .then(
+                    literal("function").then(
+                        argument("name", FunctionArgumentType)
+                            .fork(
+                                Redirection::Root,
+                                RedirectModifier::Custom(Arc::new(execute_if_function_modifier)),
+                            )
+                            .executes(ConditionalExecutor(execute_if_function_modifier)),
+                    ),
+                )
                 .then(
                     literal("entity").then(
                         argument("entities", EntityArgumentType::Entities)
@@ -1957,12 +2270,31 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
         )
         .then(
             literal("unless")
+                .then(items_conditional_node(
+                    false,
+                    execute_unless_items_entity_modifier,
+                    execute_unless_items_block_modifier,
+                    count_items_entity,
+                    count_items_block,
+                ))
                 .then(literal("predicate").then(
                     argument("predicate", LootPredicateArgumentType).redirect_with_modifier(
                         Redirection::Root,
                         RedirectModifier::Custom(Arc::new(execute_unless_predicate_modifier)),
                     ),
                 ))
+                .then(
+                    literal("function").then(
+                        argument("name", FunctionArgumentType)
+                            .fork(
+                                Redirection::Root,
+                                RedirectModifier::Custom(Arc::new(
+                                    execute_unless_function_modifier,
+                                )),
+                            )
+                            .executes(ConditionalExecutor(execute_unless_function_modifier)),
+                    ),
+                )
                 .then(
                     literal("entity").then(
                         argument("entities", EntityArgumentType::Entities)
@@ -2547,5 +2879,42 @@ mod tests {
                 assert!(!result.errors.is_empty(), "{input}");
             }
         }
+    }
+
+    #[test]
+    fn items_conditional_registers_entity_and_block_sources() {
+        let mut dispatcher = CommandDispatcher::new();
+        register(&mut dispatcher, &PermissionRegistry::default());
+        crate::command::commands::time::register(&mut dispatcher, &PermissionRegistry::default());
+        let source = Arc::new(CommandSource::dummy());
+
+        for condition in ["if", "unless"] {
+            for input in [
+                format!(
+                    "execute {condition} items entity @s weapon minecraft:stick run time query daytime"
+                ),
+                format!(
+                    "execute {condition} items block 0 64 0 container.0 minecraft:stone run time query daytime"
+                ),
+                format!("execute {condition} items entity @s hotbar.* minecraft:stick"),
+            ] {
+                let parsed = dispatcher.parse_input(&input, &source);
+                assert!(parsed.errors.is_empty(), "{input}: {:?}", parsed.errors);
+                assert_eq!(parsed.reader.remaining_length(), 0, "{input}");
+                assert!(parsed.context.build(&input).command.is_some(), "{input}");
+            }
+        }
+    }
+
+    #[test]
+    fn items_equipment_slot_matches_vanilla_indices() {
+        assert!(items_equipment_slot(98) == Some(EquipmentSlot::MAIN_HAND));
+        assert!(items_equipment_slot(99) == Some(EquipmentSlot::OFF_HAND));
+        assert!(items_equipment_slot(100) == Some(EquipmentSlot::FEET));
+        assert!(items_equipment_slot(103) == Some(EquipmentSlot::HEAD));
+        assert!(items_equipment_slot(105) == Some(EquipmentSlot::BODY));
+        assert!(items_equipment_slot(106) == Some(EquipmentSlot::SADDLE));
+        assert!(items_equipment_slot(104).is_none());
+        assert!(items_equipment_slot(200).is_none());
     }
 }

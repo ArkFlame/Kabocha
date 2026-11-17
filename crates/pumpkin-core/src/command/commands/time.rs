@@ -1,3 +1,4 @@
+use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
@@ -9,9 +10,12 @@ use crate::command::argument_types::identifier::IdentifierArgumentType;
 use crate::command::argument_types::registry_id::RegistryIdArgumentType;
 use crate::command::argument_types::time::TimeArgumentType;
 use crate::command::context::command_context::CommandContext;
+use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
+use crate::command::suggestion::provider::{SuggestionProvider, SuggestionProviderResult};
+use crate::command::suggestion::suggestions::SuggestionsBuilder;
 use pumpkin_util::identifier::Identifier;
 
 const DESCRIPTION: &str = "Query or modify the world time and clocks.";
@@ -36,6 +40,23 @@ const ERROR_RESUME_ALREADY_RUNNING: CommandErrorType<1> = CommandErrorType::new(
 const ERROR_RATE_ALREADY_SAME: CommandErrorType<2> = CommandErrorType::new(
     translation::java::COMMANDS_TIME_RATE_ALREADY_SAME,
     translation::java::COMMANDS_TIME_RATE_ALREADY_SAME,
+);
+// Bedrock has no time-marker keys, so both editions use the Java text.
+const ERROR_NO_TIME_MARKER_FOUND: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_NO_TIME_MARKER_FOUND,
+    translation::java::COMMANDS_TIME_NO_TIME_MARKER_FOUND,
+);
+const ERROR_ALREADY_AT_TIME_MARKER: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME_MARKER,
+    translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME_MARKER,
+);
+
+// Vanilla resolves `/time of <clock>` through ResourceArgument.resource(WORLD_CLOCK); an
+// unknown id fails before any mutation. Bedrock's message uses only the id and ignores
+// the extra registry argument that Java needs.
+const ERROR_UNKNOWN_CLOCK: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::ARGUMENT_RESOURCE_NOT_FOUND,
+    translation::bedrock::COMMANDS_TIME_CLOCK_FAILED,
 );
 
 #[derive(Clone, Copy)]
@@ -109,6 +130,33 @@ fn day_timeline_feedback(
     }
 }
 
+/// Resolves the `of <clock>` id against the `world_clock` registry. Without this check a
+/// bogus id silently edited the current world's single `LevelTime`.
+fn resolve_clock_name(
+    context: &CommandContext,
+    has_clock: bool,
+) -> Result<String, CommandSyntaxError> {
+    let name = if has_clock {
+        IdentifierArgumentType::get(context, "clock")
+            .map_or_else(|_| DEFAULT_CLOCK.to_string(), |id| id.to_string())
+    } else {
+        DEFAULT_CLOCK.to_string()
+    };
+    if has_clock
+        && !context
+            .source
+            .server()
+            .datapack_manager
+            .has_dynamic_registry_entry("minecraft:world_clock", &name)
+    {
+        return Err(ERROR_UNKNOWN_CLOCK.create_without_context_args_slice(&[
+            TextComponent::text(name),
+            TextComponent::text("minecraft:world_clock"),
+        ]));
+    }
+    Ok(name)
+}
+
 struct QueryExecutor {
     mode: QueryMode,
     has_clock: bool,
@@ -116,12 +164,7 @@ struct QueryExecutor {
 
 impl CommandExecutor for QueryExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
-        let clock_name = if self.has_clock {
-            IdentifierArgumentType::get(context, "clock")
-                .map_or_else(|_| DEFAULT_CLOCK.to_string(), |id| id.to_string())
-        } else {
-            DEFAULT_CLOCK.to_string()
-        };
+        let clock_name = resolve_clock_name(context, self.has_clock)?;
 
         let world = context.source.world();
         let level_time = world
@@ -194,12 +237,7 @@ struct ActionExecutor {
 impl CommandExecutor for ActionExecutor {
     #[allow(clippy::too_many_lines)]
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
-        let clock_name = if self.has_clock {
-            IdentifierArgumentType::get(context, "clock")
-                .map_or_else(|_| DEFAULT_CLOCK.to_string(), |id| id.to_string())
-        } else {
-            DEFAULT_CLOCK.to_string()
-        };
+        let clock_name = resolve_clock_name(context, self.has_clock)?;
 
         let world = context.source.world();
 
@@ -364,6 +402,109 @@ impl CommandExecutor for ActionExecutor {
     }
 }
 
+/// Vanilla `ClockTimeMarker.occursAt`. The day timeline markers repeat every
+/// `period` ticks, so a marker matches at the same offset in any day.
+fn marker_occurs_at(total_ticks: i64, ticks: i64, period: i64) -> bool {
+    ticks == total_ticks.rem_euclid(period)
+}
+
+/// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`: advance forward to the next
+/// occurrence without rewinding the clock.
+fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
+    let from = total_ticks.rem_euclid(period);
+    let duration = ticks - from;
+    if duration > 0 {
+        total_ticks + duration
+    } else {
+        total_ticks + period + duration
+    }
+}
+
+/// The vanilla `clock_time_marker` entries the `minecraft:day` timeline
+/// attaches to the overworld clock. Datapack-defined markers are not loaded,
+/// so any other id is reported as missing.
+fn builtin_time_marker(id: &Identifier, clock: &str) -> Option<(i64, i64)> {
+    if clock != DEFAULT_CLOCK || id.namespace() != "minecraft" {
+        return None;
+    }
+    let period = i64::from(DayTimeline::PERIOD_TICKS);
+    let ticks = match id.path() {
+        "day" => DayTimeline::DAY_TIME_MARKER,
+        "noon" => DayTimeline::NOON_TIME_MARKER,
+        "night" => DayTimeline::NIGHT_TIME_MARKER,
+        "midnight" => DayTimeline::MIDNIGHT_TIME_MARKER,
+        "wake_up_from_sleep" => DayTimeline::WAKE_UP_FROM_SLEEP_TIME_MARKER,
+        "roll_village_siege" => DayTimeline::ROLL_VILLAGE_SIEGE_TIME_MARKER,
+        _ => return None,
+    };
+    Some((i64::from(ticks), period))
+}
+
+struct TimeMarkerSuggestionProvider;
+
+impl SuggestionProvider for TimeMarkerSuggestionProvider {
+    fn suggest(
+        &self,
+        _context: &CommandContext,
+        builder: SuggestionsBuilder,
+    ) -> SuggestionProviderResult {
+        builder
+            .suggest("minecraft:day")
+            .suggest("minecraft:noon")
+            .suggest("minecraft:night")
+            .suggest("minecraft:midnight")
+            .build()
+    }
+}
+
+struct SetTimeMarkerExecutor {
+    has_clock: bool,
+}
+
+impl CommandExecutor for SetTimeMarkerExecutor {
+    fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
+        let clock_name = resolve_clock_name(context, self.has_clock)?;
+        let marker = IdentifierArgumentType::get(context, "timemarker")?;
+        let marker_name = marker.to_string();
+        let (ticks, period) = builtin_time_marker(&marker, &clock_name).ok_or_else(|| {
+            ERROR_NO_TIME_MARKER_FOUND.create_without_context_args_slice(&[
+                TextComponent::text(marker_name.clone()),
+                TextComponent::text(clock_name.clone()),
+            ])
+        })?;
+
+        let world = context.source.world();
+        let (level_time, target_ticks) = {
+            let mut guard = world
+                .level_time
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if marker_occurs_at(guard.time_of_day, ticks, period) {
+                return Err(
+                    ERROR_ALREADY_AT_TIME_MARKER.create_without_context_args_slice(&[
+                        TextComponent::text(clock_name.clone()),
+                        TextComponent::text(marker_name.clone()),
+                    ]),
+                );
+            }
+            let target = resolve_time_to_move_to(guard.time_of_day, ticks, period);
+            guard.set_time(target);
+            (guard.clone(), target)
+        };
+        level_time.send_time(world);
+        context.source.send_feedback(
+            pumpkin_macros::translate_cross!(
+                translation::java::COMMANDS_TIME_SET_TIME_MARKER,
+                translation::java::COMMANDS_TIME_SET_TIME_MARKER,
+                TextComponent::text(clock_name),
+                TextComponent::text(marker_name)
+            ),
+            true,
+        );
+        Ok(wrap_time(target_ticks))
+    }
+}
+
 macro_rules! build_branches {
     ($builder:expr, $has_clock:expr) => {{
         let set_node = literal("set")
@@ -388,6 +529,13 @@ macro_rules! build_branches {
                     action: Action::Set(None),
                     has_clock: $has_clock,
                 }),
+            )
+            .then(
+                argument("timemarker", IdentifierArgumentType)
+                    .suggests(TimeMarkerSuggestionProvider)
+                    .executes(SetTimeMarkerExecutor {
+                        has_clock: $has_clock,
+                    }),
             );
 
         let add_node = literal("add").then(
@@ -472,5 +620,31 @@ mod tests {
         assert_eq!(wrap_time(2_147_483_646), 2_147_483_646);
         assert_eq!(wrap_time(2_147_483_647), 0);
         assert_eq!(wrap_time(2_147_483_648), 1);
+    }
+
+    #[test]
+    fn builtin_markers_resolve_against_the_day_timeline() {
+        let day = Identifier::from_static("minecraft", "day");
+        assert_eq!(
+            builtin_time_marker(&day, DEFAULT_CLOCK),
+            Some((1000, 24000))
+        );
+        let noon = Identifier::from_static("minecraft", "noon");
+        assert_eq!(
+            builtin_time_marker(&noon, DEFAULT_CLOCK),
+            Some((6000, 24000))
+        );
+        assert_eq!(builtin_time_marker(&day, "minecraft:the_end"), None);
+        let custom = Identifier::from_static("mymod", "day");
+        assert_eq!(builtin_time_marker(&custom, DEFAULT_CLOCK), None);
+    }
+
+    #[test]
+    fn time_marker_move_advances_forward_without_rewinding() {
+        assert!(marker_occurs_at(1000, 1000, 24000));
+        assert!(marker_occurs_at(25000, 1000, 24000));
+        assert!(!marker_occurs_at(999, 1000, 24000));
+        assert_eq!(resolve_time_to_move_to(0, 6000, 24000), 6000);
+        assert_eq!(resolve_time_to_move_to(12000, 6000, 24000), 30000);
     }
 }

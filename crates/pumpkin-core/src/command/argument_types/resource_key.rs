@@ -166,6 +166,45 @@ impl ResourceKeyArgument {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::command::context::command_context::{CommandContextBuilder, ParsedArgument};
+    use crate::command::context::command_source::CommandSource;
+    use crate::command::context::string_range::StringRange;
+    use crate::command::node::dispatcher::CommandDispatcher;
+    use crate::command::node::tree::ROOT_NODE_ID;
+    use std::sync::Arc;
+
+    // The get_* helpers and biome suggestions never touch the server: get_argument
+    // reads only the parsed arguments and is_vanilla_then resolves static data, so
+    // a dummy source suffices for these unit tests.
+    fn dummy_context<R>(f: impl FnOnce(&CommandContext<'_>) -> R) -> R {
+        let dispatcher = CommandDispatcher::new();
+        let mut builder = CommandContextBuilder::new(
+            &dispatcher,
+            Arc::new(CommandSource::dummy()),
+            ROOT_NODE_ID,
+            0,
+        );
+        f(&builder.build(""))
+    }
+
+    fn context_with<R>(
+        name: &str,
+        key: ResourceKey,
+        f: impl FnOnce(&CommandContext<'_>) -> R,
+    ) -> R {
+        let dispatcher = CommandDispatcher::new();
+        let mut builder = CommandContextBuilder::new(
+            &dispatcher,
+            Arc::new(CommandSource::dummy()),
+            ROOT_NODE_ID,
+            0,
+        );
+        builder.with_argument(
+            name.to_string(),
+            Arc::new(ParsedArgument::new(StringRange::at(0), Box::new(key))),
+        );
+        f(&builder.build(""))
+    }
 
     #[test]
     fn parse_keeps_registry_and_identifier_namespace() {
@@ -191,5 +230,92 @@ mod tests {
                 Identifier::vanilla_static("overworld")
             ))
         );
+    }
+
+    #[test]
+    fn client_parser_matches_registry() {
+        assert!(matches!(
+            ResourceKeyArgument(DIMENSION_REGISTRY).client_side_parser(),
+            JavaClientArgumentType::Dimension
+        ));
+        assert!(matches!(
+            ResourceKeyArgument(BIOME_REGISTRY).client_side_parser(),
+            JavaClientArgumentType::Resource { .. }
+        ));
+        assert!(matches!(
+            ResourceKeyArgument(ADVANCEMENT_REGISTRY).client_side_parser(),
+            JavaClientArgumentType::ResourceKey { .. }
+        ));
+    }
+
+    #[test]
+    fn biome_suggestions_are_filtered_by_prefix() {
+        dummy_context(|context| {
+            let suggestions = ResourceKeyArgument(BIOME_REGISTRY)
+                .list_suggestions(context, SuggestionsBuilder::new("minecraft:bad", 0));
+            assert!(!suggestions.is_empty());
+            assert!(
+                suggestions
+                    .suggestions
+                    .iter()
+                    .any(|s| s.text.cached_text() == "minecraft:badlands")
+            );
+        });
+    }
+
+    #[test]
+    fn get_registry_key_accepts_matching_and_rejects_other_registry() {
+        let key = ResourceKey::new(
+            (*ADVANCEMENT_REGISTRY).clone(),
+            Identifier::vanilla_static("adventure/root"),
+        );
+        context_with("key", key, |context| {
+            assert!(matches!(
+                ResourceKeyArgument::get_registry_key(
+                    context,
+                    "key",
+                    ADVANCEMENT_REGISTRY,
+                    &ERROR_INVALID_ADVANCEMENT,
+                ),
+                Ok(k) if k.identifier == Identifier::vanilla_static("adventure/root")
+            ));
+            assert!(
+                ResourceKeyArgument::get_registry_key(
+                    context,
+                    "key",
+                    BIOME_REGISTRY,
+                    &ERROR_INVALID_ADVANCEMENT,
+                )
+                .is_err()
+            );
+        });
+    }
+
+    #[test]
+    fn get_biome_resolves_vanilla_biome() {
+        let key = ResourceKey::new(
+            (*BIOME_REGISTRY).clone(),
+            Identifier::vanilla_static("badlands"),
+        );
+        context_with("biome", key, |context| {
+            assert!(matches!(
+                ResourceKeyArgument::get_biome(context, "biome"),
+                Ok(b) if b == &pumpkin_data::biome::Biome::BADLANDS
+            ));
+        });
+    }
+
+    #[test]
+    fn get_advancement_resolves_vanilla_advancement() {
+        let key = ResourceKey::new(
+            (*ADVANCEMENT_REGISTRY).clone(),
+            Identifier::vanilla_static("adventure/root"),
+        );
+        context_with("advancement", key, |context| {
+            assert!(matches!(
+                ResourceKeyArgument::get_advancement(context, "advancement"),
+                Ok(a) if a == pumpkin_data::Advancement::ADVENTURE_ROOT
+            ));
+        });
     }
 }

@@ -143,8 +143,9 @@ impl fmt::Display for CommandSender {
 impl CommandSender {
     pub fn send_message(&self, text: TextComponent) {
         match self {
-            #[expect(clippy::print_stdout, reason = "console sender prints to the terminal")]
-            Self::Console => println!("{}", text.to_pretty_console()),
+            // Vanilla logs console feedback through the server LOGGER at INFO with ANSI colors
+            // (MinecraftServer#sendSystemMessage), so route it through the tracing sink.
+            Self::Console => tracing::info!("{}", text.to_pretty_console()),
             Self::Player(c) => c.send_system_message(&text),
             Self::CommandBlock(block_entity, _) => {
                 // Vanilla TrackOutput: when off, nothing is written to LastOutput.
@@ -154,18 +155,22 @@ impl CommandSender {
                 {
                     return;
                 }
-                let mut last_output = block_entity
-                    .last_output
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-                let now = time::OffsetDateTime::now_utc();
+                // Vanilla BaseCommandBlock.CloseableCommandBlockSource#sendSystemMessage
+                // builds a literal "[HH:mm:ss] " prefix component and appends the message,
+                // preserving the message's style instead of flattening it to plain text.
+                let now = time::OffsetDateTime::now_local()
+                    .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
                 let format = time::macros::format_description!("[hour]:[minute]:[second]");
                 let timestamp = now
                     .format(&format)
                     .unwrap_or_else(|_| "00:00:00".to_string());
 
-                *last_output = format!("[{}] {}", timestamp, text.get_text());
+                let output = TextComponent::text(format!("[{}] ", timestamp)).add_child(text);
+                let mut last_output = block_entity
+                    .last_output
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                *last_output = Some(output);
             }
             Self::Dummy => {}
         }
@@ -349,7 +354,7 @@ impl CommandSender {
                 let (yaw, pitch) = player.rotation();
                 Vector2::new(pitch, yaw)
             },
-            player.get_display_name().get_text(),
+            player.get_name().get_text(),
             player.get_display_name(),
             server.clone(),
         )
