@@ -3,7 +3,6 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use pumpkin_data::Block;
 use pumpkin_data::entity::{EntityPose, EntityStatus, EntityType};
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
@@ -24,7 +23,6 @@ use crate::entity::{
     passive::animal::Animal,
     player::Player,
 };
-use crate::world::World;
 
 const DESPAWN_AFTER_TICKS: i32 = 2400;
 
@@ -216,21 +214,5 @@ impl Mob for OcelotEntity {
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
         !self.is_trusting()
             && self.get_entity().tick_count.load(Ordering::Relaxed) > DESPAWN_AFTER_TICKS
-    }
-
-    fn check_spawn_obstruction(&self, world: &World) -> bool {
-        let entity = self.get_entity();
-        let bounding_box = entity.bounding_box.load();
-        if world.contains_any_liquid(bounding_box)
-            || !world.get_entities_at_box(&bounding_box).is_empty()
-        {
-            return false;
-        }
-        let pos = entity.block_pos.load();
-        if pos.0.y < world.sea_level {
-            return false;
-        }
-        let below = world.get_block(&pos.down());
-        below.id == Block::GRASS_BLOCK.id || below.has_tag(&tag::Block::MINECRAFT_LEAVES)
     }
 }
