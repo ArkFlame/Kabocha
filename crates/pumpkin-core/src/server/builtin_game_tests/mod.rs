@@ -265,8 +265,9 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:iron_golem_pattern_clears_all_four_blocks",
     "pumpkin:different_item_entities_do_not_merge",
     "pumpkin:item_entities_stack_up_to_combined_count",
-    // boat_block_effects (1)
+    // boat_block_effects (2)
     "pumpkin:boat_breaks_lily_pad_on_landing",
+    "pumpkin:birch_boat_floats_then_drops_on_break",
 ];
 
 #[must_use]
@@ -1779,6 +1780,13 @@ pub fn ensure_builtin_game_tests_registered() {
             60,
             0,
             boat_block_effects::test_boat_breaks_lily_pad_on_landing,
+        );
+        register_function_test(
+            "pumpkin:birch_boat_floats_then_drops_on_break",
+            "pumpkin:empty_5x5x5",
+            100,
+            0,
+            boat_block_effects::test_birch_boat_floats_then_drops_on_break,
         );
     });
 }
