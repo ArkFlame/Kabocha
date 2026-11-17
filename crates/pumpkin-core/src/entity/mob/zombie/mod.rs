@@ -329,7 +329,7 @@ impl ZombieEntityBase {
                 .into_iter()
                 .filter(|chicken| {
                     let chicken = chicken.get_entity();
-                    chicken.is_alive() && !chicken.has_passengers() && !chicken.has_vehicle()
+                    chicken.is_alive() && !chicken.has_passengers()
                 })
                 .collect();
             // Vanilla picks a random candidate, consuming a roll either way.
