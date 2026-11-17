@@ -98,8 +98,6 @@ async fn main() {
     // (for example an unwritable data directory) actually reach the console.
     pumpkin_core::init_logger(&config.advanced);
 
-    let vanilla_data = VanillaData::load();
-
     if let Some(target_arg) = parse_convert_world_arg(std::env::args().skip(1)) {
         let anvil_default = match &config.advanced.world.chunk {
             pumpkin_config::chunk::ChunkConfig::Anvil(cfg) => cfg.clone(),

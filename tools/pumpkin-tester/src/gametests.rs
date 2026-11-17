@@ -52,6 +52,27 @@ impl GameTestReporter for CaptureReporter {
     }
 }
 
+/// Pre-loads the 4x4 chunk test arena once so all 3D-stacked tests run in memory.
+async fn preload_test_arena(world: &World) {
+    let base_cx = TEST_BASE_X >> 4;
+    let base_cz = TEST_BASE_Z >> 4;
+    force_load_surroundings_chunks(
+        world,
+        base_cx,
+        base_cx + TESTS_PER_ROW - 1,
+        base_cz,
+        base_cz + TEST_ROWS_PER_LAYER - 1,
+    );
+    for cx in base_cx..(base_cx + TESTS_PER_ROW) {
+        for cz in base_cz..(base_cz + TEST_ROWS_PER_LAYER) {
+            world
+                .level
+                .get_or_fetch_chunk(Vector2::new(cx, cz), |_| ())
+                .await;
+        }
+    }
+}
+
 pub async fn run_gametests(
     server: &Arc<Server>,
     runner: &mut GameTestRunner,
@@ -75,24 +96,7 @@ pub async fn run_gametests(
         all_tests.len(),
     ));
 
-    // Pre-load the 4x4 chunk test arena once so all 3D-stacked tests run in memory
-    let base_cx = TEST_BASE_X >> 4;
-    let base_cz = TEST_BASE_Z >> 4;
-    force_load_surroundings_chunks(
-        &world,
-        base_cx,
-        base_cx + TESTS_PER_ROW - 1,
-        base_cz,
-        base_cz + TEST_ROWS_PER_LAYER - 1,
-    );
-    for cx in base_cx..(base_cx + TESTS_PER_ROW) {
-        for cz in base_cz..(base_cz + TEST_ROWS_PER_LAYER) {
-            world
-                .level
-                .get_or_fetch_chunk(Vector2::new(cx, cz), |_| ())
-                .await;
-        }
-    }
+    preload_test_arena(&world).await;
 
     let mut grid_slot = 0i32;
     for &test_id in &all_tests {
