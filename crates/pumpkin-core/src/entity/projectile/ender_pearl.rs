@@ -128,7 +128,9 @@ impl EntityBase for EnderPearlEntity {
             );
         }
 
+        // Vanilla only teleports an owner that is still in the pearl's world.
         if let Some(owner) = attacker
+            && std::sync::Arc::ptr_eq(&owner.get_entity().world.load(), &world)
             && owner.get_entity().is_alive()
             && owner.get_living_entity().is_none_or(|living| {
                 living.health.load() > 0.0 && owner.get_entity().pose.load() != EntityPose::Sleeping

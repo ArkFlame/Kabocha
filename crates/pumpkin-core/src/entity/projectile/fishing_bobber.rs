@@ -551,7 +551,14 @@ impl FishingBobberEntity {
 
     /// Vanilla `FishingBobberEntity.remove`: clears `owner.fishing` and drops the hook.
     fn discard(&self, player: &Player) {
-        player.fishing_bobber.store(-1, Ordering::Relaxed);
+        // Vanilla `updateOwnerInfo` only clears the owner's hook when it is this hook, so an
+        // older hook removed after the player recast does not orphan the new bobber.
+        let _ = player.fishing_bobber.compare_exchange(
+            self.entity.entity_id,
+            -1,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
         self.entity.remove();
     }
 

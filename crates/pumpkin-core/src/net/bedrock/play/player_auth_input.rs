@@ -8,6 +8,10 @@ use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::player::ClientMove;
 
+/// A client cannot legitimately move more than this squared distance in one input tick, which
+/// is vanilla's "moved too quickly" budget. Mount steps and the delta pushes layer on share it.
+const MAX_CLIENT_STEP_SQUARED: f64 = 100.0;
+
 impl BedrockClient {
     pub fn handle_player_auth_input(
         &self,
@@ -33,9 +37,12 @@ impl BedrockClient {
         let flags = &packet.input_data;
         // Like Geyser: the motion this tick started with was downward. Landing can already
         // have cleared the end delta (gliding into the ground).
-        let on_ground = flags.get(InputData::VerticalCollision as usize)
-            && self.client_delta.load().y < 0.0
-            && !entity.has_vehicle();
+        let on_ground = is_on_ground(
+            flags.get(InputData::VerticalCollision as usize),
+            self.client_delta.load().y,
+            entity.on_ground.load(Ordering::Relaxed),
+            entity.has_vehicle(),
+        );
         let horizontal_collision = flags.get(InputData::HorizontalCollision as usize);
 
         self.store_input_state(&packet);
@@ -49,10 +56,14 @@ impl BedrockClient {
 
         let started_sprint = flags.get(InputData::StartSprinting as usize);
         let stopped_sprint = flags.get(InputData::StopSprinting as usize);
+        let held_sprint = flags.get(InputData::SprintDown as usize);
         if started_sprint && !stopped_sprint {
             player.apply_sprint_input(server, true);
         } else if stopped_sprint && !started_sprint {
             player.apply_sprint_input(server, false);
+        } else if !started_sprint && !stopped_sprint && held_sprint {
+            // Clients that report only the held sprint state, without the edges, still sprint.
+            player.apply_sprint_input(server, true);
         }
 
         if flags.get(InputData::StartSwimming as usize) {
@@ -135,6 +146,21 @@ impl BedrockClient {
             }
         }
     }
+}
+
+/// Bedrock has no explicit `onGround` byte: it reports `VerticalCollision` plus the delta the
+/// tick started with. A landing tick zeroes the end delta, so a downward previous delta is the
+/// landing signal; a zero delta is also what a standing client reports, which keeps the stored
+/// ground state instead of calling every standing tick airborne.
+fn is_on_ground(
+    vertical_collision: bool,
+    previous_delta_y: f64,
+    was_on_ground: bool,
+    has_vehicle: bool,
+) -> bool {
+    !has_vehicle
+        && vertical_collision
+        && (previous_delta_y < 0.0 || (previous_delta_y == 0.0 && was_on_ground))
 }
 
 impl BedrockClient {
@@ -221,7 +247,14 @@ impl BedrockClient {
         self.input_tick.store(packet.tick.0, Ordering::Relaxed);
         // Client predicted end-of-tick velocity. Knockback is an absolute `SetActorMotion`.
         // later entity pushes layer on this delta once that motion is no longer in flight.
-        self.client_delta.store(packet.delta.to_f64());
+        // A forged or stale teleport step must not become a push.
+        let delta = packet.delta.to_f64();
+        let plausible = delta.x.is_finite()
+            && delta.y.is_finite()
+            && delta.z.is_finite()
+            && delta.length_squared() <= MAX_CLIENT_STEP_SQUARED;
+        self.client_delta
+            .store(if plausible { delta } else { Vector3::default() });
     }
 
     /// Inputs are ignored until the client reaches a pending teleport, so stale
@@ -367,7 +400,6 @@ fn apply_mount_move(
     on_ground: bool,
 ) {
     // Vanilla's "moved too quickly" guard, minus the vehicle's own motion allowance.
-    const MAX_STEP_SQUARED: f64 = 100.0;
     // Saddled mounts only: boats and minecarts have their own server-side movement.
     if vehicle.get_mob().is_none() {
         return;
@@ -387,7 +419,7 @@ fn apply_mount_move(
         && delta.y.is_finite()
         && delta.z.is_finite()
         && step > 0.0
-        && step <= MAX_STEP_SQUARED;
+        && step <= MAX_CLIENT_STEP_SQUARED;
     let vehicle_entity = vehicle.get_entity();
     if moved {
         vehicle_entity.set_pos(vehicle_entity.pos.load().add_raw(delta.x, delta.y, delta.z));
@@ -399,5 +431,28 @@ fn apply_mount_move(
     crate::entity::position_rider(vehicle.as_ref(), player.as_ref());
     if moved {
         chunker::update_position(player);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_on_ground;
+
+    #[test]
+    fn landing_tick_uses_the_downward_delta() {
+        assert!(is_on_ground(true, -0.5, false, false));
+    }
+
+    #[test]
+    fn standing_tick_keeps_the_stored_ground_state() {
+        assert!(is_on_ground(true, 0.0, true, false));
+        assert!(!is_on_ground(true, 0.0, false, false));
+    }
+
+    #[test]
+    fn rising_or_mounted_ticks_are_airborne() {
+        assert!(!is_on_ground(true, 0.5, true, false));
+        assert!(!is_on_ground(true, -0.5, true, true));
+        assert!(!is_on_ground(false, -0.5, true, false));
     }
 }

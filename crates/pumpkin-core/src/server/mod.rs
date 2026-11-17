@@ -92,6 +92,8 @@ const SCHEDULED_EVENTS_FILE: &str = "scheduled_events.dat";
 pub struct Server {
     pub basic_config: BasicConfiguration,
     pub advanced_config: AdvancedConfiguration,
+    /// Live resource pack configuration, mutable at runtime through the plugin API.
+    pub resource_pack: pumpkin_config::resource_pack::ResourcePackSettings,
     pub telemetry_config: TelemetryConfig,
     /// Tracks active and completed player session durations for anonymous telemetry.
     pub telemetry_sessions: crate::telemetry::TelemetrySessionTracker,
@@ -366,6 +368,9 @@ impl Server {
 
         let server = Self {
             basic_config,
+            resource_pack: pumpkin_config::resource_pack::ResourcePackSettings::new(
+                advanced_config.resource_pack.clone(),
+            ),
             advanced_config,
             telemetry_config,
             telemetry_sessions: crate::telemetry::TelemetrySessionTracker::default(),

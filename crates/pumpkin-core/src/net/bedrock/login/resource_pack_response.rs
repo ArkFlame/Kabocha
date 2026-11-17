@@ -50,7 +50,7 @@ impl BedrockClient {
             }
             SResourcePackClientResponse::STATUS_HAVE_ALL_PACKS => {
                 debug!("Bedrock: SResourcePackResponse::STATUS_HAVE_ALL_PACKS");
-                let br_config = &server.advanced_config.resource_pack.bedrock;
+                let br_config = server.resource_pack.bedrock();
                 // Convert your config packs into protocol stack entries
                 let resource_packs = if br_config.enabled {
                     br_config
@@ -111,7 +111,7 @@ impl BedrockClient {
     }
 
     async fn handle_status_send_packs(&self, pack_ids: &[String], server: &Arc<Server>) {
-        let br_config = &server.advanced_config.resource_pack.bedrock;
+        let br_config = server.resource_pack.bedrock();
         if !br_config.enabled {
             tracing::warn!(
                 "Bedrock: Client requested packs but Bedrock resource packs are disabled"

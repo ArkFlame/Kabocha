@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 /// Server resource pack configuration for Java and Bedrock clients.
-#[derive(Deserialize, Serialize, Default, toml_spanner::Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default, toml_spanner::Toml)]
 #[serde(default)]
 #[toml(ignore_unknown_fields, recoverable)]
 pub struct ResourcePackConfig {
@@ -15,7 +16,7 @@ pub struct ResourcePackConfig {
 }
 
 /// Java-specific resource pack configuration (Single URL/Hash)
-#[derive(Deserialize, Serialize, Default, toml_spanner::Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default, toml_spanner::Toml)]
 #[serde(default)]
 #[toml(ignore_unknown_fields, recoverable)]
 pub struct JavaResourcePackConfig {
@@ -37,7 +38,7 @@ pub struct JavaResourcePackConfig {
 }
 
 /// Bedrock-specific configuration (Supports multiple local/remote packs)
-#[derive(Deserialize, Serialize, Default, toml_spanner::Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default, toml_spanner::Toml)]
 #[serde(default)]
 #[toml(ignore_unknown_fields, recoverable)]
 pub struct BedrockResourcePackConfig {
@@ -53,7 +54,7 @@ pub struct BedrockResourcePackConfig {
 }
 
 /// Bedrock resource pack manifest configuration entry.
-#[derive(Deserialize, Serialize, toml_spanner::Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, toml_spanner::Toml)]
 #[toml(ignore_unknown_fields, recoverable)]
 pub struct BedrockPack {
     /// Unique identifier for the Bedrock pack.
@@ -93,4 +94,85 @@ pub struct BedrockPack {
     #[serde(default)]
     #[toml(default)]
     pub rtx_enabled: bool,
+}
+
+fn read_config(lock: &RwLock<ResourcePackConfig>) -> RwLockReadGuard<'_, ResourcePackConfig> {
+    match lock.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+fn write_config(lock: &RwLock<ResourcePackConfig>) -> RwLockWriteGuard<'_, ResourcePackConfig> {
+    match lock.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+/// Shared resource pack settings, read whenever a login sends packs so plugins can update them.
+#[derive(Debug, Default)]
+pub struct ResourcePackSettings {
+    config: RwLock<ResourcePackConfig>,
+}
+
+impl ResourcePackSettings {
+    /// Wraps `config` so it can be shared and mutated at runtime.
+    #[must_use]
+    pub fn new(config: ResourcePackConfig) -> Self {
+        Self {
+            config: RwLock::new(config),
+        }
+    }
+
+    /// Returns a snapshot of the current Java resource pack configuration.
+    #[must_use]
+    pub fn java(&self) -> JavaResourcePackConfig {
+        read_config(&self.config).java.clone()
+    }
+
+    /// Returns a snapshot of the current Bedrock resource pack configuration.
+    #[must_use]
+    pub fn bedrock(&self) -> BedrockResourcePackConfig {
+        read_config(&self.config).bedrock.clone()
+    }
+
+    /// Replaces the Java resource pack configuration.
+    pub fn set_java(&self, java: JavaResourcePackConfig) {
+        write_config(&self.config).java = java;
+    }
+
+    /// Replaces the Bedrock resource pack configuration.
+    pub fn set_bedrock(&self, bedrock: BedrockResourcePackConfig) {
+        write_config(&self.config).bedrock = bedrock;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_reflect_updates() {
+        let settings = ResourcePackSettings::new(ResourcePackConfig::default());
+        assert!(!settings.java().enabled);
+
+        let java = JavaResourcePackConfig {
+            enabled: true,
+            url: "https://example.invalid/pack.zip".to_owned(),
+            sha1: "0".repeat(40),
+            prompt_message: String::new(),
+            force: true,
+        };
+        settings.set_java(java.clone());
+        assert_eq!(settings.java(), java);
+
+        let bedrock = BedrockResourcePackConfig {
+            enabled: true,
+            force: true,
+            packs: Vec::new(),
+        };
+        settings.set_bedrock(bedrock.clone());
+        assert_eq!(settings.bedrock(), bedrock);
+    }
 }

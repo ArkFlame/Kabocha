@@ -115,7 +115,7 @@ impl BedrockClient {
         }
 
         self.enqueue_client_packet(&CPlayStatus::LoginSuccess).await;
-        let br_config = &server.advanced_config.resource_pack.bedrock;
+        let br_config = server.resource_pack.bedrock();
 
         let mut entries = Vec::new();
         if br_config.enabled {

@@ -152,6 +152,40 @@ interface server {
         player(player),
     }
 
+    /// Java Edition resource pack configuration.
+    /// @since 0.2.0
+    record java-resource-pack {
+        enabled: bool,
+        url: string,
+        sha1: string,
+        prompt-message: string,
+        force: bool,
+    }
+
+    /// One Bedrock resource pack manifest entry.
+    /// @since 0.2.0
+    record bedrock-resource-pack-entry {
+        uuid: uuid,
+        version: string,
+        size: u64,
+        download-url: string,
+        path: option<string>,
+        content-key: string,
+        sub-pack-name: string,
+        content-id: string,
+        has-scripts: bool,
+        addon-pack: bool,
+        rtx-enabled: bool,
+    }
+
+    /// Bedrock Edition resource pack configuration.
+    /// @since 0.2.0
+    record bedrock-resource-pack {
+        enabled: bool,
+        force: bool,
+        packs: list<bedrock-resource-pack-entry>,
+    }
+
     /// Represents the global server instance.
     resource server {
         /// Returns system information (CPU, Memory, OS).
@@ -311,6 +345,14 @@ interface server {
 
         /// Broadcasts custom server links to all connected players (displayed in the client Esc pause menu in 1.21+).
         set-server-links: func(links: list<server-link>);
+
+        /// Replaces the Java Edition resource pack configuration used for new logins.
+        /// @since 0.2.0
+        set-java-resource-pack: func(config: java-resource-pack);
+
+        /// Replaces the Bedrock Edition resource pack configuration used for new logins.
+        /// @since 0.2.0
+        set-bedrock-resource-pack: func(config: bedrock-resource-pack);
 
         /// Returns every permission node registered on the server, by Pumpkin and by plugins.
         get-all-permissions: func() -> list<permission>;

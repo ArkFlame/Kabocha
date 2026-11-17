@@ -80,7 +80,7 @@ impl PendingConnection {
             self.send_packet_now(&CConfigServerLinks::new(&links)).await;
         }
 
-        let resource_config = &server.advanced_config.resource_pack.java;
+        let resource_config = server.resource_pack.java();
         if resource_config.enabled {
             let uuid = Uuid::new_v3(&uuid::Uuid::NAMESPACE_DNS, resource_config.url.as_bytes());
             let resource_pack = CConfigAddResourcePack::new(
