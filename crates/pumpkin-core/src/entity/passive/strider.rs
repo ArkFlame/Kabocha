@@ -9,6 +9,7 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
 
 use crate::entity::{
@@ -142,6 +143,11 @@ impl Mob for StriderEntity {
             .read_legacy_saddle(nbt.get_bool("Saddle") == Some(true));
     }
 
+    fn mob_tick(&self, _caller: &dyn EntityBase) {
+        // Vanilla `Strider.tick` expires the warped fungus on a stick boost server side.
+        self.steering.tick_boost();
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
@@ -201,7 +207,16 @@ impl Mob for StriderEntity {
 
 impl ItemSteerable for StriderEntity {
     fn boost(&self) -> bool {
-        self.steering.boost()
+        if self.steering.boost() {
+            // Vanilla `ItemBasedSteering.boost` publishes the new boost duration.
+            self.get_entity().set_synced_data(
+                pumpkin_data::tracked_data::strider::DATA_BOOST_TIME,
+                VarInt(self.steering.boost_time_total.load(Ordering::Relaxed)),
+            );
+            true
+        } else {
+            false
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
