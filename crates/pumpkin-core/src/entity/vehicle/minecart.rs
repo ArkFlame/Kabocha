@@ -170,10 +170,10 @@ impl MinecartEntity {
             MinecartKind::Furnace(_) => &Item::FURNACE_MINECART,
             MinecartKind::Hopper(_) => &Item::HOPPER_MINECART,
             MinecartKind::Tnt(_) => &Item::TNT_MINECART,
-            MinecartKind::Rideable(_)
-            | MinecartKind::CommandBlock(_)
-            | MinecartKind::Spawner(_)
-            | MinecartKind::Other => &Item::MINECART,
+            MinecartKind::CommandBlock(_) => &Item::COMMAND_BLOCK_MINECART,
+            MinecartKind::Rideable(_) | MinecartKind::Spawner(_) | MinecartKind::Other => {
+                &Item::MINECART
+            }
         }
     }
 }
@@ -1070,6 +1070,32 @@ mod tests {
                 .and_then(|e| e.get_string("id")),
             Some("minecraft:pig")
         );
+
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn minecart_drop_item_matches_vanilla() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        // Vanilla overrides `getDropItem` per minecart type; the command block minecart drops
+        // its own item, not a plain minecart.
+        for (entity_type, drop) in [
+            (&EntityType::MINECART, &Item::MINECART),
+            (&EntityType::CHEST_MINECART, &Item::CHEST_MINECART),
+            (&EntityType::COMMAND_BLOCK_MINECART, &Item::COMMAND_BLOCK_MINECART),
+            (&EntityType::FURNACE_MINECART, &Item::FURNACE_MINECART),
+            (&EntityType::HOPPER_MINECART, &Item::HOPPER_MINECART),
+            (&EntityType::TNT_MINECART, &Item::TNT_MINECART),
+        ] {
+            let cart = MinecartEntity::new(Entity::new(
+                world.clone(),
+                Vector3::new(0.5, 64.0, 0.5),
+                entity_type,
+            ));
+            assert_eq!(cart.drop_item().id, drop.id);
+        }
 
         world.level.shutdown().await;
         Ok(())
