@@ -494,8 +494,14 @@ fn get_as_text(tag: &NbtTag) -> Result<String, CommandSyntaxError> {
     }
 }
 
+/// Java `String` lengths and indices, which vanilla NBT paths use, count UTF-16 code units.
+fn utf16_len(value: &str) -> i32 {
+    value.encode_utf16().count() as i32
+}
+
 fn substring(input: &str, start: i32, end: Option<i32>) -> Result<String, CommandSyntaxError> {
-    let len = input.chars().count() as i32;
+    let units: Vec<u16> = input.encode_utf16().collect();
+    let len = units.len() as i32;
     let abs_start = if start >= 0 { start } else { len + start };
     let abs_end = match end {
         Some(e) => {
@@ -508,10 +514,9 @@ fn substring(input: &str, start: i32, end: Option<i32>) -> Result<String, Comman
         None => len,
     };
     if abs_start >= 0 && abs_end <= len && abs_start <= abs_end {
-        let chars: Vec<char> = input.chars().collect();
-        Ok(chars[(abs_start as usize)..(abs_end as usize)]
-            .iter()
-            .collect())
+        Ok(String::from_utf16_lossy(
+            &units[(abs_start as usize)..(abs_end as usize)],
+        ))
     } else {
         Err(ERROR_INVALID_SUBSTRING.create_without_context(
             TextComponent::text(start.to_string()),
@@ -606,7 +611,7 @@ fn execute_get(
         NbtTag::ByteArray(arr) => arr.len() as i32,
         NbtTag::IntArray(arr) => arr.len() as i32,
         NbtTag::LongArray(arr) => arr.len() as i32,
-        NbtTag::String(s) => s.len() as i32,
+        NbtTag::String(s) => utf16_len(s),
         NbtTag::List(list) => list.len() as i32,
         NbtTag::Compound(compound) => compound.child_tags.len() as i32,
         NbtTag::End => {
@@ -1145,5 +1150,15 @@ mod tests {
             parses_completely(input),
             "{input} should parse as a complete command"
         );
+    }
+
+    #[test]
+    fn string_length_and_substring_use_java_utf16_indices() {
+        assert_eq!(utf16_len("abc"), 3);
+        assert_eq!(utf16_len("\u{e9}"), 1);
+        assert_eq!(utf16_len("\u{1f600}"), 2);
+        assert_eq!(substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(), "a\u{1f600}");
+        assert_eq!(substring("a\u{1f600}b", 3, None).unwrap_or_default(), "b");
+        assert!(substring("\u{e9}", 0, Some(2)).is_err());
     }
 }
