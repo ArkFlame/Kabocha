@@ -2013,12 +2013,17 @@ impl Server {
     }
 
     /// Returns the Ticks Per Second (TPS).
+    ///
+    /// Tick time measures work only, without the idle wait before the next deadline, so the
+    /// rate from MSPT alone can exceed the target. The ticker never runs faster than the
+    /// target rate, so cap there.
     pub fn get_tps(&self) -> f64 {
         let mspt = self.get_mspt();
         if mspt <= 0.0 {
             return 0.0;
         }
-        1000.0 / mspt
+        let target = 1_000_000_000.0 / self.tick_rate_manager.nanoseconds_per_tick().max(1) as f64;
+        (1000.0 / mspt).min(target)
     }
 
     /// Returns a copy of the last 100 tick times.
