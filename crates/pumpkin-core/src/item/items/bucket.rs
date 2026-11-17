@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use crate::{
     block::registry::BlockActionResult,
     entity::{EntityBase, player::Player, r#type::from_type},
-    item::{ItemBehaviour, ItemMetadata},
+    item::{ItemBehaviour, ItemMetadata, hand_holding},
     server::Server,
 };
 use pumpkin_data::{
@@ -693,7 +693,12 @@ impl ItemBehaviour for EmptyBucketItem {
         give_player_bucket_item(player, hand, filled_item);
     }
 
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> BlockActionResult {
         let ent = entity.get_entity();
         let entity_type = ent.entity_type;
         if entity_type == &EntityType::SULFUR_CUBE && ent.age.load(Ordering::Relaxed) >= 0 {
@@ -705,6 +710,7 @@ impl ItemBehaviour for EmptyBucketItem {
             );
             fill_mob_bucket_stack(item, player, &Item::SULFUR_CUBE_BUCKET, entity.as_ref());
             ent.remove();
+            return BlockActionResult::SuccessServer;
         } else if entity_type == &EntityType::GOAT && ent.age.load(Ordering::Relaxed) >= 0 {
             let world = ent.world.load();
             let sound = if let Some(goat) = entity
@@ -718,7 +724,9 @@ impl ItemBehaviour for EmptyBucketItem {
             };
             world.play_sound(sound, SoundCategory::Neutral, &ent.pos.load());
             fill_bucket_stack(item, player, &Item::MILK_BUCKET);
+            return BlockActionResult::SuccessServer;
         }
+        BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -819,20 +827,28 @@ impl ItemBehaviour for FilledBucketItem {
         _block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
-        if !Self::place_filled_bucket(stack.item, player, Hand::Right, location, face) {
+        // Vanilla UseOnContext.getHand(): empty the stack in the hand that was used, not always
+        // the main hand, so an off-hand bucket does not edit the main-hand slot.
+        let hand = hand_holding(player, stack.item);
+        if !Self::place_filled_bucket(stack.item, player, hand, location, face) {
             return BlockActionResult::Pass;
         }
-        *stack = player.inventory.get_stack_in_hand(Hand::Right);
+        *stack = player.inventory.get_stack_in_hand(hand);
         BlockActionResult::Success
     }
 
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> BlockActionResult {
         if entity
             .get_mob()
             .and_then(|mob| mob.as_bucketable())
             .is_some()
         {
-            return;
+            return BlockActionResult::Pass;
         }
         if item.item.id == Item::WATER_BUCKET.id {
             let entity_type = entity.get_entity().entity_type;
@@ -845,8 +861,10 @@ impl ItemBehaviour for FilledBucketItem {
                 world.play_sound(sound, SoundCategory::Neutral, &ent.pos.load());
                 fill_mob_bucket_stack(item, player, mob_bucket, entity.as_ref());
                 ent.remove();
+                return BlockActionResult::SuccessServer;
             }
         }
+        BlockActionResult::Pass
     }
 
     // Powder snow is vanilla's only `SolidBucketItem`; mirrors its `useOn` override.

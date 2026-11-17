@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use crate::block::registry::BlockActionResult;
 use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
@@ -17,7 +18,12 @@ impl ItemMetadata for NameTagItem {
 }
 
 impl ItemBehaviour for NameTagItem {
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> BlockActionResult {
         let raw_entity = entity.get_entity();
         if let Some(living) = entity.get_living_entity()
             && raw_entity.entity_type.saveable
@@ -33,7 +39,9 @@ impl ItemBehaviour for NameTagItem {
                     .store(true, Ordering::Relaxed);
             }
             item.decrement_unless_creative(player.gamemode.load(), 1);
+            return BlockActionResult::SuccessServer;
         }
+        BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

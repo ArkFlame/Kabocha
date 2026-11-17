@@ -186,16 +186,18 @@ impl ItemRegistry {
         stack: &mut ItemStack,
         player: &Player,
         entity: Arc<dyn EntityBase>,
-    ) {
+    ) -> BlockActionResult {
         if let Some(mob) = entity.get_mob()
             && equip_on_target(mob, player, stack)
         {
-            return;
+            return BlockActionResult::Success;
         }
 
         let pumpkin_item = self.get_pumpkin_item(stack.item.id);
         if let Some(pumpkin_item) = pumpkin_item {
-            pumpkin_item.use_on_entity(stack, player, entity);
+            pumpkin_item.use_on_entity(stack, player, entity)
+        } else {
+            BlockActionResult::Pass
         }
     }
 

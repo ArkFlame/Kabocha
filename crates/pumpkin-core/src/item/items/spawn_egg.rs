@@ -26,7 +26,6 @@ use pumpkin_data::entity::{EntityType, MobCategory};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::statistic::StatisticCategory;
 use pumpkin_data::{Block, BlockDirection};
 use pumpkin_inventory::player::player_inventory::PlayerInventory;
 use pumpkin_nbt::compound::NbtCompound;
@@ -319,7 +318,9 @@ impl ItemBehaviour for SpawnEggItem {
             };
             player.sync_hand_slot(slot_index, stack);
             world.emit_game_event(GameEvent::EntityPlace.name(), pos);
-            player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
+            // The air-use packet handlers (Java use_item.rs, Bedrock inventory_action.rs)
+            // already award ITEM_USED for this click. Vanilla SpawnEggItem.use awards it
+            // exactly once, so do not award again here.
         }
     }
 
@@ -408,13 +409,18 @@ impl ItemBehaviour for SpawnEggItem {
         }
     }
 
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> BlockActionResult {
         if let Some(entity_type) = entity_type_from_spawn_egg_stack(item)
             && entity.get_entity().entity_type.id == entity_type.id
         {
             let world = player.world();
             if is_disallowed_in_peaceful(entity_type, &world) {
-                return;
+                return BlockActionResult::Pass;
             }
             let pos = entity.get_entity().pos.load();
             // Vanilla `spawnOffspringFromSpawnEgg`: the clicked animal is both parents, so the
@@ -425,7 +431,7 @@ impl ItemBehaviour for SpawnEggItem {
             {
                 // Vanilla `Frog.getBreedOffspring` returns null. Turtles lay eggs when bred but do
                 // have a baby form, so `spawns_offspring` is not the check here.
-                Some(_) if entity_type.id == EntityType::FROG.id => return,
+                Some(_) if entity_type.id == EntityType::FROG.id => return BlockActionResult::Pass,
                 Some(animal) => animal.get_breed_offspring(entity.as_ref()),
                 None => from_type(entity_type, pos, &world, Uuid::new_v4()),
             };
@@ -434,7 +440,7 @@ impl ItemBehaviour for SpawnEggItem {
                 .get_mob()
                 .is_some_and(crate::entity::mob::Mob::spawn_as_baby)
             {
-                return;
+                return BlockActionResult::Pass;
             }
             // Vanilla `spawnOffspringFromSpawnEgg`: `moveTo(pos, 0.0F, 0.0F)`, so the
             // offspring faces north instead of a random yaw.
@@ -450,11 +456,51 @@ impl ItemBehaviour for SpawnEggItem {
                 if let (Some(parent), Some(offspring)) = (entity.get_mob(), mob.get_mob()) {
                     parent.on_offspring_spawned_from_egg(player, offspring);
                 }
+                // Vanilla `Mob.checkAndHandleImportantInteractions` returns SUCCESS_SERVER, so
+                // the hand swings on a successful spawn.
+                return BlockActionResult::SuccessServer;
             }
         }
+        BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entity_data_component_overrides_base_spawn_egg_type() {
+        // Vanilla SpawnEggItem.getType reads the ENTITY_DATA component, falling back to the
+        // egg's own type only when the component is absent.
+        let cow = ItemStack::new(1, &Item::COW_SPAWN_EGG);
+        assert_eq!(
+            entity_type_from_spawn_egg_stack(&cow).map(|entity| entity.id),
+            Some(EntityType::COW.id)
+        );
+
+        let mut pig = ItemStack::new(1, &Item::PIG_SPAWN_EGG);
+        pig.set_data_component(EntityDataImpl {
+            entity_type: Some(&EntityType::WOLF),
+            nbt: None,
+        });
+        assert_eq!(
+            entity_type_from_spawn_egg_stack(&pig).map(|entity| entity.id),
+            Some(EntityType::WOLF.id)
+        );
+    }
+
+    #[test]
+    fn spawn_egg_without_entity_data_uses_egg_mapping() {
+        let mut cow = ItemStack::new(1, &Item::COW_SPAWN_EGG);
+        cow.remove_data_component(DataComponent::EntityData);
+        assert_eq!(
+            entity_type_from_spawn_egg_stack(&cow).map(|entity| entity.id),
+            Some(EntityType::COW.id)
+        );
     }
 }
