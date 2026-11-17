@@ -34,13 +34,6 @@ pub enum GameTestRotation {
 }
 
 impl GameTestRotation {
-    pub const ALL: [Self; 4] = [
-        Self::None,
-        Self::Clockwise90,
-        Self::Clockwise180,
-        Self::Counterclockwise90,
-    ];
-
     #[must_use]
     pub const fn serialized_name(self) -> &'static str {
         match self {
@@ -82,16 +75,6 @@ impl GameTestRotation {
             _ => Self::Counterclockwise90,
         }
     }
-
-    #[must_use]
-    pub const fn steps(self) -> i32 {
-        match self {
-            Self::None => 0,
-            Self::Clockwise90 => 1,
-            Self::Clockwise180 => 2,
-            Self::Counterclockwise90 => 3,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -130,7 +113,6 @@ impl GameTestDefinition {
         };
 
         function_valid
-            && !self.structure.is_empty()
             && self.max_ticks > 0
             && self.setup_ticks >= 0
             && self.max_attempts > 0

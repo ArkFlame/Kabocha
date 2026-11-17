@@ -40,8 +40,6 @@ use pumpkin_protocol::java::client::login::CEncryptionRequest;
 use pumpkin_protocol::java::client::play::{CChangeDifficulty, CGameEvent, CTabList, GameEvent};
 use pumpkin_protocol::{ClientPacket, java::client::config::CPluginMessage};
 use pumpkin_util::Difficulty;
-use pumpkin_util::GameMode;
-use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 use pumpkin_world::world_info::anvil::{
     AnvilLevelInfo, LEVEL_DAT_BACKUP_FILE_NAME, LEVEL_DAT_FILE_NAME,
@@ -61,7 +59,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-pub mod builtin_test_functions;
+pub mod builtin_game_tests;
 mod connection_cache;
 pub(crate) mod debug_profiler;
 pub mod enchantment;
@@ -72,14 +70,10 @@ pub mod recipe;
 pub mod scheduler;
 pub mod seasonal_events;
 pub mod server_test_manager;
-pub mod structure_editor;
-mod test_environment;
 pub mod tick_rate_manager;
 pub mod ticker;
 
-pub use pumpkin_gametest::{GameTestOutcome, GameTestOutcomeStatus, GameTestReporter};
 pub use recipe::RecipeManager;
-pub use server_test_manager::{GameTestBatchReport, GameTestRetryOptions, GameTestRunRequest};
 
 use crate::data::advancement_data::AdvancementManager;
 
@@ -134,8 +128,6 @@ pub struct Server {
     container_id: AtomicU32,
     pub recipe_manager: Arc<recipe::RecipeManager>,
     pub datapack_manager: Arc<crate::data::datapack::DatapackManager>,
-    game_test_state: server_test_manager::GameTestServerState,
-    game_test_driver: server_test_manager::GameTestDriver,
     pub enchantment_manager: Arc<enchantment::EnchantmentManager>,
     /// Assigns unique IDs to maps.
     map_id: AtomicI32,
@@ -380,8 +372,6 @@ impl Server {
             container_id: 0.into(),
             recipe_manager: Arc::new(recipe::RecipeManager::new()),
             datapack_manager: Arc::new(crate::data::datapack::DatapackManager::new()),
-            game_test_state: server_test_manager::GameTestServerState::default(),
-            game_test_driver: server_test_manager::GameTestDriver::default(),
             enchantment_manager: Arc::new(enchantment::EnchantmentManager::new()),
             map_id: level_info.load().map_id.into(),
             worlds: ArcSwap::from_pointee(vec![]),
@@ -1244,15 +1234,6 @@ impl Server {
             advancements.player = Arc::downgrade(&player);
         };
 
-        self.admit_new_player(player, world, config)
-    }
-
-    fn admit_new_player(
-        self: &Arc<Self>,
-        player: Arc<Player>,
-        world: Arc<World>,
-        config: Option<PlayerConfig>,
-    ) -> Option<(Arc<Player>, Arc<World>)> {
         send_cancellable_blocking! {{
             self;
             &mut PlayerLoginEvent::new(player.clone(), TextComponent::text("You have been kicked from the server"));
@@ -1289,9 +1270,7 @@ impl Server {
                         Some(player.gameprofile.name.clone()),
                     );
                     self.management_hub.broadcast_player_joined(&player_dto);
-                    if self.telemetry_config.enabled
-                        && !matches!(player.client.as_ref(), ClientPlatform::Simulated(_))
-                    {
+                    if self.telemetry_config.enabled {
                         self.telemetry_sessions.record_join(player.gameprofile.id);
                     }
 
@@ -1334,67 +1313,6 @@ impl Server {
             ));
         }
         None
-    }
-
-    /// Admits a server-controlled player without a network connection.
-    pub async fn spawn_simulated_player(
-        self: &Arc<Self>,
-        world: &Arc<World>,
-        name: &str,
-        position: Vector3<f64>,
-        gamemode: GameMode,
-    ) -> Result<Arc<Player>, String> {
-        if name.is_empty() || name.len() > 16 || name.chars().any(char::is_control) {
-            return Err("Invalid simulated player name".to_string());
-        }
-        if !position.x.is_finite() || !position.y.is_finite() || !position.z.is_finite() {
-            return Err("Invalid simulated player position".to_string());
-        }
-        if !self
-            .worlds
-            .load()
-            .iter()
-            .any(|candidate| Arc::ptr_eq(candidate, world))
-        {
-            return Err("Simulated player world is not loaded by this server".to_string());
-        }
-        if self.get_player_by_name(name).is_some() {
-            return Err(format!("Player '{name}' is already online"));
-        }
-
-        let profile = GameProfile {
-            id: uuid::Uuid::new_v4(),
-            name: name.to_string(),
-            properties: ArcSwap::new(Arc::new(Vec::new())),
-            profile_actions: None,
-        };
-        let config = PlayerConfig {
-            server_listing: false,
-            ..PlayerConfig::default()
-        };
-        let player = Arc::new(Player::new(
-            Arc::new(ClientPlatform::simulated()),
-            profile,
-            config.clone(),
-            world,
-            gamemode,
-        ));
-        player.tab_list_listed.store(false, Ordering::Relaxed);
-        player.living_entity.entity.set_pos(position);
-        player.has_played_before.store(true, Ordering::Relaxed);
-        player.on_screen_handler_opened(&player.player_screen_handler);
-        player
-            .advancements
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .player = Arc::downgrade(&player);
-
-        let Some((player, world)) = self.admit_new_player(player, world.clone(), Some(config))
-        else {
-            return Err("Simulated player login was cancelled".to_string());
-        };
-        world.announce_player_join(&player, self).await;
-        Ok(player)
     }
 
     pub fn remove_player(&self, player: &Player) {
@@ -1452,9 +1370,6 @@ impl Server {
     pub async fn shutdown(&self) {
         self.close_admission();
         self.management_hub.broadcast_server_stopping();
-
-        server_test_manager::stop_game_tests(self);
-        self.game_test_driver.shutdown().await;
 
         self.tasks.close();
         debug!("Awaiting tasks for server");
@@ -1746,22 +1661,17 @@ impl Server {
         None
     }
 
-    /// Counts connected players across all worlds, excluding simulated players.
+    /// Counts the total number of players across all worlds.
     ///
-    /// This function iterates through each world and counts connected network players.
+    /// This function iterates through each world and sums up the number of players currently connected to that world.
     ///
     /// # Returns
     ///
-    /// The number of connected network players.
+    /// The total number of players connected to the server.
     pub fn get_player_count(&self) -> usize {
         let mut count = 0;
         for world in self.worlds.load().iter() {
-            count += world
-                .players
-                .load()
-                .iter()
-                .filter(|player| !matches!(player.client.as_ref(), ClientPlatform::Simulated(_)))
-                .count();
+            count += world.players.load().len();
         }
         count
     }
@@ -1770,12 +1680,7 @@ impl Server {
     pub fn has_n_players(&self, n: usize) -> bool {
         let mut count = 0;
         for world in self.worlds.load().iter() {
-            count += world
-                .players
-                .load()
-                .iter()
-                .filter(|player| !matches!(player.client.as_ref(), ClientPlatform::Simulated(_)))
-                .count();
+            count += world.players.load().len();
             if count >= n {
                 return true;
             }
@@ -1898,7 +1803,7 @@ impl Server {
         self.simulation_pool.install(|| {
             // Do not flush mid-tick; `Flush` is `flushChannel`.
             let suspended = self.suspend_player_flushes();
-            if self.tick_rate_manager.runs_game_elements() {
+            if self.tick_rate_manager.runs_normally() || self.tick_rate_manager.is_sprinting() {
                 self.tick_worlds();
                 // Always run player and network ticking, even when game is frozen
             } else {

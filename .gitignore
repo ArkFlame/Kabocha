@@ -166,5 +166,3 @@ minecraft-sources*/
 
 # External reference clones (read-only, never a dependency)
 /.vendor/
-gametestserver/
-report.xml

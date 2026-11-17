@@ -219,7 +219,6 @@ use weather::Weather;
 use weather_profile::WeatherCycle;
 
 const MAX_LIGHT_LEVEL: u8 = 15;
-pub(crate) const POI_TYPE_TEST_INSTANCE: &str = "minecraft:test_instance";
 const LIGHTNING_ROD_SEARCH_RADIUS: i32 = 128;
 /// Join resends of the stonecutter list while the recipes keep changing.
 const MAX_STONECUTTER_SENDS: usize = 3;
@@ -351,7 +350,7 @@ pub struct World {
     /// Light sections a block change dirtied, keyed by chunk position (bit mask of
     /// section indices), like vanilla's `ChunkHolder` light section filters.
     unsent_light_sections: std::sync::Mutex<HashMap<Vector2<i32>, u64>>,
-    /// Persisted vanilla POI storage for portals, test controllers, and other block POIs.
+    /// Persisted vanilla POI storage for portal and villager lookups.
     pub portal_poi: std::sync::Mutex<portal::PortalPoiStorage>,
     poi_chunk_receiver: std::sync::Mutex<Receiver<(ChunkPos, Weak<ChunkData>)>>,
     /// Villager job sites and their current owners.
@@ -370,13 +369,10 @@ pub struct World {
     /// Entities spawned by ticking entities, with their sequential order.
     tick_spawns: std::sync::Mutex<Vec<(u64, i32)>>,
     active_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
-    pending_forced_entity_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
     pub forced_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
     /// Last `/forceload` work task. Force changes chain through it because
     /// `spawn_task` does not order the tasks it spawns.
     force_change_task: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
-    /// `GameTest` force leases, separate from persistent `/forceload` chunks.
-    pub(crate) game_test_forced_chunks: std::sync::Mutex<FxHashMap<Vector2<i32>, usize>>,
     /// Block entities indexed by chunk, so ticking only visits the currently
     /// active chunks instead of scanning every loaded block entity each tick.
     pub block_entities: DashMap<Vector2<i32>, FxHashMap<BlockPos, Arc<dyn BlockEntity>>>,
@@ -581,7 +577,7 @@ impl World {
         worldborder.buffer = info.border_safe_zone as f32;
         drop(info);
 
-        // POI regions are loaded from disk when queried.
+        // Load portal POI from disk (PoiStorage::new automatically loads from disk if files exist)
         let portal_poi = portal::PortalPoiStorage::new(level.level_folder.poi_folder.clone());
         let poi_chunk_receiver = level.chunk_listener.add_global_chunk_listener();
         let dragon_fight = (dimension.minecraft_name == Dimension::THE_END.minecraft_name)
@@ -621,22 +617,6 @@ impl World {
         } else {
             Weather::default()
         };
-        let forced_chunks: FxHashSet<_> =
-            pumpkin_world::world_info::data_files::read_forced_chunks(
-                &level.level_folder.dim_folder,
-            )
-            .into_iter()
-            .collect();
-        let mut chunk_loading = level
-            .chunk_loading
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for &pos in &forced_chunks {
-            chunk_loading.add_force_ticket(pos);
-        }
-        chunk_loading.send_change();
-        drop(chunk_loading);
-
         Self {
             uuid: Uuid::new_v4(),
             level,
@@ -675,10 +655,8 @@ impl World {
             navigation_change_sequence: std::sync::atomic::AtomicU64::new(0),
             tick_spawns: std::sync::Mutex::new(Vec::new()),
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
-            pending_forced_entity_chunks: std::sync::Mutex::new(FxHashSet::default()),
             forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
             force_change_task: std::sync::Mutex::new(None),
-            game_test_forced_chunks: std::sync::Mutex::new(FxHashMap::default()),
             server,
             block_entities: DashMap::new(),
             path_type_cache: DashMap::new(),
@@ -692,27 +670,16 @@ impl World {
         }
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "active chunk tracking combines players and force tickets"
-    )]
-    pub fn update_active_chunks(self: &Arc<Self>) {
+    pub fn update_active_chunks(&self) {
         let sim_dist = self.server.upgrade().map_or(10, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
         let players = self.players.load();
-        let mut forced_chunks = self
+        let forced_chunks = self
             .forced_chunks
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        forced_chunks.extend(
-            self.game_test_forced_chunks
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .keys()
-                .copied(),
-        );
         let mut tracker = self
             .active_chunk_tracker
             .lock()
@@ -723,7 +690,6 @@ impl World {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut newly_active = Vec::new();
         let mut migrations = Vec::new();
-        let mut loaded_for_poi = FxHashSet::default();
         let mut current_players = FxHashSet::default();
 
         let spectators_generate_chunks =
@@ -761,7 +727,6 @@ impl World {
         );
 
         for pos in newly_active {
-            loaded_for_poi.insert(pos);
             if self.level.is_chunk_loaded(&pos) && tracker.loaded_active_chunks.insert(pos) {
                 migrations.push(pos);
             }
@@ -807,61 +772,8 @@ impl World {
                 .filter(|player| spectators_generate_chunks || !player.is_spectator())
                 .map(|player| player.get_entity().chunk_pos.load()),
         );
-        for pos in loaded_for_poi {
-            self.index_test_instance_pois(pos);
-        }
         for pos in migrations {
             self.migrate_pending_block_entities(pos);
-        }
-
-        for pos in forced_chunks {
-            if !self.level.is_chunk_loaded(&pos)
-                || self
-                    .level
-                    .read_entity_chunk_sync(&pos, |chunk| chunk.live.load(Ordering::Acquire))
-                    .unwrap_or(false)
-            {
-                continue;
-            }
-            let mut pending = self
-                .pending_forced_entity_chunks
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if !pending.insert(pos) {
-                continue;
-            }
-            drop(pending);
-            let world = self.clone();
-            if self
-                .level
-                .spawn_task(async move {
-                    let chunk = world.level.get_entity_chunk(pos).await;
-                    let still_forced = world
-                        .forced_chunks
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .contains(&pos)
-                        || world
-                            .game_test_forced_chunks
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner)
-                            .contains_key(&pos);
-                    if still_forced {
-                        world.activate_entity_chunk(&chunk);
-                    }
-                    world
-                        .pending_forced_entity_chunks
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .remove(&pos);
-                })
-                .is_none()
-            {
-                self.pending_forced_entity_chunks
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .remove(&pos);
-            }
         }
 
         self.spawn_state.store(Arc::new(SpawnState::new(
@@ -1059,21 +971,20 @@ impl World {
     }
 
     pub async fn shutdown(&self) {
-        self.save_forced_chunks().await;
         let entities = self.entities.load_full();
         self.save_entities_by_chunk(&entities, self.level.live_entity_chunk_positions())
             .await;
 
         self.save_all_block_entities();
 
-        // Save block POIs to disk.
+        // Save portal POI to disk
         let save_result = self
             .portal_poi
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .save_all();
         if let Err(e) = save_result {
-            error!("Failed to save POI: {e}");
+            error!("Failed to save portal POI: {e}");
         }
 
         self.save_own_weather();
@@ -1484,7 +1395,7 @@ impl World {
             packet,
             players.filter_map(|player| match player.client.as_ref() {
                 ClientPlatform::Java(java_client) => Some(java_client),
-                ClientPlatform::Bedrock(_) | ClientPlatform::Simulated(_) => None,
+                ClientPlatform::Bedrock(_) => None,
             }),
         );
     }
@@ -1536,7 +1447,7 @@ impl World {
             packet,
             players.iter().filter_map(|p| match p.client.as_ref() {
                 ClientPlatform::Bedrock(be) => Some(be),
-                ClientPlatform::Java(_) | ClientPlatform::Simulated(_) => None,
+                ClientPlatform::Java(_) => None,
             }),
         );
     }
@@ -1595,7 +1506,7 @@ impl World {
             be_packet,
             players.iter().filter_map(|p| match p.client.as_ref() {
                 ClientPlatform::Bedrock(be) => Some(be),
-                ClientPlatform::Java(_) | ClientPlatform::Simulated(_) => None,
+                ClientPlatform::Java(_) => None,
             }),
         );
     }
@@ -1703,7 +1614,7 @@ impl World {
                 }
                 match p.client.as_ref() {
                     ClientPlatform::Bedrock(be_client) => Some(be_client),
-                    ClientPlatform::Java(_) | ClientPlatform::Simulated(_) => None,
+                    ClientPlatform::Java(_) => None,
                 }
             }),
         );
@@ -1729,7 +1640,6 @@ impl World {
             match p.client.as_ref() {
                 ClientPlatform::Java(java_client) => java_recipients.push(java_client),
                 ClientPlatform::Bedrock(be_client) => bedrock_recipients.push(be_client),
-                ClientPlatform::Simulated(_) => {}
             }
         }
 
@@ -2573,7 +2483,6 @@ impl World {
                         ClientPlatform::Bedrock(be_client) => {
                             bedrock_recipients.push(be_client);
                         }
-                        ClientPlatform::Simulated(_) => {}
                     }
                 }
 
@@ -4249,22 +4158,8 @@ impl World {
         }
         // Actors come from the tracker, in range only.
         self.pair_new_player_with_tracked_entities(&player);
-        for existing_player in players.iter().filter(|existing| {
-            matches!(existing.client.as_ref(), ClientPlatform::Simulated(_))
-                && !existing.tab_list_listed.load(Ordering::Relaxed)
-        }) {
-            client
-                .send_packet(&existing_player.bedrock_tab_list_update())
-                .await;
-        }
 
-        player.has_played_before.store(true, Ordering::Relaxed);
-
-        self.announce_player_join(&player, server).await;
-    }
-
-    /// Fires the join event after a player has entered this world.
-    pub async fn announce_player_join(&self, player: &Arc<Player>, server: &Arc<Server>) {
+        // 3. Trigger Join Event and Broadcast Join Message
         let msg_comp = TextComponent::translate_cross(
             translation::java::MULTIPLAYER_PLAYER_JOINED,
             translation::bedrock::MULTIPLAYER_PLAYER_JOINED,
@@ -4279,7 +4174,7 @@ impl World {
             self.broadcast_system_message(&event.join_message, false);
             info!("{}", event.join_message.to_pretty_console());
         }
-        server.notify_update_if_op(player);
+        server.notify_update_if_op(&player);
     }
 
     /// Runs the join sequence that places a connected Java player into this world.
@@ -4815,7 +4710,22 @@ impl World {
                 }
             }
         }
-        self.announce_player_join(player, server).await;
+        let msg_comp = TextComponent::translate_cross(
+            translation::java::MULTIPLAYER_PLAYER_JOINED,
+            translation::bedrock::MULTIPLAYER_PLAYER_JOINED,
+            [TextComponent::text(player.gameprofile.name.clone())],
+        )
+        .color_named(NamedColor::Yellow);
+        let mut event = PlayerJoinEvent::new(player.clone(), msg_comp);
+
+        server.plugin_manager.fire(server, &mut event).await;
+
+        if !event.cancelled {
+            self.broadcast_system_message(&event.join_message, false);
+            // TODO: Switch to structured logging, e.g. info!(player = %name, "connected")
+            info!("{}", event.join_message.to_pretty_console());
+        }
+        server.notify_update_if_op(player);
     }
 
     fn send_player_equipment(&self, from: &Player) {
@@ -5534,7 +5444,7 @@ impl World {
                     }
                 };
 
-                let Some((chunk_weak, _first_load)) = recv_result else {
+                let Some((chunk_weak, first_load)) = recv_result else {
                     break;
                 };
 
@@ -5616,15 +5526,14 @@ impl World {
         self: &Arc<Self>,
         chunk: &Arc<ChunkEntityData>,
         player: Option<&Arc<Player>>,
-    ) -> Vec<Arc<dyn EntityBase>> {
+    ) {
         let entity_nbts = std::mem::take(
             &mut *chunk
                 .data
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        chunk.live.store(true, Ordering::Release);
-        let mut entities = Vec::new();
+        chunk.live.store(true, Relaxed);
         for entity_nbt in &entity_nbts {
             let Some(root) = load_entity_from_nbt(entity_nbt, Vector3::default(), self) else {
                 continue;
@@ -5646,22 +5555,8 @@ impl World {
                 if let Some(player) = player {
                     player.try_restore_vehicle(&entity);
                 }
-                entities.push(entity);
             }
         }
-        entities
-    }
-
-    /// Makes saved entities in a loaded chunk live once, returning the newly
-    /// spawned entities so callers can pair them with players or test instances.
-    pub(crate) fn activate_entity_chunk(
-        self: &Arc<Self>,
-        chunk: &pumpkin_world::level::SyncEntityChunk,
-    ) -> Option<Vec<Arc<dyn EntityBase>>> {
-        if chunk.live.load(Ordering::Acquire) {
-            return None;
-        }
-        Some(self.make_chunk_entities_live(chunk, None))
     }
 
     /// Gets a `Player` by an entity id
@@ -6074,14 +5969,6 @@ impl World {
             new_list
         });
         // Entity tracking starts in the spawn path, after the tab list reached viewers.
-        if matches!(player.client.as_ref(), ClientPlatform::Simulated(_)) {
-            Self::with_player_list_entry(player, |java, bedrock| {
-                self.broadcast_packet_except_editioned(&[player.gameprofile.id], java, bedrock);
-            });
-            self.entity_tracker
-                .add_entity(&(player.clone() as Arc<dyn EntityBase>), self);
-            self.broadcast_simulated_tab_list_visibility(player);
-        }
         Ok(())
     }
 
@@ -6134,23 +6021,6 @@ impl World {
 
         self.entity_tracker
             .add_entity(&(player.clone() as Arc<dyn EntityBase>), self);
-        if matches!(player.client.as_ref(), ClientPlatform::Simulated(_)) {
-            self.broadcast_simulated_tab_list_visibility(player);
-        }
-    }
-
-    pub(crate) fn broadcast_simulated_tab_list_visibility(&self, player: &Player) {
-        let packet = player.bedrock_tab_list_update();
-        let players = self.players.load();
-        Self::broadcast_bedrock_grouped(
-            &packet,
-            players
-                .iter()
-                .filter_map(|recipient| match recipient.client.as_ref() {
-                    ClientPlatform::Bedrock(client) => Some(client),
-                    ClientPlatform::Java(_) | ClientPlatform::Simulated(_) => None,
-                }),
-        );
     }
 
     /// Sends the centre chunk ahead of the teleport and records it as held.
@@ -6537,11 +6407,7 @@ impl World {
         &self,
         chunks: impl IntoIterator<Item = impl std::borrow::Borrow<Vector2<i32>>>,
     ) {
-        let chunks_set: FxHashSet<_> = chunks
-            .into_iter()
-            .map(|c| *c.borrow())
-            .filter(|pos| !self.level.is_chunk_retained(pos))
-            .collect();
+        let chunks_set: FxHashSet<_> = chunks.into_iter().map(|c| *c.borrow()).collect();
         if chunks_set.is_empty() {
             return;
         }
@@ -8391,37 +8257,6 @@ impl World {
         }
     }
 
-    fn index_test_instance_pois(&self, chunk_pos: Vector2<i32>) {
-        let positions = self
-            .level
-            .read_chunk_sync(&chunk_pos, |chunk| {
-                chunk
-                    .pending_block_entities
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .iter()
-                    .filter_map(|(pos, nbt)| {
-                        (nbt.get_string("id")
-                            == Some(
-                                crate::block::entities::test_instance_block::TestInstanceBlockBlockEntity::ID,
-                            ))
-                        .then_some(*pos)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        if positions.is_empty() {
-            return;
-        }
-        let mut poi = self
-            .portal_poi
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for pos in positions {
-            poi.add_poi(pos, PoiType::TestInstance);
-        }
-    }
-
     fn migrate_pending_block_entities(&self, chunk_pos: Vector2<i32>) {
         let positions: Vec<BlockPos> = self
             .level
@@ -8902,7 +8737,6 @@ impl World {
             match p.client.as_ref() {
                 ClientPlatform::Java(java_client) => java_recipients.push(java_client),
                 ClientPlatform::Bedrock(be_client) => bedrock_recipients.push(be_client),
-                ClientPlatform::Simulated(_) => {}
             }
         }
 
@@ -8955,7 +8789,6 @@ impl World {
             match p.client.as_ref() {
                 ClientPlatform::Java(java_client) => java_recipients.push(java_client),
                 ClientPlatform::Bedrock(be_client) => bedrock_recipients.push(be_client),
-                ClientPlatform::Simulated(_) => {}
             }
         }
 
@@ -9034,24 +8867,6 @@ impl World {
         }
     }
 
-    async fn save_forced_chunks(&self) {
-        let forced_chunks = self
-            .forced_chunks
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        let folder = self.level.level_folder.dim_folder.clone();
-        match tokio::task::spawn_blocking(move || {
-            pumpkin_world::world_info::data_files::write_forced_chunks(&folder, forced_chunks)
-        })
-        .await
-        {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => warn!("Failed to save forced chunks: {error}"),
-            Err(error) => warn!("Failed to save forced chunks: {error}"),
-        }
-    }
-
     /// Writes the live entities into their chunks' saved data, as vanilla's autosave does,
     /// so entities survive a crash or a killed process and not only a clean stop.
     pub async fn autosave_entities(&self) {
@@ -9062,7 +8877,6 @@ impl World {
     }
 
     pub async fn save(&self) {
-        self.save_forced_chunks().await;
         self.autosave_entities().await;
 
         self.save_all_block_entities();

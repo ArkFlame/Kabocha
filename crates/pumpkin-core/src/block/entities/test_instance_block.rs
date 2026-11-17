@@ -249,7 +249,15 @@ pub struct TestInstanceErrorMarker {
 #[must_use]
 pub fn lookup_test_instance(server: &Server, raw_test_id: &str) -> Option<GameTestDefinition> {
     let (_, _, canonical_id) = parse_structure_identifier(raw_test_id)?;
-    server.datapack_manager.get_test_instance(&canonical_id)
+    crate::server::builtin_game_tests::ensure_builtin_game_tests_registered();
+    server
+        .datapack_manager
+        .get_test_instance(&canonical_id)
+        .or_else(|| {
+            pumpkin_gametest::registered_test_definitions()
+                .into_iter()
+                .find_map(|(id, def)| (id == canonical_id).then_some(def))
+        })
 }
 
 #[must_use]
@@ -762,7 +770,7 @@ impl TestInstanceBlockBlockEntity {
         }
 
         self.clear_error_markers();
-        stop_game_tests(&server);
+        stop_game_tests();
 
         let report = Arc::new(GameTestBatchReport::new(
             Arc::new(PlayerTestReporter {
