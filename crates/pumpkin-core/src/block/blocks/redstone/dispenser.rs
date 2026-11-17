@@ -1214,6 +1214,8 @@ impl DispenserBlock {
             props.honey_level = 0;
             ctx.world
                 .set_block_state(&target, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
             Self::consume_with_remainder(
                 ctx,
                 dispenser,
@@ -1226,6 +1228,8 @@ impl DispenserBlock {
 
         let fluid = ctx.world.get_fluid(&target);
         if fluid.id == Fluid::WATER.id || fluid.id == Fluid::FLOWING_WATER.id {
+            ctx.world
+                .emit_game_event(GameEvent::FluidPickup.name(), ctx.position.to_centered_f64());
             Self::consume_with_remainder(ctx, dispenser, item, water_bottle());
             Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
             return true;
