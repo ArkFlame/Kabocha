@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use pumpkin_data::block_properties::{GrassBlockLikeProperties, SnowLikeProperties};
 use pumpkin_data::tag::{self, Taggable};
-use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId};
+use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::lighting::LightEngine;
 use pumpkin_world::world::BlockFlags;

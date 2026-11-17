@@ -53,7 +53,7 @@ pub(crate) const fn cooking_total_time(
 
 /// Reads a saved cooking value under its vanilla `AbstractFurnaceBlockEntity` key,
 /// falling back to the legacy Pumpkin snake_case key for worlds saved by older builds.
-fn read_saved_short(nbt: &pumpkin_nbt::compound::NbtCompound, vanilla: &str, legacy: &str) -> u16 {
+pub(crate) fn read_saved_short(nbt: &pumpkin_nbt::compound::NbtCompound, vanilla: &str, legacy: &str) -> u16 {
     nbt.get_short(vanilla)
         .or_else(|| nbt.get_short(legacy))
         .map_or(0, |value| value as u16)
@@ -662,19 +662,19 @@ macro_rules! impl_block_entity_for_cooking {
             where
                 Self: Sized,
             {
-                let cooking_total_time = AtomicU16::new(read_saved_short(
+                let cooking_total_time = AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(
                     nbt,
                     "CookTimeTotal",
                     "cooking_total_time",
                 ));
                 let cooking_time_spent =
-                    AtomicU16::new(read_saved_short(nbt, "CookTime", "cooking_time_spent"));
+                    AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "CookTime", "cooking_time_spent"));
                 let lit_total_time = AtomicU16::new(
                     nbt.get_short("lit_total_time")
                         .map_or(0, |lit_total_time| lit_total_time as u16),
                 );
                 let lit_time_remaining =
-                    AtomicU16::new(read_saved_short(nbt, "BurnTime", "lit_time_remaining"));
+                    AtomicU16::new($crate::block::entities::furnace_like_block_entity::read_saved_short(nbt, "BurnTime", "lit_time_remaining"));
                 // Load RecipesUsed from NBT (vanilla format: map of recipe ID -> craft count)
                 let mut recipes_used_map = HashMap::new();
                 if let Some(recipes_compound) = nbt.get_compound("RecipesUsed") {

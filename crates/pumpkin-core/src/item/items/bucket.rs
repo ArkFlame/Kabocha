@@ -1,3 +1,4 @@
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 

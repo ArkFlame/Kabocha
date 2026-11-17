@@ -88,6 +88,8 @@ pub(super) async fn test_sniffers_breed_into_an_egg(helper: GameTestHelper) -> G
             .await?;
         helper.assert_entities_present("minecraft:sniffer", 2).await
     })
+}
+
 pub(super) async fn test_minecart_drops_item_when_destroyed(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {

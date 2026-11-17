@@ -1839,7 +1839,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| count_data_matches(context, true, false),
+                                            count: |context| check_data_matches(context, true, false),
                                         }),
                                 ),
                             ),
@@ -1856,7 +1856,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| count_data_matches(context, false, true),
+                                            count: |context| check_data_matches(context, false, true),
                                         }),
                                 ),
                             ),
@@ -1873,7 +1873,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: true,
-                                            count: |context| count_data_matches(context, false, false),
+                                            count: |context| check_data_matches(context, false, false),
                                         }),
                                 ),
                             ),
@@ -2065,7 +2065,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| count_data_matches(context, true, false),
+                                            count: |context| check_data_matches(context, true, false),
                                         }),
                                 ),
                             ),
@@ -2082,7 +2082,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| count_data_matches(context, false, true),
+                                            count: |context| check_data_matches(context, false, true),
                                         }),
                                 ),
                             ),
@@ -2099,7 +2099,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                                         )
                                         .executes(NumericConditionalExecutor {
                                             expected: false,
-                                            count: |context| count_data_matches(context, false, false),
+                                            count: |context| check_data_matches(context, false, false),
                                         }),
                                 ),
                             ),

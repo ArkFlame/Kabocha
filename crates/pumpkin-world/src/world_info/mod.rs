@@ -685,7 +685,9 @@ impl LevelData {
                 // Vanilla `MinecraftServer.setInitialSpawn` resolves the spawn Y from the terrain
                 // instead of keeping the default: the spawn position sits on the surface, and
                 // console command sources relative to the world spawn use it too.
-                data.spawn_y = generator.get_base_height(spawn_pos.0.x, spawn_pos.0.z) + 1;
+                if let Some(height) = generator.get_base_height(spawn_pos.0.x, spawn_pos.0.z) {
+                    data.spawn_y = height + 1;
+                }
                 data.spawn_z = spawn_pos.0.z;
             }
         }

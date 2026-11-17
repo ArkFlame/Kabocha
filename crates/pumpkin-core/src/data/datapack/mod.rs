@@ -37,6 +37,7 @@ use crate::server::recipe::RecipeManager;
 use crate::world::loot::LootTableHandle;
 
 use self::context_provider_loader::ContextProviderRegistry;
+use self::tag_loader::DynamicTagEntry;
 use self::damage_type_loader::{DamageTypeDefinition, DamageTypeEntry, DamageTypeRegistry};
 use self::test_loader::{
     TestInstance, TestInstanceRegistry, load_test_instances_from_dir, to_registry_entry,
@@ -1286,7 +1287,7 @@ impl DatapackManager {
                     )));
                 };
                 let mut names = Vec::new();
-                collect_function_tag_members(
+                Self::collect_function_tag_members(
                     &tags,
                     members,
                     &mut names,
@@ -1334,7 +1335,7 @@ fn collect_function_tag_members<S: std::hash::BuildHasher>(
             }
             visited.push(nested.to_string());
             if let Some(inner) = tags.get(nested) {
-                collect_function_tag_members(tags, inner, names, visited);
+                Self::collect_function_tag_members(tags, inner, names, visited);
             }
         } else if !names.iter().any(|existing| existing == member) {
             names.push(member.clone());

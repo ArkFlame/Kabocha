@@ -161,6 +161,15 @@ impl WorldGenerator {
             _ => pumpkin_util::math::position::BlockPos::ZERO,
         }
     }
+
+    /// Estimated terrain surface for the initial spawn; only noise worlds have one.
+    #[must_use]
+    pub fn get_base_height(&self, x: i32, z: i32) -> Option<i32> {
+        match self {
+            Self::Noise(noise_gen) => Some(noise_gen.get_base_height(x, z)),
+            _ => None,
+        }
+    }
 }
 
 pub struct VanillaGenerator {
