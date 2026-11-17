@@ -12,6 +12,18 @@ The tracker's "3 TODO/FIXME/vanilla markers" are false positives: `mod.rs:154`, 
 marker in this module tree is `memory/types.rs:123` (TODO: nothing fills
 `VISIBLE_ADULT_PIGLIN_COUNT` / `VISIBLE_ADULT_HOGLIN_COUNT`).
 
+## Resolved in this audit
+
+- `PackedMemories::into_nbt` (`memory/mod.rs:357-372`) always wrote `memories: {}` even
+  when nothing was encoded. Vanilla `Brain.serializeToNbt` only puts `memories` when the
+  encoded compound is non-empty (`if (!compoundTag2.isEmpty())`), and `Brain.loadMemories`
+  treats a missing `memories` as empty, so the empty compound was pure save-format drift.
+  Fixed in commit `d88b3d53d` (tests `empty_brain_omits_the_memories_compound`,
+  `a_default_brain_is_brain_dead_and_idle`). Note: `mob/mod.rs:880-884` still always
+  writes the outer `Brain` tag for every mob; vanilla only writes it from brain-owning
+  mobs, but `Brain: {}` is what vanilla's own callers produce when nothing was encoded,
+  so only the outer per-mob condition remains unverified.
+
 ## Verified equivalent to vanilla
 
 - `MemorySlot::tick` (`:124`) clears at `ttl == 0` after decrementing, exactly the
@@ -25,6 +37,8 @@ marker in this module tree is `memory/types.rs:123` (TODO: nothing fills
   `isMemoryValue`.
 - Tick ordering (`brain/mod.rs:330`): memories age -> sensors -> start behaviors -> tick
   behaviors, same as `Brain.tick` (`forgetOutdatedMemories` first).
+- `pack` / `load_packed` (`:287`, `:309`) skip non-serializable types and empty values,
+  matching `Brain.serializeToNbt` / `loadMemories` (only the empty compound container was off).
 - `debug_lines` sorting + 255-char per-line truncation mirrors
   `StringUtil.truncateStringIfNecessary(.., 255, true)`.
 
