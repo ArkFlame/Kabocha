@@ -16,6 +16,7 @@ use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
 
+use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::{
     Entity, EntityBase,
@@ -91,6 +92,17 @@ impl WolfEntity {
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
+        };
+
+        {
+            // Vanilla `Wolf` constructor: powder snow is impassable for wolves.
+            // ON_TOP_OF_POWDER_SNOW has no PathType yet, so only POWDER_SNOW is set.
+            mob_arc
+                .mob_entity
+                .navigator
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .set_pathfinding_malus(PathType::PowderSnow, -1.0);
         };
 
         {
