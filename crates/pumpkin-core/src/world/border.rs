@@ -59,8 +59,9 @@ impl Worldborder {
             portal_teleport_boundary: 29_999_984,
             warning_blocks,
             warning_time,
-            damage_per_block: 0.0,
-            buffer: 0.0,
+            // Vanilla `WorldBorder` field defaults: 0.2 damage, 5 block safe zone.
+            damage_per_block: 0.2,
+            buffer: 5.0,
             lerp: None,
         }
     }
@@ -390,5 +391,18 @@ mod tests {
 
         assert_eq!(border.current_diameter(), 42.0);
         assert_eq!(border.remaining_ms(), 0);
+    }
+}
+
+#[cfg(test)]
+mod default_tests {
+    use super::Worldborder;
+
+    #[test]
+    fn new_border_uses_vanilla_damage_and_safe_zone() {
+        let border = Worldborder::new(0.0, 0.0, 100.0, 0, 5, 15);
+
+        assert_eq!(border.damage_per_block, 0.2);
+        assert_eq!(border.buffer, 5.0);
     }
 }
