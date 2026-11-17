@@ -191,6 +191,7 @@ use pumpkin_data::block_properties::SnowLikeProperties;
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::fluid::Fluid;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
@@ -893,6 +894,16 @@ impl BlockRegistry {
             "place",
             &final_block_pos.to_centered_f64(),
             BlockState::to_be_network_id(new_state) as i32,
+        );
+
+        // Vanilla BlockItem.place fires GameEvent.BLOCK_PLACE with the placing player so
+        // sculk sensors and the warden attribute the vibration to them.
+        world.emit_game_event_with_context(
+            GameEvent::BlockPlace.name(),
+            final_block_pos.to_f64(),
+            &crate::world::game_event::GameEventContext {
+                source_entity: Some(player.as_ref()),
+            },
         );
 
         if let Some(ref stack) = held_stack
