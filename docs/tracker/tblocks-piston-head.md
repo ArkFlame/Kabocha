@@ -28,8 +28,8 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `piston.rs:282-289` | `PistonBaseBlock.java:231` `level.removeBlock(pos.relative(direction), false)` for the sticky no-pull branch is unguarded | A headless sticky piston retracting with nothing to pull still deletes the block in front | Apply the same head+facing guard as the non-sticky branch, or mirror Paper exactly | S |
-| `piston_head.rs:55-58` | `PistonHeadBlock#affectNeighborsAfterRemoval` ignores `movedByPiston` and always `destroyBlock(base, true)` | `on_state_replaced` returns early when `moved` and reuses the removal `SKIP_DROPS` flag | Drop the `moved` early return; keep the creative dropless path in `broken` | S |
+| `piston.rs:282-289` | `PistonBaseBlock.java:231` `level.removeBlock(pos.relative(direction), false)` for the sticky no-pull branch is unguarded | A headless sticky piston retracting with nothing to pull still deletes the block in front | Apply the same head+facing guard as the non-sticky branch, or mirror Paper exactly | S - FIXED d06c2d191 |
+| `piston_head.rs:55-58` | `PistonHeadBlock#affectNeighborsAfterRemoval` ignores `movedByPiston` and always `destroyBlock(base, true)` | `on_state_replaced` returns early when `moved` and reuses the removal `SKIP_DROPS` flag | Drop the `moved` early return; keep the creative dropless path in `broken` | S - FIXED d06c2d191 |
 | `piston_head.rs:38-72` | Removal is `#playerWillDestroy` (pre-removal) then `#affectNeighborsAfterRemoval` | Both Rust hooks run after removal and `broken` duplicates `on_state_replaced`, so the base is removed once through whichever hook fires first | Consolidate into a pre-removal hook when `BlockBehaviour` gains one | S |
 | `piston_head.rs:134-136` | `PistonHeadBlock#getCloneItemStack` returns the piston/sticky piston item | No clone-item hook in `BlockBehaviour`; middle-click pick-block has no server-provided item | Add `get_clone_item_stack` to the trait and dispatch it | S |
 | `piston_head.rs` (no light hook) | `PistonHeadBlock#useShapeForLightOcclusion` returns true | Head occludes light as a full cube; vanilla uses the 4px plate/arm shape | Model shape-based occlusion in the light engine | M |
@@ -39,3 +39,5 @@ Remaining gaps:
 
 Note: the head block's other vanilla methods (`getShape`/SHORT, `#rotate`, `#mirror`) are
 data-driven in `pumpkin-data` and match the generated `piston_head` states.
+
+Status: FIXED d06c2d191 (sticky arm removal guard; moved early return dropped). Headless sticky retract path in piston.rs and piston_head on_state_replaced updated. Unit test UNVERIFIED (needs world fixture; not added).
