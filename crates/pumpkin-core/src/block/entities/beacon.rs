@@ -323,17 +323,16 @@ impl BlockEntity for BeaconBlockEntity {
         }
 
         let previous_levels = self.levels.load(Ordering::Relaxed);
-        let beam_active = self.beam_active.load(Ordering::Relaxed);
         if world.get_world_age() % 80 == 0 {
-            if beam_active {
-                let levels = self.update_base(world);
-                if levels != previous_levels {
-                    self.levels.store(levels, Ordering::Relaxed);
-                    self.mark_dirty();
-                }
+            // Vanilla recomputes the pyramid and applies effects every 80 ticks whether or not
+            // something blocks the beam above the beacon: only the beam (and the power-select
+            // sound) depends on the column scan, so an indoor beacon still grants its effects.
+            let levels = self.update_base(world);
+            if levels != previous_levels {
+                self.levels.store(levels, Ordering::Relaxed);
+                self.mark_dirty();
             }
-            let levels = self.levels.load(Ordering::Relaxed);
-            if levels > 0 && beam_active {
+            if levels > 0 {
                 self.apply_effects(world, levels);
                 Self::play_sound(world, self.position, Sound::BlockBeaconAmbient);
             }
