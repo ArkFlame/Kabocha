@@ -30,7 +30,7 @@ pub enum AttackType {
 }
 
 impl AttackType {
-    pub fn new(player: &Player, attack_cooldown_progress: f32) -> Self {
+    pub fn new(player: &Player, attack_cooldown_progress: f32, victim_is_living: bool) -> Self {
         let entity = &player.get_entity();
 
         let sprinting = entity.is_sprinting();
@@ -46,11 +46,33 @@ impl AttackType {
             return Self::Knockback;
         }
 
-        if is_strong && !on_ground && fall_distance > 0.0 {
+        // Vanilla `Player.canCriticalAttack`.
+        let can_crit = is_strong
+            && victim_is_living
+            && fall_distance > 0.0
+            && !on_ground
+            && !player.living_entity.on_climbable()
+            && !entity.is_in_water()
+            && player
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::BLINDNESS)
+                .is_none()
+            && !entity.has_vehicle();
+        if can_crit {
             return Self::Critical;
         }
 
-        if sword && is_strong && !is_bedrock {
+        // Vanilla `Player.isSweepAttack`: only while grounded and barely moving.
+        let movement_limit = player
+            .living_entity
+            .get_attribute_value(&Attributes::MOVEMENT_SPEED)
+            * 2.5;
+        if sword
+            && is_strong
+            && !is_bedrock
+            && on_ground
+            && entity.velocity.load().horizontal_length_squared() < movement_limit * movement_limit
+        {
             return Self::Sweeping;
         }
 

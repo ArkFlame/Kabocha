@@ -1815,7 +1815,11 @@ impl Player {
         damage = damage.max(0.0);
 
         let pos = victim_entity.pos.load();
-        let attack_type = AttackType::new(self, attack_cooldown_progress as f32);
+        let attack_type = AttackType::new(
+            self,
+            attack_cooldown_progress as f32,
+            victim.get_living_entity().is_some(),
+        );
 
         let is_mace_smash = item_stack.item.id == pumpkin_data::item::Item::MACE.id
             && can_smash_attack(&self.living_entity);
