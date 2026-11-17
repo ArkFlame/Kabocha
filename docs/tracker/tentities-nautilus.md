@@ -36,3 +36,9 @@ need that source before editing; the rest are proven by in-tree evidence.
 - Controlling passenger goes through `saddled_controlling_passenger(None)` (`nautilus.rs:228-230`); the duplicate was removed in `efaa388d8` and nothing else registers one.
 - Silent step (`nautilus.rs:248`); baby/land ambient, hurt, death, eat and swim sound selection.
 - Feeding consumes nautilus-bucket food by filling a water bucket (`nautilus.rs:401-414`).
+
+## Gap status (h6 sweep)
+- Gaps 1, 2, 7, 8: STILL OPEN. L/M, need goal list, rideable jump hook, spawn rules and TamableData migration.
+- Gap 3 (unused 9-slot inventory): STILL OPEN. S, delete or wire; decision deferred.
+- Gap 4 (food tag): STILL OPEN, blocked on generated `nautilus_food` tag.
+- Gaps 5, 6, 9: STILL OPEN. Each marked verify; no vanilla source in tree to confirm values.

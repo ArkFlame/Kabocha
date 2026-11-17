@@ -15,3 +15,11 @@ Source: `crates/pumpkin-core/src/entity/passive/strider.rs` (registered at `crat
 | `strider.rs:109` (`impl Mob`) | `Strider#getHappySound` = `STRIDER_HAPPY`, `Strider#getRetreatSound` = `STRIDER_RETREAT` | both sounds exist in `pumpkin-data/src/generated/sound.rs:1547-1548` but are never played | play happy sound when fed warped fungus (`usePlayerItem`), retreat sound on the vanilla trigger | S |
 | `crates/pumpkin-core/src/entity/living.rs:2151` | `Strider#canStandOnFluid` returns true only for lava; water uses the normal swim path | strider is excluded from `travel_in_fluid` entirely, so in water it uses air travel (no buoyancy/swim physics) | branch on lava only (`is_in_lava` -> `travel_in_air`, water -> `travel_in_fluid`) | S |
 | `strider.rs:178` (`mob_interact`) | `Strider#getPassengerAttachmentPoint` raises the rider to the strider's back | no override; rider uses the generic seat height | add the vanilla attachment offset if the generic one differs | S |
+
+## Gap status (h6 sweep)
+- Row `strider.rs:109` happy sound: FIXED b9e4dd9eb (played from `use_player_item`). Retreat sound: STILL OPEN, trigger path not confirmed in vanilla notes.
+- Row `living.rs:2151` lava-only fluid standing: FIXED 2a5b55585 (lava skips fluid travel, water uses water travel).
+- Row `strider.rs:81` shivering sync: STILL OPEN. M, needs temperature update in `mob_tick` plus event dispatch.
+- Row `strider.rs:35` navigation: STILL OPEN. M, needs a per-mob navigation hook.
+- Row `strider.rs:96` jockey spawn: STILL OPEN. M, needs jockey selection and baby-chance override.
+- Row `strider.rs:178` passenger attachment: STILL OPEN. UNVERIFIED offset, no vanilla source in tree.

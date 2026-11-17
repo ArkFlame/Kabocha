@@ -49,3 +49,11 @@ No decompiled vanilla tree is vendored in this worktree; comparison is against
    `isPushedByFluid()` (only `WaterAnimal` certainly does); if it does, add
    `Mob::mob_is_pushed_by_fluids() -> false` in guardian.rs. Do not change without a vanilla
    source to confirm.
+
+## Gap status (h6 sweep)
+- Gap 4 (thorns reflection from direct entity): FIXED 99fa5cfb8. Guardian and elder guardian now pass `source` (direct entity) to `reflect_thorns`.
+- Gap 1 (beam attack goal): STILL OPEN. L, needs new goal, synced attack target and INDIRECT_MAGIC damage.
+- Gap 2 (water travel with target sink): STILL OPEN. M, needs `Mob::travel_in_water` override.
+- Gap 3 (GuardianMoveControl): STILL OPEN. M, needs custom move control.
+- Gap 5 (elder effect broadness): STILL OPEN. Low impact; packet spam only.
+- Gap 6 (fluid push): STILL OPEN. UNVERIFIED, no vanilla source to confirm.

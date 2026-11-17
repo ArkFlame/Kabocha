@@ -24,3 +24,10 @@ Verified present (vanilla `ChestBoat` / `AbstractChestBoat`):
 | boat.rs:351-355 | `AbstractBoat.destroy` is `spawnAtLocation(this.getDropItem())`, which does not copy the entity custom name onto the dropped item; Pumpkin sets `CustomNameImpl` on the drop | confirm in decompiled `Boat`/`AbstractBoat`; if no name transfer exists, drop the `CustomNameImpl` block | S (verify) |
 | boat.rs:335 vs 356 | vanilla `chestVehicleDestroyed` scatters the container at the entity position (`getX/Y/Z`); Pumpkin passes `block_pos` to `world.scatter_inventory` | pass the entity position to `scatter_inventory` and keep `block_pos` only for `drop_stack` | S |
 | boat.rs:276-301 | `AbstractBoat` also maintains bubble/air state while a player rides underwater; no `DATA_ID_BUBBLE_TIME` (tracked_data id 13) is ever sent for any boat | set/publish bubble-time metadata from the underwater tick, shared by all boat types | M |
+
+## Gap status (h6 sweep)
+- Row `boat.rs:335 vs 356` (scatter at entity position): FIXED 3aecd6b12 (`scatter_inventory_at` uses the entity position).
+- Row `boat.rs:364-380` spectator open: STILL OPEN. S (verify), no decompiled `ContainerEntity` in tree.
+- Row `boat.rs:332-358` creative container drop: STILL OPEN. S (verify), current code gates the container drop on `!creative`.
+- Row `boat.rs:351-355` custom name on drop: STILL OPEN. S (verify), current code copies the name with a vanilla comment; conflicts with the note, not resolved.
+- Row `boat.rs:276-301` bubble time metadata: STILL OPEN. M, shared boat underwater metadata.

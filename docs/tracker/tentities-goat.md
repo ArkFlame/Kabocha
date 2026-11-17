@@ -17,12 +17,10 @@ Fixed in this pass: age-boundary horn toggle (vanilla ageBoundaryReached addHorn
 
 Note: Pumpkin models goats with goals, vanilla uses a Brain (GoatAi). The goal set here matches the brain activities for panic (2.0), tempt (1.25), follow-adult (1.25), stroll (1.0), look-at-player (6.0) and look-around, so those are not gaps.
 
-## Gapwave2-2 status (h3)
-- #1 ram activity: STILL OPEN (L, needs generic ram goal, out of wave scope)
-- #2 long jump: STILL OPEN (L, needs long-jump goal)
-- #3 horn drop: STILL OPEN (M, the drop is only triggered by RamTarget.hasRammedHornBreakingBlock, which is #1; a dropHorn helper without a caller would be dead code)
-- #4 memory init: STILL OPEN (folds into #1/#2)
-- #5 per-goat follow distance: FIXED a57f7697d (FollowParentGoal::with_min_distance, goat samples 5..=16; UNVERIFIED in game)
-- #6 spawn rule: STILL OPEN (blocked on MINECRAFT_GOATS_SPAWNABLE_ON data, needs extractor)
-- #7 head-lowering event: UNVERIFIED client-only effect (Vanilla handleEntityEvent 58/59 is a client animation), no server change
-- ram/horn-break (#3 horn drop, #4 memory init) re-check h3: STILL OPEN (horn drop M is only reached through RamTarget.hasRammedHornBreakingBlock, which is the L ram activity from #1; no S/M part is standalone)
+## Gap status (h6 sweep)
+- Gaps 1, 2 (ram and long-jump activities): STILL OPEN. L, need generic goal ports.
+- Gap 3 (horn drop): STILL OPEN. M.
+- Gap 4 (memory init): STILL OPEN. Folds into gaps 1 and 2.
+- Gap 5 (follow distance 5..16): STILL OPEN. M, needs configurable FollowParentGoal distance.
+- Gap 6 (spawn rule): STILL OPEN, blocked on `MINECRAFT_GOATS_SPAWNABLE_ON` tag.
+- Gap 7 (head-lowering event): STILL OPEN. Client-only effect, not blocking.
