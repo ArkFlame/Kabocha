@@ -616,8 +616,12 @@ impl Mob for EndermanEntity {
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) {
-        if source.and_then(as_splash_potion).is_some() {
-            self.repeatedly_try_to_teleport();
+        // A non-hurting splash potion already teleported in `pre_damage_with_context`; only a
+        // water-sensitive hit teleports here, so each hit teleports once like vanilla `hurtServer`.
+        if let Some(potion) = source.and_then(as_splash_potion) {
+            if potion.hurts_water_sensitive_entities() {
+                self.repeatedly_try_to_teleport();
+            }
             return;
         }
         if cause

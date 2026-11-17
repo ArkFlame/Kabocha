@@ -147,10 +147,12 @@ impl Mob for GuardianEntity {
     fn on_damage_with_context(
         &self,
         damage_type: DamageType,
-        _source: Option<&dyn EntityBase>,
-        cause: Option<&dyn EntityBase>,
+        source: Option<&dyn EntityBase>,
+        _cause: Option<&dyn EntityBase>,
     ) -> bool {
-        reflect_thorns(self.get_entity(), damage_type, cause);
+        // Vanilla reflects only when the direct entity (`source`) is living, so an arrow shot by
+        // a player does not reflect thorns onto that player.
+        reflect_thorns(self.get_entity(), damage_type, source);
         true
     }
 
