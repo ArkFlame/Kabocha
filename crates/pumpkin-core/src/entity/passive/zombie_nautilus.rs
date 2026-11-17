@@ -340,8 +340,8 @@ impl Mob for ZombieNautilusEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla `AbstractNautilus` keeps the dash cooldown transient.
         self.write_tamable_nbt(nbt);
-        nbt.put_int("DashCooldown", self.dash_cooldown.load(Ordering::Relaxed));
         nbt.put_string("variant", self.variant_name());
     }
 
@@ -349,9 +349,6 @@ impl Mob for ZombieNautilusEntity {
         self.mob_entity
             .read_legacy_saddle(nbt.get_bool("Saddled") == Some(true));
         self.read_tamable_nbt(nbt);
-        if let Some(dash) = nbt.get_int("DashCooldown") {
-            self.dash_cooldown.store(dash, Ordering::Relaxed);
-        }
         if let Some(variant_str) = nbt.get_string("variant") {
             self.mob_set_variant_name(variant_str);
         }
@@ -426,6 +423,7 @@ mod tests {
         EntityBase::write_nbt(nautilus.as_ref(), &mut written);
         assert_eq!(written.get_string("variant"), Some("minecraft:warm"));
         assert!(written.get("Age").is_none());
+        assert!(written.get_int("DashCooldown").is_none());
 
         world.level.shutdown().await;
         Ok(())
