@@ -832,6 +832,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn fall_location_guess_follows_vanilla_climbables() {
+        use pumpkin_data::Block;
+        assert_eq!(
+            FallLocation::block_to_fall_location(&Block::LADDER),
+            FallLocation::Ladder
+        );
+        assert_eq!(
+            FallLocation::block_to_fall_location(&Block::VINE),
+            FallLocation::Vines
+        );
+        assert_eq!(
+            FallLocation::block_to_fall_location(&Block::SCAFFOLDING),
+            FallLocation::Scaffolding
+        );
+        assert_eq!(
+            FallLocation::block_to_fall_location(&Block::STONE),
+            FallLocation::OtherClimbable
+        );
+    }
+
+    #[test]
     fn smash_needs_a_fall_over_one_and_a_half_blocks_and_no_glide() {
         assert!(smash_fall_ready(1.6, false));
         assert!(!smash_fall_ready(1.5, false));
