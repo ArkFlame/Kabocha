@@ -320,7 +320,12 @@ impl Mob for DrownedEntity {
             zombie_nautilus
                 .get_entity()
                 .set_rotation(entity.yaw.load(), 0.0);
-            crate::entity::mob::spawn::finalize_spawn(&zombie_nautilus, world, reason, None);
+            crate::entity::mob::spawn::finalize_spawn(
+                &zombie_nautilus,
+                world,
+                EntitySpawnReason::Jockey,
+                None,
+            );
             mob_entity.set_pending_vehicle(zombie_nautilus);
         }
         group_data
