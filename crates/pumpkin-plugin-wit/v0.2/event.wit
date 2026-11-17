@@ -1053,6 +1053,7 @@ interface event {
         player: player,
         block-pos: block-pos,
         bucket: string,
+        block-face: string,
         cancelled: bool
     }
 
@@ -1060,6 +1061,7 @@ interface event {
         player: player,
         block-pos: block-pos,
         bucket: string,
+        block-face: string,
         cancelled: bool
     }
 

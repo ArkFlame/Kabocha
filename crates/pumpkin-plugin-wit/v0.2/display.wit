@@ -96,6 +96,7 @@ interface display {
 
         get-brightness: func() -> s32;
         set-brightness: func(brightness: s32);
+        set-brightness-override: func(block: s32, sky: s32);
     }
 
     /// Resource specifically for Block Display entities.
