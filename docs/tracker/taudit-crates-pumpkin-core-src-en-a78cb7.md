@@ -8,7 +8,7 @@ Compared against vanilla `Parrot` / `TamableAnimal` (no decompiled reference in 
 
 ## Verified matching vanilla
 - Goal table: panic 1.25, float, look-at-player 8, sit, follow-owner 1.0/5/1.0, water-avoiding random fly, land-on-shoulder, follow-mob 1.0/3/7 (`parrot.rs:139-156`).
-- Interaction order: tame with `parrot_food` (consume, 1/10, entity event), poison only for `parrot_poisonous_food`, sit toggle only when on ground, then `super.mobInteract` (`parrot.rs:384-428`).
+- Interaction order: tame with `parrot_food` (consume, 1/10, entity event), poison only for `parrot_poisonous_food`, sit toggle only when on ground and the held item is not `parrot_food`, then `super.mobInteract` (`parrot.rs:384-428`).
 - Cookie: consume, poison 900 ticks, `f32::MAX` player attack with creative bypass (`parrot.rs:171-197`).
 - Ambient imitation 1/1000 and non-peaceful check, nearby imitation 1/400 then 1/2, 20-block box, 0.7 volume, random pitch (`parrot.rs:49-103,343-346`).
 - `calculateFlapping`, `flap()` (fly sound 0.15/1.0), step sound 0.15/1.0, death/hurt sounds (`parrot.rs:343-378,227-234`).
