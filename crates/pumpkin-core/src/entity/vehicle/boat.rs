@@ -321,7 +321,9 @@ impl EntityBase for BoatEntity {
 
         let damaged = self.vehicle.damage_with_context(amount, source);
 
-        if will_break && !creative && self.vehicle.entity.is_removed() {
+        // Vanilla `ChestBoat.remove`: any destroying removal scatters the chest contents, even an
+        // instabuild break; only the boat item drop is creative-gated.
+        if will_break && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
             if world.level_info.load().game_rules.entity_drops {
                 let position = self.vehicle.entity.block_pos.load();
@@ -336,8 +338,9 @@ impl EntityBase for BoatEntity {
                     let inventory: Arc<dyn Inventory> = container.clone();
                     world.scatter_inventory(&position, &inventory);
                 }
-                if let Some(item) =
-                    Item::from_registry_key(self.vehicle.entity.entity_type.resource_name)
+                if !creative
+                    && let Some(item) =
+                        Item::from_registry_key(self.vehicle.entity.entity_type.resource_name)
                 {
                     let mut stack = ItemStack::new(1, item);
                     if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
