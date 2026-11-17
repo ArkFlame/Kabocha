@@ -145,6 +145,11 @@ impl Mob for HappyGhastEntity {
     /// Vanilla `HappyGhast` steps silently.
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
 
+    /// Vanilla `HappyGhast#onClimbable` always returns false.
+    fn on_climbable(&self) -> bool {
+        false
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }
