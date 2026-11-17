@@ -6861,7 +6861,10 @@ impl Entity {
         // Check for fire immunity (or if the specific entity is)
         let is_immune = self.is_fire_immune();
         if fire_ticks > 0 {
-            if is_immune {
+            // Vanilla isInWaterRainOrBubble: water and rain put the fire out.
+            if self.is_in_water_or_rain() {
+                self.extinguish();
+            } else if is_immune {
                 self.fire_ticks.store(fire_ticks - 4, Ordering::Relaxed);
                 if self.fire_ticks.load(Ordering::Relaxed) < 0 {
                     self.extinguish();
