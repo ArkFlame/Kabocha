@@ -166,6 +166,11 @@ impl BlockEntity for CampfireBlockEntity {
                 );
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 if event.cancelled {
+                    // Paper restarts the slot instead of leaving progress at the
+                    // completed value, which would refire the event every tick.
+                    *self.cooking_times[slot]
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = 0;
                     continue;
                 }
                 result = event.result;
