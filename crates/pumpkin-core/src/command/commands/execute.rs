@@ -96,6 +96,14 @@ const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
     translation::java::ARGUMENT_POS_UNLOADED,
 );
 
+/// Vanilla ExecuteCommand.MAX_TEST_AREA.
+const MAX_TEST_AREA: i64 = 32768;
+
+const ERROR_AREA_TOO_LARGE: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_EXECUTE_BLOCKS_TOOBIG,
+    translation::java::COMMANDS_EXECUTE_BLOCKS_TOOBIG,
+);
+
 fn execute_as_modifier(context: &CommandContext) -> crate::command::node::RedirectModifierResult {
     let targets = EntityArgumentType::get_optional_entities(context, "targets")?;
     let mut sources = Vec::new();
@@ -1119,13 +1127,29 @@ fn count_blocks_match(
     let end = BlockPosArgumentType::get_block_pos(context, "end")?;
     let destination = BlockPosArgumentType::get_block_pos(context, "destination")?;
 
+    let min_x = start.0.x.min(end.0.x);
+    let max_x = start.0.x.max(end.0.x);
+    let min_y = start.0.y.min(end.0.y);
+    let max_y = start.0.y.max(end.0.y);
+    let min_z = start.0.z.min(end.0.z);
+    let max_z = start.0.z.max(end.0.z);
+
+    let area = i64::from(max_x - min_x + 1)
+        * i64::from(max_y - min_y + 1)
+        * i64::from(max_z - min_z + 1);
+    if area > MAX_TEST_AREA {
+        return Err(ERROR_AREA_TOO_LARGE.create_without_context(
+            TextComponent::text(MAX_TEST_AREA.to_string()),
+            TextComponent::text(area.to_string()),
+        ));
+    }
+
     if let Some(ref world) = context.source.world {
-        let min_x = start.0.x.min(end.0.x);
-        let max_x = start.0.x.max(end.0.x);
-        let min_y = start.0.y.min(end.0.y);
-        let max_y = start.0.y.max(end.0.y);
-        let min_z = start.0.z.min(end.0.z);
-        let max_z = start.0.z.max(end.0.z);
+        for pos in [&start, &end, &destination] {
+            if !world.is_loaded(pos) {
+                return Err(ERROR_POS_NOT_LOADED.create_without_context());
+            }
+        }
 
         let dx = destination.0.x - min_x;
         let dy = destination.0.y - min_y;
