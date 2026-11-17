@@ -115,6 +115,17 @@ impl Behavior for SleepInBed {
                 && let Some(home) = tick.state.get(types::HOME).copied()
                 && villager.start_sleeping(home.pos)
             {
+                // Vanilla `SleepInBed.start`: cancel the walk that led here and park the
+                // movement control on the bed so the sleeper no longer follows its path.
+                let steered = villager.mob_entity.steered();
+                steered.navigator().stop();
+                let bed_center = home.pos.to_f64().add_raw(0.5, 0.5, 0.5);
+                steered.move_control().set_wanted_position(
+                    bed_center.x,
+                    bed_center.y,
+                    bed_center.z,
+                    0.0,
+                );
                 tick.state.set(types::LAST_SLEPT, tick.time);
             }
 
