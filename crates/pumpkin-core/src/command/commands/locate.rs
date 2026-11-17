@@ -223,11 +223,9 @@ fn bedrock_success_args(
     distance: i32,
 ) -> Vec<TextComponent> {
     let mut args = vec![TextComponent::text(name)];
+    args.push(TextComponent::text(target.0.x.to_string()));
     if absolute_y {
-        args.push(TextComponent::text(target.0.x.to_string()));
         args.push(TextComponent::text(target.0.y.to_string()));
-    } else {
-        args.push(TextComponent::text(target.0.x.to_string()));
     }
     args.push(TextComponent::text(target.0.z.to_string()));
     args.push(TextComponent::text(distance.to_string()));

@@ -147,6 +147,10 @@ fn get_one_of_genes_randomly(
 }
 
 /// Vanilla `setGeneFromParents`: the (main, hidden) genes of a foal of two pandas.
+#[expect(
+    clippy::same_functions_in_if_condition,
+    reason = "vanilla rolls the hidden-gene mutation only when the main gene did not mutate"
+)]
 fn genes_from_parents(
     parent1: (PandaGene, PandaGene),
     parent2: (PandaGene, PandaGene),

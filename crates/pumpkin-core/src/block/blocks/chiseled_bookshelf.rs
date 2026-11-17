@@ -49,24 +49,21 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
         if let Some(slot) = args
             .hit
             .get_hit_slot(properties.facing, Self::ROWS, Self::COLUMNS)
+            && Self::is_slot_used(properties, slot)
+            && let Some(block_entity) = args.world.get_block_entity(args.position)
+            && let Some(block_entity) = block_entity
+                .as_any()
+                .downcast_ref::<ChiseledBookshelfBlockEntity>()
         {
-            if Self::is_slot_used(properties, slot) {
-                if let Some(block_entity) = args.world.get_block_entity(args.position)
-                    && let Some(block_entity) = block_entity
-                        .as_any()
-                        .downcast_ref::<ChiseledBookshelfBlockEntity>()
-                {
-                    Self::try_remove_book(
-                        args.world,
-                        args.player,
-                        args.position,
-                        block_entity,
-                        properties,
-                        slot,
-                    );
-                    return BlockActionResult::Success;
-                }
-            }
+            Self::try_remove_book(
+                args.world,
+                args.player,
+                args.position,
+                block_entity,
+                properties,
+                slot,
+            );
+            return BlockActionResult::Success;
         }
         // Empty slot: vanilla `useWithoutItem` returns PASS, not CONSUME.
         BlockActionResult::Pass

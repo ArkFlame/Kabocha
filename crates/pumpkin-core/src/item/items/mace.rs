@@ -13,7 +13,7 @@ impl MaceItem {
     pub fn is_mace(registry: &ItemRegistry, item: &Item) -> bool {
         registry
             .get_pumpkin_item(item.id)
-            .is_some_and(|behaviour| behaviour.as_any().is::<MaceItem>())
+            .is_some_and(|behaviour| behaviour.as_any().is::<Self>())
     }
 }
 

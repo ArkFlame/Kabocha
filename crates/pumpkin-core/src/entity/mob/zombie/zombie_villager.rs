@@ -33,7 +33,7 @@ use pumpkin_util::difficulty::Difficulty;
 /// Vanilla gives the cure Strength at `min(difficulty - 1, 0)`. Every level but
 /// Peaceful yields 0. Peaceful yields -1, which is no bonus at all, so the effect
 /// is skipped instead of clamping to an unrepresentable `u8`.
-fn cure_strength_amplifier(difficulty: Difficulty) -> Option<u8> {
+const fn cure_strength_amplifier(difficulty: Difficulty) -> Option<u8> {
     match difficulty {
         Difficulty::Peaceful => None,
         Difficulty::Easy | Difficulty::Normal | Difficulty::Hard => Some(0),

@@ -238,11 +238,6 @@ impl TelemetrySessionTracker {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        let now_unix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
         server.for_each_player(|player| {
             if sessions.len() >= MAX_COMPLETED_SESSIONS_PER_HEARTBEAT {
                 tracing::debug!("Telemetry session cap reached, omitting the remaining sessions");

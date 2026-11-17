@@ -1777,7 +1777,6 @@ impl Player {
         // `base_damage` already carries them, like vanilla `Player.attack`.
         damage = damage.max(0.0);
 
-        let pos = victim_entity.pos.load();
         let attack_type = AttackType::new(
             self,
             attack_cooldown_progress as f32,
