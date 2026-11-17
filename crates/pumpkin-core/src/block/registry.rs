@@ -1559,12 +1559,15 @@ impl BlockRegistry {
     #[must_use]
     pub fn get_pumpkin_fluid(&self, fluid_id: u16) -> Option<&Arc<dyn FluidBehaviour>> {
         self.fluids.get(&fluid_id).or_else(|| {
-            // Still fluids share behavior with their flowing counterpart
-            match fluid_id {
-                2 => self.fluids.get(&1),
-                4 => self.fluids.get(&3),
-                _ => None,
-            }
+            // Still fluids share behaviour with their flowing counterpart.
+            let flowing_id = if fluid_id == Fluid::WATER.id {
+                Fluid::FLOWING_WATER.id
+            } else if fluid_id == Fluid::LAVA.id {
+                Fluid::FLOWING_LAVA.id
+            } else {
+                return None;
+            };
+            self.fluids.get(&flowing_id)
         })
     }
 
