@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:function",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "function": "pumpkin:copper_golem_collects_items_at_path_end",
+  "max_ticks": 400,
+  "setup_ticks": 0
+}

@@ -29,6 +29,7 @@ use pumpkin_core::{
 };
 use pumpkin_core::{PumpkinServer, stop_server};
 
+use pumpkin::{StartupCommand, parse_startup_command};
 use pumpkin_config::{LoadConfiguration, PumpkinConfig};
 use pumpkin_core::plugin::loader::PluginLoader;
 use pumpkin_util::text::{
@@ -41,6 +42,8 @@ use std::time::Instant;
 use tracing::{debug, error, info, warn};
 
 const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+mod game_test_server;
 
 static MAIN_THREAD: OnceLock<ThreadId> = OnceLock::new();
 
@@ -56,6 +59,12 @@ static ALLOCATOR: pumpkin_profiler::TrackingAllocator = pumpkin_profiler::Tracki
 async fn main() {
     #[cfg(profiler)]
     pumpkin_profiler::register_allocator();
+
+    let command = match parse_startup_command(std::env::args().skip(1)) {
+        Ok(command) => command,
+        Err(error) => error.exit(),
+    };
+
     let _ = MAIN_THREAD.set(thread::current().id());
 
     // reqwest is built with `rustls-no-provider`, so pick the ring provider (the one
@@ -84,6 +93,15 @@ async fn main() {
 
     #[cfg(feature = "console-subscriber")]
     console_subscriber::init();
+
+    if let StartupCommand::GameTestServer(options) = command {
+        if let Err(error) = game_test_server::run(options).await {
+            error!("{error}");
+            exit(1);
+        }
+        return;
+    }
+
     let time = Instant::now();
 
     let exec_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
