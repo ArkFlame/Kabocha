@@ -60,4 +60,14 @@ impl Mob for ParchedSkeletonEntity {
     fn get_ambient_sound(&self) -> Option<Sound> {
         Some(Sound::EntityParchedAmbient)
     }
+
+    // vanilla Parched#getAttackInterval / getHardAttackInterval
+    fn get_min_attack_interval(&self) -> Option<i32> {
+        let world = self.get_mob_entity().living_entity.entity.world.load();
+        if world.level_info.load().difficulty == pumpkin_util::Difficulty::Hard {
+            Some(50)
+        } else {
+            Some(70)
+        }
+    }
 }
