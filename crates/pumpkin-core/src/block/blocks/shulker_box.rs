@@ -130,6 +130,7 @@ impl BlockBehaviour for ShulkerBoxBlock {
             return BlockActionResult::Success;
         }
 
+        // Vanilla returns CONSUME when a block entity opened and PASS without one (UNVERIFIED).
         if let Some(factory) = self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
             server: args.server,
             world: args.world,
@@ -144,9 +145,10 @@ impl BlockBehaviour for ShulkerBoxBlock {
             );
             args.player
                 .open_handled_screen(factory.as_ref(), Some(*args.position));
+            return BlockActionResult::Consume;
         }
 
-        BlockActionResult::Success
+        BlockActionResult::Pass
     }
 
     fn get_screen_handler_factory(
