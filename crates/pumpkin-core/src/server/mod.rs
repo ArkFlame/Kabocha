@@ -1126,10 +1126,10 @@ impl Server {
     ///
     /// 1. Generates a new entity ID for the player.
     /// 2. Determines the player's gamemode (defaulting to Survival if not specified in configuration).
-    /// 3. **(TODO: Select default from config)** Selects the world for the player (currently uses the first world).
+    /// 3. Selects the world for the player: the saved dimension when enabled, else the first world.
     /// 4. Creates a new `Player` instance using the provided information.
     /// 5. Adds the player to the chosen world.
-    /// 6. **(TODO: Config if we want increase online)** Optionally updates server listing information based on the player's configuration.
+    /// 6. Updates server listing: the online count always, the sample only when the client allows listing.
     ///
     /// # Arguments
     ///
@@ -1254,16 +1254,13 @@ impl Server {
                         user_cache.upsert(player.gameprofile.id, player.gameprofile.name.clone());
                     };
 
-                    // TODO: Config if we want increase online
-                    if let Some(config) = config {
-                        // TODO: Config so we can also just ignore this hehe
-                        if config.server_listing {
-                            self.listing
-                                .lock()
-                                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                                .add_player(&player);
-                        }
-                    }
+                    // Vanilla counts every player in the status response; only the
+                    // sample lists players that allow server listing.
+                    let allows_listing = config.is_some_and(|config| config.server_listing);
+                    self.listing
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .add_player(&player, allows_listing);
 
                     let player_dto = crate::net::management::dto::PlayerDto::new(
                         Some(player.gameprofile.id),
@@ -1330,7 +1327,6 @@ impl Server {
             pumpkin_data::statistic::CustomStatistic::LeaveGame as i32,
             1,
         );
-        // TODO: Config if we want decrease online
         self.listing
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
