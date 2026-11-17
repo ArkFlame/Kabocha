@@ -5516,6 +5516,9 @@ impl Player {
                 player: player_arc,
                 from: self.living_entity.entity.pos.load(),
                 to: position,
+                yaw: Some(yaw),
+                pitch: Some(pitch),
+                cause: TeleportCause::Unknown,
                 cancelled: false,
             };
             server.plugin_manager.fire_blocking(&server, &mut event);
