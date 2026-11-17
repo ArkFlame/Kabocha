@@ -1,6 +1,10 @@
-use std::sync::{Arc, Weak};
+use std::sync::{
+    Arc, Weak,
+    atomic::Ordering,
+};
 
 use pumpkin_data::entity::EntityType;
+use crate::entity::EntityBase;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
@@ -13,6 +17,9 @@ use crate::entity::{
     },
     mob::{Mob, MobEntity},
 };
+
+/// Vanilla `Vex.TICKS_PER_FLAP`, `Mth.ceil(5 * PI / 4)`.
+const TICKS_PER_FLAP: i32 = 4;
 
 const VEX_HUNTS: &[Hunt] = &[Hunt::new(3, TargetMatch::Type(&EntityType::PLAYER), true)];
 
@@ -53,6 +60,10 @@ impl VexEntity {
 }
 
 impl Mob for VexEntity {
+    fn mob_is_flapping(&self) -> bool {
+        self.get_entity().tick_count.load(Ordering::Relaxed) % TICKS_PER_FLAP == 0
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }

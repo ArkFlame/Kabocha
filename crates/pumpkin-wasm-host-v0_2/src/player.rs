@@ -3307,7 +3307,26 @@ impl pumpkin::plugin::player::HostPlayerWithStore<PluginHostState> for HasSelf<P
             ))
         })?;
 
-        run_blocking(accessor, move || player.has_permission(&server, &node)).await
+        // The check fires `PlayerPermissionCheckEvent`, which runs straight back into
+        // this plugin. Route it through the active guest call so the callback is pumped
+        // instead of hanging on a store that is busy with the call that asked for it.
+        let operation = async move {
+            let result = server.permission_manager.has_permission(
+                &player.gameprofile.id,
+                &node,
+                player.permission_lvl.load(),
+            );
+            let mut event =
+                pumpkin_core::plugin::api::events::player::player_permission_check::PlayerPermissionCheckEvent::new(
+                    player.clone(),
+                    node,
+                    result,
+                );
+            server.plugin_manager.fire(&server, &mut event).await;
+            event.result
+        };
+
+        in_active_context(accessor, operation).await
     }
 
     async fn refresh_commands(

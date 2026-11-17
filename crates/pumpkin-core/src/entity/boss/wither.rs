@@ -159,10 +159,12 @@ impl WitherEntity {
 
     pub fn make_invulnerable(&self) {
         self.set_invulnerable_ticks(INVULNERABLE_TICKS);
-        self.bossbar_progress.store(0.0);
-        self.mob_entity
-            .living_entity
-            .set_health(self.mob_entity.living_entity.get_max_health() / 3.0);
+        let living = &self.mob_entity.living_entity;
+        let max_health = living.get_max_health();
+        living.set_health(max_health / 3.0);
+        // Vanilla WitherBoss drives the boss bar from health / maxHealth for the whole fight.
+        self.bossbar_progress
+            .store((living.health.load() / max_health).clamp(0.0, 1.0));
     }
 
     #[must_use]
@@ -368,9 +370,9 @@ impl WitherEntity {
                 let target_pos = target.get_entity().pos.load();
                 self.set_alternative_target(0, target.get_entity().entity_id);
 
-                // Main head attack
+                // Main head attack. Vanilla RangedAttackGoal only fires with line of sight.
                 let dist_sq = (wither_pos - target_pos).length_squared();
-                if dist_sq <= 400.0 {
+                if dist_sq <= 400.0 && self.has_line_of_sight(target.get_entity()) {
                     let attack_timer = self.main_attack_timer.load(Ordering::Relaxed);
                     if attack_timer <= 0 {
                         self.main_attack_timer.store(40, Ordering::Relaxed);
@@ -426,8 +428,6 @@ impl WitherEntity {
 
         if invul > 0 {
             let new_count = invul - 1;
-            let progress = (1.0 - (new_count as f32) / INVULNERABLE_TICKS as f32).clamp(0.0, 1.0);
-            self.bossbar_progress.store(progress);
 
             if new_count <= 0 {
                 let pos = entity.pos.load();
@@ -452,6 +452,15 @@ impl WitherEntity {
             if tick_count % 10 == 0 {
                 self.mob_entity.living_entity.heal(10.0);
             }
+
+            let living = &self.mob_entity.living_entity;
+            let max_health = living.get_max_health();
+            let progress = if max_health > 0.0 {
+                (living.health.load() / max_health).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            self.bossbar_progress.store(progress);
         } else {
             let living = &self.mob_entity.living_entity;
             self.tick_main_head_attack();
@@ -561,12 +570,12 @@ impl WitherEntity {
                                     min_pos.0.z + dz,
                                 );
                                 let block = world.get_block(&bpos);
-                                if Self::can_destroy(block) {
-                                    world.set_block_state(
-                                        &bpos,
-                                        Block::AIR.default_state.id,
-                                        BlockFlags::NOTIFY_ALL,
-                                    );
+                                // Vanilla Level.destroyBlock(pos, true, this) drops the block loot.
+                                if Self::can_destroy(block)
+                                    && world
+                                        .break_block(&bpos, None, BlockFlags::NOTIFY_ALL)
+                                        .is_some()
+                                {
                                     destroyed = true;
                                 }
                             }

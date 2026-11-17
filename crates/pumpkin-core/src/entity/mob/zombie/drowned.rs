@@ -569,7 +569,9 @@ impl Goal for DrownedTridentAttackGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
-        self.can_start(mob) || self.ranged.target_alive() && !mob.is_navigator_idle()
+        // Vanilla only overrides `canUse` (trident in hand); `ProjectileAttackGoal#canContinueToUse`
+        // is inherited, so losing the trident does not cancel an attack already in progress.
+        Goal::should_continue(&mut self.ranged, mob)
     }
 
     fn start(&mut self, mob: &dyn Mob) {

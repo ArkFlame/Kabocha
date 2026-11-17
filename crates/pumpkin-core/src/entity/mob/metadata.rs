@@ -415,13 +415,13 @@ impl MobMetadata {
 
     /// Serializes all Java metadata entries for the target Java version, ending with 255.
     #[must_use]
-    pub fn to_java_spawn_metadata(&self, version: JavaMinecraftVersion) -> Option<Box<[u8]>> {
-        if version < JavaMinecraftVersion::V_1_9 || self.java_entries.is_empty() {
+    pub fn to_java_spawn_metadata(&self) -> Option<Box<[u8]>> {
+        if self.java_entries.is_empty() {
             return None;
         }
         let mut buf = Vec::new();
         for entry in &self.java_entries {
-            entry.write(&mut buf, &version);
+            entry.write(&mut buf, &CURRENT_MC_VERSION);
         }
         buf.push(255);
         Some(buf.into_boxed_slice())
@@ -432,7 +432,7 @@ impl MobMetadata {
         if !self.bedrock_data.0.is_empty() {
             entity.send_bedrock_actor_data(&self.bedrock_data);
         }
-        if let Some(java_bytes) = self.to_java_spawn_metadata(CURRENT_MC_VERSION) {
+        if let Some(java_bytes) = self.to_java_spawn_metadata() {
             let meta_packet = CSetEntityMetadata::new(entity.entity_id.into(), java_bytes);
             entity
                 .world
@@ -467,7 +467,7 @@ mod tests {
         );
 
         let java = meta
-            .to_java_spawn_metadata(JavaMinecraftVersion::V_26_3)
+            .to_java_spawn_metadata()
             .expect("java metadata");
         assert!(!java.is_empty());
         assert_eq!(*java.last().unwrap(), 255);

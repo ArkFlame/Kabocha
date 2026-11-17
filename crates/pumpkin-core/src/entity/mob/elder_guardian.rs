@@ -30,6 +30,7 @@ pub struct ElderGuardianEntity {
 impl ElderGuardianEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        mob_entity.set_persistence_required();
         let guardian = Self { mob_entity };
         let mob_arc = Arc::new(guardian);
         let mob_weak: Weak<dyn Mob> = {
@@ -40,7 +41,9 @@ impl ElderGuardianEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
-            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
+            // Vanilla `ElderGuardian` raises the inherited guardian stroll
+            // interval to 400 in its constructor.
+            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 400)));
             goal_selector.add_goal(
                 5,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -50,6 +53,9 @@ impl ElderGuardianEntity {
             let target_selector = &mob_arc.mob_entity.target_selector;
             hunting::apply(target_selector, &mob_arc.mob_entity, GUARDIAN_HUNTS);
         };
+
+        // Vanilla `ElderGuardian` constructor: `setPersistenceRequired()`.
+        mob_arc.mob_entity.set_persistence_required();
 
         mob_arc
     }
@@ -80,6 +86,18 @@ impl CustomSound for ElderGuardianEntity {
 impl Mob for ElderGuardianEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.get_entity().touching_water.load(Ordering::Relaxed) {
+            Sound::EntityElderGuardianAmbient
+        } else {
+            Sound::EntityElderGuardianAmbientLand
+        })
+    }
+
+    fn get_ambient_sound_interval(&self) -> i32 {
+        160
     }
 
     fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {

@@ -30,7 +30,7 @@ impl HostEnchantmentManager for PluginHostState {
             .server
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
-        Ok(server.enchantment_manager.register(entry).await)
+        Ok(server.enchantment_manager.register(entry))
     }
 
     async fn get_enchantment(
@@ -43,7 +43,7 @@ impl HostEnchantmentManager for PluginHostState {
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
 
-        if let Some(entry) = server.enchantment_manager.get(&id).await {
+        if let Some(entry) = server.enchantment_manager.get(&id) {
             let description = self.add(entry.description)?;
             return Ok(Some(WitCustomEnchantment {
                 id: entry.id,
@@ -91,7 +91,7 @@ impl HostEnchantmentManager for PluginHostState {
             .server
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
-        if server.enchantment_manager.has(&id).await {
+        if server.enchantment_manager.has(&id) {
             return Ok(true);
         }
         Ok(find_vanilla_enchantment(&id).is_some())
@@ -105,7 +105,7 @@ impl HostEnchantmentManager for PluginHostState {
             .server
             .as_ref()
             .ok_or_else(|| wasmtime::Error::msg("Server not available"))?;
-        let mut ids = server.enchantment_manager.get_all_ids().await;
+        let mut ids = server.enchantment_manager.get_all_ids();
         for enc in Enchantment::ALL {
             ids.push(enc.name.to_string());
         }

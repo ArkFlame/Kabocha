@@ -111,8 +111,8 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::bedrock::client::set_actor_data::{CSetActorData, PropertySyncData};
 use pumpkin_protocol::bedrock::client::start_game::{CStartGame, ServerTelemetryData};
 use pumpkin_protocol::java::client::play::{
-    CBlockUpdate, CDisguisedChatMessage, CExplosion, CRespawn, CSetBlockDestroyStage, CWorldEvent,
-    PlayerSpawnData,
+    CBlockUpdate, CDisguisedChatMessage, CExplosion, CLightUpdate, CRespawn, CSetBlockDestroyStage,
+    CWorldEvent, PlayerSpawnData,
 };
 use pumpkin_protocol::java::client::play::{
     CPlayerSpawnPosition, CRecipeBookAdd, CRecipeBookSettings, CSystemChatMessage,
@@ -334,6 +334,8 @@ pub struct World {
     synced_block_event_queue: std::sync::Mutex<Vec<BlockEvent>>,
     /// A map of unsent block changes, keyed by block position.
     unsent_block_changes: std::sync::Mutex<HashMap<BlockPos, BlockStateId>>,
+    /// Chunks whose light changed and still need a light update sent to clients.
+    unsent_light_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
     /// Persisted vanilla POI storage for portal and villager lookups.
     pub portal_poi: std::sync::Mutex<portal::PortalPoiStorage>,
     poi_chunk_receiver: std::sync::Mutex<Receiver<(ChunkPos, Weak<ChunkData>)>>,
@@ -604,6 +606,7 @@ impl World {
             min_y: i32::from(generation_settings.shape.min_y),
             synced_block_event_queue: std::sync::Mutex::new(Vec::new()),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
+            unsent_light_chunks: std::sync::Mutex::new(FxHashSet::default()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             poi_chunk_receiver: std::sync::Mutex::new(poi_chunk_receiver),
             wandering_trader_spawner: wandering_trader_spawner::WanderingTraderSpawner::default(),
@@ -2233,6 +2236,7 @@ impl World {
 
     #[expect(clippy::too_many_lines)]
     pub fn flush_block_updates(&self) {
+        use crate::net::java::ChunkLightExt;
         let mut block_state_updates_by_chunk_section: HashMap<
             Vector3<i32>,
             Vec<(BlockPos, BlockStateId)>,
@@ -2382,6 +2386,49 @@ impl World {
                         }
                     }
                 }
+            }
+        }
+
+        let light_chunks = {
+            let mut guard = self
+                .unsent_light_chunks
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            std::mem::take(&mut *guard)
+        };
+        if !light_chunks.is_empty() {
+            let players = self.players.load();
+            for chunk_pos in light_chunks {
+                let java_recipients: Vec<&JavaClient> = players
+                    .iter()
+                    .filter(|p| {
+                        p.watched_section
+                            .load()
+                            .is_within_distance(chunk_pos.x, chunk_pos.y)
+                    })
+                    .filter_map(|p| match p.client.as_ref() {
+                        ClientPlatform::Java(client) => Some(client),
+                        ClientPlatform::Bedrock(_) => None,
+                    })
+                    .collect();
+                if java_recipients.is_empty() {
+                    continue;
+                }
+                self.level.read_chunk_sync(&chunk_pos, |chunk| {
+                    let version = CURRENT_MC_VERSION;
+                    let packet = match CLightUpdate::from_chunk(chunk.as_ref(), version) {
+                        Ok(packet) => packet,
+                        Err(err) => {
+                            error!("Failed to build light update for {chunk_pos:?}: {err}");
+                            return;
+                        }
+                    };
+                    for client in &java_recipients {
+                        if let Ok(data) = client.serialize_packet(&packet) {
+                            client.try_enqueue_packet(data);
+                        }
+                    }
+                });
             }
         }
     }
@@ -6349,6 +6396,18 @@ impl World {
             self.level
                 .light_engine
                 .update_lighting_at(&self.level, *position);
+
+            // The chunk and its neighbours within 15 blocks need a light re-send.
+            let (chunk_coord, _) = position.chunk_and_chunk_relative_position();
+            let mut light_chunks = self
+                .unsent_light_chunks
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for dx in -1..=1 {
+                for dz in -1..=1 {
+                    light_chunks.insert(Vector2::new(chunk_coord.x + dx, chunk_coord.y + dz));
+                }
+            }
         }
 
         replaced_block_state_id
@@ -7595,7 +7654,12 @@ impl World {
 
         if new_state_id != block_state_id {
             if is_air(new_state_id) {
-                self.break_block(block_pos, None, flags | BlockFlags::NOTIFY_ALL);
+                // Vanilla `Block.updateOrDestroy`: shape updates destroy with drops off.
+                self.break_block(
+                    block_pos,
+                    None,
+                    flags | BlockFlags::SKIP_DROPS | BlockFlags::NOTIFY_ALL,
+                );
             } else {
                 self.set_block_state(block_pos, new_state_id, flags);
             }

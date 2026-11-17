@@ -35,7 +35,7 @@ impl HostEnchantmentManagerWithStore<PluginHostState> for HasSelf<PluginHostStat
         };
 
         let server = accessor.server()?;
-        Ok(server.enchantment_manager.register(entry).await)
+        Ok(server.enchantment_manager.register(entry))
     }
 
     async fn get_enchantment(
@@ -45,7 +45,7 @@ impl HostEnchantmentManagerWithStore<PluginHostState> for HasSelf<PluginHostStat
     ) -> wasmtime::Result<Option<WitCustomEnchantment>> {
         let server = accessor.server()?;
 
-        if let Some(entry) = server.enchantment_manager.get(&id).await {
+        if let Some(entry) = server.enchantment_manager.get(&id) {
             let description = accessor.add_res(entry.description)?;
             return Ok(Some(WitCustomEnchantment {
                 id: entry.id,
@@ -91,7 +91,7 @@ impl HostEnchantmentManagerWithStore<PluginHostState> for HasSelf<PluginHostStat
         id: String,
     ) -> wasmtime::Result<bool> {
         let server = accessor.server()?;
-        if server.enchantment_manager.has(&id).await {
+        if server.enchantment_manager.has(&id) {
             return Ok(true);
         }
         Ok(find_vanilla_enchantment(&id).is_some())
@@ -102,7 +102,7 @@ impl HostEnchantmentManagerWithStore<PluginHostState> for HasSelf<PluginHostStat
         _res: Resource<WitEnchantmentManager>,
     ) -> wasmtime::Result<Vec<String>> {
         let server = accessor.server()?;
-        let mut ids = server.enchantment_manager.get_all_ids().await;
+        let mut ids = server.enchantment_manager.get_all_ids();
         for enc in Enchantment::ALL {
             ids.push(enc.name.to_string());
         }

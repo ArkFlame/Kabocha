@@ -476,7 +476,7 @@ impl pumpkin::plugin::server::HostServerWithStore<PluginHostState> for HasSelf<P
     ) -> wasmtime::Result<Option<WitCustomEnchantment>> {
         let server = accessor.server()?;
 
-        if let Some(entry) = server.enchantment_manager.get(&id).await {
+        if let Some(entry) = server.enchantment_manager.get(&id) {
             let description = accessor.add_res(entry.description)?;
             return Ok(Some(WitCustomEnchantment {
                 id: entry.id,
@@ -529,7 +529,7 @@ impl pumpkin::plugin::server::HostServerWithStore<PluginHostState> for HasSelf<P
         _rep: Resource<Server>,
     ) -> wasmtime::Result<Vec<String>> {
         let server = accessor.server()?;
-        let mut ids = server.enchantment_manager.get_all_ids().await;
+        let mut ids = server.enchantment_manager.get_all_ids();
         for enc in pumpkin_data::enchantment::Enchantment::ALL {
             ids.push(enc.name.to_string());
         }

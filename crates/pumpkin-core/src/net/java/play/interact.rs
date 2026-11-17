@@ -132,13 +132,19 @@ impl JavaClient {
                 }
                 let mut stack = player.inventory().held_item();
 
+                let used_hand = hand
+                    .and_then(|h| pumpkin_util::Hand::from_packet_id(h.0).ok())
+                    .unwrap_or(pumpkin_util::Hand::Right);
                 let item_id = stack.item.id;
                 let before = stack.clone();
                 let interacted = match event.target_position {
                     Some(position) if event.action == ActionType::InteractAt => {
                         event.target.interact_at(player, &mut stack, position)
                     }
-                    _ => event.target.interact(player, &mut stack),
+                    _ => event
+                        .target
+                        .interact_with_hand(player, &mut stack, used_hand)
+                        .unwrap_or_else(|| event.target.interact(player, &mut stack)),
                 };
                 if interacted {
                     player.trigger_datapack_advancements(
@@ -148,12 +154,7 @@ impl JavaClient {
                         },
                     );
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
-                    let swing_hand = if hand.is_some_and(|h| h.0 != 0) {
-                        pumpkin_util::Hand::Left
-                    } else {
-                        pumpkin_util::Hand::Right
-                    };
-                    player.swing_hand(swing_hand, true);
+                    player.swing_hand(used_hand, true);
                 }
                 if !interacted {
                     server

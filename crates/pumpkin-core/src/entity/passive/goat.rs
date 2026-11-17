@@ -235,8 +235,9 @@ impl Mob for GoatEntity {
                 self.set_has_right_horn(false);
             }
         }
-        self.mob_entity.finalize_spawn_base();
-        group_data
+        // Vanilla `Goat.finalizeSpawn` ends with `super.finalizeSpawn`, which advances the
+        // `AgeableMobGroupData` (group size and baby spawn chance) for the rest of the group.
+        self.finalize_spawn_super(group_data)
     }
 
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
@@ -387,6 +388,38 @@ mod tests {
             goat.get_ambient_sound(),
             Some(Sound::EntityGoatScreamingAmbient)
         );
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn group_spawn_baby_clears_horns() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        let group = crate::entity::mob::spawn::SpawnGroupData::Ageable {
+            group_size: 1,
+            should_spawn_baby: true,
+            baby_spawn_chance: 1.0,
+        };
+        let next = goat.finalize_spawn(
+            &world,
+            crate::entity::mob::spawn::EntitySpawnReason::Natural,
+            Some(group),
+        );
+        assert!(goat.is_baby());
+        assert!(!goat.has_left_horn() && !goat.has_right_horn());
+        assert!(matches!(
+            next,
+            Some(crate::entity::mob::spawn::SpawnGroupData::Ageable {
+                group_size: 2,
+                ..
+            })
+        ));
         world.level.shutdown().await;
         Ok(())
     }

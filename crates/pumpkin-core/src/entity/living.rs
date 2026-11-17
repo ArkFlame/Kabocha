@@ -394,6 +394,12 @@ impl LivingEntity {
     ];
 
     fn hurt_sound_for_entity(entity_type: &'static EntityType) -> Sound {
+        // Vanilla `Player#getHurtSound` returns `PLAYER_HURT`; the player entry in the
+        // generated entity types carries no hurt sound, so it must be special-cased.
+        if entity_type == &EntityType::PLAYER {
+            return Sound::EntityPlayerHurt;
+        }
+
         entity_type.hurt_sound.unwrap_or(Sound::EntityGenericHurt)
     }
 
@@ -5603,6 +5609,14 @@ mod tests {
         for (entity_type, expected) in cases {
             assert_eq!(LivingEntity::hurt_sound_for_entity(entity_type), expected);
         }
+    }
+
+    #[test]
+    fn hurt_sound_for_entity_uses_player_hurt_sound() {
+        assert_eq!(
+            LivingEntity::hurt_sound_for_entity(&EntityType::PLAYER),
+            Sound::EntityPlayerHurt
+        );
     }
 
     #[test]

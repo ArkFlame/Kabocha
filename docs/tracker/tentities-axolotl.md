@@ -1,3 +1,5 @@
+> Superseded for gap tracking by `docs/tracker/tentities-axolotl-4ff0f4.md` (re-review).
+
 # entities / Axolotl
 
 Row: `entities	Axolotl	partial	RE-REVIEW` in `docs/PARITY.tsv`.

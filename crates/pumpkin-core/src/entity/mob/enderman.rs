@@ -577,8 +577,21 @@ impl Mob for EndermanEntity {
     }
 
     fn mob_metadata(&self) -> Option<crate::entity::mob::MobMetadata> {
-        self.is_creepy()
-            .then(|| crate::entity::mob::MobMetadata::new().screaming(true))
+        let mut meta = crate::entity::mob::MobMetadata::new();
+        // The carried block only travels as dirty synced data, which is dropped while the
+        // enderman has no viewers, so it must also ride along with the spawn metadata.
+        if let Some(block_state) = self.carried_block.load() {
+            meta = meta.with_java_entry(
+                crate::entity::mob::metadata::JavaMetadataEntry::VarInt(
+                    pumpkin_data::tracked_data::enderman::DATA_CARRY_STATE,
+                    i32::from(block_state.as_u16()),
+                ),
+            );
+        }
+        if self.is_creepy() {
+            meta = meta.screaming(true);
+        }
+        Some(meta)
     }
 
     fn apply_mob_target(&self, target: Option<Arc<dyn EntityBase>>) {
