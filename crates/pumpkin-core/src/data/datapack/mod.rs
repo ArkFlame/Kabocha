@@ -1183,6 +1183,10 @@ impl DatapackManager {
         let mut ids = Vec::new();
         let mut visited = Vec::new();
         collect_block_tag(&tags, tag, &mut ids, &mut visited);
+        // Vanilla tags are holder sets: a block reached directly and through a nested
+        // tag must appear once, in first-seen order.
+        let mut seen = std::collections::HashSet::with_capacity(ids.len());
+        ids.retain(|id| seen.insert(*id));
         ids
     }
 
@@ -3173,6 +3177,29 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         ids
+    }
+
+    #[test]
+    fn block_tags_resolve_deduplicates_members_reached_twice() {
+        let manager = super::DatapackManager::new();
+        let stone = pumpkin_data::Block::STONE.id.as_u16();
+        let granite = pumpkin_data::Block::GRANITE.id.as_u16();
+        {
+            let mut tags = manager.block_tags.write().expect("block tags lock");
+            tags.insert(
+                "test:stones".to_string(),
+                block_tag(false, &["minecraft:stone"]),
+            );
+            tags.insert(
+                "test:rocks".to_string(),
+                block_tag(false, &["#test:stones", "minecraft:stone"]),
+            );
+            tags.insert(
+                "test:all".to_string(),
+                block_tag(false, &["#test:stones", "#test:rocks", "granite"]),
+            );
+        }
+        assert_eq!(manager.resolve_block_tag("test:all"), vec![stone, granite]);
     }
 
     #[test]
