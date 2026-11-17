@@ -36,6 +36,10 @@ pub const HEADER_TIMESTAMP: &str = "X-Telemetry-Timestamp";
 /// Maximum allowable clock drift between telemetry client and server (300 seconds / 5 minutes).
 pub const MAX_CLOCK_DRIFT_SECS: u64 = 300;
 
+/// Minimum heartbeat interval in seconds, applied to the configured value and to backend
+/// recommendations.
+pub const MIN_HEARTBEAT_INTERVAL_SECS: u64 = 60;
+
 /// Information about an active plugin on the server.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PluginInfo {
@@ -894,7 +898,7 @@ fn resolve_next_interval_secs(current_secs: u64, recommended_secs: u32) -> u64 {
     if recommended_secs == 0 {
         current_secs
     } else {
-        u64::from(recommended_secs).max(60)
+        u64::from(recommended_secs).max(MIN_HEARTBEAT_INTERVAL_SECS)
     }
 }
 
@@ -938,7 +942,7 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
         config.endpoint.clone(),
     ));
 
-    let interval_secs = config.interval_secs.max(60);
+    let interval_secs = config.interval_secs.max(MIN_HEARTBEAT_INTERVAL_SECS);
     let config = config.clone();
     let server_task = server.clone();
 
