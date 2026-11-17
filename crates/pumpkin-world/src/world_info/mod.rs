@@ -598,6 +598,10 @@ impl LevelData {
         let mut data = Self::default(seed);
         let spawn_pos = generator.find_spawn_position();
         data.spawn_x = spawn_pos.0.x;
+        // Vanilla `MinecraftServer.setInitialSpawn` resolves the spawn Y from the terrain instead
+        // of keeping the default: the spawn position sits on the surface, and console command
+        // sources relative to the world spawn use it too.
+        data.spawn_y = generator.get_base_height(spawn_pos.0.x, spawn_pos.0.z) + 1;
         data.spawn_z = spawn_pos.0.z;
         data
     }

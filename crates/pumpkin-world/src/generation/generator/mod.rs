@@ -272,6 +272,27 @@ impl VanillaGenerator {
         )
     }
 
+    /// Vanilla `ChunkGenerator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, ...)`: the
+    /// estimated terrain surface used for the initial world spawn position.
+    #[must_use]
+    pub fn get_base_height(&self, x: i32, z: i32) -> i32 {
+        use crate::generation::noise::router::surface_height_sampler::{
+            SurfaceHeightEstimateSampler, SurfaceHeightSamplerBuilderOptions,
+        };
+
+        let shape = &self.settings.shape;
+        let options = SurfaceHeightSamplerBuilderOptions::new(
+            i32::from(shape.min_y),
+            i32::from(shape.max_y()),
+            shape.vertical_cell_block_count() as usize,
+        );
+        let mut sampler = SurfaceHeightEstimateSampler::generate(
+            &self.base_router.surface_estimator,
+            &options,
+        );
+        sampler.estimate_height(x, z)
+    }
+
     #[must_use]
     pub fn new_with_settings(
         seed: Seed,
