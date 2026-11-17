@@ -88,11 +88,8 @@ impl ArgumentType<CommandSource> for ScoreboardSlotArgumentType {
     }
 
     fn examples(&self) -> Vec<String> {
-        vec![
-            "sidebar".to_string(),
-            "list".to_string(),
-            "below_name".to_string(),
-        ]
+        // Vanilla `ScoreboardSlotArgumentType.EXAMPLES`.
+        vec!["sidebar".to_string(), "foo.bar".to_string()]
     }
 }
 
