@@ -1,6 +1,6 @@
 use pumpkin_data::data_component_impl::{WritableBookContentImpl, WrittenBookContentImpl};
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::tag::{Taggable, tag};
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;

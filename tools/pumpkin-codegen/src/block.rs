@@ -1768,7 +1768,7 @@ pub fn build() -> TokenStream {
 
         #[inline(always)]
         #[must_use]
-        pub const fn is_liquid(id: BlockStateId) -> bool {
+        pub fn is_liquid(id: BlockStateId) -> bool {
             BlockState::from_id(id).is_liquid()
         }
 

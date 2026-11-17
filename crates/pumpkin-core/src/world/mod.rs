@@ -7516,7 +7516,6 @@ impl World {
         let (fluid, state) = self.get_fluid_and_fluid_state(position);
         fluid.matches_type(&Fluid::WATER) && state.is_source
     }
-    }
 
     /// `FluidState#getHeight` includes the full block when the same fluid is above.
     /// Keep `state.height` as the own height used by flow-velocity calculations.

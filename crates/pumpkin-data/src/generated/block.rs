@@ -6523,7 +6523,7 @@ pub const fn is_air(id: BlockStateId) -> bool {
 }
 #[inline(always)]
 #[must_use]
-pub const fn is_liquid(id: BlockStateId) -> bool {
+pub fn is_liquid(id: BlockStateId) -> bool {
     BlockState::from_id(id).is_liquid()
 }
 #[inline(always)]

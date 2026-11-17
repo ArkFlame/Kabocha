@@ -184,7 +184,7 @@ impl Block {
     }
 
     #[must_use]
-    pub const fn is_waterlogged(&self, id: BlockStateId) -> bool {
+    pub fn is_waterlogged(&self, id: BlockStateId) -> bool {
         id.is_waterlogged()
     }
 

@@ -168,6 +168,15 @@ pub struct ChunkLight {
     pub block_light: Box<[LightContainer]>,
 }
 
+impl ChunkLight {
+    /// Replaces every uniform section array with its single level.
+    pub fn compact(&mut self) {
+        for container in self.sky_light.iter_mut().chain(self.block_light.iter_mut()) {
+            container.compact();
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ChunkHeightmapType {
     WorldSurface = 0,
@@ -213,6 +222,9 @@ pub struct ChunkHeightmaps {
     pub world_surface: Option<Box<[i64]>>,
     pub motion_blocking: Option<Box<[i64]>>,
     pub motion_blocking_no_leaves: Option<Box<[i64]>>,
+    /// Heightmaps this server does not compute (`OCEAN_FLOOR` and anything a
+    /// datapack adds), kept verbatim so a save does not strip them.
+    pub preserved: FxHashMap<String, Box<[i64]>>,
 }
 
 impl ChunkHeightmaps {
@@ -341,6 +353,7 @@ impl Default for ChunkHeightmaps {
             motion_blocking: None,
             motion_blocking_no_leaves: None,
             world_surface: None,
+            preserved: FxHashMap::default(),
         }
     }
 }

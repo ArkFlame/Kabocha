@@ -4628,7 +4628,7 @@ impl Player {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 (
-                    w.raining,
+                    w.is_raining(),
                     w.rain_level.clamp(0.0, 1.0),
                     w.thunder_level.clamp(0.0, 1.0),
                 )
