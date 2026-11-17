@@ -243,7 +243,8 @@ pub fn capture_structure_template_from_world(
                 let info = StructureBlockInfo::new(rel_pos, Arc::new(entry), nbt);
                 if info.nbt.is_some() {
                     block_entity_blocks.push(info);
-                } else if state.is_solid_render() {
+                } else if state.is_full_cube() {
+                    // Vanilla: `isCollisionShapeFullBlock`, not render occlusion (glass is full-collision).
                     full_blocks.push(info);
                 } else {
                     other_blocks.push(info);
@@ -1195,7 +1196,17 @@ mod tests {
         compute_detected_bounds, is_randomizable_container_id, is_safe_generated_structure_path,
         parse_structure_identifier,
     };
+    use pumpkin_data::Block;
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
+
+    #[test]
+    fn palette_full_block_uses_collision_shape_not_occlusion() {
+        // Glass has a full collision shape but does not occlude, so it must sort as a full block.
+        let glass = Block::GLASS.default_state;
+        assert!(glass.is_full_cube());
+        assert!(!glass.is_solid_render());
+        assert!(!Block::WATER.default_state.is_full_cube());
+    }
 
     #[test]
     fn loot_seed_only_for_randomizable_containers() {
