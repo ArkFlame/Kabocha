@@ -682,7 +682,6 @@ pub struct Player {
     /// The `tick_counter` value when the last teleport was issued.
     pub teleport_issued_tick: AtomicI32,
     /// Set while a dimension change awaits its teleport confirmation.
-    // TODO: vanilla also skips the portal cooldown countdown while this is set.
     pub is_changing_dimension: AtomicBool,
     /// The pending teleport information, including the teleport ID and target location.
     pub awaiting_teleport: Mutex<Option<(VarInt, Vector3<f64>)>>,
@@ -1774,7 +1773,6 @@ impl Player {
         crate::item::items::spear::SpearItem::lunge(self, &item_stack);
 
         // Only reduce attack damage if in cooldown
-        // TODO: Enchantments are reduced in the same way, just without the square.
         if attack_cooldown_progress < 1.0 {
             damage_multiplier = attack_cooldown_progress.powi(2).mul_add(0.8, 0.2);
         }

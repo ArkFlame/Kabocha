@@ -3993,7 +3993,12 @@ impl Entity {
 
     /// Advances the portal timer and, once it completes, teleports the entity and its passengers.
     fn tick_portal(&self, caller: &dyn EntityBase) {
-        if self.portal_cooldown.load(Ordering::Relaxed) > 0 {
+        // Vanilla ServerPlayer#processPortalCooldown: the countdown pauses while a dimension change
+        // awaits its teleport confirmation.
+        let changing_dimension = caller
+            .get_player()
+            .is_some_and(|player| player.is_changing_dimension.load(Ordering::Relaxed));
+        if !changing_dimension && self.portal_cooldown.load(Ordering::Relaxed) > 0 {
             self.portal_cooldown.fetch_sub(1, Ordering::Relaxed);
         }
         let Ok(mut manager_guard) = self.portal_manager.try_lock() else {
