@@ -618,6 +618,11 @@ impl EntityBase for ArmorStandEntity {
             {
                 return false;
             } else if player.is_creative() {
+                world.play_sound(
+                    Sound::EntityArmorStandBreak,
+                    SoundCategory::Neutral,
+                    &entity.pos.load(),
+                );
                 Self::spawn_break_particles(entity);
                 self.kill(caller);
                 return true;
@@ -631,17 +636,15 @@ impl EntityBase for ArmorStandEntity {
             .query_gametime();
 
         if time - self.last_hit_time.load(Ordering::Relaxed) > 5 && !always_kills {
+            // Vanilla broadcasts the wobble event; clients play `ARMOR_STAND_HIT`
+            // themselves from `handleEntityEvent`, so the server only emits the
+            // damage game event.
             world.send_entity_status(entity, EntityStatus::ArmorstandWobble, ActorEventID::None);
-            world.play_sound_fine(
-                Sound::EntityArmorStandHit,
-                SoundCategory::Neutral,
-                &entity.block_pos.load().to_f64(),
-                0.3,
-                1.0,
-            );
+            entity.emit_own_game_event(caller, GameEvent::EntityDamage);
             self.last_hit_time.store(time, Ordering::Relaxed);
         } else {
             Self::spawn_break_particles(entity);
+            // `broken_by_anything` already plays the break sound.
             self.break_and_drop_items();
             self.kill(caller);
         }
