@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
+use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::effect::StatusEffect;
@@ -205,6 +206,17 @@ impl Mob for HoglinEntity {
 
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
+    }
+
+    /// Vanilla `Hoglin.getWalkTargetValue`: crimson nylium is preferred. The
+    /// repellent-first check needs the brain's NEAREST_REPELLENT memory, not ported yet.
+    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
+        let world = self.mob_entity.living_entity.entity.world.load();
+        if world.get_block(&pos.down()).id == Block::CRIMSON_NYLIUM.id {
+            10.0
+        } else {
+            0.0
+        }
     }
 
     fn finalize_spawn(

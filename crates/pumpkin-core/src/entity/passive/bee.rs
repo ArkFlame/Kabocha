@@ -405,6 +405,11 @@ impl Mob for BeeEntity {
                 }
             }
         }
+        // Vanilla `Bee.customServerAiStep`: count ticks spent without nectar. The hive
+        // return reads this at 3600, and the pollination reset is not ported yet.
+        if !self.has_nectar() {
+            self.ticks_without_nectar.fetch_add(1, Ordering::Relaxed);
+        }
         self.update_persistent_anger();
     }
 
