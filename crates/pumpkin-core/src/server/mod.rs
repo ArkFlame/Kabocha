@@ -1079,14 +1079,18 @@ impl Server {
     pub async fn save_all(&self) -> Result<(), String> {
         self.management_hub.broadcast_server_saving();
 
+        // Vanilla `saveEverything` keeps going after a failed step so one bad file does not
+        // skip the world saves; the failures are reported together at the end.
+        let mut errors: Vec<String> = Vec::new();
+
         if let Err(err) = self.save_world_info() {
             error!("Failed to save world info: {err}");
-            return Err(format!("Failed to save world info: {err}"));
+            errors.push(format!("Failed to save world info: {err}"));
         }
 
         if let Err(err) = self.player_data_storage.save_all_players(self) {
             error!("Failed to save player data: {err}");
-            return Err(format!("Failed to save player data: {err}"));
+            errors.push(format!("Failed to save player data: {err}"));
         }
 
         if let Err(err) = self
@@ -1095,12 +1099,12 @@ impl Server {
             .await
         {
             error!("Failed to save player advancements: {err}");
-            return Err(format!("Failed to save player advancements: {err}"));
+            errors.push(format!("Failed to save player advancements: {err}"));
         }
 
         if let Err(err) = self.save_persistent_data() {
             error!("{err}");
-            return Err(err);
+            errors.push(err);
         }
 
         for world in self.worlds.load().iter() {
@@ -1109,7 +1113,11 @@ impl Server {
 
         self.management_hub.broadcast_server_saved();
 
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
     }
 
     /// Discards placement from a disabled dimension before falling back to world spawn.
