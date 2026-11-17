@@ -63,6 +63,10 @@ fn find_pack_name(server: &Server, input: &str) -> Option<String> {
     crate::data::datapack::DatapackManager::find_pack_name(server, input)
 }
 
+fn is_embedded_pack(name: &str) -> bool {
+    crate::data::datapack::DatapackManager::is_embedded_pack(name)
+}
+
 fn format_pack(name: &str) -> TextComponent {
     TextComponent::text(format!("[{name}]")).color_named(NamedColor::Green)
 }
@@ -371,9 +375,11 @@ impl CommandExecutor for DatapackDisableExecutor {
                 .create_without_context(TextComponent::text(name_str.to_string())));
         }
 
-        if target_pack == "vanilla" {
+        // Built-in packs are compiled into the server and reported as enabled
+        // again on every load, so disabling one is not possible.
+        if is_embedded_pack(&target_pack) {
             return Err(ERROR_DISABLE_FAILED
-                .create_without_context(TextComponent::text("vanilla".to_string())));
+                .create_without_context(TextComponent::text(target_pack.clone())));
         }
 
         let target = target_pack.clone();
