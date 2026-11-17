@@ -1293,6 +1293,14 @@ impl MobEntity {
         let entity = &self.living_entity.entity;
 
         let world = entity.world.load();
+
+        // Vanilla `Mob.checkDespawn` discards monsters on Peaceful before the
+        // persistence and distance checks.
+        if world.level_info.load().difficulty == Difficulty::Peaceful && mob.is_monster_class() {
+            entity.remove();
+            return;
+        }
+
         let pos = entity.pos.load();
         let players = world.players.load();
 
