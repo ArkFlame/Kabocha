@@ -5,7 +5,9 @@ use std::path::Path;
 use pumpkin_data::damage::{DamageEffects, DamageScaling, DamageType, DeathMessageType};
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::{Nbt, NbtCompound};
+use pumpkin_util::identifier::Identifier;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -224,12 +226,32 @@ fn load_damage_types_recursive<S: std::hash::BuildHasher>(
                 stem_path = stem.to_string();
             }
             let stem_path = stem_path.replace('\\', "/");
+            // Vanilla requires the datapack path to form a valid resource location id.
+            if !Identifier::is_valid_namespace(namespace)
+                || !Identifier::is_valid_path(&stem_path)
+            {
+                warn!(
+                    "Skipping damage type file {}: invalid resource location",
+                    path.display()
+                );
+                continue;
+            }
             let damage_type_id = format!("{namespace}:{stem_path}");
 
-            if let Ok(content) = fs::read_to_string(&path)
-                && let Ok(definition) = serde_json::from_str::<DamageTypeDefinition>(&content)
-            {
-                registry.insert(damage_type_id, definition);
+            let content = match fs::read_to_string(&path) {
+                Ok(content) => content,
+                Err(err) => {
+                    warn!("Skipping damage type file {}: {err}", path.display());
+                    continue;
+                }
+            };
+            match serde_json::from_str::<DamageTypeDefinition>(&content) {
+                Ok(definition) => {
+                    registry.insert(damage_type_id, definition);
+                }
+                Err(err) => {
+                    warn!("Skipping damage type file {}: {err}", path.display());
+                }
             }
         }
     }
@@ -349,6 +371,30 @@ mod tests {
             pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
         );
         Nbt::read_unnamed(&mut reader).unwrap().root_tag
+    }
+
+    #[test]
+    fn load_damage_types_skips_invalid_resource_location() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dt_bad_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(
+            temp_dir.join("valid.json"),
+            r#"{"message_id": "ok", "scaling": "never"}"#,
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.join("Bad Name.json"),
+            r#"{"message_id": "bad", "scaling": "never"}"#,
+        )
+        .unwrap();
+
+        let mut registry = HashMap::new();
+        let count = load_damage_types_from_dir("custom", &temp_dir, &mut registry);
+        assert_eq!(count, 1);
+        assert!(registry.contains_key("custom:valid"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]
