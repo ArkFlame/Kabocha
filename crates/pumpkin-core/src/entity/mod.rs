@@ -5208,16 +5208,12 @@ impl Entity {
         }
         // Update cache so we don't send rubberbanding deltas
         self.last_sent_pos.store(position);
-        // TODO: use `pumpkin_util::math::pack_degrees`.
         if let Some(yaw) = yaw {
-            self.last_sent_yaw
-                .store((yaw * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
-            self.last_sent_head_yaw
-                .store((yaw * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
+            self.last_sent_yaw.store(pack_degrees(yaw), Relaxed);
+            self.last_sent_head_yaw.store(pack_degrees(yaw), Relaxed);
         }
         if let Some(pitch) = pitch {
-            self.last_sent_pitch
-                .store((pitch * 256.0 / 360.0).rem_euclid(256.0) as u8, Relaxed);
+            self.last_sent_pitch.store(pack_degrees(pitch), Relaxed);
         }
         let chunk_pos = self.chunk_pos.load();
         world.broadcast_to_chunk(
