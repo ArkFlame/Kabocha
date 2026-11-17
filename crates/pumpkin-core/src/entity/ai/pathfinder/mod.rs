@@ -2759,8 +2759,15 @@ mod tests {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);
-        for z in 0..=4 {
-            chunk.set_block_absolute_y(0, 64, z, pumpkin_data::Block::WATER.default_state.id);
+        // Cod footprint is ceil(width + 1) x ceil(height + 1) x ceil(width + 1) = 2 x 2 x 2,
+        // so every cell the mob occupies along the corridor must be water.
+        let water = pumpkin_data::Block::WATER.default_state.id;
+        for x in 0..=1 {
+            for y in 64..=65 {
+                for z in 0..=5 {
+                    chunk.set_block_absolute_y(x, y, z, water);
+                }
+            }
         }
         world.level.loaded_chunks.insert(
             pumpkin_util::math::vector2::Vector2::new(0, 0),
