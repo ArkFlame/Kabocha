@@ -1,3 +1,4 @@
+use super::scoreboard::name_exceeds_limit;
 use crate::command::argument_builder::{
     ArgumentBuilder, LiteralArgumentBuilder, argument, command, literal,
 };
@@ -33,6 +34,11 @@ const ARG_ALLOWED: &str = "allowed";
 const DUPLICATE_TEAM_ERROR: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_TEAM_ADD_DUPLICATE,
     translation::java::COMMANDS_TEAM_ADD_DUPLICATE,
+);
+
+const TEAM_NAME_TOO_LONG_ERROR: CommandErrorType<0> = CommandErrorType::new(
+    translation::java::COMMANDS_SCOREBOARD_TEAMS_ADD_TOOLONG,
+    translation::java::COMMANDS_SCOREBOARD_TEAMS_ADD_TOOLONG,
 );
 
 const TEAM_NOT_FOUND_ERROR: CommandErrorType<1> = CommandErrorType::new(
@@ -92,6 +98,9 @@ struct TeamAddExecutor {
 impl CommandExecutor for TeamAddExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let team_name = StringArgumentType::get(context, ARG_TEAM_NAME)?;
+        if name_exceeds_limit(team_name) {
+            return Err(TEAM_NAME_TOO_LONG_ERROR.create_without_context());
+        }
         let display_name = if self.has_display_name {
             ComponentArgumentType::get(context, ARG_DISPLAY_NAME)?
         } else {

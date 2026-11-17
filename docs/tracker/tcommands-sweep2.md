@@ -16,3 +16,16 @@ Skipped by policy: time, data, compute, locate, enchant/effect/fill (enchant got
 | clone | FIXED (UNVERIFIED) | Too-big cap read `maxBlockModifications`. Vanilla `CloneCommands.MAX_CLONE_AREA` is a fixed 32768. Now `exceeds_clone_area` with a boundary test. Overlap check already matches vanilla (skipped for force/move). |
 | setblock | NO DIVERGENCE FOUND | Keep fails on non-air, same-state result fails, destroy/replace/strict flags present. |
 | title, scoreboard, team, bossbar, advancement, attribute, item | NOT SWEPT | Out of this pass's budget. |
+
+## Sweep 2 pass (scoreboard/team/title/bossbar/advancement/attribute/item)
+
+| Command | Status | Note |
+|---|---|---|
+| scoreboard objectives add | FIXED (UNVERIFIED) | Name over 16 UTF-16 units now fails with `commands.scoreboard.objectives.add.tooLong` before the duplicate check. Unit test `name_limit_counts_utf16_units`. |
+| team add | FIXED (UNVERIFIED) | Same 16-unit limit, key `commands.scoreboard.teams.add.tooLong`, shares `name_exceeds_limit` from scoreboard.rs. |
+| scoreboard objectives add/display name length | OPEN (UNVERIFIED) | Vanilla `displayTooLong` cap not enforced; exact limit not recalled reliably. |
+| title/subtitle/actionbar/times/clear/reset | NO DIVERGENCE FOUND | Keys `commands.title.show.{mode}.single/multiple`, `cleared`, `reset`, `times` match vanilla. |
+| bossbar | NO DIVERGENCE FOUND | `max` min 1, value min 0, colour/style literals, `commands.bossbar.set.*.unchanged` keys present. |
+| team modify/join/leave | NOT SWEPT | Option literals present; unchanged-error keys are generated constants, not re-checked. |
+| scoreboard players operation/reset | NOT SWEPT | Out of this pass's budget. |
+| advancement, attribute, item | NOT SWEPT | Translation keys are generated constants; slot-name parsing not verified in this pass. |
