@@ -85,55 +85,60 @@ pub const MOB_SPAWN_ENCHANT_COST_SPAN: i32 = 17;
 // attempts at 10.87% per vanilla Mob.populateDefaultEquipmentSlots) and
 // partial armor chance (0.1 on Hard / 0.25 otherwise).
 // Type 0=Leather, 1=Copper, 2=Gold, 3=Chainmail, 4=Iron, 5=Diamond
-// Slot order: HEAD, CHEST, LEGS, FEET
+// Slot order: FEET, LEGS, CHEST, HEAD (vanilla `EquipmentSlot.values()` order)
 // ══════════════════════════════════════════════════════════════════
 
 static ARMOR_TIERS: LazyLock<[[&'static Item; 4]; 6]> = LazyLock::new(|| {
     [
         [
-            &Item::LEATHER_HELMET,
-            &Item::LEATHER_CHESTPLATE,
-            &Item::LEATHER_LEGGINGS,
             &Item::LEATHER_BOOTS,
+            &Item::LEATHER_LEGGINGS,
+            &Item::LEATHER_CHESTPLATE,
+            &Item::LEATHER_HELMET,
         ],
         [
-            &Item::COPPER_HELMET,
-            &Item::COPPER_CHESTPLATE,
-            &Item::COPPER_LEGGINGS,
             &Item::COPPER_BOOTS,
+            &Item::COPPER_LEGGINGS,
+            &Item::COPPER_CHESTPLATE,
+            &Item::COPPER_HELMET,
         ],
         [
-            &Item::GOLDEN_HELMET,
-            &Item::GOLDEN_CHESTPLATE,
-            &Item::GOLDEN_LEGGINGS,
             &Item::GOLDEN_BOOTS,
+            &Item::GOLDEN_LEGGINGS,
+            &Item::GOLDEN_CHESTPLATE,
+            &Item::GOLDEN_HELMET,
         ],
         [
-            &Item::CHAINMAIL_HELMET,
-            &Item::CHAINMAIL_CHESTPLATE,
-            &Item::CHAINMAIL_LEGGINGS,
             &Item::CHAINMAIL_BOOTS,
+            &Item::CHAINMAIL_LEGGINGS,
+            &Item::CHAINMAIL_CHESTPLATE,
+            &Item::CHAINMAIL_HELMET,
         ],
         [
-            &Item::IRON_HELMET,
-            &Item::IRON_CHESTPLATE,
-            &Item::IRON_LEGGINGS,
             &Item::IRON_BOOTS,
+            &Item::IRON_LEGGINGS,
+            &Item::IRON_CHESTPLATE,
+            &Item::IRON_HELMET,
         ],
         [
-            &Item::DIAMOND_HELMET,
-            &Item::DIAMOND_CHESTPLATE,
-            &Item::DIAMOND_LEGGINGS,
             &Item::DIAMOND_BOOTS,
+            &Item::DIAMOND_LEGGINGS,
+            &Item::DIAMOND_CHESTPLATE,
+            &Item::DIAMOND_HELMET,
         ],
     ]
 });
 
+/// Armor slots in vanilla `EquipmentSlot.values()` order.
+///
+/// Vanilla `Mob.populateDefaultEquipmentSlots` arms the first slot unconditionally
+/// and only then rolls the early-stop chance, so a mob always gets feet armor and
+/// higher slots are the ones that are dropped.
 static ARMOR_POPULATION_ORDER: [EquipmentSlot; 4] = [
-    EquipmentSlot::HEAD,
-    EquipmentSlot::CHEST,
-    EquipmentSlot::LEGS,
     EquipmentSlot::FEET,
+    EquipmentSlot::LEGS,
+    EquipmentSlot::CHEST,
+    EquipmentSlot::HEAD,
 ];
 
 // ══════════════════════════════════════════════════════════════════
@@ -534,8 +539,8 @@ fn weighted_select_item(items: &[WeaponEntry]) -> &'static Item {
 /// Selects armor using the vanilla algorithm.
 ///
 /// 1. Random base tier (0-2) with up to 3 upgrade attempts at 10.87% each.
-/// 2. Iterates HEAD→CHEST→LEGS→FEET, with a chance to stop early (10% Hard,
-///    25% otherwise) — higher difficulty produces fewer pieces.
+/// 2. Iterates FEET→LEGS→CHEST→HEAD, with a chance to stop early (10% Hard,
+///    25% otherwise) — higher difficulty produces fewer pieces, never the feet.
 /// 3. Each piece gets the default equipment drop chance.
 #[must_use]
 fn select_vanilla_armor(difficulty: &RegionalDifficulty) -> Vec<(EquipmentSlot, ItemStack, f32)> {
@@ -1124,6 +1129,26 @@ impl pumpkin_inventory::Inventory for EquipmentSlotContainer {
 #[cfg(test)]
 mod tests {
     use super::moon_brightness;
+
+    #[test]
+    fn armor_population_starts_at_feet_like_vanilla() {
+        use super::RegionalDifficulty;
+        use pumpkin_data::data_component_impl::EquipmentSlot;
+        use pumpkin_util::difficulty::Difficulty;
+
+        let difficulty = RegionalDifficulty::calculate(Difficulty::Normal, 0, 0, 0.0);
+        let pieces = super::select_vanilla_armor(&difficulty);
+        let order = [
+            EquipmentSlot::FEET,
+            EquipmentSlot::LEGS,
+            EquipmentSlot::CHEST,
+            EquipmentSlot::HEAD,
+        ];
+        assert!(!pieces.is_empty(), "feet are always armored");
+        for (i, (slot, _, _)) in pieces.iter().enumerate() {
+            assert!(*slot == order[i], "slot {i} is out of vanilla order");
+        }
+    }
 
     #[test]
     fn moon_brightness_matches_the_vanilla_phase_table() {
