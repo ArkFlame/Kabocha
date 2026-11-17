@@ -1,51 +1,65 @@
-# Audit: crates/pumpkin-core/src/net/mod.rs
+# audit: crates/pumpkin-core/src/net/mod.rs (row taudit-crates-pumpkin-core-src-ne-cbdd30)
 
-Scope: shared client/net helpers (profile, config, enqueue/kick plumbing, join checks,
-player name validation, Bedrock disconnect reasons). No TODO/FIXME markers existed; the
-3 tracker "vanilla" markers were doc comments plus a test name.
+Scope: connection abstractions, offline UUID, player names, ban/whitelist join gate, Bedrock
+DisconnectReason table, pending-byte accounting. No TODO/FIXME markers; the four "vanilla"
+mentions (lines 72, 128, 503, 668) are comments that match the referenced vanilla code.
 
-## Fixed
+Verified correct (no change): offline_uuid (UUIDUtil.createOfflinePlayerUUID),
+clamp_horizontal_position / clamp_vertical_position (ServerGamePacketListenerImpl
+-3.0E7..3.0E7 / -2.0E7..2.0E7, both used by move_vehicle.rs:33-35), expired-ban pruning
+(BanList#get -> removeExpired), whitelist ops bypass (PlayerList#isWhiteListed),
+DisconnectReason numeric table.
 
-- `is_valid_player_name` (was mod.rs:503) accepted non-ASCII names (`c.is_control() || c == ' '`).
-  Vanilla `StringUtil.isValidPlayerName` requires every char to be `!`..`~`
-  (`String.length() <= 16 && chars all >32 && <127`), so CJK/emoji names must be rejected.
-  Now `name.len() <= 16 && name.as_bytes().iter().all(u8::is_ascii_graphic)`; the two tests
-  that asserted unicode names were valid were flipped.
-  Commit: 2ccbeba1f
+Fixed in earlier passes: empty player name accepted ("fix(net): reject empty player names"),
+non-ASCII player names accepted ("fix(net): reject non-ASCII player names like vanilla"),
+position clamps missing ("fix(net): validate client supplied positions in move vehicle and
+bedrock input"), offline UUID encoding ("fix(net): derive offline-mode UUIDs like vanilla").
 
-## Remaining gaps (not fixed: needs a decision or spans other files)
+Re-audit 2026-11-17: no remaining gap in this file is both small and certain. All four
+"vanilla" markers are implemented; the only change is that open gap 1 below is now resolved.
 
-1. mod.rs:397-399, 419, 477 (ban expiration text in `can_not_join`). Vanilla
-   `PlayerList#canPlayerLogin` + `BAN_DATE_FORMAT` (`yyyy-MM-dd 'at' HH:mm:ss z`) render the
-   zone abbreviation ("UTC"), while the `time` format macros here emit a numeric offset
-   ("+00:00"). Also vanilla formats the stored expiry in server-default zone, not necessarily
-   the instant's own offset. Suggested fix: format the expiry with a zone abbreviation
-   consistent with the server locale/timezone. Size S. Confidence medium (exact vanilla zone
-   handling unverified without decompiled source).
+## Resolved since the first pass
 
-2. mod.rs:130-137 position clamp helpers are duplicated as private consts in
-   `entity/player/client_move.rs:50-55`. Vanilla has one clamp site per movement handler; two
-   copies can drift (the constants are the client's predicted bounds, `Mth.clamp` in
-   `ServerGamePacketListenerImpl#handleMovePlayer`). Suggested fix: make `client_move` use the
-   `crate::net` helpers. Size S, mechanical.
+### 1. Player name length and charset (was S) - RESOLVED by "reject non-ASCII player names like vanilla"
+- crates/pumpkin-core/src/net/mod.rs:503-509 is_valid_player_name now rejects every byte
+  outside 0x21..=0x7E, so a name is ASCII and byte length equals character length.
+- Matches vanilla net.minecraft.util.StringUtil#isValidPlayerName as used by Paper
+  LoginListener (reject empty; <= 16 chars; each char between '!' and '~'), and removes the
+  old inconsistent CJK allowance (tests invalid_unicode_chinese / invalid_mixed_chars assert
+  rejection).
 
-3. mod.rs:503-508 re-implements the already-correct vanilla helper in
-   `crates/pumpkin-util/src/text/mod.rs:2085` (`is_valid_player_name`, used by the
-   `ResolvableProfile` codec). Two copies already drifted once (this audit). Suggested fix:
-   make the `pumpkin-util` helper `pub` and re-export/use it from `net` instead of keeping a
-   second copy. Size S, cross-crate but additive.
+## Open gaps (outside the fix-it-now scope of this file)
 
-## Checked and matching vanilla (no change)
+### 2. Server-full is checked before ban/whitelist, and twice (M)
+- crates/pumpkin-core/src/net/java/login/login_start.rs:21-30 and
+  crates/pumpkin-core/src/server/mod.rs:994-1004 vs vanilla PlayerList#canPlayerLogin
+  (ban -> whitelist -> ip-ban -> full) called from
+  ServerLoginPacketListenerImpl#verifyLoginAndFinishConnectionSetup after authentication.
+- Effect: banned / not-whitelisted clients are told "server full" when the server is full, and
+  the check runs before authentication instead of after it.
+- Fix: move the max-players branch into can_not_join (net/mod.rs:392) after the ip-ban check and
+  drop the early copy in login_start.
 
-- `offline_uuid`: `UUIDUtil.createOfflinePlayerUUID` MD5 v3 of `OfflinePlayer:<name>`; test
-  covers Notch/jeb_/non-ASCII.
-- `clamp_*` bounds -3.0E7/3.0E7 and -2.0E7/2.0E7 match vanilla movement handlers.
-- `can_not_join` order: ban by profile, whitelist (ops bypass), then IP ban, matching
-  `PlayerList#canPlayerLogin`; `multiplayer.disconnect.banned.*` / `not_whitelisted` keys used.
-- `PlayerConfig::default()` is only used by tests, so its `view_distance: 8` fallback has no
-  runtime parity effect.
-- `MAX_PENDING_BYTES` (64 MB) is a Pumpkin-side stall guard; vanilla has no equivalent cap.
-- `login_start.rs:33` kick text "Invalid characters in username" matches vanilla's
-  `Validate.validState(..., "Invalid characters in username")`, so it was left alone.
-- `send_packet_now`/`enqueue_packet*` editioned helpers, `disconnect` reason mapping and
-  `GameProfile` serde/clone are plumbing with no vanilla counterpart.
+### 3. No op bypass for the player limit (S)
+- login_start.rs:22, server/mod.rs:998: vanilla canPlayerLogin returns server-full only when
+  !canBypassPlayerLimit(profile) (i.e. the profile is not in ops.json).
+- Fix: skip the limit when server.data.operator_config.read().get_entry(&profile.id).is_some().
+  Needs a decision because Pumpkin already extends vanilla with max_players = 0 (unlimited).
+
+### 4. Ban date has no timezone name (S, cosmetic)
+- net/mod.rs:397-399 renders an offset such as +00:00; vanilla PlayerList.BAN_DATE_FORMAT is
+  "yyyy-MM-dd 'at' HH:mm:ss z" in the system default zone, rendering e.g. CET.
+- Fix: format in the local zone and append its abbreviation (time needs tz data, so a small
+  abbreviation table or the time-tz crate). Kick text only.
+
+### 5. PlayerConfig defaults differ from ServerPlayer (S, low impact)
+- net/mod.rs:105-118: view_distance = 8, skin_parts = 0x7F, server_listing = false.
+  Vanilla ServerPlayer starts with the server view distance and modelCustomisation = 0 before
+  the client ClientInformation arrives; only en_us/FULL/chat colours/RIGHT hand/no text
+  filtering/no listing match.
+- Fix: seed view_distance from the server config when the profile is created. Only observable in
+  the window before the client sends settings.
+
+### 6. try_enqueue_spawn_packet is not fallible (S, internal)
+- net/mod.rs:328-330 returns () and delegates to enqueue_spawn_packet, unlike every other
+  try_enqueue_*. No vanilla counterpart; leave unless a caller needs the back-pressure signal.
