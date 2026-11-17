@@ -2532,7 +2532,7 @@ mod test {
 
 #[cfg(test)]
 mod custom_name_nbt_tests {
-    use super::TextComponent;
+    use super::{ARGBColor, HoverEvent, TextComponent};
     use pumpkin_nbt::tag::NbtTag;
 
     #[test]

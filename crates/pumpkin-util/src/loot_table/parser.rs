@@ -61,6 +61,10 @@ fn many(value: &Value) -> &[Value] {
 }
 
 /// Reads an optional component filter, distinguishing an omitted list from an empty one.
+#[expect(
+    clippy::option_option,
+    reason = "the outer Option is a parse failure, the inner one is an omitted filter"
+)]
 fn component_filter(
     function: &Value,
     key: &str,
@@ -464,6 +468,10 @@ impl<R: Fn(&str) -> Option<Value>> Parser<'_, R> {
         all(conditions)
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one flat dispatch over the vanilla function types"
+    )]
     fn functions(&self, value: &Value) -> Vec<Function> {
         let Some(functions) = value.get("modifier").or_else(|| value.get("functions")) else {
             return Vec::new();

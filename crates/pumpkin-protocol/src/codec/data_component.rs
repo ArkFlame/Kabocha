@@ -410,8 +410,8 @@ impl DataComponentCodec<Self> for ItemNameImpl {
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
         let tag = seq.get_nbt_with_version(&pumpkin_util::version::JavaMinecraftVersion::V_26_2)?;
-        Ok(tag.as_ref().map_or_else(
-            || Self {
+        Ok(tag.as_ref().map_or(
+            Self {
                 name: Cow::Borrowed(""),
             },
             Self::from_component_tag,
@@ -3842,14 +3842,7 @@ mod tests {
         VarInt(i32::from(Item::ARROW.id))
             .encode(&mut expected)
             .unwrap();
-        expected.extend_from_slice(&[
-            1,
-            1,
-            0,
-            DataComponent::IntangibleProjectile.to_id(),
-            10,
-            0,
-        ]);
+        expected.extend_from_slice(&[1, 1, 0, DataComponent::IntangibleProjectile.to_id(), 10, 0]);
         assert_eq!(encoded, expected);
 
         let mut cursor = encoded.as_slice();
@@ -3857,7 +3850,11 @@ mod tests {
         assert!(cursor.is_empty());
         let stack = ItemStack::read_item_stack(&decoded.projectiles[0]).unwrap();
         assert_eq!(stack.item.id, Item::ARROW.id);
-        assert!(stack.get_data_component::<IntangibleProjectileImpl>().is_some());
+        assert!(
+            stack
+                .get_data_component::<IntangibleProjectileImpl>()
+                .is_some()
+        );
     }
 
     #[test]
@@ -4162,7 +4159,10 @@ mod tests {
         use pumpkin_data::item::Item;
         use pumpkin_data::item_stack::ItemStack;
 
-        let items = vec![ItemStack::new(1, &Item::STONE), ItemStack::new(1, &Item::DIRT)];
+        let items = vec![
+            ItemStack::new(1, &Item::STONE),
+            ItemStack::new(1, &Item::DIRT),
+        ];
         let bundle = BundleContentsImpl {
             items,
             selected_item: 1,
@@ -4172,8 +4172,15 @@ mod tests {
         let mut cursor = encoded.as_slice();
         let decoded = BundleContentsImpl::deserialize(&mut cursor)?;
         assert_eq!(decoded.items.len(), 2);
-        assert_eq!(decoded.selected_item, BundleContentsImpl::NO_SELECTED_ITEM_INDEX);
-        assert!(cursor.is_empty(), "bundle contents left {} trailing bytes", cursor.len());
+        assert_eq!(
+            decoded.selected_item,
+            BundleContentsImpl::NO_SELECTED_ITEM_INDEX
+        );
+        assert!(
+            cursor.is_empty(),
+            "bundle contents left {} trailing bytes",
+            cursor.len()
+        );
         Ok(())
     }
 

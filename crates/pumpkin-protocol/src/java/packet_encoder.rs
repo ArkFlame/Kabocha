@@ -307,7 +307,10 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
     /// -   `Data`: The packet's data.
     ///
     /// NOTE: This method does not flush. Call [`Self::flush`] to flush buffered data.
-    pub async fn write_packet(&mut self, packet: SerializedPacket) -> Result<(), PacketEncodeError> {
+    pub async fn write_packet(
+        &mut self,
+        packet: SerializedPacket,
+    ) -> Result<(), PacketEncodeError> {
         let mut frame = std::mem::take(&mut self.frame_scratch);
         frame.clear();
         let framed = self.frame_packet(packet.as_bytes(), &mut frame);

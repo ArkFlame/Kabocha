@@ -289,10 +289,9 @@ impl ItemStackSerializer<'_> {
         if item_count.0 == 0 {
             return Ok(ItemStackSerializer(Cow::Borrowed(ItemStack::EMPTY)));
         }
-        let item_count_u8: u8 = item_count
-            .0
-            .try_into()
-            .map_err(|_| ReadingError::Message("Invalid item count!".into()))?;
+        if u8::try_from(item_count.0).is_err() {
+            return Err(ReadingError::Message("Invalid item count!".into()));
+        }
 
         let item_id = read.get_var_int()?;
         let num_to_add = read.get_var_int()?.0;

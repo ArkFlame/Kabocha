@@ -37,8 +37,9 @@ pub const fn points_in_level(level: i32) -> i32 {
     }
 }
 
-/// Adds experience points the way vanilla `Player#giveExperiencePoints` does: it moves
-/// whole levels one at a time instead of deriving the level from a total that saturates
+/// Adds experience points the way vanilla `Player#giveExperiencePoints` does.
+///
+/// It moves whole levels one at a time instead of deriving the level from a total that saturates
 /// at `i32::MAX`, so experience keeps accumulating past that limit.
 ///
 /// Returns the new level and the progress (`0.0` to `1.0`) within that level.

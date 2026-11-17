@@ -358,7 +358,7 @@ fn float_channels([alpha, red, green, blue]: [f64; 4]) -> ARGBColor {
     clippy::cast_sign_loss,
     reason = "legacy byte channels are whole numbers in 0..=255"
 )]
-fn legacy_byte_channels([alpha, red, green, blue]: [f64; 4]) -> ARGBColor {
+const fn legacy_byte_channels([alpha, red, green, blue]: [f64; 4]) -> ARGBColor {
     ARGBColor {
         alpha: alpha as u8,
         red: red as u8,

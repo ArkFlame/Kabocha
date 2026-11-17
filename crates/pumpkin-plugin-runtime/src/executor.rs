@@ -1161,7 +1161,7 @@ where
         });
         drop(send_guard);
 
-        let (result, terminal) = match tokio::time::timeout(timeout, async {
+        let Ok((result, terminal)) = tokio::time::timeout(timeout, async {
             let result = receiver.await;
             let mut join = self.driver_join();
             let terminal = join.wait().await.map_err(|error| {
@@ -1173,17 +1173,14 @@ where
             (result, terminal)
         })
         .await
-        {
-            Ok(drained) => drained,
-            Err(_) => {
-                tracing::warn!(
-                    ?timeout,
-                    "Wasm plugin store kept background tasks alive after on_unload; abandoning the store"
-                );
-                return Err(wasmtime::Error::msg(
-                    "Wasm plugin store shutdown timed out waiting for background tasks",
-                ));
-            }
+        else {
+            tracing::warn!(
+                ?timeout,
+                "Wasm plugin store kept background tasks alive after on_unload; abandoning the store"
+            );
+            return Err(wasmtime::Error::msg(
+                "Wasm plugin store shutdown timed out waiting for background tasks",
+            ));
         };
         reconcile_shutdown_result(result, terminal)
     }

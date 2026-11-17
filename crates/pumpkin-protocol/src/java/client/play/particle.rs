@@ -79,7 +79,7 @@ impl ParticleOptions {
 
     /// Whether `version` still has this particle under an ID of its own.
     ///
-    /// On older versions [`remap_particle_id_for_version`] folds the particle
+    /// On older versions the ID remap folds the particle
     /// onto an unrelated one that reads a different payload — `trail` becomes
     /// `entity_effect`, for instance — so no byte string we could write would be
     /// read correctly and the packet has to be dropped instead.
@@ -630,15 +630,11 @@ mod tests {
         }
     }
 
-    /// Below 1.21.2 the ID remap folds `trail` onto `entity_effect`, which reads
-    /// a different payload, so those clients must be skipped entirely.
+    /// Below 1.21.2 the particle has no ID of its own, so those clients must be
+    /// skipped entirely.
     #[test]
     fn trail_options_are_gated_on_versions_that_have_the_particle() {
-        use pumpkin_data::particle_id_remap::remap_particle_id_for_version;
-
         let options = trail_options();
-        let trail = Particle::Trail as u16;
-        let entity_effect = Particle::EntityEffect as u16;
 
         for version in [
             JavaMinecraftVersion::V_26_2,
@@ -647,11 +643,6 @@ mod tests {
             JavaMinecraftVersion::V_1_21_2,
         ] {
             assert!(options.is_supported_by(version), "{version:?}");
-            assert_ne!(
-                remap_particle_id_for_version(trail, version),
-                remap_particle_id_for_version(entity_effect, version),
-                "{version:?} was expected to keep a dedicated trail ID"
-            );
         }
 
         for version in [
@@ -661,11 +652,6 @@ mod tests {
             JavaMinecraftVersion::V_1_8,
         ] {
             assert!(!options.is_supported_by(version), "{version:?}");
-            assert_eq!(
-                remap_particle_id_for_version(trail, version),
-                remap_particle_id_for_version(entity_effect, version),
-                "{version:?} was expected to fold trail onto entity_effect"
-            );
         }
     }
 

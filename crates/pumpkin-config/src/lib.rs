@@ -400,18 +400,19 @@ pub trait LoadConfiguration {
                 }
             };
 
-            let (parsed_source, patched) = match toml::from_str::<toml::Value>(&file_content) {
-                Ok(mut raw) => {
-                    let patched = Self::prepare(&mut raw);
-                    let source = if patched {
-                        toml::to_string(&raw).unwrap_or_else(|_| file_content.clone())
-                    } else {
-                        file_content.clone()
-                    };
-                    (source, patched)
-                }
-                Err(_) => (file_content.clone(), false),
-            };
+            let (parsed_source, patched) = toml::from_str::<toml::Value>(&file_content)
+                .map_or_else(
+                    |_| (file_content.clone(), false),
+                    |mut raw| {
+                        let patched = Self::prepare(&mut raw);
+                        let source = if patched {
+                            toml::to_string(&raw).unwrap_or_else(|_| file_content.clone())
+                        } else {
+                            file_content.clone()
+                        };
+                        (source, patched)
+                    },
+                );
             let (merged_config, changed, diagnostics) =
                 parse_configuration::<Self>(&parsed_source, &path);
             for diagnostic in &diagnostics {

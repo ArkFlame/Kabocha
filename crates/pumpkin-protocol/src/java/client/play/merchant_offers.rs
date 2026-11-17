@@ -287,16 +287,16 @@ mod tests {
 
     #[test]
     fn restock_updates_demand_before_resetting_uses() {
-        let mut offer = offer();
-        offer.uses = 8;
+        let mut stocked = offer();
+        stocked.uses = 8;
 
-        assert!(offer.needs_restock());
-        offer.update_demand();
-        offer.reset_uses();
+        assert!(stocked.needs_restock());
+        stocked.update_demand();
+        stocked.reset_uses();
 
-        assert_eq!(offer.demand, 4);
-        assert_eq!(offer.uses, 0);
-        assert!(!offer.needs_restock());
+        assert_eq!(stocked.demand, 4);
+        assert_eq!(stocked.uses, 0);
+        assert!(!stocked.needs_restock());
 
         let mut lightly_used = offer();
         lightly_used.uses = 1;

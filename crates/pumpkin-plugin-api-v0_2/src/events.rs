@@ -93,7 +93,7 @@ pub trait EventHandler<E: FromIntoEvent>: Send + Sync + 'static {
     /// # Reentry
     ///
     /// The host can start another dispatch while this one is suspended, which is why the receiver
-    /// is `&`self`; shared mutable state needs interior mutability, and no lock guard may be held
+    /// is `&self`; shared mutable state needs interior mutability, and no lock guard may be held
     /// across an await
     async fn handle(&self, server: Server, event: E::Data) -> E::Data;
 }
@@ -182,7 +182,7 @@ impl Context {
 ///
 /// The marker needs the [`EventType`] case it registers under and the resource accessors that
 /// read and write its record: WIT names them `get-<case>` and `set-<case>`, which the binding
-/// generator turns into the snake_case method names passed to this macro
+/// generator turns into the `snake_case` method names passed to this macro
 ///
 /// # Examples
 ///

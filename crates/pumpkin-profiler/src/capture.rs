@@ -84,7 +84,7 @@ impl Snapshot {
         let process_cpu_percent = previous.and_then(|before| {
             let elapsed = captured.duration_since(before.captured).as_secs_f64();
             let used = cpu_nanos?.checked_sub(before.cpu_nanos?)?;
-            (elapsed > 0.0).then(|| used as f64 / 1_000_000_000.0 / elapsed * 100.0)
+            (elapsed > 0.0).then_some(used as f64 / 1_000_000_000.0 / elapsed * 100.0)
         });
         let mut lines = Vec::new();
         if let Some(percent) = process_cpu_percent {
