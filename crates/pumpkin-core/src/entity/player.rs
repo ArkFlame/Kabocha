@@ -5340,6 +5340,79 @@ impl Player {
         }
     }
 
+    /// Like [`Self::request_teleport`], but sends vanilla `PositionFlag`s so only the listed
+    /// fields are relative. Used to seat a boat passenger without resetting their camera.
+    pub(crate) fn request_teleport_with_flags(
+        &self,
+        position: Vector3<f64>,
+        yaw: f32,
+        pitch: f32,
+        relatives: Vec<PositionFlag>,
+    ) -> bool {
+        let Some(server) = self.world().server.upgrade() else {
+            return false;
+        };
+        if let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id) {
+            let mut event = PlayerTeleportEvent {
+                player: player_arc,
+                from: self.living_entity.entity.pos.load(),
+                to: position,
+                cancelled: false,
+            };
+            server.plugin_manager.fire_blocking(&server, &mut event);
+            if event.cancelled {
+                return false;
+            }
+        }
+
+        let i = self.teleport_id_count.fetch_add(1, Ordering::Relaxed);
+        self.chunk_send_epoch.fetch_add(1, Ordering::Relaxed);
+        let teleport_id = i + 1;
+        let entity = &self.living_entity.entity;
+        entity.set_pos(position);
+        let yaw = if relatives.contains(&PositionFlag::YRot) {
+            entity.yaw.load() + yaw
+        } else {
+            yaw
+        };
+        let pitch = if relatives.contains(&PositionFlag::XRot) {
+            entity.pitch.load() + pitch
+        } else {
+            pitch
+        };
+        entity.set_rotation(yaw, pitch);
+        // Moves are ignored until the client confirms (teleport confirmation was added in 1.9).
+        if !matches!(
+            self.client.as_ref(),
+            ClientPlatform::Java(c) if c.version.load() < JavaMinecraftVersion::V_1_9
+        ) {
+            *self
+                .awaiting_teleport
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Some((teleport_id.into(), position));
+        }
+        match self.client.as_ref() {
+            ClientPlatform::Java(client) => {
+                let packet = CPlayerPosition::new(
+                    teleport_id.into(),
+                    position,
+                    Vector3::new(0.0, 0.0, 0.0),
+                    yaw,
+                    pitch,
+                    relatives,
+                );
+                if let Ok(data) = client.serialize_packet(&packet) {
+                    client.try_enqueue_packet(data);
+                }
+            }
+            ClientPlatform::Bedrock(client) => {
+                self.send_bedrock_teleport(client);
+            }
+        }
+        true
+    }
+
     /// Nudges the player by a relative offset without touching their velocity or
     /// camera, using fully relative teleport flags. Used for small physics
     /// corrections like vanilla's `pushEntitiesUp` (e.g. farmland turning into

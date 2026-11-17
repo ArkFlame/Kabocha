@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::entity::EntityBase;
 use crate::entity::mob::has_game_event_listener;
 use crate::entity::player::Player;
+use crate::entity::vehicle::boat::BoatEntity;
 use crossbeam::atomic::AtomicCell;
 
 type Registry = Vec<Arc<dyn EntityBase>>;
@@ -73,6 +74,8 @@ struct Index {
     types: Vec<&'static EntityType>,
     /// Mobs with game event listeners, in list order.
     listeners: Vec<usize>,
+    /// Whether any indexed entity is a boat, so boat collision scans can be skipped.
+    has_boats: bool,
     cells: FxHashMap<Cell, Vec<usize>>,
     oversized: Vec<usize>,
 }
@@ -91,8 +94,10 @@ impl Index {
         self.types.clear();
         self.bounds.clear();
         self.listeners.clear();
+        self.has_boats = false;
         for (slot, registered) in registry.iter().enumerate() {
             let entity = registered.get_entity();
+            self.has_boats |= registered.cast_any().is::<BoatEntity>();
             self.slots.insert(entity.entity_id, slot);
             // The first in list order wins, like a linear search.
             self.uuids.entry(entity.entity_uuid).or_insert(slot);
@@ -359,6 +364,34 @@ impl EntityIndex {
             slots
         });
         slots.into_iter().map(move |slot| registry[slot].clone())
+    }
+
+    /// Like [`Self::query`], limited to entities whose bounding box overlaps `area` and that
+    /// pass `predicate`.
+    pub fn query_filtered<F>(
+        &self,
+        registry: Arc<Registry>,
+        area: BoundingBox,
+        predicate: F,
+    ) -> impl Iterator<Item = Arc<dyn EntityBase>> + use<F>
+    where
+        F: Fn(&dyn EntityBase) -> bool,
+    {
+        let slots = self.with_index(&registry, |index| {
+            let mut slots = index.candidates(&area, |_| true);
+            slots.retain(|&slot| index.intersects(slot, &area));
+            slots
+        });
+        slots
+            .into_iter()
+            .map(move |slot| registry[slot].clone())
+            .filter(move |entity| predicate(entity.as_ref()))
+    }
+
+    /// Whether any indexed entity is a boat.
+    #[must_use]
+    pub fn has_boats(&self, registry: &Arc<Registry>) -> bool {
+        self.with_index(registry, |index| index.has_boats)
     }
 
     pub fn query_players(

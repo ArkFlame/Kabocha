@@ -309,6 +309,12 @@ impl Player {
         }
 
         let pos = target.unwrap_or(last_pos);
+        // Vanilla `ServerGamePacketListenerImpl`: a client cannot step into a boat it did not
+        // predict, so the move is rejected and the known position is re-sent.
+        if entity.has_new_boat_collision(self, pos - last_pos) {
+            self.reject_client_move();
+            return ClientMoveOutcome::Rejected;
+        }
         let was_on_ground = entity.on_ground.load(Ordering::Relaxed);
         entity.set_pos(pos);
 
