@@ -969,9 +969,15 @@ fn compute_chest_props(
     let player_facing = player.get_entity().get_horizontal_facing();
     let chest_facing = player_facing.opposite();
 
-    // Vanilla `ChestBlock.getPlacementState`: a chest placed against a horizontal
-    // face of a single chest always joins it and adopts that chest's facing, whatever
-    // the player yaw is (so a diagonal placement still extends instead of rotating).
+    // Vanilla `ChestBlock.getStateForPlacement` skips the neighbour join entirely for a
+    // crouching player (`isShiftKeyDown`), even when clicking a single chest's side.
+    if player.get_entity().pose.load() == EntityPose::Crouching {
+        return (ChestType::Single, chest_facing);
+    }
+
+    // A chest placed against a horizontal face of a single chest always joins it and
+    // adopts that chest's facing, whatever the player yaw is (so a diagonal placement
+    // still extends instead of rotating).
     if let Some(clicked_face_horiz) = face.to_horizontal_facing() {
         let (clicked_block, clicked_block_state) =
             world.get_block_and_state_id(&block_pos.offset(clicked_face_horiz.to_offset()));
@@ -987,11 +993,6 @@ fn compute_chest_props(
                 }
             }
         }
-    }
-
-    // Crouching players never merge with a neighbour by facing; the clicked chest joined above.
-    if player.get_entity().pose.load() == EntityPose::Crouching {
-        return (ChestType::Single, chest_facing);
     }
 
     (
