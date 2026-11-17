@@ -350,12 +350,6 @@ impl EntityBase for MinecartEntity {
                                     }
                                 }
                             }
-                            if self.vehicle.get_hurt_time() == 0 {
-                                self.vehicle.set_hurt_dir(-self.vehicle.get_hurt_dir());
-                                self.vehicle.set_hurt_time(10);
-                                self.vehicle.set_damage(50.0);
-                                self.vehicle.send_wobble_metadata();
-                            }
                         }
                         _ => {}
                     }
