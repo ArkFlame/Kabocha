@@ -61,3 +61,7 @@ is from knowledge of 1.21.x `NeutralMob` / `AngerManagement` / `Mob`, not 26.3 s
 6. `write_anger_nbt` always writes `anger_end_time` (even -1) and only writes
    `angry_at` when present; unverified against 1.21.x `addPersistentAngerSaveData`
    without the decompiled source. Harmless but not byte-identical. Size S.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

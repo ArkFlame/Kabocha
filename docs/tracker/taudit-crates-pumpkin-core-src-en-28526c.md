@@ -52,3 +52,8 @@ marker in this module tree is `memory/types.rs:123` (TODO: nothing fills
 | memory/mod.rs:124-131 | vanilla tests `timeToLive == 0`; a negative ttl would never expire there, Pumpkin clears at `<= 0` | no vanilla caller passes a negative ttl; leave, or mirror `== 0` exactly | S |
 | memory/mod.rs:136-141 | comment claims the vanilla dump prints the game time in place of the ttl while the code prints the ttl | confirm `Brain.MemorySlot.toString` / 1.21.2 `DebugBrainDump`; if the dump shows an expiry game time, pass it in | S-M |
 | memory/types.rs:123 | `PiglinAi`/`HoglinAi` fill `VISIBLE_ADULT_PIGLIN_COUNT` and `VISIBLE_ADULT_HOGLIN_COUNT` from the visible-adult sensor and use them to decide when to retreat | populate both counts in the piglin/hoglin sensor pass | M |
+
+## Gap status
+
+- FIXED: UTF-16 truncation of memory dump text, entity/ai/brain/memory/mod.rs:155-170, test `truncate_counts_utf16_units`.
+- STILL OPEN: empty-collection set semantics (memory/mod.rs:243,321), setMemoryInternal unregistered put (memory/mod.rs:240-242), negative ttl (memory/mod.rs:124-131, no vanilla caller: leave by design), dump ttl wording (memory/mod.rs:136-141), VISIBLE_ADULT_PIGLIN/HOGLIN counts unpopulated (memory/types.rs:118-123).

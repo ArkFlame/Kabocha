@@ -40,3 +40,7 @@ cooldowns and `reducedTickDelay` bounds" as parity.
 
 Lying-on-back rendering is driven by the synced `DATA_ID_FLAGS` byte, which `set_on_back` already
 updates through `PandaEntity::set_flag`.
+
+## Gap status
+
+- STILL OPEN: lie_on_back.rs random source and canPerformAction ordering (panda, excluded from this sweep by scope).

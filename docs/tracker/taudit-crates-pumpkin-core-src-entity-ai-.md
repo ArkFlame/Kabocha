@@ -42,3 +42,7 @@ checked against. Vanilla reference: `net.minecraft.world.entity.ai.goal.MeleeAtt
   `get_target()`-based creative/spectator drop.
 - `Controls` and the `gated_by`/`performing`/`checking`/`on_stop` hooks are Pumpkin extensions used by
   `passive/polar_bear.rs`, `passive/fox`, `passive/panda`; they do not diverge from vanilla behaviour.
+
+## Gap status
+
+- STILL OPEN: melee_attack.rs rows 1-5 (should_continue nav idle, can_start path, +15 retry, start seeding, field naming). Not re-verified in h3 sweep.

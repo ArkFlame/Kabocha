@@ -31,3 +31,7 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - NBT: `fuse` (short) and `explosion_power` (float), only written when non-default (read-equivalent); fuse/data-tracker ordering is safe because `world/mod.rs:5239-5240` calls `init_data_tracker()` after `load_entity_from_nbt`.
 - `block_state`: vanilla only persists it when it is not `minecraft:tnt`, and only a TNT block can prime an entity here, so `init_data_tracker`'s hardcoded `Block::TNT.default_state` cannot diverge yet.
 - Bedrock actor metadata (`FUSE_TIME`, `y_offset 0.49`) and `is_about_to_explode` (`fuse <= 1`) used by the entity-island push check.
+
+## Gap status
+
+- STILL OPEN: tnt.rs rows 3-8 (portal ignoreExplosion, fuse default, owner persistence, power clamp, ExplosionPrimeEvent power, tntExplodes recheck). Not re-verified in h3 sweep.

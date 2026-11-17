@@ -49,3 +49,9 @@ Remaining gaps:
 | parse_brewing 274-300 | BrewingRecipe = PotionIngredient input (item + optional potion_contents.potions HolderSet), same for reagent, plus an ItemStackTemplate output | potions is only read as a string so a HolderSet list yields None; reagent must be an item object so a tag or list reagent drops the recipe; OwnedBrewingRecipe models a single potion/item | Extend OwnedBrewingRecipe to a potion list and an OwnedRecipeIngredient reagent, then update crates/pumpkin-inventory brewing matching | M |
 | parse_transmute 304-321 | TransmuteRecipe also has material_count (1..8), add_material_count_to_result and a component-carrying result | Parsed as a plain shapeless recipe [input, material]; material count bounds, result components and the keep-the-input-components semantics are lost | Model transmute separately (server and client display) instead of synthesising a shapeless recipe | M |
 | parse_dye 323-339, parse_decorated_pot 341-361, parse_imbue 363-381 | Distinct recipe types whose results inherit components from the input or target slot | Flattened into synthetic Shapeless/Shaped recipes with a fixed key layout; recipe-book display and result components differ from vanilla | Keep the recipe type and derive the result in the craft handler | M |
+
+## Gap status
+
+- FIXED: parse_result count outside 1..=99 now rejected, recipe_loader.rs:~101-110 (`MAX_RESULT_COUNT`), test `parse_result_rejects_out_of_range_count`.
+- FIXED: parse_cooking cookingtime out of i32 range rejects recipe, non-finite experience rejects recipe, recipe_loader.rs parse_cooking.
+- STILL OPEN: parse_ingredient tag/item mixing and both-keys rule, parse_category strict enums, crafting_special_* suffix, brewing/transmute/dye/decorated_pot/imbue shapes (structural, not done in this pass).

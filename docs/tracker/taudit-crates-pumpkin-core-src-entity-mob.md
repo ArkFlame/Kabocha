@@ -68,3 +68,7 @@ Remaining gaps:
    `Mob.finalizeSpawn` rolls it for every mob. Mobs in neither list (and the
    zombie family, which rolls elsewhere) are inconsistent. Suggested fix: one
    shared roll in `finalize_spawn_base`. Size M.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

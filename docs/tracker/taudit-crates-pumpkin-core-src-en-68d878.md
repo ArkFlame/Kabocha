@@ -55,3 +55,7 @@ Remaining gaps (not fixed: need codegen or cross-file behaviour change):
    and clamps at 0, and the codegen special-case `Enchantment::modify_durability_damage`
    (generated/enchantment.rs) duplicates the Unbreaking armour/tool effect selection.
    Fix: wire one path only (prefer the generated helper), floor + `max(0)`. Size S.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

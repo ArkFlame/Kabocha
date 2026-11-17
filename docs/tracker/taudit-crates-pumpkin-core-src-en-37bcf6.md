@@ -58,3 +58,7 @@ mob and assert it is not picked (4 block vanilla box).
    "nothing at all in daylight" but is only checked in `can_start`; that matches vanilla
    `Spider.SpiderTargetGoal` (only overrides `canUse`), so no change is needed. Noted so a
    later reader does not "fix" it into a divergence.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

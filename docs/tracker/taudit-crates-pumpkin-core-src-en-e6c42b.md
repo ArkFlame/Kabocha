@@ -83,3 +83,7 @@ mod.rs:1389 applies `REGENERATION` (200 ticks) in `villager_ai_step` when
 `increase_profession_level_on_update` was set. Confirm this matches vanilla
 `increaseMerchantCareer`; if vanilla adds the effect in `notifyTrade` the effect currently
 starts one tick late.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

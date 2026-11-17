@@ -51,3 +51,7 @@ Line numbers are post-fix.
    the server level's local date; Pumpkin uses `OffsetDateTime::now_local()` (UTC fallback), so
    a server whose OS timezone differs from the intended world date can dress zombies a day
    early/late. Cosmetic — **S**.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

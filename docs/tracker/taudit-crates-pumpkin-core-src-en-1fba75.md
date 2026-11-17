@@ -35,3 +35,9 @@ Remaining gaps:
 | `owner.rs:210-216` | `canHitEntity` also drops targets the shooting `ServerPlayer` cannot see (Paper vanish) | No vanish check | Needs a vanish/`canSee` API first | S |
 | `owner.rs:112-118` | `Projectile#restoreFrom` copies `owner` when an entity is replaced | No `restoreFrom` hook in `EntityBase`; owner is dropped on any replace | Add `restore_from` and copy the reference | S |
 | `owner.rs:159-165` | `lastDeflectedBy` is a nullable entity reference | Stored as `entity_id`; ids are not reused in a session, so equivalent today | None | - |
+
+## Gap status
+
+- STILL OPEN: projectile NBT persistence (owner/LeftOwner/HasBeenShot have no caller, owner.rs:218-249, verified by grep: no call sites for ProjectileOwner::write_nbt outside owner.rs in pumpkin-core entity).
+- STILL OPEN: EntityReference weak/UUID pre-registration owner (owner.rs:33-38), is_pickable predicate (owner.rs:189), vanish check (owner.rs:210-216), restore_from hook (owner.rs:112-118).
+- STILL OPEN: lastDeflectedBy entity_id, marked None in note (no action).

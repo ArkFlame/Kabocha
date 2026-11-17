@@ -28,3 +28,7 @@ Compared against vanilla 1.21.4 ServerPlayer/Player/Entity and Paper (no extra b
 - Glide start/stop checks (water-only gate, glider durability every 20 ticks, wall-collision damage) match `Player.tryToStartFallFlying`/`updateFallFlying`/`handleFallFlyingCollisions`.
 - Effect add/remove metadata, absorption and health-boost clamping are handled in LivingEntity and are broadcast correctly.
 - Bed respawn offsets are a documented simplification (player.rs:2438/2527); vanilla's `Dismounting.findRespawnPos` tries more offset patterns, but the reachable set for 1x2 beds is covered.
+
+## Gap status
+
+- STILL OPEN: all 12 rows (player.rs respawn food copy, attack cooldown enchant split, difficulty scaling, sneaking/gliding stats, team display name, teleport relative flags, stale TODOs, XP races); not re-verified in h3 sweep.

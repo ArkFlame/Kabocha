@@ -69,3 +69,7 @@ AbstractSkeleton.performRangedAttack.
   constructor offset the spawn from the shooter's eye height. Cosmetic/desync only at spawn.
 - bow_attack.rs:150-153. Divergence uses `difficulty as i32`; correct only if Pumpkin's
   Difficulty enum keeps Peaceful/Easy/Normal/Hard = 0..3 (assumed, not checked here).
+
+## Gap status
+
+- STILL OPEN: bow_attack.rs arrow spawn position and difficulty cast (excluded from this sweep by scope: no change made).

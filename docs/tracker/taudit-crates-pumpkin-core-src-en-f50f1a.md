@@ -66,3 +66,7 @@ behavior. No `TODO`/`FIXME` left in these files: the tracker markers are the
   idle sound chosen in code); `canBeSeenAsEnemy` false while playing dead.
 - `mobInteract`: bucket pickup first, then `Animal` feeding/breeding; tropical
   fish bucket returns the water bucket.
+
+## Gap status
+
+- STILL OPEN: axolotl rows (support regen AABB, play-dead roll on no-damage hit). Not re-verified in h3 sweep.

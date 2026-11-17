@@ -33,3 +33,7 @@ reached the "small and certain" bar (WORKER.md rule 12); no code change in this 
 
 Client-only: eat particles and the sneeze particle rely on the synced `EAT_COUNTER` and
 `SNEEZE_COUNTER`; no server change, needs a client to confirm.
+
+## Gap status
+
+- STILL OPEN: panda rows (excluded from this sweep by scope).

@@ -15,3 +15,7 @@ Fixed in this pass:
 | 3 | living.rs:2257 | `Entity.getGravity` | TODO: effective gravity when the entity world is not loaded is unhandled; vanilla falls back to -0.1 below the world bottom and 0.0 otherwise. | Implement the vanilla void fallback for unloaded or out-of-bounds positions. | M |
 | 4 | living.rs:2540 | `LivingEntity.travel` water branch | TODO: scaffolding descent clamp missing (sneaking, `velo.y < 0`, scaffolding at position, then `velo.y = 0`). | Add the clamp in the water travel path, gated on sneaking and scaffolding at the entity position. | S |
 | 5 | living.rs:5457 | `LivingEntity` consumable-effect application | TODO: consumable-effect probability hardcoded; needs datapack support. | Move the probability table into datapack data and read it at apply time. | L |
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

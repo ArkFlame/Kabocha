@@ -19,3 +19,7 @@ Audited 2026-11-16. The file has no TODO/FIXME markers; the tracker's 5 matches 
 | combat.rs:714 | `CombatTracker.getDefaultDeathMessage` only uses the killing blow's attacker | verify `.player` fallback via `get_killer_entry` against 1.21 | M |
 | combat.rs:140 | `MaceItem.knockback` compares owner entity identity, not UUID | compare entity ids when the owner is online | S |
 | combat.rs:285 | 1.21 applies Breach through `EnchantmentHelper.modifyArmorEffectiveness` outside `CombatRules` | confirm no double clamp vs 1.21 `CombatRules.getDamageAfterAbsorb` | M |
+
+## Gap status
+
+- STILL OPEN: combat.rs rows (walk distance gate, event 128, knockback resistance, death message, mace identity, breach clamp). Not re-verified in h3 sweep.

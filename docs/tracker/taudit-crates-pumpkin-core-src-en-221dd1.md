@@ -41,3 +41,7 @@ Compared against vanilla `Brain` (tick order, activity switching, schedule refre
 ## Remaining gaps
 None found: every code path in this file either matches the vanilla `Brain` call chain or is
 one of the deliberate deviations above. No code change was made.
+
+## Gap status
+
+- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.

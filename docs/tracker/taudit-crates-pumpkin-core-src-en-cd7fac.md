@@ -23,3 +23,7 @@ Remaining gaps:
 Checked and considered correct: all other 112 type names, their declaration order, and
 codec presence (global pos, global pos set/list, block pos, uuid, int, long, bool, unit)
 match vanilla; types without a codec in vanilla also have `None` here.
+
+## Gap status
+
+- STILL OPEN: VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT and NEAREST_VISIBLE_ADULT_* memories never populated (brain/memory/types.rs:118-122). Piglin sensor is out of scope.

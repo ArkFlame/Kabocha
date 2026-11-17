@@ -22,3 +22,7 @@ Date: 2026-11-16. Tracker row category=audit, coverage=AUDIT.
 - `make_bounding_box`: matches `Entity#makeBoundingBox` wind-charge offset; dimensions from `EntityType.getDimensions`.
 - Minecart push rules (non-rideable carts do not push players) and boat seat auto-mount match `Entity#push` / `Boat#canAddPassenger`.
 - Frozen ticks: thaw rate, MAX_FROZEN_TICKS and freeze-damage interval match `Entity#tick` powder-snow handling.
+
+## Gap status
+
+- STILL OPEN: entity/mod.rs rows (bedrock climate variant, fire freeze reset, player display name, kill fallback, block step stub, EntityDismount emit). Not re-verified in h3 sweep.

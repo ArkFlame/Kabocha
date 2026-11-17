@@ -25,3 +25,7 @@ Both match the code under them (`:35-41` merge keeps `first.from`, clears `secon
 
 ## Notes
 No code change was made in this pass: the sweep is already a faithful, test-pinned port of `Entity.checkInsideBlocks`, and the only behavioural gap (all-block `entityInside` vs lily-pad-only) needs the decompiled class and a handler-signature change, so it is recorded above instead of guessed.
+
+## Gap status
+
+- STILL OPEN: block_effects.rs rows (sweep entityInside, merge test, corner sign, zero-movement sweep). Not re-verified in h3 sweep.
