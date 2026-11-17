@@ -688,7 +688,7 @@ impl MobEntity {
     pub(crate) fn finish_removal(&self, mob: &dyn Mob) {
         if !self.removal_cleanup_done.swap(true, Ordering::AcqRel) {
             self.clear_brain_memories();
-            mob.on_removed();
+            Mob::on_removed(mob);
         }
     }
 
