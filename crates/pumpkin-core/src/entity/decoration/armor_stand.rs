@@ -476,43 +476,40 @@ impl EntityBase for ArmorStandEntity {
         nbt.put("Pose", self.pack_rotation());
     }
 
-    fn read_custom_nbt(&self, nbt: &NbtCompound) {
+    /// Vanilla `ArmorStand/readAdditionalSaveData`: rebuild the client flag byte.
+    /// `NoBasePlate` is stored negated, so only `true` sets the hide flag.
+    fn read_flags(nbt: &NbtCompound) -> u8 {
         let mut flags = 0u8;
 
+        if nbt.get_bool("Small") == Some(true) {
+            flags |= ArmorStandFlags::Small as u8;
+        }
+        if nbt.get_bool("ShowArms") == Some(true) {
+            flags |= ArmorStandFlags::ShowArms as u8;
+        }
+        if nbt.get_bool("NoBasePlate") == Some(true) {
+            flags |= ArmorStandFlags::HideBasePlate as u8;
+        }
+        if nbt.get_bool("Marker") == Some(true) {
+            flags |= ArmorStandFlags::Marker as u8;
+        }
+
+        flags
+    }
+
+    fn read_custom_nbt(&self, nbt: &NbtCompound) {
         if let Some(invisible) = nbt.get_bool("Invisible")
             && invisible
         {
             self.get_entity().set_invisible(invisible);
         }
 
-        if let Some(small) = nbt.get_bool("Small")
-            && small
-        {
-            flags |= ArmorStandFlags::Small as u8;
-        }
-
-        if let Some(show_arms) = nbt.get_bool("ShowArms")
-            && show_arms
-        {
-            flags |= ArmorStandFlags::ShowArms as u8;
-        }
-
         if let Some(disabled_slots) = nbt.get_int("DisabledSlots") {
             self.disabled_slots.store(disabled_slots, Ordering::Relaxed);
         }
 
-        // Vanilla `NoBasePlate` is true only when the plate is hidden.
-        if nbt.get_bool("NoBasePlate").unwrap_or(false) {
-            flags |= ArmorStandFlags::HideBasePlate as u8;
-        }
-
-        if let Some(marker) = nbt.get_bool("Marker")
-            && marker
-        {
-            flags |= ArmorStandFlags::Marker as u8;
-        }
-
-        self.armor_stand_flags.store(flags, Ordering::Relaxed);
+        self.armor_stand_flags
+            .store(Self::read_flags(nbt), Ordering::Relaxed);
         self.update_dimensions();
 
         if let Some(pose_tag) = nbt.get("Pose") {
@@ -756,6 +753,24 @@ mod tests {
         let mut empty_hand = ItemStack::EMPTY.clone();
         assert!(swap_item_stacks(&stand_stack, &mut empty_hand, false, false, true).is_none());
         assert!(empty_hand.is_empty());
+    }
+
+    #[test]
+    fn read_flags_keeps_the_base_plate_unless_no_base_plate_is_true() {
+        let mut nbt = NbtCompound::new();
+        assert_eq!(ArmorStandEntity::read_flags(&nbt) & 8, 0);
+
+        nbt.put_bool("NoBasePlate", false);
+        assert_eq!(ArmorStandEntity::read_flags(&nbt) & 8, 0);
+
+        nbt.put_bool("NoBasePlate", true);
+        nbt.put_bool("Small", true);
+        nbt.put_bool("Marker", true);
+        let flags = ArmorStandEntity::read_flags(&nbt);
+        assert_eq!(flags & 8, ArmorStandFlags::HideBasePlate as u8);
+        assert_eq!(flags & 1, ArmorStandFlags::Small as u8);
+        assert_eq!(flags & 16, ArmorStandFlags::Marker as u8);
+        assert_eq!(flags & 4, 0);
     }
 
     #[test]
