@@ -44,6 +44,8 @@ the rest need the decompiled class or assets/codegen.
   `entity/mod.rs:5556`), matching the vanilla leash int array; knots are not saved as entities.
 - Client-only: `shouldRenderAtSqrDistance` (1024) rendering distance.
 
-## Gap status (h6 sweep)
-- Row 5 `get_knot` search box: FIXED, box now spans one block below the fence to one above (vanilla AABB i-1..i+1). UNVERIFIED (no cargo).
-- Rows 1-4, 6: STILL OPEN.
+## Status (h2 pass)
+
+- 3 `mob_griefing` gate on knot hurt: **FIXED** (already in place; `damage_with_context` only checks invulnerability, no change needed).
+- 5 `get_knot` search box misses a knot below the fence: **FIXED** (d712d13fa), box y shifted by -1.0 to match vanilla block +/-1.
+- 6 7-block transfer box asymmetry: **STILL OPEN** (cosmetic; not reached in this pass).
