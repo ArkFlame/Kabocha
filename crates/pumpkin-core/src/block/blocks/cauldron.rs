@@ -101,7 +101,7 @@ fn lower_fill_level(world: &Arc<World>, pos: &BlockPos, block: &Block, current_l
     world.emit_game_event(GameEvent::BlockChange.name(), pos.to_centered_f64());
 }
 
-/// Vanilla content column only; the `getEntityInsideCollisionShape` AABB spans the whole block.
+/// The content column inside a cauldron; an entity touching it is affected by the contents.
 fn content_collision_box(block_id: BlockId, state_id: BlockStateId) -> BoundingBox {
     let max_y = match block_id {
         BlockId::WATER_CAULDRON | BlockId::POWDER_SNOW_CAULDRON => {
