@@ -1380,7 +1380,7 @@ impl Server {
         self.tasks.wait().await;
         debug!("Done awaiting tasks for server");
 
-        info!("Starting worlds");
+        info!("Stopping worlds");
         for world in self.worlds.load().iter() {
             world.shutdown().await;
         }
@@ -1396,7 +1396,7 @@ impl Server {
         {
             error!("Failed to save level.dat: {err}");
         }
-        info!("Completed worlds");
+        info!("Stopped worlds");
         #[cfg(profiler)]
         {
             let counters = profiler::counters(self);
