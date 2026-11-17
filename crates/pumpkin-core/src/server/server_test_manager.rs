@@ -473,12 +473,13 @@ impl GameTestWorld for ServerGameTestWorld {
         nbt.put_int("y", position.0.y);
         nbt.put_int("z", position.0.z);
 
-        let entity = block_entity_from_nbt(&nbt).ok_or_else(|| {
+        // Vanilla skips block entities it cannot create (unknown or obsolete ids)
+        // instead of failing the whole test.
+        let Some(entity) = block_entity_from_nbt(&nbt) else {
             let id = nbt.get_string("id").unwrap_or("<missing id>");
-            GameTestError::World(format!(
-                "Unable to create block entity '{id}' at {position}"
-            ))
-        })?;
+            warn!("Skipping unknown block entity '{id}' at {position}");
+            return Ok(());
+        };
 
         self.world.remove_block_entity(position);
         self.world.add_block_entity(entity);
