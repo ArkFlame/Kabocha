@@ -940,23 +940,23 @@ impl PoiStorage {
         let min_rz = ((center.0.z - radius) >> 4) >> 5;
         let max_rz = ((center.0.z + radius) >> 4) >> 5;
 
+        let radius_sq = i64::from(radius) * i64::from(radius);
         let mut best: Option<(BlockPos, String, i64)> = None;
 
         for rx in min_rx..=max_rx {
             for rz in min_rz..=max_rz {
                 let region = self.get_or_load_region(rx, rz);
                 for entry in region.get_all() {
-                    if (entry.x - center.0.x).abs() > radius
-                        || (entry.z - center.0.z).abs() > radius
-                        || !matches(&entry.poi_type, entry.pos())
-                    {
-                        continue;
-                    }
-
                     let dx = i64::from(entry.x - center.0.x);
                     let dy = i64::from(entry.y - center.0.y);
                     let dz = i64::from(entry.z - center.0.z);
                     let distance_sq = dx * dx + dy * dy + dz * dz;
+
+                    // Vanilla `PoiManager` keeps POIs with `distSqr < radius * radius`,
+                    // a sphere rather than a square.
+                    if distance_sq >= radius_sq || !matches(&entry.poi_type, entry.pos()) {
+                        continue;
+                    }
 
                     if best.as_ref().is_none_or(|(_, _, d)| distance_sq < *d) {
                         best = Some((entry.pos(), entry.poi_type.clone(), distance_sq));
