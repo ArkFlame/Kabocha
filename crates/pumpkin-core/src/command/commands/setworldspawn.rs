@@ -13,6 +13,8 @@ use crate::command::context::command_context::CommandContext;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::plugin::world::spawn_change::SpawnChangeEvent;
+use pumpkin_protocol::bedrock::client::set_spawn_position::{CSetSpawnPosition, SpawnPositionType};
+use pumpkin_protocol::java::client::play::CPlayerSpawnPosition;
 
 const DESCRIPTION: &str = "Sets the world spawn point.";
 const PERMISSION: &str = "minecraft:command.setworldspawn";
@@ -85,6 +87,30 @@ impl CommandExecutor for SetWorldSpawnExecutor {
         // old one on the next restart, since nothing actually reached level.dat.
         if let Err(err) = server.save_world_info() {
             tracing::error!("Failed to save world info after /setworldspawn: {err}");
+        }
+
+        // Vanilla `ServerLevel#setDefaultSpawnPos` broadcasts the new world spawn to every
+        // player in the level; without it already-connected clients keep the old spawn, so
+        // non-lodestone compasses and respawn prediction point at the previous position.
+        let bedrock_dimension = match world.dimension.minecraft_name {
+            "minecraft:the_nether" => 1,
+            "minecraft:the_end" => 2,
+            _ => 0,
+        };
+        let je_packet = CPlayerSpawnPosition::new(
+            new_position,
+            new_yaw,
+            new_pitch,
+            world.dimension.minecraft_name.to_owned(),
+        );
+        let be_packet = CSetSpawnPosition {
+            spawn_position_type: SpawnPositionType::WorldRespawn,
+            block_position: new_position,
+            dimension_type: bedrock_dimension.into(),
+            spawn_block_pos: new_position,
+        };
+        for player in world.players.load().iter() {
+            player.try_enqueue_packet_editioned(&je_packet, &be_packet);
         }
 
         context.source.send_feedback(
