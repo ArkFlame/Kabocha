@@ -2335,8 +2335,15 @@ pub trait Mob: EntityBase + Send + Sync {
 
     fn on_attack(&self, _target: &dyn EntityBase) {}
 
+    /// Vanilla `Mob.playAttackSound`, called by `doHurtTarget` only after a landed hit.
+    fn play_attack_sound(&self) {}
+
     fn do_hurt_target(&self, target: &dyn EntityBase) -> bool {
-        self.get_mob_entity().try_attack(self.get_entity(), target)
+        let damaged = self.get_mob_entity().try_attack(self.get_entity(), target);
+        if damaged {
+            self.play_attack_sound();
+        }
+        damaged
     }
 
     fn do_push(&self, _entity: &Arc<dyn EntityBase>) {}

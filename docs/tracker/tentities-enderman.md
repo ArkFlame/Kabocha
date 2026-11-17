@@ -60,4 +60,4 @@ the 1.21 `Enderman` / `EndermanLookForPlayerGoal` / `EndermanFreezeWhenLookedAt`
 ## Gap status (h6 sweep)
 - Gap 2 (double teleport after non-hurting splash potion): FIXED 99fa5cfb8. Post-damage only teleports for water-sensitive potions; pre-damage already handles the rest.
 - Gap 1 (projectile immunity keyed on damage type): STILL OPEN. Needs a direct-entity projectile helper; not done in this sweep.
-- Gap 3 (freeze look limits 30/30 and re-check): STILL OPEN. Needs a limited `LookControl::look_at` variant.
+- Gap 3 (freeze look limits 30/30 and re-check): FIXED (UNVERIFIED), already in code: `goal/chase_player.rs:67` uses `look_at_with_range(.., 30.0, 30.0)`.

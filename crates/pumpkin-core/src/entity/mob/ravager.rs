@@ -85,6 +85,11 @@ impl Mob for RavagerEntity {
         self.play_entity_sound(Sound::EntityRavagerStep, 0.15, 1.0);
     }
 
+    fn play_attack_sound(&self) {
+        // Vanilla `Ravager.playAttackSound` (UNVERIFIED against decompiled 1.21.x)
+        self.play_entity_sound(Sound::EntityRavagerAttack, 1.0, 1.0);
+    }
+
     fn get_max_head_rotation(&self) -> f32 {
         // Vanilla `Ravager.getMaxHeadYRot`
         45.0
