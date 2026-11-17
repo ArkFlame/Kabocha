@@ -21,6 +21,7 @@ use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::attributes::{Modifier, ModifierOperation};
 use crate::entity::item::ItemEntity;
 use crate::entity::living::LivingEntity;
 use crate::entity::mob::{MobMetadata, equipment as mob_equipment};
@@ -49,6 +50,9 @@ pub enum PiglinActivity {
     Fight,
     Celebrate,
 }
+
+const SPEED_MODIFIER_BABY_ID: &str = "minecraft:baby";
+const SPEED_MODIFIER_BABY: f64 = 0.2;
 
 pub struct PiglinEntity {
     pub mob_entity: MobEntity,
@@ -210,6 +214,19 @@ impl PiglinEntity {
     pub fn set_baby(&self, baby: bool) {
         self.mob_entity
             .set_baby_flag(&self.is_baby, tracked_data::piglin::DATA_BABY_ID, baby);
+        // Vanilla `Piglin.setBaby` swaps the `minecraft:baby` speed modifier (+0.2 base).
+        self.mob_entity
+            .living_entity
+            .update_attribute(&Attributes::MOVEMENT_SPEED, |speed| {
+                speed.remove_modifier(SPEED_MODIFIER_BABY_ID);
+                if baby {
+                    speed.add_or_replace_modifier(Modifier {
+                        id: SPEED_MODIFIER_BABY_ID.to_string(),
+                        amount: SPEED_MODIFIER_BABY,
+                        operation: ModifierOperation::MultiplyBase,
+                    });
+                }
+            });
     }
 
     #[must_use]

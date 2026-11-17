@@ -1,5 +1,5 @@
 use std::sync::{
-    Arc, Weak,
+    Arc,
     atomic::{AtomicI32, AtomicU8, Ordering},
 };
 
@@ -26,12 +26,11 @@ use crate::entity::{
     },
     ai::goal::{
         active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
-        grow_crop::GrowCropGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
+        grow_crop::GrowCropGoal, melee_attack::MeleeAttackGoal,
         pollinate_flower::PollinateFlowerGoal, reset_universal_anger::ResetUniversalAngerGoal,
         revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
-    ai::pathfinder::Navigator,
+    ai::pathfinder::{Navigator, node::PathType},
     mob::{
         Mob, MobEntity,
         neutral::{NeutralData, NeutralMob},
@@ -141,6 +140,12 @@ impl BeeEntity {
         navigator.set_can_open_doors(false);
         navigator.set_can_float(false);
         navigator.set_required_path_length(48.0);
+        // Vanilla `Bee` constructor maluses. Java FIRE maps to DamageFire, as in blaze.rs.
+        navigator.set_pathfinding_malus(PathType::DamageFire, -1.0);
+        navigator.set_pathfinding_malus(PathType::Water, -1.0);
+        navigator.set_pathfinding_malus(PathType::WaterBorder, 16.0);
+        navigator.set_pathfinding_malus(PathType::Cocoa, -1.0);
+        navigator.set_pathfinding_malus(PathType::Fence, -1.0);
         let bee = Self {
             mob_entity,
             ageable_data: AgeableData::default(),
@@ -152,10 +157,6 @@ impl BeeEntity {
             time_since_sting: AtomicI32::new(0),
         };
         let mob_arc = Arc::new(bee);
-        let mob_weak: Weak<dyn Mob> = {
-            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
-            Arc::downgrade(&mob_arc)
-        };
 
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
@@ -179,18 +180,13 @@ impl BeeEntity {
                 3,
                 Box::new(TemptGoal::with_tag(
                     1.25,
-                    &tag::Item::MINECRAFT_FLOWERS,
+                    &tag::Item::MINECRAFT_BEE_FOOD,
                     false,
                 )),
             );
             goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.25)));
             goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(9, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(
-                10,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
-            );
-            goal_selector.add_goal(11, Box::new(RandomLookAroundGoal::default()));
         };
 
         {

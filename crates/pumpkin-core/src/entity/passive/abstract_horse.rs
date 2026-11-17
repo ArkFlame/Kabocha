@@ -36,9 +36,9 @@ use uuid::Uuid;
 use crate::entity::ageable::AgeableMob;
 use crate::entity::ai::goal::{
     breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-    look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-    random_stand::RandomStandGoal, run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal,
-    tempt::TemptGoal, wander_around::WanderAroundGoal,
+    look_at_entity::LookAtEntityGoal, random_stand::RandomStandGoal,
+    run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal, tempt::TemptGoal,
+    wander_around::WanderAroundGoal,
 };
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::ai::target_predicate::TargetPredicate;
@@ -997,7 +997,6 @@ pub fn register_horse_goals(horse: &Arc<dyn Mob>) {
         7,
         LookAtEntityGoal::with_default(Arc::downgrade(horse), &EntityType::PLAYER, 6.0),
     );
-    goals.add_goal(8, Box::new(RandomLookAroundGoal::default()));
     if horse
         .as_abstract_horse()
         .is_some_and(AbstractHorse::can_perform_rearing)
