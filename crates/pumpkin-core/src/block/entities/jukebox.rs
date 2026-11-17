@@ -221,6 +221,8 @@ impl JukeboxBlockEntity {
     /// Set the record stack - matches vanilla's `setStack()`
     /// Note: The caller is responsible for updating block state and playing music
     pub fn set_record(&self, stack: ItemStack) {
+        // Replacing the disc ends the song of the old one; the caller starts the new song.
+        self.stop_playing();
         *self
             .record_stack
             .lock()
@@ -416,9 +418,16 @@ impl Inventory for JukeboxBlockEntity {
         &self,
         hopper_inventory: &dyn Inventory,
         _slot: usize,
-        _stack: &ItemStack,
+        stack: &ItemStack,
     ) -> bool {
-        (0..hopper_inventory.size()).any(|i| hopper_inventory.get_stack(i).is_empty())
+        // Mirrors ChiseledBookShelf: an empty slot, or a partial stack that still fits.
+        (0..hopper_inventory.size()).any(|i| {
+            let dst = hopper_inventory.get_stack(i);
+            dst.is_empty()
+                || (dst.are_items_and_components_equal(stack)
+                    && dst.item_count.saturating_add(stack.item_count)
+                        <= hopper_inventory.get_max_count_per_stack())
+        })
     }
 
     fn mark_dirty(&self) {
