@@ -364,19 +364,21 @@ impl EntityBase for BoatEntity {
         // boat item) only when it is not an instabuild hit, so a creative break drops nothing.
         if will_break && !creative && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
+            // Vanilla `AbstractChestBoat.remove` scatters the 27 slots on any destroying
+            // removal, independent of `doEntityDrops`; only the boat item is gamerule-gated.
+            if let Some(container) = &self.inventory
+                && container.claim_drops()
+            {
+                container.unpack_loot(&crate::world::loot::LootContextParameters {
+                    world: Some(&world),
+                    position: Some(self.vehicle.entity.pos.load()),
+                    ..Default::default()
+                });
+                let inventory: Arc<dyn Inventory> = container.clone();
+                world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
+            }
             if world.level_info.load().game_rules.entity_drops {
                 let position = self.vehicle.entity.block_pos.load();
-                if let Some(container) = &self.inventory
-                    && container.claim_drops()
-                {
-                    container.unpack_loot(&crate::world::loot::LootContextParameters {
-                        world: Some(&world),
-                        position: Some(self.vehicle.entity.pos.load()),
-                        ..Default::default()
-                    });
-                    let inventory: Arc<dyn Inventory> = container.clone();
-                    world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
-                }
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
                 if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
