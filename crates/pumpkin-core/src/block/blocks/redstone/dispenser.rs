@@ -650,7 +650,15 @@ impl DispenserBlock {
             return;
         };
 
-        let spawn_pos = Self::target_position(ctx).to_f64();
+        let target = Self::target_position(ctx);
+        // Vanilla `EntityType.create` centres the entity in the target block and,
+        // unless the dispenser faces up, places it one block above it.
+        let y = if ctx.facing == Facing::Up {
+            f64::from(target.0.y)
+        } else {
+            f64::from(target.0.y) + 1.0
+        };
+        let spawn_pos = Vector3::new(f64::from(target.0.x) + 0.5, y, f64::from(target.0.z) + 0.5);
 
         let mob = from_type(entity_type, spawn_pos, ctx.world, Uuid::new_v4());
         let yaw = wrap_degrees(rng().random::<f32>() * 360.0) % 360.0;
