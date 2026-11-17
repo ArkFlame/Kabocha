@@ -98,6 +98,7 @@ Format: `- #N (PR|issue) title [commit]`
 - #4120 (PR, skipped: living.rs:3387 do_hurt_equipment)
 - #3827 (PR, skipped: block.rs:188 BlockArgumentType)
 - #3931 (PR, skipped: dirt_path.rs/farmland.rs already check tags)
+- #3661 (PR, skipped: already present dragon_parts id lookup in world/mod.rs:322, added by #3407)
 - #3843 (PR) fix(block): avoid double press sound on buttons (#3843) [8ac0a7acd]
 - #4287 (PR) fix(entity): bring goat spawning, breeding, milking and sounds in lin… (#4287) [7a4cee7cf]
 - #3897 (PR) fix(codec): improve serialization and deserialization of charged projectiles (#3897) [5d3e9ce9a]
