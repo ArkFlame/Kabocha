@@ -31,12 +31,12 @@ pub const ERROR_NOT_SUMMONABLE_ENTITY: CommandErrorType<1> = CommandErrorType::n
 
 /// Represents an argument type used to get a resource key from an identifier.
 ///
-/// if you want an [`Advancement`] put the [`ADVANCEMENT_REGISTRY`]
-/// and get it with the [`ResourceKeyArgument::get_advancement`] when it has been parsed
+/// If you want an [`Advancement`] use [`ADVANCEMENT_REGISTRY`] and resolve it with
+/// [`ResourceKeyArgument::get_advancement`] after parsing.
 ///
-/// TODO Recipe
+/// If you just want the [`ResourceKey`], use [`ResourceKeyArgument::get_registry_key`].
 ///
-/// if you juste want the [`ResourceKey`] use the [`ResourceKeyArgument::get_registry_key`] function
+/// Recipes are not handled by this argument type.
 pub struct ResourceKeyArgument(pub &'static Identifier);
 
 pub static ERROR_INVALID: CommandErrorType<0> = CommandErrorType::new(
