@@ -546,7 +546,12 @@ impl Mob for AxolotlEntity {
             f64::from(living.get_speed()),
         );
         living.make_move(caller);
-        entity.velocity.store(entity.velocity.load() * WATER_DRAG);
+        let mut velocity = entity.velocity.load() * WATER_DRAG;
+        // Vanilla `Axolotl.travel`: without a target the axolotl sinks slowly.
+        if self.mob_entity.get_target().is_none() {
+            velocity.y -= 0.005;
+        }
+        entity.velocity.store(velocity);
     }
 
     fn mob_hurt_server(
