@@ -373,7 +373,12 @@ impl WitherEntity {
                 // Vanilla `RangedAttackGoal` requires line of sight before firing.
                 if dist_sq <= 400.0 && self.has_line_of_sight(target.get_entity()) {
                     let attack_timer = self.main_attack_timer.load(Ordering::Relaxed);
-                    if attack_timer <= 0 {
+                    // Vanilla RangedAttackGoal only fires while the target is seen; an unseen
+                    // target holds the cooldown at zero until line of sight returns.
+                    if attack_timer > 0 {
+                        self.main_attack_timer
+                            .store(attack_timer - 1, Ordering::Relaxed);
+                    } else if self.has_line_of_sight(target.get_entity()) {
                         self.main_attack_timer.store(40, Ordering::Relaxed);
                         let dangerous = rand::random_range(0.0..1.0) < 0.001;
                         // Vanilla aims at `target.getY(0.5)`, half the bounding-box height.
@@ -386,9 +391,6 @@ impl WitherEntity {
                             target_pos.z,
                             dangerous,
                         );
-                    } else {
-                        self.main_attack_timer
-                            .store(attack_timer - 1, Ordering::Relaxed);
                     }
                 }
             } else {
