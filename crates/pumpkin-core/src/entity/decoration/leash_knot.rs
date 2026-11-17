@@ -95,13 +95,10 @@ impl EntityBase for LeashKnotEntity {
         let block = world.get_block(&self.entity.block_pos.load());
         if !block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_FENCES) {
             let knot_id = self.entity.entity_id;
-            let search_dim = EntityDimensions {
-                width: 32.0,
-                height: 32.0,
-                eye_height: 16.0,
-            };
             let pos = self.entity.pos.load();
-            let search_box = BoundingBox::new_from_pos(pos.x, pos.y, pos.z, &search_dim);
+            // Vanilla `Leashable.leashableLeashedTo` scans a 32 block box centred on the knot, so
+            // mobs below the knot must be found too.
+            let search_box = BoundingBox::of_size(pos, 32.0, 32.0, 32.0);
             let entities = world.get_entities_at_box(&search_box);
 
             let mut retained_leash = false;
