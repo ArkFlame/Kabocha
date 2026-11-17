@@ -23,7 +23,7 @@ pr	3179	https://github.com/Pumpkin-MC/Pumpkin/pull/3179	perf(worldgen): prune bi
 pr	3216	https://github.com/Pumpkin-MC/Pumpkin/pull/3216	feat(plugin): fire BlockFormEvent for lava conversions	DONE		a9c5bc63d	feat(plugin): fire BlockFormEvent for lava conversions (#3216)	2026-11-17
 pr	3221	https://github.com/Pumpkin-MC/Pumpkin/pull/3221	fix(entity): play death sound on lethal hit and send Poof when removing a corpse	TODO				2026-11-17
 pr	3231	https://github.com/Pumpkin-MC/Pumpkin/pull/3231	chore(ci): add ferrflow for automated versioning	DONE		a14910908	chore(ci): add ferrflow for automated versioning (#3231)	2026-11-17
-pr	3238	https://github.com/Pumpkin-MC/Pumpkin/pull/3238	feat(world): lighting engine flood, shape occlusion, and sky cut height	DONE			DONE.md:177 - batch 12 landed: #4578 (snow golem) #4502 (axolotl); #3238 conflicted, requeued.	2026-11-17
+pr	3238	https://github.com/Pumpkin-MC/Pumpkin/pull/3238	feat(world): lighting engine flood, shape occlusion, and sky cut height	DONE		01f6f3c79	feat(world): lighting engine flood, shape occlusion, and sky cut height (#3238)	2026-11-17
 pr	3243	https://github.com/Pumpkin-MC/Pumpkin/pull/3243	fix: release disconnected player ownership cycles	DONE		7f6e8f8b7	fix: release disconnected player ownership cycles (#3243)	2026-11-17
 pr	3244	https://github.com/Pumpkin-MC/Pumpkin/pull/3244	fix: retire completed Bedrock chunk blob payloads	DONE		349df2194	fix: retire completed Bedrock chunk blob payloads (#3244)	2026-11-17
 pr	3245	https://github.com/Pumpkin-MC/Pumpkin/pull/3245	fix: release closed and abandoned NetherNet sessions	TODO				2026-11-17
@@ -32,7 +32,7 @@ pr	3307	https://github.com/Pumpkin-MC/Pumpkin/pull/3307	Fire PlayerDropItemEvent
 pr	3320	https://github.com/Pumpkin-MC/Pumpkin/pull/3320	perf(world): avoid repeated scans when packing dense palettes	DONE		9774d8c86	perf(world): avoid repeated scans when packing dense palettes (#3320)	2026-11-17
 pr	3349	https://github.com/Pumpkin-MC/Pumpkin/pull/3349	fix(entity): sync item push velocity and force position updates when pushed 🤖🤖🤖	SKIPPED			DONE.md:48 - #3135 #4061 #3485 #3349 #3826 #3869 #3788 (PR, skipped: already present in master)	2026-11-17
 pr	3351	https://github.com/Pumpkin-MC/Pumpkin/pull/3351	fix: avoid tool break effects when placing the last block	TODO				2026-11-17
-pr	3352	https://github.com/Pumpkin-MC/Pumpkin/pull/3352	fix(entity): panic goals only trigger on vanilla panic damage causes 🤖🤖🤖	COMMITTED-UNLANDED	kab/oc3352		branch ahead of master	2026-11-17
+pr	3352	https://github.com/Pumpkin-MC/Pumpkin/pull/3352	fix(entity): panic goals only trigger on vanilla panic damage causes 🤖🤖🤖	DONE		76cecdf70	fix(entity): panic goals only trigger on vanilla panic damage causes 🤖🤖🤖 (#3352)	2026-11-17
 pr	3353	https://github.com/Pumpkin-MC/Pumpkin/pull/3353	fix(entity): keep fish wander targets in water 🤖🤖🤖	SKIPPED			DONE.md:95 - #3353 (PR, skipped: abstract_fish.rs:35)	2026-11-17
 pr	3355	https://github.com/Pumpkin-MC/Pumpkin/pull/3355	refactor(plugin): make plugin load, reload and unload race-free, add plugin commands	DONE		fc869cdb8	refactor(plugin): make plugin load, reload and unload race-free, add plugin commands (#3355)	2026-11-17
 pr	3373	https://github.com/Pumpkin-MC/Pumpkin/pull/3373	feat(config): validate listener ports and addresses before startup	DONE		f9e768923	feat(config): validate listener ports and addresses before startup (#3373)	2026-11-17
@@ -53,7 +53,7 @@ pr	3443	https://github.com/Pumpkin-MC/Pumpkin/pull/3443	chore(deps): bump signpa
 pr	3444	https://github.com/Pumpkin-MC/Pumpkin/pull/3444	chore(deps): bump DeterminateSystems/nix-installer-action from 22 to 23	DONE		61cd4fbce	chore(deps): bump DeterminateSystems/nix-installer-action from 22 to 23 (#3444)	2026-11-17
 pr	3447	https://github.com/Pumpkin-MC/Pumpkin/pull/3447	fix(world): preserve Paper overworld settings on import	DONE		a0c765d23	fix(world): preserve Paper overworld settings on import (#3447)	2026-11-17
 pr	3458	https://github.com/Pumpkin-MC/Pumpkin/pull/3458	fix(entity): use the per-mob panic damage tags for wolves, pandas, armadillos and polar bears 🤖🤖🤖	DONE		dee4343fd	fix(entity): use the per-mob panic damage tags for wolves, pandas, armadillos and polar bears 🤖🤖🤖 (#3458)	2026-11-17
-pr	3459	https://github.com/Pumpkin-MC/Pumpkin/pull/3459	fix(elytra): vanilla-parity fixes for gliding and flight state	DONE		bc8af5a89	fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)	2026-11-17
+pr	3459	https://github.com/Pumpkin-MC/Pumpkin/pull/3459	fix(elytra): vanilla-parity fixes for gliding and flight state	DONE		ee43e7835	fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)	2026-11-17
 pr	3460	https://github.com/Pumpkin-MC/Pumpkin/pull/3460	fix(item-drops): apply air drag once in grounded item friction	SKIPPED			DONE.md:181 - Skipped, already on master: #4380 (commands_and_gamemode.rs:38-41), #4029 (structure_finder.rs:162-219), #4059 (bucket.rs:271-276), #4058 (player.rs:670, player_action.rs:212-232), #4030 (abstract_fish.rs:35), #3460 (item.rs:499-507), #4184 (blocks.rs:36), #3987 (execute.rs:581), #4031 (anvil.rs:383,434).	2026-11-17
 pr	3461	https://github.com/Pumpkin-MC/Pumpkin/pull/3461	fix(setworldspawn): actually persist the new spawn point to level.dat	DONE		f8965ca56	fix(setworldspawn): actually persist the new spawn point to level.dat (#3461)	2026-11-17
 pr	3462	https://github.com/Pumpkin-MC/Pumpkin/pull/3462	fix(firework-rocket): render the rocket and always allow launching	DONE		030c29ad5	fix(firework-rocket): render the rocket and always allow launching (#3462)	2026-11-17
@@ -100,11 +100,11 @@ pr	3641	https://github.com/Pumpkin-MC/Pumpkin/pull/3641	fix(inventory): lock cur
 pr	3642	https://github.com/Pumpkin-MC/Pumpkin/pull/3642	fix(command): order gamemode feedback args per edition 🤖🤖🤖	TODO				2026-11-17
 pr	3644	https://github.com/Pumpkin-MC/Pumpkin/pull/3644	fix(entity): float experience orbs in water 🤖🤖🤖	DONE		683eac792	fix(entity): float experience orbs in water (#3644)	2026-11-17
 pr	3655	https://github.com/Pumpkin-MC/Pumpkin/pull/3655	fix(entity): drop a painting item when a painting breaks 🤖🤖🤖	DONE		ab1d0f09c	fix(entity): drop a painting item when a painting breaks 🤖🤖🤖 (#3655)	2026-11-17
-pr	3656	https://github.com/Pumpkin-MC/Pumpkin/pull/3656	fix(block): emit container_open/container_close game events	COMMITTED-UNLANDED	kab/oc3656		branch ahead of master	2026-11-17
+pr	3656	https://github.com/Pumpkin-MC/Pumpkin/pull/3656	fix(block): emit container_open/container_close game events	TODO				2026-11-17
 pr	3657	https://github.com/Pumpkin-MC/Pumpkin/pull/3657	feat(elytra): port vanilla gliding	SKIPPED			DONE.md:170 - #3657 skipped (gliding present: item_stack/mod.rs:428, entity/mod.rs:4249)	2026-11-17
 pr	3658	https://github.com/Pumpkin-MC/Pumpkin/pull/3658	fix(block): emit block_change game event on chiseled bookshelf book changes	DONE		49d36ca65	fix(block): emit block_change game event on chiseled bookshelf book changes (#3658)	2026-11-17
 pr	3660	https://github.com/Pumpkin-MC/Pumpkin/pull/3660	fix(block): emit block_change game event on jukebox insert/eject	TODO				2026-11-17
-pr	3661	https://github.com/Pumpkin-MC/Pumpkin/pull/3661	fix(entity): register ender dragon hitbox parts for entity id lookup	COMMITTED-UNLANDED	kab/oc3661		branch ahead of master	2026-11-17
+pr	3661	https://github.com/Pumpkin-MC/Pumpkin/pull/3661	fix(entity): register ender dragon hitbox parts for entity id lookup	TODO				2026-11-17
 pr	3663	https://github.com/Pumpkin-MC/Pumpkin/pull/3663	fix(entity): spawn lingering cloud for affected creepers 🤖🤖🤖	DONE		70b1e00cc	fix(entity): spawn lingering cloud for affected creepers (#3663)	2026-11-17
 pr	3664	https://github.com/Pumpkin-MC/Pumpkin/pull/3664	fix(docker): build published images from matching release 🤖🤖🤖	DONE		15894277e	fix(docker): build published images from matching release (#3664)	2026-11-17
 pr	3665	https://github.com/Pumpkin-MC/Pumpkin/pull/3665	feat(block): allow pressure plates placement on fences and fence gates	TODO				2026-11-17
@@ -115,7 +115,7 @@ pr	3681	https://github.com/Pumpkin-MC/Pumpkin/pull/3681	fix(entity): sync fallin
 pr	3682	https://github.com/Pumpkin-MC/Pumpkin/pull/3682	fix(entity): restore swamp slime spawning 🤖🤖🤖	DONE		cb3b48459	fix(entity): restore swamp slime spawning 🤖🤖🤖 (#3682)	2026-11-17
 pr	3684	https://github.com/Pumpkin-MC/Pumpkin/pull/3684	fix(entity): enable armor stand item interactions 🤖🤖🤖	DONE		d27c1e9e2	fix(entity): enable armor stand item interactions 🤖🤖🤖 (#3684)	2026-11-17
 pr	3686	https://github.com/Pumpkin-MC/Pumpkin/pull/3686	Emit game events on container open and close, fix	COMMITTED-UNLANDED	kab/oc3686		branch ahead of master	2026-11-17
-pr	3687	https://github.com/Pumpkin-MC/Pumpkin/pull/3687	fix(plugin): poll native methods on global runtime 🤖🤖🤖	COMMITTED-UNLANDED	kab/oc3687		branch ahead of master	2026-11-17
+pr	3687	https://github.com/Pumpkin-MC/Pumpkin/pull/3687	fix(plugin): poll native methods on global runtime 🤖🤖🤖	DONE		e34b4f4b4	fix(plugin): poll native methods on global runtime 🤖🤖🤖 (#3687)	2026-11-17
 pr	3694	https://github.com/Pumpkin-MC/Pumpkin/pull/3694	fix: correct end crystal combat behavior 🤖🤖🤖	DONE		3a75722b3	fix: correct end crystal combat behavior (#3694)	2026-11-17
 pr	3695	https://github.com/Pumpkin-MC/Pumpkin/pull/3695	fix: make dispensers apply bone meal 🤖🤖🤖	TODO				2026-11-17
 pr	3697	https://github.com/Pumpkin-MC/Pumpkin/pull/3697	feat(firework): port firework rocket flight, explosions and crossbow launching	SKIPPED			DONE.md:172 - #3697 (PR, skipped: firework core present; elytra boost/attached rockets missing, see QUEUE)	2026-11-17
@@ -132,13 +132,13 @@ pr	3729	https://github.com/Pumpkin-MC/Pumpkin/pull/3729	fix(block): make shelf m
 pr	3739	https://github.com/Pumpkin-MC/Pumpkin/pull/3739	fix(world): scope sound events to players in range	DONE		f40e1e8c7	fix(world): scope sound events to players in range (#3739)	2026-11-17
 pr	3744	https://github.com/Pumpkin-MC/Pumpkin/pull/3744	fix(entity): validate spectator camera targets like vanilla	DONE		db588240e	fix(entity): validate spectator camera targets like vanilla (#3744)	2026-11-17
 pr	3745	https://github.com/Pumpkin-MC/Pumpkin/pull/3745	fix(plugin-utils): allow wasm builds 🤖🤖🤖	DONE		9a626f899	fix(plugin-utils): allow wasm builds 🤖🤖🤖 (#3745)	2026-11-17
-pr	3755	https://github.com/Pumpkin-MC/Pumpkin/pull/3755	feat(plugin): add event registration w/ handler and unregistration	DONE		8242683ae	feat(plugin): add event registration with handler and unregistration (#3755)	2026-11-17
+pr	3755	https://github.com/Pumpkin-MC/Pumpkin/pull/3755	feat(plugin): add event registration w/ handler and unregistration	DONE		f1d4da071	feat(plugin): add event registration w/ handler and unregistration (#3755)	2026-11-17
 pr	3763	https://github.com/Pumpkin-MC/Pumpkin/pull/3763	fix(command): avoid sending tick sprint report before completion	DONE		19a07d441	fix(command): avoid sending tick sprint report before completion (#3763)	2026-11-17
 pr	3775	https://github.com/Pumpkin-MC/Pumpkin/pull/3775	fix(entity): send the painting variant as registry id plus one 🤖🤖🤖	TODO				2026-11-17
 pr	3776	https://github.com/Pumpkin-MC/Pumpkin/pull/3776	fix(entity): validate item frame placement and support 🤖🤖🤖	DONE		971cbfb37	fix(entity): validate item frame placement and support 🤖🤖🤖 (#3776)	2026-11-17
-pr	3778	https://github.com/Pumpkin-MC/Pumpkin/pull/3778	feat: vanilla world types for new worlds, and decorated flat worlds	COMMITTED-UNLANDED	kab/oc3778		branch ahead of master	2026-11-17
+pr	3778	https://github.com/Pumpkin-MC/Pumpkin/pull/3778	feat: vanilla world types for new worlds, and decorated flat worlds	DONE		6239b7f0b	feat: vanilla world types for new worlds, and decorated flat worlds (#3778)	2026-11-17
 pr	3788	https://github.com/Pumpkin-MC/Pumpkin/pull/3788	fix(server): stop the stdin console task when the server stops	SKIPPED			DONE.md:48 - #3135 #4061 #3485 #3349 #3826 #3869 #3788 (PR, skipped: already present in master)	2026-11-17
-pr	3790	https://github.com/Pumpkin-MC/Pumpkin/pull/3790	fix(entity): let blazes ascend toward higher targets	COMMITTED-UNLANDED	kab/oc3790		branch ahead of master	2026-11-17
+pr	3790	https://github.com/Pumpkin-MC/Pumpkin/pull/3790	fix(entity): let blazes ascend toward higher targets	TODO				2026-11-17
 pr	3792	https://github.com/Pumpkin-MC/Pumpkin/pull/3792	fix(world): handle queued player packets before scheduled ticks	DONE		3934ed502	fix(world): handle queued player packets before scheduled ticks (#3792)	2026-11-17
 pr	3794	https://github.com/Pumpkin-MC/Pumpkin/pull/3794	fix(entity): velocity sync and vanilla minecart velocity transfer	DONE		ba60a0478	fix(minecart): transfer velocity on collision like vanilla (#3794)	2026-11-17
 pr	3795	https://github.com/Pumpkin-MC/Pumpkin/pull/3795	fix(entity): sulfur cube AI and cube mob size sync	SKIPPED			DONE.md:171 - #3795 (PR, skipped: sulfur cube goals and slime hunt present)	2026-11-17
@@ -146,7 +146,7 @@ pr	3800	https://github.com/Pumpkin-MC/Pumpkin/pull/3800	fix(entity): persist lea
 pr	3804	https://github.com/Pumpkin-MC/Pumpkin/pull/3804	fix(hopper): pick up whole item stacks, including from the bowl	SKIPPED			DONE.md:137 - #3804 (PR, skipped: block/entities/hopper.rs already has whole-stack pickup and bowl box)	2026-11-17
 pr	3807	https://github.com/Pumpkin-MC/Pumpkin/pull/3807	fix(command): apply /data block changes to the live block entity	DONE		4ee05e42a	fix(command): apply /data block changes to the live block entity (#3807)	2026-11-17
 pr	3808	https://github.com/Pumpkin-MC/Pumpkin/pull/3808	fix(entity): prevent mobs burning under opaque blocks	DONE		7fddaa46b	fix(entity): prevent mobs burning under opaque blocks (#3808)	2026-11-17
-pr	3810	https://github.com/Pumpkin-MC/Pumpkin/pull/3810	feat(item): place scaffolding like vanilla	COMMITTED-UNLANDED	kab/oc3810		branch ahead of master	2026-11-17
+pr	3810	https://github.com/Pumpkin-MC/Pumpkin/pull/3810	feat(item): place scaffolding like vanilla	DONE		49abc19ff	feat(item): place scaffolding like vanilla (#3810)	2026-11-17
 pr	3811	https://github.com/Pumpkin-MC/Pumpkin/pull/3811	fix(protocol): preserve custom item name formatting 🤖🤖🤖	DONE		7c26abe42	fix(protocol): preserve custom item name formatting 🤖🤖🤖 (#3811)	2026-11-17
 pr	3813	https://github.com/Pumpkin-MC/Pumpkin/pull/3813	fix(command): bound nested function chain depth to stop stack overflow	DONE		3d0504755	fix(command): bound nested function chain depth to stop stack overflow (#3813)	2026-11-17
 pr	3816	https://github.com/Pumpkin-MC/Pumpkin/pull/3816	fix(entity): damage water-sensitive mobs with thrown water potions	DONE		0a5829211	fix(entity): damage water-sensitive mobs with thrown water potions (#3816)	2026-11-17
@@ -155,10 +155,10 @@ pr	3820	https://github.com/Pumpkin-MC/Pumpkin/pull/3820	fix(player): stop the Be
 pr	3821	https://github.com/Pumpkin-MC/Pumpkin/pull/3821	feat(entity): implement the fishing bobber	DONE		97beb89a3	feat(entity): implement the fishing bobber (#3821)	2026-11-17
 pr	3826	https://github.com/Pumpkin-MC/Pumpkin/pull/3826	fix(block): keep ice from melting when broken in creative	SKIPPED			DONE.md:48 - #3135 #4061 #3485 #3349 #3826 #3869 #3788 (PR, skipped: already present in master)	2026-11-17
 pr	3827	https://github.com/Pumpkin-MC/Pumpkin/pull/3827	fix(command): parse block state properties in /setblock	SKIPPED			DONE.md:99 - #3827 (PR, skipped: block.rs:188 BlockArgumentType)	2026-11-17
-pr	3829	https://github.com/Pumpkin-MC/Pumpkin/pull/3829	fix(entity): add Shearable trait and fix shearing	FAILED			QUEUE.md:7 - #3829 failed: Shearable trait conflicts with master inline shearing (dispenser, bogged, sulfur_cube, snow_golem); needs hand redesign	2026-11-17
+pr	3829	https://github.com/Pumpkin-MC/Pumpkin/pull/3829	fix(entity): add Shearable trait and fix shearing	DONE		c76fa3751	fix(entity): add Shearable trait and fix shearing (#3829)	2026-11-17
 pr	3835	https://github.com/Pumpkin-MC/Pumpkin/pull/3835	fix(projectile): vanilla fireball flight, player collisions and leftOwner state machine	TODO				2026-11-17
 pr	3843	https://github.com/Pumpkin-MC/Pumpkin/pull/3843	fix(block): avoid double press sound on buttons	DONE		8ac0a7acd	fix(block): avoid double press sound on buttons (#3843)	2026-11-17
-pr	3845	https://github.com/Pumpkin-MC/Pumpkin/pull/3845	fix: entity motion, forced chunks, attributes and combat knockback	COMMITTED-UNLANDED	kab/oc3845		branch ahead of master	2026-11-17
+pr	3845	https://github.com/Pumpkin-MC/Pumpkin/pull/3845	fix: entity motion, forced chunks, attributes and combat knockback	DONE		55b85ffa4	 fix: entity motion, forced chunks, attributes and combat knockback (#3845)	2026-11-17
 pr	3846	https://github.com/Pumpkin-MC/Pumpkin/pull/3846	Slovenian translation	DONE		aac5c5d7c	Slovenian translation (#3846)	2026-11-17
 pr	3848	https://github.com/Pumpkin-MC/Pumpkin/pull/3848	perf(world): chunk memory optimisation(s) and benchmarks	DONE		a343089a0	perf(world): chunk memory optimisation(s) and benchmarks (#3848)	2026-11-17
 pr	3849	https://github.com/Pumpkin-MC/Pumpkin/pull/3849	fix(protocol): keep item changes from block interactions	TODO				2026-11-17
@@ -174,7 +174,7 @@ pr	3869	https://github.com/Pumpkin-MC/Pumpkin/pull/3869	fix(block): preserve fir
 pr	3871	https://github.com/Pumpkin-MC/Pumpkin/pull/3871	fix(entity): correct cushion placement and support removal	DONE		92e4f3acf	fix(cushion): upgrade weak entity refs (#3871)	2026-11-17
 pr	3875	https://github.com/Pumpkin-MC/Pumpkin/pull/3875	fix(block): preserve block entity data when placing items	SKIPPED			DONE.md:136 - #3875 (PR, skipped: block/registry.rs:882-905 already preserves block entity data)	2026-11-17
 pr	3886	https://github.com/Pumpkin-MC/Pumpkin/pull/3886	feat(entity): complete the silverfish goal set	DONE		be572e868	feat(entity): complete the silverfish goal set (#3886)	2026-11-17
-pr	3887	https://github.com/Pumpkin-MC/Pumpkin/pull/3887	feat: support dynamically adding registries	FAILED			QUEUE.md:17 - #3887 failed: generated-code conflicts, needs codegen run	2026-11-17
+pr	3887	https://github.com/Pumpkin-MC/Pumpkin/pull/3887	feat: support dynamically adding registries	DONE		4848b8d66	feat: support dynamically adding registries (#3887)	2026-11-17
 pr	3894	https://github.com/Pumpkin-MC/Pumpkin/pull/3894	fix(data): parse SNBT custom model data numbers	DONE		a878d1f50	fix(data): parse SNBT custom model data numbers (#3894)	2026-11-17
 pr	3895	https://github.com/Pumpkin-MC/Pumpkin/pull/3895	fix(plugin): point block ignite events at the ignited block and carry…	DONE		de435d760	fix(plugin): point block ignite events at the ignited block and carry… (#3895)	2026-11-17
 pr	3896	https://github.com/Pumpkin-MC/Pumpkin/pull/3896	fix(item): give bundles vanilla's click, use and sync behaviour	DONE		f4815d6f9	fix(item): give bundles vanilla's click, use and sync behaviour (#3896)	2026-11-17
@@ -191,20 +191,20 @@ pr	3922	https://github.com/Pumpkin-MC/Pumpkin/pull/3922	fix(inventory): cap reci
 pr	3925	https://github.com/Pumpkin-MC/Pumpkin/pull/3925	fix(plugin): correct BlockFromTo positions and fluid type	DONE		8199f952b	fix(plugin): correct BlockFromTo positions and fluid type (#3925)	2026-11-17
 pr	3927	https://github.com/Pumpkin-MC/Pumpkin/pull/3927	feat(api): add leash APIs to Wasm host v0.2	DONE		dbe424ae7	feat(api): add leash APIs to Wasm host v0.2 (#3927)	2026-11-17
 pr	3931	https://github.com/Pumpkin-MC/Pumpkin/pull/3931	fix(block): allow dirt path and farmland under fence gates	SKIPPED			DONE.md:100 - #3931 (PR, skipped: dirt_path.rs/farmland.rs already check tags)	2026-11-17
-pr	3940	https://github.com/Pumpkin-MC/Pumpkin/pull/3940	fix(item): give the mob bucket when catching a mob with a water bucket	COMMITTED-UNLANDED	kab/oc3940		branch ahead of master	2026-11-17
+pr	3940	https://github.com/Pumpkin-MC/Pumpkin/pull/3940	fix(item): give the mob bucket when catching a mob with a water bucket	TODO				2026-11-17
 pr	3951	https://github.com/Pumpkin-MC/Pumpkin/pull/3951	fix(block): place banners on walls	DONE		4666745c2	fix(block): place banners on walls (#3951)	2026-11-17
 pr	3955	https://github.com/Pumpkin-MC/Pumpkin/pull/3955	perf(pathfinder): reuse paths, share block caches, limit searches	DONE		c742c1fa8	perf(pathfinder): reuse paths, share block caches, limit searches (#3955)	2026-11-17
 pr	3961	https://github.com/Pumpkin-MC/Pumpkin/pull/3961	feat(entity): implement chest boat inventory	SKIPPED			DONE.md:154 - #3961 (PR, skipped: boat.rs already has chest boat inventory)	2026-11-17
 pr	3962	https://github.com/Pumpkin-MC/Pumpkin/pull/3962	feat(plugin): add async v0.2 guest bindings	DONE		e1e3626b2	feat(plugin): add async v0.2 guest bindings (#3962)	2026-11-17
 pr	3965	https://github.com/Pumpkin-MC/Pumpkin/pull/3965	fix(block): make hoppers respect double chests	SKIPPED			DONE.md:97 - #3965 (PR, skipped: hopper.rs:299)	2026-11-17
-pr	3976	https://github.com/Pumpkin-MC/Pumpkin/pull/3976	fix(item): return an empty bucket after placing powder snow	COMMITTED-UNLANDED	kab/oc3976		branch ahead of master	2026-11-17
+pr	3976	https://github.com/Pumpkin-MC/Pumpkin/pull/3976	fix(item): return an empty bucket after placing powder snow	DONE		8270b781b	fix(item): return an empty bucket after placing powder snow (#3976)	2026-11-17
 pr	3978	https://github.com/Pumpkin-MC/Pumpkin/pull/3978	fix(entity): cap fall distance while gliding	TODO				2026-11-17
 pr	3979	https://github.com/Pumpkin-MC/Pumpkin/pull/3979	fix(plugin): load healthy plugins when one has an unresolvable depend…	DONE		3210ec0df	fix(plugin): load healthy plugins when one has an unresolvable depend… (#3979)	2026-11-17
 pr	3984	https://github.com/Pumpkin-MC/Pumpkin/pull/3984	fix(entity): feline goal parity for cats and ocelots	DONE		5abaeaa7e	fix(entity): feline goal parity for cats and ocelots (#3984)	2026-11-17
 pr	3987	https://github.com/Pumpkin-MC/Pumpkin/pull/3987	fix(command): support execute store score	SKIPPED			DONE.md:181 - Skipped, already on master: #4380 (commands_and_gamemode.rs:38-41), #4029 (structure_finder.rs:162-219), #4059 (bucket.rs:271-276), #4058 (player.rs:670, player_action.rs:212-232), #4030 (abstract_fish.rs:35), #3460 (item.rs:499-507), #4184 (blocks.rs:36), #3987 (execute.rs:581), #4031 (anvil.rs:383,434).	2026-11-17
 pr	3988	https://github.com/Pumpkin-MC/Pumpkin/pull/3988	feat(entity): implement bogged mechanics and skeleton parity improvements	DONE		5cf979878	feat(entity): implement bogged mechanics and skeleton parity improvements     (#3988)	2026-11-17
 pr	3990	https://github.com/Pumpkin-MC/Pumpkin/pull/3990	fix(block): dispenser now correctly replaces replacable block infront with bucket content	DONE		0a6d6cd8e	fix(block): dispenser now correctly replaces replacable block infront with bucket content (#3990)	2026-11-17
-pr	3991	https://github.com/Pumpkin-MC/Pumpkin/pull/3991	fix(auth): escape the username in authentication URLs	COMMITTED-UNLANDED	kab/oc3991		branch ahead of master	2026-11-17
+pr	3991	https://github.com/Pumpkin-MC/Pumpkin/pull/3991	fix(auth): escape the username in authentication URLs	DONE		1d20712fd	fix(auth): escape the username in authentication URLs (#3991)	2026-11-17
 pr	3992	https://github.com/Pumpkin-MC/Pumpkin/pull/3992	fix(protocol): grow the payload buffer as bytes arrive instead of reserving the declared length	DONE		79dff92db	fix(protocol): grow the payload buffer as bytes arrive instead of reserving the declared length (#3992)	2026-11-17
 pr	3993	https://github.com/Pumpkin-MC/Pumpkin/pull/3993	fix(world): cap how much a chunk may decompress to	DONE		638e98906	fix(world): cap how much a chunk may decompress to (#3993)	2026-11-17
 pr	3995	https://github.com/Pumpkin-MC/Pumpkin/pull/3995	fix(server): keep a Rayon worker panic from aborting the process	DONE		849bfa5d9	fix(server): keep a Rayon worker panic from aborting the process (#3995)	2026-11-17
@@ -264,7 +264,7 @@ pr	4151	https://github.com/Pumpkin-MC/Pumpkin/pull/4151	fix(plugin): call event 
 pr	4152	https://github.com/Pumpkin-MC/Pumpkin/pull/4152	fix(item): fire bucket events before the world changes and honor cancelling	DONE		10682df47	fix(item): fire bucket events before the world changes and honor cancelling (#4152)	2026-11-17
 pr	4153	https://github.com/Pumpkin-MC/Pumpkin/pull/4153	fix(plugin): don't cache permission denials when there is no console to ask	DONE		14155214b	fix(plugin): don't cache permission denials when there is no console to ask (#4153)	2026-11-17
 pr	4158	https://github.com/Pumpkin-MC/Pumpkin/pull/4158	fix(world): apply the terrain matching projection to jigsaw pieces	DONE		4ddde29dc	fix(world): apply the terrain matching projection to jigsaw pieces (#4158)	2026-11-17
-pr	4160	https://github.com/Pumpkin-MC/Pumpkin/pull/4160	fix(plugin): map WIT sounds to pumpkin-data sounds by index	COMMITTED-UNLANDED	kab/oc4160		branch ahead of master	2026-11-17
+pr	4160	https://github.com/Pumpkin-MC/Pumpkin/pull/4160	fix(plugin): map WIT sounds to pumpkin-data sounds by index	TODO				2026-11-17
 pr	4161	https://github.com/Pumpkin-MC/Pumpkin/pull/4161	fix(plugin): apply set-block-entity-nbt to a loaded block entity	DONE		58a4c2c6f	fix(plugin): apply set-block-entity-nbt to a loaded block entity (#4161)	2026-11-17
 pr	4162	https://github.com/Pumpkin-MC/Pumpkin/pull/4162	fix(plugin): register the reentry scope before spawning a blocking host call	DONE		75e7eefc9	fix(plugin): register the reentry scope before spawning a blocking host call (#4162)	2026-11-17
 pr	4163	https://github.com/Pumpkin-MC/Pumpkin/pull/4163	fix(player): make hide_player and show_player hide the player from th…	DONE		3a9601df9	fix(player): hide and show players from the tracker (#4163)	2026-11-17
@@ -283,7 +283,7 @@ pr	4333	https://github.com/Pumpkin-MC/Pumpkin/pull/4333	fix(command): expose pla
 pr	4334	https://github.com/Pumpkin-MC/Pumpkin/pull/4334	fix(item): read styled lore and item names given as SNBT in item arguments	DONE		d221ea99d	fix(item): read styled lore and item names given as SNBT in item arguments (#4334)	2026-11-17
 pr	4337	https://github.com/Pumpkin-MC/Pumpkin/pull/4337	fix(entity): load and save block display block_state	DONE		78ea3b3a3	fix(entity): load and save block display block_state (#4337)	2026-11-17
 pr	4347	https://github.com/Pumpkin-MC/Pumpkin/pull/4347	fix(command): support datapack block tags in execute if/unless block	DONE		eec67f34c	fix(command): support datapack block tags in execute if/unless block (#4347)	2026-11-17
-pr	4349	https://github.com/Pumpkin-MC/Pumpkin/pull/4349	feat(weather): vanilla-parity weather, per-world cycles, data-driven phases	COMMITTED-UNLANDED	kab/n4349		branch ahead of master	2026-11-17
+pr	4349	https://github.com/Pumpkin-MC/Pumpkin/pull/4349	feat(weather): vanilla-parity weather, per-world cycles, data-driven phases	DONE		5572fcb79	feat(weather): vanilla-parity weather, per-world cycles, data-driven phases (#4349)	2026-11-17
 pr	4350	https://github.com/Pumpkin-MC/Pumpkin/pull/4350	fix(text): decode JSON-string item names	DONE		15a5fcee3	fix(text): decode JSON-string item names (#4350)	2026-11-17
 pr	4351	https://github.com/Pumpkin-MC/Pumpkin/pull/4351	fix(item): keep stacks with unknown components and default consumable fields	DONE		3d079966c	fix(item): keep stacks with unknown components and default consumable fields (#4351)	2026-11-17
 pr	4368	https://github.com/Pumpkin-MC/Pumpkin/pull/4368	feat(entity): vanilla parity for spider and cave spider	DONE		ed6d588bf	feat(entity): vanilla parity for spider and cave spider (#4368)	2026-11-17
@@ -305,13 +305,13 @@ pr	4393	https://github.com/Pumpkin-MC/Pumpkin/pull/4393	feat(entity): vanilla pa
 pr	4395	https://github.com/Pumpkin-MC/Pumpkin/pull/4395	feat(config): migrate configuration loading to toml-spanner	DONE		e4492f275	feat(config): migrate configuration loading to toml-spanner (#4395)	2026-11-17
 pr	4400	https://github.com/Pumpkin-MC/Pumpkin/pull/4400	Fix network error when sending scoreboard objective during join	DONE		3a1b0dc51	Fix network error when sending scoreboard objective during join (#4400)	2026-11-17
 pr	4402	https://github.com/Pumpkin-MC/Pumpkin/pull/4402	fix(plugin): return unique v0.2 world ids	DONE		d2ee3519a	fix(plugin): return unique v0.2 world ids (#4402)	2026-11-17
-pr	4405	https://github.com/Pumpkin-MC/Pumpkin/pull/4405	feat(wit): Plugin event rework (variant => resource)	COMMITTED-UNLANDED	kab/n4405		branch ahead of master	2026-11-17
+pr	4405	https://github.com/Pumpkin-MC/Pumpkin/pull/4405	feat(wit): Plugin event rework (variant => resource)	DONE		ce51cede8	Revert "feat(wit): Plugin event rework (variant => resource) (#4405)"	2026-11-17
 pr	4414	https://github.com/Pumpkin-MC/Pumpkin/pull/4414	fix(command): show the limit in /worldborder center out of bounds error	DONE		f1fcc64f9	fix(command): show the limit in /worldborder center out of bounds error (#4414)	2026-11-17
 pr	4415	https://github.com/Pumpkin-MC/Pumpkin/pull/4415	fix(command): show the limit in /worldborder set too-big error	DONE		dbab74358	fix(command): show the limit in /worldborder set too-big error (#4415)	2026-11-17
 pr	4416	https://github.com/Pumpkin-MC/Pumpkin/pull/4416	fix(item): stop custom attribute modifiers from corrupting player saves	DONE		440d256cd	fix(item): stop custom attribute modifiers from corrupting player saves (#4416)	2026-11-17
 pr	4417	https://github.com/Pumpkin-MC/Pumpkin/pull/4417	fix(entity): break minecarts in lava and on cactus	DONE		f7cae3880	fix(entity): break minecarts in lava and on cactus (#4417)	2026-11-17
 pr	4418	https://github.com/Pumpkin-MC/Pumpkin/pull/4418	Implement bedrock scoreboard functionality and tests	DONE		94c00f31d	Implement bedrock scoreboard functionality and tests (#4418)	2026-11-17
-pr	4419	https://github.com/Pumpkin-MC/Pumpkin/pull/4419	fix(entity): drop the minecart item when a minecart is destroyed	COMMITTED-UNLANDED	kab/oc4419		branch ahead of master	2026-11-17
+pr	4419	https://github.com/Pumpkin-MC/Pumpkin/pull/4419	fix(entity): drop the minecart item when a minecart is destroyed	DONE		10c5b727b	fix(entity): drop the minecart item when a minecart is destroyed (#4419)	2026-11-17
 pr	4426	https://github.com/Pumpkin-MC/Pumpkin/pull/4426	Fix wasm command callbacks panicking on simulation threads	DONE		67f1eaa20	Fix wasm command callbacks panicking on simulation threads (#4426)	2026-11-17
 pr	4429	https://github.com/Pumpkin-MC/Pumpkin/pull/4429	feat(inventory): add server-side inventory holders	DONE		216ba57b0	feat(inventory): add server-side inventory holders (#4429)	2026-11-17
 pr	4444	https://github.com/Pumpkin-MC/Pumpkin/pull/4444	fix(advancement): evaluate effects_changed conditions and fire it for all effect sources	DONE		8536d4964	fix(advancement): evaluate effects_changed conditions and fire it for all effect sources (#4444)	2026-11-17
@@ -333,7 +333,7 @@ pr	4509	https://github.com/Pumpkin-MC/Pumpkin/pull/4509	feat(block): grow pointe
 pr	4511	https://github.com/Pumpkin-MC/Pumpkin/pull/4511	fix(player): prevent picking up death drops during respawn	DONE		972fc3023	fix(player): prevent picking up death drops during respawn (#4511)	2026-11-17
 pr	4512	https://github.com/Pumpkin-MC/Pumpkin/pull/4512	perf(data): property slots and a data-driven fluid system	FAILED			QUEUE.md:23 - Failed (squash conflicts, need redesign or codegen): #4379 (16 files), #4378 (14 files), #3057 (about 100 files, old crate paths), #3507 (stale base, loot codegen), #4512 (58 files, 1287 hunks in generated block.rs, needs codegen regeneration).	2026-11-17
 pr	4514	https://github.com/Pumpkin-MC/Pumpkin/pull/4514	fix(entity): send attributes when a player starts tracking a living entity	DONE		94d04e557	fix(entity): send attributes when a player starts tracking a living entity (#4514)	2026-11-17
-pr	4519	https://github.com/Pumpkin-MC/Pumpkin/pull/4519	fix(plugin): fire PlayerSpawnLocationEvent on join (#4331)	COMMITTED-UNLANDED	kab/oc4519		branch ahead of master	2026-11-17
+pr	4519	https://github.com/Pumpkin-MC/Pumpkin/pull/4519	fix(plugin): fire PlayerSpawnLocationEvent on join (#4331)	DONE		f3cdf4eb9	fix(plugin): fire PlayerSpawnLocationEvent on join (#4331) (#4519)	2026-11-17
 pr	4523	https://github.com/Pumpkin-MC/Pumpkin/pull/4523	fix: offset painting variant id by 1	DONE		de44a1bdb	fix: offset painting variant id by 1 (#4523)	2026-11-17
 pr	4525	https://github.com/Pumpkin-MC/Pumpkin/pull/4525	fix(block): send stonecutter recipes and return input on close (#4458)	DONE		74fb59854	fix(block): send stonecutter recipes and return input on close (#4458) (#4525)	2026-11-17
 pr	4527	https://github.com/Pumpkin-MC/Pumpkin/pull/4527	fix(entity): prevent wither from despawning on chunk unload	DONE		534965a3c	fix(entity): prevent wither from despawning on chunk unload (#4527)	2026-11-17
@@ -707,7 +707,7 @@ issue	4317	https://github.com/Pumpkin-MC/Pumpkin/issues/4317	Plugin `send-packet
 issue	4320	https://github.com/Pumpkin-MC/Pumpkin/issues/4320	Ghost totem	TODO				2026-11-17
 issue	4321	https://github.com/Pumpkin-MC/Pumpkin/issues/4321	Bedrock block pick (middle click) is always ignored	DONE		b67e6256b	fix(bedrock): treat block pick max_slots as slot count (#4321)	2026-11-17
 issue	4328	https://github.com/Pumpkin-MC/Pumpkin/issues/4328	Server never checks if the block placment is blocked	COMMITTED-UNLANDED	kab/i4328		branch ahead of master	2026-11-17
-issue	4331	https://github.com/Pumpkin-MC/Pumpkin/issues/4331	`PlayerSpawnLocationEvent` is not fired on join, so plugins cannot choose where a joining player spawns (feature request)	DONE		e98fb46ff	fix(world): fire PlayerSpawnLocationEvent on java player join (#4331)	2026-11-17
+issue	4331	https://github.com/Pumpkin-MC/Pumpkin/issues/4331	`PlayerSpawnLocationEvent` is not fired on join, so plugins cannot choose where a joining player spawns (feature request)	DONE		f3cdf4eb9	fix(plugin): fire PlayerSpawnLocationEvent on join (#4331) (#4519)	2026-11-17
 issue	4345	https://github.com/Pumpkin-MC/Pumpkin/issues/4345	Infinite "Loading Terrain" loading screen	TODO				2026-11-17
 issue	4348	https://github.com/Pumpkin-MC/Pumpkin/issues/4348	Older chucks not loading	TODO				2026-11-17
 issue	4352	https://github.com/Pumpkin-MC/Pumpkin/issues/4352	/fill with destroy mode deadlocks the server	TODO				2026-11-17
@@ -757,7 +757,7 @@ issue	4485	https://github.com/Pumpkin-MC/Pumpkin/issues/4485	Worldspawn Always s
 issue	4487	https://github.com/Pumpkin-MC/Pumpkin/issues/4487	[Vanilla Parity 26.3] Missing and outdated mechanics in `ArrowEntity` (`arrow.rs`)	DONE		33fae2ef1	fix(entity): arrow potion decay and spectral duration parity (#4487)	2026-11-17
 issue	4492	https://github.com/Pumpkin-MC/Pumpkin/issues/4492	Naturally spawned skeletons have no bow, and skeleton arrows deal no damage	TODO				2026-11-17
 issue	4496	https://github.com/Pumpkin-MC/Pumpkin/issues/4496	Furnace does not award experience after smelting when the smelted product is extracted	DONE		13f31276a	fix(block): keep fractional furnace experience between takes (#4496)	2026-11-17
-issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		bcd00c4ad	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
+issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		6f7d795ae	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
 issue	4513	https://github.com/Pumpkin-MC/Pumpkin/issues/4513	Client shows wrong max health for horses (26 hearts) after spawn	TODO				2026-11-17
 issue	4518	https://github.com/Pumpkin-MC/Pumpkin/issues/4518	Are there plans to support Alpine Linux?	DONE		64b8f4001	docs(readme): state glibc-only Linux binaries and no Alpine support (#4518)	2026-11-17
 issue	4521	https://github.com/Pumpkin-MC/Pumpkin/issues/4521	Expose transfer queue results to plugins	DONE		c4cce6382	feat(plugin-api): expose transfer queue results to plugins (#4521)	2026-11-17
@@ -768,7 +768,7 @@ issue	4529	https://github.com/Pumpkin-MC/Pumpkin/issues/4529	Book Ban Exploit fi
 issue	4537	https://github.com/Pumpkin-MC/Pumpkin/issues/4537	Shulker box doesn't check for blocks on top	DONE		6e0dd060b	fix(block): block shulker box opening under a solid block (#4537)	2026-11-17
 issue	4545	https://github.com/Pumpkin-MC/Pumpkin/issues/4545	Lead doesn't drop after attached mob is killed	DONE		852f02975	fix(entity): drop lead when a leashed mob dies (#4545)	2026-11-17
 issue	4547	https://github.com/Pumpkin-MC/Pumpkin/issues/4547	Server never checks if the block rotation and position is possible from the players perspective.	DONE		6a7175af0	fix(block): reject impossible block interaction hits (#4547)	2026-11-17
-issue	4550	https://github.com/Pumpkin-MC/Pumpkin/issues/4550	When clicking on mob that has variants with spawn eggs, child is default variant instead of similar to parent.	TODO				2026-11-17
+issue	4550	https://github.com/Pumpkin-MC/Pumpkin/issues/4550	When clicking on mob that has variants with spawn eggs, child is default variant instead of similar to parent.	DONE		2e090c4d2	fix(wolf): breed offspring inherits parent variant (#4550)	2026-11-17
 issue	4558	https://github.com/Pumpkin-MC/Pumpkin/issues/4558	At an extremely long render distance (64 chunks), the server may stop sending data packets.	DONE		cc7c3cf85	fix(chunk): send chunks past the precompiled view distance table (#4558)	2026-11-17
 issue	4559	https://github.com/Pumpkin-MC/Pumpkin/issues/4559	Tracking: Blocks	COMMITTED-UNLANDED	kab/i4559		branch ahead of master	2026-11-17
 issue	4560	https://github.com/Pumpkin-MC/Pumpkin/issues/4560	Tracking: Items	TODO				2026-11-17
