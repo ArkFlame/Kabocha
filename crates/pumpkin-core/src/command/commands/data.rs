@@ -1224,9 +1224,14 @@ mod tests {
         assert_eq!(utf16_len("abc"), 3);
         assert_eq!(utf16_len("\u{e9}"), 1);
         assert_eq!(utf16_len("\u{1f600}"), 2);
+        // "a" + surrogate pair is three UTF-16 units; the whole string is four.
+        assert_eq!(
+            substring("a\u{1f600}b", 0, Some(3)).unwrap_or_default(),
+            "a\u{1f600}"
+        );
         assert_eq!(
             substring("a\u{1f600}b", 0, Some(4)).unwrap_or_default(),
-            "a\u{1f600}"
+            "a\u{1f600}b"
         );
         assert_eq!(substring("a\u{1f600}b", 3, None).unwrap_or_default(), "b");
         assert!(substring("\u{e9}", 0, Some(2)).is_err());
