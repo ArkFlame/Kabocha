@@ -120,14 +120,13 @@ impl FishingBobberEntity {
         // Vanilla `FishingHook` constructor: `this.luck = Math.max(0, luck)`.
         let luck_bonus = luck_bonus.max(0);
         let wait_time_reduction_ticks = wait_time_reduction_ticks.max(0);
-        let wait_countdown = roll_wait_countdown(wait_time_reduction_ticks);
-
         Self {
             entity,
             owner: ProjectileOwner::new(Some(owner_entity)),
             state: AtomicCell::new(HookState::Flying),
             life: AtomicI32::new(0),
-            wait_countdown: AtomicI32::new(wait_countdown),
+            // Vanilla `FishingHook.timeUntilLured` starts at 0; the first wet tick rolls it.
+            wait_countdown: AtomicI32::new(0),
             bite_countdown: AtomicI32::new(0),
             hook_countdown: AtomicI32::new(0),
             fish_angle: AtomicCell::new(0.0),

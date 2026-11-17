@@ -25,7 +25,10 @@ increment on the `minecraft:fishes` tag, so those catches never count. Fix: incr
 `CustomStatistic::FishCaught` unconditionally in the loot loop. Verify the exact vanilla
 placement before changing (Bukkit does not expose this stat per catch type).
 
-### 2. Initial bite timer is rolled on cast, not on first water tick - size S
+### 2. Initial bite timer is rolled on cast, not on first water tick - size S - FIXED (UNVERIFIED)
+
+Fixed: `FishingBobberEntity::new` now starts `wait_countdown` at 0, so the first wet
+`catching_fish` tick rolls it. No gametest yet.
 
 `fishing_bobber.rs:105-106`. Vanilla `FishingHook` starts with `timeUntilLured = 0`; the
 first `catchingFish` call inside water takes the `else` branch and rolls
@@ -70,6 +73,9 @@ entity and luck `hook_luck + player LUCK`; item entity velocity `delta*0.1 + sqr
 and `1..=6` XP orbs; `PlayerFishEvent` states `Fishing`, `Bite`, `FailedAttempt`,
 `CaughtEntity`, `CaughtFish` with cancellation; `FISHING_ROD_HOOKED` advancement trigger.
 
-## h6 gap status
-
-- TODO removed: FIXED (50a7d1ee2).
+## Gap status (h9 sweep, 2026-11-17)
+- FIXED: stale bobber id is only removed when it downcasts to `FishingBobberEntity` (`fishing_rod.rs:94`).
+- CLOSED: luck clamp stays `max(0)` (`fishing_bobber.rs:120-121`), the vanilla `FishingHook` constructor clamp; the `max(1)` suggestion is rejected.
+- Gap 2 FIXED (UNVERIFIED): initial `wait_countdown` is 0 on cast.
+- Gap 1 (`fish_caught` tag gate): NOT CHANGED. Recollection of vanilla `FishingHook.retrieve` is `if (itemstack.is(ItemTags.FISHES)) awardStat(FISH_CAUGHT)`, which matches the existing tag gate. UNVERIFIED, no decompiled source in tree.
+- Gap 3 (`reel_in` guard): NOT CHANGED. Recollection of vanilla `retrieve` is `!shouldStopFishing(player)` in its guard, which matches the existing code. UNVERIFIED.
