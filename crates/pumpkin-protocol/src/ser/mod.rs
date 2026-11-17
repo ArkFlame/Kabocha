@@ -1151,11 +1151,17 @@ impl<W: Write> NetworkWriteExt for W {
     }
 
     fn write_string_bounded(&mut self, data: &str, bound: usize) -> Result<(), WritingError> {
-        if data.len() > bound {
+        // Vanilla `writeUtf`: the bound counts UTF-16 units, the encoded bytes may be up to 3x that.
+        let utf16_len = data.encode_utf16().count();
+        if utf16_len > bound {
             return Err(WritingError::Message(format!(
-                "string length {} exceeds bound {}",
-                data.len(),
-                bound
+                "string has {utf16_len} UTF-16 characters, exceeds bound {bound}"
+            )));
+        }
+        if data.len() > bound.saturating_mul(3) {
+            return Err(WritingError::Message(format!(
+                "string has {} bytes, exceeds bound {bound} * 3",
+                data.len()
             )));
         }
         self.write_var_int(&data.len().try_into().map_err(|_| {
@@ -1259,5 +1265,24 @@ impl<W: Write> NetworkWriteExt for W {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NetworkWriteExt;
+
+    #[test]
+    fn write_string_bounded_counts_utf16_units_like_vanilla() {
+        // Three UTF-16 units encoded as six UTF-8 bytes is valid for a bound of three.
+        let mut out = Vec::new();
+        assert!(out.write_string_bounded("ééé", 3).is_ok());
+        assert_eq!(out, [6, 0xC3, 0xA9, 0xC3, 0xA9, 0xC3, 0xA9]);
+
+        // A surrogate pair is two UTF-16 units even though it is four bytes.
+        let mut out = Vec::new();
+        assert!(out.write_string_bounded("😀", 1).is_err());
+        assert!(out.write_string_bounded("😀", 2).is_ok());
+        assert_eq!(out, [4, 0xF0, 0x9F, 0x98, 0x80]);
     }
 }

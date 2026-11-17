@@ -1,7 +1,7 @@
 use pumpkin_util::math::vector3::Vector3;
 
 use crate::{
-    VarInt,
+    codec::var_long::VarLong,
     ser::{NetworkWriteExt, ReadingError, WritingError},
 };
 
@@ -51,8 +51,9 @@ impl LpVector3d {
             .map_err(WritingError::IoError)?;
 
         if is_extended {
-            let scale_tail = VarInt((scale_factor >> 2) as i32);
-            writer.write_var_int(&scale_tail)?;
+            // The tail holds scale >> 2, which reaches 2^32 at the clamp, so it is a VarLong.
+            let scale_tail = VarLong(scale_factor >> 2);
+            writer.write_var_long(&scale_tail)?;
         }
 
         Ok(())
@@ -87,8 +88,8 @@ impl LpVector3d {
         let is_extended = (header & 4) != 0;
 
         let scale_factor = if is_extended {
-            let scale_tail = VarInt::decode(reader)?;
-            ((scale_tail.0 as i64) << 2) | (header & 3)
+            let scale_tail = VarLong::decode(reader)?;
+            (scale_tail.0 << 2) | (header & 3)
         } else {
             header & 3
         };
@@ -118,7 +119,8 @@ impl LpVector3d {
     }
 }
 
-const MAX_VELOCITY_CLAMP: f64 = 1.717_986_918_3E10;
+// Vanilla `LpVec3.MAX_ABS_VALUE` is 2^34 (1.7179869184E10).
+const MAX_VELOCITY_CLAMP: f64 = 17_179_869_184.0;
 const LEGACY_COMPONENT_CLAMP: f64 = 3.9;
 const LEGACY_COMPONENT_SCALE: f64 = 8000.0;
 const MIN_VELOCITY_MAGNITUDE: f64 = 3.051_944_088_384_301E-5;
@@ -156,6 +158,22 @@ fn from_long(quantized: i64, scale: f64) -> f64 {
 mod tests {
     use super::{LpVector3d, encode_legacy_velocity_component};
     use pumpkin_util::math::vector3::Vector3;
+
+    #[test]
+    fn extended_scale_tail_is_varlong_and_clamps_to_vanilla_max() {
+        // Past 2^32 the scale tail no longer fits a VarInt, so it must round trip as a VarLong.
+        let mut buf = Vec::new();
+        assert!(
+            LpVector3d(Vector3::new(1e12, 0.0, 0.0))
+                .write(&mut buf)
+                .is_ok()
+        );
+        // 2 bytes low + 4 bytes high + 5 VarLong bytes for 2^32.
+        assert_eq!(buf.len(), 11);
+        let decoded = LpVector3d::read(&mut buf.as_slice());
+        assert!(decoded.is_ok());
+        assert_eq!(decoded.map(|v| v.0.x).ok(), Some(17_179_869_184.0));
+    }
 
     #[test]
     fn legacy_component_is_clamped_and_scaled() {
