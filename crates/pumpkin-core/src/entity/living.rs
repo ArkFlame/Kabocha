@@ -3011,7 +3011,8 @@ impl LivingEntity {
             // non-player death with experience, spreading sculk around a
             // catalyst within 8 blocks.
             if perished && dyn_self.get_player().is_none() && dyn_self.should_drop_experience() {
-                let soul_charge = dyn_self.get_experience_reward(killer);
+                // Vanilla passes a null killer here, so Looting does not raise the soul charge.
+                let soul_charge = dyn_self.get_experience_reward(None);
                 crate::block::entities::sculk_catalyst::on_entity_death(
                     &world,
                     self.entity.block_pos.load(),
