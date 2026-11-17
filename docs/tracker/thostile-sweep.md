@@ -21,3 +21,10 @@ Read-only audit of `crates/pumpkin-core/src/entity/mob` against vanilla values. 
 | wither, ender dragon | skipped (size) | not audited |
 
 Fixes: none. No confident divergence found in this pass. Unverified items above need a decompiled vanilla diff before any change.
+
+## Re-verification against decompiled vanilla (x1)
+
+- VERIFIED: witch throw speed `dist <= 2.0 ? 0.45 : 0.75` and `rangedAttackUncertainty` 8.0 (Witch.java lines 227-272, 290-293).
+- VERIFIED: guardian `ATTACK_TIME` 80 (Guardian.java line 49).
+- VERIFIED: phantom `TICKS_PER_FLAP = ceil(24.166098)` = 25 (Phantom.java line 47).
+- Not re-verified: pillager, ravager, vindicator, evoker, shulker, silverfish, wither, ender dragon, phantom swoop and target search.

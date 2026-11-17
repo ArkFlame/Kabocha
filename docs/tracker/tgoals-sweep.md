@@ -46,3 +46,11 @@ No code changed: no divergence was found where confidence was high enough to edi
 
 - RangedAttackGoal, ReactToBell, OpenDoor/door interaction details, TemptGoal range per mob.
   Each needs a decompiled-source check.
+
+## Re-verification against decompiled vanilla (x1)
+
+- FIXED: FleeSunGoal `find_hide_pos` offsets. Vanilla `FleeSunGoal.getHidePos` uses `nextInt(20) - 10`, `nextInt(6) - 3`, `nextInt(20) - 10`, so x/z span -10..=9 and y -3..=2. Code now uses `random_range(-10..10)` and `random_range(-3..3)`. The predicate still differs (solid-block check instead of `!canSeeSky && getWalkTargetValue < 0`); left as is, needs sky-visibility and path-malus data.
+- VERIFIED: RangedAttackGoal (`see_time >= 5` with `<=` radius, attack-time lerp and floor, power clamp 0.1..1.0, LOS return before shot).
+- VERIFIED: OpenDoorGoal `forget_time = 20` is a literal in vanilla too.
+- Not re-verified in this pass: ReactToBell, TemptGoal range per mob.
+- No automated test: the change is a random roll inside a world-dependent loop.

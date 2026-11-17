@@ -35,3 +35,9 @@ Audit of `crates/pumpkin-core/src/block/blocks` against vanilla random-tick and 
 - Stem fruit-plant bonemeal re-tick path and grass bonemeal flower chance were read, not verified against decompiled vanilla.
 - Fire burn odds rely on `flammable.spread_chance`/`burn_chance` from generated data; values not cross-checked against vanilla tables.
 - `turtle_egg.rs:90` uses `u32 % randomness` (modulo bias only, not a 1/n divergence worth changing here).
+
+## Re-verification against decompiled vanilla (x1)
+
+- VERIFIED: azalea `isBonemealSuccess` is `nextFloat() < 0.45` (AzaleaBlock.java line 47).
+- VERIFIED: sweet berry bonemeal always succeeds (`isBonemealSuccess` returns true); random growth is `nextFloat() < modifier/500` (0.2, the `nextInt(5)==0` gate) with raw brightness >= 9 above (SweetBerryBushBlock.java lines 67, 165).
+- Not re-verified: pitcher crop growth gate (PitcherCropBlock.java line 144 uses the floor(25/f)+1 form, pumpkin side not read), torch flower, glow lichen, fire odds table.

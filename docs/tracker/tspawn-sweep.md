@@ -27,3 +27,8 @@ Audit of `crates/pumpkin-core/src/world/natural_spawner.rs`, `entity/mob/spawn.r
 - Full monster light-level path (`monster_spawn_light_level`).
 - FIXED (already on master, verified by reading `entity/mob/slime.rs` `surface_slime_spawn_succeeds`, boundary test `surface_slime_spawn_rules_cover_biomes_height_light_and_moon_roll`): swamp slime branch y 51..=69 (Java `50 < y < 70`), spawn chance from the environment attribute, light `<= nextInt(8)`. Slime chunk branch y < 40 unchanged.
 - Wandering trader and cat spawn timing constants.
+
+## Re-verification against decompiled vanilla (x1)
+
+- VERIFIED: `WATER_CREATURE` is `MobCategory(5, true, false, 128)`. Generated `entity_type.rs` on master already has `is_persistent: false`, so item 1 needs no further change.
+- VERIFIED (equivalent for full cubes): `isRedstoneConductor` default is a full collision shape, and `IS_SOLID_BLOCK` is set from `full_cube` in `block_registry.rs`. Per-block `isRedstoneConductor` overrides are not modeled, so this stays UNVERIFIED for those blocks.

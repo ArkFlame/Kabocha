@@ -52,3 +52,11 @@ Scope: `crates/pumpkin-core/src/entity/passive/villager/`, `wandering_trader.rs`
 ## Checks
 
 Code change: `data.rs` max values and its unit test. `rustfmt --edition 2024` on the leaf file only. No cargo run (worker policy).
+
+## Re-verification against decompiled vanilla (x1)
+
+- FIXED: gossip max values were wrong on master. Vanilla `GossipType` is `MAJOR_POSITIVE(5, 20, 0, 20)`, `MINOR_POSITIVE(1, 25, 1, 5)`, `TRADING(1, 25, 2, 20)`. Code now uses major_positive max 20 and minor_positive max 25 (the earlier "FIXED" 100/200 entry was wrong; those are the negative values). Test `gossip_types_use_vanilla_names_and_values` updated.
+- VERIFIED: `Trading` max 25 (GossipType.java).
+- VERIFIED: `canBreed` includes `!isSleeping()` (Villager.java line 693), so the sleep check stays.
+- VERIFIED (equivalent): `updateSpecialPrices` calls `resetSpecialPrices` first, so overwriting `special_price` is the same result.
+- Not re-verified: bonus raid wave rule, iron golem village spawn, cat and zombie siege constants.
