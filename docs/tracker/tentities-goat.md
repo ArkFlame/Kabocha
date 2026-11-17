@@ -25,3 +25,4 @@ Note: Pumpkin models goats with goals, vanilla uses a Brain (GoatAi). The goal s
 - #5 per-goat follow distance: FIXED a57f7697d (FollowParentGoal::with_min_distance, goat samples 5..=16; UNVERIFIED in game)
 - #6 spawn rule: STILL OPEN (blocked on MINECRAFT_GOATS_SPAWNABLE_ON data, needs extractor)
 - #7 head-lowering event: UNVERIFIED client-only effect (Vanilla handleEntityEvent 58/59 is a client animation), no server change
+- ram/horn-break (#3 horn drop, #4 memory init) re-check h3: STILL OPEN (horn drop M is only reached through RamTarget.hasRammedHornBreakingBlock, which is the L ram activity from #1; no S/M part is standalone)

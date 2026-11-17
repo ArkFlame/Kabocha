@@ -60,3 +60,4 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
   `FISH_CAUGHT` stat and `FISHED_ITEM` advancement (L126-279).
 - `setHookedEntity` stores `id + 1`, hooked entity teleport to `0.8 * height`, block hit stopping
   at the face, `FishingRodReelIn` status broadcast, off-hand rod accepted (L157-161, L377-391, L502-521, L525-539).
+- #3 should_stop_fishing discard: FIXED faf838f3b (discard moved into should_stop_fishing, process_tick no longer discards separately; UNVERIFIED, no test)
