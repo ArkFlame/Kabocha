@@ -764,7 +764,9 @@ impl EntityBase for ItemEntity {
     }
 
     fn on_player_collision(&self, player: &Arc<Player>) {
-        if self.pickup_delay.load(Ordering::Relaxed) > 0 {
+        if self.pickup_delay.load(Ordering::Relaxed) > 0
+            || self.never_pickup.load(Ordering::Relaxed)
+        {
             return;
         }
 
@@ -817,6 +819,15 @@ impl EntityBase for ItemEntity {
                     StatisticCategory::PickedUp,
                     item_id as i32,
                     amount_picked_up as i32,
+                );
+            }
+
+            // Vanilla `Player.take`: pickup sound only when something was actually taken.
+            if amount_picked_up > 0 {
+                player.play_entity_sound(
+                    pumpkin_data::sound::Sound::EntityItemPickup,
+                    0.2,
+                    (rand::random::<f32>() - rand::random::<f32>()).mul_add(0.7, 1.0) * 2.0,
                 );
             }
 
