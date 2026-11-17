@@ -130,7 +130,8 @@ impl ArgumentType<CommandSource> for ScoreHolderArgumentType {
         let _ = parser.parse();
         parser.fill_suggestions(&builder, |mut suggestions| {
             for player in context.server().get_all_players() {
-                suggestions = suggestions.filter_and_suggest_one(player.gameprofile.name.clone());
+                suggestions =
+                    suggestions.filter_and_suggest_one_prefix(player.gameprofile.name.clone());
             }
             suggestions
         })
