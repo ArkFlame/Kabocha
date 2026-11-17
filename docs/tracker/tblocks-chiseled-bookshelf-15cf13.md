@@ -59,3 +59,42 @@ Reviewed files (source changed by `4ab65d2d5 fix(chiseled_bookshelf): keep remov
 4. `crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs:264,272` — `get_stack`/`remove_stack` index the
    array directly and panic on `slot >= 6`; vanilla `Container.getItem` throws too, and all callers pass slots
    from `size()`. Suggested fix: none for parity; a bounds guard would only harden against plugin misuse. Size **S**.
+
+## Re-audit at `3dccebbb2` (391 commits after `107f85e7f`)
+
+The tracker note said the reviewed source changed. For this row it did not: both shipped files are
+byte-identical to the revision reviewed in `107f85e7f`, and `git log` over them still ends at
+`1903726db`. The fixes recorded above are present: `update_state` is the only `BLOCK_CHANGE`
+emitter (`entities/chiseled_bookshelf.rs:212`), the block no longer emits it (`blocks/chiseled_bookshelf.rs:151,181`),
+and `remove_stack_specific` honours `amount` (`entities/chiseled_bookshelf.rs:287-304`).
+
+Delta since the review, checked for knock-on effects:
+
+- `51d815e84` passes the pre-removal block entity into `LootContextParameters`. Inert for the
+  shelf: its loot needs no block-entity component, `collect_item_components` stays the default
+  no-op (`block/entities/mod.rs:167`), and the books still leave through `on_block_replaced` ->
+  `world.scatter_inventory` (`block/entities/mod.rs:199-209`).
+- `0477173b7` routes `Player::drop_item` through `PlayerDropItemEvent`, matching vanilla
+  `Player.drop`; `try_remove_book` (`blocks/chiseled_bookshelf.rs:178`) benefits unchanged.
+
+No code change made: every remaining divergence is listed below and none is a one-line certainty
+(WORKER.md rule 12). Still open:
+
+1. No automated coverage — `blocks/chiseled_bookshelf.rs` and `entities/chiseled_bookshelf.rs`
+   (whole files). Nothing under `crates/pumpkin-gametest` mentions the shelf. Suggested fix: gametest
+   placing a shelf, inserting two books into different slots, asserting `slot_N_occupied`, the
+   `last_interacted_slot` NBT value and comparator output, then removing one and asserting the
+   pickup sound + occupied property, plus a hopper push of a non-book being rejected. Vanilla class:
+   `ChiseledBookshelfBlock`/`ChiseledBookshelfBlockEntity`. Size **M**.
+2. `entities/chiseled_bookshelf.rs:51,62-66` — missing `last_interacted_slot` NBT leaves `-1`,
+   where vanilla `nbt.getInt` yields `0` (vanilla's field default is `-1`, so both are defensible).
+   Only hand-written/pre-1.20 NBT can hit it and `-1` gives comparator 0, which is correct for an
+   untouched shelf. Suggested fix: none; keep documented. Size **S**.
+3. `blocks/chiseled_bookshelf.rs:67,107,181` — `normal_use`/`use_with_item` return `Success`,
+   not `SuccessServer`; vanilla `InteractionResult.sidedSuccess` swings the hand client-side only,
+   which the client predicts. Client-only effect. Suggested fix: none. Size **S**.
+4. `entities/chiseled_bookshelf.rs:264-304` — `get_stack`/`remove_stack`/`remove_stack_specific`/
+   `set_stack` index the array directly and panic past `slot >= 6`; vanilla `Container` throws too
+   and every caller passes slots from `size()` (hopper pull included,
+   `is_valid_slot_for`:326 bounds-checks first). Suggested fix: none for parity; a guard would only
+   harden against plugin misuse. Size **S**.
