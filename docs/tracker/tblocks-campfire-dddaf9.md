@@ -1,46 +1,54 @@
 # Tracker: blocks / Campfire (RE-REVIEW)
 
-Re-audit after the source moved past tracker commit `56622ca89`: `694cb9949`
-(isSmokeyPos blocker), `eb9d9a675` (cook result spawn point), `c0d5b4c11`
-(BlockCookEvent cancel resets progress) and `e1ed99c1b` (block-entity game events).
-Sources: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
+Re-audit after `06674c3e6` (sticky `CampfireStartEvent` cancellation) landed on top of
+`694cb9949` (smoke blocker), `eb9d9a675` (cook result spawn point) and `c0d5b4c11`
+(`BlockCookEvent` cancel resets progress). Sources:
+`crates/pumpkin-core/src/block/blocks/campfire.rs`,
 `crates/pumpkin-core/src/block/entities/campfire.rs`.
-No decompiled vanilla tree is vendored in this worktree (`.vendor/` absent), so the
-remaining rows below are marked with the vanilla entry point used for the comparison
-and, where the exact 26.3 body could not be read, as "verify".
+No decompiled vanilla tree is vendored in this worktree (`.vendor/` absent), so rows
+are compared against the named vanilla entry points; uncertain ones are marked
+"verify".
 
 ## Fixed in this pass
 
 | Gap | Rust | Vanilla / Paper | Fix | Size |
 |---|---|---|---|---|
-| A cancelled `CampfireStartEvent` left `cooking_total_times` at 0, so the event was refired every tick (20/s) for a permanently blocked slot | `entities/campfire.rs:114-118, 143-146` | Paper fires the start event once per sitting; no repeat | new transient `cooking_cancelled[slot]` flag: set on cancel, cleared on insertion (`blocks/campfire.rs:100`), on completion (`entities/campfire.rs:202`) and on container-component load (`entities/campfire.rs:233`) | S |
+| An extinguished (not waterlogged) campfire decayed its cooking progress by 2/tick, so relighting it with a burning projectile restarted cooking from 0 | `entities/campfire.rs:95-103` | `CampfireBlockEntity.getTicker`: `LIT` -> `litServerTick`, else `WATERLOGGED` -> `cooldownTick`, else a no-op particle tick. Only a waterlogged campfire cools | unlit branch now runs `cool_down()` only when `properties.waterlogged`, keeping progress for shovel/water-bottle extinguished campfires | S |
+
+No automated test shipped for this slice: the behaviour needs a world tick loop
+(`pumpkin-gametest`), which this pass is not allowed to compile/run. Suggested
+gametest: insert food, extinguish with a shovel, tick 100, relight, expect the
+remaining cook time to continue from the pre-extinguish progress.
 
 ## Verified matching vanilla (no change)
 
 - Placement: `lit = !waterlogged`, `signal_fire` from hay block below, `facing` from
-  the player, `blocks/campfire.rs:204-212`.
-- Extinguish via `minecraft:douses_campfires`, sound world event, `BLOCK_CHANGE`,
-  1 durability, `blocks/campfire.rs:121-143`.
-- Waterlogging clears `lit` and schedules the water fluid tick, `blocks/campfire.rs:214-235`.
-- Inside collision 0..0.4375 and `on_entity_collision` 1.0 / soul 2.0 damage, skipped by
-  Frost Walker or Fire Resistance, `blocks/campfire.rs:148-183`.
+  the player, `blocks/campfire.rs:207-215` == `CampfireBlock.getPlacementState`.
+- Extinguish via `minecraft:douses_campfires`: sound world event, `BLOCK_CHANGE`,
+  1 durability, `blocks/campfire.rs:121-146`.
 - Item insertion per slot, recipe required, 1 item unless creative, stat + game event +
-  block-entity update, `CONSUME` when all four slots are full, `blocks/campfire.rs:78-119`.
-- Cooked result spawns at `(x+0.5, y+1.0, z+0.5)`, `entities/campfire.rs:344-354`.
-- Lit tick increments progress, unlit tick cools by 2, `entities/campfire.rs:86-202, 320-333`.
-- NBT keys `Items` / `CookingTimes` / `CookingTotalTimes`, `entities/campfire.rs:37-68, 282-318`.
-- `is_lit_campfire` uses the `minecraft:campfires` tag so soul campfires pacify beehives,
-  `blocks/campfire.rs:38-41`.
-- Result count: `recipe.result.count` is used as-is (`entities/campfire.rs:172`); every
-  campfire-cooking recipe assembles exactly one item, so this already equals vanilla
-  `CampfireBlockEntity.litServerTick` (`assemble` of a 1-item input). Previous tracker
-  row 3 ("split 1") is dismissed.
+  block-entity update, `CONSUME` when all four slots are full,
+  `blocks/campfire.rs:78-119` == `CampfireBlockEntity.addItem` + `ItemInteractionResult`.
+- Waterlogging schedules the water fluid tick, `blocks/campfire.rs:214-238`.
+- Inside collision 0.4375 and `on_entity_collision` 1.0 / soul 2.0 damage, skipped by
+  Frost Walker or Fire Resistance, `blocks/campfire.rs:148-186`.
+- `on_projectile_hit` relights only unlit, non-waterlogged campfires hit by a burning
+  projectile with interaction rights, `blocks/campfire.rs:188-205`.
+- Lit tick increments progress per non-empty (cookable) stack, completion spawns the
+  result at `(x+0.5, y+1.0, z+0.5)` and clears slot/progress, `entities/campfire.rs:105-218, 355-365`.
+- NBT keys `Items` / `CookingTimes` / `CookingTotalTimes`, `entities/campfire.rs:37-72, 295-331`.
+- Break scatters raw items once, `entities/campfire.rs:256-273`.
+- `is_lit_campfire` uses the `minecraft:campfires` tag, so soul campfires pacify
+  beehives (`beehive.rs:226`), `blocks/campfire.rs:38-41`.
 
 ## Remaining gaps (not changed)
 
 | # | Gap | Rust | Vanilla | Suggested fix | Size |
 |---|---|---|---|---|---|
-| 1 | Non-cookable stacks (hopper/command/NBT-inserted) sit forever: the recipe lookup short-circuits before the progress increment | `entities/campfire.rs:120-124` | `CampfireBlockEntity.litServerTick` increments every non-empty stack and resolves the recipe only at completion, dropping the input back when none matches (verify) | increment progress first, look the recipe up when `progress >= total`, and eject/keep the stack when there is no recipe | M |
-| 2 | Smoke obstruction test uses collision-shape intersection with the 0.375..0.625 column instead of vanilla's `isSolidRender` stop test | `blocks/campfire.rs:56-63` | `CampfireBlock.isSmokeyPos` (verify: solid-render vs collision) | replace with the vanilla predicate once decompiled source is vendored | S |
-| 3 | `CampfireStartEvent` fires from the cook tick, not at item insertion | `entities/campfire.rs:127-149` | Paper fires it when the item is placed on the campfire (verify patch) | move the fire point into `use_with_item` / `apply_item_components` | M |
-| 4 | Outline shape / particles / crackle sound missing | `blocks/campfire.rs` (no `get_outline_shape`, no client effects) | `CampfireBlock` SHAPE `0..7/16` + `AnimateTick` | client-only: add outline shape for selection box, note particles in QUEUE | S (client) |
+| 1 | Stacks without a campfire recipe (NBT / command `Items`, stale saves) never tick: the recipe lookup short-circuits before `cooking_times += 1` | `entities/campfire.rs:121-127` | `CampfireBlockEntity.litServerTick` increments every non-empty stack and resolves the recipe only in `cookItems` at completion, leaving the stack when none matches | increment progress first using the stored total; at completion look the recipe up, and on no match reset progress and keep the stack | M |
+| 2 | `CampfireStartEvent` fires from the first cook tick, not when the item is placed | `entities/campfire.rs:130-152` vs insertion `blocks/campfire.rs:78-119` | Paper `CampfireBlockEntity.addItem` fires the event with the recipe cooking time at insertion | fire the event in `use_with_item` / `apply_item_components` with `recipe.cookingtime`, keep the `cooking_cancelled` flag for the cancellation | M |
+| 3 | `apply_item_components` (container component / creative pick-block restore) overwrites `items` but keeps the previous sitting's `cooking_times` / `cooking_total_times`, so a fresh item can finish on its first tick | `entities/campfire.rs:226-244` | no vanilla equivalent; internal state consistency (insertion path resets both, `blocks/campfire.rs:97-102`) | reset `cooking_times` and `cooking_total_times` for every slot written | S |
+| 4 | `get_state_for_neighbor_update` also clears `lit` whenever `waterlogged` and a neighbour updates; vanilla only schedules the water fluid tick there (`CampfireBlock.getStateForNeighborUpdate`) | `blocks/campfire.rs:214-238` | `CampfireBlock.getStateForNeighborUpdate` | drop the `props.lit = false` line; waterlogged placement already starts unlit (`blocks/campfire.rs:207-215`). Low impact, verify first | S |
+| 5 | Smoke stop test uses collision-shape intersection with the 0.375..0.625 column instead of vanilla's solid-block stop | `blocks/campfire.rs:56-63` | `CampfireBlock.isSmokeyPos` (verify: opaque-cube/solid stop vs collision) | align the predicate once decompiled source is vendored | S |
+| 6 | `cool_down` clamps only at 0, vanilla `cooldownTick` clamps to `[0, cookingTime]` | `entities/campfire.rs:333-346` | `CampfireBlockEntity.cooldownTick` | clamp with the slot total; currently unreachable (completion resets progress) | S |
+| 7 | No crackle sound, smoke/flame particles or campfire smoulder visuals | `blocks/campfire.rs` (no display-tick hook) | `CampfireBlock.randomDisplayTick` / `AnimateTick` | client-only effect; add when the display-tick hook exists, otherwise note in `docs/QUEUE.md` | S (client) |
