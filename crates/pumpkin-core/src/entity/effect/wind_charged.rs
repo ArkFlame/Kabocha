@@ -1,4 +1,3 @@
-use pumpkin_data::damage::DamageType;
 use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::math::vector3::Vector3;
@@ -11,7 +10,7 @@ use crate::world::explosion::{Explosion, ExplosionInteraction};
 pub struct WindChargedMobEffect;
 
 impl MobEffect for WindChargedMobEffect {
-    fn on_mob_death(&self, living: &LivingEntity, _amplifier: u8, _damage_type: &DamageType) {
+    fn on_mob_removed(&self, living: &LivingEntity, _amplifier: u8) {
         let world = living.entity.world.load();
         let pos = living.entity.pos.load();
         let height = living.entity.height();

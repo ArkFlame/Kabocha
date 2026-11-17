@@ -77,6 +77,13 @@ fn roll_cooldown(screaming: bool) -> i64 {
     }
 }
 
+/// Vanilla `GoatAi.initMemories` seeds the first RAM cooldown with `TIME_BETWEEN_RAMS`
+/// (600..6000) regardless of screaming type. The screamer range is only used after an actual
+/// ram, via `RamTarget.finishRam`.
+fn initial_ram_cooldown() -> i64 {
+    roll_cooldown(false)
+}
+
 /// Vanilla goat ram activity: PrepareRamNearestTarget (walk in and prepare) then RamTarget
 /// (charge, hit, knock back, cool down). Pumpkin folds the two brain behaviours into one goal.
 #[derive(Default)]
@@ -169,7 +176,7 @@ impl Goal for RamTargetGoal {
             return false;
         }
         let now = mob.get_entity().world.load().get_world_age();
-        if !self.timer.can_ram(now, || roll_cooldown(is_screaming(mob))) {
+        if !self.timer.can_ram(now, initial_ram_cooldown) {
             return false;
         }
         let distance_sq = mob
@@ -269,6 +276,13 @@ mod tests {
         assert!(!timer.can_ram(10 + RAM_STUN_TICKS - 1, || 0));
         assert!(!timer.can_ram(209, || 0));
         assert!(timer.can_ram(210, || 0));
+    }
+
+    #[test]
+    fn init_memory_cooldown_is_not_the_short_screamer_range() {
+        for _ in 0..64 {
+            assert!(initial_ram_cooldown() > SCREAMER_RAM_COOLDOWN_MAX_TICKS);
+        }
     }
 
     #[test]

@@ -19,6 +19,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
+use rand::RngExt;
+
 use pumpkin_data::AttributeModifierSlot;
 use pumpkin_data::Enchantment;
 use pumpkin_data::attributes::Attributes;
@@ -27,6 +29,7 @@ use pumpkin_data::data_component_impl::{
     EquippableImpl, Operation,
 };
 use pumpkin_data::enchantment_provider::EnchantmentProvider;
+use pumpkin_data::enchantment_provider::EnchantmentProviderKind;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
@@ -464,7 +467,21 @@ fn moon_brightness(time_of_day: i64) -> f32 {
 /// Applies mob spawn equipment enchantments to a stack using the data-driven
 /// `minecraft:mob_spawn_equipment` enchantment provider.
 pub fn apply_vanilla_enchantments(stack: &mut ItemStack, special_multiplier: f32) {
-    EnchantmentProvider::MOB_SPAWN_EQUIPMENT.apply_to_stack(stack, special_multiplier);
+    let EnchantmentProviderKind::ByCostWithDifficulty {
+        enchantments,
+        min_cost,
+        max_cost_span,
+    } = *EnchantmentProvider::MOB_SPAWN_EQUIPMENT.kind()
+    else {
+        return;
+    };
+    // Vanilla EnchantmentsByCostWithDifficulty samples a random cost in
+    // [minCost, minCost + (int)(specialMultiplier * maxCostSpan)].
+    let max_cost = min_cost + (special_multiplier * max_cost_span as f32) as i32;
+    let cost = rand::rng().random_range(min_cost..=max_cost);
+    for (enchantment, level) in EnchantmentProvider::select_by_cost(stack.item, enchantments, cost) {
+        stack.enchant(enchantment, level);
+    }
 }
 
 /// Applies pillager crossbow enchantments based on raid wave or default spawn provider.

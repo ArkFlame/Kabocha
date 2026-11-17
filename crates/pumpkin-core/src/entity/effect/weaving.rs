@@ -1,5 +1,4 @@
 use pumpkin_data::Block;
-use pumpkin_data::damage::DamageType;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -12,7 +11,7 @@ use crate::entity::living::LivingEntity;
 pub struct WeavingMobEffect;
 
 impl MobEffect for WeavingMobEffect {
-    fn on_mob_death(&self, living: &LivingEntity, _amplifier: u8, _damage_type: &DamageType) {
+    fn on_mob_removed(&self, living: &LivingEntity, _amplifier: u8) {
         let world = living.entity.world.load();
 
         // Check if mob griefing is enabled or if player

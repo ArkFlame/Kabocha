@@ -37,8 +37,14 @@ pub trait MobEffect: Send + Sync {
     ) {
     }
 
-    /// Called when an entity carrying this effect dies.
-    fn on_mob_death(&self, _living: &LivingEntity, _amplifier: u8, _damage_type: &DamageType) {}
+    /// Called when an entity carrying this effect dies from damage.
+    fn on_mob_death(&self, living: &LivingEntity, amplifier: u8, _damage_type: &DamageType) {
+        self.on_mob_removed(living, amplifier);
+    }
+
+    /// Called when a killed entity carrying this effect is removed, vanilla `onMobRemoved`.
+    /// Needs no damage source, so it also fires when a creeper discards itself in an explosion.
+    fn on_mob_removed(&self, _living: &LivingEntity, _amplifier: u8) {}
 }
 
 pub static REGENERATION: regeneration::RegenerationMobEffect = regeneration::RegenerationMobEffect;

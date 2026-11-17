@@ -147,6 +147,13 @@ impl CreeperEntity {
             })
             .collect::<Vec<_>>();
 
+        // Vanilla Creeper.explodeCreeper fires onMobRemoved(KILLED) for each active effect
+        // (oozing spawns slimes, weaving cobwebs, wind_charged a gust) before discarding.
+        let removed_effects: Vec<_> = effects
+            .iter()
+            .map(|&(effect_type, _, amplifier, _, _, _)| (effect_type, amplifier))
+            .collect();
+
         if !effects.is_empty() {
             let cloud_entity = Entity::new(
                 world.clone(),
@@ -166,6 +173,12 @@ impl CreeperEntity {
                 0,
             );
             world.spawn_entity(cloud);
+        }
+
+        for (effect_type, amplifier) in removed_effects {
+            if let Some(mob_effect) = crate::entity::effect::get_mob_effect(effect_type) {
+                mob_effect.on_mob_removed(&self.mob_entity.living_entity, amplifier);
+            }
         }
 
         entity.remove();

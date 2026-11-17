@@ -161,13 +161,10 @@ impl ArmorStandEntity {
 
     fn set_bit_field(&self, bit_field: ArmorStandFlags, set: bool) {
         let current = self.armor_stand_flags.load(Ordering::Relaxed);
-        let new_value = if set {
-            current | bit_field as u8
-        } else {
-            current & !(bit_field as u8)
-        };
+        let new_value = with_client_flag(current, bit_field, set);
         self.armor_stand_flags.store(new_value, Ordering::Relaxed);
         self.update_dimensions();
+        self.sync_flags();
     }
 
     /// Vanilla `ArmorStand.getDefaultDimensions`: a marker has no size, a small stand half.
@@ -243,6 +240,16 @@ impl ArmorStandEntity {
         entity.set_synced_data(
             pumpkin_data::tracked_data::armor_stand::DATA_RIGHT_LEG_POSE,
             rotation(packed.right_leg),
+        );
+    }
+
+    /// Vanilla `ArmorStand.defineSynchedData`: Small/ShowArms/NoBasePlate/Marker
+    /// share one byte accessor, so any change rewrites the whole client flag byte.
+    fn sync_flags(&self) {
+        let flags = self.armor_stand_flags.load(Ordering::Relaxed);
+        self.get_entity().set_synced_data(
+            pumpkin_data::tracked_data::armor_stand::DATA_CLIENT_FLAGS,
+            flags,
         );
     }
 
@@ -671,6 +678,7 @@ impl EntityBase for ArmorStandEntity {
         self.armor_stand_flags
             .store(Self::read_flags(nbt), Ordering::Relaxed);
         self.update_dimensions();
+        self.sync_flags();
 
         if let Some(pose_tag) = nbt.get("Pose") {
             let packed: PackedRotation = pose_tag.clone().into();
@@ -835,6 +843,15 @@ impl EntityBase for ArmorStandEntity {
     }
 }
 
+/// Applies one vanilla `ArmorStand` client flag bit to the synched flag byte.
+fn with_client_flag(current: u8, flag: ArmorStandFlags, set: bool) -> u8 {
+    if set {
+        current | flag as u8
+    } else {
+        current & !(flag as u8)
+    }
+}
+
 pub enum ArmorStandFlags {
     /// Small armor stand Flag
     Small = 1,
@@ -984,6 +1001,20 @@ mod tests {
 
         assert_eq!(new_stand_stack.item_count, 1);
         assert_eq!(held.item_count, 4);
+    }
+
+    #[test]
+    fn client_flag_byte_uses_vanilla_bit_layout() {
+        let mut flags = 0u8;
+        flags = with_client_flag(flags, ArmorStandFlags::Small, true);
+        flags = with_client_flag(flags, ArmorStandFlags::ShowArms, true);
+        flags = with_client_flag(flags, ArmorStandFlags::HideBasePlate, true);
+        flags = with_client_flag(flags, ArmorStandFlags::Marker, true);
+        assert_eq!(flags, 1 | 4 | 8 | 16);
+
+        flags = with_client_flag(flags, ArmorStandFlags::Small, false);
+        flags = with_client_flag(flags, ArmorStandFlags::Marker, false);
+        assert_eq!(flags, 4 | 8);
     }
 
     #[test]

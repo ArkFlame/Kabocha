@@ -1,6 +1,5 @@
 use uuid::Uuid;
 
-use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -12,7 +11,7 @@ use crate::entity::r#type::from_type;
 pub struct OozingMobEffect;
 
 impl MobEffect for OozingMobEffect {
-    fn on_mob_death(&self, living: &LivingEntity, _amplifier: u8, _damage_type: &DamageType) {
+    fn on_mob_removed(&self, living: &LivingEntity, _amplifier: u8) {
         let world = living.entity.world.load();
         let pos = living.entity.pos.load();
         let spawn_pos = Vector3::new(pos.x, pos.y + 0.5, pos.z);

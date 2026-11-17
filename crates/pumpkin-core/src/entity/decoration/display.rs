@@ -266,6 +266,12 @@ impl DisplayEntity {
         );
     }
 
+    /// Sets a brightness override from independent block and sky light levels,
+    /// matching vanilla's `setBrightnessOverride(Brightness(block, sky))`.
+    pub fn set_brightness_override(&self, block: i32, sky: i32) {
+        self.set_brightness(pack_brightness(block, sky));
+    }
+
     pub fn get_view_range(&self) -> f32 {
         *self
             .view_range
