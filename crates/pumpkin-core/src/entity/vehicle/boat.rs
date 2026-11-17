@@ -418,14 +418,15 @@ impl EntityBase for BoatEntity {
         let creative = source
             .and_then(EntityBase::get_player)
             .is_some_and(|player| player.gamemode.load() == GameMode::Creative);
-        let will_break = self.vehicle.entity.is_alive()
-            && (creative || self.vehicle.get_damage() + amount * 10.0 > 40.0);
+        let was_alive = self.vehicle.entity.is_alive();
 
         let damaged = self.vehicle.damage_with_context(amount, source);
 
         // Vanilla `AbstractBoat#hurt`: a destroying break runs `destroy` (chest contents plus the
         // boat item) only when it is not an instabuild hit, so a creative break drops nothing.
-        if will_break && !creative && self.vehicle.entity.is_removed() {
+        // The break is read from the post-hit removal state so it cannot drift from the vehicle
+        // destroy threshold.
+        if was_alive && !creative && self.vehicle.entity.is_removed() {
             let world = self.vehicle.entity.world.load();
             // Vanilla `AbstractChestBoat.remove` scatters the 27 slots on any destroying
             // removal, independent of `doEntityDrops`; only the boat item is gamerule-gated.
