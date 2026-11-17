@@ -711,7 +711,11 @@ impl pumpkin::plugin::server::HostServerWithStore<PluginHostState> for HasSelf<P
             .store
             .pump_blocking(&mut host, move || {
                 let dispatcher = server.command_dispatcher.load();
-                dispatcher.handle_command(&native_sender.into_source(&server), &command);
+                if let Some(source) = native_sender.into_source(&server) {
+                    dispatcher.handle_command(&source, &command);
+                } else {
+                    tracing::warn!("Plugin command dropped: no overworld loaded to anchor sender");
+                }
             })
             .await
     }
