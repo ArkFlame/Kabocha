@@ -1557,6 +1557,12 @@ impl LivingEntity {
         if entity_type == &EntityType::PARCHED && effect.effect_type == &StatusEffect::WEAKNESS {
             return false;
         }
+        // Vanilla `Guardian.canBeAffected`: guardians ignore mining fatigue.
+        if (entity_type == &EntityType::GUARDIAN || entity_type == &EntityType::ELDER_GUARDIAN)
+            && effect.effect_type == &StatusEffect::MINING_FATIGUE
+        {
+            return false;
+        }
         if (entity_type == &EntityType::SPIDER || entity_type == &EntityType::CAVE_SPIDER)
             && effect.effect_type == &StatusEffect::POISON
         {
