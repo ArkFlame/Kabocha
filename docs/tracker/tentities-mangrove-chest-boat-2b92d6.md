@@ -8,7 +8,7 @@ Remaining gaps:
 
 | file:line | vanilla class | suggested fix | size |
 |---|---|---|---|
-| crates/pumpkin-core/src/entity/vehicle/boat.rs:150-151 | `AbstractChestBoat.interact` angers nearby piglins on open | Needs piglin anger AI hook; documented in code as unimplemented | M |
+| crates/pumpkin-core/src/entity/vehicle/boat.rs:150-151 | `AbstractChestBoat.interact` angers nearby piglins on open | FIXED d9487d736 (UNVERIFIED): `boat.rs` calls `PiglinAi::on_guarded_block_interacted` after a successful open. | M |
 | crates/pumpkin-core/src/entity/player.rs:4406-4427 | `BoatItem`/statistics boat tag | Hand-written list duplicates `is_chest_boat` and boat tags; replace with tag or helper to avoid drift when a boat type is added | S |
 | docs (tracker) | n/a | No `.vendor/` decompiled reference in this worktree, so the vanilla comparison is unverified against source | S |
 
