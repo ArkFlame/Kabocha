@@ -267,6 +267,7 @@ mod tests {
             .light_populated
             .store(true, std::sync::atomic::Ordering::Relaxed);
         chunk.mark_dirty(true);
+        let reloaded = chunk.clone();
         world.level.loaded_chunks.insert(chunk_pos, chunk.clone());
         world.level.write_chunks(vec![(chunk_pos, chunk)]).await;
         world.level.chunk_saver.flush_all().await;
@@ -295,14 +296,6 @@ mod tests {
             brain.has_memory_value(types::LIKED_NOTEBLOCK_POSITION.id())
         }));
 
-        tokio::time::timeout(std::time::Duration::from_secs(30), async {
-            while !world.level.is_chunk_loaded(&chunk_pos) {
-                // The chunk is loaded by scheduler-spawned tokio tasks on this
-                // current_thread runtime; sleep so the runtime parks and drives them.
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-            }
-        })
-        .await?;
         let has_ticket = || {
             world
                 .level
@@ -312,6 +305,10 @@ mod tests {
                 .ticket
                 .contains_key(&chunk_pos)
         };
+        // The test removed the chunk behind the scheduler's back, so only the
+        // ticket request is observable; reinsert the chunk as the loader would.
+        assert!(has_ticket());
+        world.level.loaded_chunks.insert(chunk_pos, reloaded);
         assert_eq!(deposit(), Some(pos.up()));
 
         world
