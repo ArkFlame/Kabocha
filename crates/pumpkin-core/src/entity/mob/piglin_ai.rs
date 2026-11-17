@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::data_component_impl::EquipmentSlot;
@@ -65,6 +66,15 @@ impl PiglinAi {
     #[must_use]
     pub const fn is_zombified(entity_type: &EntityType) -> bool {
         entity_type.id == EntityType::ZOMBIFIED_PIGLIN.id || entity_type.id == EntityType::ZOGLIN.id
+    }
+
+    /// Vanilla `PiglinAi.hoglinsOutnumberPiglins`: both visible-adult counts come from
+    /// `PiglinSpecificSensor` (stored as entity fields because piglins use goal AI, not brains).
+    #[must_use]
+    pub fn hoglins_outnumber_piglins(piglin: &PiglinEntity) -> bool {
+        let piglin_count = piglin.visible_adult_piglin_count.load(Ordering::Relaxed) + 1;
+        let hoglin_count = piglin.visible_adult_hoglin_count.load(Ordering::Relaxed);
+        hoglin_count > piglin_count
     }
 
     #[must_use]
@@ -305,5 +315,44 @@ impl PiglinAi {
             Self::RANDOM_THROW_POS_RANGE_VERTICAL,
         )
         .unwrap_or_else(|| piglin.mob_entity.living_entity.entity.pos.load())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::ai::test_support::world;
+    use pumpkin_util::math::vector3::Vector3;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[tokio::test]
+    async fn hoglins_outnumber_piglins_uses_both_visible_counts() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let piglin = PiglinEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::PIGLIN,
+        ));
+
+        piglin
+            .visible_adult_piglin_count
+            .store(0, Ordering::Relaxed);
+        piglin
+            .visible_adult_hoglin_count
+            .store(1, Ordering::Relaxed);
+        assert!(!PiglinAi::hoglins_outnumber_piglins(&piglin));
+        piglin
+            .visible_adult_hoglin_count
+            .store(2, Ordering::Relaxed);
+        assert!(PiglinAi::hoglins_outnumber_piglins(&piglin));
+        piglin
+            .visible_adult_piglin_count
+            .store(2, Ordering::Relaxed);
+        assert!(!PiglinAi::hoglins_outnumber_piglins(&piglin));
+
+        world.level.shutdown().await;
+        Ok(())
     }
 }

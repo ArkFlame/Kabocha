@@ -263,8 +263,17 @@ impl Goal for MeleeAttackGoal {
             } else if dist_sq > 256.0 {
                 self.update_countdown_ticks += 5;
             }
-            // TODO: add 15 more ticks when the path request fails.
             self.update_countdown_ticks = self.get_tick_count(self.update_countdown_ticks);
+        }
+
+        // Vanilla adds 15 ticks when `moveTo` fails to find a route. Pumpkin defers the
+        // search to the navigator, so consume its result on the following tick.
+        {
+            let steered = mob.get_mob_entity().steered();
+            let mut navigator = steered.navigator();
+            if navigator.take_last_path_search_failed() {
+                self.update_countdown_ticks += 15;
+            }
         }
 
         self.cooldown = (self.cooldown - 1).max(0);

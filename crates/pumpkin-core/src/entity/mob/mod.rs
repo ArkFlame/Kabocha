@@ -2726,7 +2726,6 @@ pub trait Mob: EntityBase + Send + Sync {
         {
             crate::entity::mob::equipment::apply_vanilla_enchantments(
                 stack,
-                slot,
                 difficulty.special_multiplier,
             );
         }
@@ -3499,16 +3498,15 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     }
 }
 
-#[expect(dead_code)]
-const DEFAULT_PATHFINDING_FAVOR: f32 = 0.0;
-
 pub trait PathAwareEntity: Mob + Send + Sync {
-    fn get_pathfinding_favor(&self, _block_pos: BlockPos, _world: Arc<World>) -> f32 {
-        0.0
+    /// Vanilla `PathfinderMob.getWalkTargetValue(pos, level)`; the default is 0.
+    fn get_pathfinding_favor(&self, block_pos: BlockPos, _world: Arc<World>) -> f32 {
+        self.get_walk_target_value(&block_pos)
     }
 
-    // TODO: missing SpawnReason attribute
-    fn can_spawn(&self, world: Arc<World>) -> bool {
+    /// Vanilla `PathfinderMob.checkSpawnRules(level, spawnReason)`: a path-aware mob
+    /// spawns only where its walk target value at its own block position is non-negative.
+    fn can_spawn(&self, world: Arc<World>, _reason: spawn::EntitySpawnReason) -> bool {
         self.get_pathfinding_favor(
             self.get_mob_entity().living_entity.entity.block_pos.load(),
             world,

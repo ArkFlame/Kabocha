@@ -6,6 +6,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::tracked_data::TrackedData;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::boundingbox::BoundingBox;
+use pumpkin_util::random::RandomImpl;
 use uuid::Uuid;
 
 use crate::entity::EntityBase;
@@ -71,6 +72,13 @@ pub const fn should_refresh_anger_timer(
     stays_angry_with_target: bool,
 ) -> bool {
     is_new_target || stays_angry_with_target
+}
+
+/// Draw a grudge length from a seeded random source. Vanilla samples
+/// `PERSISTENT_ANGER_TIME` from `this.random` (a level-seeded `RandomSource`);
+/// `next_inbetween_i32` matches its inclusive `UniformInt` draw.
+fn draw_anger_duration(rng: &mut impl RandomImpl, range: RangeInclusive<i32>) -> i32 {
+    rng.next_inbetween_i32(*range.start(), *range.end())
 }
 
 /// Players live in their own list, everything else in the entity list.
@@ -158,8 +166,19 @@ pub trait NeutralMob: Mob {
 
     /// `start_persistent_anger_timer` with a world age the caller already read.
     fn start_persistent_anger_timer_at(&self, now: i64) {
-        let ticks = rand::random_range(self.anger_duration());
+        let ticks = self.sample_anger_duration();
         self.set_anger_end_time(now + i64::from(ticks));
+    }
+
+    /// Draws from the world-seeded level random, not fresh OS entropy, so a
+    /// world seed reproduces the grudge length (vanilla `this.random`).
+    fn sample_anger_duration(&self) -> i32 {
+        let world = self.get_entity().world.load();
+        let mut rng = world
+            .loot_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        draw_anger_duration(&mut *rng, self.anger_duration())
     }
 
     fn is_angry(&self) -> bool {
@@ -276,7 +295,7 @@ pub trait NeutralMob: Mob {
                 anger_target.is_none_or(|angry_at| angry_at != target.get_entity().entity_uuid);
             if should_refresh_anger_timer(is_new, stays_angry) {
                 if is_new {
-                    let ticks = rand::random_range(self.anger_duration());
+                    let ticks = self.sample_anger_duration();
                     let Some(ticks) = self.approve_grudge(target.as_ref(), ticks) else {
                         // Refused: drop the target too, else the grudge is offered again every tick.
                         self.set_mob_target(None, TargetReason::ForgotTarget);
@@ -385,7 +404,7 @@ macro_rules! impl_neutral_mob {
 mod tests {
     use super::{
         DEFAULT_ANGER_DURATION, NO_ANGER_END_TIME, NeutralData, anger_end_time_from_nbt,
-        is_angry_at_time, should_refresh_anger_timer, should_stop_being_angry,
+        draw_anger_duration, is_angry_at_time, should_refresh_anger_timer, should_stop_being_angry,
     };
     use pumpkin_nbt::compound::NbtCompound;
     use std::sync::atomic::Ordering::Relaxed;
@@ -478,5 +497,16 @@ mod tests {
         // Bees pass stayAngryIfTargetPresent = false, so their timer runs down.
         assert!(!should_refresh_anger_timer(false, false));
         assert!(should_refresh_anger_timer(false, true));
+    }
+
+    #[test]
+    fn anger_duration_uses_seeded_random_and_stays_in_range() {
+        use pumpkin_util::random::xoroshiro128::Xoroshiro;
+        let mut a = Xoroshiro::from_seed(11);
+        let first = draw_anger_duration(&mut a, DEFAULT_ANGER_DURATION);
+        let mut b = Xoroshiro::from_seed(11);
+        let second = draw_anger_duration(&mut b, DEFAULT_ANGER_DURATION);
+        assert_eq!(first, second);
+        assert!(DEFAULT_ANGER_DURATION.contains(&first));
     }
 }

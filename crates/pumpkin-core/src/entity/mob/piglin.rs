@@ -29,17 +29,14 @@ use crate::entity::player::Player;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, go_to_wanted_item::GoToWantedItemGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        go_to_wanted_item::GoToWantedItemGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
         ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
     custom_sound::CustomSound,
-    mob::{
-        Mob, MobEntity, crossbow_attack_mob::CrossbowAttackMob, equipment::RegionalDifficulty,
-        piglin_ai::PiglinAi,
-    },
+    mob::{Mob, MobEntity, crossbow_attack_mob::CrossbowAttackMob, piglin_ai::PiglinAi},
 };
 use crate::world::World;
 
@@ -53,6 +50,14 @@ pub enum PiglinActivity {
 
 const SPEED_MODIFIER_BABY_ID: &str = "minecraft:baby";
 const SPEED_MODIFIER_BABY: f64 = 0.2;
+
+/// Vanilla `PiglinAi.wantsToStopFleeing`: while hoglins outnumber the piglin's
+/// visible side it keeps fleeing from hoglins instead of hunting them.
+fn outnumbered_by_hoglins(mob: &dyn Mob) -> bool {
+    mob.cast_any()
+        .downcast_ref::<PiglinEntity>()
+        .is_some_and(PiglinAi::hoglins_outnumber_piglins)
+}
 
 pub struct PiglinEntity {
     pub mob_entity: MobEntity,
@@ -127,6 +132,13 @@ impl PiglinEntity {
                 2,
                 Box::new(GoToWantedItemGoal::new(Arc::downgrade(&mob_arc), 1.0)),
             );
+            goal_selector.add_goal(
+                2,
+                Box::new(
+                    AvoidEntityGoal::new(TargetMatch::Type(&EntityType::HOGLIN), 8.0, 1.0, 1.2)
+                        .when(outnumbered_by_hoglins),
+                ),
+            );
             goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(4, Box::new(RangedCrossbowAttackGoal::new(1.0, 8.0)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
@@ -169,9 +181,11 @@ impl PiglinEntity {
                     true,
                     false,
                     Some(move |_target: &LivingEntity, _world: &World| {
-                        piglin_weak
-                            .upgrade()
-                            .is_some_and(|piglin| piglin.is_adult() && piglin.can_hunt())
+                        piglin_weak.upgrade().is_some_and(|piglin| {
+                            piglin.is_adult()
+                                && piglin.can_hunt()
+                                && !PiglinAi::hoglins_outnumber_piglins(&piglin)
+                        })
                     }),
                 )),
             );
@@ -997,51 +1011,6 @@ impl Mob for PiglinEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
-    }
-
-    fn populate_default_equipment_slots(
-        &self,
-        _world: &Arc<World>,
-        _difficulty: &RegionalDifficulty,
-    ) {
-        if !self.is_baby.load(Ordering::Relaxed) {
-            let living = &self.mob_entity.living_entity;
-            let mut equipment = living
-                .entity_equipment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-            let weapon = if rand::random::<f32>() < 0.5 {
-                &Item::CROSSBOW
-            } else if rand::random_range(0..10) == 0 {
-                &Item::GOLDEN_SPEAR
-            } else {
-                &Item::GOLDEN_SWORD
-            };
-            equipment.put(&EquipmentSlot::MAIN_HAND, ItemStack::new(1, weapon));
-
-            if rand::random::<f32>() < 0.1 {
-                equipment.put(
-                    &EquipmentSlot::HEAD,
-                    ItemStack::new(1, &Item::GOLDEN_HELMET),
-                );
-            }
-            if rand::random::<f32>() < 0.1 {
-                equipment.put(
-                    &EquipmentSlot::CHEST,
-                    ItemStack::new(1, &Item::GOLDEN_CHESTPLATE),
-                );
-            }
-            if rand::random::<f32>() < 0.1 {
-                equipment.put(
-                    &EquipmentSlot::LEGS,
-                    ItemStack::new(1, &Item::GOLDEN_LEGGINGS),
-                );
-            }
-            if rand::random::<f32>() < 0.1 {
-                equipment.put(&EquipmentSlot::FEET, ItemStack::new(1, &Item::GOLDEN_BOOTS));
-            }
-        }
     }
 
     fn mob_init_data_tracker(&self) {

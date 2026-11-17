@@ -34,6 +34,8 @@ pub enum AdvancementTrigger {
     PlayerKilled,
     BredAnimal {
         parent_type: String,
+        partner_type: String,
+        child_type: Option<String>,
     },
     LaunchedEyeOfEnder,
     GlowedSign,
@@ -44,6 +46,7 @@ pub enum AdvancementTrigger {
         is_mace_smash: bool,
         damage: f64,
         direct_entity_type: Option<String>,
+        damage_type: pumpkin_data::damage::DamageType,
     },
     Bullseye,
     CuredZombieVillager,
@@ -59,7 +62,7 @@ pub enum AdvancementTrigger {
     ItemUsedOnBlock {
         block_id: String,
         item_id: String,
-        state: Option<(String, String)>,
+        state: Option<Vec<(String, String)>>,
         smokey: Option<bool>,
         biome: Option<String>,
     },
@@ -320,7 +323,15 @@ impl Player {
                             .structure
                             .as_ref()
                             .and_then(|_| world.structure_at(block_pos));
-                        pred.matches(
+                        let light = pred
+                            .light
+                            .as_ref()
+                            .map(|_| i64::from(world.get_max_local_raw_brightness(&block_pos)));
+                        let fluid = pred
+                            .fluid
+                            .as_ref()
+                            .map(|_| world.get_fluid(&block_pos).name);
+                        pred.matches_at(
                             (pos.x, pos.y, pos.z),
                             Some(biome),
                             Some(dimension),
@@ -330,6 +341,8 @@ impl Player {
                             stepping_block,
                             feet_item.as_deref(),
                             structure,
+                            light,
+                            fluid,
                         )
                     }
                     CriterionConditions::Custom { .. } => true,
@@ -424,9 +437,15 @@ impl Player {
                 self.trigger_criterion_event("minecraft:entity_killed_player", |_cond| true);
             }
 
-            AdvancementTrigger::BredAnimal { parent_type } => {
+            AdvancementTrigger::BredAnimal {
+                parent_type,
+                partner_type,
+                child_type,
+            } => {
                 self.trigger_criterion_event("minecraft:bred_animals", |cond| match cond {
-                    CriterionConditions::BredAnimals(pred) => pred.matches(&parent_type),
+                    CriterionConditions::BredAnimals(pred) => {
+                        pred.matches(&parent_type, &partner_type, child_type.as_deref())
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -460,14 +479,16 @@ impl Player {
                 is_mace_smash,
                 damage,
                 direct_entity_type,
+                damage_type,
             } => {
                 self.trigger_criterion_event("minecraft:player_hurt_entity", |cond| match cond {
-                    CriterionConditions::PlayerHurtEntity(pred) => pred.matches_with_context(
+                    CriterionConditions::PlayerHurtEntity(pred) => pred.matches_with_damage_type(
                         is_blocked,
                         is_projectile,
                         is_mace_smash,
                         Some(damage),
                         direct_entity_type.as_deref(),
+                        &damage_type,
                     ),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
@@ -495,7 +516,7 @@ impl Player {
                     "minecraft:allay_drop_item_on_block",
                     |cond| match cond {
                         CriterionConditions::AllayDropItemOnBlock(pred) => {
-                            pred.matches(&block_id, &item_id, None, None, None)
+                            pred.matches(&block_id, &item_id, &[], None, None)
                         }
                         CriterionConditions::Custom { .. } => true,
                         _ => false,
@@ -526,7 +547,7 @@ impl Player {
                     CriterionConditions::ItemUsedOnBlock(pred) => pred.matches(
                         &block_id,
                         &item_id,
-                        state.as_ref().map(|(k, v)| (k.as_str(), v.as_str())),
+                        state.as_deref().unwrap_or(&[]),
                         smokey,
                         biome.as_deref(),
                     ),
@@ -707,14 +728,14 @@ impl Player {
                         bounds.matches(distance_y)
                             && cause_entity
                                 .as_ref()
-                                .is_none_or(|c| predicate::matches_id(c, &cause))
+                                .is_none_or(|c| c.matches(&cause, None, None))
                     }
                     CriterionConditions::FallAfterExplosion {
                         distance_y: None,
                         cause_entity,
                     } => cause_entity
                         .as_ref()
-                        .is_none_or(|c| predicate::matches_id(c, &cause)),
+                        .is_none_or(|c| c.matches(&cause, None, None)),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -832,7 +853,7 @@ impl Player {
                             }
                         }
                         if let Some(f) = req_fire
-                            && blocks_set_on_fire != *f
+                            && !f.matches(i64::from(blocks_set_on_fire))
                         {
                             return false;
                         }

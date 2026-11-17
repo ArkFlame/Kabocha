@@ -87,9 +87,17 @@ impl ShulkerEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
             let target_selector = &mob_arc.mob_entity.target_selector;
 
+            // Vanilla Shulker passes onlyHorizontal=true so it looks at the player's
+            // horizontal position only (own eye Y), not up/down at the player's eye.
             goal_selector.add_goal(
                 1,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
+                Box::new(LookAtEntityGoal::new(
+                    mob_weak,
+                    &EntityType::PLAYER,
+                    8.0,
+                    0.02,
+                    true,
+                )),
             );
             goal_selector.add_goal(
                 4,

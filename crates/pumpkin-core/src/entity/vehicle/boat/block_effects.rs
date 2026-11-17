@@ -1,6 +1,5 @@
 use std::collections::{HashSet, VecDeque};
 
-use pumpkin_data::Block;
 use pumpkin_util::math::{
     boundingbox::BoundingBox,
     position::BlockPos,
@@ -70,6 +69,12 @@ impl BoatEntity {
             return;
         };
         let mut visited = HashSet::new();
+        // `tick_block_collisions` fires entity-inside for the block positions overlapping
+        // the final standing box. Skip those in the sweep so a block is not awarded to both
+        // paths in one tick (vanilla dedupes with `Entity.visitedBlocks`).
+        let standing = entity.bounding_box.load().expand(-1.0e-7, -1.0e-7, -1.0e-7);
+        let standing_min = standing.min_block_pos();
+        let standing_max = standing.max_block_pos();
         let mut visit = |pos: pumpkin_util::math::position::BlockPos| {
             if !entity.is_alive() {
                 return;
@@ -83,12 +88,21 @@ impl BoatEntity {
                 return;
             }
             let (block, state) = world.get_block_and_state(&pos);
-            // Lily pads inherit the full-block entity-inside shape, not their thin outline.
-            if block == &Block::LILY_PAD && visited.insert(pos) {
-                world
-                    .block_registry
-                    .on_entity_collision(block, &world, self, &pos, state, &server);
+            if state.is_air() || !visited.insert(pos) {
+                return;
             }
+            if pos.0.x >= standing_min.0.x
+                && pos.0.x <= standing_max.0.x
+                && pos.0.y >= standing_min.0.y
+                && pos.0.y <= standing_max.0.y
+                && pos.0.z >= standing_min.0.z
+                && pos.0.z <= standing_max.0.z
+            {
+                return;
+            }
+            world
+                .block_registry
+                .on_entity_collision(block, &world, self, &pos, state, &server);
         };
         for movement in movements {
             let bounds = entity

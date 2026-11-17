@@ -467,6 +467,18 @@ pub struct CombatEntry {
     pub attacker_is_player: bool,
 }
 
+/// Vanilla CombatTracker combat-state transitions produced by one damage record. The
+/// owning entity fires onEnterCombat/onLeaveCombat from these at the damage call site.
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CombatStateChange {
+    /// Vanilla LivingEntity.onEnterCombat, sent to a living-attacker combat.
+    pub entered: bool,
+    /// Vanilla LivingEntity.onLeaveCombat, fired when combat state resets.
+    pub left: bool,
+    /// Vanilla CombatTracker.getCombatDuration() at the moment of leaving.
+    pub end_duration: i64,
+}
+
 #[derive(Default)]
 pub struct CombatTracker {
     entries: Vec<CombatEntry>,
@@ -483,6 +495,7 @@ impl CombatTracker {
         Self::default()
     }
 
+    #[must_use]
     #[allow(clippy::too_many_arguments)]
     pub fn record_damage(
         &mut self,
@@ -494,8 +507,18 @@ impl CombatTracker {
         damage: f32,
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
-    ) {
+    ) -> CombatStateChange {
+        // Vanilla recordDamage calls recheckStatus at the top; a reset that drops an
+        // in-combat state fires onLeaveCombat. Capture it before taking_damage is set
+        // true below and before a possible re-entry overwrites the combat start time.
+        let was_in_combat = self.in_combat;
         self.recheck_status(current_tick, is_alive);
+        let left = was_in_combat && !self.in_combat;
+        let end_duration = if left {
+            self.combat_end_time - self.combat_start_time
+        } else {
+            0
+        };
 
         let attacker = cause.or(source);
         let attacker_id = attacker.map(|e| e.get_entity().entity_id);
@@ -505,36 +528,8 @@ impl CombatTracker {
             e.get_entity().entity_type == &pumpkin_data::entity::EntityType::PLAYER
         });
 
-        // Check for custom named item in attacker's main hand
-        let attacker_item_name =
-            attacker.and_then(|e| {
-                if let Some(player) = e.get_player() {
-                    let hand_stack = player
-                        .inventory()
-                        .get_stack_in_hand(pumpkin_util::Hand::Right);
-                    if !hand_stack.is_empty()
-                    && let Some(custom_name) = hand_stack
-                        .get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>()
-                {
-                    return Some(custom_name.name.clone());
-                }
-                } else if let Some(living) = e.get_living_entity() {
-                    let equip_guard = living
-                        .entity_equipment
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    if let Some(stack) = equip_guard
-                    .equipment
-                    .get(&pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND)
-                    && !stack.is_empty()
-                    && let Some(custom_name) = stack
-                        .get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>()
-                {
-                    return Some(custom_name.name.clone());
-                }
-                }
-                None
-            });
+        // Snapshotted for death.attack.<id>.item; assisted-fall messages re-read live.
+        let attacker_item_name = attacker.and_then(main_hand_custom_name);
 
         let entry = CombatEntry {
             damage_type,
@@ -554,10 +549,20 @@ impl CombatTracker {
         self.last_damage_time = current_tick;
         self.taking_damage = true;
 
-        if !self.in_combat && is_alive && attacker_is_living {
+        // Vanilla recordDamageAndCheckCombatState fires onEnterCombat here.
+        let entered = if !self.in_combat && is_alive && attacker_is_living {
             self.in_combat = true;
             self.combat_start_time = current_tick;
             self.combat_end_time = self.combat_start_time;
+            true
+        } else {
+            false
+        };
+
+        CombatStateChange {
+            entered,
+            left,
+            end_duration,
         }
     }
 
@@ -626,6 +631,7 @@ impl CombatTracker {
         &self,
         victim_name: pumpkin_util::text::TextComponent,
         kill_credit_name: Option<pumpkin_util::text::TextComponent>,
+        world: &World,
     ) -> pumpkin_util::text::TextComponent {
         if self.entries.is_empty() {
             return pumpkin_util::text::TextComponent::translate_cross(
@@ -642,7 +648,7 @@ impl CombatTracker {
         match killing_damage_type.death_message_type {
             pumpkin_data::damage::DeathMessageType::FallVariants => {
                 if let Some(knock_off) = knock_off_entry {
-                    Self::get_fall_message(victim_name, knock_off, killing_blow)
+                    Self::get_fall_message(victim_name, knock_off, killing_blow, world)
                 } else {
                     let loc = killing_blow.fall_location.unwrap_or(FallLocation::Generic);
                     pumpkin_util::text::TextComponent::translate_cross(
@@ -731,6 +737,7 @@ impl CombatTracker {
         victim_name: pumpkin_util::text::TextComponent,
         knock_off_entry: &CombatEntry,
         killing_blow: &CombatEntry,
+        world: &World,
     ) -> pumpkin_util::text::TextComponent {
         let knock_off_type = knock_off_entry.damage_type;
         if !knock_off_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_FALL)
@@ -739,7 +746,9 @@ impl CombatTracker {
         {
             let killer_name = killing_blow.attacker_name.as_ref();
             let attacker_name = knock_off_entry.attacker_name.as_ref();
-            let attacker_item = knock_off_entry.attacker_item_name.clone();
+            // Vanilla reads the attacker's current main hand at message time, not the
+            // weapon snapshotted when the knockout damage was recorded.
+            let live_item = |entity_id: i32| live_main_hand_item_name(world, entity_id);
 
             if let Some(attacker_name) = attacker_name
                 && (killer_name.is_none() || killer_name != Some(attacker_name))
@@ -747,7 +756,8 @@ impl CombatTracker {
                 Self::get_message_for_assisted_fall(
                     victim_name,
                     attacker_name.clone(),
-                    attacker_item,
+                    knock_off_entry.attacker_id,
+                    &live_item,
                     "death.fell.assist.item",
                     "death.fell.assist",
                 )
@@ -755,7 +765,8 @@ impl CombatTracker {
                 Self::get_message_for_assisted_fall(
                     victim_name,
                     killer_name.clone(),
-                    killing_blow.attacker_item_name.clone(),
+                    killing_blow.attacker_id,
+                    &live_item,
                     "death.fell.finish.item",
                     "death.fell.finish",
                 )
@@ -781,11 +792,12 @@ impl CombatTracker {
     fn get_message_for_assisted_fall(
         victim_name: pumpkin_util::text::TextComponent,
         attacker_name: pumpkin_util::text::TextComponent,
-        attacker_item: Option<pumpkin_util::text::TextComponent>,
+        attacker_id: Option<i32>,
+        live_item: &dyn Fn(i32) -> Option<pumpkin_util::text::TextComponent>,
         message_with_item: &'static str,
         message_without_item: &'static str,
     ) -> pumpkin_util::text::TextComponent {
-        if let Some(item_name) = attacker_item {
+        if let Some(item_name) = attacker_id.and_then(live_item) {
             pumpkin_util::text::TextComponent::translate_cross(
                 message_with_item,
                 message_with_item,
@@ -840,6 +852,46 @@ impl CombatTracker {
             )
         }
     }
+}
+
+/// Reads the custom name of the entity's current main-hand item, if any.
+fn main_hand_custom_name(entity: &dyn EntityBase) -> Option<pumpkin_util::text::TextComponent> {
+    if let Some(player) = entity.get_player() {
+        let hand_stack = player
+            .inventory()
+            .get_stack_in_hand(pumpkin_util::Hand::Right);
+        if !hand_stack.is_empty()
+            && let Some(custom_name) =
+                hand_stack.get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>()
+        {
+            return Some(custom_name.name.clone());
+        }
+    } else if let Some(living) = entity.get_living_entity() {
+        let equip_guard = living
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(stack) = equip_guard
+            .equipment
+            .get(&pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND)
+            && !stack.is_empty()
+            && let Some(custom_name) =
+                stack.get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>()
+        {
+            return Some(custom_name.name.clone());
+        }
+    }
+    None
+}
+
+/// Reads the live main-hand custom name of entity_id from world at message time.
+fn live_main_hand_item_name(
+    world: &World,
+    entity_id: i32,
+) -> Option<pumpkin_util::text::TextComponent> {
+    world
+        .get_entity_by_id(entity_id)
+        .and_then(|entity| main_hand_custom_name(entity.as_ref()))
 }
 
 #[cfg(test)]
@@ -966,5 +1018,72 @@ mod tests {
         let quarter = non_living_knockback_impulse(std::f64::consts::FRAC_PI_2, 1.0);
         assert!((quarter.x + 1.0).abs() < 1e-9);
         assert!((quarter.z).abs() < 1e-9);
+    }
+
+    #[test]
+    fn assisted_fall_uses_live_item_name_and_falls_back_without_it() {
+        use pumpkin_util::text::TextContent;
+
+        let victim = pumpkin_util::text::TextComponent::text("V");
+        let attacker = pumpkin_util::text::TextComponent::text("A");
+
+        // The resolver models reading the attacker's current main hand by entity id.
+        let live_item = |entity_id: i32| {
+            (entity_id == 7).then(|| pumpkin_util::text::TextComponent::text("Live"))
+        };
+        let with_item = CombatTracker::get_message_for_assisted_fall(
+            victim.clone(),
+            attacker.clone(),
+            Some(7),
+            &live_item,
+            "death.fell.assist.item",
+            "death.fell.assist",
+        );
+        assert!(
+            matches!(&*with_item.0.content, TextContent::Translate { with, .. } if with.len() == 3)
+        );
+
+        // When the attacker cannot be resolved the message omits the item, matching
+        // vanilla's ItemStack.EMPTY branch.
+        let no_item = |_entity_id: i32| None::<pumpkin_util::text::TextComponent>;
+        let without_item = CombatTracker::get_message_for_assisted_fall(
+            victim,
+            attacker,
+            Some(7),
+            &no_item,
+            "death.fell.assist.item",
+            "death.fell.assist",
+        );
+        assert!(
+            matches!(&*without_item.0.content, TextContent::Translate { with, .. } if with.len() == 2)
+        );
+    }
+
+    #[test]
+    fn combat_reset_clears_state_and_reports_duration() {
+        // Vanilla CombatTracker.resetCombatState drops inCombat and fires onLeaveCombat
+        // with getCombatDuration() only when the tracker had been in combat.
+        let mut tracker = CombatTracker::new();
+        tracker.in_combat = true;
+        tracker.taking_damage = true;
+        tracker.last_damage_time = 0;
+        tracker.combat_start_time = 10;
+        tracker.combat_end_time = 10;
+
+        // In combat the reset window is 300 ticks; a hit long ago triggers the reset.
+        tracker.recheck_status(311, true);
+        assert!(!tracker.in_combat);
+        assert!(!tracker.taking_damage);
+        assert_eq!(tracker.combat_end_time, 311);
+        // getCombatDuration() after leaving is end - start, the value passed to
+        // ClientboundPlayerCombatEndPacket.
+        assert_eq!(tracker.get_combat_duration(311), 311 - 10);
+
+        // A reset from plain damage status (never in combat) must not look like a leave.
+        let mut tracker = CombatTracker::new();
+        tracker.taking_damage = true;
+        tracker.last_damage_time = 0;
+        tracker.recheck_status(101, true);
+        assert!(!tracker.in_combat);
     }
 }

@@ -89,6 +89,15 @@ impl WolfEntity {
             neutral_data: NeutralData::default(),
         };
         let mob_arc = Arc::new(wolf);
+
+        // Vanilla `Wolf.defineSynchedData` registers the anger end time with the
+        // -1 default the client assumes. Define at construction, before NBT read,
+        // so a loaded angry value set later becomes non-default and is spawned.
+        mob_arc
+            .get_entity()
+            .synched_data
+            .define(pumpkin_data::tracked_data::wolf::DATA_ANGER_END_TIME, -1i64);
+
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)

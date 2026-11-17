@@ -29,9 +29,9 @@ fn fuse_from_nbt(nbt: &NbtCompound) -> u32 {
     nbt.get_numeric_short("fuse").unwrap_or(0).max(0) as u32
 }
 
-// TODO: vanilla `PrimedTnt.usedPortal` / `ignoreExplosion`: TNT that changed dimension
-// ignores explosions from other primed TNT. `block_state` NBT is moot while only a TNT
-// block can be primed.
+// Vanilla `PrimedTnt.usedPortal` only swaps in a damage calculator that lets the blast break
+// nether-portal blocks; it never overrides `ignoreExplosion`, so there is no cross-dimension
+// chain immunity. `block_state` NBT is moot while only a TNT block can be primed.
 pub struct TNTEntity {
     entity: Entity,
     power: AtomicCell<f32>,
@@ -58,6 +58,17 @@ impl TNTEntity {
 
     pub(crate) fn is_about_to_explode(&self) -> bool {
         self.fuse.load(Relaxed) <= 1
+    }
+
+    /// The power this TNT uses when it detonates. Vanilla \`PrimedTnt.explosionPower\`.
+    #[must_use]
+    pub fn power(&self) -> f32 {
+        self.power.load()
+    }
+
+    /// Override the power, e.g. from a plugin-modified \`ExplosionPrimeEvent\` radius.
+    pub fn set_power(&self, power: f32) {
+        self.power.store(power);
     }
 
     /// Vanilla primed-TNT constructor: block centre plus the random launch impulse.

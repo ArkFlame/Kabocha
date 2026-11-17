@@ -118,10 +118,6 @@ impl TntMinecart {
         world.run_explosion(&explosion);
     }
 
-    pub(super) fn set_fuse(&self, fuse: i32) {
-        self.fuse.store(fuse, Ordering::Relaxed);
-    }
-
     pub(super) fn write_nbt(&self, nbt: &mut NbtCompound) {
         nbt.put_int("fuse", self.fuse.load(Ordering::Relaxed));
         let power = self.explosion_power.load();

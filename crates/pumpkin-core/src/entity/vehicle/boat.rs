@@ -99,7 +99,11 @@ pub fn is_eye_in_water(entity: &Entity) -> bool {
 
 /// Vanilla AbstractChestBoat.interact: the container is offered when the ride attempt did
 /// not consume the click, i.e. on secondary use or when no seat is free.
-const fn chest_opens_container(is_sneaking: bool, can_add_passenger: bool, has_inventory: bool) -> bool {
+const fn chest_opens_container(
+    is_sneaking: bool,
+    can_add_passenger: bool,
+    has_inventory: bool,
+) -> bool {
     has_inventory && (is_sneaking || !can_add_passenger)
 }
 
@@ -588,15 +592,16 @@ impl EntityBase for BoatEntity {
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
                 if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION)
-                    && let Some(item) = boat_drop_item(self.vehicle.entity.entity_type) {
-                        let mut stack = ItemStack::new(1, item);
-                        if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
-                            stack.set_data_component(CustomNameImpl {
-                                name: custom_name.clone(),
-                            });
-                        }
-                        world.drop_stack_at(self.vehicle.entity.pos.load(), stack);
+                    && let Some(item) = boat_drop_item(self.vehicle.entity.entity_type)
+                {
+                    let mut stack = ItemStack::new(1, item);
+                    if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
+                        stack.set_data_component(CustomNameImpl {
+                            name: custom_name.clone(),
+                        });
                     }
+                    world.drop_stack_at(self.vehicle.entity.pos.load(), stack);
+                }
             }
         }
 

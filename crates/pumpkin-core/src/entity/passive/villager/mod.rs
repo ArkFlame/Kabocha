@@ -39,6 +39,9 @@ use crate::entity::{
     experience_orb::ExperienceOrbEntity,
     mob::{Mob, MobEntity},
 };
+use crate::plugin::api::events::entity::{
+    VillagerAcquireTradeEvent, VillagerCareerChangeEvent, VillagerReplenishTradeEvent,
+};
 use crate::world::World;
 use rand::RngExt;
 
@@ -647,6 +650,8 @@ impl VillagerEntity {
             let mut rng = StdRng::from_rng(&mut rand::rng());
             let mut remaining_trades = trade_set.trades.clone();
             let mut added = 0;
+            let entity_id = self.get_entity().entity_id;
+            let server = self.get_entity().world.load().server.upgrade();
             while added < trade_set.amount && !remaining_trades.is_empty() {
                 let index = rng.random_range(0..remaining_trades.len());
                 let trade = remaining_trades.remove(index);
@@ -704,6 +709,17 @@ impl VillagerEntity {
                         apply_stew_effect(&mut rng, &mut output, effects);
                     }
                     DynamicTradeModifier::Potion(potion) => apply_potion(&mut output, potion),
+                }
+                if let Some(server) = &server {
+                    let mut event = VillagerAcquireTradeEvent {
+                        entity_id,
+                        recipe_index: new_offers.len() as i32,
+                        cancelled: false,
+                    };
+                    server.plugin_manager.fire_blocking(server, &mut event);
+                    if event.cancelled {
+                        continue;
+                    }
                 }
                 new_offers.push(pumpkin_protocol::java::client::play::MerchantOffer {
                     base_cost_a: ItemStackSerializer(Cow::Owned(base_cost_a)),
@@ -844,6 +860,17 @@ impl VillagerEntity {
         {
             self.increase_profession_level_on_update
                 .store(true, Ordering::Relaxed);
+            // Vanilla grants level-up regeneration inside `rewardTradeXp` immediately,
+            // not on the following `aiStep`.
+            self.mob_entity.living_entity.add_effect(Effect {
+                effect_type: &StatusEffect::REGENERATION,
+                duration: 200,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
             pop_xp += 5;
         }
 
@@ -962,17 +989,43 @@ impl VillagerEntity {
         self.allowed_to_restock(game_time) && self.needs_to_restock()
     }
 
-    pub fn restock(&self, game_time: i64) {
-        self.update_demand();
-        {
-            let mut offers = self
-                .offers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for offer in offers.iter_mut() {
+    /// Fires `VillagerReplenishTradeEvent` per offer and resets uses unless a plugin cancelled it.
+    fn replenish_offers(&self) {
+        let server = self.get_entity().world.load().server.upgrade();
+        let entity_id = self.get_entity().entity_id;
+        let restock_quantities: Vec<i32> = self
+            .offers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|offer| offer.max_uses)
+            .collect();
+        let mut reset = vec![true; restock_quantities.len()];
+        if let Some(server) = &server {
+            for (quantity, do_reset) in restock_quantities.iter().zip(reset.iter_mut()) {
+                let mut event = VillagerReplenishTradeEvent {
+                    entity_id,
+                    restock_quantity: *quantity,
+                    cancelled: false,
+                };
+                server.plugin_manager.fire_blocking(server, &mut event);
+                *do_reset = !event.cancelled;
+            }
+        }
+        let mut offers = self
+            .offers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (offer, do_reset) in offers.iter_mut().zip(reset) {
+            if do_reset {
                 offer.reset_uses();
             }
         }
+    }
+
+    pub fn restock(&self, game_time: i64) {
+        self.update_demand();
+        self.replenish_offers();
         self.notify_trading_player_offers_updated();
         self.last_restock_time.store(game_time, Ordering::Relaxed);
         self.restocks_today.fetch_add(1, Ordering::Relaxed);
@@ -1026,13 +1079,7 @@ impl VillagerEntity {
     fn catch_up_demand(&self) {
         let missed_updates = 2 - self.restocks_today.load(Ordering::Relaxed);
         if missed_updates > 0 {
-            let mut offers = self
-                .offers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for offer in offers.iter_mut() {
-                offer.reset_uses();
-            }
+            self.replenish_offers();
         }
         for _ in 0..missed_updates {
             self.update_demand();
@@ -1070,9 +1117,22 @@ impl VillagerEntity {
             .villager_data
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let profession = data.profession_enum();
+        if let Some(server) = self.get_entity().world.load().server.upgrade() {
+            let mut event = VillagerCareerChangeEvent {
+                entity_id: self.get_entity().entity_id,
+                profession: profession.to_name().to_string(),
+                reason: "LEVEL_UP".to_string(),
+                cancelled: false,
+            };
+            server.plugin_manager.fire_blocking(&server, &mut event);
+            if event.cancelled {
+                return;
+            }
+        }
         self.set_villager_data(VillagerData::new(
             data.type_enum(),
-            data.profession_enum(),
+            profession,
             data.level.0 + 1,
         ));
         self.update_trades();
@@ -1387,15 +1447,6 @@ impl VillagerEntity {
             .swap(false, Ordering::Relaxed)
         {
             self.increase_merchant_career();
-            self.mob_entity.living_entity.add_effect(Effect {
-                effect_type: &StatusEffect::REGENERATION,
-                duration: 200,
-                amplifier: 0,
-                ambient: false,
-                show_particles: true,
-                show_icon: true,
-                blend: false,
-            });
         }
 
         let last_traded_player = self
@@ -1580,11 +1631,6 @@ impl Mob for VillagerEntity {
             "LastGossipDecay",
             self.last_gossip_decay_time.load(Ordering::Relaxed),
         );
-
-        let last_gossip_share = self.last_gossip_share_time.load(Ordering::Relaxed);
-        if last_gossip_share > 0 {
-            nbt.put_long("LastGossipShare", last_gossip_share);
-        }
 
         let offers = self
             .offers

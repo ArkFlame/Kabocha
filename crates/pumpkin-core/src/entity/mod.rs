@@ -476,6 +476,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    /// Vanilla `LivingEntity.isAffectedByPotions`: dead entities cannot receive effects.
+    fn is_affected_by_potions(&self) -> bool {
+        self.is_alive()
+    }
+
     fn get_gravity(&self) -> f64 {
         0.0
     }
@@ -5214,18 +5219,20 @@ impl Entity {
         if let Some(pitch) = pitch {
             self.last_sent_pitch.store(pack_degrees(pitch), Relaxed);
         }
-        let chunk_pos = self.chunk_pos.load();
-        world.broadcast_to_chunk(
-            chunk_pos,
-            &CEntityPositionSync::new(
-                self.entity_id.into(),
-                position,
-                self.velocity.load(),
-                yaw.unwrap_or(self.yaw.load()),
-                pitch.unwrap_or(self.pitch.load()),
-                self.on_ground.load(Ordering::SeqCst),
-            ),
+        // Vanilla Entity.sendTeleportTransitionToPlayers sends the absolute move to all
+        // current trackers, not just watchers of the destination chunk. Sending only to the
+        // destination leaves viewers that stayed behind with a ghost at the old position.
+        // send_to_tracking_players uses the tracker's seen_by set, which still reflects the
+        // old viewers until the next tracker pass moves them over.
+        let packet = CEntityPositionSync::new(
+            self.entity_id.into(),
+            position,
+            self.velocity.load(),
+            yaw.unwrap_or(self.yaw.load()),
+            pitch.unwrap_or(self.pitch.load()),
+            self.on_ground.load(Ordering::SeqCst),
         );
+        world.send_to_tracking_players(self, &packet);
     }
 
     pub fn get_eye_pos(&self) -> Vector3<f64> {

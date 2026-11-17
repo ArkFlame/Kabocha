@@ -387,6 +387,10 @@ impl EvaluatorKind {
 /// Implementations must not relock it or invoke callbacks that can acquire it.
 pub trait PathNavigationTrait: Send + Sync {
     fn set_progress(&mut self, goal: NavigatorGoal);
+    /// Whether the last deferred path search failed to install a usable path.
+    fn take_last_path_search_failed(&mut self) -> bool {
+        false
+    }
     fn set_speed(&mut self, speed: f64);
     fn get_speed_modifier(&self) -> f64;
     fn stop(&mut self);
@@ -483,6 +487,8 @@ pub struct PathNavigation {
     // Runs with the navigator locked and changes only the evaluator's temporary data.
     pub(crate) on_pathfinding_start: Option<fn(&LivingEntity, &mut MobData)>,
     has_pending_path: bool,
+    /// Result of the last deferred search, read by goals that mirror vanilla's `moveTo` failure backoff.
+    last_path_search_failed: bool,
     pub can_float: bool,
     pub can_walk_over_fences: bool,
     pub can_open_doors: bool,
@@ -537,6 +543,7 @@ impl PathNavigation {
             path_type_overrides: FxHashMap::default(),
             on_pathfinding_start: None,
             has_pending_path: false,
+            last_path_search_failed: false,
             can_float: false,
             can_walk_over_fences: false,
             can_open_doors: false,
@@ -557,8 +564,14 @@ impl PathNavigation {
         self.last_stuck_check = self.tick_count;
         self.last_stuck_check_pos = goal.current_progress;
         self.has_pending_path = true;
+        self.last_path_search_failed = false;
         self.current_goal = Some(goal);
         self.reset_stuck_timeout();
+    }
+
+    /// Consumes whether the last deferred search failed to install a usable path.
+    pub(crate) fn take_last_path_search_failed(&mut self) -> bool {
+        std::mem::take(&mut self.last_path_search_failed)
     }
 
     pub const fn set_speed(&mut self, speed: f64) {
@@ -871,6 +884,7 @@ impl PathNavigation {
                     Some(path) if path.same_as(self.path.as_ref()) => {}
                     path => self.path = path,
                 }
+                self.last_path_search_failed = self.path.as_ref().is_none_or(|path| path.is_done());
                 if self.path.as_ref().is_some_and(|path| !path.is_done()) {
                     self.trim_path(entity);
                 }
@@ -1212,6 +1226,10 @@ impl PathNavigationTrait for GroundPathNavigation {
         self.inner.set_progress(goal);
     }
 
+    fn take_last_path_search_failed(&mut self) -> bool {
+        self.inner.take_last_path_search_failed()
+    }
+
     fn set_speed(&mut self, speed: f64) {
         self.inner.set_speed(speed);
     }
@@ -1470,6 +1488,10 @@ impl FlyingPathNavigation {
 impl PathNavigationTrait for FlyingPathNavigation {
     fn set_progress(&mut self, goal: NavigatorGoal) {
         self.inner.set_progress(goal);
+    }
+
+    fn take_last_path_search_failed(&mut self) -> bool {
+        self.inner.take_last_path_search_failed()
     }
 
     fn set_speed(&mut self, speed: f64) {
@@ -1765,6 +1787,10 @@ impl WaterBoundPathNavigation {
 impl PathNavigationTrait for WaterBoundPathNavigation {
     fn set_progress(&mut self, goal: NavigatorGoal) {
         self.inner.set_progress(goal);
+    }
+
+    fn take_last_path_search_failed(&mut self) -> bool {
+        self.inner.take_last_path_search_failed()
     }
 
     fn is_stable_destination(&self, world: &World, pos: &BlockPos) -> bool {
@@ -2070,6 +2096,10 @@ impl PathNavigationTrait for WallClimberNavigation {
         self.inner.set_progress(goal);
     }
 
+    fn take_last_path_search_failed(&mut self) -> bool {
+        self.inner.take_last_path_search_failed()
+    }
+
     fn set_speed(&mut self, speed: f64) {
         self.inner.set_speed(speed);
     }
@@ -2337,6 +2367,10 @@ impl AmphibiousPathNavigation {
 impl PathNavigationTrait for AmphibiousPathNavigation {
     fn set_progress(&mut self, goal: NavigatorGoal) {
         self.inner.set_progress(goal);
+    }
+
+    fn take_last_path_search_failed(&mut self) -> bool {
+        self.inner.take_last_path_search_failed()
     }
 
     fn set_speed(&mut self, speed: f64) {

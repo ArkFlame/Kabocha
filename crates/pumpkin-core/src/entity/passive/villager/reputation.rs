@@ -10,6 +10,7 @@ use crate::entity::EntityBase;
 use crate::entity::ai::brain::memory::types;
 use crate::entity::ai::brain::{BrainState, VisibilityContext};
 use crate::entity::mob::Mob;
+use crate::plugin::api::events::entity::VillagerReputationChangeEvent;
 use crate::world::World;
 
 use crate::entity::ai::brain::behavior::poi_walk::release_poi::release_poi;
@@ -28,6 +29,30 @@ pub enum ReputationEventType {
 
 impl VillagerEntity {
     pub fn on_reputation_event_from(&self, event: ReputationEventType, source: Uuid) {
+        let reputation_change = match event {
+            ReputationEventType::ZombieVillagerCured => 45,
+            ReputationEventType::Trade => 2,
+            ReputationEventType::VillagerHurt | ReputationEventType::VillagerKilled => -25,
+        };
+        if let Some(server) = self.get_entity().world.load().server.upgrade() {
+            let target_id = self
+                .get_entity()
+                .world
+                .load()
+                .get_player_by_uuid(source)
+                .map_or(-1, |player| player.get_entity().entity_id);
+            let mut change_event = VillagerReputationChangeEvent::new(
+                self.get_entity().entity_id,
+                target_id,
+                reputation_change,
+            );
+            server
+                .plugin_manager
+                .fire_blocking(&server, &mut change_event);
+            if change_event.cancelled {
+                return;
+            }
+        }
         {
             let mut gossips = self
                 .gossips

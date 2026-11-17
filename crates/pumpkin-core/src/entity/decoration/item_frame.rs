@@ -9,13 +9,13 @@ use crate::server::Server;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::BlockDirection;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
+use pumpkin_data::{Block, BlockDirection};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata};
@@ -47,8 +47,8 @@ pub struct ItemFrameEntity {
 impl ItemFrameEntity {
     /// Facing used when a frame is created without NBT, matching vanilla.
     const DEFAULT_FACING: BlockDirection = BlockDirection::South;
-    /// Vanilla re-validates the supporting block every 20 ticks.
-    const SUPPORT_CHECK_INTERVAL: u32 = 20;
+    /// Vanilla re-validates the supporting block every 100 ticks (`CHECK_INTERVAL`).
+    const SUPPORT_CHECK_INTERVAL: u32 = 100;
 
     /// Horizontal and vertical extent of the frame's face.
     const FACE_SIZE: f64 = 0.75;
@@ -224,7 +224,7 @@ impl ItemFrameEntity {
         if update_neighbours {
             let world = self.entity.world.load();
             let pos = self.entity.block_pos.load();
-            world.update_neighbors(&pos, None);
+            world.update_neighbour_for_output_signal(&pos, &Block::AIR);
         }
     }
 
@@ -242,7 +242,7 @@ impl ItemFrameEntity {
         if update_neighbours {
             let world = self.entity.world.load();
             let pos = self.entity.block_pos.load();
-            world.update_neighbors(&pos, None);
+            world.update_neighbour_for_output_signal(&pos, &Block::AIR);
         }
     }
 
@@ -363,7 +363,13 @@ impl ItemFrameEntity {
         // comparators behind the frame lose their signal immediately.
         let world = self.entity.world.load();
         let pos = self.entity.block_pos.load();
-        world.update_neighbors(&pos, None);
+        world.update_neighbour_for_output_signal(&pos, &Block::AIR);
+
+        // Vanilla `ItemFrame.dropItem` skips both drops when `doEntityDrops` is
+        // off, after clearing the item through `setItem(ItemStack.EMPTY)`.
+        if !world.level_info.load().game_rules.entity_drops {
+            return;
+        }
 
         let is_creative_player = caused_by.is_some_and(|s| {
             s.cast_any()
@@ -375,14 +381,27 @@ impl ItemFrameEntity {
             return;
         }
 
+        // Paper patch for MC-123848: a frame facing DOWN drops 0.6 blocks lower
+        // so the drops do not land inside the support block above it.
+        let y_offset = if self.get_facing() == BlockDirection::Down {
+            -0.6
+        } else {
+            0.0
+        };
+        let drop_pos = Vector3::new(
+            f64::from(pos.0.x) + 0.5,
+            f64::from(pos.0.y) + 0.5 + y_offset,
+            f64::from(pos.0.z) + 0.5,
+        );
+
         if with_frame {
-            world.drop_stack(&pos, self.get_frame_item_stack_with_data());
+            world.drop_stack_at(drop_pos, self.get_frame_item_stack_with_data());
         }
 
         if !item_stack.is_empty() {
             let drop_chance = self.item_drop_chance.load();
             if rand::random::<f32>() < drop_chance {
-                world.drop_stack(&pos, item_stack);
+                world.drop_stack_at(drop_pos, item_stack);
             }
         }
     }
@@ -406,8 +425,11 @@ impl EntityBase for ItemFrameEntity {
     }
 
     fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
-        let ticks = self.ticks_since_last_check.fetch_add(1, Ordering::Relaxed);
-        if ticks < Self::SUPPORT_CHECK_INTERVAL {
+        // fetch_add returns the previous count, so +1 is this tick's count: the check
+        // fires on tick 100, 200, ... like vanilla `tickCount % 100 == 0`.
+        if self.ticks_since_last_check.fetch_add(1, Ordering::Relaxed) + 1
+            < Self::SUPPORT_CHECK_INTERVAL
+        {
             return;
         }
         self.ticks_since_last_check.store(0, Ordering::Relaxed);

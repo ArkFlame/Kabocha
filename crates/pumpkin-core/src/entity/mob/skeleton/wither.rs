@@ -9,6 +9,7 @@ use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::math::position::BlockPos;
 
+use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::{
     Entity, EntityBase,
     ai::behavior::hunting::Hunt,
@@ -31,6 +32,13 @@ pub struct WitherSkeletonEntity {
 impl WitherSkeletonEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let entity = SkeletonEntityBase::with_hunts(entity, WITHER_SKELETON_HUNTS);
+        // Vanilla `WitherSkeleton` constructor raises the LAVA pathfinding malus to 8.0.
+        entity
+            .mob_entity
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .set_pathfinding_malus(PathType::Lava, 8.0);
         let skeleton = Self { entity };
         Arc::new(skeleton)
     }

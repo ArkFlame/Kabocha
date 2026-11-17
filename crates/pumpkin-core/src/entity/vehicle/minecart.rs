@@ -48,10 +48,12 @@ const fn get_exits(
     match shape {
         RailShape::NorthSouth => (Vector3::new(0.0, 0.0, -1.0), Vector3::new(0.0, 0.0, 1.0)),
         RailShape::EastWest => (Vector3::new(-1.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)),
-        RailShape::AscendingEast => (Vector3::new(-1.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
-        RailShape::AscendingWest => (Vector3::new(1.0, 0.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)),
-        RailShape::AscendingNorth => (Vector3::new(0.0, 0.0, 1.0), Vector3::new(0.0, 1.0, -1.0)),
-        RailShape::AscendingSouth => (Vector3::new(0.0, 0.0, -1.0), Vector3::new(0.0, 1.0, 1.0)),
+        // Vanilla stores ascending exits with the low end one block BELOW (Direction.below()),
+        // so the high end sits at y=0 and the low end at y=-1 relative to the rail block.
+        RailShape::AscendingEast => (Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, 0.0, 0.0)),
+        RailShape::AscendingWest => (Vector3::new(1.0, -1.0, 0.0), Vector3::new(-1.0, 0.0, 0.0)),
+        RailShape::AscendingNorth => (Vector3::new(0.0, -1.0, 1.0), Vector3::new(0.0, 0.0, -1.0)),
+        RailShape::AscendingSouth => (Vector3::new(0.0, -1.0, -1.0), Vector3::new(0.0, 0.0, 1.0)),
         RailShape::SouthEast => (Vector3::new(0.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0)),
         RailShape::SouthWest => (Vector3::new(0.0, 0.0, 1.0), Vector3::new(-1.0, 0.0, 0.0)),
         RailShape::NorthWest => (Vector3::new(0.0, 0.0, -1.0), Vector3::new(-1.0, 0.0, 0.0)),
@@ -875,16 +877,22 @@ impl EntityBase for MinecartEntity {
             && (creative || self.vehicle.get_damage() + amount * 10.0 > 40.0);
 
         if let MinecartKind::Tnt(minecart) = &self.kind
-            && will_break
-            && !creative
+            && self.vehicle.entity.is_alive()
         {
             let velocity = self.vehicle.entity.velocity.load();
             let speed_squared = velocity.x.mul_add(velocity.x, velocity.z * velocity.z);
+            // Vanilla MinecartTNT.shouldSourceDestroy (= damageSourceIgnitesTnt) makes a
+            // fire/explosion damage source trigger the TNT destroy path below 40 damage. The
+            // burning-arrow case is handled above by the immediate explode.
             let ignites = damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_FIRE)
-                || damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION)
-                || self.vehicle.entity.fire_ticks.load(Ordering::Relaxed) > 0;
-            if ignites || speed_squared >= 0.01 {
+                || damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION);
+            // Vanilla VehicleEntity.hurtServer calls destroy() when the cart would break OR the
+            // source ignites TNT; a creative attacker skips the break path unless it ignites.
+            let destroy = (!creative && will_break) || ignites;
+            if destroy && (ignites || speed_squared >= 0.01) {
                 self.vehicle.apply_damage_wobble(amount);
+                // Vanilla MinecartTNT.destroy: nextInt(20) + nextInt(20) fuse, primed only while
+                // the cart is unprimed and the tntExplodes rule is on.
                 let fuse = rand::rng().random_range(0..20) + rand::rng().random_range(0..20);
                 if self
                     .vehicle
@@ -897,8 +905,6 @@ impl EntityBase for MinecartEntity {
                     .tnt_explodes
                 {
                     minecart.prime(&self.vehicle.entity, fuse);
-                } else {
-                    minecart.set_fuse(fuse);
                 }
                 return true;
             }
@@ -955,6 +961,8 @@ impl EntityBase for MinecartEntity {
     }
 
     fn move_entity(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        // Vanilla AbstractMinecart.move: capture the intended target before the first move,
+        // then replay any leftover distance after pushAndPickupEntities.
         let to_position = self.vehicle.entity.pos.load().add(&motion);
         self.vehicle.entity.move_entity(caller, motion);
         let entity_id = self.vehicle.entity.entity_id;
@@ -964,6 +972,8 @@ impl EntityBase for MinecartEntity {
             if should_continue {
                 let current_pos = dyn_self.get_entity().pos.load();
                 let back_motion = to_position.sub(&current_pos);
+                // Both moves use the base Entity::move_entity (vanilla super.move), never the
+                // EntityBase override, so the residual cannot re-run pushAndPickupEntities.
                 dyn_self.get_entity().move_entity(caller, back_motion);
             }
         }
@@ -1020,13 +1030,35 @@ mod tests {
             (0.5, 64.0 + RAIL_HEIGHT_OFFSET, 0.5)
         );
 
-        // Vanilla snaps an ascending rail's exit Y up by half a block plus the slope progress.
+        // Vanilla getPos snaps the center of an ascending rail to half a block above
+        // the flat-rail offset (y0 + yD*0.5 + 0.5 for the positive yD).
+        let expected_slope_y = 64.0 + RAIL_HEIGHT_OFFSET + 0.5;
         let slope = get_pos_on_rail(
             BlockPos(Vector3::new(0, 64, 0)),
             RailShape::AscendingEast,
             Vector3::new(0.5, 64.0, 0.5),
         );
-        assert_eq!((slope.x, slope.y, slope.z), (0.5, 64.0 + 1.0625, 0.5));
+        assert_eq!((slope.x, slope.y, slope.z), (0.5, expected_slope_y, 0.5));
+    }
+
+    #[test]
+    fn all_ascending_rails_snap_center_to_vanilla_height() {
+        use pumpkin_data::block_properties::RailShape;
+
+        let expected_y = 64.0 + RAIL_HEIGHT_OFFSET + 0.5;
+        for shape in [
+            RailShape::AscendingEast,
+            RailShape::AscendingWest,
+            RailShape::AscendingNorth,
+            RailShape::AscendingSouth,
+        ] {
+            let snapped = get_pos_on_rail(
+                BlockPos(Vector3::new(0, 64, 0)),
+                shape,
+                Vector3::new(0.5, 64.0, 0.5),
+            );
+            assert_eq!((snapped.x, snapped.y, snapped.z), (0.5, expected_y, 0.5));
+        }
     }
 
     #[test]

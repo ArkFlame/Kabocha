@@ -50,3 +50,27 @@ impl Statistics {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn statistics_nbt_round_trip() {
+        let mut stats = Statistics::default();
+        stats.increment_custom(CustomStatistic::PlayTime, 123);
+        stats.increment(StatisticCategory::Mined, 42, 7);
+
+        let mut nbt = NbtCompound::new();
+        stats.write_nbt(&mut nbt);
+
+        let mut loaded = Statistics::default();
+        loaded.read_nbt(&nbt);
+
+        assert_eq!(
+            loaded.get(StatisticCategory::Custom, CustomStatistic::PlayTime as i32),
+            123
+        );
+        assert_eq!(loaded.get(StatisticCategory::Mined, 42), 7);
+    }
+}

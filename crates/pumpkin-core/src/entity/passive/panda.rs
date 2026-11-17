@@ -620,7 +620,9 @@ impl PandaEntity {
     /// The last branch of vanilla `Panda.mobInteract` for food: it drops what the panda held (unless the
     /// player has infinite materials) and a plugin that cancels that drop leaves everything as it was.
     fn sit_and_eat(&self, item_stack: &mut ItemStack, gamemode: GameMode) -> bool {
-        if self.is_baby() || !self.can_perform_action() || self.get_entity().is_in_water() {
+        // Vanilla 1.26.3 gates the food branch only on isSitting() || isInWater(), so a
+        // rolling or eating panda still takes food here.
+        if self.is_baby() || self.is_sitting() || self.get_entity().is_in_water() {
             return false;
         }
         if gamemode != GameMode::Creative && self.drop_main_hand_item() && self.is_holding_item() {
@@ -1477,12 +1479,12 @@ mod tests {
         assert_eq!(bamboo.item_count, 2);
         assert_eq!(dropped_items(&world, &creative), 0);
 
-        // A rolling panda cannot perform actions, so it refuses food like a sitting one.
+        // Vanilla gates only on sitting/in-water, so a rolling panda still takes food.
         let rolling = spawn_panda(&world, 4.5, 8.5);
         hold(&rolling, &Item::STICK);
         rolling.roll(true);
-        assert!(!rolling.sit_and_eat(&mut bamboo, GameMode::Survival));
-        assert_eq!(bamboo.item_count, 2, "a rolling panda took food");
+        assert!(rolling.sit_and_eat(&mut bamboo, GameMode::Survival));
+        assert_eq!(bamboo.item_count, 1, "a rolling panda refused food");
 
         let baby = spawn_panda(&world, -8.5, 8.5);
         baby.set_age(-1200);

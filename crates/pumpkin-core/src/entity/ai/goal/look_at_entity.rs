@@ -347,4 +347,46 @@ mod tests {
         world.level.shutdown().await;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn look_forward_targets_the_mobs_own_eye_height() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let spawn = |x: f64, y: f64| {
+            CowEntity::new(Entity::new(
+                world.clone(),
+                Vector3::new(x, y, 0.5),
+                &EntityType::COW,
+            ))
+        };
+        let looker = spawn(0.5, 64.0);
+        // The target sits far above the looker: with look_forward the goal must use
+        // the looker's own eye height instead of the target's eye height.
+        let target = spawn(4.5, 70.0);
+        let mob: Arc<dyn Mob> = looker.clone();
+        let slot = Arc::new(LookTargetSlot::default());
+        let mut goal =
+            LookAtEntityGoal::new(Arc::downgrade(&mob), &EntityType::PLAYER, 6.0, 1.0, true)
+                .with_target_slot(slot.clone());
+
+        slot.set_target(Some(target));
+        assert!(goal.can_start(looker.as_ref()));
+        goal.start(looker.as_ref());
+        goal.tick(looker.as_ref());
+        let wanted_y = looker
+            .get_mob_entity()
+            .look_control
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .wanted_position()
+            .map(|pos| pos.y);
+        let own_eye_y = looker.get_entity().get_eye_y();
+        assert!(
+            wanted_y.is_some_and(|y| (y - own_eye_y).abs() < 1e-9),
+            "look_forward did not use the mob's own eye height"
+        );
+        world.level.shutdown().await;
+        Ok(())
+    }
 }

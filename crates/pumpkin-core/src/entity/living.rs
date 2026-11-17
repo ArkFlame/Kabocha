@@ -59,7 +59,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::{
-    CHurtAnimation, CSwingArm, CTakeItemEntity, CUpdateMobEffect,
+    CCombatEnd, CCombatEnter, CHurtAnimation, CSwingArm, CTakeItemEntity, CUpdateMobEffect,
 };
 use pumpkin_protocol::{
     codec::item_stack_seralizer::ItemStackSerializer,
@@ -2870,7 +2870,12 @@ impl LivingEntity {
                 .combat_tracker
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            return tracker.get_death_message(dyn_self.get_display_name(), kill_credit_name);
+            let world = dyn_self.get_entity().world.load();
+            return tracker.get_death_message(
+                dyn_self.get_display_name(),
+                kill_credit_name,
+                &world,
+            );
         }
 
         if let Some(cause) = cause
@@ -3822,10 +3827,10 @@ impl LivingEntity {
         self.movement_input.store(Vector3::default());
         self.jumping.store(false, Relaxed);
 
-        // If this LivingEntity corresponds to a Player, reset their hunger manager
+        // If this LivingEntity corresponds to a Player, clear fall particles.
+        // Vanilla preserves FoodData across respawn, so keep the hunger manager.
         let world = self.entity.world.load();
         if let Some(player) = world.get_player_by_id(self.entity.entity_id) {
-            player.hunger_manager.restart();
             player
                 .spawn_extra_particles_on_fall
                 .store(false, Ordering::Relaxed);
@@ -4171,6 +4176,22 @@ impl LivingEntity {
     }
 
     #[allow(clippy::too_many_lines)]
+    /// Vanilla ServerPlayer.onEnterCombat: send the combat-enter state packet.
+    fn on_enter_combat(&self) {
+        let world = self.entity.world.load();
+        if let Some(player) = world.get_player_by_id(self.entity.entity_id) {
+            player.try_send_client_packet(&CCombatEnter);
+        }
+    }
+
+    /// Vanilla ServerPlayer.onLeaveCombat: send the combat-end packet with the duration.
+    fn on_leave_combat(&self, duration: i64) {
+        let world = self.entity.world.load();
+        if let Some(player) = world.get_player_by_id(self.entity.entity_id) {
+            player.try_send_client_packet(&CCombatEnd::new(VarInt(duration as i32)));
+        }
+    }
+
     pub fn damage_with_context(
         &self,
         caller: &dyn EntityBase,
@@ -4327,6 +4348,7 @@ impl LivingEntity {
                             is_projectile: damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE),
                             is_mace_smash: damage_type.has_tag(&tag::DamageType::MINECRAFT_MACE_SMASH),
                             damage: f64::from(pre_block_amount),
+                            damage_type,
                             direct_entity_type: source
                                 .map(|s| s.get_entity().entity_type.resource_name.to_string()),
                         },
@@ -4534,7 +4556,7 @@ impl LivingEntity {
             let fall_location = FallLocation::get_current_fall_location(self, &world);
             let fall_distance = self.fall_distance.load();
 
-            {
+            let change = {
                 let mut tracker = self
                     .combat_tracker
                     .lock()
@@ -4548,7 +4570,16 @@ impl LivingEntity {
                     effective_amount,
                     source,
                     cause,
-                );
+                )
+            };
+
+            // Vanilla CombatTracker fires the mob's onEnterCombat/onLeaveCombat here;
+            // ServerPlayer turns those into the client combat-state packets.
+            if change.left {
+                self.on_leave_combat(change.end_duration);
+            }
+            if change.entered {
+                self.on_enter_combat();
             }
         }
 
@@ -4578,6 +4609,7 @@ impl LivingEntity {
                     is_projectile: damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE),
                     is_mace_smash: damage_type.has_tag(&tag::DamageType::MINECRAFT_MACE_SMASH),
                     damage: f64::from(amount),
+                    damage_type,
                     direct_entity_type: source
                         .map(|s| s.get_entity().entity_type.resource_name.to_string()),
                 },
@@ -4678,6 +4710,30 @@ impl EntityBase for LivingEntity {
         let pre_tick_pos = self.entity.last_pos.load();
         self.entity.tick(caller, server);
         self.tick_last_hurt_by_mob();
+
+        // Vanilla LivingEntity.aiStep calls CombatTracker.recheckStatus every 20 ticks;
+        // a combat that times out fires onLeaveCombat with the combat duration.
+        {
+            let world = self.entity.world.load();
+            let world_age = world.get_world_age();
+            if world_age % 20 == 0 {
+                let is_alive = !self.dead.load(Relaxed) && self.health.load() > 0.0;
+                let (left, duration) = {
+                    let mut tracker = self
+                        .combat_tracker
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    let was_in_combat = tracker.is_in_combat();
+                    tracker.recheck_status(world_age, is_alive);
+                    let left = was_in_combat && !tracker.is_in_combat();
+                    let duration = tracker.get_combat_duration(world_age);
+                    (left, duration)
+                };
+                if left {
+                    self.on_leave_combat(duration);
+                }
+            }
+        }
         if let Some(mob) = caller.get_mob() {
             mob.tick_ambient_sound();
             mob.base_tick(caller);

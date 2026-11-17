@@ -1,6 +1,7 @@
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
-use pumpkin_data::tag::{RegistryKey, get_tag_values};
+use pumpkin_data::tag::{RegistryKey, Taggable, get_tag_values};
 use serde_json::Value;
 
 pub type ItemEnchantment<'a> = (&'a str, u32);
@@ -341,6 +342,8 @@ pub struct LocationPredicate {
     pub structure: Option<TagOrIdMatcher>,
     pub stepping_on: Option<TagOrIdMatcher>,
     pub feet_item: Option<TagOrIdMatcher>,
+    pub light: Option<IntBounds>,
+    pub fluid: Option<TagOrIdMatcher>,
 }
 
 impl LocationPredicate {
@@ -357,6 +360,38 @@ impl LocationPredicate {
         stepping_block: Option<&str>,
         feet_item: Option<&str>,
         structure: Option<&str>,
+    ) -> bool {
+        self.matches_at(
+            pos,
+            biome,
+            dimension,
+            step_block,
+            can_see_sky,
+            smokey,
+            stepping_block,
+            feet_item,
+            structure,
+            None,
+            None,
+        )
+    }
+
+    /// Like [`Self::matches`], with light and fluid values read at the position.
+    #[must_use]
+    #[expect(clippy::too_many_arguments)]
+    pub fn matches_at(
+        &self,
+        pos: (f64, f64, f64),
+        biome: Option<&str>,
+        dimension: Option<&str>,
+        step_block: Option<&str>,
+        can_see_sky: Option<bool>,
+        smokey: Option<bool>,
+        stepping_block: Option<&str>,
+        feet_item: Option<&str>,
+        structure: Option<&str>,
+        light: Option<i64>,
+        fluid: Option<&str>,
     ) -> bool {
         if let Some(x) = &self.x
             && !x.matches(pos.0)
@@ -431,6 +466,22 @@ impl LocationPredicate {
                 return false;
             }
         }
+        if let Some(light_bounds) = &self.light {
+            let Some(current) = light else {
+                return false;
+            };
+            if !light_bounds.matches(current) {
+                return false;
+            }
+        }
+        if let Some(fluid_matcher) = &self.fluid {
+            let Some(current) = fluid else {
+                return false;
+            };
+            if !fluid_matcher.matches(RegistryKey::Fluid, current) {
+                return false;
+            }
+        }
         true
     }
 
@@ -481,6 +532,15 @@ impl LocationPredicate {
 
         let can_see_sky = loc_map.get("can_see_sky").and_then(Value::as_bool);
         let smokey = loc_map.get("smokey").and_then(Value::as_bool);
+        // Vanilla wraps the integer bounds in a LightPredicate under "light".
+        let light = loc_map.get("light").and_then(|v| {
+            let bounds = v.get("light").unwrap_or(v);
+            IntBounds::from_value(bounds)
+        });
+        let fluid = loc_map
+            .get("fluid")
+            .and_then(|v| v.get("fluids").unwrap_or(v))
+            .and_then(TagOrIdMatcher::from_value);
         let structure = loc_map
             .get("structures")
             .or_else(|| loc_map.get("structure"))
@@ -513,12 +573,14 @@ impl LocationPredicate {
             structure,
             stepping_on,
             feet_item,
+            light,
+            fluid,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ItemUsedOnBlockPredicate {
+pub struct ItemUsedOnBlockCheck {
     pub blocks: Option<TagOrIdMatcher>,
     pub items: Option<TagOrIdMatcher>,
     pub state_key: Option<String>,
@@ -527,13 +589,13 @@ pub struct ItemUsedOnBlockPredicate {
     pub biome: Option<String>,
 }
 
-impl ItemUsedOnBlockPredicate {
+impl ItemUsedOnBlockCheck {
     #[must_use]
-    pub fn matches(
+    fn matches(
         &self,
         block_id: &str,
         item_id: &str,
-        block_state: Option<(&str, &str)>,
+        block_state: &[(String, String)],
         smokey: Option<bool>,
         biome: Option<&str>,
     ) -> bool {
@@ -548,14 +610,12 @@ impl ItemUsedOnBlockPredicate {
             return false;
         }
         if let Some(expected_key) = &self.state_key {
-            let Some((k, v)) = block_state else {
+            let Some((_, actual_value)) = block_state.iter().find(|(key, _)| key == expected_key)
+            else {
                 return false;
             };
-            if expected_key != k {
-                return false;
-            }
             if let Some(expected_val) = &self.state_value
-                && expected_val != v
+                && expected_val != actual_value
             {
                 return false;
             }
@@ -577,8 +637,7 @@ impl ItemUsedOnBlockPredicate {
     }
 
     #[must_use]
-    pub fn from_value(val: &Value) -> Self {
-        let loc = val.get("location").unwrap_or(val);
+    fn from_value(value: &Value) -> Self {
         let mut block_patterns = Vec::new();
         let mut item_patterns = Vec::new();
         let mut state_key = None;
@@ -586,52 +645,42 @@ impl ItemUsedOnBlockPredicate {
         let mut smokey = None;
         let mut biome = None;
 
-        let mut terms = Vec::new();
-        if let Some(arr) = loc.as_array() {
-            // 1.20.2+ packs list the loot conditions of `location` directly as an array.
-            terms.extend(arr.iter());
-        } else if let Some(arr) = loc.get("terms").and_then(Value::as_array) {
-            terms.extend(arr.iter());
-        } else {
-            terms.push(loc);
-        }
+        // Typed loot conditions keep their payload under the predicate key.
+        let pred = value.get("predicate").unwrap_or(value);
+        let blk = pred.get("block").unwrap_or(pred);
 
-        for term in terms {
-            let pred = term.get("predicate").unwrap_or(term);
-            let blk = pred.get("block").unwrap_or(pred);
-            if let Some(b_val) = blk.get("blocks").or_else(|| blk.get("block")) {
-                if let Some(s) = b_val.as_str() {
-                    block_patterns.push(s.to_string());
-                } else if let Some(arr) = b_val.as_array() {
-                    for b in arr {
-                        if let Some(s) = b.as_str() {
-                            block_patterns.push(s.to_string());
-                        }
-                    }
-                }
-            }
-            if let Some(st) = blk.get("state").and_then(Value::as_object) {
-                for (k, v) in st {
-                    state_key = Some(k.clone());
-                    state_value = v.as_str().map(ToString::to_string);
-                }
-            }
-            if let Some(sm) = pred.get("smokey").and_then(Value::as_bool) {
-                smokey = Some(sm);
-            }
-            if let Some(b) = pred
-                .get("biomes")
-                .or_else(|| pred.get("biome"))
-                .and_then(Value::as_str)
-            {
-                biome = Some(b.to_string());
-            }
-            if let Some(i_val) = pred.get("items").or_else(|| pred.get("item")) {
-                push_item_patterns(i_val, &mut item_patterns);
+        if let Some(b_val) = blk.get("blocks").or_else(|| blk.get("block")) {
+            if let Some(s) = b_val.as_str() {
+                block_patterns.push(s.to_string());
+            } else if let Some(arr) = b_val.as_array() {
+                block_patterns.extend(
+                    arr.iter()
+                        .filter_map(Value::as_str)
+                        .map(ToString::to_string),
+                );
             }
         }
-        // The item predicate sits beside `location` at the top level of the condition.
-        if let Some(i_val) = val.get("item") {
+        if let Some(st) = blk.get("state").and_then(Value::as_object) {
+            for (k, v) in st {
+                state_key = Some(k.clone());
+                state_value = v.as_str().map(ToString::to_string);
+            }
+        }
+        if let Some(sm) = pred.get("smokey").and_then(Value::as_bool) {
+            smokey = Some(sm);
+        }
+        if let Some(b) = pred
+            .get("biomes")
+            .or_else(|| pred.get("biome"))
+            .and_then(Value::as_str)
+        {
+            biome = Some(b.to_string());
+        }
+        if let Some(i_val) = pred.get("items").or_else(|| pred.get("item")) {
+            push_item_patterns(i_val, &mut item_patterns);
+        }
+        // In the flat form the item predicate sits directly on the condition value.
+        if let Some(i_val) = value.get("items").or_else(|| value.get("item")) {
             push_item_patterns(i_val, &mut item_patterns);
         }
 
@@ -647,6 +696,114 @@ impl ItemUsedOnBlockPredicate {
             smokey,
             biome,
         }
+    }
+}
+
+/// One node of the loot-condition tree behind location.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ItemUsedOnBlockTerm {
+    AllOf(Vec<ItemUsedOnBlockTerm>),
+    AnyOf(Vec<ItemUsedOnBlockTerm>),
+    Inverted(Box<ItemUsedOnBlockTerm>),
+    Check(ItemUsedOnBlockCheck),
+}
+
+impl ItemUsedOnBlockTerm {
+    #[must_use]
+    fn matches(
+        &self,
+        block_id: &str,
+        item_id: &str,
+        block_state: &[(String, String)],
+        smokey: Option<bool>,
+        biome: Option<&str>,
+    ) -> bool {
+        match self {
+            Self::AllOf(terms) => terms
+                .iter()
+                .all(|term| term.matches(block_id, item_id, block_state, smokey, biome)),
+            Self::AnyOf(terms) => terms
+                .iter()
+                .any(|term| term.matches(block_id, item_id, block_state, smokey, biome)),
+            Self::Inverted(term) => !term.matches(block_id, item_id, block_state, smokey, biome),
+            Self::Check(check) => check.matches(block_id, item_id, block_state, smokey, biome),
+        }
+    }
+
+    #[must_use]
+    fn from_value(value: &Value) -> Self {
+        let kind = value
+            .get("condition")
+            .or_else(|| value.get("type"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        match kind {
+            "minecraft:all_of" | "all_of" => Self::AllOf(item_used_on_block_terms(value)),
+            "minecraft:any_of" | "any_of" => Self::AnyOf(item_used_on_block_terms(value)),
+            "minecraft:inverted" | "inverted" => value.get("term").map_or_else(
+                || Self::Check(ItemUsedOnBlockCheck::from_value(value)),
+                |term| Self::Inverted(Box::new(Self::from_value(term))),
+            ),
+            _ => Self::Check(ItemUsedOnBlockCheck::from_value(value)),
+        }
+    }
+}
+
+fn item_used_on_block_terms(value: &Value) -> Vec<ItemUsedOnBlockTerm> {
+    value
+        .get("terms")
+        .and_then(Value::as_array)
+        .map(|terms| terms.iter().map(ItemUsedOnBlockTerm::from_value).collect())
+        .unwrap_or_default()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ItemUsedOnBlockPredicate {
+    pub terms: Vec<ItemUsedOnBlockTerm>,
+}
+
+impl ItemUsedOnBlockPredicate {
+    #[must_use]
+    pub fn matches(
+        &self,
+        block_id: &str,
+        item_id: &str,
+        block_state: &[(String, String)],
+        smokey: Option<bool>,
+        biome: Option<&str>,
+    ) -> bool {
+        self.terms
+            .iter()
+            .all(|term| term.matches(block_id, item_id, block_state, smokey, biome))
+    }
+
+    #[must_use]
+    pub fn from_value(val: &Value) -> Self {
+        let loc = val.get("location").unwrap_or(val);
+        let mut terms: Vec<ItemUsedOnBlockTerm> = Vec::new();
+        if let Some(arr) = loc.as_array() {
+            // 1.20.2+ packs list the loot conditions of location directly as an array.
+            terms.extend(arr.iter().map(ItemUsedOnBlockTerm::from_value));
+        } else if loc.get("terms").and_then(Value::as_array).is_some()
+            && loc.get("condition").or_else(|| loc.get("type")).is_none()
+        {
+            // A bare object with only terms is an implicit all_of.
+            terms.push(ItemUsedOnBlockTerm::AllOf(item_used_on_block_terms(loc)));
+        } else {
+            terms.push(ItemUsedOnBlockTerm::from_value(loc));
+        }
+        // A top-level item beside location is an extra all_of term (vanilla MatchTool).
+        if val.get("location").is_some()
+            && let Some(i_val) = val.get("item")
+        {
+            let mut patterns = Vec::new();
+            push_item_patterns(i_val, &mut patterns);
+            terms.push(ItemUsedOnBlockTerm::Check(ItemUsedOnBlockCheck {
+                items: (!patterns.is_empty()).then_some(TagOrIdMatcher { patterns }),
+                ..ItemUsedOnBlockCheck::default()
+            }));
+        }
+        Self { terms }
     }
 }
 
@@ -960,6 +1117,35 @@ impl EntityPredicate {
     }
 }
 
+/// Vanilla `TagPredicate<DamageType>` used by `DamageSourcePredicate.tags`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DamageTypeTagPredicate {
+    pub tag: String,
+    pub expected: bool,
+}
+
+impl DamageTypeTagPredicate {
+    #[must_use]
+    pub fn from_value(val: &Value) -> Option<Self> {
+        let tag = val.get("id").and_then(Value::as_str)?;
+        let expected = val.get("expected").and_then(Value::as_bool).unwrap_or(true);
+        Some(Self {
+            tag: tag.to_string(),
+            expected,
+        })
+    }
+
+    #[must_use]
+    pub fn matches(&self, damage_type: &DamageType) -> bool {
+        let member = if let Some(name) = self.tag.strip_prefix('#') {
+            damage_type.is_tagged_with(name).unwrap_or(false)
+        } else {
+            matches_id(&self.tag, damage_type.message_id)
+        };
+        member == self.expected
+    }
+}
+
 /// Strongly-typed damage condition.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct DamagePredicate {
@@ -969,6 +1155,8 @@ pub struct DamagePredicate {
     pub direct_entity: Option<String>,
     pub dealt: Option<FloatBounds>,
     pub taken: Option<FloatBounds>,
+    pub type_tags: Vec<DamageTypeTagPredicate>,
+    pub source_entity: Option<String>,
 }
 
 impl DamagePredicate {
@@ -1028,6 +1216,42 @@ impl DamagePredicate {
         true
     }
 
+    /// Evaluates the full vanilla damage predicate, including
+    /// `DamageSourcePredicate.tags` and the source entity predicate, using the
+    /// actual damage type supplied by the caller.
+    #[must_use]
+    pub fn matches_with_damage_type(
+        &self,
+        is_blocked: bool,
+        is_deflector: bool,
+        is_mace_smash: bool,
+        damage: Option<f64>,
+        direct_entity_type: Option<&str>,
+        damage_type: &DamageType,
+    ) -> bool {
+        if !self.matches_with_context(
+            is_blocked,
+            is_deflector,
+            is_mace_smash,
+            damage,
+            direct_entity_type,
+        ) {
+            return false;
+        }
+        if self.type_tags.iter().any(|tag| !tag.matches(damage_type)) {
+            return false;
+        }
+        if let Some(expected_source) = &self.source_entity {
+            let Some(actual_source) = direct_entity_type else {
+                return false;
+            };
+            if !matches_tag_or_id(RegistryKey::EntityType, expected_source, actual_source) {
+                return false;
+            }
+        }
+        true
+    }
+
     #[must_use]
     pub fn from_value(val: &Value) -> Self {
         let Value::Object(map) = val else {
@@ -1080,6 +1304,20 @@ impl DamagePredicate {
             .and_then(|de| de.get("minecraft:entity_type").or_else(|| de.get("type")))
             .and_then(Value::as_str)
             .map(ToString::to_string);
+        let type_tags = type_tags
+            .map(|tags| {
+                tags.iter()
+                    .filter_map(DamageTypeTagPredicate::from_value)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let source_entity = damage_obj
+            .get("source_entity")
+            .or_else(|| damage_obj.get("type").and_then(|t| t.get("source_entity")))
+            .map(|se| se.get("predicate").unwrap_or(se))
+            .and_then(|se| se.get("minecraft:entity_type").or_else(|| se.get("type")))
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
         let dealt = damage_obj.get("dealt").and_then(FloatBounds::from_value);
         let taken = damage_obj.get("taken").and_then(FloatBounds::from_value);
 
@@ -1090,6 +1328,8 @@ impl DamagePredicate {
             direct_entity,
             dealt,
             taken,
+            type_tags,
+            source_entity,
         }
     }
 }
@@ -1266,24 +1506,24 @@ pub struct BredAnimalsPredicate {
 }
 
 impl BredAnimalsPredicate {
+    fn matches_role(predicate: &Option<EntityPredicate>, entity_type: &str) -> bool {
+        predicate
+            .as_ref()
+            .is_none_or(|p| p.matches(entity_type, None, None))
+    }
+
     #[must_use]
-    pub fn matches(&self, entity_type: &str) -> bool {
-        if let Some(p) = &self.parent
-            && p.matches(entity_type, None, None)
-        {
-            return true;
-        }
-        if let Some(p) = &self.partner
-            && p.matches(entity_type, None, None)
-        {
-            return true;
-        }
-        if let Some(c) = &self.child
-            && c.matches(entity_type, None, None)
-        {
-            return true;
-        }
-        self.parent.is_none() && self.partner.is_none() && self.child.is_none()
+    pub fn matches(&self, parent_type: &str, partner_type: &str, child_type: Option<&str>) -> bool {
+        // Vanilla tests each role against its own entity. A present child predicate
+        // requires a child, and parent/partner are symmetric (either ordering passes).
+        let child_ok = self.child.as_ref().is_none_or(|c| {
+            child_type.is_some_and(|entity_type| c.matches(entity_type, None, None))
+        });
+        let parents_ok = (Self::matches_role(&self.parent, parent_type)
+            && Self::matches_role(&self.partner, partner_type))
+            || (Self::matches_role(&self.parent, partner_type)
+                && Self::matches_role(&self.partner, parent_type));
+        child_ok && parents_ok
     }
 
     #[must_use]
@@ -1400,7 +1640,7 @@ pub enum CriterionConditions {
     },
     FallAfterExplosion {
         distance_y: Option<FloatBounds>,
-        cause_entity: Option<String>,
+        cause_entity: Option<EntityPredicate>,
     },
     NetherTravel {
         distance_horizontal: Option<FloatBounds>,
@@ -1421,7 +1661,7 @@ pub enum CriterionConditions {
     },
     LightningStrike {
         bystander_type: Option<String>,
-        blocks_set_on_fire: Option<i32>,
+        blocks_set_on_fire: Option<IntBounds>,
         distance_max: Option<f64>,
     },
     KillMobNearSculkCatalyst,
@@ -1621,6 +1861,8 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     min: Some(min),
                     max: None,
                 }),
+                type_tags: Vec::new(),
+                source_entity: None,
             }),
             AC::PlayerHurtEntity(d) => Self::PlayerHurtEntity(DamagePredicate {
                 blocked: d.blocked,
@@ -1635,6 +1877,8 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     min: Some(min),
                     max: None,
                 }),
+                type_tags: Vec::new(),
+                source_entity: None,
             }),
             AC::TargetHit(th) => Self::TargetHit(TargetHitPredicate {
                 signal_strength: th.signal_strength.map(|sig| IntBounds {
@@ -1681,6 +1925,8 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 feet_item: l.feet_item.map(|f| TagOrIdMatcher {
                     patterns: vec![f.to_string()],
                 }),
+                light: None,
+                fluid: None,
             }),
             AC::KilledByArrow => Self::KilledByArrow,
             AC::SleptInBed => Self::SleptInBed,
@@ -1735,7 +1981,12 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     min: Some(min),
                     max: None,
                 }),
-                cause_entity: cause_entity.map(ToString::to_string),
+                cause_entity: cause_entity.map(|c| EntityPredicate {
+                    entity_type: Some(TagOrIdMatcher {
+                        patterns: vec![c.to_string()],
+                    }),
+                    ..Default::default()
+                }),
             },
             AC::NetherTravel {
                 distance_horizontal_min,
@@ -1783,7 +2034,10 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 distance_max,
             } => Self::LightningStrike {
                 bystander_type: bystander_type.map(ToString::to_string),
-                blocks_set_on_fire,
+                blocks_set_on_fire: blocks_set_on_fire.map(|v| IntBounds {
+                    min: Some(i64::from(v)),
+                    max: Some(i64::from(v)),
+                }),
                 distance_max,
             },
             AC::KillMobNearSculkCatalyst => Self::KillMobNearSculkCatalyst,
@@ -1928,16 +2182,18 @@ fn from_item_used_on_block_condition(
         item_patterns.push(tag_str);
     }
     ItemUsedOnBlockPredicate {
-        blocks: (!block_patterns.is_empty()).then_some(TagOrIdMatcher {
-            patterns: block_patterns,
-        }),
-        items: (!item_patterns.is_empty()).then_some(TagOrIdMatcher {
-            patterns: item_patterns,
-        }),
-        state_key: c.state_key.map(ToString::to_string),
-        state_value: c.state_value.map(ToString::to_string),
-        smokey: c.smokey,
-        biome: c.biome.map(ToString::to_string),
+        terms: vec![ItemUsedOnBlockTerm::Check(ItemUsedOnBlockCheck {
+            blocks: (!block_patterns.is_empty()).then_some(TagOrIdMatcher {
+                patterns: block_patterns,
+            }),
+            items: (!item_patterns.is_empty()).then_some(TagOrIdMatcher {
+                patterns: item_patterns,
+            }),
+            state_key: c.state_key.map(ToString::to_string),
+            state_value: c.state_value.map(ToString::to_string),
+            smokey: c.smokey,
+            biome: c.biome.map(ToString::to_string),
+        })],
     }
 }
 
@@ -2120,15 +2376,7 @@ impl CriterionConditions {
                     .get("distance")
                     .and_then(|d| d.get("y"))
                     .and_then(FloatBounds::from_value),
-                cause_entity: val
-                    .get("cause")
-                    .and_then(|c| c.get("predicate"))
-                    .and_then(|p| {
-                        p.get("minecraft:entity_type")
-                            .or_else(|| p.get("entity_type"))
-                    })
-                    .and_then(|v| v.as_str())
-                    .map(ToString::to_string),
+                cause_entity: val.get("cause").map(parse_entity_pred),
             },
             "minecraft:nether_travel" => Self::NetherTravel {
                 distance_horizontal: val
@@ -2207,8 +2455,7 @@ impl CriterionConditions {
                     .and_then(|l| l.get("predicate"))
                     .and_then(|p| p.get("minecraft:type_specific/lightning"))
                     .and_then(|t| t.get("blocks_set_on_fire"))
-                    .and_then(Value::as_i64)
-                    .map(|v| v as i32);
+                    .and_then(IntBounds::from_value);
                 let distance_max = val
                     .get("lightning")
                     .and_then(|l| l.get("predicate"))
@@ -2507,6 +2754,36 @@ mod tests {
     }
 
     #[test]
+    fn lightning_strike_blocks_set_on_fire_uses_full_bounds() {
+        let cond = CriterionConditions::parse(
+            "minecraft:lightning_strike",
+            r#"{"lightning": {"predicate": {"minecraft:type_specific/lightning": {"blocks_set_on_fire": {"min": 2}}}}}"#,
+        );
+        let bounds = match &cond {
+            CriterionConditions::LightningStrike {
+                blocks_set_on_fire, ..
+            } => blocks_set_on_fire.as_ref(),
+            _ => None,
+        };
+        assert!(bounds.is_some_and(|b| b.matches(2)));
+        assert!(bounds.is_some_and(|b| b.matches(5)));
+        assert!(bounds.is_none_or(|b| !b.matches(1)));
+
+        let exact = CriterionConditions::parse(
+            "minecraft:lightning_strike",
+            r#"{"lightning": {"predicate": {"minecraft:type_specific/lightning": {"blocks_set_on_fire": 0}}}}"#,
+        );
+        let exact_bounds = match &exact {
+            CriterionConditions::LightningStrike {
+                blocks_set_on_fire, ..
+            } => blocks_set_on_fire.as_ref(),
+            _ => None,
+        };
+        assert!(exact_bounds.is_some_and(|b| b.matches(0)));
+        assert!(exact_bounds.is_none_or(|b| !b.matches(1)));
+    }
+
+    #[test]
     fn item_used_on_block_reads_location_array_and_item_predicate() {
         let cond = CriterionConditions::parse(
             "minecraft:item_used_on_block",
@@ -2525,15 +2802,15 @@ mod tests {
                 assert!(pred.matches(
                     "minecraft:farmland",
                     "minecraft:wheat_seeds",
-                    None,
+                    &[],
                     None,
                     None
                 ));
-                assert!(!pred.matches("minecraft:dirt", "minecraft:wheat_seeds", None, None, None));
+                assert!(!pred.matches("minecraft:dirt", "minecraft:wheat_seeds", &[], None, None));
                 assert!(!pred.matches(
                     "minecraft:farmland",
                     "minecraft:stone_hoe",
-                    None,
+                    &[],
                     None,
                     None
                 ));
@@ -2606,6 +2883,51 @@ mod tests {
     }
 
     #[test]
+    fn location_light_and_fluid_predicates() {
+        let pred = LocationPredicate::from_value(&json!({
+            "light": { "light": { "min": 8, "max": 12 } },
+            "fluid": { "fluids": "minecraft:water" }
+        }));
+        let at = |light: Option<i64>, fluid: Option<&str>| {
+            pred.matches_at(
+                (0.0, 64.0, 0.0),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                light,
+                fluid,
+            )
+        };
+        assert!(at(Some(10), Some("water")));
+        assert!(!at(Some(6), Some("water")));
+        assert!(!at(Some(10), Some("lava")));
+        assert!(!at(None, Some("water")));
+
+        let shorthand = LocationPredicate::from_value(&json!({
+            "light": 7,
+            "fluid": { "fluids": "minecraft:water" }
+        }));
+        assert!(shorthand.matches_at(
+            (0.0, 64.0, 0.0),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(7),
+            Some("water"),
+        ));
+    }
+
+    #[test]
     fn matches_location_condition_works() {
         let cond = json!({
             "player": {
@@ -2661,6 +2983,20 @@ mod tests {
             None,
             "minecraft:the_end"
         ));
+    }
+
+    #[test]
+    fn damage_type_tag_predicate_honours_expected() {
+        let projectile = DamageTypeTagPredicate {
+            tag: "#minecraft:is_projectile".to_string(),
+            expected: true,
+        };
+        let not_projectile = DamageTypeTagPredicate {
+            tag: "#minecraft:is_projectile".to_string(),
+            expected: false,
+        };
+        assert!(projectile.matches(&DamageType::ARROW));
+        assert!(!not_projectile.matches(&DamageType::ARROW));
     }
 
     #[test]
@@ -2784,26 +3120,146 @@ mod tests {
                 assert!(pred.matches(
                     "minecraft:copper_bulb",
                     "minecraft:redstone_torch",
-                    Some(("lit", "true")),
+                    &[("lit".to_string(), "true".to_string())],
                     None,
                     None
                 ));
                 assert!(!pred.matches(
                     "minecraft:copper_bulb",
                     "minecraft:redstone_torch",
-                    Some(("lit", "false")),
+                    &[("lit".to_string(), "false".to_string())],
                     None,
                     None
                 ));
                 assert!(!pred.matches(
                     "minecraft:tuff",
                     "minecraft:redstone_torch",
-                    Some(("lit", "true")),
+                    &[("lit".to_string(), "true".to_string())],
                     None,
                     None
                 ));
             }
             _ => panic!("Expected ItemUsedOnBlock variant"),
+        }
+    }
+
+    #[test]
+    fn item_used_on_block_matches_any_state_property() {
+        let cond = CriterionConditions::parse(
+            "minecraft:item_used_on_block",
+            r#"{
+                "location": {
+                    "condition": "minecraft:location_check",
+                    "predicate": {
+                        "block": {
+                            "blocks": "minecraft:farmland",
+                            "state": { "moisture": "7" }
+                        }
+                    }
+                }
+            }"#,
+        );
+        match &cond {
+            CriterionConditions::ItemUsedOnBlock(pred) => {
+                let state = [
+                    ("moisture".to_string(), "7".to_string()),
+                    ("waterlogged".to_string(), "false".to_string()),
+                ];
+                assert!(pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &state,
+                    None,
+                    None
+                ));
+                let wrong_value = [("moisture".to_string(), "1".to_string())];
+                assert!(!pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &wrong_value,
+                    None,
+                    None
+                ));
+                let absent_key = [("facing".to_string(), "north".to_string())];
+                assert!(!pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &absent_key,
+                    None,
+                    None
+                ));
+            }
+            _ => panic!("expected ItemUsedOnBlock"),
+        }
+    }
+
+    #[test]
+    fn item_used_on_block_all_of_any_of_inverted() {
+        let cond = CriterionConditions::parse(
+            "minecraft:item_used_on_block",
+            r#"{
+                "location": {
+                    "condition": "minecraft:all_of",
+                    "terms": [
+                        {
+                            "condition": "minecraft:location_check",
+                            "predicate": {
+                                "block": {"blocks": "minecraft:farmland"},
+                                "biome": "minecraft:plains"
+                            }
+                        },
+                        {
+                            "condition": "minecraft:any_of",
+                            "terms": [
+                                {
+                                    "condition": "minecraft:location_check",
+                                    "predicate": {"smokey": true}
+                                },
+                                {
+                                    "condition": "minecraft:inverted",
+                                    "term": {
+                                        "condition": "minecraft:location_check",
+                                        "predicate": {"biome": "minecraft:desert"}
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }"#,
+        );
+        match &cond {
+            CriterionConditions::ItemUsedOnBlock(pred) => {
+                assert!(pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &[],
+                    Some(true),
+                    Some("minecraft:plains")
+                ));
+                assert!(pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &[],
+                    Some(false),
+                    Some("minecraft:plains")
+                ));
+                assert!(!pred.matches(
+                    "minecraft:dirt",
+                    "minecraft:wheat_seeds",
+                    &[],
+                    Some(true),
+                    Some("minecraft:plains")
+                ));
+                assert!(!pred.matches(
+                    "minecraft:farmland",
+                    "minecraft:wheat_seeds",
+                    &[],
+                    Some(false),
+                    Some("minecraft:desert")
+                ));
+            }
+            _ => panic!("expected ItemUsedOnBlock"),
         }
     }
 
@@ -3142,5 +3598,60 @@ mod tests {
         let consume = json!({"items": "minecraft:stone", "count": {"min": 2}});
         assert!(!matches_item_condition(&consume, "minecraft:stone", 1));
         assert!(matches_item_condition(&consume, "minecraft:stone", 2));
+    }
+
+    #[test]
+    fn bred_animals_matches_each_role_against_its_own_entity() {
+        let pred = BredAnimalsPredicate::from_value(&json!({
+            "parent": {"minecraft:entity_type": "minecraft:cow"},
+            "partner": {"minecraft:entity_type": "minecraft:sheep"},
+            "child": {"minecraft:entity_type": "minecraft:cow"}
+        }));
+
+        // Each role is checked against its own entity.
+        assert!(pred.matches("minecraft:cow", "minecraft:sheep", Some("minecraft:cow")));
+        // Parent and partner predicates are symmetric.
+        assert!(pred.matches("minecraft:sheep", "minecraft:cow", Some("minecraft:cow")));
+        // A wrong child type fails even when both parents match.
+        assert!(!pred.matches("minecraft:cow", "minecraft:sheep", Some("minecraft:sheep")));
+        // A present child predicate requires a child to exist.
+        assert!(!pred.matches("minecraft:cow", "minecraft:sheep", None));
+        // Both parents must match; the old OR-based check returned true here.
+        assert!(!pred.matches("minecraft:cow", "minecraft:pig", Some("minecraft:cow")));
+
+        // No role predicates matches anything.
+        assert!(BredAnimalsPredicate::default().matches("minecraft:cow", "minecraft:pig", None));
+    }
+
+    #[test]
+    fn fall_after_explosion_keeps_full_cause_predicate() {
+        let cond = CriterionConditions::parse(
+            "minecraft:fall_after_explosion",
+            r#"{"distance":{"y":{"min":2}},
+                "cause":{"condition":"minecraft:entity_properties","entity":"this",
+                  "predicate":{"type":"minecraft:wind_charge",
+                    "flags":{"is_baby":true},
+                    "distance":{"horizontal":{"min":3}}}}}"#,
+        );
+        let CriterionConditions::FallAfterExplosion {
+            distance_y,
+            cause_entity: Some(cause),
+        } = &cond
+        else {
+            panic!("expected FallAfterExplosion with a cause predicate");
+        };
+        assert!(distance_y.as_ref().is_some_and(|b| b.matches(3.0)));
+        // The whole cause predicate is kept, not just its entity type string.
+        assert_eq!(cause.is_baby, Some(true));
+        let delta = EntityDistance::from_delta(4.0, 0.0, 0.0);
+        assert!(cause.matches("minecraft:wind_charge", Some(delta), Some(true)));
+        // The baby flag and horizontal distance are both enforced.
+        assert!(!cause.matches("minecraft:wind_charge", Some(delta), Some(false)));
+        assert!(!cause.matches(
+            "minecraft:wind_charge",
+            Some(EntityDistance::from_delta(2.0, 0.0, 0.0)),
+            Some(true)
+        ));
+        assert!(!cause.matches("minecraft:creeper", Some(delta), Some(true)));
     }
 }

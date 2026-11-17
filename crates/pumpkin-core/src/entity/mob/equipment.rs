@@ -35,7 +35,7 @@ use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::tag::{Tag, Taggable};
 use pumpkin_util::difficulty::Difficulty;
 use pumpkin_util::math::vector3::Vector3;
-use rand::RngExt;
+use pumpkin_util::random::RandomImpl;
 
 use crate::entity::EntityBase;
 use crate::entity::mob::{Mob, MobEntity};
@@ -444,8 +444,8 @@ impl RegionalDifficulty {
     /// `special_multiplier` is `0.0` this always returns `false` (matching vanilla
     /// behaviour on fresh Normal/Easy worlds).
     #[must_use]
-    pub fn should_happen(&self, base_chance: f32) -> bool {
-        rand::random::<f32>() < base_chance * self.special_multiplier
+    pub fn should_happen(&self, base_chance: f32, rng: &mut impl RandomImpl) -> bool {
+        rng.next_f32() < base_chance * self.special_multiplier
     }
 }
 
@@ -463,11 +463,7 @@ fn moon_brightness(time_of_day: i64) -> f32 {
 
 /// Applies mob spawn equipment enchantments to a stack using the data-driven
 /// `minecraft:mob_spawn_equipment` enchantment provider.
-pub fn apply_vanilla_enchantments(
-    stack: &mut ItemStack,
-    _slot: &EquipmentSlot,
-    special_multiplier: f32,
-) {
+pub fn apply_vanilla_enchantments(stack: &mut ItemStack, special_multiplier: f32) {
     EnchantmentProvider::MOB_SPAWN_EQUIPMENT.apply_to_stack(stack, special_multiplier);
 }
 
@@ -509,10 +505,9 @@ pub fn apply_vindicator_weapon_enchantments(stack: &mut ItemStack, wave: Option<
 
 /// Weighted random selection from a table of weapon entries.
 #[must_use]
-fn weighted_select_item(items: &[WeaponEntry]) -> &'static Item {
+fn weighted_select_item(items: &[WeaponEntry], rng: &mut impl RandomImpl) -> &'static Item {
     let total: f32 = items.iter().map(|e| e.weight).sum();
-    let mut rng = rand::rng();
-    let mut roll: f32 = rng.random_range(0.0..total);
+    let mut roll: f32 = rng.next_f32() * total;
     for entry in items {
         roll -= entry.weight;
         if roll <= 0.0 {
@@ -529,13 +524,14 @@ fn weighted_select_item(items: &[WeaponEntry]) -> &'static Item {
 ///    25% otherwise) — higher difficulty produces fewer pieces, never the feet.
 /// 3. Each piece gets the default equipment drop chance.
 #[must_use]
-fn select_vanilla_armor(difficulty: &RegionalDifficulty) -> Vec<(EquipmentSlot, ItemStack, f32)> {
-    let mut rng = rand::rng();
-
-    let mut armor_type = rng.random_range(0..3);
+fn select_vanilla_armor(
+    difficulty: &RegionalDifficulty,
+    rng: &mut impl RandomImpl,
+) -> Vec<(EquipmentSlot, ItemStack, f32)> {
+    let mut armor_type = rng.next_bounded_i32(3) as usize;
     let mut i = 1;
     while (i as f32) <= ARMOR_UPGRADE_MATERIAL_ATTEMPTS {
-        if rng.random::<f32>() < ARMOR_UPGRADE_MATERIAL_CHANCE {
+        if rng.next_f32() < ARMOR_UPGRADE_MATERIAL_CHANCE {
             armor_type += 1;
         }
         i += 1;
@@ -553,7 +549,7 @@ fn select_vanilla_armor(difficulty: &RegionalDifficulty) -> Vec<(EquipmentSlot, 
     let mut pieces = Vec::new();
     let mut first = true;
     for (i, slot) in ARMOR_POPULATION_ORDER.iter().enumerate() {
-        if !first && rng.random::<f32>() < partial_chance {
+        if !first && rng.next_f32() < partial_chance {
             break;
         }
         first = false;
@@ -582,6 +578,7 @@ fn create_equipment_item(item: &'static Item) -> ItemStack {
 fn equip_mob_from_def(
     def: &MobEquipmentDef,
     difficulty: &RegionalDifficulty,
+    rng: &mut impl RandomImpl,
 ) -> Vec<(EquipmentSlot, ItemStack, f32)> {
     let mut changes: Vec<(EquipmentSlot, ItemStack, f32)> = Vec::new();
 
@@ -592,22 +589,14 @@ fn equip_mob_from_def(
             if item == &Item::CROSSBOW {
                 // Vanilla `Pillager.enchantSpawnedWeapon`: a 1/300 roll for the dedicated
                 // provider on top of the inherited generic weapon roll.
-                if rand::random_range(0..300) == 0 {
+                if rng.next_bounded_i32(300) == 0 {
                     apply_pillager_crossbow_enchantments(&mut stack, None);
                 }
-                if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
-                    apply_vanilla_enchantments(
-                        &mut stack,
-                        &EquipmentSlot::MAIN_HAND,
-                        difficulty.special_multiplier,
-                    );
+                if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
+                    apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
                 }
-            } else if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
-                apply_vanilla_enchantments(
-                    &mut stack,
-                    &EquipmentSlot::MAIN_HAND,
-                    difficulty.special_multiplier,
-                );
+            } else if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
+                apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
             }
             changes.push((
                 EquipmentSlot::MAIN_HAND,
@@ -616,14 +605,10 @@ fn equip_mob_from_def(
             ));
         }
         WeaponConfig::AlwaysWeighted(items) => {
-            let item = weighted_select_item(items);
+            let item = weighted_select_item(items, rng);
             let mut stack = create_equipment_item(item);
-            if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
-                apply_vanilla_enchantments(
-                    &mut stack,
-                    &EquipmentSlot::MAIN_HAND,
-                    difficulty.special_multiplier,
-                );
+            if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
+                apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
             }
             changes.push((
                 EquipmentSlot::MAIN_HAND,
@@ -641,15 +626,11 @@ fn equip_mob_from_def(
             } else {
                 otherwise
             };
-            if rand::random::<f32>() < chance {
-                let item = weighted_select_item(items);
+            if rng.next_f32() < chance {
+                let item = weighted_select_item(items, rng);
                 let mut stack = create_equipment_item(item);
-                if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE) {
-                    apply_vanilla_enchantments(
-                        &mut stack,
-                        &EquipmentSlot::MAIN_HAND,
-                        difficulty.special_multiplier,
-                    );
+                if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
+                    apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
                 }
                 changes.push((
                     EquipmentSlot::MAIN_HAND,
@@ -664,15 +645,11 @@ fn equip_mob_from_def(
     // ── Armor ──
     match def.armor {
         ArmorConfig::Vanilla => {
-            if difficulty.should_happen(WEARING_ARMOR_CHANCE) {
-                let armor_pieces = select_vanilla_armor(difficulty);
+            if difficulty.should_happen(WEARING_ARMOR_CHANCE, rng) {
+                let armor_pieces = select_vanilla_armor(difficulty, rng);
                 for (slot, mut stack, drop_chance) in armor_pieces {
-                    if def.enchanted && difficulty.should_happen(ARMOR_ENCHANT_CHANCE) {
-                        apply_vanilla_enchantments(
-                            &mut stack,
-                            &slot,
-                            difficulty.special_multiplier,
-                        );
+                    if def.enchanted && difficulty.should_happen(ARMOR_ENCHANT_CHANCE, rng) {
+                        apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
                     }
                     changes.push((slot, stack, drop_chance));
                 }
@@ -680,14 +657,10 @@ fn equip_mob_from_def(
         }
         ArmorConfig::CustomPerSlot(entries) => {
             for entry in entries {
-                if rand::random::<f32>() < entry.chance {
+                if rng.next_f32() < entry.chance {
                     let mut stack = create_equipment_item(entry.item);
-                    if def.enchanted && difficulty.should_happen(ARMOR_ENCHANT_CHANCE) {
-                        apply_vanilla_enchantments(
-                            &mut stack,
-                            entry.slot,
-                            difficulty.special_multiplier,
-                        );
+                    if def.enchanted && difficulty.should_happen(ARMOR_ENCHANT_CHANCE, rng) {
+                        apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
                     }
                     changes.push((entry.slot.clone(), stack, DEFAULT_EQUIPMENT_DROP_CHANCE));
                 }
@@ -732,7 +705,16 @@ pub fn equip_mob_on_spawn(mob: &MobEntity, world: &Arc<crate::world::World>) {
         .equipment_drop_chances
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let changes_with_drops = equip_mob_from_def(def, &difficulty);
+    let changes_with_drops = {
+        // Vanilla draws spawn equipment from the level's shared RandomSource;
+        // Pumpkin's world-seeded loot_random is that source. Drop the guard
+        // before broadcasting the equipment changes below.
+        let mut rng = world
+            .loot_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        equip_mob_from_def(def, &difficulty, &mut *rng)
+    };
 
     let mut equipment_changes: Vec<(EquipmentSlot, ItemStack)> = Vec::new();
 
@@ -1135,6 +1117,7 @@ mod tests {
     use pumpkin_data::data_component_impl::EquipmentSlot;
     use pumpkin_data::item::Item;
     use pumpkin_util::difficulty::Difficulty;
+    use pumpkin_util::random::xoroshiro128::Xoroshiro;
 
     /// Vanilla `AbstractSkeleton#populateDefaultEquipmentSlots` always puts a bow in the main
     /// hand, so a naturally spawned skeleton can shoot (issue #4492).
@@ -1145,7 +1128,8 @@ mod tests {
             .expect("skeleton must stay in the equipment registry");
         for difficulty in [Difficulty::Easy, Difficulty::Normal, Difficulty::Hard] {
             let regional = RegionalDifficulty::calculate(difficulty, 1_000_000, 3_600_000, 0.0);
-            let changes = equip_mob_from_def(def, &regional);
+            let mut rng = Xoroshiro::from_seed(12345);
+            let changes = equip_mob_from_def(def, &regional, &mut rng);
             let main_hand = changes
                 .iter()
                 .find(|(slot, _, _)| *slot == EquipmentSlot::MAIN_HAND)
@@ -1181,7 +1165,8 @@ mod tests {
         use pumpkin_util::difficulty::Difficulty;
 
         let difficulty = RegionalDifficulty::calculate(Difficulty::Normal, 0, 0, 0.0);
-        let pieces = super::select_vanilla_armor(&difficulty);
+        let mut rng = Xoroshiro::from_seed(12345);
+        let pieces = super::select_vanilla_armor(&difficulty, &mut rng);
         let order = [
             EquipmentSlot::FEET,
             EquipmentSlot::LEGS,
@@ -1220,13 +1205,43 @@ mod tests {
 
     #[test]
     fn mob_spawn_equipment_enchantment_provider_applies_enchantments() {
-        use pumpkin_data::data_component_impl::EquipmentSlot;
         use pumpkin_data::item::Item;
         use pumpkin_data::item_stack::ItemStack;
 
         let mut stack = ItemStack::new(1, &Item::DIAMOND_SWORD);
-        super::apply_vanilla_enchantments(&mut stack, &EquipmentSlot::MAIN_HAND, 1.0);
+        super::apply_vanilla_enchantments(&mut stack, 1.0);
         assert!(stack.has_enchantments());
+    }
+
+    /// Vanilla `finalizeSpawn` draws every spawn-equipment roll from the level's
+    /// `RandomSource`, so identical seeds must produce identical draws.
+    #[test]
+    fn spawn_equipment_draws_are_reproducible_from_a_seed() {
+        use super::select_vanilla_armor;
+
+        let difficulty = RegionalDifficulty::calculate(Difficulty::Hard, 1_000_000, 3_600_000, 0.0);
+        let mut rng_a = Xoroshiro::from_seed(0xC0FFEE);
+        let mut rng_b = Xoroshiro::from_seed(0xC0FFEE);
+        let armor_a = select_vanilla_armor(&difficulty, &mut rng_a);
+        let armor_b = select_vanilla_armor(&difficulty, &mut rng_b);
+        assert!(
+            armor_a.len() == armor_b.len(),
+            "different armor piece count"
+        );
+        for ((slot_a, stack_a, chance_a), (slot_b, stack_b, chance_b)) in
+            armor_a.iter().zip(&armor_b)
+        {
+            assert!(slot_a == slot_b, "slot mismatch");
+            assert!(stack_a.item.id == stack_b.item.id, "item mismatch");
+            assert!(chance_a == chance_b, "drop chance mismatch");
+        }
+        let rolls_a: Vec<bool> = (0..8)
+            .map(|_| difficulty.should_happen(0.5, &mut rng_a))
+            .collect();
+        let rolls_b: Vec<bool> = (0..8)
+            .map(|_| difficulty.should_happen(0.5, &mut rng_b))
+            .collect();
+        assert!(rolls_a == rolls_b, "difficulty rolls diverged");
     }
 
     #[test]

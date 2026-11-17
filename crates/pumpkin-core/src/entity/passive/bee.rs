@@ -187,6 +187,14 @@ impl BeeEntity {
         };
         let mob_arc = Arc::new(bee);
 
+        // Vanilla `Bee.defineSynchedData` registers the anger end time with the
+        // -1 default the client assumes. Define at construction, before NBT read,
+        // so a loaded angry value set later becomes non-default and is spawned.
+        mob_arc
+            .get_entity()
+            .synched_data
+            .define(pumpkin_data::tracked_data::bee::DATA_ANGER_END_TIME, -1i64);
+
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 

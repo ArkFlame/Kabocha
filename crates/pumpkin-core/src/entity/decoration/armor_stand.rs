@@ -1,10 +1,11 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI32, AtomicI64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU8, Ordering};
 
 use crate::entity::{
     Entity, EntityBase, living::LivingEntity, mob::equipment::get_equipment_slot_for_item,
     player::Player,
 };
+use crate::server::Server;
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item_stack::ItemStack;
@@ -98,6 +99,11 @@ pub struct ArmorStandEntity {
     last_hit_time: AtomicI64,
     disabled_slots: AtomicI32,
 
+    // Paper "Allow ArmorStands not to tick": only the NBT override is representable
+    // here; Pumpkin has no Paper config or plugin API to change it at runtime.
+    can_tick: AtomicBool,
+    can_tick_set_by_api: AtomicBool,
+
     rotation: AtomicCell<PackedRotation>,
 }
 
@@ -111,6 +117,8 @@ impl ArmorStandEntity {
             armor_stand_flags: AtomicU8::new(0),
             last_hit_time: AtomicI64::new(0),
             disabled_slots: AtomicI32::new(0),
+            can_tick: AtomicBool::new(true),
+            can_tick_set_by_api: AtomicBool::new(false),
             rotation: AtomicCell::new(packed_rotation),
         };
         // Vanilla `ArmorStand.defineSynchedData` seeds the pose entries so clients see
@@ -579,9 +587,24 @@ impl ArmorStandEntity {
 
         flags
     }
+
+    /// Paper readAdditionalSaveData: Paper.CanTickOverride is only written when
+    /// it was set through the API/NBT (mirrors canTickSetByAPI).
+    fn read_can_tick_override(nbt: &NbtCompound) -> Option<bool> {
+        nbt.get_bool("Paper.CanTickOverride")
+    }
 }
 
 impl EntityBase for ArmorStandEntity {
+    /// Paper ArmorStand.tick: a stand with canTick false skips the whole
+    /// LivingEntity tick. Pumpkin applies equipment changes eagerly in
+    /// set_item_slot, so no deferred equipment sync is required here.
+    fn tick(&self, caller: &dyn EntityBase, server: &Server) {
+        if self.can_tick.load(Ordering::Relaxed) {
+            self.living_entity.tick(caller, server);
+        }
+    }
+
     fn can_hit(&self) -> bool {
         !self.get_entity().is_removed() && !self.is_marker()
     }
@@ -600,6 +623,11 @@ impl EntityBase for ArmorStandEntity {
         self.is_invisible()
     }
 
+    /// Vanilla `ArmorStand.isAffectedByPotions`: armor stands never receive potion effects.
+    fn is_affected_by_potions(&self) -> bool {
+        false
+    }
+
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         let disabled_slots = self.disabled_slots.load(Ordering::Relaxed);
 
@@ -610,6 +638,13 @@ impl EntityBase for ArmorStandEntity {
         nbt.put_bool("NoBasePlate", !self.should_show_base_plate());
         if self.is_marker() {
             nbt.put_bool("Marker", true);
+        }
+
+        if self.can_tick_set_by_api.load(Ordering::Relaxed) {
+            nbt.put_bool(
+                "Paper.CanTickOverride",
+                self.can_tick.load(Ordering::Relaxed),
+            );
         }
 
         nbt.put("Pose", self.pack_rotation());
@@ -624,6 +659,13 @@ impl EntityBase for ArmorStandEntity {
 
         if let Some(disabled_slots) = nbt.get_int("DisabledSlots") {
             self.disabled_slots.store(disabled_slots, Ordering::Relaxed);
+        }
+
+        // Paper "Allow ArmorStands not to tick": read/write the CanTickOverride NBT.
+        // Default remains ticking, matching Paper armor-stands.tick true.
+        if let Some(can_tick) = Self::read_can_tick_override(nbt) {
+            self.can_tick.store(can_tick, Ordering::Relaxed);
+            self.can_tick_set_by_api.store(true, Ordering::Relaxed);
         }
 
         self.armor_stand_flags
@@ -904,6 +946,16 @@ mod tests {
         let mut empty_hand = ItemStack::EMPTY.clone();
         assert!(swap_item_stacks(&stand_stack, &mut empty_hand, false, false, true).is_none());
         assert!(empty_hand.is_empty());
+    }
+
+    #[test]
+    fn paper_can_tick_override_nbt_round_trip() {
+        let mut nbt = NbtCompound::new();
+        assert_eq!(ArmorStandEntity::read_can_tick_override(&nbt), None);
+        nbt.put_bool("Paper.CanTickOverride", false);
+        assert_eq!(ArmorStandEntity::read_can_tick_override(&nbt), Some(false));
+        nbt.put_bool("Paper.CanTickOverride", true);
+        assert_eq!(ArmorStandEntity::read_can_tick_override(&nbt), Some(true));
     }
 
     #[test]

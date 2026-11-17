@@ -22,6 +22,15 @@ const GRAVITY: f64 = 0.03;
 const PARTICLE_COUNT: i32 = 32;
 const ENDERMITE_SPAWN_CHANCE: f32 = 0.05;
 
+/// Standard normal sample matching vanilla RandomSource nextGaussian via Box-Muller.
+/// rand 0.10 core has no gaussian distribution, so avoid a rand_distr dependency.
+fn next_gaussian() -> f64 {
+    // rand::random::<f64>() is in [0, 1), so 1.0 - it is in (0, 1] and ln stays finite.
+    let u1 = 1.0 - rand::random::<f64>();
+    let u2 = rand::random::<f64>();
+    (-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos()
+}
+
 pub struct EnderPearlEntity {
     pub thrown: ThrownItemEntity,
 }
@@ -83,22 +92,19 @@ impl EntityBase for EnderPearlEntity {
 
         let attacker = self.get_owner_entity();
 
-        // Spawn portal particles at hit position
-        let hit_pos = hit.hit_pos();
+        // Vanilla spawns the PORTAL burst at the pearl's position with no X/Z
+        // position spread, a uniform 0..2 Y offset, and gaussian X/Z velocity.
+        let pearl_pos = entity.pos.load();
         for _ in 0..PARTICLE_COUNT {
-            let offset = Vector3::new(
-                rand::random::<f32>() as f64 - 0.5,
-                rand::random::<f32>() as f64 * 2.0,
-                rand::random::<f32>() as f64 - 0.5,
+            let particle_pos = Vector3::new(
+                pearl_pos.x,
+                pearl_pos.y + rand::random::<f64>() * 2.0,
+                pearl_pos.z,
             );
-            let speed = Vector3::new(
-                rand::random::<f64>() - 0.5,
-                0.0,
-                rand::random::<f64>() - 0.5,
-            );
+            let speed = Vector3::new(next_gaussian(), 0.0, next_gaussian());
 
             world.spawn_particle(
-                hit_pos.add(&offset),
+                particle_pos,
                 Vector3::new(speed.x as f32, speed.y as f32, speed.z as f32),
                 1.0,
                 1,
@@ -192,5 +198,27 @@ impl EntityBase for EnderPearlEntity {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gaussian_is_standard_normal() {
+        const N: usize = 10_000;
+        let mut sum = 0.0f64;
+        let mut sum_sq = 0.0f64;
+        for _ in 0..N {
+            let value = next_gaussian();
+            assert!(value.is_finite());
+            sum += value;
+            sum_sq += value * value;
+        }
+        let mean = sum / N as f64;
+        let variance = sum_sq / N as f64 - mean * mean;
+        assert!(mean.abs() < 0.1, "mean {mean}");
+        assert!((variance - 1.0).abs() < 0.15, "variance {variance}");
     }
 }

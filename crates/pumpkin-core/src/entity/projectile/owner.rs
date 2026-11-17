@@ -210,6 +210,12 @@ impl ProjectileOwner {
     /// Vanilla `canHitEntity` owner rule: the owner's vehicle group only once it has left.
     #[must_use]
     pub fn can_hit(&self, world: &World, entity: &Entity) -> bool {
+        // Paper: a shooting player cannot hit a target it cannot see (vanish).
+        if let Some(shooter) = self.owner.get_player(world)
+            && !shooter.can_see(&entity.entity_uuid)
+        {
+            return false;
+        }
         self.left_owner.load(Relaxed)
             || self
                 .owner
@@ -256,5 +262,59 @@ impl std::ops::Deref for ProjectileOwner {
 
     fn deref(&self) -> &EntityReference {
         &self.owner
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn projectile_owner_nbt_round_trip_matches_vanilla_keys() {
+        let uuid = Uuid::from_u128(0x12345678_1234_1234_1234_1234567890ab);
+        let owner = ProjectileOwner::none();
+        owner.set_uuid(Some(uuid));
+        owner.left_owner.store(true, Relaxed);
+        owner.has_been_shot.store(true, Relaxed);
+
+        let mut nbt = NbtCompound::new();
+        owner.write_nbt(&nbt);
+        assert_eq!(nbt.get_uuid("Owner"), Some(uuid));
+        assert_eq!(nbt.get_bool("LeftOwner"), Some(true));
+        assert_eq!(nbt.get_bool("HasBeenShot"), Some(true));
+
+        let loaded = ProjectileOwner::none();
+        loaded.read_nbt(&nbt);
+        assert_eq!(loaded.owner.uuid(), Some(uuid));
+        assert!(loaded.left_owner.load(Relaxed));
+        assert!(loaded.has_been_shot.load(Relaxed));
+    }
+
+    #[test]
+    fn projectile_owner_nbt_writes_and_defaults_match_vanilla() {
+        let owner = ProjectileOwner::none();
+        let mut nbt = NbtCompound::new();
+        owner.write_nbt(&nbt);
+        // Vanilla always writes HasBeenShot, but only writes LeftOwner when true.
+        assert_eq!(nbt.get_bool("HasBeenShot"), Some(false));
+        assert_eq!(nbt.get_bool("LeftOwner"), None);
+        assert_eq!(nbt.get_uuid("Owner"), None);
+
+        // Vanilla reads missing LeftOwner/HasBeenShot as false.
+        let loaded = ProjectileOwner::none();
+        loaded.read_nbt(&NbtCompound::new());
+        assert!(!loaded.left_owner.load(Relaxed));
+        assert!(!loaded.has_been_shot.load(Relaxed));
+        assert_eq!(loaded.owner.uuid(), None);
+
+        // data remove resets each key to vanilla's default.
+        let uuid = Uuid::from_u128(1);
+        owner.set_uuid(Some(uuid));
+        owner.left_owner.store(true, Relaxed);
+        owner.has_been_shot.store(true, Relaxed);
+        owner.remove_nbt(&["Owner".into(), "LeftOwner".into(), "HasBeenShot".into()]);
+        assert_eq!(owner.owner.uuid(), None);
+        assert!(!owner.left_owner.load(Relaxed));
+        assert!(!owner.has_been_shot.load(Relaxed));
     }
 }

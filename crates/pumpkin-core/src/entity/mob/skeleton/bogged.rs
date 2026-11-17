@@ -18,11 +18,10 @@ use crate::entity::{
     Entity,
     custom_sound::CustomSound,
     item::ItemEntity,
-    mob::{Mob, MobEntity, equipment::RegionalDifficulty, skeleton::SkeletonEntityBase},
+    mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
     player::Player,
     shearable::{Shearable, shear_by_player, shearing_loot},
 };
-use crate::world::World;
 
 const BOGGED_SHEAR_LOOT_TABLE: &str = "minecraft:shearing/bogged";
 
@@ -164,19 +163,5 @@ impl Mob for BoggedSkeletonEntity {
             return shear_by_player(self, player, item_stack, Hand::Right);
         }
         false
-    }
-
-    fn populate_default_equipment_slots(
-        &self,
-        world: &Arc<World>,
-        difficulty: &RegionalDifficulty,
-    ) {
-        self.entity
-            .populate_default_equipment_slots(world, difficulty);
-    }
-
-    fn populate_default_equipment_enchantments(&self, difficulty: &RegionalDifficulty) {
-        self.entity
-            .populate_default_equipment_enchantments(difficulty);
     }
 }

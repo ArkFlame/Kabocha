@@ -11,7 +11,6 @@ use crate::entity::{
     Entity, EntityBase,
     mob::{
         Mob, MobEntity,
-        equipment::RegionalDifficulty,
         skeleton::SkeletonEntityBase,
         spawn::{
             EntitySpawnReason, HALLOWEEN_HEAD_CHANCE, JACK_O_LANTERN_CHANCE, SpawnGroupData,
@@ -88,19 +87,5 @@ impl Mob for SkeletonEntity {
                 .insert(EquipmentSlot::HEAD, 0.0);
         }
         group_data
-    }
-
-    fn populate_default_equipment_slots(
-        &self,
-        world: &Arc<World>,
-        difficulty: &RegionalDifficulty,
-    ) {
-        self.entity
-            .populate_default_equipment_slots(world, difficulty);
-    }
-
-    fn populate_default_equipment_enchantments(&self, difficulty: &RegionalDifficulty) {
-        self.entity
-            .populate_default_equipment_enchantments(difficulty);
     }
 }

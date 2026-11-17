@@ -372,6 +372,7 @@ impl EntityBase for AreaEffectCloudEntity {
                     == pumpkin_data::entity::EntityType::ENDER_DRAGON
                 || !cand_clone.get_entity().is_alive()
                 || cand_clone.is_spectator()
+                || !cand_clone.is_affected_by_potions()
             {
                 continue;
             }

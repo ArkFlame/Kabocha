@@ -192,6 +192,16 @@ impl BedrockPlayer<'_> {
         self.client_data().map(|d| d.game_version.clone())
     }
 
+    /// The Java protocol version this player is connected with. Bedrock clients
+    /// report the version Pumpkin uses to translate Java packets for them.
+    #[must_use]
+    pub fn protocol_version(&self) -> JavaMinecraftVersion {
+        match self.client.as_ref() {
+            ClientPlatform::Java(client) => client.version.load(),
+            ClientPlatform::Bedrock(_) => JavaMinecraftVersion::V_1_20_2,
+        }
+    }
+
     #[must_use]
     pub fn language_code(&self) -> Option<String> {
         self.client_data().map(|d| d.language_code.clone())
@@ -377,6 +387,39 @@ fn read_root_vehicle(nbt: &NbtCompound) -> Option<Uuid> {
             | (uuid[2] as u32 as u128) << 32
             | uuid[3] as u32 as u128,
     ))
+}
+
+/// Vanilla `DamageSource.scalesWithDifficulty`. `cause_is_living_non_player` is
+/// vanilla's `causingEntity instanceof LivingEntity && !(instanceof Player)`.
+fn damage_scales_with_difficulty(
+    scaling: pumpkin_data::damage::DamageScaling,
+    cause_is_living_non_player: bool,
+) -> bool {
+    match scaling {
+        pumpkin_data::damage::DamageScaling::Never => false,
+        pumpkin_data::damage::DamageScaling::Always => true,
+        pumpkin_data::damage::DamageScaling::WhenCausedByLivingNonPlayer => {
+            cause_is_living_non_player
+        }
+    }
+}
+
+/// Vanilla `Player.hurtServer` difficulty scaling. `None` fully negates the hit.
+fn difficulty_scaled_damage(amount: f32, difficulty: Difficulty) -> Option<f32> {
+    match difficulty {
+        Difficulty::Peaceful => None,
+        Difficulty::Easy => Some((amount / 2.0 + 1.0).min(amount)),
+        Difficulty::Hard => Some(amount * 1.5),
+        Difficulty::Normal => Some(amount),
+    }
+}
+
+/// Vanilla `Player.doSweepAttack` (V_26_3): a swept victim takes
+/// `(1 + SWEEPING_DAMAGE_RATIO * baseDamage) * attackStrengthScale`. `sweeping_ratio`
+/// is the attribute value including the Sweeping Edge enchantment's `level / (level + 1)`
+/// contribution (Pumpkin does not apply enchantment attribute effects automatically).
+fn compute_sweep_damage(base_damage: f64, sweeping_ratio: f64, attack_strength_scale: f64) -> f32 {
+    ((1.0 + sweeping_ratio * base_damage) * attack_strength_scale) as f32
 }
 
 fn write_last_death_location(nbt: &mut NbtCompound, dimension: &ResourceLocation, pos: &BlockPos) {
@@ -776,6 +819,8 @@ pub struct Player {
     pub compass_target: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub respawn_location: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub hidden_players: Mutex<std::collections::HashSet<uuid::Uuid>>,
+    /// Server-side recipe book: recipe ids the player knows (vanilla ServerRecipeBook.known).
+    pub known_recipes: std::sync::Mutex<std::collections::HashSet<String>>,
     pub advancements: Arc<Mutex<PlayerAdvancement>>,
     pub enchantment_seed: AtomicI32,
     /// Ticks spent gliding, vanilla `fallFlyTicks`
@@ -1156,6 +1201,7 @@ impl Player {
             compass_target: AtomicCell::new(None),
             respawn_location: AtomicCell::new(None),
             hidden_players: Mutex::new(std::collections::HashSet::new()),
+            known_recipes: std::sync::Mutex::new(std::collections::HashSet::new()),
             fishing_bobber: AtomicI32::new(-1),
             bedrock_skin: ArcSwap::new(Arc::new(bedrock_skin)),
             seen_credits: AtomicBool::new(false),
@@ -1921,16 +1967,25 @@ impl Player {
                 AttackType::Sweeping => {
                     combat::spawn_sweep_particle(attacker_entity, &world);
 
-                    let mut sweep_damage = 1.0;
+                    // Vanilla `Player.doSweepAttack` (V_26_3) reads the
+                    // SWEEPING_DAMAGE_RATIO attribute, which the Sweeping Edge enchantment
+                    // boosts by `level / (level + 1)`, then scales by attack strength.
+                    // Pumpkin does not apply enchantment attribute effects, so add the
+                    // enchantment contribution to the attribute value here.
+                    let mut sweep_ratio = self
+                        .living_entity
+                        .get_attribute_value(&Attributes::SWEEPING_DAMAGE_RATIO);
                     if let Some(enchantments) = item_stack.get_data_component::<EnchantmentsImpl>()
                     {
                         for (enchantment, level) in enchantments.enchantment.iter() {
                             if **enchantment == Enchantment::SWEEPING_EDGE {
-                                sweep_damage +=
-                                    damage as f32 * (*level as f32 / (*level as f32 + 1.0));
+                                let level = f64::from(*level);
+                                sweep_ratio += level / (level + 1.0);
                             }
                         }
                     }
+                    let sweep_damage =
+                        compute_sweep_damage(damage, sweep_ratio, attack_cooldown_progress);
 
                     // Vanilla `Player.doSweepAttack` scans the primary victim's box inflated by
                     // (1.0, 0.25, 1.0).
@@ -5692,8 +5747,8 @@ impl Player {
         )
     }
 
-    /// Teleports the Bedrock client to the current position. It has no teleport id and
-    /// confirms by reaching the position.
+    /// Teleports the Bedrock client to the current position. It has no teleport id; the
+    /// client confirms with the `HandledTeleport` input flag, falling back to reaching the position.
     pub fn send_bedrock_teleport(&self, client: &crate::net::bedrock::BedrockClient) {
         client
             .teleport_unconfirmed_inputs
@@ -6010,7 +6065,23 @@ impl Player {
         if invulnerable {
             return false;
         }
-        // TODO: Vanilla `Player.hurtServer` difficulty scaling when `scalesWithDifficulty`
+        // Vanilla `Player.hurtServer`: scale damage by difficulty when the source
+        // scales with it. `cause` here is vanilla's `causingEntity`.
+        let difficulty = self.world().level_info.load().difficulty;
+        let scales = damage_scales_with_difficulty(
+            damage_type.scaling,
+            cause.is_some_and(|entity| {
+                entity.get_living_entity().is_some() && entity.get_player().is_none()
+            }),
+        );
+        let amount = if scales {
+            let Some(scaled) = difficulty_scaled_damage(amount, difficulty) else {
+                return false;
+            };
+            scaled
+        } else {
+            amount
+        };
         if !self.get_entity().is_invulnerable_to(&damage_type, cause)
             && !self.living_entity.is_dead_or_dying()
         {
@@ -9140,6 +9211,13 @@ impl EntityBase for Player {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .write_nbt(nbt);
 
+        // Vanilla keeps statistics in world/stats/<uuid>.json; Pumpkin persists them in
+        // player data NBT, which the quit and shutdown saves already write and reload.
+        self.stats
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .write_nbt(nbt);
+
         let total_exp = experience::points_to_level(self.experience_level.load(Ordering::Relaxed))
             + self.experience_points.load(Ordering::Relaxed);
         nbt.put_float("XpP", self.experience_progress.load());
@@ -9242,6 +9320,17 @@ impl EntityBase for Player {
         if let Some(vehicle_uuid) = vehicle_uuid {
             write_root_vehicle(nbt, vehicle_uuid);
         }
+        // Vanilla ServerRecipeBook.Packed: known recipe keys live under recipeBook.recipes.
+        let mut recipe_book = NbtCompound::new();
+        let recipe_tags: Vec<NbtTag> = self
+            .known_recipes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|id| NbtTag::String(id.clone().into()))
+            .collect();
+        recipe_book.put("recipes", NbtTag::List(recipe_tags));
+        nbt.put_compound("recipeBook", recipe_book);
         self.stats
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -9414,6 +9503,19 @@ impl EntityBase for Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = read_last_death_location(nbt);
         self.root_vehicle_uuid.store(read_root_vehicle(nbt));
+        if let Some(recipe_book) = nbt.get_compound("recipeBook")
+            && let Some(recipes) = recipe_book.get_list("recipes")
+        {
+            let mut known = self
+                .known_recipes
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for tag in recipes {
+                if let NbtTag::String(id) = tag {
+                    known.insert(id.to_string());
+                }
+            }
+        }
         self.stats
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -10500,6 +10602,7 @@ mod tests {
 
     use super::{
         Player, bedrock_container_open_target, bedrock_container_slot, bedrock_container_type,
+        compute_sweep_damage, damage_scales_with_difficulty, difficulty_scaled_damage,
         format_team_name, read_last_death_location, read_root_vehicle, write_last_death_location,
         write_root_vehicle,
     };
@@ -10517,6 +10620,16 @@ mod tests {
     use uuid::Uuid;
 
     #[test]
+    fn sweep_damage_scales_by_sweeping_ratio_and_attack_strength() {
+        // Vanilla `doSweepAttack`: (1 + ratio * baseDamage) * attackStrengthScale.
+        assert!((compute_sweep_damage(8.0, 0.5, 1.0) - 5.0).abs() < 1e-6);
+        // A partial-strength swing scales the whole amount, not just the enchantment part.
+        assert!((compute_sweep_damage(8.0, 0.5, 0.95) - 4.75).abs() < 1e-6);
+        // Without Sweeping Edge a full-strength sweep deals exactly one damage.
+        assert!((compute_sweep_damage(8.0, 0.0, 1.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn team_name_keeps_vanilla_prefix_name_suffix_order() {
         let formatted = format_team_name(
             TextComponent::text("Steve"),
@@ -10525,6 +10638,32 @@ mod tests {
             Some(NamedColor::Red),
         );
         assert_eq!(formatted.get_text(), "<Steve>");
+    }
+
+    #[test]
+    fn difficulty_scaling_matches_vanilla_hurt_server() {
+        use pumpkin_data::damage::DamageScaling;
+        use pumpkin_util::Difficulty;
+
+        assert_eq!(difficulty_scaled_damage(10.0, Difficulty::Peaceful), None);
+        assert_eq!(difficulty_scaled_damage(10.0, Difficulty::Easy), Some(6.0));
+        assert_eq!(difficulty_scaled_damage(1.0, Difficulty::Easy), Some(1.0));
+        assert_eq!(
+            difficulty_scaled_damage(10.0, Difficulty::Normal),
+            Some(10.0)
+        );
+        assert_eq!(difficulty_scaled_damage(10.0, Difficulty::Hard), Some(15.0));
+
+        assert!(!damage_scales_with_difficulty(DamageScaling::Never, true));
+        assert!(damage_scales_with_difficulty(DamageScaling::Always, false));
+        assert!(!damage_scales_with_difficulty(
+            DamageScaling::WhenCausedByLivingNonPlayer,
+            false
+        ));
+        assert!(damage_scales_with_difficulty(
+            DamageScaling::WhenCausedByLivingNonPlayer,
+            true
+        ));
     }
 
     /// A skin host that accepts the connection and never answers must not keep the

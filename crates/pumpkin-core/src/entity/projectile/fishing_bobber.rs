@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 
@@ -9,7 +9,9 @@ use crate::entity::item::ItemEntity;
 use crate::entity::projectile::owner::ProjectileOwner;
 use crate::entity::projectile::{ProjectileHit, get_hit_result_on_move_vector, update_rotation};
 use crate::world::World;
-use crate::world::loot::{LootContextParameters, LootTableHandle, generate_loot_from_handle};
+use crate::world::loot::{
+    LootContextParameters, LootTableHandle, generate_loot_from_handle, is_open_water_at,
+};
 use crate::{
     entity::{Entity, EntityBase, living::LivingEntity, player::Player},
     server::Server,
@@ -50,6 +52,8 @@ pub struct FishingBobberEntity {
     pub entity: Entity,
     pub owner: ProjectileOwner,
     pub state: AtomicCell<HookState>,
+    /// Vanilla `FishingHook.openWater`: latched while a fish is near the hook.
+    pub open_water: AtomicBool,
     pub life: AtomicI32,
     pub wait_countdown: AtomicI32,
     pub bite_countdown: AtomicI32,
@@ -124,6 +128,7 @@ impl FishingBobberEntity {
             entity,
             owner: ProjectileOwner::new(Some(owner_entity)),
             state: AtomicCell::new(HookState::Flying),
+            open_water: AtomicBool::new(true),
             life: AtomicI32::new(0),
             // Vanilla `FishingHook.timeUntilLured` starts at 0; the first wet tick rolls it.
             wait_countdown: AtomicI32::new(0),
@@ -133,6 +138,11 @@ impl FishingBobberEntity {
             luck_bonus,
             wait_time_reduction_ticks,
         }
+    }
+
+    /// Vanilla `FishingHook.isOpenWaterFishing`.
+    pub fn is_open_water_fishing(&self) -> bool {
+        self.open_water.load(Ordering::Relaxed)
     }
 
     /// Matches vanilla `FishingBobberEntity.use(ItemStack usedItem)`.
@@ -425,7 +435,23 @@ impl FishingBobberEntity {
                     start_pos.y,
                     block_pos.0.y,
                     water_height,
-                    rand::random::<f64>(),
+                    rand::random::<f32>(),
+                );
+
+                // Vanilla `FishingHook.tick:233-237`: latch open water while a fish is
+                // near, then reset it once the hook goes idle again.
+                let nibble = self.bite_countdown.load(Ordering::Relaxed);
+                let hooked = self.hook_countdown.load(Ordering::Relaxed);
+                let area_open = (nibble > 0 || hooked > 0) && is_open_water_at(&world, &block_pos);
+                self.open_water.store(
+                    latched_open_water(
+                        self.open_water.load(Ordering::Relaxed),
+                        nibble,
+                        hooked,
+                        out_of_water_time,
+                        area_open,
+                    ),
+                    Ordering::Relaxed,
                 );
 
                 if in_water {
@@ -688,18 +714,18 @@ impl FishingBobberEntity {
         } else if self.wait_countdown.load(Ordering::Relaxed) > 0 {
             let wait = self.wait_countdown.load(Ordering::Relaxed) - fishing_speed;
             self.wait_countdown.store(wait, Ordering::Relaxed);
-            let mut tease_chance = 0.15;
+            let mut tease_chance: f32 = 0.15;
             if wait < 20 {
-                tease_chance += f64::from(20 - wait) * 0.05;
+                tease_chance += f32::from(20 - wait) * 0.05;
             } else if wait < 40 {
-                tease_chance += f64::from(40 - wait) * 0.02;
+                tease_chance += f32::from(40 - wait) * 0.02;
             } else if wait < 60 {
-                tease_chance += f64::from(60 - wait) * 0.01;
+                tease_chance += f32::from(60 - wait) * 0.01;
             }
 
-            if rand::random::<f64>() < tease_chance {
+            if rand::random::<f32>() < tease_chance {
                 let angle = f64::from(rand::random::<f32>() * 360.0).to_radians();
-                let distance = 25.0 + rand::random::<f64>() * 35.0;
+                let distance = f64::from(25.0f32 + rand::random::<f32>() * 35.0);
                 let fish_x = pos.x + angle.sin() * distance * 0.1;
                 let fish_y = f64::from(block_pos.0.y) + 1.0;
                 let fish_z = pos.z + angle.cos() * distance * 0.1;
@@ -756,7 +782,7 @@ fn bob_velocity(
     y: f64,
     block_y: i32,
     water_height: f64,
-    random: f64,
+    random: f32,
 ) -> Vector3<f64> {
     let mut force = y + velocity.y - f64::from(block_y) - water_height;
     if force.abs() < 0.01 {
@@ -764,7 +790,7 @@ fn bob_velocity(
     }
     Vector3::new(
         velocity.x * 0.9,
-        velocity.y - force * random * 0.2,
+        velocity.y - force * f64::from(random) * 0.2,
         velocity.z * 0.9,
     )
 }
@@ -857,6 +883,23 @@ impl EntityBase for FishingBobberEntity {
     }
 }
 
+/// Vanilla `FishingHook.tick` open-water latch: a quiet hook resets the flag, while a
+/// fish nearby keeps it only if the hook has not been out of water too long and the
+/// surrounding 5x5 area is open water.
+fn latched_open_water(
+    current: bool,
+    nibble: i32,
+    hooked: i32,
+    out_of_water_time: u8,
+    area_open: bool,
+) -> bool {
+    if nibble <= 0 && hooked <= 0 {
+        true
+    } else {
+        current && out_of_water_time < HookState::MAX_OUT_OF_WATER_TIME && area_open
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -874,7 +917,7 @@ mod tests {
             let mut velocity = Vector3::new(0.0, 0.0, 0.0);
             for _ in 0..200 {
                 // Mirror `process_tick`: move with the velocity, then damp it.
-                velocity = bob_velocity(velocity, y, block_y, water_height, 0.5);
+                velocity = bob_velocity(velocity, y, block_y, water_height, 0.5f32);
                 y += velocity.y;
                 velocity = velocity * FishingBobberEntity::INERTIA;
                 assert!(
@@ -973,5 +1016,28 @@ mod tests {
         assert!((ratio_x - ratio_y).abs() > 1e-6);
         assert!((ratio_y - ratio_z).abs() > 1e-6);
         assert!((ratio_x - ratio_z).abs() > 1e-6);
+    }
+
+    #[test]
+    fn open_water_resets_while_the_hook_is_idle() {
+        // Vanilla sets openWater = true when nibble <= 0 && timeUntilHooked <= 0,
+        // even if the surrounding water was previously unsuitable.
+        assert!(latched_open_water(false, 0, 0, 10, false));
+        assert!(latched_open_water(false, -1, -1, 0, false));
+    }
+
+    #[test]
+    fn open_water_latches_false_while_a_fish_is_near() {
+        // Any unsuitable layer permanently clears the flag until the hook goes idle.
+        assert!(!latched_open_water(true, 1, 0, 0, false));
+        assert!(!latched_open_water(false, 0, 1, 0, true));
+        assert!(latched_open_water(true, 0, 1, 0, true));
+    }
+
+    #[test]
+    fn open_water_requires_a_wet_hook() {
+        // Vanilla ANDs with outOfWaterTime < 10 before the 5x5 scan.
+        assert!(latched_open_water(true, 1, 0, 9, true));
+        assert!(!latched_open_water(true, 1, 0, 10, true));
     }
 }

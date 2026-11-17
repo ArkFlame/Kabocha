@@ -463,9 +463,7 @@ impl ZombieEntityBase {
     pub fn summon_reinforcements(&self, mob: &dyn Mob, attacker: Option<&dyn EntityBase>) {
         let entity = &self.mob_entity.living_entity.entity;
         let world = entity.world.load_full();
-        if world.level_info.load().difficulty != Difficulty::Hard {
-            return;
-        }
+        // Vanilla resolves the target before checking difficulty (Zombie#hurtServer).
         let Some(target) = self.mob_entity.get_target().or_else(|| {
             let attacker = attacker?;
             attacker.get_living_entity()?;
@@ -474,6 +472,9 @@ impl ZombieEntityBase {
         }) else {
             return;
         };
+        if world.level_info.load().difficulty != Difficulty::Hard {
+            return;
+        }
         let mut rng = mob.get_random();
         if f64::from(rng.random::<f32>())
             >= self

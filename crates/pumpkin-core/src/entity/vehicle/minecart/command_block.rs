@@ -208,18 +208,9 @@ impl CommandBlockMinecart {
                 self.success_count
                     .store(counter.load(Ordering::Relaxed), Ordering::Relaxed);
                 if track_output {
-                    let captured = proxy
-                        .last_output
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .clone();
                     // Vanilla writes `lastOutput` back after every execution, so a
                     // command that prints nothing clears the previously synced output.
-                    if captured.is_empty() {
-                        self.set_last_output(None);
-                    } else {
-                        self.set_last_output(Some(TextComponent::text(captured)));
-                    }
+                    self.set_last_output(proxy.get_last_output());
                     self.on_updated(entity);
                 }
             }
