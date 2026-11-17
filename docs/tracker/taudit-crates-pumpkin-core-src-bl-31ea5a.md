@@ -33,3 +33,31 @@ are the `Matches vanilla's ...` doc comments, all re-checked below.
 | entities/jukebox.rs:230 `set_record` | `JukeboxBlockEntity.setTheItem` | Replaces the stack without stopping a song or updating `HAS_RECORD`; safe for today's callers (they only set it on an empty jukebox) but a plugin can desync. | Route through the same stop/state logic as `set_stack`. | S |
 | entities/jukebox.rs:428 `can_transfer_to` | `SingleStackInventory` / hopper pull | Returns true whenever the target hopper has any empty slot, regardless of the record slot; semantics of the other block entities' impls differ. | Compare with `hopper.rs` peers and expose the record slot only. | S |
 | blocks/jukebox.rs:192 `on_state_replaced` | `JukeboxBlock.affectNeighborsAfterRemoval` | Only updates the output signal; record dropping is delegated to `JukeboxBlockEntity::on_block_replaced`, which also covers structure placement. Verified no double drop. | None. | - |
+
+## Audit pass 2 (2026-11-17)
+
+Fixed (see commit `fix(jukebox): persist playback ticks unconditionally and keep the disc on chunk save`):
+
+- `entities/jukebox.rs:93` — `write_nbt` skipped `ticks_since_song_started` whenever
+  `song_length_ticks == 0`. Vanilla `JukeboxBlockEntity#saveAdditional` writes it
+  unconditionally, so copy/structure NBT differed for every stopped or empty jukebox. Now always
+  written; test `write_nbt_writes_ticks_since_song_started_when_stopped`. This also corrects the
+  pass-1 row for `chunk_data_nbt` below: vanilla does write the key with no song, the real bug was
+  that `write_nbt` did not.
+- `entities/jukebox.rs:141` — `chunk_data_nbt` used `try_lock`, persisting the chunk without
+  `RecordItem` when another thread held the record mutex (silent disc loss). Now locks like
+  `write_nbt` and shares the `RECORD_ITEM_NBT_KEY` / `TICKS_SINCE_SONG_STARTED_NBT_KEY` constants.
+- `entities/jukebox.rs:351` — `Inventory::remove_stack` sent `SoundStopJukeboxSong` (1011) twice,
+  once from `stop_playing` and once explicitly. Vanilla `JukeboxSongPlayer#stop` emits it once.
+  Duplicate send removed; `has_record` update and `BlockChange` game event kept.
+
+Re-checked, no change needed: `from_nbt` mirrors `JukeboxSongPlayer#setSongWithoutPlaying`
+(restore only when `ticks < length + 20`); `tick` stop threshold matches
+`JukeboxSong#shouldStopPlaying`; `on_block_replaced` matches `popOutTheItem` offsets and
+`ItemEntity::new` already applies the 10-tick default pickup delay.
+
+Still open (from the pass-1 table, unchanged by this pass): `set_record` not stopping/updating
+state, `set_stack` deriving `has_record` from non-emptiness (vanilla only starts playback through
+`JukeboxPlayable`) and its unconditional stop sound, `Clearable::clear` stopping the song where
+vanilla `clearContent` only empties the stack, `can_transfer_to` semantics, and the Bedrock
+block-actor data dropping item components.
