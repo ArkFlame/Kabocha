@@ -86,6 +86,11 @@ const COMMAND_STORAGE_PREFIX: &str = "command_storage_";
 const FORCED_CHUNKS_FILE: &str = "chunks.dat";
 /// Pending `/schedule` events, saved like vanilla's `TimerQueue`.
 const SCHEDULED_EVENTS_FILE: &str = "scheduled_events.dat";
+/// Rolling TPS window sizes, in ticks at the vanilla 20 TPS rate. Vanilla's
+/// `tickTimes60s` is 1200 samples (one minute); Paper reports 1m/5m/15m TPS.
+const TPS_SAMPLES_1M: usize = 20 * 60;
+const TPS_SAMPLES_5M: usize = 20 * 60 * 5;
+const TPS_SAMPLES_15M: usize = 20 * 60 * 15;
 
 /// Represents a Minecraft server instance.
 #[repr(C)]
@@ -160,8 +165,15 @@ pub struct Server {
     pub tick_rate_manager: Arc<ServerTickRateManager>,
     /// Stores the duration of the last 100 ticks for performance analysis
     pub tick_times_nanos: std::sync::Mutex<[i64; 100]>,
+    /// Tick durations over the last 1, 5 and 15 minutes, backing Paper-style rolling TPS.
+    pub tick_times_1m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_1M]>,
+    pub tick_times_5m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_5M]>,
+    pub tick_times_15m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_15M]>,
     /// Aggregated tick times for efficient rolling average calculation
     pub aggregated_tick_times_nanos: AtomicI64,
+    /// Wall-clock instant of the previous tick-time debug sample, used to
+    /// measure the raw full tick interval for the client's TICK_TIME chart.
+    last_tick_sample_instant: std::sync::Mutex<Option<std::time::Instant>>,
     /// Total number of ticks processed by the server
     pub tick_count: AtomicI32,
     /// Owns the server-wide tick profiling session used by `/debug`.
@@ -405,7 +417,11 @@ impl Server {
             white_list,
             tick_rate_manager,
             tick_times_nanos: std::sync::Mutex::new([0; 100]),
+            tick_times_1m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_1M]),
+            tick_times_5m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_5M]),
+            tick_times_15m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_15M]),
             aggregated_tick_times_nanos: AtomicI64::new(0),
+            last_tick_sample_instant: std::sync::Mutex::new(None),
             tick_count: AtomicI32::new(0),
             debug_profiler: debug_profiler::DebugProfiler::new(),
             perf_profiler: perf_profiler::PerfProfiler::default(),
@@ -592,6 +608,46 @@ impl Server {
             })
     }
 
+    /// Restores a world's forced chunks from its `<dim_folder>/data/minecraft/chunks.dat`.
+    /// Vanilla restores these in every `ServerLevel` constructor, including levels created at
+    /// runtime, so this cannot live only in the startup `load_persistent_data` pass.
+    fn restore_forced_chunks(&self, world: &Arc<World>) {
+        use pumpkin_world::world_info::data_files::read_saved_data;
+
+        let Some(data) = read_saved_data(&world.level.level_folder.dim_folder, FORCED_CHUNKS_FILE)
+        else {
+            return;
+        };
+        let Some(forced) = data.get_long_array("Forced") else {
+            return;
+        };
+        let mut forced_chunks = world
+            .forced_chunks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut chunk_loading = world
+            .level
+            .chunk_loading
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut newly_forced = Vec::new();
+        for packed in forced {
+            // Vanilla `ChunkPos.toLong`: x in the low 32 bits, z in the high 32 bits.
+            let x = *packed as i32;
+            let z = (*packed >> 32) as i32;
+            let pos = pumpkin_util::math::vector2::Vector2::new(x, z);
+            if forced_chunks.insert(pos) {
+                chunk_loading.add_force_ticket(pos);
+                newly_forced.push(pos);
+            }
+        }
+        chunk_loading.send_change();
+        drop(chunk_loading);
+        drop(forced_chunks);
+        world.update_active_chunks();
+        world.load_forced_entity_chunks(newly_forced);
+    }
+
     fn load_persistent_data(&self, world_path: &std::path::Path) {
         use pumpkin_world::world_info::data_files::{minecraft_data_dir, read_saved_data};
 
@@ -614,39 +670,7 @@ impl Server {
         }
 
         for world in self.worlds.load().iter() {
-            let Some(data) =
-                read_saved_data(&world.level.level_folder.dim_folder, FORCED_CHUNKS_FILE)
-            else {
-                continue;
-            };
-            let Some(forced) = data.get_long_array("Forced") else {
-                continue;
-            };
-            let mut forced_chunks = world
-                .forced_chunks
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let mut chunk_loading = world
-                .level
-                .chunk_loading
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let mut newly_forced = Vec::new();
-            for packed in forced {
-                // Vanilla `ChunkPos.toLong`: x in the low 32 bits, z in the high 32 bits.
-                let x = *packed as i32;
-                let z = (*packed >> 32) as i32;
-                let pos = pumpkin_util::math::vector2::Vector2::new(x, z);
-                if forced_chunks.insert(pos) {
-                    chunk_loading.add_force_ticket(pos);
-                    newly_forced.push(pos);
-                }
-            }
-            chunk_loading.send_change();
-            drop(chunk_loading);
-            drop(forced_chunks);
-            world.update_active_chunks();
-            world.load_forced_entity_chunks(newly_forced);
+            self.restore_forced_chunks(world);
         }
 
         let Ok(entries) = std::fs::read_dir(minecraft_data_dir(world_path)) else {
@@ -772,7 +796,6 @@ impl Server {
         }
     }
 
-    /// Returns the world for `dimension`, falling back to the first loaded world.
     /// Returns the world for `dimension`, falling back to the first loaded world, or `None`
     /// when no world is loaded.
     #[must_use]
@@ -901,6 +924,9 @@ impl Server {
             new_worlds.push(world.clone());
             new_worlds
         });
+        // Vanilla restores forced chunks in the ServerLevel constructor, so runtime worlds
+        // need this too, not just the worlds present at startup.
+        self.restore_forced_chunks(&world);
         let mut event =
             crate::plugin::api::events::world::world_init::WorldInitEvent::new(world.clone());
         self.plugin_manager.fire_blocking(self, &mut event);
@@ -1352,11 +1378,21 @@ impl Server {
         client: &ClientPlatform,
         profile: &GameProfile,
     ) -> Option<TextComponent> {
+        // Vanilla PlayerList#canBypassFullServerLogin applies the full-server kick only when
+        // the profile cannot bypass the player limit (an op with bypassesPlayerLimit set).
+        let bypasses_limit = {
+            let ops = self
+                .data
+                .operator_config
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            can_bypass_player_limit(&ops, &profile.id)
+        };
         let max_players = match client {
             ClientPlatform::Java(_) => self.advanced_config.networking.java.max_players,
             ClientPlatform::Bedrock(_) => self.advanced_config.networking.bedrock.max_players,
         };
-        if max_players > 0 && self.get_player_count() >= max_players as usize {
+        if !bypasses_limit && max_players > 0 && self.get_player_count() >= max_players as usize {
             return Some(TextComponent::translate_cross(
                 pumpkin_data::translation::java::MULTIPLAYER_DISCONNECT_SERVER_FULL,
                 pumpkin_data::translation::bedrock::DISCONNECTIONSCREEN_SERVERFULL,
@@ -1878,6 +1914,12 @@ impl Server {
         self.simulation_pool.install(|| {
             // Do not flush mid-tick; `Flush` is `flushChannel`.
             let suspended = self.suspend_player_flushes();
+            // Paper runs the plugin scheduler/functions heartbeat every tick,
+            // outside `runsNormally()`, so loader `on_tick` keeps running while
+            // `/tick freeze` pauses world game logic. Datapack tick/load tags and
+            // `/schedule` stay gated: ServerFunctionManager.tick gates the tags and
+            // the per-level TimerQueue is ticked under ServerLevel.tick's `runs` flag.
+            self.plugin_manager.tick_loaders(self);
             // Vanilla `tickChildren` is gated on `runsNormally()` alone: a sprint
             // clears the freeze, so `is_sprinting()` would wrongly revive a world
             // tick after `/tick freeze` is issued mid-sprint.
@@ -1905,7 +1947,7 @@ impl Server {
         let worlds = self.worlds.load();
 
         for world in worlds.iter() {
-            world.flush_block_updates();
+            // Block updates are flushed once at tick end by `flush_pending_block_updates`.
             world.flush_synced_block_events();
 
             let players = world.players.load();
@@ -1939,7 +1981,6 @@ impl Server {
             .datapack_manager
             .execute_function(self, &source, "#minecraft:tick");
 
-        self.plugin_manager.tick_loaders(self);
         self.scheduled_functions.tick(
             self,
             self.tick_count.load(std::sync::atomic::Ordering::Relaxed) as u64,
@@ -2005,7 +2046,19 @@ impl Server {
 
     /// Updates the tick time statistics with the duration of the last tick.
     pub fn update_tick_times(&self, tick_duration_nanos: i64) {
-        let tick_count = self.tick_count.fetch_add(1, Ordering::Relaxed);
+        // Vanilla increments MinecraftServer.tickCount only inside the
+        // runsNormally() branch of tickServer. Frozen ticks (without a step
+        // or sprint) must not advance autosave cadence, scheduled functions or
+        // the tick numbers carried by tick events. The ring write below stays
+        // unconditional, so its index reuses the frozen tick_count slot.
+        let tick_count = if advances_tick_count(
+            self.tick_rate_manager.runs_normally(),
+            self.tick_rate_manager.is_sprinting(),
+        ) {
+            self.tick_count.fetch_add(1, Ordering::Relaxed)
+        } else {
+            self.tick_count.load(Ordering::Relaxed)
+        };
         let index = (tick_count % 100) as usize;
 
         let mut tick_times = self
@@ -2016,18 +2069,48 @@ impl Server {
         tick_times[index] = tick_duration_nanos;
         drop(tick_times);
 
+        // Mirror vanilla's parallel `tickTimes5s`/`tickTimes10s`/`tickTimes60s`
+        // rings; Paper derives its 1m/5m/15m TPS from the longer windows.
+        {
+            let mut ring = self
+                .tick_times_1m_nanos
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            ring[(tick_count as usize) % TPS_SAMPLES_1M] = tick_duration_nanos;
+        }
+        {
+            let mut ring = self
+                .tick_times_5m_nanos
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            ring[(tick_count as usize) % TPS_SAMPLES_5M] = tick_duration_nanos;
+        }
+        {
+            let mut ring = self
+                .tick_times_15m_nanos
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            ring[(tick_count as usize) % TPS_SAMPLES_15M] = tick_duration_nanos;
+        }
+
         self.aggregated_tick_times_nanos
             .fetch_add(tick_duration_nanos - old_time, Ordering::Relaxed);
 
-        let target_tick_nanos = self.tick_rate_manager.nanoseconds_per_tick();
-        let idle_nanos = target_tick_nanos.saturating_sub(tick_duration_nanos);
+        // Vanilla's `TICK_TIME` sample measures the raw wall-clock interval
+        // between consecutive ticks (FULL_TICK) via `currentTime - lastTickNanos`,
+        // not a synthetic `work.max(target)`.
+        let now = std::time::Instant::now();
+        let mut last_sample = self
+            .last_tick_sample_instant
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let full_tick_nanos = last_sample
+            .map(|previous| now.saturating_duration_since(previous).as_nanos() as i64)
+            .unwrap_or(0);
+        *last_sample = Some(now);
+        drop(last_sample);
 
-        let sample_slice = [
-            tick_duration_nanos.max(target_tick_nanos),
-            tick_duration_nanos,
-            0,
-            idle_nanos,
-        ];
+        let sample_slice = tick_time_sample(full_tick_nanos, tick_duration_nanos);
         let packet = pumpkin_protocol::java::client::play::CDebugSample::new(
             &sample_slice,
             pumpkin_protocol::codec::var_int::VarInt(0),
@@ -2074,6 +2157,38 @@ impl Server {
         }
         let target = 1_000_000_000.0 / self.tick_rate_manager.nanoseconds_per_tick().max(1) as f64;
         (1000.0 / mspt).min(target)
+    }
+
+    /// Rolling TPS over the last 1, 5 and 15 minutes, in Paper's `getTPS()` order.
+    pub fn get_recent_tps(&self) -> [f64; 3] {
+        [self.get_tps_1m(), self.get_tps_5m(), self.get_tps_15m()]
+    }
+
+    /// TPS averaged over the last minute of ticks.
+    pub fn get_tps_1m(&self) -> f64 {
+        ring_tps(
+            &self.tick_times_1m_nanos,
+            self.tick_count.load(Ordering::Relaxed),
+            self.tick_rate_manager.nanoseconds_per_tick(),
+        )
+    }
+
+    /// TPS averaged over the last five minutes of ticks.
+    pub fn get_tps_5m(&self) -> f64 {
+        ring_tps(
+            &self.tick_times_5m_nanos,
+            self.tick_count.load(Ordering::Relaxed),
+            self.tick_rate_manager.nanoseconds_per_tick(),
+        )
+    }
+
+    /// TPS averaged over the last fifteen minutes of ticks.
+    pub fn get_tps_15m(&self) -> f64 {
+        ring_tps(
+            &self.tick_times_15m_nanos,
+            self.tick_count.load(Ordering::Relaxed),
+            self.tick_rate_manager.nanoseconds_per_tick(),
+        )
     }
 
     /// Returns a copy of the last 100 tick times.
@@ -2126,6 +2241,14 @@ impl Server {
     }
 }
 
+/// Vanilla `ServerOpList#canBypassPlayerLimit`: the profile is listed in ops.json and that
+/// entry has `bypassesPlayerLimit` set. A missing field defaults to false, matching vanilla's
+/// ops.json parsing (`object.has("bypassesPlayerLimit") && getAsBoolean()`).
+fn can_bypass_player_limit(ops: &crate::data::op::OperatorConfig, uuid: &uuid::Uuid) -> bool {
+    ops.get_entry(uuid)
+        .is_some_and(|op| op.bypasses_player_limit)
+}
+
 /// Join gamemode selection mirroring `ServerPlayer.load` / `getForcedGameType`.
 fn join_gamemode(default: GameMode, forced: bool, nbt: Option<&NbtCompound>) -> GameMode {
     if forced {
@@ -2145,9 +2268,58 @@ fn infer_played_before(nbt: &NbtCompound) -> bool {
         && nbt.get_list("Pos").is_some_and(|pos| pos.len() >= 3)
 }
 
+/// TPS from a rolling tick-time ring. Paper's `TickData.getTPSAverage` returns the
+/// ideal rate until the window has samples, then `1e9 / average tick time`.
+fn ring_tps<const N: usize>(
+    ring: &std::sync::Mutex<[i64; N]>,
+    tick_count: i32,
+    target_nanos: i64,
+) -> f64 {
+    let ideal = 1_000_000_000.0 / target_nanos.max(1) as f64;
+    let samples = (tick_count as usize).min(N);
+    if samples == 0 {
+        return ideal;
+    }
+    let times = ring
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let total: i64 = times[..samples].iter().sum();
+    if total <= 0 {
+        return ideal;
+    }
+    (1_000_000_000.0 / (total as f64 / samples as f64)).min(ideal)
+}
+
+/// Mirrors the vanilla `TICK_TIME` debug sample layout:
+/// `[FULL_TICK, TICK_SERVER_METHOD, SCHEDULED_TASKS, IDLE]`.
+/// Pumpkin does not track scheduled-task time separately, so it is always zero
+/// and IDLE is the remainder of the raw full tick after the tick work.
+fn tick_time_sample(full_tick_nanos: i64, tick_method_nanos: i64) -> [i64; 4] {
+    let scheduled_tasks_nanos: i64 = 0;
+    let idle_nanos = full_tick_nanos
+        .saturating_sub(tick_method_nanos)
+        .saturating_sub(scheduled_tasks_nanos);
+    [
+        full_tick_nanos,
+        tick_method_nanos,
+        scheduled_tasks_nanos,
+        idle_nanos,
+    ]
+}
+
+/// Whether MinecraftServer.tickCount advances for a tick. Vanilla increments it
+/// inside the runsNormally() branch of tickServer; a sprint clears the freeze
+/// so sprint ticks advance it too, while frozen (non-stepping) ticks do not.
+const fn advances_tick_count(runs_normally: bool, is_sprinting: bool) -> bool {
+    runs_normally || is_sprinting
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{infer_played_before, join_gamemode};
+    use super::{
+        advances_tick_count, can_bypass_player_limit, infer_played_before, join_gamemode,
+        tick_time_sample,
+    };
     use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
     use pumpkin_util::GameMode;
 
@@ -2155,6 +2327,55 @@ mod tests {
         let mut nbt = NbtCompound::new();
         nbt.put_int("playerGameType", mode as i32);
         nbt
+    }
+
+    #[test]
+    fn tick_time_sample_mirrors_vanilla_dimensions() {
+        // Normal tick: FULL_TICK is the raw interval, IDLE is the remainder.
+        assert_eq!(
+            tick_time_sample(50_000_000, 15_000_000),
+            [50_000_000, 15_000_000, 0, 35_000_000]
+        );
+        // Overloaded tick: no idle, full tick equals the work time.
+        assert_eq!(
+            tick_time_sample(80_000_000, 80_000_000),
+            [80_000_000, 80_000_000, 0, 0]
+        );
+        // A work time larger than the measured interval cannot yield negative idle.
+        assert_eq!(tick_time_sample(10, 30), [10, 30, 0, 0]);
+    }
+
+    #[test]
+    fn player_limit_bypass_requires_op_with_flag() {
+        use crate::data::op::OperatorConfig;
+        use pumpkin_config::op::Op;
+        use pumpkin_util::PermissionLvl;
+        use uuid::Uuid;
+
+        let uuid = Uuid::from_u128(1);
+        let mut config = OperatorConfig::default();
+
+        // Not an op: no bypass.
+        assert!(!can_bypass_player_limit(&config, &uuid));
+
+        // Op without bypassesPlayerLimit (vanilla ops.json default): no bypass.
+        config
+            .ops
+            .push(Op::new(uuid, "op".to_owned(), PermissionLvl::Four, false));
+        assert!(!can_bypass_player_limit(&config, &uuid));
+
+        // Op with the flag: bypass allowed.
+        config.ops[0].bypasses_player_limit = true;
+        assert!(can_bypass_player_limit(&config, &uuid));
+
+        // A different op with the flag does not grant this uuid a bypass.
+        config.ops.push(Op::new(
+            Uuid::from_u128(2),
+            "op2".to_owned(),
+            PermissionLvl::Four,
+            true,
+        ));
+        assert!(!can_bypass_player_limit(&config, &Uuid::from_u128(3)));
     }
 
     #[test]
@@ -2207,5 +2428,15 @@ mod tests {
 
         nbt.put_list("Pos", vec![NbtTag::Double(1.0)]);
         assert!(!infer_played_before(&nbt));
+    }
+
+    #[test]
+    fn tick_count_advances_only_when_game_runs() {
+        // Normal tick and step-forward both report runsNormally.
+        assert!(advances_tick_count(true, false));
+        // A sprint clears the freeze, so sprint ticks advance the count too.
+        assert!(advances_tick_count(false, true));
+        // Frozen and not sprinting: tick_count must stay put.
+        assert!(!advances_tick_count(false, false));
     }
 }

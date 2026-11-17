@@ -1,7 +1,7 @@
 use pumpkin_data::{
     Block,
     block_properties::{
-        HorizontalFacing, LanternLikeProperties, OakFenceGateLikeProperties,
+        HorizontalFacing, LanternLikeProperties, OakFenceGateLikeProperties, SnowLikeProperties,
         WallTorchLikeProperties,
     },
 };
@@ -308,6 +308,54 @@ pub(super) async fn test_pressure_plate_breaks_when_floor_removed(
 
     helper.assert_block_present(&p1, &Block::AIR).await?;
     helper.assert_block_present(&p2, &Block::AIR).await?;
+    helper.succeed();
+    Ok(())
+}
+
+/// Live-world coverage for vanilla `SpreadingSnowyBlock#randomTick` fade/survival branches.
+pub(super) async fn test_spreading_snowy_grass_random_tick(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 5).await?;
+
+    // Opaque cover above: light dampening is 16, so grass fades to dirt.
+    let covered = BlockPos::new(1, 1, 1);
+    helper
+        .set_block_default(&covered, &Block::GRASS_BLOCK)
+        .await?;
+    helper
+        .set_block_default(&BlockPos::new(1, 2, 1), &Block::STONE)
+        .await?;
+
+    // A single snow layer short-circuits canStayAlive, so grass survives.
+    let snowy = BlockPos::new(3, 1, 1);
+    helper
+        .set_block_default(&snowy, &Block::GRASS_BLOCK)
+        .await?;
+    let mut snow = SnowLikeProperties::default(&Block::SNOW);
+    snow.r#layers = 1;
+    helper
+        .set_block(&BlockPos::new(3, 2, 1), snow.to_state_id(&Block::SNOW))
+        .await?;
+
+    // A full fluid above kills grass.
+    let flooded = BlockPos::new(1, 1, 3);
+    helper
+        .set_block_default(&flooded, &Block::GRASS_BLOCK)
+        .await?;
+    helper
+        .set_block_default(&BlockPos::new(1, 2, 3), &Block::WATER)
+        .await?;
+
+    helper.random_tick(&covered).await?;
+    helper.random_tick(&snowy).await?;
+    helper.random_tick(&flooded).await?;
+
+    helper.assert_block_present(&covered, &Block::DIRT).await?;
+    helper
+        .assert_block_present(&snowy, &Block::GRASS_BLOCK)
+        .await?;
+    helper.assert_block_present(&flooded, &Block::DIRT).await?;
     helper.succeed();
     Ok(())
 }

@@ -1,3 +1,4 @@
+mod boat_block_effects;
 mod brewing_stand;
 mod bubble_columns;
 mod buttons_levers_plates_variants;
@@ -211,7 +212,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:farmland_turns_to_dirt_under_solid_block",
     "pumpkin:campfire_signal_fire_over_hay_block",
     "pumpkin:campfire_waterlogged_extinguishes_lit",
-    // plants_and_support_blocks (12)
+    // plants_and_support_blocks (13)
     "pumpkin:cactus_breaks_when_solid_block_placed_adjacent",
     "pumpkin:cactus_breaks_when_sand_below_removed",
     "pumpkin:sugar_cane_breaks_when_water_removed",
@@ -224,6 +225,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:cake_and_candle_cake_break_without_support",
     "pumpkin:carpet_and_moss_carpet_break_without_support",
     "pumpkin:pressure_plate_and_redstone_wire_break_without_support",
+    "pumpkin:grass_random_tick_fade_and_survival",
     // lamps_bulbs_and_noteblocks_extended (12)
     "pumpkin:copper_bulb_variants_toggle_and_remember_lit",
     "pumpkin:waxed_copper_bulb_variants_toggle_and_remember_lit",
@@ -263,6 +265,8 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:iron_golem_pattern_clears_all_four_blocks",
     "pumpkin:different_item_entities_do_not_merge",
     "pumpkin:item_entities_stack_up_to_combined_count",
+    // boat_block_effects (1)
+    "pumpkin:boat_breaks_lily_pad_on_landing",
 ];
 
 #[must_use]
@@ -1419,7 +1423,7 @@ pub fn ensure_builtin_game_tests_registered() {
             walls_stairs_and_shapes::test_campfire_waterlogged_extinguishes_lit,
         );
 
-        // plants_and_support_blocks (12)
+        // plants_and_support_blocks (13)
         register_function_test(
             "pumpkin:cactus_breaks_when_solid_block_placed_adjacent",
             "pumpkin:empty_5x4x5",
@@ -1503,6 +1507,13 @@ pub fn ensure_builtin_game_tests_registered() {
             20,
             0,
             plants_and_support_blocks::test_pressure_plate_breaks_when_floor_removed,
+        );
+        register_function_test(
+            "pumpkin:grass_random_tick_fade_and_survival",
+            "pumpkin:empty_5x5x5",
+            20,
+            0,
+            plants_and_support_blocks::test_spreading_snowy_grass_random_tick,
         );
 
         // lamps_bulbs_and_noteblocks_extended (12)
@@ -1761,6 +1772,13 @@ pub fn ensure_builtin_game_tests_registered() {
             60,
             0,
             commands_and_entities_extended::test_falling_anvil_lands_and_preserves_block,
+        );
+        register_function_test(
+            "pumpkin:boat_breaks_lily_pad_on_landing",
+            "pumpkin:empty_5x5x5",
+            60,
+            0,
+            boat_block_effects::test_boat_breaks_lily_pad_on_landing,
         );
     });
 }

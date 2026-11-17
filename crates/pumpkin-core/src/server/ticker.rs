@@ -99,9 +99,10 @@ impl Ticker {
 
             let tick_number = server.tick_count.load(Ordering::Relaxed);
             if server.plugin_manager.has_handlers::<ServerTickStartEvent>() {
-                server
-                    .plugin_manager
-                    .fire_blocking(server, &mut ServerTickStartEvent::new(tick_number));
+                server.plugin_manager.fire_blocking(
+                    server,
+                    &mut ServerTickStartEvent::new(tick_event_number(tick_number)),
+                );
             }
 
             if sprinting {
@@ -132,7 +133,10 @@ impl Ticker {
             if server.plugin_manager.has_handlers::<ServerTickEndEvent>() {
                 server.plugin_manager.fire_blocking(
                     server,
-                    &mut ServerTickEndEvent::new(tick_number, tick_duration_nanos),
+                    &mut ServerTickEndEvent::new(
+                        tick_event_number(tick_number),
+                        tick_duration_nanos,
+                    ),
                 );
             }
 
@@ -233,6 +237,12 @@ fn elapsed_nanos(base: Instant) -> i64 {
     base.elapsed().as_nanos() as i64
 }
 
+/// Paper's tick events are 1-based. Pumpkin increments `tick_count` after both
+/// events fire, so each event adds one to the snapshot of the current tick.
+const fn tick_event_number(tick_count: i32) -> i32 {
+    tick_count.wrapping_add(1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,6 +321,14 @@ mod tests {
 
         // 10s + 100 * 50ms = 15s at 20 TPS, so the second warning lands on tick 6.
         assert_eq!(warned_on, vec![1, 6]);
+    }
+
+    #[test]
+    fn tick_events_report_one_based_tick_number() {
+        // Paper reports the first tick as 1, not 0.
+        assert_eq!(tick_event_number(0), 1);
+        assert_eq!(tick_event_number(19), 20);
+        assert_eq!(tick_event_number(i32::MAX), i32::MIN);
     }
 
     #[test]
