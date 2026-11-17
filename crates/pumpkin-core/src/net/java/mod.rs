@@ -278,6 +278,13 @@ impl JavaClient {
                         break;
                     }
 
+                    // Vanilla sends the next keep-alive only once the previous one was
+                    // answered (`keepAlivePending`); the timeout above kicks a peer that
+                    // never answers instead of piling more challenges on top.
+                    if self.wait_for_keep_alive.load(Ordering::Relaxed) {
+                        continue;
+                    }
+
                     let keep_alive_id = i64::from(
                         SystemTime::now()
                             .duration_since(UNIX_EPOCH)
@@ -799,15 +806,8 @@ impl JavaClient {
         Self::write_packet_for_version(packet, CURRENT_MC_VERSION, write)
     }
 
-    /// Handles an incoming packet, routing it to the appropriate handler based on the current connection state.
-    ///
-    /// This function takes a `RawPacket` and routes it to the corresponding handler based on the current connection state.
-    /// It supports the following connection states:
-    ///
-    /// - **Handshake:** Handles handshake packets.
-    /// - **Status:** Handles status request and ping packets.
-    /// - **Login/Transfer:** Handles login and transfer packets.
-    /// - **Config:** Handles configuration packets.
+    /// Spawns the per-connection outgoing writer task, which serializes, transforms
+    /// (`PacketSentEvent`) and flushes queued packets on this client's FIFO.
     pub fn start_outgoing_packet_task(&mut self) {
         let Some(packet_receiver) = self.outgoing_packet_queue_recv.take() else {
             return;
