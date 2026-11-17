@@ -2,7 +2,6 @@ use super::BlockEntity;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
-use rustc_hash::FxHashSet;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -11,36 +10,46 @@ pub struct VaultBlockEntity {
     pub config: Mutex<Option<NbtCompound>>,
     pub server_data: Mutex<Option<NbtCompound>>,
     pub shared_data: Mutex<Option<NbtCompound>>,
-    pub rewarded_players: Mutex<FxHashSet<Uuid>>,
+    /// Insertion-ordered, capped at [`Self::MAX_REWARDED_PLAYERS`] like vanilla.
+    pub rewarded_players: Mutex<Vec<Uuid>>,
+}
+
+impl VaultBlockEntity {
+    /// `VaultServerData#MAX_REWARD_PLAYERS`.
+    pub const MAX_REWARDED_PLAYERS: usize = 128;
 }
 
 /// Vanilla keeps rewarded players in `server_data` as a list of four-int UUID arrays.
-fn read_rewarded_players(server_data: &NbtCompound) -> FxHashSet<Uuid> {
-    let mut set = FxHashSet::default();
+fn read_rewarded_players(server_data: &NbtCompound) -> Vec<Uuid> {
+    let mut players = Vec::new();
     let Some(list) = server_data.get_list("rewarded_players") else {
-        return set;
+        return players;
     };
     for tag in list {
-        match tag {
+        let uuid = match tag {
             NbtTag::IntArray(arr) if arr.len() == 4 => {
                 let value = ((arr[0] as u128) << 96)
                     | (((arr[1] as u32) as u128) << 64)
                     | (((arr[2] as u32) as u128) << 32)
                     | ((arr[3] as u32) as u128);
-                set.insert(Uuid::from_u128(value));
+                Uuid::from_u128(value)
             }
-            NbtTag::String(s) => {
-                if let Ok(uuid) = Uuid::parse_str(s) {
-                    set.insert(uuid);
-                }
-            }
-            _ => {}
+            NbtTag::String(s) => match Uuid::parse_str(s) {
+                Ok(uuid) => uuid,
+                Err(_) => continue,
+            },
+            _ => continue,
+        };
+        if !players.contains(&uuid) {
+            players.push(uuid);
         }
     }
-    set
+    let excess = players.len().saturating_sub(VaultBlockEntity::MAX_REWARDED_PLAYERS);
+    players.drain(..excess);
+    players
 }
 
-fn rewarded_players_tag(rewarded: &FxHashSet<Uuid>) -> NbtTag {
+fn rewarded_players_tag(rewarded: &[Uuid]) -> NbtTag {
     NbtTag::List(
         rewarded
             .iter()
@@ -100,7 +109,7 @@ impl BlockEntity for VaultBlockEntity {
         let rewarded = self
             .rewarded_players
             .lock()
-            .map(|set| set.clone())
+            .map(|players| players.clone())
             .unwrap_or_default();
         if !rewarded.is_empty() {
             let mut data = server_data.take().unwrap_or_else(NbtCompound::new);
@@ -142,7 +151,7 @@ impl VaultBlockEntity {
             config: Mutex::new(None),
             server_data: Mutex::new(None),
             shared_data: Mutex::new(None),
-            rewarded_players: Mutex::new(FxHashSet::default()),
+            rewarded_players: Mutex::new(Vec::new()),
         }
     }
 
@@ -154,9 +163,16 @@ impl VaultBlockEntity {
     }
 
     pub fn mark_rewarded(&self, player_id: Uuid) {
-        self.rewarded_players
+        let mut rewarded = self
+            .rewarded_players
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(player_id);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if rewarded.contains(&player_id) {
+            return;
+        }
+        if rewarded.len() >= Self::MAX_REWARDED_PLAYERS {
+            rewarded.remove(0);
+        }
+        rewarded.push(player_id);
     }
 }
