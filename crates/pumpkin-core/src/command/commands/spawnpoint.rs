@@ -28,6 +28,19 @@ enum SpawnpointMode {
     TargetsPosRotation,
 }
 
+/// Arguments for `commands.spawnpoint.success.*`: `x, y, z [yaw] in dimension for <target>`.
+/// Vanilla's format has no pitch slot, so only yaw is passed.
+fn spawn_feedback_args(pos: BlockPos, yaw: f32, dimension: &str, target: String) -> [String; 6] {
+    [
+        pos.0.x.to_string(),
+        pos.0.y.to_string(),
+        pos.0.z.to_string(),
+        yaw.to_string(),
+        dimension.to_string(),
+        target,
+    ]
+}
+
 struct SpawnpointExecutor(SpawnpointMode);
 
 impl CommandExecutor for SpawnpointExecutor {
@@ -73,15 +86,13 @@ impl CommandExecutor for SpawnpointExecutor {
                 TextComponent::translate_cross(
                     translation::java::COMMANDS_SPAWNPOINT_SUCCESS_SINGLE,
                     translation::bedrock::COMMANDS_SPAWNPOINT_SUCCESS_SINGLE,
-                    [
-                        TextComponent::text(pos.0.x.to_string()),
-                        TextComponent::text(pos.0.y.to_string()),
-                        TextComponent::text(pos.0.z.to_string()),
-                        TextComponent::text(yaw.to_string()),
-                        TextComponent::text(pitch.to_string()),
-                        TextComponent::text(dimension_name),
-                        TextComponent::text(targets[0].gameprofile.name.clone()),
-                    ],
+                    spawn_feedback_args(
+                        pos,
+                        yaw,
+                        &dimension_name,
+                        targets[0].gameprofile.name.clone(),
+                    )
+                    .map(TextComponent::text),
                 ),
                 true,
             );
@@ -90,21 +101,33 @@ impl CommandExecutor for SpawnpointExecutor {
                 TextComponent::translate_cross(
                     translation::java::COMMANDS_SPAWNPOINT_SUCCESS_MULTIPLE,
                     translation::java::COMMANDS_SPAWNPOINT_SUCCESS_MULTIPLE,
-                    [
-                        TextComponent::text(pos.0.x.to_string()),
-                        TextComponent::text(pos.0.y.to_string()),
-                        TextComponent::text(pos.0.z.to_string()),
-                        TextComponent::text(yaw.to_string()),
-                        TextComponent::text(pitch.to_string()),
-                        TextComponent::text(dimension_name),
-                        TextComponent::text(targets.len().to_string()),
-                    ],
+                    spawn_feedback_args(pos, yaw, &dimension_name, targets.len().to_string())
+                        .map(TextComponent::text),
                 ),
                 true,
             );
         }
 
         Ok(targets.len() as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spawn_feedback_matches_vanilla_placeholders() {
+        let args = spawn_feedback_args(
+            BlockPos::new(1, 2, 3),
+            90.0,
+            "minecraft:overworld",
+            "Steve".to_string(),
+        );
+        assert_eq!(
+            args,
+            ["1", "2", "3", "90", "minecraft:overworld", "Steve"].map(String::from)
+        );
     }
 }
 
