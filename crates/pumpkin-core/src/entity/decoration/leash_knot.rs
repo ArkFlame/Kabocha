@@ -209,21 +209,16 @@ impl EntityBase for LeashKnotEntity {
         _amount: f32,
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
-        source: Option<&dyn EntityBase>,
+        _source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
-        // Vanilla `BlockAttachedEntity.hurtServer` checks invulnerability first.
+        // Vanilla `BlockAttachedEntity.hurtServer` only checks invulnerability: any other damage
+        // (including a mob-caused explosion) destroys the knot regardless of `mob_griefing`.
         if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
-        // `BlockAttachedEntity.hurtServer`: no damage from a mob while `mob_griefing` is off.
-        let world = self.entity.world.load();
-        if !world.level_info.load().game_rules.mob_griefing
-            && cause.or(source).is_some_and(|atk| atk.get_mob().is_some())
-        {
-            return false;
-        }
         // Hitting the knot destroys it. Leashed mobs release on their next tick (see `tick_leash`).
+        let world = self.entity.world.load();
         world.play_sound(
             Sound::ItemLeadUntied,
             SoundCategory::Neutral,

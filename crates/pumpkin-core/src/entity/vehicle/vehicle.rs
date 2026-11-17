@@ -236,6 +236,16 @@ impl VehicleEntity {
 
         let new_strength = self.apply_damage_wobble(amount);
 
+        // Vanilla AbstractBoat.hurt/AbstractMinecart.hurt fire ENTITY_DAMAGE with the
+        // attacker as the vibration source, right after the wobble state.
+        self.entity.world.load().emit_game_event_with_context(
+            pumpkin_data::game_event::GameEvent::EntityDamage.name(),
+            self.entity.pos.load(),
+            &crate::world::game_event::GameEventContext {
+                source_entity: source,
+            },
+        );
+
         let is_creative = source
             .and_then(|s| s.get_player())
             .is_some_and(|p| p.gamemode.load() == GameMode::Creative);
