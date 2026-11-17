@@ -1,4 +1,3 @@
-use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -7,7 +6,7 @@ use pumpkin_util::Hand;
 use rand::RngExt;
 use std::sync::Arc;
 
-use crate::entity::ai::goal::{Controls, Goal};
+use crate::entity::ai::goal::{Controls, Goal, GoalReach};
 use crate::entity::ai::pathfinder::NavigatorGoal;
 use crate::entity::mob::Mob;
 use crate::entity::projectile::arrow::{ArrowEntity, ArrowPickup};
@@ -60,7 +59,7 @@ impl BowAttackGoal {
             .try_lock()
             .map_or_else(
                 |_| ItemStack::EMPTY.clone(),
-                |eq| eq.get(&EquipmentSlot::MAIN_HAND),
+                |eq| eq.get(&pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND),
             )
     }
 
@@ -282,6 +281,19 @@ impl Goal for BowAttackGoal {
 
     fn should_run_every_tick(&self) -> bool {
         true
+    }
+
+    fn tick_reach(&self, mob: &dyn Mob, _running: bool) -> Option<GoalReach> {
+        Some(GoalReach {
+            speed: self.speed,
+            links: mob
+                .get_mob_entity()
+                .get_target()
+                .map(|target| target.get_entity().entity_id)
+                .into_iter()
+                .collect(),
+            ..GoalReach::default()
+        })
     }
 
     fn controls(&self) -> Controls {
