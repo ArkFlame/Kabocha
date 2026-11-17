@@ -14,3 +14,6 @@ The player smash attack matches vanilla `MaceItem`: damage bonus curve (`4*f`, `
 | `crates/pumpkin-core/src/entity/player.rs:1837` | attacker velocity is pinned to y=0.01 only when the victim is on the ground (an air smash keeps the attacker falling) | move `set_velocity` into the `victim.on_ground` branch already used for the sound choice | S (verify) |
 | `crates/pumpkin-core/src/entity/combat.rs:108-112` | `MaceItem.knockback` pushes nearby entities with `push()`, which ignores knockback resistance | drop the `(1.0 - resistance)` factor if the decompiled source uses `push` | S (verify) |
 | `crates/pumpkin-core/src/entity/player.rs:1787-1862` | smash rules are behavioural and testable | add a `pumpkin-gametest`: drop a player ~6 blocks onto a cow, assert base+bonus damage, knockback and that the attacker takes no fall damage afterwards | M |
+
+## Gap status (CODER h4 sweep)
+- Row (hardcoded item id vs behaviour gate): FIXED (ac9c79cad, test mace_behaviour_is_identified_by_registry_class, UNVERIFIED: not compiled, workers do not build).
