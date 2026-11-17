@@ -48,8 +48,8 @@ use crate::entity::{
 };
 use crate::plugin::api::events::entity::entity_target::TargetReason;
 
-/// Vanilla Wolf#tame raises the base max health from 8 to 20 and heals to full.
-const TAMED_WOLF_MAX_HEALTH: f32 = 20.0;
+/// Vanilla Wolf#applyTamingSideEffects raises the base max health from 8 to 40 and heals to full.
+const TAMED_WOLF_MAX_HEALTH: f32 = 40.0;
 
 const WOLF_PREY: TargetMatch =
     TargetMatch::AnyOf(&[&EntityType::SHEEP, &EntityType::RABBIT, &EntityType::FOX]);

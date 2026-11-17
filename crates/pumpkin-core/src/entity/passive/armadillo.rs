@@ -31,7 +31,6 @@ use crate::entity::{
 
 const ARMADILLO_BRUSH_LOOT_TABLE: &str = "minecraft:brush/armadillo";
 const ARMADILLO_SHED_LOOT_TABLE: &str = "minecraft:gameplay/armadillo_shed";
-pub const ARMADILLO_BABY_START_AGE: i32 = -48000;
 pub const SCARE_CHECK_INTERVAL: i32 = 80;
 pub const SCARE_DISTANCE_HORIZONTAL: f64 = 7.0;
 pub const SCARE_DISTANCE_VERTICAL: f64 = 2.0;
@@ -314,7 +313,8 @@ impl AgeableMob for ArmadilloEntity {
     }
 
     fn get_baby_start_age(&self) -> i32 {
-        ARMADILLO_BABY_START_AGE
+        // Vanilla Armadillo does not override getBabyStartAge, so AgeableMob's -24000 applies.
+        crate::entity::ageable::BABY_START_AGE
     }
 }
 
