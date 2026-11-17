@@ -33,6 +33,22 @@ impl JavaClient {
                     let world = entity.world.load_full();
                     let (block, state) = world.get_block_and_state(&position);
 
+                    // Vanilla `Level.mayInteract` rejects dig starts inside spawn protection
+                    // before any interaction handling, so no crack animation is started.
+                    if world.is_in_spawn_protection(player, &position) {
+                        player.send_system_message(&TextComponent::translate_cross(
+                            pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                            pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                            [TextComponent::text(player.gameprofile.name.clone())],
+                        ));
+                        player.try_send_client_packet(&CBlockUpdate::new(
+                            position,
+                            VarInt(i32::from(state.id.as_u16())),
+                        ));
+                        self.update_sequence(player_action.sequence.0);
+                        return;
+                    }
+
                     if let Some(server_arc) = world.server.upgrade() {
                         let mut interact_event = PlayerInteractEvent::new(
                             player,
@@ -79,8 +95,6 @@ impl JavaClient {
                         return;
                     }
 
-                    // TODO: do validation
-                    // TODO: Config
                     if gamemode == GameMode::Creative {
                         // Block break & play sound
                         let new_state = world.break_block(
