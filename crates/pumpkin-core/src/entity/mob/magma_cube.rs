@@ -102,17 +102,6 @@ impl Mob for MagmaCubeEntity {
         self.slime.mob_tick(caller);
     }
 
-    /// Magma cubes share the slime `Size`/`wasOnGround` tags; without these
-    /// overrides `AbstractCubeMob` size was dropped on save/load.
-    fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        self.slime.mob_write_nbt(nbt);
-    }
-
-    fn mob_read_nbt(&self, nbt: &NbtCompound) {
-        self.slime.mob_read_nbt(nbt);
-        self.apply_size_attributes();
-    }
-
     fn post_tick(&self) {
         self.slime.post_tick();
     }

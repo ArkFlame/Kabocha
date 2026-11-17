@@ -13,7 +13,6 @@ use pumpkin_util::math::position::BlockPos;
 
 use crate::entity::{
     Entity, EntityBase,
-    custom_sound::CustomSound,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
@@ -147,21 +146,7 @@ impl Animal for HappyGhastEntity {
     }
 }
 
-impl CustomSound for HappyGhastEntity {
-    fn death_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastDeath)
-    }
-
-    fn hurt_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastHurt)
-    }
-}
-
 impl Mob for HappyGhastEntity {
-    fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastAmbient)
-    }
-
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
         Some(self)
     }

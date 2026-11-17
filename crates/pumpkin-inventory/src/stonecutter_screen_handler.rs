@@ -160,7 +160,7 @@ impl StonecutterState {
         let input = self.input_inventory.get_stack(0);
         let result = self
             .recipe_at(index, &input)
-            .map_or_else(ItemStack::EMPTY.clone, |recipe| recipe.assemble());
+            .map_or_else(|| ItemStack::EMPTY.clone(), |recipe| recipe.assemble());
         self.output_inventory.set_stack(0, result);
     }
 }
