@@ -211,15 +211,7 @@ impl SnbtParser<'_, '_> {
 
     /// Appends every character given in the `reference` slice except `_` in the provided `buffer`.
     fn clean_and_append(buffer: &mut String, reference: &str) {
-        // This could really be optimized further
-        // with bytes instead of chars, but that
-        // probably requires unsafe code. Is that worth it?
-        // TODO
-        for c in reference.chars() {
-            if c != '_' {
-                buffer.push(c);
-            }
-        }
+        buffer.extend(reference.chars().filter(|&c| c != '_'));
     }
 
     /// General method to parse a specific number of hexadecimal digits greedily (no underscores are allowed).
