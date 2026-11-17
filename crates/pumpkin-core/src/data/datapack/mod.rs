@@ -1274,43 +1274,73 @@ impl DatapackManager {
     }
 
     fn resolve_functions(&self, name: &str) -> Result<Vec<Arc<[String]>>, FunctionRunError> {
-        let (functions_to_run, is_tag) = if let Some(tag_name) = name.strip_prefix('#') {
-            let tags = self
-                .function_tags
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let Some(fns) = tags.get(tag_name) else {
-                return Err(FunctionRunError::Unknown(format!(
-                    "Unknown function tag: #{tag_name}"
-                )));
+        if let Some(tag_name) = name.strip_prefix('#') {
+            let functions_to_run = {
+                let tags = self
+                    .function_tags
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let Some(members) = tags.get(tag_name) else {
+                    return Err(FunctionRunError::Unknown(format!(
+                        "Unknown function tag: #{tag_name}"
+                    )));
+                };
+                let mut names = Vec::new();
+                collect_function_tag_members(
+                    &tags,
+                    members,
+                    &mut names,
+                    &mut vec![tag_name.to_string()],
+                );
+                names
             };
-            (fns.clone(), true)
-        } else {
-            (vec![name.to_string()], false)
-        };
-
-        let functions = {
             let all_fns = self
                 .functions
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let mut functions = Vec::with_capacity(functions_to_run.len());
             for fn_id in functions_to_run {
-                let Some(lines) = all_fns.get(&fn_id) else {
-                    if !is_tag {
-                        return Err(FunctionRunError::Unknown(format!(
-                            "Unknown function: {fn_id}"
-                        )));
-                    }
-                    continue;
-                };
-                functions.push(Arc::clone(lines));
+                // Tag entries are optional in vanilla: unknown functions are skipped.
+                if let Some(lines) = all_fns.get(&fn_id) {
+                    functions.push(Arc::clone(lines));
+                }
             }
-            functions
-        };
+            return Ok(functions);
+        }
 
-        Ok(functions)
+        let all_fns = self
+            .functions
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(lines) = all_fns.get(name) else {
+            return Err(FunctionRunError::Unknown(format!(
+                "Unknown function: {name}"
+            )));
+        };
+        Ok(vec![Arc::clone(lines)])
     }
+
+/// Flattens a function tag's members, following `#tag` references and skipping cycles.
+fn collect_function_tag_members<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, Vec<String>, S>,
+    members: &[String],
+    names: &mut Vec<String>,
+    visited: &mut Vec<String>,
+) {
+    for member in members {
+        if let Some(nested) = member.strip_prefix('#') {
+            if visited.iter().any(|tag| tag == nested) {
+                continue;
+            }
+            visited.push(nested.to_string());
+            if let Some(inner) = tags.get(nested) {
+                collect_function_tag_members(tags, inner, names, visited);
+            }
+        } else if !names.iter().any(|existing| existing == member) {
+            names.push(member.clone());
+        }
+    }
+}
 
     fn boundary_limit() -> Option<FunctionRunError> {
         if FUNCTION_CHAIN_HIT_COMMAND_LIMIT.with(Cell::get) {
@@ -3114,6 +3144,44 @@ mod tests {
         assert!(!manager.is_in_tag("block", "test:rocks", "dirt"));
         assert!(manager.is_in_tag("block", "test:loop", "dirt"));
         assert!(!manager.is_in_tag("block", "test:loop", "stone"));
+    }
+
+    #[test]
+    fn function_tags_expand_nested_tags() {
+        let manager = DatapackManager::new();
+        manager
+            .functions
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
+                "test:leaf".to_string(),
+                vec!["say leaf".to_string()].into(),
+            );
+        {
+            let mut tags = manager
+                .function_tags
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            tags.insert("test:inner".to_string(), vec!["test:leaf".to_string()]);
+            tags.insert("test:outer".to_string(), vec!["#test:inner".to_string()]);
+            // Self-reference must terminate and still run the plain member.
+            tags.insert(
+                "test:loop".to_string(),
+                vec!["#test:loop".to_string(), "test:leaf".to_string()],
+            );
+        }
+
+        let mut visited = Vec::new();
+        let executed = manager
+            .visit_function_lines("#test:outer", |line| visited.push(line.to_string()))
+            .expect("nested tag must resolve");
+        assert_eq!(executed, 1);
+        assert_eq!(visited, ["say leaf"]);
+
+        let executed = manager
+            .visit_function_lines("#test:loop", |_| {})
+            .expect("a self-referencing tag must terminate");
+        assert_eq!(executed, 1);
     }
 
     #[test]
