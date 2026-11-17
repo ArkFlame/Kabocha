@@ -3975,6 +3975,9 @@ impl Entity {
                                     pitch,
                                     dest_world.clone(),
                                 );
+                                if !Arc::ptr_eq(&world_clone, &dest_world) {
+                                    world_clone.transfer_entity(&entity_arc, &dest_world);
+                                }
                             }
 
                             // Teleport all passengers recursively along with the vehicle
@@ -4025,6 +4028,10 @@ impl Entity {
                 .clone();
 
             passenger.teleport(position, passenger_yaw, None, dest_world.clone());
+            let passenger_world = passenger_entity.world.load_full();
+            if !Arc::ptr_eq(&passenger_world, dest_world) {
+                passenger_world.transfer_entity(&passenger, dest_world);
+            }
 
             // Recursively teleport nested passengers
             for nested in nested_passengers {

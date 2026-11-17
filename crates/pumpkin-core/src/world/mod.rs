@@ -5962,6 +5962,25 @@ impl World {
         self.add_pending_riders(&entity);
     }
 
+    /// Moves a live entity to another world without treating it as removed (vanilla
+    /// `Entity.changeDimension`): drops it from this world's tracking, switches its world
+    /// reference, then registers it in the destination world so trackers and clients see it.
+    pub fn transfer_entity(&self, entity: &Arc<dyn EntityBase>, dest: &Arc<World>) {
+        let base_entity = entity.get_entity();
+        if Arc::ptr_eq(&base_entity.world.load_full(), dest) {
+            return;
+        }
+        self.spawn_state.load().remove_entity(self, entity.as_ref());
+        self.entity_tracker.remove_entity(entity.as_ref(), self);
+        self.entities.rcu(|current_entities| {
+            let mut new_entities = (**current_entities).clone();
+            new_entities.retain(|e| e.get_entity().entity_uuid != base_entity.entity_uuid);
+            new_entities
+        });
+        base_entity.set_world(dest.clone());
+        dest.add_entity_silent(entity.clone());
+    }
+
     pub fn remove_entity(&self, entity: &dyn EntityBase) {
         // Entity::remove passes its base projection; retain the registered living owner.
         let registered = self.get_entity_by_id(entity.get_entity().entity_id);
