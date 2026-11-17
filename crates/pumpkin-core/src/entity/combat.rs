@@ -336,15 +336,10 @@ impl FallLocation {
         }
     }
 
-    pub fn get_current_fall_location(
-        living: &crate::entity::living::LivingEntity,
-        world: &World,
-    ) -> Self {
-        let pos = living
-            .climbing_pos
-            .load()
-            .unwrap_or_else(|| living.entity.block_pos.load());
-        let block = world.get_block(&pos);
+    /// Vanilla `FallLocation.blockToFallLocation`. Any block reached here was climbable, so
+    /// anything without its own message is `other_climbable`.
+    #[must_use]
+    pub fn block_to_fall_location(block: &pumpkin_data::Block) -> Self {
         if block == &pumpkin_data::Block::LADDER
             || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_TRAPDOORS)
         {
@@ -361,12 +356,24 @@ impl FallLocation {
             Self::TwistingVines
         } else if block == &pumpkin_data::Block::SCAFFOLDING {
             Self::Scaffolding
-        } else if living.entity.is_in_water() {
-            Self::Water
-        } else if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_CLIMBABLE) {
-            Self::OtherClimbable
         } else {
-            Self::Generic
+            Self::OtherClimbable
+        }
+    }
+
+    /// Vanilla `FallLocation.getCurrentFallLocation`: a location only exists after a recent
+    /// climb (last climbable block) or while in water, so plain hits record `None`.
+    #[must_use]
+    pub fn get_current_fall_location(
+        living: &crate::entity::living::LivingEntity,
+        world: &World,
+    ) -> Option<Self> {
+        if let Some(pos) = living.climbing_pos.load() {
+            Some(Self::block_to_fall_location(world.get_block(&pos)))
+        } else if living.entity.is_in_water() {
+            Some(Self::Water)
+        } else {
+            None
         }
     }
 }
@@ -408,7 +415,7 @@ impl CombatTracker {
         current_tick: i64,
         is_alive: bool,
         fall_distance: f32,
-        fall_location: FallLocation,
+        fall_location: Option<FallLocation>,
         damage_type: pumpkin_data::damage::DamageType,
         damage: f32,
         source: Option<&dyn EntityBase>,
@@ -458,7 +465,7 @@ impl CombatTracker {
         let entry = CombatEntry {
             damage_type,
             damage,
-            fall_location: Some(fall_location),
+            fall_location,
             fall_distance,
             timestamp: current_tick,
             source_id: source.map(|e| e.get_entity().entity_id),
