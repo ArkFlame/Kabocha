@@ -168,46 +168,28 @@ impl JavaClient {
                 return Err(ChatError::ChatValidationFailed);
             }
 
-            {
+            let acknowledged = {
                 let mut cache = player
                     .signature_cache
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if !chat_message.acknowledged.is_empty() {
-                    if cache
-                        .last_seen_validator
-                        .apply_update(offset as usize, chat_message.acknowledged)
-                        .is_err()
-                    {
-                        return Err(ChatError::ChatValidationFailed);
-                    }
-                } else if cache
+                let acknowledged = cache
                     .last_seen_validator
-                    .apply_offset(offset as usize)
-                    .is_err()
-                {
-                    return Err(ChatError::ChatValidationFailed);
-                }
+                    .apply_update(offset as usize, chat_message.acknowledged)
+                    .map_err(|_| ChatError::ChatValidationFailed)?;
 
                 if cache.last_seen_validator.tracked_messages_count() > 4096 {
                     return Err(ChatError::TooManyPendingChats);
                 }
-            }
+                acknowledged
+            };
 
-            // Validate previous signature checksum (new in 1.21.5)
-            // The client can bypass this check by sending 0
-            if chat_message.checksum != 0 {
-                let checksum = polynomial_rolling_hash(
-                    player
-                        .signature_cache
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .last_seen
-                        .as_ref(),
-                );
-                if checksum != chat_message.checksum {
-                    return Err(ChatError::ChatValidationFailed);
-                }
+            // Vanilla `LastSeenMessages.Update#verifyChecksum` hashes the entries this update
+            // acknowledges, not the local last-seen list; 0 means the client skips the check.
+            if chat_message.checksum != 0
+                && polynomial_rolling_hash(&acknowledged) != chat_message.checksum
+            {
+                return Err(ChatError::ChatValidationFailed);
             }
         }
         Ok(())
