@@ -1449,13 +1449,13 @@ fn serialize_item_stack_template(
 
 impl DataComponentCodec<Self> for BundleContentsImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
+        // Vanilla's `BundleContents.STREAM_CODEC` only syncs the contents. The
+        // selected bundle slot is client UI state, so writing it here shifted
+        // every following byte and the client failed to decode the packet.
         seq.write_var_int(&VarInt::from(self.items.len() as i32))?;
         for item in &self.items {
             serialize_item_stack_template(item, seq)?;
         }
-        // Vanilla `BundleContents.STREAM_CODEC` also carries the selected
-        // index, so a container sync keeps the client's scroll selection.
-        seq.write_var_int(&VarInt::from(self.selected_item))?;
         Ok(())
     }
 
@@ -1474,8 +1474,10 @@ impl DataComponentCodec<Self> for BundleContentsImpl {
         for _ in 0..len {
             items.push(deserialize_item_stack_template(seq)?);
         }
-        let selected_item = seq.get_var_int()?.0;
-        Ok(Self { items, selected_item })
+        Ok(Self {
+            items,
+            selected_item: Self::NO_SELECTED_ITEM_INDEX,
+        })
     }
 }
 
@@ -4151,11 +4153,12 @@ mod tests {
         ));
     }
 
-    /// Vanilla's bundle stream codec carries the selected index, otherwise a
-    /// container sync would reset the player's scroll selection every tick.
+    /// Vanilla's `BundleContents.STREAM_CODEC` only carries the contents. An
+    /// extra selected-index VarInt used to follow them and shifted every byte
+    /// after the bundle in a container sync.
     #[test]
-    fn bundle_contents_stream_codec_keeps_selected_item() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn bundle_contents_stream_codec_writes_only_the_contents()
+    -> Result<(), Box<dyn std::error::Error>> {
         use pumpkin_data::item::Item;
         use pumpkin_data::item_stack::ItemStack;
 
@@ -4166,9 +4169,11 @@ mod tests {
         };
         let mut encoded = Vec::new();
         bundle.serialize(&mut encoded)?;
-        let decoded = BundleContentsImpl::deserialize(&mut encoded.as_slice())?;
+        let mut cursor = encoded.as_slice();
+        let decoded = BundleContentsImpl::deserialize(&mut cursor)?;
         assert_eq!(decoded.items.len(), 2);
-        assert_eq!(decoded.selected_item, 1);
+        assert_eq!(decoded.selected_item, BundleContentsImpl::NO_SELECTED_ITEM_INDEX);
+        assert!(cursor.is_empty(), "bundle contents left {} trailing bytes", cursor.len());
         Ok(())
     }
 
