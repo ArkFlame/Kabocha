@@ -194,15 +194,9 @@ impl BlockEntity for JukeboxBlockEntity {
             let item_entity = Arc::new(crate::entity::item::ItemEntity::new(entity, record));
             world.spawn_entity(item_entity);
         }
-        world.emit_game_event(
-            pumpkin_data::game_event::GameEvent::JukeboxStopPlay.name(),
-            position.to_centered_f64(),
-        );
-        world.sync_world_event(
-            pumpkin_data::world::WorldEvent::SoundStopJukeboxSong,
-            *position,
-            0,
-        );
+        // Vanilla only emits `JUKEBOX_STOP_PLAY` / the stop sound when a song was actually
+        // playing (`JukeboxSongPlayer.stop` is a no-op for a null song). `clear_record` already
+        // ran `stop_playing`, which emits both exactly in that case.
     }
 }
 
