@@ -40,6 +40,16 @@ no TODO/FIXME markers; the two "vanilla" hits are test names at :567 and :581).
 - `is_pathfindable` (:455-457) == `type == WATER && fluid is water`.
 - `get_state_for_neighbor_update` (:330-344) == `updateShape` water tick schedule.
 
+- `get_comparator_output` re-checked against the real source (`ShelfBlock.java:311-330`):
+  back-face only and `item1Bit | item2Bit << 1 | item3Bit << 2`, exact match.
+- `neighborChanged` writes with `setBlockAndUpdate` = flags 3 (`ShelfBlock.java:145`), so the
+  existing `BlockFlags::NOTIFY_ALL` at `shelf.rs:386-387` is correct, not an over-notify.
+- Chain recompute in vanilla comes from `onPlace`, which every `setBlock` runs
+  (`LevelChunk.java:455-457`). Vanilla `neighborChanged` itself never calls
+  `updateSelfAndNeighborsOnPoweringUp`; Pumpkin's explicit calls at `shelf.rs:389-399` and
+  `shelf.rs:354-363` reproduce that `onPlace` effect, which is the right compensation for
+  Pumpkin's `set_block_state` not running a placement hook.
+
 ## Fixed in this pass
 
 | Gap | Rust | Vanilla | Fix | Size |
@@ -51,9 +61,15 @@ no TODO/FIXME markers; the two "vanilla" hits are test names at :567 and :581).
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
 | `block/mod.rs:667-673` `BlockIsReplacing::water_source` (46 call sites) | every `getStateForPlacement` that uses `FluidState#is(Fluids.WATER)` | only accepts level-0 sources, so all other waterloggable blocks still ignore flowing water | add `BlockIsReplacing::is_water()` and migrate the call sites; shelf already fixed locally | S |
-| `shelf.rs:171-181` `set_part` | `SideChainPartBlock.setPart` -> `level.setBlockAndUpdate` -> `ShelfBlock.onPlace`, which re-runs `updateSelfAndNeighborsOnPoweringUp` when the written part leaves a powered shelf fully `UNCONNECTED` | `set_block_state` runs no `on_place` hook, so that recompute never happens after a neighbour disconnect; a powered shelf that only became unconnected is not re-evaluated against its other side | call `update_self_and_neighbors_on_powering_up` for the written position when the new part is `Unconnected` and the shelf is still powered | S |
 | `shelf.rs` (absent) | `ShelfBlock.SHAPES` + `useShapeForLightOcclusion() = true` | shelf collision/occlusion shape comes from generated state data; not modelled in this file | verify the generated shape for `#minecraft:wooden_shelves`; engine/codegen work | L |
 | `shelf.rs` (absent) | `BaseEntityBlock` + block entity | wiki: shelves cannot be pushed by pistons; Pumpkin has no block push-reaction/piston moveability concept | needs an engine-level piston push reaction, not a shelf-local fix | M |
+
+Correction (2026-11-17): the earlier `set_part` -> `onPlace` row was removed after
+reading the decompiled source. `setPart` uses `setBlockAndUpdate`, which does run `onPlace`,
+but `updateSelfAndNeighborsOnPoweringUp` early-returns via `isBeingUpdatedByNeighbor` when the
+new part is connected or the old state was powered and connected
+(`SideChainPartBlock.java:66-96`); every `setPart` write falls into one of those cases, so no
+recompute is lost when Pumpkin's `set_block_state` skips the placement hook.
 
 Client-only / not required: vanilla's early client-side `CONSUME` in `useItemOn`
 (:170-172) — Pumpkin interacts server-side only and the client predicts the swap.
