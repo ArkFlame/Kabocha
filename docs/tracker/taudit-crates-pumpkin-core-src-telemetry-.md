@@ -25,3 +25,9 @@ This file is Pumpkin-owned telemetry (heartbeats to `telemetry.pumpkinmc.org`), 
 | G6 | `telemetry.rs:164`, `telemetry.rs:236`, `telemetry.rs:772` | Session/player caps (`MAX_COMPLETED_SESSIONS_PER_HEARTBEAT`, `MAX_TELEMETRY_PLAYERS`) silently truncate; `online_players` can then exceed `players.len()` with no truncated flag for the backend. | n/a | Add a boolean/count field (`players_truncated`) or log at debug when the cap is hit. | S |
 | G7 | `telemetry.rs:239-247` | On shutdown, an online player with no `active_joins` entry is reported with `joined_at == left_at == now`, i.e. a fake zero-length session instead of being skipped or marked unknown. | n/a | Skip untracked players (`continue`) or only report sessions recorded by `record_join`. | S |
 | G8 | `telemetry.rs:477-509` | `load_or_generate_key` returns `Err` on a read failure (e.g. permissions) instead of falling back to regenerating, and `resolve_identity_key` has four duplicated `if exists && load` branches. | n/a | Collapse into a path-list loop and treat unreadable keys as missing (warn + regenerate). | S |
+
+## Gap status (CODER h4)
+- G1 (MissedTickBehavior::Burst after a stall): FIXED (38f31a2a0), set to `Delay`. UNVERIFIED: no unit test; timer behaviour needs a runtime check.
+- G2 (non-"ok" heartbeat status dropped sessions): FIXED (38f31a2a0), sessions restored when the backend status is not "ok". UNVERIFIED: no mock backend test.
+- G7 (shutdown reported untracked players as zero-length sessions): FIXED (38f31a2a0), such players are skipped. UNVERIFIED: no unit test.
+- G3, G4, G5, G6, G8: STILL OPEN (not in this slice's budget).

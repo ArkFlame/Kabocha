@@ -26,5 +26,21 @@ Vanilla reference: decompiled Canvas/Paper tree at
 | 6 | `world/time.rs:147-165` | `ServerClockManager.packNetworkState(clock, instance, player)` | periodic sync builds one packet per world for every player; vanilla substitutes `player.getPlayerTime()` when the player's dimension default clock matches and honours `relativeTime`. Only the join path (`entity/player.rs:4547`) is per-player, so a player's custom time is overwritten on the next sync | use `player.client_time_of_day`/per-player override in the periodic loop too | M |
 | 7 | `world/time.rs:130`, `entity/player.rs:4558,4568` | `Holder<WorldClock>` registry id | `CUpdateTime::new_clock(..., 0, ...)` hardcodes clock id 0 for `minecraft:overworld`; correct only while the generated world-clock registry keeps overworld first | read the id from `pumpkin-data` world-clock registry | S (verify) |
 
-## h3 wave status
-- row 2 (time.rs is_night / tickSleep): FIXED eef0dd951. Night skip now also requires advance_time and no fixed time (UNVERIFIED, no test; in-game sleep skip not run).
+## Wave 2-3 status
+- All S/M rows: STILL OPEN (not reached in this wave's budget).
+
+## Wave 2-3 gap status (CODER pass)
+- Row 1 (Bedrock resend while paused): FIXED by existing code, `send_game_time_sync` sends `CSetTime` to every Bedrock player on each 20-tick sync. UNVERIFIED with a Bedrock client. The TODO at `send_time` remains for the night-skip path.
+- Row 2 (`is_night` ignores fixed-time dimensions and `advance_time`): FIXED (f00f6368c). Night skip now uses `advance_time && is_dark_outside()`. No unit test (needs world harness).
+- Row 4 (persist `world_clocks` per world): STILL OPEN. Needs a level.dat record format change (M).
+- Row 5 (clock registry, timemarkers, timelines): STILL OPEN (L, skipped).
+- Row 6 (per-player clock in the periodic sync): STILL OPEN. Java packet is still broadcast once per world (M).
+- Row 7 (overworld clock id hardcoded to 0): STILL OPEN. The world-clock registry is not in the generated pumpkin-data, so the id cannot be read from it yet.
+- Row 3 (datapack wake-up timeline): STILL OPEN (L, skipped).
+
+## Wave 4 gap status (CODER h4)
+- Row 3 (datapack wake-up timeline): STILL OPEN (L, skipped per brief).
+- Row 4 (persist world clock rate, paused, partial tick): FIXED (efccbd20c). Overworld state is saved in `world_clocks.dat` next to `total_ticks` and restored on load. Other dimensions still share the overworld clock state on load, as they already share `day_time`. UNVERIFIED: no restart test; the NBT round trip has a unit test (`world_clocks_round_trip_keeps_rate_state`).
+- Row 5 (clock registry, timemarkers, timelines): STILL OPEN (L, skipped per brief).
+- Row 6 (per-player day time in the periodic sync): FIXED (4919c6e14) for pre-26.1 clients, which read the day time from the packet. 26.1+ clients get no clock entries in the periodic sync, so custom time is unchanged there. UNVERIFIED: no unit test, since building a `Player` is not feasible in a unit test.
+- Row 7 (overworld clock id hardcoded to 0): STILL OPEN. The world-clock registry is absent from `assets/` and `pumpkin-data`, so the id cannot be read (needs Extractor, blocked).
