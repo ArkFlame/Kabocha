@@ -160,14 +160,7 @@ impl ArmorStandEntity {
 
     /// Vanilla `ArmorStand.getDefaultDimensions`: a marker has no size, a small stand half.
     fn update_dimensions(&self) {
-        let dimensions = if self.is_marker() {
-            EntityDimensions::new(0.0, 0.0, 0.0)
-        } else if self.is_small() {
-            let size = Entity::type_dimensions(&EntityType::ARMOR_STAND).scale(0.5);
-            EntityDimensions::new(size.width, size.height, 0.9875)
-        } else {
-            Entity::type_dimensions(&EntityType::ARMOR_STAND)
-        };
+        let dimensions = default_dimensions(self.is_marker(), self.is_small());
         self.living_entity.entity.set_default_dimensions(dimensions);
     }
 
@@ -389,6 +382,21 @@ impl ArmorStandEntity {
 
     fn is_slot_insertion_disabled(&self, slot: &EquipmentSlot) -> bool {
         self.disabled_slots.load(Ordering::Relaxed) & Self::slot_bit(slot, 16) != 0
+    }
+}
+
+/// Vanilla `ArmorStand.getDefaultDimensions`: markers collapse to a zero-size box,
+/// otherwise a small stand is `EntityDimensions.scale(0.5)`, eye height included.
+fn default_dimensions(marker: bool, small: bool) -> EntityDimensions {
+    if marker {
+        return EntityDimensions::new(0.0, 0.0, 0.0);
+    }
+
+    let size = Entity::type_dimensions(&EntityType::ARMOR_STAND);
+    if small {
+        size.scale(0.5)
+    } else {
+        size
     }
 }
 
@@ -695,6 +703,24 @@ pub enum ArmorStandFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dimensions_scale_with_the_small_flag_and_collapse_for_markers() {
+        let normal = default_dimensions(false, false);
+        assert_eq!(normal.width, 0.5);
+        assert_eq!(normal.height, 1.975);
+
+        let small = default_dimensions(false, true);
+        assert_eq!(small.width, 0.25);
+        assert_eq!(small.height, 0.9875);
+        assert_eq!(small.eye_height, normal.eye_height * 0.5);
+
+        let marker = default_dimensions(true, false);
+        assert_eq!(
+            (marker.width, marker.height, marker.eye_height),
+            (0.0, 0.0, 0.0)
+        );
+    }
 
     #[test]
     fn clicked_slot_uses_vanilla_hit_area_and_existing_items() {
