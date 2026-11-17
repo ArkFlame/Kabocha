@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use crate::enchantment::effects::EnchantmentEntityEffectExt;
 use crate::entity::player::Player;
@@ -486,12 +487,38 @@ impl EnchantmentHelper {
         position: pumpkin_util::math::vector3::Vector3<f64>,
     ) {
         let world = entity.world.load_full();
+        let frost_walker_allowed =
+            meets_frost_walker_requirements(entity.on_ground.load(Ordering::Relaxed), entity.has_vehicle());
         Self::run_iteration_on_item(item, |enchantment, level| {
+            // Vanilla checks each entry requirements before applying it. Generated data drops
+            // them, so Frost Walker own ground plus vehicle gate is applied here.
+            if enchantment.registry_key == Enchantment::FROST_WALKER.registry_key
+                && !frost_walker_allowed
+            {
+                return;
+            }
             for conditional_effect in enchantment.effects.location_changed {
                 conditional_effect
                     .effect
                     .apply(&world, level, None, Some(entity), position);
             }
         });
+    }
+}
+
+/// Vanilla frost_walker.json requirements: is_on_ground and no vehicle.
+fn meets_frost_walker_requirements(on_ground: bool, riding: bool) -> bool {
+    on_ground && !riding
+}
+
+#[cfg(test)]
+mod tests {
+    use super::meets_frost_walker_requirements;
+
+    #[test]
+    fn frost_walker_needs_ground_and_no_vehicle() {
+        assert!(meets_frost_walker_requirements(true, false));
+        assert!(!meets_frost_walker_requirements(false, false));
+        assert!(!meets_frost_walker_requirements(true, true));
     }
 }
