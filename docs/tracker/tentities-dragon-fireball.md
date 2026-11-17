@@ -37,7 +37,7 @@ decompiled reference before changing.
 
 | # | file:line | Vanilla class | Gap | Suggested fix | Size | Verify |
 |---|---|---|---|---|---|---|
-| 1 | `area_effect_cloud.rs:150` (used via `dragon_fireball.rs:155`) | `DragonFireball.onHit` | cloud `wait_time` is 20; vanilla dragon-fireball cloud uses `setWaitTime(10)` | pass `10` into `create_dragon_breath` | S | yes |
+| FIXED (4675a87ef, UNVERIFIED) 1 | `area_effect_cloud.rs:150` (used via `dragon_fireball.rs:155`) | `DragonFireball.onHit` | cloud `wait_time` is 20; vanilla dragon-fireball cloud uses `setWaitTime(10)` | pass `10` into `create_dragon_breath` | S | yes |
 | 2 | `area_effect_cloud.rs:134-141` | `DragonFireball.onHit` / `Potions.HARMING` | instant damage amplifier is `1`; vanilla `Potions.HARMING` is amplifier `0`, and the sibling dragon-breath cloud at `phase/sit_breathing.rs:57-65` uses `0` | set amplifier to `0` (one value), confirms internal consistency | S | yes |
 | 3 | `area_effect_cloud.rs:296` | `AreaEffectCloud.tick` | radius/radiusPerTick only applied after the wait period; vanilla advances radius every tick | move the radius block above the `age < wait_time` early return | S | yes |
 | 4 | `area_effect_cloud.rs:142-148` | `DragonFireball.onHit` | dragon cloud sets `radius_on_use = 0.0`; vanilla may use `setRadiusOnUse(-0.5F)` (lingering-potion default) | pass `-0.5` if confirmed | S | yes |

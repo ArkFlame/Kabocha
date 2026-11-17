@@ -39,13 +39,7 @@ are the vanilla ones, line numbers are Pumpkin's.
 
 | # | file:line | vanilla class | gap | suggested fix | size |
 |---|---|---|---|---|---|
-| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust only lowers `fall_distance` to 1.0 when it is already above 1.0; vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, which can also raise a smaller value | store 1.0 unconditionally inside the branch, after confirming against the decompiled method (observable only below the 3.0 fall-damage threshold) | S | **STILL OPEN** (reference unverified: vanilla source not in ref tree)
-| 2 | `entity/player.rs:3976` | `Player#causeFoodExhaustion` | `progress_motion` still has `TODO: gliding...`; vanilla grants no exhaustion while fall flying, so the TODO looks stale | confirm and delete the TODO, or implement whatever vanilla behaviour it meant | S | **FIXED** (stale TODO removed)
+| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust only lowers `fall_distance` to 1.0 when it is already above 1.0; vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, which can also raise a smaller value | store 1.0 unconditionally inside the branch, after confirming against the decompiled method (observable only below the 3.0 fall-damage threshold) | S |
+| FIXED (5a0471a16) 2 | `entity/player.rs:3976` | `Player#causeFoodExhaustion` | `progress_motion` still has `TODO: gliding...`; vanilla grants no exhaustion while fall flying, so the TODO looks stale | confirm and delete the TODO, or implement whatever vanilla behaviour it meant | S |
 | 3 | `entity/player.rs:3869` | `LivingEntity#updateFallFlying` | no automated test covers glide stop (plugin veto) or the start gate; the veto change above is untested | add a `pumpkin-gametest` that starts a glide, cancels `EntityToggleGlideEvent` and asserts the flag stays | M |
 | 4 | `entity/player.rs:2173` | `ItemStack#hurtAndBreak` | elytra wear goes through `damage_item_in_slot`; Unbreaking / durability-enchantment application inside `damage_item_stack` was not verified without a decompiled reference | compare `damage_item_stack` against `ItemStack#hurtAndBreak` before relying on it | M |
-
-## Status (gapwave2 h1)
-- Row 1 (`checkFallDistanceAccumulation` 1.0 clamp): NOT A GAP, no change. Recall of vanilla `LivingEntity.checkFallDistanceAccumulation` is `if (delta.y > -0.5 && fallDistance > 1.0) fallDistance = 1.0`, which is what `player.rs:3914` does. UNVERIFIED (no decompiled source).
-- Row 2 (stale `gliding` TODO in `causeFoodExhaustion`): STILL OPEN, needs a decompiled `Player.causeFoodExhaustion` / `checkMovementStatistics` check first.
-- Row 3 (M gametest for glide veto): STILL OPEN, M-size gametest not in this slice.
-- Row 4 (`hurtAndBreak` verification): STILL OPEN, needs the decompiled `ItemStack#hurtAndBreak`.

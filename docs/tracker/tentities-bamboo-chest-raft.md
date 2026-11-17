@@ -33,7 +33,7 @@ loot/damage helpers in `entity/vehicle/vehicle.rs`.
 
 | # | Location | Vanilla class/method | Gap | Fix | Size |
 |---|---|---|---|---|---|
-| 1 | `boat.rs:233` | `AbstractBoat.canBeCollidedWith` | Returns `true` unconditionally; vanilla returns `!isRemoved()` | `!self.vehicle.entity.is_removed()` | S |
+| FIXED (9d66a66d9, UNVERIFIED) 1 | `boat.rs:233` | `AbstractBoat.canBeCollidedWith` | Returns `true` unconditionally; vanilla returns `!isRemoved()` | `!self.vehicle.entity.is_removed()` | S |
 | 2 | `boat.rs:286` | `AbstractBoat.interact`, `ChestBoat.interact` | No `is_alive()`/removed guard; a dead/removed boat can still board a player or open its menu | Early `PASS` when `!is_alive()` | S |
 | 3 | `boat.rs:208` | `AbstractBoat.tick` -> `tickBubbleColumn` | Upward bubble columns do not lift the boat, downward ones do not sink it | Read `BubbleColumnBlock` state under the boat and set vertical velocity, then flag `velocity_dirty` | M |
 | 4 | `boat.rs:256` | `ChestBoat.destroy` / `ContainerHelper.dropContents` | Contents are dropped only when `doEntityDrops` is on and never on a creative break; vanilla drops the 27 slots regardless of the gamerule (only the boat item is gamerule-gated). No `.vendor` copy to confirm ordering | Unconditional `scatter_inventory`, keep the item drop gated | S |
