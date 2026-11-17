@@ -155,7 +155,8 @@ impl CreeperEntity {
                 cloud_entity,
                 ItemStack::new(0, &Item::GLASS_BOTTLE),
                 effects,
-                600,
+                // Vanilla Creeper.spawnLingeringCloud setDuration(300).
+                300,
                 2.5,
                 20,
                 10,
