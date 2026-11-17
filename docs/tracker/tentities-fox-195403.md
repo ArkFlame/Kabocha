@@ -1,4 +1,4 @@
-**FIXED** `82261e6bf` (fix(fox): block sleep onset in water or rain). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `82261e6bf` (fix(fox): block sleep onset in water or rain). VERIFIED against code: entity/passive/fox/goals.rs:718-721 (no sleep onset in water or rain).
 
 # entities / Fox (re-review)
 Reviewed: `crates/pumpkin-core/src/entity/passive/fox/` (mod.rs, goals.rs) against vanilla `net.minecraft.world.entity.animal.Fox` and its inner goals (no decompiled source in this worktree; compared against vanilla behaviour).

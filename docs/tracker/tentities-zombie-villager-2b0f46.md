@@ -1,4 +1,4 @@
-**FIXED** `cdaaff7ca` (feat(entity): give cured zombie villager its binding gear as equipment). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `cdaaff7ca` (feat(entity): give cured zombie villager its binding gear as equipment). VERIFIED against code: entity/mob/zombie/zombie_villager.rs:310 (binding gear kept worn).
 
 # Tracker: entities / Zombie Villager (RE-REVIEW-UNTRACKED)
 

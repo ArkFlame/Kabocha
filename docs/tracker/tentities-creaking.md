@@ -1,4 +1,4 @@
-**FIXED** `40aaf5620` (fix(creaking): require line of sight for gaze and use non-following melee goal). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `ed0b42fc5` (fix(creaking): use non-following melee goal and gate gaze on line of sight). UNVERIFIED: this pass changed creaking.rs melee goal to `MeleeAttackGoal::new(1.0, false)` (was `true`) and added `has_line_of_sight` to `is_looking_at_me`; epsilon 0.025 follows the Enderman analogue, not a decompiled check; no test added.
 
 # entities/Creaking - re-review
 

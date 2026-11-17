@@ -1,4 +1,4 @@
-**FIXED** `9728ac352` (fix(entity): apply sulfur cube body state on item pickup). Matched by commit subject on master; code not re-diffed in this sweep.
+**STILL OPEN** `9728ac352` (fix(entity): apply sulfur cube body state on item pickup). Reverted from FIXED: pickup path sulfur_cube.rs:896-901 calls on_item_pickup but the body-state update was not traced in this pass.
 
 # Tracker: entities / Sulfur Cube (RE-REVIEW)
 

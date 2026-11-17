@@ -1,4 +1,4 @@
-**FIXED** `ee43e7835` (fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)). Matched by commit subject on master; code not re-diffed in this sweep.
+**STILL OPEN** `ee43e7835` (fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)). Reverted from FIXED: subject not verified against code in this pass.
 
 # items / Elytra (re-review 2026-11-16, slug titems-elytra-08fcad)
 

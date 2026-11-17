@@ -1,4 +1,4 @@
-**FIXED** `de83cad5a` (fix(breeze): play ambient idle only when idle or airborne (#4249)). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `de83cad5a` (fix(breeze): play ambient idle only when idle or airborne (#4249)). VERIFIED against code: breeze.rs:84-98 (ground/air idle ambient).
 
 # Tracker: entities / Breeze (RE-REVIEW)
 

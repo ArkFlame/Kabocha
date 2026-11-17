@@ -1,4 +1,4 @@
-**FIXED** `5abaeaa7e` (fix(entity): feline goal parity for cats and ocelots (#3984)). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `5abaeaa7e` (fix(entity): feline goal parity for cats and ocelots (#3984)). VERIFIED against code: entity/passive/ocelot.rs:29,71 (flee and tempt gated by is_wary).
 
 # entities / Ocelot — re-review (source changed)
 

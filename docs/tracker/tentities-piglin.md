@@ -1,4 +1,4 @@
-**FIXED** `6cf40066c` (fix(piglin): default CanPickUpLoot to true when loading (#4238)). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `6cf40066c` (fix(piglin): default CanPickUpLoot to true when loading (#4238)). VERIFIED against code: entity/mob/piglin.rs:1052-1054 (CanPickUpLoot defaults true when absent).
 
 # entities / Piglin (RE-REVIEW)
 

@@ -1,4 +1,4 @@
-**FIXED** `670d154bd` (fix(drowned): use the world rng for the nautilus shell roll). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `670d154bd` (fix(drowned): use the world rng for the nautilus shell roll). VERIFIED against code: entity/mob/zombie/drowned.rs:292 (nautilus roll via self.get_random(); source RNG not traced).
 
 # Tracker audit: entities / Drowned
 

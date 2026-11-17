@@ -1,4 +1,4 @@
-**FIXED** `80cd2b048` (fix(entity): apply fishing bobber gravity from the water fluid tag). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `80cd2b048` (fix(entity): apply fishing bobber gravity from the water fluid tag). VERIFIED against code: entity/projectile/fishing_bobber.rs:383 (fluid tag test), :457-459 (gravity while airborne).
 
 # entities / Fishing Bobber (RE-REVIEW)
 

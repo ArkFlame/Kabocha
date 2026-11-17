@@ -1,4 +1,4 @@
-**FIXED** `d519983cb` (feat(combat): use 3d distance for mace smash knockback). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `d519983cb` (feat(combat): use 3d distance for mace smash knockback). VERIFIED against code: entity/combat.rs:136-141 (3D offset distance, 3.5 radius).
 
 # items / Mace (RE-REVIEW after source change)
 

@@ -1,4 +1,4 @@
-**FIXED** `1357273b3` (fix(entity): stop camels and camel husks blocking sleep). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `1357273b3` (fix(entity): stop camels and camel husks blocking sleep). VERIFIED against code: entity/passive/camel.rs:466-468 (is_preventing_player_rest false); bed.rs NO_SLEEP_IDS has no camel ids.
 
 # entities / Camel Husk — re-review audit (2026-11-17)
 

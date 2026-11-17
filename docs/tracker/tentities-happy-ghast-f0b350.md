@@ -1,4 +1,4 @@
-**FIXED** `dde09024b` (fix(parrot): exclude happy ghast from ambient imitation list). Matched by commit subject on master; code not re-diffed in this sweep.
+**FIXED** `dde09024b` (fix(parrot): exclude happy ghast from ambient imitation list). VERIFIED against code: entity/passive/parrot.rs:106 (filter) and :474 (silent entry).
 
 # entities / Happy Ghast
 
