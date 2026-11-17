@@ -628,7 +628,9 @@ macro_rules! impl_block_entity_for_cooking {
                                 }
                             }
                         }
-                    } else {
+                    } else if is_top_items_empty || furnace_recipe.is_some() {
+                        // Vanilla resets progress when the input is empty or the recipe cannot
+                        // be accepted, but freezes it for a non-cooking input.
                         self.set_cooking_time_spent(0);
                     }
                 } else if !self.is_burning() && self.get_cooking_time_spent() > 0 {
