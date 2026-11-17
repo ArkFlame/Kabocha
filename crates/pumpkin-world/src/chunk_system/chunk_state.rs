@@ -181,7 +181,7 @@ impl StagedChunkEnum {
             Self::Lighting => &[Self::Features, Self::Features],
             Self::Spawn => &[Self::Lighting, Self::Lighting],
             Self::Full => &[Self::Spawn, Self::Spawn],
-            _ => panic!(),
+            _ => &[],
         }
     }
 }
@@ -309,7 +309,12 @@ impl Chunk {
             })),
         ) {
             Self::Proto(proto) => proto,
-            Self::Level(_) => panic!("Cannot upgrade a Level chunk"),
+            Self::Level(level) => {
+                // Restore the level chunk we just swapped out before bailing.
+                *self = Self::Level(level);
+                tracing::warn!("upgrade_to_level_chunk called on a level chunk");
+                return;
+            }
         };
 
         let proto_chunk = *proto_chunk_box;

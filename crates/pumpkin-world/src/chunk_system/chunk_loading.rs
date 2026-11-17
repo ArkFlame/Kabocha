@@ -43,12 +43,11 @@ impl ChunkLoading {
         }
         assert_eq!(temp.len(), self.pos_level.len());
         for val in &temp {
-            if val
-                != self
-                    .pos_level
-                    .get_key_value(val.0)
-                    .expect("key value exists")
-            {
+            let Some(actual) = self.pos_level.get_key_value(val.0) else {
+                tracing::warn!("chunk level missing key {:?}", val.0);
+                return false;
+            };
+            if val != actual {
                 Self::dump_level_debug(
                     &self.high_priority,
                     &self.pos_level,
@@ -58,12 +57,7 @@ impl ChunkLoading {
                     val.0.y + 40,
                 );
             }
-            assert_eq!(
-                val,
-                self.pos_level
-                    .get_key_value(val.0)
-                    .expect("key value exists")
-            );
+            assert_eq!(val, actual);
         }
         true
     }
@@ -350,6 +344,6 @@ fn test() {
             .collect::<Vec<_>>()
             .join("\n");
 
-        println!("\nloading level:\n{header}\n{grid}");
+        debug!("\nloading level:\n{header}\n{grid}");
     }
 }

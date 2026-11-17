@@ -244,7 +244,10 @@ pub async fn io_write_work(
                             level_for_upgrade.world_gen.load().dimension(),
                             &level_for_upgrade.lighting_config,
                         );
-                        let Chunk::Level(chunk) = temp else { panic!() };
+                        let Chunk::Level(chunk) = temp else {
+                            tracing::warn!("upgrade produced a non-level chunk at {pos:?}");
+                            continue;
+                        };
                         vec.push((pos, chunk));
                     }
                 }

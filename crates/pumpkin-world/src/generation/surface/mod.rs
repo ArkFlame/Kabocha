@@ -267,15 +267,20 @@ impl<'a> MaterialRuleContext<'a> {
             if let Some(single_id) = surface_biomes.single_biome() {
                 Biome::from_id(single_id).unwrap_or(&Biome::PLAINS)
             } else {
-                let Some(biome_id) = chunk.get_terrain_gen_biome_id_from_neighborhood(
+                match chunk.get_terrain_gen_biome_id_from_neighborhood(
                     surface_biomes,
                     self.block_pos_x,
                     self.block_pos_y,
                     self.block_pos_z,
-                ) else {
-                    panic!("surface biome neighborhood must cover fuzzy biome lookup");
-                };
-                Biome::from_id(biome_id).unwrap_or(&Biome::PLAINS)
+                ) {
+                    Some(biome_id) => Biome::from_id(biome_id).unwrap_or(&Biome::PLAINS),
+                    None => {
+                        tracing::warn!(
+                            "surface biome neighborhood does not cover fuzzy biome lookup"
+                        );
+                        &Biome::PLAINS
+                    }
+                }
             }
         } else {
             chunk.get_terrain_gen_biome(self.block_pos_x, self.block_pos_y, self.block_pos_z)

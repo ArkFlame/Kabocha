@@ -560,7 +560,10 @@ impl Cache {
             Chunk::Proto(_) => {}
         }
         match stage {
-            StagedChunkEnum::Empty => panic!("empty stage"),
+            StagedChunkEnum::Empty => {
+                tracing::warn!("advance called with empty stage");
+                return;
+            }
             StagedChunkEnum::StructureStart => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {
                     self.chunks[index]
@@ -654,7 +657,10 @@ impl Cache {
             Chunk::Proto(_) => {}
         }
         match stage {
-            StagedChunkEnum::Empty => panic!("empty stage"),
+            StagedChunkEnum::Empty => {
+                tracing::warn!("advance called with empty stage");
+                return;
+            }
             StagedChunkEnum::StructureStart => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {
                     self.chunks[mid]
@@ -713,13 +719,13 @@ impl Cache {
             },
             StagedChunkEnum::Surface => match generator {
                 generator::WorldGenerator::Noise(noise_gen) => {
-                    let surface_biomes = self
-                        .surface_biomes
-                        .take()
-                        .expect("surface stage requires a complete biome neighborhood");
-                    self.chunks[mid]
-                        .get_proto_chunk_mut()
-                        .step_to_surface(noise_gen, &surface_biomes);
+                    if let Some(surface_biomes) = self.surface_biomes.take() {
+                        self.chunks[mid]
+                            .get_proto_chunk_mut()
+                            .step_to_surface(noise_gen, &surface_biomes);
+                    } else {
+                        tracing::warn!("surface stage requires a complete biome neighborhood");
+                    }
                 }
                 generator::WorldGenerator::Flat(flat_gen) => {
                     flat_gen.step_to_surface(self.chunks[mid].get_proto_chunk_mut());

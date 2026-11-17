@@ -670,7 +670,9 @@ impl GenerationSchedule {
                                 self.publish_chunk(pos, chunk.clone());
                                 self.listener.process_new_chunk(pos, chunk);
                             }
-                            Chunk::Proto(_) => panic!(),
+                            Chunk::Proto(_) => {
+                                warn!("public chunk at {pos:?} is still a proto chunk")
+                            }
                         }
                     }
                 }
@@ -902,7 +904,10 @@ impl GenerationSchedule {
         }
 
         for pos in stranded {
-            let holder = self.chunk_map.get_mut(&pos).expect("holder exists");
+            let Some(holder) = self.chunk_map.get_mut(&pos) else {
+                warn!("stranded chunk {pos:?} has no holder");
+                continue;
+            };
             if !holder.occupied.is_null() && self.graph.nodes.contains_key(holder.occupied) {
                 continue;
             }
@@ -1026,10 +1031,14 @@ impl GenerationSchedule {
 
                 if should_save {
                     let chunk_to_save = match chunk {
-                        Chunk::Level(sync_chunk) => Chunk::Level(sync_chunk.clone()),
-                        Chunk::Proto(_) => holder.chunk.take().expect("proto chunk exists"),
+                        Chunk::Level(sync_chunk) => Some(Chunk::Level(sync_chunk.clone())),
+                        Chunk::Proto(_) => holder.chunk.take(),
                     };
-                    chunks.push((*pos, chunk_to_save));
+                    if let Some(chunk_to_save) = chunk_to_save {
+                        chunks.push((*pos, chunk_to_save));
+                    } else {
+                        warn!("proto chunk at {pos:?} missing during save");
+                    }
                 }
             }
         }
@@ -1065,7 +1074,10 @@ impl GenerationSchedule {
         };
         let mut edge = old.edge;
         while !edge.is_null() {
-            let cur = self.graph.edges.remove(edge).expect("edge exists");
+            let Some(cur) = self.graph.edges.remove(edge) else {
+                warn!("edge {edge:?} missing while removing node edges");
+                break;
+            };
             if let Some(node) = self.graph.nodes.get_mut(cur.to) {
                 debug_assert!(node.in_degree >= 1);
                 node.in_degree -= 1;
@@ -1103,7 +1115,10 @@ impl GenerationSchedule {
     fn receive_chunk(&mut self, pos: ChunkPos, data: RecvChunk) {
         match data {
             RecvChunk::IO { chunk, read_failed } => {
-                let mut holder = self.chunk_map.remove(&pos).expect("holder exists");
+                let Some(mut holder) = self.chunk_map.remove(&pos) else {
+                    warn!("receive_chunk(IO): no holder for {pos:?}");
+                    return;
+                };
                 if holder.chunk.is_some() {
                     warn!(
                         "receive_chunk(IO): holder already has chunk at {:?}; replacing",
@@ -1161,8 +1176,10 @@ impl GenerationSchedule {
                     let new_pos = ChunkPos::new(data.x + dx, data.z + dy);
                     match chunk {
                         Chunk::Level(chunk) => {
-                            let mut holder =
-                                self.chunk_map.remove(&new_pos).expect("holder exists");
+                            let Some(mut holder) = self.chunk_map.remove(&new_pos) else {
+                                warn!("received level chunk without holder at {new_pos:?}");
+                                continue;
+                            };
                             let stage = StagedChunkEnum::Full;
                             if new_pos == pos {
                                 if holder.current_stage != StagedChunkEnum::Spawn {
@@ -1229,8 +1246,10 @@ impl GenerationSchedule {
                             self.chunk_map.insert(new_pos, holder);
                         }
                         Chunk::Proto(chunk) => {
-                            let mut holder =
-                                self.chunk_map.remove(&new_pos).expect("holder exists");
+                            let Some(mut holder) = self.chunk_map.remove(&new_pos) else {
+                                warn!("received proto chunk without holder at {new_pos:?}");
+                                continue;
+                            };
 
                             let stage = StagedChunkEnum::from(chunk.stage_id());
                             self.drop_satisfied_tasks(&mut holder, stage);
@@ -1450,11 +1469,13 @@ impl GenerationSchedule {
                         .get(&node.pos)
                         .and_then(|holder| holder.chunk.as_ref())
                         .map(Chunk::get_stage_id);
-                    if actual_stage.is_some_and(|stage| stage >= node.stage as u8) {
+                    if let Some(actual_stage) =
+                        actual_stage.filter(|&stage| stage >= node.stage as u8)
+                    {
                         if let Some(holder) = self.chunk_map.get_mut(&node.pos) {
                             holder.current_stage = holder
                                 .current_stage
-                                .max(StagedChunkEnum::from(actual_stage.expect("checked above")));
+                                .max(StagedChunkEnum::from(actual_stage));
                             let task_slot = &mut holder.tasks[node.stage as usize];
                             if *task_slot == task.1 {
                                 *task_slot = NodeKey::null();
@@ -1604,7 +1625,10 @@ impl GenerationSchedule {
                                 let mut prev_edge = EdgeKey::null();
                                 let mut change_head = None;
                                 while !cur_edge.is_null() {
-                                    let edge = self.graph.edges.get(cur_edge).expect("edge exists");
+                                    let Some(edge) = self.graph.edges.get(cur_edge) else {
+                                        warn!("edge {cur_edge:?} missing while occupying chunk");
+                                        break;
+                                    };
                                     if self.graph.nodes.contains_key(edge.to) {
                                         prev_edge = cur_edge;
                                         cur_edge = edge.next;
@@ -1616,11 +1640,12 @@ impl GenerationSchedule {
                                         if prev_edge.is_null() {
                                             change_head = Some(next);
                                         } else {
-                                            self.graph
-                                                .edges
-                                                .get_mut(prev_edge)
-                                                .expect("edge exists")
-                                                .next = next;
+                                            if let Some(prev) = self.graph.edges.get_mut(prev_edge)
+                                            {
+                                                prev.next = next;
+                                            } else {
+                                                warn!("edge {prev_edge:?} missing while relinking");
+                                            }
                                         }
                                     }
                                 }
