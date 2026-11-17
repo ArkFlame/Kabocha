@@ -482,7 +482,9 @@ impl GameTestWorld for ServerGameTestWorld {
         };
 
         self.world.remove_block_entity(position);
-        self.world.add_block_entity(entity);
+        self.world.add_block_entity(entity.clone());
+        // Vanilla `BlockEntity.loadStatic` + `setChanged`: mark the chunk dirty so the replacement syncs and saves.
+        self.world.update_block_entity(&entity);
         Ok(())
     }
 
