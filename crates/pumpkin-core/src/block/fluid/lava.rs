@@ -148,6 +148,22 @@ impl FlowingLava {
 const LAVA_FLOW_SPEED_NETHER: u32 = 10;
 const LAVA_FLOW_SPEED_SLOW: u32 = 30;
 
+/// Vanilla `LavaFluid.getSlopeFindDistance`: 4 in ultrawarm dimensions, 2 otherwise.
+const fn lava_slope_find_distance(fast_lava: bool) -> i32 {
+    if fast_lava { 4 } else { 2 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lava_slope_find_distance;
+
+    #[test]
+    fn lava_slope_find_distance_matches_vanilla_per_dimension() {
+        assert_eq!(lava_slope_find_distance(false), 2);
+        assert_eq!(lava_slope_find_distance(true), 4);
+    }
+}
+
 impl FluidBehaviour for FlowingLava {
     fn placed(
         &self,
@@ -262,7 +278,7 @@ impl FlowingFluid for FlowingLava {
     }
 
     fn get_max_flow_distance(&self, world: &World) -> i32 {
-        if world.dimension.fast_lava { 5 } else { 3 }
+        lava_slope_find_distance(world.dimension.fast_lava)
     }
 
     /// Determines if lava can convert to source blocks based on game rules.
