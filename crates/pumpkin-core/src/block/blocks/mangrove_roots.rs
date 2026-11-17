@@ -17,7 +17,7 @@ impl BlockMetadata for MangroveRootsBlock {
 impl BlockBehaviour for MangroveRootsBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = MangroveRootsLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

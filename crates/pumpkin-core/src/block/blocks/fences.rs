@@ -20,7 +20,7 @@ pub struct FenceBlock;
 impl BlockBehaviour for FenceBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut fence_props = FenceProperties::default(args.block);
-        fence_props.waterlogged = args.replacing.water_source();
+        fence_props.waterlogged = args.replacing.is_water();
 
         compute_fence_state(fence_props, args.world, args.block, args.position)
     }

@@ -38,7 +38,7 @@ impl BlockBehaviour for AmethystBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = AmethystClusterLikeProperties::from_state_id(args.block.default_state.id);
         props.facing = args.direction.opposite().to_facing();
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

@@ -24,7 +24,7 @@ impl BlockMetadata for ChainBlock {
 impl BlockBehaviour for ChainBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = IronChainLikeProperties::default(args.block);
-        props.r#waterlogged = args.replacing.water_source();
+        props.r#waterlogged = args.replacing.is_water();
         props.r#axis = match args.direction {
             BlockDirection::East | BlockDirection::West => Axis::X,
             BlockDirection::Up | BlockDirection::Down => Axis::Y,

@@ -26,7 +26,7 @@ impl BlockBehaviour for DynamicBlock {
             looking_direction: entity.get_facing().to_block_direction(),
             pitch: entity.pitch.load(),
             cursor_y: args.use_item_on.cursor_pos.y,
-            in_water: args.replacing.water_source(),
+            in_water: args.replacing.is_water(),
             sneaking: entity.is_sneaking(),
         };
         // Placement rules first, then connect rules from the neighbours.

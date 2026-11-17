@@ -736,13 +736,12 @@ pub enum BlockIsReplacing {
 
 impl BlockIsReplacing {
     #[must_use]
-    /// Returns true if the block was a water source block.
-    pub const fn water_source(&self) -> bool {
-        match self {
-            // Level 0 means the water is a source block
-            Self::Water(level) => *level == 0,
-            _ => false,
-        }
+    /// Returns true if the replaced fluid is water, source or flowing.
+    ///
+    /// Vanilla placement checks `FluidState#is(Fluids.WATER)`, which is true for both
+    /// still water (level 0) and flowing water (levels 1-7).
+    pub const fn is_water(&self) -> bool {
+        matches!(self, Self::Water(_))
     }
 }
 
@@ -863,5 +862,15 @@ mod tests {
     fn placement_collision_mirrors_can_place_inside_entities() {
         assert!(!EmptyPlacementCollision.has_placement_collision());
         assert!(DefaultPlacementCollision.has_placement_collision());
+    }
+
+    #[test]
+    fn is_water_matches_source_and_flowing_water() {
+        assert!(BlockIsReplacing::Water(0).is_water());
+        assert!(BlockIsReplacing::Water(1).is_water());
+        assert!(BlockIsReplacing::Water(7).is_water());
+        assert!(!BlockIsReplacing::None.is_water());
+        assert!(!BlockIsReplacing::Other.is_water());
+        assert!(!BlockIsReplacing::Itself(0).is_water());
     }
 }

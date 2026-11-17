@@ -32,7 +32,7 @@ impl BlockBehaviour for ActivatorRailBlock {
         let mut rail_props = RailProperties::default(args.block);
         let player_facing = args.player.get_entity().get_horizontal_facing();
 
-        rail_props.set_waterlogged(args.replacing.water_source());
+        rail_props.set_waterlogged(args.replacing.is_water());
         rail_props.set_straight_shape(compute_placed_rail_shape(
             args.world,
             args.position,

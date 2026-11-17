@@ -205,7 +205,7 @@ impl BlockBehaviour for SculkShriekerBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = SculkShriekerLikeProperties::default(args.block);
         props.shrieking = false;
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

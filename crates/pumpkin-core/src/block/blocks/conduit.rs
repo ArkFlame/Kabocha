@@ -15,7 +15,7 @@ impl BlockBehaviour for ConduitBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props =
             pumpkin_data::block_properties::MangroveRootsLikeProperties::default(args.block);
-        props.r#waterlogged = args.replacing.water_source();
+        props.r#waterlogged = args.replacing.is_water();
 
         props.to_state_id(args.block)
     }

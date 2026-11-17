@@ -87,7 +87,7 @@ impl BlockBehaviour for TrapDoorBlock {
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut trapdoor_props = TrapDoorProperties::default(args.block);
-        trapdoor_props.waterlogged = args.replacing.water_source();
+        trapdoor_props.waterlogged = args.replacing.is_water();
 
         let powered = block_receives_redstone_power(args.world, args.position);
 

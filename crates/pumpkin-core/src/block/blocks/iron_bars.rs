@@ -20,7 +20,7 @@ pub struct IronBarsBlock;
 impl BlockBehaviour for IronBarsBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut bars_props = IronBarsProperties::default(args.block);
-        bars_props.waterlogged = args.replacing.water_source();
+        bars_props.waterlogged = args.replacing.is_water();
 
         compute_bars_state(bars_props, args.world, args.block, args.position)
     }

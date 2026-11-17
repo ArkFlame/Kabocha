@@ -56,7 +56,7 @@ impl BlockBehaviour for MultifaceBlock {
         };
         let mut props = GlowLichenLikeProperties::default(args.block);
         set_face(&mut props, direction);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

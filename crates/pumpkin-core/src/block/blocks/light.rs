@@ -15,7 +15,7 @@ pub struct LightBlock;
 impl BlockBehaviour for LightBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = LightLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

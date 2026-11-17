@@ -35,7 +35,7 @@ impl BlockBehaviour for CandleBlock {
         }
 
         let mut properties = CandleLikeProperties::default(args.block);
-        properties.waterlogged = args.replacing.water_source();
+        properties.waterlogged = args.replacing.is_water();
         properties.to_state_id(args.block)
     }
 

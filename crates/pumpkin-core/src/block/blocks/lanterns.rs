@@ -18,7 +18,7 @@ pub struct LanternBlock;
 impl BlockBehaviour for LanternBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = LanternLikeProperties::default(args.block);
-        props.r#waterlogged = args.replacing.water_source();
+        props.r#waterlogged = args.replacing.is_water();
 
         let mut directions = args.player.get_entity().get_entity_facing_order();
         if args.replacing == BlockIsReplacing::None {

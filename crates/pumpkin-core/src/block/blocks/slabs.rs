@@ -24,7 +24,7 @@ impl BlockBehaviour for SlabBlock {
         }
 
         let mut slab_props = SlabProperties::default(args.block);
-        slab_props.waterlogged = args.replacing.water_source();
+        slab_props.waterlogged = args.replacing.is_water();
         slab_props.r#type = match args.direction {
             BlockDirection::Up => SlabType::Top,
             BlockDirection::Down => SlabType::Bottom,

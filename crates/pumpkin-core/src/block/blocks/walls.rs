@@ -25,7 +25,7 @@ pub struct WallBlock;
 impl BlockBehaviour for WallBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut wall_props = WallProperties::default(args.block);
-        wall_props.waterlogged = args.replacing.water_source();
+        wall_props.waterlogged = args.replacing.is_water();
 
         compute_wall_state(wall_props, args.world, args.block, args.position)
     }

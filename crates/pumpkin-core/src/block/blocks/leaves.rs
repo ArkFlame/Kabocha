@@ -56,7 +56,7 @@ impl BlockBehaviour for LeavesBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = OakLeavesLikeProperties::from_state_id(args.block.default_state.id);
         props.persistent = true;
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props = update_distance(args.world, args.position, props);
         props.to_state_id(args.block)
     }

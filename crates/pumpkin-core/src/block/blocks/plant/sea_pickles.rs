@@ -99,7 +99,7 @@ impl BlockBehaviour for SeaPickleBlock {
         }
 
         let mut sea_pickle_prop = SeaPickleProperties::default(args.block);
-        sea_pickle_prop.waterlogged = args.replacing.water_source();
+        sea_pickle_prop.waterlogged = args.replacing.is_water();
         sea_pickle_prop.to_state_id(args.block)
     }
 

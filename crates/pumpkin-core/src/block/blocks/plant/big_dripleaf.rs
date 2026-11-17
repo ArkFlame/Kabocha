@@ -164,7 +164,7 @@ impl BlockBehaviour for BigDripleafBlock {
         let mut dripleaf_props = BigDripleafLikeProperties::default(args.block);
 
         dripleaf_props.facing = facing;
-        dripleaf_props.waterlogged = args.replacing.water_source();
+        dripleaf_props.waterlogged = args.replacing.is_water();
 
         dripleaf_props.to_state_id(args.block)
     }

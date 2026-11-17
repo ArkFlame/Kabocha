@@ -142,7 +142,7 @@ fn count_potential_connections(world: &World, pos: &BlockPos) -> usize {
 impl BlockBehaviour for RailBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut rail_props = RailProperties::default(args.block);
-        rail_props.set_waterlogged(args.replacing.water_source());
+        rail_props.set_waterlogged(args.replacing.is_water());
 
         let default_flat = args
             .player

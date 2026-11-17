@@ -4,8 +4,8 @@ use std::sync::atomic::Ordering;
 use crate::block::blocks::dripstone::{CauldronDripFluid, cauldron_drip_fluid};
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, GetInsideCollisionShapeArgs,
-    OnEntityCollisionArgs, OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
+    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, OnEntityCollisionArgs,
+    OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
 };
 use crate::entity::EntityBase;
 use crate::entity::player::Player;
@@ -101,6 +101,7 @@ fn lower_fill_level(world: &Arc<World>, pos: &BlockPos, block: &Block, current_l
     world.emit_game_event(GameEvent::BlockChange.name(), pos.to_centered_f64());
 }
 
+/// Vanilla content column only; the `getEntityInsideCollisionShape` AABB spans the whole block.
 fn content_collision_box(block_id: BlockId, state_id: BlockStateId) -> BoundingBox {
     let max_y = match block_id {
         BlockId::WATER_CAULDRON | BlockId::POWDER_SNOW_CAULDRON => {
@@ -605,10 +606,6 @@ impl BlockBehaviour for CauldronBlock {
         }
 
         BlockActionResult::PassToDefaultBlockAction
-    }
-
-    fn get_inside_collision_shape(&self, args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
-        content_collision_box(args.block.id, args.state.id)
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {

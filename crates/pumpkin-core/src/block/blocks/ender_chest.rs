@@ -67,7 +67,7 @@ impl BlockBehaviour for EnderChestBlock {
             .entity
             .get_horizontal_facing()
             .opposite();
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

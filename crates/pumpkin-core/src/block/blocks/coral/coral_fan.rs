@@ -52,7 +52,7 @@ impl BlockBehaviour for CoralFanBlock {
         if args.direction == BlockDirection::Down {
             let support_block = args.world.get_block_state(&args.position.down());
             if support_block.is_side_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
+                return get_default_coral_fan_state_id(args.block, args.replacing.is_water());
             }
         }
         let mut directions = args.player.get_entity().get_entity_facing_order();
@@ -71,7 +71,7 @@ impl BlockBehaviour for CoralFanBlock {
         } else if directions[0] == Facing::Down {
             let support_block = args.world.get_block_state(&args.position.down());
             if support_block.is_side_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
+                return get_default_coral_fan_state_id(args.block, args.replacing.is_water());
             }
         }
 
@@ -85,7 +85,7 @@ impl BlockBehaviour for CoralFanBlock {
                     return BlockStateId::AIR;
                 };
                 let mut coral_wall_fan_props = CoralWallFanLikeProperties::default(wall_block);
-                coral_wall_fan_props.waterlogged = args.replacing.water_source();
+                coral_wall_fan_props.waterlogged = args.replacing.is_water();
                 coral_wall_fan_props.facing = opp_facing;
                 return coral_wall_fan_props.to_state_id(wall_block);
             }
@@ -93,7 +93,7 @@ impl BlockBehaviour for CoralFanBlock {
 
         let support_block = args.world.get_block_state(&args.position.down());
         if support_block.is_side_solid(BlockDirection::Up) {
-            return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
+            return get_default_coral_fan_state_id(args.block, args.replacing.is_water());
         }
         BlockStateId::AIR
     }

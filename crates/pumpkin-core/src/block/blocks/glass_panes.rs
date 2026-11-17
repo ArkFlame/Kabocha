@@ -19,7 +19,7 @@ pub struct GlassPaneBlock;
 impl BlockBehaviour for GlassPaneBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut pane_props = GlassPaneProperties::default(args.block);
-        pane_props.waterlogged = args.replacing.water_source();
+        pane_props.waterlogged = args.replacing.is_water();
 
         compute_pane_state(pane_props, args.world, args.block, args.position)
     }

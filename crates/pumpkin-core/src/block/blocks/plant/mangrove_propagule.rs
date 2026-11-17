@@ -100,7 +100,7 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         props.hanging = false;
         props.age = MAX_AGE;
         props.stage = 0;
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

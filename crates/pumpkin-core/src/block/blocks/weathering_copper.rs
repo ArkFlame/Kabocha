@@ -819,7 +819,7 @@ impl BlockMetadata for WeatheringCopperGrateBlock {
 impl BlockBehaviour for WeatheringCopperGrateBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = MangroveRootsLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 
@@ -913,7 +913,7 @@ impl BlockBehaviour for CopperGolemStatueBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = CopperGolemStatueLikeProperties::default(args.block);
         props.facing = args.player.get_entity().get_horizontal_facing().opposite();
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         if let Ok(hand) = Hand::from_packet_id(args.use_item_on.hand.0)
             && let Some(pose) =
                 Self::pose_from_item(&args.player.inventory().get_stack_in_hand(hand))

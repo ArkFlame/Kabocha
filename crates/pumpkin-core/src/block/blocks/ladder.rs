@@ -30,7 +30,7 @@ impl BlockBehaviour for LadderBlock {
             }
         }
         let mut props = LadderLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
 
         let mut directions = args.player.get_entity().get_entity_facing_order();
         if args.replacing == BlockIsReplacing::None

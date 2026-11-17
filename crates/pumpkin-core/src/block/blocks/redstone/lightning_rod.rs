@@ -97,7 +97,7 @@ impl BlockBehaviour for LightningRodBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = LightningRodLikeProperties::default(args.block);
         props.facing = args.direction.to_facing().opposite();
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.to_state_id(args.block)
     }
 

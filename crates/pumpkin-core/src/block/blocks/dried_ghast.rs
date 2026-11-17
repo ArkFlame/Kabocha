@@ -37,7 +37,7 @@ const fn horizontal_facing_to_yaw(facing: HorizontalFacing) -> f32 {
 impl BlockBehaviour for DriedGhastBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = DriedGhastLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args.replacing.is_water();
         props.facing = args.player.get_entity().get_horizontal_facing().opposite();
         props.to_state_id(args.block)
     }

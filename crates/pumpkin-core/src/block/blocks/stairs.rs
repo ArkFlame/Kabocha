@@ -22,7 +22,7 @@ pub struct StairBlock;
 impl BlockBehaviour for StairBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut stair_props = StairsProperties::default(args.block);
-        stair_props.waterlogged = args.replacing.water_source();
+        stair_props.waterlogged = args.replacing.is_water();
 
         stair_props.facing = args.player.get_entity().get_horizontal_facing();
         stair_props.half = match args.direction {

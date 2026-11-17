@@ -313,7 +313,7 @@ fn unpack_chest_loot(
 
 fn on_place_chest_impl(args: &OnPlaceArgs<'_>) -> BlockStateId {
     let mut chest_props = ChestLikeProperties::default(args.block);
-    chest_props.waterlogged = args.replacing.water_source();
+    chest_props.waterlogged = args.replacing.is_water();
 
     let (r#type, facing) = compute_chest_props(
         args.world,

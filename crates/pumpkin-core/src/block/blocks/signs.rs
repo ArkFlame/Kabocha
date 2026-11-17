@@ -200,7 +200,7 @@ impl SignBlock {
             facing,
             rotation,
             attached,
-            waterlogged: args.replacing.water_source(),
+            waterlogged: args.replacing.is_water(),
         })
     }
 

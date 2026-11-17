@@ -62,7 +62,7 @@ impl BlockBehaviour for DripstoneBlock {
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut dripstone_props = PointedDripstoneLikeProperties::default(args.block);
-        dripstone_props.waterlogged = args.replacing.water_source();
+        dripstone_props.waterlogged = args.replacing.is_water();
         let Some(support_block_ver_dir) = get_support_block_vertical_direction(
             args.world,
             args.block,

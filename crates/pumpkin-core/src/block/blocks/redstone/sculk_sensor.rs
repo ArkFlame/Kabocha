@@ -195,11 +195,11 @@ impl BlockBehaviour for SculkSensorBlock {
         if args.block.id == BlockId::CALIBRATED_SCULK_SENSOR {
             let mut props = CalibratedSculkSensorLikeProperties::default(args.block);
             props.facing = args.player.living_entity.entity.get_horizontal_facing();
-            props.waterlogged = args.replacing.water_source();
+            props.waterlogged = args.replacing.is_water();
             props.to_state_id(args.block)
         } else {
             let mut props = SculkSensorLikeProperties::default(args.block);
-            props.waterlogged = args.replacing.water_source();
+            props.waterlogged = args.replacing.is_water();
             props.to_state_id(args.block)
         }
     }
