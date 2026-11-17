@@ -13,7 +13,7 @@ use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::tracked_data;
-use pumpkin_data::villager::{VillagerProfession, VillagerType};
+use pumpkin_data::villager::VillagerType;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::bedrock::server::ActorEventID;
@@ -82,14 +82,11 @@ impl ZombieVillagerEntity {
         })
     }
 
-    /// Default villager data with a random profession, so a cured villager has trades.
+    /// Vanilla default villager data: plains, unemployed, level 1. The biome type is
+    /// applied on spawn and the cure keeps the profession, so a naturally spawned
+    /// zombie villager heals into an unemployed villager that then claims a job site.
     fn initialize_zombie_villager_data() -> VillagerData {
-        VillagerData::new(
-            VillagerType::Plains,
-            VillagerProfession::from_i32(rand::random_range(0..15))
-                .unwrap_or(VillagerProfession::None),
-            1,
-        )
+        VillagerData::new(VillagerType::Plains, VillagerProfession::None, 1)
     }
 
     #[must_use]
