@@ -24,7 +24,7 @@ for r in rows:
     if n>=need: break
 PY
   echo "$slug" >> "$tried"
-  flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "$slug" >/dev/null 2>&1
+  scripts/wt.sh new "$slug" >/dev/null 2>&1
   f="$KAB_RUNS/brief-$slug.md"
   case "$cov" in
    UNCOVERED) goal="IMPLEMENT the missing behaviour described in the tracker note, matching vanilla (see docs/TODO_2.md section 2 row for this item for file:line and vanilla class). Smallest correct change; update callers; add the smallest automated test only if trivial." ;;

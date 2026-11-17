@@ -4,7 +4,7 @@
 # and TECHNICAL GUIDANCE (files, functions, snippets, test). The worker implements it; it does not re-evaluate or skip.
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"
 kind="$1"; n="$2"; g="$3"; [ -s "$g" ] || { echo "guidance file missing: $g" >&2; exit 1; }
-name=$([ "$kind" = pr ] && echo "oc$n" || echo "i$n"); flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "$name" >/dev/null 2>&1 || true
+name=$([ "$kind" = pr ] && echo "oc$n" || echo "i$n"); scripts/wt.sh new "$name" >/dev/null 2>&1 || true
 f="$KAB_RUNS/brief-$name.md"; label=$([ "$kind" = pr ] && echo "upstream PR #$n" || echo "upstream issue #$n")
 cat > "$f" <<B
 <role>You are a Rust engineer implementing a change that was already evaluated and designed. Work alone, one pass.</role>

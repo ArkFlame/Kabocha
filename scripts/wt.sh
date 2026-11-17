@@ -12,7 +12,8 @@ case "$cmd" in
          && git -C "$KAB_WT/$name" checkout -q -B "kab/$name" "$base" >&2 2>&1; then rmdir "$spare.take"; echo "$KAB_WT/$name"; exit 0; fi
       rmdir "$spare.take" 2>/dev/null
     fi
-    git -C "$KAB_ROOT" worktree add -b "kab/$name" "$KAB_WT/$name" "$base" >&2; echo "$KAB_WT/$name" ;;
+    # cold fallback: serialise only this path (pool claims are atomic and need no lock)
+    flock "$KAB_RUNS/wt.lock" git -C "$KAB_ROOT" worktree add -b "kab/$name" "$KAB_WT/$name" "$base" >&2; echo "$KAB_WT/$name" ;;
   warm)
     exec 6>"$KAB_RUNS/warm.lock"; flock -n 6 || exit 0
     n="${name:-12}"

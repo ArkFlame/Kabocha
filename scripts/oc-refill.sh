@@ -16,7 +16,7 @@ launch_pr() { # prep one PR and start its worker; never fails the batch
     *CLEAN) echo "$pr" >> "$KAB_RUNS/clean.txt"; return 0 ;;
     *CLOSED) return 0 ;;
   esac
-  flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "oc$pr" >/dev/null 2>&1 || true
+  scripts/wt.sh new "oc$pr" >/dev/null 2>&1 || true
   local brief; brief="$(scripts/brief-pr.sh "$pr" 2>/dev/null | tail -1)"
   [ -s "$brief" ] && scripts/oc-agent.sh "oc$pr" "$brief" 9>&- || echo "no brief for PR $pr" >&2
 }

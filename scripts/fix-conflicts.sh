@@ -3,7 +3,7 @@
 # default 20) that rebases that branch onto master in its own worktree and resolves the conflicts, keeping both sides' intent.
 source "$(dirname "$0")/lib.sh"; cd "$KAB_ROOT"; max="${2:-20}"
 grep -E '^CONFLICT ' "$1" | awk '{print $2}' | sort -u | head -"$max" | while read -r b; do
-  w=${b#kab/}; d="$KAB_WT/$w"; [ -d "$d" ] || { flock "$KAB_RUNS/wt.lock" scripts/wt.sh new "$w" >/dev/null 2>&1 || true; }
+  w=${b#kab/}; d="$KAB_WT/$w"; [ -d "$d" ] || { scripts/wt.sh new "$w" >/dev/null 2>&1 || true; }
   f="$KAB_RUNS/brief-rebase-$w.md"
   cat > "$f" <<B
 <role>You are a Rust engineer resolving git conflicts. Work alone, one pass.</role>
