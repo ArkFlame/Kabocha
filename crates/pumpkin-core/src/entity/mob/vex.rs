@@ -11,7 +11,7 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::mob::raider;
 use crate::entity::{
     Entity, EntityBase,
-    ai::goal::{Controls, Goal, look_at_entity::LookAtEntityGoal, swim::SwimGoal, to_goal_ticks},
+    ai::goal::{Controls, Goal, look_at_entity::LookAtEntityGoal, to_goal_ticks},
     mob::{Mob, MobEntity},
 };
 
@@ -75,7 +75,6 @@ impl VexEntity {
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(4, Box::new(VexChargeAttackGoal::default()));
             goal_selector.add_goal(8, Box::new(VexRandomMoveGoal));
             // Vanilla `LookAtPlayerGoal(this, Player.class, 3.0F, 1.0F)`.
