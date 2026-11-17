@@ -44,9 +44,9 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 
 | # | Gap | Rust | Vanilla | Suggested fix | Size |
 |---|---|---|---|---|---|
-| 1 | `CampfireStartEvent` cancel leaves total at 0 | `entities/campfire.rs:118-141`: a cancelled start event is refired every tick | event is Pumpkin-specific; vanilla has no cancel | cache the cancellation per slot or back off, e.g. reset via existing cooldown state | M |
-| 2 | Items without a campfire recipe never progress | `entities/campfire.rs:112-116`: `continue` before `cooking_times += 1` | `CampfireBlockEntity.litServerTick` increments every non-empty stack, then `cookItems` no-ops when no recipe matches | increment first and look up the recipe at completion (NBT/command-inserted stacks only) | S |
-| 3 | Cooked result count not split | `entities/campfire.rs:159`: spawns `recipe.result.count` | vanilla `cookItems` splits one item from `recipe.result` | `split(1)` when spawning; no current recipe yields more than one | S (latent) |
+| 1 | `CampfireStartEvent` cancel leaves total at 0 | `entities/campfire.rs:118-141`: a cancelled start event is refired every tick | event is Pumpkin-specific; vanilla has no cancel | cache the cancellation per slot or back off, e.g. reset via existing cooldown state | M (STILL OPEN, not attempted: M) |
+| 2 | Items without a campfire recipe never progress | `entities/campfire.rs:112-116`: `continue` before `cooking_times += 1` | `CampfireBlockEntity.litServerTick` increments every non-empty stack, then `cookItems` no-ops when no recipe matches | increment first and look up the recipe at completion (NBT/command-inserted stacks only) | S (STILL OPEN: vanilla no-recipe completion behaviour not verifiable from local sources; the fix needs the total time for recipe-less stacks, which is not set on insertion) |
+| 3 | Cooked result count not split | `entities/campfire.rs:159`: spawns `recipe.result.count` | vanilla `cookItems` splits one item from `recipe.result` | `split(1)` when spawning; no current recipe yields more than one | S (FIXED: `CampfireBlockEntity::cooked_result` splits 1, test `cooked_result_yields_single_item_per_cook`) |
 
 Note: the reviewed sources did not change after the last tracker commit (`56622ca89`);
 this pass re-checked the fixable rows against vanilla.
