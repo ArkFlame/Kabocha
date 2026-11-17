@@ -66,6 +66,15 @@ fn collect_configured_features(dir: &Path, prefix: &str, map: &mut BTreeMap<Stri
     }
 }
 
+/// Emits a geode IntProvider, falling back to the vanilla codec default when the key is omitted.
+fn geode_int_provider(config: &Value, key: &str, default_min: i32, default_max: i32) -> TokenStream {
+    if config[key].is_null() {
+        quote! { IntProvider::Object(NormalIntProvider::Uniform(UniformIntProvider { min_inclusive: #default_min, max_inclusive: #default_max })) }
+    } else {
+        value_to_int_provider(&config[key])
+    }
+}
+
 /// Reads configured_feature files from 26.2 datapack and emits the complete `ConfiguredFeature` enum `TokenStream`.
 pub fn build_enum() -> TokenStream {
     let json = load_configured_features();
@@ -609,8 +618,10 @@ pub fn value_to_configured_feature(v: &Value) -> TokenStream {
                 .as_bool()
                 .unwrap_or(true);
             let outer_wall_distance = value_to_int_provider(&config["outer_wall_distance"]);
-            let distribution_points = value_to_int_provider(&config["distribution_points"]);
-            let point_offset = value_to_int_provider(&config["point_offset"]);
+            // Vanilla's geode codec supplies these two IntProviders when the datapack omits
+            // them (the dumped amethyst_geode.json only lists non-default fields).
+            let distribution_points = geode_int_provider(&config, "distribution_points", 3, 4);
+            let point_offset = geode_int_provider(&config, "point_offset", 1, 2);
             let min_gen_offset = config["min_gen_offset"].as_i64().unwrap_or(-16) as i32;
             let max_gen_offset = config["max_gen_offset"].as_i64().unwrap_or(16) as i32;
             let noise_multiplier = config["noise_multiplier"].as_f64().unwrap_or(0.05);
