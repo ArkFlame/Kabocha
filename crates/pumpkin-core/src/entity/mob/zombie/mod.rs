@@ -317,16 +317,19 @@ impl ZombieEntityBase {
         let ride_nearby_chicken = rng.random::<f32>() < CHICKEN_JOCKEY_CHANCE;
         if ride_nearby_chicken {
             let area = entity.bounding_box.load().expand(5.0, 3.0, 5.0);
-            let chicken = world
+            let chickens: Vec<_> = world
                 .get_entities_of_type_at_box(&area, |entity_type| {
                     entity_type == &EntityType::CHICKEN
                 })
                 .into_iter()
-                .find(|chicken| {
+                .filter(|chicken| {
                     let chicken = chicken.get_entity();
                     chicken.is_alive() && !chicken.has_passengers() && !chicken.has_vehicle()
-                });
-            if let Some(chicken) = chicken {
+                })
+                .collect();
+            // Vanilla picks a random candidate, consuming a roll either way.
+            if !chickens.is_empty() {
+                let chicken = chickens[rng.random_range(0..chickens.len())].clone();
                 set_chicken_jockey(chicken.as_ref());
                 self.mob_entity.set_pending_vehicle(chicken);
             }
