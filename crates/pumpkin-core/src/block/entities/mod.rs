@@ -385,9 +385,10 @@ pub fn block_entity_from_nbt(nbt: &NbtCompound) -> Option<Arc<dyn BlockEntity>> 
         namespaced = format!("minecraft:{id}");
         namespaced.as_str()
     };
-    let x = nbt.get_int("x")?;
-    let y = nbt.get_int("y")?;
-    let z = nbt.get_int("z")?;
+    // Vanilla `NbtHelper.toBlockPos` reads missing coordinates as 0.
+    let x = nbt.get_int("x").unwrap_or(0);
+    let y = nbt.get_int("y").unwrap_or(0);
+    let z = nbt.get_int("z").unwrap_or(0);
     let pos = BlockPos::new(x, y, z);
     match id {
         barrel::BarrelBlockEntity::ID => {
@@ -788,6 +789,17 @@ mod test {
                 block.name
             );
         }
+    }
+
+    /// Vanilla `NbtHelper.toBlockPos` reads missing coordinates as 0, so NBT
+    /// without x/y/z must still produce an entity instead of dropping it.
+    #[test]
+    fn block_entity_without_coordinates_loads_at_the_origin() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", "chest".to_string());
+
+        let position = block_entity_from_nbt(&nbt).map(|entity| entity.get_position());
+        assert_eq!(position, Some(BlockPos::new(0, 0, 0)));
     }
 
     #[test]
