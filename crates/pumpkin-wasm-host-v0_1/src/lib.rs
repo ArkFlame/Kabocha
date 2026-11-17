@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(clippy::significant_drop_in_scrutinee)]
 // Not warn event sending macros
