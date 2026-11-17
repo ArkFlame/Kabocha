@@ -145,7 +145,7 @@ pub fn place_template_with_options(
             continue;
         }
 
-        let mut block_entity_nbt = block.nbt.clone();
+        let mut block_entity_nbt = block.nbt.as_deref().cloned();
         let jigsaw_entry: PaletteEntry;
         let placed_entry = if !keep_jigsaws && palette_entry.name == "minecraft:jigsaw" {
             // Jigsaw blocks are replaced during template processing, before block entities are
