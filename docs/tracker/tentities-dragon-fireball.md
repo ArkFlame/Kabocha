@@ -37,7 +37,7 @@ decompiled reference before changing.
 
 | # | file:line | Vanilla class | Gap | Suggested fix | Size | Verify |
 |---|---|---|---|---|---|---|
-| FIXED (4675a87ef, UNVERIFIED) 1 | `area_effect_cloud.rs:150` (used via `dragon_fireball.rs:155`) | `DragonFireball.onHit` | cloud `wait_time` is 20; vanilla dragon-fireball cloud uses `setWaitTime(10)` | pass `10` into `create_dragon_breath` | S | yes |
+| 1 | `area_effect_cloud.rs:150` (used via `dragon_fireball.rs:155`) | `DragonFireball.onHit` | cloud `wait_time` is 20; vanilla dragon-fireball cloud uses `setWaitTime(10)` | pass `10` into `create_dragon_breath` | S | yes |
 | 2 | `area_effect_cloud.rs:134-141` | `DragonFireball.onHit` / `Potions.HARMING` | instant damage amplifier is `1`; vanilla `Potions.HARMING` is amplifier `0`, and the sibling dragon-breath cloud at `phase/sit_breathing.rs:57-65` uses `0` | set amplifier to `0` (one value), confirms internal consistency | S | yes |
 | 3 | `area_effect_cloud.rs:296` | `AreaEffectCloud.tick` | radius/radiusPerTick only applied after the wait period; vanilla advances radius every tick | move the radius block above the `age < wait_time` early return | S | yes |
 | 4 | `area_effect_cloud.rs:142-148` | `DragonFireball.onHit` | dragon cloud sets `radius_on_use = 0.0`; vanilla may use `setRadiusOnUse(-0.5F)` (lingering-potion default) | pass `-0.5` if confirmed | S | yes |
@@ -47,11 +47,5 @@ decompiled reference before changing.
 Client-only / not testable headless: particle appearance of the cloud (`ParticlesDragonFireballSplash`,
 `dragon_breath` particle power 1.0) — noted, do not block.
 
-## Status (h2 pass)
-
-- 1 cloud wait time 20 -> 10: **FIXED** (631720a94), `create_dragon_breath`.
-- 2 harming amplifier 1 -> 0: **FIXED** (631720a94), `create_dragon_breath`.
-- 3 radius advance before wait period: **STILL OPEN** (not reached in this pass; `AreaEffectCloud.tick` needs a vanilla re-check first).
-- 4 radius_on_use -0.5: **STILL OPEN** (tracker marks it "if confirmed"; vanilla value not verified here).
-- 5 direct-hit fireball damage: **STILL OPEN** (needs the vanilla `DragonFireball` hierarchy check).
-- 6 cloud target selection: **STILL OPEN** (needs the vanilla `getEntitiesOfClass` loop re-check).
+## h6 pass 2 status
+- Rows 1-6 (S): STILL OPEN, not attempted this pass. Cloud wait time, potion amplifier, radius-per-tick timing, radius_on_use, direct-hit damage and nearest-target filter all need decompiled DragonFireball/AreaEffectCloud confirmation before a change; numerics from memory are not reliable enough to land.

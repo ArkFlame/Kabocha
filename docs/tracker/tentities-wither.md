@@ -22,12 +22,7 @@ Vanilla reference class: `net.minecraft.world.entity.boss.wither.WitherBoss` (+ 
 | 8 | `wither.rs:400-408` peaceful handling | vanilla despawns through `shouldDespawnInPeaceful`, keeping death/despawn bookkeeping | prefer the shared despawn path over a bare `entity.remove()` | S |
 | 9 | `wither.rs:641-666` `pre_damage` projectile immunity | powered wither immunity is checked against `DamageTypeTags.IS_PROJECTILE` semantics | confirm the exact vanilla projectile set (arrows, spectral arrows, wind charges) against decompiled `hurt` | S |
 
-## Status (h2 pass)
-
-- 4 main head attack needs line of sight: **FIXED** (631720a94), `has_line_of_sight` gate on the main head.
-- 1 extra `+5` lift clause: **STILL OPEN** (not reached in this pass).
-- 2 spawn-animation goal guard: **STILL OPEN** (not reached in this pass).
-- 5 bossbar progress from health: **STILL OPEN** (needs the max-health accessor; not reached in this pass).
-- 7 Gaussian idle head offsets: **STILL OPEN** (not reached in this pass).
-- 8 shared despawn path: **STILL OPEN** (not reached in this pass).
-- 9 projectile immunity set: **STILL OPEN** (needs the vanilla projectile set check).
+## h6 pass 2 status
+- Row 1 (lift clause +5 when unpowered): NOT A GAP. Vanilla WitherBoss.aiStep keeps the unpowered "y < target.y + 5" hover clause (UNVERIFIED against decompiled source, from memory).
+- Row 4 (main head needs line of sight): FIXED 7bdd7bd9a (wither.rs tick_main_head_attack; unseen target holds cooldown at zero). No unit test: needs a world fixture.
+- Row 2, 3, 5, 7, 8, 9: STILL OPEN, not attempted this pass (row 5 needs bossbar progress derivation, row 7 needs Gaussian source confirmation).
