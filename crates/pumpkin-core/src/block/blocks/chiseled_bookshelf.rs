@@ -171,11 +171,14 @@ impl ChiseledBookshelfBlock {
             Sound::BlockChiseledBookshelfPickup
         };
 
-        if player.get_inventory().insert_stack_anywhere(&mut stack) {
-            player.sync_inventory_to_client();
-        }
-        if !stack.is_empty() {
-            player.drop_item(stack);
+        // Vanilla: creative players do not collect the removed book.
+        if !player.is_creative() {
+            if player.get_inventory().insert_stack_anywhere(&mut stack) {
+                player.sync_inventory_to_client();
+            }
+            if !stack.is_empty() {
+                player.drop_item(stack);
+            }
         }
         entity.update_state(properties, world, slot);
 
