@@ -209,7 +209,7 @@ impl Mob for HoglinEntity {
     }
 
     /// Vanilla `Hoglin.getWalkTargetValue`: crimson nylium is preferred. The
-    /// repellent-first check needs the brain's NEAREST_REPELLENT memory, not ported yet.
+    /// repellent-first check needs the brain's `NEAREST_REPELLENT` memory, not ported yet.
     fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
         let world = self.mob_entity.living_entity.entity.world.load();
         if world.get_block(&pos.down()).id == Block::CRIMSON_NYLIUM.id {
