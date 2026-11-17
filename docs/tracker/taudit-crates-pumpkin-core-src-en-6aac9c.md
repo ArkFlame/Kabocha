@@ -63,3 +63,15 @@ Only two occurrences of "vanilla", both explanatory comments; no TODO/FIXME/XXX/
 Command-block GUI (creative interaction) gap is already tracked in
 `docs/tracker/tentities-command-block-minecart.md` gap 3 and lives in
 `minecart/command_block.rs`, not this file.
+
+## Fix pass (kab/f9)
+STILL OPEN: gap 1 (M) needs the vanilla NBT key (`DisplayTile` vs newer `DisplayState`) and block-state tracked-data serializer confirmed against decompiled `AbstractMinecart`; `.vendor/` is empty and no cargo run was allowed.
+STILL OPEN: gap 2 (M) needs non-player dimension change support, which does not exist yet; L-scale infrastructure risk.
+STILL OPEN: gap 3 (S) vanilla `MinecartFurnace`/`MinecartCommandBlock` tick ordering is marked verify and not confirmed against decompiled source.
+STILL OPEN: gap 4 (S) vanilla entry point for flint-and-steel on `MinecartTNT` is marked verify.
+STILL OPEN: gap 5 (S) fuse constant and `tntExplodes` branch are marked verify.
+STILL OPEN: gap 6 (S) vanilla `push` test (motion vs direction) is marked verify; PR #3794 history not checked here.
+STILL OPEN: gap 7 (S) whether vanilla unpacks loot on destroy is marked verify; behaviour change needs the vanilla call chain.
+STILL OPEN: gap 8 (S) vanilla `comeOffTrack` ground/water source is marked verify.
+STILL OPEN: gap 9 (S) vanilla `positionRider` attachment offset is marked verify.
+STILL OPEN: gap 10 (S) test-only; expected rail positions would be derived from the implementation rather than vanilla, and tests could not be compiled without cargo.
