@@ -504,8 +504,10 @@ macro_rules! impl_block_entity_for_cooking {
                             .map_or(0, |fuel| fuel.get_burn_ticks(is_fast));
 
                         let mut burn_ticks = adjusted_fuel_ticks;
-                        let mut burn_cancelled = false;
-                        if let Some(server) = world.server.upgrade() {
+                        // Vanilla only ignites, and Paper only fires `FurnaceBurnEvent`, when the
+                        // fuel reports a non-zero burn duration.
+                        let mut burn_cancelled = adjusted_fuel_ticks == 0;
+                        if !burn_cancelled && let Some(server) = world.server.upgrade() {
                             let mut burn_event = $crate::plugin::api::events::inventory::furnace_burn::FurnaceBurnEvent::new(
                                 self.position,
                                 bottom_item.item.registry_key.to_string(),
