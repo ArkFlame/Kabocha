@@ -59,21 +59,23 @@ pub struct CreakingEntity {
 }
 
 impl CreakingEntity {
+    fn set_navigation_malus(mob_entity: &mut MobEntity) {
+        let navigator = mob_entity
+            .navigator
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        navigator.set_pathfinding_malus(PathType::DamageOther, 8.0);
+        navigator.set_pathfinding_malus(PathType::PowderSnow, 8.0);
+        navigator.set_pathfinding_malus(PathType::Lava, 8.0);
+        navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
+        navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
+    }
+
     pub fn new(entity: Entity) -> Arc<Self> {
         let mut mob_entity = MobEntity::new(entity);
         // Vanilla `Creaking` keeps it away from damaging blocks, powder snow and lava, and
         // avoids fire entirely.
-        {
-            let navigator = mob_entity
-                .navigator
-                .get_mut()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            navigator.set_pathfinding_malus(PathType::DamageOther, 8.0);
-            navigator.set_pathfinding_malus(PathType::PowderSnow, 8.0);
-            navigator.set_pathfinding_malus(PathType::Lava, 8.0);
-            navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
-            navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
-        }
+        Self::set_navigation_malus(&mut mob_entity);
         let creaking = Self {
             mob_entity,
             can_move: AtomicBool::new(true),

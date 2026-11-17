@@ -183,7 +183,7 @@ impl PotionContents {
 
 #[cfg(test)]
 mod tests {
-    use super::PotionApplicationSource;
+    use super::{PotionApplicationSource, scale_potion_duration};
     use pumpkin_data::data_component_impl::PotionDurationScaleImpl;
     use pumpkin_data::item::Item;
     use pumpkin_data::item_stack::ItemStack;

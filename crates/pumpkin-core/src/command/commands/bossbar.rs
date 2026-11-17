@@ -198,6 +198,7 @@ impl CommandExecutor for AddExecutor {
 struct GetExecutor(CommandValueGet);
 
 impl CommandExecutor for GetExecutor {
+    #[expect(clippy::too_many_lines, reason = "one arm per bossbar property")]
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let namespace = BossbarIdArgumentType::get(context, "id")?;
         let server = context.source.server();

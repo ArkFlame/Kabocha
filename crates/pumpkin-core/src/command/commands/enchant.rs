@@ -180,18 +180,6 @@ impl CommandExecutor for EnchantExecutor {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::level_exceeds_max;
-
-    #[test]
-    fn level_at_max_is_accepted_and_above_is_rejected() {
-        assert!(!level_exceeds_max(5, 5));
-        assert!(!level_exceeds_max(0, 5));
-        assert!(level_exceeds_max(6, 5));
-    }
-}
-
 pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistry) {
     registry.register_permission_or_panic(Permission::new(
         PERMISSION,
@@ -211,4 +199,16 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
             ),
         ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::level_exceeds_max;
+
+    #[test]
+    fn level_at_max_is_accepted_and_above_is_rejected() {
+        assert!(!level_exceeds_max(5, 5));
+        assert!(!level_exceeds_max(0, 5));
+        assert!(level_exceeds_max(6, 5));
+    }
 }

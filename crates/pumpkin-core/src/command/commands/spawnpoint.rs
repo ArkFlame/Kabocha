@@ -112,25 +112,6 @@ impl CommandExecutor for SpawnpointExecutor {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn spawn_feedback_matches_vanilla_placeholders() {
-        let args = spawn_feedback_args(
-            BlockPos::new(1, 2, 3),
-            90.0,
-            "minecraft:overworld",
-            "Steve".to_string(),
-        );
-        assert_eq!(
-            args,
-            ["1", "2", "3", "90", "minecraft:overworld", "Steve"].map(String::from)
-        );
-    }
-}
-
 pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistry) {
     registry.register_permission_or_panic(Permission::new(
         PERMISSION,
@@ -156,4 +137,23 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                     ),
             ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spawn_feedback_matches_vanilla_placeholders() {
+        let args = spawn_feedback_args(
+            BlockPos::new(1, 2, 3),
+            90.0,
+            "minecraft:overworld",
+            "Steve".to_string(),
+        );
+        assert_eq!(
+            args,
+            ["1", "2", "3", "90", "minecraft:overworld", "Steve"].map(String::from)
+        );
+    }
 }

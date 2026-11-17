@@ -153,17 +153,6 @@ const fn lava_slope_find_distance(fast_lava: bool) -> i32 {
     if fast_lava { 4 } else { 2 }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::lava_slope_find_distance;
-
-    #[test]
-    fn lava_slope_find_distance_matches_vanilla_per_dimension() {
-        assert_eq!(lava_slope_find_distance(false), 2);
-        assert_eq!(lava_slope_find_distance(true), 4);
-    }
-}
-
 impl FluidBehaviour for FlowingLava {
     fn placed(
         &self,
@@ -323,5 +312,16 @@ impl FlowingFluid for FlowingLava {
 
         // Delegate quiescence, replacement and scheduling to the shared helper
         self.apply_spread(world, fluid, from_pos, pos, state_id, new_props);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lava_slope_find_distance;
+
+    #[test]
+    fn lava_slope_find_distance_matches_vanilla_per_dimension() {
+        assert_eq!(lava_slope_find_distance(false), 2);
+        assert_eq!(lava_slope_find_distance(true), 4);
     }
 }

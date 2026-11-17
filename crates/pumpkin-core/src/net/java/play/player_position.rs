@@ -11,22 +11,6 @@ pub(super) const fn rotation_is_finite(yaw: f32, pitch: f32) -> bool {
     yaw.is_finite() && pitch.is_finite()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{position_is_finite, rotation_is_finite};
-    use pumpkin_util::math::vector3::Vector3;
-
-    #[test]
-    fn rejects_non_finite_movement() {
-        assert!(position_is_finite(&Vector3::new(1.0, 64.0, -3.5)));
-        assert!(!position_is_finite(&Vector3::new(f64::NAN, 64.0, 0.0)));
-        assert!(!position_is_finite(&Vector3::new(0.0, f64::INFINITY, 0.0)));
-        assert!(rotation_is_finite(90.0, -45.0));
-        assert!(!rotation_is_finite(f32::NAN, 0.0));
-        assert!(!rotation_is_finite(0.0, f32::NEG_INFINITY));
-    }
-}
-
 impl JavaClient {
     pub(super) fn kick_invalid_player_movement(&self) {
         self.try_kick(&TextComponent::translate_cross(
@@ -91,5 +75,21 @@ impl JavaClient {
                 horizontal_collision: packet.collision & FLAG_HORIZONTAL_COLLISION != 0,
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{position_is_finite, rotation_is_finite};
+    use pumpkin_util::math::vector3::Vector3;
+
+    #[test]
+    fn rejects_non_finite_movement() {
+        assert!(position_is_finite(&Vector3::new(1.0, 64.0, -3.5)));
+        assert!(!position_is_finite(&Vector3::new(f64::NAN, 64.0, 0.0)));
+        assert!(!position_is_finite(&Vector3::new(0.0, f64::INFINITY, 0.0)));
+        assert!(rotation_is_finite(90.0, -45.0));
+        assert!(!rotation_is_finite(f32::NAN, 0.0));
+        assert!(!rotation_is_finite(0.0, f32::NEG_INFINITY));
     }
 }

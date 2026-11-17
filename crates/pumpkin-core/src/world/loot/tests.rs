@@ -26,7 +26,7 @@ fn ore_drops_multiplies_by_one_or_two_at_fortune_one() {
 #[test]
 fn survives_explosion_always_consumes_one_roll() {
     // Vanilla rolls nextFloat() <= 1 / radius unconditionally, even for radius <= 1.
-    for radius in [0.5_f32, 1.0, 3.0] {
+    for radius in [0.5f32, 1.0, 3.0] {
         let params = LootContextParameters {
             explosion_radius: Some(radius),
             ..Default::default()

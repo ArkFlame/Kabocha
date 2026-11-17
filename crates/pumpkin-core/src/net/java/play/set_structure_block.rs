@@ -70,25 +70,6 @@ fn apply_structure_block_settings(
         .unwrap_or_else(std::sync::PoisonError::into_inner) = packet.seed.0;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn structure_offset_is_clamped_to_48_blocks_each_way() {
-        assert_eq!(clamp_structure_offset(-127), -48);
-        assert_eq!(clamp_structure_offset(48), 48);
-        assert_eq!(clamp_structure_offset(-3), -3);
-    }
-
-    #[test]
-    fn structure_size_is_clamped_to_0_to_48() {
-        assert_eq!(clamp_structure_size(-1), 0);
-        assert_eq!(clamp_structure_size(49), 48);
-        assert_eq!(clamp_structure_size(16), 16);
-    }
-}
-
 impl JavaClient {
     pub fn handle_set_structure_block(&self, player: &Player, packet: &SSetStructureBlock<'_>) {
         if !player.is_creative() || player.permission_lvl.load() < PermissionLvl::Two {
@@ -167,5 +148,24 @@ impl JavaClient {
         world.update_block_entity(&block_entity);
         let state_id = world.get_block_state_id(&pos);
         world.register_block_change(pos, state_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn structure_offset_is_clamped_to_48_blocks_each_way() {
+        assert_eq!(clamp_structure_offset(-127), -48);
+        assert_eq!(clamp_structure_offset(48), 48);
+        assert_eq!(clamp_structure_offset(-3), -3);
+    }
+
+    #[test]
+    fn structure_size_is_clamped_to_0_to_48() {
+        assert_eq!(clamp_structure_size(-1), 0);
+        assert_eq!(clamp_structure_size(49), 48);
+        assert_eq!(clamp_structure_size(16), 16);
     }
 }
