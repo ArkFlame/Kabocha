@@ -46,7 +46,10 @@ impl CommandExecutor for TeamMsgCommandExecutor {
             return Err(NO_TEAM_ERROR.create_without_context());
         };
 
-        let team_display_name = team.display_name.clone().color_named(team.color);
+        let team_display_name = match team.color {
+            Some(color) => team.display_name.clone().color_named(color),
+            None => team.display_name.clone(),
+        };
         let message_component = TextComponent::text(message_text);
 
         let online_players = world.players.load();
