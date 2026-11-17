@@ -151,7 +151,7 @@ impl Ticker {
 /// when the deadline jumped, the `(behind_ms, ticks)` log payload.
 ///
 /// Skip and warning share one gate, as in vanilla: at most one skip per
-/// 10s + 100 ticks of deadline. In between, deadline stays behind and missed
+/// 10s + 100 ticks of wall time. In between, deadline stays behind and missed
 /// ticks run back to back. Accepted lag for vanilla timing parity.
 const fn apply_overload_skip(
     schedule: TickSchedule,
@@ -172,9 +172,11 @@ const fn apply_overload_skip(
         return (reset, None);
     }
 
-    let behind_nanos = now_nanos - next_tick_nanos;
-    // Vanilla measures from the scheduled tick, not from now.
-    let since_warning = next_tick_nanos - last_overload_warning_nanos;
+    let behind_nanos = now_nanos.saturating_sub(next_tick_nanos);
+    // Vanilla measures from the wall clock (`l - lastOverloadWarningNanos`), so a
+    // sustained overload re-warns every interval even though the deadline only
+    // advances one tick per iteration.
+    let since_warning = now_nanos.saturating_sub(last_overload_warning_nanos);
 
     if behind_nanos > OVERLOADED_THRESHOLD_NANOS + OVERLOADED_TICKS_THRESHOLD * this_tick_nanos
         && since_warning
@@ -186,7 +188,8 @@ const fn apply_overload_skip(
         let behind_ms = behind_nanos / NANOSECONDS_PER_MILLISECOND;
         let skipped = TickSchedule {
             next_tick_nanos: jumped,
-            last_overload_warning_nanos: jumped,
+            // Vanilla stamps the warning with the current time, not the deadline.
+            last_overload_warning_nanos: now_nanos,
         };
         return (skipped, Some((behind_ms, ticks)));
     }
@@ -253,10 +256,7 @@ mod tests {
         let (behind_ms, ticks) = skipped.expect("the first overload always warns");
         assert_eq!((behind_ms, ticks), (3000, 60));
         assert_eq!(schedule.next_tick_nanos, 60 * TICK_20_TPS);
-        assert_eq!(
-            schedule.last_overload_warning_nanos,
-            schedule.next_tick_nanos
-        );
+        assert_eq!(schedule.last_overload_warning_nanos, now);
     }
 
     #[test]
@@ -267,6 +267,27 @@ mod tests {
         assert_eq!(schedule.last_overload_warning_nanos, 0);
         // Vanilla holds the deadline too, so the server catches up instead of skipping.
         assert_eq!(schedule.next_tick_nanos, 0);
+    }
+
+    /// One 3s tick per iteration: the deadline only advances one tick per loop,
+    /// so the warning interval must come from the wall clock as in vanilla.
+    #[test]
+    fn sustained_overload_warns_again_after_wall_clock_interval() {
+        let mut schedule = TickSchedule::new();
+        let mut warned_on = Vec::new();
+
+        for tick in 0..8i64 {
+            let now = tick * 3 * NANOSECONDS_PER_SECOND;
+            let (updated, skipped) = apply_overload_skip(schedule, now, TICK_20_TPS);
+            schedule = updated;
+            schedule.next_tick_nanos += TICK_20_TPS;
+            if skipped.is_some() {
+                warned_on.push(tick);
+            }
+        }
+
+        // 10s + 100 * 50ms = 15s at 20 TPS, so the second warning lands on tick 6.
+        assert_eq!(warned_on, vec![1, 6]);
     }
 
     #[test]
