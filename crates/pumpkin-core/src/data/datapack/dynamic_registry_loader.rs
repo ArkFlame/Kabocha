@@ -295,7 +295,7 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
             load_registry_dir_recursive(namespace, base_dir, &path, registry_map);
         } else if path
             .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            .is_some_and(|ext| ext.to_str() == Some("json"))
             && let Ok(rel_path) = path.strip_prefix(base_dir)
         {
             let mut stem_path = rel_path.to_string_lossy().to_string();
@@ -534,6 +534,24 @@ mod tests {
         assert_eq!(nbt.get_string("asset_id"), Some("custom:entity/cat/fluffy"));
         assert!(nbt.get_string("optional").is_none());
         assert_eq!(nbt.get_list("list").map(<[NbtTag]>::len), Some(2));
+    }
+
+    #[test]
+    fn only_lowercase_json_files_are_loaded() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(temp_dir.join("lower.json"), r#"{"asset_id":"custom:lower"}"#).unwrap();
+        fs::write(temp_dir.join("upper.JSON"), r#"{"asset_id":"custom:upper"}"#).unwrap();
+
+        let mut registry: HashMap<String, RegistryEntryData> = HashMap::new();
+        load_registry_dir_recursive("custom", &temp_dir, &temp_dir, &mut registry);
+
+        // Vanilla only reads the exact `.json` suffix, so `.JSON` files are ignored.
+        assert_eq!(registry.len(), 1);
+        assert!(registry.contains_key("custom:lower"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]
