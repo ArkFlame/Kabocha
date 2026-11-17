@@ -59,6 +59,13 @@ const OUT_OF_WORLD_ERROR: CommandErrorType<0> = CommandErrorType::new(
     translation::java::ARGUMENT_POS_OUTOFWORLD,
 );
 
+/// Vanilla `CloneCommands.MAX_CLONE_AREA`, a fixed cap that ignores `maxBlockModifications`.
+const MAX_CLONE_AREA: i64 = 32768;
+
+const fn exceeds_clone_area(area: i64) -> bool {
+    area > MAX_CLONE_AREA
+}
+
 const STRICT_SKIP_FLAGS: BlockFlags = BlockFlags::from_bits_truncate(
     BlockFlags::UPDATE_KNOWN_SHAPE.bits()
         | BlockFlags::SKIP_DROPS.bits()
@@ -202,17 +209,9 @@ impl CommandExecutor for CloneExecutor {
         }
 
         let area = i64::from(size_x) * i64::from(size_y) * i64::from(size_z);
-        let limit = context
-            .source
-            .world()
-            .level_info
-            .load()
-            .game_rules
-            .max_block_modifications;
-
-        if area > limit {
+        if exceeds_clone_area(area) {
             return Err(TOOBIG_ERROR.create_without_context(
-                TextComponent::text(limit.to_string()),
+                TextComponent::text(MAX_CLONE_AREA.to_string()),
                 TextComponent::text(area.to_string()),
             ));
         }
@@ -493,4 +492,15 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                 ),
             ),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clone_area_cap_is_inclusive() {
+        assert!(!exceeds_clone_area(MAX_CLONE_AREA));
+        assert!(exceeds_clone_area(MAX_CLONE_AREA + 1));
+    }
 }

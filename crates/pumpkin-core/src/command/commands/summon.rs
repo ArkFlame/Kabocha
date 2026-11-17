@@ -1,3 +1,4 @@
+use pumpkin_data::entity::MobCategory;
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::difficulty::Difficulty;
@@ -22,9 +23,15 @@ const DESCRIPTION: &str = "Spawns an entity at position.";
 const PERMISSION: &str = "minecraft:command.summon";
 
 pub const ERROR_FAILED_PEACEFUL: CommandErrorType<0> = CommandErrorType::new(
-    translation::java::COMMANDS_SUMMON_FAILED_PEACEFUL,
+    translation::java::COMMANDS_SUMMON_FAILED,
     translation::bedrock::COMMANDS_SUMMON_FAILED,
 );
+
+/// Vanilla `instanceof Monster` on Peaceful. Only the monster category is hostile
+/// here; misc entities (armor stands, boats, items) share `MISC`, which is not friendly.
+pub fn is_blocked_on_peaceful(difficulty: Difficulty, category: &MobCategory) -> bool {
+    difficulty == Difficulty::Peaceful && category == &MobCategory::MONSTER
+}
 const ERROR_DUPLICATE_UUID: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SUMMON_FAILED_UUID,
     translation::bedrock::COMMANDS_SUMMON_FAILED,
@@ -55,7 +62,7 @@ impl CommandExecutor for SummonExecutor {
 
         let world = context.source.world();
         let difficulty = world.level_info.load().difficulty;
-        if difficulty == Difficulty::Peaceful && !entity_type.category.is_friendly {
+        if is_blocked_on_peaceful(difficulty, entity_type.category) {
             return Err(ERROR_FAILED_PEACEFUL.create_without_context());
         }
 
@@ -147,6 +154,22 @@ mod tests {
     use crate::command::commands::fetchprofile;
     use crate::command::context::command_source::CommandSource;
     use std::sync::Arc;
+
+    #[test]
+    fn peaceful_blocks_only_monsters() {
+        assert!(is_blocked_on_peaceful(
+            Difficulty::Peaceful,
+            &MobCategory::MONSTER
+        ));
+        assert!(!is_blocked_on_peaceful(
+            Difficulty::Peaceful,
+            &MobCategory::MISC
+        ));
+        assert!(!is_blocked_on_peaceful(
+            Difficulty::Easy,
+            &MobCategory::MONSTER
+        ));
+    }
 
     #[test]
     fn parse_summon_cat() {

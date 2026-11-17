@@ -46,7 +46,9 @@ use crate::command::commands::data::{
     BlockDataAccessor, DataAccessor, EntityDataAccessor, StorageDataAccessor, TargetKind,
     make_target_arg,
 };
-use crate::command::commands::summon::{ERROR_FAILED_PEACEFUL, INVALID_POSITION};
+use crate::command::commands::summon::{
+    ERROR_FAILED_PEACEFUL, INVALID_POSITION, is_blocked_on_peaceful,
+};
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::{
     CommandSource, ResultValueTaker, ReturnValue, ReturnValueCallable, ReturnValueCallback,
@@ -68,7 +70,6 @@ use crate::world::stopwatches::Stopwatches;
 use pumpkin_data::translation;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::PermissionLvl;
-use pumpkin_util::difficulty::Difficulty;
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
@@ -1367,9 +1368,7 @@ fn execute_summon_modifier(
     if !World::is_valid(BlockPos::floored_v(position)) {
         return Err(INVALID_POSITION.create_without_context());
     }
-    if world.level_info.load().difficulty == Difficulty::Peaceful
-        && !entity_type.category.is_friendly
-    {
+    if is_blocked_on_peaceful(world.level_info.load().difficulty, entity_type.category) {
         return Err(ERROR_FAILED_PEACEFUL.create_without_context());
     }
     let entity = from_type(entity_type, position, world, Uuid::new_v4());
