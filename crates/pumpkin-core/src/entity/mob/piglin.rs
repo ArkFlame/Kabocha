@@ -1048,6 +1048,11 @@ impl Mob for PiglinEntity {
         if let Some(dancing) = nbt.get_bool("IsDancing") {
             self.set_dancing(dancing);
         }
+        // Vanilla `AbstractPiglin.readAdditionalSaveData` keeps loot picking enabled when the
+        // tag carries no `CanPickUpLoot`; the generic mob read defaults it to false.
+        if nbt.get_bool("CanPickUpLoot").is_none() {
+            self.mob_entity.set_can_pick_up_loot(true);
+        }
         if let Some(inv_list) = nbt.get_list("Inventory") {
             let mut inv = self
                 .inventory
