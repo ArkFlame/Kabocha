@@ -281,7 +281,7 @@ impl ArmorStandEntity {
 
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
     /// 0.5 or less the stand breaks, dropping itself and all equipment.
-    fn cause_damage(&self, amount: f32) {
+    fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
         let entity = self.get_entity();
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
@@ -455,6 +455,29 @@ fn clicked_slot(
     slot
 }
 
+impl ArmorStandEntity {
+    /// Vanilla `ArmorStand/readAdditionalSaveData`: rebuild the client flag byte.
+    /// `NoBasePlate` is stored negated, so only `true` sets the hide flag.
+    fn read_flags(nbt: &NbtCompound) -> u8 {
+        let mut flags = 0u8;
+
+        if nbt.get_bool("Small") == Some(true) {
+            flags |= ArmorStandFlags::Small as u8;
+        }
+        if nbt.get_bool("ShowArms") == Some(true) {
+            flags |= ArmorStandFlags::ShowArms as u8;
+        }
+        if nbt.get_bool("NoBasePlate") == Some(true) {
+            flags |= ArmorStandFlags::HideBasePlate as u8;
+        }
+        if nbt.get_bool("Marker") == Some(true) {
+            flags |= ArmorStandFlags::Marker as u8;
+        }
+
+        flags
+    }
+}
+
 impl EntityBase for ArmorStandEntity {
     fn can_hit(&self) -> bool {
         !self.get_entity().is_removed() && !self.is_marker()
@@ -482,27 +505,6 @@ impl EntityBase for ArmorStandEntity {
         }
 
         nbt.put("Pose", self.pack_rotation());
-    }
-
-    /// Vanilla `ArmorStand/readAdditionalSaveData`: rebuild the client flag byte.
-    /// `NoBasePlate` is stored negated, so only `true` sets the hide flag.
-    fn read_flags(nbt: &NbtCompound) -> u8 {
-        let mut flags = 0u8;
-
-        if nbt.get_bool("Small") == Some(true) {
-            flags |= ArmorStandFlags::Small as u8;
-        }
-        if nbt.get_bool("ShowArms") == Some(true) {
-            flags |= ArmorStandFlags::ShowArms as u8;
-        }
-        if nbt.get_bool("NoBasePlate") == Some(true) {
-            flags |= ArmorStandFlags::HideBasePlate as u8;
-        }
-        if nbt.get_bool("Marker") == Some(true) {
-            flags |= ArmorStandFlags::Marker as u8;
-        }
-
-        flags
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
@@ -590,7 +592,7 @@ impl EntityBase for ArmorStandEntity {
         // Mirrors vanilla IGNITES_ARMOR_STANDS: ignite once, then burn health down.
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IGNITES_ARMOR_STANDS) {
             if entity.fire_ticks.load(Ordering::Relaxed) > 0 {
-                self.cause_damage(0.15);
+                self.cause_damage(self, 0.15);
             } else {
                 self.set_on_fire_for(5.0);
             }
@@ -600,7 +602,7 @@ impl EntityBase for ArmorStandEntity {
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BURNS_ARMOR_STANDS)
             && self.living_entity.health.load() > 0.5
         {
-            self.cause_damage(4.0);
+            self.cause_damage(self, 4.0);
             return false;
         }
 
