@@ -29,6 +29,7 @@ use pumpkin_protocol::java::client::play::Metadata;
 use pumpkin_util::GameMode;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::math::wrap_degrees;
 use pumpkin_util::text::TextComponent;
 
 use block_effects::BoatMovement;
@@ -498,6 +499,18 @@ impl EntityBase for BoatEntity {
     fn set_paddle_state(&self, left: bool, right: bool) {
         self.set_paddles(left, right);
     }
+    fn on_rider_positioned(&self, passenger: &dyn EntityBase) {
+        // Vanilla AbstractBoat.clampRotation: players steer themselves, other riders follow the hull.
+        if passenger.get_player().is_some() {
+            return;
+        }
+        let boat_yaw = self.get_entity().yaw.load();
+        let rider = passenger.get_entity();
+        let yaw = clamp_rider_yaw(rider.yaw.load(), boat_yaw);
+        rider.body_yaw.store(boat_yaw);
+        rider.yaw.store(yaw);
+        rider.head_yaw.store(yaw);
+    }
     fn cast_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -515,11 +528,29 @@ impl EntityBase for BoatEntity {
     }
 }
 
+/// Largest yaw offset, in degrees, a non-player rider may turn away from the boat's heading.
+const RIDER_MAX_TURN_DEGREES: f32 = 105.0;
+
+/// Returns the rider yaw after clamping it to within `RIDER_MAX_TURN_DEGREES` of the boat yaw.
+#[must_use]
+pub fn clamp_rider_yaw(rider_yaw: f32, boat_yaw: f32) -> f32 {
+    let offset = wrap_degrees(rider_yaw - boat_yaw);
+    let clamped = offset.clamp(-RIDER_MAX_TURN_DEGREES, RIDER_MAX_TURN_DEGREES);
+    rider_yaw + clamped - offset
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{is_chest_boat, max_passengers, without_loot_table};
+    use super::{clamp_rider_yaw, is_chest_boat, max_passengers, without_loot_table};
     use pumpkin_data::entity::EntityType;
     use pumpkin_nbt::compound::NbtCompound;
+
+    #[test]
+    fn rider_yaw_clamps_to_boat_heading_window() {
+        assert!((clamp_rider_yaw(10.0, 0.0) - 10.0).abs() < 1e-4);
+        // Offset 200 wraps to -160 and clamps to -105, so the rider lands at yaw 255 (-105 wrapped).
+        assert!((clamp_rider_yaw(200.0, 0.0) - 255.0).abs() < 1e-4);
+    }
 
     #[test]
     fn chest_boat_nbt_ignores_loot_table_keys_and_keeps_items() {
