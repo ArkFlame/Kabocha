@@ -1049,7 +1049,13 @@ impl MineShaftCorridor {
             if !chunk_box.contains_pos(&world_pos) {
                 return false;
             }
-            if chunk.get_block_state(&world_pos).to_state().is_air() {
+            // Vanilla requires a full solid face above (`isFaceSturdy(.., Direction.DOWN)`),
+            // not merely a non-air block, or supports appear under any ceiling block.
+            if !chunk
+                .get_block_state(&world_pos)
+                .to_state()
+                .is_center_solid(BlockDirection::Down.into())
+            {
                 return false;
             }
         }

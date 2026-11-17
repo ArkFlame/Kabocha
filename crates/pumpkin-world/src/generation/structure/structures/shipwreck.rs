@@ -337,7 +337,9 @@ impl StructurePieceBase for ShipwreckPiece {
                 continue;
             };
 
-            if chunk.get_block_state(&world_pos).to_block_id() == pumpkin_data::Block::WATER.id {
+            // Vanilla places shipwrecks with `setWaterlogged(!isBeached)`, so ocean wrecks
+            // waterlog every waterloggable block regardless of the fluid already in the chunk.
+            if !self.is_beached {
                 let mut modified_entry = PaletteEntry::clone(palette_entry);
                 if let Some(waterlogged) =
                     modified_entry.properties.iter_mut().find_map(|p| match p {

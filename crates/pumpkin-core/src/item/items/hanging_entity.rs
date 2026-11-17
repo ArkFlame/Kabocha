@@ -119,9 +119,10 @@ impl ItemBehaviour for HangingEntityItem {
             frame.set_facing(face);
             // Vanilla spawns the frame only when it survives on the clicked
             // face, which the frame checks against the supporting block.
-            if !frame.is_supported() {
-                return BlockActionResult::Consume;
+            if !frame.survives() {
+                return BlockActionResult::Fail;
             }
+
             let sound = frame.get_place_sound();
             let frame_arc = Arc::new(frame);
             world.play_sound(sound, SoundCategory::Blocks, &frame_pos);

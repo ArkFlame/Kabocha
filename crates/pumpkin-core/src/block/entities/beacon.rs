@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use pumpkin_data::Block;
 use pumpkin_data::effect::StatusEffect;
@@ -39,8 +39,6 @@ pub struct BeaconBlockEntity {
     last_check_y: AtomicI32,
     /// Set when the primary effect changes while the beam is up; consumed by `tick`.
     play_select_sound: AtomicBool,
-    custom_name: Mutex<Option<String>>,
-    lock_key: Mutex<Option<String>>,
     metadata: super::ContainerMetadata,
 }
 
@@ -66,8 +64,6 @@ impl BeaconBlockEntity {
             checking_beam_blocked: AtomicBool::new(false),
             last_check_y: AtomicI32::new(position.0.y - 1),
             play_select_sound: AtomicBool::new(false),
-            custom_name: Mutex::new(None),
-            lock_key: Mutex::new(None),
             metadata: super::ContainerMetadata::default(),
         }
     }
@@ -254,16 +250,6 @@ impl BlockEntity for BeaconBlockEntity {
         );
         // `Levels` is saved but, as in vanilla, not loaded: a reloaded beacon starts at 0 and
         // replays its activation on the first pulse.
-        *entity
-            .custom_name
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            nbt.get_string("CustomName").map(str::to_string);
-        *entity
-            .lock_key
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            nbt.get_string("Lock").map(str::to_string);
         entity
     }
 
@@ -279,22 +265,6 @@ impl BlockEntity for BeaconBlockEntity {
             self.secondary_effect.load(Ordering::Relaxed),
         );
         nbt.put_int("Levels", self.levels.load(Ordering::Relaxed));
-        if let Some(name) = self
-            .custom_name
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .as_ref()
-        {
-            nbt.put_string("CustomName", name.clone());
-        }
-        if let Some(lock) = self
-            .lock_key
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .as_ref()
-        {
-            nbt.put_string("Lock", lock.clone());
-        }
         self.metadata.write_nbt(nbt);
     }
 
@@ -407,14 +377,16 @@ impl BlockEntity for BeaconBlockEntity {
         &self,
         _state_id: pumpkin_data::BlockStateId,
     ) -> Option<NbtCompound> {
-        let name_guard = self.custom_name.lock().ok();
-        let name = name_guard.as_ref().and_then(|n| n.as_deref());
+        let name = self
+            .metadata
+            .get_custom_name()
+            .map(|name| name.get_text());
         Some(build_beacon_actor(
             self.position,
             self.primary_effect().map_or(0, StatusEffect::to_bedrock_id),
             self.secondary_effect()
                 .map_or(0, StatusEffect::to_bedrock_id),
-            name,
+            name.as_deref(),
         ))
     }
 
@@ -493,5 +465,22 @@ mod tests {
                 Some("Beacon")
             );
         }
+    }
+
+    #[test]
+    fn bedrock_actor_reads_component_custom_name() {
+        let position = BlockPos::new(5, 64, 5);
+        let mut name = NbtCompound::new();
+        name.put_string("text", "Beacon".to_string());
+        let mut nbt = NbtCompound::new();
+        nbt.put("CustomName", pumpkin_nbt::tag::NbtTag::Compound(name));
+        let beacon = BeaconBlockEntity::from_nbt(&nbt, position);
+        let actor = beacon.bedrock_block_actor_data(Block::BEACON.default_state.id);
+        assert_eq!(
+            actor
+                .as_ref()
+                .and_then(|actor| actor.get_string("CustomName")),
+            Some("Beacon")
+        );
     }
 }
