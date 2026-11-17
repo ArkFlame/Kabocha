@@ -20,6 +20,7 @@ use crate::entity::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    custom_sound::CustomSound,
     item_steerable::{ItemBasedSteering, ItemSteerable},
     mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
@@ -107,7 +108,30 @@ impl Animal for StriderEntity {
     }
 }
 
+impl CustomSound for StriderEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityStriderDeath)
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityStriderHurt)
+    }
+}
+
 impl Mob for StriderEntity {
+    /// Vanilla `Strider.getAmbientSound`: happy while saddled, ambient otherwise.
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.is_saddled() {
+            Sound::EntityStriderHappy
+        } else {
+            Sound::EntityStriderAmbient
+        })
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot == EquipmentSlot::SADDLE || self.mob_entity.can_pick_up_loot()
     }
