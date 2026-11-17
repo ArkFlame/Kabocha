@@ -7,7 +7,9 @@
 | select_trade | negative index cast to usize | fixed | ignored before offer index; out-of-range already guarded by `MerchantScreenHandler` |
 | select_trade | event index truncated `i32 as u8` | fixed | event is skipped for indices outside `u8`; selection still bounded by `MerchantScreenHandler` |
 | set_creative_slot | slot 1..=45, count <= max stack | ok | existing |
-| set_held_item | slot 0..=8 | ok | kicks `Invalid held slot` |
+| set_held_item | slot 0..=8 | fixed | out-of-range slot logged and ignored like vanilla `handleSetCarriedItem` (was kick); `hotbar_slot` test |
+| use_item / use_item_on | act on server-side hand/selected stack | ok | `inventory.get_stack_in_hand` / `held_item()`, client stack never trusted |
+| interact | PlayerInteractedWithEntity advancement | ok | fires in `handle_entity_interaction` on successful interaction with the held item |
 | edit_book | page/total size vs config | ok | existing, `book_size` config |
 | update_sign | chunk loaded, editable gate | ok | line length bounded by protocol codec |
 | move_vehicle | non-finite values, distance | ok | existing |

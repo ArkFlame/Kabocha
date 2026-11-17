@@ -1,15 +1,26 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 
+/// Vanilla `Inventory.getSelectionSize()`.
+const HOTBAR_SIZE: i16 = 9;
+
+/// Maps a client-claimed held slot to a hotbar index, `None` outside `0..HOTBAR_SIZE`.
+fn hotbar_slot(slot: i16) -> Option<u8> {
+    (0..HOTBAR_SIZE).contains(&slot).then_some(slot as u8)
+}
+
 impl JavaClient {
     pub fn handle_set_held_item(&self, server: &Arc<Server>, player: &Player, held: &SSetHeldItem) {
         player.update_last_action_time();
-        let slot = held.slot;
-        if !(0..=8).contains(&slot) {
-            self.try_kick(&TextComponent::text("Invalid held slot"));
+        // Vanilla `handleSetCarriedItem` logs and ignores an out-of-range slot instead of kicking.
+        let Some(slot) = hotbar_slot(held.slot) else {
+            warn!(
+                "Player id {} tried to set an invalid carried item slot {}",
+                player.entity_id(),
+                held.slot
+            );
             return;
-        }
-        let slot = slot as u8;
+        };
         let previous_slot = player.inventory.get_selected_slot();
         let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id) else {
             return;
@@ -48,5 +59,19 @@ impl JavaClient {
         let stack = inv.held_item();
         let equipment = &[(EquipmentSlot::MAIN_HAND, stack)];
         player.living_entity.send_equipment_changes(equipment);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hotbar_slot;
+
+    #[test]
+    fn held_slot_is_bounded_to_hotbar() {
+        assert_eq!(hotbar_slot(0), Some(0));
+        assert_eq!(hotbar_slot(8), Some(8));
+        assert_eq!(hotbar_slot(9), None);
+        assert_eq!(hotbar_slot(-1), None);
+        assert_eq!(hotbar_slot(i16::MAX), None);
     }
 }
