@@ -82,12 +82,17 @@ impl WorldGenSettingsData {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+/// One world clock's saved state (vanilla `ClockInstance`: total ticks,
+/// partial tick, rate and the paused flag).
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct DimensionClock {
     pub total_ticks: i64,
+    pub partial_tick: f32,
+    pub rate: f32,
+    pub paused: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct WorldClocksData {
     pub clocks: std::collections::HashMap<String, DimensionClock>,
     pub data_version: i32,
@@ -647,10 +652,13 @@ fn world_clocks_from_nbt(root: &NbtCompound) -> WorldClocksData {
             continue;
         }
         if let NbtTag::Compound(dim_compound) = tag {
-            let total_ticks = dim_compound.get_long("total_ticks").unwrap_or(0);
-            result
-                .clocks
-                .insert(key.to_string(), DimensionClock { total_ticks });
+            let clock = DimensionClock {
+                total_ticks: dim_compound.get_long("total_ticks").unwrap_or(0),
+                partial_tick: dim_compound.get_float("partial_tick").unwrap_or(0.0),
+                rate: dim_compound.get_float("rate").unwrap_or(1.0),
+                paused: dim_compound.get_bool("paused").unwrap_or(false),
+            };
+            result.clocks.insert(key.to_string(), clock);
         }
     }
 
@@ -668,6 +676,9 @@ pub fn write_world_clocks(
     for (dim_name, clock) in &clocks.clocks {
         let mut dim_compound = NbtCompound::new();
         dim_compound.put_long("total_ticks", clock.total_ticks);
+        dim_compound.put_float("partial_tick", clock.partial_tick);
+        dim_compound.put_float("rate", clock.rate);
+        dim_compound.put_bool("paused", clock.paused);
         inner.put_compound(dim_name, dim_compound);
     }
     inner.put_int("DataVersion", clocks.data_version);
@@ -894,5 +905,22 @@ mod tests {
         // Without phases the file stays the vanilla layout.
         write_weather(dir.path(), &WeatherData::default()).unwrap();
         assert!(read_weather(dir.path()).custom_phases.is_empty());
+    }
+
+    #[test]
+    fn world_clocks_round_trip_keeps_rate_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut clocks = WorldClocksData::default();
+        clocks.clocks.insert(
+            "minecraft:overworld".to_string(),
+            DimensionClock {
+                total_ticks: 42,
+                partial_tick: 0.25,
+                rate: 0.5,
+                paused: true,
+            },
+        );
+        write_world_clocks(dir.path(), &clocks).unwrap();
+        assert_eq!(read_world_clocks(dir.path()), clocks);
     }
 }

@@ -941,7 +941,7 @@ impl Server {
     /// Copies the overworld clock into the level data so `level.dat` keeps the
     /// game time and time of day across restarts, like vanilla.
     fn sync_level_time(&self) {
-        let Some((day_time, game_time)) = self
+        let Some((day_time, game_time, partial_tick, rate, paused)) = self
             .worlds
             .load()
             .iter()
@@ -951,7 +951,13 @@ impl Server {
                     .level_time
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                (time.time_of_day, time.world_age)
+                (
+                    time.time_of_day,
+                    time.world_age,
+                    time.partial_tick,
+                    time.rate,
+                    time.paused,
+                )
             })
         else {
             return;
@@ -960,6 +966,9 @@ impl Server {
             let mut info = (**info).clone();
             info.day_time = day_time;
             info.game_time = game_time;
+            info.clock_partial_tick = partial_tick;
+            info.clock_rate = rate;
+            info.clock_paused = paused;
             info
         });
     }

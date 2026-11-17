@@ -423,6 +423,9 @@ impl WorldInfoReader for AnvilLevelInfo {
             let clocks = read_world_clocks(level_folder);
             if let Some(overworld) = clocks.clocks.get("minecraft:overworld") {
                 level_data.day_time = overworld.total_ticks;
+                level_data.clock_partial_tick = overworld.partial_tick;
+                level_data.clock_rate = overworld.rate;
+                level_data.clock_paused = overworld.paused;
             }
         }
 
@@ -505,13 +508,15 @@ impl WorldInfoWriter for AnvilLevelInfo {
         // world_clocks.dat – persist the overworld day_time; preserve other
         let mut clocks = read_world_clocks(level_folder);
         clocks.data_version = data_version;
-        clocks
-            .clocks
-            .entry("minecraft:overworld".to_string())
-            .and_modify(|c| c.total_ticks = info.day_time)
-            .or_insert(crate::world_info::data_files::DimensionClock {
+        clocks.clocks.insert(
+            "minecraft:overworld".to_string(),
+            crate::world_info::data_files::DimensionClock {
                 total_ticks: info.day_time,
-            });
+                partial_tick: info.clock_partial_tick,
+                rate: info.clock_rate,
+                paused: info.clock_paused,
+            },
+        );
 
         if let Err(e) = write_world_clocks(level_folder, &clocks) {
             error!("Failed to write world_clocks.dat: {e}");
@@ -952,6 +957,9 @@ mod test {
             data_version: 4189,
             day_time: 1727,
             game_time: 0,
+            clock_partial_tick: 0.25,
+            clock_rate: 0.5,
+            clock_paused: true,
             difficulty: Difficulty::Normal,
             difficulty_locked: false,
             game_rules: GameRuleRegistry {

@@ -569,6 +569,9 @@ impl World {
         let mut level_time = LevelTime::new();
         let info = level_info.load();
         level_time.load_from(info.day_time, info.game_time);
+        level_time.partial_tick = info.clock_partial_tick;
+        level_time.rate = info.clock_rate;
+        level_time.paused = info.clock_paused;
         let mut worldborder = Worldborder::new(
             info.border_center_x,
             info.border_center_z,

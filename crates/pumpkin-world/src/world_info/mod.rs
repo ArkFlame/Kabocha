@@ -98,6 +98,15 @@ pub struct LevelData {
     #[serde(skip_serializing, default)]
     pub game_time: i64,
 
+    /// Overworld clock partial tick, rate and paused flag (vanilla `ClockInstance`).
+    /// Persisted to `data/minecraft/world_clocks.dat` with `day_time`.
+    #[serde(skip_serializing, default)]
+    pub clock_partial_tick: f32,
+    #[serde(skip_serializing, default)]
+    pub clock_rate: f32,
+    #[serde(skip_serializing, default)]
+    pub clock_paused: bool,
+
     /// Remaining ticks of forced-clear weather.
     /// Persisted to `data/minecraft/weather.dat`.
     #[serde(rename = "clearWeatherTime", skip_serializing, default)]
@@ -617,6 +626,9 @@ impl LevelData {
             world_gen_settings: WorldGenSettings::new(seed),
             day_time: 0,
             game_time: 0,
+            clock_partial_tick: 0.0,
+            clock_rate: 1.0,
+            clock_paused: false,
             clear_weather_time: -1,
             raining: false,
             rain_time: 0,
