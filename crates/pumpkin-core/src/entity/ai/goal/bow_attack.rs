@@ -27,6 +27,7 @@ pub struct BowAttackGoal {
     strafing_time: i32,
     draw_ticks: i32,
     drawing: bool,
+    bow_hand: Hand,
 }
 
 impl BowAttackGoal {
@@ -49,23 +50,29 @@ impl BowAttackGoal {
             strafing_time: -1,
             draw_ticks: 0,
             drawing: false,
+            bow_hand: Hand::Right,
         }
     }
 
-    fn main_hand_item(mob: &dyn Mob) -> ItemStack {
+    fn hand_item(mob: &dyn Mob, hand: Hand) -> ItemStack {
+        let slot = crate::entity::hand_equipment_slot(hand);
         mob.get_mob_entity()
             .living_entity
             .entity_equipment
             .try_lock()
-            .map_or_else(
-                |_| ItemStack::EMPTY.clone(),
-                |eq| eq.get(&pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND),
-            )
+            .map_or_else(|_| ItemStack::EMPTY.clone(), |eq| eq.get(&slot))
+    }
+
+    /// Vanilla `Mob::isHolding` checks the main hand first, then the off hand.
+    fn bow_hand(mob: &dyn Mob) -> Option<Hand> {
+        [Hand::Right, Hand::Left]
+            .into_iter()
+            .find(|hand| Self::hand_item(mob, *hand).item.id == Item::BOW.id)
     }
 
     #[must_use]
     pub fn is_holding_bow(mob: &dyn Mob) -> bool {
-        Self::main_hand_item(mob).item.id == Item::BOW.id
+        Self::bow_hand(mob).is_some()
     }
 
     fn stop_drawing(&mut self, mob: &dyn Mob) {
@@ -77,7 +84,7 @@ impl BowAttackGoal {
     }
 
     /// Spawns the arrow, matching vanilla `AbstractSkeleton::performRangedAttack`.
-    fn shoot(mob: &dyn Mob, target: &Arc<dyn EntityBase>) {
+    fn shoot(mob: &dyn Mob, target: &Arc<dyn EntityBase>, hand: Hand) {
         let entity = mob.get_entity();
         let world = entity.world.load();
         let world_full = entity.world.load_full();
@@ -88,7 +95,7 @@ impl BowAttackGoal {
             .get_arrow_projectile()
             .unwrap_or_else(|| ItemStack::new(1, &Item::ARROW));
 
-        let bow_item = Self::main_hand_item(mob);
+        let bow_item = Self::hand_item(mob, hand);
         let arrow = ArrowEntity::new_shot_with_weapon(
             arrow_entity,
             entity,
@@ -260,7 +267,7 @@ impl Goal for BowAttackGoal {
                 self.draw_ticks += 1;
                 if self.draw_ticks >= Self::DRAW_TIME {
                     self.stop_drawing(mob);
-                    Self::shoot(mob, &target);
+                    Self::shoot(mob, &target, self.bow_hand);
                     self.attack_time = mob
                         .get_min_attack_interval()
                         .unwrap_or(self.attack_interval);
@@ -268,11 +275,15 @@ impl Goal for BowAttackGoal {
             }
         } else {
             self.attack_time -= 1;
-            if self.attack_time <= 0 && self.see_time >= -60 {
-                let stack = Self::main_hand_item(mob);
+            if self.attack_time <= 0
+                && self.see_time >= -60
+                && let Some(hand) = Self::bow_hand(mob)
+            {
+                let stack = Self::hand_item(mob, hand);
                 mob.get_mob_entity()
                     .living_entity
-                    .set_active_hand(Hand::Right, stack, i32::MAX);
+                    .set_active_hand(hand, stack, i32::MAX);
+                self.bow_hand = hand;
                 self.drawing = true;
                 self.draw_ticks = 0;
             }
