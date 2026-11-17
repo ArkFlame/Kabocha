@@ -523,9 +523,9 @@ impl Mob for AxolotlEntity {
     /// Vanilla `Axolotl.baseTick`: `handleAirSupply` replaces the air rules of `LivingEntity`
     /// (water breathers never drown, the rest of the air logic), except without AI, where only
     /// those run and the air of an axolotl on land refills instead of running out.
-    fn base_tick(&self) {
+    fn base_tick(&self, caller: &dyn EntityBase) {
         if self.mob_entity.is_no_ai() {
-            self.mob_entity.living_entity.tick_air_supply(self);
+            self.mob_entity.living_entity.tick_air_supply(caller);
         } else {
             self.handle_air_supply(self.get_entity().air_supply.load(Ordering::Relaxed));
         }
@@ -877,9 +877,9 @@ mod tests {
         let world = world(&folder);
         let axolotl = axolotl(&world);
 
-        axolotl.base_tick();
-        axolotl.base_tick();
-        axolotl.base_tick();
+        axolotl.base_tick(axolotl.as_ref());
+        axolotl.base_tick(axolotl.as_ref());
+        axolotl.base_tick(axolotl.as_ref());
         assert_eq!(air_supply(&axolotl), 5997);
         assert!(
             axolotl
@@ -893,13 +893,13 @@ mod tests {
             .get_entity()
             .touching_water
             .store(true, Ordering::Relaxed);
-        axolotl.base_tick();
+        axolotl.base_tick(axolotl.as_ref());
         assert_eq!(air_supply(&axolotl), 6000);
         axolotl
             .get_entity()
             .air_supply
             .store(-15, Ordering::Relaxed);
-        axolotl.base_tick();
+        axolotl.base_tick(axolotl.as_ref());
         assert_eq!(air_supply(&axolotl), 6000);
         world.level.shutdown().await;
         Ok(())
@@ -918,14 +918,14 @@ mod tests {
 
         axolotl.get_entity().air_supply.store(1, Ordering::Relaxed);
         for tick in 1..=20 {
-            axolotl.base_tick();
+            axolotl.base_tick(axolotl.as_ref());
             assert_eq!(air_supply(&axolotl), 1 - tick, "tick {tick}");
             assert!(
                 living.get_last_damage_source().is_none(),
                 "hurt too early at tick {tick}"
             );
         }
-        axolotl.base_tick();
+        axolotl.base_tick(axolotl.as_ref());
         assert_eq!(air_supply(&axolotl), 0);
         assert_eq!(
             living.get_last_damage_source(),
@@ -936,13 +936,13 @@ mod tests {
         living.last_damage_taken.store(0.0);
         living.hurt_cooldown.store(0, Ordering::Relaxed);
         for _ in 0..19 {
-            axolotl.base_tick();
+            axolotl.base_tick(axolotl.as_ref());
         }
         assert!(
             living.last_damage_taken.load().abs() < 1e-6,
             "hurt again too early"
         );
-        axolotl.base_tick();
+        axolotl.base_tick(axolotl.as_ref());
         assert_eq!(air_supply(&axolotl), 0);
         assert!((living.last_damage_taken.load() - 2.0).abs() < 1e-6);
         world.level.shutdown().await;

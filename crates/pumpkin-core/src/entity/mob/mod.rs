@@ -2129,7 +2129,13 @@ pub trait Mob: EntityBase + Send + Sync {
 
     fn post_tick(&self) {}
 
-    fn base_tick(&self) {}
+    /// Vanilla LivingEntity.baseTick: run the generic air supply rules. Species with their own
+    /// rules (water animals drying out on land) replace this hook.
+    fn base_tick(&self, caller: &dyn EntityBase) {
+        self.get_mob_entity()
+            .living_entity
+            .tick_air_supply(caller);
+    }
 
     fn travel(&self, _caller: &dyn EntityBase) -> bool {
         false

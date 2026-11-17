@@ -384,7 +384,10 @@ impl Mob for DrownedEntity {
         !self.get_entity().is_swimming()
     }
 
-    fn base_tick(&self) {
+    fn base_tick(&self, caller: &dyn EntityBase) {
+        self.get_mob_entity()
+            .living_entity
+            .tick_air_supply(caller);
         let entity = self.get_entity();
         entity.set_swimming(
             !self.get_mob_entity().is_no_ai() && entity.is_under_water() && self.wants_to_swim(),
