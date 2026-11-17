@@ -3,7 +3,9 @@ use std::sync::{Arc, Weak};
 
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -149,6 +151,16 @@ impl HoglinEntity {
 
         if let Some(living) = zoglin.get_living_entity() {
             living.set_health(self.mob_entity.living_entity.health.load());
+            // Vanilla conversion adds nausea to the resulting zoglin.
+            living.add_effect(Effect {
+                effect_type: &StatusEffect::NAUSEA,
+                duration: 200,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
         }
 
         if let Some(custom_name) = &**entity.custom_name.load() {
