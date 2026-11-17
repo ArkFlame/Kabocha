@@ -42,6 +42,28 @@ pub struct CommandOriginData<'a> {
     pub player_id: i64,
 }
 
+impl PacketRead for CommandOriginData<'_> {
+    fn read<R: std::io::Read>(reader: &mut R) -> Result<Self, Error> {
+        let origin_type = VarUInt::read(reader)?.0;
+        let uuid = Uuid::read(reader)?;
+        let request_id = <Cow<'_, str> as PacketRead>::read(reader)?;
+        let player_id = if matches!(
+            origin_type,
+            COMMAND_ORIGIN_DEV_CONSOLE | COMMAND_ORIGIN_TEST
+        ) {
+            i64::read(reader)?
+        } else {
+            -1
+        };
+        Ok(Self {
+            origin_type,
+            uuid,
+            request_id,
+            player_id,
+        })
+    }
+}
+
 impl<'a> PacketReadSlice<'a> for CommandOriginData<'a> {
     fn read_slice(buf: &mut &'a [u8]) -> Result<Self, Error> {
         let origin_type = VarUInt::read(&mut *buf)?.0;
