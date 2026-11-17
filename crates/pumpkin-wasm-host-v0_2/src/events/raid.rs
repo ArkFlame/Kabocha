@@ -1,8 +1,7 @@
 use crate::{
-    events::{CleanupEvent, ToFromWasmEvent, from_wasm_block_position, to_wasm_block_position},
+    events::{ToFromWasmEvent, cleanup_event, from_wasm_block_position, to_wasm_block_position},
     pumpkin::plugin::event::{
-        RaidFinishEvent as RaidFinishEventData, RaidSpawnWaveEvent as RaidSpawnWaveEventData,
-        RaidStopEvent as RaidStopEventData, RaidTriggerEvent as RaidTriggerEventData,
+        Event, RaidFinishEventData, RaidSpawnWaveEventData, RaidStopEventData, RaidTriggerEventData,
     },
 };
 use pumpkin_core::plugin::raid::{
@@ -12,96 +11,108 @@ use pumpkin_core::plugin::raid::{
 use pumpkin_wasm_host_common::state::PluginHostState;
 
 impl ToFromWasmEvent for RaidFinishEvent {
-    type Wit = RaidFinishEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::RaidFinishEvent(RaidFinishEventData {
             victory: self.victory,
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::RaidFinishEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            victory: data.victory,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::RaidFinishEvent(data) => Self {
+                victory: data.victory,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for RaidSpawnWaveEvent {
-    type Wit = RaidSpawnWaveEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::RaidSpawnWaveEvent(RaidSpawnWaveEventData {
             wave: self.wave,
             pos: to_wasm_block_position(self.pos),
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::RaidSpawnWaveEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            wave: data.wave,
-            pos: from_wasm_block_position(data.pos),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::RaidSpawnWaveEvent(data) => Self {
+                wave: data.wave,
+                pos: from_wasm_block_position(data.pos),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for RaidStopEvent {
-    type Wit = RaidStopEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::RaidStopEvent(RaidStopEventData {
             reason: self.reason.clone(),
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::RaidStopEvent(data) = event {
+            self.cancelled = data.cancelled;
+            self.reason = data.reason;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-        self.reason = data.reason;
-    }
-
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            reason: data.reason,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::RaidStopEvent(data) => Self {
+                reason: data.reason,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for RaidTriggerEvent {
-    type Wit = RaidTriggerEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::RaidTriggerEvent(RaidTriggerEventData {
             pos: to_wasm_block_position(self.pos),
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::RaidTriggerEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            pos: from_wasm_block_position(data.pos),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::RaidTriggerEvent(data) => Self {
+                pos: from_wasm_block_position(data.pos),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }

@@ -1,8 +1,7 @@
 use crate::{
-    events::{CleanupEvent, ToFromWasmEvent, to_wasm_block_position},
+    events::{ToFromWasmEvent, cleanup_event, to_wasm_block_position},
     pumpkin::plugin::event::{
-        HangingBreakByEntityEvent as HangingBreakByEntityEventData,
-        HangingBreakEvent as HangingBreakEventData, HangingPlaceEvent as HangingPlaceEventData,
+        Event, HangingBreakByEntityEventData, HangingBreakEventData, HangingPlaceEventData,
     },
 };
 use pumpkin_core::plugin::hanging::{
@@ -10,72 +9,88 @@ use pumpkin_core::plugin::hanging::{
     hanging_place::HangingPlaceEvent,
 };
 use pumpkin_wasm_host_common::state::PluginHostState;
-impl ToFromWasmEvent for HangingBreakEvent {
-    type Wit = HangingBreakEventData;
 
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+impl ToFromWasmEvent for HangingBreakEvent {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::HangingBreakEvent(HangingBreakEventData {
             entity_id: self.entity.get_entity().entity_id,
             remover_entity_id: self.remover.as_ref().map(|r| r.get_entity().entity_id),
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::HangingBreakEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(_data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        panic!("Cannot construct HangingBreakEvent from WASM event data alone");
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::HangingBreakEvent(_) => {
+                panic!("Cannot construct HangingBreakEvent from WASM event data alone");
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }
 
 impl ToFromWasmEvent for HangingBreakByEntityEvent {
-    type Wit = HangingBreakByEntityEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::HangingBreakByEntityEvent(HangingBreakByEntityEventData {
             entity_id: self.entity.get_entity().entity_id,
             remover_entity_id: self.remover.get_entity().entity_id,
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::HangingBreakByEntityEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(_data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        panic!("Cannot construct HangingBreakByEntityEvent from WASM event data alone");
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::HangingBreakByEntityEvent(_) => {
+                panic!("Cannot construct HangingBreakByEntityEvent from WASM event data alone");
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }
 
 impl ToFromWasmEvent for HangingPlaceEvent {
-    type Wit = HangingPlaceEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = self
             .player
             .as_ref()
             .map(|p| state.add(p.clone()).expect("failed to add player resource"));
 
-        Self::Wit {
+        Event::HangingPlaceEvent(HangingPlaceEventData {
             entity_id: self.entity.get_entity().entity_id,
             player,
             block_pos: to_wasm_block_position(self.block_pos),
             block_face: format!("{:?}", self.block_face),
             cancelled: self.cancelled,
+        })
+    }
+
+    fn apply_wasm_event(&mut self, event: Event, state: &mut PluginHostState) {
+        cleanup_event(&event, state);
+        if let Event::HangingPlaceEvent(data) = event {
+            self.cancelled = data.cancelled;
         }
     }
 
-    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
-        data.cleanup_event(state);
-        self.cancelled = data.cancelled;
-    }
-
-    fn from_wasm_event(_data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        panic!("Cannot construct HangingPlaceEvent from WASM event data alone");
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::HangingPlaceEvent(_) => {
+                panic!("Cannot construct HangingPlaceEvent from WASM event data alone");
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }

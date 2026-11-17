@@ -1,23 +1,13 @@
 use crate::{
     events::{ToFromWasmEvent, consume_player, from_wasm_block_position, to_wasm_block_position},
     pumpkin::plugin::event::{
-        BrewEvent as BrewEventData, BrewingStandFuelEvent as BrewingStandFuelEventData,
-        CraftItemEvent as CraftItemEventData, FurnaceBurnEvent as FurnaceBurnEventData,
-        FurnaceExtractEvent as FurnaceExtractEventData, FurnaceSmeltEvent as FurnaceSmeltEventData,
-        FurnaceStartSmeltEvent as FurnaceStartSmeltEventData,
-        HopperInventorySearchEvent as HopperInventorySearchEventData,
-        InventoryCreativeEvent as InventoryCreativeEventData,
-        InventoryDragEvent as InventoryDragEventData,
-        InventoryInteractEvent as InventoryInteractEventData,
-        InventoryMoveItemEvent as InventoryMoveItemEventData,
-        InventoryOpenEvent as InventoryOpenEventData,
-        InventoryPickupItemEvent as InventoryPickupItemEventData,
-        PrepareAnvilEvent as PrepareAnvilEventData,
-        PrepareGrindstoneEvent as PrepareGrindstoneEventData,
-        PrepareInventoryResultEvent as PrepareInventoryResultEventData,
-        PrepareItemCraftEvent as PrepareItemCraftEventData,
-        PrepareSmithingEvent as PrepareSmithingEventData, SmithItemEvent as SmithItemEventData,
-        TradeSelectEvent as TradeSelectEventData,
+        BrewEventData, BrewingStandFuelEventData, CraftItemEventData, Event, FurnaceBurnEventData,
+        FurnaceExtractEventData, FurnaceSmeltEventData, FurnaceStartSmeltEventData,
+        HopperInventorySearchEventData, InventoryCreativeEventData, InventoryDragEventData,
+        InventoryInteractEventData, InventoryMoveItemEventData, InventoryOpenEventData,
+        InventoryPickupItemEventData, PrepareAnvilEventData, PrepareGrindstoneEventData,
+        PrepareInventoryResultEventData, PrepareItemCraftEventData, PrepareSmithingEventData,
+        SmithItemEventData, TradeSelectEventData,
     },
 };
 use pumpkin_core::plugin::inventory::{
@@ -36,482 +26,504 @@ use pumpkin_core::plugin::inventory::{
 use pumpkin_wasm_host_common::state::PluginHostState;
 
 impl ToFromWasmEvent for InventoryOpenEvent {
-    type Wit = InventoryOpenEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::InventoryOpenEvent(InventoryOpenEventData {
             player,
             position: self.position.map(to_wasm_block_position),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryOpenEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                position: data.position.map(from_wasm_block_position),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for InventoryDragEvent {
-    type Wit = InventoryDragEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::InventoryDragEvent(InventoryDragEventData {
             player,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryDragEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for CraftItemEvent {
-    type Wit = CraftItemEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::CraftItemEvent(CraftItemEventData {
             player,
             recipe_id: self.recipe_id.clone(),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            recipe_id: data.recipe_id,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::CraftItemEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                recipe_id: data.recipe_id,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for FurnaceSmeltEvent {
-    type Wit = FurnaceSmeltEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::FurnaceSmeltEvent(FurnaceSmeltEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             source_item: self.source_item.clone(),
             result_item: self.result_item.clone(),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            source_item: data.source_item,
-            result_item: data.result_item,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::FurnaceSmeltEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                source_item: data.source_item,
+                result_item: data.result_item,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for BrewEvent {
-    type Wit = BrewEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::BrewEvent(BrewEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             fuel_level: self.fuel_level,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            fuel_level: data.fuel_level,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::BrewEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                fuel_level: data.fuel_level,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for BrewingStandFuelEvent {
-    type Wit = BrewingStandFuelEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::BrewingStandFuelEvent(BrewingStandFuelEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             fuel_power: self.fuel_power,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            fuel_power: data.fuel_power,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::BrewingStandFuelEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                fuel_power: data.fuel_power,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for FurnaceBurnEvent {
-    type Wit = FurnaceBurnEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::FurnaceBurnEvent(FurnaceBurnEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             fuel_item: self.fuel_item.clone(),
             burn_time: self.burn_time,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            fuel_item: data.fuel_item,
-            burn_time: data.burn_time,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::FurnaceBurnEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                fuel_item: data.fuel_item,
+                burn_time: data.burn_time,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for FurnaceExtractEvent {
-    type Wit = FurnaceExtractEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::FurnaceExtractEvent(FurnaceExtractEventData {
             player,
             block_pos: to_wasm_block_position(self.block_pos),
             item_id: self.item_id.clone(),
             item_amount: self.item_amount,
             exp_gained: self.exp_gained,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            block_pos: from_wasm_block_position(data.block_pos),
-            item_id: data.item_id,
-            item_amount: data.item_amount,
-            exp_gained: data.exp_gained,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::FurnaceExtractEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                block_pos: from_wasm_block_position(data.block_pos),
+                item_id: data.item_id,
+                item_amount: data.item_amount,
+                exp_gained: data.exp_gained,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for FurnaceStartSmeltEvent {
-    type Wit = FurnaceStartSmeltEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::FurnaceStartSmeltEvent(FurnaceStartSmeltEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             source_item: self.source_item.clone(),
             cooking_time: self.cooking_time,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            source_item: data.source_item,
-            cooking_time: data.cooking_time,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::FurnaceStartSmeltEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                source_item: data.source_item,
+                cooking_time: data.cooking_time,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for HopperInventorySearchEvent {
-    type Wit = HopperInventorySearchEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::HopperInventorySearchEvent(HopperInventorySearchEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             search_pos: to_wasm_block_position(self.search_pos),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            search_pos: from_wasm_block_position(data.search_pos),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::HopperInventorySearchEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                search_pos: from_wasm_block_position(data.search_pos),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for InventoryCreativeEvent {
-    type Wit = InventoryCreativeEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::InventoryCreativeEvent(InventoryCreativeEventData {
             player,
             slot: self.slot,
             item_id: self.item_id.clone(),
             item_count: self.item_count,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            slot: data.slot,
-            item_id: data.item_id,
-            item_count: data.item_count,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryCreativeEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                slot: data.slot,
+                item_id: data.item_id,
+                item_count: data.item_count,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for InventoryInteractEvent {
-    type Wit = InventoryInteractEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::InventoryInteractEvent(InventoryInteractEventData {
             player,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryInteractEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for InventoryMoveItemEvent {
-    type Wit = InventoryMoveItemEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::InventoryMoveItemEvent(InventoryMoveItemEventData {
             source_pos: to_wasm_block_position(self.source_pos),
             target_pos: to_wasm_block_position(self.target_pos),
             item_id: self.item_id.clone(),
             item_amount: self.item_amount,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            source_pos: from_wasm_block_position(data.source_pos),
-            target_pos: from_wasm_block_position(data.target_pos),
-            item_id: data.item_id,
-            item_amount: data.item_amount,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryMoveItemEvent(data) => Self {
+                source_pos: from_wasm_block_position(data.source_pos),
+                target_pos: from_wasm_block_position(data.target_pos),
+                item_id: data.item_id,
+                item_amount: data.item_amount,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for InventoryPickupItemEvent {
-    type Wit = InventoryPickupItemEventData;
-
-    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
-        Self::Wit {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::InventoryPickupItemEvent(InventoryPickupItemEventData {
             block_pos: to_wasm_block_position(self.block_pos),
             item_entity_id: self.item_entity_id,
             item_id: self.item_id.clone(),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
-        Self {
-            block_pos: from_wasm_block_position(data.block_pos),
-            item_entity_id: data.item_entity_id,
-            item_id: data.item_id,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::InventoryPickupItemEvent(data) => Self {
+                block_pos: from_wasm_block_position(data.block_pos),
+                item_entity_id: data.item_entity_id,
+                item_id: data.item_id,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for PrepareAnvilEvent {
-    type Wit = PrepareAnvilEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::PrepareAnvilEvent(PrepareAnvilEventData {
             player,
             rename_text: self.rename_text.clone(),
             repair_cost: self.repair_cost,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            rename_text: data.rename_text,
-            repair_cost: data.repair_cost,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::PrepareAnvilEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                rename_text: data.rename_text,
+                repair_cost: data.repair_cost,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for PrepareGrindstoneEvent {
-    type Wit = PrepareGrindstoneEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::PrepareGrindstoneEvent(PrepareGrindstoneEventData {
             player,
             result_item: self.result_item.clone(),
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            result_item: data.result_item,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::PrepareGrindstoneEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                result_item: data.result_item,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for PrepareInventoryResultEvent {
-    type Wit = PrepareInventoryResultEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::PrepareInventoryResultEvent(PrepareInventoryResultEventData {
             player,
             result_item: self.result_item.clone(),
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            result_item: data.result_item,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::PrepareInventoryResultEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                result_item: data.result_item,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for PrepareItemCraftEvent {
-    type Wit = PrepareItemCraftEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::PrepareItemCraftEvent(PrepareItemCraftEventData {
             player,
             recipe_id: self.recipe_id.clone(),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            recipe_id: data.recipe_id,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::PrepareItemCraftEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                recipe_id: data.recipe_id,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for PrepareSmithingEvent {
-    type Wit = PrepareSmithingEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::PrepareSmithingEvent(PrepareSmithingEventData {
             player,
             result_item: self.result_item.clone(),
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            result_item: data.result_item,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::PrepareSmithingEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                result_item: data.result_item,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for SmithItemEvent {
-    type Wit = SmithItemEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::SmithItemEvent(SmithItemEventData {
             player,
             recipe_id: self.recipe_id.clone(),
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            recipe_id: data.recipe_id,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::SmithItemEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                recipe_id: data.recipe_id,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
 
 impl ToFromWasmEvent for TradeSelectEvent {
-    type Wit = TradeSelectEventData;
-
-    fn to_wasm_event(&self, state: &mut PluginHostState) -> Self::Wit {
+    fn to_wasm_event(&self, state: &mut PluginHostState) -> Event {
         let player = state
             .add(self.player.clone())
             .expect("failed to add player resource");
 
-        Self::Wit {
+        Event::TradeSelectEvent(TradeSelectEventData {
             player,
             slot_index: self.slot_index,
             cancelled: self.cancelled,
-        }
+        })
     }
 
-    fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
-        Self {
-            player: consume_player(state, &data.player),
-            slot_index: data.slot_index,
-            cancelled: data.cancelled,
+    fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
+        match event {
+            Event::TradeSelectEvent(data) => Self {
+                player: consume_player(state, &data.player),
+                slot_index: data.slot_index,
+                cancelled: data.cancelled,
+            },
+            _ => panic!("unexpected event type"),
         }
     }
 }
