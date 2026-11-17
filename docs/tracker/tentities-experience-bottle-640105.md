@@ -49,7 +49,7 @@ Source audited:
    tryMergeToExisting: an orb within a 1x1x1 box absorbs the amount (values summed, age reset) and
    only otherwise drops a new orb. Fix: add ExperienceOrbEntity::award with the merge step and
    route every award call site (12 callers today) through it. Size M (shared XP path).
-2. Dispenser launch power/uncertainty unverified. dispenser.rs:1318-1329 dispenses the bottle with
+2. Dispenser launch power/uncertainty unverified. CHECKED, no change (UNVERIFIED): no decompiled source to confirm the DispenseConfig. dispenser.rs:1318-1329 dispenses the bottle with
    POTION_PROJECTILE_POWER 1.375 / POTION_PROJECTILE_UNCERTAINTY 3.0 (dispenser.rs:288-291).
    Vanilla 1.21.2+ serves non-potion projectiles through ProjectileItem / ProjectileDispenseBehavior
    with the generic config (DEFAULT 1.1 / 6.0, already defined as
@@ -57,7 +57,8 @@ Source audited:
    switch the bottle branch to the DEFAULT constants after confirming the target version's
    ProjectileItem.DispenseConfig against decompiled vanilla. Size S, needs .vendor (not changed
    this pass: no decompiled source available to confirm).
-3. Thrown bottles spawn at the player's feet, not the vanilla eye offset. item/items/
+3. FIXED (UNVERIFIED, bottle only): spawn at eye Y - 0.1 via `throw_spawn_pos` (experience_bottle.rs). Snowball/egg/pearl still use feet, shared path left for later.
+   Thrown bottles spawn at the player's feet, not the vanilla eye offset. item/items/
    experience_bottle.rs:42,53 builds the entity at player.position(); vanilla ThrowableItemProjectile
    spawns at shooter.getEyeY() - 0.1. The same deviation exists for every thrown-item item
    (snowball.rs:47,56; egg.rs:47,57; ender_pearl.rs:50,60), so the fix belongs in the shared throw

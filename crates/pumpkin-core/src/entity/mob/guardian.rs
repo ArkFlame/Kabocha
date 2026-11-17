@@ -159,4 +159,9 @@ impl Mob for GuardianEntity {
     fn get_ambient_sound_interval(&self) -> i32 {
         160
     }
+
+    // Vanilla `Guardian` is not pushed by fluid currents (UNVERIFIED: recalled, no decompiled source).
+    fn mob_is_pushed_by_fluids(&self) -> bool {
+        false
+    }
 }

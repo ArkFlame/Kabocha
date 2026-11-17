@@ -24,7 +24,7 @@ The source changed since the last assessment (`a494cb9b5` cap at 20, `db897ff2d`
    - Suggested fix: use the water-or-rain predicate if the decompiled class confirms it.
 5. **Explored-position success flag relies on task timeout** (size S).
    - `ai.rs:253-259`: `on_digging_complete(tick.state, timed_out)` treats a full 40-tick Rising as success. Vanilla `SnifferDiggingTask.stop` records the site only when digging was not interrupted; verify Rising-timeout is the right proxy and whether the sniff cooldown is set on completion rather than only on dig timeout (`ai.rs:215-217`).
-6. **Dimension/pose constants unverified** (size S).
+6. **Dimension/pose constants unverified** (size S). CHECKED, no change (UNVERIFIED): the constants match my recollection of vanilla `Sniffer` digging dimensions; no decompiled source to confirm.
    - `sniffer.rs:53-59` (`DIGGING_BB_HEIGHT_OFFSET 0.4`, eye `0.81`, `HEAD_DISTANCE 2.25`, `MAX_HEAD_Y_ROT 50`) and `refresh_state_dimensions` (`sniffer.rs:186-198`) invent a digging hitbox. Vanilla may not shrink the hitbox while digging; check `getDefaultDimensions`/eye height for the DIGGING state before trusting it.
 7. **No end-to-end sniff -> walk -> dig test** (size M).
    - Only isolated task tests exist (`ai.rs:458+`, `sniffer.rs:733+`). A `pumpkin-gametest` over a dirt pad would cover the Searching -> Digging handoff and the drop-seed clock.

@@ -45,7 +45,7 @@ No decompiled vanilla tree is vendored in this worktree; comparison is against
    `MobEffectUtil.addEffectToPlayersAround(..., 1200)` only affects (and only notifies) players
    that do not already hold DIG_SLOWDOWN with sufficient remaining duration. Net gameplay is
    close because the effect is refreshed every 1200 ticks; fix only if the packet spam matters.
-6. **Fluid push** (S, unverified). Check whether vanilla `Guardian` overrides
+6. **FIXED (UNVERIFIED)**: `Guardian` now overrides `mob_is_pushed_by_fluids` to false (guardian.rs). **Fluid push** (S, unverified). Check whether vanilla `Guardian` overrides
    `isPushedByFluid()` (only `WaterAnimal` certainly does); if it does, add
    `Mob::mob_is_pushed_by_fluids() -> false` in guardian.rs. Do not change without a vanilla
    source to confirm.

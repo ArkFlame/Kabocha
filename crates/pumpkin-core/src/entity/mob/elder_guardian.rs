@@ -98,6 +98,12 @@ impl Mob for ElderGuardianEntity {
         160
     }
 
+    // Vanilla `ElderGuardian` inherits `Guardian`, which is not pushed by fluid currents
+    // (UNVERIFIED: recalled, no decompiled source).
+    fn mob_is_pushed_by_fluids(&self) -> bool {
+        false
+    }
+
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
         Some(self)
     }

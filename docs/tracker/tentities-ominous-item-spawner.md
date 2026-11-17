@@ -33,6 +33,7 @@ The dispenser port also lumps it with potions (`dispenser.rs:735`), so both call
 would be fixed together.
 Size: S.
 ### 3. Particle event data flag unverified (S)
+CHECKED, no change (UNVERIFIED): flag `1` kept, recalled as the vanilla ominous-tint flag; no decompiled source.
 STILL OPEN: vanilla 0 vs 1 flag cannot be confirmed without the decompiled class.
 `ominous_item_spawner.rs:123-127` sends `WorldEvent::ParticlesTrialSpawnerSpawnItem`
 (3021) with data `1`. Vanilla `OminousItemSpawner.spawnItem` passes the flag the client

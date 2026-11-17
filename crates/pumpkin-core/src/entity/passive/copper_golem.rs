@@ -578,16 +578,19 @@ impl Mob for CopperGolemEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla key `next_weathering_tick` (UNVERIFIED: recalled, no decompiled source).
         nbt.put_long(
-            "next_weather_age",
+            "next_weathering_tick",
             self.next_weathering_tick.load(Ordering::Relaxed),
         );
         nbt.put_string("weather_state", self.get_weather_state().name().to_owned());
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        // `next_weather_age` is the key this port wrote before; read it as a fallback.
         self.next_weathering_tick.store(
-            nbt.get_long("next_weather_age")
+            nbt.get_long("next_weathering_tick")
+                .or_else(|| nbt.get_long("next_weather_age"))
                 .unwrap_or(UNSET_WEATHERING_TICK),
             Ordering::Relaxed,
         );

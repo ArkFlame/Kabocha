@@ -21,6 +21,7 @@ Vanilla reference: `net.minecraft.world.entity.animal.golem.CopperGolem` (1.21.9
 - Fix: add `copper_golem_pickup` + `copper_golem_deposit` goals under `entity/ai/goal/`, register in `CopperGolemEntity::new` at the vanilla priorities, drive the animation states, and add a `pumpkin-gametest`. Size L.
 
 ### 3. Weathering NBT keys unverified against vanilla (S)
+FIXED (UNVERIFIED): writes `next_weathering_tick` (long) and reads it with fallback to legacy `next_weather_age`; `weather_state` stays a string (copper_golem.rs). Recalled from vanilla, no decompiled source.
 - Rust: `copper_golem.rs:288-303` writes `next_weather_age` (long) and `weather_state` (int).
 - Vanilla `CopperGolem.addAdditionalSaveData` is not available in this worktree; if the vanilla keys/types differ (`next_weathering_tick`? `weather_state` as string vs int?), worlds round-tripped between vanilla and Pumpkin lose the weathering progress.
 - Fix: check decompiled `CopperGolem` save/load and align the key names and types. Size S once the reference is available.
