@@ -145,12 +145,18 @@ pub enum FunctionRunError {
     CommandChainLimitExceeded,
     /// A macro function could not be instantiated with the given arguments.
     Instantiation(String),
+    /// A macro function was run without any arguments.
+    MissingArguments,
+    /// A macro placeholder `$(name)` has no matching argument.
+    MissingArgument(String),
 }
 
 impl fmt::Display for FunctionRunError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unknown(reason) | Self::Instantiation(reason) => f.write_str(reason),
+            Self::MissingArguments => f.write_str("Missing arguments to function"),
+            Self::MissingArgument(name) => write!(f, "Missing argument {name}"),
             Self::ChainLimitExceeded => write!(
                 f,
                 "Maximum number of nested function calls reached ({MAX_FUNCTION_CHAIN_DEPTH})"
@@ -1199,18 +1205,13 @@ impl DatapackManager {
         let mut result = FunctionResult::default();
         for lines in functions {
             if lines.iter().any(|line| line.starts_with('$')) && arguments.is_none() {
-                return Err(FunctionRunError::Instantiation(format!(
-                    "Function {name} is a macro and needs arguments"
-                )));
+                return Err(FunctionRunError::MissingArguments);
             }
             let mut substituted = Vec::with_capacity(lines.len());
             for line in lines.iter() {
                 match (line.strip_prefix('$'), arguments) {
                     (Some(template), Some(arguments)) => {
-                        substituted.push(
-                            substitute_macro(template, arguments)
-                                .map_err(FunctionRunError::Instantiation)?,
-                        );
+                        substituted.push(substitute_macro(template, arguments)?);
                     }
                     _ => substituted.push(line.clone()),
                 }
@@ -1770,18 +1771,23 @@ fn stringify_macro_argument(tag: &NbtTag) -> String {
     }
 }
 
-fn substitute_macro(template: &str, arguments: &NbtCompound) -> Result<String, String> {
+fn substitute_macro(
+    template: &str,
+    arguments: &NbtCompound,
+) -> Result<String, FunctionRunError> {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
     while let Some(start) = rest.find("$(") {
         out.push_str(&rest[..start]);
         let after = &rest[start + 2..];
         let Some(end) = after.find(')') else {
-            return Err(format!("Unterminated macro argument in: {template}"));
+            return Err(FunctionRunError::Instantiation(format!(
+                "Unterminated macro argument in: {template}"
+            )));
         };
         let key = &after[..end];
         let Some(value) = arguments.get(key) else {
-            return Err(format!("Missing macro argument '{key}'"));
+            return Err(FunctionRunError::MissingArgument(key.to_string()));
         };
         out.push_str(&stringify_macro_argument(value));
         rest = &after[end + 1..];
@@ -2557,8 +2563,18 @@ fn load_recipes_from_dir(
 mod tests {
     use super::{
         DatapackManager, FunctionChainGuard, FunctionRunError, MAX_FUNCTION_CHAIN_COMMANDS,
-        MAX_FUNCTION_CHAIN_DEPTH,
+        MAX_FUNCTION_CHAIN_DEPTH, substitute_macro,
     };
+    use pumpkin_nbt::NbtCompound;
+
+    #[test]
+    fn substitute_macro_reports_missing_argument_by_name() {
+        let arguments = NbtCompound::new();
+        assert_eq!(
+            substitute_macro("say $(name)", &arguments),
+            Err(FunctionRunError::MissingArgument("name".to_string()))
+        );
+    }
 
     #[test]
     fn function_chain_depth_is_bounded_instead_of_recursing_forever() {

@@ -49,5 +49,5 @@ requires reading the gamerule in `execute_function_with`. Size: S-M.
 - Unknown `#tag` error key: FIXED (per "Fixed in this branch").
 - Empty function tag message: FIXED (per "Fixed in this branch").
 - `with` missing `<path>`: FIXED (per "Fixed in this branch").
-- 1. Function return value not reported (M): STILL OPEN.
-- 2. Macro instantiation error path: STILL OPEN.
+- 1. Function return value not reported (M): FIXED in code (`function.rs` reports the result for the outermost call); row was stale.
+- 2. Macro instantiation error path: FIXED (`FunctionRunError::MissingArguments` and `MissingArgument(name)` map to `commands.function.error.missing_arguments` / `missing_argument`; unit test `substitute_macro_reports_missing_argument_by_name`).

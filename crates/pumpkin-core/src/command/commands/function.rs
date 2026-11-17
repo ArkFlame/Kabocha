@@ -63,6 +63,17 @@ static ERROR_ARGUMENT_NOT_COMPOUND: CommandErrorType<1> = CommandErrorType::new(
     translation::java::COMMANDS_FUNCTION_ERROR_ARGUMENT_NOT_COMPOUND,
 );
 
+static ERROR_MISSING_ARGUMENTS: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENTS,
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENTS,
+);
+
+// Vanilla arguments: function name first, then the missing argument name.
+static ERROR_MISSING_ARGUMENT: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENT,
+    translation::java::COMMANDS_FUNCTION_ERROR_MISSING_ARGUMENT,
+);
+
 static ERROR_INSTANTIATION_FAILURE: CommandErrorType<2> = CommandErrorType::new(
     translation::java::COMMANDS_FUNCTION_INSTANTIATIONFAILURE,
     translation::java::COMMANDS_FUNCTION_INSTANTIATIONFAILURE,
@@ -149,6 +160,16 @@ impl CommandExecutor for FunctionExecutor {
                 return Err(
                     error_type.create_without_context(TextComponent::text(name_str.to_string()))
                 );
+            }
+            Err(FunctionRunError::MissingArguments) => {
+                return Err(ERROR_MISSING_ARGUMENTS
+                    .create_without_context(TextComponent::text(name_str.to_string())));
+            }
+            Err(FunctionRunError::MissingArgument(argument)) => {
+                return Err(ERROR_MISSING_ARGUMENT.create_without_context(
+                    TextComponent::text(name_str.to_string()),
+                    TextComponent::text(argument),
+                ));
             }
             Err(FunctionRunError::Instantiation(message)) => {
                 return Err(ERROR_INSTANTIATION_FAILURE.create_without_context(
