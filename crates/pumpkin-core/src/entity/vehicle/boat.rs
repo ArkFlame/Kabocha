@@ -351,7 +351,7 @@ impl EntityBase for BoatEntity {
                         ..Default::default()
                     });
                     let inventory: Arc<dyn Inventory> = container.clone();
-                    world.scatter_inventory(&position, &inventory);
+                    world.scatter_inventory_at(self.vehicle.entity.pos.load(), &inventory);
                 }
                 if !creative
                     && let Some(item) =

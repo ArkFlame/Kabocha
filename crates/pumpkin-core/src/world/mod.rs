@@ -7094,6 +7094,22 @@ impl World {
             );
         }
     }
+    /// Vanilla `Containers.dropContents(Level, Entity, Container)`: scatters around the
+    /// entity position, not the block origin.
+    pub fn scatter_inventory_at(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        inventory: &Arc<dyn Inventory>,
+    ) {
+        for i in 0..inventory.size() {
+            self.scatter_stack(
+                position.x,
+                position.y,
+                position.z,
+                inventory.remove_stack(i),
+            );
+        }
+    }
     pub fn scatter_stack(self: &Arc<Self>, x: f64, y: f64, z: f64, mut stack: ItemStack) {
         const TRIANGULAR_DEVIATION: f64 = 0.114_850_001_711_398_36;
 
