@@ -49,6 +49,12 @@ pub struct JavaConfig {
     /// Packet rate limiting settings.
     #[toml(default = Self::default().packet_limiter)]
     pub packet_limiter: PacketLimiterConfig,
+    /// Minimum milliseconds between connection attempts from the same IP before the
+    /// later one is dropped. Mirrors Spigot's `settings.connection-throttle` (4000 ms);
+    /// `0` disables the throttle.
+    #[serde(alias = "connection-throttle")]
+    #[toml(default = Self::default().connection_throttle, alias = "connection-throttle")]
+    pub connection_throttle: u64,
     /// Byte limits for books edited by clients.
     pub book_size: BookSizeConfig,
 }
@@ -73,6 +79,7 @@ impl Default for JavaConfig {
             motd: "A blazingly fast Pumpkin server!".to_string(),
             authentication: AuthenticationConfig::default(),
             packet_limiter: PacketLimiterConfig::default(),
+            connection_throttle: 4000,
             book_size: BookSizeConfig::default(),
         }
     }
@@ -113,5 +120,22 @@ mod tests {
         ";
         let config: JavaConfig = toml::from_str(toml_interval_kebab).unwrap();
         assert_eq!(config.keep_alive_time, 35);
+    }
+
+    #[test]
+    fn connection_throttle_default_and_deserialization() {
+        assert_eq!(JavaConfig::default().connection_throttle, 4000);
+
+        let toml_kebab = r"
+            connection-throttle = 2500
+        ";
+        let config: JavaConfig = toml::from_str(toml_kebab).unwrap();
+        assert_eq!(config.connection_throttle, 2500);
+
+        let toml_snake = r"
+            connection_throttle = 0
+        ";
+        let config: JavaConfig = toml::from_str(toml_snake).unwrap();
+        assert_eq!(config.connection_throttle, 0);
     }
 }

@@ -258,6 +258,32 @@ impl ClientPacket for CParticle<'_> {
     ) -> Result<(), WritingError> {
         let mut write = write;
 
+        // 26.x uses the modern `ClientboundLevelParticlesPacket.STREAM_CODEC`
+        // layout: particle options first, then the two flags, position, offsets,
+        // three per-axis speeds, count and the randomization type.
+        if *version >= JavaMinecraftVersion::V_26_1 {
+            write.write_var_int(&self.particle_id)?;
+            write.write_slice(self.data)?;
+            // `force_spawn` is vanilla `overrideLimiter`, `important` is
+            // `alwaysShow`; the codec writes them in that order.
+            write.write_bool(self.force_spawn)?;
+            write.write_bool(self.important)?;
+            write.write_f64_be(self.position.x)?;
+            write.write_f64_be(self.position.y)?;
+            write.write_f64_be(self.position.z)?;
+            write.write_f32_be(self.offset.x)?;
+            write.write_f32_be(self.offset.y)?;
+            write.write_f32_be(self.offset.z)?;
+            // The vanilla command writes one max speed on each axis.
+            write.write_f32_be(self.max_speed)?;
+            write.write_f32_be(self.max_speed)?;
+            write.write_f32_be(self.max_speed)?;
+            write.write_var_int(&VarInt(self.particle_count))?;
+            // RandomizationType.DEFAULT encodes to id 0.
+            write.write_var_int(&VarInt(0))?;
+            return Ok(());
+        }
+
         if *version <= JavaMinecraftVersion::V_1_7_6 {
             let name = pumpkin_data::particle::Particle::from_id(self.particle_id.0 as u16)
                 .map_or("smoke", particle_name_for_v1_7);
@@ -305,6 +331,23 @@ impl ClientPacket for CParticle<'_> {
 
 impl<'a> ServerPacket<'a> for CParticle<'a> {
     fn read(bytebuf: &mut &'a [u8], version: &JavaMinecraftVersion) -> Result<Self, ReadingError> {
+        if *version >= JavaMinecraftVersion::V_26_1 {
+            let particle_id = bytebuf.get_var_int()?;
+            // The payload length depends on the particle type, so keep the
+            // remaining bytes in `data` as the >= 1.20.5 path does.
+            let data = bytebuf.read_remaining_slice_borrowed(usize::MAX)?;
+            return Ok(Self {
+                force_spawn: false,
+                important: false,
+                position: Vector3::new(0.0, 0.0, 0.0),
+                offset: Vector3::new(0.0, 0.0, 0.0),
+                max_speed: 0.0,
+                particle_count: 0,
+                particle_id,
+                data,
+            });
+        }
+
         let (particle_id, important, force_spawn) = if *version <= JavaMinecraftVersion::V_1_7_6 {
             let name = bytebuf.get_str_bounded_borrowed(64)?;
             let id = particle_id_from_1_7_name(name);
@@ -426,9 +469,8 @@ mod tests {
         assert_eq!(id, Particle::ExplosionEmitter as i32);
     }
 
-    /// Byte offset at which `write_packet_data` puts the particle ID for
-    /// 1.20.5+, pinned by `particle_id_stays_latest_for_26_2` above.
-    const PARTICLE_ID_OFFSET: usize = 46;
+    /// `write_packet_data` writes the particle ID first for 26.x.
+    const PARTICLE_ID_OFFSET: usize = 0;
 
     fn trail_options() -> ParticleOptions {
         ParticleOptions::Trail {
@@ -498,7 +540,7 @@ mod tests {
     }
 
     /// Decodes the packet the way `ClientboundLevelParticlesPacket` does and
-    /// checks that the trail payload is complete and nothing is left over.
+    /// checks the trail payload plus the fixed fields that follow it.
     ///
     /// Without the payload the client reads past the end of the buffer, which
     /// is the disconnect reported in #3065.
@@ -528,16 +570,24 @@ mod tests {
                 duration: duration.0,
             }
         );
-        assert!(
-            tail.is_empty(),
-            "{} trailing bytes after the particle option",
-            tail.len()
-        );
+
+        // The fixed fields follow the payload in the vanilla field order.
+        assert!(!tail.get_bool().unwrap()); // overrideLimiter
+        assert!(!tail.get_bool().unwrap()); // alwaysShow
+        for _ in 0..3 {
+            assert_eq!(tail.get_f64_be().unwrap(), 0.0); // position
+        }
+        for _ in 0..6 {
+            assert_eq!(tail.get_f32_be().unwrap(), 0.0); // offsets + three speeds
+        }
+        assert_eq!(tail.get_var_int().unwrap().0, 1); // count
+        assert_eq!(tail.get_var_int().unwrap().0, 0); // randomizationType
+        assert!(tail.is_empty(), "{} trailing bytes", tail.len());
     }
 
-    /// The reporter's client failed at `readerIndex(48) + length(8)`: the whole
-    /// packet was 48 bytes and the first double of `target` needed eight more, so
-    /// it ended exactly where the particle option should have started.
+    /// A 26.x client must receive the particle option payload; without it the
+    /// client reads past the fixed fields and disconnects (#3065). Adding the
+    /// payload grows the packet by exactly its length.
     ///
     /// Measured through `serialize_packet`, the same call `Player` makes, so the
     /// length includes the packet ID.
@@ -565,14 +615,13 @@ mod tests {
                 .len()
         };
 
-        assert_eq!(packet(&[]), 48);
-        assert_eq!(packet(&payload), 48 + 29);
+        assert_eq!(packet(&[]), 54);
+        assert_eq!(packet(&payload), 54 + 29);
     }
 
-    /// A 26.3 client decodes `level_particles` with the same layout as 26.2: final
-    /// speed, int count, then the particle ID and its option data. Writing the ID
-    /// at the front instead made the client read it twice and then run off the end
-    /// of the buffer while decoding the option (#4582).
+    /// 26.3 shares the 26.2 `level_particles` layout: particle options first,
+    /// then two flags, position, offsets, three speeds, count and randomization.
+    /// Both versions must serialize identically (#4582).
     #[test]
     fn level_particles_encoding_matches_26_2_for_26_3() {
         use crate::java::packet_encoder::serialize_packet;
@@ -675,5 +724,44 @@ mod tests {
         let mut cursor = Cursor::new(bytes);
         let id = VarInt::decode(&mut cursor).unwrap();
         assert_eq!(id, VarInt(Particle::ExplosionEmitter as i32));
+    }
+
+    /// Byte-for-byte check of the decompiled 26.x
+    /// `ClientboundLevelParticlesPacket.STREAM_CODEC` field order.
+    #[test]
+    fn level_particles_26_x_matches_vanilla_field_order() {
+        let packet = CParticle::new(
+            true,  // force_spawn / overrideLimiter
+            false, // important / alwaysShow
+            Vector3::new(1.0, 2.0, 3.0),
+            Vector3::new(4.0, 5.0, 6.0),
+            7.0,
+            9,
+            VarInt(56),
+            &[0xAA, 0xBB],
+        );
+        let mut bytes = Vec::new();
+        packet
+            .write_packet_data(&mut bytes, &JavaMinecraftVersion::V_26_3)
+            .unwrap();
+
+        let mut expected = Vec::new();
+        expected.push(56); // particle id VAR_INT
+        expected.extend_from_slice(&[0xAA, 0xBB]); // particle payload
+        expected.push(1); // overrideLimiter = true
+        expected.push(0); // alwaysShow = false
+        expected.extend_from_slice(&1.0f64.to_be_bytes());
+        expected.extend_from_slice(&2.0f64.to_be_bytes());
+        expected.extend_from_slice(&3.0f64.to_be_bytes());
+        expected.extend_from_slice(&4.0f32.to_be_bytes());
+        expected.extend_from_slice(&5.0f32.to_be_bytes());
+        expected.extend_from_slice(&6.0f32.to_be_bytes());
+        expected.extend_from_slice(&7.0f32.to_be_bytes());
+        expected.extend_from_slice(&7.0f32.to_be_bytes());
+        expected.extend_from_slice(&7.0f32.to_be_bytes());
+        expected.push(9); // count VAR_INT
+        expected.push(0); // RandomizationType.DEFAULT id
+
+        assert_eq!(bytes, expected);
     }
 }
