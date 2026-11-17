@@ -13,8 +13,9 @@ use crate::entity::{
     ai::behavior::hunting::{self, Hunt},
     ai::goal::{
         bow_attack::BowAttackGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
+        restrict_sun::RestrictSunGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     ai::target_match::TargetMatch,
     mob::{Mob, MobEntity, equipment::RegionalDifficulty},
@@ -65,7 +66,9 @@ impl SkeletonEntityBase {
             let target_selector = &mob_arc.mob_entity.target_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            // TODO: RestrictSunGoal(2) and FleeSunGoal(3), once both match vanilla.
+            // Vanilla AbstractSkeleton#registerGoals: RestrictSunGoal(2), then FleeSunGoal(3, 1.0)
+            // next to the wolf avoidance. FleeSunGoal is still missing its sun gates, see tracker.
+            goal_selector.add_goal(2, Box::new(RestrictSunGoal::new()));
             fleeing::apply(goal_selector, SKELETON_FLEES);
             // Vanilla `reassessWeaponGoal`: the bow or the melee goal at 4, by the held weapon.
             // TODO: attack interval per type and difficulty (vanilla 40, 20 on hard; bogged and parched 70, 50 on hard).
