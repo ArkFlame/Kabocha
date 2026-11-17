@@ -46,18 +46,6 @@ const DUPLICATE_OBJECTIVE_ERROR: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_ADD_DUPLICATE,
 );
 
-/// Vanilla caps objective and team names at 16 UTF-16 units. Shared with `team add`.
-pub(super) const MAX_NAME_LENGTH: usize = 16;
-
-pub(super) fn name_exceeds_limit(name: &str) -> bool {
-    name.encode_utf16().count() > MAX_NAME_LENGTH
-}
-
-const OBJECTIVE_NAME_TOO_LONG_ERROR: CommandErrorType<0> = CommandErrorType::new(
-    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_ADD_TOOLONG,
-    translation::java::COMMANDS_SCOREBOARD_OBJECTIVES_ADD_TOOLONG,
-);
-
 const INVALID_ENABLE_ERROR: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SCOREBOARD_PLAYERS_ENABLE_INVALID,
     translation::java::COMMANDS_SCOREBOARD_PLAYERS_ENABLE_INVALID,
@@ -76,9 +64,6 @@ impl CommandExecutor for ObjectivesAddExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let objective_name = StringArgumentType::get(context, ARG_OBJECTIVE)?;
         let criterion = StringArgumentType::get(context, ARG_CRITERION)?;
-        if name_exceeds_limit(objective_name) {
-            return Err(OBJECTIVE_NAME_TOO_LONG_ERROR.create_without_context());
-        }
 
         let display_name = if self.has_display_name {
             ComponentArgumentType::get(context, ARG_DISPLAY_NAME)?
@@ -1072,15 +1057,6 @@ mod tests {
         OBJECTIVE_NOT_FOUND_ERROR, OBJECTIVE_READ_ONLY_ERROR,
     };
     use crate::world::scoreboard::NoTarget;
-
-    #[test]
-    fn name_limit_counts_utf16_units() {
-        assert!(!name_exceeds_limit(&"a".repeat(16)));
-        assert!(name_exceeds_limit(&"a".repeat(17)));
-        // Each emoji is two UTF-16 units, so eight fit and nine do not.
-        assert!(!name_exceeds_limit(&"\u{1F600}".repeat(8)));
-        assert!(name_exceeds_limit(&"\u{1F600}".repeat(9)));
-    }
 
     #[test]
     fn single_holder_does_not_expand_wildcards() {

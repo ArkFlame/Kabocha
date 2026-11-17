@@ -1144,7 +1144,7 @@ impl Server {
             return None;
         };
         if self.is_dimension_enabled(dimension) {
-            return Some(self.get_world_from_dimension(dimension));
+            return self.get_world_from_dimension(dimension);
         }
 
         for tag in [
