@@ -3798,8 +3798,14 @@ impl World {
             },
             bonus_chest: false,
             has_start_with_map_enabled: false,
-            // TODO Bedrock permission level are different
-            permission_level: 2,
+            // Per-player, like BDS `StartGamePacket`: ops get Operator, everyone else Member.
+            permission_level: if player.permission_lvl.load()
+                == pumpkin_util::permission::PermissionLvl::Four
+            {
+                pumpkin_protocol::bedrock::client::PlayerPermissionLevel::Operator as u8
+            } else {
+                pumpkin_protocol::bedrock::client::PlayerPermissionLevel::Member as u8
+            },
             server_simulation_distance: server
                 .advanced_config
                 .networking
