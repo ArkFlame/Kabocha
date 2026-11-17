@@ -33,6 +33,27 @@ const VINDICATOR_HUNTS: &[Hunt] = &[
     Hunt::new(3, TargetMatch::Type(&EntityType::IRON_GOLEM), true),
 ];
 
+/// Vanilla `Vindicator.isJohnny`.
+fn is_johnny(mob: &dyn Mob) -> bool {
+    mob.get_entity()
+        .custom_name
+        .load()
+        .as_ref()
+        .as_ref()
+        .is_some_and(|name| name.clone().get_text() == "Johnny")
+}
+
+/// Vanilla `VindicatorJohnnyAttackGoal.canAttack`: every mob but a creeper or ghast.
+fn johnny_can_attack(target: &dyn Mob) -> bool {
+    let entity_type = target.get_entity().entity_type;
+    entity_type != &EntityType::CREEPER && entity_type != &EntityType::GHAST
+}
+
+const VINDICATOR_JOHNNY_HUNTS: &[Hunt] = &[Hunt::new(4, TargetMatch::Mob, true)
+    .every(0)
+    .gated_by(is_johnny)
+    .only_mobs(johnny_can_attack)];
+
 pub struct VindicatorEntity {
     pub mob_entity: MobEntity,
     pub raider_data: RaiderData,
@@ -86,7 +107,7 @@ impl VindicatorEntity {
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(1, raider::revenge_goal());
             hunting::apply(target_selector, &mob_arc.mob_entity, VINDICATOR_HUNTS);
-            // TODO: VindicatorJohnnyAttackGoal at 4.
+            hunting::apply(target_selector, &mob_arc.mob_entity, VINDICATOR_JOHNNY_HUNTS);
         };
 
         mob_arc
