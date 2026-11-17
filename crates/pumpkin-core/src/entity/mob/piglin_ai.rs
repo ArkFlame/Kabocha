@@ -17,6 +17,7 @@ use crate::entity::item::ItemEntity;
 use crate::entity::living::LivingEntity;
 use crate::entity::mob::piglin::{PiglinActivity, PiglinEntity};
 use crate::entity::player::Player;
+use crate::world::World;
 
 pub struct PiglinAi;
 
@@ -210,6 +211,20 @@ impl PiglinAi {
         piglin
             .nearest_visible_player()
             .is_some_and(|player| Self::is_player_holding_loved_item(&player))
+    }
+
+    /// Vanilla `PiglinAi.onGuardedBlockInteracted`: opening a guarded container
+    /// angers every piglin within the player anger range that can still hunt.
+    pub fn on_guarded_block_interacted(world: &World, player: &Arc<Player>) {
+        let pos = player.get_entity().pos.load();
+        for entity in world
+            .get_nearby_entities(pos, Self::PLAYER_ANGER_RANGE)
+            .into_values()
+        {
+            if let Some(mob) = entity.get_mob() {
+                mob.on_guarded_block_interacted(player.clone());
+            }
+        }
     }
 
     /// Vanilla `Sensor.isEntityTargetable`: non-combat test within the follow range,

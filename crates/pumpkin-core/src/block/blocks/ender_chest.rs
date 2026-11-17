@@ -7,6 +7,7 @@ use crate::block::{
     OnPlaceArgs, OnSyncedBlockEventArgs, PathComputationType, PlacedArgs,
     registry::BlockActionResult,
 };
+use crate::entity::mob::piglin_ai::PiglinAi;
 use crate::world::World;
 use pumpkin_data::block_properties::LadderLikeProperties;
 use pumpkin_data::fluid::Fluid;
@@ -106,7 +107,7 @@ impl BlockBehaviour for EnderChestBlock {
             );
             args.player
                 .open_handled_screen(factory.as_ref(), Some(*args.position));
-            // TODO: PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
+            PiglinAi::on_guarded_block_interacted(args.world, args.player);
         }
 
         BlockActionResult::Success

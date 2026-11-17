@@ -2485,6 +2485,10 @@ pub trait Mob: EntityBase + Send + Sync {
         true
     }
 
+    /// Vanilla `PiglinAi.onGuardedBlockInteracted`: called on mobs near `target`
+    /// when they open a container those mobs guard. Most mobs ignore it.
+    fn on_guarded_block_interacted(&self, _target: Arc<dyn EntityBase>) {}
+
     /// Must return `Some(self)` for every `NeutralMob` implementor. Not compiler-enforced.
     fn as_neutral(&self) -> Option<&dyn neutral::NeutralMob> {
         None

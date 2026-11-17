@@ -884,6 +884,20 @@ impl Mob for PiglinEntity {
         self.play_entity_sound(Sound::EntityPiglinStep, 0.15, 1.0);
     }
 
+    /// Vanilla `PiglinAi.onGuardedBlockInteracted`: adults that can still hunt turn
+    /// on the player who opens a container they guard.
+    fn on_guarded_block_interacted(&self, target: Arc<dyn EntityBase>) {
+        if self.is_baby()
+            || !self.can_hunt()
+            || self.mob_entity.get_target().is_some()
+            || !self.mob_entity.living_entity.can_attack(target.as_ref())
+        {
+            return;
+        }
+        self.mob_entity.set_target(Some(target));
+        self.play_entity_sound(Sound::EntityPiglinAngry, 1.0, 1.0);
+    }
+
     fn mob_metadata(&self) -> Option<MobMetadata> {
         self.is_baby().then(|| MobMetadata::new().baby(true))
     }
