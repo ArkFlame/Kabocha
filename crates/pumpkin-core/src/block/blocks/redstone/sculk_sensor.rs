@@ -17,6 +17,7 @@ use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
@@ -27,6 +28,11 @@ impl BlockMetadata for SculkSensorBlock {
         [BlockId::SCULK_SENSOR, BlockId::CALIBRATED_SCULK_SENSOR].into()
     }
 }
+
+/// Vanilla SculkSensorBlockEntity.VibrationUser.getListenerRadius.
+pub const LISTENER_RADIUS: i32 = 8;
+/// Vanilla CalibratedSculkSensorBlockEntity.VibrationUser.getListenerRadius.
+pub const CALIBRATED_LISTENER_RADIUS: i32 = 16;
 
 const fn horizontal_facing_to_dir(facing: HorizontalFacing) -> BlockDirection {
     match facing {
@@ -70,8 +76,42 @@ fn get_calibrated_sculk_sensor_input_strength(
     )
 }
 
+/// Vanilla SculkSensorBlock.getPower(float): the signal weakens with distance
+/// across the listener radius but never drops below 1.
+#[must_use]
+pub fn get_power(distance: f32, radius: i32) -> u8 {
+    let scaled = (15.0 * distance / radius as f32).floor() as i32;
+    15i32.saturating_sub(scaled).clamp(1, 15) as u8
+}
+
 impl SculkSensorBlock {
-    pub fn trigger(world: &Arc<World>, pos: &BlockPos, block: &Block, power: u8) {
+    /// Vanilla VibrationSystem.Listener.handleGameEvent for a sculk sensor.
+    pub fn on_vibration(
+        world: &Arc<World>,
+        pos: &BlockPos,
+        event: GameEvent,
+        source_position: Vector3<f64>,
+    ) {
+        let (block, state) = world.get_block_and_state(pos);
+        if sculk_sensor_phase(block, state.id) != SculkSensorPhase::Inactive {
+            return;
+        }
+        let radius = if block.id == BlockId::CALIBRATED_SCULK_SENSOR {
+            CALIBRATED_LISTENER_RADIUS
+        } else {
+            LISTENER_RADIUS
+        };
+        let distance = (source_position - pos.to_centered_f64()).length() as f32;
+        Self::trigger(
+            world,
+            pos,
+            block,
+            event.vibration_frequency(),
+            get_power(distance, radius),
+        );
+    }
+
+    pub fn trigger(world: &Arc<World>, pos: &BlockPos, block: &Block, frequency: u8, power: u8) {
         if block.id == BlockId::SCULK_SENSOR {
             let state = world.get_block_state(pos);
             let mut props = SculkSensorLikeProperties::from_state_id(state.id);
@@ -82,7 +122,7 @@ impl SculkSensorBlock {
                     *sensor_be
                         .last_vibration_frequency
                         .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) = power as i32;
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = i32::from(frequency);
                 }
 
                 props.sculk_sensor_phase = SculkSensorPhase::Active;
@@ -109,7 +149,7 @@ impl SculkSensorBlock {
                 let calibrated_freq =
                     get_calibrated_sculk_sensor_input_strength(world, pos, props.facing);
 
-                if calibrated_freq > 0 && calibrated_freq != power {
+                if calibrated_freq > 0 && calibrated_freq != frequency {
                     return;
                 }
 
@@ -121,7 +161,7 @@ impl SculkSensorBlock {
                     *cal_be
                         .last_vibration_frequency
                         .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) = power as i32;
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = i32::from(frequency);
                 }
 
                 props.sculk_sensor_phase = SculkSensorPhase::Active;
@@ -384,6 +424,14 @@ impl BlockBehaviour for SculkSensorBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sculk_sensor_power_falls_with_distance_and_never_reaches_zero() {
+        assert_eq!(get_power(0.0, LISTENER_RADIUS), 15);
+        assert_eq!(get_power(8.0, LISTENER_RADIUS), 1);
+        assert_eq!(get_power(100.0, LISTENER_RADIUS), 1);
+        assert!(get_power(4.0, LISTENER_RADIUS) > get_power(6.0, LISTENER_RADIUS));
+    }
 
     #[test]
     fn sculk_sensor_strong_power_only_directed_downwards() {
