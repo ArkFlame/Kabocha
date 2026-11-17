@@ -25,8 +25,28 @@ Scope: `crates/pumpkin-world/src` (excluding `generation/structure/placement.rs`
 ## Divergences logged, not fixed
 
 1. FIXED. `pumpkin-util/src/lib.rs` `encompassing_bits` now returns 0 for 0 and 1 (vanilla `Mth.ceillog2`), removing the `ilog2(0)` panic. Palette callers that divide by bits keep 1 bit via `.max(1)` in `chunk/palette.rs` (`bedrock_palette_bits`, heterogeneous `bits_per_entry`). Test: `encompassing_bits_tests::matches_vanilla_ceillog2`.
-2. OPEN (needs game time threaded through `ChunkIO::save_chunks` -> `file_manager` -> `SingleChunkDataSerializer::to_bytes`, 4+ signatures, left logged). Chunk save does not write `LastUpdate`. Vanilla writes the world game time on every save; this server only preserves an existing value through the passthrough of unmodelled root tags. Fixing needs the game time at serialization, which the writer does not receive. Low impact on load.
+2. BLOCKED (LastUpdate, re-checked by CODER). Fix needs game time at `internal_to_bytes`. Call-site edits exceed the ~6 budget: `ChunkIO::save_chunks` trait + Anvil/Linear/Pump impls + `FileManager` enum dispatch, `level.rs` `write_chunks`/`write_entity_chunks`, `chunk_system/worker_logic.rs` upgrade save, plus 12 `ChunkData {` literals (`chunk_state.rs` x2, `converter.rs`, tests) if a field is added. Left as is; a field defaulting to 0 would still write a wrong time. Needs a dedicated slice that threads `world time` through `ChunkIO`. Chunk save does not write `LastUpdate`. Vanilla writes the world game time on every save; this server only preserves an existing value through the passthrough of unmodelled root tags. Fixing needs the game time at serialization, which the writer does not receive. Low impact on load.
 3. OPEN, same root cause as item 2. `chunk/format/mod.rs` `MODELLED_ROOT_TAGS` does not list `LastUpdate`, so it rides through verbatim. Same root cause as item 2.
+
+## Mob family sweep (CODER, goals and constants, vanilla 1.21.x recalled, UNVERIFIED)
+
+`docs/tracker/tfamily-sweep.md` is not in the tree, so the family list comes from the brief. Skipped per brief: bee, goat, axolotl, sniffer, allay, panda, vex, zombie_villager.
+
+| Family | Location | Result |
+|---|---|---|
+| Cow | `passive/cow.rs` | matches: panic 2.0, breed 1.0, tempt 1.0, follow parent 1.25, stroll 1.0 |
+| Chicken | `passive/chicken.rs` | matches: panic 1.4, breed 1.0, follow 1.1, stroll 1.0 |
+| Pig | `passive/pig.rs` | matches: panic 1.25, breed 1.0, tempt 1.2, follow 1.1, stroll 1.0 |
+| Sheep | `passive/sheep.rs` | matches: panic 1.25, breed 1.0, tempt/follow 1.1, stroll 1.0 |
+| Rabbit | `passive/rabbit.rs` | stroll 0.6, breed 0.8, tempt 1.0, attack 1.4, flee 2.2 match; monster flee range 4.0 and jump constants UNVERIFIED, kept |
+| Strider | `passive/strider.rs` | matches: panic 1.65, breed 1.0, follow 1.1, stroll 1.0 |
+| Cat | `passive/cat.rs` | matches: lie-on-block 1.1 range 8, follow owner 1.0/10/5, sit-on-block 0.8; tempt via `feline::TEMPT_SPEED` 0.6 |
+| Ocelot | `passive/ocelot.rs` | tempt via `feline::TEMPT_SPEED` 0.6, flee 0.8/1.33 match; kept |
+| Drowned | `mob/zombie/drowned.rs` | matches: water 1.0, beach 1.0, swim-up 1.0, stroll 1.0 |
+| Hoglin, Zoglin | `mob/hoglin.rs`, `mob/zoglin.rs` | attributes 40 hp, speed 0.3, knockback res 0.6, damage 6 match; vanilla uses Brain (HoglinAi), goals kept, UNVERIFIED |
+| Turtle, Parrot, Llama, Horse, Fox, Piglin, Piglin brute | various | not reviewed this pass (budget) |
+
+No code changes in this pass. No fix was confident enough to land without a decompiled reference.
 
 ## Not checked
 
