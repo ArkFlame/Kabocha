@@ -29,7 +29,7 @@ use crate::plugin::block::block_redstone::BlockRedstoneEvent;
 use crate::world::World;
 
 /// Ticks a button stays pressed after the last arrow or press, as in vanilla.
-const fn press_duration(block: &Block) -> u32 {
+fn press_duration(block: &Block) -> u32 {
     if is_stone_button(block) { 20 } else { 30 }
 }
 

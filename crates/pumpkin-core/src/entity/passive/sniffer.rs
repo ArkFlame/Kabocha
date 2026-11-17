@@ -685,8 +685,7 @@ mod tests {
 
     #[test]
     fn explored_positions_keep_newest_within_cap() {
-        let previous: Vec<u32> = (0..MAX_EXPLORED_POSITIONS as u32).collect();
-        let out = prepend_capped(99, previous.into_iter(), MAX_EXPLORED_POSITIONS);
+        let out = prepend_capped(99, 0..MAX_EXPLORED_POSITIONS as u32, MAX_EXPLORED_POSITIONS);
         assert_eq!(out.len(), MAX_EXPLORED_POSITIONS);
         assert_eq!(out[0], 99);
         assert_eq!(out.last(), Some(&(MAX_EXPLORED_POSITIONS as u32 - 2)));

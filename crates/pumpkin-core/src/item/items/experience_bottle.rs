@@ -59,7 +59,7 @@ impl ItemBehaviour for ExperienceBottleItem {
         let mut stack = inventory.get_stack_in_hand(hand);
         let entity = Entity::new(
             world.clone(),
-            throw_spawn_pos(pos, player.get_eye_y()),
+            throw_spawn_pos(pos, player.get_entity().get_eye_y()),
             &EntityType::EXPERIENCE_BOTTLE,
         );
         let bottle = ExperienceBottleEntity::new_shot(entity, player.get_entity());

@@ -406,56 +406,14 @@ fn is_open_water(cell: impl Fn(i32, i32, i32) -> OpenWaterCell) -> bool {
     }
     (-1..=2).all(|dy| {
         (-2..=2).all(|dx| {
-            (-2..=2).all(|dz| match (dy, cell(dx, dy, dz)) {
-                (_, OpenWaterCell::Other) => false,
-                (-1, OpenWaterCell::Air) => false,
-                _ => true,
+            (-2..=2).all(|dz| {
+                !matches!(
+                    (dy, cell(dx, dy, dz)),
+                    (_, OpenWaterCell::Other) | (-1, OpenWaterCell::Air)
+                )
             })
         })
     })
-}
-
-#[cfg(test)]
-mod open_water_tests {
-    use super::{OpenWaterCell, is_open_water};
-
-    #[test]
-    fn full_water_column_is_open_water() {
-        assert!(is_open_water(|_, _, _| OpenWaterCell::Water));
-    }
-
-    #[test]
-    fn air_above_the_surface_is_open_water() {
-        assert!(is_open_water(|_, dy, _| {
-            if dy >= 1 {
-                OpenWaterCell::Air
-            } else {
-                OpenWaterCell::Water
-            }
-        }));
-    }
-
-    #[test]
-    fn single_block_puddle_is_not_open_water() {
-        assert!(!is_open_water(|dx, dy, dz| {
-            if (dx, dy, dz) == (0, 0, 0) {
-                OpenWaterCell::Water
-            } else {
-                OpenWaterCell::Other
-            }
-        }));
-    }
-
-    #[test]
-    fn air_below_the_hook_is_not_open_water() {
-        assert!(!is_open_water(|_, dy, _| {
-            if dy == -1 {
-                OpenWaterCell::Air
-            } else {
-                OpenWaterCell::Water
-            }
-        }));
-    }
 }
 
 pub(super) fn json_to_nbt(value: &Value) -> Option<NbtTag> {
@@ -1038,4 +996,47 @@ pub(super) fn matches_value(
         }
     };
     float_matches(f64::from(num), range)
+}
+
+#[cfg(test)]
+mod open_water_tests {
+    use super::{OpenWaterCell, is_open_water};
+
+    #[test]
+    fn full_water_column_is_open_water() {
+        assert!(is_open_water(|_, _, _| OpenWaterCell::Water));
+    }
+
+    #[test]
+    fn air_above_the_surface_is_open_water() {
+        assert!(is_open_water(|_, dy, _| {
+            if dy >= 1 {
+                OpenWaterCell::Air
+            } else {
+                OpenWaterCell::Water
+            }
+        }));
+    }
+
+    #[test]
+    fn single_block_puddle_is_not_open_water() {
+        assert!(!is_open_water(|dx, dy, dz| {
+            if (dx, dy, dz) == (0, 0, 0) {
+                OpenWaterCell::Water
+            } else {
+                OpenWaterCell::Other
+            }
+        }));
+    }
+
+    #[test]
+    fn air_below_the_hook_is_not_open_water() {
+        assert!(!is_open_water(|_, dy, _| {
+            if dy == -1 {
+                OpenWaterCell::Air
+            } else {
+                OpenWaterCell::Water
+            }
+        }));
+    }
 }

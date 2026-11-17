@@ -119,10 +119,10 @@ impl BlockBehaviour for ShulkerBoxBlock {
         else {
             return true;
         };
-        match shulker.animation.lock() {
-            Ok(mut animation) => animation.on_open_count(args.data),
-            Err(_) => true,
-        }
+        shulker
+            .animation
+            .lock()
+            .map_or(true, |mut animation| animation.on_open_count(args.data))
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
@@ -135,14 +135,16 @@ impl BlockBehaviour for ShulkerBoxBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         // Vanilla `ShulkerBoxBlock.canOpen`: a box whose lid is already fully open
         // is left alone, otherwise a collidable block in the lid sweep blocks it.
-        let fully_open = match args.world.get_block_entity(args.position) {
-            Some(block_entity) => block_entity
-                .as_any()
-                .downcast_ref::<ShulkerBoxBlockEntity>()
-                .and_then(|shulker| shulker.animation.lock().ok())
-                .is_some_and(|animation| animation.is_fully_open()),
-            None => false,
-        };
+        let fully_open = args
+            .world
+            .get_block_entity(args.position)
+            .is_some_and(|block_entity| {
+                block_entity
+                    .as_any()
+                    .downcast_ref::<ShulkerBoxBlockEntity>()
+                    .and_then(|shulker| shulker.animation.lock().ok())
+                    .is_some_and(|animation| animation.is_fully_open())
+            });
         if fully_open {
             return BlockActionResult::Success;
         }
