@@ -249,11 +249,14 @@ pub struct BasicConfiguration {
     /// The world preset of a new world, like vanilla's `level-type`: `minecraft:normal`,
     /// `minecraft:flat`, `minecraft:large_biomes`, `minecraft:amplified` or
     /// `minecraft:single_biome_surface`.
+    #[toml(default = Self::default().level_type)]
     pub level_type: String,
     /// The JSON settings of a new flat world, like vanilla's `generator-settings`, e.g.
     /// `{"layers": [{"block": "minecraft:air", "height": 1}], "biome": "minecraft:the_void", "features": true}`.
+    #[toml(default = Self::default().generator_settings)]
     pub generator_settings: String,
     /// Whether a new world generates structures, like vanilla's `generate-structures`.
+    #[toml(default = Self::default().generate_structures)]
     pub generate_structures: bool,
     /// The default game difficulty.
     #[toml(default = Self::default().default_difficulty, with = crate::toml_adapters::serde_value)]
