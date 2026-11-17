@@ -15,6 +15,8 @@ use crate::world::World;
 
 const SEARCH_RADIUS_NETHER: i32 = 16;
 const SEARCH_RADIUS_OVERWORLD: i32 = 128;
+// PortalForcer.createPortal searches a 16 block radius around the target.
+const SEARCH_RADIUS_CREATE_PORTAL: i32 = 16;
 
 #[derive(Debug, Clone)]
 pub struct PortalSearchResult {
@@ -625,8 +627,8 @@ impl NetherPortal {
         let mut ideal_pos: Option<(BlockPos, HorizontalAxis, f64)> = None;
         let mut acceptable_pos: Option<(BlockPos, HorizontalAxis, f64)> = None;
 
-        for offset_x in -32..=32 {
-            for offset_z in -32..=32 {
+        for offset_x in -Self::SEARCH_RADIUS_CREATE_PORTAL..=Self::SEARCH_RADIUS_CREATE_PORTAL {
+            for offset_z in -Self::SEARCH_RADIUS_CREATE_PORTAL..=Self::SEARCH_RADIUS_CREATE_PORTAL {
                 let check_x = target_pos.0.x + offset_x;
                 let check_z = target_pos.0.z + offset_z;
 
