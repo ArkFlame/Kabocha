@@ -239,6 +239,9 @@ impl CommandExecutor for LocateStructureExecutor {
         let origin = BlockPos::floored_v(context.source.position);
 
         let mut found: Option<(BlockPos, StructureKeys)> = None;
+        // The stronghold cache is filled asynchronously; a pending ring search
+        // must not discard a hit another requested structure already produced.
+        let mut pending = false;
         for (set_index, keys) in scans {
             let set = &StructureSet::ALL[set_index];
             // Concentric-ring placements come from the stronghold cache, which
@@ -261,7 +264,8 @@ impl CommandExecutor for LocateStructureExecutor {
                     match search {
                         Some(StructureSearch::Found(pos)) => Some((pos, keys[0])),
                         Some(StructureSearch::Pending) => {
-                            return Err(STRUCTURE_PENDING_ERROR_TYPE.create_without_context());
+                            pending = true;
+                            None
                         }
                         Some(StructureSearch::NotFound) | None => None,
                     }
@@ -290,6 +294,9 @@ impl CommandExecutor for LocateStructureExecutor {
         }
 
         let Some((target, key)) = found else {
+            if pending {
+                return Err(STRUCTURE_PENDING_ERROR_TYPE.create_without_context());
+            }
             return Err(STRUCTURE_NOT_FOUND_ERROR_TYPE
                 .create_without_context(TextComponent::text(searched.printable())));
         };
