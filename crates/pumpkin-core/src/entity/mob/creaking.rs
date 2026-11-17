@@ -328,7 +328,7 @@ impl CreakingEntity {
             {
                 has_potential_target = true;
                 let is_disguised = Self::is_player_disguised(&player);
-                if (!active || !is_disguised) && self.is_looking_at_me(&player) {
+                if !is_disguised && self.is_looking_at_me(&player) {
                     if active {
                         return false;
                     }
@@ -422,6 +422,18 @@ impl Mob for CreakingEntity {
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
         let entity = &self.mob_entity.living_entity.entity;
+
+        // Vanilla `Creaking#tickDeath`: a heart-bound creaking that is tearing
+        // down survives the normal 20-tick corpse removal, twitches for
+        // `TWITCH_DEATH_DURATION` ticks and only then crumbles away.
+        if self.is_heart_bound() && self.is_tearing_down() {
+            let death_time = self.death_time.fetch_add(1, Ordering::Relaxed) + 1;
+            if death_time > TWITCH_DEATH_DURATION && !entity.is_removed() {
+                self.tear_down();
+            }
+            return;
+        }
+
         if !entity.is_alive() {
             return;
         }
@@ -479,17 +491,24 @@ impl Mob for CreakingEntity {
             });
 
             if !has_protection {
+                // Vanilla: losing the heart protection starts the tear-down twitch
+                // instead of a regular death animation.
                 self.mob_entity.living_entity.health.store(0.0);
+                if !self.is_tearing_down() {
+                    self.creaking_death_effects();
+                }
             }
         }
+    }
 
-        // Teardown / death tick
-        if self.is_heart_bound() && self.is_tearing_down() {
-            let death_time = self.death_time.fetch_add(1, Ordering::Relaxed) + 1;
-            if death_time > TWITCH_DEATH_DURATION && !entity.is_removed() {
-                self.tear_down();
-            }
+    fn on_die(&self, _source: Option<&dyn EntityBase>) {
+        if self.is_heart_bound() && !self.is_tearing_down() {
+            self.creaking_death_effects();
         }
+    }
+
+    fn defers_tick_death(&self) -> bool {
+        self.is_heart_bound() && self.is_tearing_down()
     }
 
     fn pre_damage(&self, damage_type: DamageType, _source: Option<&dyn EntityBase>) -> bool {

@@ -2216,6 +2216,12 @@ pub trait Mob: EntityBase + Send + Sync {
     /// Runs when the mob dies, before the death effects, where vanilla subclasses override `die`.
     fn on_die(&self, _source: Option<&dyn EntityBase>) {}
 
+    /// Vanilla subclasses that override `tickDeath` keep the corpse past the
+    /// shared 20-tick death animation (e.g. a tearing-down creaking).
+    fn defers_tick_death(&self) -> bool {
+        false
+    }
+
     fn get_preferred_weapon_type(&self) -> Option<&'static pumpkin_data::tag::Tag> {
         None
     }

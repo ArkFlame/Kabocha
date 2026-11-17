@@ -29,6 +29,7 @@ use crate::entity::attributes::ModifierOperation;
 use crate::entity::attributes::{AttributeInstance, apply_attributes, pack_attributes};
 use crate::entity::breath::DROWNING_INTERVAL;
 use crate::entity::combat::{CombatRules, CombatTracker, FallLocation, knockback_after_resistance};
+use crate::entity::mob::Mob;
 use crate::entity::mob::equipment::DEFAULT_EQUIPMENT_DROP_CHANCE;
 use crate::entity::mob::neutral::find_by_uuid;
 use crate::entity::player::statistics::{CustomStatistic, StatisticCategory};
@@ -4964,6 +4965,11 @@ impl EntityBase for LivingEntity {
             // entity itself after `DragonFight::set_dragon_killed` opens the exit
             // portal. Removing it here first would leave the portal shut.
             if self.entity.entity_type == &EntityType::ENDER_DRAGON {
+                return;
+            }
+            // Vanilla `Creaking#tickDeath`: a tearing-down creaking removes
+            // itself only after its twitch animation finished.
+            if caller.get_mob().is_some_and(|mob| mob.defers_tick_death()) {
                 return;
             }
             // Vanilla `LivingEntity.tickDeath` sends the POOF (60) particle event
