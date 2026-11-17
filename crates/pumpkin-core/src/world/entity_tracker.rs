@@ -1443,10 +1443,12 @@ mod tests {
         entity.velocity.store(Vector3::new(0.0, 0.3, 0.0));
         entity.velocity_dirty.store(true, Ordering::SeqCst);
         entity.needs_sync.store(true, Ordering::SeqCst);
+        let last_motion = entity.last_sent_velocity.load();
         living.tick(living.as_ref(), &server);
-        assert!(!entity.velocity_dirty.load(Relaxed));
+        // The tick leaves the velocity flag for the tracker, which clears it on send.
+        assert!(entity.velocity_dirty.load(Relaxed));
         assert!(entity.needs_sync.load(Relaxed));
-        assert_eq!(entity.last_sent_velocity.load(), entity.velocity.load());
+        assert_eq!(entity.last_sent_velocity.load(), last_motion);
         tracker.send_changes(&world);
         // Tick three was periodic; tick four must be throttled without a new signal.
         let last_pos = entity.last_sent_pos.load();
