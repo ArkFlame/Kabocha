@@ -483,7 +483,6 @@ pub fn merge_dynamic_registry_entries<S: std::hash::BuildHasher>(
                 entry_id: entry.entry_id.clone(),
                 data: custom.data.clone(),
             };
-            reg_entry.entry_id.clone_from(&entry.entry_id);
             merged.push(reg_entry);
             overridden.insert(full_id);
             overridden.insert(entry.entry_id.clone());
