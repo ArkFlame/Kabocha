@@ -380,7 +380,11 @@ fn try_place_powder_snow(
         return None;
     }
     if !target_state.is_air() && !target_state.is_liquid() {
-        world.break_block(&target_pos, None, BlockFlags::NOTIFY_ALL);
+        world.break_block(
+            &target_pos,
+            None,
+            BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+        );
     }
     world.set_block_state(
         &target_pos,
@@ -501,7 +505,11 @@ fn try_place_liquid(
         return None;
     }
     if !target_state.is_air() && !target_state.is_liquid() {
-        world.break_block(&place_pos, None, BlockFlags::NOTIFY_ALL);
+        world.break_block(
+            &place_pos,
+            None,
+            BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+        );
     }
     world.set_block_state(
         &place_pos,
