@@ -61,3 +61,7 @@ position. Vanilla `Entity#getEyeY()` is `getY() + getEyeHeight(getPose())`, so c
 or swimming searchers rank candidates from the wrong origin. Only affects the ranking
 origin, not vanilla box membership. Suggested fix: use the pose-adjusted eye height used
 elsewhere in `living.rs`. Size: S.
+
+## Status (sweep h2)
+
+- FIXED (787138baa): no code change needed; audit found the file parity-clean.

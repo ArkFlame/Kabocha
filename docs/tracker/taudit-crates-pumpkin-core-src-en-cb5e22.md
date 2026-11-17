@@ -66,3 +66,7 @@ accurate, not TODOs). No TODO/FIXME markers in the file.
 - `BlockDisplay`/`ItemDisplay`/`TextDisplay` are `no_physics`, not pushable, not
   hittable, and `damage_with_context` returns false like vanilla's non-living
   `hurt`.
+
+## Status (sweep h2)
+
+- FIXED (a7fdd27d5): no code change; no TODO/FIXME markers in the file, tracker marker is stale.

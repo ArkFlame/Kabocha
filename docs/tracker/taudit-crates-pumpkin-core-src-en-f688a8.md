@@ -23,3 +23,7 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - `remove_passenger_internal` riding cooldown (0 for players, 60 for mobs), CSetPassengers ordering before the teleport placeholder, cushion get-up sound.
 - `has_line_of_sight` clip uses the collision shape set, which is what `ClipContext.Block.COLLIDER` resolves to in `pumpkin_world::clip` (`ClipBlock::Collider` and `Visual` share `clip_block_shapes`), so the enum name difference has no behavioural effect.
 - `spawn_state`/`create_spawn_packet` packing via `pack_degrees`; entity metadata dirty flush at end of tick (`sendDirtyEntityData`).
+
+## Status (sweep h2)
+
+- FIXED (2c38597bb): has_line_of_sight checks the level, per the Changed note above.

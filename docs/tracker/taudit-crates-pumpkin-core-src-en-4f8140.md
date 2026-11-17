@@ -51,3 +51,7 @@ Fixed:
 Both fixes are one-line constant/ordering changes inside a goal that needs a live mob, path and
 door block; the smallest meaningful check is a gametest (vindicator breaks a door in ~6 ticks),
 not a unit test. Getters are excluded by the test policy.
+
+## Status (sweep h2)
+
+- FIXED (fce61c65b): no code change; the file has no TODO/FIXME at HEAD, the tracker marker is stale.

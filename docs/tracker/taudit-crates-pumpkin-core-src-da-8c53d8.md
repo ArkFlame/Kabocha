@@ -65,3 +65,7 @@ tracker note of 4 markers is stale: the file has none at HEAD).
 5. damage_type_loader.rs:206 - a JSON file that overrides an existing id still
    counts in `load_damage_types_from_dir`'s return only when it is new; the
    count is used purely for admin statistics. Cosmetic.
+
+## Status (sweep h2)
+
+- FIXED (3a4207dde): no code change; no TODO/FIXME/vanilla markers at HEAD, tracker marker is stale.

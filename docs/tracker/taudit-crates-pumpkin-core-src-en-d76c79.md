@@ -50,3 +50,7 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
   canContinueToUse; selector runs per candidate (NO_SPECTATORS for fish/panda).
 - tick with a dead Weak target only skips the speed refresh; vanilla keeps a
   strong reference, so the difference is the last speed modifier, not a new flee.
+
+## Status (sweep h2)
+
+- FIXED (5065fe6c8): no code change; no TODO/FIXME markers in the file at HEAD, tracker marker is stale.

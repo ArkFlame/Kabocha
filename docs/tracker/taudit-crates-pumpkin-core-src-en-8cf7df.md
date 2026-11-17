@@ -37,3 +37,7 @@ defend_village_target.rs, fox/goals.rs, trader_llama.rs, teleport_towards_player
   existing MobEntity::is_in_position_target_range_pos (same helper as
   melee_attack.rs:176), which implements distSqr < r*r with radius -1 meaning no
   restriction. Vanilla: TrackTargetGoal.canAttack -> Mob.isWithinRestriction.
+
+## Status (sweep h2)
+
+- FIXED (05a735da1): no code change; the note records TrackTargetGoal as matching vanilla.

@@ -60,3 +60,9 @@ in the file.
    `REGISTRY_V_*` order, vanilla follows `SYNCHRONIZED_REGISTRIES`. The packet is key addressed so
    this is not observable; only worth aligning if the generated list is ever regenerated from a
    sorted dump. Size: S, low priority.
+
+## Status (sweep h2)
+
+- FIXED (1e6e9d3ec): datapack-only registries stay out of the synced set and out of registry_data packets.
+- FIXED (cca2a4fe7): registries and synced_order locks are taken in one order.
+- STILL OPEN: gaps 1-4 (codec validation, override semantics, cross-entry validation, reload cost).

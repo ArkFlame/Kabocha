@@ -29,3 +29,9 @@ Coverage AUDIT. Fixed in this branch, then the gaps left open.
 ordering and comparisons, `look_at_entity`, `attack_bounding_box` / `is_within_melee_attack_range`,
 `finalize_spawn_base` (follow range triangle, 5% left handed), equipment population and enchantment
 chances, `should_drop_loot` / `should_drop_experience`, `server_ai_step` ordering.
+
+## Status (sweep h2)
+
+- FIXED (c30b42908): animal spawn light check uses raw brightness.
+- FIXED (b9dc8cb44): monsters despawn on Peaceful via checkDespawn.
+- FIXED (b66466f15): mob experience reward applies Looting from the killer weapon.

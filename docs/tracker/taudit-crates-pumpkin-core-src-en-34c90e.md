@@ -26,3 +26,7 @@ No TODO/FIXME. The 3 "vanilla" hits are doc references only:
 
 ## Not gaps
 - Predicate ordering: `ActiveTargetGoal::accepts` runs the selector before the distance/sight test; vanilla tests range/sight before the selector. Pure predicates only (`within_four_blocks_height`), no observable difference.
+
+## Status (sweep h2)
+
+- FIXED (1ea9acdbd): no code change; the file has no TODO/FIXME at HEAD, the tracker marker is stale.

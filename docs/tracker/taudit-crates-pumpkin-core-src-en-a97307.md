@@ -51,3 +51,7 @@ FIXME, todo! or unimplemented!. The grep hits are doc comments naming vanilla cl
 6. spawn.rs:20-22 - Halloween constants unverified against decompiled source. Confirmed against
    wiki numbers only; re-check Zombie.finalizeSpawn/AbstractSkeleton.finalizeSpawn when a
    decompiled dump is available.
+
+## Status (sweep h2)
+
+- FIXED (5065fe6c8): no code change; the TODO/FIXME markers are false positives (doc comments only).

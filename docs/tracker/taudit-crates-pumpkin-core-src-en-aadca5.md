@@ -24,3 +24,8 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - Sun burning itself is tag-driven (`MINECRAFT_BURN_IN_DAYLIGHT`) via `mob::sun_burn::tick`, so skeletons ignite and wear out helmets correctly.
 - `populateDefaultEquipmentSlots`: generic armor population then `BOW` in the main hand; `wants_to_pick_up` rejects `MINECRAFT_SPEARS` and defers to `can_hold_item` (wither skeleton also rejects `WITHER_SKELETON_DISLIKED_WEAPONS`).
 - Per-species arrows: Stray slowness 600t, Parched weakness 600t, Bogged poison (100t, pre-duration-scale), Wither flame + wither 200t on melee; wither skeleton damage 4.0 set at spawn.
+
+## Status (sweep h2)
+
+- FIXED (943af6183): skeleton registers FleeSunGoal at priority 3.
+- STILL OPEN: RestrictSunGoal at priority 2 (TODO in skeleton/mod.rs), pathfinding malus for lava and per-species attack intervals.

@@ -18,3 +18,8 @@ Compared against vanilla `Witch` (goal registration, performRangedAttack, aiStep
 | 5 | no test | Drink math (`duration / 8`) is unit-testable only through a `LivingEntity` | No automated coverage pins the witch drink scaling or the raider target clear. A gametest spawning a witch, forcing `start_drinking`, and asserting the effect duration would lock fix 3. | S |
 
 Checked, no change: `getDamageAfterMagicAbsorb` 0.15 multiplier (85% resistance), `setDrinkingPotion` transient -0.25 `ADD_VALUE` speed modifier and `DATA_USING_ITEM`, potion choice order/chances (water breathing 0.15 eye-in-fluid, fire resistance 0.15 on fire, healing 0.05, swiftness 0.5 at >11 blocks), `SPLASH_POTION` velocity formula `d, e + g*0.2, f`, drink/throw sounds with 0.8-1.2 pitch, hat-magic entity status at 7.5e-4, hurt/death/celebrate sounds, raider NBT (no extra saved fields).
+
+## Status (sweep h2)
+
+- FIXED (4a6ff56f3): witch no longer overrides `can_be_leader`; it uses the PatrollingMonster default (true). UNVERIFIED: from the note's vanilla claim, not checked against decompiled Witch.
+- STILL OPEN: items 1-2 (performRangedAttack speed, Raider goal priorities) need decompiled source.
