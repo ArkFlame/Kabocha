@@ -75,7 +75,7 @@ const fn collide_down_y(aabb: &BoundingBox, shape: &BoundingBox, move_y: f64) ->
     }
     let new_move = shape.max.y - aabb.min.y;
     if new_move <= 0.0 {
-        if new_move > move_y { new_move } else { move_y }
+        move_y.max(new_move)
     } else {
         move_y
     }
@@ -789,7 +789,7 @@ impl BlockIsReplacing {
     /// Returns true if the block was replaced by a water source.
     ///
     /// Vanilla `FluidState#is(Fluids.WATER)` compares the fluid owner, so `Fluids.WATER`
-    /// (a source) matches while `Fluids.FLOWING_WATER` (levels 1-8) does not.
+    /// (a source, level 0) matches while `Fluids.FLOWING_WATER` (levels 1-15) does not.
     pub const fn is_water(&self) -> bool {
         matches!(self, Self::Water(0))
     }
@@ -797,9 +797,16 @@ impl BlockIsReplacing {
     #[must_use]
     /// Returns true for water that fills the block, matching vanilla
     /// `FluidState#is(FluidTags.WATER) && FluidState#isFull()`: a source (level 0) or
-    /// falling water (level 8), both with the full amount of 8.
+    /// falling water (levels 8-15), both with the full amount of 8.
     pub const fn is_full_water(&self) -> bool {
-        matches!(self, Self::Water(0 | 8))
+        matches!(self, Self::Water(0 | 8..=15))
+    }
+
+    #[must_use]
+    /// Returns true for any water, matching vanilla `FluidState#is(FluidTags.WATER)`,
+    /// which also covers flowing water (levels 1-7).
+    pub const fn is_tag_water(&self) -> bool {
+        matches!(self, Self::Water(_))
     }
 }
 

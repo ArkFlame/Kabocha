@@ -28,7 +28,7 @@ pub type CoralPlantLikeProperties = MangroveRootsLikeProperties;
 impl BlockBehaviour for CoralPlantBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = CoralPlantLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.is_water();
+        props.waterlogged = args.replacing.is_full_water();
         props.to_state_id(args.block)
     }
     fn placed(&self, args: PlacedArgs<'_>) {
