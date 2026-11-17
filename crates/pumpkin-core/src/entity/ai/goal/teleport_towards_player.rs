@@ -131,6 +131,7 @@ impl Goal for TeleportTowardsPlayerGoal {
         self.unseen_ticks = 0;
         if let Some(enderman) = self.enderman.upgrade() {
             enderman.set_provoked(true);
+            enderman.play_stare_sound();
         }
     }
 

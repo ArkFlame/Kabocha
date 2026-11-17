@@ -57,6 +57,8 @@ pub const MAX_TELEPORT_RADIUS: i32 = 32;
 pub const MAX_TELEPORT_DIAMETER: i32 = 64;
 const MIN_DEAGGRESSION_TIME: i32 = 600;
 const TELEPORT_ATTEMPTS: usize = 64;
+/// Ticks between stare screams, matching Enderman.playStareSound.
+const STARE_SOUND_INTERVAL: i32 = 400;
 /// Largest per-axis offset level event 2018 can carry.
 const MAX_PACKED_OFFSET: i32 = 127;
 const STARE_CONE_SIZE: f64 = 0.025;
@@ -82,6 +84,7 @@ pub struct EndermanEntity {
     provoked: AtomicBool,
     speed_boosted: AtomicBool,
     target_change_time: AtomicI32,
+    last_stare_sound: AtomicI32,
 }
 
 impl EndermanEntity {
@@ -95,6 +98,7 @@ impl EndermanEntity {
             provoked: AtomicBool::new(false),
             speed_boosted: AtomicBool::new(false),
             target_change_time: AtomicI32::new(0),
+            last_stare_sound: AtomicI32::new(i32::MIN),
         };
         let mob_arc = Arc::new(entity);
         let mob_weak: Weak<dyn Mob> = {
@@ -406,6 +410,30 @@ impl EndermanEntity {
                 pumpkin_world::clip::ClipFluid::None,
             ))
             .is_miss
+    }
+
+    /// Vanilla Enderman.playStareSound: loud scream when a player starts staring,
+    /// at most once per STARE_SOUND_INTERVAL ticks.
+    pub fn play_stare_sound(&self) {
+        let entity = &self.mob_entity.living_entity.entity;
+        let tick_count = entity.tick_count.load(Ordering::Relaxed);
+        let last = self.last_stare_sound.load(Ordering::Relaxed);
+        if tick_count < last.saturating_add(STARE_SOUND_INTERVAL) {
+            return;
+        }
+        self.last_stare_sound.store(tick_count, Ordering::Relaxed);
+        if entity.is_silent() {
+            return;
+        }
+        let pos = entity.pos.load();
+        let eye_pos = Vector3::new(pos.x, entity.get_eye_y(), pos.z);
+        entity.world.load().play_sound_fine(
+            Sound::EntityEndermanStare,
+            SoundCategory::Hostile,
+            &eye_pos,
+            2.5,
+            1.0,
+        );
     }
 }
 
