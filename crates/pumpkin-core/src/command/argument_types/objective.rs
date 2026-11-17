@@ -49,8 +49,12 @@ impl ArgumentType<CommandSource> for ObjectiveArgumentType {
         context: &CommandContext,
         mut builder: SuggestionsBuilder,
     ) -> Suggestions {
-        let scoreboard = context
-            .world()
+        // Vanilla suggests nothing when the source is not a server command
+        // source; a source without a world has no scoreboard to read either.
+        let Some(world) = context.source.world.as_ref() else {
+            return builder.build();
+        };
+        let scoreboard = world
             .scoreboard
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
