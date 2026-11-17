@@ -5237,6 +5237,10 @@ impl Entity {
     /// No visual-blocking block between the two eye positions (matching vanilla `ClipContext.Block.VISUAL`).
     #[must_use]
     pub fn has_line_of_sight(&self, other: &Self) -> bool {
+        // Vanilla LivingEntity.hasLineOfSight: entities in different levels never see each other.
+        if !Arc::ptr_eq(&self.world.load_full(), &other.world.load_full()) {
+            return false;
+        }
         let from = self.get_eye_pos();
         let to = other.get_eye_pos();
         let distance_sq = from.squared_distance_to_vec(&to);
