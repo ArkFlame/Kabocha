@@ -19,3 +19,6 @@ Compared against vanilla `ServerLevel`, `ServerChunkCache`, `ServerPlayerGameMod
 | 5 | world/mod.rs:5958 | `Level.getEntities` / `getEntitiesOfClass` return `EnderDragonPart` sub-entities; damage routed through the parent dragon | `add_dragon_parts`/radius collection skips dragon parts (the TODO sits in the entity-radius collector), so hit detection and area effects miss a live dragon's body parts until the dragon fight wrapper exists. Needs the dragon fight rewrite, not a local patch. | L |
 | 6 | world/mod.rs:2422 | — | Stale: `broadcast_to_chunk*` already filters on `player.watched_section.is_within_distance`. Only the comment should be deleted. | XS |
 | 7 | world/mod.rs:563, :3751, :4240, :4247, :4731 | — | Marker/comment only. The view-distance and simulation-distance values at :4240/:4247 already come from config and match vanilla `ClientboundLogin`; :563 is an empty TODO; :4731 is a logging style note. No behaviour gap. | XS |
+
+## Status (h3 sweep)
+- Ender dragon handling (world/mod.rs:5978 still `// TODO: Implement ender dragon handling`): STILL OPEN (M, not changed in this pass).

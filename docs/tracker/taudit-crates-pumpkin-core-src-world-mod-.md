@@ -91,3 +91,6 @@ block, relying on the `unchanged()` re-check. Fix: set the block (and broadcast)
 `mod.rs:4530`. `info!("{}", event.join_message.to_pretty_console())` prints the formatted
 component. Vanilla has no equivalent; this is a housekeeping item (use
 `info!(player = %name, "connected")`).
+
+## Status (h3 sweep)
+- Stale markers (`// TODO: view distance`, `// TODO: sim view dinstance`, bare `// TODO` in World::load): FIXED, grep finds none left in world/mod.rs (checked).

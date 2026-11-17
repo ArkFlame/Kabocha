@@ -38,3 +38,6 @@ and `Mth.packDegrees` behaviour is from knowledge of 1.21.x sources.
   head rot, velocity, non-default metadata, attributes, equipment, effects,
   passengers/vehicle, leash; `remove_pairing` per edition.
 - `remove_player`/`forget_player` maintain `bedrock_watchers` symmetrically.
+
+## Status (h3 sweep)
+- Marker "TODO: use pack_degrees" (entity_tracker.rs:634,647): FIXED, grep finds `pack_degrees` in use and no TODO left (checked).

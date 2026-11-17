@@ -157,3 +157,6 @@ crates/pumpkin-core/src/world/mod.rs:3025, row 9 below.
 - SpawnState::add_entity/remove_entity: persistence-required and MISC entities
   skipped, spawn-cost charge from biome.spawn_costs, both counters updated
   (403-455).
+
+## Status (h3 sweep)
+- `canSpawnEntitiesInChunk` check (world/mod.rs:3295 still `// TODO this.level.canSpawnEntitiesInChunk`): STILL OPEN (M, not changed in this pass).
