@@ -24,6 +24,8 @@ Verified parity (no change needed):
   dimension, all other entities resolved in any dimension, UUID only in NBT
   (`EntityReference#getEntity`, `#store`, `owner.rs:51-106`).
 - `lastDeflectedBy` identity guard, transient (`Projectile#hitTargetOrDeflectSelf`).
+- `leftOwnerChecked` is reset at the end of `Projectile#tick` (Canvas line 196), so the
+  check reruns every tick while false, matching `check_left_owner`; no extra flag needed.
 
 Remaining gaps:
 
@@ -31,7 +33,7 @@ Remaining gaps:
 |---|---|---|---|---|
 | `owner.rs:218-249` | `Projectile#addAdditionalSaveData` / `#readAdditionalSaveData` save `Owner`, `LeftOwner`, `HasBeenShot` for every projectile | `ProjectileOwner::write_nbt`/`read_nbt`/`remove_nbt` have no caller; no projectile type implements `NBTStorage`, so owners and both flags are lost on save/load and `data get` shows nothing (only `evoker_fangs.rs:38-50` saves an `EntityReference` owner) | Implement projectile NBT persistence, then call the owner helpers from each projectile's `write_nbt`/`read_nbt` (same keys) | M |
 | `owner.rs:33-38` | `EntityReference.of(entity)` stores the entity itself (strong `Either::right`), so an owner resolves before it is registered in a level | Only the UUID is kept; if the owner is not yet in the world when the projectile ticks, `get` returns `None` and `leftOwner` becomes true immediately | Keep an optional `Weak<dyn EntityBase>` alongside the UUID, seeded from the shooter | S |
-| `owner.rs:189` | `EntitySelector.CAN_BE_PICKED` = `Entity::isPickable` (`LivingEntity`: `!isRemoved`, `Player`: `!isSpectator && !isRemoved`) | Predicate is `!is_spectator() && can_hit()`; removed owners/passengers would still count, and Paper's `setCollidable` (`LivingEntity.collides`) has no equivalent | Add an `is_pickable` trait method mirroring `isPickable` and use it here | S |
+| `owner.rs:190-197` | `EntitySelector.CAN_BE_PICKED` = `Entity::isPickable` (`LivingEntity`: `!isRemoved`, `Player`: `!isSpectator && !isRemoved`) | FIXED: predicate now also requires `!is_removed()`. Remaining: Paper's `setCollidable` (`LivingEntity.collides`) has no Pumpkin equivalent, so a non-collidable living entity would still count | none for removed entities; the `collides` part needs an `is_collidable` trait method with per-entity state | S |
 | `owner.rs:210-216` | `canHitEntity` also drops targets the shooting `ServerPlayer` cannot see (Paper vanish) | No vanish check | Needs a vanish/`canSee` API first | S |
 | `owner.rs:112-118` | `Projectile#restoreFrom` copies `owner` when an entity is replaced | No `restoreFrom` hook in `EntityBase`; owner is dropped on any replace | Add `restore_from` and copy the reference | S |
 | `owner.rs:159-165` | `lastDeflectedBy` is a nullable entity reference | Stored as `entity_id`; ids are not reused in a session, so equivalent today | None | - |
