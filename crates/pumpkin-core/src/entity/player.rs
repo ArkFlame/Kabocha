@@ -6754,6 +6754,11 @@ impl Player {
             };
             speed *= fatigue_speed;
         }
+        // Vanilla `Player.getDigSpeed` scales by the block break speed attribute (UNVERIFIED
+        // order: after fatigue, before the water and airborne divisors).
+        speed *= self
+            .living_entity
+            .get_attribute_value(&Attributes::BLOCK_BREAK_SPEED) as f32;
         // Vanilla `Player.getDestroySpeed`: water slows mining unless the player has
         // Aqua Affinity, and the two divisors stack.
         if self.living_entity.entity.is_submerged_in_water() && !self.has_aqua_affinity() {
