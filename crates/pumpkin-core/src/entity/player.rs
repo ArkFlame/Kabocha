@@ -2654,9 +2654,16 @@ impl Player {
         }
         self.get_entity().set_pose(EntityPose::Sleeping);
         // Vanilla `setPosToBed`; `to_f64` already centers X and Z.
+        let bed_state = self
+            .get_entity()
+            .world
+            .load()
+            .get_block_state(&bed_head_pos);
+        let sleep_height = crate::block::blocks::bed::sleep_height(bed_state).unwrap_or(0.0)
+            + crate::block::blocks::bed::SLEEP_HEIGHT_OFFSET;
         self.living_entity
             .entity
-            .set_pos(bed_head_pos.to_f64().add_raw(0.0, 0.6875, 0.0));
+            .set_pos(bed_head_pos.to_f64().add_raw(0.0, sleep_height, 0.0));
         self.get_entity().set_synced_data(
             pumpkin_data::tracked_data::player::SLEEPING_POS_ID,
             Some(bed_head_pos),

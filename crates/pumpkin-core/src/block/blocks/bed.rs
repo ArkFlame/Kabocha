@@ -536,6 +536,17 @@ fn find_stand_up_position_at_offset(
     })
 }
 
+/// Added to the bed's sleep height by `LivingEntity#setPosToBed` (`adjustHeight`).
+pub const SLEEP_HEIGHT_OFFSET: f64 = 0.125;
+
+/// Vanilla `AbstractBedBlock#getSleepHeight`: the top of the bed's collision shape.
+pub fn sleep_height(state: &BlockState) -> Option<f64> {
+    state
+        .get_block_collision_shapes()
+        .map(|shape| shape.max.y)
+        .reduce(f64::max)
+}
+
 fn is_bunk_bed(world: &World, pos: &BlockPos) -> bool {
     world
         .get_block(&pos.down())
@@ -590,6 +601,13 @@ fn entity_prevents_sleep(entity: &Entity) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sleep_height_plus_offset_is_the_bed_top() {
+        // Vanilla bed shape tops out at 9/16; setPosToBed then adds 0.125 (= 0.6875).
+        let height = sleep_height(&Block::WHITE_BED.states[0]).map(|h| h + SLEEP_HEIGHT_OFFSET);
+        assert_eq!(height, Some(0.6875));
+    }
 
     #[test]
     fn stand_up_offset_order_matches_vanilla() {

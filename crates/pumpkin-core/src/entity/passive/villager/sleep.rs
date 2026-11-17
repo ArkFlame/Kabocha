@@ -1,14 +1,14 @@
+use pumpkin_data::Block;
 use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::block_properties::WhiteBedLikeProperties;
 use pumpkin_data::entity::EntityPose;
 use pumpkin_data::tag::{Block as BlockTag, Taggable};
 use pumpkin_data::tracked_data;
-use pumpkin_data::{Block, BlockState};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::math::wrap_degrees;
 
-use crate::block::blocks::bed::BedBlock;
+use crate::block::blocks::bed::{BedBlock, sleep_height};
 use crate::entity::EntityBase;
 use crate::entity::ai::brain::memory::types;
 
@@ -29,7 +29,7 @@ impl VillagerEntity {
         if !block.has_tag(&BlockTag::MINECRAFT_BEDS) {
             return false;
         }
-        let Some(sleep_height) = get_sleep_height(state) else {
+        let Some(sleep_height) = sleep_height(state) else {
             return false;
         };
 
@@ -126,13 +126,6 @@ impl VillagerEntity {
         };
         let world = self.get_entity().world.load();
         let (block, state) = world.get_block_and_state(&bed_pos);
-        block.has_tag(&BlockTag::MINECRAFT_BEDS) && get_sleep_height(state).is_some()
+        block.has_tag(&BlockTag::MINECRAFT_BEDS) && sleep_height(state).is_some()
     }
-}
-
-fn get_sleep_height(state: &BlockState) -> Option<f64> {
-    state
-        .get_block_collision_shapes()
-        .map(|shape| shape.max.y)
-        .reduce(f64::max)
 }
