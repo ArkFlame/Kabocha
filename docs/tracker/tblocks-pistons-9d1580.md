@@ -68,3 +68,8 @@ destroy-vs-block reactions) and the retract fast-retract `TRIGGER_DROP` gate
   the base stops fitting) cover head removal after the base is destroyed or replaced.
 - Moving-block NBT (`entities/piston.rs:273-310`): `facing` stored/read as an int with a byte
   fallback, matching vanilla `PistonMovingBlockEntity`.
+
+## h6 gap status
+- Row 1 (world border in `is_movable`): FIXED in tree at HEAD (`piston.rs:62` `contains_block` check).
+- Row 2 (air moved-block place then break): FIXED bb9367799 (as the note states).
+- Row 3 (head slab anchored on far face): STILL OPEN, needs the six `PistonHeadBlock` AABBs and end-crystal re-check.

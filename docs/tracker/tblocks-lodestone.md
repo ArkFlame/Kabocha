@@ -47,5 +47,8 @@ proven by in-tree evidence.
   lodestone leaves no stale POI.
 
 
-## Status (h3 sweep)
-- Gap 4 (no world for target dimension keeps target): FIXED, `player.rs` lodestone tick now clears the target when no world matches the target dimension (`is_none_or`). UNVERIFIED, no test (needs a live server world).
+## h6 gap status
+- Row 4 (target dimension missing should unlink): FIXED e34445644 (`Player` lodestone tick clears the target when no world matches).
+- Rows 1 and 6 (`compass.rs`): STILL OPEN, `compass.rs` is out of scope for this sweep.
+- Row 2 (dead POI hooks in `lodestone.rs`): STILL OPEN, deletion not done this pass.
+- Row 5 (unloaded chunk skip): STILL OPEN by design, keep as-is per note.

@@ -39,6 +39,7 @@ Remaining gaps:
 | `beacon.rs:352-368` | `entity.levels = updateBase(...)` runs on every 80-tick pulse when the beam is not empty | Matches, but `levels` is only refreshed when `beam_active`; a blocked beam leaves the `Levels` property stale until the beam is restored | None required for parity; keep in mind if a comparator/data read is added | S |
 | `beacon.rs:250-256` | Upstream `loadAdditional` does not read `Levels`; CraftBukkit/Paper do (`SPIGOT-5053`) | `Levels` is deliberately not loaded, matching upstream vanilla | None (documented difference) | - |
 
-## h3 wave status
-- row 1 (spectator filter in applyEffects and construct_beacon): FIXED 3c24eb4de. Spectators are no longer skipped (UNVERIFIED, no test).
-- set_property sound deferral and levels note left STILL OPEN (needs world handle in PropertyDelegate; not an S fix in this pass).
+## h6 gap status
+- Row 37 (spectator filter in `applyEffects` and construct-beacon loop): FIXED aec846a93 (both loops now skip only out-of-bounds players).
+- Row 38 (`set_property` sound deferred one tick): STILL OPEN, needs a world handle in the property delegate (not a one-line change).
+- Row 39 (stale `levels` while beam blocked): STILL OPEN, parity-neutral watch item; no change made.

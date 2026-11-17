@@ -52,3 +52,9 @@ remaining cook time to continue from the pre-extinguish progress.
 | 5 | Smoke stop test uses collision-shape intersection with the 0.375..0.625 column instead of vanilla's solid-block stop | `blocks/campfire.rs:56-63` | `CampfireBlock.isSmokeyPos` (verify: opaque-cube/solid stop vs collision) | align the predicate once decompiled source is vendored | S |
 | 6 | `cool_down` clamps only at 0, vanilla `cooldownTick` clamps to `[0, cookingTime]` | `entities/campfire.rs:333-346` | `CampfireBlockEntity.cooldownTick` | clamp with the slot total; currently unreachable (completion resets progress) | S |
 | 7 | No crackle sound, smoke/flame particles or campfire smoulder visuals | `blocks/campfire.rs` (no display-tick hook) | `CampfireBlock.randomDisplayTick` / `AnimateTick` | client-only effect; add when the display-tick hook exists, otherwise note in `docs/QUEUE.md` | S (client) |
+
+## h6 gap status
+- Row 3 (stale cook progress on container/pick-block restore): FIXED 5694877b6 (`apply_item_components` resets `cooking_times` and `cooking_total_times`).
+- Row 6 (`cool_down` clamp): FIXED 5694877b6 (clamps to `[0, cooking_total_times]`).
+- Row 4 (neighbour update clears `lit` when waterlogged): STILL OPEN, needs decompiled `CampfireBlock.getStateForNeighborUpdate` to confirm.
+- Row 5 (`isSmokeyPos` collision vs solid stop): STILL OPEN, needs decompiled `isSmokeyPos`.

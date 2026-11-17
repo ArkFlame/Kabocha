@@ -54,5 +54,5 @@ Reviewed source: `crates/pumpkin-core/src/block/blocks/beehive.rs`,
   confirmed before it is kept.
 - `BeehiveBlock#animateTick` honey drip particles are client-side only in vanilla; no server work.
 
-## h3 wave status
-- `beehive.rs` `angerNearbyBees` reason (S): FIXED 5610b37a9. Uses `TargetReason::ClosestPlayer` (UNVERIFIED in game).
+## h6 gap status
+- Row 6 (hive anger reason): FIXED aec846a93 (`anger_nearby_bees` uses `TargetReason::ClosestPlayer`).

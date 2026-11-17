@@ -43,8 +43,8 @@ the vanilla classes from memory and `docs/VANILLA_REF.md`.
 | 5 | `world/game_event.rs:114-117` | `VibrationSystem` compares listener distance against the actual event position | Distance is measured to the floored block position, so the acceptance sphere shifts up to one block at the border. Low impact (one-block edge case) | S |
 | 6 | (tests) | vanilla behaviour is observable through step/shriek state | No automated test covers a game event reaching a shrieker and setting SHRIEKING (only stepping is covered indirectly). Add a `pumpkin-gametest` case: place can_summon=false shrieker, emit a player-sourced vibration within 8 blocks, assert no shriek; with can_summon=true assert SHRIEKING and the 90t tick | M |
 
-## Status (h3 sweep)
-- Row 4 (warden_spawn_tracker.rs trigger pushed unconditionally): FIXED, try_warn adds the trigger only when alive and not spectator (is_eligible). UNVERIFIED, no test.
-
-## Status (h3 sweep)
-- Row 1 (darkness timing at shriek start): STILL OPEN (`respond` applies darkness via apply_darkness_around at sculk_shrieker.rs:148; timing vs vanilla not changed).
+## h6 gap status
+- Row 1 (darkness at shriek start): FIXED 483c3018a (`apply_darkness_around` moved into `try_shriek`, removed from `respond`).
+- Row 2 (broken shrieker reply and darkness): FIXED 483c3018a (block removal calls new `summon_warden_on_removal`, summon only).
+- Row 4 (trigger player bypasses spectator/alive filter in `try_warn`): FIXED 483c3018a.
+- Row 5 (vibration distance to floored position): STILL OPEN, needs `VibrationSystem` source check; not changed.

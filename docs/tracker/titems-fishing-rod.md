@@ -35,7 +35,6 @@ No cargo/test run was allowed in this pass (WORKER.md rule 1). The two commits a
 edits reviewed against the vanilla call chain only; the orchestrator batch build is the gate.
 
 
-## Gapwave2-2 status
-
-- row 3 (stale durability TODO): FIXED, TODO removed in `net/java/play/use_item.rs`.
-- rows 1, 2, 4: STILL OPEN.
+## h6 gap status
+- Row 3 (stale durability TODO in `use_item.rs`): FIXED 50a7d1ee2 (TODO removed; durability is applied in `item/items/fishing_rod.rs:96-98`).
+- Row 4 (hook origin X/Z offset): STILL OPEN, UNVERIFIED against the 26.3 constructor; not changed.

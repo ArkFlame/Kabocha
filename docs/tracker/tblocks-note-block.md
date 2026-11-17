@@ -29,5 +29,6 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
    `NoteBlock#playNote` / `NoteBlockInstrument#getSerializedName`.
    Suggested fix: add a serialized-id helper on `NoteblockInstrument`. Size S.
 
-## Status (code-verified sweep)
-FIXED: NOTE particle sent on tunable playback (block/blocks/note.rs:206). STILL OPEN: (1) custom head SoundEvent range (note.rs:193), (2) NotePlayEvent instrument serialized id (note.rs:37).
+## h6 gap status
+- Row 2 (`NotePlayEvent` instrument serialized id): FIXED in tree at HEAD (`note.rs:37` passes `to_value()`, the serialized id).
+- Row 1 (custom head sound range): STILL OPEN, needs the sound registry range lookup.

@@ -51,5 +51,7 @@ block. Sources reviewed: `crates/pumpkin-core/src/block/blocks/campfire.rs`,
 Note: the reviewed sources did not change after the last tracker commit (`56622ca89`);
 this pass re-checked the fixable rows against vanilla.
 
-## h3 wave status
-- cancel reset (entities/campfire.rs:164-173) and centre spawn (:329-337 -> spawn_cooked_item): already present in source at HEAD, read-verified in this pass (no new commit). Marked FIXED by existing code.
+## h6 gap status
+- Cancelled-event refire (row 13): FIXED in tree at HEAD (`cooking_cancelled` flag skips the slot in `litServerTick`, `campfire.rs:121-126`); no h6 commit needed.
+- Cooked result spawn position (row 14): FIXED in tree at HEAD (`spawn_cooked_item` uses block centre, `y + 1.0`, `campfire.rs:374-384`).
+- Row 12 (`isSmokeyPos` obstruction probe): STILL OPEN, needs decompiled source to confirm the stop rule.
