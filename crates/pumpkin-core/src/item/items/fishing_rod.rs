@@ -39,7 +39,7 @@ impl ItemBehaviour for FishingRodItem {
     /// Vanilla `FishingRodItem.use`: cast when no bobber is out, otherwise reel the current one in.
     fn normal_use_with_rotation(
         &self,
-        _item: &Item,
+        item: &Item,
         player: &Player,
         yaw: f32,
         pitch: f32,
@@ -129,6 +129,8 @@ impl ItemBehaviour for FishingRodItem {
             player.increment_stat(StatisticCategory::Used, i32::from(Item::FISHING_ROD.id), 1);
 
             world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
+            // Vanilla `FishingRodItem.use` awards `ITEM_USED` only on the cast branch.
+            player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
         } else {
             // Reel in
             let mut keep_hook = false;
