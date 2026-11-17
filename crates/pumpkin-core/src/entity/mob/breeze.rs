@@ -102,6 +102,11 @@ impl Mob for BreezeEntity {
             && self.can_attack_base(target)
     }
 
+    /// Vanilla Breeze.getMaxHeadYRot: the head only turns 30 degrees off the body.
+    fn get_max_head_rotation(&self) -> f32 {
+        30.0
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }

@@ -156,6 +156,10 @@ fn fill_blocks(
                     continue;
                 };
 
+                if !affected && old_state_id == input.state_id {
+                    continue;
+                }
+
                 if world.place_block_input(&pos, input, place_flags) {
                     if !strict {
                         update_positions.push((pos, old_state_id));

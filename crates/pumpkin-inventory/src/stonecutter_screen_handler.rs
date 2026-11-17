@@ -92,17 +92,61 @@ pub struct StonecutterState {
 }
 
 impl StonecutterState {
-    fn recipes_for_input(&self) -> Vec<StonecutterRecipeChoice> {
-        get_stonecutter_recipes(
-            &self.input_inventory.get_stack(0),
-            self.recipe_provider.as_deref(),
-        )
+    /// Total number of recipes sent to the client in UPDATE_RECIPES.
+    fn recipe_count(&self) -> i32 {
+        let dynamic = self.recipe_provider.as_ref().map_or(0, |provider| {
+            provider
+                .get_dynamic_recipes()
+                .iter()
+                .filter(|r| matches!(r, DynamicRecipe::Stonecutting(_)))
+                .count()
+        });
+        i32::try_from(RECIPES_STONECUTTING.len() + dynamic).unwrap_or(i32::MAX)
     }
-
     fn is_valid_recipe_index(&self, index: i32) -> bool {
-        index >= 0 && (index as usize) < self.recipes_for_input().len()
+        index >= 0 && index < self.recipe_count()
     }
-
+    /// Resolves the client index into the full recipe list sent in UPDATE_RECIPES.
+    ///
+    /// The client keeps the global index of every listed recipe and only hides the
+    /// ones whose ingredient does not match the input, so the index must never be
+    /// interpreted against the input-filtered list.
+    fn recipe_at(&self, index: i32, input: &ItemStack) -> Option<StonecutterRecipeChoice> {
+        if index < 0 || input.is_empty() {
+            return None;
+        }
+        let mut current: i32 = 0;
+        for r in RECIPES_STONECUTTING {
+            if current == index {
+                return r
+                    .ingredient
+                    .match_item(input.item)
+                    .then(|| StonecutterRecipeChoice {
+                        result_id: r.result.id.to_string(),
+                        count: r.result.count,
+                        components: r.result.components,
+                    });
+            }
+            current += 1;
+        }
+        let provider = self.recipe_provider.as_deref()?;
+        for dynamic in provider.get_dynamic_recipes() {
+            if let DynamicRecipe::Stonecutting(r) = dynamic {
+                if current == index {
+                    return r
+                        .ingredient
+                        .match_item(input.item)
+                        .then(|| StonecutterRecipeChoice {
+                            result_id: r.result.item_id,
+                            count: r.result.count,
+                            components: &[],
+                        });
+                }
+                current += 1;
+            }
+        }
+        None
+    }
     pub fn slots_changed(&self) {
         let input = self.input_inventory.get_stack(0);
         let input_item = if input.is_empty() { 0 } else { input.item.id };
@@ -113,14 +157,10 @@ impl StonecutterState {
     }
 
     pub fn setup_result_slot(&self, index: i32) {
-        let recipes = self.recipes_for_input();
-        let result = if index >= 0
-            && let Some(recipe) = recipes.get(index as usize)
-        {
-            recipe.assemble()
-        } else {
-            ItemStack::EMPTY.clone()
-        };
+        let input = self.input_inventory.get_stack(0);
+        let result = self
+            .recipe_at(index, &input)
+            .map_or_else(|| ItemStack::EMPTY.clone(), |recipe| recipe.assemble());
         self.output_inventory.set_stack(0, result);
     }
 }

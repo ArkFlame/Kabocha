@@ -35,15 +35,15 @@ impl MagmaCubeEntity {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(speed) = attributes.get_mut(&Attributes::MOVEMENT_SPEED.id) {
-            speed.base_value = 0.2;
+            speed.base_value = 0.2 + 0.1 * f64::from(size);
             speed.dirty.store(true, Ordering::Relaxed);
         }
         if let Some(damage) = attributes.get_mut(&Attributes::ATTACK_DAMAGE.id) {
-            damage.base_value = (size + 2) as f64;
+            damage.base_value = f64::from(size) + 2.0;
             damage.dirty.store(true, Ordering::Relaxed);
         }
         if let Some(armor) = attributes.get_mut(&Attributes::ARMOR.id) {
-            armor.base_value = (size * 3) as f64;
+            armor.base_value = f64::from(size) * 3.0;
             armor.dirty.store(true, Ordering::Relaxed);
         }
     }

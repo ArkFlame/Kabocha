@@ -329,7 +329,6 @@ impl ARGBColor {
     }
 }
 
-/// Vanilla `ARGB.as8BitChannel`: out-of-range values wrap through the `& 0xFF` mask instead of clamping.
 #[expect(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -604,5 +603,25 @@ impl TryFrom<&str> for NamedColor {
             "white" => Ok(Self::White),
             _ => Err(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ARGBColor;
+
+    #[test]
+    fn deserializes_argb_int() {
+        let color: ARGBColor = serde_json::from_str("-1746502").unwrap();
+        assert_eq!(color, ARGBColor::from_argb_int(-1_746_502));
+    }
+
+    #[test]
+    fn deserializes_channel_list_and_object() {
+        let list: ARGBColor = serde_json::from_str("[1.0, 1.0, 0.0, 0.0]").unwrap();
+        assert_eq!(list, ARGBColor::new(255, 255, 0, 0));
+        let object: ARGBColor =
+            serde_json::from_str(r#"{"alpha":255,"red":0,"green":0,"blue":255}"#).unwrap();
+        assert_eq!(object, ARGBColor::new(255, 0, 0, 255));
     }
 }

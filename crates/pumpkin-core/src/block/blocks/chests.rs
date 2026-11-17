@@ -4,6 +4,7 @@ use crate::block::entities::BlockEntity;
 use crate::block::entities::chest::ChestBlockEntity;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{ChestLikeProperties, ChestType, HorizontalFacing};
+use pumpkin_data::entity::EntityPose;
 use pumpkin_data::loot_table::get_loot_table;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::{Block, BlockDirection, translation};
@@ -654,6 +655,11 @@ fn compute_chest_props(
                 }
             }
         }
+    }
+
+    // Crouching players never merge with a neighbour by facing; the clicked chest joined above.
+    if player.get_entity().pose.load() == EntityPose::Crouching {
+        return (ChestType::Single, chest_facing);
     }
 
     if get_chest_properties_if_can_connect(

@@ -380,7 +380,13 @@ impl Mob for ArmadilloEntity {
         &self.mob_entity
     }
 
-    fn modify_incoming_damage(&self, amount: f32, _damage_type: DamageType) -> f32 {
+    fn modify_incoming_damage(
+        &self,
+        amount: f32,
+        _damage_type: DamageType,
+        _source: Option<&dyn EntityBase>,
+        _cause: Option<&dyn EntityBase>,
+    ) -> f32 {
         if self.is_scared() {
             (amount - 1.0).max(0.0) / 2.0
         } else {

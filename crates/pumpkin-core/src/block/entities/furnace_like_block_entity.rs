@@ -1,5 +1,4 @@
 use pumpkin_data::{BlockId, item_stack::ItemStack, recipes::CookingRecipe};
-use rand::RngExt;
 
 use crate::block::entities::{BlockEntity, PropertyDelegate};
 pub use pumpkin_inventory::ExperienceContainer;
@@ -13,18 +12,6 @@ pub(crate) const fn is_cooking_block(id: BlockId) -> bool {
         id,
         BlockId::FURNACE | BlockId::BLAST_FURNACE | BlockId::SMOKER
     )
-}
-
-/// Vanilla `AbstractFurnaceBlockEntity.awardUsedRecipes` XP split:
-/// the floor of the recipe XP, plus one point with probability equal to its fraction.
-pub(crate) fn roll_experience(xp: f32) -> i32 {
-    split_experience(xp, rand::rng().random())
-}
-
-fn split_experience(xp: f32, roll: f32) -> i32 {
-    let whole = xp.floor();
-    let fraction = xp - whole;
-    whole as i32 + i32::from(fraction != 0.0 && roll < fraction)
 }
 
 /// Trait for extracting smelting experience from cooking block entities.
@@ -130,23 +117,31 @@ macro_rules! impl_cooking_block_entity_base {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 *recipes.entry(recipe_id).or_insert(0) += 1;
+                drop(recipes);
+                // Vanilla accumulates the exact fractional experience per smelt
+                let xp = pumpkin_data::recipes::get_recipe_experience(recipe.recipe_id)
+                    .unwrap_or(0.0);
+                let mut experience = self
+                    .experience
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                *experience += xp;
             }
 
             fn extract_experience_from_recipes(&self) -> i32 {
-                // Calculate total XP from tracked recipes and clear the map (vanilla behavior)
-                let mut recipes = self
-                    .recipes_used
+                // Vanilla awards the whole part and keeps the fraction for the next take
+                let mut experience = self
+                    .experience
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let mut total_xp: i32 = 0;
-                for (recipe_id, count) in recipes.iter() {
-                    // Look up the recipe's XP value
-                    if let Some(xp) = pumpkin_data::recipes::get_recipe_experience(recipe_id) {
-                        total_xp += $crate::block::entities::furnace_like_block_entity::roll_experience(xp * (*count as f32));
-                    }
-                }
-                recipes.clear();
-                total_xp
+                let awarded = experience.floor() as i32;
+                *experience -= awarded as f32;
+                drop(experience);
+                self.recipes_used
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clear();
+                awarded
             }
 
             fn can_accept_recipe_output(
@@ -637,6 +632,13 @@ macro_rules! impl_block_entity_for_cooking {
                     }
                 }
 
+                let experience = recipes_used_map
+                    .iter()
+                    .filter_map(|(id, count)| {
+                        pumpkin_data::recipes::get_recipe_experience(id)
+                            .map(|xp| xp * (*count as f32))
+                    })
+                    .sum::<f32>();
                 let mut furnace = Self {
                     position,
                     dirty: AtomicBool::new(false),
@@ -647,6 +649,7 @@ macro_rules! impl_block_entity_for_cooking {
                     lit_total_time,
                     lit_time_remaining,
                     recipes_used: std::sync::Mutex::new(recipes_used_map),
+                    experience: std::sync::Mutex::new(experience),
                     metadata: $crate::block::entities::ContainerMetadata::from_nbt(nbt),
                 };
                 pumpkin_inventory::sync_read_items_from_nbt(nbt, furnace.items.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner));
@@ -846,14 +849,5 @@ mod tests {
         assert_eq!(nbt.get_short("BurnDuration"), Some(200));
         assert_eq!(nbt.get_short("StoredXPInt"), Some(5));
         assert_eq!(nbt.get_bool("isMovable"), Some(true));
-    }
-
-    #[test]
-    fn experience_from_a_single_fractional_smelt_is_not_always_zero() {
-        // Iron ore is 0.7 XP: vanilla gives 1 point 70% of the time, never a flat 0.
-        assert_eq!(split_experience(0.7, 0.5), 1);
-        assert_eq!(split_experience(0.7, 0.9), 0);
-        assert_eq!(split_experience(2.0, 0.99), 2);
-        assert_eq!(split_experience(0.0, 0.5), 0);
     }
 }

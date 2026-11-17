@@ -115,6 +115,29 @@ impl AgeableMob for HappyGhastEntity {
     }
 }
 
+impl CustomSound for HappyGhastEntity {
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingHurt
+        } else {
+            Sound::EntityHappyGhastHurt
+        })
+    }
+
+    fn death_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingDeath
+        } else {
+            Sound::EntityHappyGhastDeath
+        })
+    }
+
+    /// Vanilla `HappyGhast#getSoundVolume`: babies are quiet, adults are loud.
+    fn sound_volume(&self) -> f32 {
+        if self.is_baby() { 1.0 } else { 4.0 }
+    }
+}
+
 impl Animal for HappyGhastEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
         item_stack
@@ -123,21 +146,7 @@ impl Animal for HappyGhastEntity {
     }
 }
 
-impl CustomSound for HappyGhastEntity {
-    fn death_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastDeath)
-    }
-
-    fn hurt_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastHurt)
-    }
-}
-
 impl Mob for HappyGhastEntity {
-    fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityHappyGhastAmbient)
-    }
-
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
         Some(self)
     }
@@ -188,6 +197,23 @@ impl Mob for HappyGhastEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn get_ambient_sound(&self) -> Option<Sound> {
+        Some(if self.is_baby() {
+            Sound::EntityGhastlingAmbient
+        } else {
+            Sound::EntityHappyGhastAmbient
+        })
+    }
+
+    /// Vanilla ambient interval is 120 ticks, stretched 6x while carrying passengers.
+    fn get_ambient_sound_interval(&self) -> i32 {
+        if self.get_entity().has_passengers() {
+            720
+        } else {
+            120
+        }
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {

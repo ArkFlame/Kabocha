@@ -145,8 +145,19 @@ impl Mob for GhastEntity {
         }
     }
 
-    fn modify_incoming_damage(&self, amount: f32, damage_type: DamageType) -> f32 {
-        if damage_type.id == DamageType::FIREBALL.id {
+    /// Vanilla `Ghast.hurtServer`: only a `LargeFireball` whose owner is a
+    /// player deals 1000.0, so a blaze's small fireball keeps its normal damage.
+    fn modify_incoming_damage(
+        &self,
+        amount: f32,
+        damage_type: DamageType,
+        source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> f32 {
+        let reflected = damage_type.id == DamageType::FIREBALL.id
+            && source.is_some_and(|s| s.get_entity().entity_type == &EntityType::FIREBALL)
+            && cause.is_some_and(|c| c.get_entity().entity_type == &EntityType::PLAYER);
+        if reflected {
             1000.0
         } else {
             amount

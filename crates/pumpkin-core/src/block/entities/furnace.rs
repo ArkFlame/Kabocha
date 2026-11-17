@@ -34,6 +34,9 @@ pub struct FurnaceBlockEntity {
     /// Tracks recipes used for XP calculation (vanilla `RecipesUsed` NBT format)
     /// Maps result item ID -> craft count
     pub recipes_used: StdMutex<HashMap<String, u32>>,
+    /// Accumulated smelting experience not yet awarded, kept as a fraction
+    /// like vanilla AbstractFurnaceBlockEntity.experience.
+    pub experience: StdMutex<f32>,
     pub metadata: super::ContainerMetadata,
 }
 
@@ -53,6 +56,7 @@ impl FurnaceBlockEntity {
             lit_total_time: AtomicU16::new(0),
             lit_time_remaining: AtomicU16::new(0),
             recipes_used: StdMutex::new(HashMap::new()),
+            experience: StdMutex::new(0.0),
             metadata: super::ContainerMetadata::default(),
         }
     }
