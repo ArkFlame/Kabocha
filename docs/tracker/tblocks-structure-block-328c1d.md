@@ -59,7 +59,3 @@ the worker brief forbids running cargo); the palettes themselves are covered by
 
 ## h6 status
 - Structure block rows: STILL OPEN, not attempted this pass (see tblocks-structure-block.md h6 status).
-
-## h6 pass 2 status
-- LootTableSeed row (block/entities/structure_block.rs:432-434): FIXED d5cd38b63 (seed only for randomizable container ids; test loot_seed_only_for_randomizable_containers).
-- Other rows (entity capture/place L, addToLists M, neighbour shape update M, strict side effects M): STILL OPEN, not attempted this pass.
