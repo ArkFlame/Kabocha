@@ -2689,9 +2689,11 @@ mod tests {
 
     use super::{
         DatapackManager, FunctionChainGuard, FunctionRunError, MAX_FUNCTION_CHAIN_COMMANDS,
-        MAX_FUNCTION_CHAIN_DEPTH, substitute_macro, validate_macro_template,
+        MAX_FUNCTION_CHAIN_DEPTH, stringify_macro_argument, substitute_macro,
+        validate_macro_template,
     };
     use pumpkin_nbt::NbtCompound;
+    use pumpkin_nbt::tag::NbtTag;
 
     #[test]
     fn substitute_macro_reports_missing_argument_by_name() {
@@ -2700,6 +2702,24 @@ mod tests {
             substitute_macro("say $(name)", &arguments),
             Err(FunctionRunError::MissingArgument("name".to_string()))
         );
+    }
+
+    #[test]
+    fn stringify_macro_matches_vanilla_decimal_format() {
+        // Vanilla MacroFunction uses DecimalFormat("#", Locale.ROOT) with 15 max fraction
+        // digits: whole numbers drop the separator and trailing zeros are never shown.
+        let cases = [
+            (NbtTag::Double(1.0), "1"),
+            (NbtTag::Double(-0.0), "-0"),
+            (NbtTag::Double(0.1), "0.1"),
+            (NbtTag::Double(1.2345678901234567), "1.234567890123457"),
+            (NbtTag::Double(1e-16), "0"),
+            (NbtTag::Double(1e15), "1000000000000000"),
+            (NbtTag::Float(0.1), "0.100000001490116"),
+        ];
+        for (tag, expected) in cases {
+            assert_eq!(stringify_macro_argument(&tag), expected);
+        }
     }
 
     #[test]
