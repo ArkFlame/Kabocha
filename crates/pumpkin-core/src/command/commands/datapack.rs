@@ -365,7 +365,7 @@ impl CommandExecutor for DatapackDisableExecutor {
         let server = context.server();
 
         let Some(target_pack) = find_pack_name(server, name_str) else {
-            return Err(ERROR_DISABLE_FAILED
+            return Err(ERROR_UNKNOWN_DATAPACK
                 .create_without_context(TextComponent::text(name_str.to_string())));
         };
 
