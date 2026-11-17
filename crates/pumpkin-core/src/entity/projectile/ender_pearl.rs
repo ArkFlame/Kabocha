@@ -136,6 +136,12 @@ impl EntityBase for EnderPearlEntity {
         {
             let is_player = owner.get_player().is_some();
             if is_player {
+                // Vanilla `stopRiding`s the shooter before teleporting it.
+                if let Some(vehicle) = owner.get_entity().get_vehicle() {
+                    vehicle
+                        .get_entity()
+                        .remove_passenger_before_teleport(owner.get_entity().entity_id);
+                }
                 let should_spawn_endermite = rand::random::<f32>() < ENDERMITE_SPAWN_CHANCE;
                 if world.should_spawn_monsters() && should_spawn_endermite {
                     let pearl_pos = entity.pos.load();
