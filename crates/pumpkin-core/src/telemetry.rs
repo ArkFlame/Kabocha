@@ -622,34 +622,43 @@ fn write_private_key(path: &Path, seed: &[u8; 32]) -> std::io::Result<()> {
     }
 }
 
+/// Loads an existing identity key. A key file that exists but cannot be read is logged, not skipped silently.
+fn load_existing_identity_key(path: &Path) -> Option<SigningKey> {
+    if !path.exists() {
+        return None;
+    }
+    match TelemetryClient::load_or_generate_key(path) {
+        Ok(key) => Some(key),
+        Err(err) => {
+            tracing::warn!(
+                "Existing telemetry identity key at {} is unreadable: {err}",
+                path.display()
+            );
+            None
+        }
+    }
+}
+
 /// Resolves the server identity key by checking default locations or generating a new one.
 #[must_use]
 pub fn resolve_identity_key() -> SigningKey {
     let primary = Path::new(IDENTITY_KEY_PATH);
-    if primary.exists()
-        && let Ok(key) = TelemetryClient::load_or_generate_key(primary)
-    {
+    if let Some(key) = load_existing_identity_key(primary) {
         return key;
     }
 
     let fallback = Path::new(FALLBACK_IDENTITY_KEY_PATH);
-    if fallback.exists()
-        && let Ok(key) = TelemetryClient::load_or_generate_key(fallback)
-    {
+    if let Some(key) = load_existing_identity_key(fallback) {
         return key;
     }
 
     let data_primary = Path::new("data").join(IDENTITY_KEY_PATH);
-    if data_primary.exists()
-        && let Ok(key) = TelemetryClient::load_or_generate_key(&data_primary)
-    {
+    if let Some(key) = load_existing_identity_key(&data_primary) {
         return key;
     }
 
     let data_fallback = Path::new("data").join(FALLBACK_IDENTITY_KEY_PATH);
-    if data_fallback.exists()
-        && let Ok(key) = TelemetryClient::load_or_generate_key(&data_fallback)
-    {
+    if let Some(key) = load_existing_identity_key(&data_fallback) {
         return key;
     }
 
@@ -703,13 +712,19 @@ pub fn anonymize_player_uuid(player_salt: &[u8; 32], player_uuid: uuid::Uuid) ->
     hex::encode(&digest[..16])
 }
 
+/// Per-server player salt of the running heartbeat client, set once by `start_telemetry_with_config`.
+static LIVE_PLAYER_SALT: OnceLock<[u8; 32]> = OnceLock::new();
+
 /// Builds the telemetry heartbeat payload from current server and runtime state.
 #[must_use]
 pub fn build_heartbeat_payload(
     server: &Server,
     telemetry_config: &TelemetryConfig,
 ) -> HeartbeatPayload {
-    let salt = derive_player_telemetry_salt(&resolve_identity_key());
+    let salt = LIVE_PLAYER_SALT
+        .get()
+        .copied()
+        .unwrap_or_else(|| derive_player_telemetry_salt(&resolve_identity_key()));
     build_heartbeat_payload_with_salt(server, telemetry_config, &salt)
 }
 
@@ -761,9 +776,19 @@ fn static_host_info() -> &'static StaticHostInfo {
 }
 
 fn read_used_ram_mb() -> u64 {
-    let kind = sysinfo::RefreshKind::nothing()
-        .with_memory(sysinfo::MemoryRefreshKind::nothing().with_ram());
-    sysinfo::System::new_with_specifics(kind).map_or(0, |sys| sys.used_memory() / (1024 * 1024))
+    static RAM_SYSTEM: Mutex<Option<sysinfo::System>> = Mutex::new(None);
+    let Ok(mut guard) = RAM_SYSTEM.lock() else {
+        return 0;
+    };
+    if guard.is_none() {
+        let kind = sysinfo::RefreshKind::nothing()
+            .with_memory(sysinfo::MemoryRefreshKind::nothing().with_ram());
+        *guard = sysinfo::System::new_with_specifics(kind).ok();
+    }
+    guard.as_mut().map_or(0, |sys| {
+        sys.refresh_memory_specifics(sysinfo::MemoryRefreshKind::nothing().with_ram());
+        sys.used_memory() / (1024 * 1024)
+    })
 }
 
 fn extract_player_client_meta(
@@ -943,6 +968,8 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
 
     let signing_key = resolve_identity_key();
     let player_salt = derive_player_telemetry_salt(&signing_key);
+    // Share the running client's salt so `/pumpkin` reports the same anonymous ids.
+    let _ = LIVE_PLAYER_SALT.set(player_salt);
     let telemetry_client = Arc::new(TelemetryClient::new(
         signing_key,
         http_client,

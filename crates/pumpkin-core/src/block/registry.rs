@@ -901,6 +901,15 @@ impl BlockRegistry {
             &final_block_pos.to_centered_f64(),
             BlockState::to_be_network_id(new_state) as i32,
         );
+        // Vanilla BlockItem.place plays the placed state's SoundType place sound to Java clients.
+        let sound_type = BlockState::from_id(new_state).get_sound_type();
+        world.play_sound_raw(
+            sound_type.place_sound as u16,
+            pumpkin_data::sound::SoundCategory::Blocks,
+            &final_block_pos.to_centered_f64(),
+            (sound_type.volume + 1.0) / 2.0,
+            sound_type.pitch * 0.8,
+        );
 
         // Vanilla BlockItem.place fires GameEvent.BLOCK_PLACE with the placing player so
         // sculk sensors and the warden attribute the vibration to them.
@@ -1440,35 +1449,6 @@ impl BlockRegistry {
         }
     }
 
-    /// Updates state of all neighbors of the block
-    pub fn post_process_state(
-        &self,
-        world: &Arc<World>,
-        position: &BlockPos,
-        block: &Block,
-        flags: BlockFlags,
-    ) {
-        let state_id = world.get_block_state_id(position);
-        for direction in BlockDirection::all() {
-            let neighbor_pos = position.offset(direction.to_offset());
-            let neighbor_state_id = world.get_block_state_id(&neighbor_pos);
-            let pumpkin_block = self.get_pumpkin_block(block.id);
-            if let Some(pumpkin_block) = pumpkin_block {
-                let new_state =
-                    pumpkin_block.get_state_for_neighbor_update(GetStateForNeighborUpdateArgs {
-                        world,
-                        block,
-                        state_id,
-                        position,
-                        direction: direction.opposite(),
-                        neighbor_position: &neighbor_pos,
-                        neighbor_state_id,
-                    });
-                world.set_block_state(&neighbor_pos, new_state, flags);
-            }
-        }
-    }
-
     pub fn prepare(
         &self,
         world: &Arc<World>,
@@ -1561,10 +1541,12 @@ impl BlockRegistry {
     pub fn get_pumpkin_fluid(&self, fluid_id: u16) -> Option<&Arc<dyn FluidBehaviour>> {
         self.fluids.get(&fluid_id).or_else(|| {
             // Still fluids share behavior with their flowing counterpart
-            match fluid_id {
-                2 => self.fluids.get(&1),
-                4 => self.fluids.get(&3),
-                _ => None,
+            if fluid_id == Fluid::WATER.id {
+                self.fluids.get(&Fluid::FLOWING_WATER.id)
+            } else if fluid_id == Fluid::LAVA.id {
+                self.fluids.get(&Fluid::FLOWING_LAVA.id)
+            } else {
+                None
             }
         })
     }

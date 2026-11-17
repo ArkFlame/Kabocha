@@ -1,5 +1,6 @@
 use crate::block::blocks::bubble_column;
 use crate::entity::projectile::owner::ProjectileOwner;
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
@@ -13,7 +14,9 @@ use crate::{
 };
 use bytes::BufMut;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::PotionDurationScaleImpl;
+use pumpkin_data::data_component_impl::{
+    PotionContentsImpl, PotionDurationScaleImpl, StatusEffectInstance,
+};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -65,8 +68,6 @@ pub struct ArrowEntity {
     pub duration: AtomicU32,
     pub flight: ArrowFlight,
     pub weapon: RwLock<Option<ItemStack>>,
-    /// Extra effects added by the shooter (`Stray` slowness), applied on hurt.
-    pub extra_effects: RwLock<Vec<Effect>>,
 }
 
 impl ArrowEntity {
@@ -104,7 +105,6 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
-            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -140,7 +140,6 @@ impl ArrowEntity {
             duration: AtomicU32::new(Self::SPECTRAL_GLOWING_TICKS),
             flight: ArrowFlight::new(),
             weapon: RwLock::new(None),
-            extra_effects: RwLock::new(Vec::new()),
         }
     }
 
@@ -356,11 +355,50 @@ impl ArrowEntity {
     }
 
     /// Adds an effect applied to whatever this arrow hurts (vanilla `Arrow#addEffect`).
+    /// The effect lives in the stack's potion contents, so it survives a save and a pickup.
     pub fn add_effect(&self, effect: Effect) {
-        self.extra_effects
+        let mut item_stack = self
+            .item_stack
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(effect);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let (potion_id, custom_color, mut custom_effects, custom_name) = item_stack
+            .get_data_component::<PotionContentsImpl>()
+            .map_or((None, None, Vec::new(), None), |pc| {
+                (
+                    pc.potion_id,
+                    pc.custom_color,
+                    pc.custom_effects.clone(),
+                    pc.custom_name.clone(),
+                )
+            });
+        custom_effects.push(StatusEffectInstance {
+            effect_id: Cow::Borrowed(effect.effect_type.minecraft_name),
+            amplifier: i32::from(effect.amplifier),
+            duration: effect.duration,
+            ambient: effect.ambient,
+            show_particles: effect.show_particles,
+            show_icon: effect.show_icon,
+        });
+        item_stack.set_data_component(PotionContentsImpl {
+            potion_id,
+            custom_color,
+            custom_effects,
+            custom_name,
+        });
+        let color = Self::get_effect_color(&item_stack);
+        drop(item_stack);
+        self.entity
+            .set_synced_data(pumpkin_data::tracked_data::arrow::ID_EFFECT_COLOR, color);
+    }
+
+    /// Ticks an arrow lies in the ground before it despawns; creative-only arrows go sooner
+    /// (vanilla `AbstractArrow#tickDespawn`).
+    #[must_use]
+    fn despawn_time(&self) -> u32 {
+        match ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed)) {
+            ArrowPickup::CreativeOnly => abstract_arrow::CREATIVE_DESPAWN_TIME,
+            ArrowPickup::Allowed | ArrowPickup::Disallowed => abstract_arrow::DESPAWN_TIME,
+        }
     }
 
     pub fn set_flame(&self, flame: bool) {
@@ -786,7 +824,11 @@ impl ArrowEntity {
                         .item_stack
                         .read()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    entity.spawn_at_location(Self::pickup_item_stack(&item_stack));
+                    // Vanilla `spawnAtLocation(level, stack, 0.1F)`.
+                    entity.spawn_at_location_with_offset(
+                        Self::pickup_item_stack(&item_stack),
+                        Vector3::new(0.0, 0.1, 0.0),
+                    );
                 }
                 entity.remove();
             }
@@ -813,14 +855,6 @@ impl ArrowEntity {
             living.add_effect(Self::spectral_glowing_effect(
                 self.duration.load(Ordering::Relaxed),
             ));
-        }
-        // Shooter-added effects (vanilla `Stray#getArrow` slowness).
-        let extra = self
-            .extra_effects
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for effect in extra.iter() {
-            living.add_effect(effect.clone());
         }
     }
 
@@ -879,7 +913,7 @@ impl AbstractArrow for ArrowEntity {
     }
 
     fn tick_despawn(&self) {
-        abstract_arrow::count_down_despawn(self);
+        abstract_arrow::count_down_despawn_at(self, self.despawn_time());
         self.decay_exposed_potion();
     }
 }

@@ -71,6 +71,20 @@ changed.
 | file:line | gap | vanilla class | suggested fix | size |
 |---|---|---|---|---|
 | nether.rs:103-106 | entity_pos_in_portal clamps the perpendicular offset to +-0.5, so an entity at the edge of the source portal is pulled toward the centre line on exit. SUSPECT: PortalShape.getRelativePosition passes that offset through unclamped. | PortalShape.getRelativePosition | Drop the clamp after checking the decompiled getRelativePosition; covered by portal_relative_exit_position. | S |
-| nether.rs:810-826 | Fallback clearing writes with BlockFlags::NOTIFY_ALL, so the 3x4x2 air/obsidian box triggers neighbour updates. Vanilla createPortal uses setBlock flags 2/18 (clients only). | PortalForcer.createPortal | Use NOTIFY_LISTENERS (and UPDATE_KNOWN_SHAPE for the frame) for the fallback clear. | S |
+| nether.rs:810-826 | Fallback clearing writes with BlockFlags::NOTIFY_ALL, so the 3x4x2 air/obsidian box triggers neighbour updates. Vanilla createPortal uses setBlock flags 2/18 (clients only). | PortalForcer.createPortal | Use NOTIFY_LISTENERS (and UPDATE_KNOWN_SHAPE for the frame) for the fallback clear. | S | FIXED fix(core): align nether portal fallback clear flags and height bound
 | nether.rs:629-680 | The 16-radius scan is row-major and keeps the nearest candidate; vanilla walks BlockPos.spiralAround and takes the first usable spot per offset. Only which spot wins differs, not whether a portal is built. | PortalForcer.createPortal | Iterate in spiral order and stop at the first accepted candidate to match placement exactly. | S |
-| nether.rs:430-466 | get_potential_height ends with the literal 21 instead of Self::MAX_HEIGHT. | PortalShape.getDistanceUntilTop | Use Self::MAX_HEIGHT as i32. | S (cleanup) |
+| nether.rs:430-466 | get_potential_height ends with the literal 21 instead of Self::MAX_HEIGHT. | PortalShape.getDistanceUntilTop | Use Self::MAX_HEIGHT as i32. | S (cleanup) | FIXED fix(core): align nether portal fallback clear flags and height bound
+
+
+STILL OPEN: nether.rs:45-65 calculate_teleport_yaw: no decompiled getExitPortal available (.vendor absent); SUSPECT, not changed.
+STILL OPEN: nether.rs:714 fallback_y 70 floor: no decompiled createPortal to confirm 70 vs min_y+1; SUSPECT, not changed.
+STILL OPEN: nether.rs:732-769 is_valid_portal_pos (M): candidate predicates need decompiled createPortal; cannot match exactly from memory.
+STILL OPEN: nether.rs:791-813 fallback clear volume: needs decompiled createPortal cross-check of loop offsets.
+STILL OPEN: nether.rs:488-495 valid_state_inside_portal axis quirk: vanilla-quirk decision not settled; low impact, left as is.
+STILL OPEN: nether.rs:148-189 find_open_position (M): Pumpkin-only design; vanilla clamp-to-rectangle vs widened search is an unsettled design choice.
+STILL OPEN: nether.rs:191-220 is_position_clear: needs world block collision-shape query (Level.noCollision), out of scope for this pass.
+STILL OPEN: nether.rs:382-404 get_width/get_lower_cornor: NO-OP, get_lower_cornor already returns None when get_width is 0 (width - 1 < 0); no change.
+STILL OPEN: nether.rs:497-595 search_for_portal was_already_valid: whether vanilla re-validates POI shape is unverified without source.
+STILL OPEN: nether.rs:526-542 POI chunk loading: note-only per audit, no change.
+STILL OPEN: nether.rs:103-106 entity_pos_in_portal clamp: SUSPECT vs getRelativePosition, needs decompiled source.
+STILL OPEN: nether.rs:629-680 find_safe_location order (spiral vs row-major): first-accepted semantics need decompiled createPortal; not changed.
