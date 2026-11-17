@@ -38,6 +38,7 @@ const BACK_SEAT_OFFSET: f32 = -0.6;
 const ANIMAL_SEAT_SHIFT: f32 = 0.2;
 const CHEST_BOAT_CONTAINER_SIZE: usize = 27;
 const TIME_TO_EJECT: f32 = 60.0;
+const MAX_PASSENGERS: usize = 2;
 
 #[must_use]
 pub const fn is_chest_boat(entity_type: &EntityType) -> bool {
@@ -85,14 +86,6 @@ impl BoatEntity {
             right_paddle_moving: AtomicBool::new(false),
             inventory,
         }
-    }
-
-    const fn is_chest_boat(&self) -> bool {
-        is_chest_boat(self.vehicle.entity.entity_type)
-    }
-
-    fn get_max_passengers(&self) -> usize {
-        if self.is_chest_boat() { 1 } else { 2 }
     }
 
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
@@ -393,7 +386,7 @@ impl EntityBase for BoatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .len()
-                < self.get_max_passengers();
+                < MAX_PASSENGERS;
 
         if self.inventory.is_some() && (!can_add_passenger || player.get_entity().is_sneaking()) {
             return self.open_custom_inventory_screen(player);
