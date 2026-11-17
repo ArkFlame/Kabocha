@@ -631,17 +631,12 @@ impl ItemUsedOnBlockPredicate {
                 biome = Some(b.to_string());
             }
             if let Some(i_val) = pred.get("items").or_else(|| pred.get("item")) {
-                let i_val = i_val.get("items").unwrap_or(i_val);
-                if let Some(s) = i_val.as_str() {
-                    item_patterns.push(s.to_string());
-                } else if let Some(arr) = i_val.as_array() {
-                    for i in arr {
-                        if let Some(s) = i.as_str() {
-                            item_patterns.push(s.to_string());
-                        }
-                    }
-                }
+                push_item_patterns(i_val, &mut item_patterns);
             }
+        }
+        // The item predicate sits beside `location` at the top level of the condition.
+        if let Some(i_val) = val.get("item") {
+            push_item_patterns(i_val, &mut item_patterns);
         }
 
         Self {
@@ -1908,6 +1903,20 @@ fn parse_entity_pred(val: &Value) -> EntityPredicate {
         },
         EntityPredicate::from_value,
     )
+}
+
+/// Collects the id strings of an item predicate, either bare or wrapped as `{"items": ...}`.
+fn push_item_patterns(i_val: &Value, out: &mut Vec<String>) {
+    let i_val = i_val.get("items").unwrap_or(i_val);
+    if let Some(s) = i_val.as_str() {
+        out.push(s.to_string());
+    } else if let Some(arr) = i_val.as_array() {
+        out.extend(
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string),
+        );
+    }
 }
 
 fn parse_item_pred(val: &Value) -> ItemPredicate {
