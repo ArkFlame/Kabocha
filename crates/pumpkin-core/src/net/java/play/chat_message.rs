@@ -48,10 +48,17 @@ impl JavaClient {
                 gameprofile.id,
                 err
             );
-            if err.is_kick()
-                && let Some(reason) = err.client_kick_reason()
-            {
-                self.kick(TextComponent::text(reason)).await;
+            if err.is_kick() {
+                if let Some(reason) = err.client_kick_reason() {
+                    self.kick(TextComponent::text(reason)).await;
+                }
+            } else if let Some(key) = err.client_message() {
+                // Vanilla `handleMessageDecodeFailure` reports the problem to the client in red
+                // and drops the message instead of disconnecting.
+                player.send_system_message(
+                    &TextComponent::translate(key, [])
+                        .color_named(pumpkin_util::text::color::NamedColor::Red),
+                );
             }
             return;
         }
