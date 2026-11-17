@@ -73,7 +73,6 @@ pub mod vault;
 pub use furnace_like_block_entity::ExperienceContainer;
 pub use pumpkin_inventory::PropertyDelegate;
 
-//TODO: We need a mark_dirty for chests
 pub trait BlockEntity: Any + Send + Sync {
     fn write_nbt(&self, nbt: &mut NbtCompound);
     fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self
