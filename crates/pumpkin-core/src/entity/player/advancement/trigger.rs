@@ -161,6 +161,8 @@ pub enum AdvancementTrigger {
     EffectsChanged {
         /// Entity type of the effect's source; vanilla passes `null` for removals and most sources.
         source_type: Option<String>,
+        /// Distance from the source to the player, for the source's `distance` predicate.
+        source_distance: Option<f64>,
     },
     SpearMobs {
         count: i32,
@@ -1000,13 +1002,17 @@ impl Player {
                 );
             }
 
-            AdvancementTrigger::EffectsChanged { source_type } => {
+            AdvancementTrigger::EffectsChanged {
+                source_type,
+                source_distance,
+            } => {
                 let effects = self.get_active_effects();
                 self.trigger_criterion_event("minecraft:effects_changed", |cond| {
                     predicate::matches_effects_changed_condition(
                         cond,
                         &effects,
                         source_type.as_deref(),
+                        source_distance,
                     )
                 });
             }

@@ -2328,6 +2328,7 @@ pub fn matches_effects_changed_condition(
     cond: &CriterionConditions,
     effects: &[Effect],
     source_type: Option<&str>,
+    source_distance: Option<f64>,
 ) -> bool {
     let CriterionConditions::EffectsChanged {
         player,
@@ -2339,7 +2340,7 @@ pub fn matches_effects_changed_condition(
     };
     effects_pred.as_ref().is_none_or(|e| e.matches(effects))
         && source.as_ref().is_none_or(|s| {
-            source_type.is_some_and(|source_type| s.matches(source_type, None, None))
+            source_type.is_some_and(|source_type| s.matches(source_type, source_distance, None))
         })
         && player
             .as_ref()
@@ -2893,11 +2894,16 @@ mod tests {
         assert!(!matches_effects_changed_condition(
             &cond,
             &[active(&StatusEffect::SPEED)],
+            None,
             None
         ));
-        assert!(matches_effects_changed_condition(&cond, &effects, None));
+        assert!(matches_effects_changed_condition(
+            &cond, &effects, None, None
+        ));
         effects.pop();
-        assert!(!matches_effects_changed_condition(&cond, &effects, None));
+        assert!(!matches_effects_changed_condition(
+            &cond, &effects, None, None
+        ));
     }
 
     #[test]
@@ -2946,16 +2952,45 @@ mod tests {
         let cond = effects_changed_condition(Advancement::HUSBANDRY_KILL_AXOLOTL_TARGET);
         let effects = [active(&StatusEffect::REGENERATION)];
 
-        assert!(!matches_effects_changed_condition(&cond, &effects, None));
+        assert!(!matches_effects_changed_condition(
+            &cond, &effects, None, None
+        ));
         assert!(!matches_effects_changed_condition(
             &cond,
             &effects,
-            Some("minecraft:zombie")
+            Some("minecraft:zombie"),
+            None
         ));
         assert!(matches_effects_changed_condition(
             &cond,
             &effects,
-            Some("minecraft:axolotl")
+            Some("minecraft:axolotl"),
+            None
+        ));
+    }
+
+    #[test]
+    fn effects_changed_source_distance_is_checked() {
+        let cond = CriterionConditions::parse(
+            "minecraft:effects_changed",
+            r#"{"source": {"distance": {"absolute": {"max": 5.0}}}}"#,
+        );
+        let effects = [active(&StatusEffect::REGENERATION)];
+
+        assert!(!matches_effects_changed_condition(
+            &cond, &effects, None, None
+        ));
+        assert!(matches_effects_changed_condition(
+            &cond,
+            &effects,
+            Some("minecraft:zombie"),
+            Some(3.0)
+        ));
+        assert!(!matches_effects_changed_condition(
+            &cond,
+            &effects,
+            Some("minecraft:zombie"),
+            Some(6.0)
         ));
     }
 

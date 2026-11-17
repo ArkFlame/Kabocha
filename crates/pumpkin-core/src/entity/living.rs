@@ -1755,6 +1755,14 @@ impl LivingEntity {
             crate::entity::player::advancement::trigger::AdvancementTrigger::EffectsChanged {
                 source_type: source
                     .map(|source| source.get_entity().entity_type.resource_name.to_string()),
+                source_distance: source.map(|source| {
+                    source
+                        .get_entity()
+                        .pos
+                        .load()
+                        .squared_distance_to_vec(&self.entity.pos.load())
+                        .sqrt()
+                }),
             },
         );
     }
