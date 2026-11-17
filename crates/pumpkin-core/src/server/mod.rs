@@ -1363,8 +1363,15 @@ impl Server {
         !*closed && world.add_player(player).is_ok()
     }
 
-    /// Refuses all later joins. Returns once every join in progress is in a world
+    /// Refuses all later joins. Returns once every join in progress is in a world, so the
+    /// shutdown kick pass sees every admitted player.
     pub fn close_admission(&self) {
+        // Joining holds this lock from the admission check until the player is in a world,
+        // so waiting for it guarantees no join is between the check and the insertion.
+        let _join_guard = self
+            .player_join_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *self
             .admission_closed
             .write()
