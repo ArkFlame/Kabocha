@@ -122,7 +122,7 @@ impl ResourceKeyArgument {
             .and_then(Advancement::from_name)
             .ok_or_else(|| {
                 ERROR_INVALID_ADVANCEMENT.create_without_context(TextComponent::text(
-                    resource_key.identifier.path().to_string(),
+                    resource_key.identifier.to_string(),
                 ))
             })
     }
@@ -162,8 +162,7 @@ impl ResourceKeyArgument {
     ) -> Result<&'a ResourceKey, CommandSyntaxError> {
         let argument = context.get_argument::<ResourceKey>(name)?;
         argument.cast(registry).ok_or_else(|| {
-            error
-                .create_without_context(TextComponent::text(argument.identifier.path().to_string()))
+            error.create_without_context(TextComponent::text(argument.identifier.to_string()))
         })
     }
 }
