@@ -289,7 +289,7 @@ impl Mob for DrownedEntity {
                 equipment.get(&EquipmentSlot::MAIN_HAND).item == &Item::TRIDENT,
             )
         };
-        if offhand_empty && rand::random::<f32>() < NAUTILUS_SHELL_CHANCE {
+        if offhand_empty && self.get_random().random::<f32>() < NAUTILUS_SHELL_CHANCE {
             mob_entity.set_item_slot_and_drop_when_killed(
                 &EquipmentSlot::OFF_HAND,
                 ItemStack::new(1, &Item::NAUTILUS_SHELL),
