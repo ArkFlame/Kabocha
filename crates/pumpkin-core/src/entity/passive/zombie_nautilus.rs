@@ -428,4 +428,60 @@ mod tests {
         world.level.shutdown().await;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn zombie_nautilus_surface_swim_uses_water_sounds() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = ZombieNautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 60.0, 0.0),
+            &EntityType::ZOMBIE_NAUTILUS,
+        ));
+
+        // Surface swimming: in water but not submerged, vanilla still plays water sounds.
+        nautilus
+            .get_entity()
+            .touching_water
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(matches!(
+            nautilus.get_ambient_sound(),
+            Some(Sound::EntityZombieNautilusAmbient)
+        ));
+        assert!(matches!(
+            nautilus.hurt_sound(),
+            Some(Sound::EntityZombieNautilusHurt)
+        ));
+
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn zombie_nautilus_surface_swim_uses_water_sounds() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = ZombieNautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 60.0, 0.0),
+            &EntityType::ZOMBIE_NAUTILUS,
+        ));
+
+        // Surface swimming: in water but not submerged, vanilla still plays water sounds.
+        nautilus
+            .get_entity()
+            .touching_water
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(matches!(
+            nautilus.get_ambient_sound(),
+            Some(Sound::EntityZombieNautilusAmbient)
+        ));
+        assert!(matches!(
+            nautilus.hurt_sound(),
+            Some(Sound::EntityZombieNautilusHurt)
+        ));
+
+        world.level.shutdown().await;
+        Ok(())
+    }
 }
