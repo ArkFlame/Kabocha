@@ -60,8 +60,6 @@ impl LeashKnotEntity {
         let knot: Arc<dyn EntityBase> = Arc::new(Self::new(entity));
         world.spawn_entity(knot.clone());
 
-        world.play_sound(Sound::ItemLeadTied, SoundCategory::Neutral, &raw_pos);
-
         knot
     }
 
@@ -146,13 +144,21 @@ impl EntityBase for LeashKnotEntity {
         let knot_id = self.entity.entity_id;
         let player_id = player.entity_id();
 
-        let search_dim = EntityDimensions {
-            width: 32.0,
-            height: 32.0,
-            eye_height: 16.0,
-        };
+        // Vanilla searches a 7 block cube around the knot.
+        const SEARCH_RADIUS: f64 = 7.0;
         let pos = self.entity.pos.load();
-        let search_box = BoundingBox::new_from_pos(pos.x, pos.y, pos.z, &search_dim);
+        let search_box = BoundingBox::new(
+            Vector3::new(
+                pos.x - SEARCH_RADIUS,
+                pos.y - SEARCH_RADIUS,
+                pos.z - SEARCH_RADIUS,
+            ),
+            Vector3::new(
+                pos.x + SEARCH_RADIUS,
+                pos.y + SEARCH_RADIUS,
+                pos.z + SEARCH_RADIUS,
+            ),
+        );
         let entities = world.get_entities_at_box(&search_box);
 
         let mut attached_mob = false;
@@ -170,8 +176,7 @@ impl EntityBase for LeashKnotEntity {
 
         if let Some(self_knot) = Self::get_knot(&world, self.entity.block_pos.load()) {
             for mob in player_leashed_mobs {
-                mob.leash_to(self_knot.clone());
-                attached_mob = true;
+                attached_mob |= mob.leash_to(self_knot.clone());
             }
         }
 
