@@ -51,8 +51,6 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
 - tick with a dead Weak target only skips the speed refresh; vanilla keeps a
   strong reference, so the difference is the last speed modifier, not a new flee.
 
-## Gapwave h3 status
-- #1 brain-sensor re-target every tick: STILL OPEN (M, needs per-tick walk target outside createPath; not a goal-only change)
-- #2 confirm as candidate filter: FIXED a64d8f03d (confirm folded into find_threat accept; UNVERIFIED, no test)
-- #3 follow range for sensor branch in tick_reach: FIXED a64d8f03d (UNVERIFIED, no test)
-- #4 per-tick target clear: FIXED a64d8f03d (clear kept in start only; UNVERIFIED, no test)
+## Status (sweep h2)
+
+- FIXED (5065fe6c8): no code change; no TODO/FIXME markers in the file at HEAD, tracker marker is stale.
