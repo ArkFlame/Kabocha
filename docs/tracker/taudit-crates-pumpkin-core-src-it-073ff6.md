@@ -72,12 +72,25 @@ No TODO/FIXME markers in the file; the 10 "vanilla" hits are provenance comments
 9. spawn_egg.rs:447-458 - `ItemBehaviour::use_on_entity` returns `()`, so a successful spawn never
    reports InteractionResult.CONSUME; interact.rs:135-176 then does not swing and the client keeps
    its own prediction. Fixing needs the trait return type changed for every item. Size M.
-10. spawn_egg.rs:359-361 - the peaceful rejection returns `BlockActionResult::Fail`; vanilla
+10. FIXED fix(core): return consume for peaceful spawn egg use_on. spawn_egg.rs:359-361 - the peaceful rejection returns `BlockActionResult::Fail`; vanilla
    `useOn` always returns CONSUME and lets `EntityType.spawn` fail internally. Client-only
    (swing/prediction). Size S.
-11. dispenser.rs:639-682 - `dispense_spawn_egg` emits ENTITY_PLACE at the dispenser position;
+11. FIXED fix(block): emit dispenser spawn egg place at entity pos. dispenser.rs:639-682 - `dispense_spawn_egg` emits ENTITY_PLACE at the dispenser position;
    vanilla `EntityType.spawn` emits it at the spawned entity position. Event-position only. Size S.
 12. block/entities/mob_spawner.rs:294 - `set_entity_type` only swaps the type; vanilla
    `BaseSpawner.setEntityId` also resets pending spawn data/potentials. Pumpkin's spawner has a
    flat `entity_type` and no potentials, so there is nothing to reset today; revisit if per-spawn
    NBT is added. Size S (informational).
+
+## Open after the 2026-11-17 f5 pass
+
+- Gap 1: STILL OPEN: needs the 26.3 `spawnOffspringFromSpawnEgg` age guard; no decompiled vanilla in .vendor to confirm.
+- Gap 2: STILL OPEN: needs vanilla `Entity.load` handling of `Pos`/`UUID` to decide if stripping is deliberate.
+- Gap 3: STILL OPEN: needs vanilla `TrialSpawner.setEntityId` supported-type check and config regeneration source.
+- Gap 4: STILL OPEN: needs vanilla SpawnEggItem spawner branch (shrink vs consume, sendBlockUpdated flags) to confirm.
+- Gap 5: STILL OPEN: root fix is in net/java/play/use_item.rs and touches every air-use item and the Bedrock path; cross-file, not a single S fix.
+- Gap 6: STILL OPEN: world-border half of Player.mayUseItemAt needs the vanilla method body to port exactly.
+- Gap 7: STILL OPEN: needs a pumpkin-gametest scenario; no cargo run permitted in this pass.
+- Gap 8: STILL OPEN: the non-animal arm needs the vanilla AgeableMob/getBreedOffspring guard for 26.3 before changing.
+- Gap 9: STILL OPEN: trait return type change across every ItemBehaviour impl; cross-cutting.
+- Gap 12: STILL OPEN: informational; Pumpkin spawner has no pending spawn data or potentials to reset.
