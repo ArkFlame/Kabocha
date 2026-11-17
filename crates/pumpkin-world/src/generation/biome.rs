@@ -106,11 +106,11 @@ fn cell_offsets(seed: i64, x: i32, y: i32, z: i32) -> CellOffsets {
                 let mut offsets = [[0.0; 3]; 8];
                 for permutation in 0..8 {
                     if (permutation & 0b010) != 0 {
-                        offsets[permutation] = prev_offsets[permutation & !0b010];
-                    } else {
                         let shifted_x = if (permutation & 0b100) == 0 { x } else { x + 1 };
                         let shifted_z = if (permutation & 0b001) == 0 { z } else { z + 1 };
-                        offsets[permutation] = corner_offset(seed, shifted_x, y, shifted_z);
+                        offsets[permutation] = corner_offset(seed, shifted_x, y + 1, shifted_z);
+                    } else {
+                        offsets[permutation] = prev_offsets[permutation | 0b010];
                     }
                 }
                 *last = Some((key, offsets));
@@ -192,6 +192,25 @@ mod test {
     };
 
     use super::salt_mix;
+
+    #[test]
+    fn cell_offsets_reuse_matches_recompute() {
+        let seed = hash_seed(42);
+        for (x, y, z) in [(5, 7, 9), (0, 0, 0), (-3, 12, 4)] {
+            // Prime the cache with the cell below, then take the y + 1 reuse path.
+            let _ = super::cell_offsets(seed, x, y - 1, z);
+            let reused = super::cell_offsets(seed, x, y, z);
+
+            let mut expected = [[0.0; 3]; 8];
+            for (permutation, offset) in expected.iter_mut().enumerate() {
+                let shifted_x = if (permutation & 0b100) == 0 { x } else { x + 1 };
+                let shifted_y = if (permutation & 0b010) == 0 { y } else { y + 1 };
+                let shifted_z = if (permutation & 0b001) == 0 { z } else { z + 1 };
+                *offset = super::corner_offset(seed, shifted_x, shifted_y, shifted_z);
+            }
+            assert_eq!(reused, expected, "cell_offsets({x}, {y}, {z})");
+        }
+    }
 
     #[test]
     fn mix_seed() {
