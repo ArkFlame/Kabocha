@@ -411,7 +411,7 @@ fn remove_score_only_announces_existing_scores() {
 fn plain_team(name: &str) -> Team {
     Team {
         name: name.into(),
-        display_name: TextComponent::text(name),
+        display_name: TextComponent::text(name.to_string()),
         options: 0,
         nametag_visibility: NameTagVisibility::Always,
         collision_rule: CollisionRule::Always,
