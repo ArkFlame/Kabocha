@@ -269,7 +269,7 @@ impl CommandExecutor for DatapackEnableExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 
@@ -353,7 +353,7 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 
@@ -407,7 +407,7 @@ impl CommandExecutor for DatapackDisableExecutor {
             true,
         );
 
-        Ok(server.level_info.load().data_packs.enabled.len() as i32)
+        Ok(get_enabled_packs(server).len() as i32)
     }
 }
 
