@@ -52,3 +52,6 @@ not available to diff).
   client-side effects; only the metadata side is tracked above.
 - `entity/player.rs:4369-4387` re-enumerates every boat type even though the `minecraft:boat`
   tag branch above already covers them - hygiene only, left untouched.
+
+## h6 status
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.

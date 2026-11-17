@@ -38,3 +38,6 @@ No code change was made in this pass: every jungle-specific wire is present and 
 ## Test gap
 
 Nothing exercises `BoatEntity::passenger_attachment_point` for the two-seat `0.2` / `-0.6` offsets or the `0.2` animal shift (`boat.rs:183-215`), and nothing pins that `passengers.rs::rider_position` and the generic attachment path agree. A unit test on seat-offset selection is the cheapest gate and would have caught the drift above. Size S.
+
+## h6 status
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.

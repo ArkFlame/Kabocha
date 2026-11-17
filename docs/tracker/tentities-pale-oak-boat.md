@@ -43,3 +43,7 @@ Pale oak tag membership in `minecraft:boat`/`c_boats` statistics paths, chest bo
 (`spawn_egg::apply_entity_variant`, spawn_egg.rs:138-146) and break drop (boat.rs:351-355), wobble
 metadata pairing (vehicle.rs:167-188), seat indices 0.2/-0.6 for two passengers, dismount spot search,
 `blocks_building = true` on construction, and dispenser spawning.
+
+## h6 status
+- get_ground_friction NaN with no supporting block: FIXED 426efffdc (returns 0.0). No unit test: needs a world fixture.
+- Row 1 (chest interact result discarded), row 2 (eye-in-water mount gate), row 3 (damage prediction coupling), row 5 (client velocity vs last_yd): STILL OPEN, not attempted this pass, needs decompiled interact ordering or a shared vehicle destroy return value.

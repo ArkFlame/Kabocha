@@ -57,3 +57,6 @@ Resolved since the last review: server-side `floatBoat` (water gravity/buoyancy,
    `scatter_inventory`. Vanilla `ChestBoat.remove(RemovalReason)` scatters the 27 slots whenever
    `reason.shouldDestroy()`. Fix: add a destroy hook (or pass `RemovalReason`) so `ChestBoat` scatters once
    per destroying removal. Size M.
+
+## h6 status
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.

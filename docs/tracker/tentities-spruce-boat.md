@@ -27,3 +27,6 @@ Verdict: the port remains structurally complete and faithful (status/water probe
 - `boat.rs:315` (`damage_with_context`) drops chest contents for any destroying removal, including an instabuild break, and gates only the boat item on non-creative; this is the deliberate `ChestBoat.remove` reading and applies to `SPRUCE_CHEST_BOAT`, not the plain boat.
 - Paddle motion (`SPaddleBoat` -> `set_paddle_state`) is a metadata mirror of client input; no server-side prediction in vanilla either.
 - Vanilla `getPassengerAttachmentPoint` reads `singlePassengerXOffset`, which is `0.0` for all boat variants in `assets/`; spruce therefore uses the same front/back seats as every other boat.
+
+## h6 status
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.

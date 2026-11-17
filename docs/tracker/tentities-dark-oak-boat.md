@@ -68,13 +68,5 @@ decompiled class, the rest are drift risk or a missing hook, not a certain one-f
   (`0.04`) and improves parity for `NoGravity` boats (0 instead of the hard-coded sink), so replacing it
   with the constant would be a regression.
 
-## Gap status (gapwave2 pass)
-
-- Row 2: **FIXED** (already at HEAD: `scatter_inventory_at` and `drop_stack_at` both use `pos.load()`, boat.rs:398/412).
-- Row 3: **STILL OPEN** (formula for `DATA_ID_BUBBLE_TIME` not confirmed without the decompiled class).
-- Row 4: **STILL OPEN** (M: needs a vehicle rider-rotation hook; not attempted).
-- Row 5: **BLOCKED-DATA** (Pumpkin has no `Entity.isPickable` predicate; `boat.rs` uses `can_hit()` as a stand-in. Porting needs the decompiled `Entity.isPickable` overrides and `BoatItem.use` second pass, neither in tree).
-- Row 6: **FIXED** (533e9060d: dispenser requires still water for both the front and the air-over-water case).
-- Row 7: **STILL OPEN** (`is_chest_boat` is a `const fn` used in const contexts; tag mapping needs a non-const refactor).
-- Row 8: **STILL OPEN** (gametest not written; cargo not run in this pass).
-- Row 1: **UNVERIFIED** (no edit; `canAddPassenger` eye-in-water check not confirmed against the decompiled class).
+## h6 status
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
