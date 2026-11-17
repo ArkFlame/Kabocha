@@ -8,6 +8,19 @@ use pumpkin_protocol::java::server::play::SSetStructureBlock;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 
+/// Vanilla `StructureBlockEntity` limits the offset to +-48 blocks per axis.
+const MAX_STRUCTURE_OFFSET: i32 = 48;
+/// Vanilla `StructureBlockEntity` limits the size to 0..=48 blocks per axis.
+const MAX_STRUCTURE_SIZE: i32 = 48;
+
+fn clamp_structure_offset(value: i32) -> i32 {
+    value.clamp(-MAX_STRUCTURE_OFFSET, MAX_STRUCTURE_OFFSET)
+}
+
+fn clamp_structure_size(value: i32) -> i32 {
+    value.clamp(0, MAX_STRUCTURE_SIZE)
+}
+
 fn apply_structure_block_settings(
     structure_block: &StructureBlockBlockEntity,
     world: &Arc<World>,
@@ -16,14 +29,14 @@ fn apply_structure_block_settings(
     structure_block.set_mode(world, mode_from_packet_id(packet.mode.0));
     structure_block.set_structure_name(packet.name);
     structure_block.set_structure_pos(Vector3::new(
-        i32::from(packet.offset_x),
-        i32::from(packet.offset_y),
-        i32::from(packet.offset_z),
+        clamp_structure_offset(i32::from(packet.offset_x)),
+        clamp_structure_offset(i32::from(packet.offset_y)),
+        clamp_structure_offset(i32::from(packet.offset_z)),
     ));
     structure_block.set_structure_size(Vector3::new(
-        i32::from(packet.size_x),
-        i32::from(packet.size_y),
-        i32::from(packet.size_z),
+        clamp_structure_size(i32::from(packet.size_x)),
+        clamp_structure_size(i32::from(packet.size_y)),
+        clamp_structure_size(i32::from(packet.size_z)),
     ));
     structure_block.set_mirror_value(mirror_from_packet_id(packet.mirror.0));
     structure_block.set_rotation_value(rotation_from_packet_id(packet.rotation.0));
@@ -55,6 +68,25 @@ fn apply_structure_block_settings(
         .seed
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = packet.seed.0;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn structure_offset_is_clamped_to_48_blocks_each_way() {
+        assert_eq!(clamp_structure_offset(-127), -48);
+        assert_eq!(clamp_structure_offset(48), 48);
+        assert_eq!(clamp_structure_offset(-3), -3);
+    }
+
+    #[test]
+    fn structure_size_is_clamped_to_0_to_48() {
+        assert_eq!(clamp_structure_size(-1), 0);
+        assert_eq!(clamp_structure_size(49), 48);
+        assert_eq!(clamp_structure_size(16), 16);
+    }
 }
 
 impl JavaClient {

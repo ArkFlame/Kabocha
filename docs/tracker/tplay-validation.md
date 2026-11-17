@@ -15,13 +15,13 @@
 | use_item_on | reach 4.5+1, hit within block, face/hand, sequence | ok | cursor check runs before face/hand, silent drop like vanilla |
 | sign_update | chunk loaded, editable gate, line length | ok | line length bounded by codec |
 | edit_book | page count 100, page 1024, title 32 | ok | codec rejects over-limit; pages > 100 rejected, not truncated |
-| edit_book | writes held item, ignores packet slot | open | vanilla writes `slot` (hotbar or 40); log only, behaviour kept |
+| edit_book | packet slot 0..=8 or 40, slot must hold writable_book | fixed | `is_edit_book_slot`; writes back to packet slot, else ignored |
 | rename_item | 50 chars | ok | `validate_name` in anvil handler |
 | container_click | slot -999/-1/0..size, swap button 0..8/40, mode | ok | `is_slot_valid` mirrors vanilla `isValidSlotIndex`; negative slots guarded in inventory |
-| container_click | changed-slot cap 256 | open | vanilla cap unverified (believed 128); log only |
+| container_click | changed-slot cap 128 | fixed | codec cap `MAX_CHANGED_SLOTS` (vanilla 128); carried item hash check still open |
 | container_button | window id match | ok | button id bounds left to the screen handler |
 | set_command_block / set_jigsaw / set_structure_block | creative + op 2 | ok | matches `canUseGameMasterBlocks` |
-| set_structure_block | offset/size clamp | open | not clamped in handler; vanilla behaviour unverified |
+| set_structure_block | offset/size clamp | fixed | offset clamped to +-48, size to 0..=48 per axis (`clamp_structure_offset`/`clamp_structure_size`) |
 | player_command | horse jump 0..100 | ok | `player_jump_pending_scale` clamps |
 | player_input | sneak/flags | ok | delegates to `apply_client_input` |
 | pick_item from block | reach 1.0, creative include data | ok | |

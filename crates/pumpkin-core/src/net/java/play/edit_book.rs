@@ -20,15 +20,24 @@ impl JavaClient {
             }
         }
 
-        let held_stack = player.inventory().held_item();
-        if held_stack.item.id != Item::WRITABLE_BOOK.id {
+        // Vanilla `handleEditBook`: the packet slot must be a hotbar or off-hand slot that holds a writable book.
+        let Ok(slot) = usize::try_from(packet.slot.0) else {
+            return;
+        };
+        if !is_edit_book_slot(slot) {
+            return;
+        }
+        let book_stack = player.inventory().get_slot(slot);
+        if book_stack.item.id != Item::WRITABLE_BOOK.id {
             return;
         }
 
         let mut pages: Vec<String> = packet.pages.iter().map(|p| (*p).to_string()).collect();
         let mut title = packet.title.map(std::string::ToString::to_string);
         let signing = title.is_some();
-        let slot = player.inventory().get_selected_slot() as u32;
+        let Ok(event_slot) = u32::try_from(slot) else {
+            return;
+        };
 
         if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
             && let Some(server) = player.world().server.upgrade()
@@ -36,7 +45,7 @@ impl JavaClient {
             let mut event =
                 crate::plugin::api::events::player::player_edit_book::PlayerEditBookEvent {
                     player: player_arc,
-                    slot,
+                    slot: event_slot,
                     pages: pages.clone(),
                     title: title.clone(),
                     signing,
@@ -62,9 +71,9 @@ impl JavaClient {
             written_book
                 .patch
                 .push((DataComponent::WrittenBookContent, Some(content.to_dyn())));
-            player.inventory().set_held_item(written_book);
+            player.inventory().set_slot(slot, written_book);
         } else {
-            let mut writable_book = held_stack;
+            let mut writable_book = book_stack;
             let content = WritableBookContentImpl { pages };
             writable_book
                 .patch
@@ -72,9 +81,14 @@ impl JavaClient {
             writable_book
                 .patch
                 .push((DataComponent::WritableBookContent, Some(content.to_dyn())));
-            player.inventory().set_held_item(writable_book);
+            player.inventory().set_slot(slot, writable_book);
         }
     }
+}
+
+/// Hotbar slots 0..=8 and the off-hand slot 40 are the only slots a client may edit a book from.
+const fn is_edit_book_slot(slot: usize) -> bool {
+    matches!(slot, 0..=8 | 40)
 }
 
 /// Returns the UTF-8 size of `pages` and the byte budget they are allowed, as Paper computes it.
@@ -124,6 +138,16 @@ mod tests {
     fn accepts_full_pages_of_ascii() {
         let page = "a".repeat(1024);
         assert_eq!(allowance(&page, 100), (102_400, 253_360));
+    }
+
+    #[test]
+    fn edit_book_only_accepts_hotbar_and_offhand_slots() {
+        assert!(is_edit_book_slot(0));
+        assert!(is_edit_book_slot(8));
+        assert!(is_edit_book_slot(40));
+        assert!(!is_edit_book_slot(9));
+        assert!(!is_edit_book_slot(39));
+        assert!(!is_edit_book_slot(41));
     }
 
     #[test]

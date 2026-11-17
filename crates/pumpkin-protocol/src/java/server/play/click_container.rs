@@ -9,6 +9,9 @@ use pumpkin_macros::java_packet;
 use pumpkin_util::version::JavaMinecraftVersion;
 use std::io::Read;
 
+/// Vanilla `ServerboundContainerClickPacket` caps the changed-slot map at 128 entries.
+const MAX_CHANGED_SLOTS: i32 = 128;
+
 #[derive(Debug)]
 #[java_packet(CONTAINER_CLICK)]
 pub struct SClickSlot {
@@ -47,7 +50,7 @@ impl<'a> ServerPacket<'a> for SClickSlot {
         let mode = SlotActionType::read(&mut bytebuf)?;
 
         let length_of_array = bytebuf.get_var_int()?;
-        if length_of_array.0 < 0 || length_of_array.0 > 256 {
+        if length_of_array.0 < 0 || length_of_array.0 > MAX_CHANGED_SLOTS {
             return Err(ReadingError::Message(
                 "Changed slots length out of bounds".into(),
             ));
