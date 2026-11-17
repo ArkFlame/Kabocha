@@ -152,8 +152,9 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
         return;
     }
 
-    let search_radius_horiz = f64::from(params.spawn_range * 2);
-    let search_radius_vert = 4.0;
+    // Vanilla BaseSpawner bounds the nearby count with new AABB(pos).inflate(spawnRange),
+    // i.e. spawnRange + 0.5 from the block centre on every axis.
+    let search_radius = f64::from(params.spawn_range) + 0.5;
     let nearby_count = world
         .entities
         .load()
@@ -164,9 +165,9 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
                 return false;
             }
             let pos = ent.pos.load();
-            (pos.x - center.x).abs() <= search_radius_horiz
-                && (pos.z - center.z).abs() <= search_radius_horiz
-                && (pos.y - center.y).abs() <= search_radius_vert
+            (pos.x - center.x).abs() <= search_radius
+                && (pos.z - center.z).abs() <= search_radius
+                && (pos.y - center.y).abs() <= search_radius
         })
         .count();
 

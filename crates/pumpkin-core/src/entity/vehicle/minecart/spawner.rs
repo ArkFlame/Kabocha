@@ -4,6 +4,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
+use pumpkin_util::math::position::BlockPos;
 
 use crate::{
     block::entities::mob_spawner::{
@@ -56,7 +57,9 @@ impl SpawnerMinecart {
 
     pub(super) fn tick(&self, entity: &Entity) {
         let world = entity.world.load();
-        let pos = entity.block_pos.load();
+        // Vanilla MinecartSpawner.tick passes blockPosition() computed after the move,
+        // not the block position cached at the start of the entity tick.
+        let pos = BlockPos::floored_v(entity.pos.load());
         tick_spawner(&world, pos, &self.delay, &self.params(), || {
             // Vanilla `MinecartSpawner.spawner.broadcastEvent`: broadcasts entity event 1.
             world.broadcast_entity_event(entity, EntityStatus::Jump, ActorEventID::None);
