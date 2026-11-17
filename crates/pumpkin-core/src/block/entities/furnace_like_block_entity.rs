@@ -187,7 +187,7 @@ macro_rules! impl_cooking_block_entity_base {
                     let experience =
                         pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
                             * (*count as f32);
-                    total + split_experience(experience, rand::random::<f32>())
+                    total + $crate::block::entities::furnace_like_block_entity::split_experience(experience, rand::random::<f32>())
                 });
                 recipes.clear();
                 drop(recipes);
