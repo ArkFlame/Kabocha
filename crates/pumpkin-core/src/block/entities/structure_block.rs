@@ -392,9 +392,6 @@ pub fn place_structure_template_in_world(
     let pivot = Vector3::new(0, 0, 0);
 
     for block_info in palette.blocks() {
-        if block_info.state.name == "minecraft:structure_void" {
-            continue;
-        }
         let Some(resolved_state) = BlockStateResolver::resolve(&block_info.state, rotation, mirror)
         else {
             continue;
