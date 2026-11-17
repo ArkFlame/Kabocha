@@ -346,6 +346,40 @@ impl AxolotlEntity {
             apply_supporting_effects(&player);
         }
     }
+
+    /// Evaluates the play-dead roll of vanilla Axolotl.hurtServer with the pre-hit damage and
+    /// health captured in `mob_hurt_server`. Both damage hooks call this; the pending flag makes
+    /// the roll and its random draws happen exactly once per damage attempt.
+    fn try_play_dead(&self, source: Option<&dyn EntityBase>, cause: Option<&dyn EntityBase>) {
+        if !self.play_dead_roll_pending.swap(false, Ordering::Relaxed) {
+            return;
+        }
+        let amount = f32::from_bits(
+            self.last_hurt_amount
+                .swap(0.0f32.to_bits(), Ordering::Relaxed),
+        );
+        let health = f32::from_bits(
+            self.last_hurt_health
+                .swap(0.0f32.to_bits(), Ordering::Relaxed),
+        );
+        let living = &self.mob_entity.living_entity;
+        let hit = HurtCheck {
+            no_ai: self.mob_entity.is_no_ai(),
+            damage: amount,
+            health,
+            max_health: living.get_max_health(),
+            in_water: self.get_entity().is_in_water(),
+            // Vanilla checks source.getEntity() != null or source.getDirectEntity() != null:
+            // either a causing entity (owner/thrower) or a direct entity is enough to play dead.
+            has_causing_entity: source.is_some() || cause.is_some(),
+            playing_dead: self.is_playing_dead(),
+        };
+        if plays_dead_when_hurt(&mut self.get_random(), &hit) {
+            self.mob_entity.with_brain(self, |brain| {
+                brain.set(types::PLAY_DEAD_TICKS, TOTAL_PLAYDEAD_TIME);
+            });
+        }
+    }
 }
 
 /// Vanilla `Axolotl` implements `Bucketable`: a water bucket captures an axolotl into an
@@ -593,40 +627,6 @@ impl Mob for AxolotlEntity {
         None
     }
 
-    /// Evaluates the play-dead roll of vanilla Axolotl.hurtServer with the pre-hit damage and
-    /// health captured in mob_hurt_server. Both damage hooks call this; the pending flag makes
-    /// the roll and its random draws happen exactly once per damage attempt.
-    fn try_play_dead(&self, source: Option<&dyn EntityBase>, cause: Option<&dyn EntityBase>) {
-        if !self.play_dead_roll_pending.swap(false, Ordering::Relaxed) {
-            return;
-        }
-        let amount = f32::from_bits(
-            self.last_hurt_amount
-                .swap(0.0f32.to_bits(), Ordering::Relaxed),
-        );
-        let health = f32::from_bits(
-            self.last_hurt_health
-                .swap(0.0f32.to_bits(), Ordering::Relaxed),
-        );
-        let living = &self.mob_entity.living_entity;
-        let hit = HurtCheck {
-            no_ai: self.mob_entity.is_no_ai(),
-            damage: amount,
-            health,
-            max_health: living.get_max_health(),
-            in_water: self.get_entity().is_in_water(),
-            // Vanilla checks source.getEntity() != null or source.getDirectEntity() != null:
-            // either a causing entity (owner/thrower) or a direct entity is enough to play dead.
-            has_causing_entity: source.is_some() || cause.is_some(),
-            playing_dead: self.is_playing_dead(),
-        };
-        if plays_dead_when_hurt(&mut self.get_random(), &hit) {
-            self.mob_entity.with_brain(self, |brain| {
-                brain.set(types::PLAY_DEAD_TICKS, TOTAL_PLAYDEAD_TIME);
-            });
-        }
-    }
-
     /// Vanilla evaluates the play-dead roll before super.hurtServer, so a blocked hit can still
     /// start play-dead. Pumpkin calls this hook for every damage attempt, damaged or not.
     fn post_damage_with_context(
@@ -638,7 +638,7 @@ impl Mob for AxolotlEntity {
         self.try_play_dead(source, cause);
     }
 
-    /// Runs the roll for applied hits when post_damage_with_context has not consumed it.
+    /// Runs the roll for applied hits when `post_damage_with_context` has not consumed it.
     fn on_damage_with_context(
         &self,
         _damage_type: DamageType,
@@ -1178,7 +1178,7 @@ mod tests {
     }
 
     /// A hit that deals no damage still rolls: vanilla checks play dead before super.hurtServer,
-    /// so Pumpkin must set the memory from post_damage_with_context alone.
+    /// so Pumpkin must set the memory from `post_damage_with_context` alone.
     #[tokio::test]
     async fn a_blocked_hit_still_rolls_for_play_dead() -> TestResult {
         let folder = tempfile::tempdir()?;

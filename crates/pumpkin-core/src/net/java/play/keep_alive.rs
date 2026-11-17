@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use std::time::Instant;
 
 /// Vanilla `ServerCommonPacketListenerImpl#handleKeepAlive` only accepts a reply
 /// that matches an outstanding challenge; anything else disconnects with

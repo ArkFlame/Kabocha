@@ -152,7 +152,7 @@ impl BowItem {
     }
 
     /// Damage slot for the hand that holds the bow, matching vanilla `getUsedItemHand`.
-    fn damage_slot_for(
+    const fn damage_slot_for(
         weapon_in_off_hand: bool,
     ) -> pumpkin_data::data_component_impl::EquipmentSlot {
         if weapon_in_off_hand {
@@ -245,13 +245,13 @@ mod tests {
 
     #[test]
     fn bow_damage_slot_matches_used_hand() {
-        assert_eq!(
-            BowItem::damage_slot_for(true),
-            pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
+        assert!(
+            BowItem::damage_slot_for(true)
+                == pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
         );
-        assert_eq!(
-            BowItem::damage_slot_for(false),
-            pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
+        assert!(
+            BowItem::damage_slot_for(false)
+                == pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
         );
     }
 }

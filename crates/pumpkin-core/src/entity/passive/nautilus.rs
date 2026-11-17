@@ -25,7 +25,10 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::entity::{
     Entity, EntityBase,
     ai::{
-        control::{SmoothSwimmingLookControl, SmoothSwimmingMoveControl},
+        control::{
+            smooth_swimming_look_control::SmoothSwimmingLookControl,
+            smooth_swimming_move_control::SmoothSwimmingMoveControl,
+        },
         goal::{
             breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
             look_around::RandomLookAroundGoal, random_swimming::RandomSwimmingGoal,
@@ -65,7 +68,7 @@ impl NautilusEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             *navigator = Navigator::water_bound(false);
             navigator.set_pathfinding_malus(PathType::Water, 0.0);
-        }
+        };
         *mob_entity
             .move_control
             .get_mut()
@@ -107,7 +110,7 @@ impl NautilusEntity {
             goals.add_goal(3, Box::new(FollowParentGoal::new(1.3)));
             goals.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             goals.add_goal(5, Box::new(RandomLookAroundGoal::default()));
-        }
+        };
         nautilus
     }
 

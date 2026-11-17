@@ -324,7 +324,7 @@ fn level_data_to_nbt(info: &LevelData, data: &mut NbtCompound) {
     // Round up so a resumed transition does not finish a tick early.
     data.put_long(
         "BorderSizeLerpTime",
-        info.border_size_lerp_time.max(0).div_ceil(MILLIS_PER_TICK),
+        (info.border_size_lerp_time.max(0) + MILLIS_PER_TICK - 1) / MILLIS_PER_TICK,
     );
     data.put_double("BorderWarningBlocks", info.border_warning_blocks);
     data.put_double("BorderWarningTime", info.border_warning_time);

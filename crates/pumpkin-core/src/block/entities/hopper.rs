@@ -884,7 +884,7 @@ mod tests {
         hopper
     }
 
-    /// Vanilla chest vehicles implement plain Container, not WorldlyContainer, so a hopper
+    /// Vanilla chest vehicles implement plain Container, not `WorldlyContainer`, so a hopper
     /// reaches every slot from any face: insertion above and extraction below both work.
     #[test]
     fn hopper_moves_items_both_ways_with_a_plain_entity_container() {

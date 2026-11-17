@@ -46,7 +46,7 @@ use crate::{
     world::World,
 };
 
-fn select_zombie_nautilus_dash_sound(submerged: bool) -> Sound {
+const fn select_zombie_nautilus_dash_sound(submerged: bool) -> Sound {
     if submerged {
         Sound::EntityZombieNautilusDash
     } else {
@@ -54,7 +54,7 @@ fn select_zombie_nautilus_dash_sound(submerged: bool) -> Sound {
     }
 }
 
-fn select_zombie_nautilus_dash_ready_sound(submerged: bool) -> Sound {
+const fn select_zombie_nautilus_dash_ready_sound(submerged: bool) -> Sound {
     if submerged {
         Sound::EntityZombieNautilusDashReady
     } else {
@@ -62,7 +62,7 @@ fn select_zombie_nautilus_dash_ready_sound(submerged: bool) -> Sound {
     }
 }
 
-fn select_zombie_nautilus_hurt_sound(submerged: bool) -> Sound {
+const fn select_zombie_nautilus_hurt_sound(submerged: bool) -> Sound {
     if submerged {
         Sound::EntityZombieNautilusHurt
     } else {
@@ -70,7 +70,7 @@ fn select_zombie_nautilus_hurt_sound(submerged: bool) -> Sound {
     }
 }
 
-fn select_zombie_nautilus_death_sound(submerged: bool) -> Sound {
+const fn select_zombie_nautilus_death_sound(submerged: bool) -> Sound {
     if submerged {
         Sound::EntityZombieNautilusDeath
     } else {
@@ -78,7 +78,7 @@ fn select_zombie_nautilus_death_sound(submerged: bool) -> Sound {
     }
 }
 
-fn select_zombie_nautilus_ambient_sound(submerged: bool) -> Sound {
+const fn select_zombie_nautilus_ambient_sound(submerged: bool) -> Sound {
     if submerged {
         Sound::EntityZombieNautilusAmbient
     } else {

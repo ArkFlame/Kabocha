@@ -37,7 +37,7 @@ pub struct BeaconBlockEntity {
     /// passes the beacon itself, set again by an opaque block.
     checking_beam_blocked: AtomicBool,
     last_check_y: AtomicI32,
-    /// Set by BlockEntity::set_world; lets set_property play the select sound from the
+    /// Set by `BlockEntity::set_world`; lets `set_property` play the select sound from the
     /// world handle instead of deferring it to the next tick.
     world: OnceLock<Weak<World>>,
     metadata: super::ContainerMetadata,
@@ -220,7 +220,7 @@ impl PropertyDelegate for BeaconBlockEntity {
                 // Vanilla fires BEACON_POWER_SELECT from the dataAccess.set handler while the
                 // beam is up, not on a later tick.
                 if self.beam_active.load(Ordering::Relaxed)
-                    && let Some(world) = self.world.get().and_then(|w| w.upgrade())
+                    && let Some(world) = self.world.get().and_then(std::sync::Weak::upgrade)
                 {
                     Self::play_sound(&world, self.position, Sound::BlockBeaconPowerSelect);
                 }

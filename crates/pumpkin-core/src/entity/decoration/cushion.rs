@@ -376,7 +376,7 @@ impl EntityBase for CushionEntity {
         }
 
         self.entity
-            .add_passenger(vehicle, passenger as Arc<dyn EntityBase>);
+            .add_passenger(vehicle.clone(), passenger.clone() as Arc<dyn EntityBase>);
         if player
             .get_entity()
             .vehicle

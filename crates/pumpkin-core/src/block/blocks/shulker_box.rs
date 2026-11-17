@@ -110,16 +110,13 @@ impl BlockBehaviour for ShulkerBoxBlock {
         if args.r#type != Self::OPEN_ANIMATION_EVENT_TYPE {
             return false;
         }
-        if let Some(block_entity) = args.world.get_block_entity(args.position) {
-            if let Some(shulker) = block_entity
+        if let Some(block_entity) = args.world.get_block_entity(args.position)
+            && let Some(shulker) = block_entity
                 .as_any()
                 .downcast_ref::<ShulkerBoxBlockEntity>()
-            {
-                if let Ok(mut animation) = shulker.animation.lock() {
+                && let Ok(mut animation) = shulker.animation.lock() {
                     animation.on_open_count(args.data);
                 }
-            }
-        }
         true
     }
 

@@ -47,11 +47,10 @@ fn recipe_suggestion_ids(recipes: &[DynamicRecipe]) -> Vec<String> {
         if matches!(recipe, DynamicRecipe::SpecialCrafting(_)) {
             continue;
         }
-        if let Some(id) = recipe.recipe_id() {
-            if seen.insert(id) {
+        if let Some(id) = recipe.recipe_id()
+            && seen.insert(id) {
                 ids.push(id.to_string());
             }
-        }
     }
     ids
 }

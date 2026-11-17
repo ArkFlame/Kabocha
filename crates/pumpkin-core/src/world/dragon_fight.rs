@@ -1155,7 +1155,7 @@ mod tests {
         let b = shuffled_gateways(12345);
         assert_eq!(a, b);
 
-        let mut sorted = a.clone();
+        let mut sorted = a;
         sorted.sort_unstable();
         let expected: Vec<i32> = (0..GATEWAY_COUNT as i32).collect();
         assert_eq!(sorted, expected);

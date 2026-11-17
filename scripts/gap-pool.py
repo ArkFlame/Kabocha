@@ -12,11 +12,12 @@ LANES = {'hy4': {'model': 'opencode-go/hy4-flash-free', 'cap': int(sys.argv[1]) 
 for L in LANES.values(): L.update(hits=0, cool=0, done=0, fail=0, secs=0.0)
 HDR = open(f'{ROOT}/docs/POOL_BRIEF.md').read()
 units = []
-for f in sorted(glob.glob(f'{ROOT}/docs/tracker/*.md')):
+GLOB = os.environ.get('KAB_POOL_GLOB', 'docs/tracker/*.md'); MARK = os.environ.get('KAB_POOL_MARK', 'STILL OPEN')
+for f in sorted(glob.glob(f'{ROOT}/{GLOB}')):
     b = os.path.basename(f)
-    if b.startswith(('ss', 'tsmall', 'tverify', 'tdeferred', 'pool-')): continue
+    if b.startswith(('ss', 'tsmall', 'tverify', 'tdeferred', 'pool-', 'deferred')): continue
     t = open(f).read()
-    if 'STILL OPEN' not in t: continue
+    if MARK not in t: continue
     units.append((b[:-3], f, set(re.findall(r'([A-Za-z0-9_]+\.rs)', t)) - {'mod.rs', 'lib.rs', 'main.rs', 'tests.rs', 'registry.rs'}))
 import collections
 hub = {f for f, n in collections.Counter(f for u in units for f in u[2]).items() if n >= 8}  # hub files named by many docs would serialize the whole queue
@@ -35,7 +36,9 @@ def alive(r):
     except OSError: return False
 def launch(u, lane):
     name, path, files = u
-    brief = HDR + f'\n\nYOUR UNIT: {path}\nFiles this unit may edit: only the source files named in it (basenames: {", ".join(sorted(files)) or "none"}). Record each row result by appending a section "## Result" to that doc.\n'
+    if MARK == 'PASS2-OPEN':
+        brief = HDR + f'\n\nYOUR UNIT: {path} (ONE row). Read the row and its source doc, find the Pumpkin code it concerns (grep), verify vs vanilla, fix. You may edit any .rs file this row needs, keep it minimal. Other workers edit other files at the same time: re-read a file right before each edit. If the row is already fixed or is only a note, mark VERIFIED. Append "## Result" to your unit doc.\n'
+    else: brief = HDR + f'\n\nYOUR UNIT: {path}\nFiles this unit may edit: only the source files named in it (basenames: {", ".join(sorted(files)) or "none"}). Record each row result by appending a section "## Result" to that doc.\n'
     log = open(f'{RUNS}/{name}.log', 'w')
     p = subprocess.Popen(['opencode', 'run', '-m', LANES[lane]['model'], '--auto', '--title', 'pool:' + name, brief], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     running[name] = dict(proc=p, files=files, t0=time.time(), lane=lane)

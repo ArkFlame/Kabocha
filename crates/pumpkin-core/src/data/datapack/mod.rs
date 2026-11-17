@@ -2006,7 +2006,7 @@ fn tag_contains_entry<S: std::hash::BuildHasher>(
 }
 
 /// Expands a generic datapack tag into a flat, first-seen-ordered list of members,
-/// following nested #tag references like vanilla TagLoader#tryBuildTag's LinkedHashSet.
+/// following nested #tag references like vanilla TagLoader#tryBuildTag's `LinkedHashSet`.
 fn collect_generic_tag_values<S: std::hash::BuildHasher>(
     tags: &HashMap<String, DynamicTagEntry, S>,
     tag_id: &str,
@@ -2693,7 +2693,7 @@ mod tests {
 
     #[test]
     fn generic_tag_queries_expand_nested_references_and_strip_hash() {
-        let mut manager = DatapackManager::new();
+        let manager = DatapackManager::new();
         let mut tags = HashMap::new();
         let entry = |values: &[&str]| super::tag_loader::DynamicTagEntry {
             id: String::new(),

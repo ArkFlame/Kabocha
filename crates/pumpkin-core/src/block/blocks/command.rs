@@ -27,7 +27,7 @@ const MAX_CHAIN_LENGTH: u32 = 65536;
 /// `context.getNearestLookingDirection()`, which may point vertically. The
 /// entity's ordered facing is the port of vanilla `Direction.orderedByNearest`,
 /// so its first entry keeps up/down placement correct as well as horizontal.
-fn placement_facing(facing_order: [Facing; 6]) -> Facing {
+const fn placement_facing(facing_order: [Facing; 6]) -> Facing {
     facing_order[0].opposite()
 }
 

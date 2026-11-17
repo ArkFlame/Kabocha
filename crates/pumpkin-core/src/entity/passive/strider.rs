@@ -199,7 +199,7 @@ impl Mob for StriderEntity {
                 vehicle.get_entity().entity_type == &EntityType::STRIDER
                     && vehicle
                         .cast_any()
-                        .downcast_ref::<StriderEntity>()
+                        .downcast_ref::<Self>()
                         .is_some_and(|strider| !strider.is_suffocating())
             });
             let suffocating = !in_warm_blocks && !on_warm_strider;

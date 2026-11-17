@@ -144,6 +144,11 @@ const fn default_one() -> i32 {
 mod tests {
     use super::*;
 
+    #[expect(
+        clippy::expect_used,
+        clippy::needless_pass_by_value,
+        reason = "test helper over literal JSON"
+    )]
     fn definition(environment: Value) -> GameTestDefinition {
         serde_json::from_value(serde_json::json!({
             "type": "minecraft:function",

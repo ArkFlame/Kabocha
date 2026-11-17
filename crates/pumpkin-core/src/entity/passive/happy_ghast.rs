@@ -61,7 +61,7 @@ impl HappyGhastEntity {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
         };
-        let happy_ghast_weak: Weak<HappyGhastEntity> = Arc::downgrade(&mob_arc);
+        let happy_ghast_weak: Weak<Self> = Arc::downgrade(&mob_arc);
 
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
@@ -143,7 +143,7 @@ impl HappyGhastEntity {
             let root = player.get_entity().get_root_vehicle();
             let root_ref: &dyn EntityBase = root.as_deref().unwrap_or(player_base);
             // Vanilla ignores a player already riding a happy ghast.
-            if root_ref.cast_any().is::<HappyGhastEntity>() {
+            if root_ref.cast_any().is::<Self>() {
                 return false;
             }
             detection_box.contains(root_ref.get_entity().pos.load())

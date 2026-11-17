@@ -227,7 +227,7 @@ impl AnimationState {
     /// Applies the open-count block event (`data` = viewer count), mirroring vanilla
     /// `ShulkerBoxBlockEntity.triggerEvent`: 0 closes, 1 opens and any higher viewer
     /// count leaves the status unchanged. Vanilla never drops the event.
-    pub fn on_open_count(&mut self, open_count: u8) {
+    pub const fn on_open_count(&mut self, open_count: u8) {
         match open_count {
             0 => self.status = AnimationStatus::Closing,
             1 => self.status = AnimationStatus::Opening,

@@ -86,7 +86,7 @@ impl TrackTargetGoal {
 
     /// Vanilla TargetGoal.canReach: path to the target, then require the path end
     /// node to finish within 1.5 blocks (squared 2.25) of the target block.
-    /// Runs inside can_start, so a failed path never claims TARGET or evicts a
+    /// Runs inside `can_start`, so a failed path never claims TARGET or evicts a
     /// lower-priority goal that currently owns the target selector.
     fn can_navigate_to_entity(&mut self, mob: &dyn Mob, target: &dyn EntityBase) -> bool {
         self.check_can_navigate_cooldown = to_goal_ticks(10 + mob.get_random().random_range(0..5));

@@ -24,7 +24,7 @@ pub struct VehicleEntity {
 /// Vanilla `VehicleEntity.destroy` drops a single hardcoded item; boats have an empty
 /// entity loot table, so rolling `minecraft:entities/<type>` would double-drop with a datapack.
 #[must_use]
-pub fn has_entity_loot_table(entity_type: &pumpkin_data::entity::EntityType) -> bool {
+pub const fn has_entity_loot_table(entity_type: &pumpkin_data::entity::EntityType) -> bool {
     entity_type.boat.is_none()
 }
 

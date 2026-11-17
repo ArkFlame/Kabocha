@@ -67,3 +67,32 @@ point at this file.
 
 ## h6 status
 - Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+
+
+## Result (2026-11-17, shared-checkout worker)
+
+All five rows re-checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`.
+
+1. Rider rotation clamp and `deltaRotation`: FIXED. `on_rider_positioned` now derives the per-tick
+   boat yaw delta, applies it before clamping (`clamp_rider_yaw`, +/-105 deg), honours the
+   `can_turn_in_boats` tag, and uses `rider_body_yaw` + `clamp_head_to_body` for mob riders.
+   Fixed one call-site bug while verifying: the passenger body yaw used the rider's max
+   passengers instead of the boat's, so an animal in a full chest boat would have been rotated
+   sideways even though `AbstractChestBoat.getMaxPassengers()` is 1.
+2. Buoyancy/drag/friction: FIXED for every server-authoritative case. `float_boat` ports
+   `AbstractBoat.floatBoat` (gravity, water/underwater/flowing-water/land friction, buoyancy and
+   the IN_AIR snap) and runs for riderless and mob-ridden boats; a player-controlled boat keeps
+   its intended client-authoritative motion. No further change needed.
+3. Boarding gate at `ticks_underwater >= 60`: NOT A GAP, kept. Vanilla `AbstractBoat.interact`
+   returns PASS when `!(outOfControlTicks < 60.0F)`, which is exactly this gate; the row's
+   premise was wrong.
+4. Chest-boat passenger cap: NOT A GAP, kept. Vanilla `AbstractChestBoat.getMaxPassengers()`
+   returns 1 (confirmed in source), so a chest boat seats one and the second use opens the chest.
+5. Chest contents on every destroy route: FIXED. `scatter_chest_contents` runs from `on_removed`
+   (all destroying removals, chunk unload excepted as in vanilla) as well as the damage path, and
+   is guarded by `claim_drops` so it can only run once.
+
+Also fixed: `is_collidable` returned `!is_removed()` from an UNVERIFIED comment; vanilla
+`AbstractBoat.canBeCollidedWith` returns true unconditionally.
+
+Files: `crates/pumpkin-core/src/entity/vehicle/boat.rs`.

@@ -155,8 +155,8 @@ mod tests {
     fn particle_xz_offset_matches_vanilla_get_random_x() {
         // getRandomX(0.5) = getX((2*r - 1) * 0.5) = position + width*(r - 0.5):
         // a full +-width*0.5 spread (width 0.4 => +-0.2), not +-width*0.25.
-        let width = 0.4_f32;
-        for r in [0.0_f64, 0.25, 0.5, 0.75, 1.0] {
+        let width = 0.4f32;
+        for r in [0.0f64, 0.25, 0.5, 0.75, 1.0] {
             let vanilla = f64::from(width) * (2.0 * r - 1.0) * 0.5;
             assert!((particle_xz_offset(r, width) - vanilla).abs() < 1e-12);
         }

@@ -75,11 +75,13 @@ impl CreakingHeartBlock {
         // loses its logs, so the creaking is never orphaned; only an unbound heart can uproot.
         let block_entity = world.get_block_entity(position);
         let bound = block_entity
-            .as_any()
-            .downcast_ref::<CreakingHeartBlockEntity>()
+            .as_ref()
+            .and_then(|entity| entity.as_any().downcast_ref::<CreakingHeartBlockEntity>())
             .is_some_and(|heart| heart.creaking_uuid.load().is_some());
 
-        let new_state = if !Self::should_uproot(has_logs, bound) {
+        let new_state = if Self::should_uproot(has_logs, bound) {
+            CreakingHeartState::Uprooted
+        } else {
             if has_logs && props.creaking_heart_state == CreakingHeartState::Uprooted {
                 world.play_sound(
                     Sound::BlockCreakingHeartSpawn,
@@ -88,8 +90,6 @@ impl CreakingHeartBlock {
                 );
             }
             Self::active_state(world, position)
-        } else {
-            CreakingHeartState::Uprooted
         };
 
         if props.creaking_heart_state != new_state {
@@ -103,7 +103,7 @@ impl CreakingHeartBlock {
     }
 
     /// Vanilla updateCreakingState: uproot only when there are no logs and no bound creaking.
-    fn should_uproot(has_logs: bool, bound: bool) -> bool {
+    const fn should_uproot(has_logs: bool, bound: bool) -> bool {
         !has_logs && !bound
     }
 }

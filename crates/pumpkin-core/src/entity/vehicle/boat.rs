@@ -45,8 +45,8 @@ const BUBBLE_COLUMN_DELAY: i32 = 60;
 const BOAT_MAX_PASSENGERS: usize = 2;
 const CHEST_BOAT_MAX_PASSENGERS: usize = 1;
 
-/// Vanilla distinguishes ChestBoat from Boat by class. Generated entity resource names
-/// carry that distinction in the _chest_boat / bamboo_chest_raft suffix, so a new wood
+/// Vanilla distinguishes `ChestBoat` from Boat by class. Generated entity resource names
+/// carry that distinction in the _`chest_boat` / `bamboo_chest_raft` suffix, so a new wood
 /// needs no extra allow-list entry here.
 #[must_use]
 pub fn is_chest_boat(entity_type: &EntityType) -> bool {
@@ -99,7 +99,7 @@ pub fn is_eye_in_water(entity: &Entity) -> bool {
 
 /// Vanilla AbstractChestBoat.interact: the container is offered when the ride attempt did
 /// not consume the click, i.e. on secondary use or when no seat is free.
-fn chest_opens_container(is_sneaking: bool, can_add_passenger: bool, has_inventory: bool) -> bool {
+const fn chest_opens_container(is_sneaking: bool, can_add_passenger: bool, has_inventory: bool) -> bool {
     has_inventory && (is_sneaking || !can_add_passenger)
 }
 
@@ -117,7 +117,7 @@ enum BoatInteractOutcome {
 /// out-of-control counter and an existing vehicle gate `startRiding`, so neither may make a
 /// chest boat open its container on a plain use.
 #[must_use]
-fn boat_interact_outcome(
+const fn boat_interact_outcome(
     secondary_use: bool,
     out_of_control: bool,
     eye_in_water: bool,
@@ -136,7 +136,7 @@ fn boat_interact_outcome(
 }
 
 /// Vanilla AbstractBoat.getPassengerAttachmentPoint seat selection. Shared by the engine's
-/// passenger_attachment_point and the mount-positioning path so the two cannot drift.
+/// `passenger_attachment_point` and the mount-positioning path so the two cannot drift.
 fn passenger_seat_offset(
     single_passenger_x_offset: f32,
     index: usize,
@@ -159,7 +159,7 @@ fn passenger_seat_offset(
 }
 
 /// Full passenger attachment point matching vanilla AbstractBoat.getPassengerAttachmentPoint,
-/// including the yRot(-getYRot * DEG_TO_RAD) applied to (0, rideHeight, offset).
+/// including the yRot(-getYRot * `DEG_TO_RAD`) applied to (0, rideHeight, offset).
 pub(super) fn passenger_attachment(
     entity: &Entity,
     index: usize,
@@ -507,9 +507,9 @@ impl EntityBase for BoatEntity {
         self.vehicle.entity.is_alive()
     }
 
-    // Vanilla `AbstractBoat.canBeCollidedWith` returns `!isRemoved()` (UNVERIFIED).
+    // Vanilla `AbstractBoat.canBeCollidedWith` returns true unconditionally.
     fn is_collidable(&self, _entity: Option<Box<dyn EntityBase>>) -> bool {
-        !self.vehicle.entity.is_removed()
+        true
     }
 
     fn on_above_bubble_column(&self, drag_down: bool, _pos: &BlockPos) {
@@ -587,8 +587,8 @@ impl EntityBase for BoatEntity {
             if world.level_info.load().game_rules.entity_drops {
                 // Vanilla `AbstractBoat.destroy` skips the item drop for explosion damage and
                 // copies the entity custom name onto the dropped item.
-                if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION) {
-                    if let Some(item) = boat_drop_item(&self.vehicle.entity.entity_type) {
+                if !damage_type.has_tag(&pumpkin_data::tag::DamageType::MINECRAFT_IS_EXPLOSION)
+                    && let Some(item) = boat_drop_item(self.vehicle.entity.entity_type) {
                         let mut stack = ItemStack::new(1, item);
                         if let Some(custom_name) = self.vehicle.entity.custom_name.load().as_ref() {
                             stack.set_data_component(CustomNameImpl {
@@ -597,7 +597,6 @@ impl EntityBase for BoatEntity {
                         }
                         world.drop_stack_at(self.vehicle.entity.pos.load(), stack);
                     }
-                }
             }
         }
 
@@ -714,7 +713,7 @@ impl EntityBase for BoatEntity {
         let body_yaw = rider_body_yaw(
             boat_yaw,
             passenger_count,
-            max_passengers(rider.entity_type),
+            max_passengers(self.get_entity().entity_type),
             passenger
                 .get_mob()
                 .is_some_and(|mob| mob.as_animal().is_some()),

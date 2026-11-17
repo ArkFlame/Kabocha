@@ -71,6 +71,13 @@ impl JavaClient {
                 ),
                 track_output: command.track_output().into(),
                 success_count: AtomicU32::new(0),
+                custom_name: std::sync::Mutex::new(
+                    old_command_block
+                        .custom_name
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .clone(),
+                ),
             };
             player.world().add_block_entity(Arc::new(command_block));
 

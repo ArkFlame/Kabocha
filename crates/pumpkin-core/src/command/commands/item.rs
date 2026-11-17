@@ -525,7 +525,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
 }
 
 /// Reads a numeric provider: a plain number, or a typed provider such as
-/// constant, uniform, binomial or sum (vanilla NumberProvider).
+/// constant, uniform, binomial or sum (vanilla `NumberProvider`).
 fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
     match tag? {
         NbtTag::Compound(c) => {
@@ -554,7 +554,7 @@ fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
                 }
                 "sum" => {
                     let inputs = c.get("inputs")?.extract_list()?;
-                    inputs.iter().try_fold(0.0_f32, |total, input| {
+                    inputs.iter().try_fold(0.0f32, |total, input| {
                         Some(total + number_provider(Some(input))?)
                     })
                 }

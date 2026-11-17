@@ -147,7 +147,7 @@ impl ExperienceOrbEntity {
         let half = Vector3::new(0.5, 0.5, 0.5);
         let search_box = BoundingBox::new(position.sub(&half), position.add(&half));
         for entity in world.get_entities_at_box(&search_box) {
-            if let Some(orb) = entity.cast_any().downcast_ref::<ExperienceOrbEntity>()
+            if let Some(orb) = entity.cast_any().downcast_ref::<Self>()
                 && orb.amount.load(Ordering::Relaxed) == value
             {
                 orb.amount.fetch_add(value, Ordering::Relaxed);

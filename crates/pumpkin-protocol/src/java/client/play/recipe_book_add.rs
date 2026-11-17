@@ -60,9 +60,10 @@ const CATEGORY_CAMPFIRE: i32 = 12;
 
 use crate::codec::recipe::DynamicRecipe;
 
-/// Number of recipe-book display ids assigned to the built-in recipes written before any dynamic
-/// recipes. Mirrors the skip set in the write_packet_data method: special crafting and
-/// decorated-pot recipes have no recipe-book display.
+/// Number of recipe-book display ids assigned to the built-in recipes written first.
+///
+/// Mirrors the skip set in the `write_packet_data` method: special crafting and decorated-pot
+/// recipes have no recipe-book display.
 #[must_use]
 pub fn static_recipe_display_count() -> usize {
     RECIPES_CRAFTING
@@ -80,15 +81,15 @@ pub fn static_recipe_display_count() -> usize {
 
 /// Whether a dynamic recipe gets a recipe-book display entry, and therefore a display id.
 #[must_use]
-pub fn dynamic_recipe_has_display(recipe: &DynamicRecipe) -> bool {
+pub const fn dynamic_recipe_has_display(recipe: &DynamicRecipe) -> bool {
     matches!(
         recipe,
         DynamicRecipe::Crafting(_) | DynamicRecipe::Cooking(_)
     )
 }
 
-/// Maps dynamic recipes to the display ids the write_packet_data method assigns them, in
-/// order. None for recipes with no recipe-book display (smithing, stonecutting, brewing, special
+/// Maps dynamic recipes to the display ids the `write_packet_data` method assigns them, in
+/// order. `None` for recipes with no recipe-book display (smithing, stonecutting, brewing, special
 /// crafting).
 #[must_use]
 pub fn dynamic_recipe_display_ids(recipes: &[DynamicRecipe]) -> Vec<Option<i32>> {
@@ -96,13 +97,11 @@ pub fn dynamic_recipe_display_ids(recipes: &[DynamicRecipe]) -> Vec<Option<i32>>
     recipes
         .iter()
         .map(|recipe| {
-            if dynamic_recipe_has_display(recipe) {
+            dynamic_recipe_has_display(recipe).then(|| {
                 let id = next;
                 next += 1;
-                Some(id)
-            } else {
-                None
-            }
+                id
+            })
         })
         .collect()
 }

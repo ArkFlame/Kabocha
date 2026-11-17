@@ -241,7 +241,7 @@ mod tests {
     use super::SpreadingSnowyBlock;
 
     fn snow_state(layers: u8) -> &'static BlockState {
-        BlockState::from_id(SnowLikeProperties { r#layers: layers }.to_state_id(&Block::SNOW))
+        BlockState::from_id(SnowLikeProperties { r#layers }.to_state_id(&Block::SNOW))
     }
 
     #[test]

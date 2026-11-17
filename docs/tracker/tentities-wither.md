@@ -28,25 +28,17 @@ Vanilla reference class: `net.minecraft.world.entity.boss.wither.WitherBoss` (+ 
 - Row 2, 3, 5, 7, 8, 9: STILL OPEN, not attempted this pass (row 5 needs bossbar progress derivation, row 7 needs Gaussian source confirmation).
 
 ## Result
-- Row 2 (do-nothing goal during spawn): FIXED. Decompiled `WitherBoss.registerGoals` adds `WitherDoNothingGoal` at priority 0 with MOVE/JUMP/LOOK flags while `Invul > 0`, suppressing every other goal. Pumpkin wither registers only LOOK goals, so `mob_tick` now disables the LOOK goal control while `invulnerable_ticks > 0` and re-enables it afterwards. No unit test: needs a mob/world fixture.
-- Row 3 (no gravity): NOT A GAP. Decompiled `WitherBoss` constructor sets only `FlyingMoveControl(this, 10, false)` and never calls `setNoGravity`; `FlyingMoveControl.tick` with `hoversInPlace=false` calls `setNoGravity(false)` in WAIT, so gravity is ON during normal hover. Setting `set_has_no_gravity(true)` would be wrong; Pumpkin hand-written `tick_wither_movement` + normal gravity matches vanilla.
-- Row 5 (bossbar progress): NOT A GAP in current code. Decompiled `customServerAiStep` uses `1 - newCount/220` during the spawn animation (line 273) and `health/maxHealth` afterwards (line 391); Pumpkin `tick_wither` does exactly this in its invul/else branches. The suggested always-health formula would break spawn-animation parity.
-- Row 7 (Gaussian idle shots): NOT A GAP. Decompiled `customServerAiStep` idle shots use `Mth.nextDouble(random, x-10, x+10)` (uniform), not `nextGaussian()*10`. Pumpkin `random_range(-10..10)` matches; a Gaussian would be wrong.
-- Row 8 (peaceful despawn): NOT A GAP. Decompiled `WitherBoss.checkDespawn` simply `discard`s in Peaceful with no death/drop bookkeeping; Pumpkin `tick_wither_lifecycle` calls `remove_all_bossbar` then `entity.remove()`, which matches.
-- Row 9 (projectile immunity set): FIXED. Decompiled `hurtServer` blocks `AbstractArrow || WindCharge` while powered. `AbstractArrow` = arrow, spectral arrow, trident (tipped arrows reuse the ARROW type); `WindCharge` = wind charge + breeze wind charge. Pumpkin `pre_damage` was missing `EntityType::TRIDENT`; added it. No unit test: no pure seam (damage immunity needs an entity/world fixture; a helper-only test would only mirror the constant set).
-- Files touched: `crates/pumpkin-core/src/entity/boss/wither.rs`. `rustfmt --edition 2024` passed. No build run (per task rules); compile verification left to orchestrator.
-
-## Result
 
 Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java`.
 
-- Row 1 (lift clause): NOT A GAP. `aiStep` line 170 keeps `!isPowered() && getY() < entity.getY() + 5.0`; Pumpkin's `tick_wither_movement` matches.
-- Row 2 (goals during spawn): already handled. `mob_tick` disables `Controls::LOOK` while `Invul > 0`, which is the only control the registered goals use (the wither registers just LookAtPlayer/RandomLookAround), so the whole animation is suppressed like `WitherDoNothingGoal`.
-- Row 3 (floating / gravity): LEFT OPEN. Needs `Navigator::flying()`, `FlyingMoveControl::new(10, false)` and the priority 2/5 ranged plus water-avoiding-flying goals; that is an M-sized AI change needing a live build and runtime observation, not a same-file one-liner.
-- Row 4: fixed in 7bdd7bd9a (`has_line_of_sight` gate).
-- Row 5 (bossbar progress): NOT A GAP. Vanilla uses `1 - newCount/220` during the spawn animation (line 273) and `health / maxHealth` afterwards (line 391); Pumpkin does exactly that. The spawn fill comes from the `heal(10)` every 10 ticks, which is already present.
-- Row 6: fixed (`break_block` with drops).
-- Row 7 (idle head offsets): NOT A GAP. Vanilla lines 319-321 use `Mth.nextDouble(random, x-10, x+10)`, i.e. a uniform range, not a Gaussian; the existing `random_range(-10.0..10.0)` is correct.
-- Row 8 (peaceful): NOT A GAP. `MobEntity::tick` calls the shared `check_despawn` before `mob_tick`, and a wither is a `MONSTER`, so vanilla `checkDespawn` discards it through the shared path before the wither's own `entity.remove()` branch can run.
-- Row 9 (powered projectile immunity): FIXED. Vanilla `hurtServer` blocks `AbstractArrow` (arrow, spectral arrow, trident) and `WindCharge`; `BreezeWindCharge` extends `AbstractWindCharge`, not `WindCharge`, so it still hurts. Replaced the hand-written type list with `is_projectile_immune_to_powered_wither` using the `minecraft:arrows` tag, added `TRIDENT`, dropped `BREEZE_WIND_CHARGE`, and added a unit test over the type set.
+- Row 1 (lift clause): NOT A GAP. `aiStep` line 170 keeps `!isPowered() && getY() < entity.getY() + 5.0`; `tick_wither_movement` matches.
+- Row 2 (goals during spawn): FIXED. Vanilla registers `WitherDoNothingGoal` at priority 0 with MOVE/JUMP/LOOK while `Invul > 0`. The wither only registers LOOK goals, so `mob_tick` disabling the LOOK control while `invulnerable_ticks > 0` reproduces the guard and releases it after the animation. No unit test: needs a mob/world fixture.
+- Row 3 (floating / no gravity): NOT A GAP. The constructor only sets `FlyingMoveControl(this, 10, false)`; `FlyingMoveControl.tick` calls `setNoGravity(false)` in WAIT because `hoversInPlace` is false, so gravity stays on. `set_has_no_gravity(true)` would be wrong. (A full `Navigator::flying()` + move control port is still missing, left open as an M-sized AI item.)
+- Row 4: fixed in 7bdd7bd9a (`has_line_of_sight` gate in `tick_main_head_attack`).
+- Row 5 (bossbar progress): NOT A GAP. `customServerAiStep` uses `1 - newCount/220` during the spawn animation (line 273) and `health / maxHealth` afterwards (line 391); `tick_wither` does exactly that, and the spawn fill comes from the existing `heal(10)` every 10 ticks.
+- Row 6: fixed (`break_block` with drops, no SKIP_DROPS).
+- Row 7 (idle head offsets): NOT A GAP. Lines 319-321 use `Mth.nextDouble(random, x-10, x+10)`, a uniform range, not a Gaussian; `random_range(-10.0..10.0)` is correct.
+- Row 8 (peaceful): NOT A GAP. `MobEntity::tick` runs the shared `check_despawn` before `mob_tick`, and the wither is a `MONSTER`, so vanilla `checkDespawn` discards it through the shared path; `tick_wither_lifecycle` also clears the bossbar and removes the entity.
+- Row 9 (powered projectile immunity): FIXED. Vanilla `hurtServer` blocks `AbstractArrow` (arrow, spectral arrow, trident; tipped arrows reuse the ARROW type) and `WindCharge`. `BreezeWindCharge` extends `AbstractWindCharge`, not `WindCharge`, so a breeze charge still damages a powered wither. Replaced the hand-written type list with `is_projectile_immune_to_powered_wither` (the `minecraft:arrows` tag plus `TRIDENT` and `WIND_CHARGE`), dropped `BREEZE_WIND_CHARGE`, and added a unit test over the type set.
 
+Files touched: `crates/pumpkin-core/src/entity/boss/wither.rs`. `rustfmt --edition 2024` passed. No build run (task rules); compile verification left to the orchestrator.

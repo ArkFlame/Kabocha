@@ -502,7 +502,7 @@ fn vehicle_id_matches(reported: Option<VarLong>, entity_id: i32) -> bool {
 /// Vanilla `handleMoveVehicle` takes the mount yaw and pitch from the movement packet.
 /// Bedrock's `vehicle_rotation` is (x=pitch, y=yaw); clients that omit it leave the rider's
 /// yaw as the only steering signal.
-fn mount_rotation(
+const fn mount_rotation(
     vehicle_rotation: Option<Vector2<f32>>,
     rider_yaw: f32,
     current_pitch: f32,

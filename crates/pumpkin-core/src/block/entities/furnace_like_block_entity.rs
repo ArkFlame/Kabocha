@@ -278,7 +278,7 @@ macro_rules! impl_cooking_block_entity_base {
                     // Vanilla `canBurn` compares the output slot with the assembled recipe
                     // result through `isSameItemSameComponents`, so a same-item stack with other
                     // components must block cooking instead of silently dropping the result.
-                    let recipe_output_stack = assemble_cooking_result(recipe, recipe_output_item);
+                    let recipe_output_stack = $crate::block::entities::furnace_like_block_entity::assemble_cooking_result(recipe, recipe_output_item);
                     if !side_item_stack.are_items_and_components_equal(&recipe_output_stack) {
                         return false;
                     }
@@ -307,7 +307,7 @@ macro_rules! impl_cooking_block_entity_base {
                         ) else {
                             return false;
                         };
-                        let output_item_stack = assemble_cooking_result(recipe, output_item);
+                        let output_item_stack = $crate::block::entities::furnace_like_block_entity::assemble_cooking_result(recipe, output_item);
 
                         if items[2].is_empty() {
                             items[2] = output_item_stack;

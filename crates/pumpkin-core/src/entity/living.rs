@@ -1619,19 +1619,16 @@ impl LivingEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let existing = effects.get(&effect.effect_type).cloned();
-            match existing {
-                Some(existing) => {
-                    let mut merged = existing;
-                    let changed = update_effect(&mut merged, &effect);
-                    if changed {
-                        effects.insert(merged.effect_type, merged.clone());
-                    }
-                    (merged, false, changed)
+            if let Some(existing) = existing {
+                let mut merged = existing;
+                let changed = update_effect(&mut merged, &effect);
+                if changed {
+                    effects.insert(merged.effect_type, merged.clone());
                 }
-                None => {
-                    effects.insert(effect.effect_type, effect.clone());
-                    (effect.clone(), true, true)
-                }
+                (merged, false, changed)
+            } else {
+                effects.insert(effect.effect_type, effect.clone());
+                (effect.clone(), true, true)
             }
         };
 
@@ -5502,7 +5499,7 @@ pub(crate) const fn attribute_modifier_slot_matches(
 /// Vanilla MobEffectInstance.update without the hidden-effect chain: a stronger amplifier
 /// takes over, an equal amplifier only extends the duration, and a weaker or shorter instance
 /// is ignored. Returns whether the stored instance changed.
-fn update_effect(stored: &mut Effect, incoming: &Effect) -> bool {
+const fn update_effect(stored: &mut Effect, incoming: &Effect) -> bool {
     let mut changed = false;
     if incoming.amplifier > stored.amplifier {
         stored.amplifier = incoming.amplifier;

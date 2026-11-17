@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn all_sets_containing_a_structure_are_returned() {
         for (index, set) in StructureSet::ALL.iter().enumerate() {
-            for entry in set.structures.iter() {
+            for entry in set.structures {
                 assert!(
                     structure_sets_containing(entry.structure).contains(&index),
                     "set {index} lists a structure whose reverse lookup omits it"

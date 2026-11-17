@@ -33,7 +33,7 @@ const FATIGUE_AMPLIFIER: u8 = 2;
 
 /// Vanilla `MobEffectUtil.addEffectToPlayersAround`: skip a player already holding an equal or
 /// stronger effect with enough time left. The tuple is `(amplifier, remaining ticks)`.
-fn should_apply_fatigue(effect: Option<(u8, i32)>) -> bool {
+const fn should_apply_fatigue(effect: Option<(u8, i32)>) -> bool {
     match effect {
         Some((amplifier, remaining)) => {
             amplifier < FATIGUE_AMPLIFIER || remaining < EFFECT_DISPLAY_LIMIT

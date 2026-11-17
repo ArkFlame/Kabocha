@@ -23,7 +23,7 @@ pub fn passes_grow_gate(roll: f32) -> bool {
 
 /// Vanilla `BeeGrowCropGoal.tick` only grows on a zero roll.
 #[must_use]
-pub fn should_grow_this_tick(roll: i32) -> bool {
+pub const fn should_grow_this_tick(roll: i32) -> bool {
     roll == 0
 }
 

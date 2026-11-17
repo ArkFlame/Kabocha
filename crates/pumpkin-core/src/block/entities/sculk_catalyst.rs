@@ -126,7 +126,7 @@ impl SculkCatalystBlockEntity {
 
 /// Strict-radius test matching vanilla `Vec3.closerThan`: a death exactly on
 /// the 8-block boundary is not heard by the catalyst.
-fn within_hearing_radius(dx: i32, dy: i32, dz: i32) -> bool {
+const fn within_hearing_radius(dx: i32, dy: i32, dz: i32) -> bool {
     dx * dx + dy * dy + dz * dz < HEARING_RADIUS * HEARING_RADIUS
 }
 

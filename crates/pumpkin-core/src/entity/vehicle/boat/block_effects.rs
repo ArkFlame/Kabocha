@@ -70,7 +70,7 @@ impl BoatEntity {
             return;
         };
         let mut visited = HashSet::new();
-        let mut visit = |pos| {
+        let mut visit = |pos: pumpkin_util::math::position::BlockPos| {
             if !entity.is_alive() {
                 return;
             }
