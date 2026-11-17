@@ -376,7 +376,10 @@ impl FishingBobberEntity {
 
         let block_pos = entity.block_pos.load();
         let (fluid, fluid_state) = world.get_fluid_and_fluid_state(&block_pos);
-        let water_height = if fluid.matches_type(&Fluid::WATER) {
+        // Vanilla tests the fluid tag, not the resolved height: a water block whose height is
+        // zero still suppresses gravity.
+        let is_water = fluid.matches_type(&Fluid::WATER);
+        let water_height = if is_water {
             f64::from(world.get_fluid_height(&block_pos, fluid, &fluid_state))
         } else {
             0.0
@@ -450,7 +453,7 @@ impl FishingBobberEntity {
         self.state.store(state);
 
         // Vanilla `FishingBobberEntity.tick`: gravity while airborne and unhooked.
-        if !in_water && !entity.on_ground.load(Ordering::Relaxed) {
+        if !is_water && !entity.on_ground.load(Ordering::Relaxed) {
             velocity.y -= Self::GRAVITY;
         }
 
