@@ -657,13 +657,16 @@ pub fn generate() {
     let event_iface = &resolve.interfaces[event_iface_id];
     let world_iface = &resolve.interfaces[world_iface_id];
 
-    // Collect variant `event` cases in declaration order.
-    let event_variant_id = *event_iface
-        .types
-        .get("event")
-        .expect("Missing `variant event` in event.wit");
+    // Since the resource rework (0df4a060d) `event` is a resource, and its bindings are
+    // hand-written in `pumpkin-wasm-host-v0_2/src/events/mod.rs`. Nothing to generate, so
+    // skip without writing; this keeps the codegen run idempotent.
+    let Some(&event_variant_id) = event_iface.types.get("event") else {
+        println!("Skipping event bindings: no `event` type in event.wit");
+        return;
+    };
     let TypeDefKind::Variant(event_variant) = &resolve.types[event_variant_id].kind else {
-        panic!("`event` in event.wit must be a variant");
+        println!("Skipping event bindings: `event` in event.wit is a resource, not a variant");
+        return;
     };
 
     let mut event_data_record_ids = std::collections::HashSet::new();
