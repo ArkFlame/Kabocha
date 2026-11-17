@@ -355,25 +355,28 @@ impl ArmorStandEntity {
             return true;
         }
 
-        let mut item_slot = get_equipment_slot_for_item(item_stack);
-        if !item_stack.is_empty() && !self.can_use_slot(&item_slot) {
-            item_slot = EquipmentSlot::MAIN_HAND;
-        }
-
-        let clicked_slot = position.map_or(EquipmentSlot::MAIN_HAND, |position| {
-            self.get_clicked_slot(position)
-        });
+        let item_slot = get_equipment_slot_for_item(item_stack);
         let slot = if item_stack.is_empty() {
-            &clicked_slot
+            // Vanilla: a disabled clicked slot falls back to the item's own slot,
+            // which for an empty hand is the main hand.
+            let clicked_slot = position.map_or(EquipmentSlot::MAIN_HAND, |position| {
+                self.get_clicked_slot(position)
+            });
+            if self.is_slot_disabled(&clicked_slot) {
+                item_slot
+            } else {
+                clicked_slot
+            }
         } else {
-            &item_slot
+            // Vanilla fails outright when the item's slot cannot be used; it never
+            // redirects to the main hand.
+            if !self.can_use_slot(&item_slot) {
+                return false;
+            }
+            item_slot
         };
 
-        if !self.can_use_slot(slot) {
-            return false;
-        }
-
-        self.swap_item(player, slot, item_stack)
+        self.swap_item(player, &slot, item_stack)
     }
 
     const fn slot_bit(slot: &EquipmentSlot, offset: i32) -> i32 {
