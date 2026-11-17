@@ -100,7 +100,8 @@ impl FishingBobberEntity {
         entity.data.store(owner_entity.entity_id, Ordering::Relaxed);
         entity.velocity.store(velocity);
 
-        let luck_bonus = luck_bonus.max(0);
+        // Vanilla `FishingHook` constructor: `this.luck = Math.max(1, luck)`.
+        let luck_bonus = luck_bonus.max(1);
         let wait_time_reduction_ticks = wait_time_reduction_ticks.max(0);
         // Vanilla `FishingBobberEntity.catchingFish` rolls `100..=600` minus the lure speed.
         let wait_countdown = rand::random_range(100..=600) - wait_time_reduction_ticks;
