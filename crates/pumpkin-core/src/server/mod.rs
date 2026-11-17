@@ -2090,12 +2090,15 @@ impl Server {
         self.plugin_manager.fire(self, &mut service_event).await;
     }
 
-    pub async fn tab_complete(self: &Arc<Self>, buffer: String, completions: Vec<String>) {
+    /// Fires `TabCompleteEvent`. Returns `false` when a plugin cancelled the suggestions.
+    #[must_use]
+    pub fn tab_complete(self: &Arc<Self>, buffer: String, completions: Vec<String>) -> bool {
         let mut tab_event = crate::plugin::api::events::server::tab_complete::TabCompleteEvent::new(
             buffer,
             completions,
         );
-        self.plugin_manager.fire(self, &mut tab_event).await;
+        self.plugin_manager.fire_blocking(self, &mut tab_event);
+        !tab_event.cancelled
     }
 
     pub async fn enable_plugin(self: &Arc<Self>, plugin_name: String) {

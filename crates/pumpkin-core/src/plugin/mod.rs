@@ -1415,6 +1415,7 @@ impl PluginManager {
         let manager_id = self.id;
         let loader_clone = loader.clone();
 
+        let enable_server = Arc::clone(&server);
         let task = server.spawn_task(async move {
             // A panic must still reach the failure path, or the plugin stays Loading forever
             let result = INITIALIZING_PLUGIN
@@ -1466,6 +1467,8 @@ impl PluginManager {
                     state_notify.notify_waiters();
 
                     info!("Loaded {} ({})", metadata.name, metadata.version);
+                    // Notification only: the plugin is already loaded when handlers see it.
+                    enable_server.enable_plugin(plugin_name.clone()).await;
 
                     if !metadata.permissions.is_empty() {
                         warn!(

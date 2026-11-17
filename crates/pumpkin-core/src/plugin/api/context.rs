@@ -171,12 +171,17 @@ impl Context {
             owner: self.metadata.name.clone(),
             payload: service,
         };
-        let mut services = self.plugin_manager.services.write().await;
-        // Checked under the sweep's lock: no insert can land after it
-        if self.is_closed() {
-            return;
+        let name: String = name.into();
+        {
+            let mut services = self.plugin_manager.services.write().await;
+            // Checked under the sweep's lock: no insert can land after it
+            if self.is_closed() {
+                return;
+            }
+            services.insert(name.clone(), service);
         }
-        services.insert(name.into(), service);
+        // Notification only: the lock is released first so a handler can read services.
+        self.server.register_service(name).await;
     }
 
     /// Admits these Java client versions for this plugin, replacing its earlier set.

@@ -39,3 +39,27 @@ Not fixed: cancel semantics per event are undocumented in the event files; chang
 - NO-OP `PlayerChannelEvent`, `PlayerUnregisterChannelEvent` (`net/java/mod.rs`): Pumpkin keeps no plugin-channel registry; the event is the only effect.
 - NO-OP `DialogClickActionEvent` (`net/java/mod.rs`, `block/blocks/signs.rs`): the event is the whole action; nothing else runs.
 - NOT FIXED `WorldSaveEvent` (`world/mod.rs` `save`): Bukkit's WorldSaveEvent is not cancellable. Gating would skip the level and chunk writes at shutdown and risk data loss.
+# Plugin event wiring (tevents-sweep)
+
+Scope: events declared but never constructed, per `kab/e1` and `kab/e2` sweeps.
+Method: static grep of fire helpers and callers. No build or test run.
+
+## Wired
+- `TimeSkipEvent` (`world/mod.rs` `skip_time`, night skip in tick): cancel keeps the night and sleepers as they are. Fires every tick while a cancelled skip stays eligible.
+- `RaidTriggerEvent` (`world/raid.rs` `Raids::create_or_extend_raid`): fired before a new raid is created; cancel returns `None`.
+- `RaidSpawnWaveEvent` (`world/raid.rs` `spawn_group`): cancel skips the group and still advances the wave counter so the schedule moves on.
+- `RaidStopEvent` (`world/raid.rs` `stop`, now takes a reason: `peaceful`, `timeout`, `celebration_over`): notification only, cancel ignored because the raid is already stopped.
+- `RaidFinishEvent` (`world/raid.rs` tick, on `RaidStatus::Victory`): notification only. `RaidStatus::Loss` is never assigned in code, so no loss finish fires.
+- `LootGenerateEvent` (`block/blocks/chests.rs`, both chest fill paths): cancel leaves the container empty. Hopper, decorated pot and vault are not wired.
+- `TabCompleteEvent` (`server/mod.rs` `tab_complete`, now sync; `net/java/play/command_suggestion.rs`): cancel sends an empty suggestion list. Plugin edits to `completions` are not applied.
+- `PluginEnableEvent` (`plugin/mod.rs` after `on_load` succeeds): notification only.
+- `ServiceRegisterEvent` (`plugin/api/context.rs` `register_service`, after the services lock is released): notification only.
+
+## Not wired
+- `VehicleEntityCollisionEvent`, `VehicleBlockCollisionEvent`: `Vehicle::collide_entity` and `collide_block` have no callers, and vehicle code has no collision dispatch to hook. Wiring needs new collision detection, so it is out of scope for a one-pass change.
+- `PluginDisableEvent`: `PluginManager::unload` has no `Server` handle. Needs plumbing through the context.
+- `ServiceUnregisterEvent`: services are removed in bulk through `take_owned` with no per-name hook and no `Server` handle.
+
+## Checks
+- `rustfmt --edition 2024 --check` clean for `plugin/mod.rs`, `plugin/api/context.rs`, `net/java/play/command_suggestion.rs`. The other touched files have pre-existing unrelated diffs and were not reformatted.
+- No automated test added: the events need a running server and plugin manager. Gametest candidates: raid wave cancel, chest loot cancel, night skip cancel.

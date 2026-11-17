@@ -20,6 +20,13 @@ impl JavaClient {
             .load()
             .suggest(cmd, &player.get_command_source(server));
 
+        let completions = suggestions.iter().map(|s| s.suggestion.clone()).collect();
+        let suggestions = if server.tab_complete(cmd.to_string(), completions) {
+            suggestions
+        } else {
+            Vec::new()
+        };
+
         let response = CCommandSuggestions::new(
             packet.id,
             ((word_start + 1) as i32).into(),

@@ -267,6 +267,7 @@ fn unpack_chest_loot(
     if let Some((loot_key, seed)) = entity.take_loot_table()
         && let Some(table) = get_loot_table(&loot_key)
         && let Some(inventory) = entity.clone().get_inventory()
+        && world.generate_loot(loot_key.clone())
     {
         if let Some(player) = player {
             player.trigger_advancement(
@@ -392,6 +393,7 @@ pub(crate) fn get_chest_inventory(
             && let Some((loot_key, seed)) = entity.take_loot_table()
             && let Some(table) = get_loot_table(&loot_key)
             && let Some(inv) = entity.clone().get_inventory()
+            && world_arc.generate_loot(loot_key.clone())
         {
             fill_chest_inventory_handle(
                 &inv,

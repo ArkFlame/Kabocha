@@ -2660,22 +2660,25 @@ impl World {
         self.tick_weather();
 
         if self.should_skip_night() && is_night {
-            let level_time = {
-                let mut guard = self
-                    .level_time
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let time = time_of_day + 24000;
-                guard.set_time(time - time % 24000);
-                guard.clone()
-            };
-            level_time.send_time(self);
+            let skip_to = (time_of_day + 24000) - (time_of_day + 24000) % 24000;
+            // A cancelled skip keeps the night and the sleepers where they are.
+            if self.skip_time(skip_to - time_of_day) {
+                let level_time = {
+                    let mut guard = self
+                        .level_time
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    guard.set_time(skip_to);
+                    guard.clone()
+                };
+                level_time.send_time(self);
 
-            for player in self.players.load().iter() {
-                player.wake_up();
+                for player in self.players.load().iter() {
+                    player.wake_up();
+                }
+
+                self.reset_weather_after_sleep();
             }
-
-            self.reset_weather_after_sleep();
         }
     }
 
@@ -9168,7 +9171,9 @@ impl World {
         )
     }
 
-    pub fn generate_loot(&self, loot_table: String) {
+    /// Fires `LootGenerateEvent`. Returns `false` when a plugin cancelled the roll.
+    #[must_use]
+    pub fn generate_loot(&self, loot_table: String) -> bool {
         let mut loot_event =
             crate::plugin::api::events::world::loot_generate::LootGenerateEvent::new(loot_table);
         if let Some(server) = self.server.upgrade() {
@@ -9176,9 +9181,12 @@ impl World {
                 .plugin_manager
                 .fire_blocking(&server, &mut loot_event);
         }
+        !loot_event.cancelled
     }
 
-    pub fn skip_time(&self, skip_amount: i64) {
+    /// Fires `TimeSkipEvent`. Returns `false` when a plugin cancelled the skip.
+    #[must_use]
+    pub fn skip_time(&self, skip_amount: i64) -> bool {
         let mut time_event =
             crate::plugin::api::events::world::time_skip::TimeSkipEvent::new(skip_amount);
         if let Some(server) = self.server.upgrade() {
@@ -9186,9 +9194,12 @@ impl World {
                 .plugin_manager
                 .fire_blocking(&server, &mut time_event);
         }
+        !time_event.cancelled
     }
 
-    pub fn trigger_raid(&self, pos: BlockPos) {
+    /// Fires `RaidTriggerEvent`. Returns `false` when a plugin cancelled the new raid.
+    #[must_use]
+    pub fn trigger_raid(&self, pos: BlockPos) -> bool {
         let mut raid_event =
             crate::plugin::api::events::raid::raid_trigger::RaidTriggerEvent::new(pos);
         if let Some(server) = self.server.upgrade() {
@@ -9196,9 +9207,12 @@ impl World {
                 .plugin_manager
                 .fire_blocking(&server, &mut raid_event);
         }
+        !raid_event.cancelled
     }
 
-    pub fn spawn_raid_wave(&self, wave: u32, pos: BlockPos) {
+    /// Fires `RaidSpawnWaveEvent`. Returns `false` when a plugin cancelled the wave.
+    #[must_use]
+    pub fn spawn_raid_wave(&self, wave: u32, pos: BlockPos) -> bool {
         let mut wave_event =
             crate::plugin::api::events::raid::raid_spawn_wave::RaidSpawnWaveEvent::new(wave, pos);
         if let Some(server) = self.server.upgrade() {
@@ -9206,6 +9220,7 @@ impl World {
                 .plugin_manager
                 .fire_blocking(&server, &mut wave_event);
         }
+        !wave_event.cancelled
     }
 
     pub fn finish_raid(&self, victory: bool) {

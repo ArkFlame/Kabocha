@@ -245,10 +245,12 @@ impl Raid {
         set
     }
 
-    pub fn stop(&mut self, world: &World) {
+    pub fn stop(&mut self, world: &World, reason: &str) {
         self.active = false;
         self.status = RaidStatus::Stopped;
         self.remove_all_players(world);
+        // Notification only: the raid is already stopped when plugins see it.
+        world.stop_raid(reason.to_string());
     }
 
     pub fn remove_all_players(&mut self, world: &World) {
@@ -316,6 +318,13 @@ impl Raid {
     pub fn spawn_group(&mut self, world: &Arc<World>, pos: BlockPos) {
         let mut leader_set = false;
         let group_number = self.groups_spawned + 1;
+        if !world.spawn_raid_wave(group_number.unsigned_abs(), pos) {
+            // A cancelled wave is skipped but still counts, so the schedule moves on.
+            self.wave_spawn_pos = None;
+            self.groups_spawned += 1;
+            self.update_bossbar(world);
+            return;
+        }
         self.total_health = 0.0;
         let is_bonus_group = self.should_spawn_bonus_group();
 
@@ -557,13 +566,13 @@ impl Raid {
 
         if self.status == RaidStatus::Ongoing {
             if world.level_info.load().difficulty == Difficulty::Peaceful {
-                self.stop(world);
+                self.stop(world, "peaceful");
                 return;
             }
 
             self.ticks_active += 1;
             if self.ticks_active >= 48000 {
-                self.stop(world);
+                self.stop(world, "timeout");
                 return;
             }
 
@@ -621,6 +630,8 @@ impl Raid {
                     self.post_raid_ticks += 1;
                 } else {
                     self.status = RaidStatus::Victory;
+                    // Notification only: the raid is already won when plugins see it.
+                    world.finish_raid(true);
                     let effect = Effect {
                         effect_type: &StatusEffect::HERO_OF_THE_VILLAGE,
                         duration: 48000,
@@ -649,7 +660,7 @@ impl Raid {
         } else if self.is_over() {
             self.celebration_ticks += 1;
             if self.celebration_ticks >= 600 {
-                self.stop(world);
+                self.stop(world, "celebration_over");
                 return;
             }
 
@@ -742,6 +753,9 @@ impl Raids {
             }
             Some(id)
         } else {
+            if !world.trigger_raid(raid_center_pos) {
+                return None;
+            }
             self.next_id += 1;
             let id = self.next_id;
             let mut raid = Raid::new(id, raid_center_pos, world.level_info.load().difficulty);
