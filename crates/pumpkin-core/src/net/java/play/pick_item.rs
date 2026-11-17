@@ -5,6 +5,46 @@ use crate::item::items::boat::BoatItem;
 use pumpkin_data::data_component_impl::PaintingVariantImpl;
 use pumpkin_data::tag::Taggable;
 
+/// What a pick request does with the slot that holds the picked stack.
+#[derive(Debug, PartialEq, Eq)]
+enum PickSlotAction {
+    /// Stack already on the hotbar: select it.
+    SelectHotbar(usize),
+    /// Stack in the main inventory: swap it onto the hotbar.
+    SwapIntoHotbar(usize),
+    /// No match in creative: put a copy on the hotbar.
+    InsertStack,
+    /// Out-of-range index, or no match outside creative.
+    Ignore,
+}
+
+/// Maps the `get_slot_with_stack` result (`-1` on miss) to an action, bounded to the main inventory.
+fn pick_slot_action(slot_with_stack: i16, creative: bool) -> PickSlotAction {
+    match usize::try_from(slot_with_stack) {
+        Ok(slot) if slot < PlayerInventory::MAIN_SIZE => {
+            if PlayerInventory::is_valid_hotbar_index(slot) {
+                PickSlotAction::SelectHotbar(slot)
+            } else {
+                PickSlotAction::SwapIntoHotbar(slot)
+            }
+        }
+        Ok(_) => PickSlotAction::Ignore,
+        Err(_) if creative => PickSlotAction::InsertStack,
+        Err(_) => PickSlotAction::Ignore,
+    }
+}
+
+fn apply_pick_slot(player: &Arc<Player>, stack: ItemStack) {
+    let creative = player.gamemode.load() == GameMode::Creative;
+    let slot_with_stack = player.inventory().get_slot_with_stack(&stack);
+    match pick_slot_action(slot_with_stack, creative) {
+        PickSlotAction::SelectHotbar(slot) => player.inventory.set_selected_slot(slot as u8),
+        PickSlotAction::SwapIntoHotbar(slot) => player.inventory.swap_slot_with_hotbar(slot),
+        PickSlotAction::InsertStack => player.inventory.swap_stack_with_hotbar(stack),
+        PickSlotAction::Ignore => {}
+    }
+}
+
 impl JavaClient {
     pub fn handle_pick_item_from_block(
         &self,
@@ -53,19 +93,7 @@ impl JavaClient {
             statue.get_item(&mut stack, props.copper_golem_pose);
         }
 
-        let slot_with_stack = player.inventory().get_slot_with_stack(&stack);
-
-        if slot_with_stack != -1 {
-            if PlayerInventory::is_valid_hotbar_index(slot_with_stack as usize) {
-                player.inventory.set_selected_slot(slot_with_stack as u8);
-            } else {
-                player
-                    .inventory
-                    .swap_slot_with_hotbar(slot_with_stack as usize);
-            }
-        } else if player.gamemode.load() == GameMode::Creative {
-            player.inventory.swap_stack_with_hotbar(stack);
-        }
+        apply_pick_slot(player, stack);
 
         player.try_send_client_packet(&CSetSelectedSlot::new(
             player.inventory.get_selected_slot() as i8
@@ -131,19 +159,7 @@ impl JavaClient {
             );
 
         if let Some(stack) = picked_stack {
-            let slot_with_stack = player.inventory().get_slot_with_stack(&stack);
-
-            if slot_with_stack != -1 {
-                if PlayerInventory::is_valid_hotbar_index(slot_with_stack as usize) {
-                    player.inventory.set_selected_slot(slot_with_stack as u8);
-                } else {
-                    player
-                        .inventory
-                        .swap_slot_with_hotbar(slot_with_stack as usize);
-                }
-            } else if player.gamemode.load() == GameMode::Creative {
-                player.inventory.swap_stack_with_hotbar(stack);
-            }
+            apply_pick_slot(player, stack);
 
             player.try_send_client_packet(&CSetSelectedSlot::new(
                 player.inventory.get_selected_slot() as i8,
@@ -154,5 +170,27 @@ impl JavaClient {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .send_content_updates();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pick_slot_action_is_bounded_to_main_inventory() {
+        assert_eq!(pick_slot_action(-1, false), PickSlotAction::Ignore);
+        assert_eq!(pick_slot_action(-1, true), PickSlotAction::InsertStack);
+        assert_eq!(pick_slot_action(3, false), PickSlotAction::SelectHotbar(3));
+        assert_eq!(
+            pick_slot_action(20, false),
+            PickSlotAction::SwapIntoHotbar(20)
+        );
+        assert_eq!(
+            pick_slot_action(35, true),
+            PickSlotAction::SwapIntoHotbar(35)
+        );
+        assert_eq!(pick_slot_action(36, true), PickSlotAction::Ignore);
+        assert_eq!(pick_slot_action(i16::MAX, true), PickSlotAction::Ignore);
     }
 }

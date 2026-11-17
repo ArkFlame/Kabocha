@@ -25,8 +25,8 @@
 | player_command | horse jump 0..100 | ok | `player_jump_pending_scale` clamps |
 | player_input | sneak/flags | ok | delegates to `apply_client_input` |
 | pick_item from block | reach 1.0, creative include data | ok | |
-| pick_item from entity | 64 sq distance | open | vanilla distance unverified |
-| recipe_book_seen_recipe | recipe existence | open | event fires for any id; log only |
+| pick_item from entity | 64 sq distance, main-inventory slot bound | fixed | slot index bounded by `pick_slot_action`; 64 sq distance unchanged, vanilla distance still unverified |
+| recipe_book_seen_recipe | recipe display id exists | fixed | ignored before event when id >= crafting + cooking + dynamic count |
 | chat_session_update | validation | ok | `validate_chat_session` |
 | custom_payload | 32767 bytes | ok | codec `MAX_PAYLOAD_SIZE` |
 | client_command / player_action / chat_command / spectate | not re-audited | open | left for follow-up |
