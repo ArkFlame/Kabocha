@@ -216,8 +216,8 @@ impl BlockBehaviour for CampfireBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let mut props = CampfireLikeProperties::from_state_id(args.state_id);
+        // Vanilla `CampfireBlock.getStateForNeighborUpdate` only schedules the water tick here.
         if props.waterlogged {
-            props.lit = false;
             args.world.schedule_fluid_tick(
                 &Fluid::WATER,
                 *args.position,
