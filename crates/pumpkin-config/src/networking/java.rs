@@ -1,4 +1,4 @@
-use crate::{AuthenticationConfig, CompressionConfig, PacketLimiterConfig};
+use crate::{AuthenticationConfig, BookSizeConfig, CompressionConfig, PacketLimiterConfig};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::num::NonZero;
@@ -49,6 +49,8 @@ pub struct JavaConfig {
     /// Packet rate limiting settings.
     #[toml(default = Self::default().packet_limiter)]
     pub packet_limiter: PacketLimiterConfig,
+    /// Byte limits for books edited by clients.
+    pub book_size: BookSizeConfig,
 }
 
 impl Default for JavaConfig {
@@ -71,6 +73,7 @@ impl Default for JavaConfig {
             motd: "A blazingly fast Pumpkin server!".to_string(),
             authentication: AuthenticationConfig::default(),
             packet_limiter: PacketLimiterConfig::default(),
+            book_size: BookSizeConfig::default(),
         }
     }
 }
