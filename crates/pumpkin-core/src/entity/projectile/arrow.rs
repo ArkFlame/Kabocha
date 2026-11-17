@@ -786,7 +786,11 @@ impl ArrowEntity {
                         .item_stack
                         .read()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    entity.spawn_at_location(Self::pickup_item_stack(&item_stack));
+                    // Vanilla `spawnAtLocation(level, getPickupItem(), 0.1F)`.
+                    entity.spawn_at_location_with_offset(
+                        Self::pickup_item_stack(&item_stack),
+                        Vector3::new(0.0, 0.1, 0.0),
+                    );
                 }
                 entity.remove();
             }
