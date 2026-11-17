@@ -11,7 +11,8 @@ pub struct ChunkLoading {
     pub is_priority_dirty: bool,
     pub pos_level: ChunkLevel,
     change: HashMapType<ChunkPos, (StagedChunkEnum, StagedChunkEnum)>,
-    pub ticket: HashMapType<ChunkPos, Vec<i8>>, // TODO lifetime & id
+    /// Ticket levels per chunk. Tickets carry no expiry or owner id yet, so they live until removed.
+    pub ticket: HashMapType<ChunkPos, Vec<i8>>,
     pub high_priority: Vec<ChunkPos>,
     pub sender: Arc<LevelChannel>,
 }

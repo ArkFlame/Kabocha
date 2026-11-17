@@ -94,7 +94,7 @@ pub fn add_translation_file<P: Into<String>>(namespace: P, file_path: P, locale:
     let translations_map: HashMap<String, String> =
         serde_json::from_str(&file_path.into()).unwrap_or_default();
     if translations_map.is_empty() {
-        // TODO: Handle the case where the file is empty or not found properly
+        // Empty or unparsable JSON registers nothing; the locale falls back to the keys.
         return;
     }
 
