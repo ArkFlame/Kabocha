@@ -504,7 +504,9 @@ pub enum EncryptionError {
 /// Non-ASCII names pass a length check but vanilla rejects them, so the byte scan doubles as
 /// the length and charset check (a valid name is ASCII, so bytes equal characters).
 fn is_valid_player_name(name: &str) -> bool {
-    name.len() <= 16 && name.as_bytes().iter().all(u8::is_ascii_graphic)
+    // Vanilla treats an absent or empty name as invalid (StringUtil.isNullOrEmpty), and so does
+    // Paper's PlayerProfile#isValidName; only then is the length/character check applied.
+    !name.is_empty() && name.len() <= 16 && name.as_bytes().iter().all(u8::is_ascii_graphic)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -759,14 +761,11 @@ mod tests {
         );
     }
 
-    /// Test case for an empty string (length 0, but included for completeness).
+    /// Vanilla rejects a null or empty name (StringUtil.isNullOrEmpty) before any length or
+    /// character check, so an empty login name must never produce a profile.
     #[test]
     fn invalid_empty_string() {
-        let name = "";
-        assert!(
-            is_valid_player_name(name),
-            "Empty string should be valid (length <= 16 and no invalid chars)"
-        );
+        assert!(!is_valid_player_name(""), "Empty string should be invalid");
     }
 
     /// Test case for a name containing a control character (e.g., Null, codepoint 0).
