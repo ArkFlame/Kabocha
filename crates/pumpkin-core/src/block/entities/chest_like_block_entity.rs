@@ -412,9 +412,14 @@ macro_rules! impl_chest_helper_methods {
                 );
 
                 let (block, state) = world.get_block_and_state(&self.position);
-                // `ChestLikeProperties` also covers the copper chest variants, which this entity
-                // does not represent, so compare against the exact block this entity belongs to.
-                if block.id != $block.id {
+                // Copper chests reuse the chest block entity but are different blocks, so they
+                // must still play their own open/close sound (picked below).
+                let is_copper_chest = block
+                    .id
+                    .has_tag(pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS);
+                if block.id != $block.id
+                    && !(is_copper_chest && $block.id == pumpkin_data::Block::CHEST.id)
+                {
                     return;
                 }
                 let properties =
