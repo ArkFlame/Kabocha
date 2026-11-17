@@ -461,6 +461,12 @@ impl Mob for CamelEntity {
         !self.is_mob_controlled()
     }
 
+    // Vanilla Animal.isPreventingPlayerRest returns false, so a camel (and a camel husk)
+    // never keeps a player from sleeping.
+    fn is_preventing_player_rest(&self, _player: &dyn EntityBase) -> bool {
+        false
+    }
+
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
         self.is_husk()
     }
