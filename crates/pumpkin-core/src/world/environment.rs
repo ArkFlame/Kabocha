@@ -66,6 +66,17 @@ impl<'a> EnvironmentAttributes<'a> {
                     0.0
                 }
             }
+            // Dimension environment attribute map (DimensionType JSON "attributes").
+            // e.g. nether visual/fog_start_distance = 10, visual/fog_end_distance = 96.
+            EnvironmentAttribute::VisualFogStartDistance => {
+                self.world.dimension.fog_start_distance.unwrap_or(0.0)
+            }
+            EnvironmentAttribute::VisualFogEndDistance => {
+                self.world.dimension.fog_end_distance.unwrap_or(0.0)
+            }
+            EnvironmentAttribute::VisualCloudHeight => {
+                self.world.dimension.cloud_height.unwrap_or(0.0)
+            }
             EnvironmentAttribute::VisualSunAngle | EnvironmentAttribute::VisualStarAngle => {
                 Self::celestial_angle_degrees(self.world.get_time_of_day())
             }
