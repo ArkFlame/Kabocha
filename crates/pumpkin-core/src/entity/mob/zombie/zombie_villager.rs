@@ -495,9 +495,9 @@ impl Mob for ZombieVillagerEntity {
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
             self.start_converting(
                 Some(player.get_entity().entity_uuid),
-                // Vanilla nextInt(MAX - MIN) + MIN, so MAX itself is never drawn.
+                // Vanilla nextInt(2401) + 3600 draws 3600..=6000 inclusive.
                 rand::random_range(
-                    Self::VILLAGER_CONVERSION_WAIT_MIN..Self::VILLAGER_CONVERSION_WAIT_MAX,
+                    Self::VILLAGER_CONVERSION_WAIT_MIN..=Self::VILLAGER_CONVERSION_WAIT_MAX,
                 ),
             );
             return true;
