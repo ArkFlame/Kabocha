@@ -36,6 +36,7 @@ pub mod generation_cache;
 pub mod loot;
 pub mod map;
 mod neighbor_updater;
+pub mod patrol_spawner;
 pub mod phantom_spawner;
 mod player_spawn_finder;
 pub mod poi_scan;
@@ -357,6 +358,7 @@ pub struct World {
     /// Villager job sites and their current owners.
     pub wandering_trader_spawner: wandering_trader_spawner::WanderingTraderSpawner,
     pub phantom_spawner: phantom_spawner::PhantomSpawner,
+    pub patrol_spawner: patrol_spawner::PatrolSpawner,
     pub cat_spawner: cat_spawner::CatSpawner,
     pub village_siege: village_siege::VillageSiege,
     /// Active raids in this world.
@@ -662,6 +664,7 @@ impl World {
             poi_chunk_receiver: std::sync::Mutex::new(poi_chunk_receiver),
             wandering_trader_spawner: wandering_trader_spawner::WanderingTraderSpawner::default(),
             phantom_spawner: phantom_spawner::PhantomSpawner::default(),
+            patrol_spawner: patrol_spawner::PatrolSpawner::default(),
             cat_spawner: cat_spawner::CatSpawner::default(),
             village_siege: village_siege::VillageSiege::default(),
             raids: std::sync::Mutex::new(raid::Raids::default()),
@@ -2882,6 +2885,7 @@ impl World {
 
         if spawn_mobs && self.dimension == Dimension::OVERWORLD {
             self.phantom_spawner.tick(self, spawn_enemies);
+            self.patrol_spawner.tick(self, spawn_enemies);
             self.cat_spawner.tick(self);
             self.village_siege.tick(self, spawn_enemies);
             self.wandering_trader_spawner.tick(self);
