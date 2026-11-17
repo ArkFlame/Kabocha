@@ -769,7 +769,7 @@ fn negative_uniform_bonus_multiplier_keeps_the_base_count() {
 }
 
 #[test]
-fn uniform_bonus_count_at_level_zero_does_not_draw_rng() {
+fn uniform_bonus_count_at_level_zero_draws_rng_like_vanilla() {
     for seed in 0..32 {
         let mut used = Xoroshiro::from_seed(seed);
         let mut fresh = Xoroshiro::from_seed(seed);
@@ -777,6 +777,8 @@ fn uniform_bonus_count_at_level_zero_does_not_draw_rng() {
             apply_bonus_formula(2, LootBonusFormula::UniformBonusCount(1), 0, &mut used),
             2
         );
+        // Vanilla nextInt(1) consumes one draw at level 0.
+        let _ = fresh.next_bounded_i32(1);
         assert_eq!(used.next_bounded_i32(1000), fresh.next_bounded_i32(1000));
     }
 }

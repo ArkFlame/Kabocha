@@ -51,3 +51,9 @@ Scope: `crates/pumpkin-core/src/world/loot.rs`, `world/loot/generation.rs`, `wor
 
 - Fixed in this pass: uniform_bonus_count level-0 RNG draw; entity predicate horizontal/absolute split with real origin for the killed, tamed and effects_changed triggers.
 - Still open: summoned_entity sites (`carved_pumpkin.rs`, `wither_skull.rs`), sniper_duel constant distance, and the remaining `None` trigger sites. Unverified: the uniform level-0 guard was not checked against decompiled source.
+
+## Re-verification (kab/x2, decompiled vanilla) - corrects the FIXED row above
+
+- `uniform_bonus_count` (`ApplyBonusCount.java:163-164`): vanilla is `count + random.nextInt(bonusMultiplier * level + 1)` with no level guard. At level 0 it still draws one RNG value (`nextInt(1)`). The `if level > 0` guard in the earlier FIXED row belongs to `OreDrops` (`ApplyBonusCount.java:137`), not to uniform. Kabocha `apply_bonus_formula` now draws at level 0 again (`world/loot.rs`), and the test `uniform_bonus_count_at_level_zero_draws_rng_like_vanilla` asserts one draw is consumed. The earlier "UNVERIFIED guard" note is resolved by this correction.
+- `ore_drops` (`OreDrops`): `if level > 0` then `nextInt(level + 2) - 1`, clamped to 0. Kabocha matches. VERIFIED.
+- `enchanted_count_increase` limit placement: not re-checked, still UNVERIFIED.
