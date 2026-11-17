@@ -277,14 +277,15 @@ impl ArmorStandEntity {
 
     /// Mirrors vanilla `ArmorStand#causeDamage`: burn damage chips health, and at
     /// 0.5 or less the stand breaks and drops its equipment (not itself).
-    fn cause_damage(&self, caller: &dyn EntityBase, amount: f32) {
-        let _entity = self.get_entity();
+    fn cause_damage(&self, _caller: &dyn EntityBase, amount: f32) {
+        let entity = self.get_entity();
+        self.living_entity.last_damage_taken.store(amount);
         let new_health = self.living_entity.health.load() - amount;
         if new_health <= 0.5 {
-            // Vanilla `ArmorStand.causeDamage` only calls `brokenByAnything`, so
-            // burn damage never drops the armor stand item itself.
+            // Vanilla `ArmorStand.causeDamage` only calls `brokenByAnything` and
+            // discards, so burn damage never drops the armor stand item itself.
             self.broken_by_anything();
-            self.kill(caller);
+            entity.remove();
         } else {
             self.living_entity.health.store(new_health);
         }
@@ -378,7 +379,7 @@ impl ArmorStandEntity {
     }
 
     const fn slot_bit(slot: &EquipmentSlot, offset: i32) -> i32 {
-        1 << (slot.get_slot_index() + offset)
+        1 << (vanilla_slot_index(slot) + offset)
     }
 
     fn is_slot_removal_disabled(&self, slot: &EquipmentSlot) -> bool {
@@ -387,6 +388,21 @@ impl ArmorStandEntity {
 
     fn is_slot_insertion_disabled(&self, slot: &EquipmentSlot) -> bool {
         self.disabled_slots.load(Ordering::Relaxed) & Self::slot_bit(slot, 16) != 0
+    }
+}
+
+/// Vanilla `EquipmentSlot` enum order, which `DisabledSlots` bits are built from
+/// (`ArmorStand.getDisabledSlotsMask`). Differs from the filter order in `get_slot_index`.
+const fn vanilla_slot_index(slot: &EquipmentSlot) -> i32 {
+    match slot {
+        EquipmentSlot::MainHand(_) => 0,
+        EquipmentSlot::OffHand(_) => 1,
+        EquipmentSlot::Feet(_) => 2,
+        EquipmentSlot::Legs(_) => 3,
+        EquipmentSlot::Chest(_) => 4,
+        EquipmentSlot::Head(_) => 5,
+        EquipmentSlot::Body(_) => 6,
+        EquipmentSlot::Saddle(_) => 7,
     }
 }
 
@@ -546,6 +562,8 @@ impl EntityBase for ArmorStandEntity {
     }
 
     fn kill(&self, caller: &dyn EntityBase) {
+        // Vanilla `ArmorStand.kill`: breakAndDropItem (stand item + equipment), then removal.
+        self.break_and_drop_items();
         self.get_entity().remove();
         // Vanilla `ArmorStand.kill`: removal followed by the death game event.
         self.get_entity()
@@ -593,8 +611,9 @@ impl EntityBase for ArmorStandEntity {
         }
 
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION) {
+            // Vanilla: brokenByAnything + discard, so the stand item is not dropped.
             self.broken_by_anything();
-            self.kill(caller);
+            entity.remove();
             return false;
         }
 
@@ -634,11 +653,6 @@ impl EntityBase for ArmorStandEntity {
             {
                 return false;
             } else if player.is_creative() {
-                world.play_sound(
-                    Sound::EntityArmorStandBreak,
-                    SoundCategory::Neutral,
-                    &entity.pos.load(),
-                );
                 Self::spawn_break_particles(entity);
                 self.kill(caller);
                 return true;
@@ -660,8 +674,7 @@ impl EntityBase for ArmorStandEntity {
             self.last_hit_time.store(time, Ordering::Relaxed);
         } else {
             Self::spawn_break_particles(entity);
-            // `broken_by_anything` already plays the break sound.
-            self.break_and_drop_items();
+            // `kill` runs break_and_drop_items (stand item, equipment, break sound).
             self.kill(caller);
         }
 
@@ -721,6 +734,16 @@ mod tests {
             (marker.width, marker.height, marker.eye_height),
             (0.0, 0.0, 0.0)
         );
+    }
+
+    #[test]
+    fn disabled_slot_bits_follow_vanilla_enum_order() {
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::MAIN_HAND), 0);
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::OFF_HAND), 1);
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::FEET), 2);
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::LEGS), 3);
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::CHEST), 4);
+        assert_eq!(vanilla_slot_index(&EquipmentSlot::HEAD), 5);
     }
 
     #[test]
