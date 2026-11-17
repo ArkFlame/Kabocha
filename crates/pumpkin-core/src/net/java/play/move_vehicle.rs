@@ -1,3 +1,4 @@
+use crate::entity::vehicle::boat::BoatEntity;
 use pumpkin_protocol::java::client::play::CMoveVehicle;
 
 #[allow(clippy::wildcard_imports)]
@@ -69,11 +70,16 @@ impl JavaClient {
 
             let old_pos = vehicle_entity.pos.load();
             let old_y = old_pos.y;
-            vehicle_entity.set_pos(pos);
-            vehicle_entity.set_rotation(packet.yaw, packet.pitch);
-            let pos = if let Some(vehicle_move) = vehicle.get_vehicle_entity() {
+            // Vanilla `handleMoveVehicle`: boats are client-authoritative, so the server only
+            // validates the move, corrects collisions and repositions the rider there instead of
+            // running the generic vehicle path.
+            let pos = if let Some(boat) = vehicle.cast_any().downcast_ref::<BoatEntity>() {
+                boat.move_from_client(player.as_ref(), pos, packet.yaw, packet.pitch);
+                vehicle_entity.pos.load()
+            } else if let Some(vehicle_move) = vehicle.get_vehicle_entity() {
                 let move_result = vehicle_move.move_vehicle(old_pos, pos);
                 vehicle_entity.set_pos(move_result.position);
+                vehicle_entity.set_rotation(packet.yaw, packet.pitch);
                 if move_result.cancelled {
                     vehicle_entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
                     vehicle_entity.send_velocity();
@@ -90,6 +96,8 @@ impl JavaClient {
                 }
                 move_result.position
             } else {
+                vehicle_entity.set_pos(pos);
+                vehicle_entity.set_rotation(packet.yaw, packet.pitch);
                 pos
             };
             vehicle_entity
