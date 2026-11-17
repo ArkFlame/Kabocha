@@ -11,3 +11,5 @@ PARITY: docs/TODO_2.md (tracker: 81 partial entities, 27 partial blocks, 6 items
 HOURLY: scripts/sync-upstream.sh (merge upstream in a worktree, one check, ff-merge, push, append docs/SYNC.md).
 
 RULES: AGENTS.md and docs/WORKER.md apply (rule 12: integrate with judgement, check the concern fills a real gap; rule 13: name the concrete blocker). pumpkin-data is generated; WIT additive; commits conventional, subject only, end (#N), trailer from the hook; smallest automated test that fails without the fix; persist pitfalls in docs/LEARNINGS.md and repeated commands in scripts/.
+
+When the ledger is clean and parity is 100%, run docs/ENDGAME.md (CI green, code cleanup, GitHub cleanup, full compile) before stopping.
