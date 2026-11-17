@@ -389,31 +389,51 @@ enum OpenWaterCell {
 fn open_water_cell(block: &pumpkin_data::Block) -> OpenWaterCell {
     if block == &pumpkin_data::Block::WATER {
         OpenWaterCell::Water
-    } else if block == &pumpkin_data::Block::AIR {
+    } else if block == &pumpkin_data::Block::AIR || block == &pumpkin_data::Block::LILY_PAD {
         OpenWaterCell::Air
     } else {
         OpenWaterCell::Other
     }
 }
 
-/// Vanilla `FishingHook.calculateOpenWater`, reduced to the loot-relevant rule: the hook sits in
-/// water and the 5x5 column around it is water down to the floor. Air above the surface is
-/// allowed for the three layers up to the hook's height. Any other block in the scanned volume,
-/// or a missing water layer, makes the spot not open water.
+/// Vanilla `FishingHook.calculateOpenWater`: every 5x5 layer must be uniform, a layer of air may
+/// only sit above water, and the bottom layer must be water. A mixed or missing layer makes the
+/// spot unusable for treasure loot.
 fn is_open_water(cell: impl Fn(i32, i32, i32) -> OpenWaterCell) -> bool {
-    if cell(0, 0, 0) != OpenWaterCell::Water {
-        return false;
+    let mut previous = OpenWaterCell::Other;
+    for dy in -1..=2 {
+        let mut layer = None;
+        let mut mixed = false;
+        for dx in -2..=2 {
+            for dz in -2..=2 {
+                let current = cell(dx, dy, dz);
+                if current == OpenWaterCell::Other {
+                    return false;
+                }
+                match layer {
+                    Some(first) if first != current => mixed = true,
+                    None => layer = Some(current),
+                    _ => {}
+                }
+            }
+        }
+        if mixed {
+            return false;
+        }
+        let Some(layer) = layer else {
+            return false;
+        };
+        // Vanilla starts with an INVALID previous layer, so air cannot be the bottom layer.
+        if layer == OpenWaterCell::Air && previous == OpenWaterCell::Other {
+            return false;
+        }
+        // Water above an air layer is INVALID in vanilla's open-water scan.
+        if layer == OpenWaterCell::Water && previous == OpenWaterCell::Air {
+            return false;
+        }
+        previous = layer;
     }
-    (-1..=2).all(|dy| {
-        (-2..=2).all(|dx| {
-            (-2..=2).all(|dz| {
-                !matches!(
-                    (dy, cell(dx, dy, dz)),
-                    (_, OpenWaterCell::Other) | (-1, OpenWaterCell::Air)
-                )
-            })
-        })
-    })
+    true
 }
 
 pub(super) fn json_to_nbt(value: &Value) -> Option<NbtTag> {
@@ -1033,6 +1053,19 @@ mod open_water_tests {
     fn air_below_the_hook_is_not_open_water() {
         assert!(!is_open_water(|_, dy, _| {
             if dy == -1 {
+                OpenWaterCell::Air
+            } else {
+                OpenWaterCell::Water
+            }
+        }));
+    }
+
+    #[test]
+    fn water_above_air_is_not_open_water() {
+        assert!(!is_open_water(|_, dy, _| {
+            if dy == 2 {
+                OpenWaterCell::Water
+            } else if dy == 1 {
                 OpenWaterCell::Air
             } else {
                 OpenWaterCell::Water

@@ -91,10 +91,7 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
         "minecraft:test_environment",
         &["test_environment", "test_environments"],
     ),
-    (
-        "minecraft:test_instance",
-        &["test_instance", "test_instances"],
-    ),
+    ("minecraft:test_instance", &["test_instance"]),
     (
         "minecraft:sulfur_cube_archetype",
         &["sulfur_cube_archetype", "sulfur_cube_archetypes"],
@@ -132,15 +129,6 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "minecraft:worldgen/configured_carver",
-        &[
-            "worldgen/configured_carver",
-            "worldgen/configured_carvers",
-            "worldgen/carver",
-            "worldgen/carvers",
-        ],
-    ),
-    (
         "minecraft:worldgen/density_function",
         &["worldgen/density_function", "worldgen/density_functions"],
     ),
@@ -151,15 +139,6 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
             "worldgen/features",
             "worldgen/configured_feature",
             "worldgen/configured_features",
-        ],
-    ),
-    (
-        "minecraft:worldgen/configured_feature",
-        &[
-            "worldgen/configured_feature",
-            "worldgen/configured_features",
-            "worldgen/feature",
-            "worldgen/features",
         ],
     ),
     (
@@ -353,33 +332,6 @@ fn load_registry_dir_recursive<S: std::hash::BuildHasher>(
     }
 }
 
-const EXCLUDED_REGISTRY_DIRS: &[&str] = &[
-    "recipe",
-    "recipes",
-    "function",
-    "functions",
-    "tags",
-    "structure",
-    "structures",
-    "advancement",
-    "advancements",
-    "loot_table",
-    "loot_tables",
-    "predicate",
-    "predicates",
-    "item_modifier",
-    "item_modifiers",
-    "slot_source",
-    "slot_sources",
-    "context_int_provider",
-    "context_int_providers",
-    "context_float_provider",
-    "context_float_providers",
-    "damage_type",
-    "damage_types",
-    "datapacks",
-];
-
 /// Scans a namespace directory for any dynamic registry subfolders and loads their JSON definitions.
 pub fn load_dynamic_registries_from_ns<
     S1: std::hash::BuildHasher + Default,
@@ -405,45 +357,31 @@ pub fn load_dynamic_registries_from_ns<
         }
     }
 
-    // Auto-discover any additional registry folders in the namespace (including custom/modded ones)
+    // Vanilla ignores unknown data folders entirely, so only worldgen subfolders are
+    // auto-discovered (for custom/modded worldgen registries). Other unrecognized folders
+    // under `data/<ns>/` must not become registries.
     if let Ok(entries) = fs::read_dir(ns_path) {
         for entry in entries.flatten() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
-            if !path.is_dir()
-                || EXCLUDED_REGISTRY_DIRS.contains(&name.as_str())
-                || visited_paths.contains(&path)
-            {
+            if !path.is_dir() || name != "worldgen" {
                 continue;
             }
 
-            if name == "worldgen" {
-                if let Ok(sub_entries) = fs::read_dir(&path) {
-                    for sub_entry in sub_entries.flatten() {
-                        let sub_path = sub_entry.path();
-                        let sub_name = sub_entry.file_name().to_string_lossy().to_string();
-                        if sub_path.is_dir() && !visited_paths.contains(&sub_path) {
-                            // Vanilla worldgen registry keys are fixed `minecraft:` ids
-                            // (`Registries` constants), never derived from the pack namespace.
-                            let reg_id = format!("minecraft:worldgen/{sub_name}");
-                            let registry_map = registries.entry(reg_id).or_default();
-                            let before = registry_map.len();
-                            load_registry_dir_recursive(
-                                namespace,
-                                &sub_path,
-                                &sub_path,
-                                registry_map,
-                            );
-                            total_loaded += registry_map.len() - before;
-                        }
+            if let Ok(sub_entries) = fs::read_dir(&path) {
+                for sub_entry in sub_entries.flatten() {
+                    let sub_path = sub_entry.path();
+                    let sub_name = sub_entry.file_name().to_string_lossy().to_string();
+                    if sub_path.is_dir() && !visited_paths.contains(&sub_path) {
+                        // Vanilla worldgen registry keys are fixed `minecraft:` ids
+                        // (`Registries` constants), never derived from the pack namespace.
+                        let reg_id = format!("minecraft:worldgen/{sub_name}");
+                        let registry_map = registries.entry(reg_id).or_default();
+                        let before = registry_map.len();
+                        load_registry_dir_recursive(namespace, &sub_path, &sub_path, registry_map);
+                        total_loaded += registry_map.len() - before;
                     }
                 }
-            } else {
-                let reg_id = format!("{namespace}:{name}");
-                let registry_map = registries.entry(reg_id).or_default();
-                let before = registry_map.len();
-                load_registry_dir_recursive(namespace, &path, &path, registry_map);
-                total_loaded += registry_map.len() - before;
             }
         }
     }
@@ -683,6 +621,77 @@ mod tests {
             registries["minecraft:worldgen/sulfur_pool"].contains_key("custom:sample"),
             "entry id must keep the datapack namespace"
         );
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_instance_registry_uses_singular_directory_only() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_ti_{}", uuid::Uuid::new_v4()));
+        let ns_dir = temp_dir.join("custom");
+        let singular = ns_dir.join("test_instance");
+        let plural = ns_dir.join("test_instances");
+        fs::create_dir_all(&singular).unwrap();
+        fs::create_dir_all(&plural).unwrap();
+        fs::write(singular.join("a.json"), r#"{"type":"minecraft:function"}"#).unwrap();
+        fs::write(plural.join("b.json"), r#"{"type":"minecraft:function"}"#).unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);
+
+        // Vanilla loads registry entries from the singular test_instance directory only.
+        let entries = &registries["minecraft:test_instance"];
+        assert!(entries.contains_key("custom:a"));
+        assert!(!entries.contains_key("custom:b"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn unknown_non_worldgen_folders_are_ignored() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_uf_{}", uuid::Uuid::new_v4()));
+        let ns_dir = temp_dir.join("custom");
+        let config_dir = ns_dir.join("config");
+        fs::create_dir_all(&config_dir).unwrap();
+        fs::write(config_dir.join("options.json"), r#"{"value":1}"#).unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        let loaded = load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);
+
+        // Vanilla ignores unknown data folders; they must not become registries.
+        assert_eq!(loaded, 0);
+        assert!(!registries.contains_key("custom:config"));
+        assert!(registries.is_empty());
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn configured_carver_entries_load_into_canonical_registry() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pumpkin_test_dr_cc_{}", uuid::Uuid::new_v4()));
+        let ns_dir = temp_dir.join("custom");
+        let legacy_dir = ns_dir.join("worldgen").join("configured_carver");
+        fs::create_dir_all(&legacy_dir).unwrap();
+        fs::write(
+            legacy_dir.join("canyon.json"),
+            r#"{"type":"minecraft:canyon"}"#,
+        )
+        .unwrap();
+
+        let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
+        load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);
+
+        // The legacy folder loads into the real `worldgen/carver` registry; there is no
+        // separate `worldgen/configured_carver` registry in this version.
+        assert!(
+            registries
+                .get("minecraft:worldgen/carver")
+                .is_some_and(|entries| entries.contains_key("custom:canyon"))
+        );
+        assert!(!registries.contains_key("minecraft:worldgen/configured_carver"));
 
         let _ = fs::remove_dir_all(temp_dir);
     }

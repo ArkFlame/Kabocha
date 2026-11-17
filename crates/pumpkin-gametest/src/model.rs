@@ -1,4 +1,5 @@
 use pumpkin_data::block_rotation::Rotation;
+use pumpkin_util::identifier::Identifier;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -112,7 +113,17 @@ impl GameTestDefinition {
             TestType::Function => self.function.as_ref().is_some_and(|f| !f.is_empty()),
         };
 
-        function_valid
+        // Vanilla's TestEnvironmentDefinition.CODEC is a registry holder codec: a string
+        // resource-key reference, or an inline object dispatched by its type field. Any other
+        // shape fails to decode on the client.
+        let environment_valid = match &self.environment {
+            Value::String(id) => id.parse::<Identifier>().is_ok(),
+            Value::Object(map) => map.contains_key("type"),
+            _ => false,
+        };
+
+        environment_valid
+            && function_valid
             && self.max_ticks > 0
             && self.setup_ticks >= 0
             && self.max_attempts > 0
@@ -127,4 +138,38 @@ const fn default_true() -> bool {
 
 const fn default_one() -> i32 {
     1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn definition(environment: Value) -> GameTestDefinition {
+        serde_json::from_value(serde_json::json!({
+            "type": "minecraft:function",
+            "environment": environment,
+            "function": "minecraft:always_pass",
+            "structure": "minecraft:empty",
+            "max_ticks": 1
+        }))
+        .expect("valid test definition")
+    }
+
+    #[test]
+    fn is_valid_accepts_holder_shaped_environment() {
+        assert!(definition(Value::String("minecraft:default".into())).is_valid());
+        assert!(
+            definition(serde_json::json!({ "type": "minecraft:weather", "weather": "clear" }))
+                .is_valid()
+        );
+    }
+
+    #[test]
+    fn is_valid_rejects_non_holder_environment() {
+        assert!(!definition(Value::Null).is_valid());
+        assert!(!definition(serde_json::json!(42)).is_valid());
+        assert!(!definition(serde_json::json!(true)).is_valid());
+        assert!(!definition(serde_json::json!([])).is_valid());
+        assert!(!definition(serde_json::json!({ "weather": "clear" })).is_valid());
+    }
 }

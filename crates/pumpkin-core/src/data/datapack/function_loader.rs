@@ -23,13 +23,11 @@ fn load_functions_recursive<S: std::hash::BuildHasher>(
         return;
     };
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
         let path = entry.path();
-        if file_type.is_dir() {
+        // Vanilla follows symlinks; checking the path (not the dir entry type) matches that.
+        if path.is_dir() {
             load_functions_recursive(namespace, base_dir, &path, functions);
-        } else if file_type.is_file()
+        } else if path.is_file()
             && path
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("mcfunction"))
@@ -153,13 +151,11 @@ fn load_tags_recursive<S: std::hash::BuildHasher>(
         return;
     };
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
         let path = entry.path();
-        if file_type.is_dir() {
+        // Vanilla follows symlinks; checking the path (not the dir entry type) matches that.
+        if path.is_dir() {
             load_tags_recursive(namespace, base_dir, &path, tags);
-        } else if file_type.is_file()
+        } else if path.is_file()
             && path
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
@@ -250,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn load_functions_ignores_symlinks_and_loads_regular_files() {
+    fn load_functions_follows_symlinks_and_loads_regular_files() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path();
         let function_dir = root.join("functions");
@@ -285,15 +281,15 @@ mod tests {
         );
 
         if sym_dir_created {
-            assert!(!functions.contains_key("test:sym_dir/external"));
+            assert!(functions.contains_key("test:sym_dir/external"));
         }
         if sym_file_created {
-            assert!(!functions.contains_key("test:sym_file"));
+            assert!(functions.contains_key("test:sym_file"));
         }
     }
 
     #[test]
-    fn load_function_tags_ignores_symlink_directories() {
+    fn load_function_tags_follows_symlink_directories() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path();
         let tags_dir = root.join("tags");
@@ -322,7 +318,7 @@ mod tests {
 
         assert!(tags.contains_key("test:valid"));
         if sym_created {
-            assert!(!tags.contains_key("test:sym_dir/sym_tag"));
+            assert!(tags.contains_key("test:sym_dir/sym_tag"));
         }
     }
 }

@@ -91,21 +91,6 @@ impl World {
         fallback_y: i32,
     ) -> Vector3<f64> {
         let suggestion = BlockPos::new(spawn_x, fallback_y, spawn_z);
-        // A world spawn set by /setworldspawn or restored from level.dat keeps its exact
-        // height; only move the player up out of blocks occupying it. With a positive spawn
-        // radius vanilla randomises the position instead, and the default level.dat spawn
-        // sits above the build limit, which means "search for the surface" below.
-        if self.level_info.load().game_rules.respawn_radius <= 0
-            && (self.get_bottom_y()..=self.get_top_y()).contains(&fallback_y)
-        {
-            self.level
-                .get_or_fetch_chunk(suggestion.chunk_position(), |_| ())
-                .await;
-            let position = self.fixup_spawn_height_up_at(suggestion);
-            if self.no_collision_no_liquid_at(&position) {
-                return position.to_f64();
-            }
-        }
         let default_adventure = self.server.upgrade().is_some_and(|server| {
             server
                 .defaultgamemode
@@ -116,17 +101,6 @@ impl World {
         });
         let mut loaded_chunks = FxHashSet::default();
         if !default_adventure {
-            // The Y set with /setworldspawn is authoritative while it is still standable:
-            // vanilla only runs PlayerSpawnFinder while creating the world, so respawning
-            // must not snap a high spawn point back to the surface.
-            self.level
-                .get_or_fetch_chunk(suggestion.chunk_position(), |_| ())
-                .await;
-            if self.no_collision_no_liquid_at(&suggestion)
-                && is_face_full_up(self.get_block_state(&suggestion.down()))
-            {
-                return suggestion.to_f64();
-            }
             let radius = {
                 let border = self
                     .worldborder
@@ -203,14 +177,6 @@ impl World {
                     .load()
                     .intersects(&entity_box)
         })
-    }
-
-    /// Keeps the requested height and only pushes the player up out of blocks.
-    pub(super) fn fixup_spawn_height_up_at(&self, mut position: BlockPos) -> BlockPos {
-        while !self.no_collision_no_liquid_at(&position) && position.0.y < self.get_top_y() {
-            position = position.up();
-        }
-        position
     }
 
     pub(super) fn fixup_spawn_height_at(&self, mut position: BlockPos) -> BlockPos {

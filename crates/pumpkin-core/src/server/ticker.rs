@@ -76,8 +76,12 @@ impl Ticker {
 
             // Vanilla `MinecraftServer.runServer`: skip ticks when more than
             // `OVERLOADED_THRESHOLD + 20 * nanosecondsPerTick` behind (~2s at 20 TPS).
-            let (updated, skipped) =
-                apply_overload_skip(schedule, tick_start_nanos, this_tick_nanos);
+            let (updated, skipped) = apply_overload_skip(
+                schedule,
+                tick_start_nanos,
+                this_tick_nanos,
+                manager.runs_normally(),
+            );
             schedule = updated;
             if let Some((behind_ms, ticks)) = skipped {
                 warn!(
@@ -157,10 +161,14 @@ impl Ticker {
 /// Skip and warning share one gate, as in vanilla: at most one skip per
 /// 10s + 100 ticks of wall time. In between, deadline stays behind and missed
 /// ticks run back to back. Accepted lag for vanilla timing parity.
+///
+/// `runs_normally` mirrors vanilla's `tickRateManager.runsNormally()` guard: a
+/// frozen server runs no game work and must not report overload.
 const fn apply_overload_skip(
     schedule: TickSchedule,
     now_nanos: i64,
     this_tick_nanos: i64,
+    runs_normally: bool,
 ) -> (TickSchedule, Option<(i64, i64)>) {
     let TickSchedule {
         next_tick_nanos,
@@ -182,7 +190,8 @@ const fn apply_overload_skip(
     // advances one tick per iteration.
     let since_warning = now_nanos.saturating_sub(last_overload_warning_nanos);
 
-    if behind_nanos > OVERLOADED_THRESHOLD_NANOS + OVERLOADED_TICKS_THRESHOLD * this_tick_nanos
+    if runs_normally
+        && behind_nanos > OVERLOADED_THRESHOLD_NANOS + OVERLOADED_TICKS_THRESHOLD * this_tick_nanos
         && since_warning
             >= OVERLOADED_WARNING_INTERVAL_NANOS
                 + OVERLOADED_TICKS_WARNING_INTERVAL * this_tick_nanos
@@ -239,7 +248,7 @@ mod tests {
 
     #[test]
     fn on_time_tick_does_not_skip() {
-        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), 0, TICK_20_TPS);
+        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), 0, TICK_20_TPS, true);
         assert!(skipped.is_none());
         assert_eq!(schedule.next_tick_nanos, 0);
         assert_eq!(schedule.last_overload_warning_nanos, NEVER_WARNED);
@@ -248,7 +257,7 @@ mod tests {
     #[test]
     fn short_lag_catch_up_does_not_skip() {
         let now = 60 * NANOSECONDS_PER_MILLISECOND;
-        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, TICK_20_TPS);
+        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, TICK_20_TPS, true);
         assert!(skipped.is_none());
         assert_eq!(schedule.next_tick_nanos, 0);
     }
@@ -256,7 +265,7 @@ mod tests {
     #[test]
     fn first_overload_warns_and_jumps_the_deadline() {
         let now = 3 * NANOSECONDS_PER_SECOND;
-        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, TICK_20_TPS);
+        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, TICK_20_TPS, true);
         let (behind_ms, ticks) = skipped.expect("the first overload always warns");
         assert_eq!((behind_ms, ticks), (3000, 60));
         assert_eq!(schedule.next_tick_nanos, 60 * TICK_20_TPS);
@@ -266,11 +275,21 @@ mod tests {
     #[test]
     fn overload_warning_is_rate_limited() {
         let now = 3 * NANOSECONDS_PER_SECOND;
-        let (schedule, skipped) = apply_overload_skip(warned_at(0), now, TICK_20_TPS);
+        let (schedule, skipped) = apply_overload_skip(warned_at(0), now, TICK_20_TPS, true);
         assert!(skipped.is_none());
         assert_eq!(schedule.last_overload_warning_nanos, 0);
         // Vanilla holds the deadline too, so the server catches up instead of skipping.
         assert_eq!(schedule.next_tick_nanos, 0);
+    }
+
+    #[test]
+    fn frozen_overload_does_not_skip_or_warn() {
+        let now = 3 * NANOSECONDS_PER_SECOND;
+        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, TICK_20_TPS, false);
+        assert!(skipped.is_none());
+        // The deadline and warning clock are untouched while the game is frozen.
+        assert_eq!(schedule.next_tick_nanos, 0);
+        assert_eq!(schedule.last_overload_warning_nanos, NEVER_WARNED);
     }
 
     /// One 3s tick per iteration: the deadline only advances one tick per loop,
@@ -282,7 +301,7 @@ mod tests {
 
         for tick in 0..8i64 {
             let now = tick * 3 * NANOSECONDS_PER_SECOND;
-            let (updated, skipped) = apply_overload_skip(schedule, now, TICK_20_TPS);
+            let (updated, skipped) = apply_overload_skip(schedule, now, TICK_20_TPS, true);
             schedule = updated;
             schedule.next_tick_nanos += TICK_20_TPS;
             if skipped.is_some() {
@@ -297,7 +316,7 @@ mod tests {
     #[test]
     fn sprint_resets_deadline_to_now() {
         let now = NANOSECONDS_PER_SECOND;
-        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, 0);
+        let (schedule, skipped) = apply_overload_skip(TickSchedule::new(), now, 0, true);
         assert!(skipped.is_none());
         assert_eq!(schedule.next_tick_nanos, now);
         assert_eq!(schedule.last_overload_warning_nanos, now);
@@ -310,7 +329,7 @@ mod tests {
 
         for tick in 0..100i64 {
             let now = tick * TICK_20_TPS;
-            let (updated, skipped) = apply_overload_skip(schedule, now, TICK_20_TPS);
+            let (updated, skipped) = apply_overload_skip(schedule, now, TICK_20_TPS, true);
             assert!(skipped.is_none());
             schedule = updated;
             schedule.next_tick_nanos += TICK_20_TPS;

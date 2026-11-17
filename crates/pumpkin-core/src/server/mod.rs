@@ -39,8 +39,8 @@ use crate::world::weather::own_weather_folder;
 use pumpkin_protocol::java::client::login::CEncryptionRequest;
 use pumpkin_protocol::java::client::play::{CChangeDifficulty, CGameEvent, CTabList, GameEvent};
 use pumpkin_protocol::{ClientPacket, java::client::config::CPluginMessage};
-use pumpkin_util::Difficulty;
 use pumpkin_util::text::TextComponent;
+use pumpkin_util::{Difficulty, GameMode};
 use pumpkin_world::world_info::anvil::{
     AnvilLevelInfo, LEVEL_DAT_BACKUP_FILE_NAME, LEVEL_DAT_FILE_NAME,
 };
@@ -1219,13 +1219,18 @@ impl Server {
             return None;
         }
 
-        let gamemode = self
+        let default_gamemode = self
             .defaultgamemode
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .gamemode;
-
+        let force_gamemode = self.basic_config.force_gamemode;
         let (world, nbt) = self.load_player_world(&profile.id)?;
+
+        // Vanilla ServerPlayer.load: saved `playerGameType`, else the forced
+        // game type, else the level default. read_nbt restores the saved value
+        // too, so pass it in up front to avoid a transient default gamemode.
+        let gamemode = join_gamemode(default_gamemode, force_gamemode, nbt.as_ref());
 
         let mut player = Player::new(
             client,
@@ -1236,12 +1241,17 @@ impl Server {
         )?;
 
         if let Some(mut nbt_data) = nbt {
+            if force_gamemode {
+                // getForcedGameType() wins on join; let read_nbt apply the
+                // forced mode's abilities instead of the saved mode's.
+                nbt_data.put_int("playerGameType", gamemode as i32);
+            }
             player.read_nbt(&mut nbt_data);
-            // Older Bedrock saves can have a valid Pos even when HasPlayedBefore is false.
-            let has_position = nbt_data.get_list("Pos").is_some_and(|pos| pos.len() >= 3);
-            player
-                .has_played_before
-                .store(has_position, Ordering::Relaxed);
+            // Vanilla persists HasPlayedBefore. Only infer it from Pos for
+            // older Bedrock saves that predate the tag.
+            if infer_played_before(&nbt_data) {
+                player.has_played_before.store(true, Ordering::Relaxed);
+            }
         }
 
         // Wrap in Arc after data is loaded
@@ -2113,5 +2123,89 @@ impl Server {
                 plugin_name,
             );
         self.plugin_manager.fire(self, &mut disable_event).await;
+    }
+}
+
+/// Join gamemode selection mirroring `ServerPlayer.load` / `getForcedGameType`.
+fn join_gamemode(default: GameMode, forced: bool, nbt: Option<&NbtCompound>) -> GameMode {
+    if forced {
+        return default;
+    }
+    nbt.and_then(|nbt| {
+        nbt.get_int("playerGameType")
+            .or_else(|| nbt.get_byte("playerGameType").map(i32::from))
+    })
+    .and_then(|value| GameMode::try_from(value).ok())
+    .unwrap_or(default)
+}
+
+/// Only old Bedrock saves lack `HasPlayedBefore`; infer it from a saved Pos.
+fn infer_played_before(nbt: &NbtCompound) -> bool {
+    nbt.get_bool("HasPlayedBefore").is_none()
+        && nbt.get_list("Pos").is_some_and(|pos| pos.len() >= 3)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{infer_played_before, join_gamemode};
+    use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
+    use pumpkin_util::GameMode;
+
+    fn saved_gamemode(mode: GameMode) -> NbtCompound {
+        let mut nbt = NbtCompound::new();
+        nbt.put_int("playerGameType", mode as i32);
+        nbt
+    }
+
+    #[test]
+    fn join_gamemode_prefers_forced_then_saved_then_default() {
+        let nbt = saved_gamemode(GameMode::Adventure);
+        assert_eq!(
+            join_gamemode(GameMode::Survival, false, Some(&nbt)),
+            GameMode::Adventure
+        );
+        assert_eq!(
+            join_gamemode(GameMode::Survival, true, Some(&nbt)),
+            GameMode::Survival
+        );
+        assert_eq!(
+            join_gamemode(GameMode::Creative, false, None),
+            GameMode::Creative
+        );
+    }
+
+    #[test]
+    fn played_before_uses_tag_when_present() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_bool("HasPlayedBefore", false);
+        nbt.put_list(
+            "Pos",
+            vec![
+                NbtTag::Double(1.0),
+                NbtTag::Double(2.0),
+                NbtTag::Double(3.0),
+            ],
+        );
+        assert!(!infer_played_before(&nbt));
+
+        nbt.put_bool("HasPlayedBefore", true);
+        assert!(!infer_played_before(&nbt));
+    }
+
+    #[test]
+    fn played_before_falls_back_to_pos_only_without_tag() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_list(
+            "Pos",
+            vec![
+                NbtTag::Double(1.0),
+                NbtTag::Double(2.0),
+                NbtTag::Double(3.0),
+            ],
+        );
+        assert!(infer_played_before(&nbt));
+
+        nbt.put_list("Pos", vec![NbtTag::Double(1.0)]);
+        assert!(!infer_played_before(&nbt));
     }
 }

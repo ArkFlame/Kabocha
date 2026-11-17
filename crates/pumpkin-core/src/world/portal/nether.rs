@@ -47,21 +47,14 @@ impl PortalSearchResult {
         current_yaw: f32,
         source_axis: Option<HorizontalAxis>,
     ) -> f32 {
-        let Some(src_axis) = source_axis else {
-            return current_yaw;
-        };
-
+        // Vanilla NetherPortalBlock.getDimensionTransitionFromExit defaults a
+        // missing source axis to X and adds a fixed 90 degree relative rotation
+        // whenever the source and exit portal axes differ.
+        let src_axis = source_axis.unwrap_or(HorizontalAxis::X);
         if src_axis == self.axis {
             return current_yaw;
         }
-
-        // Axis changed, rotate yaw by 90 degrees
-        // X axis portal faces East/West, Z axis portal faces North/South
-        match (src_axis, self.axis) {
-            (HorizontalAxis::X, HorizontalAxis::Z) => current_yaw + 90.0,
-            (HorizontalAxis::Z, HorizontalAxis::X) => current_yaw - 90.0,
-            _ => current_yaw,
-        }
+        current_yaw + 90.0
     }
 
     #[must_use]
@@ -96,13 +89,12 @@ impl PortalSearchResult {
             0.0
         };
 
+        // Vanilla PortalShape.getRelativePosition passes this offset through
+        // unclamped; blocked exits are handled by findCollisionFreePosition.
         let perp_offset = match self.axis {
             HorizontalAxis::X => entity_pos.z - (f64::from(lower.z) + 0.5),
             HorizontalAxis::Z => entity_pos.x - (f64::from(lower.x) + 0.5),
         };
-        // Clamp perpendicular offset to keep exit position within portal bounds
-        // (prevents spawning inside solid blocks next to the portal)
-        let perp_offset = perp_offset.clamp(-0.5, 0.5);
 
         Vector3::new(axis_progress, y_progress, perp_offset)
     }
@@ -485,13 +477,11 @@ impl NetherPortal {
         true
     }
 
-    fn valid_state_inside_portal(block: &Block, state: &BlockState, axis: HorizontalAxis) -> bool {
-        if block == &Block::NETHER_PORTAL {
-            let props = NetherPortalLikeProperties::from_state_id(state.id);
-            props.axis == axis
-        } else {
-            state.is_air() || block.has_tag(&tag::Block::MINECRAFT_FIRE)
-        }
+    fn valid_state_inside_portal(block: &Block, state: &BlockState, _axis: HorizontalAxis) -> bool {
+        // Vanilla PortalShape.isEmpty counts any nether portal state, regardless of axis.
+        block == &Block::NETHER_PORTAL
+            || state.is_air()
+            || block.has_tag(&tag::Block::MINECRAFT_FIRE)
     }
 
     pub async fn search_for_portal(
@@ -710,7 +700,7 @@ impl NetherPortal {
             return Some((pos, result_axis, false));
         }
 
-        // Vanilla: clamp between max(bottomY, 70) and topYLimit - 9, and return
+        // Vanilla: clamp between max(minY + 1, 70) and topYLimit - 9, and return
         // no destination when the dimension leaves no room for a portal there.
         let fallback_y = Self::fallback_y(target_pos.0.y, min_y, top_y_limit)?;
         let fallback_pos = BlockPos(Vector3::new(
@@ -727,11 +717,11 @@ impl NetherPortal {
     }
 
     /// Clamps a fallback portal y into the vanilla-safe band
-    /// `max(min_y, 70)..=top_y_limit - 9`, or `None` when the band is empty.
+    /// `max(min_y + 1, 70)..=top_y_limit - 9`, or `None` when the band is empty.
     /// Vanilla `PortalForcer#createPortal` returns `Optional.empty()` in that case
     /// (custom datapack dimensions with a small logical height).
     fn fallback_y(target_y: i32, min_y: i32, top_y_limit: i32) -> Option<i32> {
-        let lower = min_y.max(70);
+        let lower = (min_y + 1).max(70);
         let upper = top_y_limit - 9;
         if lower > upper {
             return None;
@@ -739,10 +729,10 @@ impl NetherPortal {
         Some(target_y.clamp(lower, upper))
     }
 
-    /// Vanilla PortalForcer#createPortal scans with Level#isEmptyBlock, so only
-    /// air counts as free space: replaceable plants and snow layers are not usable.
+    /// Mirrors vanilla `PortalForcer#canPortalReplaceBlock`: any replaceable
+    /// state without a fluid counts as free space in the createPortal scan.
     const fn is_valid_portal_air(state: &BlockState) -> bool {
-        state.is_air()
+        state.replaceable() && !state.is_liquid()
     }
 
     fn is_valid_portal_pos(
@@ -985,14 +975,14 @@ mod tests {
             45.0
         );
 
-        // Cross axis -> 90 degree rotation
+        // Cross axis -> vanilla adds a fixed 90 degree rotation either way.
         assert_eq!(
             z_portal.calculate_teleport_yaw(45.0, Some(HorizontalAxis::X)),
             135.0
         );
         assert_eq!(
             x_portal.calculate_teleport_yaw(45.0, Some(HorizontalAxis::Z)),
-            -45.0
+            135.0
         );
     }
 
@@ -1007,5 +997,41 @@ mod tests {
     fn fallback_y_none_when_no_room() {
         // Custom datapack dimension with a 60-block logical height.
         assert_eq!(NetherPortal::fallback_y(10, 0, 60), None);
+    }
+
+    #[test]
+    fn fallback_y_uses_min_y_plus_one() {
+        // Vanilla uses Math.max(getMinY() + 1, 70) as the lower bound.
+        assert_eq!(NetherPortal::fallback_y(1, 80, 320), Some(81));
+    }
+
+    #[test]
+    fn portal_relative_forward_offset_is_not_clamped() {
+        let portal = PortalSearchResult {
+            lower_corner: BlockPos::new(0, 64, 0),
+            axis: HorizontalAxis::X,
+            width: 2,
+            height: 3,
+        };
+        let dimensions = EntityDimensions {
+            width: 0.6,
+            height: 1.8,
+            eye_height: 1.62,
+        };
+        let entity_pos = Vector3::new(11.0, 64.0, 1.3);
+        let rel = portal.entity_pos_in_portal(entity_pos, &dimensions);
+        assert!((rel.z - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn any_portal_axis_counts_as_empty_inside_shape() {
+        let mut props = NetherPortalLikeProperties::default(&Block::NETHER_PORTAL);
+        props.axis = HorizontalAxis::Z;
+        let state = BlockState::from_id(props.to_state_id(&Block::NETHER_PORTAL));
+        assert!(NetherPortal::valid_state_inside_portal(
+            &Block::NETHER_PORTAL,
+            state,
+            HorizontalAxis::X,
+        ));
     }
 }

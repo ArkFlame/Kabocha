@@ -298,9 +298,11 @@ pub struct HeartbeatPayload {
     pub protocol_version: i32,
     /// Current number of connected players.
     pub online_players: usize,
-    /// Maximum number of players allowed.
+    /// Capacity reported to the backend. With both listeners enabled the larger of their
+    /// `max_players` values is used; with a single listener that listener's value is used.
     pub max_players: u32,
-    /// Whether online mode authentication is enforced on enabled listeners.
+    /// true only when every enabled listener enforces online mode authentication.
+    /// Per-listener modes are not represented; a single all-listeners summary is reported.
     pub online_mode: bool,
     /// Host operating system name.
     pub os: String,
@@ -625,26 +627,48 @@ fn write_private_key(path: &Path, seed: &[u8; 32]) -> std::io::Result<()> {
     }
 }
 
-/// Loads an existing identity key. A key file that exists but cannot be read is logged, not skipped silently.
+/// Loads an existing identity key without generating or writing one.
+///
+/// An unreadable or corrupt file is treated as a missing candidate so the caller can try the
+/// next configured location; the file itself is left untouched.
 fn load_existing_identity_key(path: &Path) -> Option<SigningKey> {
     if !path.exists() {
         return None;
     }
-    match TelemetryClient::load_or_generate_key(path) {
-        Ok(key) => Some(key),
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
         Err(err) => {
             tracing::warn!(
                 "Existing telemetry identity key at {} is unreadable: {err}",
                 path.display()
             );
-            None
+            return None;
         }
+    };
+    if bytes.len() != 32 {
+        tracing::warn!(
+            "Existing telemetry identity key at {} is not a 32-byte seed, ignoring it",
+            path.display()
+        );
+        return None;
     }
+    // The identity key is a secret; tighten permissions inherited from older versions.
+    restrict_key_permissions(path);
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&bytes);
+    Some(SigningKey::from_bytes(&seed))
 }
 
 /// Resolves the server identity key by checking default locations or generating a new one.
+///
+/// While the heartbeat client is running, its live in-memory key is reused so one-off
+/// telemetry sends sign with the identity the backend registered.
 #[must_use]
 pub fn resolve_identity_key() -> SigningKey {
+    choose_signing_key(LIVE_SIGNING_KEY.get(), resolve_identity_key_from_disk)
+}
+
+fn resolve_identity_key_from_disk() -> SigningKey {
     let primary = Path::new(IDENTITY_KEY_PATH);
     let data_dir = Path::new("data");
     let existing_candidates = [
@@ -711,6 +735,18 @@ pub fn anonymize_player_uuid(player_salt: &[u8; 32], player_uuid: uuid::Uuid) ->
 
 /// Per-server player salt of the running heartbeat client, set once by `start_telemetry_with_config`.
 static LIVE_PLAYER_SALT: OnceLock<[u8; 32]> = OnceLock::new();
+
+/// Live signing key of the running heartbeat client, set once at startup.
+/// One-off sends reuse it so they sign with the identity the backend registered.
+static LIVE_SIGNING_KEY: OnceLock<SigningKey> = OnceLock::new();
+
+/// Prefers the live in-memory signing key over re-reading the identity key from disk.
+fn choose_signing_key(
+    live: Option<&SigningKey>,
+    from_disk: impl FnOnce() -> SigningKey,
+) -> SigningKey {
+    live.cloned().unwrap_or_else(from_disk)
+}
 
 /// Builds the telemetry heartbeat payload from current server and runtime state.
 #[must_use]
@@ -970,6 +1006,7 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
     };
 
     let signing_key = resolve_identity_key();
+    let _ = LIVE_SIGNING_KEY.set(signing_key.clone());
     let player_salt = derive_player_telemetry_salt(&signing_key);
     // Share the running client's salt so `/pumpkin` reports the same anonymous ids.
     let _ = LIVE_PLAYER_SALT.set(player_salt);
@@ -1113,6 +1150,23 @@ mod tests {
         );
         let new_file_bytes = std::fs::read(&key_path).unwrap();
         assert_eq!(new_file_bytes.len(), 32);
+    }
+
+    #[test]
+    fn corrupt_identity_key_is_treated_as_missing_without_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let corrupt = dir.path().join("identity.key");
+        let corrupt_bytes = b"not-a-32-byte-seed";
+        std::fs::write(&corrupt, corrupt_bytes).unwrap();
+
+        assert!(load_existing_identity_key(&corrupt).is_none());
+        assert_eq!(std::fs::read(&corrupt).unwrap(), corrupt_bytes.to_vec());
+
+        let valid = dir.path().join("valid.key");
+        let seed = [11u8; 32];
+        std::fs::write(&valid, seed).unwrap();
+        let loaded = load_existing_identity_key(&valid).unwrap();
+        assert_eq!(loaded.to_bytes(), seed);
     }
 
     #[test]
@@ -1577,5 +1631,21 @@ mod tests {
         );
         assert_eq!(anon_a1, anon_a2);
         assert_ne!(anon_a1, anon_b);
+    }
+
+    #[test]
+    fn live_signing_key_is_preferred_over_disk() {
+        let live = SigningKey::from_bytes(&[9u8; 32]);
+        let disk = SigningKey::from_bytes(&[8u8; 32]);
+        let resolved = choose_signing_key(Some(&live), || disk.clone());
+        assert_eq!(
+            resolved.verifying_key().to_bytes(),
+            live.verifying_key().to_bytes()
+        );
+        let from_disk = choose_signing_key(None, || disk.clone());
+        assert_eq!(
+            from_disk.verifying_key().to_bytes(),
+            disk.verifying_key().to_bytes()
+        );
     }
 }

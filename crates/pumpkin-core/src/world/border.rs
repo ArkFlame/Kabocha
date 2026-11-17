@@ -12,6 +12,9 @@ use crate::net::java::JavaClient;
 
 use super::World;
 
+/// Vanilla's border protocol fields and commands count the transition in game ticks.
+const MILLIS_PER_TICK: i64 = 50;
+
 /// A running diameter transition, timed on the wall clock like vanilla's `Util.getMillis()`.
 #[derive(Clone, Copy)]
 struct Lerp {
@@ -85,6 +88,13 @@ impl Worldborder {
             .map_or(0, |lerp| (lerp.duration_ms - lerp.elapsed_ms()).max(0))
     }
 
+    /// Ticks left in the running transition, the unit of `lerp_time` in the
+    /// border packets (`MovingBorderExtent#lerpProgress`).
+    #[must_use]
+    pub fn remaining_ticks(&self) -> i64 {
+        self.remaining_ms() / MILLIS_PER_TICK
+    }
+
     /// Restores the persisted `level.dat` border. Vanilla's
     /// `WorldBorder.applySettings` resumes an interrupted transition from the
     /// saved current size over the saved remaining time instead of snapping to
@@ -110,7 +120,7 @@ impl Worldborder {
             self.center_z,
             self.current_diameter(),
             self.new_diameter,
-            self.remaining_ms().into(),
+            self.remaining_ticks().into(),
             self.portal_teleport_boundary.into(),
             self.warning_blocks.into(),
             self.warning_time.into(),
@@ -141,7 +151,7 @@ impl Worldborder {
                 world.broadcast_packet_all(&CSetBorderLerpSize::new(
                     self.old_diameter,
                     self.new_diameter,
-                    speed.into(),
+                    (speed / MILLIS_PER_TICK).into(),
                 ));
             }
             None => {
@@ -199,9 +209,12 @@ impl Worldborder {
         ));
     }
 
+    /// Vanilla measures against the `extent` min/max, which interpolate during a
+    /// transition, so every bounds helper here uses the current diameter and not
+    /// the lerp target.
     #[must_use]
     pub fn get_distance_to_border(&self, x: f64, z: f64) -> f64 {
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         let from_west = x - (self.center_x - half);
         let from_east = self.center_x + half - x;
         let from_north = z - (self.center_z - half);
@@ -212,7 +225,7 @@ impl Worldborder {
     /// Pulls `x` and `z` just inside the border.
     #[must_use]
     pub fn clamp_to_bounds(&self, position: Vector3<f64>) -> Vector3<f64> {
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         let inset = f64::from(1.0e-5f32);
         Vector3::new(
             position
@@ -227,7 +240,7 @@ impl Worldborder {
 
     #[must_use]
     pub fn is_within_bounds(&self, x: f64, z: f64, margin: f64) -> bool {
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         x >= self.center_x - half - margin
             && x < self.center_x + half + margin
             && z >= self.center_z - half - margin
@@ -247,7 +260,7 @@ impl Worldborder {
 
     #[must_use]
     pub fn collision_shape_contains(&self, bounding_box: &BoundingBox) -> bool {
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         let min_x = (self.center_x - half).floor();
         let max_x = (self.center_x + half).ceil();
         let min_z = (self.center_z - half).floor();
@@ -271,7 +284,7 @@ impl Worldborder {
 
     #[must_use]
     pub fn clamp_block(&self, x: i32, z: i32) -> (i32, i32) {
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         let min_x = (self.center_x - half).floor() as i32;
         let max_x = (self.center_x + half).floor() as i32 - 1;
         let min_z = (self.center_z - half).floor() as i32;
@@ -299,7 +312,7 @@ impl Worldborder {
     pub fn clamp_to_bound(&self, x: f64, z: f64) -> (f64, f64) {
         // Unlike `f64::clamp`, an inverted range does not panic.
         let clamp = |value: f64, min: f64, max: f64| if value < min { min } else { value.min(max) };
-        let half = self.new_diameter / 2.0;
+        let half = self.current_diameter() / 2.0;
         let margin = f64::from(1.0E-5f32);
         (
             clamp(x, self.center_x - half, self.center_x + half - margin),
@@ -380,6 +393,7 @@ mod tests {
 
         assert_eq!(border.new_diameter, 20.0);
         assert_eq!(border.remaining_ms(), 10_000);
+        assert!((199..=200).contains(&border.remaining_ticks()));
         assert!((20.0..=80.0).contains(&border.current_diameter()));
     }
 
@@ -391,6 +405,18 @@ mod tests {
 
         assert_eq!(border.current_diameter(), 42.0);
         assert_eq!(border.remaining_ms(), 0);
+    }
+
+    #[test]
+    fn bounds_follow_the_running_transition_not_the_target() {
+        let mut border = centered_border(80.0);
+
+        border.apply_level_data(80.0, 20.0, 10_000);
+
+        // Just inside the current 80 block width, but well outside the target 20.
+        assert!(border.contains(39.0, 0.0));
+        assert!(border.is_within_bounds(39.0, 0.0, 0.0));
+        assert!(border.get_distance_to_border(39.0, 0.0) > 0.0);
     }
 }
 

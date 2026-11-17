@@ -270,13 +270,13 @@ async fn null_source_spawn_collision_uses_vanilla_entity_filters() {
 }
 
 #[tokio::test]
-async fn zero_radius_uses_the_stored_spawn_height() {
+async fn zero_radius_uses_the_column_surface_not_the_stored_height() {
     let fixture = SpawnWorld::new();
-    // Air above the floor at the configured spawn Y is a valid spawn, so the stored Y wins
-    // instead of snapping to the column surface.
+    // Vanilla's PlayerSpawnFinder.findSpawn, used on respawn too, never keeps the
+    // suggestion's Y: with radius 0 the single candidate resolves to the column surface.
     assert_eq!(
         fixture.world.get_safe_player_spawn_position(0, 0, 80).await,
-        Vector3::new(0.5, 80.0, 0.5),
+        Vector3::new(0.5, 65.0, 0.5),
     );
     fixture.shutdown().await;
 }

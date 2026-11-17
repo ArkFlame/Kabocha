@@ -33,6 +33,9 @@ pub const LEVEL_DAT_FILE_NAME: &str = "level.dat";
 pub const LEVEL_DAT_BACKUP_FILE_NAME: &str = "level.dat_old";
 
 const LEVEL_DATA_TAG: &str = "Data";
+/// Vanilla's `BorderSizeLerpTime` counts remaining game ticks
+/// (`MovingBorderExtent#lerpProgress`), while `LevelData` keeps milliseconds.
+const MILLIS_PER_TICK: i64 = 50;
 const WORLD_GEN_SETTINGS_TAG: &str = "WorldGenSettings";
 
 pub struct AnvilLevelInfo;
@@ -179,7 +182,7 @@ fn update_world_border_from_nbt(level_data: &mut LevelData, data: &NbtCompound) 
         level_data.border_size_lerp_target = border_size_lerp_target;
     }
     if let Some(border_size_lerp_time) = data.get_long("BorderSizeLerpTime") {
-        level_data.border_size_lerp_time = border_size_lerp_time;
+        level_data.border_size_lerp_time = border_size_lerp_time.saturating_mul(MILLIS_PER_TICK);
     }
     if let Some(border_warning_blocks) = data.get_double("BorderWarningBlocks") {
         level_data.border_warning_blocks = border_warning_blocks;
@@ -318,7 +321,11 @@ fn level_data_to_nbt(info: &LevelData, data: &mut NbtCompound) {
     data.put_double("BorderSize", info.border_size);
     data.put_double("BorderSafeZone", info.border_safe_zone);
     data.put_double("BorderSizeLerpTarget", info.border_size_lerp_target);
-    data.put_long("BorderSizeLerpTime", info.border_size_lerp_time);
+    // Round up so a resumed transition does not finish a tick early.
+    data.put_long(
+        "BorderSizeLerpTime",
+        info.border_size_lerp_time.max(0).div_ceil(MILLIS_PER_TICK),
+    );
     data.put_double("BorderWarningBlocks", info.border_warning_blocks);
     data.put_double("BorderWarningTime", info.border_warning_time);
     data.put_compound("DataPacks", data_packs_to_nbt(&info.data_packs));
@@ -608,7 +615,10 @@ mod test {
         },
     };
 
-    use super::{AnvilLevelInfo, LEVEL_DAT_FILE_NAME, LevelDat, WorldInfoReader, WorldInfoWriter};
+    use super::{
+        AnvilLevelInfo, LEVEL_DAT_FILE_NAME, LevelDat, WorldInfoReader, WorldInfoWriter,
+        level_data_from_nbt, level_data_to_nbt,
+    };
 
     const CONVERTED_LEVEL_NAME: &str = "Converted World";
 
@@ -854,6 +864,19 @@ mod test {
         let reloaded = AnvilLevelInfo.read_world_info(temp_dir.path()).unwrap();
 
         assert_eq!(reloaded.world_gen_settings.seed, 8_675_309);
+    }
+
+    #[test]
+    fn border_lerp_time_is_stored_in_game_ticks() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_long("BorderSizeLerpTime", 200);
+
+        let data = level_data_from_nbt(&nbt, 1);
+        assert_eq!(data.border_size_lerp_time, 10_000);
+
+        let mut written = NbtCompound::new();
+        level_data_to_nbt(&data, &mut written);
+        assert_eq!(written.get_long("BorderSizeLerpTime"), Some(200));
     }
 
     #[test]

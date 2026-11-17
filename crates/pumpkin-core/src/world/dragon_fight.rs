@@ -1013,17 +1013,21 @@ impl DragonFight {
 
     pub fn spawn_exit_portal(&mut self, world: &Arc<World>, active: bool) {
         if self.exit_portal_location.is_none() {
-            let mut portal_y = 65;
-            for y in (50..=100).rev() {
-                let b = world.get_block(&BlockPos::new(self.origin.0.x, y, self.origin.0.z));
-                if b == &Block::END_STONE || b == &Block::BEDROCK {
-                    portal_y = y;
-                    break;
-                }
+            // Vanilla: getHeightmapPos(MOTION_BLOCKING_NO_LEAVES, podium).below(), skip
+            // bedrock while y > 63, then clamp to min_y + 1. END_PODIUM_LOCATION is ZERO,
+            // so the podium x/z is the fight origin x/z.
+            let x = self.origin.0.x;
+            let z = self.origin.0.z;
+            let mut portal_y =
+                world.get_heightmap_height(ChunkHeightmapType::MotionBlockingNoLeaves, x, z) - 1;
+            while portal_y > 63
+                && world.get_block(&BlockPos::new(x, portal_y, z)) == &Block::BEDROCK
+            {
+                portal_y -= 1;
             }
+            portal_y = portal_y.max(world.min_y + 1);
 
-            self.exit_portal_location =
-                Some(BlockPos::new(self.origin.0.x, portal_y, self.origin.0.z));
+            self.exit_portal_location = Some(BlockPos::new(x, portal_y, z));
         }
 
         if let Some(loc) = self.exit_portal_location {
@@ -1138,5 +1142,22 @@ impl DragonFight {
     #[must_use]
     pub const fn dragon_uuid(&self) -> Option<Uuid> {
         self.dragon_uuid
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gateway_shuffle_is_deterministic_per_seed() {
+        let a = shuffled_gateways(12345);
+        let b = shuffled_gateways(12345);
+        assert_eq!(a, b);
+
+        let mut sorted = a.clone();
+        sorted.sort_unstable();
+        let expected: Vec<i32> = (0..GATEWAY_COUNT as i32).collect();
+        assert_eq!(sorted, expected);
     }
 }

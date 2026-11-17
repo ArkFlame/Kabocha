@@ -4,6 +4,7 @@ use std::path::Path;
 
 use pumpkin_data::registry::RegistryEntryData;
 use pumpkin_nbt::{Nbt, NbtCompound, tag::NbtTag};
+use pumpkin_util::identifier::Identifier;
 use serde_json::Value;
 
 pub use pumpkin_gametest::model::{GameTestDefinition as TestInstance, GameTestRotation, TestType};
@@ -88,6 +89,17 @@ fn load_test_instances_recursive(
             }
 
             let stem_path = stem_path.replace('\\', "/");
+
+            // Vanilla builds the entry id from the file path and rejects anything that is not a
+            // valid resource location (e.g. "Some File" or "foo#").
+            if !Identifier::is_valid_namespace(namespace) || !Identifier::is_valid_path(&stem_path)
+            {
+                warn!(
+                    "Skipping test instance {}: invalid resource location",
+                    path.display()
+                );
+                continue;
+            }
             let test_instance_id = format!("{namespace}:{stem_path}");
 
             if let Ok(content) = fs::read_to_string(&path)
@@ -424,5 +436,28 @@ mod tests {
         if sym_file_created {
             assert!(!registry.contains_key("pumpkin:sym_file"));
         }
+    }
+
+    #[test]
+    fn load_test_instances_skips_invalid_resource_location_ids() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let body = r#"{
+            "type": "minecraft:block_based",
+            "environment": "minecraft:default",
+            "structure": "pumpkin:test",
+            "max_ticks": 20
+        }"#;
+        fs::write(dir.path().join("good.json"), body).expect("write good instance");
+        fs::write(dir.path().join("Some File.json"), body).expect("write spaced instance");
+        fs::write(dir.path().join("foo#.json"), body).expect("write hashed instance");
+
+        let mut registry = TestInstanceRegistry::new();
+        let loaded = load_test_instances_from_dir("pumpkin", dir.path(), &mut registry);
+
+        // Vanilla skips ids that are not valid resource locations.
+        assert_eq!(loaded, 1);
+        assert!(registry.contains_key("pumpkin:good"));
+        assert!(!registry.contains_key("pumpkin:Some File"));
+        assert!(!registry.contains_key("pumpkin:foo#"));
     }
 }

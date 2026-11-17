@@ -657,7 +657,10 @@ pub fn spawn_mobs_for_chunk_generation(
             .strip_prefix("minecraft:")
             .unwrap_or(spawner_data.r#type);
         let Some(entity_type) = EntityType::from_name(name) else {
-            return;
+            // Vanilla skips an unresolvable spawner entry instead of aborting the
+            // whole chunk-generation probability loop for this chunk.
+            tracing::warn!("skipping unknown chunk-generation spawner type {name}");
+            continue;
         };
 
         let mut x = xo + rand::random_range(0..16);
@@ -764,6 +767,19 @@ pub fn get_top_non_colliding_pos(
     adjust_spawn_position_cache(cache, pos, entity_type)
 }
 
+/// Shared decision for vanilla `SpawnPlacementTypes.ON_GROUND.adjustSpawnPosition`:
+/// step the candidate down onto the block below when that block is pathfindable on
+/// land (its collision shape is not a full cube, the `BlockBehaviour.isPathfindable`
+/// LAND branch). Both the chunk-generation and runtime paths use this one rule.
+#[must_use]
+fn adjust_spawn_position_down(pos: BlockPos, below_is_pathfindable: bool) -> BlockPos {
+    if below_is_pathfindable {
+        pos.down()
+    } else {
+        pos
+    }
+}
+
 pub fn adjust_spawn_position_cache(
     cache: &dyn GenerationCache,
     pos: BlockPos,
@@ -775,10 +791,8 @@ pub fn adjust_spawn_position_cache(
     ) {
         let below = pos.down();
         let state = GenerationCache::get_block_state(cache, &below.0).to_state();
-
-        if !state.is_full_cube() && !state.is_liquid() {
-            return below;
-        }
+        // Liquids have no full collision shape, so vanilla treats them as pathfindable.
+        return adjust_spawn_position_down(pos, !state.is_full_cube());
     }
     pos
 }
@@ -794,12 +808,11 @@ pub fn adjust_spawn_position(
     ) {
         let below = pos.down();
         let (block, state) = world.get_block_and_state(&below);
-        if world
-            .block_registry
-            .is_pathfindable(block, state, PathComputationType::Land)
-        {
-            return below;
-        }
+        let pathfindable =
+            world
+                .block_registry
+                .is_pathfindable(block, state, PathComputationType::Land);
+        return adjust_spawn_position_down(pos, pathfindable);
     }
     pos
 }
@@ -1334,6 +1347,13 @@ mod tests {
                 block.name
             );
         }
+    }
+
+    #[test]
+    fn adjust_spawn_position_down_follows_land_pathfindable() {
+        let pos = BlockPos::new(3, 70, 5);
+        assert_eq!(adjust_spawn_position_down(pos, true), pos.down());
+        assert_eq!(adjust_spawn_position_down(pos, false), pos);
     }
 
     #[test]

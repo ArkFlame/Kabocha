@@ -26,6 +26,7 @@ use crate::server::{Server, ticker::Ticker};
 use plugin::server::server_load::{LoadType, ServerLoadEvent};
 use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
 use pumpkin_data::translation;
+use pumpkin_protocol::ConnectionState;
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::color::{Color, NamedColor};
 use pumpkin_world::world_info::WorldInfoError;
@@ -238,6 +239,22 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
 
     match login_result {
         PacketHandlerResult::Stop => {
+            // Vanilla `Connection` disconnects a client still in login or configuration with
+            // `multiplayer.disconnect.server_shutdown` instead of silently dropping the socket
+            // when the server stops.
+            if server.stop_token.is_cancelled()
+                && matches!(
+                    pending.connection_state.load(),
+                    ConnectionState::Login | ConnectionState::Config
+                )
+            {
+                pending
+                    .kick(TextComponent::translate(
+                        translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+                        [],
+                    ))
+                    .await;
+            }
             pending.close();
         }
         PacketHandlerResult::ReadyToPlay(profile, config) => {
@@ -602,6 +619,7 @@ impl PumpkinServer {
     /// Saves every player, kicks them, waits for their connection `tasks` to end, then unloads
     /// plugins and saves the worlds.
     pub async fn shutdown(&self, tasks: &TaskTracker) {
+        info!("Stopping server");
         self.server.close_admission();
 
         info!("Saving players");
@@ -639,7 +657,7 @@ impl PumpkinServer {
 
         self.unload_plugins().await;
 
-        info!("Starting save.");
+        info!("Saving worlds");
 
         self.server.shutdown().await;
 
@@ -796,9 +814,8 @@ fn setup_stdin_console(server: &Arc<Server>) {
             } else {
                 break;
             }
-            if line.is_empty() || line.as_bytes()[line.len() - 1] != b'\n' {
-                warn!("Console command was not terminated with a newline");
-            }
+            // Vanilla's BufferedReader accepts a final line without a newline as a valid
+            // command, so a short read here is EOF, not a malformed command.
             let command = line.trim();
             if command.is_empty() {
                 continue;
@@ -855,7 +872,7 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
 
     std::thread::spawn(move || {
         while !SHOULD_STOP.load(Ordering::Relaxed) {
-            let readline = rl.readline("$ ");
+            let readline = rl.readline("");
             match readline {
                 Ok(line) => {
                     if line.trim().is_empty() {
@@ -923,8 +940,10 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
 }
 
 fn scrub_address(ip: &str) -> String {
+    // Paper's scrub-ips keeps the separators and masks the rest, so the shape of an
+    // address (IPv4 vs IPv6, port) stays readable.
     ip.chars()
-        .map(|ch| if ch == '.' || ch == ':' { ch } else { 'x' })
+        .map(|ch| if ch == '.' || ch == ':' { ch } else { '#' })
         .collect()
 }
 
@@ -980,5 +999,16 @@ fn adjust_file_descriptor_limit() {
             Consider increasing the limit with `ulimit -n 65535` or setting `LimitNOFILE=65535` in systemd.",
             current_rlim.rlim_cur
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scrub_address;
+
+    #[test]
+    fn scrub_address_keeps_separators() {
+        assert_eq!(scrub_address("192.168.0.1:25565"), "#.#.#.#:#####");
+        assert_eq!(scrub_address("[::1]:25565"), "[::#]:#####");
     }
 }

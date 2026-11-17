@@ -79,6 +79,11 @@ pub fn find_nearest_structure(
         let chunk_origin_z = origin.0.z >> 4;
 
         'radius: for radius in 0..=max_search_radius {
+            // Vanilla evaluates every placement at this radius before deciding and stops
+            // only after the whole ring produced a hit. Breaking on the first placement
+            // that hits would let a farther placement in a later set win, so gather all
+            // hits of the ring first and then advance.
+            let mut ring_had_hit = false;
             for (placement, salt) in &random_spread {
                 if let Some(found) = find_nearest_random_spread_at_radius(
                     origin,
@@ -89,14 +94,17 @@ pub fn find_nearest_structure(
                     placement,
                     *salt,
                 ) {
+                    ring_had_hit = true;
                     if nearest
                         .as_ref()
                         .is_none_or(|n| found.distance_sq < n.distance_sq)
                     {
                         nearest = Some(found);
                     }
-                    break 'radius;
                 }
+            }
+            if ring_had_hit {
+                break 'radius;
             }
         }
     }
@@ -302,19 +310,22 @@ fn find_nearest_concentric(
     };
 
     let ox = origin.0.x as f64;
+    let oy = origin.0.y as f64;
     let oz = origin.0.z as f64;
 
     strongholds
         .iter()
         .map(|(cx, cz)| {
-            // Vanilla getLocatePos: chunkPos.getMinBlockX(), 0, chunkPos.getMinBlockZ()
+            // getLocatePos reports chunk min block at y=0, but vanilla ranks ring
+            // candidates with the chunk center at y=32 (ChunkGenerator line 296).
             let bx = cx << 4;
             let bz = cz << 4;
             let dx = bx as f64 - ox;
+            let dy = 32.0 - oy;
             let dz = bz as f64 - oz;
             FoundStructure {
                 pos: BlockPos::new(bx, 0, bz),
-                distance_sq: dx * dx + dz * dz,
+                distance_sq: dx * dx + dy * dy + dz * dz,
             }
         })
         .min_by(|a, b| a.distance_sq.total_cmp(&b.distance_sq))

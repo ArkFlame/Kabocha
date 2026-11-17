@@ -175,7 +175,7 @@ impl TrackedEntity {
         let mut needs_sync = entity.needs_sync.swap(false, Ordering::SeqCst);
         // Preserve the legacy tracker path for entities without an immediate velocity flush.
         needs_sync |= entity.velocity_dirty.swap(false, Ordering::SeqCst);
-        // Head yaw stays live every tick, only position/rotation sync is throttled.
+        // Position/rotation sync and head rotation are throttled together, as in vanilla.
         if tick.is_multiple_of(self.update_interval.max(1))
             || needs_sync
             || entity.synched_data.is_dirty()
@@ -215,20 +215,24 @@ impl TrackedEntity {
                 }
                 self.was_riding.store(false, Relaxed);
             }
+
+            // Java `CHeadRot` (`ClientboundRotateHeadPacket`) is emitted inside the
+            // throttled block in vanilla `ServerEntity.sendChanges`, not every tick.
+            // Bedrock watchers get head yaw from `send_bedrock_move` (`MoveActorDelta`).
+            let head_yaw = pack_degrees(entity.head_yaw.load());
+            if head_yaw != entity.last_sent_head_yaw.load(Relaxed) {
+                self.send_to_tracking_players(
+                    &CHeadRot::new(VarInt(self.entity_id), head_yaw),
+                    world,
+                );
+                entity.last_sent_head_yaw.store(head_yaw, Relaxed);
+            }
         }
 
         // Vanilla `ServerEntity.sendChanges`: after the needsSync block, `syncVelocity`
         // (`hurtMarked`) sends motion to tracking players (and self, for players).
         if entity.sync_velocity.swap(false, Ordering::SeqCst) {
             self.send_motion(entity, world);
-        }
-
-        // Java `CHeadRot` is per-tick. Bedrock watchers of this entity get head yaw from
-        // `send_bedrock_move` (`MoveActorDelta` HAS_HEAD_YAW), not from this packet.
-        let head_yaw = pack_degrees(entity.head_yaw.load());
-        if head_yaw != entity.last_sent_head_yaw.load(Relaxed) {
-            self.send_to_tracking_players(&CHeadRot::new(VarInt(self.entity_id), head_yaw), world);
-            entity.last_sent_head_yaw.store(head_yaw, Relaxed);
         }
     }
 
@@ -1492,6 +1496,36 @@ mod tests {
         assert_eq!(entity.last_sent_velocity.load(), last_motion);
         assert!(!entity.needs_sync.load(Relaxed));
         assert!(!entity.velocity_dirty.load(Relaxed));
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Head-rotation sync is throttled with `sendChanges`, not emitted every tick.
+    #[tokio::test]
+    async fn head_rotation_is_throttled_with_tracker_interval()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let entity = Arc::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 90.0, 0.0),
+            &EntityType::ITEM,
+        ));
+        let tracker = TrackedEntity::new(entity.clone(), 0, 20, false);
+        // Tick 0 runs the throttled block and records the initial head yaw.
+        tracker.send_changes(&world);
+        let seed = entity.last_sent_head_yaw.load(Relaxed);
+
+        // A changed head yaw on a throttled tick is neither sent nor recorded.
+        entity.head_yaw.store(90.0);
+        tracker.send_changes(&world);
+        assert_eq!(entity.last_sent_head_yaw.load(Relaxed), seed);
+
+        // The interval tick finally emits the pending head rotation.
+        for _ in 1..20 {
+            tracker.send_changes(&world);
+        }
+        assert_eq!(entity.last_sent_head_yaw.load(Relaxed), pack_degrees(90.0));
         world.level.shutdown().await;
         Ok(())
     }

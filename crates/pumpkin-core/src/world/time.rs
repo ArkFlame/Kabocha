@@ -262,6 +262,8 @@ mod tests {
         time.add_time(500);
         assert_eq!(time.time_of_day, 1500);
 
+        // Vanilla ServerClockManager.addTicks clamps with Math.max(totalTicks + ticks, 0L),
+        // so a negative /time add never leaves the day time below zero.
         time.add_time(-2000);
         assert_eq!(time.time_of_day, 0);
     }

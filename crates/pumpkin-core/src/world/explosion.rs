@@ -306,17 +306,13 @@ impl<'a> Explosion<'a> {
         }
     }
 
-    /// Explosions credited to a player deal `player_explosion` damage, which changes the death message.
-    /// UNVERIFIED against `DamageSources#explosion`: gated on the credited source being a player, so
-    /// a wither skull (credited to the wither) keeps the plain `explosion` type.
+    /// Vanilla `DamageSources#explosion` selects `player_explosion` whenever both the direct
+    /// source and its indirect source exist: the living source itself (creeper, wither) or a
+    /// TNT/projectile owner. Only an unattributed explosion uses the plain `explosion` type.
     #[must_use]
     pub fn damage_type(&self) -> DamageType {
         self.damage_type.unwrap_or(
-            if self.source.is_some()
-                && self
-                    .indirect_source()
-                    .is_some_and(|e| e.get_entity().entity_type == &EntityType::PLAYER)
-            {
+            if self.source.is_some() && self.indirect_source().is_some() {
                 DamageType::PLAYER_EXPLOSION
             } else {
                 DamageType::EXPLOSION
@@ -877,8 +873,8 @@ mod tests {
     use arc_swap::ArcSwap;
     use pumpkin_config::world::LevelConfig;
     use pumpkin_data::{
-        Block, BlockDirection, dimension::Dimension, fluid::Fluid, particle::Particle,
-        sound::Sound, tag,
+        Block, BlockDirection, damage::DamageType, dimension::Dimension, entity::EntityType,
+        fluid::Fluid, particle::Particle, sound::Sound, tag,
     };
     use pumpkin_util::{
         math::{position::BlockPos, vector2::Vector2, vector3::Vector3},
@@ -888,6 +884,7 @@ mod tests {
 
     use crate::{
         block::registry::default_registry,
+        entity::{Entity, passive::allay::AllayEntity},
         world::{LevelData, World},
     };
 
@@ -1049,6 +1046,29 @@ mod tests {
         assert!(calc.should_block_explode(&explosion, &world, &pos, &Block::LEVER, 1.0));
 
         world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn entity_explosion_uses_player_explosion_damage_type()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (world, level, _folder) = test_world()?;
+        let source = AllayEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::ALLAY,
+        ));
+
+        let explosion =
+            Explosion::new(3.0, Vector3::new(0.0, 64.0, 0.0), BlockInteraction::Destroy)
+                .with_source(source.as_ref());
+        assert_eq!(explosion.damage_type(), DamageType::PLAYER_EXPLOSION);
+
+        let no_source =
+            Explosion::new(3.0, Vector3::new(0.0, 64.0, 0.0), BlockInteraction::Destroy);
+        assert_eq!(no_source.damage_type(), DamageType::EXPLOSION);
+
+        level.shutdown().await;
         Ok(())
     }
 }

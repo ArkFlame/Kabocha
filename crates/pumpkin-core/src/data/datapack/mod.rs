@@ -331,14 +331,15 @@ impl DatapackManager {
             tags: &mut all_tags,
         };
 
+        // Vanilla keeps built-in packs at the bottom of the selected list, so world
+        // packs loaded later override them.
+        load_bundled_datapacks(enabled_packs, &mut acc, &mut loaded_packs_vec);
         scan_datapacks_dir(
             &datapacks_dir,
             enabled_packs,
             &mut acc,
             &mut loaded_packs_vec,
         );
-
-        load_bundled_datapacks(enabled_packs, &mut acc, &mut loaded_packs_vec);
 
         let damage_type_registry = build_damage_type_registry(all_damage_type_defs);
 
@@ -518,16 +519,23 @@ impl DatapackManager {
             .tags
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let category = category.strip_prefix("minecraft:").unwrap_or(category);
         let cat_map = guard.get(category)?;
-        let full_id = if tag_id.contains(':') {
-            tag_id.to_string()
-        } else {
-            format!("minecraft:{tag_id}")
-        };
-        cat_map
-            .get(&full_id)
-            .or_else(|| cat_map.get(tag_id))
-            .map(|e| e.values.clone())
+        // Vanilla treats a leading # as a tag reference in every tag query.
+        let raw_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
+        let full_id = normalize_id(raw_id);
+        if !cat_map.contains_key(&full_id) && !cat_map.contains_key(raw_id) {
+            return category_registry_key(category)
+                .and_then(|key| {
+                    pumpkin_data::tag::get_tag_values(key, &full_id)
+                        .or_else(|| pumpkin_data::tag::get_tag_values(key, raw_id))
+                })
+                .map(|values| values.iter().map(|v| (*v).to_string()).collect());
+        }
+        let mut values = Vec::new();
+        let mut visited = Vec::new();
+        collect_generic_tag_values(cat_map, raw_id, &mut values, &mut visited);
+        Some(values)
     }
 
     #[must_use]
@@ -874,14 +882,15 @@ impl DatapackManager {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let category = category.strip_prefix("minecraft:").unwrap_or(category);
         let cat_tags = guard.get(category)?;
-        let tag_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
-        let full_tag = if tag_id.contains(':') {
-            tag_id.to_string()
-        } else {
-            format!("minecraft:{tag_id}")
-        };
-        let tag_entry = cat_tags.get(&full_tag).or_else(|| cat_tags.get(tag_id))?;
-        Some(tag_entry.values.clone())
+        let raw_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
+        let full_id = normalize_id(raw_id);
+        if !cat_tags.contains_key(&full_id) && !cat_tags.contains_key(raw_id) {
+            return None;
+        }
+        let mut values = Vec::new();
+        let mut visited = Vec::new();
+        collect_generic_tag_values(cat_tags, raw_id, &mut values, &mut visited);
+        Some(values)
     }
 
     #[must_use]
@@ -1793,6 +1802,51 @@ fn substitute_macro(template: &str, arguments: &NbtCompound) -> Result<String, F
     Ok(out)
 }
 
+/// Mirrors vanilla StringTemplate#fromString: every $(name) must be closed and have
+/// a non-empty name of letters, digits or underscores, and a macro line needs one.
+fn validate_macro_template(template: &str) -> Result<(), String> {
+    let mut cursor = 0usize;
+    let mut variables = 0usize;
+    while let Some(offset) = template[cursor..].find("$(") {
+        let open = cursor + offset;
+        let name_start = open + 2;
+        let Some(close_offset) = template[name_start..].find(')') else {
+            return Err("Unterminated macro variable".to_string());
+        };
+        let close = name_start + close_offset;
+        let name = &template[name_start..close];
+        if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err(format!("Invalid macro variable name '{name}'"));
+        }
+        variables += 1;
+        cursor = close + 1;
+    }
+    if variables == 0 {
+        return Err("No variables in macro".to_string());
+    }
+    Ok(())
+}
+
+/// Rejects invalid macro lines at load time, as vanilla FunctionBuilder#addMacro does.
+fn validate_macro_functions(functions: &mut HashMap<String, Vec<String>>) {
+    let mut invalid = Vec::new();
+    for (id, lines) in functions.iter_mut() {
+        lines.retain(|line| match line.strip_prefix('$') {
+            Some(template) => match validate_macro_template(template) {
+                Ok(()) => true,
+                Err(reason) => {
+                    invalid.push((id.clone(), reason));
+                    false
+                }
+            },
+            None => true,
+        });
+    }
+    for (id, reason) in invalid {
+        tracing::warn!("Invalid macro in function '{id}': {reason}");
+    }
+}
+
 fn parse_structure_resource_location(resource_location: &str) -> Result<(&str, &str), String> {
     let (namespace, raw_path) = resource_location
         .split_once(':')
@@ -1948,6 +2002,46 @@ fn tag_contains_entry<S: std::hash::BuildHasher>(
             || value == full_entry || value == raw_entry,
             |nested| tag_contains_entry(tags, nested, full_entry, raw_entry, visited),
         )
+    })
+}
+
+/// Expands a generic datapack tag into a flat, first-seen-ordered list of members,
+/// following nested #tag references like vanilla TagLoader#tryBuildTag's LinkedHashSet.
+fn collect_generic_tag_values<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, DynamicTagEntry, S>,
+    tag_id: &str,
+    values: &mut Vec<String>,
+    visited: &mut Vec<String>,
+) {
+    let tag = normalize_id(tag_id.strip_prefix('#').unwrap_or(tag_id));
+    if visited.contains(&tag) {
+        return;
+    }
+    visited.push(tag.clone());
+    let Some(entry) = tags.get(&tag).or_else(|| tags.get(tag_id)) else {
+        return;
+    };
+    for value in &entry.values {
+        if let Some(nested) = value.strip_prefix('#') {
+            collect_generic_tag_values(tags, nested, values, visited);
+        } else if !values.contains(value) {
+            values.push(value.clone());
+        }
+    }
+}
+
+fn category_registry_key(category: &str) -> Option<pumpkin_data::tag::RegistryKey> {
+    use pumpkin_data::tag::RegistryKey;
+    Some(match category {
+        "block" => RegistryKey::Block,
+        "item" => RegistryKey::Item,
+        "entity_type" => RegistryKey::EntityType,
+        "fluid" => RegistryKey::Fluid,
+        "game_event" => RegistryKey::GameEvent,
+        "enchantment" => RegistryKey::Enchantment,
+        "damage_type" => RegistryKey::DamageType,
+        "worldgen/biome" => RegistryKey::WorldgenBiome,
+        _ => return None,
     })
 }
 
@@ -2376,6 +2470,7 @@ fn load_pack_contents(
         }
     }
 
+    validate_macro_functions(&mut *acc.functions);
     counts
 }
 
@@ -2558,9 +2653,11 @@ fn load_recipes_from_dir(
 }
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::{
         DatapackManager, FunctionChainGuard, FunctionRunError, MAX_FUNCTION_CHAIN_COMMANDS,
-        MAX_FUNCTION_CHAIN_DEPTH, substitute_macro,
+        MAX_FUNCTION_CHAIN_DEPTH, substitute_macro, validate_macro_template,
     };
     use pumpkin_nbt::NbtCompound;
 
@@ -2571,6 +2668,60 @@ mod tests {
             substitute_macro("say $(name)", &arguments),
             Err(FunctionRunError::MissingArgument("name".to_string()))
         );
+    }
+
+    #[test]
+    fn macro_templates_are_validated_like_vanilla() {
+        assert!(validate_macro_template("say $(name)").is_ok());
+        assert_eq!(
+            validate_macro_template("say $()"),
+            Err("Invalid macro variable name ''".to_string())
+        );
+        assert_eq!(
+            validate_macro_template("say $(a b)"),
+            Err("Invalid macro variable name 'a b'".to_string())
+        );
+        assert_eq!(
+            validate_macro_template("say $(name"),
+            Err("Unterminated macro variable".to_string())
+        );
+        assert_eq!(
+            validate_macro_template("say hello"),
+            Err("No variables in macro".to_string())
+        );
+    }
+
+    #[test]
+    fn generic_tag_queries_expand_nested_references_and_strip_hash() {
+        let mut manager = DatapackManager::new();
+        let mut tags = HashMap::new();
+        let entry = |values: &[&str]| super::tag_loader::DynamicTagEntry {
+            id: String::new(),
+            values: values.iter().map(|s| (*s).to_string()).collect(),
+        };
+        tags.insert(
+            "minecraft:base".to_string(),
+            entry(&["minecraft:stone", "minecraft:dirt"]),
+        );
+        tags.insert(
+            "minecraft:nested".to_string(),
+            entry(&["#minecraft:base", "minecraft:stone", "#minecraft:missing"]),
+        );
+        *manager
+            .tags
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            HashMap::from([("block".to_string(), tags)]);
+
+        let expected = Some(vec![
+            "minecraft:stone".to_string(),
+            "minecraft:dirt".to_string(),
+        ]);
+        assert_eq!(
+            manager.get_tag_entries("block", "#minecraft:nested"),
+            expected
+        );
+        assert_eq!(manager.get_tag_values("block", "#nested"), expected);
     }
 
     #[test]

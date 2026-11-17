@@ -26,11 +26,24 @@ pub fn parse_recipe(namespace: &str, name: &str, json_str: &str) -> Option<Dynam
             parse_smithing_transform(recipe_id, &value).map(DynamicRecipe::SmithingTransform)
         }
         "smithing_trim" => parse_smithing_trim(recipe_id, &value).map(DynamicRecipe::SmithingTrim),
-        s if s.starts_with("crafting_special_") => {
-            let category = parse_category(value.get("category"));
+        // Vanilla registers exactly these crafting_special_* serializers; an unknown type
+        // is rejected by RecipeSerializers. CustomRecipe.category() is always MISC and its
+        // codec has no category field.
+        s if matches!(
+            s,
+            "crafting_special_bookcloning"
+                | "crafting_special_mapextending"
+                | "crafting_special_firework_rocket"
+                | "crafting_special_firework_star"
+                | "crafting_special_firework_star_fade"
+                | "crafting_special_bannerduplicate"
+                | "crafting_special_shielddecoration"
+                | "crafting_special_repairitem"
+        ) =>
+        {
             Some(DynamicRecipe::SpecialCrafting(OwnedSpecialCraftingRecipe {
                 recipe_id,
-                category,
+                category: RecipeCategoryTypes::Misc,
             }))
         }
         "smelting" => parse_cooking(recipe_id, &value, 200)
@@ -113,18 +126,32 @@ fn parse_result(value: &Value) -> Option<OwnedRecipeResult> {
     }
 }
 
-fn parse_category(value: Option<&Value>) -> RecipeCategoryTypes {
-    let Some(val) = value.and_then(Value::as_str) else {
-        return RecipeCategoryTypes::Misc;
+// Vanilla `CraftingBookCategory.CODEC` is a `StringRepresentable` codec: only exact
+// serialized names are accepted, and `category` defaults to MISC when absent.
+fn parse_crafting_category(value: Option<&Value>) -> Option<RecipeCategoryTypes> {
+    let Some(val) = value else {
+        return Some(RecipeCategoryTypes::Misc);
     };
-    match val.to_ascii_lowercase().as_str() {
-        "equipment" => RecipeCategoryTypes::Equipment,
+    Some(match val.as_str()? {
         "building" => RecipeCategoryTypes::Building,
-        "redstone" | "restone" => RecipeCategoryTypes::Restone,
+        "redstone" => RecipeCategoryTypes::Restone,
+        "equipment" => RecipeCategoryTypes::Equipment,
+        "misc" => RecipeCategoryTypes::Misc,
+        _ => return None,
+    })
+}
+
+// Vanilla `CookingBookCategory.CODEC`: separate strict enum, absent defaults to MISC.
+fn parse_cooking_category(value: Option<&Value>) -> Option<RecipeCategoryTypes> {
+    let Some(val) = value else {
+        return Some(RecipeCategoryTypes::Misc);
+    };
+    Some(match val.as_str()? {
         "food" => RecipeCategoryTypes::Food,
         "blocks" => RecipeCategoryTypes::Blocks,
-        _ => RecipeCategoryTypes::Misc,
-    }
+        "misc" => RecipeCategoryTypes::Misc,
+        _ => return None,
+    })
 }
 
 /// Vanilla `ShapedRecipePattern.MAX_SIZE`.
@@ -201,7 +228,7 @@ fn parse_shaped(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe>
     }
 
     let result = parse_result(value.get("result")?)?;
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -230,7 +257,7 @@ fn parse_shapeless(recipe_id: String, value: &Value) -> Option<OwnedCraftingReci
     }
 
     let result = parse_result(value.get("result")?)?;
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -252,7 +279,7 @@ fn parse_cooking(
 ) -> Option<OwnedCookingRecipe> {
     let ingredient = parse_ingredient(value.get("ingredient")?)?;
     let result = parse_result(value.get("result")?)?;
-    let category = parse_category(value.get("category"));
+    let category = parse_cooking_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -308,7 +335,7 @@ fn parse_brewing(recipe_id: String, value: &Value) -> Option<OwnedBrewingRecipe>
 }
 
 fn parse_transmute(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe> {
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -330,7 +357,7 @@ fn parse_transmute(recipe_id: String, value: &Value) -> Option<OwnedCraftingReci
 }
 
 fn parse_dye(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe> {
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -348,7 +375,7 @@ fn parse_dye(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe> {
 }
 
 fn parse_decorated_pot(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe> {
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -370,7 +397,7 @@ fn parse_decorated_pot(recipe_id: String, value: &Value) -> Option<OwnedCrafting
 }
 
 fn parse_imbue(recipe_id: String, value: &Value) -> Option<OwnedCraftingRecipe> {
-    let category = parse_category(value.get("category"));
+    let category = parse_crafting_category(value.get("category"))?;
     let group = value
         .get("group")
         .and_then(Value::as_str)
@@ -645,6 +672,84 @@ mod tests {
         assert!(
             parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 100})).is_none()
         );
+    }
+
+    #[test]
+    fn category_codecs_are_strict_and_separate() {
+        use serde_json::json;
+
+        assert!(matches!(
+            parse_crafting_category(None),
+            Some(RecipeCategoryTypes::Misc)
+        ));
+        assert!(matches!(
+            parse_crafting_category(Some(&json!("building"))),
+            Some(RecipeCategoryTypes::Building)
+        ));
+        assert!(matches!(
+            parse_crafting_category(Some(&json!("redstone"))),
+            Some(RecipeCategoryTypes::Restone)
+        ));
+        assert!(matches!(
+            parse_crafting_category(Some(&json!("equipment"))),
+            Some(RecipeCategoryTypes::Equipment)
+        ));
+        assert!(matches!(
+            parse_crafting_category(Some(&json!("misc"))),
+            Some(RecipeCategoryTypes::Misc)
+        ));
+        // The old "restone" typo, wrong case, cross-enum values and non-strings are rejected.
+        assert!(parse_crafting_category(Some(&json!("restone"))).is_none());
+        assert!(parse_crafting_category(Some(&json!("Building"))).is_none());
+        assert!(parse_crafting_category(Some(&json!("food"))).is_none());
+        assert!(parse_crafting_category(Some(&json!(123))).is_none());
+
+        assert!(matches!(
+            parse_cooking_category(Some(&json!("food"))),
+            Some(RecipeCategoryTypes::Food)
+        ));
+        assert!(matches!(
+            parse_cooking_category(Some(&json!("blocks"))),
+            Some(RecipeCategoryTypes::Blocks)
+        ));
+        assert!(matches!(
+            parse_cooking_category(Some(&json!("misc"))),
+            Some(RecipeCategoryTypes::Misc)
+        ));
+        assert!(parse_cooking_category(Some(&json!("equipment"))).is_none());
+        assert!(parse_cooking_category(Some(&json!("Building"))).is_none());
+    }
+
+    #[test]
+    fn invalid_category_rejects_the_recipe() {
+        let smelting = r#"{
+            "type": "minecraft:smelting",
+            "category": "equipment",
+            "ingredient": "minecraft:raw_iron",
+            "result": {"id": "minecraft:iron_ingot"}
+        }"#;
+        assert!(parse_recipe("test", "bad_smelting_category", smelting).is_none());
+
+        let shaped = r#"{
+            "type": "minecraft:crafting_shaped",
+            "category": "restone",
+            "pattern": ["X"],
+            "key": {"X": "minecraft:stick"},
+            "result": {"id": "minecraft:stick"}
+        }"#;
+        assert!(parse_recipe("test", "bad_shaped_category", shaped).is_none());
+    }
+
+    #[test]
+    fn crafting_special_rejects_unregistered_suffixes() {
+        let unknown = r#"{"type": "minecraft:crafting_special_bogus"}"#;
+        assert!(parse_recipe("test", "bogus", unknown).is_none());
+
+        let known = r#"{"type": "minecraft:crafting_special_bookcloning"}"#;
+        assert!(matches!(
+            parse_recipe("test", "book_cloning", known),
+            Some(DynamicRecipe::SpecialCrafting(_))
+        ));
     }
 }
 
