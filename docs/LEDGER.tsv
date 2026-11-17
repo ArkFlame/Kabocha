@@ -114,7 +114,7 @@ pr	3673	https://github.com/Pumpkin-MC/Pumpkin/pull/3673	fix(block): make bells r
 pr	3681	https://github.com/Pumpkin-MC/Pumpkin/pull/3681	fix(entity): sync falling block positions each tick 🤖🤖🤖	DONE		5feb68ef2	fix(entity): sync falling block positions each tick (#3681)	2026-11-17
 pr	3682	https://github.com/Pumpkin-MC/Pumpkin/pull/3682	fix(entity): restore swamp slime spawning 🤖🤖🤖	DONE		cb3b48459	fix(entity): restore swamp slime spawning 🤖🤖🤖 (#3682)	2026-11-17
 pr	3684	https://github.com/Pumpkin-MC/Pumpkin/pull/3684	fix(entity): enable armor stand item interactions 🤖🤖🤖	DONE		d27c1e9e2	fix(entity): enable armor stand item interactions 🤖🤖🤖 (#3684)	2026-11-17
-pr	3686	https://github.com/Pumpkin-MC/Pumpkin/pull/3686	Emit game events on container open and close, fix	COMMITTED-UNLANDED	kab/oc3686		branch ahead of master	2026-11-17
+pr	3686	https://github.com/Pumpkin-MC/Pumpkin/pull/3686	Emit game events on container open and close, fix	DONE		30c288285	Emit game events on container open and close, fix (#3686)	2026-11-17
 pr	3687	https://github.com/Pumpkin-MC/Pumpkin/pull/3687	fix(plugin): poll native methods on global runtime 🤖🤖🤖	DONE		e34b4f4b4	fix(plugin): poll native methods on global runtime 🤖🤖🤖 (#3687)	2026-11-17
 pr	3694	https://github.com/Pumpkin-MC/Pumpkin/pull/3694	fix: correct end crystal combat behavior 🤖🤖🤖	DONE		3a75722b3	fix: correct end crystal combat behavior (#3694)	2026-11-17
 pr	3695	https://github.com/Pumpkin-MC/Pumpkin/pull/3695	fix: make dispensers apply bone meal 🤖🤖🤖	TODO				2026-11-17
@@ -243,7 +243,7 @@ pr	4073	https://github.com/Pumpkin-MC/Pumpkin/pull/4073	feat: improve boat water
 pr	4083	https://github.com/Pumpkin-MC/Pumpkin/pull/4083	feat(plugin): add bukkit-style config file helpers	TODO				2026-11-17
 pr	4086	https://github.com/Pumpkin-MC/Pumpkin/pull/4086	fix(entity): hold weak self references in mob goals	DONE		73d787720	fix(entity): hold weak self references in mob goals (#4086)	2026-11-17
 pr	4093	https://github.com/Pumpkin-MC/Pumpkin/pull/4093	feat(entity): implement vanilla fox mechanics and AI behaviors	DONE		c26a9c8ed	feat(entity): implement vanilla fox mechanics and AI behaviors (#4093)	2026-11-17
-pr	4096	https://github.com/Pumpkin-MC/Pumpkin/pull/4096	feat(plugin): add comprehensive wasm plugin errors	COMMITTED-UNLANDED	kab/oc4096		branch ahead of master	2026-11-17
+pr	4096	https://github.com/Pumpkin-MC/Pumpkin/pull/4096	feat(plugin): add comprehensive wasm plugin errors	DONE		dd3eebbfc	feat(plugin): add comprehensive wasm plugin errors (#4096)	2026-11-17
 pr	4099	https://github.com/Pumpkin-MC/Pumpkin/pull/4099	fix(entity): stop the server from sending critical arrow particles	TODO				2026-11-17
 pr	4105	https://github.com/Pumpkin-MC/Pumpkin/pull/4105	fix(entity): piglin & armadillo mob_drops gamerule	DONE		d629b8962	fix(entity): piglin & armadillo mob_drops gamerule (#4105)	2026-11-17
 pr	4106	https://github.com/Pumpkin-MC/Pumpkin/pull/4106	perf(world): cache light level in propagation queue entry	DONE		63e0827de	perf(world): cache light level in propagation queue entry (#4106)	2026-11-17
@@ -319,7 +319,7 @@ pr	4445	https://github.com/Pumpkin-MC/Pumpkin/pull/4445	fix(world): honor disabl
 pr	4461	https://github.com/Pumpkin-MC/Pumpkin/pull/4461	fix(command): find Nether structures using /locate	DONE		3f049ca2c	fix(command): find Nether structures using /locate (#4461)	2026-11-17
 pr	4476	https://github.com/Pumpkin-MC/Pumpkin/pull/4476	fix(plugin): run wasm scheduled tasks inside the server tick	DONE		cfb274777	fix(plugin): run wasm scheduled tasks inside the server tick (#4476)	2026-11-17
 pr	4479	https://github.com/Pumpkin-MC/Pumpkin/pull/4479	feat(smithing): validate input slots	TODO				2026-11-17
-pr	4480	https://github.com/Pumpkin-MC/Pumpkin/pull/4480	feat(gametest): expand in-game testing and refactor	COMMITTED-UNLANDED	kab/oc4480		branch ahead of master	2026-11-17
+pr	4480	https://github.com/Pumpkin-MC/Pumpkin/pull/4480	feat(gametest): expand in-game testing and refactor	DONE		b68e1437a	Revert "feat(gametest): expand in-game testing and refactor (#4480)"	2026-11-17
 pr	4482	https://github.com/Pumpkin-MC/Pumpkin/pull/4482	feat(entity): vanilla parity for panda	DONE		b93d53351	feat(entity): vanilla parity for panda (#4482)	2026-11-17
 pr	4488	https://github.com/Pumpkin-MC/Pumpkin/pull/4488	fix(world): stop chunk read errors from overwriting stored chunks	DONE		7a5f88964	fix(world): stop chunk read errors from overwriting stored chunks (#4488)	2026-11-17
 pr	4489	https://github.com/Pumpkin-MC/Pumpkin/pull/4489	fix(block): omit container inventories from block entity payloads	DONE		913b1cc5d	fix(block): omit container inventories from block entity payloads (#4489)	2026-11-17
@@ -343,7 +343,7 @@ pr	4532	https://github.com/Pumpkin-MC/Pumpkin/pull/4532	fix(nbt): avoid upfront 
 pr	4533	https://github.com/Pumpkin-MC/Pumpkin/pull/4533	fix(nbt): skip Bedrock integers using variable-length encoding	DONE		50a4d8ba1	fix(nbt): skip Bedrock integers using variable-length encoding (#4533)	2026-11-17
 pr	4534	https://github.com/Pumpkin-MC/Pumpkin/pull/4534	fix(nbt): require compound end tags when reading and skipping	DONE		d43cbb601	fix(nbt): require compound end tags when reading and skipping (#4534)	2026-11-17
 pr	4535	https://github.com/Pumpkin-MC/Pumpkin/pull/4535	feat(entity): implement sniffer vanilla behavior	DONE		d5dc0dd2d	feat(entity): implement sniffer vanilla behavior (#4535)	2026-11-17
-pr	4540	https://github.com/Pumpkin-MC/Pumpkin/pull/4540	fix(teleport): vanilla confirm handling, relative rotation, teleport cause for plugins	COMMITTED-UNLANDED	kab/oc4540		branch ahead of master	2026-11-17
+pr	4540	https://github.com/Pumpkin-MC/Pumpkin/pull/4540	fix(teleport): vanilla confirm handling, relative rotation, teleport cause for plugins	DONE		8c5bef939	fix(teleport): vanilla confirm handling, relative rotation, teleport cause for plugins (#4540)	2026-11-17
 pr	4541	https://github.com/Pumpkin-MC/Pumpkin/pull/4541	feat(portal): play sound when entering portals	DONE		89a99cae9	feat(portal): play sound when entering portals (#4541)	2026-11-17
 pr	4551	https://github.com/Pumpkin-MC/Pumpkin/pull/4551	fix(item): breed the spawn egg baby from the clicked animal so it inherits its variant	DONE		3e48928bf	fix(item): breed the spawn egg baby from the clicked animal so it inherits its variant (#4551)	2026-11-17
 pr	4561	https://github.com/Pumpkin-MC/Pumpkin/pull/4561	fix(block): preserve plugin event changes	DONE		f7cc9339f	fix(block): preserve plugin event changes (#4561)	2026-11-17
@@ -651,7 +651,7 @@ issue	4229	https://github.com/Pumpkin-MC/Pumpkin/issues/4229	[TRACKER] Mob Vanil
 issue	4230	https://github.com/Pumpkin-MC/Pumpkin/issues/4230	[TRACKER] Mob Vanilla Parity: Drowned	DONE		fe708a532	fix(drowned): drop inherited turtle egg goal (#4230)	2026-11-17
 issue	4231	https://github.com/Pumpkin-MC/Pumpkin/issues/4231	[TRACKER] Mob Vanilla Parity: Fox	TODO				2026-11-17
 issue	4233	https://github.com/Pumpkin-MC/Pumpkin/issues/4233	[TRACKER] Mob Vanilla Parity: Goat	DONE		0949ce1d3	fix(goat): use screaming ambient sound for screaming goats (#4233)	2026-11-17
-issue	4236	https://github.com/Pumpkin-MC/Pumpkin/issues/4236	[TRACKER] Mob Vanilla Parity: Nautilus	DONE		f23870ec1	Revert "fix(entity): drop non-vanilla nautilus dash cooldown NBT (#4236)"	2026-11-17
+issue	4236	https://github.com/Pumpkin-MC/Pumpkin/issues/4236	[TRACKER] Mob Vanilla Parity: Nautilus	DONE		2237ca5cf	fix(entity): drop non-vanilla nautilus dash cooldown NBT (#4236)	2026-11-17
 issue	4237	https://github.com/Pumpkin-MC/Pumpkin/issues/4237	[TRACKER] Mob Vanilla Parity: Panda	TODO				2026-11-17
 issue	4238	https://github.com/Pumpkin-MC/Pumpkin/issues/4238	[TRACKER] Mob Vanilla Parity: Piglin	DONE		6cf40066c	fix(piglin): default CanPickUpLoot to true when loading (#4238)	2026-11-17
 issue	4239	https://github.com/Pumpkin-MC/Pumpkin/issues/4239	[TRACKER] Mob Vanilla Parity: Polar Bear	TODO				2026-11-17
@@ -757,7 +757,7 @@ issue	4485	https://github.com/Pumpkin-MC/Pumpkin/issues/4485	Worldspawn Always s
 issue	4487	https://github.com/Pumpkin-MC/Pumpkin/issues/4487	[Vanilla Parity 26.3] Missing and outdated mechanics in `ArrowEntity` (`arrow.rs`)	DONE		33fae2ef1	fix(entity): arrow potion decay and spectral duration parity (#4487)	2026-11-17
 issue	4492	https://github.com/Pumpkin-MC/Pumpkin/issues/4492	Naturally spawned skeletons have no bow, and skeleton arrows deal no damage	TODO				2026-11-17
 issue	4496	https://github.com/Pumpkin-MC/Pumpkin/issues/4496	Furnace does not award experience after smelting when the smelted product is extracted	DONE		13f31276a	fix(block): keep fractional furnace experience between takes (#4496)	2026-11-17
-issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		6f7d795ae	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
+issue	4498	https://github.com/Pumpkin-MC/Pumpkin/issues/4498	crafted items disappear from inventory	DONE		5260388f5	fix(bedrock): craft from CraftRecipeAuto ingredients (#4498)	2026-11-17
 issue	4513	https://github.com/Pumpkin-MC/Pumpkin/issues/4513	Client shows wrong max health for horses (26 hearts) after spawn	TODO				2026-11-17
 issue	4518	https://github.com/Pumpkin-MC/Pumpkin/issues/4518	Are there plans to support Alpine Linux?	DONE		64b8f4001	docs(readme): state glibc-only Linux binaries and no Alpine support (#4518)	2026-11-17
 issue	4521	https://github.com/Pumpkin-MC/Pumpkin/issues/4521	Expose transfer queue results to plugins	DONE		c4cce6382	feat(plugin-api): expose transfer queue results to plugins (#4521)	2026-11-17
