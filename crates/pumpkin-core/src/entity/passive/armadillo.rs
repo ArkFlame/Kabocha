@@ -392,7 +392,7 @@ impl Mob for ArmadilloEntity {
         _source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) -> f32 {
-        if self.is_scared() {
+        if self.should_hide_in_shell() {
             (amount - 1.0).max(0.0) / 2.0
         } else {
             amount

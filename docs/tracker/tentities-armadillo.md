@@ -40,5 +40,5 @@ RandomLookAround 7), food tag, step sound volume 0.15, `roll_up` gated on `!is_s
 
 - 5 brush/shed scute spawn helper mismatch: **FIXED** (d712d13fa), shed scute now `spawn_entity` (saved), matching `spawnAtLocation`. Note: the tracker suggested the opposite helper, but vanilla saves both drops.
 - 2 dead `can_stay_rolled_up` branch: **STILL OPEN** (not reached in this pass).
-- 3 shell reduction gate: **STILL OPEN** (not reached in this pass).
+- 3 shell reduction gate: **FIXED (UNVERIFIED)**, reduction gated on `should_hide_in_shell()` in `modify_incoming_damage`; formula unverified against decompiled `hurtServer`.
 - 4 redundant baby flag: **STILL OPEN** (not reached in this pass).

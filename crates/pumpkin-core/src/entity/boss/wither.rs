@@ -564,12 +564,13 @@ impl WitherEntity {
                                     min_pos.0.z + dz,
                                 );
                                 let block = world.get_block(&bpos);
-                                if Self::can_destroy(block) {
-                                    world.set_block_state(
-                                        &bpos,
-                                        Block::AIR.default_state.id,
-                                        BlockFlags::NOTIFY_ALL,
-                                    );
+                                if Self::can_destroy(block)
+                                    // Vanilla `level.destroyBlock(pos, true, this)`: the broken
+                                    // block drops its item, so the drops are not skipped.
+                                    && world
+                                        .break_block(&bpos, None, BlockFlags::NOTIFY_ALL)
+                                        .is_some()
+                                {
                                     destroyed = true;
                                 }
                             }
