@@ -188,6 +188,10 @@ fn execute_positioned_over_modifier(
     };
 
     if let Some(ref world) = source.world {
+        let block_pos = BlockPos::new(block_x, pos.y.floor() as i32, block_z);
+        if !world.is_loaded(&block_pos) {
+            return Err(ERROR_POS_NOT_LOADED.create_without_context());
+        }
         source.position.y = f64::from(world.get_heightmap_height(heightmap, block_x, block_z) + 1);
     }
     Ok(vec![Arc::new(source)])
