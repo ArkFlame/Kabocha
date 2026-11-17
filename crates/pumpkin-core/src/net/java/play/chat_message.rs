@@ -60,6 +60,12 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `ServerGamePacketListenerImpl#broadcastChatMessage` warns and drops empty messages.
+        if chat_message.message.is_empty() {
+            warn!("{} tried to send an empty message", gameprofile.name);
+            return;
+        }
+
         send_cancellable! {{
             server;
             PlayerChatEvent::new(
