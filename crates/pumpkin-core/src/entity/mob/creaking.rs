@@ -10,7 +10,7 @@ use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
 use pumpkin_protocol::java::client::play::CEntityStatus;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -395,22 +395,24 @@ impl Mob for CreakingEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        // Vanilla `Creaking#addAdditionalSaveData` stores `home_pos` through
+        // `NbtUtils.writeBlockPos`, i.e. as an int array `[x, y, z]`.
         if let Some(pos) = self.get_home_pos() {
-            let mut sub = NbtCompound::new();
-            sub.put_int("x", pos.0.x);
-            sub.put_int("y", pos.0.y);
-            sub.put_int("z", pos.0.z);
-            nbt.put_compound("home_pos", sub);
+            nbt.put("home_pos", NbtTag::IntArray(vec![pos.0.x, pos.0.y, pos.0.z]));
         }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        if let Some([x, y, z]) = nbt.get_int_array("home_pos") {
+            self.set_transient(BlockPos::new(*x, *y, *z));
+            return;
+        }
+        // Older Pumpkin saves wrote a `{x, y, z}` compound; still read it.
         if let Some(sub) = nbt.get_compound("home_pos")
             && let (Some(x), Some(y), Some(z)) =
                 (sub.get_int("x"), sub.get_int("y"), sub.get_int("z"))
         {
-            let pos = BlockPos::new(x, y, z);
-            self.set_transient(pos);
+            self.set_transient(BlockPos::new(x, y, z));
         }
     }
 
