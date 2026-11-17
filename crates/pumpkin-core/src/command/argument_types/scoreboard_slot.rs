@@ -52,7 +52,7 @@ impl ArgumentType<CommandSource> for ScoreboardSlotArgumentType {
             .iter()
             .find_map(|(slot_name, slot)| (*slot_name == name.as_str()).then_some(*slot))
             .ok_or_else(|| {
-                INVALID_DISPLAY_SLOT_ERROR.create_without_context(TextComponent::text(name))
+                INVALID_DISPLAY_SLOT_ERROR.create(&*reader, TextComponent::text(name))
             })
     }
 
@@ -101,6 +101,15 @@ pub fn slot_name(slot: ScoreboardDisplaySlot) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_slot_error_carries_reader_context() {
+        let mut reader = StringReader::new("bogus");
+        let error = ScoreboardSlotArgumentType.parse(&mut reader).unwrap_err();
+        let context = error.context.unwrap();
+        assert_eq!(context.cursor, 5);
+        assert_eq!(context.input, "bogus");
+    }
 
     #[test]
     fn parses_vanilla_slot_names() {
