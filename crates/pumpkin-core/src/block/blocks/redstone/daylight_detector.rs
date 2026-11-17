@@ -104,9 +104,23 @@ impl DaylightDetectorBlock {
         );
 
         if props.power != target {
-            props.power = target;
-            let new_state = props.to_state_id(block);
-            world.set_block_state(block_pos, new_state, BlockFlags::NOTIFY_ALL);
+            // Paper fires BlockRedstoneEvent and uses the (possibly plugin-modified) new current.
+            let mut event = crate::plugin::block::block_redstone::BlockRedstoneEvent::new(
+                world.clone(),
+                state.id,
+                *block_pos,
+                i32::from(props.power),
+                i32::from(target),
+            );
+            if !world.fire_block_event(block_pos, block, &mut event) {
+                return;
+            }
+            let power = event.new_current.clamp(0, 15) as u8;
+            if power != props.power {
+                props.power = power;
+                let new_state = props.to_state_id(block);
+                world.set_block_state(block_pos, new_state, BlockFlags::NOTIFY_ALL);
+            }
         }
     }
 }
