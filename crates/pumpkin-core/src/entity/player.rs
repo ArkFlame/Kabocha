@@ -6785,11 +6785,32 @@ impl Player {
             };
             speed *= fatigue_speed;
         }
-        // TODO: Handle when in water
+        // Vanilla `Player.getDestroySpeed`: water slows mining unless the player has
+        // Aqua Affinity, and the two divisors stack.
+        if self.living_entity.entity.is_submerged_in_water() && !self.has_aqua_affinity() {
+            speed /= 5.0;
+        }
         if !self.living_entity.entity.on_ground.load(Ordering::Relaxed) {
             speed /= 5.0;
         }
         speed
+    }
+
+    /// Vanilla `EnchantmentHelper.hasAquaAffinity`: any armour piece with Aqua Affinity.
+    fn has_aqua_affinity(&self) -> bool {
+        let equipment = self
+            .living_entity
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        [
+            EquipmentSlot::FEET,
+            EquipmentSlot::LEGS,
+            EquipmentSlot::CHEST,
+            EquipmentSlot::HEAD,
+        ]
+        .into_iter()
+        .any(|slot| equipment.get(&slot).get_enchantment_level(&Enchantment::AQUA_AFFINITY) > 0)
     }
 
     fn get_haste_amplifier(&self) -> u32 {
