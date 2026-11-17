@@ -20,6 +20,32 @@ pub const ONLY_SINGLE_SLOT_ALLOWED_ERROR_TYPE: CommandErrorType<1> = CommandErro
     translation::java::SLOT_ONLY_SINGLE_ALLOWED,
 );
 
+/// Resolves a slot name: the generated table, plus villager and horse inventory slots it lacks.
+fn resolve_slot_range(name: &str) -> Option<&'static [usize]> {
+    if let Some(index) = name.strip_prefix("villager.") {
+        return villager_slot_range(index);
+    }
+    match name {
+        "horse.saddle" => Some(&[400usize]),
+        "horse.armor" => Some(&[401usize]),
+        _ => get_slot_range(name),
+    }
+}
+
+fn villager_slot_range(index: &str) -> Option<&'static [usize]> {
+    match index {
+        "0" => Some(&[300usize]),
+        "1" => Some(&[301usize]),
+        "2" => Some(&[302usize]),
+        "3" => Some(&[303usize]),
+        "4" => Some(&[304usize]),
+        "5" => Some(&[305usize]),
+        "6" => Some(&[306usize]),
+        "7" => Some(&[307usize]),
+        _ => None,
+    }
+}
+
 pub struct SlotArgumentType;
 
 impl<S: crate::source::CommandSource> ArgumentType<S> for SlotArgumentType {
@@ -30,7 +56,7 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for SlotArgumentType {
         reader.read_until_space();
         let name = &reader.string()[start..reader.cursor()];
 
-        match get_slot_range(name) {
+        match resolve_slot_range(name) {
             Some([slot]) => Ok(*slot),
             Some(_) => Err(ONLY_SINGLE_SLOT_ALLOWED_ERROR_TYPE
                 .create(reader, TextComponent::text(name.to_string()))),
@@ -71,7 +97,7 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for SlotsArgumentType {
         reader.read_until_space();
         let name = &reader.string()[start..reader.cursor()];
 
-        get_slot_range(name).ok_or_else(|| {
+        resolve_slot_range(name).ok_or_else(|| {
             let text = name.to_string();
             UNKNOWN_SLOT_ERROR_TYPE.create(reader, TextComponent::text(text))
         })
@@ -95,3 +121,29 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for SlotsArgumentType {
 }
 
 impl_copy_get!(SlotsArgumentType, &'static [usize]);
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_slot_range;
+
+    #[test]
+    fn resolves_villager_slots_300_to_307() {
+        assert_eq!(resolve_slot_range("villager.0"), Some(&[300usize][..]));
+        assert_eq!(resolve_slot_range("villager.7"), Some(&[307usize][..]));
+        assert_eq!(resolve_slot_range("villager.8"), None);
+        assert_eq!(resolve_slot_range("villager.07"), None);
+    }
+
+    #[test]
+    fn resolves_horse_saddle_and_armor_slots() {
+        assert_eq!(resolve_slot_range("horse.saddle"), Some(&[400usize][..]));
+        assert_eq!(resolve_slot_range("horse.armor"), Some(&[401usize][..]));
+    }
+
+    #[test]
+    fn keeps_generated_slot_names() {
+        assert_eq!(resolve_slot_range("armor.head"), Some(&[103usize][..]));
+        assert_eq!(resolve_slot_range("horse.0"), Some(&[500usize][..]));
+        assert_eq!(resolve_slot_range("bogus"), None);
+    }
+}
