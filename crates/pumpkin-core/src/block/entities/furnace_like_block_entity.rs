@@ -571,10 +571,19 @@ macro_rules! impl_block_entity_for_cooking {
                         let mut start_cancelled = false;
                         if self.get_cooking_time_spent() == 0 {
                             if let Some(server) = world.server.upgrade() {
+                                // Vanilla passes `getTotalCookTime` (recipe time / speed
+                                // multiplier, default 200), not the stored total.
+                                let start_total = furnace_recipe
+                                    .map_or(200, |recipe| {
+                                        $crate::block::entities::furnace_like_block_entity::cooking_total_time(
+                                            &$recipe_kind,
+                                            recipe.cookingtime,
+                                        )
+                                    });
                                 let mut start_event = $crate::plugin::api::events::inventory::furnace_start_smelt::FurnaceStartSmeltEvent::new(
                                     self.position,
                                     top_item.item.registry_key.to_string(),
-                                    self.get_cooking_total_time() as u32,
+                                    start_total as u32,
                                 );
                                 server.plugin_manager.fire_blocking(&server, &mut start_event);
                                 if start_event.cancelled {
