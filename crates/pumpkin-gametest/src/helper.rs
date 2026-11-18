@@ -538,6 +538,22 @@ impl GameTestHelper {
         self.world.spawn_item(item_name, count, position).await
     }
 
+    /// Uses a spawn egg at `relative`, optionally carrying `entity_data` NBT, through the
+    /// same spawn path as a player right-click. Returns whether a mob was actually spawned.
+    pub async fn use_spawn_egg(
+        &self,
+        egg_name: &str,
+        entity_data: Option<&NbtCompound>,
+        relative: Vector3<f64>,
+        yaw: f32,
+        peaceful: bool,
+    ) -> GameTestResult<bool> {
+        let position = self.absolute_vec(relative);
+        self.world
+            .use_spawn_egg(egg_name, entity_data, position, yaw, peaceful)
+            .await
+    }
+
     pub async fn set_container_item(
         &self,
         relative: &BlockPos,

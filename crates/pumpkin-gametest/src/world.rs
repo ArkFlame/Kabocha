@@ -179,4 +179,21 @@ pub trait GameTestWorld: Send + Sync {
             "execute_command is not supported by this GameTestWorld".to_string(),
         ))
     }
+
+    /// Uses a spawn egg at `position`, driving the same spawn path as a player right-click.
+    /// `entity_data` is the value of the item's `minecraft:entity_data` component (if any).
+    /// `peaceful` exercises the Peaceful monster guard without mutating world difficulty.
+    /// Returns whether a mob was actually spawned.
+    async fn use_spawn_egg(
+        &self,
+        _egg_name: &str,
+        _entity_data: Option<&NbtCompound>,
+        _position: Vector3<f64>,
+        _yaw: f32,
+        _peaceful: bool,
+    ) -> GameTestResult<bool> {
+        Err(GameTestError::World(
+            "spawn egg use is not supported by this GameTestWorld".to_string(),
+        ))
+    }
 }
