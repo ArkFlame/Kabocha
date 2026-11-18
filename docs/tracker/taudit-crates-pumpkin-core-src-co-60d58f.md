@@ -92,11 +92,13 @@ TODO/FIXME in the file.
 
 - No compile/test was run in the worker (worker rule); the orchestrator batch-checks.
 
-## Gap status
-- Prefix matching on other `filter_and_suggest*` call sites: STILL OPEN (S).
-- Criteria are raw strings, no vanilla registry: STILL OPEN (M).
-- Argument errors without cursor context: STILL OPEN (M).
-- Per-world scoreboards vs server-wide vanilla: STILL OPEN (L).
+## Gap status (closed)
+- Prefix matching on other `filter_and_suggest*` call sites: VERIFIED (matches vanilla).
+- Criteria are raw strings, no vanilla registry: VERIFIED (matches vanilla).
+- Argument errors without cursor context: VERIFIED (matches vanilla).
+- Per-world scoreboards vs server-wide vanilla: VERIFIED (matches vanilla).
+
+All four rows are terminal as of the third-pass closure Result at the end of this doc.
 
 
 ## Result
@@ -266,3 +268,52 @@ All four rows are terminal (VERIFIED); no STILL OPEN remains and no generated pu
 field or missing subsystem blocks any row. No `.rs` touched, no rustfmt needed, no new test
 needed (rows 1/2/4 already have coverage, row 3 is exact parity). No compile/test run
 (worker rule); orchestrator batch-checks.
+
+
+## Result (third pass, closure)
+
+Reference read directly this pass:
+`.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveArgument.java`,
+`ObjectiveCriteriaArgument.java` and `SharedSuggestionProvider.java`, and the live
+Pumpkin source re-grepped. Every row is exact vanilla parity or already resolved in
+code. No `.rs` change was needed; no generated pumpkin-data field or missing subsystem
+blocks any row, so no row is BLOCKED-DATA.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): VERIFIED (matches vanilla).
+   `objective.rs:61` calls `filter_and_suggest_one`, matching vanilla
+   `ObjectiveArgument.java:58-64` -> `SharedSuggestionProvider.suggest`, whose filter
+   uses `matchesSubStr` with `MATCH_SPLITTER = "._/"`
+   (`SharedSuggestionProvider.java:32,259,290`). Segment-aware substring matching is
+   correct for this version; the earlier prefix variant was correctly reverted.
+   Resource-id sites (`template.rs`, `resource_key.rs`) keep `filter_and_suggest_iter`
+   for vanilla `suggestResource`/`filterResources`.
+
+2. Criteria as raw strings / no vanilla registry (M): VERIFIED (matches vanilla).
+   `world/scoreboard.rs:1155 resolve_criterion` is the `ObjectiveCriteria.byName`
+   equivalent (read-only health/food/air/armor/xp/level, teamkill/killedByTeam colours
+   via `TEAM_COLORS`, stat names containing `:`); `commands/scoreboard.rs:72`
+   resolves/validates on `objectives add` and stores `resolved.render_type`;
+   `objective.rs:24-25` derives read-only from the same table. Matches vanilla
+   `ObjectiveCriteriaArgument.java:49` and `ScoreboardCommand.addObjective`. Covered by
+   `world/scoreboard/tests.rs:521 resolve_criterion_matches_vanilla_custom_and_stat_names`.
+
+3. Argument errors without cursor context (M): VERIFIED (matches vanilla). The audit
+   premise is false for this unit. Vanilla `ObjectiveArgument.java:37` throws
+   `ERROR_OBJECTIVE_NOT_FOUND.create(id)` and `:46` throws
+   `ERROR_OBJECTIVE_READ_ONLY.create(objective.getName())`, both WITHOUT a reader, so
+   `objective.rs:85,99 create_without_context` is exact parity. `error_types.rs:234,323`
+   does expose the context-aware `.create(context_provider, ...)`, and parse-time errors
+   elsewhere already use it. The only vanilla `createWithContext` case is
+   `ObjectiveCriteriaArgument.java:51`; Pumpkin has no `ObjectiveCriteriaArgument`
+   argument type (criteria resolve at execution time in `commands/scoreboard.rs:72`),
+   so there is no in-unit call site to change. This is a false positive, not a missing
+   generated field or a missing subsystem, so not BLOCKED-DATA.
+
+4. Per-world scoreboards vs server-wide vanilla (L): VERIFIED (matches vanilla).
+   `server/mod.rs:211` owns one shared `pub scoreboard: Arc<Mutex<Scoreboard>>` cloned
+   into every world (`:543`), matching vanilla `ObjectiveArgument.java:34`
+   `source.getServer().getScoreboard()`. Objectives are visible cross-dimension.
+
+All four rows are terminal (VERIFIED). No `.rs` touched, no rustfmt needed, no new test
+needed (rows 1/2/4 have coverage, row 3 is exact parity). No compile/test run (worker
+rule); orchestrator batch-checks.

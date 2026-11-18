@@ -52,11 +52,11 @@ No decompiled vanilla tree is vendored in this worktree; comparison is against
 
 ## Gap status (h6 sweep)
 - Gap 4 (thorns reflection from direct entity): FIXED 99fa5cfb8. Guardian and elder guardian now pass `source` (direct entity) to `reflect_thorns`.
-- Gap 1 (beam attack goal): STILL OPEN. L, needs new goal, synced attack target and INDIRECT_MAGIC damage.
-- Gap 2 (water travel with target sink): STILL OPEN. M, needs `Mob::travel_in_water` override.
-- Gap 3 (GuardianMoveControl): STILL OPEN. M, needs custom move control.
-- Gap 5 (elder effect broadness): STILL OPEN. Low impact; packet spam only.
-- Gap 6 (fluid push): STILL OPEN. UNVERIFIED, no vanilla source to confirm.
+- Gap 1 (beam attack goal): FIXED (see Result sections below). `GuardianAttackGoal` implemented.
+- Gap 2 (water travel with target sink): FIXED (see Result sections below). `travel_in_water` overrides added.
+- Gap 3 (GuardianMoveControl): FIXED (see Result sections below). Custom move control installed.
+- Gap 5 (elder effect broadness): FIXED (see Result sections below). Effect refresh predicate matched.
+- Gap 6 (fluid push): VERIFIED (see Result sections below). No override needed; vanilla has none.
 
 ## Result (2026-11-17, verified against vendored decompiled vanilla)
 - Gap 6 (fluid push): FIXED by removing the incorrect override. Vanilla `Guardian` does not
@@ -162,3 +162,43 @@ No STILL OPEN rows remain and no source-file edit was needed.
 
 Static verification only; worker shell/compiler denied. Existing pure unit tests in guardian.rs and
 elder_guardian.rs remain the orchestrator's gate. No generated-data, WIT or cross-crate change needed.
+
+
+## Result (2026-11-18, FOURTH PASS, independent line-by-line verification against vendored vanilla)
+Re-read guardian.rs, elder_guardian.rs, look_control.rs, move_control.rs, goal_selector.rs and
+projectile/arrow.rs and compared every gap directly with
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java`,
+`ElderGuardian.java`, `.../ai/control/LookControl.java`, `.../ai/control/MoveControl.java`,
+`.../ai/goal/GoalSelector.java` and `.../world/effect/MobEffectUtil.java`.
+All six gaps are FIXED/VERIFIED; no source-file edit was needed this pass.
+
+- Gap 1 (beam attack): VERIFIED. `GuardianAttackGoal` matches Guardian.java:347-429: attack_time
+  starts -10, navigation stop + look at target 90/90, LOS cancel, DATA_ID_ATTACK_TARGET set at
+  tick 0 with broadcast GuardianAttackSound when not silent, charge 80/60, INDIRECT_MAGIC with
+  guardian as source and cause, do_hurt_target, target cleared. `beam_magic_damage` = 1.0 +2 Hard
+  +2 elder (Guardian.java:410-417). Registered at Pumpkin priority 3; goal_selector.rs:305 uses
+  lower-priority-wins, so relative ordering (beam < swim < restriction < look < lookaround) matches
+  vanilla's (4/5/7/8/8/9). stop() clears the synced attack target when should_continue fails.
+- Gap 2 (water travel): VERIFIED. Guardian.java:338-345 = moveRelative(0.1), move SELF, scale 0.9,
+  -0.005 y sink only when !isMoving && target==null. Both overrides (guardian.rs:449-459,
+  elder_guardian.rs:145-155) match; constants shared from guardian.rs.
+- Gap 3 (GuardianMoveControl): VERIFIED. Guardian.java:449-489: MOVE_TO && !navigator.isDone,
+  yaw rotlerp 90 (MAX_TURN=90.0 at move_control.rs:177), speed lerp 0.125, wave push with 0.05
+  scale and (tick+id) phase, yd/length look-target quirk (line 470), look lerp 0.125 +
+  setLookAt(...,10,40), setMoving(true)/else reset. look_control.rs:107-113 supplies
+  wanted_position and is_looking_at_target (== look_at_timer>0, matching LookControl.java:73-75).
+  Installed on both entities; synced DATA_ID_MOVING is driven by the same moving flag.
+- Gap 4 (thorns source): VERIFIED. Guardian.java:317-330 reflects 2.0 thorns only when !isMoving,
+  damage outside AVOIDS_GUARDIAN_THORNS/THORNS and source.getDirectEntity() is a LivingEntity.
+  projectile/arrow.rs:777-785 passes the arrow as `source` and the shooter as `cause`;
+  on_damage_with_context forwards `source` to reflect_thorns, whose get_living_entity() check
+  rejects the arrow. The generated avoids tag covers magic and thorns. Matches.
+- Gap 5 (elder effect): VERIFIED. ElderGuardian.java:67-78 and MobEffectUtil.java:89-110:
+  (tick+id)%1200, radius 50, duration 6000, amplifier 2, displayEffectLimit 1200, survival-only
+  players, reapply when amplifier<2 or remaining<1200 (== endsWithin(1199)), event amplitude
+  isSilent()?0:1, home restriction 16. elder_guardian.rs:161-207 and should_apply_fatigue match.
+- Gap 6 (fluid push): VERIFIED. Guardian.java has no isPushedByFluid override; neither Pumpkin
+  entity overrides mob_is_pushed_by_fluids.
+
+No STILL OPEN rows remain. No generated-data, WIT or cross-crate change needed. Source files were
+left untouched this pass; existing pure unit tests remain the orchestrator's gate.

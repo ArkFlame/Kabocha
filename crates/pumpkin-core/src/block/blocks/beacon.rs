@@ -40,23 +40,30 @@ pub struct BeaconBlock;
 
 impl BlockBehaviour for BeaconBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
+        if let Some(factory) = self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
             server: args.server,
             world: args.world,
             block: args.block,
             position: args.position,
             player: args.player,
-        })
-        .map_or(BlockActionResult::Fail, |factory| {
-            args.player.increment_stat(
-                pumpkin_data::statistic::StatisticCategory::Custom,
-                pumpkin_data::statistic::CustomStatistic::InteractWithBeacon as i32,
-                1,
-            );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
-            BlockActionResult::Success
-        })
+        }) {
+            // Vanilla awards INTERACT_WITH_BEACON only when openMenu(beacon).isPresent(), so a
+            // cancelled or failed menu open (InventoryOpenEvent, locked container) must not count.
+            if args
+                .player
+                .open_handled_screen(factory.as_ref(), Some(*args.position))
+                .is_some()
+            {
+                args.player.increment_stat(
+                    pumpkin_data::statistic::StatisticCategory::Custom,
+                    pumpkin_data::statistic::CustomStatistic::InteractWithBeacon as i32,
+                    1,
+                );
+            }
+        }
+
+        // useWithoutItem always returns SUCCESS, even with no beacon entity or a cancelled menu.
+        BlockActionResult::Success
     }
 
     fn get_screen_handler_factory(

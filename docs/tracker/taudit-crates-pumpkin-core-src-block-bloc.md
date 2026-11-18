@@ -210,3 +210,44 @@ canPropagate argument (defaultBlockState, :95); both match. No new test added: t
 and the live path has a GameTest.
 
 Files touched this pass: this doc only. No .rs edits, so no rustfmt run.
+
+
+## Result (third pass, final verify 2026-11-18)
+
+Read the previous Result and re-verified every row directly against the real decompiled
+1.21 source now present in this checkout, plus Pumpkin's implementation. No source changes
+were needed; the code already matches vanilla. No STILL OPEN row remains.
+
+- Row 1 (on_place on grass/mycelium/podzol; spreading_snowy_block.rs:29-34,192-223): VERIFIED.
+  Vanilla `SnowyBlock.getStateForPlacement` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SnowyBlock.java:41-44`)
+  sets SNOWY from the block above; `updateShape` (:25-38) does the same on an UP neighbour update.
+  GrassBlock and MyceliumBlock inherit it (they do not override getStateForPlacement);
+  Podzol is a plain SnowyBlock. Pumpkin's `SnowyBlock::on_place` and
+  `get_state_for_neighbor_update` mirror this and are used by Podzol/Mycelium, so they stay.
+- Row 2 (fluid amount generic; :58-63): VERIFIED. Vanilla `FluidState.isFull()` is
+  `getAmount() == 8` for any fluid, used in `canStayAlive` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:37`.
+  Pumpkin's `is_full_fluid` checks `!is_empty && level == 8`, where `level` comes from the
+  normalized fluid state derived generically from any liquid block's LEVEL property
+  (crates/pumpkin-world/src/world.rs), so no WATER/LAVA special case remains. No parity gap.
+- Row 3 (LAYERS == 1 short-circuit and light block; :71-94): VERIFIED. Vanilla `canStayAlive`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:31-43`)
+  short-circuits on `SNOW && LAYERS == 1` (:33-35), rejects a full fluid (:37-39), then returns
+  `LightEngine.getLightDampeningInto(state, aboveState, UP, aboveState.getLightDampening()) < 15`
+  (:41-42). Pumpkin `can_stay_alive_with_above` matches each branch, using `BlockState::opacity`
+  as the light dampening via `LightEngine::get_light_dampening_into` (engine.rs:1084-1099).
+- Row 4 (randomTick coverage; :116-179): VERIFIED by an existing GameTest. The fade branch
+  (always fade on !canStayAlive) and canPropagate argument (defaultBlockState) match vanilla
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:68-75, :95`).
+  Live-world fade/spread/survival is covered by
+  crates/pumpkin-core/src/server/builtin_game_tests/plants_and_support_blocks.rs:316-361
+  (grass under opaque stone -> dirt, under one snow layer -> survives, under full water -> dirt),
+  registered as `pumpkin:grass_random_tick_fade_and_survival`
+  (builtin_game_tests/mod.rs:231,1548-1552). The pure seam `can_stay_alive_with_above` keeps its
+  four unit tests (:248-289). No new test added: every pure seam is already covered.
+
+Also re-checked the `pos == testPos` Canvas skip (SpreadingSnowyBlock.java:83-85): unreachable
+here because the loop already requires `get_block(test_pos) == base_block` while `pos` holds the
+spreading block, so it is correctly omitted. The BlockSpreadEvent/SNOWY payload matches (:96).
+
+Files touched this pass: this doc only. No `.rs` edits, so no rustfmt run.

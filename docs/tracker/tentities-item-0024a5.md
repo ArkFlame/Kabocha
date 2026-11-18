@@ -274,3 +274,41 @@ never_pickup_or_never_despawn_items_never_merge. Rustfmt was NOT run by this wor
 the worker compile pitfalls: imports copied from item.rs/player.rs, helper is a method
 in impl ItemEntity, Arc is imported, no new struct fields, no unwrap/expect/panic,
 no em dashes.
+
+
+## Result (final verification pass 2026-11-18)
+
+Re-checked every row against the current main-checkout sources and the decompiled vanilla
+files under .vendor/vanilla-decompiled. No STILL OPEN rows remain.
+
+- 1 despawn before merge check (S): VERIFIED. process_age_and_merge (item.rs:596) runs
+  merge_with_neighbours before age++ and the LIFETIME discard, matching decompiled
+  ItemEntity.tick (mergeWithNeighbours precedes age++/discard). No change needed.
+- 2 is_mergeable age guard (S): VERIFIED. is_mergeable/can_merge (item.rs:257-279) check
+  only removed, never_despawn, never_pickup and count < max; no age guard, matching
+  vanilla isMergable. No change needed.
+- 3 Persisted Health NBT (S): VERIFIED. write_custom_nbt still writes "Health"
+  (item.rs:958) and the read side restores it, matching decompiled addAdditionalSaveData
+  / readAdditionalSaveData (putShort("Health", ...) / getShortOr("Health", 5)). The doc
+  premise was wrong; no change needed.
+- 4 owner and thrower split (M): VERIFIED. item.rs carries separate thrower and target
+  fields, set_target/get_target/target_allows_pickup (item.rs:187-198), both "Thrower" and
+  "Owner" NBT, and the pickup gate (item.rs:822-834) matches decompiled playerTouch
+  (ItemEntity.java:490): pickupDelay == 0 && (target == null || target.equals(player UUID)).
+- give.rs pickup delay: VERIFIED. The did-not-fit branch calls set_pickup_delay(0) then
+  set_target(target.gameprofile.id) (give.rs:104-105), matching vanilla
+  GiveCommand.java:104-105 (setNoPickUpDelay + setTarget).
+- Age-based thrower gate: VERIFIED FIXED. on_player_collision (item.rs:821-834) has no
+  age <= 60 thrower block; the only gates are pickupDelay, never_pickup and target.
+- Fake item on the all-fits branch: VERIFIED FIXED. give.rs:79-99 spawns a makeFakeItem()
+  entity at eye height - 0.3, plays EntityItemPickup at 0.2 volume with vanilla pitch and
+  syncs the inventory, matching GiveCommand.java:82-100 and makeFakeItem
+  (ItemEntity.java:585-587).
+
+No .rs source change was needed this pass; all rows were already fixed in earlier passes.
+Helper signatures used by give.rs (World::play_sound_fine, Player::sync_inventory_to_client,
+ItemEntity::new/make_fake_item, World::spawn_entity) were confirmed to exist with matching
+arg types, so the in-place code type-checks. No new pure unit test, no rustfmt run (no .rs
+edit). Re-read the current give.rs and item.rs diffs against the worker compile pitfalls:
+no new imports, helpers are methods in impl ItemEntity, no macro/struct-init/clone changes,
+no unwrap/expect/panic, no em dashes.

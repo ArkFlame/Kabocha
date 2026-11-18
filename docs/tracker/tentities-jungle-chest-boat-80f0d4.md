@@ -358,7 +358,7 @@ row reads STILL OPEN.
   (owner.rs:234-246) mirrors it: vanish precheck first, then
   `left_owner || owner.get(world).is_none_or(|owner| !owner.is_passenger_of_same_vehicle(entity))`.
   `can_hit_entity` (projectile/mod.rs) applies `can_be_hit_by_projectile` first.
-  `owner.rs` is this unit`s only editable source file and already matches; no edit needed.
+  `owner.rs` is this unit's only editable source file and already matches; no edit needed.
 - Row 3 (canPlayerUse / stillValid): FIXED. `ContainerEntity.isChestVehicleStillValid` is
   `!isRemoved() && player.isWithinEntityInteractionRange(boundingBox, 4.0)`
   (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/ContainerEntity.java:181-183).

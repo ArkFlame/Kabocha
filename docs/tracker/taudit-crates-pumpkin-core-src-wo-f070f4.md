@@ -24,7 +24,7 @@ Both audit markers in the file are comments, not TODOs: line 731 (vanilla displa
 Checked, no change: display-slot persistence names match vanilla (`list`, `sidebar`, `below_name`, `sidebar.team.*`); `Locked` defaults to true like `dummy` (read-only criteria); `remove_objective` drops its scores and display references; team packet fields (`options` bit flags, visibility/collision names, colour id) and `TeamMethod` transitions match `ClientboundSetPlayerTeamPacket`; objective add/update/remove modes and render types match; `NoTarget`/`Player`/`World` targets gate on `scoreboard_synced` so pre-spawn changes are replayed by `send_to_player`.
 
 ## Status (code-verified sweep)
-STILL OPEN: BedrockScoreboard wrapping_add row not found in world/scoreboard.rs; score map orientation not re-read.
+CLOSED: both verification items (BedrockScoreboard wrapping_add and score map orientation) were re-read against the current world/scoreboard.rs and decompiled vanilla and are VERIFIED FIXED. See the Result sections below.
 
 
 ## Result
@@ -125,3 +125,20 @@ Re-read every row in the Remaining gaps table plus the two STILL OPEN verificati
 - STILL OPEN "score map orientation": VERIFIED FIXED. `ScoreboardBuilder::score` inserts `.entry(obj_s).or_default().insert(entity_s, score)` (`:1715`), matching all readers; pinned by `builder_scores_are_keyed_by_objective` (scoreboard/tests.rs:352).
 
 No source file changed, so no rustfmt run and no new test added. No unwrap/expect/panic, no stdout, no em dashes. No cargo run (worker restriction; orchestrator compiles once). Known limitation unchanged: a displayed Bedrock objective title is not refreshed on update.
+
+
+## Result (final verification pass 2026-11-18)
+
+Re-read every row in the Remaining gaps table and the two former STILL OPEN verification items against the current `crates/pumpkin-core/src/world/scoreboard.rs` and decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`. All rows are CLOSED; no source edit was needed this pass.
+
+- BedrockScoreboard/JE wrapping_add: VERIFIED FIXED. Both `Scoreboard::add_score` (`:494`) and `BedrockScoreboard::add_score` (`:1575`) use `wrapping_add`. Vanilla `Score.value(int)` is a plain Java `int` assignment (`.vendor/vanilla-decompiled/net/minecraft/world/scores/Score.java:38-40`), so wrapping is the correct overflow emulation; a Rust debug `+` would panic.
+- score map orientation: VERIFIED FIXED. `ScoreboardBuilder::score` inserts `.entry(obj_s).or_default().insert(entity_s, score)` (`:1715`), objective as outer key, matching every reader; pinned by `builder_scores_are_keyed_by_objective` in scoreboard/tests.rs.
+- Row 1 (Teams persistence): VERIFIED FIXED. `to_saved_nbt` writes `Teams` (`:999`) and `load_saved_nbt` reads it (`:1068`). Field names match vanilla `ScoreboardSaveData.Packed.CODEC` (`.vendor/.../world/scores/ScoreboardSaveData.java:41-55`) and `PlayerTeam.Packed.CODEC` (`.vendor/.../world/scores/PlayerTeam.java:271-302`).
+- Row 2 (Bedrock add/update objective display): VERIFIED FIXED. `add_objective`/`update_objective` call `target.send_je` only (`:268,302`); vanilla `ServerScoreboard.onObjectiveChanged` broadcasts only `ClientboundSetObjectivePacket` (`.vendor/.../server/ServerScoreboard.java:172-187`). Pinned by `add_and_update_objective_do_not_write_a_bedrock_display`.
+- Row 3 (Bedrock `sidebar.team.*` slot): VERIFIED FIXED. `bedrock_display_slot` (`:831`) returns `Some` only for List/Sidebar/BelowName; Java-only for team slots (`:335`). Pinned by `team_display_slots_have_no_bedrock_slot`.
+- Row 4 (number formats): VERIFIED FIXED. `number_format_to_nbt`/`number_format_from_nbt` (`:842,858`) persist objective and score `format`. Codec shape matches vanilla `NumberFormatTypes.CODEC` (`.vendor/.../network/chat/numbers/NumberFormatTypes.java:14-25`) and `Score.Packed.MAP_CODEC` `optionalFieldOf("format")` (`.vendor/.../world/scores/Score.java:74`). `styled` omitted (no Style NBT codec).
+- Row 5 (one team per holder): VERIFIED FIXED. `add_player_to_team` (`:618`) retains the holder out of every non-target team, matching vanilla `Scoreboard.addPlayerToTeam` (`.vendor/.../world/scores/Scoreboard.java:385-404`). Pinned by `team_membership_tests`.
+- Row 6 (reset packet for absent score): VERIFIED FIXED. `remove_score` (`:499`) returns early when the score is absent; vanilla `ServerScoreboard.onPlayerScoreRemoved` fires only after removal (`.vendor/.../server/ServerScoreboard.java:88-95`).
+- Row 7 (`get_objective_mut` desync): VERIFIED FIXED. No `get_objective_mut` exists anywhere in the crate; only immutable accessors remain.
+
+No source file changed, so no rustfmt run and no new test added. No generated data, WIT or cross-crate edit. No unwrap/expect/panic, no stdout, no em dashes. No cargo run (worker restriction; orchestrator compiles once). Known limitation unchanged: a displayed Bedrock objective title is not refreshed on update.

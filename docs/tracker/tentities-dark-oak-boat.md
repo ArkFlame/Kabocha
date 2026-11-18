@@ -135,3 +135,18 @@ Fourth-pass verification. Read the unit's last Result and the shipped source; ev
 - Row 8 (boat gametest): VERIFIED. The three requested scenarios exist in the granted file `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs`: `test_boat_floats_up_after_fall`, `test_boat_ejects_passenger_after_60_underwater_ticks`, `test_chest_boat_scatters_27_slots_on_break`, plus `test_chest_boat_drops_item_on_break`. Confirmed by grep that all four are registered in that module's `mod.rs` (lines 1838/1845/1852/1859) and listed in `BUILTIN_TEST_IDS` (lines 272-280). No new code needed.
 
 No source files edited: all eight rows are FIXED or VERIFIED, zero open, and the granted file already carries the required tests. No rustfmt run (no .rs changes). No cargo or git command run by this worker.
+
+## Result
+
+Fifth pass (grant: basename `boat_block_effects.rs`). No STILL OPEN rows remain in the prior Result, so this pass was verification only; no source file needed an edit.
+
+Re-verified against the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/` (glob with `hidden: true`, since the tree is under a dot dir):
+
+- Row 1 (interact / eye in water): VERIFIED. `AbstractBoat.interact` (AbstractBoat.java:779-787) rejects on `isSecondaryUseActive`, `outOfControlTicks >= 60` and `!player.startRiding`; `canAddPassenger` (836-837) = `size < max && !isEyeInFluid(WATER)`. Rust `boat_interact_outcome` (boat.rs:161-176) computes `can_add_passenger = seat_available && !eye_in_water` and rejects on the same conditions; caller passes `ticks_underwater >= TIME_TO_EJECT` and `is_eye_in_water` (825-826). No change.
+- Row 3 (BUBBLE_TIME): VERIFIED. Decompiled `onAboveBubbleColumn` sets `setBubbleTime(60)` (AbstractBoat.java:170) and `tickBubbleColumn` decrements to 0 (351-373) only for bubble columns. Rust writes `ID_BUBBLE_TIME` only at boat.rs:436, 446 (`tick_bubble_column`) and 656 (`on_above_bubble_column`); `tick_underwater` (392-394) deliberately does not touch it. No change.
+- Row 4 / h6 (clampRotation + delta rotation): VERIFIED. `AbstractBoat.clampRotation` (740) and passenger yaw handling (704, 764). Rust `clamp_rider_yaw` (1009) applied in `on_rider_positioned` (856) with players excluded. No change.
+- Row 6 (dispenser water): VERIFIED. Rust dispenser water predicate `fluid.has_tag(&tag::Fluid::MINECRAFT_WATER)` (dispenser.rs:532) matches vanilla `getFluidState(pos).is(FluidTags.WATER)` (flowing included). No change.
+- Row 2 / 5 / 7: spot-checked via grep against current source, still fixed: `drop_stack_at(self.vehicle.entity.pos.load(), stack)` (boat.rs:759); `is_chest_boat` (76) / `max_passengers` (95) shared helpers; BoatItem post-clip sweep removed. No change.
+- Row 8 (boat gametest): VERIFIED. The granted file `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` contains all four tests (`test_chest_boat_drops_item_on_break`:101, `test_boat_floats_up_after_fall`:135, `test_boat_ejects_passenger_after_60_underwater_ticks`:173, `test_chest_boat_scatters_27_slots_on_break`:233), all registered in that module's `mod.rs` (1838/1845/1852/1859). No new code needed.
+
+No source files edited this pass, so rustfmt was not run. No cargo or git command run by this worker.

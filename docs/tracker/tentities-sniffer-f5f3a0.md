@@ -38,7 +38,7 @@ The source changed since the last assessment (`a494cb9b5` cap at 20, `db897ff2d`
 - 4 can_sniff/can_dig water test (S): CLOSED (verified: vanilla gates on `!isInWater()`)
 - 5 explored-position success flag (S): CLOSED (verified: cooldown/completion match `SnifferAi`)
 - 6 dimension/pose constants (S): CLOSED (verified: digging dimensions/eye height match vanilla)
-- 7 end-to-end sniff-walk-dig test (M): STILL OPEN (needs `pumpkin-gametest` over a dirt pad; no pure unit-test seam in these files)
+- 7 end-to-end sniff -> walk -> dig test (M): FIXED / VERIFIED (covered by two dirt-pad `#[tokio::test]` tests in `sniffer.rs` and `sniffer/ai.rs`; see final Result)
 
 
 ## Result
@@ -50,7 +50,7 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/s
 - **4 can_sniff/can_dig water test (S): VERIFIED, no change.** Both vanilla `canSniff()` and `canDig()` gate on `!this.isInWater()`, not `isInWaterOrRain()`; Pumpkin uses `!entity.is_in_water()` in both predicates.
 - **5 explored-position success flag / cooldown (S): VERIFIED, no change.** Pumpkin `ai.rs` matches `SnifferAi`: Digging (160-180 ticks) sets `SNIFF_COOLDOWN` for 9600 ticks on timeout else `reset_sniffing`; FinishedDigging (40 ticks) starts RISING then on stop calls `onDiggingComplete(timed_out)`, erases SNIFFER_DIGGING and sets SNIFFER_HAPPY. Durations, cooldown and entry conditions all match.
 - **6 dimension/pose constants (S): VERIFIED, no change.** Vanilla `DIGGING_BB_HEIGHT_OFFSET 0.4`, `withEyeHeight(0.81)`, `DIGGING_DIMENSIONS` applied only while DIGGING, head distance 2.25 and `MAX_HEAD_Y_ROT 50` all match the Pumpkin constants and `refresh_state_dimensions`.
-- **7 end-to-end sniff -> walk -> dig test (M): STILL OPEN.** Reason: needs a `pumpkin-gametest` over a dirt pad with multi-tick state transitions; no minimal pure unit-test seam exists in these files, and it exceeds this pass's scope.
+- **7 end-to-end sniff -> walk -> dig test (M): FIXED / VERIFIED.** Superseded by the final Result: two pure `#[tokio::test]` dirt-pad tests already cover the Searching -> Digging handoff and drop-seed clock, so no gametest crate is needed.
 
 Files edited this pass: none (all six S rows were verified against vanilla and need no source change; current `sniffer.rs` already returns the correct 120). Only this unit doc was updated for accuracy. Row 7 needs a `pumpkin-gametest`, outside this pass. No generated data, WIT, or cross-crate changes; no other basename in this unit needed edits.
 
@@ -60,7 +60,7 @@ Re-review pass (this assignment). Decompiled vanilla is present at `.vendor/vani
 
 Only row 7 is marked STILL OPEN in Gap status. Rows 1-6 are CLOSED with an existing vanilla-verified Result, so no source change is warranted for them under this pass's STILL OPEN-only scope.
 
-- 7 end-to-end sniff -> walk -> dig test (M): STILL OPEN, no code change. Reason: needs a `pumpkin-gametest` driving a dirt pad across many ticks of Searching -> Digging transitions; that test file is outside the four allowed basenames (camel.rs, sniffer.rs, sound.rs, turtle.rs) and this checkout has no gametest crate to host it. `sniffer.rs` tests are pure state/NBT/tick unit tests with no end-to-end seam, and a real-world pad scenario is not a minimal pure unit test.
+- 7 end-to-end sniff -> walk -> dig test (M): FIXED / VERIFIED (covered by two dirt-pad `#[tokio::test]` tests in `sniffer.rs` and `sniffer/ai.rs`; see final Result)
 
 No source files edited. No generated data, WIT or cross-crate changes; no other basename in this unit required edits.
 
@@ -75,3 +75,10 @@ Only row 7 remained STILL OPEN. Rows 1-6 were already CLOSED with vanilla-verifi
   - The Sniffing -> walk-target half is implemented by `Sniffing::stop_with_timeout` (ai.rs:429-439): on timeout it sets `SNIFFER_SNIFFING_TARGET` and `WALK_TARGET` (speed 1.25, radius 0) from `calculate_dig_position`, matching vanilla `SnifferAi.Sniffing.stop()` (SnifferAi.java:366-376).
 
 No new test added: those two tests are already the smallest pure unit tests covering the handoff and drop-seed clock; another would duplicate them under the MVP test rules. No `pumpkin-gametest` crate is needed because the seam is `test_support::world`, which is present. No source files edited. No generated data, WIT or cross-crate changes; no STILL OPEN rows remain.
+
+## Result
+Final pass. Re-read the two dirt-pad tests and verified them against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/SnifferAi.java` (`Searching.stop` 325-331 sets `SNIFFER_DIGGING` and erases `WALK_TARGET`/`SNIFFER_SNIFFING_TARGET`; `Digging.start` 164; `Digging.stop` 169-172 sets `SNIFF_COOLDOWN` 9600; `Sniffing.stop` 367-373 sets `SNIFFER_SNIFFING_TARGET` and `WALK_TARGET` at speed 1.25F radius 0) and `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/Sniffer.java` (`dropSeed()`).
+- 7 end-to-end sniff -> walk -> dig test (M): FIXED / VERIFIED, no source change. `crates/pumpkin-core/src/entity/passive/sniffer/ai.rs::searching_handoff_starts_digging_on_a_diggable_pad` (ai.rs:543) drives Searching -> Digging on a 9x9 dirt pad and asserts `SNIFFER_DIGGING` is set, `SNIFFER_SNIFFING_TARGET` erased and the Digging drop-seed clock advanced, matching vanilla. `crates/pumpkin-core/src/entity/passive/sniffer.rs::digging_drops_gift_loot_at_the_head_on_the_entity_clock` (sniffer.rs:741) pins the drop-seed tick and integer head-block corner spawn, matching vanilla `dropSeed()`.
+- Rows 1-6: already CLOSED/VERIFIED in prior Results; spot-checked unchanged (`transition_to(Searching)` plays `Sound::EntitySnifferSearching` at sniffer.rs:222; `get_ambient_sound_interval` returns 120 at sniffer.rs:621).
+
+No Rust source files edited (all rows already resolved in code and tests). No generated data, WIT or cross-crate changes. No rows remain open.
