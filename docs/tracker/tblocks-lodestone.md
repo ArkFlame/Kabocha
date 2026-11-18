@@ -55,7 +55,7 @@ proven by in-tree evidence.
 
 ## Result
 
-Re-reviewed against `.vendor/vanilla-decompiled` (Paper-mapped 26.x tree, now present). One code fix applied; all other STILL OPEN rows verified as no-gap or out of unit scope.
+Re-reviewed against `.vendor/vanilla-decompiled` (Paper-mapped 26.x tree, now present). One code fix applied; all other then-open rows verified as no-gap or out of unit scope.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): NO CHANGE. Vanilla `Items.RECOVERY_COMPASS` is a plain `Item` (Items.java:2037); there is no `RecoveryCompassItem` class and no `useOn` override, so a recovery compass never locks on a lodestone. `CompassItem.useOn` (CompassItem.java:46-70) gates only on the clicked block being `LODESTONE`. Pumpkin already prevents recovery-compass locking via the `item.item.id == Item::COMPASS.id` guard, which is required because `CompassItem::ids()` also lists RECOVERY_COMPASS. The suggested fix would make the recovery compass lock, diverging from vanilla.
 - Row 2 (lodestone.rs:10-24, duplicate POI hooks): FIXED. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides (Blocks.java:4973). The engine `World::update_poi` (world/mod.rs:6621) derives POI from `PoiType::from_state_id`; lodestone default state 25187 maps to `PoiType::Lodestone`, so the block-level `placed`/`on_state_replaced` hooks were dead duplicates. Replaced them with an empty `impl BlockBehaviour` (structure_void.rs pattern).
@@ -69,7 +69,7 @@ Files changed: crates/pumpkin-core/src/block/blocks/lodestone.rs (rustfmt --edit
 
 ## Result (re-review 2026-11-18)
 
-Re-verified every STILL OPEN row against the now-present `.vendor/vanilla-decompiled` tree. No new code changes: row 2 is already fixed in-tree and rows 1, 3 and 6 are confirmed no-gap.
+Re-verified every then-open row against the now-present `.vendor/vanilla-decompiled` tree. No new code changes: row 2 is already fixed in-tree and rows 1, 3 and 6 are confirmed no-gap.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): NO CHANGE, confirmed. `Items.RECOVERY_COMPASS` is a plain `Item` (Items.java:2037, `new Item.Properties().rarity(Rarity.UNCOMMON)`); there is no `RecoveryCompassItem` class and no `useOn` override, so vanilla never locks a recovery compass. `CompassItem.useOn` (CompassItem.java:46-70) gates only on the clicked block and transmutes to `Items.COMPASS`. Pumpkin maps both COMPASS and RECOVERY_COMPASS to `CompassItem`, so the `item.item.id == Item::COMPASS.id` guard is required to reproduce vanilla; the suggested fix (dropping it) would wrongly lock recovery compasses. `transmute_copy(&Item::COMPASS, 1)` is correct because that branch is only reachable once the guard passes, i.e. for a compass.
 - Row 2 (lodestone.rs duplicate POI hooks): ALREADY FIXED in-tree. The file now has an empty `impl BlockBehaviour for LodestoneBlock {}` (structure_void.rs pattern) with an explanatory comment; the dead `placed`/`on_state_replaced` POI hooks are gone. Confirmed `World::update_poi` (world/mod.rs:6861) derives POI from `PoiType::from_state_id(old/new_state_id)` on every state change, so lodestone POI add/remove is fully engine-driven.
@@ -83,7 +83,7 @@ No pure unit-test seam for any row: POI add/remove and inventory insertion need 
 
 ## Result (re-review pass 3, 2026-11-18)
 
-Fresh verification of every STILL OPEN row against `.vendor/vanilla-decompiled` and the current in-tree state. No code change is warranted: all rows are either fixed in-tree or confirmed no-gap; only rows 4 and 5 remain and both need player.rs, which is outside this unit's file list.
+Fresh verification of every then-open row against `.vendor/vanilla-decompiled` and the current in-tree state. No code change is warranted: all rows are either fixed in-tree or confirmed no-gap; only rows 4 and 5 remain and both need player.rs, which is outside this unit's file list.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): NO CHANGE, re-confirmed. `Items.RECOVERY_COMPASS` is a plain `Item` (Items.java:2037: `new Item.Properties().rarity(Rarity.UNCOMMON)`), no `RecoveryCompassItem` class exists, so vanilla never routes a recovery compass through `CompassItem.useOn`. `CompassItem.useOn` (CompassItem.java:46-70) gates only on the clicked block being `LODESTONE` and transmutes to `Items.COMPASS` (line 61). Because Pumpkin maps both COMPASS and RECOVERY_COMPASS to `CompassItem` (compass.rs:18-22), the `item.item.id == Item::COMPASS.id` guard is required to avoid wrongly locking recovery compasses; the suggested fix would diverge from vanilla. The `transmute_copy(&Item::COMPASS, 1)` is reachable only after the guard passes.
 - Row 2 (lodestone.rs duplicate POI hooks): ALREADY FIXED in-tree. The file holds an empty `impl BlockBehaviour for LodestoneBlock {}` plus an explanatory comment (lodestone.rs:8-11); the dead `placed`/`on_state_replaced` POI hooks are gone. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides.
@@ -97,7 +97,7 @@ No .rs files touched this pass, so no rustfmt run and no compile-pitfall diff to
 
 ## Result (re-review pass 4, 2026-11-18)
 
-Fresh verification of every STILL OPEN row against `.vendor/vanilla-decompiled` and the current in-tree state. No code change is warranted: all in-unit rows are either already fixed in-tree or confirmed no-gap; only rows 4 and 5 remain and both need player.rs, which is outside this unit's file list.
+Fresh verification of every then-open row against `.vendor/vanilla-decompiled` and the current in-tree state. No code change is warranted: all in-unit rows are either already fixed in-tree or confirmed no-gap; only rows 4 and 5 remain and both need player.rs, which is outside this unit's file list.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): NO CHANGE, re-confirmed. `Items.RECOVERY_COMPASS` is a plain `Item` (Items.java:2037: `new Item.Properties().rarity(Rarity.UNCOMMON)`) and there is no `RecoveryCompassItem` class anywhere in the decompiled tree, so vanilla never routes a recovery compass through `CompassItem.useOn`. `CompassItem.useOn` (CompassItem.java:46-70) gates only on the clicked block being `LODESTONE` and transmutes to `Items.COMPASS` (line 61). Because Pumpkin maps both COMPASS and RECOVERY_COMPASS to `CompassItem` (compass.rs:18-22), the `item.item.id == Item::COMPASS.id` guard is required to reproduce vanilla; dropping it would wrongly lock recovery compasses. `transmute_copy(&Item::COMPASS, 1)` (line 59) is reachable only after the guard passes.
 - Row 2 (lodestone.rs duplicate POI hooks): ALREADY FIXED in-tree. The file holds an empty `impl BlockBehaviour for LodestoneBlock {}` plus an explanatory comment (lodestone.rs:8-11); the dead `placed`/`on_state_replaced` POI hooks are gone. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides.
@@ -111,7 +111,7 @@ No .rs files touched this pass, so no rustfmt run and no compile-pitfall diff to
 
 ## Result (final verification pass, 2026-11-18)
 
-Verified the two remaining STILL OPEN rows (4 and 5) against the decompiled vanilla tree under
+Verified the two remaining open rows (4 and 5) against the decompiled vanilla tree under
 `.vendor/vanilla-decompiled/net/minecraft/`. Both rows' original premises are contradicted by the
 vanilla source, and the current Pumpkin code already matches vanilla, so no source change was
 needed.
@@ -139,7 +139,7 @@ needed.
   match.
 
 Rows 1, 3 and 6 were confirmed no-gap in earlier passes; row 2 is already fixed in-tree
-(empty `impl BlockBehaviour for LodestoneBlock`, lodestone.rs:8-11). No row remains STILL OPEN.
+(empty `impl BlockBehaviour for LodestoneBlock`, lodestone.rs:8-11). No row remains open.
 No .rs files were edited this pass, so there is no rustfmt run or compile-pitfall diff to review.
 No new pure unit test seam: the dimension guard is a plain string equality already exercised
 through the tick path, and the unlink decision already has its pure unit test.
@@ -149,7 +149,7 @@ Status: PASS fixed=0 open=0 files=docs/tracker/tblocks-lodestone.md
 
 ## Result (verification pass 5, 2026-11-18)
 
-Independently re-verified all six rows against `.vendor/vanilla-decompiled/net/minecraft/` and the current in-tree source. No source change was warranted: every row now ends FIXED or VERIFIED (matches vanilla), and no row remains STILL OPEN.
+Independently re-verified all six rows against `.vendor/vanilla-decompiled/net/minecraft/` and the current in-tree source. No source change was warranted: every row now ends FIXED or VERIFIED (matches vanilla), and no row remains open.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): VERIFIED, matches vanilla, no change. Vanilla `CompassItem.useOn` (`.vendor/vanilla-decompiled/net/minecraft/world/item/CompassItem.java:46-70`) gates only on the clicked block being `LODESTONE` and transmutes to `Items.COMPASS` (line 61); `Items.RECOVERY_COMPASS` is a plain `Item` with no `useOn` override, so vanilla never locks a recovery compass. Pumpkin maps both COMPASS and RECOVERY_COMPASS to `CompassItem` (compass.rs:18-22), so the `item.item.id == Item::COMPASS.id` guard is required; dropping it would wrongly lock recovery compasses. `transmute_copy(&Item::COMPASS, 1)` (line 59) is reachable only after the guard passes.
 - Row 2 (lodestone.rs duplicate POI hooks): FIXED in-tree. lodestone.rs:5-11 is `#[pumpkin_block] pub struct LodestoneBlock;` plus an empty `impl BlockBehaviour for LodestoneBlock {}` with an explanatory comment; the dead `placed`/`on_state_replaced` hooks are gone. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides; POI is derived generically from the block state on state change, matching Pumpkin `World::update_poi` via `PoiType::from_state_id` (lodestone state 25187 -> `PoiType::Lodestone`).
@@ -164,7 +164,7 @@ Status: PASS fixed=0 open=0 files=docs/tracker/tblocks-lodestone.md
 
 ## Result (FINAL PASS, 2026-11-18)
 
-Every row ends FIXED or VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed: rows 1, 3, 4, 5 and 6 were already correct in-tree and row 2 was already fixed. The authoritative "Gaps" table and the "h6 gap status" note above were updated so no row reads STILL OPEN.
+Every row ends FIXED or VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed: rows 1, 3, 4, 5 and 6 were already correct in-tree and row 2 was already fixed. The authoritative "Gaps" table and the "h6 gap status" note above were updated so no row reads open.
 
 - Row 1 (compass.rs:35,59, recovery compass locking): VERIFIED, matches vanilla, no change. `CompassItem.useOn` (`.vendor/vanilla-decompiled/net/minecraft/world/item/CompassItem.java:46-70`) gates only on the clicked block being `LODESTONE` and transmutes to `Items.COMPASS` (line 61); `Items.RECOVERY_COMPASS` is a plain `Item` with no `useOn` override, so vanilla never locks a recovery compass. Pumpkin maps both COMPASS and RECOVERY_COMPASS to `CompassItem` (compass.rs:18-22), so the `item.item.id == Item::COMPASS.id` guard is required; dropping it would wrongly lock recovery compasses. `transmute_copy(&Item::COMPASS, 1)` is reachable only after the guard passes.
 - Row 2 (lodestone.rs duplicate POI hooks): FIXED in-tree, no change this pass. lodestone.rs:5-11 holds an empty `impl BlockBehaviour for LodestoneBlock {}` with an explanatory comment; the dead `placed`/`on_state_replaced` POI hooks are gone. Vanilla `Blocks.LODESTONE` is a plain `Block` with no overrides; POI is derived generically from block state ids by `World::update_poi` via `PoiType::from_state_id` (lodestone state 25187 -> `PoiType::Lodestone`).
