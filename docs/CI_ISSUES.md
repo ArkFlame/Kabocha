@@ -29,3 +29,20 @@ Failing jobs: 2 of 8 runs checked (Cargo Build, Test, and Linting: `Run lints` a
 | 14 | docker, nix, nightly, release, ferrflow, sync-wit | not failing in run 44161349921 | n/a | None | n/a |
 
 Not verified by compile in this pass (workers do not run cargo). Orchestrator: run `scripts/integrate.sh` and `cargo run --locked -p pumpkin-codegen` to confirm generated output matches the codegen edit. Note: local clippy on the tree did not reproduce items 8-13; the CI stable toolchain flags them, so treat the local clean result as unreliable for pumpkin-world.
+
+## Audit 2026-11-18 (latest master runs 44224466341, 44210767724, 44207855376, 44138776888)
+
+Full table: `docs/CI_AUDIT.md`.
+
+| # | Job | Error | Class | Status |
+|---|---|---|---|---|
+| 15 | Run lints, Run release lints | `unknown lint: clippy::large_unopt_stack_frames` (`pumpkin-data/.../configured_features_generated.rs:6`, from `tools/pumpkin-codegen/src/configured_feature.rs:146`). Upstream uses `large_stack_frames` | code | Open for orchestrator: rename back, regenerate |
+| 16 | Run lints, Run release lints | `large_stack_frames` 921885 bytes (`configured_features_generated.rs:9`) | code | Open, follows from 15 |
+| 17 | Check formatting | rustfmt diffs in `crates/pumpkin-core/src/data/datapack/mod.rs` 1957, 1965, 3744 | code | Open: `rustfmt --edition 2024` on file |
+| 18 | Validate Flake and Build | 122 compile errors in `pumpkin-core` (run 44210767724, older commit) | code | Re-check latest run 44224466320 |
+| 19 | Sync WIT to mirror repo | empty `client-id` (no `BOT_APP_CLIENT_ID`) on fork | fork-env | Fixed: job gated to upstream repo |
+| 20 | Release (sign, publish) | SignPath and release publish need upstream secrets | fork-env | Fixed: gated to upstream repo |
+| 21 | Cargo test, gametest | never reached on fork (lints red) | blocked | Re-check after 15-17 |
+| 22 | docker deploy-docker-image | startup failure with no jobs at sha 8901989 | infra or old sha | Current file gated and parses; re-check on next run |
+| 23 | Nix magic-nix-cache | FlakeHub unauthenticated (non-fatal) | fork-env | Noted, not gated |
+| 24 | WIT v0.2 `event.wit` | 836 lines removed vs upstream | plugin API, review | Open for orchestrator |
