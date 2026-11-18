@@ -616,6 +616,12 @@ impl Mob for CamelEntity {
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+        // Vanilla CamelHusk.interact calls setPersistenceRequired before delegating to super.
+        if self.is_husk() {
+            self.mob_entity
+                .persistence_required
+                .store(true, Ordering::Relaxed);
+        }
         if let Some(result) = self.handle_important_interactions(player, item_stack) {
             return result;
         }
