@@ -1045,6 +1045,9 @@ mod tests {
         let high = experience_per_recipe(&recipes_used, || 1.0);
         assert_eq!(low.len(), 2, "one amount per recipe id, not a summed total");
         assert_eq!(high.len(), 2);
+        // Each entry keeps its recipe id so the take path can unlock it in the recipe book.
+        assert!(low.iter().any(|entry| entry.recipe_id == iron));
+        assert!(low.iter().any(|entry| entry.recipe_id == gold));
         let low_sum: i32 = low.iter().map(|entry| entry.experience).sum();
         let high_sum: i32 = high.iter().map(|entry| entry.experience).sum();
         // Only iron's 0.4 fraction differs between the two rolls.
