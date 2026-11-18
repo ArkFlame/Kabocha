@@ -172,3 +172,45 @@ vanilla-client concern, not a Pumpkin server gap.
   `updateBase` on `!beamSections.isEmpty()`; Pumpkin gates on `beam_active`, committed from the
   same scan as `beam.sections`, so parity holds.
 - Row 40: not STILL OPEN; documented upstream-vs-Paper difference, out of scope.
+
+
+## Result (third pass, 2026-11-18, final)
+
+Re-checked every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
+(and `world/level/EntityGetter.java`, `world/entity/EntitySelector.java`,
+`world/level/block/BeaconBlock.java`, `world/level/block/entity/BeaconBeamOwner.java`).
+No Pumpkin code change is needed: every fixable row is already at parity.
+
+- Row 36 (beam sections / client beam): BLOCKED-DATA. The server-side model is complete and
+  matches vanilla `BeaconBlockEntity.tick` (lines 184-211): `append_beam_block` pushes when
+  `size <= 1`, grows on equal colour, averages on colour change (`ARGB.average` = per-channel
+  `u32::midpoint` via `argb_average`), clears on opaque non-bedrock; `get_beam_sections()`
+  returns empty at level 0 (vanilla line 408); `beam_color` uses DyeColor.WHITE for the beacon,
+  matching `BeaconBlock.getColor()` (BeaconBlock.java:26). There is no consumer in the server:
+  vanilla `getUpdateTag` uses `saveCustomOnly` (BeaconBlockEntity.java:417-419) and the vanilla
+  CLIENT runs `BeaconBlockEntity::tick` itself (`BeaconBlock.getTicker`, BeaconBlock.java:36,
+  no client guard) to build its own sections for rendering. Consuming `get_beam_sections()`
+  requires a client-side beacon beam renderer, a subsystem absent from this server (the
+  decompiled reference has no `net/minecraft/client` tree). Missing subsystem: client
+  BeaconRenderer. Existing pure tests (merge / average / cut / average-math / beam colour)
+  cover the seam; no duplicate test added.
+- Row 37 (spectator filter): VERIFIED no change. Both `apply_effects` and
+  `trigger_construct_beacon` keep the `is_spectator()` skips. Vanilla
+  `EntityGetter.getEntitiesOfClass(Class, AABB)` defaults to `EntitySelector.NO_SPECTATORS`
+  (EntityGetter.java:79-80; EntitySelector.java:17 `= !entity.isSpectator()`), which is used
+  by `getHumansInRange` for ranges <= 128 (BeaconBlockEntity.java:369-370; beacon range caps
+  at 50) and by the construct-beacon loop (BeaconBlockEntity.java:243). Skipping spectators
+  matches.
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED no change. `set_property(DATA_PRIMARY)`
+  plays `BlockBeaconPowerSelect` immediately when the beam is active via the
+  `OnceLock<Weak<World>>` set by `set_world`, matching `dataAccess.set` case 1
+  (BeaconBlockEntity.java:95-101). `beam_active` is committed from the same scan as
+  `beam.sections` and is equivalent to `!beamSections.isEmpty()`. No pure unit-test seam
+  (needs a live world).
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
+  `updateBase` on `!beamSections.isEmpty()` (BeaconBlockEntity.java:215); Pumpkin gates on
+  `beam_active`, so parity holds.
+- Row 40: not STILL OPEN; documented upstream-vs-Paper difference (`Levels` is loaded in the
+  Paper-patched reference at BeaconBlockEntity.java:436 but intentionally not loaded in Pumpkin),
+  out of scope.
