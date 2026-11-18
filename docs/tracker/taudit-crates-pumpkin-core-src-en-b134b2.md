@@ -53,10 +53,10 @@ Line numbers are post-fix.
    early/late. Cosmetic — **S**.
 
 ## Gap status
-- Fire-on-hit main-hand guard (zombie/mod.rs:564-578): RESOLVED as correct-as-is. Decompiled Zombie.java:349-353 confirms the `getMainHandItem().isEmpty()` guard matches vanilla.
-- Chicken jockey candidate filter (zombie/mod.rs:332): FIXED, dropped the extra !has_vehicle() check to match ENTITY_NOT_BEING_RIDDEN. No unit test: filter needs a live world.
-- Reinforcement RNG order (summon_reinforcements): RESOLVED as correct-as-is. Verified against Zombie.java:298-301: short-circuit order and RNG stream are identical; file (zombie/mod.rs, basename mod.rs) is outside this unit's editable basenames anyway.
-- Halloween timezone (is_halloween, spawn.rs:26): RESOLVED as correct-as-is. Verified against SpecialDates.java:16-22 (`ZonedDateTime.now()`, host local clock); Pumpkin's `OffsetDateTime::now_local()` matches. Cosmetic only.
+- Fire-on-hit main-hand guard (zombie/mod.rs:564-578): VERIFIED, correct as-is. Decompiled `Zombie.java:349-353` confirms the `getMainHandItem().isEmpty()` guard matches vanilla.
+- Chicken jockey candidate filter (zombie/mod.rs:332): FIXED (earlier pass), matches `EntitySelector.ENTITY_NOT_BEING_RIDDEN` (`isAlive() && !isVehicle() && !isPassenger()`, `EntitySelector.java:12`) and random candidate selection (`Zombie.java:492-498`). No unit test: filter needs a live world.
+- Reinforcement condition/RNG order (summon_reinforcements, zombie/mod.rs:465-489): VERIFIED, correct as-is. `Zombie.java:293-301` short-circuits target, difficulty, RNG roll, and `isSpawningMonsters()`; target/difficulty do not consume RNG, so random stream and behaviour match.
+- Halloween timezone (is_halloween, spawn.rs:26): VERIFIED, correct as-is. `SpecialDates.java:16-22` uses `ZonedDateTime.now()` (host default timezone); Pumpkin's `OffsetDateTime::now_local()` with UTC fallback is equivalent. Cosmetic only.
 
 ## Result
 

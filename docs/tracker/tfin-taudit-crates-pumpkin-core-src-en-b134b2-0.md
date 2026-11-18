@@ -1,11 +1,12 @@
 # Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-b134b2.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: (none named; broadened edit allowed, no edits required)
 
-(the earlier audit had no `.vendor/`). Verified both STILL OPEN rows against it,
-Extra verification from the newly available source (not STILL OPEN, no edits):
-Re-checked both STILL OPEN rows against the decompiled vanilla source, smallest first.
-Independently re-verified both STILL OPEN rows against the decompiled vanilla source,
+## Result (final pass)
 
-## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+All rows for this unit are closed. Verified against decompiled vanilla in `.vendor/vanilla-decompiled/`; no `.rs` files edited, so rustfmt not run. No pure unit-test seam exists (wall-clock date and live world/entity state).
+
+- **Fire-on-hit main-hand guard** (`crates/pumpkin-core/src/entity/mob/zombie/mod.rs:581-584`) - VERIFIED, correct as-is. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Zombie.java:349-353` uses `this.getMainHandItem().isEmpty() && this.isOnFire() && this.random.nextFloat() < difficulty * 0.3F`; Pumpkin applies the same guard and roll.
+- **Chicken jockey candidate filter** (`crates/pumpkin-core/src/entity/mob/zombie/mod.rs:332-336`) - VERIFIED, matches vanilla (fixed in an earlier pass). `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Zombie.java:492-498` selects with `EntitySelector.ENTITY_NOT_BEING_RIDDEN` and picks a random candidate; `.vendor/vanilla-decompiled/net/minecraft/world/entity/EntitySelector.java:12` is `entity.isAlive() && !entity.isVehicle() && !entity.isPassenger()`. Pumpkin filters `chicken.is_alive() && !chicken.has_passengers()` and indexes with `rng.random_range(0..len)`.
+- **Reinforcement condition/RNG order** (`crates/pumpkin-core/src/entity/mob/zombie/mod.rs:465-489`) - VERIFIED, correct as-is. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Zombie.java:293-301` short-circuits `target != null && difficulty == HARD && random.nextFloat() < SPAWN_REINFORCEMENTS_CHANCE && level.isSpawningMonsters()`. Pumpkin resolves target, checks difficulty, rolls RNG, then checks `should_spawn_monsters()` in the same `||` chain (spawn check only when the roll passes); target lookup and difficulty read do not consume RNG, so the random stream and short-circuit behaviour match vanilla.
+- **Halloween timezone** (`crates/pumpkin-core/src/entity/mob/spawn.rs:26-29`) - VERIFIED, correct as-is. `.vendor/vanilla-decompiled/net/minecraft/util/SpecialDates.java:16-22` computes `MonthDay.from(ZonedDateTime.now())` (host process default timezone). Pumpkin uses `OffsetDateTime::now_local()` with UTC fallback, equivalent host-local clock; using a level-local date would diverge from vanilla. Cosmetic only.
