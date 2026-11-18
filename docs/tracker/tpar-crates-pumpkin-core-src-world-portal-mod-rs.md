@@ -5,7 +5,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-wo-c5df96** [partial/OWN-OPEN] own audit: 16 rows closed (VERIFIED/FIXED), 0 open, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-wo-c5df96.md) docs/tracker/taudit-crates-pumpkin-core-src-wo-c5df96.md
 
 ## Result
-All 16 audit rows are closed (no STILL OPEN, no BLOCKED-DATA). Verified against
+All 16 audit rows are closed (no open rows, no BLOCKED-DATA). Verified against
 `.vendor/vanilla-decompiled/net/minecraft/` (PortalForcer.java, PortalShape.java,
 NetherPortalBlock.java); see the audit doc's THIRD PASS final closure table for the
 per-row vanilla path. Fixed rows landed in crates/pumpkin-core/src/world/portal/nether.rs;

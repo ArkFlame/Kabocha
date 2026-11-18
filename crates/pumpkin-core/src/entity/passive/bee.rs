@@ -437,12 +437,10 @@ impl BeeEntity {
         }
         let world = mob.get_entity().world.load();
         let pos = mob.get_entity().block_pos.load();
-        let time = world.get_time_of_day().rem_euclid(24000);
-        let night = (13000..23000).contains(&time);
+        // Vanilla reads the data-driven BEES_STAY_IN_HIVE attribute (keyframed night plus rain).
         let wants = self.has_nectar()
             || self.is_tired_of_looking_for_nectar()
-            || night
-            || world.is_raining_at(&pos);
+            || world.bees_stay_in_hive(&pos);
         // Vanilla returns `wants && !isHiveNearFire()`; a bee with no hive is never near fire.
         wants
             && !self.hive_pos().is_some_and(|hive| {
