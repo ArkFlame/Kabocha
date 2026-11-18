@@ -90,7 +90,7 @@ fn witch_has_active_raid(mob: &dyn Mob) -> bool {
 fn is_injured_raider(mob: &dyn Mob) -> bool {
     let living = &mob.get_mob_entity().living_entity;
     mob.as_raider().is_some()
-        && living.entity.entity_type != EntityType::WITCH
+        && living.entity.entity_type != &EntityType::WITCH
         && living.health.load() < living.get_max_health()
 }
 

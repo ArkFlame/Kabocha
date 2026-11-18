@@ -25,7 +25,7 @@ because every fix is already present in the current checkout.
     (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.java:358-367`)
     is `data.reset()` + `config.overrideEntity(type)` + `setState(INACTIVE)`;
     `FullConfig.overrideEntity` (lines 420-423) uses `withSpawning` for normal/ominous; no
-    supported-type check. Pumpkin`s `override_entity_to_spawn` + `override_entity` match, with the
+    supported-type check. Pumpkin's `override_entity_to_spawn` + `override_entity` match, with the
     unit test `trial_spawner_override_entity_regenerates_potentials`.
   - Gap 4 (consumption/block update): `SpawnEggItem.useOn` spawner branch uses `shrink(1)` +
     `sendBlockUpdated(pos, state, state, Block.UPDATE_ALL)` + `gameEvent(BLOCK_CHANGE)`
@@ -35,7 +35,7 @@ because every fix is already present in the current checkout.
     block update.
   - Gap 5 (ITEM_USED): `handleUseItem`
     (`.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:2442`)
-    only calls `gameMode.useItem` and swings on `Success.shouldSwing()`; no generic award. Pumpkin`s
+    only calls `gameMode.useItem` and swings on `Success.shouldSwing()`; no generic award. Pumpkin's
     `use_item.rs` has no generic award and swings on `Success`|`SuccessServer`; the spawn-egg fluid
     path self-awards once (`SpawnEggItem.java:131-133`, spawn_egg.rs:377-381), and
     `WindChargeItem.java:50` self-awards for wind charges.
@@ -51,7 +51,7 @@ because every fix is already present in the current checkout.
     `SuccessServer` on success (spawn_egg.rs:504); `interact.rs` swings on success.
   - Gap 12 (spawner no-op): `BaseSpawner.setEntityId`
     (`.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java:127-129`) writes
-    `nextSpawnData` and clears `spawnPotentials`; Pumpkin`s flat `entity_type` has neither, so the
+    `nextSpawnData` and clears `spawnPotentials`; Pumpkin's flat `entity_type` has neither, so the
     reset is a no-op. No generated pumpkin-data field or subsystem is required (CLOSED, not
     BLOCKED-DATA).
 
