@@ -53,6 +53,12 @@ impl CommandExecutor for DefaultGamemodeExecutor {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .gamemode = gamemode;
+        // Vanilla setDefaultGameType also updates the level's own game type (level.dat).
+        server.level_info.rcu(|info| {
+            let mut info = (**info).clone();
+            info.game_type = gamemode;
+            info
+        });
 
         Ok(successful_changes)
     }

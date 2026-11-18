@@ -918,7 +918,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                     let candidates: Vec<&'static Enchantment> = match function.get("options") {
                         Some(tag) => tag
                             .extract_list()
-                            .unwrap_or_default()
+                            .unwrap_or(&[])
                             .iter()
                             .filter_map(NbtTag::extract_string)
                             .filter_map(|name| {
@@ -1013,8 +1013,7 @@ fn set_enchantment_level(
     }
 }
 
-/// Vanilla SetCustomModelDataFunction applies a list operation to each of the four
-/// component lists instead of overwriting the whole component.
+/// Applies vanilla list operations to the custom model data component.
 fn set_custom_model_data(stack: &mut ItemStack, function: &NbtCompound) {
     let current = stack
         .get_data_component::<CustomModelDataImpl>()
@@ -1040,7 +1039,7 @@ fn set_custom_model_data(stack: &mut ItemStack, function: &NbtCompound) {
 }
 
 /// Applies a vanilla list operation (values plus a mode) to a component list.
-fn apply_list_operation<T>(
+fn apply_list_operation<T: Clone>(
     current: Vec<T>,
     field: Option<&NbtTag>,
     parse: impl Fn(&NbtTag) -> Option<T>,
@@ -1092,7 +1091,7 @@ fn apply_list_operation<T>(
     }
 }
 
-/// An int color is already ARGB; a three-element float list is converted like vanilla.
+/// Converts an SNBT color into its ARGB integer form.
 fn read_color(tag: &NbtTag) -> Option<i32> {
     if let Some(rgb) = tag.as_numeric_int() {
         return Some(rgb);
@@ -1107,7 +1106,7 @@ fn read_color(tag: &NbtTag) -> Option<i32> {
     Some(pumpkin_util::text::color::ARGBColor::from_float(1.0, r, g, b).to_argb_int())
 }
 
-/// Sets or adds a stored (enchanted-book) enchantment level like vanilla ItemStack.enchant.
+/// Adds a stored enchantment to an enchanted-book stack.
 fn set_stored_enchantment_level(
     stack: &mut ItemStack,
     enchantment: &'static Enchantment,
@@ -1117,8 +1116,7 @@ fn set_stored_enchantment_level(
     let level = level.clamp(0, 255);
     let mut entries: Vec<(&'static Enchantment, i32)> = stack
         .get_data_component::<StoredEnchantmentsImpl>()
-        .map(|data| data.enchantment.to_vec())
-        .unwrap_or_default();
+        .map_or_else(Vec::new, |data| data.enchantment.to_vec());
     let combined = if add {
         entries
             .iter()

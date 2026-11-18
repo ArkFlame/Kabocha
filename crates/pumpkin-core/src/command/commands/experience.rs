@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::math::experience;
@@ -46,11 +45,11 @@ impl ExperienceExecutor {
     fn handle_query(&self, context: &CommandContext, target: &Player) -> i32 {
         let (val, translation_key) = match self.exp_type {
             ExpType::Levels => (
-                target.experience_level.load(Ordering::Relaxed),
+                target.get_experience_level(),
                 "commands.experience.query.levels",
             ),
             ExpType::Points => (
-                target.experience_points.load(Ordering::Relaxed),
+                target.get_total_experience(),
                 "commands.experience.query.points",
             ),
         };
@@ -128,7 +127,7 @@ impl ExperienceExecutor {
                 if self.mode == Mode::Add {
                     target.add_experience_points(amount);
                 } else {
-                    let current_lvl = target.experience_level.load(Ordering::Relaxed);
+                    let current_lvl = target.get_experience_level();
                     if amount >= experience::points_in_level(current_lvl) {
                         return false;
                     }
