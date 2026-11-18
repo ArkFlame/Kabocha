@@ -63,3 +63,18 @@ lily-pad entity collision and the 100-movement/16-step vanilla travel cut-offs i
 | 4 | FIXED. Added shared `passenger_attachment`/`passenger_seat_offset` helper in boat.rs; both the engine's `passenger_attachment_point` and the mount-positioning path in passengers.rs now call it, so animals keep the 0.2 seat shift on both and the seat/yaw math cannot drift. Two pure unit tests added. |
 
 Files touched: `crates/pumpkin-core/src/entity/vehicle/boat.rs`, `crates/pumpkin-core/src/entity/vehicle/boat/passengers.rs`, this doc. Decompiled references: `world/entity/vehicle/boat/AbstractBoat.java`, `AbstractChestBoat.java`, `Boat.java`. Other workers concurrently edited boat.rs (leads, bubble columns, rider yaw); their changes were preserved. No cargo or git run; rustfmt applied to both .rs files. Cargo/test verification belongs to the orchestrator.
+
+## Result (re-verification 2026-11-18)
+
+All four STILL OPEN rows were already fixed in the checkout; no source edit was needed this pass. Decompiled
+sources are now present under `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/` and each
+fix was re-checked against them:
+
+| # | Outcome |
+|---|---------|
+| 1 | FIXED (verified). `AbstractChestBoat.interact` (line 80) runs `super.interact` first and returns it when not PASS, then opens the container only when `!canAddPassenger \|\| isSecondaryUseActive` (lines 82-90). `chest_opens_container` + `boat_interact_outcome` in boat.rs mirror this exactly; pure tests in `seat_and_container_tests` cover mount/container/nothing. |
+| 2 | FIXED (verified). `damage_with_context` reads the destroy decision from post-hit `is_removed()` (`was_alive && is_removed() && drops_item_when_destroyed`), so there is no threshold to drift. |
+| 3 | FIXED (verified). A later pass implemented the deferred paddle audio: `play_paddle_sounds` + `paddle_sound_cue` + `paddle_sound_for_status` match `AbstractBoat.tick` lines 300-328 (PI/4 cue inside a PI/8 step, pitch `0.8 + 0.4*rand`, per-side offsets `±(cos yaw, sin yaw)`) and `getPaddleSound` lines 410-414. Two pure tests added. No UnderWater bubble particles exist in this vanilla version. |
+| 4 | FIXED (verified). `passenger_seat_offset`/`passenger_attachment` in boat.rs are shared by `EntityBase::passenger_attachment_point` and `passengers.rs::get_passenger_attachment_point`; offsets 0.2/-0.6 plus the 0.2 animal shift and `yRot(-yaw)` match `AbstractBoat.getPassengerAttachmentPoint` lines 146-161. |
+
+Files touched this pass: this doc only. No source edit, no cargo/git (workers may not run them). Status: PASS (verified by reading source and decompiled vanilla; compile/test left to the orchestrator).
