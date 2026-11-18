@@ -191,3 +191,27 @@ Files changed this pass: `crates/pumpkin-world/src/generation/generator/structur
 
 Open rows:
 - Datapack/modded structures: needs a dynamic `worldgen/structure` registry in generated `pumpkin-data` (generated-data / cross-crate change).
+
+
+## Result (native third pass, final)
+
+Re-read the unit's last Result and re-verified every remaining STILL OPEN row
+against `.vendor/vanilla-decompiled/net/minecraft`. No source file needed a new
+edit this pass: all fixable rows are already present in the checkout and type-
+consistent (every `TextContent::Translate` constructor supplies `bedrock_with`),
+so no rustfmt run was required. Each row now has a terminal outcome.
+
+| Row | Terminal outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | VERIFIED: the `StructureSearch::Pending` arm sends `Searching for <name>...` and returns 0 (`locate.rs:285-293`); vanilla sends the same literal at `server/commands/LocateCommand.java:110`. |
+| Datapack/modded structures via registry (`wanted_structures`) | BLOCKED-DATA: requires a dynamic `worldgen/structure` registry mapping arbitrary resource ids (incl. datapack/modded) to placements, generated in `crates/pumpkin-data/src/generated/` and wired through `wanted_structures`/`StructureSet::ALL`. The only resolver is the closed generated enum `pumpkin_data::generated::structures::StructureKeys::from_name` (`structures.rs:9-64`), which matches only vanilla `minecraft:` names; `wanted_structures` additionally gates on `id.is_vanilla()` (`locate.rs:126`). No such registry or arbitrary-id placement generation exists; this is a generated-data + cross-crate subsystem, not a source-only fix. |
+| POI argument type (`resource_or_tag.rs`) | VERIFIED: `ResourceOrTagArgument::parse` rejects unknown POI ids via generated `pumpkin_data::poi_type::PoiType::from_name`, matching vanilla `resourceOrTag(POINT_OF_INTEREST_TYPE)`; test `poi_ids_are_validated_at_parse_time`. |
+| All placements per structure set | FIXED: `structure_sets_containing` returns every set index (`locate.rs:147-154`), executor scans each; `all_sets_containing_a_structure_are_returned`. |
+| Random-spread nearest ordering (`structure_finder.rs`) | FIXED: whole ring evaluated before advancing, nearest hit kept (vanilla `world/level/chunk/ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | FIXED/VERIFIED: ring candidates ranked at chunk center `(bx+8, 32, bz+8)` while reported pos stays `(bx, 0, bz)` (`ChunkGenerator.java:296`, `core/SectionPos.java:133-138`). |
+| Structure arm placement candidates (`locate.rs:273-279`) | VERIFIED (premise invalid): vanilla `getStructureGeneratingAt` -> `checkStructurePresence` (`world/level/chunk/ChunkGenerator.java:349-362`) only reports real starts, so the start-resolving code matches; no change. |
+| Bedrock success arguments (`locate.rs`) | VERIFIED: `send_success` uses `translate_cross_with` with `bedrock_success_args` (`locate.rs:183-223`); Java arg list (name, coordinates, distance) matches vanilla `LocateCommand.java:206`, Bedrock list (name,x,z,distance / name,x,y,z,distance) is edition-specific. `bedrock_with` is threaded through every `TextContent::Translate` path (`pumpkin-util/src/text/mod.rs:1123-1130,1250-1267,1450-1471`; bedrock consumers `world/mod.rs:1596-1603`, `entity/player.rs:7129-7136`), legacy/Java reads `with` (`text/legacy.rs:269-278`); tests `bedrock_success_args_match_bedrock_arity` and the split test at `text/mod.rs:2282`. The tracker's "STILL OPEN" note is stale. |
+
+Files changed this pass: none (all fixes already present and verified).
+Remaining terminal blockers: the one datapack-structure row is BLOCKED-DATA
+(generated `worldgen/structure` registry / arbitrary-id placement subsystem).

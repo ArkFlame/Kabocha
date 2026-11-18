@@ -82,3 +82,13 @@ Re-read all formerly STILL OPEN rows against decompiled vanilla; every row is cl
 - Gap 3 (scoreboard.rs slot argument): NO ACTION; serialized-name string argument matches vanilla `ScoreboardCommand` use sites.
 - parse error (scoreboard_slot.rs:72) = vanilla `ERROR_INVALID_VALUE.createWithContext(reader, name)`; suggestions (84-87) = vanilla stream over `DisplaySlot.values()` serialized names; `SLOT_NAMES` order/spelling = enum declaration order.
 - No .rs file touched; rustfmt not run. Marked the stale "Gap status" STILL OPEN line CLOSED.
+
+
+## Result (2026-11-18 third pass: final verification against decompiled vanilla)
+Re-read all formerly STILL OPEN rows against decompiled vanilla; every row is closed, no source change needed.
+
+- Gap 1 (`examples()`, scoreboard_slot.rs:90-93): VERIFIED. Returns `["sidebar", "foo.bar"]`, identical to vanilla `ScoreboardSlotArgument.EXAMPLES = Arrays.asList("sidebar", "foo.bar")` (`.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ScoreboardSlotArgument.java:19`).
+- Gap 2 (`slot_name`, scoreboard_slot.rs:110-131): VERIFIED. Exhaustive `match` over all 19 `ScoreboardDisplaySlot` variants with no fallback; each name equals its vanilla `DisplaySlot` serialized name (`.vendor/vanilla-decompiled/net/minecraft/world/scores/DisplaySlot.java:8-26`). `SLOT_NAMES` (20-58) carries the same 19 names in enum declaration order.
+- Gap 3 (scoreboard.rs slot argument): VERIFIED, NO ACTION. `display_slot_component` (scoreboard.rs:623-625) passes `slot_name(slot)`, the serialized-name string, matching vanilla's `slot.getSerializedName()` use sites.
+- parse error (scoreboard_slot.rs:72): VERIFIED = vanilla `ERROR_INVALID_VALUE.createWithContext(reader, name)` (ScoreboardSlotArgument.java:36-43); `get` (97-102) = `getDisplaySlot` (ScoreboardSlotArgument.java:31-33); suggestions (84-87) = vanilla stream over `DisplaySlot.values()` serialized names (ScoreboardSlotArgument.java:47-49).
+- No .rs file touched; rustfmt not run. No STILL OPEN rows remain; unit fully closed.

@@ -87,3 +87,19 @@ Independently re-checked all six rows against .vendor/vanilla-decompiled and the
 No .rs files changed, so no rustfmt and no compile needed. Diff re-checked against the Worker compile pitfalls table: no code to review.
 
 Status: PASS fixed=0 open=0 files=none
+
+
+## Result (independent vanilla verification, 2026-11-18)
+
+Re-read the last Result and independently verified every row directly against the decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/ and the live combat.rs. No source changes were needed: every row is correct as written and no STILL OPEN rows remain.
+
+- 1 sweep movement gate (AttackType::new, combat.rs:65-77): VERIFIED. Player.isSweepAttack, .vendor/.../world/entity/player/Player.java:1134-1144, requires fullStrength && !crit && !knockback && onGround && getKnownMovement().horizontalDistanceSqr() < square(getSpeed()*2.5) && sword. Pumpkin checks velocity.horizontal_length_squared() < (MOVEMENT_SPEED*2.5)^2 with the same gates; movement is client-authoritative so velocity is the correct equivalent. walkDist fields are unnecessary.
+- 2 combat enter/leave event (combat.rs:501-568): VERIFIED. CombatTracker.java:47-68 recordDamageAndCheckCombatState and :165-185 recheckStatus only call mob.onEnterCombat()/onLeaveCombat(); no entity event 128 exists in this vanilla. Pumpkin models these via CombatStateChange at the damage call site.
+- 3 knockback resistance once (combat.rs:236-238,252-278): VERIFIED. LivingEntity.knockback, .vendor/.../world/entity/LivingEntity.java:2146, applies power *= (1 - KNOCKBACK_RESISTANCE) exactly once. Pumpkin applies it once via knockback_after_resistance on the !handled fallback; apply_knockback does not reapply it.
+- 4 death message killer fallback (combat.rs:816-855): VERIFIED. DamageSource.getLocalizedDeathMessage, .vendor/.../world/damagesource/DamageSource.java:169-172, uses victim.getKillCredit() on the no-attacker path; Pumpkin passes that as kill_credit_name. get_killer_entry() only adds an offline-killer fallback when kill credit is absent.
+- 5 mace owner identity (combat.rs:198-205): VERIFIED. MaceItem.knockbackPredicate, .vendor/.../world/item/MaceItem.java:147, checks animal.isOwnedBy(livingAttacker) where livingAttacker is the victim; TamableAnimal.isOwnedBy, .vendor/.../world/entity/TamableAnimal.java:188-190, is entity == getOwner(). Pumpkin compares owner UUID to victim UUID; both are loaded entities, so functionally identical. Exact identity needs an owner-resolution API outside this unit.
+- 6 Breach double clamp (combat.rs:349-376): VERIFIED. CombatRules.getDamageAfterAbsorb, .vendor/.../world/damagesource/CombatRules.java:16-32, seeds modifyArmorEffectiveness with armorFraction and clamps once to [0,1]. Pumpkin calls modify_armor_effectiveness on armor_fraction and clamps once. Test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg).
+
+No .rs files changed: no rustfmt or compile needed. Diff against the Worker compile pitfalls table: no code to review. Only this tracker doc changed.
+
+Status: PASS fixed=0 open=0 files=none
