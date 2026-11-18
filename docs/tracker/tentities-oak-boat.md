@@ -172,3 +172,44 @@ touch uncommitted work you did not make" I made no source edits. No compile pitf
 
 No source files changed by me; only this tracker Result section was edited. Risk: none from my
 edits; the parallel fixes above are unverified by me via build (orchestrator compiles once).
+
+
+## Result
+
+THIRD PASS. Re-verified every row against the current decompile at
+`.vendor/vanilla-decompiled/net/minecraft` and the current working-tree code. All five rows are
+FIXED or VERIFIED; none remain STILL OPEN. I made no source edits (every fix is already present
+in the tree from parallel work), so rustfmt had nothing to format.
+
+- Air->water snap (S): FIXED / VERIFIED. `physics.rs:191-212` guards the surface snap with
+  `no_collision(entity, moved_box)` and stores `InWater` unconditionally, matching vanilla
+  `AbstractBoat.floatBoat` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:611-620`,
+  `noCollision` guard at line 614). No pure seam (needs `world.noCollision`), so no new unit test.
+- Gravity (S): VERIFIED ALREADY CORRECT. Vanilla `floatBoat` starts `-this.getGravity()`
+  (`AbstractBoat.java:608`) and `Entity.getGravity()` returns 0 under `noGravity`;
+  `physics.rs:214 -self.get_gravity()` matches. Replacing it with `DEFAULT_GRAVITY` would diverge.
+  No unit-test seam.
+- Bubble column / `ID_BUBBLE_TIME` (M): FIXED / VERIFIED. `boat.rs` has `bubble_column_time`,
+  `tick_bubble_column` writing `pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME` (429-446),
+  `on_above/inside_bubble_column` (647/700) and `bubble_column_vertical_velocity` (976), with
+  tests (1077-1078). `bubble_column.rs` constants match vanilla
+  `Entity.handleOnAboveBubbleColumn` (`.vendor/.../world/entity/Entity.java:4149`: up +0.1 cap
+  1.8, down max(-0.9, -0.03)) and `handleOnInsideBubbleColumn` (`Entity.java:4185`: up +0.06 cap
+  0.7, down max(-0.3, -0.03)); `push_projectile` matches `world/entity/projectile/Projectile.java`,
+  and `entity_inside` uses the collision/fluid test from `world/level/block/BubbleColumnBlock.java`.
+  Tests `upward_push_cap_depends_on_surface`, `downward_push_cap_depends_on_surface` and
+  `open_above_requires_no_collision_and_no_fluid` lock the pure seams.
+- Rider-rotation clamp (M): FIXED / VERIFIED. `boat.rs:856-944` implements `on_rider_positioned`
+  and `on_passenger_turned` with pure helpers `rider_body_yaw`/`clamp_head_to_body`/
+  `clamp_rider_yaw`/`rider_clamp_adjustment` and tests (1039-1072), matching vanilla
+  `AbstractBoat.positionRider` (`AbstractBoat.java:696`), `clampRotation` and `onPassengerTurned`
+  (`AbstractBoat.java:763`), including the 105 deg clamp. Wired through `entity/mod.rs:810/814`
+  (trait defaults), `1686` (`position_rider` -> `on_rider_positioned`) and `4499`
+  (`Entity::turn` -> `on_passenger_turned`).
+- Boat gametest (S): FIXED. All three requested tests exist and are registered in
+  `server/builtin_game_tests/boat_block_effects.rs` and that dir's `mod.rs:276-278,1841-1859`:
+  `test_boat_floats_up_after_fall` (135),
+  `test_boat_ejects_passenger_after_60_underwater_ticks` (173),
+  `test_chest_boat_scatters_27_slots_on_break` (233), plus related chest-boat/fire tests.
+
+Compile pitfalls: no source code changed by me, so none apply.

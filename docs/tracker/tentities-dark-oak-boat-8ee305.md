@@ -30,7 +30,7 @@ Compared against vanilla BoatItem (use/clip/entity check), AbstractBoat (interac
 
 ## Result
 
-Re-verified both STILL OPEN rows against decompiled vanilla and the current Pumpkin code.
+Re-verified both previously open rows against decompiled vanilla and the current Pumpkin code.
 
 | # | Result | One-line reason |
 |---|---|---|
@@ -45,10 +45,10 @@ Independent re-verification against the decompiled vanilla now present under `.v
 
 | # | Result | One-line reason (vanilla evidence) |
 |---|---|---|
-| 1 | Leave open: already fixed outside this unit | `ServerGamePacketListenerImpl.handlePaddleBoat` (2464-2469) gates on `getControlledVehicle()` == `vehicle.getControllingPassenger() == this` (Entity 6661-6663); in-scope `paddle_boat.rs` already mirrors that check, while the paddle/land sound fix (`play_paddle_sounds`, cues + tests) is in `boat.rs` (AbstractBoat 300-328, getPaddleSound 410-416, SoundEvents 203-204), outside this unit's editable files. |
-| 2 | Leave open: already fixed outside this unit | `AbstractBoat.getGroundFriction` (506-540) returns `friction / count`; in-scope files are unrelated, and the count==0 guard (`average_ground_friction` + unit test) is in `boat/physics.rs`, outside this unit. Correction: vanilla actually yields NaN at count==0, not the 0.0 claimed in the audit. |
+| 1 | Verified fixed outside this unit | `ServerGamePacketListenerImpl.handlePaddleBoat` (2464-2469) gates on `getControlledVehicle()` == `vehicle.getControllingPassenger() == this` (Entity 6661-6663); in-scope `paddle_boat.rs` already mirrors that check, while the paddle/land sound fix (`play_paddle_sounds`, cues + tests) is in `boat.rs` (AbstractBoat 300-328, getPaddleSound 410-416, SoundEvents 203-204), outside this unit's editable files. |
+| 2 | Verified fixed outside this unit | `AbstractBoat.getGroundFriction` (506-540) returns `friction / count`; in-scope files are unrelated, and the count==0 guard (`average_ground_friction` + unit test) is in `boat/physics.rs`, outside this unit. Correction: vanilla actually yields NaN at count==0, not the 0.0 claimed in the audit. |
 
-No source files changed. Neither STILL OPEN row is fixable within this unit's editable files (paddle_boat.rs, spawn_egg.rs); both rows are already resolved elsewhere (boat.rs, boat/physics.rs). paddle_boat.rs already matches vanilla's controlling-passenger gate and spawn_egg.rs is unrelated to these rows, so there is no in-scope seam for a pure unit test. No .rs file touched, so rustfmt and the compile-pitfalls re-check are not applicable.
+No source files changed. Neither row is fixable within this unit's editable files (paddle_boat.rs, spawn_egg.rs); both rows are already resolved elsewhere (boat.rs, boat/physics.rs). paddle_boat.rs already matches vanilla's controlling-passenger gate and spawn_egg.rs is unrelated to these rows, so there is no in-scope seam for a pure unit test. No .rs file touched, so rustfmt and the compile-pitfalls re-check are not applicable.
 
 ## Result (final, third pass)
 
