@@ -19,6 +19,7 @@ use crate::world::World;
 #[derive(Clone, Copy)]
 pub enum SpawnStrategy {
     OnTopOfCollider,
+    OnTopOfColliderNoLeaves,
     LegacyIronGolem,
 }
 
@@ -27,6 +28,12 @@ impl SpawnStrategy {
         match self {
             Self::OnTopOfCollider => {
                 above_state.get_block_collision_shapes().next().is_none() && is_face_full_up(state)
+            }
+            Self::OnTopOfColliderNoLeaves => {
+                // Vanilla ON_TOP_OF_COLLIDER_NO_LEAVES additionally rejects a leaves support.
+                !Block::from_state_id(state.id).has_tag(&BlockTag::MINECRAFT_LEAVES)
+                    && above_state.get_block_collision_shapes().next().is_none()
+                    && is_face_full_up(state)
             }
             Self::LegacyIronGolem => {
                 let block = Block::from_state_id(state.id);

@@ -108,7 +108,9 @@ impl OminousItemSpawnerEntity {
     fn spawn_item(&self) {
         let item = self.get_item();
         let world = self.entity.world.load();
-        let pos = self.entity.bounding_box.load().get_center();
+        // Vanilla spawns at `this.position()` (entity origin), not the bounding-box
+        // centre; using the centre would raise the projectile by half the hitbox height.
+        let pos = self.entity.pos.load();
         let spawned_entity = self
             .spawn_projectile(&world, pos, &item)
             .unwrap_or_else(|| {

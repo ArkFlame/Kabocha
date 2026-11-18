@@ -1733,6 +1733,7 @@ pub enum CriterionConditions {
     LightningStrike {
         bystander_type: Option<String>,
         blocks_set_on_fire: Option<IntBounds>,
+        entity_struck: Option<EntityPredicate>,
         distance_max: Option<f64>,
     },
     KillMobNearSculkCatalyst,
@@ -2094,6 +2095,7 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                     min: Some(i64::from(v)),
                     max: Some(i64::from(v)),
                 }),
+                entity_struck: None,
                 distance_max,
             },
             AC::KillMobNearSculkCatalyst => Self::KillMobNearSculkCatalyst,
@@ -2482,6 +2484,9 @@ impl CriterionConditions {
                     .map(ToString::to_string),
             },
             "minecraft:lightning_strike" => {
+                let lightning_pred = val.get("lightning").and_then(|l| l.get("predicate"));
+                let type_specific =
+                    lightning_pred.and_then(|p| p.get("minecraft:type_specific/lightning"));
                 let bystander_type = val
                     .get("bystander")
                     .and_then(|b| b.get("predicate"))
@@ -2491,15 +2496,13 @@ impl CriterionConditions {
                     })
                     .and_then(Value::as_str)
                     .map(ToString::to_string);
-                let blocks_set_on_fire = val
-                    .get("lightning")
-                    .and_then(|l| l.get("predicate"))
-                    .and_then(|p| p.get("minecraft:type_specific/lightning"))
+                let blocks_set_on_fire = type_specific
                     .and_then(|t| t.get("blocks_set_on_fire"))
                     .and_then(IntBounds::from_value);
-                let distance_max = val
-                    .get("lightning")
-                    .and_then(|l| l.get("predicate"))
+                let entity_struck = type_specific
+                    .and_then(|t| t.get("entity_struck"))
+                    .map(parse_entity_pred);
+                let distance_max = lightning_pred
                     .and_then(|p| p.get("minecraft:distance"))
                     .and_then(|d| d.get("absolute"))
                     .and_then(|a| a.get("max"))
@@ -2507,6 +2510,7 @@ impl CriterionConditions {
                 Self::LightningStrike {
                     bystander_type,
                     blocks_set_on_fire,
+                    entity_struck,
                     distance_max,
                 }
             }
@@ -2844,6 +2848,20 @@ mod tests {
         };
         assert!(exact_bounds.is_some_and(|b| b.matches(0)));
         assert!(exact_bounds.is_none_or(|b| !b.matches(1)));
+    }
+
+    #[test]
+    fn lightning_strike_entity_struck_is_parsed_and_matched() {
+        let cond = CriterionConditions::parse(
+            "minecraft:lightning_strike",
+            r#"{"lightning": {"predicate": {"minecraft:type_specific/lightning": {"entity_struck": {"type": "minecraft:villager"}}}}}"#,
+        );
+        let struck = match &cond {
+            CriterionConditions::LightningStrike { entity_struck, .. } => entity_struck.as_ref(),
+            _ => None,
+        };
+        assert!(struck.is_some_and(|p| p.matches("minecraft:villager", None, None)));
+        assert!(struck.is_none_or(|p| !p.matches("minecraft:zombie", None, None)));
     }
 
     #[test]

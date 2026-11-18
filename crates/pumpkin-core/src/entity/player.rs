@@ -61,6 +61,18 @@ use tokio::task::JoinHandle;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
+/// Experience level, progress and points behind one lock.
+///
+/// Vanilla keeps these in plain fields written only on the server thread; Pumpkin
+/// also reads them from plugin/WASM threads, so a level change must be visible to
+/// packet senders as one update rather than a half-applied mix of old and new.
+#[derive(Clone, Copy, Debug)]
+pub struct ExperienceState {
+    pub level: i32,
+    pub progress: f32,
+    pub points: i32,
+}
+
 #[derive(Clone, Debug)]
 pub enum CustomScoreboard {
     Java(Scoreboard),
@@ -450,6 +462,18 @@ const fn should_unlink_lodestone_tracker(
     !in_build_limit || (chunk_loaded && !block_is_lodestone)
 }
 
+/// Vanilla `ServerRecipeBook.addRecipes`: the given recipe ids that were not known yet, in order.
+fn newly_learned_recipes(
+    known: &mut std::collections::HashSet<String>,
+    recipe_ids: &[String],
+) -> Vec<String> {
+    recipe_ids
+        .iter()
+        .filter(|id| known.insert((*id).clone()))
+        .cloned()
+        .collect()
+}
+
 fn write_last_death_location(nbt: &mut NbtCompound, dimension: &ResourceLocation, pos: &BlockPos) {
     let mut death_compound = NbtCompound::new();
     death_compound.put_string("dimension", dimension.clone());
@@ -809,12 +833,8 @@ pub struct Player {
     pub using_item: AtomicBool,
     pub item_use_start_time: AtomicI32,
     pub using_hand: AtomicCell<Option<Hand>>,
-    /// The player's experience level.
-    pub experience_level: AtomicI32,
-    /// The player's experience progress (`0.0` to `1.0`)
-    pub experience_progress: AtomicCell<f32>,
-    /// The player's total experience points.
-    pub experience_points: AtomicI32,
+    /// Level, progress and total points, kept consistent behind a single lock.
+    pub experience: Mutex<ExperienceState>,
     pub item_cooldowns: std::sync::Mutex<HashMap<String, ItemCooldown>>,
     pub experience_pick_up_delay: Mutex<u32>,
     pub chunk_sender: Mutex<crate::net::ChunkSender>,
@@ -1196,9 +1216,11 @@ impl Player {
                 ),
             inventory,
             ender_chest_inventory,
-            experience_level: AtomicI32::new(0),
-            experience_progress: AtomicCell::new(0.0),
-            experience_points: AtomicI32::new(0),
+            experience: Mutex::new(ExperienceState {
+                level: 0,
+                progress: 0.0,
+                points: 0,
+            }),
             item_cooldowns: std::sync::Mutex::new(HashMap::new()),
             chunk_sender: Mutex::new(crate::net::ChunkSender::new()),
             chunk_listener: Mutex::new(world.level.chunk_listener.add_global_chunk_listener()),
@@ -4571,45 +4593,29 @@ impl Player {
             }
         }
 
-        if self.is_flying() {
-            return statistics::CustomStatistic::FlyOneCm;
-        }
+        let swimming = entity.swimming.load(Ordering::Relaxed);
+        let in_water = entity.touching_water.load(Ordering::Relaxed);
+        let eye_in_water = in_water && entity.is_submerged_in_water();
+        let on_climbable = if swimming || eye_in_water || in_water {
+            false
+        } else {
+            let pos = entity.block_pos.load();
+            let world = entity.world.load_full();
+            world
+                .get_block(&pos)
+                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_CLIMBABLE)
+        };
 
-        if entity.fall_flying.load(Ordering::Relaxed) {
-            return statistics::CustomStatistic::AviateOneCm;
-        }
-
-        if entity.swimming.load(Ordering::Relaxed) {
-            return statistics::CustomStatistic::SwimOneCm;
-        }
-
-        let pos = entity.block_pos.load();
-        let world = entity.world.load_full();
-        let block = world.get_block(&pos);
-        if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_CLIMBABLE) {
-            return statistics::CustomStatistic::ClimbOneCm;
-        }
-
-        if entity.touching_water.load(Ordering::Relaxed) {
-            if entity.is_submerged_in_water() {
-                return statistics::CustomStatistic::WalkUnderWaterOneCm;
-            }
-            return statistics::CustomStatistic::WalkOnWaterOneCm;
-        }
-
-        if entity.sneaking.load(Ordering::Relaxed) {
-            return statistics::CustomStatistic::CrouchOneCm;
-        }
-
-        if entity.sprinting.load(Ordering::Relaxed) {
-            return statistics::CustomStatistic::SprintOneCm;
-        }
-
-        if !entity.on_ground.load(Ordering::Relaxed) && entity.velocity.load().y < -0.005 {
-            return statistics::CustomStatistic::FallOneCm;
-        }
-
-        statistics::CustomStatistic::WalkOneCm
+        statistics::movement_statistic(statistics::MovementState {
+            swimming,
+            eye_in_water,
+            in_water,
+            on_climbable,
+            on_ground: entity.on_ground.load(Ordering::Relaxed),
+            sprinting: entity.sprinting.load(Ordering::Relaxed),
+            crouching: entity.sneaking.load(Ordering::Relaxed),
+            fall_flying: entity.fall_flying.load(Ordering::Relaxed),
+        })
     }
 
     /// Updates the client of the player's current permission level.
@@ -5105,15 +5111,24 @@ impl Player {
     }
 
     pub fn get_experience_level(&self) -> i32 {
-        self.experience_level.load(Ordering::Relaxed)
+        self.experience
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .level
     }
 
     pub fn get_experience_progress(&self) -> f32 {
-        self.experience_progress.load()
+        self.experience
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .progress
     }
 
     pub fn get_total_experience(&self) -> i32 {
-        self.experience_points.load(Ordering::Relaxed)
+        self.experience
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .points
     }
 
     pub fn set_experience_progress(&self, progress: f32) {
@@ -7083,11 +7098,14 @@ impl Player {
             return;
         }
 
-        let level = self.experience_level.load(Ordering::Relaxed);
+        let (level, progress, points) = {
+            let xp = self
+                .experience
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            (xp.level, xp.progress, xp.points)
+        };
         if self.last_sent_xp.load(Ordering::Relaxed) != level {
-            let progress = self.experience_progress.load();
-            let points = self.experience_points.load(Ordering::Relaxed);
-
             self.last_sent_xp.store(level, Ordering::Relaxed);
 
             let attribute = |name: &str, current_value, max_value| BedrockAttribute {
@@ -7294,7 +7312,7 @@ impl Player {
 
     /// Sets the player's experience level and notifies the client.
     pub fn set_experience(&self, level: i32, progress: f32, points: i32) {
-        let old_level = self.experience_level.load(Ordering::Relaxed);
+        let old_level = self.get_experience_level();
         if old_level != level
             && let Some(server) = self.world().server.upgrade()
             && let Some(player_arc) = self.world().get_player_by_uuid(self.gameprofile.id)
@@ -7306,23 +7324,28 @@ impl Player {
             );
             server.plugin_manager.fire_blocking(&server, &mut event);
         }
-        // TODO: These should be atomic together, not isolated; make a struct containing these. can cause ABA issues
-        self.experience_level.store(level, Ordering::Relaxed);
-        self.experience_progress.store(progress.clamp(0.0, 1.0));
-        self.experience_points.store(points, Ordering::Relaxed);
+        {
+            let mut xp = self
+                .experience
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            xp.level = level;
+            xp.progress = progress.clamp(0.0, 1.0);
+            xp.points = points;
+        }
         self.last_sent_xp.store(-1, Ordering::Relaxed);
         self.tick_experience();
     }
 
     /// Sets the player's experience level directly.
     pub fn set_experience_level(&self, new_level: i32, keep_progress: bool) {
-        let progress = self.experience_progress.load();
-        let mut points = self.experience_points.load(Ordering::Relaxed);
+        let progress = self.get_experience_progress();
+        let mut points = self.get_total_experience();
 
         // If `keep_progress` is `true` then calculate the number of points needed to keep the same progress scaled.
         if keep_progress {
             // Get our current level
-            let current_level = self.experience_level.load(Ordering::Relaxed);
+            let current_level = self.get_experience_level();
             let current_max_points = experience::points_in_level(current_level);
             // Calculate the max value for the new level
             let new_max_points = experience::points_in_level(new_level);
@@ -7452,20 +7475,20 @@ impl Player {
 
     /// Add experience levels to the player.
     pub fn add_experience_levels(&self, added_levels: i32) {
-        let current_level = self.experience_level.load(Ordering::Relaxed);
+        let current_level = self.get_experience_level();
         let new_level = (current_level + added_levels).max(0);
         self.set_experience_level(new_level, true);
     }
 
     /// Set the player's experience points directly. Returns `true` if successful.
     pub fn set_experience_points(&self, new_points: i32) -> bool {
-        let current_points = self.experience_points.load(Ordering::Relaxed);
+        let current_points = self.get_total_experience();
 
         if new_points == current_points {
             return true;
         }
 
-        let current_level = self.experience_level.load(Ordering::Relaxed);
+        let current_level = self.get_experience_level();
         let max_points = experience::points_in_level(current_level);
 
         if new_points < 0 || new_points > max_points {
@@ -7486,8 +7509,8 @@ impl Player {
             added_points = event.amount;
         }
 
-        let current_level = self.experience_level.load(Ordering::Relaxed);
-        let current_progress = self.experience_progress.load();
+        let current_level = self.get_experience_level();
+        let current_progress = self.get_experience_progress();
 
         let (new_level, progress) =
             experience::add_points(current_level, current_progress, added_points);
@@ -9252,10 +9275,16 @@ impl EntityBase for Player {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .write_nbt(nbt);
 
-        let total_exp = experience::points_to_level(self.experience_level.load(Ordering::Relaxed))
-            + self.experience_points.load(Ordering::Relaxed);
-        nbt.put_float("XpP", self.experience_progress.load());
-        nbt.put_int("XpLevel", self.experience_level.load(Ordering::Relaxed));
+        let (level, progress, points) = {
+            let xp = self
+                .experience
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            (xp.level, xp.progress, xp.points)
+        };
+        let total_exp = experience::points_to_level(level) + points;
+        nbt.put_float("XpP", progress);
+        nbt.put_int("XpLevel", level);
         nbt.put_int("XpTotal", total_exp);
         nbt.put_int("XpSeed", self.enchantment_seed.load(Ordering::Relaxed));
         nbt.put_int("Score", self.score.load(Ordering::Relaxed));
@@ -9383,17 +9412,21 @@ impl EntityBase for Player {
         let xp_level = nbt.get_int("XpLevel");
         let total_exp = nbt.get_int("XpTotal").unwrap_or(0);
 
-        if let Some(level) = xp_level {
-            self.experience_level.store(level, Ordering::Relaxed);
-            self.experience_progress.store(xp_p);
-            let points = (xp_p * experience::points_in_level(level) as f32).round() as i32;
-            self.experience_points.store(points, Ordering::Relaxed);
-        } else {
-            let (level, points) = experience::total_to_level_and_points(total_exp);
-            let progress = experience::progress_in_level(level, points);
-            self.experience_level.store(level, Ordering::Relaxed);
-            self.experience_progress.store(progress);
-            self.experience_points.store(points, Ordering::Relaxed);
+        {
+            let mut xp = self
+                .experience
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(level) = xp_level {
+                xp.level = level;
+                xp.progress = xp_p;
+                xp.points = (xp_p * experience::points_in_level(level) as f32).round() as i32;
+            } else {
+                let (level, points) = experience::total_to_level_and_points(total_exp);
+                xp.level = level;
+                xp.progress = experience::progress_in_level(level, points);
+                xp.points = points;
+            }
         }
 
         self.enchantment_seed.store(
@@ -9558,7 +9591,7 @@ impl EntityBase for Player {
 
     fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
         // vanilla: min(level * 7, 100)
-        let level = self.experience_level.load(Ordering::Relaxed);
+        let level = self.get_experience_level();
         (level * 7).min(100) as u32
     }
 
@@ -10003,8 +10036,7 @@ impl InventoryPlayer for Player {
     }
 
     fn experience_level(&self) -> i32 {
-        self.experience_level
-            .load(std::sync::atomic::Ordering::Relaxed)
+        self.get_experience_level()
     }
 
     fn add_experience_levels(&self, levels: i32) {
@@ -10590,20 +10622,20 @@ impl InventoryPlayer for Player {
             .known_recipes
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut newly_unlocked = Vec::new();
-        for id in recipe_ids {
-            if known.insert(id.clone()) {
-                newly_unlocked.push(id.clone());
-            }
-        }
+        let newly_unlocked = newly_learned_recipes(&mut known, recipe_ids);
         drop(known);
 
+        // Vanilla `ServerRecipeBook.addRecipes` fires `recipe_unlocked` only for the recipes it
+        // adds, while `awardUsedRecipesAndPopExperience` fires `recipe_crafted` for every used
+        // recipe, so a repeat smelt still counts as crafted.
         for id in &newly_unlocked {
             self.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::RecipeUnlocked {
                     recipe_id: id.clone(),
                 },
             );
+        }
+        for id in recipe_ids {
             self.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::RecipeCrafted {
                     recipe_id: id.clone(),
@@ -10688,8 +10720,8 @@ mod tests {
     use super::{
         Player, bedrock_container_open_target, bedrock_container_slot, bedrock_container_type,
         compute_sweep_damage, damage_scales_with_difficulty, difficulty_scaled_damage,
-        format_team_name, read_last_death_location, read_root_vehicle, write_last_death_location,
-        write_root_vehicle,
+        format_team_name, newly_learned_recipes, read_last_death_location, read_root_vehicle,
+        write_last_death_location, write_root_vehicle,
     };
     use base64::prelude::*;
     use pumpkin_config::AuthenticationConfig;
@@ -10703,6 +10735,27 @@ mod tests {
     use pumpkin_util::text::color::NamedColor;
     use tokio::io::AsyncReadExt;
     use uuid::Uuid;
+
+    #[test]
+    fn only_recipes_the_player_did_not_know_are_newly_learned() {
+        let mut known = std::collections::HashSet::new();
+        known.insert("minecraft:iron_ingot_from_smelting_iron_ore".to_string());
+
+        let learned = newly_learned_recipes(
+            &mut known,
+            &[
+                "minecraft:iron_ingot_from_smelting_iron_ore".to_string(),
+                "minecraft:gold_ingot_from_smelting_gold_ore".to_string(),
+            ],
+        );
+
+        // A known recipe is not re-awarded, and a repeated id inside one call is only new once.
+        assert_eq!(
+            learned,
+            vec!["minecraft:gold_ingot_from_smelting_gold_ore".to_string()]
+        );
+        assert!(known.contains("minecraft:gold_ingot_from_smelting_gold_ore"));
+    }
 
     #[test]
     fn toggle_glide_event_veto_keeps_the_current_state() {

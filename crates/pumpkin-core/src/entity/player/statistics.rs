@@ -51,6 +51,49 @@ impl Statistics {
     }
 }
 
+/// Branch state of vanilla `ServerPlayer.checkMovementStatistics` for one accepted move.
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, Copy, Default)]
+pub struct MovementState {
+    pub swimming: bool,
+    pub eye_in_water: bool,
+    pub in_water: bool,
+    pub on_climbable: bool,
+    pub on_ground: bool,
+    pub sprinting: bool,
+    pub crouching: bool,
+    pub fall_flying: bool,
+}
+
+/// Selects the vanilla statistic for a non-passenger move from the branch state.
+///
+/// Vanilla orders `isFallFlying()` after the swimming, water, climbable and ground branches, so
+/// an elytra glide only awards `AVIATE_ONE_CM` once every earlier branch has been ruled out.
+#[must_use]
+pub const fn movement_statistic(state: MovementState) -> CustomStatistic {
+    if state.swimming {
+        CustomStatistic::SwimOneCm
+    } else if state.eye_in_water {
+        CustomStatistic::WalkUnderWaterOneCm
+    } else if state.in_water {
+        CustomStatistic::WalkOnWaterOneCm
+    } else if state.on_climbable {
+        CustomStatistic::ClimbOneCm
+    } else if state.on_ground {
+        if state.sprinting {
+            CustomStatistic::SprintOneCm
+        } else if state.crouching {
+            CustomStatistic::CrouchOneCm
+        } else {
+            CustomStatistic::WalkOneCm
+        }
+    } else if state.fall_flying {
+        CustomStatistic::AviateOneCm
+    } else {
+        CustomStatistic::FlyOneCm
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,5 +115,77 @@ mod tests {
             123
         );
         assert_eq!(loaded.get(StatisticCategory::Mined, 42), 7);
+    }
+
+    #[test]
+    fn movement_statistic_follows_vanilla_check_order() {
+        let glide = MovementState {
+            fall_flying: true,
+            ..MovementState::default()
+        };
+        assert_eq!(movement_statistic(glide), CustomStatistic::AviateOneCm);
+
+        // Vanilla checks swimming, water, climbable and ground before fall flying.
+        let swimming_glide = MovementState {
+            swimming: true,
+            fall_flying: true,
+            ..MovementState::default()
+        };
+        assert_eq!(
+            movement_statistic(swimming_glide),
+            CustomStatistic::SwimOneCm
+        );
+
+        let grounded_glide = MovementState {
+            on_ground: true,
+            sprinting: true,
+            fall_flying: true,
+            ..MovementState::default()
+        };
+        assert_eq!(
+            movement_statistic(grounded_glide),
+            CustomStatistic::SprintOneCm
+        );
+
+        let submerged = MovementState {
+            in_water: true,
+            eye_in_water: true,
+            ..MovementState::default()
+        };
+        assert_eq!(
+            movement_statistic(submerged),
+            CustomStatistic::WalkUnderWaterOneCm
+        );
+
+        let wading = MovementState {
+            in_water: true,
+            ..MovementState::default()
+        };
+        assert_eq!(
+            movement_statistic(wading),
+            CustomStatistic::WalkOnWaterOneCm
+        );
+
+        let climbing = MovementState {
+            on_climbable: true,
+            ..MovementState::default()
+        };
+        assert_eq!(movement_statistic(climbing), CustomStatistic::ClimbOneCm);
+
+        let crouching = MovementState {
+            on_ground: true,
+            crouching: true,
+            ..MovementState::default()
+        };
+        assert_eq!(movement_statistic(crouching), CustomStatistic::CrouchOneCm);
+
+        let walking = MovementState {
+            on_ground: true,
+            ..MovementState::default()
+        };
+        assert_eq!(movement_statistic(walking), CustomStatistic::WalkOneCm);
+
+        let airborne = MovementState::default();
+        assert_eq!(movement_statistic(airborne), CustomStatistic::FlyOneCm);
     }
 }

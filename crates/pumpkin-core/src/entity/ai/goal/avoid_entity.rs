@@ -9,7 +9,6 @@ use crate::entity::ai::util::default_random_pos;
 use crate::entity::predicate::EntityPredicate;
 use crate::entity::{EntityBase, mob::Mob};
 use crate::plugin::api::events::entity::entity_target::TargetReason;
-use pumpkin_data::attributes::Attributes;
 use pumpkin_data::entity::EntityType;
 
 const FAST_DISTANCE_SQ: f64 = 49.0;
@@ -34,9 +33,6 @@ pub fn not_spectator(_mob: &dyn Mob, candidate: &dyn EntityBase) -> bool {
     !candidate.get_entity().is_spectator()
 }
 
-/// Threat types, each with the distance it starts the flee at.
-pub type ThreatDistances = &'static [(&'static EntityType, f64)];
-
 pub struct AvoidEntityGoal {
     goal_control: Controls,
     flee_from: TargetMatch,
@@ -51,7 +47,6 @@ pub struct AvoidEntityGoal {
     keep_when: bool,
     confirm: Option<ThreatFilter>,
     drop_target: bool,
-    per_type: Option<ThreatDistances>,
 }
 
 impl AvoidEntityGoal {
@@ -81,21 +76,6 @@ impl AvoidEntityGoal {
             keep_when: false,
             confirm: None,
             drop_target: false,
-            per_type: None,
-        }
-    }
-
-    /// Vanilla brain sensors (`VillagerHostilesSensor`): the nearest visible threat
-    /// within its own type's distance, seen like any entity, no height limit.
-    #[must_use]
-    pub fn nearest_of(threats: ThreatDistances, slow_speed: f64, fast_speed: f64) -> Self {
-        let reach = threats
-            .iter()
-            .fold(0.0, |max, &(_, dist)| f64::max(max, dist));
-        Self {
-            threat_predicate: TargetPredicate::create_non_attackable(),
-            per_type: Some(threats),
-            ..Self::new(TargetMatch::Any, reach, slow_speed, fast_speed)
         }
     }
 
@@ -136,51 +116,20 @@ impl AvoidEntityGoal {
     }
 
     fn find_threat(&self, mob: &dyn Mob) -> Option<Arc<dyn EntityBase>> {
-        let living = &mob.get_mob_entity().living_entity;
-        let entity = &living.entity;
-        let pos = entity.pos.load();
+        let entity = &mob.get_mob_entity().living_entity.entity;
         let world = entity.world.load();
-        let height = if self.per_type.is_some() {
-            self.flee_distance
-        } else {
-            THREAT_SEARCH_HEIGHT
-        };
-        let area = SearchArea::from_feet(entity, self.flee_distance, height);
-        // Sensors see as far as the follow range; the per-type distance cuts it down after.
-        let sensor_predicate;
-        let predicate = if self.per_type.is_some() {
-            sensor_predicate = self
-                .threat_predicate
-                .copy()
-                .set_base_max_distance(living.get_attribute_value(&Attributes::FOLLOW_RANGE));
-            &sensor_predicate
-        } else {
-            &self.threat_predicate
-        };
+        let area = SearchArea::from_feet(entity, self.flee_distance, THREAT_SEARCH_HEIGHT);
 
         self.flee_from.find_nearest(&world, &area, |candidate| {
-            let candidate_entity = candidate.get_entity();
-            self.per_type.is_none_or(|threats| {
-                threats.iter().any(|&(threat, dist)| {
-                    threat == candidate_entity.entity_type
-                        && candidate_entity.pos.load().squared_distance_to_vec(&pos) <= dist * dist
-                })
-            }) && (self.selector)(mob, candidate)
-                && predicate.test(&world, Some(mob), candidate)
+            (self.selector)(mob, candidate)
+                && self.threat_predicate.test(&world, Some(mob), candidate)
         })
     }
 }
 
 impl Goal for AvoidEntityGoal {
-    fn tick_reach(&self, mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
-        // The sensor branch searches the follow range, then cuts it down per type.
-        let entities = if self.per_type.is_some() {
-            mob.get_mob_entity()
-                .living_entity
-                .get_attribute_value(&Attributes::FOLLOW_RANGE)
-        } else {
-            self.flee_distance
-        };
+    fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<super::GoalReach> {
+        let entities = self.flee_distance;
         Some(super::GoalReach {
             entities,
             players: if self.flee_from.matches(&EntityType::PLAYER) {

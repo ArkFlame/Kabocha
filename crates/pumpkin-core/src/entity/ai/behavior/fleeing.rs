@@ -1,7 +1,7 @@
 use pumpkin_data::entity::EntityType;
 
 use crate::entity::ai::goal::avoid_entity::{
-    AvoidEntityGoal, ThreatDistances, ThreatFilter, ThreatSelector, not_spectator,
+    AvoidEntityGoal, ThreatFilter, ThreatSelector, not_spectator,
 };
 use crate::entity::ai::goal::goal_selector::GoalSelector;
 use crate::entity::ai::goal::revenge::MobFilter;
@@ -21,7 +21,6 @@ pub struct Flee {
     confirm: Option<ThreatFilter>,
     selector: Option<ThreatSelector>,
     drop_target: bool,
-    per_type: Option<ThreatDistances>,
 }
 
 impl Flee {
@@ -44,21 +43,7 @@ impl Flee {
             confirm: None,
             selector: None,
             drop_target: false,
-            per_type: None,
         }
-    }
-
-    /// See [`AvoidEntityGoal::nearest_of`].
-    #[must_use]
-    pub const fn nearest_of(
-        priority: u8,
-        threats: ThreatDistances,
-        walk_speed: f64,
-        sprint_speed: f64,
-    ) -> Self {
-        let mut flee = Self::new(priority, TargetMatch::Any, 0.0, walk_speed, sprint_speed);
-        flee.per_type = Some(threats);
-        flee
     }
 
     /// See [`AvoidEntityGoal::when`].
@@ -98,10 +83,8 @@ impl Flee {
     }
 
     fn build(self) -> AvoidEntityGoal {
-        let mut goal = self.per_type.map_or_else(
-            || AvoidEntityGoal::new(self.from, self.distance, self.walk_speed, self.sprint_speed),
-            |threats| AvoidEntityGoal::nearest_of(threats, self.walk_speed, self.sprint_speed),
-        );
+        let mut goal =
+            AvoidEntityGoal::new(self.from, self.distance, self.walk_speed, self.sprint_speed);
         if let Some(when) = self.when {
             goal = if self.keep_when {
                 goal.as_long_as(when)
