@@ -71,13 +71,15 @@ The tracker note "3 TODO/FIXME/vanilla markers" is 3 `vanilla` mentions in comme
 - One fix landed for this row: `977e9c71c` (poison bees only from closed eyeblossom). No further
   code divergence is certain without the decompiled 26.3 sources; `.vendor/` is absent here.
 
-## Gap status
-- 1. Peaceful bee-poison early return (`eyeblossom.rs:91-93`): STILL OPEN (S).
-- 2. 3x2x3 box iteration (`eyeblossom.rs:135-158`): FIXED (verified equivalent, no change needed).
-- 3. Shared RNG per state change (`eyeblossom.rs:132-133`): STILL OPEN (S).
-- 4. Potted variants (`flower_pots.rs:84-119`): STILL OPEN (M).
-- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:118`): STILL OPEN (S).
-- Poison-bee-from-closed-only: FIXED (commit 977e9c71c, per Re-audit section).
+## Gap status (FINAL, 2026-11-18)
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): VERIFIED EQUAL. Vanilla `EyeblossomBlock#entityInside` (EyeblossomBlock.java:98-104) requires `getDifficulty() != PEACEFUL`; the guard matches.
+- 2. 3x2x3 box iteration (`eyeblossom.rs:146-169`): FIXED (verified equivalent, no change needed). Matches `findBlocksIn(pos.offset(-3,-2,-3), pos.offset(3,2,3))` minus the centre (EyeblossomBlock.java:78-84).
+- 3. Shared RNG per state change (`eyeblossom.rs:140-159`, `flower_pots.rs:119-124`): FIXED. Both draw from `world.block_random`, mirroring vanilla's level `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
+- 4. Potted variants (`flower_pots.rs:85-133`): FIXED. Matches vanilla `FlowerPotBlock#randomTick` (FlowerPotBlock.java:157-170): two-id gate, current-type fallback, transform particle coloured for the target type, long switch sound at BLOCKS 1.0/1.0, no game event, no neighbour loop.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): VERIFIED EQUAL. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current type's own open value.
+- Poison-bee-from-closed-only (commit 977e9c71c): REVERTED. Vanilla gates poison on `Bee.attractsBees` (Bee.java:693-697), i.e. the `bee_attractive` tag, which lists `open_eyeblossom` only. `poisons_bees` (`eyeblossom.rs:119`, test `only_the_open_eyeblossom_poisons_bees`) now mirrors it.
+
+No row remains STILL OPEN. All behavioural gaps are FIXED or VERIFIED against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`.
 
 
 ## Result
@@ -256,3 +258,38 @@ Also confirmed: the reverted regression from the prior pass is correct - vanilla
 No code edits were needed this pass: all fixes from prior sections are already on disk. All pure seams (`transform_particle`, `poisons_bees`) have existing unit tests. Left out of scope: `animateTick` idle sound needs a new `BlockBehaviour` hook + world/dispatch change; `spawn_particle_with_options` broadcasts world-wide vs vanilla's 32-block radius (shared helper).
 
 Files touched this pass: this doc only (verification recorded).
+
+## Result (THIRD PASS, 2026-11-18)
+
+Re-verified every original STILL OPEN row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (EyeblossomBlock.java:68-105,
+FlowerPotBlock.java:157-170, Bee.java:693-697) and closed all of them. No code edits were
+needed: the source on disk already matches vanilla in all four in-scope files
+(eyeblossom.rs, flower_pots.rs, particle.rs, xoroshiro128.rs). rustfmt was applied to the
+two edited source files in earlier passes; this pass touched only this doc.
+
+- 1. Peaceful bee-poison gate: VERIFIED EQUAL. EyeblossomBlock.java:99 lists
+  `getDifficulty() != Difficulty.PEACEFUL` as a conjunct.
+- 3. Shared RNG: FIXED. Both ground and potted paths draw from `world.block_random`
+  (the level RNG), mirroring vanilla's `RandomSource`; the seed-reproducibility test covers it.
+- 4. Potted variants: FIXED. FlowerPotBlock.java:157-170 confirms two-id gate, current-type
+  fallback, `newType.spawnTransformParticle`, `newType.longSwitchSound()` at BLOCKS 1.0/1.0,
+  no game event, no neighbour loop. Pumpkin matches all of it.
+- 5. `unwrap_or(is_open)`: VERIFIED EQUAL. EyeblossomBlock.java:69 /
+  FlowerPotBlock.java:160 fall back to `this.type.open`.
+
+Regression from the earlier pass stays reverted: vanilla poisons bees in an OPEN eyeblossom
+(Bee.java:694 `state.is(BlockTags.BEE_ATTRACTIVE)`; the tag lists open only), and
+`poisons_bees` plus its unit test mirror that. The earlier "poison only closed" fix
+(977e9c71c) was wrong and is not present in the current source.
+
+All pure seams (`transform_particle`, `poisons_bees`) already have unit tests; no new pure seam
+exists. API seams confirmed to exist: `ParticleOptions` derives `Debug + PartialEq`
+(particle.rs:49), `Xoroshiro::from_seed` + `impl RandomImpl` (xoroshiro128.rs:39,164),
+`World::block_random: Mutex<Xoroshiro>` (world/mod.rs:380). No new unwrap/expect/panic.
+
+Out of unit, deliberately unchanged: `animateTick` idle sound (needs a new `BlockBehaviour`
+hook + world/dispatch change) and `spawn_particle_with_options` broadcasting world-wide
+vs vanilla's 32-block radius (shared helper).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-4f710e.md

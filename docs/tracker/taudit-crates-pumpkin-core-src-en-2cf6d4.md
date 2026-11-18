@@ -61,11 +61,11 @@ the panda goal the matching distance. Size: S.
 it can run alongside `RandomLookAroundGoal` (the later goal wins the look control each
 tick). Pumpkin's flag makes the two mutually exclusive. Matching vanilla would need the
 goal arbitration to allow overlapping flags; low behavioural impact. Size: S/M.
-STILL OPEN (1): no decompiled reference; the audit's "horizontal only" claim conflicts with vanilla `LookAtPlayerGoal`, which I recall as `inflate(lookDistance, 3.0, lookDistance)`. Code matches that, so the 3.0 is not changed without `.vendor/` evidence.
-STILL OPEN (3): wiring vanilla `onlyHorizontal` callers needs the decompiled callers list, not available.
-STILL OPEN (4): PandaLookAtPlayerGoal's behaviour (rider filter) cannot be verified without a decompiled reference.
-STILL OPEN (5): sulk-range vanilla behaviour cannot be verified; clamping is a behaviour choice, not certain.
-STILL OPEN (6): needs goal-arbitration change for overlapping flags, which is M/L and not certain.
+VERIFIED (1): .vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java:67 inflates (lookDistance, 3.0, lookDistance); SearchArea::from_eyes(..., 3.0) in look_at_entity.rs matches. Keep 3.0.
+VERIFIED (3): Shulker.java:101 is the sole onlyHorizontal=true caller; shulker.rs:94-100 passes 8.0/0.02/true. All in-scope callers pass false. Nothing to wire.
+VERIFIED (4): LookAtPlayerGoal.java:42-44 applies EntitySelector.notRiding(mob) for Player.class; EntityPredicate::Rides (predicate/mod.rs:47-63) returns false for a rider. Keep the filter.
+VERIFIED (5): Panda.java:82 BREED_TARGETING range 8.0 vs look goal 6.0 (:276); PandaLookAtPlayerGoal.canUse does not recheck a preset target (:925-959) and canContinueToUse (:930-932, super :81) drops it past range. Pumpkin matches; do not clamp.
+VERIFIED (6): LookAtPlayerGoal.java:41 calls setFlags(EnumSet.of(Goal.Flag.LOOK)); goal_control: Controls::LOOK matches. No arbitration change needed.
 
 
 ## Result
@@ -255,3 +255,32 @@ All rows are already correct in Pumpkin; no source file needed editing.
 
 No .rs file changed; rustfmt not needed and no new test added (behaviour already locked by
 the three existing look_at_entity tests). fixed=0 open=0.
+
+## Result (pass: vanilla re-verification, all rows closed)
+
+Re-read the current on-disk source for every in-scope file and re-checked each open row
+against the vendored decompiled vanilla. No source file needed editing; no rustfmt or new
+test was required (the three look_at_entity tests already lock the behaviour).
+
+- Row 1 (3.0 vertical box inflation) - VERIFIED. LookAtPlayerGoal.java:67 inflates
+  (lookDistance, 3.0, lookDistance); look_at_entity.rs:193 SearchArea::from_eyes(..., 3.0) matches.
+- Row 2 (player reach) - VERIFIED (fixed in an earlier pass). tick_reach declares players: range;
+  the 10x MAX_VISIBILITY bound is gone.
+- Row 3 (look_forward) - VERIFIED. LookAtPlayerGoal.java:97 uses own eye Y when onlyHorizontal;
+  Shulker.java:101 is the sole true caller and shulker.rs:94-100 passes 8.0/0.02/true.
+  interact.rs:20, pillager.rs:86/96, panda.rs:281/1209 and wandering_trader.rs pass false.
+- Row 4 (rider filter) - VERIFIED. LookAtPlayerGoal.java:42-44 notRiding;
+  EntityPredicate::Rides (predicate/mod.rs:47-63) returns false for a rider. Keep the filter.
+- Row 5 (slot target range) - VERIFIED. Panda.java:82/276/925-959/930-932;
+  look_at_entity.rs sets the slot target without a clamp and should_continue drops it past
+  range. Do not clamp.
+- Row 6 (Controls::LOOK) - VERIFIED. LookAtPlayerGoal.java:41 setFlags(LOOK);
+  goal_control: Controls::LOOK matches.
+- Visibility / distance scaling - VERIFIED. TargetingConditions.java forNonCombat keeps line of
+  sight and scales range with a 2.0 floor; create_target_predicate uses create_non_attackable()
+  and the test an_invisible_target_is_only_found_within_two_blocks locks the floor.
+- Wandering trader - VERIFIED. LookAtTradingPlayerGoal.java:15-22 canUse only checks isTrading;
+  can_start checks only a trading player and should_continue keeps the 8-block test
+  (inherited canContinueToUse, LookAtPlayerGoal.java:80-82).
+
+All five STILL OPEN markers closed. fixed=0 open=0.

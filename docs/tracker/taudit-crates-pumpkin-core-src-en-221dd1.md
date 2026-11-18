@@ -94,3 +94,14 @@ no fixable gaps in scope. No em dashes added.
 - Verified both in-scope files against decompiled vanilla Behavior.java: try_start/tick_or_stop/do_stop/timed_out match step for step (duration = min + nextInt(max+1-min), timedOut = timestamp > endTimestamp, stop sees that same flag). Only deviation is the .max(1) clamp on a misconfigured max<min, which vanilla would throw on.
 - Verified activity_slot against Java String.hashCode (i32 wrapping fold), h ^ (h >>> 16) spread and the 0.75 load-factor resize; the existing test pins buckets core=1, idle=5, fight=14.
 - No fixable gaps in scope, so no .rs edits made (adding tests would duplicate the pure tests already present in both files). The sole STILL OPEN row was the meta note, now marked RESOLVED. fixed=0 open=0.
+
+
+### Pass 2026-11-18 (third pass, final verification)
+
+No .rs edits needed: both in-scope files already match decompiled vanilla step for step and already carry pure unit tests, so adding more would only duplicate existing coverage.
+
+- `activity.rs` - VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/entity/schedule/Activity.java`: `getName()` returns registry names ("core"/"idle"/"fight") and `hashCode = name.hashCode()` (Java UTF-16 fold at line 39). `activity_slot` reproduces the HashMap key hash `h ^ (h >>> 16)` at the 0.75 load-factor capacity (16), yielding buckets core=1, idle=5, fight=14 pinned by `activity_slot_matches_java_hash_map_buckets`. `ALL_ACTIVITIES` is the 26-entry registry order with Dig=25, matching Activity.java lines 7-32 (pinned by `activity_indices_fit_the_bitset`). `ActivitySet` is a bitset whose `iter()` yields registry order.
+- `timed.rs` - VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/behavior/Behavior.java`: `try_start` matches `tryStart` (entry-condition check + `checkExtraStartConditions`, then `duration = min + nextInt(max+1-min)`, set RUNNING, `start`); `tick_or_stop` matches `tickOrStop` (`!timedOut && canStillUse`); `do_stop` matches `doStop` (status STOPPED then stop); `timed_out` = `time > end_timestamp` matches `timedOut(timestamp) = timestamp > endTimestamp`; `DEFAULT_DURATION=60`, default `canStillUse=false`, default `checkExtraStartConditions=true`. The sole deviation is the `.max(1)` clamp on a misconfigured max<min where vanilla `nextInt` would throw, a safe guard. Boundary tests present.
+- Parent deviation rows #2 (memory ttl absolute clock) and #3 (DebugBrainDump formatting) live in `memory/mod.rs`, outside this unit; they are documented deliberate deviations, not STILL OPEN rows and not data/subsystem blockers.
+
+All prior STILL OPEN rows were the single meta note "extraction empty, needs re-audit", now RESOLVED. No remaining STILL OPEN rows and no BLOCKED-DATA rows. fixed=0 open=0.
