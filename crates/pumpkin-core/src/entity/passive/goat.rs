@@ -194,8 +194,12 @@ impl GoatEntity {
         if names.is_empty() {
             return stack;
         }
-        // Vanilla seeds a fresh `RandomSource` from the UUID hash before picking the element.
-        let seed = self.get_entity().entity_uuid.as_u128() as u64;
+        // Vanilla seeds a fresh `RandomSource` from `UUID.hashCode()`, which folds both
+        // 64-bit halves into an int and sign-extends it into the `long` random seed.
+        let uuid = self.get_entity().entity_uuid.as_u128();
+        let mixed = ((uuid >> 64) as u64) ^ (uuid as u64);
+        let hash = (mixed as u32) ^ ((mixed >> 32) as u32);
+        let seed = i64::from(hash as i32) as u64;
         let index = Xoroshiro::from_seed(seed).next_bounded_i32(names.len() as i32) as usize;
         if let Some(name) = names.get(index)
             && let Some(instrument) = Instrument::from_name(name)
