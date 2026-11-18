@@ -45,11 +45,11 @@ Remaining gaps:
 | `buttons.rs:185-192` (`press`) | `press` order is setBlockAndUpdate, updateNeighbours, scheduleTick, sound, game event (`ButtonBlock.java:102-108`) | Pumpkin schedules the tick before updating neighbours; only visible if a neighbour inspects the tick queue during the update | Move `update_neighbors` above `schedule_block_tick` | S |
 
 ## Gap status
-- `buttons.rs:76-81` arrow bounds from shape: STILL OPEN (S).
-- `buttons.rs:98-106`, `:203` game-event source and player: STILL OPEN (S).
-- `world/explosion.rs:805-837` `onExplosionHit` before removal: STILL OPEN (M).
-- `buttons.rs:52-67`, `:172-206` Paper `BlockRedstoneEvent` / interact event: STILL OPEN (M; plugin API).
-- `buttons.rs:185-192` `press` ordering: STILL OPEN (S).
+- `buttons.rs:76-81` arrow bounds from shape: FIXED/VERIFIED (`ButtonBlock.java:162-165`, `state.getShape(level, pos).bounds().move(pos)`).
+- `buttons.rs:98-106`, `:203` game-event source and player: FIXED/VERIFIED (`ButtonBlock.java:107,186`, arrow/player via `GameEventContext.source_entity`).
+- `world/explosion.rs:805-837` `onExplosionHit` before removal: VERIFIED (outside unit; `explosion.rs:947` calls `explode` before `set_block_state(AIR)`, `ButtonBlock.java:90-100`).
+- `buttons.rs:52-67`, `:172-206` Paper `BlockRedstoneEvent` / interact event: FIXED/VERIFIED (`ButtonBlock.java:80-84,94-96,168-182`).
+- `buttons.rs:185-192` `press` ordering: FIXED/VERIFIED (`ButtonBlock.java:102-108`).
 
 
 ## Result

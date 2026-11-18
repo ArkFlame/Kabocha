@@ -84,8 +84,9 @@ frame on a slab/carpet breaks, frame next to a destroyed block drops, explosion 
 frame intact, fixed frame survives punching and `/kill` (M).
 
 ## Gap status
-- 5 FIXED: `entity/decoration/item_frame.rs:559-563` `damage_with_context` returns false for invulnerable sources (`is_invulnerable_to`) after the removed check. No automated test added (needs entity/world harness); compile not run in this worktree.
-- 1, 2, 3, 4, 6, 7, 8, 9, 10: STILL OPEN, not attempted in this sweep (2 and 7 are S, 4 is M and needs a game-rule store).
+- All ten rows FIXED/VERIFIED in `crates/pumpkin-core/src/entity/decoration/item_frame.rs`; see the Result sections below for per-row vanilla citations. No numbered row remains STILL OPEN.
+- No BLOCKED-DATA: no row requires a generated `pumpkin-data` field or a missing subsystem.
+- Non-row deferred explosion divergence is separately classified BLOCKED-DATA (needs `IS_EXPLOSION` damage-type tag ingestion plus `ignoreExplosion`/`shouldAffectBlocklikeEntities` in `explosion.rs`, outside this unit); it is not one of the ten numbered rows.
 
 
 ## Result
@@ -320,3 +321,57 @@ No source edit this pass (all rows already implemented). No pure unit-test seam 
 (every affected behaviour needs a `World` plus fixture; `calculate_bounding_box` is a pure
 formula and formula-mirroring tests are disallowed). Compile not run (worker restriction);
 all referenced APIs were confirmed to exist by source inspection.
+
+
+## Result (third-pass row closure, current pass)
+
+Re-read `item_frame.rs` in full and re-checked every formerly STILL OPEN row against
+decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java`
+(and `BlockAttachedEntity.java`). No source edit was needed: every row is already
+implemented. Gap status above is updated so no numbered row remains STILL OPEN.
+
+- Row 1 tick cadence VERIFIED: `SUPPORT_CHECK_INTERVAL = 100`, `fetch_add(..) + 1 < 100`
+  fires the support check on tick 100, 200, ... (item_frame.rs:123, 499-511), matching
+  `BlockAttachedEntity.CHECK_INTERVAL = 100` / `ticksSinceLastCheck++ >= hangingTickFrequency`
+  (BlockAttachedEntity.java:26, 43-49).
+- Row 2 add-item sound VERIFIED: `set_item` plays the sound only when
+  `!item_stack.is_empty() && update_neighbours` (item_frame.rs:274-300), matching
+  `if (!itemStack.isEmpty() && updateNeighbours && playSound)` (ItemFrame.java:313-323).
+- Row 3 comparator-only update VERIFIED: `world.update_neighbour_for_output_signal(&pos, &Block::AIR)`
+  in `set_item`, `set_rotation`, `drop_item` (item_frame.rs:296-300, 314-318, 436-438),
+  matching `level().updateNeighbourForOutputSignal(this.pos, Blocks.AIR)`
+  (ItemFrame.java:325-327, 363).
+- Row 4 doEntityDrops VERIFIED: `drop_item` returns before both drops when
+  `world.level_info.load().game_rules.entity_drops` is false (item_frame.rs:442-444),
+  matching `if (!level.getGameRules().get(GameRules.ENTITY_DROPS))` (ItemFrame.java:251).
+- Row 5 invulnerable VERIFIED: `damage_with_context` returns false for
+  `is_invulnerable_to(..)` sources (item_frame.rs:664-667), matching
+  `isInvulnerableToBase(source)` (ItemFrame.java:183, 189).
+- Row 6 invisible VERIFIED: `is_invisible`/`set_invisible` use the shared `Entity.invisible`
+  flag (item_frame.rs:337-343); NBT writes/reads `Invisible` through it (item_frame.rs:526,
+  550-551), matching `output.putBoolean("Invisible", this.isInvisible())` /
+  `this.setInvisible(input.getBooleanOr("Invisible", false))` (ItemFrame.java:378, 395).
+- Row 7 custom name VERIFIED: `get_frame_item_stack_with_data` copies the name via
+  `custom_name.get_text()` (item_frame.rs:353-359), matching
+  `itemStack.set(DataComponents.CUSTOM_NAME, this.getCustomName())` (ItemFrame.java:478);
+  Pumpkin stores the name as a String, so component styles are not kept.
+- Row 8 creative drop ordering VERIFIED: `drop_item` returns before both drops for a
+  creative player (item_frame.rs:446-454), matching
+  `causedBy instanceof Player player && player.hasInfiniteMaterials()` (ItemFrame.java:255-257).
+- Row 9 single-slot container VERIFIED: `ItemFrameInventory` (size 1, max stack 1) via
+  `get_container_inventory` (item_frame.rs:48-117, 560-569), matching
+  `slot == 0 ? SlotAccess.of(this::getItem, this::setItem)` (ItemFrame.java:335-336).
+- Row 10 DOWN drop offset VERIFIED: `drop_item` applies the -0.6 y offset for Down-facing
+  frames (item_frame.rs:456-467), matching the Paper MC-123848 override
+  `this.getDirection() == Direction.DOWN ? -0.6F : 0.0F` (ItemFrame.java:289-293).
+
+Non-row explosion divergence remains BLOCKED-DATA (not a numbered row): vanilla
+`ItemFrame.hurtServer` routes explosion damage into `BlockAttachedEntity.hurtServer` and
+breaks the frame, while Pumpkin returns false for `EXPLOSION`/`PLAYER_EXPLOSION`
+(item_frame.rs:671-676). Fixing needs `IS_EXPLOSION` damage-type tag ingestion plus
+`ignoreExplosion`/`shouldAffectBlocklikeEntities` in `explosion.rs`, outside this unit.
+
+No source edit this pass. No pure unit-test seam (every affected behaviour needs a `World`
+plus fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are
+disallowed). Compile not run (worker restriction); all referenced APIs confirmed present by
+source inspection.

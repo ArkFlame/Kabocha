@@ -245,3 +245,47 @@ pumpkin-data field or missing subsystem is involved.
   metadata state. Network glue, no pure-logic seam for a unit test.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-bamboo-chest-raft.md
+
+
+## Result (2026-11-18 sixth pass, terminal verification)
+
+Every gap-table row (#3-#6) was re-verified against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` and the current Pumpkin source. All rows
+already carry a terminal status and the corresponding fix is present; no source edit
+was required. No generated `pumpkin-data` field or missing subsystem is involved.
+
+- #3 (bubble column) FIXED / VERIFIED. `boat.rs` has `tick_bubble_column` (line 429),
+  `on_above_bubble_column` (line 647), `on_inside_bubble_column` (line 700) and
+  `bubble_column_vertical_velocity` (line 976), called from `tick` (line 581). Updraft
+  sets y=0.6, whirlpool adds y-0.7. Matches vanilla
+  `world/entity/vehicle/boat/AbstractBoat.java:165-184` (`onAboveBubbleColumn`),
+  `:351-385` (`tickBubbleColumn`) and `:399-407` (`handleBubbleColumnEffect`).
+  Unit test `bubble_column_impulse_matches_vanilla_boat_effect` (boat.rs:1076).
+- #4 (chest contents vs gamerule) FIXED / VERIFIED. `boat.rs` `scatter_chest_contents`
+  (line 272) runs from `on_removed` (line 504) and from `damage_with_context` (line 746)
+  before the `entity_drops` gate (line 747); `claim_drops()` keeps it single-use.
+  Matches vanilla `world/entity/vehicle/boat/AbstractChestBoat.java:71-77`
+  (`remove` -> `Containers.dropContents` on any `shouldDestroy`, independent of
+  `doEntityDrops`) and `:65-68` (`destroy`, only the item uses `getDropItem`).
+- #5 (double boat drop) FIXED / VERIFIED. `vehicle.rs` `has_entity_loot_table` (line 27)
+  returns `entity_type.boat.is_none()` and gates the loot roll, leaving only the
+  hardcoded item drop. Matches vanilla
+  `world/entity/vehicle/boat/AbstractBoat.java:862` (`getDropItem`) and
+  `world/entity/vehicle/boat/AbstractChestBoat.java:65-68` (`destroy`), with no
+  `minecraft:entities/<type>` roll. Unit test at vehicle.rs:337-341.
+- #6 (fluid current push) VERIFIED (authorised-on-divergence row; no divergence seen).
+  `boat.rs` `tick` (lines 595-603) applies `base_tick` (with fluid push) to empty and
+  mob-ridden boats and `base_tick_without_fluid_push` only to player-steered boats,
+  whose velocity is zeroed (lines 611-618). Matches vanilla
+  `world/entity/Entity.java` `baseTick` pushing every boat; the server push is
+  unobservable for a client-authoritative boat, so no change.
+- Paddle handler (`net/java/play/paddle_boat.rs`) FIXED / VERIFIED (parity). It gates on
+  the immediate vehicle whose controlling passenger is the sender (by unique entity id),
+  downcasts to `BoatEntity` (all boat/chest-boat types), then calls `set_paddle_state`.
+  `get_controlling_passenger` (boat.rs:526) returns the first player passenger. Matches
+  vanilla `server/network/ServerGamePacketListenerImpl.java:2464-2469`
+  (`handlePaddleBoat`), `world/entity/Entity.java:6661-6663` (`getControlledVehicle`)
+  and `world/entity/vehicle/boat/AbstractBoat.java:845-847`
+  (`getControllingPassenger`). Network glue, no pure-logic seam for a unit test.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-bamboo-chest-raft.md
