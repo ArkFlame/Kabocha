@@ -278,7 +278,7 @@ impl BeehiveBlockEntity {
     pub fn empty_all_living_from_hive(
         &self,
         world: &Arc<World>,
-        player: Option<Arc<dyn EntityBase>>,
+        player: Option<&Arc<dyn EntityBase>>,
     ) {
         let taken = self
             .bees
@@ -300,7 +300,7 @@ impl BeehiveBlockEntity {
                     world,
                     self.position,
                     hive_flower,
-                    player.clone(),
+                    player.map(Arc::clone),
                     &mut entity_data,
                 );
             }

@@ -94,7 +94,7 @@ impl BeehiveBlock {
         };
         beehive.empty_all_living_from_hive(
             &args.world,
-            Some(args.player.clone() as Arc<dyn EntityBase>),
+            Some(&(args.player.clone() as Arc<dyn EntityBase>)),
         );
     }
 

@@ -1128,6 +1128,28 @@ mod tests {
         assert_eq!(still, Vector3::new(0.0, 5.0, 0.0));
     }
 
+    #[test]
+    fn display_block_nbt_roundtrip() {
+        let display = MinecartDisplay::new();
+        let mut nbt = NbtCompound::new();
+        display.write_nbt(&mut nbt);
+        assert!(nbt.get("DisplayState").is_none());
+        assert!(nbt.get("DisplayOffset").is_none());
+
+        let state = Block::STONE.default_state.id;
+        display.block_state.store(Some(state));
+        display.offset.store(3, Ordering::Relaxed);
+        let mut nbt = NbtCompound::new();
+        display.write_nbt(&mut nbt);
+        assert!(nbt.get_compound("DisplayState").is_some());
+        assert!(nbt.get_int("DisplayOffset") == Some(3));
+
+        let loaded = MinecartDisplay::new();
+        loaded.read_nbt(&nbt);
+        assert!(loaded.block_state.load() == Some(state));
+        assert!(loaded.offset.load(Ordering::Relaxed) == 3);
+    }
+
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[test]

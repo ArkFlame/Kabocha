@@ -757,6 +757,7 @@ impl EnderDragonEntity {
         let dd = (xd * xd + zd * zd).max(0.1);
         Vector3::new(xd / dd * 4.0, 0.2, zd / dd * 4.0)
     }
+
     fn tick_crystal_healing(&self) {
         let world = self.mob_entity.living_entity.entity.world.load();
         let pos = self.mob_entity.living_entity.entity.pos.load();
