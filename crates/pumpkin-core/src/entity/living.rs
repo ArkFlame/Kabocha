@@ -3029,18 +3029,11 @@ impl LivingEntity {
                     ExperienceOrbEntity::spawn(&world, self.entity.pos.load(), amount);
                 }
             }
-            // Vanilla `SculkCatalystBlockEntity` consumes the soul of any
-            // non-player death with experience, spreading sculk around a
-            // catalyst within 8 blocks.
-            if perished && dyn_self.get_player().is_none() && dyn_self.should_drop_experience() {
-                // Vanilla passes `lastDamageSource.getEntity()` to `getExperienceReward`,
-                // so Looting raises the soul charge just like the normal XP drop.
-                let soul_charge = dyn_self.get_experience_reward(killer);
-                crate::block::entities::sculk_catalyst::on_entity_death(
-                    &world,
-                    self.entity.block_pos.load(),
-                    i32::try_from(soul_charge).unwrap_or(i32::MAX),
-                );
+            // Vanilla fires `GameEvent.ENTITY_DIE` on death. Sculk catalysts
+            // are BY_DISTANCE listeners that consume the soul and bloom.
+            if perished {
+                self.entity
+                    .emit_own_game_event(&*dyn_self, GameEvent::EntityDie);
             }
             self.entity.pose.store(EntityPose::Dying);
 

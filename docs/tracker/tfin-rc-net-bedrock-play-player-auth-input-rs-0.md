@@ -4,7 +4,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 No row is STILL OPEN. Every row in both referenced audit docs was re-verified against
 
-## Result
 ## Result (final pass)
 
 Every row is closed. All 13 rows across the two referenced audit docs were re-verified
