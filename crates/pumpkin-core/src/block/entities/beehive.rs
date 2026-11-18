@@ -223,7 +223,7 @@ impl BeehiveBlockEntity {
         pos: BlockPos,
         hive_flower: Option<BlockPos>,
         player: Option<Arc<dyn EntityBase>>,
-        mut entity_data: NbtCompound,
+        entity_data: &mut NbtCompound,
     ) {
         // Vanilla HONEY_DELIVERED release calls Bee.dropOffNectar, which resets the
         // no-nectar timer; without this a released forager would re-enter immediately.
@@ -253,7 +253,7 @@ impl BeehiveBlockEntity {
             f64::from(pos.0.y) + 0.5 - 0.4,
             f64::from(pos.0.z) + 0.5 + 0.6 * dz,
         );
-        let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
+        let Some(entity) = load_entity_from_nbt(entity_data, spawn, world) else {
             return;
         };
         // Entity.read_placement_nbt restores the saved Pos, so override it with the
@@ -290,14 +290,14 @@ impl BeehiveBlockEntity {
             .unwrap_or_else(PoisonError::into_inner);
         for bee in bees {
             if let NbtTag::Compound(compound) = bee
-                && let Some(entity_data) = compound.get_compound("entity_data").cloned()
+                && let Some(mut entity_data) = compound.get_compound("entity_data").cloned()
             {
                 Self::release_occupant(
                     world,
                     self.position,
                     hive_flower,
                     player.clone(),
-                    entity_data,
+                    &mut entity_data,
                 );
             }
         }
@@ -344,8 +344,8 @@ impl BeehiveBlockEntity {
             .flower_pos
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        for entity_data in ready {
-            Self::release_occupant(world, self.position, hive_flower, None, entity_data);
+        for mut entity_data in ready {
+            Self::release_occupant(world, self.position, hive_flower, None, &mut entity_data);
         }
     }
 }
