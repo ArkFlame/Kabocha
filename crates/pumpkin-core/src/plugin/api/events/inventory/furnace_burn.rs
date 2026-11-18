@@ -13,6 +13,11 @@ pub struct FurnaceBurnEvent {
 
     /// The burn time in ticks.
     pub burn_time: u32,
+
+    /// Whether the fuel item is consumed when the furnace ignites. Paper's
+    /// `FurnaceBurnEvent#setConsumeFuel(false)` keeps the furnace lit but leaves the fuel slot
+    /// untouched.
+    pub consume_fuel: bool,
 }
 
 impl FurnaceBurnEvent {
@@ -22,6 +27,7 @@ impl FurnaceBurnEvent {
             block_pos,
             fuel_item,
             burn_time,
+            consume_fuel: true,
             cancelled: false,
         }
     }

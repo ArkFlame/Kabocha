@@ -9,15 +9,23 @@ use crate::world::World;
 #[derive(Event, Clone)]
 pub struct BlockExplodeEvent {
     pub block_pos: BlockPos,
+    /// Blocks that will be destroyed; plugins may remove entries to protect them.
+    pub blocks: Vec<BlockPos>,
     pub yield_rate: f32,
     pub world: Arc<World>,
 }
 
 impl BlockExplodeEvent {
     #[must_use]
-    pub const fn new(block_pos: BlockPos, yield_rate: f32, world: Arc<World>) -> Self {
+    pub const fn new(
+        block_pos: BlockPos,
+        blocks: Vec<BlockPos>,
+        yield_rate: f32,
+        world: Arc<World>,
+    ) -> Self {
         Self {
             block_pos,
+            blocks,
             yield_rate,
             world,
             cancelled: false,

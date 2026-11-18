@@ -1,4 +1,4 @@
-use pumpkin_data::Block;
+use pumpkin_data::{Block, BlockStateId};
 use pumpkin_macros::{Event, cancellable};
 use pumpkin_util::math::position::BlockPos;
 
@@ -11,14 +11,22 @@ pub struct BlockFadeEvent {
 
     /// The block fading.
     pub block: &'static Block,
+
+    /// The replacement block state the fading block is about to become.
+    pub new_state_id: BlockStateId,
 }
 
 impl BlockFadeEvent {
     #[must_use]
-    pub const fn new(block_pos: BlockPos, block: &'static Block) -> Self {
+    pub const fn new(
+        block_pos: BlockPos,
+        block: &'static Block,
+        new_state_id: BlockStateId,
+    ) -> Self {
         Self {
             block_pos,
             block,
+            new_state_id,
             cancelled: false,
         }
     }

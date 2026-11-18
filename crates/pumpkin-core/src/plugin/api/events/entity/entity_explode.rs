@@ -1,5 +1,5 @@
 use pumpkin_macros::{Event, cancellable};
-use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use std::sync::Arc;
 
 use crate::world::World;
@@ -14,6 +14,9 @@ pub struct EntityExplodeEvent {
     /// The position where the explosion occurred.
     pub position: Vector3<f64>,
 
+    /// Blocks that will be destroyed; plugins may remove entries to protect them.
+    pub blocks: Vec<BlockPos>,
+
     /// The yield rate of blocks destroyed.
     pub yield_rate: f32,
 
@@ -26,12 +29,14 @@ impl EntityExplodeEvent {
     pub const fn new(
         entity_id: i32,
         position: Vector3<f64>,
+        blocks: Vec<BlockPos>,
         yield_rate: f32,
         world: Arc<World>,
     ) -> Self {
         Self {
             entity_id,
             position,
+            blocks,
             yield_rate,
             world,
             cancelled: false,
