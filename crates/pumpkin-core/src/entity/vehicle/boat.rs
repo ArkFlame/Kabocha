@@ -660,7 +660,11 @@ impl EntityBase for BoatEntity {
                 0.8 + rand::random::<f32>() * 0.4,
             );
             world.spawn_particle(
-                Vector3::new(pos.x + rand::random::<f64>(), pos.y + 0.7, pos.z + rand::random::<f64>()),
+                Vector3::new(
+                    pos.x + rand::random::<f64>(),
+                    pos.y + 0.7,
+                    pos.z + rand::random::<f64>(),
+                ),
                 Vector3::new(0.0, 0.0, 0.0),
                 0.0,
                 1,

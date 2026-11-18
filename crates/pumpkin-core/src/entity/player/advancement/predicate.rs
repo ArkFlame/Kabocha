@@ -1195,6 +1195,13 @@ impl DamageTypeTagPredicate {
     }
 }
 
+/// Original pre-mitigation and actually applied damage of a single hit.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DamagePair {
+    pub original: f64,
+    pub actual: f64,
+}
+
 /// Strongly-typed damage condition.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct DamagePredicate {
@@ -1223,6 +1230,28 @@ impl DamagePredicate {
         damage: Option<f64>,
         direct_entity_type: Option<&str>,
     ) -> bool {
+        self.matches_with_damage(
+            is_blocked,
+            is_deflector,
+            is_mace_smash,
+            damage,
+            damage,
+            direct_entity_type,
+        )
+    }
+
+    /// Vanilla `DamagePredicate.matches` checks `dealtDamage` against the
+    /// original pre-mitigation damage and `takenDamage` against the amount
+    /// actually applied, so the two bounds see distinct values.
+    fn matches_with_damage(
+        &self,
+        is_blocked: bool,
+        is_deflector: bool,
+        is_mace_smash: bool,
+        original_damage: Option<f64>,
+        actual_damage: Option<f64>,
+        direct_entity_type: Option<&str>,
+    ) -> bool {
         if let Some(blocked) = self.blocked
             && blocked != is_blocked
         {
@@ -1247,7 +1276,7 @@ impl DamagePredicate {
             }
         }
         if let Some(dealt) = &self.dealt {
-            let Some(d) = damage else {
+            let Some(d) = original_damage else {
                 return false;
             };
             if !dealt.matches(d) {
@@ -1255,7 +1284,7 @@ impl DamagePredicate {
             }
         }
         if let Some(taken) = &self.taken {
-            let Some(d) = damage else {
+            let Some(d) = actual_damage else {
                 return false;
             };
             if !taken.matches(d) {
@@ -1274,15 +1303,16 @@ impl DamagePredicate {
         is_blocked: bool,
         is_deflector: bool,
         is_mace_smash: bool,
-        damage: Option<f64>,
+        damage: DamagePair,
         direct_entity_type: Option<&str>,
         damage_type: &DamageType,
     ) -> bool {
-        if !self.matches_with_context(
+        if !self.matches_with_damage(
             is_blocked,
             is_deflector,
             is_mace_smash,
-            damage,
+            Some(damage.original),
+            Some(damage.actual),
             direct_entity_type,
         ) {
             return false;
@@ -3078,6 +3108,55 @@ mod tests {
         };
         assert!(projectile.matches(&DamageType::ARROW));
         assert!(!not_projectile.matches(&DamageType::ARROW));
+    }
+
+    #[test]
+    fn damage_predicate_checks_dealt_and_taken_separately() {
+        let predicate = DamagePredicate {
+            dealt: Some(FloatBounds {
+                min: Some(8.0),
+                max: Some(10.0),
+            }),
+            taken: Some(FloatBounds {
+                min: Some(4.0),
+                max: Some(5.0),
+            }),
+            ..DamagePredicate::default()
+        };
+        let pair = DamagePair {
+            original: 9.0,
+            actual: 4.5,
+        };
+        assert!(predicate.matches_with_damage_type(
+            false,
+            false,
+            false,
+            pair,
+            None,
+            &DamageType::ARROW
+        ));
+        assert!(!predicate.matches_with_damage_type(
+            false,
+            false,
+            false,
+            DamagePair {
+                original: 9.0,
+                actual: 9.0,
+            },
+            None,
+            &DamageType::ARROW
+        ));
+        assert!(!predicate.matches_with_damage_type(
+            false,
+            false,
+            false,
+            DamagePair {
+                original: 4.5,
+                actual: 4.5,
+            },
+            None,
+            &DamageType::ARROW
+        ));
     }
 
     #[test]

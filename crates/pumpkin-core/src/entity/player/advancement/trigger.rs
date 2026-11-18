@@ -1,6 +1,8 @@
 use crate::entity::player::Player;
 use crate::entity::player::advancement::PlayerAdvancement;
-use crate::entity::player::advancement::predicate::{self, CriterionConditions, EntityDistance};
+use crate::entity::player::advancement::predicate::{
+    self, CriterionConditions, DamagePair, EntityDistance,
+};
 use pumpkin_util::math::position::BlockPos;
 
 /// One entity hit by the bolt, used to test the lightning sub-predicate.
@@ -52,7 +54,8 @@ pub enum AdvancementTrigger {
         is_blocked: bool,
         is_projectile: bool,
         is_mace_smash: bool,
-        damage: f64,
+        original_damage: f64,
+        actual_damage: f64,
         direct_entity_type: Option<String>,
         damage_type: pumpkin_data::damage::DamageType,
     },
@@ -487,7 +490,8 @@ impl Player {
                 is_blocked,
                 is_projectile,
                 is_mace_smash,
-                damage,
+                original_damage,
+                actual_damage,
                 direct_entity_type,
                 damage_type,
             } => {
@@ -496,7 +500,10 @@ impl Player {
                         is_blocked,
                         is_projectile,
                         is_mace_smash,
-                        Some(damage),
+                        DamagePair {
+                            original: original_damage,
+                            actual: actual_damage,
+                        },
                         direct_entity_type.as_deref(),
                         &damage_type,
                     ),

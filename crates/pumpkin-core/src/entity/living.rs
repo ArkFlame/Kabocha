@@ -4351,7 +4351,8 @@ impl LivingEntity {
                             is_blocked: true,
                             is_projectile: damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE),
                             is_mace_smash: damage_type.has_tag(&tag::DamageType::MINECRAFT_MACE_SMASH),
-                            damage: f64::from(pre_block_amount),
+                            original_damage: f64::from(pre_block_amount),
+                            actual_damage: 0.0,
                             damage_type,
                             direct_entity_type: source
                                 .map(|s| s.get_entity().entity_type.resource_name.to_string()),
@@ -4612,7 +4613,8 @@ impl LivingEntity {
                     is_blocked: was_blocked,
                     is_projectile: damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE),
                     is_mace_smash: damage_type.has_tag(&tag::DamageType::MINECRAFT_MACE_SMASH),
-                    damage: f64::from(amount),
+                    original_damage: f64::from(pre_block_amount),
+                    actual_damage: f64::from(damage_amount),
                     damage_type,
                     direct_entity_type: source
                         .map(|s| s.get_entity().entity_type.resource_name.to_string()),
