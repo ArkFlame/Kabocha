@@ -31,9 +31,11 @@ impl EntityReference {
 
     #[must_use]
     pub fn new(entity: Option<&Entity>) -> Self {
+        let uuid = entity.map(|entity| entity.entity_uuid);
+        let resolved = entity.and_then(Entity::self_weak);
         Self {
-            uuid: AtomicCell::new(entity.map(|entity| entity.entity_uuid)),
-            resolved: Mutex::new(None),
+            uuid: AtomicCell::new(uuid),
+            resolved: Mutex::new(resolved),
         }
     }
 
@@ -290,6 +292,8 @@ impl std::ops::Deref for ProjectileOwner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pumpkin_data::entity::EntityType;
+    use pumpkin_util::math::vector3::Vector3;
 
     #[test]
     fn projectile_owner_nbt_round_trip_matches_vanilla_keys() {
@@ -354,5 +358,26 @@ mod tests {
         assert_eq!(restored.owner.uuid(), Some(uuid));
         assert!(restored.left_owner.load(Relaxed));
         assert!(restored.has_been_shot.load(Relaxed));
+    }
+
+    #[test]
+    fn reference_resolves_owner_before_world_registration() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let shooter: Arc<dyn EntityBase> = Arc::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::ARROW,
+        ));
+        let uuid = shooter.get_entity().entity_uuid;
+        // Simulate spawn registration recording the owning Arc as a weak handle.
+        shooter.get_entity().set_self_weak(&shooter);
+        let reference = EntityReference::new(Some(shooter.get_entity()));
+        assert_eq!(reference.uuid(), Some(uuid));
+        // The shooter is absent from the world list, so UUID lookup alone would fail.
+        assert!(world.get_entity_by_uuid(uuid).is_none());
+        assert!(reference.get(&world).is_some());
+        Ok(())
     }
 }

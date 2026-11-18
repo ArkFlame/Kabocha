@@ -19,6 +19,9 @@ pub trait ErasedSerializer: Send + Sync {
     ) -> Result<(), WritingError>;
 
     fn write_canonical(&self, index: TrackedId, r#type: MetaDataType) -> Vec<u8>;
+
+    /// Exposes the stored value for typed reads, mirroring vanilla `SynchedEntityData.get`.
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 struct SerializerHolder<T> {
@@ -44,6 +47,10 @@ impl<T: MetadataSerializer + Clone + Send + Sync + 'static> ErasedSerializer
         let meta = Metadata::new_raw(index, r#type, &self.value);
         let _ = meta.write(&mut buf, &JavaMinecraftVersion::V_26_3);
         buf
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        &self.value
     }
 }
 

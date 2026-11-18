@@ -429,6 +429,20 @@ const fn toggle_glide_applies(cancelled: bool, is_gliding: bool, current: bool) 
     if cancelled { current } else { is_gliding }
 }
 
+/// Decides the vanilla `LodestoneTracker.tick` outcome for a compass in its target dimension.
+///
+/// A tracker stays linked while the target is in world bounds and its chunk is either unloaded
+/// (Paper/Folia deliberately avoid loading it) or still holds the lodestone block. It is unlinked
+/// only for an out-of-bounds target or a loaded chunk whose lodestone is gone, keeping `tracked`
+/// true to match vanilla's `new LodestoneTracker(Optional.empty(), true)`.
+const fn should_unlink_lodestone_tracker(
+    in_build_limit: bool,
+    chunk_loaded: bool,
+    block_is_lodestone: bool,
+) -> bool {
+    !in_build_limit || (chunk_loaded && !block_is_lodestone)
+}
+
 fn write_last_death_location(nbt: &mut NbtCompound, dimension: &ResourceLocation, pos: &BlockPos) {
     let mut death_compound = NbtCompound::new();
     death_compound.put_string("dimension", dimension.clone());
@@ -1095,7 +1109,8 @@ impl Player {
             client,
             awaiting_teleport: Mutex::new(None),
             breath_manager: BreathManager::default(),
-            // TODO: Load this from previous instance
+            // Saved food/air is applied from NBT after construction; respawn reuses this
+            // same Player instance, so neither manager needs copying from an old one.
             hunger_manager: HungerManager::default(),
             current_block_destroy_stage: AtomicI32::new(-1),
             current_block_breaking_speed: AtomicU32::new(0),
@@ -7141,11 +7156,16 @@ impl Player {
                 let level = self.world();
                 if target.dimension == level.dimension.minecraft_name {
                     let pos = BlockPos::new(target.x, target.y, target.z);
-                    // A lost or out-of-bounds lodestone is unlinked with `tracked` still true.
-                    if !level.is_in_build_limit(pos)
-                        || (level.level.is_chunk_loaded(&pos.chunk_position())
-                            && level.get_block(&pos) != &Block::LODESTONE)
-                    {
+                    let chunk_loaded = level.level.is_chunk_loaded(&pos.chunk_position());
+                    // Only read the target block when its chunk is loaded; a vanilla compass
+                    // tick deliberately does not load chunks.
+                    let block_is_lodestone =
+                        chunk_loaded && level.get_block(&pos) == &Block::LODESTONE;
+                    if should_unlink_lodestone_tracker(
+                        level.is_in_build_limit(pos),
+                        chunk_loaded,
+                        block_is_lodestone,
+                    ) {
                         stack.set_data_component(LodestoneTrackerImpl {
                             target: None,
                             tracked: true,
@@ -10684,6 +10704,21 @@ mod tests {
         assert!(super::toggle_glide_applies(true, false, true));
         // A plugin can also veto the stop by keeping the flag set.
         assert!(super::toggle_glide_applies(false, true, true));
+    }
+
+    #[test]
+    fn lodestone_tracker_unlinks_only_when_target_lodestone_is_gone() {
+        use super::should_unlink_lodestone_tracker as unlink;
+
+        // In bounds with the lodestone still present: stay linked.
+        assert!(!unlink(true, true, true));
+        // In bounds with the chunk unloaded: vanilla keeps the tracker without loading the chunk.
+        assert!(!unlink(true, false, false));
+        // In bounds, chunk loaded but lodestone broken: unlink.
+        assert!(unlink(true, true, false));
+        // Out of bounds: unlink regardless of chunk or block state.
+        assert!(unlink(false, true, true));
+        assert!(unlink(false, false, false));
     }
 
     #[test]

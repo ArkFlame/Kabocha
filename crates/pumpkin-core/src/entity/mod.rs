@@ -1906,6 +1906,9 @@ pub struct Entity {
     pub push_impulse: AtomicCell<Vector3<f64>>,
     /// Set when an Entity is to be removed but could still be referenced
     pub removed: AtomicBool,
+    /// Weak handle to the `Arc<dyn EntityBase>` that owns this entity, set when the entity is
+    /// registered so references resolve it before UUID/world lookup is possible.
+    self_weak: std::sync::Mutex<Option<Weak<dyn EntityBase>>>,
     /// The last sent yaw value (encoded as u8) for change detection
     pub last_sent_yaw: AtomicU8,
     /// The last sent pitch value (encoded as u8) for change detection
@@ -2002,6 +2005,23 @@ impl Entity {
     #[must_use]
     pub fn get_server(&self) -> Option<std::sync::Arc<Server>> {
         self.world.load().server.upgrade()
+    }
+
+    /// Records the owning `Arc` as a weak handle when the entity is registered with a world.
+    pub fn set_self_weak(&self, entity: &Arc<dyn EntityBase>) {
+        *self
+            .self_weak
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::downgrade(entity));
+    }
+
+    /// The owning entity, if it has been registered and is still alive.
+    #[must_use]
+    pub fn self_weak(&self) -> Option<Weak<dyn EntityBase>> {
+        self.self_weak
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     #[must_use]
@@ -2178,6 +2198,7 @@ impl Entity {
             sync_velocity: AtomicBool::new(false),
             push_impulse: AtomicCell::new(Vector3::default()),
             removed: AtomicBool::new(false),
+            self_weak: std::sync::Mutex::new(None),
             last_sent_yaw: AtomicU8::new(0),
             last_sent_pitch: AtomicU8::new(0),
             last_sent_head_yaw: AtomicU8::new(0),

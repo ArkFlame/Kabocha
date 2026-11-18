@@ -33,6 +33,15 @@ fn rolls_sneeze(weak: bool, mut next_int: impl FnMut(i32) -> i32) -> bool {
         || next_int(to_goal_ticks(BABY_SNEEZE_BOUND)) == 1
 }
 
+/// The entity reach of the delayed `after_sneeze` jump. The goal reports it so an audited panda's
+/// island reach covers the jump, which the mob tick drives outside any goal callback.
+fn sneeze_reach() -> GoalReach {
+    GoalReach {
+        entities: SNEEZE_JUMP_RANGE,
+        ..GoalReach::default()
+    }
+}
+
 impl PandaEntity {
     /// The condition of `PandaSneezeGoal.canUse` before the random roll.
     fn can_sneeze(&self) -> bool {
@@ -80,8 +89,9 @@ impl PandaEntity {
     ///
     /// This reads and changes other entities up to 10 blocks away from the panda's tick. The
     /// conservative island reach covers that because `has_audited_tick` is false for pandas:
-    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks. A species that
-    /// sets `has_audited_tick` must report this reach from its own goal and tick audit.
+    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks. The same reach
+    /// is reported by `PandaSneezeGoal::tick_reach`, so enabling `has_audited_tick` later keeps
+    /// this effect covered.
     fn after_sneeze(&self) {
         self.play_entity_sound(Sound::EntityPandaSneeze, 1.0, 1.0);
 
@@ -170,9 +180,10 @@ impl Goal for PandaSneezeGoal {
         }
     }
 
-    /// Reads the panda itself and raises its sneeze flag, so it reaches no other entity.
+    /// The goal only raises the sneeze flag, but that flag drives the delayed `after_sneeze` jump
+    /// of other pandas. Report the jump reach so it is included in an audited panda's island reach.
     fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<GoalReach> {
-        Some(GoalReach::default())
+        Some(sneeze_reach())
     }
 }
 
@@ -196,6 +207,15 @@ mod tests {
         assert!(!rolls(true, &[(250, 0), (3000, 0)]));
         assert!(rolls(false, &[(3000, 1)]));
         assert!(!rolls(false, &[(3000, 0)]));
+    }
+
+    #[test]
+    fn sneeze_goal_reports_the_jump_range_as_entity_reach() {
+        let reach = sneeze_reach();
+        assert_eq!(reach.entities, SNEEZE_JUMP_RANGE);
+        assert_eq!(reach.players, 0.0);
+        assert!(!reach.changes_blocks);
+        assert!(reach.links.is_empty());
     }
 
     #[tokio::test]

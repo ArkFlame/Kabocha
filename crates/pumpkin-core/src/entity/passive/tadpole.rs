@@ -258,15 +258,13 @@ impl crate::entity::custom_sound::CustomSound for TadpoleEntity {
 }
 
 impl Bucketable for TadpoleEntity {
+    // Vanilla Tadpole overrides fromBucket to always return true and makes
+    // setFromBucket a no-op, unlike other AbstractFish.
     fn is_from_bucket(&self) -> bool {
-        self.fish_data.from_bucket.load(Relaxed)
+        true
     }
 
-    fn set_from_bucket(&self, from_bucket: bool) {
-        self.fish_data.from_bucket.store(from_bucket, Relaxed);
-        self.get_entity()
-            .set_synced_data(tracked_data::abstract_fish::FROM_BUCKET, from_bucket);
-    }
+    fn set_from_bucket(&self, _from_bucket: bool) {}
 
     fn bucket_item(&self) -> &'static Item {
         &Item::TADPOLE_BUCKET
@@ -293,5 +291,34 @@ impl Bucketable for TadpoleEntity {
             self.set_age(age);
         }
         self.set_age_locked(nbt.get_bool("AgeLocked").unwrap_or(false));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::ai::test_support::world;
+    use pumpkin_util::math::vector3::Vector3;
+
+    #[tokio::test]
+    async fn tadpole_is_always_from_bucket() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let tadpole = TadpoleEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::TADPOLE,
+        ));
+        let bucketable = tadpole.as_bucketable().ok_or("missing Bucketable")?;
+        // Vanilla Tadpole fromBucket returns true regardless of any stored bucket flag.
+        assert!(bucketable.is_from_bucket());
+        bucketable.set_from_bucket(false);
+        assert!(bucketable.is_from_bucket());
+        let mut nbt = NbtCompound::new();
+        nbt.put_bool("FromBucket", false);
+        tadpole.fish_read_nbt(&nbt);
+        assert!(bucketable.is_from_bucket());
+        world.level.shutdown().await;
+        Ok(())
     }
 }
