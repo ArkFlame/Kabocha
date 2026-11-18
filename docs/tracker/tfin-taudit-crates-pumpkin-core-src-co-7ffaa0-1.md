@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: recipe.rs
 
-- 5. Raw argument in error text (`recipe.rs:24-25`): STILL OPEN (S).
-- 1. No server-side recipe book (M): STILL OPEN. Needs a per-player known-recipe set persisted
-- 2. take remove packet always sent / wrong success count (M): STILL OPEN. Depends on gap 1;
-All five STILL OPEN rows are already resolved in the tree; no new code edits were required this
+- 5. Raw argument in error text (`recipe.rs:24-25`): VERIFIED (see Result).
+- 1. No server-side recipe book (M): VERIFIED fixed (see Result). Per-player known-recipe set persisted
+- 2. take remove packet always sent / wrong success count (M): VERIFIED fixed (see Result). Depends on gap 1;
+All five rows were already resolved in the tree; no new code edits were required this pass.
 
 ## Result
 
