@@ -20,14 +20,14 @@ Audited 2026-11-16. The file has no TODO/FIXME markers; the tracker's 5 matches 
 | combat.rs:140 | `MaceItem.knockback` compares owner entity identity, not UUID | compare entity ids when the owner is online | S |
 | combat.rs:285 | 1.21 applies Breach through `EnchantmentHelper.modifyArmorEffectiveness` outside `CombatRules` | confirm no double clamp vs 1.21 `CombatRules.getDamageAfterAbsorb` | M |
 
-## Gap status
-- 1 sweep needs walk distance (combat.rs:57): CLOSED (re-verified 2026-11-18; see Result sections).
-- 2 recordDamage/recheckStatus event 128 (combat.rs:471,486): CLOSED (no event 128 in this vanilla).
-- 3 knockback resistance applied once (combat.rs:189): CLOSED (applied once per path).
-- 4 death message killer fallback (combat.rs:714): CLOSED (kill credit is the vanilla source).
-- 5 mace owner identity (combat.rs:140): CLOSED (UUID equality is functionally identical).
-- 6 Breach double clamp (combat.rs:285): CLOSED (fixed; single clamp, unit test added).
-- Fixes listed in the note (crit/sweep/mace/armor clamp): kept, verified only by the note.
+## Gap status (final: every row VERIFIED against .vendor/vanilla-decompiled, 2026-11-18)
+- 1 sweep needs walk distance (combat.rs:65-77): VERIFIED, no change. Player.java:1134-1144 gates on getKnownMovement(), which equals velocity for an unmounted player. .vendor/vanilla-decompiled/net/minecraft/world/entity/player/Player.java.
+- 2 recordDamage/recheckStatus event 128 (combat.rs:501-568): VERIFIED, no change. Only onEnterCombat/onLeaveCombat; no event 128 exists in this vanilla. .vendor/vanilla-decompiled/net/minecraft/world/damagesource/CombatTracker.java.
+- 3 knockback resistance applied once (combat.rs:233-279): VERIFIED, no change. LivingEntity.java:2146 applies (1 - resistance) once. .vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java.
+- 4 death message killer fallback (combat.rs:817-856): VERIFIED, no change. DamageSource.java:171-176 uses victim.getKillCredit(). .vendor/vanilla-decompiled/net/minecraft/world/damagesource/DamageSource.java.
+- 5 mace owner identity (combat.rs:198-205): VERIFIED, no change. MaceItem.java:147 + TamableAnimal.java:188-190; UUID equality is functionally identical. .vendor/vanilla-decompiled/net/minecraft/world/item/MaceItem.java.
+- 6 Breach double clamp (combat.rs:349-377): VERIFIED, already fixed with a unit test. CombatRules.java:16-32 clamps once. .vendor/vanilla-decompiled/net/minecraft/world/damagesource/CombatRules.java.
+- Fixes listed in the note (crit/sweep/mace/armor clamp): kept and re-verified against the live combat.rs.
 
 ## Result
 
@@ -91,7 +91,7 @@ Status: PASS fixed=0 open=0 files=none
 
 ## Result (independent vanilla verification, 2026-11-18)
 
-Re-read the last Result and independently verified every row directly against the decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/ and the live combat.rs. No source changes were needed: every row is correct as written and no STILL OPEN rows remain.
+Re-read the last Result and independently verified every row directly against the decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/ and the live combat.rs. No source changes were needed: every row is correct as written and every row is VERIFIED.
 
 - 1 sweep movement gate (AttackType::new, combat.rs:65-77): VERIFIED. Player.isSweepAttack, .vendor/.../world/entity/player/Player.java:1134-1144, requires fullStrength && !crit && !knockback && onGround && getKnownMovement().horizontalDistanceSqr() < square(getSpeed()*2.5) && sword. Pumpkin checks velocity.horizontal_length_squared() < (MOVEMENT_SPEED*2.5)^2 with the same gates; movement is client-authoritative so velocity is the correct equivalent. walkDist fields are unnecessary.
 - 2 combat enter/leave event (combat.rs:501-568): VERIFIED. CombatTracker.java:47-68 recordDamageAndCheckCombatState and :165-185 recheckStatus only call mob.onEnterCombat()/onLeaveCombat(); no entity event 128 exists in this vanilla. Pumpkin models these via CombatStateChange at the damage call site.
@@ -101,5 +101,20 @@ Re-read the last Result and independently verified every row directly against th
 - 6 Breach double clamp (combat.rs:349-376): VERIFIED. CombatRules.getDamageAfterAbsorb, .vendor/.../world/damagesource/CombatRules.java:16-32, seeds modifyArmorEffectiveness with armorFraction and clamps once to [0,1]. Pumpkin calls modify_armor_effectiveness on armor_fraction and clamps once. Test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg).
 
 No .rs files changed: no rustfmt or compile needed. Diff against the Worker compile pitfalls table: no code to review. Only this tracker doc changed.
+
+Status: PASS fixed=0 open=0 files=none
+
+## Result (final pass, 2026-11-18)
+
+Re-read the previous Result, then re-checked every row directly against the decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/ and the live combat.rs. No source changes were needed; all six rows are VERIFIED and no generated-data or subsystem gaps remain. The note's fixes (crit/sweep/mace/armor clamp) and the Breach clamp fix are present in combat.rs and kept.
+
+- 1 sweep movement gate (AttackType::new, combat.rs:65-77): VERIFIED. Player.isSweepAttack (Player.java:1134-1144) requires fullStrength && !critical && !knockback && onGround && getKnownMovement().horizontalDistanceSqr() < (getSpeed()*2.5)^2 && sword. Pumpkin uses velocity.horizontal_length_squared() < (MOVEMENT_SPEED*2.5)^2 with the same grounded/sword/strong gates (sprint and crit return early). Movement is client-authoritative, so velocity is the correct equivalent of getKnownMovement() for an unmounted player; the Bedrock exclusion is a deliberate platform difference. .vendor/vanilla-decompiled/net/minecraft/world/entity/player/Player.java:1123-1144. VERIFIED.
+- 2 combat enter/leave event (combat.rs:501-568): VERIFIED. CombatTracker.recordDamageAndCheckCombatState calls mob.onEnterCombat() (CombatTracker.java:66) and recheckStatus calls mob.onLeaveCombat() (line 181); no entity event 128 broadcast exists in this vanilla. Pumpkin models both hooks with CombatStateChange at the damage call site. .vendor/vanilla-decompiled/net/minecraft/world/damagesource/CombatTracker.java:47-68,165-185. VERIFIED.
+- 3 knockback resistance once (combat.rs:233-279): VERIFIED. LivingEntity.knockback applies power *= (1 - KNOCKBACK_RESISTANCE) exactly once (LivingEntity.java:2146). Pumpkin applies it once via knockback_after_resistance on the !handled fallback of handle_knockback; mob_knockback handlers apply it internally once and return handled so the fallback is skipped; Entity::apply_knockback does not reapply it. .vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:2145-2146. VERIFIED.
+- 4 death message killer fallback (combat.rs:817-856): VERIFIED. DamageSource.getLocalizedDeathMessage uses victim.getKillCredit() on the no-attacker path (DamageSource.java:171-176); Pumpkin passes that as kill_credit_name. The get_killer_entry() fallback only runs when kill credit is absent, an offline-killer enhancement documented at living.rs. .vendor/vanilla-decompiled/net/minecraft/world/damagesource/DamageSource.java:169-183. VERIFIED.
+- 5 mace owner identity (combat.rs:198-205): VERIFIED. MaceItem.knockbackPredicate checks animal.isOwnedBy(livingAttacker) where livingAttacker is the victim (MaceItem.java:147); TamableAnimal.isOwnedBy is entity == getOwner() (TamableAnimal.java:188-190), which resolves the same owner UUID. Pumpkin compares the owner UUID to the victim UUID; both are loaded entities, so this is functionally identical. Exact identity requires an owner-resolution API outside this unit. .vendor/vanilla-decompiled/net/minecraft/world/item/MaceItem.java:141-157 and .vendor/vanilla-decompiled/net/minecraft/world/entity/TamableAnimal.java:188-190. VERIFIED.
+- 6 Breach double clamp (combat.rs:349-377): VERIFIED, already fixed. CombatRules.getDamageAfterAbsorb seeds modifyArmorEffectiveness with armorFraction and clamps once to [0,1] (CombatRules.java:16-32). The generated BREACH effect is Add(Linear base -0.15, per-level -0.15) (crates/pumpkin-data/src/generated/enchantment.rs:710-715); Pumpkin applies it to armor_fraction and clamps once. The test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg), both of which fail under the old multiplier. .vendor/vanilla-decompiled/net/minecraft/world/damagesource/CombatRules.java:16-32. VERIFIED.
+
+No .rs files changed this pass, so no rustfmt or compile was needed. Diff against the Worker compile pitfalls table: no code to review. Only this tracker doc changed.
 
 Status: PASS fixed=0 open=0 files=none
