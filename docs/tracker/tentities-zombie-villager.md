@@ -171,3 +171,39 @@ Re-verified all five STILL OPEN rows against .vendor/vanilla-decompiled/net/mine
 Also confirmed cure duration nextInt(2401) + 3600 (ZombieVillager.java:171) = 3600..=6000 inclusive, matching random_range(3600..=6000).
 
 No .rs files touched; no build run per worker rules.
+
+## Result (third-pass terminal verification)
+
+All five rows resolved against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`. No source edits needed this pass.
+
+1. Strength amplifier: VERIFIED. `startConverting` (ZombieVillager.java:202-210) uses
+   `Math.min(getDifficulty().getId() - 1, 0)` = -1 on Peaceful, 0 elsewhere.
+   `cure_strength_amplifier` maps Peaceful -> None (no attribute bonus; hostile mobs are
+   removed there) and the other levels -> Some(0). Exact -1 cannot be stored because the
+   generated `Effect.amplifier` is `u8`, but a -1 Strength grants no bonus, so the
+   behaviour is observably identical. Covered by `cure_strength_skipped_only_on_peaceful`.
+2. Special-block scan: FIXED (verified). `getConversionProgress` (ZombieVillager.java:312-335)
+   guards each of the three x-4..x+4 loops with `specialBlocksCount < 14`, with a 0.01
+   entry roll and 0.3 per-block roll. `conversion_progress` uses
+   `>= MAX_SPECIAL_BLOCKS_COUNT` (14), radius 4 and the same rolls, so at most fourteen
+   blocks count. Already fixed in source.
+3. Equipment on cure: VERIFIED. `finishConversion` (ZombieVillager.java:240-252) and
+   `Mob.dropPreservedEquipment` (Mob.java:1092-1111) keep slots failing
+   `!has(PREVENT_ARMOR_CHANGE)` (binding curse) and drop only when
+   `DropChances.isPreserved` (`byEquipment > 1.0F`, DropChances.java:46-48).
+   `prevents_armor_change` / `drop_chance(slot) > 1.0` match. The retained
+   `set_guaranteed_drop` (setDropChance 2.0F) is not in this decompiled vanilla but is
+   harmless; a cure gametest would live outside this unit's two files.
+4. Cured villager effects: FIXED (verified). `ConversionType.convertCommon`
+   (ConversionType.java:95-100) copies every active effect; Pumpkin `convert_common`
+   (conversion.rs:136-154) does the same. The earlier effect-stripping block is gone.
+5. `set_villager_data` offers: VERIFIED. `setVillagerData` (ZombieVillager.java:373-380)
+   nulls `tradeOffers` on a profession change; Pumpkin removes the stored `Offers`
+   child tag on that change.
+
+Also confirmed the cure duration `nextInt(2401) + 3600` = 3600..=6000 (inclusive)
+(ZombieVillager.java:171) matches `random_range(3600..=6000)`.
+
+No .rs files touched; no build run per worker rules; rustfmt not applicable.
+

@@ -179,3 +179,36 @@ Re-verified both STILL OPEN rows against vendored decompiled vanilla at
   world-seeded seam exists to adopt.
 - Rows 1, 2, 4, 6 re-confirmed fixed. No generated-data / WIT change. Only `painting.rs`
   edited (plus this doc); no shared file rewritten. UNVERIFIED (no cargo by worker).
+
+
+## Result (2026-11-18 THIRD PASS, all STILL OPEN rows closed)
+
+Both remaining STILL OPEN rows re-checked directly against the vendored decompiled
+vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No generated-data or WIT
+change; no shared file rewritten.
+
+- Row 3 (front-space check): actionable parity FIXED, residual BLOCKED-DATA.
+  Verified against `HangingEntity.survives()` (HangingEntity.java:82-110) and
+  `Painting.create()` (Painting.java:93-120): vanilla filters candidates with voxel
+  collision shapes (`hasLevelCollision(getPopBox())` -> `Level.noBlockCollision` plus
+  `noBorderCollision`), a solid-or-diode support test (`isSupportingBlock`,
+  HangingEntity.java:91-93) and `canCoexist`; there is no is-air front-cell test, so
+  the row's original premise is disproven. The diode-support part is fixed in
+  `painting_fits` via `is_supporting_block` (test `diode_blocks_support_hanging_entities`).
+  This pass added the missing world-border half of `hasLevelCollision` to `survives()`
+  through `World::no_border_collision`, matching HangingEntity.java:108-110. Residual
+  gap: true per-cell parity for non-solid blocks that carry a collision shape (slabs,
+  stairs, fences) needs voxel collision geometry in the shared `World::check_collision`
+  (pumpkin-core/src/world/mod.rs:3210), which short-circuits every `!is_solid()` state.
+  That is a whole-engine collision subsystem change affecting all entity movement, not
+  a painting-only fix: BLOCKED-DATA (missing subsystem = per-block collision shapes /
+  `Level.noBlockCollision`).
+- Row 5 (variant RNG): VERIFIED, no code change needed. `Painting.create` samples with
+  `Util.getRandomSafe(potentialVariants, candidate.random)` (Painting.java:112);
+  `Entity.random` is `SHARED_RANDOM` (Entity.java:356), which is
+  `ThreadLocalRandomSource.INSTANCE` (Entity.java:175), i.e. thread-local and not
+  world-seeded. Rust `rand::rng()` is likewise thread-local, so it is functionally
+  equivalent; there is no world-seeded seam to adopt in this unit.
+- Rows 1, 2, 4, 6 re-confirmed fixed (variant-sized box + `painting_box_size` test;
+  yaw via `facing_to_yaw`/`set_facing`; `is_in_build_limit` painting branch; support
+  check at tick 100). No STILL OPEN rows remain. UNVERIFIED (no cargo by worker).
