@@ -14,7 +14,7 @@ Per sub-row of docs/tracker/tworld-sweep3.md:
 - BlendedNoise constants: VERIFIED. BASE_SCALE 684.412, LIMIT_FACTOR 0.99998474F, MAIN_FACTOR 12.75, LIMIT_FIRST_OCTAVE -15, MAIN_FIRST_OCTAVE -7 in .vendor/vanilla-decompiled/net/minecraft/world/level/levelgen/synth/BlendedNoise.java:33-37,54; SmearedPerlinNoise.range closed. No `STANDARD_DEVIATION` in vanilla BlendedNoise: not a vanilla constant.
 - Bedrock palette bit table: BLOCKED-DATA. `.vendor/vanilla-decompiled/net/minecraft/` is Java Edition only; no Bedrock Edition palette reference exists. Missing subsystem: a Bedrock-format palette bit-width reference. `crates/pumpkin-world/src/chunk/palette.rs:14` `bedrock_palette_bits` cannot be verified without it.
 
-No STILL OPEN rows remain. No .rs file touched, so rustfmt not required.
+No STILL OPEN rows remain (see FINAL PASS below for the .rs regression test and rustfmt note).
 
 ### FINAL PASS 2026-11-18
 
