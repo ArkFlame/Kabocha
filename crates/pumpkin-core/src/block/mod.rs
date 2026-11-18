@@ -797,7 +797,7 @@ impl BlockIsReplacing {
     /// Returns true for any water the block replaced, matching vanilla
     /// `FluidState#is(FluidTags.WATER)`: sources and flowing water alike.
     #[must_use]
-    pub const fn is_tag_water(&self) -> bool {
+    pub const fn is_any_water(&self) -> bool {
         matches!(self, Self::Water(_))
     }
 
@@ -949,10 +949,10 @@ mod tests {
     }
 
     #[test]
-    fn is_tag_water_matches_flowing_water() {
-        assert!(BlockIsReplacing::Water(0).is_tag_water());
-        assert!(BlockIsReplacing::Water(3).is_tag_water());
-        assert!(!BlockIsReplacing::Other.is_tag_water());
+    fn is_any_water_matches_flowing_water() {
+        assert!(BlockIsReplacing::Water(0).is_any_water());
+        assert!(BlockIsReplacing::Water(3).is_any_water());
+        assert!(!BlockIsReplacing::Other.is_any_water());
     }
 
     #[test]

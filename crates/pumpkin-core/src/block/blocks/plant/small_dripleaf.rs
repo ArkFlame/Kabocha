@@ -69,7 +69,7 @@ impl BlockBehaviour for SmallDripleafBlock {
 
         small_dripleaf_props.facing = facing;
         // Vanilla copies `LevelReader#isWaterAt`, true for flowing water too.
-        small_dripleaf_props.waterlogged = args.replacing.is_tag_water();
+        small_dripleaf_props.waterlogged = args.replacing.is_any_water();
         small_dripleaf_props.half = DoubleBlockHalf::Lower;
 
         small_dripleaf_props.to_state_id(args.block)
