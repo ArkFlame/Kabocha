@@ -49,3 +49,26 @@ Verified each STILL OPEN row against `.vendor/vanilla-decompiled` (symlink -> Pa
 - Row bubble-column `ID_BUBBLE_TIME` (M): LEFT OPEN. Needs new `BoatEntity` state (`is_above_bubble_column` / direction / timer), `on_above_bubble_column`/`on_inside_bubble_column` overrides (currently absent on boats), tick metadata writes and entity events, plus generated `tracked_data` constants; cross-cutting and the available decompile's bubble model differs from the target. `ID_BUBBLE_TIME` is already written by `tick_underwater` (`boat.rs:224-227`), so the tracker's "never written" note is stale.
 - Row rider-rotation clamp (M): LEFT OPEN. Needs a new vehicle `positionRider`/`onPassengerTurned` rotation hook and mob head-clamp wiring across the entity island; `rider_position` (`passengers.rs:28-35`) is player-only. Cross-crate/cross-file refactor, out of scope.
 - Row boat gametest (S): LEFT OPEN. `server/builtin_game_tests/` is not a source file named in this unit; adding/running a gametest is outside this unit's allowed files and cannot be verified here.
+
+## Result
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft` (Entity.java,
+BubbleColumnBlock.java, AbstractBoat.java, Projectile.java). Only `bubble_column.rs` is in this
+unit's scope.
+
+- Bubble column / `ID_BUBBLE_TIME` (M): FIXED. `bubble_column_vertical_velocity` already matches
+  vanilla `Entity.handleOnInsideBubbleColumn` (0.06/0.7 up, -0.03/-0.3 down) and
+  `handleOnAboveBubbleColumn` (0.1/1.8 up, -0.9 down), and `push_projectile` matches the uncapped
+  `Projectile` pushes. The boat-side state, `on_above_bubble_column`/`on_inside_bubble_column`
+  overrides, 60-tick timer and metadata writes are now present in `boat.rs` (parallel work, outside
+  this unit). Added `upward_push_cap_depends_on_surface` to lock the 0.7 vs 1.8 surface distinction;
+  no further in-scope source change needed.
+- Gravity (S): VERIFIED ALREADY CORRECT. Decompiled `AbstractBoat.floatBoat` starts
+  `double vspeed = -this.getGravity()`, so Pumpkin's `-self.get_gravity()` matches; replacing it with
+  `DEFAULT_GRAVITY` would diverge. `physics.rs` is outside this unit.
+- Air->water snap (S): LEFT OPEN. Vanilla guards the surface snap with `level().noCollision(...)`;
+  Pumpkin returns the offset unconditionally. Fixing it needs `float_boat` + `move_boat` together in
+  `physics.rs`, outside this unit's files.
+- Rider-rotation clamp (M): LEFT OPEN. Needs a vehicle `positionRider`/`onPassengerTurned` hook across
+  the entity island; `passengers.rs`/`boat.rs` are outside this unit.
+- Boat gametest (S): LEFT OPEN. `server/builtin_game_tests/` is not a source file named in this unit.

@@ -444,4 +444,18 @@ mod tests {
             -0.3
         );
     }
+
+    #[test]
+    fn upward_push_cap_depends_on_surface() {
+        // Entity.handleOnAboveBubbleColumn allows up to 1.8 at the column top while
+        // handleOnInsideBubbleColumn caps the same upward push at 0.7 below the top.
+        assert_eq!(
+            bubble_column_vertical_velocity(2.0, BubbleColumnKind::Upward, true),
+            1.8
+        );
+        assert_eq!(
+            bubble_column_vertical_velocity(2.0, BubbleColumnKind::Upward, false),
+            0.7
+        );
+    }
 }
