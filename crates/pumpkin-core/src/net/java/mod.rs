@@ -803,8 +803,8 @@ impl JavaClient {
         Self::serialize_packet_for_version(packet, CURRENT_MC_VERSION)
     }
 
-    /// The stonecutter list of vanilla's `UPDATE_RECIPES`, sent on join and after a datapack
-    /// reload. The item property sets (furnace, smithing, ...) are not included yet.
+    /// Vanilla's `UPDATE_RECIPES`, sent on join and after a datapack reload: the recipe property
+    /// sets followed by the stonecutter list.
     pub fn stonecutter_recipes_packet(&self, dynamic_recipes: &[DynamicRecipe]) -> Option<Bytes> {
         let version = self.version.load();
         if version < JavaMinecraftVersion::V_1_21_2 {
