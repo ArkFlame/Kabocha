@@ -90,7 +90,7 @@ pub(crate) fn assemble_cooking_result(
     let mut stack = ItemStack::new(recipe.result.count, item);
     for (component, value) in recipe.result.components {
         let boxed = Some(value.clone_dyn());
-        if let Some((_, current)) = stack.patch.iter_mut().find(|(id, _)| id == component) {
+        if let Some((_, current)) = stack.patch.iter_mut().find(|(id, _)| *id == *component) {
             *current = boxed;
         } else {
             stack.patch.push((*component, boxed));
