@@ -6,7 +6,7 @@
 //! `StrictMath` on `OpenJDK` 21 with `new Random(42)`; each line lists raw IEEE-754
 //! bits as hex, input(s) first and the expected result last.
 //!
-//! Measured on x86_64 Linux/glibc 2.4x: `log10` differs from `StrictMath` in 18
+//! Measured on `x86_64` Linux/glibc 2.4x: `log10` differs from `StrictMath` in 18
 //! of 4000 cases (13 by 1 ulp, 5 by 2 ulp), `pow` in 417 of 4000 cases (all 1
 //! ulp). The bounds below encode the observed gap; exact equality would require
 //! porting fdlibm.
