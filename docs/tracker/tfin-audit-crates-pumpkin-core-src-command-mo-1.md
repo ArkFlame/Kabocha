@@ -8,4 +8,4 @@ All six rows re-verified against decompiled vanilla at `.vendor/vanilla-decompil
 Re-read the last Result and re-checked every row against the checkout and decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN; all six are FIXED or VERIFIED. No source edit was needed this pass (all fixes already present), so no rustfmt run.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+FINAL PASS: all six rows closed. No source edit needed this pass; every fix was already present in the checkout and re-verified against decompiled vanilla under .vendor/vanilla-decompiled/net/minecraft/.

@@ -5,7 +5,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 (docs/tracker/tentities-painting.md). No STILL OPEN row remains.
 No STILL OPEN row remains. UNVERIFIED by worker build (no cargo by worker).
 
-## Result
 ## Result (2026-11-18 FINAL PASS, all rows terminal)
 
 Re-read the full current sources `crates/pumpkin-core/src/entity/decoration/painting.rs`,
