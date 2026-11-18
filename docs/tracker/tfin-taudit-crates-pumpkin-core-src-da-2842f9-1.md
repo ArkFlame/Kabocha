@@ -7,7 +7,6 @@ No STILL OPEN row has a small, type-safe fix confined to dynamic_registry_loader
 Re-read all four named files end to end and verified each STILL OPEN row directly against the
 No STILL OPEN row is fixable with a small change confined to dynamic_registry_loader.rs,
 
-## Result
 ## Result (FINAL PASS, verified against 26.3 decompiled vanilla)
 
 All four rows are closed. No `.rs` source change was needed: two rows already match vanilla and two are genuinely blocked on generated data that `crates/pumpkin-data/src/generated/registry.rs` does not expose.
