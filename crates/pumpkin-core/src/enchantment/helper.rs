@@ -107,11 +107,11 @@ impl EnchantmentHelper {
     }
 
     /// Applies the weapon's post-attack enchantment effects (e.g. Fire Aspect igniting the victim,
-    /// Wind Burst triggering an explosion at the attacker).
+    /// Wind Burst triggering an explosion at the attacker, Bane of Arthropods slowing an arthropod).
     ///
-    /// Only `Ignite` and `Explode` are applied: the effect data carries no `requirements`, so
-    /// conditional effects such as Thorns or Bane of Arthropods cannot be told apart from
-    /// unconditional ones without their specific predicate checks.
+    /// Generated data drops each entry's `requirements`, so the vanilla predicates for the
+    /// built-in post-attack enchantments are checked here before their effect is applied. Every
+    /// caller passes a direct melee hit, so `damage_source.is_direct` is always true.
     pub fn on_post_attack(
         attacker: &dyn crate::entity::EntityBase,
         victim: &Entity,
@@ -122,16 +122,35 @@ impl EnchantmentHelper {
         let owner = attacker
             .get_player()
             .and_then(|player| world.get_player_by_id(player.entity_id()));
+        let victim_is_arthropod = victim
+            .entity_type
+            .has_tag(&tag::EntityType::MINECRAFT_SENSITIVE_TO_BANE_OF_ARTHROPODS);
         Self::run_iteration_on_item(weapon, |enchantment, level| {
             for targeted_effect in enchantment.get_post_attack_effects() {
                 if targeted_effect.enchanted == Some(EnchantmentTarget::Attacker)
                     && targeted_effect.affected == Some(EnchantmentTarget::Victim)
-                    && let EnchantmentEntityEffect::Ignite { duration } = &targeted_effect.effect
                 {
-                    victim.set_on_fire_for_ticks((duration.calculate(level) * 20.0) as u32);
+                    match &targeted_effect.effect {
+                        EnchantmentEntityEffect::Ignite { duration } => {
+                            victim.set_on_fire_for_ticks((duration.calculate(level) * 20.0) as u32);
+                        }
+                        EnchantmentEntityEffect::ApplyMobEffect { .. }
+                            if *enchantment == Enchantment::BANE_OF_ARTHROPODS
+                                && meets_bane_of_arthropods_requirements(victim_is_arthropod) =>
+                        {
+                            targeted_effect.effect.apply(
+                                &world,
+                                level,
+                                owner.as_ref(),
+                                Some(victim),
+                                victim.pos.load(),
+                            );
+                        }
+                        _ => {}
+                    }
                 } else if targeted_effect.enchanted == Some(EnchantmentTarget::Attacker)
                     && targeted_effect.affected == Some(EnchantmentTarget::Attacker)
-                    && let EnchantmentEntityEffect::Explode { .. } = &targeted_effect.effect
+                    && matches!(&targeted_effect.effect, EnchantmentEntityEffect::Explode { .. })
                 {
                     // Vanilla `Enchantments.WIND_BURST` requires `DIRECT_ATTACKER` to have
                     // `isFlying == false` (`!isFallFlying() && !abilities.flying`) and `fallDistance >= 1.5`.
@@ -142,7 +161,7 @@ impl EnchantmentHelper {
                     let fall_distance = attacker
                         .get_living_entity()
                         .map_or(0.0, |living| living.fall_distance.load());
-                    if !is_flying && fall_distance >= 1.5 {
+                    if meets_wind_burst_requirements(is_flying, fall_distance) {
                         targeted_effect.effect.apply(
                             &world,
                             level,
