@@ -12,10 +12,13 @@ Reviewed: 2026-11-16 against vanilla `net.minecraft.world.entity.animal.Tadpole`
 2. `crates/pumpkin-core/src/entity/passive/tadpole.rs:131` — `age_up` converts to `EntityType::FROG` with the default frog variant. Vanilla maps the tadpole variant to the matching frog variant (`TadpoleVariant#frogVariant`) before spawning. Vanilla class: `Tadpole#ageUp`. Fix: after gap 1, set `Frog#setVariant(variant.frogVariant())` in the conversion callback. Size: M (depends on gap 1).
 3. `crates/pumpkin-core/src/entity/passive/water_animal.rs:23` — `handle_air_supply` is called with `MAX_AIR` (300), so tadpoles (and all fish) drown after 15 s on land. Vanilla `WaterAnimal#getMaxAirSupply()` returns 4800 and `increaseAirSupply` refills to it. Vanilla class: `WaterAnimal`. Fix: add `WATER_ANIMAL_MAX_AIR = 4800`, use it in `handle_air_supply`, and let `breath.rs` clamp/sync against the entity's max air instead of the fixed 300. Size: M (shared by all water animals; touches `breath.rs`).
 
-## Gap status (h6 sweep)
-- Gap 1 (variant data): STILL OPEN. L, blocked on Extractor assets.
-- Gap 2 (age-up variant mapping): STILL OPEN. M, depends on gap 1.
-- Gap 3 (max air 4800 for water animals): STILL OPEN. M, touches shared `breath.rs`.
+## Gap status (h6 sweep, final)
+- Gap 1 (variant data): VERIFIED (false premise, matches vanilla). Cite:
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java:43-45`.
+- Gap 2 (age-up variant mapping): VERIFIED (false premise, matches vanilla). Cite:
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java:236-250`.
+- Gap 3 (max air 4800 for water animals): VERIFIED (false premise, matches vanilla). Cite:
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fish/WaterAnimal.java:39-49`.
 
 ## Result
 
@@ -187,3 +190,39 @@ and `water_animal.rs::fish_keep_the_drowning_rule`); no new test added because
 no behaviour changed. No unwrap/expect/panic or println introduced. No .rs
 changed, so the compile-pitfalls table is not applicable and no rustfmt was
 run. No cargo/git per task rules.
+
+
+## Result
+
+Sixth re-review (third-pass scope). Independently re-verified every previously
+STILL OPEN row against the vendored decompiled vanilla (Java 26.3) and the
+current Pumpkin source. No .rs file was edited: Pumpkin already matches vanilla
+on every row, so no behaviour change and no new test seam exists.
+
+- Gap 1 (tadpole variant): VERIFIED, false premise. Full
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java`
+  (260 lines) defines only `AGE_LOCKED` synched data (line 45). No
+  `DATA_VARIANT`, no `TadpoleVariant` class (glob: zero matches), no tadpole
+  variant in `assets/`. `tadpole.rs` correctly has none.
+- Gap 2 (age-up variant mapping): VERIFIED, false premise. `Tadpole#ageUp`
+  (`Tadpole.java:236-250`) converts to `FROG` via
+  `ConversionParams.single(this, false, false)`, calls `finalizeSpawn`,
+  sets persistence, fudges position and plays the grow-up sound; no variant is
+  carried over (frog variant is biome-selected). `tadpole.rs:120-146` matches.
+- Gap 3 (water animal max air): VERIFIED, false premise. `WaterAnimal`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fish/WaterAnimal.java:39-49`)
+  hardcodes `setAirSupply(300)` and has no `getMaxAirSupply` override (only
+  `Dolphin` overrides to 4800). `water_animal.rs:10` = 300,
+  `abstract_fish.rs:303-305` returns 300, `bucketable.rs:192` comment reads
+  (300), `breath.rs:9 MAX_AIR` = 300 is player-only, `dolphin.rs:39` = 4800.
+  All consistent with vanilla.
+
+Also re-confirmed the fromBucket correction: `Tadpole.java:172-179` returns
+true and makes `setFromBucket` a no-op, matched by `tadpole.rs:260-267` and
+covered by `tadpole_is_always_from_bucket`. The gap status header above no
+longer contains any STILL OPEN row.
+
+Existing tests cover the only seams; no new test added because no behaviour
+changed. No unwrap/expect/panic and no println introduced. No .rs changed, so
+the compile-pitfalls table is not applicable and no rustfmt was run. No
+cargo/git per task rules.
