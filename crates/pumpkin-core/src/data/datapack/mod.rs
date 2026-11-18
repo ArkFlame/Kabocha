@@ -47,7 +47,7 @@ use self::test_loader::{
 use self::trade_loader::{DynamicVillagerTradeSet, TradeRegistry};
 
 /// Data pack format for the current protocol version.
-const CURRENT_DATA_PACK_FORMAT: u32 = CURRENT_DATA_PACK_FORMAT;
+const CURRENT_DATA_PACK_FORMAT: u32 = CURRENT_MC_VERSION.data_pack_format();
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnownPackData {

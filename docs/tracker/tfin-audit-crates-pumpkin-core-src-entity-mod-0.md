@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-- 1 TemperatureVariantAnimal Bedrock properties (entity/mod.rs:906): STILL OPEN, M.
-- 2 igniting clears freeze (entity/mod.rs:1021): STILL OPEN, S.
-- 3 team name decoration (entity/mod.rs:1347): STILL OPEN, M.
-- 4 kill fallback (entity/mod.rs:1375): STILL OPEN, S.
+- 1 TemperatureVariantAnimal Bedrock properties (entity/mod.rs:906): BLOCKED-DATA. Missing generated Bedrock entity-property-ID registry mapping 'minecraft:climate_variant' to its u32 synced-property key (plus a spawn-biome-temperature hook and property-sync subsystem); no decompiled Java source exists to port.
+- 2 igniting clears freeze (entity/mod.rs:1021): VERIFIED FIXED. Matches Entity.igniteForTicks/clearFreeze (Entity.java:1168-1174, 4083-4086); test igniting_clears_freeze_progress present.
+- 3 team name decoration (entity/mod.rs:1347): VERIFIED. Matches Entity.getDisplayName (Entity.java:6231-6234) -> PlayerTeam.formatNameForTeam (PlayerTeam.java:166-168); test team_formatting_adds_prefix_suffix_and_colour present.
+- 4 kill fallback (entity/mod.rs:1375): VERIFIED FIXED. Matches Entity.kill (Entity.java:765-768): remove then gameEvent(ENTITY_DIE).
 
 ## Result
 FINAL PASS re-audit 2026-11-18 against .vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java, .vendor/vanilla-decompiled/net/minecraft/world/scores/PlayerTeam.java and the live crates/pumpkin-core/src/entity/mod.rs. Rows 2-4 were already fixed in earlier passes and remain verified; no source file needed edits this pass (the unit edit scope is mod.rs only, and it is already correct). Row 1 is a client-only Bedrock visual effect with no decompiled Java source.
@@ -16,3 +16,5 @@ FINAL PASS re-audit 2026-11-18 against .vendor/vanilla-decompiled/net/minecraft/
 - 4 kill fallback (entity/mod.rs:1501-1523): VERIFIED FIXED. Non-living kill scatters container inventory, calls remove() then emits GameEvent.EntityDie, matching vanilla Entity.kill (Entity.java:765-768: remove(KILLED) then gameEvent(ENTITY_DIE)). No change.
 
 Summary: fixed=0 new this pass; verified=3 (rows 2-4, already fixed in earlier passes); blocked-data=1 (row 1: missing generated Bedrock entity-property-ID registry mapping minecraft:climate_variant to its u32 id). Compile-pit replay: no source code added, no unwrap/expect/panic, no em dashes, no edits to generated data, no rustfmt needed.
+
+Status: PASS fixed=0 open=0 blocked-data=1 files=docs/tracker/tfin-audit-crates-pumpkin-core-src-entity-mod-0.md
