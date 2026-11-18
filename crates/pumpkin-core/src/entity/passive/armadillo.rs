@@ -424,7 +424,7 @@ impl Mob for ArmadilloEntity {
     /// triggers `rollUp`; environmental panic damage without a living attacker rolls out.
     fn on_damage(&self, damage_type: DamageType, source: Option<&dyn EntityBase>) {
         // Vanilla `actuallyHurt` skips the reaction entirely for NoAI or dying mobs.
-        if self.mob_entity.is_no_ai() || !self.get_entity().is_alive() {
+        if self.mob_entity.is_no_ai() || self.mob_entity.living_entity.is_dead_or_dying() {
             return;
         }
         if source.is_some_and(|attacker| attacker.get_living_entity().is_some()) {
