@@ -170,6 +170,8 @@ pub fn try_spawn_mob<T: Mob + 'static>(
             continue;
         }
         world.spawn_entity(mob.clone() as Arc<dyn EntityBase>);
+        // Vanilla SpawnUtil.trySpawnMob plays the ambient sound after a successful spawn.
+        mob.play_ambient_sound();
         return Some(mob);
     }
 

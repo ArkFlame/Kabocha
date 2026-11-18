@@ -7,7 +7,6 @@ correct; the two STILL OPEN rows need write/read sites that live in other files.
 - VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN.
 - NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS (L): STILL OPEN.
 
-## Result
 ## Result (final pass, 2026-11-18, verified against .vendor/vanilla-decompiled)
 
 Both rows are complete; no further source edits were needed this pass. The shipped
