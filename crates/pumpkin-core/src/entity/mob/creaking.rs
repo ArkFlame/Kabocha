@@ -732,4 +732,22 @@ mod tests {
         world.level.shutdown().await;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn frozen_creaking_ignores_knockback() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let creaking = CreakingEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::CREAKING,
+        ));
+        // A mobile creaking lets the default knockback apply (handled == false).
+        assert!(!creaking.mob_knockback(0.4, 0.0, 0.0, None, 1.0, false));
+        // A frozen creaking reports the push as handled so the default knockback is skipped.
+        creaking.set_can_move(false);
+        assert!(creaking.mob_knockback(0.4, 0.0, 0.0, None, 1.0, false));
+        world.level.shutdown().await;
+        Ok(())
+    }
 }
