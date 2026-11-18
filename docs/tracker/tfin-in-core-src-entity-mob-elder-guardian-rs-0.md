@@ -4,7 +4,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 - **own/tentities-guardian**: VERIFIED. All six gaps in `docs/tracker/tentities-guardian.md` are FIXED/VERIFIED across its Result sections (beam goal, water travel, move control, thorns source, elder effect refresh, fluid push), each citing `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java`, `ElderGuardian.java` or `world/effect/MobEffectUtil.java`. No STILL OPEN rows remain; no source change was needed.
 
-## Result
 ## Result (FINAL PASS, independently verified against vendored decompiled vanilla)
 - **own/tentities-guardian**: VERIFIED. Re-read guardian.rs and elder_guardian.rs and compared every gap with the vendored decompiled sources. No source edit was needed.
   - Gap 1 (beam attack): VERIFIED FIXED. GuardianAttackGoal matches Guardian.java:347-429: attack_time starts -10, navigation stop + look at target (90/90), LOS cancel, DATA_ID_ATTACK_TARGET set at tick 0 with GuardianAttackSound broadcast when not silent, charge 80 (guardian) / 60 (elder, ElderGuardian.java:40-42), INDIRECT_MAGIC with guardian as source and cause plus do_hurt_target and target clear, beam_magic_damage = 1.0 +2 Hard +2 elder (Guardian.java:410-417). Source: .vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java and ElderGuardian.java.
