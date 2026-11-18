@@ -340,3 +340,45 @@ rows remain.
   subsystem itself (id preservation + Instrument NBT decoder + manager raw-id
   lookup + use-path wiring) across protocol, data and core crates, far beyond a
   minimal in-unit edit.
+
+
+## Result (third pass, terminal classification)
+
+Re-verified every row against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java` and
+`Instrument.java`. No `.rs` source edit was made or is needed: both previously open
+rows are terminal and no STILL OPEN row remains.
+
+- Row 1 (TOOT_HORN use animation): VERIFIED, matches vanilla; no server-side gap.
+  `InstrumentItem.getUseAnimation` returns `ItemUseAnimation.TOOT_HORN`
+  (`InstrumentItem.java:65-68`), but it is reached only via
+  `ItemStack.getUseAnimation()` and has no server call site. The client derives the
+  third-person animation from the USING_ITEM living-entity flag, which Pumpkin sets
+  and syncs in `LivingEntity::set_active_hand`. No use-animation field or packet
+  exists on the server, so an `ItemBehaviour` hook would be dead code. No change.
+- Row 2 (per-stack use duration): FIXED. `GoatHornItem::get_use_duration(&ItemStack)`
+  returns the instrument duration in ticks or 0 (`goat_horn.rs:109-114`), matching
+  `InstrumentItem.java:54-58`.
+- Row 3 (registry-referenced datapack instruments): BLOCKED-DATA. Whole missing
+  subsystem, pinned against `Instrument.java:16-26,40-41` (the `Instrument` record
+  `sound_event`/`use_duration`/`range`/`durability_damage` and
+  `CODEC`/`STREAM_CODEC` as `Holder<Instrument>` over `Registries.INSTRUMENT`).
+  Four links are absent: (1) `InstrumentImpl` keeps only a name string, discarding
+  the positive holder raw id (`basic.rs:555-557`); (2) the codec falls back to the
+  ponder horn for ids above the 8 generated builtins
+  (`data_component.rs:2890-2896`); (3) there is no `Instrument` NBT decoder and no
+  manager-level raw-id lookup (`dynamic_registry_manager.rs` exposes
+  `DynamicRegistry::get_entry_data_by_raw_id` at :64 but only
+  `get_entry_data` by entry id at :231); (4) `goat_horn.rs` is a sync
+  `ItemBehaviour` with no reachability to `DynamicRegistryManager`. Preserving the
+  id, decoding the NBT, exposing raw-id lookup and wiring the use path is a
+  cross-crate subsystem (protocol + data + core); no single generated
+  `pumpkin-data` field is missing. Cannot be fixed within this unit.
+- Row 4 (cooldown): FIXED. Cooldown added only when `duration > 0`
+  (`goat_horn.rs:103-105`), matching `InstrumentItem.java:42-45`.
+- Row 5 (fail interaction result): FIXED. `use_result` returns `Fail` for an
+  instrument-less horn (`goat_horn.rs:116-126`), matching `InstrumentItem.java:49-50`.
+
+Rows 2, 4, 5 fixed in code; Row 1 VERIFIED; Row 3 BLOCKED-DATA. No STILL OPEN
+remains. The pure seams already carry unit tests in `goat_horn.rs` and `basic.rs`.
+Worker shell/cargo/git are denied; the orchestrator compiles once after all workers.
