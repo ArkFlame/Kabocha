@@ -162,3 +162,21 @@ edit. No cargo, git or rustfmt run (no source change).
   too), and lives in `minecart.rs`, outside this unit.
 - No pure unit-test seam in either file beyond the existing `tnt_minecart_explosion_bonus_is_speed_capped`
   test; `perform_command`/`prime` need a live `Arc<World>`. None added.
+
+
+## Result (terminal, cross-file pass)
+
+The last two open gaps are now closed in `crates/pumpkin-core/src/entity/vehicle/minecart.rs`:
+
+- Gap 2 (portal) FIXED: `tick` calls `vehicle.entity.tick_portal`, matching
+  `AbstractMinecart.tick` -> `handlePortal` in
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/AbstractMinecart.java`.
+- Gap 1 (display block) FIXED: new `MinecartDisplay` stores the custom block state and offset,
+  reads/writes vanilla NBT `DisplayState` (via `pumpkin_world::block::BlockStateCodec`, the
+  `BlockState.CODEC` layout) and `DisplayOffset` (default 6, written only when non-default), and
+  `init_data_tracker` sets the now-generated
+  `abstract_minecart::DATA_ID_CUSTOM_DISPLAY_BLOCK` (varint 0 = empty, state id + 1 = present) and
+  `DATA_ID_DISPLAY_OFFSET`. Added pure unit test `display_block_nbt_roundtrip`.
+
+No gap remains open. No BLOCKED-DATA: the previously missing generated fields and block-state NBT
+serializer now exist. rustfmt is run by the orchestrator; no cargo or git run.

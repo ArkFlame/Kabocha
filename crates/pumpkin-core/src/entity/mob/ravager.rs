@@ -143,7 +143,7 @@ impl RavagerEntity {
 
     /// Vanilla `Ravager.roar`: damage nearby living entities and knock non-players back.
     fn roar(&self) {
-        let entity = self.get_entity();
+        let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
             return;
         }
@@ -188,7 +188,7 @@ impl RavagerEntity {
 
     /// Vanilla `Ravager.strongKnockback`.
     fn strong_knockback(&self, target: &dyn EntityBase) {
-        let self_pos = self.get_entity().pos.load();
+        let self_pos = self.mob_entity.living_entity.entity.pos.load();
         let target_pos = target.get_entity().pos.load();
         let xd = target_pos.x - self_pos.x;
         let zd = target_pos.z - self_pos.z;
@@ -214,7 +214,7 @@ impl RavagerEntity {
                 .unwrap_or_else(PoisonError::into_inner)
                 .stunned_tick = STUN_DURATION;
             self.play_entity_sound(Sound::EntityRavagerStunned, 1.0, 1.0);
-            let entity = self.get_entity();
+            let entity = &self.mob_entity.living_entity.entity;
             entity.world.load().broadcast_entity_event(
                 entity,
                 EntityStatus::RavagerStunned,

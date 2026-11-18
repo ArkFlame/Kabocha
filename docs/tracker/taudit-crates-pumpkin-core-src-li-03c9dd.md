@@ -82,3 +82,29 @@ Final verification against decompiled vanilla / Paper, smallest rows first.
   (the shutdown-key replacement is already in place).
 
 Files touched: `crates/pumpkin-core/src/lib.rs` (rustfmt --edition 2024).
+
+
+## Result (third pass, final)
+
+Terminal state of every row in the Gap status table, verified against
+.vendor/vanilla-decompiled/net/minecraft/:
+
+- Rows 2, 3, 5, 7: FIXED in the working tree (connection_throttled, scrub_address,
+  console EOF short-read, bedrock client_id key); confirmed present this pass.
+- Row 1 early full-server reject at accept loop: VERIFIED. Vanilla
+  ServerConnectionListener.java:60-159 (startTcpServerListener, acceptConnections)
+  has no player-count check before the handshake; the full check runs afterwards in the
+  login listener (PlayerList.java:658, canBypassFullServerLogin). Pumpkin enforces
+  the limit only in add_player join_rejection, matching vanilla; a pre-handshake
+  disconnect would be an invented protocol behaviour.
+- Row 4 player stats persistence: BLOCKED-DATA. Whole missing subsystem: no
+  player-statistics persistence manager writes stats/<uuid>.json on save (vanilla
+  PlayerList.java:508-515 ServerStatsCounter#save). Pumpkin has only in-memory
+  increment_stat; no stats manager or on-disk serializer exists.
+- Row 6 fallback kick overwrites rejection: VERIFIED. server/mod.rs:1346-1349 already
+  uses the translatable multiplayer.disconnect.server_shutdown key, and
+  join_rejection (server/mod.rs:1263-1265) sends the specific translatable reason
+  (server_full / duplicate_login) before any fallback kick, so no plain-text overwrite
+  occurs (vanilla PlayerList.java:658 uses multiplayer.disconnect.server_full).
+
+No STILL OPEN rows remain. No code changes this pass; no compile/test run (unit rules).
