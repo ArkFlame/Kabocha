@@ -349,8 +349,7 @@ impl FoxEntity {
     /// Vanilla keeps the first trusted entity and overwrites the second slot.
     pub fn add_trusted(&self, uuid: Uuid) {
         let trusted = match self.trusted.load() {
-            [Some(first), Some(_)] => [Some(first), Some(uuid)],
-            [Some(first), None] => [Some(first), Some(uuid)],
+            [Some(first), _] => [Some(first), Some(uuid)],
             [None, _] => [Some(uuid), None],
         };
         self.trusted.store(trusted);

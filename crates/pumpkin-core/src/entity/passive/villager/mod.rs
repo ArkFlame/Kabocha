@@ -960,23 +960,6 @@ impl VillagerEntity {
         self.send_trade_offers(&player, sync_id, &offers, villager_data);
     }
 
-    fn notify_trading_player_offers_updated(&self) {
-        if self
-            .trading_player
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .is_some()
-            && let Some(villager) = self
-                .self_weak
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .as_ref()
-                .and_then(Weak::upgrade)
-        {
-            villager.resend_offers_to_trading_player();
-        }
-    }
-
     pub fn should_restock(&self, game_time: i64, day: i64) -> bool {
         let half_day_passed_time = self.last_restock_time.load(Ordering::Relaxed) + 12_000;
         let mut is_new_day = game_time > half_day_passed_time;
@@ -1026,7 +1009,8 @@ impl VillagerEntity {
     pub fn restock(&self, game_time: i64) {
         self.update_demand();
         self.replenish_offers();
-        self.notify_trading_player_offers_updated();
+        // Vanilla `restock` recomputes special prices for the trading player after resetting uses.
+        self.refresh_trading_player_prices(None);
         self.last_restock_time.store(game_time, Ordering::Relaxed);
         self.restocks_today.fetch_add(1, Ordering::Relaxed);
     }
@@ -1084,7 +1068,8 @@ impl VillagerEntity {
         for _ in 0..missed_updates {
             self.update_demand();
         }
-        self.notify_trading_player_offers_updated();
+        // Vanilla `catchUpDemand` always recomputes special prices for the trading player.
+        self.refresh_trading_player_prices(None);
     }
 
     fn update_demand(&self) {

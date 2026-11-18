@@ -63,6 +63,19 @@ const fn error_type_for(error: &DatapackError) -> &'static CommandErrorType<1> {
     }
 }
 
+/// Vanilla `StringArgumentType.escapeIfRequired`: quote and escape only when the
+/// id has characters outside the unquoted-string set.
+fn escape_if_required(id: &str) -> String {
+    if id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '+' | '-' | '.'))
+    {
+        return id.to_owned();
+    }
+    let escaped = id.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
+}
+
 fn get_enabled_packs(server: &Server) -> Vec<String> {
     crate::data::datapack::DatapackManager::get_enabled_packs(server)
 }
@@ -75,6 +88,18 @@ fn format_pack(name: &str) -> TextComponent {
     TextComponent::text(format!("[{name}]")).color_named(NamedColor::Green)
 }
 
+/// Vanilla `ReloadCommand.reloadPacks` reports `commands.reload.failure` to the
+/// source when the reload fails after an enable or disable.
+fn send_reload_failure(context: &CommandContext<'_>, reload: &Result<(), String>) {
+    if reload.is_err() {
+        context.source.send_error(TextComponent::translate_cross(
+            translation::java::COMMANDS_RELOAD_FAILURE,
+            translation::java::COMMANDS_RELOAD_FAILURE,
+            [],
+        ));
+    }
+}
+
 struct AvailablePackSuggestionProvider;
 
 impl SuggestionProvider for AvailablePackSuggestionProvider {
@@ -84,14 +109,10 @@ impl SuggestionProvider for AvailablePackSuggestionProvider {
         mut builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
         let server = context.server();
-        // Vanilla suggests each available pack id once, quoting ids that are
-        // not valid unquoted strings (DataPackCommand.UNSELECTED_PACKS).
+        // Vanilla suggests each available pack id verbatim, unescaped
+        // (DataPackCommand.UNSELECTED_PACKS).
         for pack in get_available_packs(server) {
-            if pack.contains(' ') || pack.contains('/') {
-                builder = builder.suggest(format!("\"{pack}\""));
-            } else {
-                builder = builder.suggest(pack);
-            }
+            builder = builder.suggest(pack);
         }
         builder.build()
     }
@@ -106,13 +127,9 @@ impl SuggestionProvider for EnabledPackSuggestionProvider {
         mut builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
         let server = context.server();
-        // Vanilla suggests each selected pack id once (DataPackCommand.SELECTED_PACKS).
+        // Vanilla suggests each selected pack id once, escaped (DataPackCommand.SELECTED_PACKS).
         for pack in get_enabled_packs(server) {
-            if pack.contains(' ') || pack.contains('/') {
-                builder = builder.suggest(format!("\"{pack}\""));
-            } else {
-                builder = builder.suggest(pack);
-            }
+            builder = builder.suggest(escape_if_required(&pack));
         }
         builder.build()
     }
@@ -222,15 +239,16 @@ impl CommandExecutor for DatapackEnableExecutor {
             EnablePosition::First => DatapackEnablePosition::First,
             EnablePosition::Last => DatapackEnablePosition::Last,
         };
-        let resolved = match DatapackManager::enable_pack_checked(server, name_str, position) {
-            Ok(resolved) => resolved,
-            Err(err) => {
-                let error_type = error_type_for(&err);
-                return Err(
-                    error_type.create_without_context(TextComponent::text(err.into_message()))
-                );
-            }
-        };
+        let (resolved, reload) =
+            match DatapackManager::enable_pack_checked(server, name_str, position) {
+                Ok(result) => result,
+                Err(err) => {
+                    let error_type = error_type_for(&err);
+                    return Err(
+                        error_type.create_without_context(TextComponent::text(err.into_message()))
+                    );
+                }
+            };
 
         context.source.send_feedback(
             TextComponent::translate_cross(
@@ -241,6 +259,7 @@ impl CommandExecutor for DatapackEnableExecutor {
             true,
         );
 
+        send_reload_failure(context, &reload);
         Ok(get_enabled_packs(server).len() as i32)
     }
 }
@@ -263,15 +282,16 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             BeforeOrAfter::Before => DatapackEnablePosition::Before(existing_str.to_string()),
             BeforeOrAfter::After => DatapackEnablePosition::After(existing_str.to_string()),
         };
-        let resolved = match DatapackManager::enable_pack_checked(server, name_str, position) {
-            Ok(resolved) => resolved,
-            Err(err) => {
-                let error_type = error_type_for(&err);
-                return Err(
-                    error_type.create_without_context(TextComponent::text(err.into_message()))
-                );
-            }
-        };
+        let (resolved, reload) =
+            match DatapackManager::enable_pack_checked(server, name_str, position) {
+                Ok(result) => result,
+                Err(err) => {
+                    let error_type = error_type_for(&err);
+                    return Err(
+                        error_type.create_without_context(TextComponent::text(err.into_message()))
+                    );
+                }
+            };
 
         context.source.send_feedback(
             TextComponent::translate_cross(
@@ -282,6 +302,7 @@ impl CommandExecutor for DatapackEnableExistingExecutor {
             true,
         );
 
+        send_reload_failure(context, &reload);
         Ok(get_enabled_packs(server).len() as i32)
     }
 }
@@ -293,8 +314,8 @@ impl CommandExecutor for DatapackDisableExecutor {
         let name_str = StringArgumentType::get(context, "name")?;
         let server = context.server();
 
-        let resolved = match DatapackManager::disable_pack_checked(server, name_str) {
-            Ok(resolved) => resolved,
+        let (resolved, reload) = match DatapackManager::disable_pack_checked(server, name_str) {
+            Ok(result) => result,
             Err(err) => {
                 let error_type = error_type_for(&err);
                 return Err(
@@ -312,6 +333,7 @@ impl CommandExecutor for DatapackDisableExecutor {
             true,
         );
 
+        send_reload_failure(context, &reload);
         Ok(get_enabled_packs(server).len() as i32)
     }
 }
@@ -489,6 +511,13 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escape_if_required_quotes_only_non_bare_ids() {
+        assert_eq!(escape_if_required("file-pack_1.0+x"), "file-pack_1.0+x");
+        assert_eq!(escape_if_required("file/my pack"), "\"file/my pack\"");
+        assert_eq!(escape_if_required("a\"b\\c"), "\"a\\\"b\\\\c\"");
+    }
 
     #[test]
     fn valid_pack_name_check() {

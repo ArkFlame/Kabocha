@@ -6,13 +6,14 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::block_properties::{
     CreakingHeartLikeProperties, CreakingHeartState, GlowLichenLikeProperties,
 };
-use pumpkin_data::entity::EntityType;
+use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_util::Difficulty;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -196,6 +197,12 @@ impl CreakingHeartBlockEntity {
             return;
         };
         creaking.set_transient(self.position);
+        // Vanilla `spawnProtector` broadcasts the POOF entity event on the spawned creaking.
+        world.send_entity_status(
+            &creaking.mob_entity.living_entity.entity,
+            EntityStatus::Poof,
+            ActorEventID::GroundDust,
+        );
         self.set_creaking_uuid(Some(creaking.mob_entity.living_entity.entity.entity_uuid));
         // Vanilla serverTick plays both spawn sounds only after a protector actually spawns.
         let creaking_pos = creaking.mob_entity.living_entity.entity.pos.load();

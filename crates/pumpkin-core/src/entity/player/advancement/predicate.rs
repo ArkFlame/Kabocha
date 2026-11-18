@@ -1054,7 +1054,7 @@ impl std::fmt::Debug for EntityState {
             .field("stepping_block", &self.stepping_block)
             .field("vehicle_type", &self.vehicle_type)
             .field("passenger_types", &self.passenger_types)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

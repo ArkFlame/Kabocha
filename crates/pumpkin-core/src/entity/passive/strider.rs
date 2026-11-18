@@ -150,9 +150,8 @@ impl Mob for StriderEntity {
     // Vanilla getAmbientSound returns ambient only while not panicking or tempted, null otherwise.
     // The happy sound is played on temptation in tick, not as ambient.
     fn get_ambient_sound(&self) -> Option<Sound> {
-        (!self.is_panicking()
-            && !self.mob_entity.goals_selector.is_running::<TemptGoal>())
-        .then_some(Sound::EntityStriderAmbient)
+        (!self.is_panicking() && !self.mob_entity.goals_selector.is_running::<TemptGoal>())
+            .then_some(Sound::EntityStriderAmbient)
     }
 
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {

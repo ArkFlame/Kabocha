@@ -19,11 +19,7 @@ use pumpkin_world::chunk::ChunkData;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    block::{
-        ExplodeArgs,
-        blocks::fire::fire::FireBlock,
-        drop_loot,
-    },
+    block::{ExplodeArgs, blocks::fire::fire::FireBlock, drop_loot},
     entity::{Entity, EntityBase, projectile::is_redirectable, tnt::TNTEntity},
     net::ClientPlatform,
     world::loot::LootContextParameters,

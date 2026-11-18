@@ -431,8 +431,10 @@ impl Player {
                 count,
                 enchantments,
             } => {
-                let ench_refs: Vec<(&str, u32)> =
-                    enchantments.iter().map(|(name, level)| (name.as_str(), *level)).collect();
+                let ench_refs: Vec<(&str, u32)> = enchantments
+                    .iter()
+                    .map(|(name, level)| (name.as_str(), *level))
+                    .collect();
                 self.trigger_criterion_event("minecraft:placed_block", |cond| match cond {
                     CriterionConditions::PlacedBlock(pred) => {
                         pred.matches(&block_id, item_id.as_deref(), count, &ench_refs)
@@ -454,11 +456,9 @@ impl Player {
 
             AdvancementTrigger::FishedItem { items } => {
                 self.trigger_criterion_event("minecraft:fishing_rod_hooked", |cond| match cond {
-                    CriterionConditions::FishingRodHooked(pred) => {
-                        items
-                            .iter()
-                            .any(|(item_id, count)| pred.matches(item_id, *count, &[]))
-                    }
+                    CriterionConditions::FishingRodHooked(pred) => items
+                        .iter()
+                        .any(|(item_id, count)| pred.matches(item_id, *count, &[])),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });

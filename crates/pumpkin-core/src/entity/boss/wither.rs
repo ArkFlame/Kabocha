@@ -393,13 +393,7 @@ impl WitherEntity {
                         // Vanilla aims at `target.getY() + target.getEyeHeight() * 0.5`
                         // (WitherBoss.java:460), not half the bounding-box height.
                         let aim_y = target_pos.y + target.get_entity().get_eye_height() * 0.5;
-                        self.perform_ranged_attack(
-                            0,
-                            target_pos.x,
-                            aim_y,
-                            target_pos.z,
-                            dangerous,
-                        );
+                        self.perform_ranged_attack(0, target_pos.x, aim_y, target_pos.z, dangerous);
                     }
                 }
             } else {
@@ -504,13 +498,7 @@ impl WitherEntity {
                             {
                                 // Vanilla aims at `getEyeHeight() * 0.5` (WitherBoss.java:460).
                                 let aim_y = t_pos.y + target.get_entity().get_eye_height() * 0.5;
-                                self.perform_ranged_attack(
-                                    i + 1,
-                                    t_pos.x,
-                                    aim_y,
-                                    t_pos.z,
-                                    false,
-                                );
+                                self.perform_ranged_attack(i + 1, t_pos.x, aim_y, t_pos.z, false);
                                 let next_delay = 40 + rand::random_range(0..20);
                                 self.next_head_update[i - 1]
                                     .store(tick_count + next_delay, Ordering::Relaxed);

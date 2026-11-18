@@ -1804,13 +1804,13 @@ impl DatapackManager {
         Some(read_pack_mcmeta(&pack_path).format)
     }
 
-    /// Enables a pack and returns its resolved id, with a typed error so
-    /// command callers can map it to the matching translation error.
+    /// Enables a pack and returns its resolved id plus the reload result, with a
+    /// typed error so command callers can map it to the matching translation error.
     pub fn enable_pack_checked(
         server: &Arc<Server>,
         name: &str,
         position: DatapackEnablePosition,
-    ) -> Result<String, DatapackError> {
+    ) -> Result<(String, Result<(), String>), DatapackError> {
         let Some(resolved_name) = Self::find_pack_name(server, name) else {
             return Err(DatapackError::Unknown(name.to_string()));
         };
@@ -1887,10 +1887,11 @@ impl DatapackManager {
             tracing::error!("Failed to save world info: {err}");
         }
 
-        if let Err(err) = server.reload_datapacks() {
+        let reload = server.reload_datapacks();
+        if let Err(err) = &reload {
             tracing::warn!("Datapack reload failed after enable: {err}");
         }
-        Ok(target)
+        Ok((target, reload))
     }
 
     pub fn enable_pack(
@@ -1903,8 +1904,11 @@ impl DatapackManager {
             .map_err(|error| error.to_string())
     }
 
-    /// Disables a pack and returns its resolved id.
-    pub fn disable_pack_checked(server: &Arc<Server>, name: &str) -> Result<String, DatapackError> {
+    /// Disables a pack and returns its resolved id plus the reload result.
+    pub fn disable_pack_checked(
+        server: &Arc<Server>,
+        name: &str,
+    ) -> Result<(String, Result<(), String>), DatapackError> {
         let Some(target_pack) = Self::find_pack_name(server, name) else {
             return Err(DatapackError::Unknown(name.to_string()));
         };
@@ -1933,10 +1937,11 @@ impl DatapackManager {
             tracing::error!("Failed to save world info: {err}");
         }
 
-        if let Err(err) = server.reload_datapacks() {
+        let reload = server.reload_datapacks();
+        if let Err(err) = &reload {
             tracing::warn!("Datapack reload failed after disable: {err}");
         }
-        Ok(target)
+        Ok((target, reload))
     }
 
     pub fn disable_pack(server: &Arc<Server>, name: &str) -> Result<(), String> {
@@ -2995,12 +3000,12 @@ fn load_recipes_from_dir(
 mod tests {
     use std::collections::HashMap;
 
+    use super::CURRENT_DATA_PACK_FORMAT;
     use super::{
         DatapackManager, FunctionChainGuard, FunctionRunError, MAX_FUNCTION_CHAIN_COMMANDS,
         MAX_FUNCTION_CHAIN_DEPTH, stringify_macro_argument, substitute_macro,
         validate_macro_template,
     };
-    use pumpkin_data::packet::CURRENT_MC_VERSION;
     use pumpkin_nbt::NbtCompound;
     use pumpkin_nbt::tag::NbtTag;
 
@@ -3504,9 +3509,7 @@ mod tests {
         let current_format = CURRENT_DATA_PACK_FORMAT;
         std::fs::write(
             pack_path.join("pack.mcmeta"),
-            format!(
-                r#"{{"pack": {{"description": "Legacy", "pack_format": {current_format}}}}}"#
-            ),
+            format!(r#"{{"pack": {{"description": "Legacy", "pack_format": {current_format}}}}}"#),
         )
         .unwrap();
         let metadata = super::read_pack_mcmeta(pack_path);
@@ -3932,9 +3935,7 @@ mod tests {
         let current_format = CURRENT_DATA_PACK_FORMAT;
         std::fs::write(
             valid.join("pack.mcmeta"),
-            format!(
-                r#"{{"pack":{{"description":"ok","pack_format":{current_format}}}}}"#
-            ),
+            format!(r#"{{"pack":{{"description":"ok","pack_format":{current_format}}}}}"#),
         )?;
         assert!(super::pack_metadata_error(&valid).is_none());
 

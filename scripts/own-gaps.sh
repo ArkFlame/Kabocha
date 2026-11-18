@@ -14,7 +14,10 @@ for f in sorted(glob.glob('docs/tracker/*.md')):
     res = t.split('## Result')[-1] if '## Result' in t else ''
     lines = [l.strip() for l in t.splitlines() if re.search(r'STILL OPEN|FIXED|VERIFIED|BLOCKED-DATA', l)]
     n = lambda k: sum(1 for l in lines if k in l)
-    op, fx, vf, bd = n('STILL OPEN'), n('FIXED'), n('VERIFIED'), n('BLOCKED-DATA')
+    last = t.rsplit('\n## Result', 1)[-1] if '\n## Result' in t else t
+    neg = re.compile(r'\b(no|none|zero|without|not|never|0)\b[^.\n]{0,40}STILL OPEN|STILL OPEN[^.\n]{0,20}(markers?|rows? remain|until closed)', re.I)
+    op = sum(1 for l in last.splitlines() if 'STILL OPEN' in l and not neg.search(l))
+    fx, vf, bd = n('FIXED'), n('VERIFIED'), n('BLOCKED-DATA')
     if not (op or fx or vf or bd): continue
     cov = 'OWN-OPEN' if op else ('OWN-BLOCKED-DATA' if bd else 'OWN-CLOSED')
     srcs = sorted(set(re.findall(r'crates/[A-Za-z0-9_./-]+\.rs', t)))[:6]

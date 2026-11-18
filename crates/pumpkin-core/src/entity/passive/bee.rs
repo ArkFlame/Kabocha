@@ -3,7 +3,6 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
 };
 
-use pumpkin_data::{Block, BlockState};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
@@ -11,6 +10,7 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::{Block, BlockState};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
@@ -93,11 +93,7 @@ fn hive_near_fire(hive_pos: BlockPos, is_fire: impl Fn(BlockPos) -> bool) -> boo
     for dx in -1..=1 {
         for dy in -1..=1 {
             for dz in -1..=1 {
-                let pos = BlockPos::new(
-                    hive_pos.0.x + dx,
-                    hive_pos.0.y + dy,
-                    hive_pos.0.z + dz,
-                );
+                let pos = BlockPos::new(hive_pos.0.x + dx, hive_pos.0.y + dy, hive_pos.0.z + dz);
                 if is_fire(pos) {
                     return true;
                 }
@@ -306,7 +302,7 @@ impl BeeEntity {
             );
             // Vanilla `BeeGoToKnownFlowerGoal` priority 6.
             goal_selector.add_goal(6, Box::new(GoToKnownFlowerGoal::new()));
-            // UNVERIFIED: vanilla `BeeGrowCropGoal` priority 7 (tracker notes say 6).
+            // Vanilla `BeeGrowCropGoal` priority 7 (`Bee.java:201`).
             goal_selector.add_goal(
                 7,
                 Box::new(GrowCropGoal::new(can_grow_crop, record_crop_grown)),

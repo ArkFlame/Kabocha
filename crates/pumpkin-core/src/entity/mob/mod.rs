@@ -1159,12 +1159,10 @@ impl MobEntity {
             // bonus lives on the weapon, so it applies to a mace-wielding mob too.
             let per_block =
                 crate::enchantment::EnchantmentHelper::modify_fall_based_damage(&weapon, 0.0);
-            attack_damage += per_block
-                .mul_add(
-                    fall_distance,
-                    crate::entity::combat::mace_smash_damage_bonus(fall_distance),
-                )
-                as f32;
+            attack_damage += per_block.mul_add(
+                fall_distance,
+                crate::entity::combat::mace_smash_damage_bonus(fall_distance),
+            ) as f32;
         }
         let damage_type = if is_mace_smash {
             DamageType::MACE_SMASH

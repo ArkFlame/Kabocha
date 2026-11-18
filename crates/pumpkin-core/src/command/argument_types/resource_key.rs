@@ -76,8 +76,8 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
             suggestions_builder.filter_and_suggest_iter(biomes).build()
         } else if self.0 == DIMENSION_REGISTRY {
             // Vanilla advertises every dimension type in the registry, including datapack
-            // dimensions that are not currently instantiated as a world. Fall back to the
-            // default dimensions when the context has no server (unit tests).
+            // dimensions that are not currently instantiated as a world. Prefer the registry
+            // entries; fall back to loaded worlds, then the defaults (unit tests, no registry).
             let dimensions: Vec<String> = context.source.server.as_deref().map_or_else(
                 || {
                     vec![
@@ -87,12 +87,20 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
                     ]
                 },
                 |server| {
-                    server
-                        .worlds
-                        .load()
-                        .iter()
-                        .map(|world| world.dimension.minecraft_name.to_string())
-                        .collect()
+                    let registered = server
+                        .datapack_manager
+                        .dynamic_registry_manager
+                        .get_all_entry_ids(&DIMENSION_REGISTRY.to_string());
+                    if registered.is_empty() {
+                        server
+                            .worlds
+                            .load()
+                            .iter()
+                            .map(|world| world.dimension.minecraft_name.to_string())
+                            .collect()
+                    } else {
+                        registered
+                    }
                 },
             );
             suggestions_builder

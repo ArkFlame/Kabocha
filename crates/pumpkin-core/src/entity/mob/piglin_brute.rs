@@ -315,13 +315,14 @@ impl Mob for PiglinBruteEntity {
 const HOME_GOAL_INTERVAL: i32 = 10;
 
 const fn is_close_to_home(distance_sq: f64) -> bool {
-    distance_sq <= PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
-        * PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
+    distance_sq
+        <= PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
+            * PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
 }
 
 const fn is_too_far_from_home(distance_sq: f64) -> bool {
-    distance_sq >= PiglinBruteEntity::HOME_TOO_FAR_DISTANCE
-        * PiglinBruteEntity::HOME_TOO_FAR_DISTANCE
+    distance_sq
+        >= PiglinBruteEntity::HOME_TOO_FAR_DISTANCE * PiglinBruteEntity::HOME_TOO_FAR_DISTANCE
 }
 
 fn home_distance_sq(mob: &dyn Mob) -> f64 {

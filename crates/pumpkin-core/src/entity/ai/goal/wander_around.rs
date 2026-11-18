@@ -153,6 +153,13 @@ impl Goal for WanderAroundGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        // Vanilla `CreakingAi.updateActivity` drops the wander activity once `canMove` is false.
+        if self
+            .start_condition
+            .is_some_and(|start_condition| !start_condition(mob))
+        {
+            return false;
+        }
         let idle = mob.is_navigator_idle();
         !idle && !mob.get_entity().has_passengers()
     }

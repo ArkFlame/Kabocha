@@ -1,5 +1,4 @@
 use super::BlockEntity;
-use crate::entity::EntityBase;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
 use pumpkin_data::block_properties::{SculkCatalystLikeProperties, WaterLikeProperties};
@@ -51,7 +50,7 @@ impl BlockEntity for SculkCatalystBlockEntity {
     }
 
     /// Vanilla `SculkCatalystBlockEntity.CatalystListener.handleGameEvent`:
-    /// an `ENTITY_DIE` BY_DISTANCE listener feeds the dying living entity's
+    /// an `ENTITY_DIE` `BY_DISTANCE` listener feeds the dying living entity's
     /// soul into the spreader and blooms the catalyst.
     fn on_game_event(
         &self,

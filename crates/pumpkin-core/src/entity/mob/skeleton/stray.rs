@@ -71,7 +71,10 @@ mod tests {
     #[test]
     fn stray_arrow_slowness_matches_vanilla() {
         let effect = StraySkeletonEntity::slowness_effect();
-        assert_eq!(effect.effect_type, &pumpkin_data::effect::StatusEffect::SLOWNESS);
+        assert_eq!(
+            effect.effect_type,
+            &pumpkin_data::effect::StatusEffect::SLOWNESS
+        );
         assert_eq!(effect.duration, 600);
         assert_eq!(effect.amplifier, 0);
         assert!(!effect.ambient);

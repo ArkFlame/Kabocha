@@ -1737,7 +1737,10 @@ mod tests {
             "black_shulker_box",
         ];
         for name in DYNAMIC_SHAPE_NAMES {
-            assert!(super::has_dynamic_shape(name), "unhandled dynamic shape: {name}");
+            assert!(
+                super::has_dynamic_shape(name),
+                "unhandled dynamic shape: {name}"
+            );
         }
         assert!(!super::has_dynamic_shape("stone"));
         assert!(!super::has_dynamic_shape("glass"));

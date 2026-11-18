@@ -66,13 +66,10 @@ fn normalize_id(id: &str) -> String {
 
 fn parse_ingredient(value: &Value) -> Option<OwnedRecipeIngredient> {
     match value {
-        Value::String(s) => {
-            if let Some(tag) = s.strip_prefix('#') {
-                Some(OwnedRecipeIngredient::Tagged(normalize_id(tag)))
-            } else {
-                Some(OwnedRecipeIngredient::Simple(normalize_id(s)))
-            }
-        }
+        Value::String(s) => s.strip_prefix('#').map_or_else(
+            || Some(OwnedRecipeIngredient::Simple(normalize_id(s))),
+            |tag| Some(OwnedRecipeIngredient::Tagged(normalize_id(tag))),
+        ),
         // Vanilla Ingredient codec rejects an object that sets both `item` and `tag`.
         Value::Object(map) if map.contains_key("item") && map.contains_key("tag") => None,
         Value::Object(map) => map

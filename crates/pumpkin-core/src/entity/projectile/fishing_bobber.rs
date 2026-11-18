@@ -255,10 +255,12 @@ impl FishingBobberEntity {
             let caught_items: Vec<(String, u32)> = loot
                 .iter()
                 .filter(|stack| !stack.is_empty())
-                .map(|stack| (
-                    format!("minecraft:{}", stack.item.registry_key),
-                    u32::from(stack.item_count),
-                ))
+                .map(|stack| {
+                    (
+                        format!("minecraft:{}", stack.item.registry_key),
+                        u32::from(stack.item_count),
+                    )
+                })
                 .collect();
             player.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {

@@ -2,7 +2,6 @@ use std::sync::{Arc, Weak};
 
 use super::{Controls, Goal};
 use crate::entity::EntityBase;
-use crate::entity::ai::control::LookControlTrait;
 use crate::entity::mob::Mob;
 use crate::entity::mob::enderman::EndermanEntity;
 

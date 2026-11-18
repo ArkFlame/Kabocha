@@ -3,7 +3,7 @@ use crate::block::fluid::flowing_trait::FlowingFluid;
 use crate::world::World;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::{
-    Block, BlockDirection,
+    Block, BlockDirection, BlockState,
     fluid::{EnumVariants, Falling, Fluid, FluidProperties, Level},
 };
 use pumpkin_util::math::position::BlockPos;
@@ -17,9 +17,17 @@ pub struct PathNode {
     pub exclude_dir: BlockDirection,
 }
 
-/// Mirrors vanilla `FlowingFluid.isWaterHole`: a block below holding the same fluid counts as a
-/// hole. Bubble columns are water sources but are absent from `washed_away_by_fluids`, so the tag
-/// check alone would miss them; `has_fluid_at` recognises their water fluid state.
+/// Sturdy-face part of vanilla `FlowingFluid.canPassThroughWall(DOWN)`: a sturdy bottom face on
+/// the flowing cell or a sturdy top face below it stops the fall. Pumpkin's sturdy-face flags
+/// stand in for the merged collision-shape occlusion.
+const fn wall_seals_down(state: &BlockState, below: &BlockState) -> bool {
+    state.is_side_solid(BlockDirection::Down) || below.is_side_solid(BlockDirection::Up)
+}
+
+/// Mirrors vanilla `FlowingFluid.isWaterHole`: a passable boundary below holding the same fluid
+/// counts as a hole. Bubble columns are water sources but are absent from
+/// `washed_away_by_fluids`, so the tag check alone would miss them; `has_fluid_at` recognises
+/// their water fluid state.
 fn is_hole<T: FlowingFluid + Sync + ?Sized>(
     fluid_impl: &T,
     world: &Arc<World>,
@@ -27,8 +35,12 @@ fn is_hole<T: FlowingFluid + Sync + ?Sized>(
     fluid: &Fluid,
 ) -> bool {
     let below = pos.down();
-    fluid_impl.has_fluid_at(fluid, world.get_block_state_id(&below))
-        || physics::can_hold_fluid(world.get_block(&below), fluid)
+    let below_state = world.get_block_state(&below);
+    if wall_seals_down(world.get_block_state(pos), below_state) {
+        return false;
+    }
+    fluid_impl.has_fluid_at(fluid, below_state.id)
+        || physics::can_hold_fluid(Block::from_state_id(below_state.id), fluid)
 }
 
 /// Determines valid spread directions for fluid flow using hole-first priority.
@@ -216,4 +228,20 @@ pub fn get_in_flow_down_distance_iterative<T: FlowingFluid + Sync + ?Sized>(
     }
 
     1000
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bottom_slab_below_does_not_seal_the_fall_but_a_slab_above_does() {
+        // A bottom slab's top face is open, so water falls onto it; a slab at the flowing cell
+        // has a sturdy bottom face and blocks the fall (vanilla `canPassThroughWall(DOWN)`).
+        let slab = &Block::OAK_SLAB.default_state;
+        let air = &Block::AIR.default_state;
+        assert!(!wall_seals_down(air, slab));
+        assert!(wall_seals_down(slab, air));
+        assert!(!wall_seals_down(air, air));
+    }
 }

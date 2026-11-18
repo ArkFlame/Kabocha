@@ -410,50 +410,47 @@ impl Goal for RamTargetGoal {
 
         if self.preparing {
             if let Some(candidate) = self.candidate {
-                    if candidate.target_position != target_pos {
-                        // Vanilla re-chooses the ram position when the target moves.
-                        self.candidate =
-                            calculate_ram_start_position(mob, target_pos).map(|start| {
-                                RamCandidate {
-                                    start_position: start,
-                                    target_position: target_pos,
-                                }
-                            });
-                        return;
-                    }
-                    if mob.get_entity().block_pos.load() != candidate.start_position {
-                        self.repath_to(
-                            mob,
-                            candidate.start_position.to_centered_f64(),
-                            PREPARE_SPEED,
-                        );
-                        return;
-                    }
-                    // Vanilla broadcasts START_RAM once the start position is reached, then the
-                    // goat stands still for ramPrepareTime ticks.
-                    if self.prepare_ticks == 0 {
-                        let entity = mob.get_entity();
-                        entity.world.load().broadcast_entity_event(
-                            entity,
-                            EntityStatus::StartRam,
-                            ActorEventID::None,
-                        );
-                        mob.get_mob_entity().stop_navigation();
-                    }
-                    if self.prepare_ticks < RAM_PREPARE_TIME {
-                        self.prepare_ticks += 1;
-                        return;
-                    }
-                    self.begin_charge(mob);
+                if candidate.target_position != target_pos {
+                    // Vanilla re-chooses the ram position when the target moves.
+                    self.candidate =
+                        calculate_ram_start_position(mob, target_pos).map(|start| RamCandidate {
+                            start_position: start,
+                            target_position: target_pos,
+                        });
+                    return;
+                }
+                if mob.get_entity().block_pos.load() != candidate.start_position {
+                    self.repath_to(
+                        mob,
+                        candidate.start_position.to_centered_f64(),
+                        PREPARE_SPEED,
+                    );
+                    return;
+                }
+                // Vanilla broadcasts START_RAM once the start position is reached, then the
+                // goat stands still for ramPrepareTime ticks.
+                if self.prepare_ticks == 0 {
+                    let entity = mob.get_entity();
+                    entity.world.load().broadcast_entity_event(
+                        entity,
+                        EntityStatus::StartRam,
+                        ActorEventID::None,
+                    );
+                    mob.get_mob_entity().stop_navigation();
+                }
+                if self.prepare_ticks < RAM_PREPARE_TIME {
+                    self.prepare_ticks += 1;
+                    return;
+                }
             } else {
                 // No walkable ram start: keep the direct approach from before the scan.
-                    if self.prepare_ticks < RAM_PREPARE_TIME {
-                        self.prepare_ticks += 1;
-                        self.repath_to(mob, target.get_entity().pos.load(), PREPARE_SPEED);
-                        return;
-                    }
-                    self.begin_charge(mob);
+                if self.prepare_ticks < RAM_PREPARE_TIME {
+                    self.prepare_ticks += 1;
+                    self.repath_to(mob, target.get_entity().pos.load(), PREPARE_SPEED);
+                    return;
+                }
             }
+            self.begin_charge(mob);
         }
 
         if mob.is_in_attack_range(target.as_ref()) {

@@ -5,6 +5,7 @@ use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::ai::pathfinder::NavigatorGoal;
 use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::mob::Mob;
+use crate::entity::predicate::EntityPredicate;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
@@ -220,6 +221,20 @@ impl Goal for MeleeAttackGoal {
     fn stop(&mut self, mob: &dyn Mob) {
         if let Some(on_stop) = self.on_stop {
             on_stop(mob);
+        }
+        // Vanilla clears the target unless it is a creative or spectator player. Read the stored
+        // value raw: `get_target` hides those players, so it cannot tell them apart from no target.
+        let stored_target = mob
+            .get_mob_entity()
+            .target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .and_then(std::sync::Weak::upgrade);
+        if stored_target
+            .is_some_and(|target| EntityPredicate::ExceptCreativeOrSpectator.test(target.as_ref()))
+        {
+            mob.get_mob_entity().set_target(None);
         }
         mob.get_mob_entity().set_attacking(false);
 

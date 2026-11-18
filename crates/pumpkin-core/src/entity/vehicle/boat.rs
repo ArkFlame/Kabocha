@@ -855,15 +855,17 @@ impl EntityBase for BoatEntity {
     }
     fn on_rider_positioned(&self, passenger: &dyn EntityBase) {
         // Vanilla `AbstractBoat.positionRider` applies the turn delta and then `clampRotation`.
-        // A player steers itself and an entity in `can_turn_in_boats` keeps its own rotation.
+        // Only the turn delta is skipped for players: it needs `isLocalInstanceAuthoritative`,
+        // which a dedicated-server player never is. The clamp still applies to players.
+        // An entity in `can_turn_in_boats` keeps its own rotation.
         let rider = passenger.get_entity();
-        if passenger.get_player().is_some()
-            || rider
-                .entity_type
-                .has_tag(&tag::EntityType::MINECRAFT_CAN_TURN_IN_BOATS)
+        if rider
+            .entity_type
+            .has_tag(&tag::EntityType::MINECRAFT_CAN_TURN_IN_BOATS)
         {
             return;
         }
+        let is_player = passenger.get_player().is_some();
         let boat_yaw = self.get_entity().yaw.load();
         let passenger_count = self
             .get_entity()
@@ -880,12 +882,19 @@ impl EntityBase for BoatEntity {
                 .is_some_and(|mob| mob.as_animal().is_some()),
             rider.entity_id,
         );
-        let delta = self.yaw_delta.load();
+        let delta = if is_player {
+            0.0
+        } else {
+            self.yaw_delta.load()
+        };
         rider.body_yaw.store(body_yaw);
         let Some(mob) = passenger.get_mob() else {
             let yaw = clamp_rider_yaw(rider.yaw.load() + delta, body_yaw);
             rider.yaw.store(yaw);
-            rider.head_yaw.store(yaw);
+            // Vanilla `clampRotation` leaves a player's head yaw untouched.
+            if !is_player {
+                rider.head_yaw.store(yaw);
+            }
             return;
         };
         // Vanilla `Mob` riders take the hull heading as body yaw (`setYRot` then

@@ -221,7 +221,10 @@ impl ArmadilloEntity {
             let world = entity.world.load();
             let pos = entity.pos.load();
             world.play_sound(Sound::EntityArmadilloRoll, SoundCategory::Neutral, &pos);
-            world.emit_game_event(pumpkin_data::game_event::GameEvent::EntityAction.name(), pos);
+            world.emit_game_event(
+                pumpkin_data::game_event::GameEvent::EntityAction.name(),
+                pos,
+            );
             self.switch_to_state(ArmadilloState::Rolling);
         }
     }
@@ -231,8 +234,15 @@ impl ArmadilloEntity {
             let entity = self.get_entity();
             let world = entity.world.load();
             let pos = entity.pos.load();
-            world.play_sound(Sound::EntityArmadilloUnrollFinish, SoundCategory::Neutral, &pos);
-            world.emit_game_event(pumpkin_data::game_event::GameEvent::EntityAction.name(), pos);
+            world.play_sound(
+                Sound::EntityArmadilloUnrollFinish,
+                SoundCategory::Neutral,
+                &pos,
+            );
+            world.emit_game_event(
+                pumpkin_data::game_event::GameEvent::EntityAction.name(),
+                pos,
+            );
             self.switch_to_state(ArmadilloState::Idle);
         }
     }
@@ -275,21 +285,17 @@ impl ArmadilloEntity {
     }
 
     pub fn is_scared_by(&self, living_entity: &dyn EntityBase) -> bool {
-        let entity = self.get_entity();
-        let pos = entity.pos.load();
-        let target_pos = living_entity.get_entity().pos.load();
-        let dx = (pos.x - target_pos.x).abs();
-        let dy = (pos.y - target_pos.y).abs();
-        let dz = (pos.z - target_pos.z).abs();
-
-        if dx > SCARE_DISTANCE_HORIZONTAL
-            || dz > SCARE_DISTANCE_HORIZONTAL
-            || dy > SCARE_DISTANCE_VERTICAL
-        {
+        // Vanilla `getBoundingBox().inflate(7, 2, 7).intersects(target.getBoundingBox())`.
+        let scan_box = self.get_entity().bounding_box.load().expand(
+            SCARE_DISTANCE_HORIZONTAL,
+            SCARE_DISTANCE_VERTICAL,
+            SCARE_DISTANCE_HORIZONTAL,
+        );
+        let target_ent = living_entity.get_entity();
+        if !scan_box.intersects(&target_ent.bounding_box.load()) {
             return false;
         }
 
-        let target_ent = living_entity.get_entity();
         let target_type = target_ent.entity_type;
         if target_type.has_tag(&tag::EntityType::MINECRAFT_UNDEAD) {
             return true;
@@ -476,9 +482,10 @@ impl Mob for ArmadilloEntity {
             }
         }
 
-        // Vanilla's `armadillo_scare_detected` sensor scans every 5 ticks, so an armadillo rolls
-        // up on approach instead of only after it is hit.
-        if self.get_state() == ArmadilloState::Idle
+        // Vanilla `armadillo_scare_detected` (MobSensor, scan rate 5) rescans while the armadillo
+        // can stay rolled up, even when already rolled, and refreshes DANGER_DETECTED_RECENTLY
+        // for 80 ticks on a hit. Rolled-up armadillos therefore stay curled while threatened.
+        if self.can_stay_rolled_up()
             && entity.age.load(Ordering::Relaxed) % SCARE_SCAN_INTERVAL == 0
         {
             // Vanilla scans `getBoundingBox().inflate(7, 2, 7)`, so corners count too.
@@ -491,6 +498,8 @@ impl Mob for ArmadilloEntity {
                 candidate.get_entity().is_alive() && self.is_scared_by(candidate.as_ref())
             });
             if threatened {
+                self.danger_detected_recently_ticks
+                    .store(SCARE_CHECK_INTERVAL, Ordering::Relaxed);
                 self.roll_up();
             }
         }

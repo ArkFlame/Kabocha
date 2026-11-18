@@ -232,9 +232,10 @@ impl MinecartDisplay {
 
     fn init_data_tracker(&self, entity: &Entity) {
         // Vanilla encodes an absent display block as 0 and a present one as state id + 1.
-        let state = self.block_state.load().map_or(0, |id| {
-            i32::from(id.as_u16()) + 1
-        });
+        let state = self
+            .block_state
+            .load()
+            .map_or(0, |id| i32::from(id.as_u16()) + 1);
         entity.set_synced_data(
             pumpkin_data::tracked_data::abstract_minecart::DATA_ID_CUSTOM_DISPLAY_BLOCK,
             VarInt(state),
@@ -1142,12 +1143,12 @@ mod tests {
         let mut nbt = NbtCompound::new();
         display.write_nbt(&mut nbt);
         assert!(nbt.get_compound("DisplayState").is_some());
-        assert!(nbt.get_int("DisplayOffset") == Some(3));
+        assert_eq!(nbt.get_int("DisplayOffset"), Some(3));
 
         let loaded = MinecartDisplay::new();
         loaded.read_nbt(&nbt);
-        assert!(loaded.block_state.load() == Some(state));
-        assert!(loaded.offset.load(Ordering::Relaxed) == 3);
+        assert_eq!(loaded.block_state.load(), Some(state));
+        assert_eq!(loaded.offset.load(Ordering::Relaxed), 3);
     }
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;

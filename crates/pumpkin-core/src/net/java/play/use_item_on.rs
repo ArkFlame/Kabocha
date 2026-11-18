@@ -37,6 +37,7 @@ impl JavaClient {
             .lock()
             .is_ok_and(|awaiting| awaiting.is_some());
         if position.0.y > world.get_top_y()
+            || position.0.y < world.get_bottom_y()
             || teleport_pending
             || !may_interact(player, &world, &position)
         {

@@ -331,12 +331,12 @@ impl ZombieEntityBase {
                 .into_iter()
                 .filter(|chicken| {
                     let chicken = chicken.get_entity();
-                    chicken.is_alive() && !chicken.has_passengers()
+                    chicken.is_alive() && !chicken.has_passengers() && !chicken.has_vehicle()
                 })
                 .collect();
-            // Vanilla picks a random candidate, consuming a roll either way.
+            // Vanilla takes the first candidate (`chickens.get(0)`), no extra roll.
             if !chickens.is_empty() {
-                let chicken = chickens[rng.random_range(0..chickens.len())].clone();
+                let chicken = chickens[0].clone();
                 set_chicken_jockey(chicken.as_ref());
                 self.mob_entity.set_pending_vehicle(chicken);
             }

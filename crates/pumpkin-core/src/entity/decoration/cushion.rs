@@ -332,16 +332,19 @@ impl EntityBase for CushionEntity {
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
-        nbt.put_byte("Color", self.color() as i8);
+        // Vanilla `Cushion.addAdditionalSaveData` stores the dye name under "color".
+        let name =
+            pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(self.color())).name();
+        nbt.put_string("color", name.to_string());
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
-        if let Some(color) = nbt.get_byte("Color") {
-            // Vanilla resolves the stored byte through `DyeColor.byId`, which
-            // falls back to white instead of syncing an out-of-range dye id.
-            let color = pumpkin_data::dye_color::DyeColor::by_id_or_white(i32::from(color as u8));
-            self.set_color(color.id());
-        }
+        // Vanilla `Cushion.readAdditionalSaveData` falls back to white for an unknown name.
+        let color = nbt
+            .get_string("color")
+            .and_then(pumpkin_data::dye_color::DyeColor::by_name)
+            .unwrap_or(pumpkin_data::dye_color::DyeColor::White);
+        self.set_color(color.id());
     }
 
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
@@ -438,11 +441,6 @@ impl EntityBase for CushionEntity {
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
-        // Vanilla `HangingEntity#hurt` ignores a hit on an entity that is already
-        // removed, so one cushion cannot drop twice in the same tick.
-        if !self.entity.is_alive() {
-            return true;
-        }
         let world = self.entity.world.load();
         // Vanilla `BlockAttachedEntity.hurtServer`: invulnerability is checked first,
         // then mob-caused damage is refused while `mobGriefing` is off. Both use the
@@ -466,6 +464,11 @@ impl EntityBase for CushionEntity {
             })
         {
             return false;
+        }
+        // Vanilla `BlockAttachedEntity.hurtServer` returns true for a hit on an already removed
+        // entity (after the refusal checks), so one cushion cannot drop twice in the same tick.
+        if !self.entity.is_alive() {
+            return true;
         }
         self.drop_and_remove(source);
         true

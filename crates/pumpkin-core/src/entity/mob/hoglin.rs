@@ -73,8 +73,7 @@ fn flee_from_piglins_when_outnumbered(mob: &dyn Mob) -> bool {
 /// Mirrors vanilla `HoglinAi.isPacified` driven by `BecomePassiveIfMemoryPresent(NEAREST_REPELLENT, 200)`:
 /// while a repellent is sensed the hoglin neither starts nor continues a player hunt.
 fn can_hunt_while_not_pacified(mob: &dyn Mob) -> bool {
-    !mob
-        .cast_any()
+    !mob.cast_any()
         .downcast_ref::<HoglinEntity>()
         .is_some_and(|hoglin| {
             hoglin

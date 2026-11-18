@@ -87,7 +87,10 @@ impl GameEventListener for VibrationListener<'_> {
         source_position: Vector3<f64>,
     ) -> bool {
         let warden = self.0;
-        if !tag::GameEvent::MINECRAFT_WARDEN_CAN_LISTEN.0.contains(&event.name()) {
+        if !tag::GameEvent::MINECRAFT_WARDEN_CAN_LISTEN
+            .0
+            .contains(&event.name())
+        {
             return false;
         }
         if let Some(source) = context.source_entity {
@@ -95,7 +98,9 @@ impl GameEventListener for VibrationListener<'_> {
                 return false;
             }
             if source.is_stepping_carefully()
-                && tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING.0.contains(&event.name())
+                && tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING
+                    .0
+                    .contains(&event.name())
             {
                 return false;
             }
@@ -377,17 +382,18 @@ impl WardenEntity {
                 .pending_vibrations
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let (due, waiting): (Vec<_>, Vec<_>) =
-                pending.drain(..).partition(|vibration| vibration.delivery_age <= age);
+            let (due, waiting): (Vec<_>, Vec<_>) = pending
+                .drain(..)
+                .partition(|vibration| vibration.delivery_age <= age);
             *pending = waiting;
             due
         };
         for vibration in due {
-            self.receive_vibration(world, vibration);
+            self.receive_vibration(world, &vibration);
         }
     }
 
-    fn receive_vibration(&self, world: &World, vibration: PendingVibration) {
+    fn receive_vibration(&self, world: &World, vibration: &PendingVibration) {
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
             return;

@@ -1261,7 +1261,8 @@ impl LivingEntity {
     /// Kept for parity, the tick and respawn paths already treat 0 health like vanilla. Vanilla
     /// returns `()` here too and has no switch, so the clamp stays unconditional.
     pub fn heal(&self, additional_health: f32) {
-        if self.health.load() <= 0.0 || additional_health == 0.0 {
+        // Vanilla `heal` fires `EntityRegainHealthEvent` even for a zero amount.
+        if self.health.load() <= 0.0 {
             return;
         }
         let mut event =

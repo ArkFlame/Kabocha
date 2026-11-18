@@ -674,8 +674,13 @@ impl EntityBase for ItemFrameEntity {
         {
             return false;
         }
-        // Fixed frames are indestructible except through support loss.
-        if self.is_fixed() {
+        // Vanilla ItemFrame.canHurtWhenFixed: fixed frames only break for
+        // bypass-invulnerability damage or creative players; otherwise support loss only.
+        let creative_cause = cause
+            .and_then(EntityBase::get_player)
+            .is_some_and(Player::is_creative);
+        let bypasses = damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY);
+        if self.is_fixed() && !(bypasses || creative_cause) {
             return false;
         }
 
@@ -700,8 +705,7 @@ impl EntityBase for ItemFrameEntity {
         // hit by an explosion that does not affect block-like entities is ignored.
         let direct_in_water = explosion
             .source()
-            .map(|s| s.get_entity().is_in_water())
-            .unwrap_or(false);
+            .is_some_and(|s| s.get_entity().is_in_water());
         direct_in_water
             || !explosion.should_affect_blocklike_entities()
             || self.is_immune_to_explosion()

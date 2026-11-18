@@ -816,7 +816,7 @@ impl BlockRegistry {
                 &*world,
                 Some(player),
                 placed_block,
-                &BlockState::from_id(new_state),
+                BlockState::from_id(new_state),
                 &final_block_pos,
                 Some(final_face),
                 Some(use_item_on),
@@ -961,23 +961,27 @@ impl BlockRegistry {
 
         self.player_placed(&world, placed_block, new_state, &final_block_pos, player);
 
-        let enchantments: Vec<(String, u32)> = stack
-            .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
-            .map(|data| {
-                data.enchantment
-                    .iter()
-                    .map(|(enchantment, level)| (enchantment.registry_key.to_string(), *level as u32))
-                    .collect()
-            })
-            .unwrap_or_default();
-        player.trigger_advancement(
-            crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
-                block_id: format!("minecraft:{}", placed_block.name),
-                item_id: Some(stack.item.registry_key.to_string()),
-                count: u32::from(stack.item_count),
-                enchantments,
-            },
-        );
+        if let Some(stack) = held_stack.as_ref() {
+            let enchantments: Vec<(String, u32)> = stack
+                .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+                .map(|data| {
+                    data.enchantment
+                        .iter()
+                        .map(|(enchantment, level)| {
+                            (enchantment.registry_key.to_string(), *level as u32)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            player.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
+                    block_id: format!("minecraft:{}", placed_block.name),
+                    item_id: Some(stack.item.registry_key.to_string()),
+                    count: u32::from(stack.item_count),
+                    enchantments,
+                },
+            );
+        }
 
         Ok(Some((final_block_pos, new_state)))
     }

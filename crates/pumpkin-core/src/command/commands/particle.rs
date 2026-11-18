@@ -267,7 +267,9 @@ fn encode_particle_options(particle: Particle, options: Option<&NbtCompound>) ->
             let stack = opt("item")
                 .and_then(item_stack)
                 .unwrap_or_else(|| ItemStack::EMPTY.clone());
-            ItemStackSerializer(Cow::Owned(stack)).write(&mut buf)
+            // Vanilla `ItemParticleOption` uses `ItemStackTemplate.STREAM_CODEC`: item id first, then count.
+            ItemStackSerializer(Cow::Owned(stack))
+                .write_template_with_version(&mut buf, &CURRENT_MC_VERSION)
         }
         _ => Ok(()),
     };
@@ -684,5 +686,17 @@ mod tests {
         expected.extend_from_slice(&pos.as_long_for_version(&CURRENT_MC_VERSION).to_be_bytes());
         expected.push(10); // arrival in ticks (VAR_INT)
         assert_eq!(data, expected);
+    }
+
+    #[test]
+    fn item_writes_template_order_id_then_count() {
+        let mut options = NbtCompound::new();
+        let mut item = NbtCompound::new();
+        item.put_string("id", "minecraft:stone".to_string());
+        item.put_int("count", 5);
+        options.put("item", NbtTag::Compound(item));
+        let data = encode_particle_options(Particle::Item, Some(&options));
+        // Stone is item id 1; ItemStackTemplate writes id, count, then the empty patch counts.
+        assert_eq!(data, vec![1, 5, 0, 0]);
     }
 }

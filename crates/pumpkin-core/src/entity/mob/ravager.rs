@@ -59,9 +59,9 @@ const STRONG_KNOCKBACK: f64 = 4.0;
 /// The three vanilla `Ravager` tick counters (`attackTick`, `stunnedTick`, `roarTick`).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct RavagerTimers {
-    attack_tick: i32,
-    stunned_tick: i32,
-    roar_tick: i32,
+    attack: i32,
+    stunned: i32,
+    roar: i32,
 }
 
 /// Side effects vanilla fires when a timer crosses its trigger value.
@@ -71,25 +71,25 @@ struct TimerActions {
 }
 
 /// Advances the counters in the same order as vanilla `Ravager.aiStep`.
-fn advance_timers(timers: &mut RavagerTimers) -> TimerActions {
+const fn advance_timers(timers: &mut RavagerTimers) -> TimerActions {
     let mut actions = TimerActions {
         roar: false,
         stun_finished: false,
     };
-    if timers.roar_tick > 0 {
-        timers.roar_tick -= 1;
-        if timers.roar_tick == ROAR_TRIGGER_TICK {
+    if timers.roar > 0 {
+        timers.roar -= 1;
+        if timers.roar == ROAR_TRIGGER_TICK {
             actions.roar = true;
         }
     }
-    if timers.attack_tick > 0 {
-        timers.attack_tick -= 1;
+    if timers.attack > 0 {
+        timers.attack -= 1;
     }
-    if timers.stunned_tick > 0 {
-        timers.stunned_tick -= 1;
-        if timers.stunned_tick == 0 {
+    if timers.stunned > 0 {
+        timers.stunned -= 1;
+        if timers.stunned == 0 {
             actions.stun_finished = true;
-            timers.roar_tick = ROAR_AFTER_STUN_TICKS;
+            timers.roar = ROAR_AFTER_STUN_TICKS;
         }
     }
     actions
@@ -204,7 +204,7 @@ impl RavagerEntity {
     fn on_attack_blocked(&self, defender: &dyn EntityBase) {
         {
             let timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
-            if timers.roar_tick != 0 {
+            if timers.roar != 0 {
                 return;
             }
         }
@@ -212,7 +212,7 @@ impl RavagerEntity {
             self.timers
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .stunned_tick = STUN_DURATION;
+                .stunned = STUN_DURATION;
             self.play_entity_sound(Sound::EntityRavagerStunned, 1.0, 1.0);
             let entity = &self.mob_entity.living_entity.entity;
             entity.world.load().broadcast_entity_event(
@@ -240,7 +240,7 @@ impl Mob for RavagerEntity {
         };
         let (immobile, actions) = {
             let mut timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
-            let immobile = timers.attack_tick > 0 || timers.stunned_tick > 0 || timers.roar_tick > 0;
+            let immobile = timers.attack > 0 || timers.stunned > 0 || timers.roar > 0;
             (immobile, advance_timers(&mut timers))
         };
         let mut attributes = living
@@ -278,7 +278,7 @@ impl Mob for RavagerEntity {
         self.timers
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .attack_tick = ATTACK_DURATION;
+            .attack = ATTACK_DURATION;
         let entity = self.get_entity();
         entity.world.load().broadcast_entity_event(
             entity,
@@ -315,18 +315,18 @@ impl Mob for RavagerEntity {
             .expand(-0.05, 0.0, -0.05)
     }
 
-    fn is_immobile(&self) -> bool {
+    fn is_mob_immobile(&self) -> bool {
         let timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
         self.mob_entity.living_entity.is_dead_or_dying()
-            || timers.attack_tick > 0
-            || timers.stunned_tick > 0
-            || timers.roar_tick > 0
+            || timers.attack > 0
+            || timers.stunned > 0
+            || timers.roar > 0
     }
 
     fn has_line_of_sight(&self, target: &crate::entity::Entity) -> bool {
         {
             let timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
-            if timers.stunned_tick > 0 || timers.roar_tick > 0 {
+            if timers.stunned > 0 || timers.roar > 0 {
                 return false;
             }
         }
@@ -349,17 +349,17 @@ impl Mob for RavagerEntity {
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         self.write_raider_nbt(nbt);
         let timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
-        nbt.put_int("AttackTick", timers.attack_tick);
-        nbt.put_int("StunTick", timers.stunned_tick);
-        nbt.put_int("RoarTick", timers.roar_tick);
+        nbt.put_int("AttackTick", timers.attack);
+        nbt.put_int("StunTick", timers.stunned);
+        nbt.put_int("RoarTick", timers.roar);
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         self.read_raider_nbt(nbt);
         let mut timers = self.timers.lock().unwrap_or_else(PoisonError::into_inner);
-        timers.attack_tick = nbt.get_int("AttackTick").unwrap_or(0);
-        timers.stunned_tick = nbt.get_int("StunTick").unwrap_or(0);
-        timers.roar_tick = nbt.get_int("RoarTick").unwrap_or(0);
+        timers.attack = nbt.get_int("AttackTick").unwrap_or(0);
+        timers.stunned = nbt.get_int("StunTick").unwrap_or(0);
+        timers.roar = nbt.get_int("RoarTick").unwrap_or(0);
     }
 }
 
@@ -390,30 +390,30 @@ mod tests {
     #[test]
     fn timers_schedule_roar_ten_ticks_before_zero() {
         let mut timers = RavagerTimers {
-            attack_tick: 2,
-            stunned_tick: 0,
-            roar_tick: 20,
+            attack: 2,
+            stunned: 0,
+            roar: 20,
         };
         let mut saw_roar = false;
         for _ in 0..20 {
             saw_roar |= advance_timers(&mut timers).roar;
         }
         assert!(saw_roar);
-        assert_eq!(timers.roar_tick, 0);
-        assert_eq!(timers.attack_tick, 0);
+        assert_eq!(timers.roar, 0);
+        assert_eq!(timers.attack, 0);
     }
 
     #[test]
     fn stun_finish_schedules_roar() {
         let mut timers = RavagerTimers {
-            attack_tick: 0,
-            stunned_tick: 1,
-            roar_tick: 0,
+            attack: 0,
+            stunned: 1,
+            roar: 0,
         };
         let actions = advance_timers(&mut timers);
         assert!(actions.stun_finished);
         assert!(!actions.roar);
-        assert_eq!(timers.stunned_tick, 0);
-        assert_eq!(timers.roar_tick, 20);
+        assert_eq!(timers.stunned, 0);
+        assert_eq!(timers.roar, 20);
     }
 }

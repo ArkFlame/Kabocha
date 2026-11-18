@@ -10,7 +10,6 @@ use crate::entity::ai::pathfinder::{
     pathfinding_context::PathfindingContext,
 };
 use crate::entity::living::LivingEntity;
-use crate::entity::mob::Mob;
 use crate::world::World;
 
 pub trait NodeEvaluator {
@@ -55,6 +54,7 @@ pub struct MobData {
 }
 
 impl MobData {
+    #[must_use]
     pub fn comfortable_fall_distance(allowed_damage: f32) -> f32 {
         (allowed_damage + 3.0).floor()
     }
@@ -71,23 +71,19 @@ impl MobData {
         data.is_in_water = entity.is_in_water();
         data.min_y = world.get_bottom_y();
         data.sea_level = world.sea_level;
-        if entity.entity.entity_type.id == EntityType::CREEPER.id {
-            if let Some(mob) = world.get_entity_by_uuid(entity.entity.uuid) {
-                if let Some(creeper) = mob
-                    .cast_any()
-                    .downcast_ref::<crate::entity::mob::creeper::CreeperEntity>()
-                {
-                    let mob_entity = crate::entity::mob::Mob::get_mob_entity(creeper);
-                    let max_fall = if mob_entity.get_target().is_none() {
-                        Self::comfortable_fall_distance(0.0)
-                    } else {
-                        Self::comfortable_fall_distance(
-                            mob_entity.living_entity.health.load() - 1.0,
-                        )
-                    };
-                    data.max_fall_distance = max_fall;
-                }
-            }
+        if entity.entity.entity_type.id == EntityType::CREEPER.id
+            && let Some(mob) = world.get_entity_by_uuid(entity.entity.entity_uuid)
+            && let Some(creeper) = mob
+                .cast_any()
+                .downcast_ref::<crate::entity::mob::creeper::CreeperEntity>()
+        {
+            let mob_entity = crate::entity::mob::Mob::get_mob_entity(creeper);
+            let max_fall = if mob_entity.get_target().is_none() {
+                Self::comfortable_fall_distance(0.0)
+            } else {
+                Self::comfortable_fall_distance(mob_entity.living_entity.health.load() - 1.0)
+            };
+            data.max_fall_distance = max_fall;
         }
 
         data

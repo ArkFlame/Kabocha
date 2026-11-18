@@ -240,8 +240,11 @@ impl BeehiveBlockEntity {
         // flower the hive's flower with 90% chance.
         let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
             || entity_data.get_int_array("flower_pos").is_some();
-        if inherits_flower(bee_has_flower, hive_flower.is_some(), rand::random::<f32>() < 0.9f32)
-            && let Some(flower) = hive_flower
+        if inherits_flower(
+            bee_has_flower,
+            hive_flower.is_some(),
+            rand::random::<f32>() < 0.9f32,
+        ) && let Some(flower) = hive_flower
         {
             let mut tag = NbtCompound::new();
             tag.put_int("X", flower.0.x);
@@ -250,7 +253,9 @@ impl BeehiveBlockEntity {
             entity_data.put_compound("flower_pos", tag);
         }
         let state_id = world.get_block_state_id(&pos);
-        let facing = world.get_block(&pos).get_property(state_id, PropertyKey::Facing);
+        let facing = world
+            .get_block(&pos)
+            .get_property(state_id, PropertyKey::Facing);
         let (dx, dz) = front_offset(facing);
         let spawn = Vector3::new(
             f64::from(pos.0.x) + 0.5 + 0.6 * dx,
@@ -265,7 +270,12 @@ impl BeehiveBlockEntity {
         entity.get_entity().set_pos(spawn);
         entity.get_entity().set_has_no_gravity(true);
         if let Some(player) = player
-            && player.get_entity().pos.load().squared_distance_to_vec(&spawn) <= 16.0
+            && player
+                .get_entity()
+                .pos
+                .load()
+                .squared_distance_to_vec(&spawn)
+                <= 16.0
             && let Some(mob) = entity.get_mob()
         {
             mob.set_mob_target(Some(player), TargetReason::ClosestPlayer);

@@ -8,7 +8,7 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::math::wrap_degrees;
 
-use crate::block::blocks::bed::{BedBlock, sleep_height};
+use crate::block::blocks::bed::{BedBlock, player_sleep_height, sleep_height};
 use crate::entity::EntityBase;
 use crate::entity::ai::brain::memory::types;
 
@@ -29,9 +29,10 @@ impl VillagerEntity {
         if !block.has_tag(&BlockTag::MINECRAFT_BEDS) {
             return false;
         }
-        let Some(sleep_height) = sleep_height(state) else {
+        if sleep_height(state).is_none() {
             return false;
-        };
+        }
+        let sleep_height = player_sleep_height(&world, bed_pos, state);
 
         self.get_entity().set_pos(
             bed_pos

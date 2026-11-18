@@ -325,7 +325,10 @@ impl CreakingEntity {
 
         let player_entity = player.get_entity();
         // Vanilla `LivingEntity.isLookingAtMe` never sees across levels.
-        if !Arc::ptr_eq(&player_entity.world.load_full(), &creaking_entity.world.load_full()) {
+        if !Arc::ptr_eq(
+            &player_entity.world.load_full(),
+            &creaking_entity.world.load_full(),
+        ) {
             return false;
         }
         let player_eye_pos = player_entity.get_eye_pos();
@@ -353,18 +356,15 @@ impl CreakingEntity {
                 // threshold stays constant. LOS uses the per-gaze-height endpoint
                 // (seeThroughTransparentBlocks=true -> ClipBlock::Visual).
                 if dot > 1.0 - GAZE_CONE_SIZE {
-                    let distance_sq = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
-                    if distance_sq <= 128.0 * 128.0 {
-                        let world = player_entity.world.load_full();
-                        let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
-                            player_eye_pos,
-                            target,
-                            pumpkin_world::clip::ClipBlock::Visual,
-                            pumpkin_world::clip::ClipFluid::None,
-                        ));
-                        if hit.is_miss {
-                            return true;
-                        }
+                    let world = player_entity.world.load_full();
+                    let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
+                        player_eye_pos,
+                        target,
+                        pumpkin_world::clip::ClipBlock::Visual,
+                        pumpkin_world::clip::ClipFluid::None,
+                    ));
+                    if hit.is_miss {
+                        return true;
                     }
                 }
             }

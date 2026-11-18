@@ -37,9 +37,7 @@ impl ExplosionDamageCalculator for UsedPortalDamageCalculator {
         block: &Block,
         fluid: &pumpkin_data::fluid::FluidState,
     ) -> Option<f32> {
-        if block == &Block::NETHER_PORTAL {
-            None
-        } else if block.default_state.is_air() && fluid.is_empty {
+        if block == &Block::NETHER_PORTAL || (block.default_state.is_air() && fluid.is_empty) {
             None
         } else {
             Some(fluid.blast_resistance.max(block.blast_resistance))
