@@ -4,7 +4,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 VERIFIED; 0 STILL OPEN, 0 BLOCKED-DATA.
 
-## Result
 ## Result (final pass, unit closed)
 
 This unit's single inherited row, `own/taudit-crates-pumpkin-core-src-block-regi`
