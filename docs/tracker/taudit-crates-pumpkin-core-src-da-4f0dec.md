@@ -221,3 +221,33 @@ Re-checked it against the decompiled vanilla sources:
 All GAP-status rows now end as FIXED/VERIFIED; none remain STILL OPEN. No source edits this pass:
 `dynamic_registry_loader.rs` is unchanged, so rustfmt is not needed. Checks not run by worker
 (orchestrator compiles/nextests the batch).
+
+
+## Result (third pass, worker - VERIFIED with full decode-path evidence)
+
+No STILL OPEN rows remain. Re-verified the sole open row (Gap 1: JSON streamed to NBT
+bypassing element codecs, L) end to end against decompiled vanilla, smallest seam first.
+
+- Gap 1 (JSON -> NBT numeric typing, L): VERIFIED - matches vanilla client behaviour; no
+  code fix, generated field, or cross-crate refactor required. Server encodes each element
+  through the element codec + NbtOps
+  (`.vendor/vanilla-decompiled/net/minecraft/core/RegistrySynchronization.java:59-62`, `ops`
+  is the `DynamicOps<Tag>` passed at :28/:38, i.e. NbtOps). Client decodes via
+  `RegistryOps.create(NbtOps.INSTANCE, ...)` + `elementCodec()`
+  (`.vendor/vanilla-decompiled/net/minecraft/resources/NetworkRegistryLoadTask.java:47,60`).
+  `NbtOps` overrides only `getNumberValue` at
+  (`.vendor/vanilla-decompiled/net/minecraft/nbt/NbtOps.java:70-77`) which is
+  `input.asNumber()`; `NumericTag.asNumber()` returns the boxed Number
+  (`.vendor/vanilla-decompiled/net/minecraft/nbt/NumericTag.java:21-23`), and the numeric
+  accessors `Tag.asByte/asInt/asLong/asFloat/asDouble` all derive from `asNumber()`
+  (`.vendor/vanilla-decompiled/net/minecraft/nbt/Tag.java:55-80`). So an `IntTag`, `LongTag`,
+  `DoubleTag`, or `FloatTag` carrying the same number decodes through the codec to the
+  identical value, and extra JSON fields are ignored by the client codec just as in vanilla.
+  Wire bytes can differ (Pumpkin's range heuristic vs vanilla's codec-typed tags) but
+  client-visible behaviour is identical. The conservative `LONG_FIELDS = ["seed"]` hint plus
+  `long_typed_seed_fields_encode_as_long_tags` test remain as best-effort wire fidelity.
+  No exact missing generated field or subsystem blocks correctness.
+
+All rows end FIXED/VERIFIED; none BLOCKED-DATA, none STILL OPEN. No source edits this pass
+(`dynamic_registry_loader.rs` unchanged), so rustfmt is not needed. Checks not run by worker
+(orchestrator compiles/nextests the batch).

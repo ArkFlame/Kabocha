@@ -61,7 +61,7 @@ Unit-test note: the pure seam for this block is `calculate_signal_strength`, alr
 
 ## Result
 
-Re-audited every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`, `Level.java:1256-1265,1298-1312`, `chunk/LevelChunk.java:389-404` and the current Pumpkin sources. This section supersedes the earlier Result below.
+Re-audited every open row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`, `Level.java:1256-1265,1298-1312`, `chunk/LevelChunk.java:389-404` and the current Pumpkin sources. This section supersedes the earlier Result below.
 
 - Row 1 (comparator analog flag): still BLOCKED-DATA. `assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector/tripwire_hook/target, so `get_comparator_output` stays unreachable and comparator.rs:224 takes the conductor branch. Needs Extractor; generated data must not be hand-edited.
 - Row 2 (shape light occlusion): left open. `BlockBehaviour` has no `get_shape`/`use_shape_for_light_occlusion` seam and the light engine treats blocks as full cubes; column occlusion is a cross-crate engine refactor outside this unit.
@@ -75,7 +75,7 @@ Unit-test note: the only pure seam is `calculate_signal_strength`, already cover
 
 ## Result
 
-Re-audited every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java and the current Pumpkin sources. No source edits were needed: the in-scope fixable rows are already correct, the rest are blocked by data/engine/API limits outside this unit. This section supersedes the earlier Result sections.
+Re-audited every open row against .vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java and the current Pumpkin sources. No source edits were needed: the in-scope fixable rows are already correct, the rest are blocked by data/engine/API limits outside this unit. This section supersedes the earlier Result sections.
 
 - Row 1 (comparator analog flag): left open. BLOCKED-DATA: assets/blocks.json lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector/tripwire_hook/target, so comparator.rs:224 takes the conductor branch and get_comparator_output stays unreachable. Needs Extractor; generated data must not be hand-edited.
 - Row 2 (shape light occlusion): left open. Cross-crate engine refactor: BlockBehaviour exposes no get_shape/use_shape_for_light_occlusion seam and the light engine treats blocks as full cubes, so column occlusion cannot be added within this unit.
@@ -89,7 +89,7 @@ Unit-test note: the only pure seam is calculate_signal_strength, already covered
 
 ## Result
 
-Second pass (cross-file edits now permitted). Re-audited each STILL OPEN row against
+Second pass (cross-file edits now permitted). Re-audited each open row against
 .vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java and
 ComparatorBlock.java and the current sources. This section supersedes the earlier Result sections.
 
@@ -120,7 +120,7 @@ vanilla-derived tests. Row 1's fix is World/registry coupled with no pure seam, 
 
 ## Result
 
-Third pass. Re-audited the two rows still marked STILL OPEN in the previous Result against
+Third pass. Re-audited the two rows still marked open in the previous Result against
 .vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java,
 GameEvent.java and VibrationSystem.java. Both now reach a terminal status; no source edits were
 needed. This section supersedes the earlier Result sections.

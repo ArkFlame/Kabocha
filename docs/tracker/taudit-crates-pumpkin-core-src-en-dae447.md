@@ -249,3 +249,50 @@ verification by reading code against .vendor/vanilla-decompiled only. Diff re-ch
 worker compile-pitfalls table: no changes made, so none apply.
 
 Status: PASS fixed=0 open=0 files=none
+
+
+## Result (third pass: independent close-out, final)
+
+Independently re-verified each STILL OPEN row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java` and the current
+checkout of the four unit files. No `.rs` change was needed: every row is already implemented and
+matches vanilla, so no BLOCKED-DATA (missing generated field or subsystem) applies.
+
+- **Row 1 (open-water flag, M): VERIFIED (matches vanilla).** `FishingBobberEntity` stores
+  `open_water: AtomicBool` and exposes `is_open_water_fishing()` (fishing_bobber.rs:56,175).
+  `process_tick` latches via the pure `latched_open_water` helper (fishing_bobber.rs:489-499,940-952),
+  reading `out_of_water_time` from the state at tick start BEFORE its update, matching
+  `FishingHook.tick` lines 233-237 (`nibble<=0 && timeUntilHooked<=0 -> openWater=true`, else
+  `openWater && outOfWaterTime<10 && calculateOpenWater`) with MAX_OUT_OF_WATER_TIME=10 (vanilla
+  line 59, update at 240/251). The fishing loot params pass `this_entity: Some(self)`
+  (fishing_bobber.rs:239); `predicates.rs` gates `fishing_hook.in_open_water` on the latched flag
+  (predicates.rs:268-273,377-397) and `is_open_water` reproduces `calculateOpenWater` layer rules
+  (predicates.rs:419-454 vs FishingHook.java:442-485): uniform 5x5 layer, ABOVE_WATER/Air with
+  INVALID previous -> false, INSIDE_WATER/Water with ABOVE_WATER previous -> false, source-only
+  water gate (predicates.rs:365-374 vs FishingHook.java:475-481). Pure unit tests exist for both
+  helpers (fishing_bobber.rs:1073+, predicates.rs:1043+), so no duplicate test was added.
+- **Row 2 (cancelled PlayerFishEvent removes hook, S): VERIFIED (matches vanilla).** `reel_in`
+  returns `Option<i32>` (`None` on cancelled CAUGHT_ENTITY/CAUGHT_FISH/IN_GROUND/REEL_IN via
+  `fire_fish_event` at fishing_bobber.rs:361-394); `fishing_rod.rs:132-154` sets `keep_hook=true` on
+  `None`, skips the removal and the `player.fishing_bobber.store(-1)`. This matches CraftBukkit
+  `FishingHook.retrieve`, which returns early on a cancelled event before the terminal `discard()`.
+- **Row 3 (should_stop_fishing does not discard, trivial): VERIFIED (matches vanilla).**
+  `should_stop_fishing` calls `self.discard(player)` before returning true (fishing_bobber.rs:628),
+  matching `FishingHook.shouldStopFishing` (FishingHook.java:273-291). `discard` also uses a
+  compare_exchange so a stale hook cannot orphan a newer bobber.
+- **Row 4 (rod durability path, S): VERIFIED (matches vanilla).** `fishing_rod.rs:142` calls
+  `player.damage_item_in_slot(&equipment_slot, damage)`, which rolls Unbreaking via
+  `compute_durability_damage_applied` and fires the item damage/break events and break sound. This
+  covers vanilla `stack.hurtAndBreak(retrieve(...), player, slot)` (`FishingRodItem.java:27`).
+- **Row 5 (random f64 vs f32): VERIFIED (matches vanilla).** No `random::<f64>()` remains: throw
+  bob velocity uses `rand::random::<f32>()` (fishing_bobber.rs:482 vs FishingHook.java:232), fish
+  approach `rand::rng().triangle(0.0,9.188) as f32` (:685 vs :348), tease/lure rolls and the synced
+  bite kick all use f32 / `synced.next_f32()` (:505,659,662,695,756,770-772,789 vs
+  FishingHook.java:153,326,330,357,403-405,417).
+
+Every STILL OPEN row is now FIXED/VERIFIED with a vanilla citation; none remains open and none
+needs generated data or a missing subsystem. No `.rs` file changed, so rustfmt was not required.
+No compile run (workers do not compile); verification was by reading code against `.vendor/` only.
+Diff re-checked against the worker compile-pitfalls table: no changes made, so none apply.
+
+Status: PASS fixed=0 open=0 files=none
