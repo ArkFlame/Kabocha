@@ -17,7 +17,11 @@ Fixed: `Player::get_movement_statistic` listed every boat wood type except popla
 | boat/passengers.rs:67-69, 71-80 | passenger offsets/ride height come from `AbstractChestBoat`/`Boat` entity attachments and are data driven | replace the local `is_chest_boat()` / bamboo branches with the generated `entity_type.boat` seat data used at `boat.rs:197` | S |
 
 ## Gap status
-- Remaining-gap items (section lines 9+): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- Row 'interact opens container only when sneaking / full boat returns PASS' (line 13): CLOSED (NO GAP; re-verified 2026-11-18)
+- Row 'contents dropped on every destroying removal, not only damage break' (line 14): CLOSED (NO GAP; re-verified 2026-11-18)
+- Row 'drop extra CONTAINER_OPEN game event' (line 15): CLOSED (NO GAP; re-verified 2026-11-18)
+- Row 'c:boats missing poplar_chest_boat' (line 16): OPEN (needs pumpkin-codegen regeneration; generated data out of scope)
+- Row 'passenger offsets use generated seat data' (line 17): CLOSED (NO GAP; re-verified 2026-11-18)
 
 
 ## Result
@@ -35,3 +39,20 @@ Verified on 2026-11-17 against decompiled vanilla at .vendor/vanilla-decompiled/
 - Row "passenger offsets use generated seat data" (doc line 17): NO GAP, already correct. boat/passengers.rs delegates to super::passenger_attachment, which reads the generated entity.entity_type.boat seat data (ride_height, single_passenger_x_offset); the local is_chest_boat/bamboo branches are gone. No code change.
 
 Also corrected the stale inline comment in boat.rs about the instabuild drop path to match verified vanilla VehicleEntity.hurtServer (instabuild discards directly and drops nothing) and the existing function doc comment. No new unit test: boat.rs already covers these seams (chest_boat_offers_container_only_when_no_seat_or_secondary_use, boat_seat_offset_follows_vanilla_single_multi_rider_and_animal_shift, named_boat_keeps_its_drop_when_creative, chest_boat_detection_covers_every_chest_boat_entity_type), so adding tests would duplicate them.
+
+
+## Result (re-verified 2026-11-18)
+
+Re-checked every STILL OPEN row against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java and the current Pumpkin source. The 2026-11-17 Result section still holds; no code changes were needed.
+
+- Line 13 interact: CLOSED, NO GAP. AbstractChestBoat.interact (Java 80-97) opens the container iff super.interact returned PASS and !(canAddPassenger && !isSecondaryUseActive). boat.rs chest_opens_container (135-141) = has_inventory && (is_sneaking || !can_add_passenger), wired through boat_interact_outcome (161-177) from interact (813-825). Matches for seat free, full boat, sneaking, out-of-control and already-riding cases. Existing unit tests boat_interact_outcome / chest_opens_container (1191-1200) cover this seam.
+
+- Line 14 drops: CLOSED, NO GAP. AbstractChestBoat.remove (Java 71-77) scatters on any reason.shouldDestroy() and destroy (Java 65-68) scatters on break. boat.rs on_removed (488-490) calls scatter_chest_contents (272-288) for destroying removals, damage_with_context (691-755) scatters on break, and claim_drops (276) prevents a double scatter. Matches.
+
+- Line 15 CONTAINER_OPEN: CLOSED, NO GAP. AbstractChestBoat.interact (Java 91-93) and openCustomInventoryScreen (Java 100-106) both emit CONTAINER_OPEN with the player and anger piglins. boat.rs open_custom_inventory_screen (290-328) emits ContainerOpen with the player as source and calls PiglinAi::on_guarded_block_interacted. Matches.
+
+- Line 16 c:boats: STILL OPEN, out of scope. poplar_chest_boat is missing from the generated c:boats tag in crates/pumpkin-data/src/generated/tag.rs; generated data must be regenerated with `cargo run --locked -p pumpkin-codegen`, not hand-edited. No functional gap: boat.rs is_boat (line 89-91) is `has_tag(C_BOATS) || is_chest_boat(...)`, and is_chest_boat (76-79) matches the _chest_boat suffix, so poplar_chest_boat is already recognised.
+
+- Line 17 passenger offsets: CLOSED, NO GAP. boat.rs passenger_attachment (204-222) reads the generated entity.entity_type.boat seat data (ride_height, single_passenger_x_offset) and passenger_seat_offset (181-200) mirrors AbstractBoat.getPassengerAttachmentPoint. No local chest/bamboo branch remains.
+
+No new unit test: the pure helpers boat_interact_outcome, chest_opens_container and passenger_seat_offset already have direct tests (1191-1200); adding more would duplicate them. No .rs file touched, so rustfmt is not applicable.
