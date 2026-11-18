@@ -7,7 +7,7 @@ use super::World;
 /// lists `overworld` first and `the_end` second; dimensions without a default
 /// clock (the Nether) keep the overworld id.
 #[must_use]
-fn default_clock_name(dimension_name: &str) -> Option<&'static str> {
+pub(crate) fn default_clock_name(dimension_name: &str) -> Option<&'static str> {
     match dimension_name {
         "minecraft:overworld" | "minecraft:overworld_caves" => Some("minecraft:overworld"),
         "minecraft:the_end" => Some("minecraft:the_end"),

@@ -310,6 +310,33 @@ impl PumpkinError for GetBlockError {
 /// - Stores and tracks active `Player` entities within the world.
 /// - Provides a central hub for interacting with the world's entities and environment.
 #[repr(C)]
+// Accumulates the block states changed while a bonemeal growth runs so the
+// BlockFertilizeEvent payload can list them and a cancellation can revert them.
+#[derive(Default)]
+struct BonemealChangeRecorder {
+    changes: HashMap<BlockPos, (BlockStateId, BlockStateId)>,
+}
+
+// Keeps the first state a position had before bonemeal and its latest state,
+// dropping positions that end up unchanged (e.g. a tree that failed to place).
+fn accumulate_bonemeal_change(
+    changes: &mut HashMap<BlockPos, (BlockStateId, BlockStateId)>,
+    position: BlockPos,
+    old_state: BlockStateId,
+    new_state: BlockStateId,
+) {
+    if old_state == new_state {
+        return;
+    }
+    match changes.entry(position) {
+        std::collections::hash_map::Entry::Occupied(mut entry) => entry.get_mut().1 = new_state,
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            entry.insert((old_state, new_state));
+        }
+    }
+}
+
+#[repr(C)]
 pub struct World {
     /// Represents the World's Unique Identifier
     pub uuid: Uuid,
@@ -326,8 +353,9 @@ pub struct World {
     pub dragon_parts: DashMap<i32, Arc<EnderDragonPart>>,
     pub(crate) entity_index: Arc<EntityIndex>,
     island_schedule: std::sync::Mutex<entity_islands::Schedule>,
-    /// The world's scoreboard, used for tracking scores, objectives, and display information.
-    pub scoreboard: std::sync::Mutex<Scoreboard>,
+    /// The server-wide scoreboard. Vanilla `ServerLevel.getScoreboard()` delegates to
+    /// `MinecraftServer.getScoreboard()`, so every world shares one instance.
+    pub scoreboard: Arc<std::sync::Mutex<Scoreboard>>,
     /// The world's worldborder, defining the playable area and controlling its expansion or contraction.
     pub worldborder: std::sync::Mutex<Worldborder>,
     /// The world's time, including counting ticks for weather, time cycles, and statistics.
@@ -359,6 +387,10 @@ pub struct World {
     synced_block_event_queue: std::sync::Mutex<Vec<BlockEvent>>,
     /// A map of unsent block changes, keyed by block position.
     unsent_block_changes: std::sync::Mutex<HashMap<BlockPos, BlockStateId>>,
+    // Tracks block states changed during an active bonemeal growth for the
+    // BlockFertilizeEvent payload and cancellation revert.
+    bonemeal_recording: std::sync::atomic::AtomicBool,
+    bonemeal_changes: std::sync::Mutex<HashMap<BlockPos, (BlockStateId, BlockStateId)>>,
     /// Light sections a block change dirtied, keyed by chunk position (bit mask of
     /// section indices), like vanilla's `ChunkHolder` light section filters.
     unsent_light_sections: std::sync::Mutex<HashMap<Vector2<i32>, u64>>,
@@ -668,7 +700,7 @@ impl World {
             dragon_parts: DashMap::new(),
             entity_index: Arc::default(),
             island_schedule: std::sync::Mutex::default(),
-            scoreboard: std::sync::Mutex::new(Scoreboard::default()),
+            scoreboard: Arc::new(std::sync::Mutex::new(Scoreboard::default())),
             worldborder: std::sync::Mutex::new(worldborder),
             level_time: std::sync::Mutex::new(level_time),
             dimension,
@@ -684,6 +716,8 @@ impl World {
             min_y: i32::from(generation_settings.shape.min_y),
             synced_block_event_queue: std::sync::Mutex::new(Vec::new()),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
+            bonemeal_recording: std::sync::atomic::AtomicBool::new(false),
+            bonemeal_changes: std::sync::Mutex::new(HashMap::new()),
             unsent_light_sections: std::sync::Mutex::new(HashMap::new()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             poi_chunk_receiver: std::sync::Mutex::new(poi_chunk_receiver),
@@ -6347,6 +6381,7 @@ impl World {
     #[expect(clippy::needless_pass_by_value)]
     pub fn spawn_entity_non_save(&self, entity: Arc<dyn EntityBase>) {
         let _base_entity = entity.get_entity();
+        entity.get_entity().set_self_weak(&entity);
         self.entity_tracker.add_entity(&entity, self);
         self.add_dragon_parts(entity.as_ref());
         self.spawn_state.load().add_entity(self, entity.as_ref());
@@ -6499,6 +6534,7 @@ impl World {
     #[expect(clippy::needless_pass_by_value)]
     pub fn add_entity_silent(&self, entity: Arc<dyn EntityBase>) {
         let base_entity = entity.get_entity();
+        base_entity.set_self_weak(&entity);
 
         // Guard against duplicate entities with the same UUID.
         // This can happen when chunk entity data is loaded while the entity
