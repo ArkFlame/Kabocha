@@ -148,9 +148,27 @@ pub trait PropertyDelegate: Sync + Send {
     fn get_properties_size(&self) -> i32;
 }
 
+/// One used cooking recipe and the experience it accrued, matching one entry of vanilla
+/// `getRecipesToAwardAndPopExperience` / `RecipesUsed`.
+#[derive(Debug, Clone)]
+pub struct RecipeExperience {
+    /// Fully namespaced recipe id (e.g. `minecraft:iron_ingot_from_smelting_iron_ore`).
+    pub recipe_id: String,
+    /// Experience accrued from this recipe, with the fractional part rolled once.
+    pub experience: i32,
+}
+
 /// Trait for extracting smelting experience from cooking block entities.
 pub trait ExperienceContainer: Send + Sync {
-    /// Extract and reset accumulated experience, returning one amount per used recipe so callers
-    /// can spawn one orb per recipe like vanilla `getRecipesToAwardAndPopExperience`.
-    fn extract_experience(&self) -> Vec<i32>;
+    /// Extract and reset the used recipes, returning one entry per id so callers can unlock the
+    /// recipe and spawn one orb per recipe like vanilla `getRecipesToAwardAndPopExperience`.
+    fn extract_recipes(&self) -> Vec<RecipeExperience>;
+
+    /// Extract accumulated experience as one amount per used recipe.
+    fn extract_experience(&self) -> Vec<i32> {
+        self.extract_recipes()
+            .into_iter()
+            .map(|entry| entry.experience)
+            .collect()
+    }
 }

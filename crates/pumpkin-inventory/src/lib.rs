@@ -83,7 +83,7 @@ pub use inventory::{
 };
 use pumpkin_data::data_component_impl::EquipmentSlot;
 pub use viewer::ViewerCountTracker;
-pub use window_property::{ExperienceContainer, PropertyDelegate};
+pub use window_property::{ExperienceContainer, PropertyDelegate, RecipeExperience};
 
 use crate::player::player_inventory::PlayerInventory;
 
