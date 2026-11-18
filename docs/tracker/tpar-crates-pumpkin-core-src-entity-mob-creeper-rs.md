@@ -44,4 +44,3 @@ No new pure unit test: the audited behaviours have no pure seam in creeper.rs (g
 NBT, sound, explosion ordering all require live server/mob state); existing inline tests cover the
 default fuse/radius constants. rustfmt to be run by the orchestrator on the touched source file.
 No row remains STILL OPEN.
- Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

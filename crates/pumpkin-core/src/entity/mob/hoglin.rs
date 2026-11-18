@@ -68,6 +68,22 @@ fn flee_from_piglins_when_outnumbered(mob: &dyn Mob) -> bool {
         .is_some_and(piglins_outnumber_hoglins)
 }
 
+/// Hunting is allowed only while the hoglin is not pacified by a nearby repellent.
+///
+/// Mirrors vanilla `HoglinAi.isPacified` driven by `BecomePassiveIfMemoryPresent(NEAREST_REPELLENT, 200)`:
+/// while a repellent is sensed the hoglin neither starts nor continues a player hunt.
+fn can_hunt_while_not_pacified(mob: &dyn Mob) -> bool {
+    !mob
+        .cast_any()
+        .downcast_ref::<HoglinEntity>()
+        .is_some_and(|hoglin| {
+            hoglin
+                .mob_entity
+                .read_brain(|state| state.get(types::NEAREST_REPELLENT).is_some())
+                .unwrap_or(false)
+        })
+}
+
 pub struct HoglinEntity {
     pub mob_entity: MobEntity,
     pub immune_to_zombification: AtomicBool,
@@ -148,7 +164,8 @@ impl HoglinEntity {
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true)
+                    .gated_by(can_hunt_while_not_pacified),
             );
         };
 
