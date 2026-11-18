@@ -5,7 +5,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 | 4 | `server/mod.rs:1614` (`update_tick_times`) | vanilla `MinecraftServer` debug sample sends `SampleType.TICK_TIME` with the raw ring entry (worst/current tick), not `tick_duration.max(target)` | mirror the vanilla 4-value sample layout field by field | S - STILL OPEN: vanilla debug sample source not decompiled here |
 - rows 1-4, 7: STILL OPEN.
 
-## Result
 ## Result (final pass, all rows closed)
 
 All five rows verified against the vendored decompiled vanilla. No source change was needed this pass: the code fixes landed earlier and each is confirmed below against `.vendor/vanilla-decompiled/`. No cargo run (blocked for workers); orchestrator verification required. No generated `pumpkin-data` field or subsystem is missing, so no row is BLOCKED-DATA.
