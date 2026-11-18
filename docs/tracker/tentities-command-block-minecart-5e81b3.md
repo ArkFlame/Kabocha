@@ -67,7 +67,7 @@ covers NBT round trip, `TrackOutput=false`, cooldown and the Searge output.
 - Row 1 (success_count reset before gamerule guard): NO GAP - vanilla BaseCommandBlock.java line 105 resets SuccessCount before the guard at line 106; Pumpkin matches.
 - Row 2 (Searge skips lastExecution): NO GAP - vanilla returns at line 102 before the lastExecution write at lines 134-138; Pumpkin matches.
 - Row 3 (custom_name on command-block state): NO GAP - vanilla keeps its own customName field and getName() defaults to "@"; Pumpkin matches.
-- Row 4 (thread target protocol version through entity NBT): STILL OPEN (BLOCKED) - cross-crate refactor outside this unit's files and a repo-wide convention.
+- Row 4 (hardcoded protocol version in entity NBT): FIXED - version-free `TextComponent::to_nbt_tag()` added in pumpkin-util; `command_block.rs` uses it. See final Result below.
 - Row 5 (gamerule-off test): FIXED - command_block_minecart_perform_command_gamerule added in minecart.rs.
 - Row 6 (no GUI fallback): n/a, risk only.
 
@@ -287,5 +287,43 @@ setCommand/setTrackOutput, gamerule-gated onUpdated, success/disabled message al
 
 No BLOCKED-DATA (no missing generated field or subsystem). No .rs file touched this pass, so no
 rustfmt was required; no compile/test run by this worker (orchestrator compiles once).
+
+Status: PASS.
+
+## Result (final pass, all rows closed)
+
+Independently re-verified every row against decompiled vanilla present in `.vendor`:
+`net/minecraft/world/level/BaseCommandBlock.java`,
+`net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java`, and
+`net/minecraft/server/network/ServerGamePacketListenerImpl.java`. No source change was
+needed this pass; the second-pass Row 4 fix is present and type-correct in the checkout.
+
+- Row 1 (SuccessCount reset vs gamerule guard): VERIFIED, matches vanilla. `BaseCommandBlock.java:105`
+  sets `successCount = 0` before `isCommandBlockEnabled()` at line 106; Pumpkin resets at
+  `command_block.rs:168` before its guard at 169.
+- Row 2 (Searge skips lastExecution): VERIFIED, matches vanilla. Vanilla returns from the Searge
+  branch at `BaseCommandBlock.java:99-102` before the `lastExecution` write at 134-138; Pumpkin
+  returns at `command_block.rs:160-164` before the write at 217-222.
+- Row 3 (command-block custom_name): VERIFIED, matches vanilla. Vanilla `BaseCommandBlock` owns its
+  own `customName` (line 32) and `getName()` defaults to @ (147-149), independent of the entity
+  name; Pumpkin keeps its own `custom_name` at `command_block.rs:44`.
+- Row 4 (hardcoded protocol version in entity NBT): FIXED. Vanilla `save()`
+  (`BaseCommandBlock.java:50-63`) writes CustomName/LastOutput with the version-agnostic
+  `ComponentSerialization.CODEC` (53, 56). `command_block.rs:239,250` now use the version-free
+  `TextComponent::to_nbt_tag()` (`pumpkin-util/src/text/mod.rs:1695-1699`, delegating to latest
+  V_26_3 like `encode()`); the hardcoded `CURRENT_MC_VERSION` import is gone.
+- Row 5 (gamerule-off test): FIXED. `command_block_minecart_perform_command_gamerule` lives in
+  `minecart.rs` (outside this unit's file scope) and asserts the vanilla behaviour from
+  `BaseCommandBlock.java:99-102,105-106`.
+- Row 6 (no server GUI fallback): n/a, risk only; vanilla opens the edit screen client-side
+  (`MinecartCommandBlock.java:99-101`).
+
+`set_command_minecart.rs` re-verified against `handleSetCommandMinecart`
+(`ServerGamePacketListenerImpl.java:1092-1123`): permission check, unconditional
+setCommand/setTrackOutput, clear LastOutput when trackOutput false, gamerule-gated onUpdated, and
+success/disabled message all match. No change.
+
+No BLOCKED-DATA (no missing generated field or subsystem). No .rs file touched this pass, so no
+rustfmt needed; no compile/test run by this worker (orchestrator compiles once).
 
 Status: PASS.
