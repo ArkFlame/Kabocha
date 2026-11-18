@@ -8,4 +8,4 @@ Third-pass sweep (final). Re-verified each of the six "Remaining gaps" STILL OPE
 No STILL OPEN rows remain. Existing pure tests cover the data-only rows (palette
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No per-row items remain in this unit (`Files: ` empty). All rows were resolved in prior passes as FIXED/VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/` (no STILL OPEN rows). No source-file edits required this pass.
