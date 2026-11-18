@@ -309,9 +309,10 @@ impl Goal for VexRandomMoveGoal {
     }
 }
 
-/// Vanilla `Vex.VexCopyOwnerTargetGoal`: adopt the owner's current target. Vanilla uses
-/// `forNonCombat().ignoreLineOfSight().ignoreInvisibilityTesting()`; the owner's own
-/// `get_target` already applied its targeting conditions.
+/// Vanilla `Vex.VexCopyOwnerTargetGoal`: adopt the owner's current target.
+///
+/// Vanilla uses `forNonCombat().ignoreLineOfSight().ignoreInvisibilityTesting()`; the owner's
+/// own `get_target` already applied its targeting conditions.
 struct VexCopyOwnerTargetGoal {
     vex: Weak<VexEntity>,
 }

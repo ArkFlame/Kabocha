@@ -8,6 +8,7 @@ use pumpkin_data::{
     damage::DamageType,
     effect::StatusEffect,
     entity::{EntityPose, EntityStatus, EntityType},
+    game_event::GameEvent,
     potion::Effect,
     sound::{Sound, SoundCategory},
     tag::{self, Taggable},
@@ -18,6 +19,7 @@ use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::{GameMode, math::vector3::Vector3};
+use uuid::Uuid;
 
 use crate::entity::{
     Entity, EntityBase,
@@ -33,6 +35,7 @@ use crate::entity::{
 };
 use crate::plugin::api::events::entity::entity_target::TargetReason;
 use crate::world::World;
+use crate::world::game_event::{GameEventContext, GameEventListener, is_occluded};
 
 const EMERGE_DURATION: i32 = 134;
 const DARKNESS_DISPLAY_LIMIT: i32 = 200;
@@ -45,12 +48,92 @@ const ON_HURT_ANGER_BOOST: i32 = 20;
 const TOUCH_COOLDOWN_TICKS: i32 = 20;
 /// Vanilla `Warden#nextStep` adds a fixed offset to the move distance.
 const NEXT_STEP_DISTANCE: f32 = 0.55;
+/// Vanilla `Warden.VibrationUser.getListenerRadius`.
+const VIBRATION_LISTENER_RADIUS: i32 = 16;
+/// Vanilla `Warden.VibrationUser.onReceiveVibration` cooldown expiry.
+const VIBRATION_COOLDOWN_TICKS: i32 = 40;
 
 pub struct WardenEntity {
     pub mob_entity: MobEntity,
     emerge_ticks: Arc<AtomicI32>,
     anger_management: std::sync::Mutex<AngerManagement>,
     touch_cooldown: AtomicI32,
+    vibration_cooldown: AtomicI32,
+    pending_vibrations: std::sync::Mutex<Vec<PendingVibration>>,
+}
+
+/// A vibration queued for its distance-based travel delay, as in vanilla `VibrationSystem.Ticker`.
+struct PendingVibration {
+    source_uuid: Option<Uuid>,
+    delivery_age: i64,
+}
+
+struct VibrationListener<'a>(&'a WardenEntity);
+
+impl GameEventListener for VibrationListener<'_> {
+    fn listener_position(&self) -> Vector3<f64> {
+        self.0.get_eye_pos()
+    }
+
+    fn listener_radius(&self) -> i32 {
+        VIBRATION_LISTENER_RADIUS
+    }
+
+    fn handle_game_event(
+        &self,
+        world: &World,
+        event: GameEvent,
+        context: &GameEventContext<'_>,
+        source_position: Vector3<f64>,
+    ) -> bool {
+        let warden = self.0;
+        if !tag::GameEvent::MINECRAFT_WARDEN_CAN_LISTEN.0.contains(&event.name()) {
+            return false;
+        }
+        if let Some(source) = context.source_entity {
+            if source.is_spectator() || source.dampens_vibrations() {
+                return false;
+            }
+            if source.is_stepping_carefully()
+                && tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING.0.contains(&event.name())
+            {
+                return false;
+            }
+            if source.get_living_entity().is_some() && !warden.can_target_entity(source) {
+                return false;
+            }
+        }
+        if warden.mob_entity.is_no_ai() || warden.is_digging_or_emerging() {
+            return false;
+        }
+        if warden.vibration_cooldown.load(Ordering::Relaxed) > 0 {
+            return false;
+        }
+        if !world
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains(source_position.x, source_position.z)
+        {
+            return false;
+        }
+        let destination = warden.get_eye_pos();
+        if is_occluded(world, source_position, destination) {
+            return false;
+        }
+        let travel_ticks = (source_position - destination).length().floor() as i64;
+        warden
+            .pending_vibrations
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(PendingVibration {
+                source_uuid: context
+                    .source_entity
+                    .map(|source| source.get_entity().entity_uuid),
+                delivery_age: world.get_world_age() + travel_ticks,
+            });
+        true
+    }
 }
 
 struct EmergeGoal {
@@ -99,6 +182,8 @@ impl WardenEntity {
             emerge_ticks: emerge_ticks.clone(),
             anger_management: std::sync::Mutex::new(AngerManagement::default()),
             touch_cooldown: AtomicI32::new(0),
+            vibration_cooldown: AtomicI32::new(0),
+            pending_vibrations: std::sync::Mutex::new(Vec::new()),
         };
         let mob_arc = Arc::new(warden);
         let mob_weak: Weak<dyn Mob> = {
@@ -285,6 +370,51 @@ impl WardenEntity {
         }
     }
 
+    fn tick_vibrations(&self, world: &World) {
+        let age = world.get_world_age();
+        let due = {
+            let mut pending = self
+                .pending_vibrations
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let (due, waiting): (Vec<_>, Vec<_>) =
+                pending.drain(..).partition(|vibration| vibration.delivery_age <= age);
+            *pending = waiting;
+            due
+        };
+        for vibration in due {
+            self.receive_vibration(world, vibration);
+        }
+    }
+
+    fn receive_vibration(&self, world: &World, vibration: PendingVibration) {
+        let entity = &self.mob_entity.living_entity.entity;
+        if !entity.is_alive() {
+            return;
+        }
+        self.vibration_cooldown
+            .store(VIBRATION_COOLDOWN_TICKS, Ordering::Relaxed);
+        world.send_entity_status(entity, EntityStatus::TendrilsShiver, ActorEventID::None);
+        world.play_sound_fine(
+            Sound::EntityWardenTendrilClicks,
+            SoundCategory::Hostile,
+            &entity.pos.load(),
+            5.0,
+            1.0,
+        );
+        let source = vibration.source_uuid.and_then(|uuid| {
+            world
+                .get_player_by_uuid(uuid)
+                .map(|player| player as Arc<dyn EntityBase>)
+                .or_else(|| world.get_entity_by_uuid(uuid))
+        });
+        if let Some(source) = source
+            && self.can_target_entity(source.as_ref())
+        {
+            self.increase_anger_at(&source, DEFAULT_ANGER, true);
+        }
+    }
+
     pub fn apply_darkness_around(world: &World, position: Vector3<f64>, radius: f64) {
         for player in world.get_nearby_players(position, radius) {
             if !matches!(
@@ -332,6 +462,10 @@ impl Mob for WardenEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn for_each_game_event_listener(&self, visit: &mut dyn FnMut(&dyn GameEventListener)) {
+        visit(&VibrationListener(self));
     }
 
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
@@ -392,6 +526,11 @@ impl Mob for WardenEntity {
         let world = entity.world.load();
 
         self.tick_touch();
+
+        if self.vibration_cooldown.load(Ordering::Relaxed) > 0 {
+            self.vibration_cooldown.fetch_sub(1, Ordering::Relaxed);
+        }
+        self.tick_vibrations(&world);
 
         if (age + entity.entity_id) % DARKNESS_INTERVAL == 0 {
             Self::apply_darkness_around(&world, entity.pos.load(), DARKNESS_RADIUS);
