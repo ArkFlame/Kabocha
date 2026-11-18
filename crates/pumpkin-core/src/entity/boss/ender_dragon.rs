@@ -947,11 +947,11 @@ impl EnderDragonEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) += 1;
         } else {
+            self.tick_block_breaking();
+        }
         // Vanilla runs the per-part contact checks in every phase; only
         // the wing damage is gated on sitting inside the handler.
         self.handle_part_contacts();
-            self.tick_block_breaking();
-        }
 
         phase.tick(self);
 
