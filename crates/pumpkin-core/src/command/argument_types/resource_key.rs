@@ -101,7 +101,7 @@ fn resolve_biome_id(manager: &DynamicRegistryManager, identifier: &Identifier) -
         .map(|biome| biome.id)
         .or_else(|| {
             manager
-                .get_raw_id(BIOME_REGISTRY, &identifier.to_string())
+                .get_raw_id(&BIOME_REGISTRY.to_string(), &identifier.to_string())
                 .and_then(|raw| u8::try_from(raw).ok())
         })
 }

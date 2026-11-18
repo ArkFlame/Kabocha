@@ -197,7 +197,9 @@ impl GoatEntity {
         // Vanilla seeds a fresh `RandomSource` from the UUID hash before picking the element.
         let seed = self.get_entity().entity_uuid.as_u128() as u64;
         let index = Xoroshiro::from_seed(seed).next_bounded_i32(names.len() as i32) as usize;
-        if let (Some(name), Some(instrument)) = (names.get(index), Instrument::from_name(name)) {
+        if let Some(name) = names.get(index)
+            && let Some(instrument) = Instrument::from_name(name)
+        {
             stack.set_data_component(InstrumentImpl {
                 instrument: Cow::Borrowed(instrument.asset_id()),
             });

@@ -304,7 +304,7 @@ mod tests {
         owner.has_been_shot.store(true, Relaxed);
 
         let mut nbt = NbtCompound::new();
-        owner.write_nbt(&nbt);
+        owner.write_nbt(&mut nbt);
         assert_eq!(nbt.get_uuid("Owner"), Some(uuid));
         assert_eq!(nbt.get_bool("LeftOwner"), Some(true));
         assert_eq!(nbt.get_bool("HasBeenShot"), Some(true));
@@ -320,7 +320,7 @@ mod tests {
     fn projectile_owner_nbt_writes_and_defaults_match_vanilla() {
         let owner = ProjectileOwner::none();
         let mut nbt = NbtCompound::new();
-        owner.write_nbt(&nbt);
+        owner.write_nbt(&mut nbt);
         // Vanilla always writes HasBeenShot, but only writes LeftOwner when true.
         assert_eq!(nbt.get_bool("HasBeenShot"), Some(false));
         assert_eq!(nbt.get_bool("LeftOwner"), None);

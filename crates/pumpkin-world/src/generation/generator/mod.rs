@@ -143,6 +143,20 @@ impl WorldGenerator {
         }
     }
 
+    /// The structure whose spawn override covers `pos` and passes `wanted`, if any.
+    /// See [`VanillaGenerator::structure_spawn_override_at`].
+    #[must_use]
+    pub fn structure_spawn_override_at(
+        &self,
+        pos: pumpkin_util::math::position::BlockPos,
+        wanted: impl Fn(StructureKeys) -> bool,
+    ) -> Option<StructureKeys> {
+        match self {
+            Self::Noise(noise_gen) => noise_gen.structure_spawn_override_at(pos, wanted),
+            Self::Flat(_) | Self::Custom(_) => None,
+        }
+    }
+
     #[must_use]
     pub fn global_structure_cache(
         &self,

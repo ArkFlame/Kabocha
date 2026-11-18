@@ -2846,7 +2846,7 @@ impl DataComponentCodec<Self> for InstrumentImpl {
             seq.write_f32(custom.range)?;
             seq.write_var_int(&VarInt(custom.durability_damage))?;
             seq.write_nbt_with_version(
-                Some(&NbtTag::String(custom.sound_name.clone().into())),
+                Some(&NbtTag::String(custom.sound_name.into())),
                 &JavaMinecraftVersion::V_26_2,
             )?;
             return Ok(());

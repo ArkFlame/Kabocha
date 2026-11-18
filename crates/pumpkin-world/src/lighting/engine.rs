@@ -1044,11 +1044,12 @@ impl LightEngine {
         center.sky_light_height = crate::lighting::SkyLightHeight::compute_from_proto(center).raw();
     }
 
-    /// Whether this state's occlusion shape is empty. Vanilla `LightEngine.isEmptyShape`.
+    /// Whether this state's occlusion shape is empty. Vanilla `LightEngine.isEmptyShape`,
+    /// which only counts states that opt into shape occlusion.
     #[inline]
     #[must_use]
-    pub const fn is_empty_shape(state: &BlockState) -> bool {
-        !state.can_occlude()
+    pub fn is_empty_shape(state: &BlockState) -> bool {
+        !occlusion::uses_shape_for_light_occlusion(state)
     }
 
     /// Whether a block change can move any light. Vanilla
@@ -1079,10 +1080,10 @@ impl LightEngine {
     /// merged face shapes occlude.
     #[inline]
     #[must_use]
-    pub const fn get_light_dampening_into(
+    pub fn get_light_dampening_into(
         from_state: &BlockState,
         to_state: &BlockState,
-        _direction: BlockDirection,
+        direction: BlockDirection,
         simple_opacity: u8,
     ) -> u8 {
         let from_empty = Self::is_empty_shape(from_state);
@@ -1090,7 +1091,13 @@ impl LightEngine {
         if from_empty && to_empty {
             return simple_opacity;
         }
-        if to_state.can_occlude() && to_state.is_solid_render() {
+
+        // Vanilla clamps each shape onto the shared face and merges them there, so the face
+        // solidity decides: a bottom slab closes the face below it and kills the grass under
+        // it, a top slab leaves that face open.
+        let from_occludes = !from_empty && from_state.is_side_solid(direction);
+        let to_occludes = !to_empty && to_state.is_side_solid(direction.opposite());
+        if from_occludes || to_occludes {
             return 16;
         }
         simple_opacity

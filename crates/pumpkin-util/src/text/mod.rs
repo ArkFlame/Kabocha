@@ -1258,7 +1258,7 @@ impl TextComponentBase {
                     translated_with.push(w.to_translated());
                 }
                 let translated_bedrock_with =
-                    bedrock_with.map(|args| args.into_iter().map(|w| w.to_translated()).collect());
+                    bedrock_with.map(|args| args.into_iter().map(Self::to_translated).collect());
                 Self {
                     content: Box::new(TextContent::Translate {
                         translate,

@@ -134,9 +134,9 @@ fn load_chunk_for_explosion(world: &World, chunk_pos: Vector2<i32>) -> Option<Ar
         .level
         .get_or_fetch_chunk(chunk_pos, std::clone::Clone::clone);
     if tokio::runtime::Handle::try_current().is_ok() {
-        tokio::task::block_in_place(|| handle.block_on(fetch))
+        Some(tokio::task::block_in_place(|| handle.block_on(fetch)))
     } else {
-        handle.block_on(fetch)
+        Some(handle.block_on(fetch))
     }
 }
 
@@ -996,7 +996,8 @@ mod tests {
 
     use super::{
         BlockFlags, BlockInteraction, Explosion, ExplosionDamageCalculator,
-        SimpleExplosionDamageCalculator, should_create_fire,
+        SimpleExplosionDamageCalculator, explosion_radius_from_yield, filter_destroyed_blocks,
+        should_create_fire,
     };
 
     type TestWorld = (Arc<World>, Arc<Level>, tempfile::TempDir);
@@ -1226,7 +1227,7 @@ mod tests {
         let mut blocks = FxHashMap::default();
         blocks.insert(keep, (Block::STONE, Block::STONE.default_state));
         blocks.insert(drop, (Block::DIRT, Block::DIRT.default_state));
-        let allowed = FxHashSet::from([keep]);
+        let allowed: FxHashSet<_> = [keep].into_iter().collect();
 
         let filtered = filter_destroyed_blocks(blocks, &allowed);
 

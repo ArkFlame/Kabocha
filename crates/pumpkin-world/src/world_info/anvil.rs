@@ -892,7 +892,7 @@ mod test {
         nbt.put_int("GameType", 2);
 
         let data = level_data_from_nbt(&nbt, 1);
-        assert!(data.game_type == GameMode::Adventure);
+        assert_eq!(data.game_type, GameMode::Adventure);
 
         let mut written = NbtCompound::new();
         level_data_to_nbt(&data, &mut written);

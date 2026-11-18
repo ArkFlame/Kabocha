@@ -586,10 +586,10 @@ impl LocationPredicate {
             let bounds = v.get("light").unwrap_or(v);
             IntBounds::from_value(bounds)
         });
-        let fluid = loc_map
-            .get("fluid")
-            .and_then(|v| v.get("fluids").unwrap_or(v))
-            .and_then(TagOrIdMatcher::from_value);
+        let fluid = loc_map.get("fluid").and_then(|v| {
+            let pred = v.get("fluids").unwrap_or(v);
+            TagOrIdMatcher::from_value(pred)
+        });
         let structure = loc_map
             .get("structures")
             .or_else(|| loc_map.get("structure"))

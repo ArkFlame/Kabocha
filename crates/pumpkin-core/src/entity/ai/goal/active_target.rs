@@ -41,7 +41,7 @@ impl TargetCondition {
             Self::AngryAt => mob.as_neutral().is_some_and(|neutral| {
                 neutral.get_persistent_anger_target().is_some() || neutral.is_angry()
             }),
-            Self::Adult => !mob.is_baby(),
+            Self::Adult => !mob.mob_is_baby(),
             Self::Untamed => !mob.is_tamed(),
             Self::Always | Self::NoDaylight => true,
         }

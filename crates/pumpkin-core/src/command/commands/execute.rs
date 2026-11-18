@@ -131,6 +131,11 @@ static ERROR_FUNCTION_INSTANTIATION: CommandErrorType<2> = CommandErrorType::new
     translation::java::COMMANDS_FUNCTION_INSTANTIATIONFAILURE,
 );
 
+const ERROR_INVALID_HEIGHTMAP: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::ARGUMENT_ENUM_INVALID,
+    translation::java::ARGUMENT_ENUM_INVALID,
+);
+
 const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
     translation::java::ARGUMENT_POS_UNLOADED,
     translation::java::ARGUMENT_POS_UNLOADED,
@@ -228,7 +233,8 @@ fn execute_positioned_over_modifier(
     let pos = source.position;
     let block_x = pos.x.floor() as i32;
     let block_z = pos.z.floor() as i32;
-    let heightmap_name = context.get_argument::<String>("heightmap")?.as_str();
+    // Vanilla HeightmapTypeArgument converts the id to lower case before matching.
+    let heightmap_name = context.get_argument::<String>("heightmap")?.to_lowercase();
 
     if let Some(ref world) = source.world {
         // Vanilla checks only that the chunk is loaded (`Level#hasChunk`), not the source y.
@@ -237,7 +243,10 @@ fn execute_positioned_over_modifier(
         }
         // OCEAN_FLOOR is a live-world heightmap: vanilla computes it from block states and it
         // ignores fluids, unlike the three persisted heightmaps.
-        let y = match heightmap_name {
+        let y = match heightmap_name.as_str() {
+            "world_surface" => {
+                world.get_heightmap_height(ChunkHeightmapType::WorldSurface, block_x, block_z)
+            }
             "motion_blocking" => {
                 world.get_heightmap_height(ChunkHeightmapType::MotionBlocking, block_x, block_z)
             }
@@ -247,7 +256,10 @@ fn execute_positioned_over_modifier(
                 block_z,
             ),
             "ocean_floor" => world.get_ocean_floor_height(block_x, block_z),
-            _ => world.get_heightmap_height(ChunkHeightmapType::WorldSurface, block_x, block_z),
+            other => {
+                return Err(ERROR_INVALID_HEIGHTMAP
+                    .create_without_context(TextComponent::text(other.to_string())));
+            }
         };
         source.position.y = f64::from(y + 1);
     }

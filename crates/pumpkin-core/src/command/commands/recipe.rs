@@ -430,7 +430,7 @@ mod tests {
             crafting("test:a"),
         ];
         let display_ids = dynamic_recipe_display_ids(&recipes);
-        let offset = display_ids.iter().flatten().next().map_or(0, |id| id.0);
+        let offset = display_ids.iter().flatten().next().copied().unwrap_or(0);
 
         let mut known = HashSet::from(["test:a".to_string()]);
         let matches = |recipe: &DynamicRecipe| recipe.recipe_id() == Some("test:a");

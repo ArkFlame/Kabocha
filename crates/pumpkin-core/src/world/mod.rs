@@ -89,7 +89,6 @@ pub use explosion::{
     ExplosionInteraction, SimpleExplosionDamageCalculator,
 };
 use pumpkin_config::BasicConfiguration;
-use pumpkin_data::BlockId;
 use pumpkin_data::block_properties::{blocks_movement, is_air};
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
@@ -393,7 +392,7 @@ pub struct World {
     // Tracks block states changed during an active bonemeal growth for the
     // BlockFertilizeEvent payload and cancellation revert.
     bonemeal_recording: std::sync::atomic::AtomicBool,
-    bonemeal_changes: std::sync::Mutex<HashMap<BlockPos, (BlockStateId, BlockStateId)>>,
+    bonemeal_changes: std::sync::Mutex<BonemealChangeRecorder>,
     /// Light sections a block change dirtied, keyed by chunk position (bit mask of
     /// section indices), like vanilla's `ChunkHolder` light section filters.
     unsent_light_sections: std::sync::Mutex<HashMap<Vector2<i32>, u64>>,
@@ -738,7 +737,7 @@ impl World {
             synced_block_event_queue: std::sync::Mutex::new(Vec::new()),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
             bonemeal_recording: std::sync::atomic::AtomicBool::new(false),
-            bonemeal_changes: std::sync::Mutex::new(HashMap::new()),
+            bonemeal_changes: std::sync::Mutex::new(BonemealChangeRecorder::default()),
             unsent_light_sections: std::sync::Mutex::new(HashMap::new()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             poi_chunk_receiver: std::sync::Mutex::new(poi_chunk_receiver),
@@ -3834,8 +3833,9 @@ impl World {
             .unwrap_or(self.min_y)
     }
 
-    /// Vanilla `Heightmap.Types.OCEAN_FLOOR`: topmost block that blocks movement, ignoring
-    /// fluids. Unlike the persisted heightmaps vanilla recomputes this from block states.
+    /// Vanilla `Heightmap.Types.OCEAN_FLOOR`: topmost block in
+    /// `minecraft:blocks_motion_in_heightmap`, fluids excluded. It is live-world only, so it is
+    /// scanned from block states instead of being persisted.
     pub fn get_ocean_floor_height(&self, x: i32, z: i32) -> i32 {
         let chunk_pos = Vector2::new(x >> 4, z >> 4);
         let relative_x = (x & 15) as usize;
@@ -3846,7 +3846,7 @@ impl World {
                     if let Some(state_id) = chunk
                         .section
                         .get_block_absolute_y(relative_x, y, relative_z)
-                        && blocks_movement(state_id.to_state(), BlockId::from_state_id(state_id))
+                        && generation_cache::is_ocean_floor_block(state_id)
                     {
                         return y;
                     }

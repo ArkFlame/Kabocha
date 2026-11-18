@@ -339,7 +339,7 @@ fn send_particles(
         if !is_particle_viewer_in_range(player.position(), pos, force) {
             continue;
         }
-        let payload = color_particle_payload(particle, player.protocol_version(), &data);
+        let payload = color_particle_payload(particle, player.client.java_version(), &data);
         let packet = CParticle::new(
             force,
             false,
@@ -646,7 +646,7 @@ mod tests {
     #[test]
     fn item_option_decodes_through_item_stack_template() {
         // The `Item.CODEC` alternative of `ItemStackTemplate.CODEC` uses count 1.
-        let bare = item_stack(&NbtTag::String("minecraft:stone".to_string()));
+        let bare = item_stack(&NbtTag::String("minecraft:stone".into()));
         assert!(matches!(
             bare,
             Some(ref s) if s.item.registry_key == "stone" && s.item_count == 1
@@ -654,7 +654,7 @@ mod tests {
 
         // The map form accepts an in-range count.
         let mut compound = NbtCompound::new();
-        compound.put_string("id", "minecraft:stone");
+        compound.put_string("id", "minecraft:stone".to_string());
         compound.put_int("count", 5);
         let counted = item_stack(&NbtTag::Compound(compound));
         assert!(matches!(counted, Some(ref s) if s.item_count == 5));
@@ -662,10 +662,10 @@ mod tests {
         // `ItemStackTemplate.CODEC` bounds count to 1..=99 and rejects AIR; the raw
         // `ItemStack` reader used before accepted count 0.
         let mut zero = NbtCompound::new();
-        zero.put_string("id", "minecraft:stone");
+        zero.put_string("id", "minecraft:stone".to_string());
         zero.put_int("count", 0);
         assert!(item_stack(&NbtTag::Compound(zero)).is_none());
-        assert!(item_stack(&NbtTag::String("minecraft:air".to_string())).is_none());
+        assert!(item_stack(&NbtTag::String("minecraft:air".into())).is_none());
     }
 
     #[test]

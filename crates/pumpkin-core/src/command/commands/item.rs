@@ -1419,7 +1419,7 @@ mod tests {
 
     #[test]
     fn set_name_sets_custom_and_item_name() {
-        let name_tag = NbtTag::String("{\"text\":\"Hello\"}".to_string());
+        let name_tag = NbtTag::String("{\"text\":\"Hello\"}".to_string().into());
         let mut function = NbtCompound::new();
         function.put_string("function", "minecraft:set_name".to_string());
         function.put("name", name_tag.clone());
@@ -1496,8 +1496,8 @@ mod tests {
         function.put(
             "options",
             NbtTag::List(vec![
-                NbtTag::String("minecraft:sharpness".to_string()),
-                NbtTag::String("minecraft:aqua_affinity".to_string()),
+                NbtTag::String("minecraft:sharpness".to_string().into()),
+                NbtTag::String("minecraft:aqua_affinity".to_string().into()),
             ]),
         );
         let mut stack = ItemStack::new(1, &Item::DIAMOND_SWORD);
@@ -1512,7 +1512,9 @@ mod tests {
         function.put_string("function", "minecraft:enchant_randomly".to_string());
         function.put(
             "options",
-            NbtTag::List(vec![NbtTag::String("minecraft:sharpness".to_string())]),
+            NbtTag::List(vec![NbtTag::String(
+                "minecraft:sharpness".to_string().into(),
+            )]),
         );
         let mut stack = ItemStack::new(1, &Item::BOOK);
         apply_item_modifier(&mut stack, &NbtTag::Compound(function));
@@ -1524,7 +1526,7 @@ mod tests {
                 stored
                     .enchantment
                     .iter()
-                    .any(|(enc, level)| { *enc == Enchantment::SHARPNESS && *level >= 1 })
+                    .any(|(enc, level)| { **enc == Enchantment::SHARPNESS && *level >= 1 })
             );
         }
     }

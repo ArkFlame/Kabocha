@@ -72,13 +72,13 @@ mod tests {
     use pumpkin_util::math::vector3::Vector3;
 
     use super::*;
-    use crate::entity::Entity;
     use crate::entity::ai::brain::BrainState;
     use crate::entity::ai::brain::sensing::Sensor;
     use crate::entity::ai::brain::sensing::nearest_living_entities::NearestLivingEntitySensor;
     use crate::entity::ai::test_support::world;
     use crate::entity::mob::hoglin::HoglinEntity;
     use crate::entity::mob::piglin::PiglinEntity;
+    use crate::entity::{Entity, EntityBase};
     use crate::world::World;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -143,13 +143,13 @@ mod tests {
         near.do_tick(&mut BrainTick {
             state: &mut state,
             world: &world,
-            mob: &body,
+            mob: &*body,
             time: 0,
         });
         specific.do_tick(&mut BrainTick {
             state: &mut state,
             world: &world,
-            mob: &body,
+            mob: &*body,
             time: 0,
         });
         world.level.shutdown().await;

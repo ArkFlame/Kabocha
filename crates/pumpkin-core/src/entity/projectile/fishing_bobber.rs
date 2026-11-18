@@ -752,11 +752,11 @@ impl FishingBobberEntity {
             self.wait_countdown.store(wait, Ordering::Relaxed);
             let mut tease_chance: f32 = 0.15;
             if wait < 20 {
-                tease_chance += f32::from(20 - wait) * 0.05;
+                tease_chance += (20 - wait) as f32 * 0.05;
             } else if wait < 40 {
-                tease_chance += f32::from(40 - wait) * 0.02;
+                tease_chance += (40 - wait) as f32 * 0.02;
             } else if wait < 60 {
-                tease_chance += f32::from(60 - wait) * 0.01;
+                tease_chance += (60 - wait) as f32 * 0.01;
             }
 
             if rand::random::<f32>() < tease_chance {

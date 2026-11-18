@@ -243,12 +243,12 @@ mod tests {
     #[test]
     fn parse_command_block_edit_strips_slash_and_reads_flags() {
         let mut tags = pumpkin_nbt::compound::NbtCompound::new();
-        tags.put_string("id", "CommandBlock");
-        tags.put_string("Command", "/say hi");
+        tags.put_string("id", "CommandBlock".to_string());
+        tags.put_string("Command", "/say hi".to_string());
         tags.put_bool("auto", true);
         tags.put_bool("TrackOutput", false);
         tags.put_bool("conditionalMode", true);
-        tags.put_string("CustomName", "Cmd");
+        tags.put_string("CustomName", "Cmd".to_string());
         let edit = parse_command_block_edit(&tags);
         assert_eq!(edit.command, "say hi");
         assert_eq!(edit.auto, Some(true));
@@ -260,8 +260,8 @@ mod tests {
     #[test]
     fn parse_command_block_edit_defaults_when_fields_absent() {
         let mut tags = pumpkin_nbt::compound::NbtCompound::new();
-        tags.put_string("id", "CommandBlock");
-        tags.put_string("Command", "say hi");
+        tags.put_string("id", "CommandBlock".to_string());
+        tags.put_string("Command", "say hi".to_string());
         let edit = parse_command_block_edit(&tags);
         assert_eq!(edit.command, "say hi");
         assert!(edit.auto.is_none());

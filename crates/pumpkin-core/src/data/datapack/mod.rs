@@ -149,7 +149,8 @@ const fn pack_format_compatibility(pack_format: u32, current_format: u32) -> Pac
 /// Maps an index in the exposed enabled list (embedded packs first) onto the
 /// configurable pack slice whose order can actually be changed.
 const fn configurable_index(full_index: usize, embedded_prefix: usize, len: usize) -> usize {
-    full_index.saturating_sub(embedded_prefix).min(len)
+    let adjusted = full_index.saturating_sub(embedded_prefix);
+    if adjusted < len { adjusted } else { len }
 }
 
 pub struct DatapackManager {
@@ -2820,6 +2821,7 @@ mod tests {
         MAX_FUNCTION_CHAIN_DEPTH, stringify_macro_argument, substitute_macro,
         validate_macro_template,
     };
+    use pumpkin_data::packet::CURRENT_MC_VERSION;
     use pumpkin_nbt::NbtCompound;
     use pumpkin_nbt::tag::NbtTag;
 

@@ -1103,7 +1103,7 @@ fn choose_structure_spawner<'a, R: RandomImpl + ?Sized>(
     entries: &'a [SpawnEntry],
     rng: &mut R,
 ) -> Option<&'a SpawnEntry> {
-    choose_weighted(entries, |s| s.weight, rng)
+    choose_weighted(entries, |s| s.weight as i32, rng)
 }
 
 #[must_use]

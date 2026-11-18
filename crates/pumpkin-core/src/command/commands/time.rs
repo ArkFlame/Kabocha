@@ -190,7 +190,7 @@ fn ensure_day_timeline_clock(clock_name: &str) -> Result<(), CommandSyntaxError>
         Err(
             ERROR_WRONG_TIMELINE_FOR_CLOCK.create_without_context_args_slice(&[
                 TextComponent::text(DAY_TIMELINE),
-                TextComponent::text(clock_name),
+                TextComponent::text(clock_name.to_string()),
             ]),
         )
     }

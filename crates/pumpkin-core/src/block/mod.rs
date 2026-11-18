@@ -946,7 +946,7 @@ mod tests {
         assert!(!BlockIsReplacing::Water(8).is_water());
         assert!(!BlockIsReplacing::None.is_water());
         assert!(!BlockIsReplacing::Other.is_water());
-        assert!(!BlockIsReplacing::Itself(0).is_water());
+        assert!(!BlockIsReplacing::Itself(BlockStateId::AIR).is_water());
     }
 
     #[test]

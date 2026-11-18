@@ -208,7 +208,7 @@ impl BedrockPlayer<'_> {
     /// report the version Pumpkin uses to translate Java packets for them.
     #[must_use]
     pub fn protocol_version(&self) -> JavaMinecraftVersion {
-        match self.client.as_ref() {
+        match self.0.client.as_ref() {
             ClientPlatform::Java(client) => client.version.load(),
             ClientPlatform::Bedrock(_) => JavaMinecraftVersion::V_1_20_2,
         }

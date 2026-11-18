@@ -15,7 +15,7 @@ use rand::RngExt;
 
 use crate::entity::ai::brain::memory::types;
 use crate::entity::ai::brain::sensing::SensorType;
-use crate::entity::ai::brain::{Brain, BrainProvider, PackedMemories};
+use crate::entity::ai::brain::{Brain, BrainProvider, memory::PackedMemories};
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::mob::spawn::SpawnGroupData;
 use crate::entity::{

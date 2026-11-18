@@ -36,7 +36,8 @@ impl ItemBehaviour for GoatHornItem {
         hand: Hand,
     ) {
         let stack = player.inventory().get_stack_in_hand(hand);
-        let Some(instrument) = stack.get_data_component::<InstrumentImpl>() else {
+        // Clone so the stack can be moved into set_active_hand; get_data_component borrows it.
+        let Some(instrument) = stack.get_data_component::<InstrumentImpl>().cloned() else {
             return;
         };
         let Some(ticks) = instrument.use_duration_ticks() else {

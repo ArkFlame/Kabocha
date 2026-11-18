@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use pumpkin_data::{
-    Block, BlockId, BlockState, BlockStateId,
+    Block, BlockState, BlockStateId,
     biome::Biome,
-    block_properties::blocks_movement,
     fluid::{Fluid, FluidState},
+    tag,
 };
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::{
@@ -24,6 +24,15 @@ use rustc_hash::FxHashMap;
 
 use crate::block::entities::block_entity_from_nbt;
 use crate::world::World;
+
+/// Vanilla `OCEAN_FLOOR` predicate: `BlockTags.BLOCKS_MOTION_IN_HEIGHTMAP`. It differs from the
+/// legacy solid flag by counting hanging signs and chains and skipping heavy cores.
+#[must_use]
+pub(crate) fn is_ocean_floor_block(state_id: BlockStateId) -> bool {
+    state_id
+        .to_block_id()
+        .has_tag(tag::Block::MINECRAFT_BLOCKS_MOTION_IN_HEIGHTMAP)
+}
 
 /// Vanilla `OCEAN_FLOOR`: the exclusive top of the highest movement-blocking block below
 /// `surface`, or `min_y` when the column has none.
@@ -197,9 +206,7 @@ impl GenerationCache for WorldGenerationCache {
         let surface = self.top_block_height_exclusive(x, z);
         let min_y = self.world.dimension.min_y;
         ocean_floor_from_column(surface, min_y, |y| {
-            let id = self.read(&BlockPos(Vector3::new(x, y, z)));
-            let state = BlockState::from_id(id);
-            blocks_movement(state, BlockId::from_state_id(id))
+            is_ocean_floor_block(self.read(&BlockPos(Vector3::new(x, y, z))))
         })
     }
 
@@ -218,7 +225,18 @@ impl GenerationCache for WorldGenerationCache {
 
 #[cfg(test)]
 mod tests {
-    use super::ocean_floor_from_column;
+    use super::{is_ocean_floor_block, ocean_floor_from_column};
+    use pumpkin_data::Block;
+
+    #[test]
+    fn ocean_floor_follows_the_motion_heightmap_tag_not_the_solid_flag() {
+        assert!(is_ocean_floor_block(Block::IRON_CHAIN.default_state.id));
+        assert!(is_ocean_floor_block(
+            Block::OAK_HANGING_SIGN.default_state.id
+        ));
+        assert!(!is_ocean_floor_block(Block::HEAVY_CORE.default_state.id));
+        assert!(!is_ocean_floor_block(Block::WATER.default_state.id));
+    }
 
     #[test]
     fn ocean_floor_skips_water_above_the_blocking_floor() {

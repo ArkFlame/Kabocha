@@ -4369,7 +4369,7 @@ impl LivingEntity {
                             }),
                             source_is_baby: source
                                 .and_then(|s| s.get_living_entity())
-                                .is_some_and(LivingEntity::is_baby),
+                                .map(LivingEntity::is_baby),
                         },
                     );
                 }
@@ -4642,7 +4642,7 @@ impl LivingEntity {
                     }),
                     source_is_baby: source
                         .and_then(|s| s.get_living_entity())
-                        .is_some_and(LivingEntity::is_baby),
+                        .map(LivingEntity::is_baby),
                 },
             );
         }

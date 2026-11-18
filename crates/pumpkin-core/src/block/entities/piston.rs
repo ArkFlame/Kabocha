@@ -105,7 +105,7 @@ impl PistonBlockEntity {
             }
 
             let entity_aabb = e.bounding_box.load();
-            let mut intersection = 0.0;
+            let mut intersection: f64 = 0.0;
             for shape in &shifted {
                 let swept = shape.stretch(motion);
                 if !swept.intersects(&entity_aabb) {
