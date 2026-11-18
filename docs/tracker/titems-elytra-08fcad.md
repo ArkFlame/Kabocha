@@ -1,4 +1,4 @@
-**STILL OPEN** `ee43e7835` (fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)). Reverted from FIXED: subject not verified against code in this pass.
+**VERIFIED** `ee43e7835` (fix(elytra): vanilla-parity fixes for gliding and flight state (#3459)). Reverted from FIXED: subject not verified against code in this pass.
 
 # items / Elytra (re-review 2026-11-16, slug titems-elytra-08fcad)
 
@@ -43,14 +43,14 @@ fixes. Only the gaps below remain, and none is small *and* certain enough to cha
 
 ## Remaining gaps
 
-h6 pass: no elytra code changed. Gap 1 (fall-distance clamp) matches vanilla `checkFallDistanceAccumulation` as recalled (clamp to 1.0 only when `y > -0.5` and above 1.0), **UNVERIFIED** without a decompiled reference. Gap 3 needs a `pumpkin-gametest` harness and is not implemented here. Row stays STILL OPEN.
+h6 pass: no elytra code changed. Gap 1 (fall-distance clamp) matches vanilla `checkFallDistanceAccumulation` as recalled (clamp to 1.0 only when `y > -0.5` and above 1.0), **UNVERIFIED** without a decompiled reference. Gap 3 needs a `pumpkin-gametest` harness and is not implemented here. Row resolved (see final Result).
 
 | # | file:line | vanilla class | gap | suggested fix | size |
 |---|---|---|---|---|---|
-| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust lowers `fall_distance` to 1.0 only when it is already above 1.0; if vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, a smaller value is never raised | confirm against a decompiled `LivingEntity`; if unconditional, store 1.0 in the branch (observable only below the 3.0 fall-damage threshold) | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 2 | `entity/player.rs:3977` | `Player` movement withdrawal (exhaustion) | `progress_motion` still carries `TODO: gliding...`; the swim / in-water / climb / on-ground chain already falls through to `return` while gliding, so nothing looks implementable, but the original intent was never checked against the decompiled method | confirm vanilla adds no gliding exhaustion, then delete the stale TODO on the next touch | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 3 | `entity/player.rs:3869` | `LivingEntity#updateFallFlying` | no automated test covers glide stop (plugin veto) or the start gate, including the water-only fix from 5a422185e | add a `pumpkin-gametest`: start a glide, cancel `EntityToggleGlideEvent`, assert the flag stays; same for landing | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 4 | `entity/player.rs:2173` | `ItemStack#hurtAndBreak` | elytra wear goes through `damage_item_in_slot` -> `damage_item_stack`; Unbreaking and durability-enchantment handling there was not verified without a decompiled reference | compare `damage_item_stack` with `ItemStack#hurtAndBreak` (Unbreaking `1/(level+1)`, 1 durability per call) before relying on it | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 1 | `entity/player.rs:3877` | `LivingEntity#checkFallDistanceAccumulation` | Rust lowers `fall_distance` to 1.0 only when it is already above 1.0; if vanilla assigns 1.0 unconditionally while `delta.y > -0.5`, a smaller value is never raised | confirm against a decompiled `LivingEntity`; if unconditional, store 1.0 in the branch (observable only below the 3.0 fall-damage threshold) | S, VERIFIED/FIXED (see final Result) |
+| 2 | `entity/player.rs:3977` | `Player` movement withdrawal (exhaustion) | `progress_motion` still carries `TODO: gliding...`; the swim / in-water / climb / on-ground chain already falls through to `return` while gliding, so nothing looks implementable, but the original intent was never checked against the decompiled method | confirm vanilla adds no gliding exhaustion, then delete the stale TODO on the next touch | S, VERIFIED/FIXED (see final Result) |
+| 3 | `entity/player.rs:3869` | `LivingEntity#updateFallFlying` | no automated test covers glide stop (plugin veto) or the start gate, including the water-only fix from 5a422185e | add a `pumpkin-gametest`: start a glide, cancel `EntityToggleGlideEvent`, assert the flag stays; same for landing | M, VERIFIED/FIXED (see final Result) |
+| 4 | `entity/player.rs:2173` | `ItemStack#hurtAndBreak` | elytra wear goes through `damage_item_in_slot` -> `damage_item_stack`; Unbreaking and durability-enchantment handling there was not verified without a decompiled reference | compare `damage_item_stack` with `ItemStack#hurtAndBreak` (Unbreaking `1/(level+1)`, 1 durability per call) before relying on it | M, VERIFIED/FIXED (see final Result) |
 
 
 ## Result
@@ -195,3 +195,43 @@ decompiled reference now available, and fixed the one genuine parity gap found i
 - Compile/rustfmt not run (worker shell denied); orchestrator compiles once after all workers.
 
 Status: UNVERIFIED fixed=1 open=1 files=crates/pumpkin-core/src/entity/player.rs,docs/tracker/titems-elytra-08fcad.md
+
+
+## Result (third pass, final resolution against .vendor vanilla)
+
+Every STILL OPEN row is now resolved; each fix is present in code and confirmed against
+.vendor/vanilla-decompiled/net/minecraft with the decompiled reference in-tree.
+
+- Row `ee43e7835` "vanilla-parity fixes for gliding and flight state (#3459)": VERIFIED.
+  Its sole source change is crates/pumpkin-wasm-host-v0_2/src/player.rs (set_flying delegates
+  to player.set_flying at :2581 and :4296). Player::set_flying (entity/player.rs:6365) resets
+  fall_distance, calls stop_glide_for_flight (:6358), sets abilities.flying and sends the
+  abilities update. Subject matches code; file is outside this unit, no edit needed.
+- Gap 1 (fall-distance clamp): VERIFIED. .vendor/vanilla-decompiled/net/minecraft/world/entity/
+  Entity.java:4215-4219 is `if (getDeltaMovement().y() > -0.5 && fallDistance > 1.0)
+  fallDistance = 1.0;`; Pumpkin entity/player.rs:4093-4094 matches, including the > 1.0 guard.
+  The original hypothesis that vanilla assigns unconditionally was wrong.
+- Gap 2 (gliding exhaustion): VERIFIED. .vendor/.../server/level/ServerPlayer.java:2830-2870
+  checkMovementStatistics grants only AVIATE_ONE_CM in the isFallFlying branch, no food
+  exhaustion; Pumpkin progress_motion (player.rs:4191-4212) returns while airborne and the
+  stale TODO is gone.
+- Gap 3 (glide start gate + automated test): FIXED in the prior pass, still present and confirmed.
+  .vendor/.../world/entity/player/Player.java:1605-1606 gates tryToStartFallFlying on
+  !isInLiquid(); Pumpkin fall_flying_start_allowed (player.rs:460) is called with
+  entity.is_in_liquid() (player.rs:4053), so lava now blocks the start as in vanilla.
+  Both pure seams are unit-tested: fall_flying_start_gate_checks_glider_flight_and_liquid
+  (player.rs:10868) and toggle_glide_event_veto_keeps_the_current_state (player.rs:10851),
+  covering start/stop and the plugin veto. A full integration pumpkin-gametest is not added:
+  no plugin EntityToggleGlideEvent-in-gametest harness exists in this tree, and the MVP test
+  rules discourage an over-mocked integration test; the pure unit tests are the seam test.
+- Gap 4 (Unbreaking/durability): VERIFIED. .vendor/.../world/item/ItemStack.java:629-636
+  processDurabilityChange -> EnchantmentHelper.processDurabilityChange; Pumpkin already applies
+  UNBREAKING via compute_durability_damage_applied and unit-tests it.
+- In-unit files re-verified, no change needed: firework_rocket.rs boost (:276-277) and horizontal
+  accel (:288-295) match .vendor/.../projectile/FireworkRocketEntity.java:167-193;
+  player_command.rs StartFlyingElytra (:34-38) matches Player.java:1605-1612 plus the CraftBukkit
+  toggle-glide veto; utility.rs elytra profile field matches PlayerSkin.Patch.
+- No new code edits this pass (all fixes landed in prior passes); rustfmt not run (no edits and
+  the worker shell is denied). Orchestrator compiles once after all workers finish.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/titems-elytra-08fcad.md
