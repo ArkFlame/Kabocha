@@ -18,6 +18,11 @@ pub struct DirtPathBlock;
 
 impl BlockBehaviour for DirtPathBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        // Vanilla PathBlock#tick returns early when the block can survive again;
+        // only turnToBaseBlock (which pushes entities up) runs otherwise.
+        if can_place_at(args.world.as_ref(), args.position) {
+            return;
+        }
         push_entities_up(
             args.world,
             args.position,
@@ -33,6 +38,14 @@ impl BlockBehaviour for DirtPathBlock {
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         if !can_place_at(args.world, args.position) {
+            // Vanilla getStateForPlacement returns pushEntitiesUp(path, dirt, ...)
+            // for a blocked placement, lifting entities in the now-taller column.
+            push_entities_up(
+                args.world,
+                args.position,
+                args.block.default_state.id,
+                Block::DIRT.default_state.id,
+            );
             return Block::DIRT.default_state.id;
         }
 

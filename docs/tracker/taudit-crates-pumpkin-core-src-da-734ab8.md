@@ -206,3 +206,38 @@ macro stringify uses `new DecimalFormat("#")` + `setMaximumFractionDigits(15)`
 
 No cargo or rustfmt run by this worker (shell denied); no source files changed this pass, so
 there is nothing to format. The orchestrator compiles the batch.
+
+
+## Result - final re-verification (CODER second/third pass)
+
+Re-read the last Result and re-checked every STILL OPEN row against the current
+checkout. All rows are terminal; no further source edit was needed this pass.
+
+Named files re-verified:
+- function_loader.rs (symlinks): FIXED. `load_functions_recursive` and
+  `load_tags_recursive` use `path.is_dir()` / `path.is_file()`, matching vanilla
+  `PackDetector.detectPackResources` which resolves symbolic links and tests the
+  target (`.vendor/vanilla-decompiled/net/minecraft/server/packs/repository/PackDetector.java:31-49`).
+  Tests `load_functions_follows_symlinks_and_loads_regular_files` and
+  `load_function_tags_follows_symlink_directories` present.
+- test_loader.rs (symlinks): FIXED. `load_test_instances_recursive` uses
+  `path.is_dir()` / `path.is_file()`, matching vanilla `Files.find` pack walking
+  (`.vendor/vanilla-decompiled/net/minecraft/server/packs/PathPackResources.java:102-119`).
+  Test `load_test_instances_follows_symlinks_and_loads_regular_files` present.
+- damage_type.rs: only exists as generated `pumpkin-data` data (forbidden to edit).
+  The u8 saturating custom-id row is FIXED in `mod.rs` (`next_custom_id: u16` with
+  `u8::try_from`, skip + `tracing::error!` on exhaustion).
+
+Spot-checked remaining VERIFIED rows in `mod.rs`: `chain_budget` reads
+`max_command_sequence_length` (vs `Commands.java:458-463`); `read_pack_mcmeta`
+flattens component descriptions to text; all format defaults use
+`CURRENT_MC_VERSION.data_pack_format()`; `stringify_macro_argument` mirrors
+vanilla `new DecimalFormat("#")` + `setMaximumFractionDigits(15)`
+(`MacroFunction.java:31-33,84-94`); `get_function_names` sorts; tag values flatten
+nested refs via `collect_generic_tag_values`; `enable_pack_checked` rejects
+incompatible formats via `pack_format_compatibility`; `load_recipes_recursive`
+follows symlinks. The zip-datapack row stays BLOCKED-DATA (no zip reader / whole
+`PackResources` subsystem; no `zip` dependency in `pumpkin-core/Cargo.toml`).
+
+No source files changed this pass, so nothing to rustfmt. Shell denied; the
+orchestrator compiles the batch.

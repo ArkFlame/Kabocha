@@ -247,3 +247,68 @@ vanilla at `.vendor/vanilla-decompiled/net/minecraft/`.
 No STILL OPEN rows remain in this unit. No source file was edited this pass,
 so no rustfmt run was needed. No cargo run (forbidden for workers); compilation
 left to the orchestrator.
+
+
+## Result (final pass - all rows closed)
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/`. No source edits
+were needed: all fixes are present in code and match vanilla. No STILL OPEN rows remain.
+
+- Particle options parsed by codec, not command parser (`pumpkin-command/.../particle.rs`):
+  FIXED / VERIFIED. `missing_required_option` + `ERROR_INVALID_OPTIONS` reject an options
+  compound missing a mandatory field. Vanilla
+  `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ParticleArgument.java`
+  (`readParticle`, lines 71-83) decodes via `type.codec().codec().parse(...)` and throws
+  `particle.invalidOptions` on failure. Required keys checked against the matching codecs in
+  `.vendor/vanilla-decompiled/net/minecraft/core/particles/` (DustParticleOptions,
+  DustColorTransitionOptions, ColorParticleOption, SculkChargeParticleOptions,
+  ShriekParticleOption, ItemParticleOption, VibrationParticleOption, TrailParticleOption,
+  GeyserParticleOptions, GeyserBaseParticleOptions, BlockParticleOption). Confirmed
+  `GeyserParticleOptions.codec` requires "water_blocks" (POSITIVE_INT) and its stream codec
+  writes INT; `GeyserBaseParticleOptions` requires "water_blocks" and "burst_impulse_base"
+  and writes INT + FLOAT. Tests: `required_option_missing_when_absent_or_incomplete`,
+  `required_options_satisfied_or_not_needed`.
+- Spell/colour STREAM_CODEC layout (`particle.rs`): FIXED / VERIFIED. `effect`/`instant_effect`
+  encode a payload through `ParticleOptions::Spell`; `entity_effect`/`tinted_leaves`/`flash`
+  are `ColorParticleOption` (vanilla `.vendor/.../core/particles/ColorParticleOption.java`)
+  and the per-viewer `color_particle_payload` gate strips the colour below 1.21.4. Tests:
+  `effect_writes_colour_var_int_and_power_float`, `colour_payload_is_stripped_for_pre_1_21_4_viewers`.
+- Trail options (`particle.rs`): FIXED / VERIFIED via `ParticleOptions::Trail` (target vec3,
+  INT colour, VAR_INT duration) matching `.vendor/.../core/particles/TrailParticleOption.java`.
+  Test: `trail_writes_target_colour_and_duration`.
+- Vibration options (`particle.rs`): FIXED / VERIFIED. `block_position_source` + version-aware
+  block-pos long + VAR_INT `arrival_in_ticks`, matching
+  `.vendor/.../core/particles/VibrationParticleOption.java`. Test:
+  `vibration_writes_block_source_and_arrival`.
+- dust_pillar/block_crumble/item_cobweb/geyser*/firefly/sulfur_cube_goo (`particle.rs`):
+  FIXED / VERIFIED. `dust_pillar`/`block_crumble` are block options handled by the
+  `block_state` branch; `item_cobweb`/`firefly`/`sulfur_cube_goo` are simple (empty payload).
+  Geyser payloads write INT / INT+FLOAT per `GeyserParticleOptions` /
+  `GeyserBaseParticleOptions`. Tests: `geyser_writes_water_blocks_int`,
+  `geyser_base_writes_water_blocks_and_burst_impulse`.
+- Player-centre range check (`particle.rs`): FIXED / VERIFIED. `is_particle_viewer_in_range`
+  compares block centre (floor + 0.5) with strict `<`, matching vanilla `ServerLevel#sendParticles`
+  (`blockPosition().closerToCenterThan(pos, force ? 512 : 32)`). Test:
+  `viewer_range_measures_from_block_centre`.
+- Item particle component-less ItemStackTemplate (`particle.rs`): FIXED / VERIFIED. `item_stack`
+  calls `ItemStack::read_item_stack_template` (bare id or `{id,count,components}`, count 1..=99,
+  no AIR), matching vanilla `ItemParticleOption.CODEC`. Test:
+  `item_option_decodes_through_item_stack_template`.
+- 26.x packet layout (`pumpkin-protocol/.../particle.rs`): FIXED / VERIFIED. For
+  `version >= V_26_1`, options first, two bools, f64 position, three f32 offsets, three f32
+  speeds, VAR_INT count, VAR_INT randomization type 0. Matches
+  `.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundLevelParticlesPacket.java`
+  `STREAM_CODEC` (lines 30-60) and convenience constructor (lines 62-91, id 0 at line 104).
+  Tests: `level_particles_26_x_matches_vanilla_field_order`,
+  `level_particles_encoding_matches_26_2_for_26_3`.
+
+Out-of-scope flag (not a row): `ParticleOptions::Spell` writes the colour as VAR_INT while
+vanilla `SpellParticleOption.STREAM_CODEC` uses `ByteBufCodecs.INT`
+(`.vendor/.../core/particles/SpellParticleOption.java` line 29). This lives in
+`pumpkin-protocol` and is deferred to the protocol unit; it does not change any row above.
+
+Re-checked the diff against the Worker compile pitfalls table: no guessed import paths, helpers
+are free functions, no struct-initializer or macro-path hazards, no moved-then-reused values,
+numeric casts use `as`, no unwrap/expect/panic in new code. No source file was edited this pass,
+so rustfmt was not needed. No cargo run (forbidden for workers); compilation left to the
+orchestrator.
