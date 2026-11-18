@@ -1042,11 +1042,53 @@ fn add_ingredient_items(
     }
 }
 
+/// Adds the concrete item ids an owned ingredient accepts to `set`.
+fn add_owned_ingredient_items(
+    set: &mut BTreeSet<i32>,
+    ingredient: &crate::codec::recipe::OwnedRecipeIngredient,
+    version: JavaMinecraftVersion,
+) {
+    match ingredient {
+        crate::codec::recipe::OwnedRecipeIngredient::Simple(id) => {
+            if let Some(item) = Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id))
+            {
+                set.insert(item.id as i32);
+            }
+        }
+        crate::codec::recipe::OwnedRecipeIngredient::OneOf(ids) => {
+            for id in ids {
+                if let Some(item) =
+                    Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id))
+                {
+                    set.insert(item.id as i32);
+                }
+            }
+        }
+        crate::codec::recipe::OwnedRecipeIngredient::Tagged(tag) => {
+            if let Some(items) = resolve_item_tag(tag, version) {
+                for item in items {
+                    set.insert(item.id as i32);
+                }
+            }
+        }
+    }
+}
+
+fn add_owned_item_id(set: &mut BTreeSet<i32>, id: &str) {
+    if let Some(item) = Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id)) {
+        set.insert(item.id as i32);
+    }
+}
+
 /// Builds the nine vanilla `RecipeManager#RECIPE_PROPERTY_SETS`.
 ///
 /// Each station's item set is derived from its recipe ingredients, as
-/// `RecipeManager#finalizeRecipeLoading` does.
-fn recipe_property_sets(version: JavaMinecraftVersion) -> Vec<(&'static str, Vec<i32>)> {
+/// `RecipeManager#finalizeRecipeLoading` does over every loaded recipe, so datapack
+/// recipes extend the same sets the built-in ones fill.
+fn recipe_property_sets(
+    dynamic_recipes: &[DynamicRecipe],
+    version: JavaMinecraftVersion,
+) -> Vec<(&'static str, Vec<i32>)> {
     let mut furnace = BTreeSet::new();
     let mut blast_furnace = BTreeSet::new();
     let mut smoker = BTreeSet::new();
@@ -1092,6 +1134,42 @@ fn recipe_property_sets(version: JavaMinecraftVersion) -> Vec<(&'static str, Vec
         brewing_reagent.insert(recipe.reagent().id as i32);
     }
 
+    for recipe in dynamic_recipes {
+        match recipe {
+            DynamicRecipe::Cooking(crate::codec::recipe::OwnedCookingRecipeType::Smelting(r)) => {
+                add_owned_ingredient_items(&mut furnace, &r.ingredient, version);
+            }
+            DynamicRecipe::Cooking(crate::codec::recipe::OwnedCookingRecipeType::Blasting(r)) => {
+                add_owned_ingredient_items(&mut blast_furnace, &r.ingredient, version);
+            }
+            DynamicRecipe::Cooking(crate::codec::recipe::OwnedCookingRecipeType::Smoking(r)) => {
+                add_owned_ingredient_items(&mut smoker, &r.ingredient, version);
+            }
+            DynamicRecipe::Cooking(
+                crate::codec::recipe::OwnedCookingRecipeType::CampfireCooking(r),
+            ) => {
+                add_owned_ingredient_items(&mut campfire, &r.ingredient, version);
+            }
+            DynamicRecipe::SmithingTransform(r) => {
+                add_owned_ingredient_items(&mut smithing_template, &r.template, version);
+                add_owned_ingredient_items(&mut smithing_base, &r.base, version);
+                add_owned_ingredient_items(&mut smithing_addition, &r.addition, version);
+            }
+            DynamicRecipe::SmithingTrim(r) => {
+                add_owned_ingredient_items(&mut smithing_template, &r.template, version);
+                add_owned_ingredient_items(&mut smithing_base, &r.base, version);
+                add_owned_ingredient_items(&mut smithing_addition, &r.addition, version);
+            }
+            DynamicRecipe::Brewing(r) => {
+                add_owned_item_id(&mut brewing_input, &r.input_item);
+                add_owned_item_id(&mut brewing_reagent, &r.reagent);
+            }
+            DynamicRecipe::Crafting(_)
+            | DynamicRecipe::Stonecutting(_)
+            | DynamicRecipe::SpecialCrafting(_) => {}
+        }
+    }
+
     [
         ("minecraft:smithing_base", smithing_base),
         ("minecraft:smithing_template", smithing_template),
@@ -1114,9 +1192,10 @@ fn recipe_property_sets(version: JavaMinecraftVersion) -> Vec<(&'static str, Vec
 /// Item sets are membership-tested by the client, so their order is irrelevant.
 fn write_recipe_property_sets(
     write: &mut impl Write,
+    dynamic_recipes: &[DynamicRecipe],
     version: JavaMinecraftVersion,
 ) -> Result<(), WritingError> {
-    let sets = recipe_property_sets(version);
+    let sets = recipe_property_sets(dynamic_recipes, version);
     write.write_var_int(&VarInt(sets.len() as i32))?;
     for (key, items) in sets {
         write.write_string(key)?;
@@ -1137,7 +1216,7 @@ pub fn stonecutter_update_recipes_data(
     version: JavaMinecraftVersion,
 ) -> Result<Vec<u8>, WritingError> {
     let mut write = Vec::new();
-    write_recipe_property_sets(&mut write, version)?;
+    write_recipe_property_sets(&mut write, dynamic_recipes, version)?;
     let dynamic: Vec<_> = dynamic_recipes
         .iter()
         .filter_map(|r| match r {
@@ -1261,7 +1340,7 @@ mod tests {
         let data = stonecutter_update_recipes_data(&recipes, version).unwrap();
         let vanilla = stonecutter_update_recipes_data(&[], version).unwrap();
         let mut count_prefix = Vec::new();
-        write_recipe_property_sets(&mut count_prefix, version).unwrap();
+        write_recipe_property_sets(&mut count_prefix, &[], version).unwrap();
         count_prefix.extend(var(RECIPES_STONECUTTING.len() as i32 + 2));
         assert!(data.starts_with(&count_prefix));
         assert!(data.ends_with(&expected));
@@ -1351,6 +1430,56 @@ mod tests {
                 data.windows(key.len()).any(|w| w == key.as_bytes()),
                 "missing property set {key}"
             );
+        }
+    }
+
+    #[test]
+    fn property_sets_include_datapack_cooking_and_smithing_recipes() {
+        use crate::codec::recipe::{
+            DynamicRecipe, OwnedCookingRecipe, OwnedCookingRecipeType, OwnedRecipeIngredient,
+            OwnedRecipeResult, OwnedSmithingTransformRecipe,
+        };
+
+        let version = JavaMinecraftVersion::V_26_3;
+        let cooking =
+            DynamicRecipe::Cooking(OwnedCookingRecipeType::Smelting(OwnedCookingRecipe {
+                recipe_id: "test:smelt_cobblestone".to_string(),
+                category: RecipeCategoryTypes::Misc,
+                group: None,
+                ingredient: OwnedRecipeIngredient::Simple("minecraft:bedrock".to_string()),
+                cooking_time: 200,
+                experience: 0.1,
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:stone".to_string(),
+                    count: 1,
+                },
+            }));
+        let smithing = DynamicRecipe::SmithingTransform(OwnedSmithingTransformRecipe {
+            recipe_id: "test:smithing".to_string(),
+            template: OwnedRecipeIngredient::Simple("minecraft:bedrock".to_string()),
+            base: OwnedRecipeIngredient::Simple("minecraft:bedrock".to_string()),
+            addition: OwnedRecipeIngredient::Simple("minecraft:bedrock".to_string()),
+            result: OwnedRecipeResult {
+                item_id: "minecraft:stone".to_string(),
+                count: 1,
+            },
+        });
+
+        let sets = recipe_property_sets(&[cooking, smithing], version);
+        let has_item = |key: &str, item: &Item| {
+            sets.iter()
+                .find(|(name, _)| *name == key)
+                .is_some_and(|(_, items)| items.contains(&(item.id as i32)))
+        };
+
+        // Bedrock appears in no built-in recipe, so only the datapack entries can add it.
+        for key in [
+            "minecraft:furnace_input",
+            "minecraft:smithing_template",
+            "minecraft:smithing_base",
+            "minecraft:smithing_addition",
+        ] {
+            assert!(has_item(key, &Item::BEDROCK), "missing {key}");
         }
     }
 }
