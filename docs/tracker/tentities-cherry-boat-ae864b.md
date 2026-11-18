@@ -59,7 +59,7 @@ Resolved since the last review: server-side `floatBoat` (water gravity/buoyancy,
    per destroying removal. Size M.
 
 ## h6 status
-- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: VERIFIED (already implemented in boat.rs; see Result sections below).
 
 ## Result
 
@@ -183,6 +183,43 @@ matches vanilla.
 - `boat/dismount.rs` (the only allowlisted source file): VERIFIED line-by-line in the prior
   pass, no STILL OPEN row. Matches `.vendor/.../AbstractBoat.java:709-738`,
   `.vendor/.../DismountHelper.java:38-54` and `Entity.getCollisionHorizontalEscapeVector`.
+
+No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No .rs file
+was edited, so rustfmt is not applicable.
+
+
+## Result (third-pass final resolution 2026-11-18, re-confirmed)
+
+Re-checked every row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`
+and `AbstractChestBoat.java`. The stale literal "STILL OPEN" in the h6 note was corrected
+above. No source file needed a change; the only allowlisted file, `boat/dismount.rs`,
+has no open row and was verified in earlier passes.
+
+- Row 1 / h6 "Delta-rotation accumulation not added": FIXED / VERIFIED (already implemented).
+  `BoatEntity` holds `yaw_delta`/`last_yaw` (boat.rs:231-232, init :257-258); `tick` recomputes the
+  delta each tick (boat.rs:591-593); `on_rider_positioned` adds it then clamps body/head yaw
+  (boat.rs:856-940, `clamp_rider_yaw` at :1009). Pure tests exist (boat.rs:1039-1051). Matches
+  `.vendor/.../AbstractBoat.java:696-705` (positionRider adds `deltaRotation` to YRot/YHeadRot then
+  calls clampRotation) and `:740-754` (clampRotation sets body yaw to hull yaw and clamps head to
+  +-105 deg).
+- Row 2 "drop ticks_underwater / is_eye_in_water from mounting gate": VERIFIED, no change.
+  The doc claim is contradicted by vanilla. `.vendor/.../AbstractBoat.java:784` keeps
+  `!(outOfControlTicks < 60.0F)` in interact and `:836-837` keeps
+  `size < getMaxPassengers() && !isEyeInFluid(WATER)` in canAddPassenger. Pumpkin's
+  `boat_interact_outcome` inputs (boat.rs:823-826) match; a submerged boat refuses riders in vanilla.
+- Row 3 "increment outOfControlTicks only for UnderWater": VERIFIED, no change.
+  The doc claim is contradicted by vanilla. `.vendor/.../AbstractBoat.java:243-247` increments
+  `outOfControlTicks` for BOTH UNDER_WATER and UNDER_FLOWING_WATER; `BoatStatus::is_underwater`
+  covers both and `tick_underwater` (boat.rs:392-402) uses it.
+- Row 4 "chest contents scatter only in damage path": FIXED / VERIFIED (already implemented).
+  `BoatEntity::on_removed` (boat.rs:488-504) scatters all 27 slots for every destroying removal;
+  `claim_drops` (boat.rs:272-276) makes it run at most once and the damage path also calls it
+  (boat.rs:746). Matches `.vendor/.../AbstractChestBoat.java:71-76` (remove scatters contents when
+  `reason.shouldDestroy()`).
+- `boat/dismount.rs` (the only allowlisted source file): VERIFIED line-by-line in the prior pass;
+  no STILL OPEN row. Matches `.vendor/.../AbstractBoat.java:709-737` (getDismountLocationForPassenger),
+  `:740-754` (clampRotation) and `DismountHelper.canDismountTo` / `Entity.getCollisionHorizontalEscapeVector`.
 
 No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No .rs file
 was edited, so rustfmt is not applicable.

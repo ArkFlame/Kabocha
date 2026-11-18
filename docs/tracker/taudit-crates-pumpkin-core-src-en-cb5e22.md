@@ -134,3 +134,18 @@ All rows re-verified exact against /run/media/linsaftw/SDD/GitHub/ArkFlame/Kaboc
 
 No remaining STILL OPEN rows. Source files changed this pass: none. Orchestrator regenerates WIT bindings once, then compiles.
 Status: PASS fixed=4 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md
+
+
+## Result (cross-file scope, re-verify pass)
+
+Independent re-verification of every row against .vendor/vanilla-decompiled/net/minecraft/ and the live checkout. No source change was needed: all fixes are already present and match vanilla. No row needs a generated pumpkin-data field or a missing subsystem.
+
+- Row 1 (explosion immunity): FIXED. net/minecraft/world/entity/Display.java has zero ignoreExplosion matches; base Entity.ignoreExplosion is false. All three Pumpkin overrides return false (display.rs:816, 972, 1269) and damage_with_context returns false, so explosions push but do not damage displays.
+- Row 2 (TextDisplay flags reset on load): VERIFIED. Display.TextDisplay.readAdditionalSaveData rebuilds flags from (byte)0; unknown alignment name leaves alignment bits unset. Pumpkin display.rs:1195-1212 matches.
+- Row 3 (text NBT key): FIXED. Display.TextDisplay.addAdditionalSaveData stores text unconditionally (Display.java:800-802); Pumpkin display.rs:1144-1155 always writes the key with an empty-JSON fallback.
+- Row 4 (set_brightness pre-packed int): FIXED. Additive WIT set-brightness-override: func(block: s32, sky: s32) present in v0.1/v0.2 display.wit; WASM hosts implement it; core clamps 0..=15 and packs (display.rs:278-280) and re-packs non -1 values (display.rs:261-274). Vanilla Display.setBrightnessOverride(Brightness) packs via Brightness.pack.
+- NEW FINDING (brightness packing): FIXED + unit-tested. Verified exact against LightCoordsUtil.java:9,13-23 (FULL_BRIGHT=15728880, block<<4 | sky<<20, block=(p>>4)&15, sky=(p>>20)&15) and Brightness.java:6-16 (record, 0..15 range, pack delegates to LightCoordsUtil). Helpers at display.rs:55-67; test at display.rs:1288-1298 asserts pack_brightness(15,12), block/sky round trip, FULL_BRIGHT and 0.
+- NEW FINDING (NBT read defaults): FIXED. Display.readAdditionalSaveData (Display.java:212-224) reads each field with a default; Pumpkin display.rs:602-702 resets all fields and clears brightness on a missing/incomplete/out-of-range compound (Brightness.CODEC requires both fields 0..15).
+
+No STILL OPEN rows remain. Source files changed this pass: none. No rustfmt needed (no source touched). Verify Worker compile pitfalls: no unwrap/expect/panic added (existing PoisonError::into_inner and unwrap_or fallback used); no import/helper/macro/struct-init changes; clippy-safe const fn and then() already present. No shell/cargo/git run by this worker.
+Status: PASS fixed=4 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md

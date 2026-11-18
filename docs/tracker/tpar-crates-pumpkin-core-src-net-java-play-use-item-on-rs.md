@@ -1,0 +1,9 @@
+# Parity rows for crates/pumpkin-core/src/net/java/play/use_item_on.rs
+
+Close every row below (status partial/planned in docs/PARITY.tsv): read the vanilla class in .vendor/vanilla-decompiled/net/minecraft/, compare, and make the Rust match. Edit any source file a row needs. No cargo. rustfmt touched files.
+
+- **own/taudit-crates-pumpkin-core-src-ne-1655e2** [partial/OWN-OPEN] own audit: 12 open, 0 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-ne-1655e2.md) docs/tracker/taudit-crates-pumpkin-core-src-ne-1655e2.md
+- **own/taudit-crates-pumpkin-core-src-net-java-p** [partial/OWN-OPEN] own audit: 1 open, 5 fixed, 7 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-net-java-p.md) docs/tracker/taudit-crates-pumpkin-core-src-net-java-p.md
+
+## Result
+(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
