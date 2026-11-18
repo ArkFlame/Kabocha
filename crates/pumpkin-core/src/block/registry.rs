@@ -611,18 +611,8 @@ impl BlockRegistry {
             return false;
         }
 
-        if entity.get_living_entity().is_some() {
-            return true;
-        }
-
-        let entity_type = base_entity.entity_type;
-        let resource_name = entity_type.resource_name;
-        entity_type == &pumpkin_data::entity::EntityType::END_CRYSTAL
-            || entity_type == &pumpkin_data::entity::EntityType::FALLING_BLOCK
-            || entity_type == &pumpkin_data::entity::EntityType::TNT
-            || resource_name.ends_with("_minecart")
-            || resource_name.ends_with("_boat")
-            || resource_name.ends_with("_raft")
+        // Vanilla EntityGetter.isUnobstructed filters on Entity.blocksBuilding.
+        base_entity.blocks_building
     }
 
     fn has_blocking_entity_in_box(world: &World, placed_box: &BoundingBox, placer_id: i32) -> bool {
@@ -797,22 +787,8 @@ impl BlockRegistry {
             return Ok(None);
         }
 
-        if server.item_registry.must_survive(placed_block.item_id)
-            && !self.can_place_at(
-                Some(server),
-                Some(&*world),
-                &*world,
-                Some(player),
-                placed_block,
-                placed_block.default_state,
-                &final_block_pos,
-                Some(final_face),
-                Some(use_item_on),
-            )
-        {
-            return Ok(None);
-        }
-
+        // Vanilla BlockItem.getPlacementState derives the state from
+        // getStateForPlacement, then checks survival on that state, not on the default.
         let mut new_state = self.on_place(
             server,
             &world,
@@ -823,6 +799,22 @@ impl BlockRegistry {
             replacing,
             use_item_on,
         );
+
+        if server.item_registry.must_survive(placed_block.item_id)
+            && !self.can_place_at(
+                Some(server),
+                Some(&*world),
+                &*world,
+                Some(player),
+                placed_block,
+                &BlockState::from_id(new_state),
+                &final_block_pos,
+                Some(final_face),
+                Some(use_item_on),
+            )
+        {
+            return Ok(None);
+        }
 
         if let Some(ref stack) = held_stack
             && let Some(block_state_comp) =

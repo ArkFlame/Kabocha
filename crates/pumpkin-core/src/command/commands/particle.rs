@@ -562,11 +562,13 @@ mod tests {
     }
 
     #[test]
-    fn effect_writes_colour_var_int_and_power_float() {
+    fn effect_writes_colour_int_and_power_float() {
         let mut options = NbtCompound::new();
         options.put_int("color", 1);
         let data = encode_particle_options(Particle::Effect, Some(&options));
-        let mut expected = vec![1u8];
+        // Vanilla `SpellParticleOption.STREAM_CODEC`: INT colour, then FLOAT power.
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&1i32.to_be_bytes());
         expected.extend_from_slice(&1.0f32.to_be_bytes());
         assert_eq!(data, expected);
     }
