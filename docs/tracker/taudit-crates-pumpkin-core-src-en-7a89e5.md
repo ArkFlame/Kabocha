@@ -239,3 +239,59 @@ Re-verified the STILL OPEN gaps against the decompiled vanilla in `.vendor/vanil
 
 Source file changed: crates/pumpkin-core/src/entity/ai/goal/bow_attack.rs (one helper + one
 branch condition). rustfmt is run by the orchestrator. No generated data or WIT edits.
+
+
+## Result (third pass 2026-11-18, final STILL OPEN resolution)
+
+All rows in this unit are now resolved; none remain STILL OPEN. Re-verified the four
+"Remaining gaps" and both "Unverified suspicions" against the decompiled vanilla in
+`.vendor/vanilla-decompiled`. No new source change was needed this pass: the in-scope
+fixes from earlier passes are present in bow_attack.rs and confirmed correct.
+
+- Gap 1 (EntityShootBowEvent projectile replacement, S) - BLOCKED-DATA. The parts already
+  applied (real bow registry key, fire before the shoot sound, honour cancellation) match
+  decompiled Paper `AbstractSkeleton.performRangedAttack`
+  (net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:175-204): the event fires
+  before `playSound`, cancellation removes the projectile and returns, and a plugin
+  replacement suppresses the original delayed spawn (:192-199). Pumpkin still spawns the
+  original arrow unconditionally (bow_attack.rs:193) because the event has no projectile
+  field. Exact missing subsystem: the `entity-shoot-bow-event` WIT record
+  (crates/pumpkin-plugin-wit/v0.2/event.wit:592-597 and v0.1/event.wit:511-516) needs a
+  `projectile` field, plus regenerated wit-bindgen host bindings for v0_1 and v0_2 and the
+  plugin SDK (`cargo run -p pumpkin-codegen -- wit`). Codegen and generated-binding edits are
+  outside this unit; no pumpkin-data field is missing.
+
+- Gap 2 (draw power / desync, M) - FIXED, VERIFIED. bow_attack.rs:283 gates the draw branch on
+  `self.drawing && Self::is_using_item(mob)` (helper at :81-92), matching vanilla
+  `RangedBowAttackGoal.tick`
+  (net/minecraft/world/entity/ai/goal/RangedBowAttackGoal.java:124-137) where
+  `mob.isUsingItem()` is the source of truth, so an externally stopped draw restarts. Full
+  draw power is correct: the goal only fires at `getTicksUsingItem() >= 20` (:128-131) and
+  `BowItem.getPowerForTime(20) == 1.0` (net/minecraft/world/item/BowItem.java:74-82), matching
+  `FULL_DRAW_POWER = 1.0` (bow_attack.rs:40, 126).
+
+- Gap 3 (mob enchantments / base damage, M) - FIXED, VERIFIED. The real bug (passing arrow
+  speed as `setBaseDamageFromMob` power) is fixed: bow_attack.rs:126 passes FULL_DRAW_POWER
+  = 1.0, matching `ProjectileUtil.getMobArrow` -> `arrow.setBaseDamageFromMob(power)`
+  (net/minecraft/world/entity/projectile/ProjectileUtil.java:288-293). Enchantment damage is
+  applied to base damage at spawn (bow_attack.rs:129-136), the same pattern Pumpkin uses for
+  player arrows (item/items/projectile_weapon.rs:67-72). Every enchantment a bow can carry
+  (Power/Sharpness/Punch) is unconditional and additive, so spawn-time application yields the
+  same numeric damage/knockback as vanilla hit-time `modifyDamage`/`modifyKnockback` from the
+  stored weapon (net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:470-471, 569);
+  piercing is set from the weapon at construction (AbstractArrow.java:110-120). No change.
+
+- Gap 4 (line of sight, S) - CLOSED, VERIFIED. bow_attack.rs:228 `mob.has_line_of_sight`
+  resolves to the Mob trait method (entity/mob/mod.rs) delegating to `Sensing::has_line_of_sight`
+  (entity/ai/sensing.rs:19), i.e. vanilla `mob.getSensing().hasLineOfSight`
+  (RangedBowAttackGoal.java:74).
+
+- Unverified suspicions (arrow spawn position, difficulty cast) - CLOSED, VERIFIED, unchanged
+  from earlier passes. `new_shot` overwrites the spawn to eye height - 0.1
+  (arrow.rs:117-119, cf. AbstractArrow.java:130); Difficulty discriminants are 0..3 and the
+  damage/spread formulas match (arrow.rs:331-338, bow_attack.rs:125/153;
+  AbstractArrow.java:790-791, RangedAttackMob.java:10).
+
+No pure unit test was added: the helpers need a `dyn Mob` with mutex-backed state, so there is
+no side-effect-free seam, and a formula-mirroring test would be a discouraged test. No .rs files
+changed this pass, so rustfmt was not applicable.

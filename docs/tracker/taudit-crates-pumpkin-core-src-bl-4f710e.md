@@ -261,7 +261,7 @@ Files touched this pass: this doc only (verification recorded).
 
 ## Result (THIRD PASS, 2026-11-18)
 
-Re-verified every original originally open row against decompiled vanilla at
+Re-verified every originally open row against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/` (EyeblossomBlock.java:68-105,
 FlowerPotBlock.java:157-170, Bee.java:693-697) and closed all of them. No code edits were
 needed: the source on disk already matches vanilla in all four in-scope files

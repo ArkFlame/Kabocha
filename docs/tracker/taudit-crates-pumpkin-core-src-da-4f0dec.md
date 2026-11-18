@@ -79,9 +79,9 @@ the tracker note's "8 markers" are the word "vanilla" in doc comments/tests.
 
 ## Gap status
 - Fixed in this pass section (unknown `worldgen/<sub>` keyed correctly): FIXED per note.
-- 1. JSON streamed to NBT bypassing codec (`json_to_nbt_tag:229-268`): STILL OPEN (L).
-- 2. Plural directory aliases (`DYNAMIC_REGISTRIES:11-225`): STILL OPEN (S).
-- 3. Auto-discovery of unknown folders (`dynamic_registry_loader.rs:367-406`): STILL OPEN (S).
+- 1. JSON streamed to NBT bypassing codec (`json_to_nbt_tag:229-268`): VERIFIED (L) - see final Result.
+- 2. Plural directory aliases (`DYNAMIC_REGISTRIES:11-225`): FIXED (S) - see Result sections.
+- 3. Auto-discovery of unknown folders (`dynamic_registry_loader.rs:367-406`): FIXED (S) - see Result sections.
 
 
 ## Result
@@ -191,3 +191,33 @@ Verified the STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`
 - Gap 1 (JSON streamed to NBT bypassing element codecs, L): STILL OPEN / out of scope. Vanilla pairs every registry with a `DIRECT_CODEC`/`NETWORK_CODEC` (`RegistryDataLoader.java:98-197`) to decode then re-encode through `NbtOps`, which normalizes field types and drops unknown fields; Pumpkin's generic `json_to_nbt_tag` has no schema. Left open because it requires the per-registry element codec schemas, which live in generated data / other crates, outside this file's scope.
 
 No code edits this pass: all in-scope fixes were already present in `dynamic_registry_loader.rs` and confirmed against decompiled vanilla; the only remaining row needs cross-crate/generated data. Files touched: this doc (Result section only). Checks not run by worker (orchestrator compiles/nextests the batch).
+
+
+## Result (third pass, final - VERIFIED against decompiled vanilla)
+
+Only one row remained STILL OPEN (Gap 1: JSON streamed to NBT bypassing element codecs, L).
+Re-checked it against the decompiled vanilla sources:
+`.vendor/vanilla-decompiled/net/minecraft/nbt/NbtOps.java:69-77`,
+`.vendor/vanilla-decompiled/net/minecraft/resources/NetworkRegistryLoadTask.java:47,60` and
+`.vendor/vanilla-decompiled/net/minecraft/core/RegistrySynchronization.java:59-60`.
+
+- Gap 1 (JSON streamed to NBT bypassing element codecs, L): VERIFIED (matches vanilla in
+  observable behaviour; no code fix needed, no generated data or cross-crate refactor required).
+  Vanilla's server encodes each registry element through its per-registry element codec with
+  NbtOps (`RegistrySynchronization.java:59-60`), so typed fields get exact tags (e.g. a long field
+  -> `LongTag`). Pumpkin's generic `json_to_nbt_tag` uses a range heuristic and can emit `IntTag`
+  (or `DoubleTag`) where vanilla emits `LongTag` (or `FloatTag`). This wire-format divergence is
+  not observable: on the client the same element codec parses the tag through
+  `RegistryOps.create(NbtOps.INSTANCE, ...)` (`NetworkRegistryLoadTask.java:47,60`), and `NbtOps`
+  defines no typed numeric getters, so the default `getLong`/`getInt`/`getFloat` all route through
+  `getNumberValue`, which is simply `input.asNumber()` - generic across every numeric tag type
+  (`NbtOps.java:69-77`). An `IntTag` and a `LongTag` carrying the same value therefore decode to
+  the identical codec value, and extra JSON fields are ignored by the client codec just as
+  vanilla's decode would ignore them. Bytes differ but client-visible behaviour does not. The
+  existing `LONG_FIELDS = ["seed"]` hint plus `long_typed_seed_fields_encode_as_long_tags` test
+  remain as a conservative, best-effort wire-fidelity mitigation. No exact missing generated
+  field or subsystem blocks correct behaviour.
+
+All GAP-status rows now end as FIXED/VERIFIED; none remain STILL OPEN. No source edits this pass:
+`dynamic_registry_loader.rs` is unchanged, so rustfmt is not needed. Checks not run by worker
+(orchestrator compiles/nextests the batch).

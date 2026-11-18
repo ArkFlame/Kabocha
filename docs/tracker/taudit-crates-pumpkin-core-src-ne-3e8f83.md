@@ -105,3 +105,20 @@ No row in the "Remaining gaps" table is marked STILL OPEN, so there was nothing 
 
 No source change needed. No test added: all four fixes live inside the async packet handler with no pure seam, so a helper test would be a discouraged
 formula-mirroring test. No generated data, WIT, or cross-crate changes. `player_action.rs` was not touched this pass.
+
+
+## Result (third pass verification)
+
+No row in the "Remaining gaps" table is marked STILL OPEN; all four are already FIXED. Re-verified each against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java`
+(`handleBlockBreakAction` lines 192-330, `abortDestroyBlock` lines 332-350). Every fix is present in
+`crates/pumpkin-core/src/net/java/play/player_action.rs` and matches vanilla:
+
+| file:line | result | vanilla evidence |
+|---|---|---|
+| `player_action.rs:31` (height guard) | VERIFIED | `pos.getY() > maxY` sends `ClientboundBlockUpdatePacket` (vanilla 202-204) -> `position.0.y > world.get_top_y()` + `CBlockUpdate` (source 38-45) |
+| `player_action.rs:36` (spawn protection / `cannot_mine_block` before events) | VERIFIED | `isUnderSpawnProtection` + message (207-211) and `blockActionRestricted` (243) run before the `BlockDamageEvent` (273) -> spawn-protection block 47-61, `cannot_mine_block` 63-73, events 75-108 |
+| `player_action.rs:143` (abort other dig) | VERIFIED | `ClientboundBlockUpdatePacket(destroyPos)` before `destroyPos = pos` (287-293) -> `set_block_breaking(old, Stop)` + resync 168-183 |
+| `player_action.rs:190` (`CancelledDigging`) | VERIFIED | `abortDestroyBlock`: clear state, stop mismatched target (335-342) then reported pos (346) -> `reset_mining()`, `BlockPos::ZERO`, two `Stop`s + resync 231-252 |
+
+No source change needed. No test added: all four fixes live in the async packet handler with no pure seam, so a helper test would be a discouraged formula-mirroring test. No generated data, WIT or cross-crate changes. `player_action.rs` was not touched this pass.

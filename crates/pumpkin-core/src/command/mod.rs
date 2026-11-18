@@ -452,6 +452,7 @@ pub use node::{Command, CommandExecutor, CommandExecutorResult};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pumpkin_util::math::position::BlockPos;
 
     #[test]
     fn command_block_yaw_matches_vanilla() {
@@ -461,5 +462,18 @@ mod tests {
         assert_eq!(command_block_y_rot(Facing::East), 270.0);
         assert_eq!(command_block_y_rot(Facing::Up), 0.0);
         assert_eq!(command_block_y_rot(Facing::Down), 0.0);
+    }
+
+    #[test]
+    fn command_block_name_matches_vanilla_get_name() {
+        // Vanilla BaseCommandBlock#getName returns the custom name or DEFAULT_NAME ('@').
+        let entity = CommandBlockEntity::new(BlockPos::new(0, 0, 0), true, false);
+        assert_eq!(command_block_name(&entity).get_text(), "@");
+
+        *entity
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(TextComponent::text("Cmd"));
+        assert_eq!(command_block_name(&entity).get_text(), "Cmd");
     }
 }
