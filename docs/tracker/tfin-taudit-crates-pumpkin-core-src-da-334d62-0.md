@@ -6,7 +6,6 @@ Every STILL OPEN row was re-checked against decompiled vanilla.
 No STILL OPEN rows remain. No source file was edited in this pass (the fix was already present); no cargo or rustfmt run (workers cannot run shell tools).
 No STILL OPEN rows remain. No source files were edited; no cargo/rustfmt run (workers cannot run shell tools).
 
-## Result
 ## Result (final pass)
 
 Re-read every source file named by the unit and re-checked each row of

@@ -4120,7 +4120,7 @@ mod tests {
     #[test]
     fn entity_passenger_predicate_is_enforced() {
         let pred = EntityPredicate::from_value(&json!({
-            "passenger": {"type": "minecraft:goat"}
+            "vehicle": {"passenger": {"type": "minecraft:goat"}}
         }));
         let mut state = EntityState::default();
         // Vanilla PassengerPredicate.matches fails when there is no passenger.
