@@ -2,9 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-6. STILL OPEN (BLOCKED) - the insert/remove/comparator transition test is a
-verified here, so the row is closed as covered rather than left STILL OPEN.
-redispatches to normal_use). No build or test run (worker mandate). No STILL OPEN
+All rows from docs/tracker/tblocks-chiseled-bookshelf.md are closed in the
+authoritative Result section below, verified against the decompiled vanilla
+classes under .vendor/vanilla-decompiled. No build or test run (worker mandate).
 
 ## Result (FINAL PASS, 2026-11-18)
 
