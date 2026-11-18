@@ -11,7 +11,7 @@ use pumpkin_nbt::{
     nbt_compress::{read_gzip_compound_tag, write_gzip_compound_tag},
     tag::NbtTag,
 };
-use pumpkin_util::{Difficulty, world_seed::Seed};
+use pumpkin_util::{Difficulty, GameMode, world_seed::Seed};
 use serde::{Deserialize, Serialize};
 
 use crate::world_info::{
@@ -267,6 +267,12 @@ fn level_data_from_nbt(data: &NbtCompound, seed: i64) -> LevelData {
             level_data.difficulty_locked = difficulty_locked;
         }
     }
+    if let Some(game_type) = data
+        .get_int("GameType")
+        .and_then(|id| GameMode::try_from(id).ok())
+    {
+        level_data.game_type = game_type;
+    }
     if let Some(last_played) = data.get_long("LastPlayed") {
         level_data.last_played = last_played;
     }
@@ -345,6 +351,7 @@ fn level_data_to_nbt(info: &LevelData, data: &mut NbtCompound) {
     data.put_compound("difficulty_settings", diff_comp);
 
     data.put_byte("Difficulty", info.difficulty as i8);
+    data.put_int("GameType", info.game_type as i32);
     data.put_bool("DifficultyLocked", info.difficulty_locked);
     data.put_long("LastPlayed", info.last_played);
     data.put_long("Time", info.game_time);
@@ -596,7 +603,7 @@ mod test {
         nbt_compress::{read_gzip_compound_tag, write_gzip_compound_tag},
         tag::NbtTag,
     };
-    use pumpkin_util::{Difficulty, world_seed::Seed};
+    use pumpkin_util::{Difficulty, GameMode, world_seed::Seed};
     use std::{
         fs::{self, File},
         io::ErrorKind,
@@ -880,6 +887,19 @@ mod test {
     }
 
     #[test]
+    fn game_type_round_trips_as_vanilla_int() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_int("GameType", 2);
+
+        let data = level_data_from_nbt(&nbt, 1);
+        assert!(data.game_type == GameMode::Adventure);
+
+        let mut written = NbtCompound::new();
+        level_data_to_nbt(&data, &mut written);
+        assert_eq!(written.get_int("GameType"), Some(2));
+    }
+
+    #[test]
     fn round_trip_level_dat() {
         let temp_dir = TempDir::new().unwrap();
 
@@ -985,6 +1005,7 @@ mod test {
             clock_paused: true,
             difficulty: Difficulty::Normal,
             difficulty_locked: false,
+            game_type: GameMode::Survival,
             game_rules: GameRuleRegistry {
                 block_explosion_drop_decay: true,
                 command_block_output: true,

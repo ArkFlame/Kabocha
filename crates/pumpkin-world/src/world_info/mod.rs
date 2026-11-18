@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::CURRENT_MC_VERSION;
 use pumpkin_data::game_rules::GameRuleRegistry;
-use pumpkin_util::{Difficulty, serde_enum_as_integer, world_seed::Seed};
+use pumpkin_util::{Difficulty, GameMode, serde_enum_as_integer, world_seed::Seed};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
@@ -55,6 +55,8 @@ pub struct LevelData {
     pub data_version: i32,
     #[serde(with = "serde_enum_as_integer", default = "default_difficulty")]
     pub difficulty: Difficulty,
+    #[serde(default = "default_game_type")]
+    pub game_type: GameMode,
     #[serde(default)]
     pub difficulty_locked: bool,
     #[serde(default)]
@@ -182,6 +184,9 @@ fn default_data_packs() -> DataPacks {
 }
 const fn default_difficulty() -> Difficulty {
     DEFAULT_DIFFICULTY
+}
+const fn default_game_type() -> GameMode {
+    GameMode::Survival
 }
 fn default_level_name() -> String {
     DEFAULT_LEVEL_NAME.to_string()
@@ -611,6 +616,7 @@ impl LevelData {
             data_version: MAXIMUM_SUPPORTED_WORLD_DATA_VERSION,
             difficulty: DEFAULT_DIFFICULTY,
             difficulty_locked: false,
+            game_type: GameMode::Survival,
             last_played: -1,
             level_name: DEFAULT_LEVEL_NAME.to_string(),
             spawn_x: 0,
