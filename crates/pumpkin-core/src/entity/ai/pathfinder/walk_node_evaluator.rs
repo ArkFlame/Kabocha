@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crossbeam::atomic::AtomicCell;
 use pumpkin_data::BlockDirection;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 use rustc_hash::FxHashMap;
@@ -8,11 +11,32 @@ use crate::entity::ai::pathfinder::{
     pathfinding_context::PathfindingContext,
 };
 
+/// Shared, live home position that restricts walk paths (vanilla `Creaking.HomeNodeEvaluator`).
+pub type HomeRestriction = Arc<AtomicCell<Option<BlockPos>>>;
+
+/// Vanilla `Creaking.HomeNodeEvaluator.MAX_DISTANCE_TO_HOME_SQ`.
+const MAX_DISTANCE_TO_HOME_SQ: f64 = 1024.0;
+
+fn dist_sq(from: Vector3<i32>, to: Vector3<i32>) -> f64 {
+    let dx = f64::from(to.x - from.x);
+    let dy = f64::from(to.y - from.y);
+    let dz = f64::from(to.z - from.z);
+    dx * dx + dy * dy + dz * dz
+}
+
+/// Vanilla `HomeNodeEvaluator.getPathType`: a node further than 32 blocks from home is blocked
+/// when it is also farther from home than the mob currently stands.
+fn is_outside_home(home: BlockPos, pos: Vector3<i32>, mob: Vector3<i32>) -> bool {
+    let home_distance = dist_sq(home.0, pos);
+    home_distance > MAX_DISTANCE_TO_HOME_SQ && home_distance >= dist_sq(home.0, mob)
+}
+
 pub struct WalkNodeEvaluator {
     pub base: BaseNodeEvaluator,
     path_types_cache: FxHashMap<Vector3<i32>, PathType>,
     reusable_neighbors: [Option<Node>; 4],
     pub is_amphibious: bool,
+    pub home_restriction: Option<HomeRestriction>,
 }
 
 impl WalkNodeEvaluator {
@@ -23,6 +47,7 @@ impl WalkNodeEvaluator {
             path_types_cache: FxHashMap::default(),
             reusable_neighbors: [None, None, None, None],
             is_amphibious: false,
+            home_restriction: None,
         }
     }
 
@@ -639,6 +664,11 @@ impl NodeEvaluator for WalkNodeEvaluator {
     }
 
     fn get_path_type(&mut self, context: &mut PathfindingContext, pos: Vector3<i32>) -> PathType {
+        if let Some(home) = self.home_restriction.as_ref().and_then(|home| home.load())
+            && is_outside_home(home, pos, context.mob_position())
+        {
+            return PathType::Blocked;
+        }
         context.get_land_node_type(pos)
     }
 
@@ -678,5 +708,22 @@ impl NodeEvaluator for WalkNodeEvaluator {
 impl Default for WalkNodeEvaluator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod home_restriction_tests {
+    use super::*;
+
+    #[test]
+    fn blocks_only_nodes_beyond_home_radius_and_farther_than_mob() {
+        let home = BlockPos(Vector3::new(0, 0, 0));
+        let at = |x: i32| Vector3::new(x, 0, 0);
+        // Beyond 32 blocks and farther from home than the mob stands: blocked.
+        assert!(is_outside_home(home, at(33), at(0)));
+        // Within 32 blocks of home: not blocked.
+        assert!(!is_outside_home(home, at(31), at(0)));
+        // Beyond 32 blocks but the mob is already further out: not blocked.
+        assert!(!is_outside_home(home, at(33), at(40)));
     }
 }

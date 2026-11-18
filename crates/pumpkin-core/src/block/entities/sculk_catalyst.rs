@@ -21,9 +21,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Radius (blocks) within which a catalyst hears an entity death, vanilla
 /// `SculkCatalystBlockEntity` listener radius.
 const HEARING_RADIUS: i32 = 8;
-/// Blocks between the bloom animation and its reset, vanilla
-/// `SculkCatalystBlock` block-event tick.
-const BLOOM_DURATION: u32 = 20;
+/// Ticks between the bloom and its reset, vanilla
+/// `CatalystListener.PULSE_TICKS` (`scheduleTick(..., 8)`).
+const BLOOM_DURATION: u32 = 8;
 /// Bloom sound volume and pitch range (`0.6 + random * 0.4`), vanilla `SculkCatalystBlock.tick`.
 const BLOOM_VOLUME: f32 = 2.0;
 const BLOOM_PITCH_BASE: f32 = 0.6;

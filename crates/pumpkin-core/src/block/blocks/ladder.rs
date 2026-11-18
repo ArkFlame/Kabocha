@@ -1,6 +1,4 @@
-use crate::block::{
-    BlockBehaviour, BlockIsReplacing, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-};
+use crate::block::{BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs};
 use crate::entity::EntityBase;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{Facing, LadderLikeProperties};
@@ -17,9 +15,7 @@ pub struct LadderBlock;
 
 impl BlockBehaviour for LadderBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if args.replacing == BlockIsReplacing::None
-            || matches!(args.replacing, BlockIsReplacing::Water(_))
-        {
+        if *args.position != args.use_item_on.position {
             let behind_pos = args.position.offset(args.direction.to_offset());
             let (behind_block, behind_state_id) = args.world.get_block_and_state_id(&behind_pos);
             if behind_block == &Block::LADDER {
@@ -33,9 +29,9 @@ impl BlockBehaviour for LadderBlock {
         props.waterlogged = args.replacing.is_water();
 
         let mut directions = args.player.get_entity().get_entity_facing_order();
-        if args.replacing == BlockIsReplacing::None
-            || matches!(args.replacing, BlockIsReplacing::Water(_))
-        {
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position {
             let face = args.direction.to_facing();
             if let Some(i) = directions.iter().position(|&d| d == face)
                 && i > 0

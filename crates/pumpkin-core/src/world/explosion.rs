@@ -325,6 +325,15 @@ impl<'a> Explosion<'a> {
         self.power
     }
 
+    /// Vanilla `Explosion.BlockInteraction#shouldAffectBlocklikeEntities`.
+    #[must_use]
+    pub const fn should_affect_blocklike_entities(&self) -> bool {
+        matches!(
+            self.block_interaction,
+            BlockInteraction::Destroy | BlockInteraction::DestroyWithDecay
+        )
+    }
+
     #[must_use]
     pub const fn source(&self) -> Option<&'a dyn EntityBase> {
         self.source
@@ -631,7 +640,7 @@ impl<'a> Explosion<'a> {
         };
 
         for entity_base in entities {
-            if entity_base.is_immune_to_explosion() {
+            if entity_base.ignore_explosion(self) {
                 continue;
             }
 

@@ -2,11 +2,14 @@
 use super::*;
 use std::time::Instant;
 
-/// Vanilla `ServerCommonPacketListenerImpl#handleKeepAlive` only accepts a reply
-/// that matches an outstanding challenge; anything else disconnects with
-/// `disconnect.timeout` (Paper) instead of being ignored.
-fn outstanding_keep_alive(pending: &[(i64, Instant)], id: i64) -> Option<usize> {
-    pending.iter().position(|(pending_id, _)| *pending_id == id)
+/// Paper `ServerCommonPacketListenerImpl#handleKeepAlive` accepts a reply only for
+/// the oldest outstanding challenge (`pendingKeepAlives.peek()`). A reply to any other
+/// challenge is out of order and disconnects with `disconnect.timeout`, exactly like
+/// an unsolicited or duplicate id.
+fn is_oldest_challenge(pending: &[(i64, Instant)], id: i64) -> bool {
+    pending
+        .first()
+        .is_some_and(|(pending_id, _)| *pending_id == id)
 }
 
 impl JavaClient {
@@ -15,8 +18,8 @@ impl JavaClient {
             .pending_keep_alives
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(pos) = outstanding_keep_alive(&pending, keep_alive.keep_alive_id) {
-            let (_, send_time) = pending.swap_remove(pos);
+        if is_oldest_challenge(&pending, keep_alive.keep_alive_id) {
+            let (_, send_time) = pending.remove(0);
             let ping = send_time.elapsed().as_millis() as u32;
             // Vanilla logic
             player.ping.store(
@@ -42,16 +45,16 @@ impl JavaClient {
 
 #[cfg(test)]
 mod tests {
-    use super::outstanding_keep_alive;
+    use super::is_oldest_challenge;
     use std::time::Instant;
 
     #[test]
-    fn only_an_outstanding_challenge_is_accepted() {
+    fn only_the_oldest_challenge_is_accepted() {
         let now = Instant::now();
         let pending = [(10, now), (20, now)];
-        assert_eq!(outstanding_keep_alive(&pending, 10), Some(0));
-        assert_eq!(outstanding_keep_alive(&pending, 20), Some(1));
-        assert_eq!(outstanding_keep_alive(&pending, 30), None);
-        assert_eq!(outstanding_keep_alive(&[], 10), None);
+        assert!(is_oldest_challenge(&pending, 10));
+        assert!(!is_oldest_challenge(&pending, 20));
+        assert!(!is_oldest_challenge(&pending, 30));
+        assert!(!is_oldest_challenge(&[], 10));
     }
 }

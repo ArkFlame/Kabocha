@@ -1,3 +1,4 @@
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
@@ -33,7 +34,6 @@ impl CommandExecutor for GiveExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let targets = EntityArgumentType::get_players(context, "targets")?;
         let parsed_stack = ItemStackArgumentType::get(context, "item")?;
-        let item = parsed_stack.item;
 
         let item_count = if self.has_count {
             IntegerArgumentType::get(context, "count")?
@@ -47,9 +47,7 @@ impl CommandExecutor for GiveExecutor {
         if item_count > max_count {
             return Err(ERROR_TOO_MANY_ITEMS.create_without_context_args_slice(&[
                 TextComponent::text(max_count.to_string()),
-                TextComponent::text("[")
-                    .add_child(item.translated_name())
-                    .add_child(TextComponent::text("]")),
+                item_display(&parsed_stack),
             ]));
         }
 
@@ -61,7 +59,19 @@ impl CommandExecutor for GiveExecutor {
                 let mut stack = parsed_stack.clone();
                 stack.item_count = take as u8;
                 target.inventory().insert_stack_anywhere(&mut stack);
-                if !stack.is_empty() {
+                if stack.is_empty() {
+                    // Vanilla GiveCommand: the all-fits branch plays the pickup sound and
+                    // broadcasts the inventory change (plus a fake item entity, client-only).
+                    let pos = target.get_entity().pos.load();
+                    target.world().play_sound_fine(
+                        Sound::EntityItemPickup,
+                        SoundCategory::Players,
+                        &pos,
+                        0.2,
+                        (rand::random::<f32>() - rand::random::<f32>()).mul_add(0.7, 1.0) * 2.0,
+                    );
+                    target.sync_inventory_to_client();
+                } else {
                     // Vanilla GiveCommand: the stack that does not fit drops with no pickup
                     // delay and is restricted to the player it was given to.
                     let dropped = target.drop_item(stack);
@@ -72,21 +82,13 @@ impl CommandExecutor for GiveExecutor {
             }
         }
 
-        let item_name = item.registry_key;
         let msg = if targets.len() == 1 {
             TextComponent::translate_cross(
                 pumpkin_data::translation::java::COMMANDS_GIVE_SUCCESS_SINGLE,
                 pumpkin_data::translation::bedrock::COMMANDS_GIVE_SUCCESS,
                 [
                     TextComponent::text(item_count.to_string()),
-                    TextComponent::text("[")
-                        .add_child(item.translated_name())
-                        .add_child(TextComponent::text("]"))
-                        .hover_event(HoverEvent::ShowItem {
-                            id: item_name.to_string().into(),
-                            count: Some(item_count.min(99)),
-                            components: None,
-                        }),
+                    item_display(&parsed_stack),
                     targets[0].as_ref().get_display_name(),
                 ],
             )
@@ -96,14 +98,7 @@ impl CommandExecutor for GiveExecutor {
                 pumpkin_data::translation::bedrock::COMMANDS_GIVE_SUCCESS,
                 [
                     TextComponent::text(item_count.to_string()),
-                    TextComponent::text("[")
-                        .add_child(item.translated_name())
-                        .add_child(TextComponent::text("]"))
-                        .hover_event(HoverEvent::ShowItem {
-                            id: item_name.to_string().into(),
-                            count: Some(item_count.min(99)),
-                            components: None,
-                        }),
+                    item_display(&parsed_stack),
                     TextComponent::text(targets.len().to_string()),
                 ],
             )

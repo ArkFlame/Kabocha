@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 
 use rustc_hash::FxHashMap;
 
-use crate::block::BlockIsReplacing;
 use crate::block::CanPlaceAtArgs;
 use crate::block::EmitsRedstonePowerArgs;
 use crate::block::GetRedstonePowerArgs;
@@ -100,38 +99,28 @@ impl BlockBehaviour for RedstoneTorchBlock {
         let world = args.world;
         let block = args.block;
         let location = args.position;
-
-        if args.direction == BlockDirection::Down {
-            let support_block = world.get_block_state(&location.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return block.default_state.id;
-            }
-        }
         let mut directions = args.player.get_entity().get_entity_facing_order();
-
-        if args.replacing == BlockIsReplacing::None {
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position {
             let face = args.direction.to_facing();
             let mut i = 0;
             while i < directions.len() && directions[i] != face {
                 i += 1;
             }
-
             if i > 0 {
                 directions.copy_within(0..i, 1);
                 directions[0] = face;
             }
-        } else if directions[0] == Facing::Down {
-            let support_block = world.get_block_state(&location.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return block.default_state.id;
-            }
         }
-
+        // See TorchBlock: one ordered walk, DOWN asks for the standing torch.
         for dir in directions {
-            if dir != Facing::Up
-                && dir != Facing::Down
-                && can_place_at(world, location, dir.to_block_direction())
-            {
+            if dir == Facing::Down {
+                let support_block = world.get_block_state(&location.down());
+                if support_block.is_center_solid(BlockDirection::Up) {
+                    return block.default_state.id;
+                }
+            } else if dir != Facing::Up && can_place_at(world, location, dir.to_block_direction()) {
                 let mut torch_props = RWallTorchProps::default(&Block::REDSTONE_WALL_TORCH);
                 if let Some(facing) = dir.opposite().to_horizontal_facing() {
                     torch_props.facing = facing;
@@ -139,13 +128,7 @@ impl BlockBehaviour for RedstoneTorchBlock {
                 }
             }
         }
-
-        let support_block = world.get_block_state(&location.down());
-        if support_block.is_center_solid(BlockDirection::Up) {
-            block.default_state.id
-        } else {
-            BlockStateId::AIR
-        }
+        BlockStateId::AIR
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {

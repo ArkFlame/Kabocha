@@ -1,4 +1,3 @@
-use core::f32;
 use std::sync::{
     Arc,
     atomic::{AtomicI32, AtomicU32, Ordering},

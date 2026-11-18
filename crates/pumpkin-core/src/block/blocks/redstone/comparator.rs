@@ -221,7 +221,10 @@ impl RedstoneGateBlock<ComparatorLikeProperties> for ComparatorBlock {
         let mut target_pos = pos.offset(facing.to_offset());
         let (target_block, target_state) = world.get_block_and_state(&target_pos);
 
-        if target_state.has_analog_output_signal() {
+        // Vanilla DaylightDetectorBlock is a signal source with analog output, but the
+        // generated HAS_ANALOG_OUTPUT_SIGNAL flag is missing for it. Accept it explicitly
+        // so a comparator reads its POWER instead of the block behind it.
+        if target_state.has_analog_output_signal() || target_block == &Block::DAYLIGHT_DETECTOR {
             result_signal = world
                 .block_registry
                 .get_pumpkin_block(target_block.id)

@@ -10,7 +10,6 @@ use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, block_properties::NoteBlockLikeProperties};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
 
 use crate::{
@@ -180,16 +179,10 @@ impl BlockBehaviour for NoteBlock {
             let Some(sound_name) = custom_sound else {
                 return false;
             };
-            // Vanilla wraps custom head sounds in SoundEvent.createVariableRangeEvent(id),
-            // which is just fixedRange = Optional.empty(); range is derived from volume at play time.
-            let sound_event = pumpkin_data::data_component_impl::IdOr::Value(
-                pumpkin_data::data_component_impl::SoundEvent {
-                    sound_name,
-                    range: None,
-                },
-            );
-            args.world.play_sound_event_fine(
-                &sound_event,
+            // Vanilla wraps the id in SoundEvent.createVariableRangeEvent: no fixed range in the
+            // packet, the audible radius still scales with volume.
+            args.world.play_custom_sound(
+                &sound_name,
                 SoundCategory::Records,
                 &args.position.to_centered_f64(),
                 3.0,
@@ -204,14 +197,6 @@ impl BlockBehaviour for NoteBlock {
                 pitch,
             );
         }
-        // Vanilla spawns the note particle server-side in `triggerEvent`, for every instrument.
-        args.world.spawn_particle(
-            args.position.to_centered_f64() + Vector3::new(0.0, 0.7, 0.0),
-            Vector3::new(f32::from(note_props.note) / 24.0, 0.0, 0.0),
-            0.0,
-            1,
-            pumpkin_data::particle::Particle::Note,
-        );
         true
     }
 

@@ -141,3 +141,28 @@ pub fn is_valid_block_pos(dest: BlockPos) -> bool {
         && (-30_000_000..30_000_000).contains(&dest.0.z)
         && (-20_000_000..20_000_000).contains(&dest.0.y)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::is_valid_block_pos;
+    use pumpkin_util::math::position::BlockPos;
+
+    #[test]
+    fn spawnable_bounds_match_vanilla_is_in_spawnable_bounds() {
+        // Vanilla Level.isInSpawnableBounds: x/z [-30M, 30M), y [-20M, 20M).
+        assert!(is_valid_block_pos(BlockPos::new(0, 0, 0)));
+        assert!(is_valid_block_pos(BlockPos::new(
+            -30_000_000,
+            -20_000_000,
+            -30_000_000
+        )));
+        assert!(is_valid_block_pos(BlockPos::new(
+            29_999_999, 19_999_999, 29_999_999
+        )));
+        assert!(!is_valid_block_pos(BlockPos::new(30_000_000, 0, 0)));
+        assert!(!is_valid_block_pos(BlockPos::new(-30_000_001, 0, 0)));
+        assert!(!is_valid_block_pos(BlockPos::new(0, 20_000_000, 0)));
+        assert!(!is_valid_block_pos(BlockPos::new(0, -20_000_001, 0)));
+        assert!(!is_valid_block_pos(BlockPos::new(0, 0, 30_000_000)));
+    }
+}

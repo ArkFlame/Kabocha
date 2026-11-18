@@ -100,43 +100,26 @@ impl EntityBase for LeashKnotEntity {
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
         let world = player.world();
         let knot_id = self.entity.entity_id;
-        let player_id = player.entity_id();
 
-        let pos = self.entity.pos.load();
-        let search_box = transfer_search_box(pos);
-        let entities = world.get_entities_at_box(&search_box);
-
+        // Vanilla `LeashFenceKnotEntity.interact` first moves mobs leashed to the player onto
+        // the knot. `leashable_leashed_to` scans a 32 block cube around the player's bounding
+        // box centre, matching `Leashable.leashableInArea`.
         let mut attached_mob = false;
-        let mut player_leashed_mobs = Vec::new();
-
-        for entity_base in &entities {
-            let ent = entity_base.get_entity();
-            if let Ok(guard) = ent.leashed_to.try_lock()
-                && let Some(holder) = guard.as_ref().and_then(std::sync::Weak::upgrade)
-                && holder.get_entity().entity_id == player_id
-            {
-                player_leashed_mobs.push(ent);
-            }
-        }
-
         if let Some(self_knot) = Self::get_knot(&world, self.entity.block_pos.load()) {
-            for mob in player_leashed_mobs {
-                attached_mob |= mob.leash_to(self_knot.clone());
+            for mob in player.get_entity().leashable_leashed_to() {
+                attached_mob |= mob.get_entity().leash_to(self_knot.clone());
             }
         }
 
-        // Vanilla LeashFenceKnotEntity.interact skips re-homing knot mobs onto the player
-        // while secondary use (shift) is active.
+        // If none moved and secondary use (shift) is inactive, re-home mobs leashed to the knot
+        // onto the player (`Leashable.leashableLeashedTo(this)`).
         let mut any_dropped = false;
         if !attached_mob && !player.get_entity().is_sneaking() {
             let player_holder = player.clone() as Arc<dyn EntityBase>;
-            for entity_base in &entities {
-                if entity_base
+            for mob in self.entity.leashable_leashed_to() {
+                any_dropped |= mob
                     .get_entity()
-                    .leash_to_if_held_by(knot_id, &player_holder)
-                {
-                    any_dropped = true;
-                }
+                    .leash_to_if_held_by(knot_id, &player_holder);
             }
         }
 
@@ -163,11 +146,14 @@ impl EntityBase for LeashKnotEntity {
         if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
-        // Vanilla `BlockAttachedEntity.hurtServer` only checks invulnerability and then kills the
-        // entity; `mob_griefing` gates mob world edits, not damage to entities, so a mob-caused
-        // explosion still destroys a knot with `mob_griefing` off.
-        // Hitting the knot destroys it. Leashed mobs release on their next tick (see `tick_leash`).
         let world = self.entity.world.load();
+        // Vanilla `BlockAttachedEntity.hurtServer` skips mob-caused damage while `mob_griefing`
+        // is off. The check uses the causing entity (`DamageSource.getEntity`), not the direct one.
+        let mob_griefing = world.level_info.load().game_rules.mob_griefing;
+        if !mob_griefing && cause.is_some_and(|attacker| attacker.get_mob().is_some()) {
+            return false;
+        }
+        // Hitting the knot destroys it. Leashed mobs release on their next tick (see `tick_leash`).
         world.play_sound(
             Sound::ItemLeadUntied,
             SoundCategory::Neutral,
@@ -192,40 +178,10 @@ fn knot_search_box(pos: BlockPos) -> BoundingBox {
     )
 }
 
-/// Vanilla `LeashFenceKnotEntity.interact` searches `AABB(blockPos).inflate(7)`,
-/// measured from the integer block coordinates rather than the entity position.
-fn transfer_search_box(pos: Vector3<f64>) -> BoundingBox {
-    const SEARCH_RADIUS: f64 = 7.0;
-    let block_min = Vector3::new(pos.x.floor(), pos.y.floor(), pos.z.floor());
-    BoundingBox::new(
-        Vector3::new(
-            block_min.x - SEARCH_RADIUS,
-            block_min.y - SEARCH_RADIUS,
-            block_min.z - SEARCH_RADIUS,
-        ),
-        Vector3::new(
-            block_min.x + 1.0 + SEARCH_RADIUS,
-            block_min.y + 1.0 + SEARCH_RADIUS,
-            block_min.z + 1.0 + SEARCH_RADIUS,
-        ),
-    )
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{knot_search_box, transfer_search_box};
+    use super::knot_search_box;
     use pumpkin_util::math::position::BlockPos;
-    use pumpkin_util::math::vector3::Vector3;
-
-    #[test]
-    fn transfer_box_spans_block_coordinates_plus_seven() {
-        // Knot centred in block (10, 64, 10).
-        let bb = transfer_search_box(Vector3::new(10.5, 64.375, 10.5));
-        assert_eq!(bb.min.x, 3.0);
-        assert_eq!(bb.max.x, 18.0);
-        assert_eq!(bb.min.y, 57.0);
-        assert_eq!(bb.max.y, 72.0);
-    }
 
     #[test]
     fn knot_search_box_spans_block_plus_minus_one() {

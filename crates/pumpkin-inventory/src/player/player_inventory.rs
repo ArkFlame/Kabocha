@@ -354,6 +354,43 @@ impl PlayerInventory {
         stack.item_count < start_count
     }
 
+    /// Returns how many items from `stack` the inventory can hold.
+    ///
+    /// Mojang name: `canHold`. The whole stack fits when any main slot is empty
+    /// or a matching stack has room; otherwise only the available room counts.
+    #[must_use]
+    pub fn can_hold(&self, stack: &ItemStack) -> usize {
+        if stack.is_empty() {
+            return 0;
+        }
+        let count = usize::from(stack.item_count);
+        let off_hand = self.off_hand_item();
+        let mut remaining = count;
+        let inv = self
+            .main_inventory
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for existing in inv.iter() {
+            if existing.is_empty() {
+                return count;
+            }
+            if Self::can_stack_add_more(existing, stack) {
+                let room = usize::from(existing.get_max_stack_size())
+                    .saturating_sub(usize::from(existing.item_count));
+                remaining = remaining.saturating_sub(room);
+            }
+            if remaining == 0 {
+                return count;
+            }
+        }
+        if Self::can_stack_add_more(&off_hand, stack) {
+            let room = usize::from(off_hand.get_max_stack_size())
+                .saturating_sub(usize::from(off_hand.item_count));
+            remaining = remaining.saturating_sub(room);
+        }
+        count.saturating_sub(remaining)
+    }
+
     /// Finds the first slot containing a matching stack.
     ///
     /// # Returns
@@ -660,6 +697,21 @@ mod tests {
         let equipment_slots = Arc::new(build_equipment_slots());
         let entity_equipment = Arc::new(Mutex::new(EntityEquipment::new()));
         PlayerInventory::new(entity_equipment, equipment_slots)
+    }
+
+    #[test]
+    fn can_hold_reports_capacity() {
+        let inv = create_test_inventory();
+        let arrows = ItemStack::new(10, &Item::ARROW);
+        assert_eq!(inv.can_hold(&arrows), 10);
+
+        for i in 0..PlayerInventory::MAIN_SIZE {
+            inv.set_slot(i, ItemStack::new(64, &Item::DIRT));
+        }
+        assert_eq!(inv.can_hold(&arrows), 0);
+
+        inv.set_slot(0, ItemStack::new(60, &Item::ARROW));
+        assert_eq!(inv.can_hold(&arrows), 4);
     }
 
     #[test]

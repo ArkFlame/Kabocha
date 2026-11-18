@@ -36,8 +36,6 @@ impl Ignition {
     where
         F: FnOnce(Arc<World>, BlockPos, BlockStateId),
     {
-        let fire_block = FireBlockBase::get_fire_type(world, &fire_pos);
-
         let state_id = world.get_block_state_id(&location);
 
         if let Some(new_state_id) = can_be_lit(block, state_id) {
@@ -45,7 +43,7 @@ impl Ignition {
             return true;
         }
 
-        let state_id = FireBlock.get_state_for_position(world, &fire_block, &fire_pos);
+        let state_id = FireBlock.get_placement_state(world, &fire_pos, 0);
         if FireBlockBase::can_place_at(world, &fire_pos) {
             ignite_logic(world.clone(), fire_pos, state_id);
             return true;

@@ -18,6 +18,7 @@ use pumpkin_util::math::position::BlockPos;
 
 use uuid::Uuid;
 
+use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob, STRIDER_BABY_SPAWN_CHANCE},
@@ -48,7 +49,19 @@ pub struct StriderEntity {
 
 impl StriderEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        // Vanilla `Strider` constructor: lava and fire cost nothing to path through, water is avoided.
+        // Vanilla `StriderPathNavigation` keeps the walk evaluator, so the ground navigator stays.
+        {
+            let navigator = mob_entity
+                .navigator
+                .get_mut()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            navigator.set_pathfinding_malus(PathType::Lava, 0.0);
+            navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
+            navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
+            navigator.set_pathfinding_malus(PathType::Water, -1.0);
+        }
         let strider = Self {
             mob_entity,
             ageable_data: AgeableData::default(),

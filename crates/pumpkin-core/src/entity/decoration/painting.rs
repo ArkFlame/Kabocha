@@ -1,6 +1,7 @@
 use core::f32;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::block::blocks::redstone::is_diode;
 use crate::entity::decoration::hanging::{self, DEPTH};
 use crossbeam::atomic::AtomicCell;
 use pumpkin_nbt::tag::NbtTag;
@@ -9,12 +10,12 @@ use crate::server::Server;
 
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
-use pumpkin_data::BlockDirection;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::painting_variant::PaintingVariant;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::{Block, BlockDirection};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::Metadata;
@@ -60,6 +61,12 @@ const fn facing_to_horizontal(direction: BlockDirection) -> u8 {
 
 /// Vanilla `BlockAttachedEntity.CHECK_INTERVAL`: support is re-validated every 100 ticks.
 const SUPPORT_CHECK_INTERVAL: u32 = 100;
+
+/// Vanilla `HangingEntity.isSupportingBlock`: diodes also support hanging entities.
+#[must_use]
+fn is_supporting_block(block: &Block, solid: bool) -> bool {
+    solid || is_diode(block)
+}
 
 pub struct PaintingEntity {
     pub entity: Entity,
@@ -204,7 +211,7 @@ impl PaintingEntity {
     }
 
     /// Checks if a painting of the specified variant fits on the wall at `location` facing `face`.
-    /// The wall blocks behind the painting must be solid, and the blocks in front must not be solid.
+    /// The wall blocks behind the painting must be solid or a diode, and the blocks in front must not be solid.
     #[must_use]
     pub fn painting_fits(
         world: &crate::world::World,
@@ -230,8 +237,8 @@ impl PaintingEntity {
                 ));
                 let front_pos = wall_pos.offset(face_offset);
 
-                let wall_state = world.get_block_state(&wall_pos);
-                if !wall_state.is_solid() {
+                let (wall_block, wall_state) = world.get_block_and_state(&wall_pos);
+                if !is_supporting_block(wall_block, wall_state.is_solid()) {
                     return false;
                 }
 
@@ -478,6 +485,15 @@ mod tests {
     fn out_of_range_values_wrap_into_horizontal_directions() {
         assert!(facing_from_horizontal(4).is_horizontal());
         assert!(facing_from_horizontal(255).is_horizontal());
+    }
+
+    #[test]
+    fn diode_blocks_support_hanging_entities() {
+        // Vanilla `HangingEntity.isSupportingBlock`: isSolid || isDiode.
+        assert!(is_supporting_block(&Block::REPEATER, false));
+        assert!(is_supporting_block(&Block::COMPARATOR, false));
+        assert!(is_supporting_block(&Block::STONE, true));
+        assert!(!is_supporting_block(&Block::STONE, false));
     }
 
     #[test]

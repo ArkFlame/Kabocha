@@ -35,17 +35,10 @@ static ERROR_TAKE_FAILED: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_RECIPE_TAKE_FAILED,
 );
 
-fn get_recipe_id(recipe: &DynamicRecipe) -> String {
-    recipe.recipe_id().map_or_else(
-        || match recipe {
-            DynamicRecipe::Crafting(
-                pumpkin_protocol::codec::recipe::OwnedCraftingRecipe::Shaped { result, .. }
-                | pumpkin_protocol::codec::recipe::OwnedCraftingRecipe::Shapeless { result, .. },
-            ) => result.item_id.clone(),
-            _ => String::new(),
-        },
-        str::to_string,
-    )
+/// Vanilla resolves the recipe argument against the recipe manager keys only, so a recipe
+/// without a key (unregistered crafting recipe) never matches.
+fn recipe_matches(recipe: &DynamicRecipe, recipe_str: &str) -> bool {
+    recipe.recipe_id() == Some(recipe_str)
 }
 
 /// A recipe manager key when it is learnable (vanilla `LEARNABLE_RECIPE` = !isSpecial).
@@ -149,10 +142,7 @@ impl CommandExecutor for RecipeGiveExecutor {
 
         let all_recipes = server.recipe_manager.get_dynamic_recipes_internal();
         let is_all = recipe_str == "*";
-        let matches = |recipe: &DynamicRecipe| {
-            let id = get_recipe_id(recipe);
-            id == recipe_str || id.strip_prefix("minecraft:").unwrap_or(&id) == recipe_str
-        };
+        let matches = |recipe: &DynamicRecipe| recipe_matches(recipe, &recipe_str);
         let matching_recipes = if is_all {
             all_recipes
         } else {
@@ -244,10 +234,7 @@ impl CommandExecutor for RecipeTakeExecutor {
 
         // Vanilla resolves the id against the recipe manager, so a recipe that exists but has no
         // recipe book display (smithing, stonecutting, special crafting) is still valid here.
-        let matches = |recipe: &DynamicRecipe| {
-            let id = get_recipe_id(recipe);
-            id == recipe_str || id.strip_prefix("minecraft:").unwrap_or(&id) == recipe_str
-        };
+        let matches = |recipe: &DynamicRecipe| recipe_matches(recipe, &recipe_str);
 
         let matched_count = if is_all {
             0
@@ -451,5 +438,33 @@ mod tests {
         assert!(
             take_display_ids(&mut known_none, &recipes, &display_ids, true, &matches).is_empty()
         );
+    }
+
+    #[test]
+    fn recipe_matching_uses_manager_keys_only() {
+        use pumpkin_protocol::codec::recipe::{
+            OwnedCraftingRecipe, OwnedRecipeIngredient, OwnedRecipeResult,
+        };
+
+        let shapeless = |id: Option<&str>| {
+            DynamicRecipe::Crafting(OwnedCraftingRecipe::Shapeless {
+                recipe_id: id.map(str::to_string),
+                category: pumpkin_data::recipes::RecipeCategoryTypes::Misc,
+                group: None,
+                ingredients: vec![OwnedRecipeIngredient::Simple("minecraft:stone".to_string())],
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:dirt".to_string(),
+                    count: 1,
+                },
+            })
+        };
+
+        // A keyless recipe used to match through its result item id; vanilla only knows keys.
+        assert!(!recipe_matches(&shapeless(None), "minecraft:dirt"));
+        assert!(recipe_matches(
+            &shapeless(Some("minecraft:dirt")),
+            "minecraft:dirt"
+        ));
+        assert!(!recipe_matches(&shapeless(Some("minecraft:dirt")), "dirt"));
     }
 }

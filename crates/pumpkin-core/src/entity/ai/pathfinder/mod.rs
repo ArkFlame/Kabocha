@@ -13,7 +13,7 @@ use crate::entity::ai::pathfinder::node_evaluator::{BaseNodeEvaluator, MobData, 
 use crate::entity::ai::pathfinder::path::Path;
 use crate::entity::ai::pathfinder::pathfinding_context::PathfindingContext;
 use crate::entity::ai::pathfinder::swim_node_evaluator::SwimNodeEvaluator;
-use crate::entity::ai::pathfinder::walk_node_evaluator::WalkNodeEvaluator;
+use crate::entity::ai::pathfinder::walk_node_evaluator::{HomeRestriction, WalkNodeEvaluator};
 use pumpkin_data::attributes::Attributes;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::ops::{Deref, DerefMut};
@@ -438,6 +438,8 @@ pub trait PathNavigationTrait: Send + Sync {
     fn recompute_path(&mut self, entity: &LivingEntity);
     fn should_recompute_path(&self, entity: &LivingEntity, position: BlockPos) -> bool;
     fn set_avoid_sun(&mut self, avoid_sun: bool);
+    /// Vanilla `createNavigation` override hook for `HomeNodeEvaluator`; only walk navigators use it.
+    fn set_home_restriction(&mut self, _home: Option<HomeRestriction>) {}
     fn set_can_walk_over_fences(&mut self, can_walk: bool);
     fn set_can_open_doors(&mut self, can_open: bool);
     fn set_can_pass_doors(&mut self, can_pass: bool);
@@ -510,6 +512,13 @@ impl Default for PathNavigation {
 }
 
 impl PathNavigation {
+    /// Points the walk evaluator at a live home position, or clears it.
+    pub fn set_home_restriction(&mut self, home: Option<HomeRestriction>) {
+        if let EvaluatorKind::Walk(evaluator) = &mut self.evaluator {
+            evaluator.home_restriction = home;
+        }
+    }
+
     const fn waypoint_margin(width: f32) -> f32 {
         if width > 0.75 {
             width * 0.5
@@ -1398,6 +1407,9 @@ impl PathNavigationTrait for GroundPathNavigation {
 
     fn set_avoid_sun(&mut self, avoid_sun: bool) {
         self.inner.avoid_sun = avoid_sun;
+    }
+    fn set_home_restriction(&mut self, home: Option<HomeRestriction>) {
+        self.inner.set_home_restriction(home);
     }
 
     fn set_can_walk_over_fences(&mut self, can_walk: bool) {
@@ -2681,6 +2693,11 @@ impl Navigator {
     #[must_use]
     pub fn wall_climber() -> Self {
         Self::new(WallClimberNavigation::new())
+    }
+
+    /// Vanilla `Creaking.HomeNodeEvaluator`: restrict walk paths to the live home position.
+    pub fn set_home_restriction(&mut self, home: Option<HomeRestriction>) {
+        self.inner.set_home_restriction(home);
     }
 
     #[must_use]

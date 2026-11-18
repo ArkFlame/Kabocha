@@ -268,7 +268,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:iron_golem_pattern_clears_all_four_blocks",
     "pumpkin:different_item_entities_do_not_merge",
     "pumpkin:item_entities_stack_up_to_combined_count",
-    // boat_block_effects (7)
+    // boat_block_effects (9)
     "pumpkin:boat_breaks_lily_pad_on_landing",
     "pumpkin:boat_sweep_ignites_on_fire",
     "pumpkin:birch_boat_floats_then_drops_on_break",
@@ -277,6 +277,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:boat_ejects_passenger_after_60_underwater_ticks",
     "pumpkin:chest_boat_scatters_27_slots_on_break",
     "pumpkin:acacia_chest_boat_contents_and_item_drop",
+    "pumpkin:chest_boat_scatters_slots_on_kill",
 ];
 
 #[must_use]
@@ -1863,6 +1864,13 @@ pub fn ensure_builtin_game_tests_registered() {
             80,
             0,
             boat_block_effects::test_acacia_chest_boat_contents_and_item_drop,
+        );
+        register_function_test(
+            "pumpkin:chest_boat_scatters_slots_on_kill",
+            "pumpkin:empty_5x5x5",
+            80,
+            0,
+            boat_block_effects::test_chest_boat_scatters_slots_on_kill,
         );
     });
 }

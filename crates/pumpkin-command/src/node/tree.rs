@@ -469,7 +469,11 @@ impl<S: CommandSource> Tree<S> {
             let global_id = self[*id].global_id();
             let name = self[*id].name();
             self.ids_map.remove(&global_id);
-            self.command_node_mappings.remove(&name);
+            // A descendant literal or argument can share its name with an unrelated
+            // root command, so only drop a mapping that points at a node we remove.
+            if self.command_node_mappings.get(&name).copied() == Some(CommandNodeId(id.0)) {
+                self.command_node_mappings.remove(&name);
+            }
         }
 
         // Replacing the node drops the plugin code its executor and predicates held.

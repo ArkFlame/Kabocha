@@ -785,13 +785,13 @@ pub fn get_top_non_colliding_pos(
 
     let pos = BlockPos::new(x, y, z);
 
-    adjust_spawn_position_cache(cache, pos, entity_type)
+    adjust_spawn_position_cache(world, cache, pos, entity_type)
 }
 
 /// Shared decision for vanilla `SpawnPlacementTypes.ON_GROUND.adjustSpawnPosition`:
 /// step the candidate down onto the block below when that block is pathfindable on
-/// land (its collision shape is not a full cube, the `BlockBehaviour.isPathfindable`
-/// LAND branch). Both the chunk-generation and runtime paths use this one rule.
+/// land (`BlockBehaviour.isPathfindable` LAND branch). Both the chunk-generation and
+/// runtime paths feed this the same registry-backed predicate.
 #[must_use]
 fn adjust_spawn_position_down(pos: BlockPos, below_is_pathfindable: bool) -> BlockPos {
     if below_is_pathfindable {
@@ -802,6 +802,7 @@ fn adjust_spawn_position_down(pos: BlockPos, below_is_pathfindable: bool) -> Blo
 }
 
 pub fn adjust_spawn_position_cache(
+    world: &World,
     cache: &dyn GenerationCache,
     pos: BlockPos,
     entity_type: &'static EntityType,
@@ -811,9 +812,16 @@ pub fn adjust_spawn_position_cache(
         SpawnLocation::OnGround
     ) {
         let below = pos.down();
-        let state = GenerationCache::get_block_state(cache, &below.0).to_state();
-        // Liquids have no full collision shape, so vanilla treats them as pathfindable.
-        return adjust_spawn_position_down(pos, !state.is_full_cube());
+        let state_id = GenerationCache::get_block_state(cache, &below.0);
+        // Use the registry-backed predicate from the live path so the same mob lands at
+        // the same height whether spawned in a generated chunk or later. `is_full_cube`
+        // alone ignores blocks that override isPathfindable (fences, walls, and so on).
+        let pathfindable = world.block_registry.is_pathfindable(
+            state_id.to_block(),
+            state_id.to_state(),
+            PathComputationType::Land,
+        );
+        return adjust_spawn_position_down(pos, pathfindable);
     }
     pos
 }

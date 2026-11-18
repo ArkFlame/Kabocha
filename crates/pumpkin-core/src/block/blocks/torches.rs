@@ -1,6 +1,6 @@
 use crate::block::{
-    BlockBehaviour, BlockIsReplacing, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnPlaceArgs, can_support_center,
+    BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    can_support_center,
 };
 use crate::entity::EntityBase;
 use pumpkin_data::BlockStateId;
@@ -31,33 +31,20 @@ impl BlockMetadata for TorchBlock {
 
 impl BlockBehaviour for TorchBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if args.direction == BlockDirection::Down
-            && can_support_center(args.world, &args.position.down(), BlockDirection::Up)
-        {
-            return args.block.default_state.id;
-        }
         let mut directions = args.player.get_entity().get_entity_facing_order();
-
-        if args.replacing == BlockIsReplacing::None {
-            let face = args.direction.to_facing();
-            let mut i = 0;
-            while i < directions.len() && directions[i] != face {
-                i += 1;
-            }
-
-            if i > 0 {
-                directions.copy_within(0..i, 1);
-                directions[0] = face;
-            }
-        } else if directions[0] == Facing::Down
-            && can_support_center(args.world, &args.position.down(), BlockDirection::Up)
-        {
-            return args.block.default_state.id;
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position {
+            prefer_facing(&mut directions, args.direction.to_facing());
         }
-
+        // Vanilla `StandingAndWallBlockItem` walks one ordered list: DOWN asks for the
+        // standing torch, horizontals for the wall torch, UP is skipped.
         for dir in directions {
-            if dir != Facing::Up
-                && dir != Facing::Down
+            if dir == Facing::Down {
+                if can_support_center(args.world, &args.position.down(), BlockDirection::Up) {
+                    return args.block.default_state.id;
+                }
+            } else if dir != Facing::Up
                 && can_place_at(args.world, args.position, dir.to_block_direction())
             {
                 let wall_block = {
@@ -76,12 +63,7 @@ impl BlockBehaviour for TorchBlock {
                 }
             }
         }
-
-        if can_support_center(args.world, &args.position.down(), BlockDirection::Up) {
-            args.block.default_state.id
-        } else {
-            BlockStateId::AIR
-        }
+        BlockStateId::AIR
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
@@ -150,4 +132,48 @@ fn can_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos, facing: BlockDi
     world
         .get_block_state(&block_pos.offset(facing.to_offset()))
         .is_side_solid(facing.opposite())
+}
+
+/// Moves `face` to the front of `directions`, keeping the rest of the order, the same
+/// reorder vanilla `BlockPlaceContext.getNearestLookingDirections` applies.
+fn prefer_facing(directions: &mut [Facing; 6], face: Facing) {
+    let Some(index) = directions.iter().position(|&dir| dir == face) else {
+        return;
+    };
+    if index > 0 {
+        directions.copy_within(0..index, 1);
+        directions[0] = face;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefer_facing_moves_the_clicked_face_first() {
+        let mut directions = [
+            Facing::North,
+            Facing::South,
+            Facing::East,
+            Facing::West,
+            Facing::Up,
+            Facing::Down,
+        ];
+        prefer_facing(&mut directions, Facing::East);
+        assert_eq!(
+            directions,
+            [
+                Facing::East,
+                Facing::North,
+                Facing::South,
+                Facing::West,
+                Facing::Up,
+                Facing::Down,
+            ]
+        );
+
+        prefer_facing(&mut directions, Facing::North);
+        assert_eq!(directions[0], Facing::North);
+    }
 }

@@ -59,6 +59,12 @@ impl RamTimer {
         self.ready_at = Some(now + cooldown);
         self.stunned_until = now + RAM_STUN_TICKS;
     }
+
+    /// Vanilla `PrepareRamNearestTarget.stop` sets the minimum cooldown when a ram is
+    /// interrupted before impact, without the post-impact stun.
+    pub const fn fail_ram(&mut self, now: i64, cooldown: i64) {
+        self.ready_at = Some(now + cooldown);
+    }
 }
 
 fn is_screaming(mob: &dyn Mob) -> bool {
@@ -88,8 +94,8 @@ fn speed_boost_power(mob: &dyn Mob) -> f64 {
 }
 
 /// Pure form of vanilla's `0.25 * (speedLevel - slownessLevel)` knockback modifier.
-fn knockback_speed_boost(speed_level: i32, slowness_level: i32) -> f64 {
-    0.25 * f64::from(speed_level - slowness_level)
+const fn knockback_speed_boost(speed_level: i32, slowness_level: i32) -> f64 {
+    0.25 * (speed_level - slowness_level) as f64
 }
 
 /// Vanilla `RamTarget.tick` halves knockback when the target blocks with a shield.
@@ -117,6 +123,16 @@ fn roll_cooldown(screaming: bool) -> i64 {
 /// ram, via `RamTarget.finishRam`.
 fn initial_ram_cooldown() -> i64 {
     roll_cooldown(false)
+}
+
+/// Vanilla `PrepareRamNearestTarget.getCooldownOnFail`: `minInclusive()` of
+/// `TIME_BETWEEN_RAMS` / `TIME_BETWEEN_RAMS_SCREAMER` when a ram is cancelled.
+const fn fail_cooldown(screaming: bool) -> i64 {
+    if screaming {
+        SCREAMER_RAM_COOLDOWN_MIN_TICKS
+    } else {
+        RAM_COOLDOWN_MIN_TICKS
+    }
 }
 
 /// Vanilla goat ram activity: `PrepareRamNearestTarget` (walk in and prepare) then `RamTarget`
@@ -249,10 +265,11 @@ impl Goal for RamTargetGoal {
         self.repath_ticks = 0;
         // Vanilla PrepareRamNearestTarget broadcasts START_RAM when the ram position is reached.
         let entity = mob.get_entity();
-        entity
-            .world
-            .load()
-            .broadcast_entity_event(entity, EntityStatus::StartRam, ActorEventID::None);
+        entity.world.load().broadcast_entity_event(
+            entity,
+            EntityStatus::StartRam,
+            ActorEventID::None,
+        );
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
@@ -261,12 +278,13 @@ impl Goal for RamTargetGoal {
         self.preparing = false;
         mob.get_mob_entity().stop_navigation();
         if was_raming {
-            // Vanilla PrepareRamNearestTarget broadcasts END_RAM when a ram is cancelled.
+            // Vanilla PrepareRamNearestTarget broadcasts END_RAM and sets the minimum
+            // cooldown (getCooldownOnFail) when a ram is cancelled before impact.
             let entity = mob.get_entity();
-            entity
-                .world
-                .load()
-                .broadcast_entity_event(entity, EntityStatus::EndRam, ActorEventID::None);
+            let world = entity.world.load();
+            world.broadcast_entity_event(entity, EntityStatus::EndRam, ActorEventID::None);
+            self.timer
+                .fail_ram(world.get_world_age(), fail_cooldown(is_screaming(mob)));
         }
     }
 
@@ -347,6 +365,21 @@ mod tests {
         for _ in 0..64 {
             assert!(initial_ram_cooldown() > SCREAMER_RAM_COOLDOWN_MAX_TICKS);
         }
+    }
+
+    #[test]
+    fn fail_cooldown_is_the_range_minimum() {
+        assert_eq!(fail_cooldown(false), RAM_COOLDOWN_MIN_TICKS);
+        assert_eq!(fail_cooldown(true), SCREAMER_RAM_COOLDOWN_MIN_TICKS);
+    }
+
+    #[test]
+    fn failed_ram_cools_down_without_stunning() {
+        let mut timer = RamTimer::default();
+        // A tiny cooldown makes a stray 40-tick post-impact stun observable.
+        timer.fail_ram(10, 5);
+        assert!(!timer.can_ram(14, || 0));
+        assert!(timer.can_ram(15, || 0));
     }
 
     #[test]

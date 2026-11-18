@@ -320,11 +320,13 @@ impl EntityBase for SplashPotionEntity {
             chunk_pos,
             &CWorldEvent::new(particle_event, block_pos, color, false),
         );
-        // Vanilla splits the splash sound into its own level event.
-        world.broadcast_to_chunk(
-            chunk_pos,
-            &CWorldEvent::new(sound_event, block_pos, 0, false),
-        );
+        // Vanilla splits the splash sound into its own level event and plays it only when not silent.
+        if !self.get_entity().is_silent() {
+            world.broadcast_to_chunk(
+                chunk_pos,
+                &CWorldEvent::new(sound_event, block_pos, 0, false),
+            );
+        }
 
         let search_box = self.get_entity().bounding_box.load().expand(4.0, 2.0, 4.0);
         rehydrate_axolotls_around(&world, &stack, &search_box);

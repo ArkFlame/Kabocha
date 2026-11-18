@@ -15,6 +15,7 @@ use pumpkin_world::world::BlockFlags;
 use rand::RngExt;
 
 use crate::block::blocks::fire::FireBlockBase;
+use crate::block::blocks::fire::fire::FireBlock;
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase};
 use crate::server::Server;
@@ -105,12 +106,17 @@ impl LightningBoltEntity {
             return;
         }
 
+        // Vanilla LightningBolt.spawnFire gates both the main and the additional
+        // placements on the same radius check the fire tick uses.
         let pos = self.entity.block_pos.load();
+        if !FireBlock::can_spread_fire_around(world, &pos) {
+            return;
+        }
 
         let try_place = |p: BlockPos| {
             if world.get_block_state(&p).is_air() && FireBlockBase::can_place_at(world, &p) {
-                let fire_block = FireBlockBase::get_fire_type(world, &p);
-                world.set_block_state(&p, fire_block.default_state.id, BlockFlags::NOTIFY_ALL);
+                let state = FireBlock.get_placement_state(world, &p, 0);
+                world.set_block_state(&p, state, BlockFlags::NOTIFY_ALL);
                 self.blocks_set_on_fire.fetch_add(1, Ordering::Relaxed);
             }
         };

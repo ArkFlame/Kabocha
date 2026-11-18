@@ -9,8 +9,8 @@ use pumpkin_world::world::{BlockAccessor, BlockFlags};
 use rand::RngExt;
 
 use crate::block::{
-    BlockBehaviour, BlockIsReplacing, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnPlaceArgs, PathComputationType, RandomTickArgs,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    PathComputationType, RandomTickArgs,
 };
 use crate::entity::EntityBase;
 
@@ -57,7 +57,9 @@ impl BlockBehaviour for CocoaBlock {
         let mut props = CocoaProperties::default(args.block);
         props.age = 0;
 
-        if args.replacing == BlockIsReplacing::None
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position
             && let Some(facing) = args.direction.to_horizontal_facing()
             && Self::can_survive(args.world, args.position, facing)
         {

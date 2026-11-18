@@ -159,6 +159,38 @@ impl AreaEffectCloudEntity {
             owner: EntityReference::new(owner),
         })
     }
+
+    /// Creates the sitting flame cloud spawned while the dragon sits on the portal.
+    pub fn create_sitting_flame(entity: Entity) -> Arc<dyn EntityBase> {
+        entity
+            .no_physics
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        Arc::new(Self {
+            entity,
+            item_stack: Mutex::new(ItemStack::new(0, &pumpkin_data::item::Item::DRAGON_BREATH)),
+            // Vanilla sitting flame: radius 5, duration 200, no radiusPerTick/radiusOnUse/
+            // durationOnUse, potion duration scale 0.25, plain Instant Damage (amplifier 0).
+            effects: Mutex::new(vec![(
+                &StatusEffect::INSTANT_DAMAGE,
+                1,
+                0,
+                false,
+                true,
+                true,
+            )]),
+            radius: Mutex::new(5.0),
+            duration: Mutex::new(200),
+            age: Mutex::new(0),
+            reapplication_delay: Mutex::new(20),
+            reapplication_map: Mutex::new(HashMap::new()),
+            radius_on_tick: Mutex::new(0.0),
+            radius_on_use: Mutex::new(0.0),
+            duration_on_use: Mutex::new(0),
+            potion_duration_scale: Mutex::new(0.25),
+            wait_time: Mutex::new(20),
+            owner: EntityReference::none(),
+        })
+    }
 }
 
 impl EntityBase for AreaEffectCloudEntity {

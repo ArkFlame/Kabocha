@@ -957,7 +957,10 @@ fn write_stored_score(
         return Err(read_only_store_error());
     }
     if !is_active {
-        // This scoreboard cannot retain vanilla's orphan scores, so ignore a same-name replacement.
+        // Vanilla writes into the orphan objective's PlayerScores; a same-name live objective is not touched.
+        for holder in targets {
+            scoreboard.set_orphan_score(objective, &holder.name, value);
+        }
         return Ok(());
     }
 
@@ -2824,6 +2827,20 @@ mod tests {
 
         write_stored_score(&mut scoreboard, &NoTarget, &holders, &captured, 42).unwrap();
         assert_eq!(scoreboard.get_score("holder", "dummy"), None);
+    }
+
+    #[test]
+    fn loading_saved_nbt_discards_orphan_scores() {
+        let mut scoreboard = Scoreboard::new();
+        scoreboard.add_objective(&NoTarget, objective("dummy", "dummy"));
+        let captured = scoreboard.get_objective("dummy").unwrap().clone();
+        scoreboard.remove_objective(&NoTarget, "dummy");
+        scoreboard.set_orphan_score(&captured, "holder", 42);
+        assert_eq!(scoreboard.get_orphan_score(&captured, "holder"), Some(42));
+
+        scoreboard.load_saved_nbt(&NbtCompound::new());
+
+        assert_eq!(scoreboard.get_orphan_score(&captured, "holder"), None);
     }
 
     #[test]

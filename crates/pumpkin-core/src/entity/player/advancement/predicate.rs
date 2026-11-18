@@ -969,6 +969,8 @@ pub struct EntityState {
     /// Block under the entity, set only when it is on the ground;
     /// vanilla skips `SteppingOnPredicate` otherwise.
     pub stepping_block: Option<String>,
+    /// Vehicle entity type, matching vanilla `VehiclePredicate` (`entity.getVehicle()`).
+    pub vehicle_type: Option<String>,
 }
 
 impl EntityState {
@@ -1010,12 +1012,19 @@ impl EntityState {
                 let pos = living.entity.get_on_pos();
                 living.entity.world.load().get_block(&pos).name.to_string()
             });
+        let vehicle_type = living.entity.get_vehicle().map(|vehicle| {
+            format!(
+                "minecraft:{}",
+                vehicle.get_entity().entity_type.resource_name
+            )
+        });
         Self {
             distance,
             is_baby: Some(living.is_baby()),
             effects,
             equipment,
             stepping_block,
+            vehicle_type,
         }
     }
 }
@@ -1028,6 +1037,7 @@ impl std::fmt::Debug for EntityState {
             .field("effects", &self.effects.len())
             .field("equipment", &self.equipment)
             .field("stepping_block", &self.stepping_block)
+            .field("vehicle_type", &self.vehicle_type)
             .finish()
     }
 }
@@ -1164,6 +1174,15 @@ impl EntityPredicate {
                 return false;
             };
             if !stepping.matches(RegistryKey::Block, block) {
+                return false;
+            }
+        }
+        // Vanilla VehiclePredicate.matches fails when the entity has no vehicle.
+        if let Some(vehicle) = &self.vehicle_type {
+            let Some(actual) = state.vehicle_type.as_deref() else {
+                return false;
+            };
+            if !vehicle.matches(RegistryKey::EntityType, actual) {
                 return false;
             }
         }
@@ -4048,6 +4067,7 @@ mod tests {
             effects: vec![active(&StatusEffect::SPEED)],
             equipment: vec![("head".to_string(), "minecraft:leather_helmet".to_string())],
             stepping_block: None,
+            vehicle_type: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state;
@@ -4058,5 +4078,19 @@ mod tests {
         let mut wrong_head = amplified.clone();
         wrong_head.equipment = vec![("head".to_string(), "minecraft:diamond_helmet".to_string())];
         assert!(!pred.matches_entity("minecraft:cow", &wrong_head));
+    }
+
+    #[test]
+    fn entity_vehicle_predicate_is_enforced() {
+        let pred = EntityPredicate::from_value(&json!({
+            "vehicle": {"type": "minecraft:boat"}
+        }));
+        let mut state = EntityState::default();
+        // Vanilla VehiclePredicate.matches returns false when the entity has no vehicle.
+        assert!(!pred.matches_entity("minecraft:player", &state));
+        state.vehicle_type = Some("minecraft:boat".to_string());
+        assert!(pred.matches_entity("minecraft:player", &state));
+        state.vehicle_type = Some("minecraft:minecart".to_string());
+        assert!(!pred.matches_entity("minecraft:player", &state));
     }
 }

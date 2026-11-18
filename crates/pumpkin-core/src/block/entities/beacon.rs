@@ -282,8 +282,10 @@ impl BeaconBlockEntity {
         };
 
         for player in world.players.load().iter() {
-            // Vanilla `applyEffects` does not filter spectators.
-            if !bounds.intersects(&player.living_entity.entity.bounding_box.load()) {
+            // Vanilla `getEntitiesOfClass` filters via `EntitySelector.NO_SPECTATORS`.
+            if player.is_spectator()
+                || !bounds.intersects(&player.living_entity.entity.bounding_box.load())
+            {
                 continue;
             }
             player.add_effect(effect(primary, base_amp));
@@ -317,7 +319,9 @@ impl BeaconBlockEntity {
     fn trigger_construct_beacon(&self, world: &World, levels: i32) {
         let bounds = Self::construct_beacon_bounds(self.position);
         for player in world.players.load().iter() {
-            if !bounds.intersects(&player.living_entity.entity.bounding_box.load()) {
+            if player.is_spectator()
+                || !bounds.intersects(&player.living_entity.entity.bounding_box.load())
+            {
                 continue;
             }
             player.trigger_advancement(AdvancementTrigger::ConstructBeacon { level: levels });

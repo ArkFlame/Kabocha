@@ -4,6 +4,7 @@ use pumpkin_util::text::TextComponent;
 use std::sync::Arc;
 
 /// An event that occurs when an entity dies.
+#[cancellable]
 #[derive(Event, Clone)]
 pub struct EntityDeathEvent {
     /// The ID of the entity that died.
@@ -19,6 +20,7 @@ impl EntityDeathEvent {
         Self {
             entity_id,
             dropped_exp,
+            cancelled: false,
         }
     }
 }

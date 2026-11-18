@@ -600,61 +600,57 @@ impl DisplayEntity {
     }
 
     pub fn read_display_nbt(&self, nbt: &NbtCompound) {
-        if let Some(dur) = nbt.get_int("interpolation_duration") {
-            self.interpolation_duration.store(dur, Ordering::Relaxed);
-        }
-        if let Some(start) = nbt.get_int("start_interpolation") {
-            self.interpolation_start_delta_ticks
-                .store(start, Ordering::Relaxed);
-        }
+        // Vanilla reads every field with a default, so a missing key resets it.
+        self.interpolation_duration.store(
+            nbt.get_int("interpolation_duration").unwrap_or(0),
+            Ordering::Relaxed,
+        );
+        self.interpolation_start_delta_ticks.store(
+            nbt.get_int("start_interpolation").unwrap_or(0),
+            Ordering::Relaxed,
+        );
         self.teleport_duration.store(
             nbt.get_int("teleport_duration")
                 .unwrap_or(0)
                 .clamp(0, TELEPORT_DURATION_MAX),
             Ordering::Relaxed,
         );
-        if let Some(vr) = nbt.get_float("view_range") {
-            *self
-                .view_range
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = vr;
-        }
-        if let Some(sr) = nbt.get_float("shadow_radius") {
-            *self
-                .shadow_radius
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = sr;
-        }
-        if let Some(ss) = nbt.get_float("shadow_strength") {
-            *self
-                .shadow_strength
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = ss;
-        }
-        if let Some(w) = nbt.get_float("width") {
-            *self
-                .width
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = w;
-        }
-        if let Some(h) = nbt.get_float("height") {
-            *self
-                .height
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = h;
-        }
-        if let Some(glow) = nbt.get_int("glow_color_override") {
-            self.glow_color_override.store(glow, Ordering::Relaxed);
-        }
-        if let Some(bb) = nbt.get_string("billboard") {
-            let mode = match bb {
-                "vertical" => 1,
-                "horizontal" => 2,
-                "center" => 3,
-                _ => 0,
-            };
-            self.billboard.store(mode, Ordering::Relaxed);
-        }
+        *self
+            .view_range
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get_float("view_range").unwrap_or(1.0);
+        *self
+            .shadow_radius
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get_float("shadow_radius").unwrap_or(0.0);
+        *self
+            .shadow_strength
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get_float("shadow_strength").unwrap_or(1.0);
+        *self
+            .width
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get_float("width").unwrap_or(0.0);
+        *self
+            .height
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get_float("height").unwrap_or(0.0);
+        self.glow_color_override.store(
+            nbt.get_int("glow_color_override").unwrap_or(-1),
+            Ordering::Relaxed,
+        );
+        let mode = match nbt.get_string("billboard").unwrap_or("fixed") {
+            "vertical" => 1,
+            "horizontal" => 2,
+            "center" => 3,
+            _ => 0,
+        };
+        self.billboard.store(mode, Ordering::Relaxed);
 
         // Vanilla decodes the whole `Brightness` record (both fields required,
         // each 0..=15); a missing key or a bad value clears the override.
@@ -670,36 +666,42 @@ impl DisplayEntity {
         self.brightness
             .store(brightness.unwrap_or(-1), Ordering::Relaxed);
 
-        // Vanilla decodes transformation as a single value, so a malformed or partial
-        // tag leaves the whole transform unchanged instead of applying only the
-        // fields that happen to parse.
-        if let Some(transform) = nbt.get_compound("transformation")
-            && let (Some(translation), Some(scale), Some(left_rotation), Some(right_rotation)) = (
-                float_list::<3>(transform, "translation"),
-                float_list::<3>(transform, "scale"),
-                float_list::<4>(transform, "left_rotation"),
-                float_list::<4>(transform, "right_rotation"),
-            )
-        {
-            *self
-                .translation
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                Vector3::new(translation[0], translation[1], translation[2]);
-            *self
-                .scale
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                Vector3::new(scale[0], scale[1], scale[2]);
-            *self
-                .left_rotation
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = left_rotation;
-            *self
-                .right_rotation
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = right_rotation;
-        }
+        // Vanilla decodes transformation as a single value; a missing or malformed
+        // tag resets it to identity.
+        let (translation, scale, left_rotation, right_rotation) = nbt
+            .get_compound("transformation")
+            .and_then(|transform| {
+                Some((
+                    float_list::<3>(transform, "translation")?,
+                    float_list::<3>(transform, "scale")?,
+                    float_list::<4>(transform, "left_rotation")?,
+                    float_list::<4>(transform, "right_rotation")?,
+                ))
+            })
+            .unwrap_or((
+                [0.0, 0.0, 0.0],
+                [1.0, 1.0, 1.0],
+                [0.0, 0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ));
+        *self
+            .translation
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Vector3::new(translation[0], translation[1], translation[2]);
+        *self
+            .scale
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Vector3::new(scale[0], scale[1], scale[2]);
+        *self
+            .left_rotation
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = left_rotation;
+        *self
+            .right_rotation
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = right_rotation;
     }
 }
 
@@ -770,15 +772,14 @@ impl EntityBase for BlockDisplayEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         self.display.read_display_nbt(nbt);
-        // Older Pumpkin saves stored the raw state id.
+        // Older Pumpkin saves stored the raw state id. Vanilla defaults a
+        // missing block state to air.
         let state = match nbt.get("block_state") {
-            Some(NbtTag::Int(id)) => Some(*id),
-            Some(NbtTag::Compound(c)) => Some(i32::from(block_state_from_nbt(c))),
-            _ => None,
+            Some(NbtTag::Int(id)) => *id,
+            Some(NbtTag::Compound(c)) => i32::from(block_state_from_nbt(c)),
+            _ => 0,
         };
-        if let Some(state) = state {
-            self.block_state.store(state, Ordering::Relaxed);
-        }
+        self.block_state.store(state, Ordering::Relaxed);
     }
 
     fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {}
@@ -905,28 +906,27 @@ impl EntityBase for ItemDisplayEntity {
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
         self.display.read_display_nbt(nbt);
-        if let Some(item_compound) = nbt.get_compound("item")
-            && let Some(stack) = ItemStack::read_item_stack(item_compound)
-        {
-            *self
-                .item_stack
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
-        }
-        if let Some(mode_str) = nbt.get_string("item_display") {
-            let mode = match mode_str {
-                "thirdperson_lefthand" => 1,
-                "thirdperson_righthand" => 2,
-                "firstperson_lefthand" => 3,
-                "firstperson_righthand" => 4,
-                "head" => 5,
-                "gui" => 6,
-                "ground" => 7,
-                "fixed" => 8,
-                _ => 0,
-            };
-            self.item_display.store(mode, Ordering::Relaxed);
-        }
+        // Vanilla defaults a missing or unreadable item to empty.
+        let stack = nbt
+            .get_compound("item")
+            .and_then(ItemStack::read_item_stack)
+            .unwrap_or_else(|| ItemStack::new(0, &pumpkin_data::item::Item::AIR));
+        *self
+            .item_stack
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
+        let mode = match nbt.get_string("item_display").unwrap_or("none") {
+            "thirdperson_lefthand" => 1,
+            "thirdperson_righthand" => 2,
+            "firstperson_lefthand" => 3,
+            "firstperson_righthand" => 4,
+            "head" => 5,
+            "gui" => 6,
+            "ground" => 7,
+            "fixed" => 8,
+            _ => 0,
+        };
+        self.item_display.store(mode, Ordering::Relaxed);
     }
 
     fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {}
@@ -1184,15 +1184,16 @@ impl EntityBase for TextDisplayEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = component;
         }
-        if let Some(lw) = nbt.get_int("line_width") {
-            self.line_width.store(lw, Ordering::Relaxed);
-        }
-        if let Some(bg) = nbt.get_int("background") {
-            self.background.store(bg, Ordering::Relaxed);
-        }
-        if let Some(opacity) = nbt.get_byte("text_opacity") {
-            self.text_opacity.store(opacity, Ordering::Relaxed);
-        }
+        self.line_width
+            .store(nbt.get_int("line_width").unwrap_or(200), Ordering::Relaxed);
+        self.background.store(
+            nbt.get_int("background").unwrap_or(1_073_741_824),
+            Ordering::Relaxed,
+        );
+        self.text_opacity.store(
+            nbt.get_byte("text_opacity").unwrap_or(-1),
+            Ordering::Relaxed,
+        );
 
         let mut flags = 0u8;
         if nbt.get_bool("shadow").unwrap_or(false) {

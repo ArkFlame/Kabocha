@@ -7,7 +7,7 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
 
 use crate::{
-    block::blocks::fire::{FireBlockBase, fire::FireBlock},
+    block::blocks::fire::fire::FireBlock,
     entity::{
         Entity, EntityBase,
         projectile::{HurtingProjectile, ProjectileHit, ThrownItemEntity},
@@ -115,8 +115,7 @@ impl EntityBase for SmallFireballEntity {
                 if owner.as_ref().is_none_or(|owner| owner.get_mob().is_none()) || griefing {
                     let fire_pos = pos.offset(face.to_offset());
                     if world.get_block_state(&fire_pos).is_air() {
-                        let fire = FireBlockBase::get_fire_type(&world, &fire_pos);
-                        let state = FireBlock.get_state_for_position(&world, &fire, &fire_pos);
+                        let state = FireBlock.get_placement_state(&world, &fire_pos, 0);
                         world.set_block_state(&fire_pos, state, BlockFlags::NOTIFY_ALL);
                     }
                 }

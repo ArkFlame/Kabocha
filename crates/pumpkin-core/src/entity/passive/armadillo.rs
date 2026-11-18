@@ -341,6 +341,11 @@ impl Animal for ArmadilloEntity {
             .item
             .has_tag(&tag::Item::MINECRAFT_ARMADILLO_FOOD)
     }
+
+    fn can_fall_in_love(&self) -> bool {
+        // Vanilla canFallInLove: a scared armadillo never enters love mode.
+        !self.is_scared() && !self.mob_entity.is_in_love()
+    }
 }
 
 impl CustomSound for ArmadilloEntity {
@@ -358,6 +363,11 @@ impl CustomSound for ArmadilloEntity {
 impl Mob for ArmadilloEntity {
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityArmadilloStep, 0.15, 1.0);
+    }
+
+    /// Vanilla `getMaxHeadYRot`: the head locks to the body while scared.
+    fn get_max_head_rotation(&self) -> f32 {
+        if self.is_scared() { 0.0 } else { 32.0 }
     }
 
     fn get_ambient_sound(&self) -> Option<Sound> {

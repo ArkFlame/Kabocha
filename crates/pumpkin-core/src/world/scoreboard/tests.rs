@@ -426,6 +426,62 @@ fn remove_score_only_announces_existing_scores() {
     assert_eq!(board.get_score_value("Alice", "board"), None);
 }
 
+#[derive(Default)]
+struct DisplaySendTarget {
+    editioned: std::sync::atomic::AtomicUsize,
+    je: std::sync::atomic::AtomicUsize,
+}
+
+impl ScoreboardTarget for DisplaySendTarget {
+    fn send_editioned<J: ClientPacket + Sync, B: BClientPacket + Sync>(
+        &self,
+        _je_packet: &J,
+        _be_packet: &B,
+    ) {
+        self.editioned.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn send_je<J: ClientPacket + Sync>(&self, _je_packet: &J) {
+        self.je.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn add_and_update_objective_do_not_write_a_bedrock_display() {
+    let target = DisplaySendTarget::default();
+    let mut board = Scoreboard::new();
+
+    board.add_objective(
+        &target,
+        ScoreboardObjective::new(
+            "board",
+            TextComponent::text("Board"),
+            RenderType::Integer,
+            None,
+            "dummy",
+        ),
+    );
+    assert_eq!(target.editioned.load(Ordering::SeqCst), 0);
+    assert_eq!(target.je.load(Ordering::SeqCst), 1);
+
+    board.update_objective(
+        &target,
+        ScoreboardObjective::new(
+            "board",
+            TextComponent::text("Renamed"),
+            RenderType::Integer,
+            None,
+            "dummy",
+        ),
+    );
+    assert_eq!(target.editioned.load(Ordering::SeqCst), 0);
+    assert_eq!(target.je.load(Ordering::SeqCst), 2);
+
+    // An explicit set_display_objective still writes the Bedrock display slot.
+    board.set_display_objective(&target, ScoreboardDisplaySlot::Sidebar, Some("board"));
+    assert_eq!(target.editioned.load(Ordering::SeqCst), 1);
+}
+
 fn plain_team(name: &str) -> Team {
     Team {
         name: name.into(),

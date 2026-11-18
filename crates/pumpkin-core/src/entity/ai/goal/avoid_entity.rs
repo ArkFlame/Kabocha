@@ -61,11 +61,9 @@ impl AvoidEntityGoal {
             goal_control: Controls::MOVE,
             flee_from: flee_from.into(),
             flee_distance,
-            // Vanilla forCombat with allowUnseeable and ignoreInvisibilityTesting:
-            // can attack, not allied, no line of sight, no invisibility-scaled range.
+            // Vanilla `TargetingConditions.forCombat().range(maxDist)`: can attack,
+            // not allied, and both line of sight and invisibility scaling are kept.
             threat_predicate: TargetPredicate::create_attackable()
-                .ignore_visibility()
-                .ignore_distance_scaling_factor()
                 .set_base_max_distance(flee_distance),
             slow_speed,
             fast_speed,
@@ -333,12 +331,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn creeper_flees_an_ocelot_without_line_of_sight() -> TestResult {
+    async fn creeper_does_not_flee_an_ocelot_it_cannot_see() -> TestResult {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         stone_floor(&world);
 
-        // A wall hides the ocelot: vanilla's allowUnseeable still lets the creeper flee.
+        // Vanilla `TargetingConditions.forCombat()` keeps the line of sight check.
         let flags = BlockFlags::SKIP_BLOCK_ADDED_CALLBACK | BlockFlags::UPDATE_KNOWN_SHAPE;
         for z in -3..=3 {
             for y in 64..=66 {
@@ -369,25 +367,16 @@ mod tests {
         ocelot.get_entity().on_ground.store(true, Ordering::Relaxed);
         world.spawn_entity(ocelot);
 
-        let mut started_at = None;
-        for tick in 1..=30 {
-            creeper
-                .get_entity()
-                .tick_count
-                .store(tick, Ordering::Relaxed);
-            creeper.mob_entity.server_ai_step(&*creeper, &*creeper);
-            if !creeper.is_navigator_idle() {
-                started_at = Some(tick);
-                break;
-            }
-        }
+        let mut goal = AvoidEntityGoal::new(TargetMatch::Type(&EntityType::OCELOT), 6.0, 1.0, 1.2);
+        let hidden = goal.find_threat(&*creeper).is_none();
+        let started = goal.can_start(&*creeper);
         world.level.shutdown().await;
 
-        let started_at = started_at.ok_or("creeper never fled an ocelot it cannot see")?;
         assert!(
-            started_at <= 20,
-            "flee started on tick {started_at}, later than vanilla's retry window"
+            hidden,
+            "the wall did not hide the ocelot from the threat search"
         );
+        assert!(!started, "creeper fled an ocelot behind a solid wall");
         Ok(())
     }
 

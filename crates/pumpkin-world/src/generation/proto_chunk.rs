@@ -145,6 +145,8 @@ pub struct ProtoChunk {
     pub z: i32,
     pub default_block: &'static BlockState,
     biome_mixer_seed: i64,
+    /// World seed for seed-derived features (End spikes); 0 for custom generators.
+    world_seed: u64,
     pub(crate) flat_block_map: Vec<BlockStateId>,
     /// Sections holding a light emitting block. Set as blocks are written and never cleared, so
     /// it can name a section that no longer emits, but never miss one that does.
@@ -263,6 +265,12 @@ impl ProtoChunk {
             super::generator::WorldGenerator::Custom(custom_gen) => custom_gen.biome_mixer_seed(),
         };
 
+        let world_seed = match generator {
+            super::generator::WorldGenerator::Noise(noise_gen) => noise_gen.random_config.seed,
+            super::generator::WorldGenerator::Flat(flat_gen) => flat_gen.seed,
+            super::generator::WorldGenerator::Custom(_) => 0,
+        };
+
         let default_heightmap = [(bottom_y as i16) - 1; CHUNK_AREA];
         let unprimed_wg_heightmap = [i16::MIN; CHUNK_AREA];
         Self {
@@ -270,6 +278,7 @@ impl ProtoChunk {
             z,
             default_block,
             biome_mixer_seed,
+            world_seed,
             flat_block_map: Vec::new(),
             emitter_sections: SectionMask::default(),
             flat_biome_map: vec![
@@ -2076,6 +2085,9 @@ impl BlockPlacer for ProtoChunk {
 }
 
 impl GenerationCache for ProtoChunk {
+    fn world_seed(&self) -> u64 {
+        self.world_seed
+    }
     fn get_center_chunk_mut(&mut self) -> &mut ProtoChunk {
         self
     }

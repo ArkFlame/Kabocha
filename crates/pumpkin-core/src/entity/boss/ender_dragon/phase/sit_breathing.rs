@@ -50,27 +50,7 @@ impl super::Phase for SitBreathingPhase {
 
             let cloud_entity =
                 Entity::new(world.clone(), cloud_pos, &EntityType::AREA_EFFECT_CLOUD);
-            let cloud = AreaEffectCloudEntity::create(
-                cloud_entity,
-                pumpkin_data::item_stack::ItemStack::new(
-                    0,
-                    &pumpkin_data::item::Item::DRAGON_BREATH,
-                ),
-                vec![(
-                    &pumpkin_data::effect::StatusEffect::INSTANT_DAMAGE,
-                    1,
-                    0,
-                    false,
-                    true,
-                    true,
-                )],
-                600,  // duration
-                3.0,  // radius
-                20,   // reapplication delay
-                20,   // wait time
-                0.5,  // radius on use
-                -100, // duration on use
-            );
+            let cloud = AreaEffectCloudEntity::create_sitting_flame(cloud_entity);
             world.spawn_entity(cloud);
         }
     }

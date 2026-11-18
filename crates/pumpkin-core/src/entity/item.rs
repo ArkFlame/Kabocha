@@ -818,22 +818,11 @@ impl EntityBase for ItemEntity {
             return;
         }
 
-        // Vanilla `ItemEntity.playerTouch`: `target == null || target.equals(player.getUUID())`.
+        // Vanilla `ItemEntity.playerTouch` (line 490): the only pickup gates are
+        // `pickupDelay == 0` and `target == null || target.equals(player.getUUID())`.
+        // The thrower/owner reference is not a pickup gate; it is used only for the
+        // `ThrownItemPickedUpByPlayer` advancement and the "Thrower" NBT tag.
         if !Self::target_allows_pickup(self.target.load(), player.gameprofile.id) {
-            return;
-        }
-
-        // Vanilla ItemEntity.playerTouch: the throwing player keeps a 3 second head start.
-        if self.item_age.load(Ordering::Relaxed) <= 60
-            && let Some(thrower) = self.thrower.load()
-            && thrower != player.gameprofile.id
-            && self
-                .entity
-                .world
-                .load()
-                .get_player_by_uuid(thrower)
-                .is_some()
-        {
             return;
         }
 

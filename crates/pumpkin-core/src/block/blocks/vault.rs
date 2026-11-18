@@ -275,7 +275,16 @@ impl BlockBehaviour for VaultBlock {
                     TickPriority::Normal,
                 );
             }
-            VaultState::Active | VaultState::Inactive => {}
+            VaultState::Active => {
+                // Schedule periodic tick for display item cycling (vanilla: gameTime % 20 == 0)
+                args.world.schedule_block_tick(
+                    args.block,
+                    *args.position,
+                    20,
+                    TickPriority::Normal,
+                );
+            }
+            VaultState::Inactive => {}
         }
     }
 }

@@ -613,6 +613,37 @@ fn update_shape_at_edge(world: &Arc<World>, placed: &[(BlockPos, BlockStateId)])
     }
 }
 
+/// Reports whether vanilla applies the integrity rot processor for this integrity.
+///
+/// Vanilla adds `BlockRotProcessor` only when the raw integrity is below 1.0; a NaN
+/// integrity leaves the processor off, so no blocks are dropped.
+#[must_use]
+const fn integrity_rot_applies(integrity: f32) -> bool {
+    integrity < 1.0
+}
+
+/// Vanilla palette selection: one bounded draw from the settings random.
+///
+/// `StructurePlaceSettings#getRandomPalette` draws `nextInt(palettes.size())` for every
+/// placement, even a single-palette one, so the draw must happen before the rot processor
+/// consumes its own stream.
+#[must_use]
+fn palette_index_from(rng: &mut LegacyRand, palette_count: usize) -> usize {
+    let Ok(bound) = i32::try_from(palette_count) else {
+        return 0;
+    };
+    if bound <= 0 {
+        return 0;
+    }
+    rng.next_bounded_i32(bound) as usize
+}
+
+/// Vanilla palette selection fallback seed: `Mth.getSeed` of the placement position.
+#[must_use]
+const fn palette_fallback_seed(origin: BlockPos) -> u64 {
+    pumpkin_util::math::get_seed(origin.0.x, origin.0.y, origin.0.z) as u64
+}
+
 pub fn place_structure_template_in_world(
     world: &Arc<World>,
     template: &StructureTemplate,
@@ -630,23 +661,31 @@ pub fn place_structure_template_in_world(
     if template.size.x < 1 || template.size.y < 1 || template.size.z < 1 {
         return false;
     }
-    let Some(palette) = template.palettes().first() else {
-        return false;
-    };
-    if palette.blocks().is_empty() && (ignore_entities || template.entity_info_list.is_empty()) {
-        return false;
-    }
-
     let clamped_integrity = if integrity.is_nan() {
         0.0
     } else {
         integrity.clamp(0.0, 1.0)
     };
-    // Vanilla builds two independent streams from the same seed: the structure
-    // settings random drives the integrity processor and the placement random
-    // drives loot table seeds, so neither affects the other's sequence.
-    let mut integrity_rng = LegacyRand::from_seed(create_structure_seed(seed));
-    let mut loot_rng = LegacyRand::from_seed(create_structure_seed(seed));
+    // Vanilla builds two independent streams from the same seed: the structure settings
+    // random drives palette selection then the integrity processor, the placement random
+    // drives loot table seeds, so neither affects the other.
+    let settings_seed = create_structure_seed(seed);
+    let mut integrity_rng = LegacyRand::from_seed(settings_seed);
+    let palette_index = if integrity_rot_applies(integrity) {
+        palette_index_from(&mut integrity_rng, template.palettes().len())
+    } else {
+        // Without the rot processor vanilla leaves the settings random unset, so
+        // getRandomPalette falls back to a random seeded by the placement position.
+        let mut positional_rng = LegacyRand::from_seed(palette_fallback_seed(origin));
+        palette_index_from(&mut positional_rng, template.palettes().len())
+    };
+    let Some(palette) = template.palettes().get(palette_index) else {
+        return false;
+    };
+    if palette.blocks().is_empty() && (ignore_entities || template.entity_info_list.is_empty()) {
+        return false;
+    }
+    let mut loot_rng = LegacyRand::from_seed(settings_seed);
     // Strict placement maps to vanilla UPDATE_SKIP_ALL_SIDEEFFECTS: the known-shape half is
     // handled by the !strict reconnect pass below, the drop-callback half by the placer flag
     // (the block entity pre-clear above matches the flag vanilla also adds in non-strict mode).
@@ -656,7 +695,7 @@ pub fn place_structure_template_in_world(
     for block_info in palette.blocks() {
         // Vanilla applies BlockRotProcessor in processBlockInfos, consuming one draw for every
         // palette entry before build-limit filtering, so skipped entries still advance the RNG.
-        if clamped_integrity < 1.0 && integrity_rng.next_f32() > clamped_integrity {
+        if integrity_rot_applies(integrity) && integrity_rng.next_f32() > clamped_integrity {
             continue;
         }
 
@@ -1627,11 +1666,27 @@ mod tests {
     use super::{
         NbtCompound, NbtTag, collect_structure_block_positions, compute_detected_bounds,
         edge_neighbor, is_randomizable_container_id, is_safe_generated_structure_path,
-        parse_structure_identifier, put_transformed_block_pos, transform_entity_yaw,
+        palette_fallback_seed, palette_index_from, parse_structure_identifier,
+        put_transformed_block_pos, transform_entity_yaw,
     };
     use pumpkin_data::{Block, BlockDirection, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
+    use pumpkin_util::random::legacy_rand::LegacyRand;
     use std::collections::HashSet;
+
+    #[test]
+    fn palette_selection_draws_from_the_vanilla_stream() {
+        // Vanilla getRandomPalette draws nextInt(palettes.size()) from the settings random
+        // when the rot processor installed one, and from RandomSource.create(Mth.getSeed(pos))
+        // otherwise. Expected values are LegacyRandomSource.nextInt(3) from the vanilla
+        // algorithm: seed 42 -> 2, Mth.getSeed(3,64,-7) -> 0.
+        let mut settings_rng = LegacyRand::from_seed(42);
+        assert_eq!(palette_index_from(&mut settings_rng, 3), 2);
+
+        let mut positional_rng =
+            LegacyRand::from_seed(palette_fallback_seed(BlockPos::new(3, 64, -7)));
+        assert_eq!(palette_index_from(&mut positional_rng, 3), 0);
+    }
 
     #[test]
     fn dynamic_shape_blocks_are_not_full_cube_bucketed() {
@@ -1665,6 +1720,18 @@ mod tests {
         // writes a LootTableSeed for suspicious sand or gravel.
         assert!(!is_randomizable_container_id("minecraft:suspicious_sand"));
         assert!(!is_randomizable_container_id("minecraft:suspicious_gravel"));
+    }
+
+    #[test]
+    fn nan_integrity_keeps_the_rot_processor_off() {
+        // Vanilla gates the rot processor on the raw `integrity < 1.0F`; NaN makes that
+        // comparison false, so no blocks are dropped. Clamping NaN to 0 first would wrongly
+        // drop every block and consume the integrity RNG.
+        assert!(!super::integrity_rot_applies(f32::NAN));
+        assert!(!super::integrity_rot_applies(1.0));
+        assert!(!super::integrity_rot_applies(1.5));
+        assert!(super::integrity_rot_applies(0.5));
+        assert!(super::integrity_rot_applies(-1.0));
     }
 
     #[test]

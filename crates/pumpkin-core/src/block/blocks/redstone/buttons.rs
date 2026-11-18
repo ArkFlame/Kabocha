@@ -41,18 +41,40 @@ fn is_stone_button(block: &Block) -> bool {
     block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON
 }
 
-fn get_sound(block: &Block, on: bool) -> Sound {
+/// Vanilla `BlockSetType` click sounds: cherry, bamboo and nether buttons do not use
+/// the default wooden sounds.
+fn click_sounds(block: &Block) -> (Sound, Sound) {
     if is_stone_button(block) {
-        if on {
-            Sound::BlockStoneButtonClickOn
-        } else {
-            Sound::BlockStoneButtonClickOff
-        }
-    } else if on {
-        Sound::BlockWoodenButtonClickOn
+        (
+            Sound::BlockStoneButtonClickOff,
+            Sound::BlockStoneButtonClickOn,
+        )
+    } else if block == &Block::CHERRY_BUTTON {
+        (
+            Sound::BlockCherryWoodButtonClickOff,
+            Sound::BlockCherryWoodButtonClickOn,
+        )
+    } else if block == &Block::BAMBOO_BUTTON {
+        (
+            Sound::BlockBambooWoodButtonClickOff,
+            Sound::BlockBambooWoodButtonClickOn,
+        )
+    } else if block == &Block::CRIMSON_BUTTON || block == &Block::WARPED_BUTTON {
+        (
+            Sound::BlockNetherWoodButtonClickOff,
+            Sound::BlockNetherWoodButtonClickOn,
+        )
     } else {
-        Sound::BlockWoodenButtonClickOff
+        (
+            Sound::BlockWoodenButtonClickOff,
+            Sound::BlockWoodenButtonClickOn,
+        )
     }
+}
+
+fn get_sound(block: &Block, on: bool) -> Sound {
+    let (off, pressed) = click_sounds(block);
+    if on { pressed } else { off }
 }
 
 #[pumpkin_block_from_tag("minecraft:buttons")]
@@ -328,6 +350,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn button_click_sounds_match_block_set_types() {
+        assert_eq!(
+            get_sound(&Block::STONE_BUTTON, true),
+            Sound::BlockStoneButtonClickOn
+        );
+        assert_eq!(
+            get_sound(&Block::POLISHED_BLACKSTONE_BUTTON, false),
+            Sound::BlockStoneButtonClickOff
+        );
+        assert_eq!(
+            get_sound(&Block::CHERRY_BUTTON, true),
+            Sound::BlockCherryWoodButtonClickOn
+        );
+        assert_eq!(
+            get_sound(&Block::BAMBOO_BUTTON, false),
+            Sound::BlockBambooWoodButtonClickOff
+        );
+        assert_eq!(
+            get_sound(&Block::CRIMSON_BUTTON, true),
+            Sound::BlockNetherWoodButtonClickOn
+        );
+        assert_eq!(
+            get_sound(&Block::WARPED_BUTTON, false),
+            Sound::BlockNetherWoodButtonClickOff
+        );
+        assert_eq!(
+            get_sound(&Block::OAK_BUTTON, true),
+            Sound::BlockWoodenButtonClickOn
+        );
+        assert_eq!(
+            get_sound(&Block::PALE_OAK_BUTTON, false),
+            Sound::BlockWoodenButtonClickOff
+        );
+    }
+
+    #[test]
     fn stone_button_classification_matches_vanilla() {
         assert!(is_stone_button(&Block::STONE_BUTTON));
         assert!(is_stone_button(&Block::POLISHED_BLACKSTONE_BUTTON));
@@ -342,5 +400,7 @@ mod tests {
         assert!(!is_stone_button(&Block::BAMBOO_BUTTON));
         assert!(!is_stone_button(&Block::CRIMSON_BUTTON));
         assert!(!is_stone_button(&Block::WARPED_BUTTON));
+        assert!(!is_stone_button(&Block::PALE_OAK_BUTTON));
+        assert!(!is_stone_button(&Block::POPLAR_BUTTON));
     }
 }

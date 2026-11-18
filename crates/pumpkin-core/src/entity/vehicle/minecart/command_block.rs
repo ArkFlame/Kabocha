@@ -4,7 +4,6 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
 };
 
-use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::tracked_data;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::{PermissionLvl, math::vector2::Vector2, text::TextComponent};
@@ -237,10 +236,7 @@ impl CommandBlockMinecart {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
         {
-            nbt.put(
-                "CustomName",
-                custom_name.to_nbt_tag_for_version(&CURRENT_MC_VERSION),
-            );
+            nbt.put("CustomName", custom_name.to_nbt_tag());
         }
         let track_output = self.is_track_output();
         nbt.put_bool("TrackOutput", track_output);
@@ -251,10 +247,7 @@ impl CommandBlockMinecart {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .as_ref()
         {
-            nbt.put(
-                "LastOutput",
-                last_output.to_nbt_tag_for_version(&CURRENT_MC_VERSION),
-            );
+            nbt.put("LastOutput", last_output.to_nbt_tag());
         }
         let update_last = self.update_last_execution.load(Ordering::Relaxed);
         nbt.put_bool("UpdateLastExecution", update_last);

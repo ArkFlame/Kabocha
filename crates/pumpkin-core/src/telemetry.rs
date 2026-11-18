@@ -1080,6 +1080,12 @@ fn build_heartbeat_payload_inner(
     }
 }
 
+/// Returns true only when the backend accepted the heartbeat, so the drained sessions can be
+/// dropped and the recommended interval is authoritative.
+fn backend_accepted_heartbeat(status: &str) -> bool {
+    status == "ok"
+}
+
 /// Picks the heartbeat interval, honouring the delay recommended by the telemetry backend.
 ///
 /// A zero recommendation means the backend did not ask for a change, and values below the
@@ -1174,29 +1180,33 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
 
             match telemetry_client.send_heartbeat(&payload).await {
                 Ok(resp) => {
-                    if resp.status != "ok" {
+                    if !backend_accepted_heartbeat(&resp.status) {
                         // The backend did not accept the sessions, so keep them for the next heartbeat.
                         server_task
                             .telemetry_sessions
                             .restore_completed(raw_completed);
                         tracing::debug!(
-                            "Telemetry backend did not accept heartbeat (status: {})",
+                            "Telemetry backend did not accept heartbeat (status: {}), keeping sessions for the next one",
                             resp.status
                         );
-                    }
-                    tracing::trace!(
-                        "Telemetry heartbeat successfully transmitted (status: {}, public_key: {})",
-                        resp.status,
-                        resp.server_public_key
-                    );
-                    let next_interval_secs =
-                        resolve_next_interval_secs(current_interval_secs, resp.next_ping_seconds);
-                    if next_interval_secs != current_interval_secs {
-                        current_interval_secs = next_interval_secs;
-                        interval.reset_after(Duration::from_secs(next_interval_secs));
-                        tracing::debug!(
-                            "Telemetry backend requested a {next_interval_secs}s heartbeat interval"
+                    } else {
+                        tracing::trace!(
+                            "Telemetry heartbeat successfully transmitted (status: {}, public_key: {})",
+                            resp.status,
+                            resp.server_public_key
                         );
+                        // A rejected heartbeat's suggested interval is not authoritative.
+                        let next_interval_secs = resolve_next_interval_secs(
+                            current_interval_secs,
+                            resp.next_ping_seconds,
+                        );
+                        if next_interval_secs != current_interval_secs {
+                            current_interval_secs = next_interval_secs;
+                            interval.reset_after(Duration::from_secs(next_interval_secs));
+                            tracing::debug!(
+                                "Telemetry backend requested a {next_interval_secs}s heartbeat interval"
+                            );
+                        }
                     }
                 }
                 Err(err) => {
@@ -1716,6 +1726,14 @@ mod tests {
         assert_eq!(resolve_next_interval_secs(300, 0), 300);
         assert_eq!(resolve_next_interval_secs(300, 120), 120);
         assert_eq!(resolve_next_interval_secs(300, 10), 60);
+    }
+
+    #[test]
+    fn only_ok_heartbeat_status_accepts_drained_sessions() {
+        assert!(backend_accepted_heartbeat("ok"));
+        assert!(!backend_accepted_heartbeat("throttled"));
+        assert!(!backend_accepted_heartbeat("rejected"));
+        assert!(!backend_accepted_heartbeat(""));
     }
 
     #[test]

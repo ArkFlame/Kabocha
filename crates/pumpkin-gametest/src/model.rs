@@ -108,9 +108,15 @@ pub struct GameTestDefinition {
 impl GameTestDefinition {
     #[must_use]
     pub fn is_valid(&self) -> bool {
+        // Vanilla decodes `structure` with Identifier.CODEC and `function` with
+        // ResourceKey.codec(Registries.TEST_FUNCTION), so a malformed id fails the entry.
+        let structure_valid = self.structure.parse::<Identifier>().is_ok();
         let function_valid = match self.instance_type {
             TestType::BlockBased => true,
-            TestType::Function => self.function.as_ref().is_some_and(|f| !f.is_empty()),
+            TestType::Function => self
+                .function
+                .as_ref()
+                .is_some_and(|f| !f.is_empty() && f.parse::<Identifier>().is_ok()),
         };
 
         // Vanilla's TestEnvironmentDefinition.CODEC is a registry holder codec: a string
@@ -123,6 +129,7 @@ impl GameTestDefinition {
         };
 
         environment_valid
+            && structure_valid
             && function_valid
             && self.max_ticks > 0
             && self.setup_ticks >= 0
@@ -176,5 +183,20 @@ mod tests {
         assert!(!definition(serde_json::json!(true)).is_valid());
         assert!(!definition(serde_json::json!([])).is_valid());
         assert!(!definition(serde_json::json!({ "weather": "clear" })).is_valid());
+    }
+
+    #[test]
+    fn is_valid_rejects_malformed_resource_locations() {
+        let mut instance = definition(Value::String("minecraft:default".into()));
+        instance.structure = "Not A Structure".to_string();
+        assert!(!instance.is_valid());
+
+        let mut instance = definition(Value::String("minecraft:default".into()));
+        instance.function = Some("minecraft:always pass".to_string());
+        assert!(!instance.is_valid());
+
+        let mut instance = definition(Value::String("minecraft:default".into()));
+        instance.function = Some(String::new());
+        assert!(!instance.is_valid());
     }
 }

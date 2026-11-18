@@ -668,9 +668,22 @@ impl EntityBase for ArrowEntity {
             _ => {}
         }
 
+        // Compute the pickup item up front so the event capacity check and the
+        // later insert operate on the same stack.
+        let mut stack = {
+            let item_stack = self
+                .item_stack
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            Self::pickup_item_stack(&item_stack)
+        };
+
         // Vanilla AbstractArrow#playerTouch fires PlayerPickupArrowEvent only for
-        // Pickup.ALLOWED; a CREATIVE_ONLY arrow is consumed without an event.
+        // Pickup.ALLOWED with a non-empty item the inventory can hold; a
+        // CREATIVE_ONLY arrow is consumed without an event.
         if pickup == ArrowPickup::Allowed
+            && !stack.is_empty()
+            && player.inventory.can_hold(&stack) > 0
             && let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
             && let Some(server) = player.world().server.upgrade()
         {
@@ -693,12 +706,7 @@ impl EntityBase for ArrowEntity {
             return;
         }
 
-        // Try to insert an arrow into the player's inventory
-        let item_stack = self
-            .item_stack
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut stack = Self::pickup_item_stack(&item_stack);
+        // Try to insert an arrow into the player's inventory.
         // Vanilla AbstractArrow#tryPickup only inserts the item for ALLOWED; a
         // CREATIVE_ONLY arrow is consumed without entering the inventory.
         let picked_up = match pickup {

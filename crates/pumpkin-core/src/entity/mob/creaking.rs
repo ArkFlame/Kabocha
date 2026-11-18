@@ -8,6 +8,7 @@ use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockState};
@@ -25,7 +26,7 @@ use crate::entity::{
             look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
             wander_around::WanderAroundGoal,
         },
-        pathfinder::node::PathType,
+        pathfinder::{node::PathType, walk_node_evaluator::HomeRestriction},
     },
     mob::{Mob, MobEntity},
     player::Player,
@@ -72,22 +73,29 @@ fn creaking_can_move(mob: &dyn Mob) -> bool {
         .is_some_and(CreakingEntity::can_move)
 }
 
+// Vanilla `CreakingAi` IDLE `StartAttacking` is gated on `isActive`, so a dormant creaking
+// wanders but never acquires an attack target on its own. `activate()` assigns the target
+// directly, so only the automatic nearest-player search needs this gate.
+fn creaking_is_active(mob: &dyn Mob) -> bool {
+    mob.cast_any()
+        .downcast_ref::<CreakingEntity>()
+        .is_some_and(CreakingEntity::is_active)
+}
+
 pub struct CreakingEntity {
     pub mob_entity: MobEntity,
     can_move: AtomicBool,
     is_active: AtomicBool,
     is_tearing_down: AtomicBool,
-    home_pos: AtomicCell<Option<BlockPos>>,
+    home_pos: HomeRestriction,
     attack_animation_remaining_ticks: AtomicI32,
     invulnerability_animation_remaining_ticks: AtomicI32,
-    eyes_glowing: AtomicBool,
-    next_flicker_time: AtomicI32,
     player_stuck_counter: AtomicI32,
     death_time: AtomicI32,
 }
 
 impl CreakingEntity {
-    fn set_navigation_malus(mob_entity: &mut MobEntity) {
+    fn set_navigation_malus(mob_entity: &mut MobEntity, home_pos: &HomeRestriction) {
         let navigator = mob_entity
             .navigator
             .get_mut()
@@ -97,23 +105,24 @@ impl CreakingEntity {
         navigator.set_pathfinding_malus(PathType::Lava, 8.0);
         navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
         navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
+        // Vanilla `Creaking.createNavigation`: `HomeNodeEvaluator` reads the live home position.
+        navigator.set_home_restriction(Some(home_pos.clone()));
     }
 
     pub fn new(entity: Entity) -> Arc<Self> {
         let mut mob_entity = MobEntity::new(entity);
         // Vanilla `Creaking` keeps it away from damaging blocks, powder snow and lava, and
         // avoids fire entirely.
-        Self::set_navigation_malus(&mut mob_entity);
+        let home_pos: HomeRestriction = Arc::new(AtomicCell::new(None));
+        Self::set_navigation_malus(&mut mob_entity, &home_pos);
         let creaking = Self {
             mob_entity,
             can_move: AtomicBool::new(true),
             is_active: AtomicBool::new(false),
             is_tearing_down: AtomicBool::new(false),
-            home_pos: AtomicCell::new(None),
+            home_pos,
             attack_animation_remaining_ticks: AtomicI32::new(0),
             invulnerability_animation_remaining_ticks: AtomicI32::new(0),
-            eyes_glowing: AtomicBool::new(false),
-            next_flicker_time: AtomicI32::new(0),
             player_stuck_counter: AtomicI32::new(0),
             death_time: AtomicI32::new(0),
         };
@@ -185,7 +194,8 @@ impl CreakingEntity {
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true)
+                    .gated_by(creaking_is_active),
             );
         };
 
@@ -268,31 +278,23 @@ impl CreakingEntity {
         self.mob_entity.set_target(Some(player.clone()));
         self.play_sound(Sound::EntityCreakingActivate);
         self.set_is_active(true);
+        // Vanilla `Creaking.activate` emits ENTITY_ACTION so nearby sculk sensors react.
+        let entity = &self.mob_entity.living_entity.entity;
+        entity
+            .world
+            .load()
+            .emit_game_event(GameEvent::EntityAction.name(), entity.pos.load());
     }
 
     pub fn deactivate(&self) {
         self.mob_entity.set_target(None);
         self.play_sound(Sound::EntityCreakingDeactivate);
         self.set_is_active(false);
-    }
-
-    pub fn has_glowing_eyes(&self) -> bool {
-        self.eyes_glowing.load(Ordering::Relaxed)
-    }
-
-    pub fn check_eye_blink(&self) {
-        let death_time = self.death_time.load(Ordering::Relaxed);
-        let next_flicker = self.next_flicker_time.load(Ordering::Relaxed);
-        if death_time > next_flicker {
-            let glowing = self.eyes_glowing.load(Ordering::Relaxed);
-            let min_ticks = if glowing { 2 } else { (death_time / 4).max(1) };
-            let max_ticks = if glowing { 8 } else { (death_time / 2).max(2) };
-            let added_ticks =
-                (rand::random::<u32>() as i32 % (max_ticks - min_ticks + 1)).abs() + min_ticks;
-            self.next_flicker_time
-                .store(death_time + added_ticks, Ordering::Relaxed);
-            self.eyes_glowing.store(!glowing, Ordering::Relaxed);
-        }
+        let entity = &self.mob_entity.living_entity.entity;
+        entity
+            .world
+            .load()
+            .emit_game_event(GameEvent::EntityAction.name(), entity.pos.load());
     }
 
     pub fn player_is_stuck_in_you(&self, players: &[Arc<Player>]) -> bool {
@@ -560,6 +562,8 @@ impl Mob for CreakingEntity {
 
         if now_can_move != can_move {
             let world = entity.world.load();
+            // Vanilla `Creaking.aiStep` emits ENTITY_ACTION on every canMove flip.
+            world.emit_game_event(GameEvent::EntityAction.name(), entity.pos.load());
             if now_can_move {
                 world.play_sound_fine(
                     Sound::EntityCreakingUnfreeze,
@@ -642,6 +646,7 @@ impl Mob for CreakingEntity {
                     .store(8, Ordering::Relaxed);
 
                 let world = entity.world.load();
+                world.emit_game_event(GameEvent::EntityAction.name(), entity.pos.load());
                 world.broadcast_to_chunk(
                     entity.chunk_pos.load(),
                     &CEntityStatus::new(entity.entity_id, 66),
@@ -692,6 +697,24 @@ mod tests {
         assert!(!creaking_can_move(creaking.as_ref()));
         creaking.set_can_move(true);
         assert!(creaking_can_move(creaking.as_ref()));
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn dormant_creaking_disables_target_gate() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let creaking = CreakingEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::CREAKING,
+        ));
+        assert!(!creaking_is_active(creaking.as_ref()));
+        creaking.set_is_active(true);
+        assert!(creaking_is_active(creaking.as_ref()));
+        creaking.set_is_active(false);
+        assert!(!creaking_is_active(creaking.as_ref()));
         world.level.shutdown().await;
         Ok(())
     }

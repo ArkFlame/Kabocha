@@ -176,6 +176,7 @@ impl ToFromWasmEvent for EntityDeathEvent {
         Self {
             entity_id: data.entity_id,
             dropped_exp: data.dropped_exp,
+            cancelled: false,
         }
     }
 }

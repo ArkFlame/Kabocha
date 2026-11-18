@@ -1692,6 +1692,12 @@ impl TextComponent {
             .to_nbt_compound_for_version(version)
     }
 
+    /// Converts this component to an `NbtTag` for the latest Minecraft version.
+    #[must_use]
+    pub fn to_nbt_tag(&self) -> pumpkin_nbt::tag::NbtTag {
+        self.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3)
+    }
+
     /// Converts this component to an `NbtTag` for a specific Minecraft version.
     #[must_use]
     pub fn to_nbt_tag_for_version(

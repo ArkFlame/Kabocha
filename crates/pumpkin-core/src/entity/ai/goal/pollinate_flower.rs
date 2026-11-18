@@ -19,14 +19,17 @@ pub const fn pollination_complete(ticks: i32) -> bool {
     ticks > POLLINATE_TICKS
 }
 
+/// Vanilla `BeePollinateGoal.canBeeContinueToUse`: after 400 ticks the bee keeps hovering
+/// with a 20% chance each tick (`random.nextFloat() < 0.2F`).
+#[must_use]
+pub const fn keeps_hovering_after_pollination(roll: f32) -> bool {
+    roll < 0.2
+}
+
 /// Vanilla `Bee.attractsBees`: an attractive, non-waterlogged block counts, except a
 /// sunflower only counts on its upper half.
 #[must_use]
-pub const fn attracts_bees(
-    attractive_and_dry: bool,
-    is_sunflower: bool,
-    upper_half: bool,
-) -> bool {
+pub const fn attracts_bees(attractive_and_dry: bool, is_sunflower: bool, upper_half: bool) -> bool {
     attractive_and_dry && (!is_sunflower || upper_half)
 }
 
@@ -137,7 +140,14 @@ impl Goal for PollinateFlowerGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
-        if !(self.gate)(mob) || pollination_complete(self.pollinate_ticks) {
+        if !(self.gate)(mob) {
+            return false;
+        }
+        // Vanilla `BeePollinateGoal.canBeeContinueToUse`: after 400 ticks the bee keeps
+        // hovering with a 20% chance each tick instead of stopping immediately.
+        if pollination_complete(self.pollinate_ticks)
+            && !keeps_hovering_after_pollination(rand::random::<f32>())
+        {
             return false;
         }
         let Some(flower) = self.flower else {
@@ -154,7 +164,11 @@ impl Goal for PollinateFlowerGoal {
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
-        // Vanilla `BeePollinateGoal.stop` waits 200 ticks before locating another flower.
+        // Vanilla `BeePollinateGoal.stop` sets nectar once when pollination lasted long
+        // enough, clears the pollinating flag and waits 200 ticks before the next flower.
+        if pollination_complete(self.pollinate_ticks) {
+            (self.on_pollinated)(mob);
+        }
         (self.on_stop)(mob);
         mob.get_mob_entity().stop_navigation();
         self.flower = None;
@@ -178,9 +192,6 @@ impl Goal for PollinateFlowerGoal {
         }
         mob.get_mob_entity().stop_navigation();
         self.pollinate_ticks += 1;
-        if pollination_complete(self.pollinate_ticks) {
-            (self.on_pollinated)(mob);
-        }
     }
 
     fn controls(&self) -> Controls {
@@ -221,6 +232,14 @@ mod tests {
     fn pollination_needs_more_than_four_hundred_ticks() {
         assert!(!pollination_complete(400));
         assert!(pollination_complete(401));
+    }
+
+    #[test]
+    fn hover_roll_keeps_twenty_percent_of_pollinating_bees() {
+        assert!(keeps_hovering_after_pollination(0.0));
+        assert!(keeps_hovering_after_pollination(0.199_999));
+        assert!(!keeps_hovering_after_pollination(0.2));
+        assert!(!keeps_hovering_after_pollination(1.0));
     }
 
     #[test]

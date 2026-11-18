@@ -94,8 +94,12 @@ interface display {
         get-glow-color-override: func() -> s32;
         set-glow-color-override: func(color: s32);
 
+        /// Brightness is the vanilla packed `LightCoordsUtil` int: block light in bits 4-7,
+        /// sky light in bits 20-23, and -1 for no override. Each field is re-packed on set.
         get-brightness: func() -> s32;
+        /// Sets the packed value. Prefer `set-brightness-override` for independent levels.
         set-brightness: func(brightness: s32);
+        /// Sets block and sky light levels (0-15 each), clamped by the host.
         set-brightness-override: func(block: s32, sky: s32);
     }
 

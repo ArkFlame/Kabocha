@@ -420,10 +420,7 @@ mod tests {
         // Only bookshelf-books may enter an empty, in-range slot (vanilla setStack tag gate).
         assert!(shelf.is_valid_slot_for(0, &book));
         assert!(!shelf.is_valid_slot_for(0, &ItemStack::new(1, &Item::STICK)));
-        assert!(!shelf.is_valid_slot_for(
-            ChiseledBookshelfBlockEntity::INVENTORY_SIZE,
-            &book
-        ));
+        assert!(!shelf.is_valid_slot_for(ChiseledBookshelfBlockEntity::INVENTORY_SIZE, &book));
 
         shelf.set_stack(0, book.clone());
         assert!(shelf.has_book(0));

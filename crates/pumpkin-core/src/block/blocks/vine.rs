@@ -616,6 +616,7 @@ impl BlockBehaviour for VineBlock {
 mod tests {
     use super::*;
     use pumpkin_data::BlockState;
+    use pumpkin_data::block_properties::{SlabType, WhiteWoolSlabLikeProperties};
     use rustc_hash::FxHashMap;
 
     #[derive(Default)]
@@ -663,5 +664,36 @@ mod tests {
 
         let empty = TestBlocks::default();
         assert!(get_state_for_placement(&empty, &Block::VINE, &pos, None, None).is_none());
+    }
+
+    #[test]
+    fn updated_state_up_uses_top_face_of_block_above() {
+        let pos = BlockPos::new(0, 64, 0);
+        let mut props = VineLikeProperties::default(&Block::VINE);
+        props.up = true;
+
+        // A top slab is solid on its top face but not its bottom face. Vanilla's
+        // getUpdatedState checks the block above with DOWN (its top face).
+        let mut world = TestBlocks::default();
+        world.0.insert(
+            pos.up(),
+            WhiteWoolSlabLikeProperties {
+                r#type: SlabType::Top,
+                r#waterlogged: false,
+            }
+            .to_state_id(&Block::OAK_SLAB),
+        );
+        assert!(get_updated_state(props, &world, &pos).up);
+
+        // A bottom slab is solid only on its bottom face, so it cannot support UP.
+        world.0.insert(
+            pos.up(),
+            WhiteWoolSlabLikeProperties {
+                r#type: SlabType::Bottom,
+                r#waterlogged: false,
+            }
+            .to_state_id(&Block::OAK_SLAB),
+        );
+        assert!(!get_updated_state(props, &world, &pos).up);
     }
 }

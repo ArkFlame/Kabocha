@@ -35,6 +35,9 @@ impl BowAttackGoal {
     const DRAW_TIME: i32 = 20;
     /// Vanilla arrow speed for mob shots.
     const ARROW_SPEED: f64 = 1.6;
+    /// Full-draw bow power (`BowItem.getPowerForTime(20) == 1.0`). Mob arrow damage
+    /// scales with the draw power, not with the projectile speed.
+    const FULL_DRAW_POWER: f64 = 1.0;
 
     #[must_use]
     pub fn new(speed: f64, attack_interval: i32, range: f32) -> Self {
@@ -75,6 +78,19 @@ impl BowAttackGoal {
         Self::bow_hand(mob).is_some()
     }
 
+    /// Vanilla `LivingEntity.isUsingItem`; the real item-use state is the source of truth.
+    ///
+    /// The goal's private draw flag goes stale when hurt or another item use clears the
+    /// active hand, so check `item_in_use` before continuing a draw (RangedBowAttackGoal:124).
+    fn is_using_item(mob: &dyn Mob) -> bool {
+        mob.get_mob_entity()
+            .living_entity
+            .item_in_use
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
+    }
+
     fn stop_drawing(&mut self, mob: &dyn Mob) {
         if self.drawing {
             mob.get_mob_entity().living_entity.clear_active_hand();
@@ -104,9 +120,10 @@ impl BowAttackGoal {
             ArrowPickup::Disallowed,
         );
 
-        // Vanilla scales base damage with power and world difficulty
+        // Vanilla scales base damage with the bow's draw power and world difficulty,
+        // not with the projectile speed (AbstractArrow.setBaseDamageFromMob).
         let difficulty = world.level_info.load().difficulty as i32;
-        arrow.set_base_damage_from_mob(Self::ARROW_SPEED, difficulty);
+        arrow.set_base_damage_from_mob(Self::FULL_DRAW_POWER, difficulty);
         let arrow = mob.get_arrow(arrow);
 
         arrow.set_base_damage(crate::enchantment::EnchantmentHelper::modify_damage(
@@ -143,6 +160,23 @@ impl BowAttackGoal {
             divergence,
         );
 
+        // Vanilla fires EntityShootBowEvent before the shoot sound and honours cancellation
+        // by removing the projectile (Paper AbstractSkeleton.performRangedAttack).
+        let arrow: Arc<dyn EntityBase> = Arc::new(arrow);
+        let entity_id = entity.entity_id;
+        if let Some(server) = world_full.server.upgrade() {
+            let mut event =
+                crate::plugin::api::events::entity::entity_shoot_bow::EntityShootBowEvent::new(
+                    entity_id,
+                    bow_item.item.registry_key.to_string(),
+                    1.0,
+                );
+            server.plugin_manager.fire_blocking(&server, &mut event);
+            if event.cancelled {
+                return;
+            }
+        }
+
         let shoot_sound = if entity.entity_type == &EntityType::SKELETON
             || entity.entity_type == &EntityType::BOGGED
             || entity.entity_type == &EntityType::STRAY
@@ -156,20 +190,6 @@ impl BowAttackGoal {
         let pitch = 1.0 / rand::random_range(0.8f32..1.2f32);
         world.play_sound_fine(shoot_sound, SoundCategory::Hostile, &mob_pos, 1.0, pitch);
 
-        let arrow: Arc<dyn EntityBase> = Arc::new(arrow);
-        let entity_id = entity.entity_id;
-        if let Some(server) = world_full.server.upgrade() {
-            let mut event =
-                crate::plugin::api::events::entity::entity_shoot_bow::EntityShootBowEvent::new(
-                    entity_id,
-                    "minecraft:bow".to_string(),
-                    1.0,
-                );
-            server.plugin_manager.fire_blocking(&server, &mut event);
-            if event.cancelled {
-                return;
-            }
-        }
         world_full.spawn_entity(arrow);
     }
 }
@@ -260,7 +280,7 @@ impl Goal for BowAttackGoal {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .look_at_entity_with_range(&target, 30.0, 30.0);
 
-        if self.drawing {
+        if self.drawing && Self::is_using_item(mob) {
             if !has_line_of_sight && self.see_time < -60 {
                 self.stop_drawing(mob);
             } else if has_line_of_sight {

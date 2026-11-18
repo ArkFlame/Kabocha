@@ -929,6 +929,31 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                         }
                     }
                 }
+                // vanilla SequenceFunction: run each child function in order
+                "sequence" => {
+                    if let Some(functions) = function.get("functions") {
+                        apply_item_modifier(stack, functions);
+                    }
+                }
+                // vanilla LimitCount/IntLimit: clamp the count to optional min and max providers
+                "limit_count" => {
+                    if let Some(NbtTag::Compound(limit)) = function.get("limit") {
+                        let min = number_provider(limit.get("min")).map(|v| v as i32);
+                        let max = number_provider(limit.get("max")).map(|v| v as i32);
+                        let mut count = i32::from(stack.item_count);
+                        if let Some(min) = min
+                            && count < min
+                        {
+                            count = min;
+                        }
+                        if let Some(max) = max
+                            && count > max
+                        {
+                            count = max;
+                        }
+                        stack.item_count = count.clamp(0, i32::from(u8::MAX)) as u8;
+                    }
+                }
                 other => tracing::debug!("Unsupported item modifier function {other}"),
             }
         }

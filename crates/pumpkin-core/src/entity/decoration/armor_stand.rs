@@ -279,12 +279,19 @@ impl ArmorStandEntity {
 
         // Paper's brokenByAnything fires EntityDeathEvent before equipment is
         // cleared, so plugins still observe the stand's items.
-        if let Some(server) = world.server.upgrade() {
+        let cancelled = if let Some(server) = world.server.upgrade() {
             let mut event = crate::plugin::api::events::entity::entity_death::EntityDeathEvent::new(
                 entity.entity_id,
                 0,
             );
             server.plugin_manager.fire_blocking(&server, &mut event);
+            event.cancelled
+        } else {
+            false
+        };
+        // Paper moves equipment removal past the (cancellable) death event.
+        if cancelled {
+            return;
         }
 
         world.play_sound(
@@ -628,6 +635,11 @@ impl EntityBase for ArmorStandEntity {
     /// Vanilla `ArmorStand.ignoreExplosion`: invisible stands ignore explosions.
     fn is_immune_to_explosion(&self) -> bool {
         self.is_invisible()
+    }
+
+    /// Block-like stands ignore explosions unless the explosion affects block-like entities.
+    fn ignore_explosion(&self, explosion: &crate::world::explosion::Explosion<'_>) -> bool {
+        !explosion.should_affect_blocklike_entities() || self.is_immune_to_explosion()
     }
 
     /// Vanilla `ArmorStand.isAffectedByPotions`: armor stands never receive potion effects.

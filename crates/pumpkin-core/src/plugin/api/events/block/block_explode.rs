@@ -1,8 +1,11 @@
+use pumpkin_data::Block;
 use pumpkin_macros::{Event, cancellable};
 use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
 
 use crate::world::World;
+
+use super::BlockEvent;
 
 /// An event that occurs when a block explodes.
 #[cancellable]
@@ -30,5 +33,13 @@ impl BlockExplodeEvent {
             world,
             cancelled: false,
         }
+    }
+}
+
+/// Paper's `BlockExplodeEvent` extends `BlockEvent`; the block it reports is the one at the
+/// explosion centre, which is where the event position points.
+impl BlockEvent for BlockExplodeEvent {
+    fn get_block(&self) -> &Block {
+        self.world.get_block(&self.block_pos)
     }
 }

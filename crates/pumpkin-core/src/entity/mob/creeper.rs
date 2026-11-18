@@ -227,6 +227,11 @@ impl Mob for CreeperEntity {
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         if let Some(powered) = nbt.get_bool("powered") {
             self.charged.store(powered, Ordering::Relaxed);
+            // Vanilla `Creeper.readAdditionalSaveData` sets the synced IS_POWERED data directly.
+            self.mob_entity
+                .living_entity
+                .entity
+                .set_synced_data(pumpkin_data::tracked_data::creeper::CHARGED, powered);
         }
         if let Some(fuse) = nbt.get_short("Fuse") {
             self.fuse_time.store(i32::from(fuse), Ordering::Relaxed);

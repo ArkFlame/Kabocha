@@ -466,21 +466,21 @@ impl ActionExecutor {
                     if (clock.rate - rate).abs() < f32::EPSILON {
                         return Err(ERROR_RATE_ALREADY_SAME.create_without_context_args_slice(&[
                             TextComponent::text(clock_name.to_string()),
-                            TextComponent::text(format!("{rate:?}")),
+                            TextComponent::text(super::data::java_float_to_string(rate)),
                         ]));
                     }
                     clock.set_rate(rate);
                     let feedback = if is_bedrock(context) {
                         TextComponent::translate(
                             translation::bedrock::COMMANDS_TIME_SET,
-                            [TextComponent::text(format!("{rate:?}"))],
+                            [TextComponent::text(super::data::java_float_to_string(rate))],
                         )
                     } else {
                         TextComponent::translate(
                             translation::java::COMMANDS_TIME_RATE,
                             [
                                 TextComponent::text(clock_name.to_string()),
-                                TextComponent::text(format!("{rate:?}")),
+                                TextComponent::text(super::data::java_float_to_string(rate)),
                             ],
                         )
                     };
@@ -642,7 +642,7 @@ impl CommandExecutor for ActionExecutor {
                     if (guard.rate - rate).abs() < f32::EPSILON {
                         return Err(ERROR_RATE_ALREADY_SAME.create_without_context_args_slice(&[
                             TextComponent::text(clock_name),
-                            TextComponent::text(format!("{rate:?}")),
+                            TextComponent::text(super::data::java_float_to_string(rate)),
                         ]));
                     }
                     guard.set_rate(rate);
@@ -652,14 +652,14 @@ impl CommandExecutor for ActionExecutor {
                 let feedback = if is_bedrock(context) {
                     TextComponent::translate(
                         translation::bedrock::COMMANDS_TIME_SET,
-                        [TextComponent::text(format!("{rate:?}"))],
+                        [TextComponent::text(super::data::java_float_to_string(rate))],
                     )
                 } else {
                     TextComponent::translate(
                         translation::java::COMMANDS_TIME_RATE,
                         [
                             TextComponent::text(clock_name),
-                            TextComponent::text(format!("{rate:?}")),
+                            TextComponent::text(super::data::java_float_to_string(rate)),
                         ],
                     )
                 };
@@ -708,20 +708,112 @@ fn builtin_time_marker(id: &Identifier, clock: &str) -> Option<(i64, i64)> {
     Some((i64::from(ticks), period))
 }
 
+/// Reads one time marker from the `minecraft:day` timeline registry NBT. The
+/// value is either a plain int or a compound with `ticks`, matching vanilla's
+/// `Timeline.TimeMarkerInfo` codec. `period_ticks` on the root is shared by
+/// every marker on the timeline.
+fn day_timeline_marker(bytes: &[u8], marker_id: &str) -> Option<(i64, i64)> {
+    use std::io::Cursor;
+
+    use pumpkin_nbt::Nbt;
+
+    let mut cursor = Cursor::new(bytes);
+    let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+        pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+    );
+    let root = Nbt::read_unnamed(&mut reader).ok()?.root_tag;
+    let period = i64::from(root.get_int("period_ticks")?);
+    let markers = root.get_compound("time_markers")?;
+    let ticks = i64::from(match markers.get(marker_id)? {
+        pumpkin_nbt::tag::NbtTag::Int(ticks) => *ticks,
+        pumpkin_nbt::tag::NbtTag::Compound(info) => info.get_int("ticks")?,
+        _ => return None,
+    });
+    Some((ticks, period))
+}
+
+/// Reads the markers flagged `show_in_commands` from the `minecraft:day`
+/// timeline NBT, matching vanilla `commandTimeMarkersForClock`.
+fn day_timeline_command_markers(bytes: &[u8]) -> Option<Vec<String>> {
+    use std::io::Cursor;
+
+    use pumpkin_nbt::Nbt;
+
+    let mut cursor = Cursor::new(bytes);
+    let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+        pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+    );
+    let root = Nbt::read_unnamed(&mut reader).ok()?.root_tag;
+    let markers = root.get_compound("time_markers")?;
+    Some(
+        markers
+            .child_tags
+            .iter()
+            .filter(|(_, value)| match value {
+                pumpkin_nbt::tag::NbtTag::Compound(info) => {
+                    info.get_bool("show_in_commands").unwrap_or(false)
+                }
+                _ => false,
+            })
+            .map(|(name, _)| name.to_string())
+            .collect(),
+    )
+}
+
+/// The `minecraft:day` timeline registry NBT, when a datapack has loaded it.
+fn day_timeline_data(context: &CommandContext) -> Option<Box<[u8]>> {
+    context
+        .source
+        .server()
+        .datapack_manager
+        .get_dynamic_registry_entry_data("minecraft:timeline", DAY_TIMELINE)
+}
+
+/// Resolves a `/time set <timemarker>` marker against the `minecraft:day`
+/// timeline data, falling back to the builtin markers. Vanilla registers every
+/// timeline marker on its clock, so datapacks can move or add markers.
+fn resolve_time_marker(
+    context: &CommandContext,
+    id: &Identifier,
+    clock: &str,
+) -> Option<(i64, i64)> {
+    let builtin = builtin_time_marker(id, clock);
+    if clock != DEFAULT_CLOCK {
+        return builtin;
+    }
+    let Some(data) = day_timeline_data(context) else {
+        return builtin;
+    };
+    day_timeline_marker(&data, &id.to_string()).or(builtin)
+}
+
 struct TimeMarkerSuggestionProvider;
 
 impl SuggestionProvider for TimeMarkerSuggestionProvider {
     fn suggest(
         &self,
-        _context: &CommandContext,
-        builder: SuggestionsBuilder,
+        context: &CommandContext,
+        mut builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
-        builder
-            .suggest("minecraft:day")
-            .suggest("minecraft:noon")
-            .suggest("minecraft:night")
-            .suggest("minecraft:midnight")
-            .build()
+        let fallback = [
+            "minecraft:day",
+            "minecraft:noon",
+            "minecraft:night",
+            "minecraft:midnight",
+        ];
+        let markers = day_timeline_data(context)
+            .and_then(|data| day_timeline_command_markers(&data))
+            .filter(|markers| !markers.is_empty())
+            .unwrap_or_else(|| {
+                fallback
+                    .iter()
+                    .map(|marker| (*marker).to_string())
+                    .collect()
+            });
+        for marker in markers {
+            builder = builder.suggest(marker.as_str());
+        }
+        builder.build()
     }
 }
 
@@ -734,12 +826,13 @@ impl CommandExecutor for SetTimeMarkerExecutor {
         let clock_name = resolve_clock_name(context, self.has_clock)?;
         let marker = IdentifierArgumentType::get(context, "timemarker")?;
         let marker_name = marker.to_string();
-        let (ticks, period) = builtin_time_marker(&marker, &clock_name).ok_or_else(|| {
-            ERROR_NO_TIME_MARKER_FOUND.create_without_context_args_slice(&[
-                TextComponent::text(marker_name.clone()),
-                TextComponent::text(clock_name.clone()),
-            ])
-        })?;
+        let (ticks, period) =
+            resolve_time_marker(context, &marker, &clock_name).ok_or_else(|| {
+                ERROR_NO_TIME_MARKER_FOUND.create_without_context_args_slice(&[
+                    TextComponent::text(marker_name.clone()),
+                    TextComponent::text(clock_name.clone()),
+                ])
+            })?;
 
         let world = context.source.world();
         let (level_time, target_ticks) = {
@@ -937,5 +1030,44 @@ mod tests {
         assert!(!marker_occurs_at(999, 1000, 24000));
         assert_eq!(resolve_time_to_move_to(0, 6000, 24000), 6000);
         assert_eq!(resolve_time_to_move_to(12000, 6000, 24000), 30000);
+    }
+
+    #[test]
+    fn day_timeline_marker_reads_datapack_int_and_compound_forms() {
+        let value = serde_json::json!({
+            "period_ticks": 24000,
+            "time_markers": {
+                "minecraft:day": 1500,
+                "minecraft:noon": {"ticks": 7000, "show_in_commands": true}
+            }
+        });
+        let bytes =
+            crate::data::datapack::dynamic_registry_loader::json_to_registry_nbt_bytes(&value);
+        assert_eq!(
+            day_timeline_marker(&bytes, "minecraft:day"),
+            Some((1500, 24000))
+        );
+        assert_eq!(
+            day_timeline_marker(&bytes, "minecraft:noon"),
+            Some((7000, 24000))
+        );
+        assert_eq!(day_timeline_marker(&bytes, "minecraft:absent"), None);
+    }
+
+    #[test]
+    fn day_timeline_command_markers_filters_show_in_commands() {
+        let value = serde_json::json!({
+            "period_ticks": 24000,
+            "time_markers": {
+                "minecraft:day": {"ticks": 1000, "show_in_commands": true},
+                "minecraft:noon": {"ticks": 6000, "show_in_commands": true},
+                "minecraft:wake_up_from_sleep": 0
+            }
+        });
+        let bytes =
+            crate::data::datapack::dynamic_registry_loader::json_to_registry_nbt_bytes(&value);
+        let mut markers = day_timeline_command_markers(&bytes).unwrap_or_default();
+        markers.sort();
+        assert_eq!(markers, vec!["minecraft:day", "minecraft:noon"]);
     }
 }

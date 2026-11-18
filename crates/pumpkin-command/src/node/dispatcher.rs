@@ -288,9 +288,9 @@ impl<S: CommandSource> CommandDispatcher<S> {
     /// Registers a command which can then be dispatched.
     /// Returns the local ID of the node attached to the tree.
     ///
-    /// Note that, at least for now with this system, there is no way to
-    /// unregister a command. This is due to redirection to
-    /// potentially unregistered (freed) nodes.
+    /// A registered command can later be detached from the tree with
+    /// `remove_commands_from_source`, which releases any executors and predicates
+    /// the node held so a plugin's library can be unloaded.
     pub fn register(&mut self, command_node: impl Into<CommandDetachedNode<S>>) -> CommandNodeId {
         let mut node = command_node.into();
         let name = Self::normalize_command_name(&node.meta.literal);
@@ -340,9 +340,9 @@ impl<S: CommandSource> CommandDispatcher<S> {
     /// Behind the scenes, `redirect` and `executes_arc` calls are made
     /// for each provided alias. This method is for convenience.
     ///
-    /// Note that, at least for now with this system, there is no way to
-    /// unregister a command. This is due to redirection to
-    /// potentially unregistered (freed) nodes.
+    /// A registered command can later be detached from the tree with
+    /// `remove_commands_from_source`, which releases any executors and predicates
+    /// the node held so a plugin's library can be unloaded.
     pub fn register_with_aliases<Str: AsRef<str>>(
         &mut self,
         command_node: impl Into<CommandDetachedNode<S>>,
@@ -1208,6 +1208,32 @@ mod test {
                 .execute_input("plugin-command", &source)
                 .is_err_and(|error| error.error_type == &DISPATCHER_UNKNOWN_COMMAND)
         );
+    }
+
+    #[test]
+    fn removing_plugin_command_keeps_other_command_sharing_a_descendant_name() {
+        let mut dispatcher = CommandDispatcher::new();
+        let executor: fn(&CommandContext) -> CommandExecutorResult = |_| Ok(1);
+        // Plugin A owns a command with a descendant literal named "keep".
+        dispatcher.register(
+            CommandArgumentBuilder::new("remove-me", "A plugin command")
+                .with_source("plugin-a")
+                .then(LiteralArgumentBuilder::new("keep"))
+                .executes(executor),
+        );
+        // Plugin B owns an unrelated root command that happens to be named "keep".
+        dispatcher.register(
+            CommandArgumentBuilder::new("keep", "Another plugin command")
+                .with_source("plugin-b")
+                .executes(executor),
+        );
+        assert!(dispatcher.has_command("keep"));
+
+        dispatcher.remove_commands_from_source("plugin-a");
+
+        assert!(!dispatcher.has_command("remove-me"));
+        // Removing plugin A must not drop plugin B's unrelated "keep" mapping.
+        assert!(dispatcher.has_command("keep"));
     }
 
     #[test]

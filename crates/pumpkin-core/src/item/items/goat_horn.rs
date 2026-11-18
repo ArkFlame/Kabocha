@@ -73,7 +73,10 @@ impl ItemBehaviour for GoatHornItem {
                 1.0,
             );
         } else if let Some(builtin) = Instrument::from_name(&instrument.instrument) {
-            world.play_sound_raw(
+            // Vanilla `Level.playSound(player, player, ...)` passes the horn blower as the
+            // excluded listener; the client plays the sound locally for its own horn.
+            world.play_sound_raw_expect(
+                player,
                 builtin.sound() as u16,
                 SoundCategory::Records,
                 &pos,

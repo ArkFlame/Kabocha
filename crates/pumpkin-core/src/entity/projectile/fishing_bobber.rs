@@ -218,7 +218,7 @@ impl FishingBobberEntity {
                 // Vanilla `FISHING_ROD_HOOKED` fires with an empty item list on the entity path.
                 player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
-                        item_id: String::new(),
+                        items: Vec::new(),
                     },
                 );
 
@@ -248,6 +248,20 @@ impl FishingBobberEntity {
                     &pumpkin_data::loot_table::GAMEPLAY_FISHING,
                 ));
             let loot = generate_loot_from_handle(&handle, rand::random::<i64>(), &params);
+
+            // Vanilla `FishingHook.retrieve:537` fires FISHING_ROD_HOOKED once with the full
+            // caught-item list before spawning the items. The item predicate matches when any
+            // caught item qualifies, so fire a single event rather than one per item.
+            let caught_items: Vec<String> = loot
+                .iter()
+                .filter(|stack| !stack.is_empty())
+                .map(|stack| format!("minecraft:{}", stack.item.registry_key))
+                .collect();
+            player.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
+                    items: caught_items,
+                },
+            );
 
             for item_stack in loot {
                 if item_stack.is_empty() {
@@ -307,12 +321,6 @@ impl FishingBobberEntity {
                         1,
                     );
                 }
-
-                player.trigger_advancement(
-                    crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
-                        item_id: format!("minecraft:{}", item_stack.item.registry_key),
-                    },
-                );
             }
 
             damage = 1;

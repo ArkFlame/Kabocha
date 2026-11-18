@@ -136,6 +136,7 @@ impl ToFromWasmEvent for EntityDeathEvent {
             Event::EntityDeathEvent(data) => Self {
                 entity_id: data.entity_id,
                 dropped_exp: data.dropped_exp,
+                cancelled: false,
             },
             _ => panic!("unexpected event type"),
         }

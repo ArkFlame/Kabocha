@@ -50,3 +50,21 @@ impl ItemModifierArgumentType {
         context.get_argument(name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::source::DummySource;
+
+    // Vanilla's ResourceOrIdArgument reads SNBT compounds inline and ids as references.
+    #[test]
+    fn parses_reference_or_inline() {
+        let mut reference = StringReader::new("minecraft:set_count");
+        let parsed = ArgumentType::<DummySource>::parse(&ItemModifierArgumentType, &mut reference);
+        assert!(matches!(parsed, Ok(ItemModifier::Reference(_))));
+
+        let mut inline = StringReader::new("{}");
+        let parsed = ArgumentType::<DummySource>::parse(&ItemModifierArgumentType, &mut inline);
+        assert!(matches!(parsed, Ok(ItemModifier::Inline(_))));
+    }
+}

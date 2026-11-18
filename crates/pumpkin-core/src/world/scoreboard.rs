@@ -145,7 +145,17 @@ pub struct Scoreboard {
     objectives: FxHashMap<String, ScoreboardObjective>,
     display_slots: FxHashMap<ScoreboardDisplaySlot, String>,
     scores: FxHashMap<String, FxHashMap<String, ScoreboardScore>>,
+    /// Scores of removed or replaced objectives, kept as vanilla `PlayerScores` does.
+    /// Each entry is keyed by the objective instance (identity), not by name.
+    orphan_scores: Vec<OrphanScore>,
     teams: FxHashMap<String, Team>,
+}
+
+#[derive(Clone, Debug)]
+struct OrphanScore {
+    objective: ScoreboardObjective,
+    entity_name: String,
+    value: i32,
 }
 
 impl Scoreboard {
@@ -162,10 +172,6 @@ impl Scoreboard {
     #[must_use]
     pub fn get_objective(&self, name: &str) -> Option<&ScoreboardObjective> {
         self.objectives.get(name)
-    }
-
-    pub fn get_objective_mut(&mut self, name: &str) -> Option<&mut ScoreboardObjective> {
-        self.objectives.get_mut(name)
     }
 
     #[must_use]
@@ -255,15 +261,11 @@ impl Scoreboard {
             objective.number_format.clone(),
         );
 
-        let be_update = BSetDisplayObjective {
-            display_slot_name: "sidebar".to_string(), // Default to sidebar
-            objective_name: objective.name.clone(),
-            objective_display_name: objective.display_name.clone().get_text(),
-            criteria_name: "dummy".to_string(),
-            sort_order: VarInt(0),
-        };
-
-        target.send_editioned(&je_update, &be_update);
+        // Adding an objective never writes a display slot in vanilla. A Bedrock
+        // SetDisplayObjective(sidebar) here would reveal an undisplayed objective
+        // and clobber the real Bedrock sidebar; send_to_player sends the actual
+        // displays from the recorded slots.
+        target.send_je(&je_update);
 
         self.objectives.insert(objective.name.clone(), objective);
     }
@@ -294,15 +296,10 @@ impl Scoreboard {
             objective.number_format.clone(),
         );
 
-        let be_update = BSetDisplayObjective {
-            display_slot_name: "sidebar".to_string(),
-            objective_name: objective.name.clone(),
-            objective_display_name: objective.display_name.clone().get_text(),
-            criteria_name: "dummy".to_string(),
-            sort_order: VarInt(0),
-        };
-
-        target.send_editioned(&je_update, &be_update);
+        // Only an explicit set_display_objective writes a Bedrock display slot.
+        // Sending SetDisplayObjective(sidebar) on update would clobber the real
+        // sidebar and show an otherwise-hidden objective.
+        target.send_je(&je_update);
 
         self.objectives.insert(objective.name.clone(), objective);
     }
@@ -313,12 +310,6 @@ impl Scoreboard {
         slot: ScoreboardDisplaySlot,
         objective_name: Option<&str>,
     ) {
-        let slot_str = match slot {
-            ScoreboardDisplaySlot::List => "list",
-            ScoreboardDisplaySlot::BelowName => "belowname",
-            _ => "sidebar",
-        };
-
         let obj_name_str = objective_name.unwrap_or("");
 
         let display_name = objective_name
@@ -329,15 +320,20 @@ impl Scoreboard {
             );
 
         let je_display = CDisplayObjective::new(slot, obj_name_str.to_string());
-        let be_display = BSetDisplayObjective {
-            display_slot_name: slot_str.to_string(),
-            objective_name: obj_name_str.to_string(),
-            objective_display_name: display_name,
-            criteria_name: "dummy".to_string(),
-            sort_order: VarInt(0),
-        };
-
-        target.send_editioned(&je_display, &be_display);
+        if let Some(be_slot) = bedrock_display_slot(slot) {
+            let be_display = BSetDisplayObjective {
+                display_slot_name: be_slot.to_str().to_string(),
+                objective_name: obj_name_str.to_string(),
+                objective_display_name: display_name,
+                criteria_name: "dummy".to_string(),
+                sort_order: VarInt(0),
+            };
+            target.send_editioned(&je_display, &be_display);
+        } else {
+            // A team-colour slot is Java-only; sending it to Bedrock as "sidebar"
+            // would replace the real Bedrock sidebar.
+            target.send_je(&je_display);
+        }
 
         if let Some(name) = objective_name {
             self.display_slots.insert(slot, name.to_string());
@@ -377,9 +373,57 @@ impl Scoreboard {
 
         target.send_editioned(&je_packet, &be_packet);
 
-        self.objectives.remove(name);
+        if let Some(removed) = self.objectives.remove(name) {
+            // Vanilla `PlayerScores#remove` drops the live scores but keeps the orphan Score
+            // objects that stored-score commands already hold, keyed by the removed objective.
+            if let Some(scores) = self.scores.remove(name) {
+                for (entity_name, score) in scores {
+                    self.orphan_scores.push(OrphanScore {
+                        objective: removed.clone(),
+                        entity_name,
+                        value: score.value.0,
+                    });
+                }
+            }
+        }
         self.scores.remove(name);
         self.display_slots.retain(|_, obj| obj != name);
+    }
+
+    /// Writes a score for an objective instance that is no longer live (vanilla orphan score).
+    pub fn set_orphan_score(
+        &mut self,
+        objective: &ScoreboardObjective,
+        entity_name: impl Into<String>,
+        value: i32,
+    ) {
+        let entity_name = entity_name.into();
+        if let Some(existing) = self
+            .orphan_scores
+            .iter_mut()
+            .find(|o| o.objective.is_same(objective) && o.entity_name == entity_name)
+        {
+            existing.value = value;
+        } else {
+            self.orphan_scores.push(OrphanScore {
+                objective: objective.clone(),
+                entity_name,
+                value,
+            });
+        }
+    }
+
+    /// Returns the retained orphan score for an objective instance and holder.
+    #[must_use]
+    pub fn get_orphan_score(
+        &self,
+        objective: &ScoreboardObjective,
+        entity_name: &str,
+    ) -> Option<i32> {
+        self.orphan_scores
+            .iter()
+            .find(|o| o.objective.is_same(objective) && o.entity_name == entity_name)
+            .map(|o| o.value)
     }
 
     pub fn update_score(&mut self, target: &impl ScoreboardTarget, score: ScoreboardScore) {
@@ -577,15 +621,26 @@ impl Scoreboard {
         team_name: &str,
         player: String,
     ) {
-        let Some(team) = self.teams.get_mut(team_name) else {
+        if !self.teams.contains_key(team_name) {
             warn!(
                 "Tried to add player to Team which does not exist, {}",
                 team_name
             );
             return;
-        };
+        }
 
-        if team.players.contains(&player) {
+        // Vanilla `Scoreboard.addPlayerToTeam` removes the holder from any previous
+        // team before adding to the target, and no-ops the add only if the holder was
+        // already in the target team. A holder therefore never stays in two teams.
+        let mut already_in_target = false;
+        for team in self.teams.values_mut() {
+            if team.name == team_name {
+                already_in_target = team.players.iter().any(|member| member == &player);
+            } else {
+                team.players.retain(|member| member != &player);
+            }
+        }
+        if already_in_target {
             return;
         }
 
@@ -596,7 +651,9 @@ impl Scoreboard {
             players: vec![player.clone()].into(),
         });
 
-        team.players.push(player);
+        if let Some(team) = self.teams.get_mut(team_name) {
+            team.players.push(player);
+        }
     }
 
     pub fn remove_player_from_team(
@@ -660,35 +717,30 @@ impl Scoreboard {
                 objective.render_type,
                 objective.number_format.clone(),
             );
-            let be_update = BSetDisplayObjective {
-                display_slot_name: "sidebar".to_string(),
-                objective_name: objective.name.clone(),
-                objective_display_name: objective.display_name.clone().get_text(),
-                criteria_name: "dummy".to_string(),
-                sort_order: VarInt(0),
-            };
-            player.try_enqueue_packet_editioned(&je_update, &be_update);
+            // An objective add/update never displays itself on Bedrock: only an
+            // explicit SetDisplayObjective does. The display-slot loop below sends
+            // the real Bedrock displays.
+            player.try_send_client_packet(&je_update);
         }
 
         for (slot, objective_name) in &self.display_slots {
-            let slot_str = match slot {
-                ScoreboardDisplaySlot::List => "list",
-                ScoreboardDisplaySlot::BelowName => "belowname",
-                _ => "sidebar",
-            };
             let display_name = self.objectives.get(objective_name).map_or_else(
                 || objective_name.clone(),
                 |o| o.display_name.clone().get_text(),
             );
             let je_display = CDisplayObjective::new(*slot, objective_name.clone());
-            let be_display = BSetDisplayObjective {
-                display_slot_name: slot_str.to_string(),
-                objective_name: objective_name.clone(),
-                objective_display_name: display_name,
-                criteria_name: "dummy".to_string(),
-                sort_order: VarInt(0),
-            };
-            player.try_enqueue_packet_editioned(&je_display, &be_display);
+            if let Some(be_slot) = bedrock_display_slot(*slot) {
+                let be_display = BSetDisplayObjective {
+                    display_slot_name: be_slot.to_str().to_string(),
+                    objective_name: objective_name.clone(),
+                    objective_display_name: display_name,
+                    criteria_name: "dummy".to_string(),
+                    sort_order: VarInt(0),
+                };
+                player.try_enqueue_packet_editioned(&je_display, &be_display);
+            } else {
+                player.try_send_client_packet(&je_display);
+            }
         }
 
         for objective_scores in self.scores.values() {
@@ -774,52 +826,164 @@ const DISPLAY_SLOT_NAMES: [(ScoreboardDisplaySlot, &str); 19] = [
     (ScoreboardDisplaySlot::TeamWhite, "sidebar.team.white"),
 ];
 
+/// Bedrock exposes only list/sidebar/belowname; `sidebar.team.*` slots are Java-only.
+/// Sending a team slot as a Bedrock sidebar would clobber the real Bedrock sidebar.
+const fn bedrock_display_slot(slot: ScoreboardDisplaySlot) -> Option<BedrockDisplaySlot> {
+    match slot {
+        ScoreboardDisplaySlot::List => Some(BedrockDisplaySlot::PlayerList),
+        ScoreboardDisplaySlot::Sidebar => Some(BedrockDisplaySlot::Sidebar),
+        ScoreboardDisplaySlot::BelowName => Some(BedrockDisplaySlot::BelowName),
+        _ => None,
+    }
+}
+
+/// Mirrors vanilla `NumberFormatTypes`: a tagged compound keyed by `type`.
+/// `styled` is omitted because Pumpkin's `Style` has no NBT codec yet.
+fn number_format_to_nbt(format: &NumberFormat) -> Option<NbtTag> {
+    let mut nbt = NbtCompound::new();
+    match format {
+        NumberFormat::Blank => nbt.put_string("type", "blank".to_string()),
+        NumberFormat::Fixed(text) => {
+            nbt.put_string("type", "fixed".to_string());
+            nbt.put(
+                "value",
+                text.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            );
+        }
+        NumberFormat::Styled(_) => return None,
+    }
+    Some(NbtTag::Compound(nbt))
+}
+
+fn number_format_from_nbt(tag: &NbtTag) -> Option<NumberFormat> {
+    let NbtTag::Compound(nbt) = tag else {
+        return None;
+    };
+    match nbt.get_string("type")? {
+        "blank" => Some(NumberFormat::Blank),
+        "fixed" => nbt
+            .get("value")
+            .map(|value| NumberFormat::Fixed(TextComponent::from_nbt(value))),
+        _ => None,
+    }
+}
+
+fn name_tag_visibility_from_str(value: Option<&str>) -> NameTagVisibility {
+    match value {
+        Some("never") => NameTagVisibility::Never,
+        Some("hideForOtherTeams") => NameTagVisibility::HideForOtherTeams,
+        Some("hideForOwnTeam") => NameTagVisibility::HideForOwnTeam,
+        _ => NameTagVisibility::Always,
+    }
+}
+
+fn collision_rule_from_str(value: Option<&str>) -> CollisionRule {
+    match value {
+        Some("never") => CollisionRule::Never,
+        Some("pushOtherTeams") => CollisionRule::PushOtherTeams,
+        Some("pushOwnTeam") => CollisionRule::PushOwnTeam,
+        _ => CollisionRule::Always,
+    }
+}
+
+fn objective_to_nbt(objective: &ScoreboardObjective) -> NbtTag {
+    let mut nbt = NbtCompound::new();
+    nbt.put_string("Name", objective.name.clone());
+    nbt.put_string("CriteriaName", objective.criterion.clone());
+    nbt.put(
+        "DisplayName",
+        objective
+            .display_name
+            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+    );
+    let render_type = match objective.render_type {
+        RenderType::Integer => "integer",
+        RenderType::Hearts => "hearts",
+    };
+    nbt.put_string("RenderType", render_type.to_string());
+    if let Some(format) = &objective.number_format
+        && let Some(tag) = number_format_to_nbt(format)
+    {
+        nbt.put("format", tag);
+    }
+    NbtTag::Compound(nbt)
+}
+
+fn score_to_nbt(score: &ScoreboardScore) -> NbtTag {
+    let mut nbt = NbtCompound::new();
+    nbt.put_string("Name", score.entity_name.clone());
+    nbt.put_string("Objective", score.objective_name.clone());
+    nbt.put_int("Score", score.value.0);
+    nbt.put_bool("Locked", score.locked);
+    if let Some(display_name) = &score.display_name {
+        nbt.put(
+            "display",
+            display_name.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+        );
+    }
+    if let Some(format) = &score.number_format
+        && let Some(tag) = number_format_to_nbt(format)
+    {
+        nbt.put("format", tag);
+    }
+    NbtTag::Compound(nbt)
+}
+
+fn team_to_nbt(team: &Team) -> NbtTag {
+    let mut nbt = NbtCompound::new();
+    nbt.put_string("Name", team.name.clone());
+    nbt.put(
+        "DisplayName",
+        team.display_name
+            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+    );
+    if let Some(color) = team.color {
+        nbt.put_string("TeamColor", color.name().to_string());
+    }
+    nbt.put_bool("AllowFriendlyFire", team.is_allow_friendly_fire());
+    nbt.put_bool("SeeFriendlyInvisibles", team.can_see_friendly_invisibles());
+    nbt.put(
+        "MemberNamePrefix",
+        team.player_prefix
+            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+    );
+    nbt.put(
+        "MemberNameSuffix",
+        team.player_suffix
+            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+    );
+    nbt.put_string(
+        "NameTagVisibility",
+        team.nametag_visibility.to_str().to_string(),
+    );
+    nbt.put_string(
+        "DeathMessageVisibility",
+        team.death_message_visibility().to_str().to_string(),
+    );
+    nbt.put_string("CollisionRule", team.collision_rule.to_str().to_string());
+    nbt.put_list(
+        "Players",
+        team.players
+            .iter()
+            .map(|player| NbtTag::String(player.clone().into_boxed_str()))
+            .collect(),
+    );
+    NbtTag::Compound(nbt)
+}
+
 impl Scoreboard {
-    /// Serializes objectives, scores and display slots into the `data` compound of
-    /// vanilla's `scoreboard.dat`. Teams are not persisted yet.
+    /// Serializes objectives, scores, display slots and teams into the `data`
+    /// compound of vanilla's `scoreboard.dat`.
     #[must_use]
     pub fn to_saved_nbt(&self) -> NbtCompound {
-        let objectives = self
-            .objectives
-            .values()
-            .map(|objective| {
-                let mut nbt = NbtCompound::new();
-                nbt.put_string("Name", objective.name.clone());
-                nbt.put_string("CriteriaName", objective.criterion.clone());
-                nbt.put(
-                    "DisplayName",
-                    objective
-                        .display_name
-                        .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
-                );
-                let render_type = match objective.render_type {
-                    RenderType::Integer => "integer",
-                    RenderType::Hearts => "hearts",
-                };
-                nbt.put_string("RenderType", render_type.to_string());
-                NbtTag::Compound(nbt)
-            })
-            .collect();
-
-        let scores = self
+        let objectives: Vec<NbtTag> = self.objectives.values().map(objective_to_nbt).collect();
+        let scores: Vec<NbtTag> = self
             .scores
             .values()
             .flat_map(FxHashMap::values)
-            .map(|score| {
-                let mut nbt = NbtCompound::new();
-                nbt.put_string("Name", score.entity_name.clone());
-                nbt.put_string("Objective", score.objective_name.clone());
-                nbt.put_int("Score", score.value.0);
-                nbt.put_bool("Locked", score.locked);
-                if let Some(display_name) = &score.display_name {
-                    nbt.put(
-                        "display",
-                        display_name.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
-                    );
-                }
-                NbtTag::Compound(nbt)
-            })
+            .map(score_to_nbt)
             .collect();
+        let teams: Vec<NbtTag> = self.teams.values().map(team_to_nbt).collect();
 
         let mut display_slots = NbtCompound::new();
         for (slot, name) in DISPLAY_SLOT_NAMES {
@@ -832,6 +996,7 @@ impl Scoreboard {
         data.put_list("Objectives", objectives);
         data.put_list("PlayerScores", scores);
         data.put_compound("DisplaySlots", display_slots);
+        data.put_list("Teams", teams);
         data
     }
 
@@ -841,6 +1006,8 @@ impl Scoreboard {
         self.objectives.clear();
         self.scores.clear();
         self.display_slots.clear();
+        self.teams.clear();
+        self.orphan_scores.clear();
 
         for tag in data.get_list("Objectives").unwrap_or_default() {
             let NbtTag::Compound(nbt) = tag else { continue };
@@ -857,9 +1024,10 @@ impl Scoreboard {
                 RenderType::Integer
             };
             let criterion = nbt.get_string("CriteriaName").unwrap_or("dummy");
+            let number_format = nbt.get("format").and_then(number_format_from_nbt);
             self.objectives.insert(
                 name.to_string(),
-                ScoreboardObjective::new(name, display_name, render_type, None, criterion),
+                ScoreboardObjective::new(name, display_name, render_type, number_format, criterion),
             );
         }
 
@@ -878,7 +1046,7 @@ impl Scoreboard {
                 objective_name,
                 VarInt(nbt.get_int("Score").unwrap_or(0)),
                 nbt.get("display").map(TextComponent::from_nbt),
-                None,
+                nbt.get("format").and_then(number_format_from_nbt),
             );
             score.locked = nbt.get_bool("Locked").unwrap_or(true);
             self.scores
@@ -895,6 +1063,59 @@ impl Scoreboard {
                     self.display_slots.insert(slot, objective.to_string());
                 }
             }
+        }
+
+        self.load_teams(data.get_list("Teams").unwrap_or_default());
+    }
+
+    fn load_teams(&mut self, tags: &[NbtTag]) {
+        for tag in tags {
+            let NbtTag::Compound(nbt) = tag else { continue };
+            let Some(name) = nbt.get_string("Name") else {
+                continue;
+            };
+            let options = (if nbt.get_bool("AllowFriendlyFire").unwrap_or(true) {
+                Team::ALLOW_FRIENDLY_FIRE
+            } else {
+                0
+            }) | (if nbt.get_bool("SeeFriendlyInvisibles").unwrap_or(true) {
+                Team::SEE_FRIENDLY_INVISIBLES
+            } else {
+                0
+            });
+            let team = Team {
+                name: name.to_string(),
+                display_name: nbt
+                    .get("DisplayName")
+                    .map_or_else(TextComponent::empty, TextComponent::from_nbt),
+                options,
+                nametag_visibility: name_tag_visibility_from_str(
+                    nbt.get_string("NameTagVisibility"),
+                ),
+                collision_rule: collision_rule_from_str(nbt.get_string("CollisionRule")),
+                color: nbt
+                    .get_string("TeamColor")
+                    .and_then(|color| NamedColor::try_from(color).ok()),
+                death_message_visibility: name_tag_visibility_from_str(
+                    nbt.get_string("DeathMessageVisibility"),
+                ),
+                player_prefix: nbt
+                    .get("MemberNamePrefix")
+                    .map_or_else(TextComponent::empty, TextComponent::from_nbt),
+                player_suffix: nbt
+                    .get("MemberNameSuffix")
+                    .map_or_else(TextComponent::empty, TextComponent::from_nbt),
+                players: nbt
+                    .get_list("Players")
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(|tag| match tag {
+                        NbtTag::String(player) => Some(player.to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+            };
+            self.teams.insert(name.to_string(), team);
         }
     }
 }
@@ -1565,5 +1786,83 @@ impl BedrockScoreboardBuilder {
     #[must_use]
     pub fn build(self) -> BedrockScoreboard {
         self.scoreboard
+    }
+}
+
+#[cfg(test)]
+mod bedrock_slot_tests {
+    use super::*;
+
+    #[test]
+    fn team_display_slots_have_no_bedrock_slot() {
+        assert!(bedrock_display_slot(ScoreboardDisplaySlot::List).is_some());
+        assert!(bedrock_display_slot(ScoreboardDisplaySlot::Sidebar).is_some());
+        assert!(bedrock_display_slot(ScoreboardDisplaySlot::BelowName).is_some());
+        assert!(bedrock_display_slot(ScoreboardDisplaySlot::TeamRed).is_none());
+        assert!(bedrock_display_slot(ScoreboardDisplaySlot::TeamWhite).is_none());
+    }
+}
+
+#[cfg(test)]
+mod team_membership_tests {
+    use super::*;
+
+    #[must_use]
+    fn empty_team(name: &str) -> Team {
+        Team {
+            name: name.to_string(),
+            display_name: TextComponent::empty(),
+            options: 0,
+            nametag_visibility: NameTagVisibility::Always,
+            collision_rule: CollisionRule::Always,
+            color: None,
+            death_message_visibility: NameTagVisibility::Always,
+            player_prefix: TextComponent::empty(),
+            player_suffix: TextComponent::empty(),
+            players: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn joining_a_team_removes_the_holder_from_its_previous_team() {
+        let mut board = Scoreboard::new();
+        let target = NoTarget;
+        board.add_team(&target, empty_team("red"));
+        board.add_team(&target, empty_team("blue"));
+        board.add_player_to_team(&target, "red", "Alex".to_string());
+        board.add_player_to_team(&target, "blue", "Alex".to_string());
+
+        assert!(board.get_team("red").is_some_and(|t| t.players.is_empty()));
+        assert!(
+            board
+                .get_team("blue")
+                .is_some_and(|t| t.players.iter().any(|p| p.as_str() == "Alex"))
+        );
+    }
+
+    #[test]
+    fn rejoining_the_target_team_still_drops_a_stale_membership() {
+        // A holder can only be in one team in vanilla; if the target already lists
+        // the holder, a stale membership in another team must still be cleared.
+        let mut board = Scoreboard::new();
+        let target = NoTarget;
+        board.add_team(&target, empty_team("red"));
+        board.add_team(&target, empty_team("blue"));
+        board.add_player_to_team(&target, "blue", "Alex".to_string());
+        // Simulate a desynced state where Alex lingers in red.
+        if let Some(red) = board.get_team_mut("red") {
+            red.players.push("Alex".to_string());
+        }
+        board.add_player_to_team(&target, "blue", "Alex".to_string());
+
+        assert!(board.get_team("red").is_some_and(|t| t.players.is_empty()));
+        assert_eq!(
+            board.get_team("blue").map(|t| t
+                .players
+                .iter()
+                .filter(|p| p.as_str() == "Alex")
+                .count()),
+            Some(1)
+        );
     }
 }

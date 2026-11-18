@@ -31,6 +31,12 @@ impl JavaClient {
             return;
         }
 
+        // Vanilla `handleMoveVehicle` ignores the packet until the client has loaded and
+        // while a teleport is still unconfirmed (`updateAwaitingTeleport`).
+        if !player.has_client_loaded() || player.is_awaiting_teleport() {
+            return;
+        }
+
         let entity = player.get_entity();
         let last_pos = entity.pos.load();
         let pos = Vector3::new(
@@ -45,6 +51,10 @@ impl JavaClient {
         let vehicle = entity.get_vehicle();
         if let Some(vehicle) = &vehicle {
             let vehicle_entity = vehicle.get_entity();
+            // Vanilla ignores moves for a vehicle that was already removed.
+            if vehicle_entity.is_removed() {
+                return;
+            }
             // Only the controlling passenger (the first one) steers.
             let is_controlling = vehicle_entity
                 .passengers

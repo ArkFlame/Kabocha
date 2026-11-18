@@ -231,11 +231,11 @@ impl AxolotlEntity {
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Box::new(AxolotlLookControl::default());
-        // Vanilla `Axolotl.createNavigation`: `new WaterBoundPathNavigation(this, level)`.
+        // Vanilla `Axolotl.createNavigation`: `new AmphibiousPathNavigation(this, level)`.
         *mob_entity
             .navigator
             .get_mut()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Navigator::water_bound(false);
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Navigator::amphibious(false);
         // `setPathfindingMalus(PathType.WATER, 0.0F)`: water costs nothing to path through.
         mob_entity
             .navigator
@@ -1548,10 +1548,10 @@ mod tests {
         Ok(())
     }
 
-    /// A ground navigator accepts the solid stone as a stable destination; vanilla's
-    /// `WaterBoundPathNavigation` only accepts positions that are not solid.
+    /// Vanilla's `AmphibiousPathNavigation.isStableDestination` accepts a position when the
+    /// block below it is not air; solid stone below is a stable destination.
     #[tokio::test]
-    async fn navigation_is_water_bound_like_vanilla() -> TestResult {
+    async fn navigation_is_amphibious_like_vanilla() -> TestResult {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);
@@ -1571,7 +1571,7 @@ mod tests {
             .is_stable_destination(&world, &pos);
         world.level.shutdown().await;
 
-        assert!(!stable);
+        assert!(stable);
         Ok(())
     }
 }

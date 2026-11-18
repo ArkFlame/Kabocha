@@ -2062,9 +2062,10 @@ impl Server {
     }
 
     /// Vanilla `tickChildren` "timeSync": every 20 ticks, also while frozen.
-    /// Sync before `tickTime()`. `tick_count + 1` is this vanilla tick.
+    /// Sync before `tickTime()`. `tick_count` is advanced at the top of the tick
+    /// loop, so it already holds the current vanilla tick.
     fn sync_game_time(&self) {
-        if self.tick_count.load(Ordering::Relaxed).wrapping_add(1) % 20 == 0
+        if self.tick_count.load(Ordering::Relaxed) % 20 == 0
             && let Some(overworld) =
                 self.worlds.load().iter().find(|world| {
                     world.dimension.minecraft_name == Dimension::OVERWORLD.minecraft_name
@@ -2076,19 +2077,10 @@ impl Server {
 
     /// Updates the tick time statistics with the duration of the last tick.
     pub fn update_tick_times(&self, tick_duration_nanos: i64) {
-        // Vanilla increments MinecraftServer.tickCount only inside the
-        // runsNormally() branch of tickServer. Frozen ticks (without a step
-        // or sprint) must not advance autosave cadence, scheduled functions or
-        // the tick numbers carried by tick events. The ring write below stays
-        // unconditional, so its index reuses the frozen tick_count slot.
-        let tick_count = if advances_tick_count(
-            self.tick_rate_manager.runs_normally(),
-            self.tick_rate_manager.is_sprinting(),
-        ) {
-            self.tick_count.fetch_add(1, Ordering::Relaxed)
-        } else {
-            self.tick_count.load(Ordering::Relaxed)
-        };
+        // `tick_count` is advanced at the top of the tick loop, so in-tick
+        // readers see the current vanilla tick. The ring write stays
+        // unconditional; a frozen tick reuses the last tick_count slot.
+        let tick_count = self.tick_count.load(Ordering::Relaxed);
         let index = (tick_count % 100) as usize;
 
         let mut tick_times = self

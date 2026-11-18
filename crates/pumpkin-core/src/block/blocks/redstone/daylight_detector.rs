@@ -29,10 +29,9 @@ impl BlockBehaviour for DaylightDetectorBlock {
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        // Vanilla `useWithoutItem` returns PASS only when `!player.mayBuild()`, i.e. for
-        // spectators (`abilities.mayBuild` stays true in adventure, so adventure players may
-        // toggle the detector).
-        if args.player.is_spectator() {
+        // Vanilla `useWithoutItem` returns PASS when `!player.mayBuild()`: `GameType`
+        // clears mayBuild for adventure and spectator.
+        if !args.player.may_build() {
             return BlockActionResult::Pass;
         }
 

@@ -18,6 +18,7 @@ use crate::block::{
     BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
     OnEntityCollisionArgs, OnScheduledTickArgs, PlacedArgs,
 };
+use crate::entity::EntityBase;
 use crate::world::World;
 use crate::world::portal::nether::NetherPortal;
 
@@ -91,6 +92,26 @@ impl FireBlock {
         fire_props.to_state_id(block)
     }
 
+    /// Mirrors vanilla `FireBlock.getStateWithAge`.
+    ///
+    /// A soul base below yields soul fire's default state, which carries no shape or
+    /// age properties, so it is returned unchanged.
+    pub(crate) fn get_placement_state(
+        &self,
+        world: &World,
+        pos: &BlockPos,
+        age: u8,
+    ) -> BlockStateId {
+        let fire = FireBlockBase::get_fire_type(world, pos);
+        if fire.id == Block::SOUL_FIRE.id {
+            return fire.default_state.id;
+        }
+        let state_id = self.get_state_for_position(world, &fire, pos);
+        let mut fire_props = FireProperties::from_state_id(state_id);
+        fire_props.age = age;
+        fire_props.to_state_id(&fire)
+    }
+
     // Used for spreading fire
     pub fn get_burn_chance(&self, world: &Arc<World>, pos: &BlockPos) -> i32 {
         let block_state = world.get_block_state(pos);
@@ -130,6 +151,36 @@ impl FireBlock {
             .get_value_bool(EnvironmentAttribute::GameplayIncreasedFireBurnout, pos)
     }
 
+    /// Mirrors vanilla `ServerLevel.canSpreadFireAround`.
+    ///
+    /// Gates the whole fire tick, not only the spread loop: with a radius set and no
+    /// player inside it, fire neither ages, burns out, nor spreads.
+    pub(crate) fn can_spread_fire_around(world: &World, pos: &BlockPos) -> bool {
+        let radius = world
+            .level_info
+            .load()
+            .game_rules
+            .fire_spread_radius_around_player;
+        if radius == -1 {
+            return true;
+        }
+        if radius <= 0 {
+            return false;
+        }
+        // Vanilla measures from the block corner, not its centre.
+        let target = Vector3::new(f64::from(pos.0.x), f64::from(pos.0.y), f64::from(pos.0.z));
+        let max_distance_sq = (radius as f64).powi(2);
+        world.players.load().iter().any(|player| {
+            !player.is_spectator()
+                && player
+                    .get_entity()
+                    .pos
+                    .load()
+                    .squared_distance_to_vec(&target)
+                    < max_distance_sq
+        })
+    }
+
     fn try_spreading_fire(&self, world: &Arc<World>, pos: &BlockPos, chance: i32, age: u8) {
         let state_id = world.get_block_state_id(pos);
         let block = state_id.to_block();
@@ -149,17 +200,20 @@ impl FireBlock {
                 return;
             }
             let old_block = block;
-            // Vanilla FireBlock.checkBurnOut only tests the target position here,
-            // not the 5-column isNearRain used for the fire's own block. Vanilla
-            // always removes TNT before priming it (even when the re-light roll
-            // succeeds), so TNT must never take the re-light branch.
-            let relight = rand::rng().random_range(0..(age + 10) as i32) < 5 && !world.is_raining_at(pos);
-            if relight && old_block != &Block::TNT {
+            // Vanilla FireBlock.checkBurnOut tests only the target position here, not the
+            // 5-column isNearRain used for the fire's own block. It rolls the new age before
+            // the TNT branch, and removes TNT before priming it, so TNT always ends as air.
+            let relight =
+                rand::rng().random_range(0..(age + 10) as i32) < 5 && !world.is_raining_at(pos);
+            if relight {
+                // Vanilla rolls the new age before branching on TNT, so the shared random
+                // sequence stays identical.
                 let new_age = (age + (rand::rng().random_range(0..5) / 4)).min(15) as u8;
-                let state_id = self.get_state_for_position(world.as_ref(), &Block::FIRE, pos);
-                let mut fire_props = FireProperties::from_state_id(state_id);
-                fire_props.age = new_age;
-                let new_state_id = fire_props.to_state_id(&Block::FIRE);
+                let new_state_id = if old_block == &Block::TNT {
+                    Block::AIR.default_state.id
+                } else {
+                    self.get_placement_state(world.as_ref(), pos, new_age)
+                };
                 world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_ALL);
             } else {
                 world.set_block_state(pos, Block::AIR.default_state.id, BlockFlags::NOTIFY_ALL);
@@ -239,10 +293,7 @@ impl BlockBehaviour for FireBlock {
             use_item_on: None,
         }) {
             let age = FireProperties::from_state_id(args.state_id).age;
-            let state_id = self.get_state_for_position(args.world, args.block, args.position);
-            let mut props = FireProperties::from_state_id(state_id);
-            props.age = age;
-            props.to_state_id(args.block)
+            self.get_placement_state(args.world, args.position, age)
         } else {
             Block::AIR.default_state.id
         }
@@ -267,6 +318,12 @@ impl BlockBehaviour for FireBlock {
             Self::get_fire_tick_delay() as u32,
             TickPriority::Normal,
         );
+
+        // Vanilla wraps the whole tick body (survival, aging, burnout, spread) in this
+        // check, so the radius gamerule freezes fire instead of only stopping spread.
+        if !Self::can_spread_fire_around(world, pos) {
+            return;
+        }
 
         // Check if fire can survive
         if !self.can_place_at(CanPlaceAtArgs {
@@ -381,14 +438,6 @@ impl BlockBehaviour for FireBlock {
             age,
         );
 
-        // Respect the `fire_spread_radius_around_player` gamerule.
-        // -1 = disabled (allow unlimited spread), 0 = disabled (no spread), >0 = radius in blocks
-        let spread_radius = world
-            .level_info
-            .load()
-            .game_rules
-            .fire_spread_radius_around_player;
-
         // Try to spread fire to nearby air blocks
         let difficulty = world.level_info.load().difficulty as i32;
         for xx in -1..=1 {
@@ -399,20 +448,6 @@ impl BlockBehaviour for FireBlock {
                         let ignite_odds = self.get_burn_chance(world, &offset_pos);
 
                         if ignite_odds > 0 {
-                            // Skip if spreding is disabled or if there are no players nearby
-                            if spread_radius == 0 {
-                                continue;
-                            }
-                            if spread_radius != -1 {
-                                let center = offset_pos.to_centered_f64();
-                                if world
-                                    .get_closest_player(center, spread_radius as f64)
-                                    .is_none()
-                                {
-                                    continue;
-                                }
-                            }
-
                             // Calculate spread rate based on height
                             let rate = if yy > 1 { 100 + (yy - 1) * 100 } else { 100 };
 
@@ -433,12 +468,11 @@ impl BlockBehaviour for FireBlock {
                             {
                                 let spread_age =
                                     (age + rand::rng().random_range(0..5) / 4).min(15) as u8;
-                                let fire_state_id =
-                                    self.get_state_for_position(world.as_ref(), block, &offset_pos);
-                                let mut new_fire_props =
-                                    FireProperties::from_state_id(fire_state_id);
-                                new_fire_props.age = spread_age;
-                                let new_state_id = new_fire_props.to_state_id(&Block::FIRE);
+                                let new_state_id = self.get_placement_state(
+                                    world.as_ref(),
+                                    &offset_pos,
+                                    spread_age,
+                                );
 
                                 if let Some(server) = world.server.upgrade() {
                                     let mut event = crate::plugin::api::events::block::block_spread::BlockSpreadEvent::new(

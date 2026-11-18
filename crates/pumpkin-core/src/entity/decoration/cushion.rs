@@ -550,6 +550,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn placement_accepts_a_slab_anchor() {
+        let fixture = PlacementWorld::new();
+        // A bottom slab at (0, 64, 0) occupies world y in [64, 64.5], so a
+        // cushion resting on its top face has its lower face at y = 64.5.
+        let bb = BoundingBox::new(Vector3::new(0.0, 64.5, 0.0), Vector3::new(1.0, 64.75, 1.0));
+        fixture.set_block(BlockPos::new(0, 64, 0), Block::OAK_SLAB.default_state.id);
+
+        assert!(
+            CushionEntity::would_survive_at(&fixture.world, &bb),
+            "a bottom slab supports a cushion resting on its top face"
+        );
+        assert!(
+            CushionEntity::can_be_placed_at(&fixture.world, &bb),
+            "a bottom slab is a valid placement anchor"
+        );
+
+        fixture.shutdown().await;
+    }
+
+    #[tokio::test]
     async fn placement_rejects_a_suffocating_cover() {
         let fixture = PlacementWorld::new();
         let bb = resting_cushion_box();

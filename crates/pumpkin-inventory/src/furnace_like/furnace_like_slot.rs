@@ -158,11 +158,12 @@ impl Slot for FurnaceOutputSlot {
             .map(|entry| entry.recipe_id.clone())
             .collect();
         player.award_recipes(&recipe_ids);
-        let experience: i32 = extracted.iter().map(|entry| entry.experience).sum();
-        debug!("FurnaceOutputSlot: extracted experience = {experience}");
-        if experience > 0 {
-            debug!("FurnaceOutputSlot: awarding {experience} xp to player");
-            player.award_experience(experience);
+        // Vanilla spawns one orb per used recipe at the player's position, so keep the
+        // per-recipe amounts instead of merging them into a single award.
+        let experience: Vec<i32> = extracted.iter().map(|entry| entry.experience).collect();
+        if experience.iter().any(|amount| *amount > 0) {
+            debug!("FurnaceOutputSlot: awarding {experience:?} xp to player");
+            player.award_experience_orbs(&experience);
         }
         self.mark_dirty();
     }

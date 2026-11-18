@@ -56,14 +56,12 @@ const DIGGING_DIMENSIONS_EYE_HEIGHT: f32 = 0.81;
 const MAX_EXPLORED_POSITIONS: usize = 20;
 const HEAD_DISTANCE: f64 = 2.25;
 
-/// Prepends `newest` and keeps at most `cap` entries in total, dropping the oldest.
-fn prepend_capped<T: Copy>(newest: T, previous: impl Iterator<Item = T>, cap: usize) -> Vec<T> {
-    let mut out = Vec::with_capacity(cap);
-    if cap == 0 {
-        return out;
-    }
+/// Vanilla `storeExploredPosition` keeps at most 20 previous entries and then prepends the new
+/// one, so the memory settles at 21 positions rather than 20.
+fn prepend_capped<T: Copy>(newest: T, previous: impl Iterator<Item = T>, limit: usize) -> Vec<T> {
+    let mut out = Vec::with_capacity(limit + 1);
     out.push(newest);
-    out.extend(previous.take(cap - 1));
+    out.extend(previous.take(limit));
     out
 }
 const MAX_HEAD_Y_ROT: f32 = 50.0;
@@ -220,9 +218,8 @@ impl SnifferEntity {
             SnifferState::Rising => {
                 self.play_entity_sound(Sound::EntitySnifferDiggingStop, 1.0, 1.0);
             }
-            SnifferState::Searching => {
-                self.play_entity_sound(Sound::EntitySnifferSearching, 1.0, 1.0);
-            }
+            // Vanilla plays SNIFFER_SEARCHING only on the client, every 20 ticks, and the
+            // searching transition itself is silent server-side.
             _ => {}
         }
         let entity = self.get_entity();
@@ -695,9 +692,10 @@ mod tests {
     #[test]
     fn explored_positions_keep_newest_within_cap() {
         let out = prepend_capped(99, 0..MAX_EXPLORED_POSITIONS as u32, MAX_EXPLORED_POSITIONS);
-        assert_eq!(out.len(), MAX_EXPLORED_POSITIONS);
+        // Vanilla limits the previous list to 20 and then prepends, so 21 survive.
+        assert_eq!(out.len(), MAX_EXPLORED_POSITIONS + 1);
         assert_eq!(out[0], 99);
-        assert_eq!(out.last(), Some(&(MAX_EXPLORED_POSITIONS as u32 - 2)));
+        assert_eq!(out.last(), Some(&(MAX_EXPLORED_POSITIONS as u32 - 1)));
     }
     use crate::entity::ai::test_support::world;
 
@@ -792,14 +790,14 @@ mod tests {
             let positions = brain
                 .get(types::SNIFFER_EXPLORED_POSITIONS)
                 .ok_or("missing explored positions")?;
-            assert_eq!(positions.len(), MAX_EXPLORED_POSITIONS);
+            assert_eq!(positions.len(), MAX_EXPLORED_POSITIONS + 1);
             assert_eq!(
                 positions[0],
                 GlobalPos::new(&Dimension::OVERWORLD, BlockPos::new(22, 63, 8))
             );
             assert_eq!(
-                positions[MAX_EXPLORED_POSITIONS - 1].pos,
-                BlockPos::new(3, 63, 8)
+                positions[MAX_EXPLORED_POSITIONS].pos,
+                BlockPos::new(2, 63, 8)
             );
             assert_eq!(
                 brain.time_until_expiry(types::SNIFF_COOLDOWN.id()),

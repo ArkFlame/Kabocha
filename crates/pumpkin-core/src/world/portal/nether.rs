@@ -11,7 +11,10 @@ use pumpkin_util::math::{
     vector2::Vector2,
     vector3::Vector3,
 };
-use pumpkin_world::{chunk::ChunkHeightmapType, world::BlockFlags};
+use pumpkin_world::{
+    chunk::ChunkHeightmapType,
+    world::{BlockFlags, fluid_state_from_block_state},
+};
 use std::sync::Arc;
 
 use crate::entity::EntityBase;
@@ -194,7 +197,6 @@ impl NetherPortal {
     const MAX_WIDTH: u32 = 21;
     const MAX_HEIGHT: u32 = 21;
     const MIN_HEIGHT: u32 = 3;
-    const FRAME_BLOCK: Block = Block::OBSIDIAN;
 
     #[must_use]
     pub const fn is_valid(&self) -> bool {
@@ -350,13 +352,12 @@ impl NetherPortal {
             lower_corner = original_lower_corner.offset_dir(negative_dir.to_offset(), i as i32);
             let (block, block_state) = world.get_block_and_state(&lower_corner);
             if !Self::valid_state_inside_portal(block, block_state, axis) {
-                if &Self::FRAME_BLOCK != block {
+                if !Self::is_frame(block) {
                     break;
                 }
                 return i;
             }
-            let block = world.get_block(&lower_corner.down());
-            if &Self::FRAME_BLOCK != block {
+            if !Self::is_frame(world.get_block(&lower_corner.down())) {
                 break;
             }
         }
@@ -399,14 +400,14 @@ impl NetherPortal {
             let mut pos = lower_corner
                 .offset_dir(BlockDirection::Up.to_offset(), i)
                 .offset_dir(negative_dir.to_offset(), -1);
-            if world.get_block(&pos) != &Self::FRAME_BLOCK {
+            if !Self::is_frame(world.get_block(&pos)) {
                 return i as u32;
             }
 
             pos = lower_corner
                 .offset_dir(BlockDirection::Up.to_offset(), i)
                 .offset_dir(negative_dir.to_offset(), width as i32);
-            if world.get_block(&pos) != &Self::FRAME_BLOCK {
+            if !Self::is_frame(world.get_block(&pos)) {
                 return i as u32;
             }
 
@@ -438,11 +439,30 @@ impl NetherPortal {
             pos = lower_corner
                 .offset_dir(BlockDirection::Up.to_offset(), height as i32)
                 .offset_dir(dir.to_offset(), i as i32);
-            if &Self::FRAME_BLOCK != world.get_block(&pos) {
+            if !Self::is_frame(world.get_block(&pos)) {
                 return false;
             }
         }
         true
+    }
+
+    /// Vanilla `PortalShape.FRAME` tests the `minecraft:nether_portal_frame`
+    /// tag, so a datapack can swap the frame block.
+    fn is_frame(block: &Block) -> bool {
+        block.has_tag(&tag::Block::MINECRAFT_NETHER_PORTAL_FRAME)
+    }
+
+    /// Vanilla `BlockStateBase#isSolid` (`legacySolid`): the merged collision
+    /// shape is either at least 0.729 average side or a full block tall, so
+    /// slabs and snow layers count while carpets and torches do not.
+    fn is_legacy_solid(state: &BlockState) -> bool {
+        let mut shapes = state.get_block_collision_shapes();
+        let Some(first) = shapes.next() else {
+            return false;
+        };
+        let bounds = shapes.fold(first, |acc, shape| acc.minmax(&shape));
+        bounds.get_average_side_length() >= 0.729_166_666_666_666_6
+            || bounds.max.y - bounds.min.y >= 1.0
     }
 
     fn valid_state_inside_portal(block: &Block, state: &BlockState, _axis: HorizontalAxis) -> bool {
@@ -699,8 +719,8 @@ impl NetherPortal {
 
     /// Mirrors vanilla `PortalForcer#canPortalReplaceBlock`: any replaceable
     /// state without a fluid counts as free space in the createPortal scan.
-    const fn is_valid_portal_air(state: &BlockState) -> bool {
-        state.replaceable() && !state.is_liquid()
+    fn is_valid_portal_air(state: &BlockState) -> bool {
+        state.replaceable() && fluid_state_from_block_state(state.id).1.is_empty
     }
 
     fn is_valid_portal_pos(
@@ -730,7 +750,7 @@ impl NetherPortal {
                 let state = world.get_block_state(&pos);
 
                 if height < 0 {
-                    if !state.is_solid_block() {
+                    if !Self::is_legacy_solid(state) {
                         return false;
                     }
                 } else if !Self::is_valid_portal_air(state) {
@@ -1001,6 +1021,24 @@ mod tests {
             state,
             HorizontalAxis::X,
         ));
+    }
+
+    #[test]
+    fn frame_check_follows_nether_portal_frame_tag() {
+        assert!(NetherPortal::is_frame(&Block::OBSIDIAN));
+        assert!(!NetherPortal::is_frame(&Block::STONE));
+    }
+
+    #[test]
+    fn portal_floor_uses_legacy_solid_collision_shape() {
+        let solid = |block: &Block| {
+            NetherPortal::is_legacy_solid(BlockState::from_id(block.default_state.id))
+        };
+        assert!(solid(&Block::STONE));
+        // Slabs are not full cubes yet still carry a vanilla portal floor.
+        assert!(solid(&Block::STONE_SLAB));
+        assert!(!solid(&Block::WHITE_CARPET));
+        assert!(!solid(&Block::AIR));
     }
 
     #[test]

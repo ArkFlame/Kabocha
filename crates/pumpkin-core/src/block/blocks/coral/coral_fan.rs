@@ -1,7 +1,7 @@
 use crate::{
     block::{
-        BlockBehaviour, BlockIsReplacing, BlockMetadata, CanPlaceAtArgs,
-        GetStateForNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
+        BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+        OnScheduledTickArgs, PlacedArgs,
         blocks::coral::{is_dead_coral, scan_for_water, try_schedule_die_tick},
     },
     entity::EntityBase,
@@ -49,34 +49,31 @@ pub type CoralFanLikeProperties = MangroveRootsLikeProperties;
 
 impl BlockBehaviour for CoralFanBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if args.direction == BlockDirection::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_side_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.is_full_water());
-            }
-        }
         let mut directions = args.player.get_entity().get_entity_facing_order();
-
-        if args.replacing == BlockIsReplacing::None {
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position {
             let face = args.direction.to_facing();
             let mut i = 0;
             while i < directions.len() && directions[i] != face {
                 i += 1;
             }
-
             if i > 0 {
                 directions.copy_within(0..i, 1);
                 directions[0] = face;
             }
-        } else if directions[0] == Facing::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_side_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.is_full_water());
-            }
         }
-
+        // See TorchBlock: one ordered walk, DOWN asks for the standing fan.
         for dir in directions {
-            if let (Some(h_facing), Some(opp_facing)) = (
+            if dir == Facing::Down {
+                let support_block = args.world.get_block_state(&args.position.down());
+                if support_block.is_side_solid(BlockDirection::Up) {
+                    return get_default_coral_fan_state_id(
+                        args.block,
+                        args.replacing.is_full_water(),
+                    );
+                }
+            } else if let (Some(h_facing), Some(opp_facing)) = (
                 dir.to_horizontal_facing(),
                 dir.opposite().to_horizontal_facing(),
             ) && can_place_at(args.world, args.position, h_facing)
@@ -89,11 +86,6 @@ impl BlockBehaviour for CoralFanBlock {
                 coral_wall_fan_props.facing = opp_facing;
                 return coral_wall_fan_props.to_state_id(wall_block);
             }
-        }
-
-        let support_block = args.world.get_block_state(&args.position.down());
-        if support_block.is_side_solid(BlockDirection::Up) {
-            return get_default_coral_fan_state_id(args.block, args.replacing.is_full_water());
         }
         BlockStateId::AIR
     }

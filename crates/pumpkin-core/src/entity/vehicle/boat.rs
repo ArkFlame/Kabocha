@@ -486,7 +486,23 @@ impl BoatEntity {
 
 impl EntityBase for BoatEntity {
     fn on_removed(&self) {
-        self.scatter_chest_contents();
+        // Vanilla `AbstractChestBoat.remove` scatters the container only when the removal reason
+        // destroys the entity (KILLED / DISCARDED), not on chunk unload or dimension change.
+        // `World::remove_entity` records the reason before invoking this hook.
+        if self
+            .vehicle
+            .entity
+            .removal_reason
+            .load()
+            .is_some_and(|reason| reason.should_destroy())
+        {
+            // Vanilla `AbstractBoat.remove` drops the lead on a destroying removal, so a broken
+            // or /kill-ed leashed boat never strands its leash on a gone holder.
+            if self.vehicle.entity.is_leashed() {
+                self.vehicle.entity.drop_leash();
+            }
+            self.scatter_chest_contents();
+        }
     }
 
     fn passenger_attachment_point(
@@ -1175,6 +1191,17 @@ mod tests {
         assert_eq!(stack.get_item().id, Item::POWERED_RAIL.id);
         assert_eq!(stack.item_count, 2);
         assert!(restored.get_stack(25).is_empty());
+    }
+
+    #[test]
+    fn chest_contents_scatter_claim_is_single_use() {
+        // Vanilla AbstractChestBoat.remove scatters its slots once via chestVehicleDestroyed.
+        // claim_drops gates that scatter when both the damage path and on_removed fire for the
+        // same break, so a repeated removal cannot drop the stored items twice.
+        let container = MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE);
+        assert!(container.claim_drops());
+        assert!(!container.claim_drops());
+        assert!(!container.claim_drops());
     }
 }
 

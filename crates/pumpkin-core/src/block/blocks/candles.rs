@@ -55,9 +55,11 @@ impl BlockBehaviour for CandleBlock {
                 SoundCategory::Blocks,
                 &args.position.to_centered_f64(),
             );
-            args.world.emit_game_event(
+            // Vanilla `extinguish` records the extinguishing player as the game-event source.
+            args.world.emit_game_event_with_source(
                 GameEvent::BlockChange.name(),
                 args.position.to_centered_f64(),
+                Some(args.player.clone()),
             );
             return BlockActionResult::Success;
         }

@@ -606,6 +606,10 @@ impl TrackedEntity {
     /// current state to a player that starts tracking it.
     #[allow(clippy::too_many_lines)]
     pub fn add_pairing(&self, player: &Arc<Player>) {
+        // Vanilla returns without any pairing packet when the entity is already removed.
+        if self.entity.get_entity().is_removed() {
+            return;
+        }
         player.client.enqueue_spawn_packet(&self.entity);
         player.try_restore_vehicle(&self.entity);
 

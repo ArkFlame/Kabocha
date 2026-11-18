@@ -82,6 +82,8 @@ pub struct PiglinEntity {
     pub near_repellent: AtomicBool,
     pub visible_adult_piglin_count: AtomicI32,
     pub visible_adult_hoglin_count: AtomicI32,
+    /// Vanilla `NEAREST_VISIBLE_ADULT_PIGLINS`: visible adult piglins told to flee with this one.
+    visible_adult_piglins: Mutex<Vec<Weak<dyn EntityBase>>>,
     pub activity: AtomicCell<PiglinActivity>,
 }
 
@@ -115,6 +117,7 @@ impl PiglinEntity {
             near_repellent: AtomicBool::new(false),
             visible_adult_piglin_count: AtomicI32::new(0),
             visible_adult_hoglin_count: AtomicI32::new(0),
+            visible_adult_piglins: Mutex::new(Vec::new()),
             activity: AtomicCell::new(PiglinActivity::Idle),
         };
         let mob_arc = Arc::new(piglin);
@@ -539,6 +542,7 @@ impl PiglinEntity {
 
         let mut piglins = 0;
         let mut hoglins = 0;
+        let mut visible_piglins: Vec<Weak<dyn EntityBase>> = Vec::new();
         for candidate in world.get_nearby_entities(pos, follow_range).values() {
             let other = candidate.get_entity();
             if other.entity_uuid == entity.entity_uuid || !other.is_alive() {
@@ -569,6 +573,7 @@ impl PiglinEntity {
             }
             if is_piglin {
                 piglins += 1;
+                visible_piglins.push(Arc::downgrade(candidate));
             } else {
                 hoglins += 1;
             }
@@ -577,6 +582,10 @@ impl PiglinEntity {
             .store(piglins, Ordering::Relaxed);
         self.visible_adult_hoglin_count
             .store(hoglins, Ordering::Relaxed);
+        *self
+            .visible_adult_piglins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = visible_piglins;
     }
 
     fn refresh_nearest_wanted_item(&self) {
@@ -870,15 +879,33 @@ impl PiglinEntity {
             attacker_entity.entity_type,
             PiglinAi::hoglins_outnumber_piglins(self),
         ) {
-            <Self as Mob>::set_mob_target(self, None, TargetReason::Fleeing);
-            self.stop_walking();
-            self.hunt_cooldown_timer.store(
-                rand::random_range(
-                    PiglinAi::MIN_TIME_BETWEEN_HUNTS..=PiglinAi::MAX_TIME_BETWEEN_HUNTS,
-                ),
-                Ordering::Relaxed,
-            );
+            self.start_retreat_from_hoglin();
+            // Vanilla `PiglinAi.broadcastRetreat`: visible adult piglins flee together.
+            let allies = self
+                .visible_adult_piglins
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            for weak in allies {
+                let Some(ally) = weak.upgrade() else {
+                    continue;
+                };
+                let Some(piglin) = ally.cast_any().downcast_ref::<PiglinEntity>() else {
+                    continue;
+                };
+                piglin.start_retreat_from_hoglin();
+            }
         }
+    }
+
+    /// Vanilla `PiglinAi.setAvoidTargetAndDontHuntForAWhile`: stop and refuse to hunt hoglins.
+    fn start_retreat_from_hoglin(&self) {
+        <Self as Mob>::set_mob_target(self, None, TargetReason::Fleeing);
+        self.stop_walking();
+        self.hunt_cooldown_timer.store(
+            rand::random_range(PiglinAi::MIN_TIME_BETWEEN_HUNTS..=PiglinAi::MAX_TIME_BETWEEN_HUNTS),
+            Ordering::Relaxed,
+        );
     }
 
     pub fn cancel_admiring(&self) {
@@ -1349,5 +1376,62 @@ impl CrossbowAttackMob for PiglinEntity {
             .living_entity
             .no_action_time
             .store(0, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use pumpkin_data::entity::EntityType;
+    use pumpkin_util::math::vector3::Vector3;
+
+    use super::*;
+    use crate::entity::Entity;
+    use crate::entity::ai::test_support::world;
+    use crate::entity::mob::hoglin::HoglinEntity;
+    use crate::world::World;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn piglin(world: &Arc<World>, x: f64) -> Arc<PiglinEntity> {
+        PiglinEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(x, 64.0, 0.0),
+            &EntityType::PIGLIN,
+        ))
+    }
+
+    fn hoglin(world: &Arc<World>, x: f64) -> Arc<HoglinEntity> {
+        HoglinEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(x, 64.0, 0.0),
+            &EntityType::HOGLIN,
+        ))
+    }
+
+    #[tokio::test]
+    async fn retreat_broadcasts_to_visible_adult_piglins() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let body = piglin(&world, 0.0);
+        let ally = piglin(&world, 2.0);
+        let attacker = hoglin(&world, 1.0);
+
+        body.visible_adult_piglin_count.store(0, Ordering::Relaxed);
+        body.visible_adult_hoglin_count.store(2, Ordering::Relaxed);
+        let ally_dyn: Arc<dyn EntityBase> = ally.clone();
+        body.visible_adult_piglins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(Arc::downgrade(&ally_dyn));
+
+        body.was_hurt_by(attacker.as_ref());
+        world.level.shutdown().await;
+
+        assert!(
+            ally.hunt_cooldown_timer.load(Ordering::Relaxed) >= PiglinAi::MIN_TIME_BETWEEN_HUNTS
+        );
+        Ok(())
     }
 }

@@ -102,11 +102,21 @@ fn load_test_instances_recursive(
             }
             let test_instance_id = format!("{namespace}:{stem_path}");
 
-            if let Ok(content) = fs::read_to_string(&path)
-                && let Ok(instance) = serde_json::from_str::<TestInstance>(&content)
-                && instance.is_valid()
-            {
-                registry.insert(test_instance_id, instance);
+            let Ok(content) = fs::read_to_string(&path) else {
+                warn!("Skipping test instance {}: unreadable", path.display());
+                continue;
+            };
+            // Vanilla decodes the file with the GameTestInstance codec and logs entries the
+            // codec rejects, leaving them out of the registry.
+            match serde_json::from_str::<TestInstance>(&content) {
+                Ok(instance) if instance.is_valid() => {
+                    registry.insert(test_instance_id, instance);
+                }
+                Ok(_) => warn!(
+                    "Skipping test instance {}: failed codec validation",
+                    path.display()
+                ),
+                Err(err) => warn!("Skipping test instance {}: {err}", path.display()),
             }
         }
     }
@@ -518,5 +528,39 @@ mod tests {
         assert!(registry.contains_key("pumpkin:good"));
         assert!(!registry.contains_key("pumpkin:Some File"));
         assert!(!registry.contains_key("pumpkin:foo#"));
+    }
+
+    #[test]
+    fn load_test_instances_skips_invalid_environment() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        fs::write(
+            dir.path().join("bad_environment.json"),
+            r#"{
+                "type": "minecraft:block_based",
+                "environment": null,
+                "structure": "pumpkin:test",
+                "max_ticks": 20
+            }"#,
+        )
+        .expect("write invalid instance");
+        fs::write(
+            dir.path().join("good_environment.json"),
+            r#"{
+                "type": "minecraft:block_based",
+                "environment": { "type": "minecraft:weather", "weather": "clear" },
+                "structure": "pumpkin:test",
+                "max_ticks": 20
+            }"#,
+        )
+        .expect("write inline environment instance");
+
+        let mut registry = TestInstanceRegistry::new();
+        let loaded = load_test_instances_from_dir("pumpkin", dir.path(), &mut registry);
+
+        // TestEnvironmentDefinition.CODEC accepts only a resource key or an inline object
+        // dispatched by `type`, so the null environment must not be registered.
+        assert_eq!(loaded, 1);
+        assert!(registry.contains_key("pumpkin:good_environment"));
+        assert!(!registry.contains_key("pumpkin:bad_environment"));
     }
 }

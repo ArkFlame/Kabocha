@@ -16,8 +16,23 @@ impl MobEffect for OozingMobEffect {
         let pos = living.entity.pos.load();
         let spawn_pos = Vector3::new(pos.x, pos.y + 0.5, pos.z);
 
-        // Spawns 2 slimes of size 2 (medium slimes)
-        for _ in 0..2 {
+        // Vanilla OOZING requests 2 slimes, capped by max_entity_cramming less nearby slimes.
+        const REQUESTED_SLIMES: i64 = 2;
+        let max_cramming = world.level_info.load().game_rules.max_entity_cramming;
+        let spawn_count = if max_cramming < 1 {
+            REQUESTED_SLIMES
+        } else {
+            let area = living.entity.bounding_box.load().expand(2.0, 2.0, 2.0);
+            let nearby = world
+                .get_entities_of_type_at_box(&area, |t| t.id == EntityType::SLIME.id)
+                .into_iter()
+                .filter(|e| e.get_entity().entity_id != living.entity.entity_id)
+                .take(max_cramming as usize)
+                .count();
+            REQUESTED_SLIMES.min((max_cramming - nearby as i64).max(0))
+        };
+
+        for _ in 0..spawn_count {
             let entity_arc = from_type(&EntityType::SLIME, spawn_pos, &world, Uuid::new_v4());
             let entity = entity_arc.get_entity();
             entity.set_pos(spawn_pos);

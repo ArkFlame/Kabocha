@@ -10,9 +10,8 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::{
-    BlockBehaviour, BlockIsReplacing, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnPlaceArgs, PathComputationType, UpdateEntityMovementAfterFallOnArgs,
-    bounce_entity_after_fall,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    PathComputationType, UpdateEntityMovementAfterFallOnArgs, bounce_entity_after_fall,
 };
 use crate::entity::EntityBase;
 
@@ -55,7 +54,9 @@ impl BlockBehaviour for ShelfMushroomBlock {
         let mut props = ShelfMushroomProperties::default(args.block);
         props.age = 0;
 
-        if args.replacing == BlockIsReplacing::None
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position
             && args.direction != BlockDirection::Up
             && args.direction != BlockDirection::Down
             && let Some(facing) = args.direction.opposite().to_horizontal_facing()

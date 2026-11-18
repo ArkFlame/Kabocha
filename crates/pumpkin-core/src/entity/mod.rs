@@ -488,6 +488,12 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    /// Vanilla `Entity#ignoreExplosion`: the explosion argument lets block-like
+    /// entities honour `Explosion.BlockInteraction#shouldAffectBlocklikeEntities`.
+    fn ignore_explosion(&self, _explosion: &crate::world::explosion::Explosion<'_>) -> bool {
+        self.is_immune_to_explosion()
+    }
+
     /// Vanilla `LivingEntity.isAffectedByPotions`: dead entities cannot receive effects.
     fn is_affected_by_potions(&self) -> bool {
         self.is_alive()
@@ -696,6 +702,13 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn can_hit(&self) -> bool {
         false
+    }
+
+    /// Vanilla `Entity.isPickable`, used by `EntitySelector.CAN_BE_PICKED`.
+    /// `can_hit` mirrors the vanilla per-type overrides, so living entities, players and
+    /// vehicles are pickable while the default entity is not.
+    fn is_pickable(&self) -> bool {
+        self.get_entity().is_alive() && self.can_hit()
     }
 
     /// Vanilla `Entity.getPickRadius`: extra reach for the boat placement eye check.
@@ -3333,20 +3346,21 @@ impl Entity {
                     .get_inside_collision_shape(block, &world, state, &pos)
             };
 
-            if bounding_box.intersects(&collision_shape.at_pos(pos)) {
-                if block == &Block::POWDER_SNOW {
-                    self.is_in_powder_snow.store(true, Relaxed);
-                }
-                if let Some(server_arc) = world.server.upgrade() {
-                    world.block_registry.on_entity_collision(
-                        block,
-                        &world,
-                        caller,
-                        &pos,
-                        state,
-                        &server_arc,
-                    );
-                }
+            if bounding_box.intersects(&collision_shape.at_pos(pos)) && block == &Block::POWDER_SNOW
+            {
+                self.is_in_powder_snow.store(true, Relaxed);
+            }
+            // Vanilla `Entity.checkInsideBlocks` calls `entityInside` for every non-air block
+            // the (deflated) box touches, regardless of collision shape.
+            if let Some(server_arc) = world.server.upgrade() {
+                world.block_registry.on_entity_collision(
+                    block,
+                    &world,
+                    caller,
+                    &pos,
+                    state,
+                    &server_arc,
+                );
             }
         }
 
@@ -5699,14 +5713,20 @@ impl Entity {
         true
     }
 
+    /// Vanilla `AABB.ofSize(center, 32, 32, 32)`: the cube `Leashable.leashableInArea` scans to
+    /// find leashables near an entity (leash transfer / leash-holder search range).
+    fn leashable_scan_box(center: Vector3<f64>) -> BoundingBox {
+        let half = Vector3::new(16.0, 16.0, 16.0);
+        BoundingBox::new(center - half, center + half)
+    }
+
     /// Vanilla `Leashable.leashableLeashedTo`: entities in the 32 block box around this one
     /// that are leashed to it.
     pub fn leashable_leashed_to(&self) -> Vec<Arc<dyn EntityBase>> {
         let center = self.bounding_box.load().get_center();
-        let half = Vector3::new(16.0, 16.0, 16.0);
         self.world
             .load()
-            .get_entities_at_box(&BoundingBox::new(center - half, center + half))
+            .get_entities_at_box(&Self::leashable_scan_box(center))
             .into_iter()
             .filter(|other| {
                 other
@@ -6333,12 +6353,14 @@ impl Entity {
     }
 
     pub fn remove_passenger(&self, passenger_id: i32) {
-        self.remove_passenger_internal(passenger_id, true);
+        self.remove_passenger_internal(passenger_id, true, true);
     }
 
     /// Removes a passenger without repositioning it, because it is about to be teleported.
+    ///
+    /// Vanilla `unRide(true)` is uncancellable, so plugin cancellation is ignored here.
     pub fn remove_passenger_before_teleport(&self, passenger_id: i32) {
-        self.remove_passenger_internal(passenger_id, false);
+        self.remove_passenger_internal(passenger_id, false, false);
     }
 
     /// Vanilla `Entity.ejectPassengers`: every passenger stops riding, last one first.
@@ -6380,7 +6402,7 @@ impl Entity {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn remove_passenger_internal(&self, passenger_id: i32, reposition: bool) {
+    fn remove_passenger_internal(&self, passenger_id: i32, reposition: bool, cancellable: bool) {
         let mut dismount_event =
             crate::plugin::api::events::entity::entity_dismount::EntityDismountEvent::new(
                 passenger_id,
@@ -6399,7 +6421,7 @@ impl Entity {
                 .plugin_manager
                 .fire_blocking(&server, &mut vehicle_exit);
         }
-        if dismount_event.cancelled || vehicle_exit.cancelled {
+        if cancellable && (dismount_event.cancelled || vehicle_exit.cancelled) {
             return;
         }
 
@@ -7269,6 +7291,18 @@ fn interact_with_shears(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn leashable_scan_box_is_32_block_cube_centered_on_position() {
+        let center = Vector3::new(5.5, 64.25, -3.0);
+        let bb = Entity::leashable_scan_box(center);
+        assert_eq!(bb.min.x, -10.5);
+        assert_eq!(bb.min.y, 48.25);
+        assert_eq!(bb.min.z, -19.0);
+        assert_eq!(bb.max.x, 21.5);
+        assert_eq!(bb.max.y, 80.25);
+        assert_eq!(bb.max.z, 13.0);
+    }
 
     #[test]
     fn entity_rng_state_is_shared_per_entity_and_seeded_independently() {

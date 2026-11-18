@@ -29,10 +29,9 @@ pub const fn should_grow_this_tick(roll: i32) -> bool {
     roll == 0
 }
 
-/// Vanilla checks `belowState.is(BlockTags.BEE_GROWABLES)`. Pitcher crop is excluded because
-/// its upper half has to be kept in sync with the lower age, which needs block-specific handling.
+/// Vanilla checks `belowState.is(BlockTags.BEE_GROWABLES)`.
 fn is_growable_block(block: &Block) -> bool {
-    block.has_tag(&tag::Block::MINECRAFT_BEE_GROWABLES) && block != &Block::PITCHER_CROP
+    block.has_tag(&tag::Block::MINECRAFT_BEE_GROWABLES)
 }
 
 /// Positions `1..=GROW_DEPTH` blocks below `origin` that `is_growable` accepts, nearest first.
@@ -51,10 +50,15 @@ pub fn growable_positions(
 ///
 /// Vanilla uses `CropBlock.getStateForAge(getAge + 1)` for crops, stems and sweet berry bushes.
 /// Bone meal instead jumps several stages, so bees write the next age state directly.
+/// Two-block plants and cave vines return `None` so the block's bonemeal path grows them.
 #[must_use]
 pub fn grown_state_id(block: &Block, state_id: BlockStateId) -> Option<BlockStateId> {
-    // Cave vines have no age property: vanilla grows them through `performBonemeal` instead.
-    if block == &Block::CAVE_VINES || block == &Block::CAVE_VINES_PLANT {
+    // Pitcher crop is a two-block plant: growing must sync the upper half, which the block's
+    // bonemeal path does. Cave vines have no age property and grow via bonemeal instead.
+    if block == &Block::PITCHER_CROP
+        || block == &Block::CAVE_VINES
+        || block == &Block::CAVE_VINES_PLANT
+    {
         return None;
     }
     let max_age = u8::try_from(block.states.len()).ok()?.checked_sub(1)?;
@@ -202,5 +206,11 @@ mod tests {
     fn grown_state_id_ignores_blocks_without_age() {
         let dirt = &Block::DIRT;
         assert!(grown_state_id(dirt, dirt.default_state.id).is_none());
+    }
+
+    #[test]
+    fn grown_state_id_defers_pitcher_crop_to_bonemeal() {
+        let crop = &Block::PITCHER_CROP;
+        assert!(grown_state_id(crop, crop.default_state.id).is_none());
     }
 }

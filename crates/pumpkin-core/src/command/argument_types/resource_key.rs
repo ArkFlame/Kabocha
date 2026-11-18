@@ -75,10 +75,26 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
             );
             suggestions_builder.filter_and_suggest_iter(biomes).build()
         } else if self.0 == DIMENSION_REGISTRY {
-            let worlds = context.server().worlds.load();
-            let dimensions = worlds
-                .iter()
-                .map(|world| world.dimension.minecraft_name.to_string());
+            // Vanilla advertises every dimension type in the registry, including datapack
+            // dimensions that are not currently instantiated as a world. Fall back to the
+            // default dimensions when the context has no server (unit tests).
+            let dimensions: Vec<String> = context.source.server.as_deref().map_or_else(
+                || {
+                    vec![
+                        "minecraft:overworld".to_string(),
+                        "minecraft:nether".to_string(),
+                        "minecraft:end".to_string(),
+                    ]
+                },
+                |server| {
+                    server
+                        .worlds
+                        .load()
+                        .iter()
+                        .map(|world| world.dimension.minecraft_name.to_string())
+                        .collect()
+                },
+            );
             suggestions_builder
                 .filter_and_suggest_iter(dimensions)
                 .build()
@@ -256,6 +272,21 @@ mod tests {
     }
 
     #[test]
+    fn dimension_suggestions_are_filtered_by_prefix() {
+        dummy_context(|context| {
+            let suggestions = ResourceKeyArgument(DIMENSION_REGISTRY)
+                .list_suggestions(context, SuggestionsBuilder::new("overworld", 0));
+            assert!(!suggestions.is_empty());
+            assert!(
+                suggestions
+                    .suggestions
+                    .iter()
+                    .any(|s| s.text.cached_text() == "minecraft:overworld")
+            );
+        });
+    }
+
+    #[test]
     fn parse_keeps_registry_and_identifier_namespace() {
         let argument = ResourceKeyArgument(BIOME_REGISTRY);
         let mut reader = StringReader::new("minecraft:forest");
@@ -313,6 +344,19 @@ mod tests {
     }
 
     #[test]
+    fn dimension_suggestions_are_filtered_by_prefix() {
+        dummy_context(|context| {
+            let suggestions = ResourceKeyArgument(DIMENSION_REGISTRY)
+                .list_suggestions(context, SuggestionsBuilder::new("overworld", 0));
+            assert!(!suggestions.is_empty());
+            assert!(
+                suggestions
+                    .suggestions
+                    .iter()
+                    .any(|s| s.text.cached_text() == "minecraft:overworld")
+            );
+        });
+    }
     fn get_registry_key_accepts_matching_and_rejects_other_registry() {
         let key = ResourceKey::new(
             (*ADVANCEMENT_REGISTRY).clone(),
@@ -403,5 +447,27 @@ mod tests {
             resolve_biome_id(&manager, &Identifier::from_static("custom", "crystal")),
             u8::try_from(base_count).ok()
         );
+    }
+
+    #[test]
+    fn get_biome_rejects_unknown_vanilla_biome() {
+        let key = ResourceKey::new(
+            (*BIOME_REGISTRY).clone(),
+            Identifier::vanilla_static("does_not_exist"),
+        );
+        context_with("biome", key, |context| {
+            assert!(ResourceKeyArgument::get_biome(context, "biome").is_err());
+        });
+    }
+
+    #[test]
+    fn get_advancement_rejects_unknown_vanilla_advancement() {
+        let key = ResourceKey::new(
+            (*ADVANCEMENT_REGISTRY).clone(),
+            Identifier::vanilla_static("adventure/does_not_exist"),
+        );
+        context_with("advancement", key, |context| {
+            assert!(ResourceKeyArgument::get_advancement(context, "advancement").is_err());
+        });
     }
 }

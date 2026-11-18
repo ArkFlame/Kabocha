@@ -196,7 +196,7 @@ impl SculkSpreader {
                 let facings = names
                     .iter()
                     .enumerate()
-                    .filter(|(index, _)| faces & (1 << index) != 0)
+                    .filter(|&(index, _)| faces & (1 << index) != 0)
                     .map(|(_, name)| NbtTag::String((*name).into()))
                     .collect();
                 tag.put_list("facings", facings);
@@ -216,7 +216,7 @@ impl SculkSpreader {
             let Some(comp) = tag.extract_compound() else {
                 continue;
             };
-            let Some(values) = comp.get("pos").and_then(|tag| tag.extract_int_array()) else {
+            let Some(values) = comp.get("pos").and_then(NbtTag::extract_int_array) else {
                 continue;
             };
             let &[x, y, z] = values else {

@@ -5,6 +5,7 @@ use crate::world::World;
 use pumpkin_data::Block;
 use pumpkin_data::block_properties::CampfireLikeProperties;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::recipes::{CookingRecipeKind, get_cooking_recipe_with_ingredient};
@@ -192,6 +193,11 @@ impl BlockEntity for CampfireBlockEntity {
             *self.cooking_cancelled[slot]
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
+            // Vanilla emits the block change event once per finished slot.
+            world.emit_game_event(
+                GameEvent::BlockChange.name(),
+                self.position.to_centered_f64(),
+            );
             completed = true;
         }
 
@@ -377,13 +383,38 @@ impl CampfireBlockEntity {
         )
     }
 
-    fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, stack: ItemStack) {
-        let entity = Entity::new(
-            world.clone(),
-            Self::cooked_item_spawn_position(position),
-            &EntityType::ITEM,
-        );
-        world.spawn_entity(Arc::new(ItemEntity::new(entity, stack)));
+    /// Vanilla `cookItems` splits the result into random 10-30 item chunks.
+    fn cooked_chunk_sizes(count: u8, mut next_chunk: impl FnMut() -> u8) -> Vec<u8> {
+        let mut sizes = Vec::new();
+        let mut remaining = count;
+        while remaining > 0 {
+            let size = next_chunk().clamp(1, 30).min(remaining);
+            sizes.push(size);
+            remaining -= size;
+        }
+        sizes
+    }
+
+    fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, mut stack: ItemStack) {
+        let spawn = Self::cooked_item_spawn_position(position);
+        // Vanilla spreads the drop with `RandomSource.triangle` around that centre.
+        let deviation = 0.05f64 * 2.297;
+        let sizes = Self::cooked_chunk_sizes(stack.item_count, || rand::random_range(10u8..=30u8));
+        for size in sizes {
+            let chunk = stack.split(size);
+            let entity = Entity::new(world.clone(), spawn, &EntityType::ITEM);
+            let velocity = Vector3::new(
+                deviation * (rand::random::<f64>() - rand::random::<f64>()),
+                0.2 + deviation * (rand::random::<f64>() - rand::random::<f64>()),
+                deviation * (rand::random::<f64>() - rand::random::<f64>()),
+            );
+            world.spawn_entity(Arc::new(ItemEntity::new_with_velocity(
+                entity,
+                chunk,
+                velocity,
+                ItemEntity::DEFAULT_PICKUP_DELAY,
+            )));
+        }
     }
 }
 
@@ -466,6 +497,21 @@ mod tests {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
         );
+    }
+
+    #[test]
+    fn cooked_result_splits_into_random_chunks() {
+        assert_eq!(CampfireBlockEntity::cooked_chunk_sizes(1, || 10), vec![1],);
+        assert_eq!(
+            CampfireBlockEntity::cooked_chunk_sizes(45, || 30),
+            vec![30, 15],
+        );
+        // Chunks below the vanilla 10-30 range still make progress.
+        assert_eq!(
+            CampfireBlockEntity::cooked_chunk_sizes(7, || 0),
+            vec![1, 1, 1, 1, 1, 1, 1],
+        );
+        assert!(CampfireBlockEntity::cooked_chunk_sizes(0, || 10).is_empty());
     }
 
     #[test]

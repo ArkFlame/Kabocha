@@ -434,6 +434,21 @@ fn compute_sweep_damage(base_damage: f64, sweeping_ratio: f64, attack_strength_s
     ((1.0 + sweeping_ratio * base_damage) * attack_strength_scale) as f32
 }
 
+/// Vanilla `MobEffectUtil.getDigSpeedAmplification` takes the maximum amplifier of Haste
+/// and Conduit Power; `Player.getDestroySpeed` applies one `1 + (amp + 1) * 0.2` multiplier,
+/// not one multiplier per effect.
+fn dig_speed_effect_multiplier(haste_amp: Option<u32>, conduit_amp: Option<u32>) -> f32 {
+    let amp = match (haste_amp, conduit_amp) {
+        (Some(h), Some(c)) => Some(h.max(c)),
+        (Some(a), None) | (None, Some(a)) => Some(a),
+        (None, None) => None,
+    };
+    match amp {
+        Some(amp) => (amp as f32 + 1.0).mul_add(0.2, 1.0),
+        None => 1.0,
+    }
+}
+
 /// `EntityToggleGlideEvent` outcome: cancelling keeps the entity's current glide state,
 /// otherwise the event's `is_gliding` becomes the state. Both the vanilla toggle hook
 /// and the Forge/NeoForge event follow this rule, so start and stop share it.
@@ -443,9 +458,10 @@ const fn toggle_glide_applies(cancelled: bool, is_gliding: bool, current: bool) 
 
 /// Whether the vanilla `tryToStartFallFlying` gate lets a glide begin.
 ///
-/// A player needs a usable glider, must not already be flying, and must not be in water.
-const fn fall_flying_start_allowed(is_fall_flying: bool, can_glide: bool, in_water: bool) -> bool {
-    !is_fall_flying && can_glide && !in_water
+/// A player needs a usable glider, must not already be flying, and must not be in a liquid.
+/// Vanilla `isInLiquid` covers lava as well as water.
+const fn fall_flying_start_allowed(is_fall_flying: bool, can_glide: bool, in_liquid: bool) -> bool {
+    !is_fall_flying && can_glide && !in_liquid
 }
 
 /// Decides the vanilla `LodestoneTracker.tick` outcome for a compass in its target dimension.
@@ -4033,11 +4049,11 @@ impl Player {
     /// Vanilla `tryToStartFallFlying`, for the glide request of both editions
     pub fn try_to_start_fall_flying(&self, server: &Arc<Server>) -> bool {
         let entity = &self.living_entity.entity;
-        // Vanilla `tryToStartFallFlying` only checks water, lava does not block the start
+        // Vanilla `tryToStartFallFlying` blocks the start in any liquid (water or lava).
         if !fall_flying_start_allowed(
             entity.is_fall_flying(),
             self.can_glide(),
-            entity.is_in_water(),
+            entity.is_in_liquid(),
         ) {
             return false;
         }
@@ -6923,13 +6939,16 @@ impl Player {
                 .living_entity
                 .get_attribute_value(&Attributes::MINING_EFFICIENCY) as f32;
         }
-        // Vanilla multiplies Haste and Conduit Power separately, by their own amplifiers.
-        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::HASTE) {
-            speed *= ((u32::from(effect.amplifier) + 1) as f32).mul_add(0.2, 1.0);
-        }
-        if let Some(effect) = self.living_entity.get_effect(&StatusEffect::CONDUIT_POWER) {
-            speed *= ((u32::from(effect.amplifier) + 1) as f32).mul_add(0.2, 1.0);
-        }
+        // Vanilla `MobEffectUtil`: a single multiplier from the max amplifier of Haste
+        // and Conduit Power, not a separate multiplier per effect.
+        speed *= dig_speed_effect_multiplier(
+            self.living_entity
+                .get_effect(&StatusEffect::HASTE)
+                .map(|effect| u32::from(effect.amplifier)),
+            self.living_entity
+                .get_effect(&StatusEffect::CONDUIT_POWER)
+                .map(|effect| u32::from(effect.amplifier)),
+        );
         // Fatigue
         if let Some(fatigue) = self.living_entity.get_effect(&StatusEffect::MINING_FATIGUE) {
             let fatigue_speed = match fatigue.amplifier {
@@ -10501,6 +10520,22 @@ impl InventoryPlayer for Player {
         }
     }
 
+    fn award_experience_orbs(&self, amounts: &[i32]) {
+        let world = self.world();
+        let position = self.position();
+        for amount in amounts
+            .iter()
+            .copied()
+            .filter(|amount| amount.is_positive())
+        {
+            crate::entity::experience_orb::ExperienceOrbEntity::spawn(
+                &world,
+                position,
+                amount as u32,
+            );
+        }
+    }
+
     fn increment_stat(&self, category: StatisticCategory, stat_id: i32, amount: i32) {
         self.increment_stat(category, stat_id, amount);
     }
@@ -10833,14 +10868,14 @@ mod tests {
     }
 
     #[test]
-    fn fall_flying_start_gate_checks_glider_flight_and_water() {
-        // A glider, airborne and out of water is the only case that starts a glide.
+    fn fall_flying_start_gate_checks_glider_flight_and_liquid() {
+        // A glider, airborne and out of liquid is the only case that starts a glide.
         assert!(super::fall_flying_start_allowed(false, true, false));
         // Already gliding (or flying) cannot start again.
         assert!(!super::fall_flying_start_allowed(true, true, false));
         // No usable glider means no glide, whatever the fluid.
         assert!(!super::fall_flying_start_allowed(false, false, false));
-        // Water blocks the start at the gate.
+        // Vanilla `isInLiquid` blocks the start in water or lava.
         assert!(!super::fall_flying_start_allowed(false, true, true));
     }
 
@@ -10867,6 +10902,19 @@ mod tests {
         assert!((compute_sweep_damage(8.0, 0.5, 0.95) - 4.75).abs() < 1e-6);
         // Without Sweeping Edge a full-strength sweep deals exactly one damage.
         assert!((compute_sweep_damage(8.0, 0.0, 1.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn dig_speed_effects_use_single_max_amplifier_multiplier() {
+        // Vanilla applies one multiplier from the max of Haste and Conduit Power.
+        assert!((dig_speed_effect_multiplier(None, None) - 1.0).abs() < 1e-6);
+        // Haste I alone: 1 + (0 + 1) * 0.2.
+        assert!((dig_speed_effect_multiplier(Some(0), None) - 1.2).abs() < 1e-6);
+        // Conduit Power II alone: 1 + (1 + 1) * 0.2.
+        assert!((dig_speed_effect_multiplier(None, Some(1)) - 1.4).abs() < 1e-6);
+        // Both present: max amplifier only, never the product of both multipliers.
+        assert!((dig_speed_effect_multiplier(Some(0), Some(1)) - 1.4).abs() < 1e-6);
+        assert!((dig_speed_effect_multiplier(Some(3), Some(1)) - 1.8).abs() < 1e-6);
     }
 
     #[test]

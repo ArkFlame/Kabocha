@@ -208,12 +208,10 @@ impl ProjectileOwner {
             .expand_towards(velocity.x, velocity.y, velocity.z)
             .expand_all(1.0);
         let root = owner.get_entity().get_root_vehicle();
-        // Vanilla filters getSelfAndPassengers by isPickable, which excludes removed entities.
+        // Vanilla filters getSelfAndPassengers by CAN_BE_PICKED = Entity::isPickable.
+        // Paper's setCollidable (LivingEntity.collides) still has no Pumpkin equivalent.
         !Self::any_self_or_passenger(root.as_deref().unwrap_or(owner), &|entity| {
-            !entity.get_entity().is_removed()
-                && !entity.is_spectator()
-                && entity.can_hit()
-                && entity.get_entity().bounding_box.load().intersects(&area)
+            entity.is_pickable() && entity.get_entity().bounding_box.load().intersects(&area)
         })
     }
 

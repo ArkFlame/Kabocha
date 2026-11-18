@@ -133,6 +133,13 @@ impl Ticker {
 
             #[cfg(profiler)]
             let profile_tick = pumpkin_profiler::cpu::tick(this_tick_nanos.max(0) as u64);
+            // Vanilla `tickServer` advances `tickCount` at the top of the tick,
+            // before `tickRateManager.tick()` and `tickChildren`, so in-tick
+            // readers (scheduled functions, autosave, tick events) see the
+            // current tick. Frozen, non-stepping ticks do not advance it.
+            if super::advances_tick_count(manager.runs_normally(), manager.is_sprinting()) {
+                server.tick_count.fetch_add(1, Ordering::Relaxed);
+            }
             manager.tick();
 
             fire_tick_start_event(server);
@@ -180,10 +187,7 @@ impl Ticker {
             if server.plugin_manager.has_handlers::<ServerTickEndEvent>() {
                 server.plugin_manager.fire_blocking(
                     server,
-                    &mut ServerTickEndEvent::new(
-                        tick_event_number(tick_number),
-                        tick_duration_nanos,
-                    ),
+                    &mut ServerTickEndEvent::new(tick_number, tick_duration_nanos),
                 );
             }
 
@@ -210,10 +214,9 @@ impl Ticker {
 fn fire_tick_start_event(server: &Arc<Server>) {
     if server.plugin_manager.has_handlers::<ServerTickStartEvent>() {
         let tick_number = server.tick_count.load(Ordering::Relaxed);
-        server.plugin_manager.fire_blocking(
-            server,
-            &mut ServerTickStartEvent::new(tick_event_number(tick_number)),
-        );
+        server
+            .plugin_manager
+            .fire_blocking(server, &mut ServerTickStartEvent::new(tick_number));
     }
 }
 
@@ -293,12 +296,6 @@ fn wait_until_next_tick(server: &Server, base: Instant, next_tick_nanos: i64) {
 
 fn elapsed_nanos(base: Instant) -> i64 {
     base.elapsed().as_nanos() as i64
-}
-
-/// Paper's tick events are 1-based. Pumpkin increments `tick_count` after both
-/// events fire, so each event adds one to the snapshot of the current tick.
-const fn tick_event_number(tick_count: i32) -> i32 {
-    tick_count.wrapping_add(1)
 }
 
 #[cfg(test)]
@@ -402,14 +399,6 @@ mod tests {
 
         // 10s + 100 * 50ms = 15s at 20 TPS, so the second warning lands on tick 6.
         assert_eq!(warned_on, vec![1, 6]);
-    }
-
-    #[test]
-    fn tick_events_report_one_based_tick_number() {
-        // Paper reports the first tick as 1, not 0.
-        assert_eq!(tick_event_number(0), 1);
-        assert_eq!(tick_event_number(19), 20);
-        assert_eq!(tick_event_number(i32::MAX), i32::MIN);
     }
 
     #[test]

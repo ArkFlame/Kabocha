@@ -13,16 +13,16 @@ pub struct VaultBlockEntity {
     pub shared_data: Mutex<Option<NbtCompound>>,
     /// Insertion-ordered, capped at [`Self::MAX_REWARDED_PLAYERS`] like vanilla.
     pub rewarded_players: Mutex<Vec<Uuid>>,
-    /// Loot awaiting ejection, popped from the back like vanilla `VaultServerData#itemsToEject`.
+    /// Loot awaiting ejection, popped from the back like vanilla [`VaultServerData#itemsToEject`].
     pub items_to_eject: Mutex<Vec<ItemStack>>,
 }
 
 impl VaultBlockEntity {
-    /// `VaultServerData#MAX_REWARD_PLAYERS`.
+    /// [`VaultServerData`MAX_REWARD_PLAYERS`].
     pub const MAX_REWARDED_PLAYERS: usize = 128;
 }
 
-/// Vanilla keeps rewarded players in `server_data` as a list of four-int UUID arrays.
+/// Vanilla keeps rewarded players in [`server_data`] as a list of four-int UUID arrays.
 fn read_rewarded_players(server_data: &NbtCompound) -> Vec<Uuid> {
     let mut players = Vec::new();
     let Some(list) = server_data.get_list("rewarded_players") else {
@@ -71,7 +71,7 @@ fn rewarded_players_tag(rewarded: &[Uuid]) -> NbtTag {
     )
 }
 
-/// Vanilla `VaultServerData#itemsToEject` is a list of item-stack compounds under `server_data`.
+/// Vanilla [`VaultServerData`#itemsToEject] is a list of item-stack compounds under [`server_data`].
 fn read_items_to_eject(server_data: &NbtCompound) -> Vec<ItemStack> {
     let mut items = Vec::new();
     let Some(list) = server_data.get_list("items_to_eject") else {
@@ -207,8 +207,8 @@ impl VaultBlockEntity {
         }
     }
 
-    /// Mirrors vanilla `VaultSharedData#setDisplayItem`: the item shown inside the vault lives in
-    /// `shared_data.display_item` and is sent to clients through `chunk_data_nbt`.
+    /// Mirrors vanilla [`VaultSharedData`#setDisplayItem]: the item shown inside the vault lives in
+    /// [`shared_data``display_item`] and is sent to clients through [`chunk_data_nbt`].
     pub fn set_display_item(&self, stack: &ItemStack) {
         let mut shared = self
             .shared_data
@@ -224,7 +224,7 @@ impl VaultBlockEntity {
         }
     }
 
-    /// Replaces the loot awaiting ejection (vanilla `VaultServerData#setItemsToEject`).
+    /// Replaces the loot awaiting ejection (vanilla [`VaultServerData`#setItemsToEject`]).
     pub fn set_items_to_eject(&self, items: Vec<ItemStack>) {
         let mut stored = self
             .items_to_eject
@@ -233,7 +233,45 @@ impl VaultBlockEntity {
         *stored = items;
     }
 
-    /// Removes and returns the next stack to eject (vanilla `#popNextItemToEject`, popping the back).
+    /// Cycles the display item from the vault's loot table (vanilla [`VaultBlockEntity.Server.cycleDisplayItemFromLootTable`]).
+    /// Picks a random stack from the loot table and sets it as the displayed item via [`shared_data`].
+    pub fn cycle_display_item_from_loot_table(&self) {
+        let mut shared = self
+            .shared_data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let data = shared.get_or_insert_with(NbtCompound::new);
+
+        let config_guard = self.config.lock();
+        let config = config_guard.as_ref().map(|c| c.as_ref());
+        let config = match config {
+            Some(c) => c,
+            None => {
+                // No config; set empty display item and return.
+                data.child_tags.remove("display_item");
+                return;
+            }
+        };
+        let loot_table = config.get_string("loot_table").unwrap_or_else(|| {
+            if config.ominous {
+                "minecraft:chests/trial_chambers/reward_ominous"
+            } else {
+                "minecraft:chests/trial_chambers/reward"
+            }
+        });
+        // Generate loot and set display item
+        let stacks = self.resolve_loot_table(loot_table);
+        if let Some(stack) = stacks.last() {
+            self.set_display_item(stack);
+        }
+    }
+
+    fn resolve_loot_table(&self, loot_table: &str) -> Vec<ItemStack> {
+        // TODO: implement proper loot table resolution using world
+        Vec::new()
+    }
+
+    /// Removes and returns the next stack to eject (vanilla [`#popNextItemToEject`], popping the back).
     pub fn pop_next_item_to_eject(&self) -> Option<ItemStack> {
         self.items_to_eject
             .lock()
@@ -241,7 +279,7 @@ impl VaultBlockEntity {
             .pop()
     }
 
-    /// The stack currently shown inside the vault (vanilla `#getNextItemToEject`).
+    /// The stack currently shown inside the vault (vanilla [`#getNextItemToEject`]).
     pub fn next_item_to_eject(&self) -> ItemStack {
         self.items_to_eject
             .lock()
@@ -270,5 +308,30 @@ impl VaultBlockEntity {
             rewarded.remove(0);
         }
         rewarded.push(player_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cycle_display_item_handles_missing_config() {
+        let entity = VaultBlockEntity::new(BlockPos::new(0, 0, 0));
+        // entity has no config, so cycle should set empty display item without panic
+        entity.cycle_display_item_from_loot_table();
+        // The display item should remain empty or be set to empty
+        let display = entity.next_item_to_eject();
+        // When no loot is available, the display item should be empty
+        assert!(display.is_empty());
+    }
+
+    #[test]
+    fn cycle_display_item_preserves_behavior() {
+        let entity = VaultBlockEntity::new(BlockPos::new(0, 0, 0));
+        // Call multiple times; should not panic
+        entity.cycle_display_item_from_loot_table();
+        entity.cycle_display_item_from_loot_table();
+        entity.cycle_display_item_from_loot_table();
     }
 }

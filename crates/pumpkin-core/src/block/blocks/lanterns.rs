@@ -1,6 +1,6 @@
 use crate::block::blocks::weathering_copper::change_over_time;
 use crate::block::{
-    BlockBehaviour, BlockIsReplacing, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
     PathComputationType, RandomTickArgs, can_support_center,
 };
 use crate::entity::EntityBase;
@@ -21,7 +21,9 @@ impl BlockBehaviour for LanternBlock {
         props.r#waterlogged = args.replacing.is_water();
 
         let mut directions = args.player.get_entity().get_entity_facing_order();
-        if args.replacing == BlockIsReplacing::None {
+        // Vanilla `BlockPlaceContext.getNearestLookingDirections` reorders only when the
+        // clicked block does not give way, i.e. the block lands at the relative position.
+        if *args.position != args.use_item_on.position {
             let face = args.direction.to_facing();
             if let Some(i) = directions.iter().position(|&d| d == face)
                 && i > 0

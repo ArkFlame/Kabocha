@@ -317,12 +317,14 @@ fn find_nearest_concentric(
         .iter()
         .map(|(cx, cz)| {
             // getLocatePos reports chunk min block at y=0, but vanilla ranks ring
-            // candidates with the chunk center at y=32 (ChunkGenerator line 296).
+            // candidates by the chunk center at y=32: SectionPos.sectionToBlockCoord(chunk, 8)
+            // gives (chunk << 4) + 8 for x/z (ChunkGenerator line 296). Only the ranking
+            // uses the center; the reported position stays at min block/y=0.
             let bx = cx << 4;
             let bz = cz << 4;
-            let dx = bx as f64 - ox;
+            let dx = (bx + 8) as f64 - ox;
             let dy = 32.0 - oy;
-            let dz = bz as f64 - oz;
+            let dz = (bz + 8) as f64 - oz;
             FoundStructure {
                 pos: BlockPos::new(bx, 0, bz),
                 distance_sq: dx * dx + dy * dy + dz * dz,

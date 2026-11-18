@@ -1,4 +1,5 @@
 use pumpkin_data::Block;
+use pumpkin_data::BlockDirection;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -37,8 +38,8 @@ impl MobEffect for WeavingMobEffect {
             let target_state = world.get_block_state(&target_pos);
             let below_state = world.get_block_state(&below_pos);
 
-            if target_state.is_air()
-                && !below_state.is_air()
+            if target_state.replaceable()
+                && below_state.is_side_solid(BlockDirection::Up)
                 && positions_to_transform.insert(target_pos)
                 && positions_to_transform.len() >= cobweb_count
             {

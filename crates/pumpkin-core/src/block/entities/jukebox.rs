@@ -365,6 +365,8 @@ impl Inventory for JukeboxBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
         if let Some(world) = self.world.get().and_then(Weak::upgrade) {
             let (block, _) = world.get_block_and_state(&self.position);
+            // Vanilla `notifyItemChangedInJukebox` guards only the block state update on the
+            // level still holding this state; the play/stop below runs whenever a level exists.
             if block == &pumpkin_data::Block::JUKEBOX {
                 let state_id = pumpkin_data::block_properties::JukeboxLikeProperties {
                     has_record: inserted,
@@ -379,19 +381,19 @@ impl Inventory for JukeboxBlockEntity {
                     pumpkin_data::game_event::GameEvent::BlockChange.name(),
                     self.position.to_centered_f64(),
                 );
-                if inserted && let Some(song) = playable_song {
-                    self.start_playing(song.length_in_ticks() + Self::SONG_END_PADDING_TICKS);
-                    world.sync_world_event(
-                        pumpkin_data::world::WorldEvent::SoundPlayJukeboxSong,
-                        self.position,
-                        song.get_id() as i32,
-                    );
-                    world.update_neighbors(&self.position, None);
-                } else {
-                    // stop_playing already sends vanilla single stop sound (1011) while a
-                    // song is playing; a second send would double the packet.
-                    self.stop_playing();
-                }
+            }
+            if inserted && let Some(song) = playable_song {
+                self.start_playing(song.length_in_ticks() + Self::SONG_END_PADDING_TICKS);
+                world.sync_world_event(
+                    pumpkin_data::world::WorldEvent::SoundPlayJukeboxSong,
+                    self.position,
+                    song.get_id() as i32,
+                );
+                world.update_neighbors(&self.position, None);
+            } else {
+                // stop_playing already sends vanilla single stop sound (1011) while a
+                // song is playing; a second send would double the packet.
+                self.stop_playing();
             }
         } else if inserted && let Some(song) = playable_song {
             self.start_playing(song.length_in_ticks() + Self::SONG_END_PADDING_TICKS);
@@ -417,16 +419,12 @@ impl Inventory for JukeboxBlockEntity {
         &self,
         hopper_inventory: &dyn Inventory,
         _slot: usize,
-        stack: &ItemStack,
+        _stack: &ItemStack,
     ) -> bool {
-        // Mirrors ChiseledBookShelf: an empty slot, or a partial stack that still fits.
-        (0..hopper_inventory.size()).any(|i| {
-            let dst = hopper_inventory.get_stack(i);
-            dst.is_empty()
-                || (dst.are_items_and_components_equal(stack)
-                    && dst.item_count.saturating_add(stack.item_count)
-                        <= hopper_inventory.get_max_count_per_stack())
-        })
+        // Vanilla `JukeboxBlockEntity.canTakeItem`: `into.hasAnyMatching(ItemStack::isEmpty)`.
+        // A record never merges into an occupied slot (max stack size 1), so an empty slot is
+        // the whole condition.
+        (0..hopper_inventory.size()).any(|i| hopper_inventory.get_stack(i).is_empty())
     }
 
     fn mark_dirty(&self) {
@@ -441,12 +439,9 @@ impl Inventory for JukeboxBlockEntity {
 
 impl Clearable for JukeboxBlockEntity {
     fn clear(&self) {
-        self.stop_playing();
-        *self
-            .record_stack
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = ItemStack::EMPTY.clone();
-        self.mark_dirty();
+        // Vanilla `clearContent` -> `removeTheItem` -> `splitTheItem(max)`, i.e. `setTheItem(EMPTY)`,
+        // which stops the song, clears `HAS_RECORD` and emits `BLOCK_CHANGE`.
+        let _ = self.remove_stack(0);
     }
 }
 
@@ -541,6 +536,21 @@ mod tests {
         if let Some(chunk) = jukebox.chunk_data_nbt() {
             assert_eq!(chunk.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY), None);
         }
+    }
+
+    #[test]
+    fn can_transfer_to_needs_an_empty_slot_in_the_target() {
+        use crate::block::entities::hopper::HopperBlockEntity;
+
+        let jukebox = JukeboxBlockEntity::new(BlockPos::new(0, 64, 0));
+        let stack = ItemStack::new(1, &Item::MUSIC_DISC_CAT);
+        let target = HopperBlockEntity::new(BlockPos::new(0, 65, 0));
+        // Vanilla `canTakeItem` only asks for any empty slot; a disc never merges (max count 1).
+        assert!(jukebox.can_transfer_to(&target, 0, &stack));
+        for slot in 0..target.size() {
+            target.set_stack(slot, ItemStack::new(1, &Item::MUSIC_DISC_CAT));
+        }
+        assert!(!jukebox.can_transfer_to(&target, 0, &stack));
     }
 
     #[tokio::test]

@@ -41,7 +41,7 @@ pub enum AdvancementTrigger {
         block_id: String,
     },
     FishedItem {
-        item_id: String,
+        items: Vec<String>,
     },
     DeflectedDamage,
     PlayerKilled,
@@ -436,9 +436,11 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::FishedItem { item_id } => {
+            AdvancementTrigger::FishedItem { items } => {
                 self.trigger_criterion_event("minecraft:fishing_rod_hooked", |cond| match cond {
-                    CriterionConditions::FishingRodHooked(pred) => pred.matches(&item_id, 1, &[]),
+                    CriterionConditions::FishingRodHooked(pred) => {
+                        items.iter().any(|item_id| pred.matches(item_id, 1, &[]))
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
