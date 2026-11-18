@@ -1035,22 +1035,26 @@ mod tests {
         let version = JavaMinecraftVersion::V_26_3;
 
         let mut hooked = Vec::new();
-        Metadata::new(
-            pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
-            4i32,
-        )
-        .write(&mut hooked, &version)
-        .unwrap();
+        assert!(
+            Metadata::new(
+                pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
+                4i32,
+            )
+            .write(&mut hooked, &version)
+            .is_ok()
+        );
         // Index 8, INT serializer id 1, VarInt value.
         assert_eq!(hooked, [8u8, 1u8, 4u8]);
 
         let mut biting = Vec::new();
-        Metadata::new(
-            pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
-            true,
-        )
-        .write(&mut biting, &version)
-        .unwrap();
+        assert!(
+            Metadata::new(
+                pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+                true,
+            )
+            .write(&mut biting, &version)
+            .is_ok()
+        );
         // Index 9, BOOLEAN serializer id 8, one byte value.
         assert_eq!(biting, [9u8, 8u8, 1u8]);
     }

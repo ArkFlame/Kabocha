@@ -5,10 +5,10 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 | `furnace_like_block_entity.rs:867-876` | Bedrock furnace actor stores `StoredXPInt` | hardcoded `0` | pass the accumulated `RecipesUsed` XP | S, VERIFIED (see Result) |
 | `furnace_like_block_entity.rs:235-274` | `recipe.assemble` includes result data components | result stack is built from item id only | apply `recipe.result.components` to the output stack | S, VERIFIED (see Result) |
 | `furnace_like_block_entity.rs:225` | `ItemStack.isSameItemSameComponents` | only item ids are compared | compare item plus components once result components are supported | S, VERIFIED (see Result) |
-Verified every STILL OPEN row from the "Remaining gaps" table against decompiled vanilla
+Verified every row from the "Remaining gaps" table against decompiled vanilla
 
 ## Result
-All three STILL OPEN rows are closed. The fixes were already present in the working tree; this
+All three rows are closed. The fixes were already present in the working tree; this
 pass verified them against decompiled vanilla and only tightened the patch lookup in
 `assemble_cooking_result` to compare values (`*id == *component`).
 
