@@ -84,6 +84,8 @@ pub struct PiglinEntity {
     pub visible_adult_hoglin_count: AtomicI32,
     /// Vanilla `NEAREST_VISIBLE_ADULT_PIGLINS`: visible adult piglins told to flee with this one.
     visible_adult_piglins: Mutex<Vec<Weak<dyn EntityBase>>>,
+    /// Vanilla `NEARBY_ADULT_PIGLINS`: all adult piglins in sensing range, told about anger targets.
+    nearby_adult_piglins: Mutex<Vec<Weak<dyn EntityBase>>>,
     pub activity: AtomicCell<PiglinActivity>,
 }
 
@@ -118,6 +120,7 @@ impl PiglinEntity {
             visible_adult_piglin_count: AtomicI32::new(0),
             visible_adult_hoglin_count: AtomicI32::new(0),
             visible_adult_piglins: Mutex::new(Vec::new()),
+            nearby_adult_piglins: Mutex::new(Vec::new()),
             activity: AtomicCell::new(PiglinActivity::Idle),
         };
         let mob_arc = Arc::new(piglin);
@@ -543,6 +546,7 @@ impl PiglinEntity {
         let mut piglins = 0;
         let mut hoglins = 0;
         let mut visible_piglins: Vec<Weak<dyn EntityBase>> = Vec::new();
+        let mut nearby_piglins: Vec<Weak<dyn EntityBase>> = Vec::new();
         for candidate in world.get_nearby_entities(pos, follow_range).values() {
             let other = candidate.get_entity();
             if other.entity_uuid == entity.entity_uuid || !other.is_alive() {
@@ -559,6 +563,10 @@ impl PiglinEntity {
             let is_hoglin = other.entity_type == &EntityType::HOGLIN;
             if !(is_piglin || is_hoglin) {
                 continue;
+            }
+            // Vanilla NEARBY_ADULT_PIGLINS has no line-of-sight requirement.
+            if is_piglin {
+                nearby_piglins.push(Arc::downgrade(candidate));
             }
             let visible = world
                 .clip(&pumpkin_world::clip::ClipContext::new(
@@ -586,6 +594,10 @@ impl PiglinEntity {
             .visible_adult_piglins
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = visible_piglins;
+        *self
+            .nearby_adult_piglins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = nearby_piglins;
     }
 
     fn refresh_nearest_wanted_item(&self) {
@@ -895,6 +907,39 @@ impl PiglinEntity {
                 };
                 piglin.start_retreat_from_hoglin();
             }
+        } else {
+            // Vanilla `PiglinAi.maybeRetaliate`/`broadcastAngerTarget`: nearby adult
+            // piglins share this one's anger target.
+            let world = self.mob_entity.living_entity.entity.world.load();
+            if let Some(attacker_arc) = world.get_entity_by_id(attacker_entity.entity_id) {
+                self.broadcast_anger_target(&attacker_arc);
+            }
+        }
+    }
+
+    /// Vanilla `PiglinAi.broadcastAngerTarget`: nearby adult piglins adopt the anger target.
+    fn broadcast_anger_target(&self, attacker: &Arc<dyn EntityBase>) {
+        let nearby = self
+            .nearby_adult_piglins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let is_hoglin = attacker.get_entity().entity_type.id == EntityType::HOGLIN.id;
+        for weak in nearby {
+            let Some(ally) = weak.upgrade() else {
+                continue;
+            };
+            let Some(piglin) = ally.cast_any().downcast_ref::<Self>() else {
+                continue;
+            };
+            if piglin.mob_entity.get_target().is_some() {
+                continue;
+            }
+            // Vanilla skips a hoglin target for an ally that cannot hunt hoglins.
+            if is_hoglin && !piglin.can_hunt() {
+                continue;
+            }
+            piglin.mob_entity.set_target(Some(attacker.clone()));
         }
     }
 
@@ -1431,6 +1476,34 @@ mod tests {
 
         assert!(
             ally.hunt_cooldown_timer.load(Ordering::Relaxed) >= PiglinAi::MIN_TIME_BETWEEN_HUNTS
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn anger_broadcasts_to_nearby_adult_piglins() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let body = piglin(&world, 0.0);
+        let ally = piglin(&world, 2.0);
+        let attacker = hoglin(&world, 1.0);
+        let attacker_dyn: Arc<dyn EntityBase> = attacker.clone();
+        world.spawn_entity(attacker_dyn.clone());
+
+        let ally_dyn: Arc<dyn EntityBase> = ally.clone();
+        body.nearby_adult_piglins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(Arc::downgrade(&ally_dyn));
+
+        body.was_hurt_by(attacker_dyn.as_ref());
+        world.level.shutdown().await;
+
+        assert!(
+            ally.mob_entity
+                .get_target()
+                .is_some_and(|target| target.get_entity().entity_uuid
+                    == attacker_dyn.get_entity().entity_uuid)
         );
         Ok(())
     }

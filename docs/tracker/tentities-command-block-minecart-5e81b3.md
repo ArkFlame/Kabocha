@@ -214,3 +214,42 @@ Files touched: `pumpkin-util/src/text/mod.rs`, `command_block.rs` (plus this doc
 by this worker; no compile/test run by this worker (orchestrator compiles once).
 
 Status: PASS.
+
+
+## Result (third pass: final close)
+
+Re-read all three in-scope files and verified every row against decompiled vanilla now present in
+`.vendor/vanilla-decompiled`. No row remains STILL OPEN; the second-pass Row 4 fix is present in the
+checkout and correct. No new .rs edit was needed, so no rustfmt was required this pass.
+
+- Row 1 (SuccessCount reset relative to gamerule guard): VERIFIED, matches vanilla.
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:105` sets
+  `successCount = 0` before the `isCommandBlockEnabled()` guard at line 106. Pumpkin resets at
+  `command_block.rs:168` before its guard at line 169.
+- Row 2 (Searge skips lastExecution bookkeeping): VERIFIED, matches vanilla. Vanilla returns from
+  the Searge branch at `BaseCommandBlock.java:99-102` before the `lastExecution` write at 134-138;
+  Pumpkin returns at `command_block.rs:160-164` before the write at 217-222.
+- Row 3 (custom_name on command-block state): VERIFIED, matches vanilla. Vanilla `BaseCommandBlock`
+  owns its own `customName` field (line 32) and `getName()` defaults to "@" (lines 147-149),
+  independent of the entity name; Pumpkin keeps its own `custom_name` at `command_block.rs:44`.
+- Row 4 (hardcoded protocol version in entity NBT): FIXED. Vanilla `BaseCommandBlock#save`
+  (`.vendor/.../world/level/BaseCommandBlock.java:50-63`) writes `CustomName`/`LastOutput` with the
+  version-agnostic `ComponentSerialization.CODEC` and takes no version parameter. The second pass
+  added the version-free `TextComponent::to_nbt_tag()` (`pumpkin-util/src/text/mod.rs:1697-1699`,
+  delegating to the current/latest `V_26_3` exactly like `encode()` at line 1659) and switched
+  `command_block.rs:239,250` to it, removing the hardcoded `CURRENT_MC_VERSION` import. Entity NBT
+  is a storage format, so the latest component format is correct. Verified present and type-correct.
+- Row 5 (gamerule-off test): FIXED. `command_block_minecart_perform_command_gamerule` lives in
+  `minecart.rs` (outside this unit's edit scope) and asserts the vanilla behaviour from
+  `BaseCommandBlock.java:105-106,99-102`.
+- Row 6 (no server GUI fallback): n/a, risk only; vanilla opens the edit screen client-side.
+
+`set_command_minecart.rs` re-verified against vanilla `handleSetCommandMinecart`
+(`.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:1100-1123`):
+permission check, unconditional setCommand/setTrackOutput/setLastOutput, gamerule-gated onUpdated,
+and the success/disabled message all match. No change.
+
+Final status: all six rows VERIFIED/FIXED/n-a. No BLOCKED-DATA (no missing generated field or
+subsystem). No compile/test run by this worker (orchestrator compiles once).
+
+Status: PASS.

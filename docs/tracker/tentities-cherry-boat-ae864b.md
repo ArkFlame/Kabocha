@@ -150,3 +150,39 @@ change was warranted, so no .rs file was edited (rustfmt not applicable).
 - `boat/dismount.rs` (the only file in this unit's allowlist) has no STILL OPEN row and was verified
   line-by-line in the prior pass; unchanged.
 - No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem.
+
+
+## Result (third-pass final resolution 2026-11-18)
+
+All rows re-checked against decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`. No source file needed a
+code change; the only allowlisted source file (`boat/dismount.rs`) has no open row and already
+matches vanilla.
+
+- Row 1 / h6 "Delta-rotation accumulation not added": VERIFIED (already implemented).
+  `BoatEntity` holds `yaw_delta`/`last_yaw` (boat.rs:231-232), refreshed each tick
+  (boat.rs:591-593), and `on_rider_positioned` adds the delta then clamps body/head yaw
+  (boat.rs:856-940). Pure tests `clamp_rider_yaw`, `rider_yaw_follows_boat_yaw_delta_then_clamps`
+  and `rider_clamp_adjustment_feeds_previous_yaw` exist (boat.rs:1038-1059). Matches
+  `.vendor/.../AbstractBoat.java:696-705` (positionRider: add deltaRotation, then clampRotation)
+  and `:740-753` (clampRotation: body yaw = hull, head clamped to +-105 deg).
+- Row 2 "drop ticks_underwater / is_eye_in_water from mounting gate": VERIFIED (no change).
+  Vanilla keeps both gates: `.vendor/.../AbstractBoat.java:784` (`!(outOfControlTicks < 60.0F)`)
+  and `:836-837` (`size < getMaxPassengers() && !isEyeInFluid(WATER)`). Pumpkin's
+  `boat_interact_outcome` inputs (boat.rs:823-826) match: a submerged or long-out-of-control
+  boat refuses riders in vanilla too. The doc claim was wrong.
+- Row 3 "increment outOfControlTicks only for UnderWater": VERIFIED (no change).
+  `.vendor/.../AbstractBoat.java:243-247` increments for BOTH UNDER_WATER and
+  UNDER_FLOWING_WATER. `BoatStatus::is_underwater` (physics.rs:22-24) covers both and
+  `tick_underwater` (boat.rs:392-402) uses it. The doc claim was wrong.
+- Row 4 "chest contents scatter only in damage path": VERIFIED (already implemented).
+  `BoatEntity::on_removed` (boat.rs:488-504) scatters all 27 slots for every destroying
+  removal; `claim_drops` (boat.rs:272-276) makes it run at most once and the damage path also
+  calls it (boat.rs:746). Matches `.vendor/.../AbstractChestBoat.java:71-76` (`remove`: scatter
+  when `reason.shouldDestroy()`).
+- `boat/dismount.rs` (the only allowlisted source file): VERIFIED line-by-line in the prior
+  pass, no STILL OPEN row. Matches `.vendor/.../AbstractBoat.java:709-738`,
+  `.vendor/.../DismountHelper.java:38-54` and `Entity.getCollisionHorizontalEscapeVector`.
+
+No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No .rs file
+was edited, so rustfmt is not applicable.
