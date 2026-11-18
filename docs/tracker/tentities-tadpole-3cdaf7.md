@@ -127,3 +127,29 @@ Result section; rows 2-4 remain open for the recorded reasons.
   `abstract_fish.rs:305` returns `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, both correct. Only Dolphin
   overrides to 4800 (`dolphin.rs:342-347`, vanilla `Dolphin.TOTAL_AIR_SUPPLY = 4800`). The "Fixed in
   this pass" note claiming a 4800 water-animal value is stale and must not be re-applied.
+
+## Result (final re-verification 2026-11-18)
+
+Independently re-verified every STILL OPEN row against the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. All three premises are false for this version, so no
+source edit was warranted and no rustfmt was needed. Current Pumpkin code already matches vanilla;
+do not re-apply the stale "Fixed in this pass" note claiming a 4800 water-animal air supply.
+
+- Row 2 (carry tadpole variant into frog): NO GAP. Vanilla
+  `world/entity/animal/frog/Tadpole.java` (fields 44-51, `ageUp()` 236-250) has no `TadpoleVariant`,
+  no synced variant, no `variant` NBT/bucket key; `ageUp()` only calls `frog.finalizeSpawn`,
+  `setPersistenceRequired`, `fudgePositionAfterSizeChange` and the grow-up sound. No
+  `TadpoleVariant.java` exists in the decompiled tree. Frog variant is still biome-picked in
+  `Frog#finalizeSpawn`, which Pumpkin already does (`frog.rs:146-148`). Remains tied to BLOCKED-DATA
+  gap 1.
+- Row 3 (RunIf + RandomLookAround gate): NO GAP. Vanilla
+  `world/entity/animal/frog/TadpoleAi.java:64` is
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a deliberate no-op, matching Pumpkin's
+  `trigger_if(...is_in_water)` at `tadpole/ai.rs:85-90`. No `RunIf`/`RandomLookAround` in this brain
+  version, and the proposed fix would touch `ai.rs` files outside this unit.
+- Row 4 (squid max air supply): NO GAP. Vanilla
+  `world/entity/animal/AgeableWaterCreature.java:37-47` refills to a hardcoded `300` and squid
+  overrides no air methods; `breath::MAX_AIR = 300`. `ageable_water_creature.rs:22` passes
+  `MAX_AIR = 300` and `abstract_fish.rs:304-306` returns `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, both
+  correct. Only Dolphin uses 4800 (`Dolphin.java`), already handled in `dolphin.rs`.
+Files touched: none. fixed=0; all four recorded gaps unchanged (1 BLOCKED-DATA, 2/3/4 premise false).

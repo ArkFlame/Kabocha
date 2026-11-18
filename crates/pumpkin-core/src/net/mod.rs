@@ -356,10 +356,6 @@ impl ClientPlatform {
         }
     }
 
-    pub fn try_enqueue_spawn_packet(&self, entity: &Arc<dyn crate::entity::EntityBase>) {
-        self.enqueue_spawn_packet(entity);
-    }
-
     pub fn enqueue_spawn_packet(&self, entity: &Arc<dyn crate::entity::EntityBase>) {
         match self {
             Self::Java(java) => entity.send_java_spawn_packet(java),
