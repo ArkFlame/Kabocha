@@ -405,12 +405,7 @@ impl Goal for RamTargetGoal {
         let target_pos = BlockPos::containing_vec(target.get_entity().pos.load());
 
         if self.preparing {
-            #[expect(
-                clippy::single_match_else,
-                reason = "the other arm is the charge start"
-            )]
-            match self.candidate {
-                Some(candidate) => {
+            if let Some(candidate) = self.candidate {
                     if candidate.target_position != target_pos {
                         // Vanilla re-chooses the ram position when the target moves.
                         self.candidate =
@@ -447,8 +442,8 @@ impl Goal for RamTargetGoal {
                     }
                     self.begin_charge(mob);
                 }
-                None => {
-                    // No walkable ram start: keep the direct approach from before the scan.
+            } else {
+                // No walkable ram start: keep the direct approach from before the scan.
                     if self.prepare_ticks < RAM_PREPARE_TIME {
                         self.prepare_ticks += 1;
                         self.repath_to(mob, target.get_entity().pos.load(), PREPARE_SPEED);
