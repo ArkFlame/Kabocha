@@ -345,6 +345,10 @@ pub struct World {
     /// source; a dedicated stream replays explosions from the world seed without
     /// shifting loot rolls.
     pub explosion_random: std::sync::Mutex<Xoroshiro>,
+    /// Vanilla draws block state-change particles and neighbour delays from
+    /// level.random; a dedicated seeded stream keeps those draws reproducible
+    /// without shifting loot or explosion rolls.
+    pub block_random: std::sync::Mutex<Xoroshiro>,
     /// The weather cycle, shared with every other world
     pub weather_data: weather::SharedWeatherData,
     pub weather_cycle: WeatherCycle,
@@ -641,6 +645,7 @@ impl World {
 
         let loot_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let explosion_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
+        let block_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let weather_enabled = weather_setup
             .enabled
             .unwrap_or_else(|| weather::can_have_weather(&dimension));
@@ -673,6 +678,7 @@ impl World {
             weather_enabled,
             loot_random,
             explosion_random,
+            block_random,
             block_registry,
             sea_level: generation_settings.sea_level,
             min_y: i32::from(generation_settings.shape.min_y),
