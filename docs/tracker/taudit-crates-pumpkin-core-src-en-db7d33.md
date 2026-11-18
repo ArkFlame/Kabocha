@@ -33,7 +33,7 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - Bedrock actor metadata (`FUSE_TIME`, `y_offset 0.49`) and `is_about_to_explode` (`fuse <= 1`) used by the entity-island push check.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- Rows: all resolved. See the "## Result" sections below (the FINAL PASS marks every row FIXED or VERIFIED).
 
 ## Result
 
@@ -160,3 +160,18 @@ Re-checked every formerly STILL OPEN row against `.vendor/vanilla-decompiled/net
 | 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock` gates only ignition; Pumpkin's tick-time re-check (tnt.rs:212) matches. |
 
 Additionally fixed a compile-pitfall defect in this unit: the doc comments on `power()` and `set_power()` contained literal escaped backticks (backslash before backtick) that break `clippy::doc_markdown` under `-D warnings`; replaced with proper single backticks (tnt.rs:102,108). Verified `fuse_from_nbt` default (row 4) and `EntityReference::none()`/`AtomicBool::new` const-initializer compatibility. `entity_index.rs:665` is test-only and not a production dimension-change path, so no hook is missing there. Compilation is deferred to the orchestrator batch check.
+
+
+## Result (FINAL PASS)
+
+Every formerly STILL OPEN row was re-verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/TntBlock.java` (Paper/CraftBukkit, protocol V_26_3) and the live Pumpkin sources. No `.rs` change was needed: each row is already FIXED or matches vanilla in the current checkout. All cross-file symbols used by the row-3 portal fix resolve: `EntityBase::on_changed_dimension` default (`entity/mod.rs:321`) invoked from `World::transfer_entity` (`world/mod.rs:6638`), `Entity::tick_portal` (`entity/mod.rs:4110`), the `ExplosionDamageCalculator` trait (`world/explosion.rs:58-116`), `World::explode_from_with_calculator` (`world/mod.rs:5093-5105`) and the generated `Block::NETHER_PORTAL` const. `entity_index.rs:665` sits inside a `#[tokio::test]` module, not a production dimension-change path, so no hook is missing there.
+
+| # | Outcome | Evidence |
+|---|---------|----------|
+| 3 | FIXED (present) | Vanilla `USED_PORTAL_DAMAGE_CALCULATOR` (PrimedTnt.java:50-62) is selected in `explode()` when `usedPortal` (line 162); `usedPortal` is set in `postChangeDimension()` (lines 239-244). Pumpkin implements `UsedPortalDamageCalculator` (tnt.rs:29-59), `used_portal: AtomicBool` (tnt.rs:76) set by `on_changed_dimension` (tnt.rs:147-150), the `tick_portal` call (tnt.rs:178) and `explode_from_with_calculator` detonation (tnt.rs:217-232). The claimed cross-dimension `ignoreExplosion` chain immunity does not exist here: decompiled `PrimedTnt` declares no such override. |
+| 5 | VERIFIED (matches vanilla) | `addAdditionalSaveData` stores owner (PrimedTnt.java:181) and `readAdditionalSaveData` reads it (line 189); Pumpkin's `owner.write_nbt` / `read_nbt` (tnt.rs:160,171) match. |
+| 6 | VERIFIED (matches vanilla) | `readAdditionalSaveData` uses `Mth.clamp(getFloatOr("explosion_power", 4.0F), 0.0F, 128.0F)` (PrimedTnt.java:188); Pumpkin's `.unwrap_or(DEFAULT_POWER).clamp(0.0, 128.0)` (tnt.rs:166-170) with `DEFAULT_POWER = 4.0` matches exactly. |
+| 7 | FIXED (present, out of unit) | `block/blocks/tnt.rs:97-116` fires `ExplosionPrimeEvent` with `tnt.power()` and feeds a modified radius back via `tnt.set_power`; matches vanilla `event.getRadius()` (PrimedTnt.java:166). |
+| 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock.prime()` gates only ignition (TntBlock.java:98); Pumpkin's tick-time re-check (tnt.rs:212) matches, so a TNT primed before the gamerule is disabled is cancelled in both. |
+
+Also re-confirmed row 4 is fixed: `fuse_from_nbt` returns `TNTEntity::DEFAULT_FUSE` (80) for a missing tag (tnt.rs:63-66), matching `getShortOr("fuse", (short)80)` (PrimedTnt.java:186), with unit tests at tnt.rs:288-301. No new unit test: every row already has correct behaviour and the only pure seams (`fuse_from_nbt`, `random_short_fuse`) are covered or would be formula-mirroring. No `.rs` file was touched, so no rustfmt was required. Compilation is deferred to the orchestrator batch check.

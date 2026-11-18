@@ -215,3 +215,29 @@ No code changed in this pass (the only in-tree fixes were already landed; the si
 missing feature is a whole subsystem, reported BLOCKED-DATA). No new pure-test seam exists for
 these rows; row 30 already ships a pure test. No cargo/git run (worker shell is denied), so prior
 code edits remain UNVERIFIED by compilation in this pass.
+
+
+## Result (final pass - definitive)
+
+Every originally STILL OPEN row now ends as FIXED, VERIFIED, or BLOCKED-DATA. All code fixes that
+belong to this unit were landed in earlier passes and re-confirmed present in the tree. This pass
+re-checked each verdict against the decompiled vanilla tree
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/{AbstractArrow,Arrow,SpectralArrow}.java`;
+local mirror `tmp/mc-proof/ref/net/minecraft/world/entity/projectile/arrow/`). No code changed.
+
+| Row | Final verdict | Evidence |
+|---|---|---|
+| 29 (enchant ordering, M) | VERIFIED | `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:466-474` calls `EnchantmentHelper.modifyDamage` on `baseDamage` before `pow * baseDamage` / `Mth.ceil`; `item/items/projectile_weapon.rs:67-70` folds the same target-independent Power damage adjustment into `base_damage` at fire time, and `arrow.rs:746-748` computes `ceil(clamp(velocity * base_damage))`. Smite/Bane are target-dependent enchant-system concerns, not this ordering row. |
+| 30 (pickup `canHold`, S) | FIXED | `.vendor/.../AbstractArrow.java:703-720` (CraftBukkit `playerTouch`) gates `PlayerPickupArrowEvent` on `pickup == ALLOWED && !pickupItem.isEmpty() && player.getInventory().canHold(pickupItem) > 0`. `arrow.rs:681-698` gates the event on `!stack.is_empty() && player.inventory.can_hold(&stack) > 0`; `can_hold` lives in `player_inventory.rs` with pure test `can_hold_reports_capacity`. The later insert reuses the same stack. |
+| 33 (tipped trail / potion puff, S) | VERIFIED | `.vendor/.../Arrow.java:88-99` emits the trail only in the `isClientSide()` branch; the server branch only broadcasts entity event 0 and swaps to a plain arrow, both done in `decay_exposed_potion` (`arrow.rs:423-446`). Client renders the trail from synced ID_EFFECT_COLOR. |
+| 34 (crit particles, S) | VERIFIED | `.vendor/.../AbstractArrow.java:246-259` calls `Level.addParticle(ParticleTypes.CRIT, ...)`; `Level.addParticle` is a no-op on a dedicated server (no-op particle engine), and the vanilla client renders the trail from the synced crit flag set by `set_critical`. No server behaviour to replicate. |
+| 35 (spectral trail, S) | VERIFIED | `.vendor/.../SpectralArrow.java:36-41` emits the EFFECT particle only when `level().isClientSide()`. Client render only; the vanilla server emits nothing. |
+| 36 (sound/weapon NBT, S) | VERIFIED | `.vendor/.../AbstractArrow.java:437-439,663,679` stores `SoundEvent` and clears `firedFromWeapon` in `onItemBreak`, but no Rust arrow sets a non-default hit sound (`Sound::EntityArrowHit` is hardcoded at `arrow.rs:803-807`) and there is no Rust `onItemBreak` hook, so persisting a sound is a no-op; weapon NBT is already persisted (`arrow.rs`). No observable server-side gap. |
+| 38 (no-physics owner pickup, S) | VERIFIED | `.vendor/.../AbstractArrow.java:703-704` checks only `(isInGround() || isNoPhysics()) && shakeTime <= 0` and `tryPickup:724-729` has no owner branch, so the original claim is contradicted by vanilla. `arrow.rs:656-728` (`on_player_collision`) already matches. |
+| 39 (`last_hurt_mob`, M) | BLOCKED-DATA | Missing engine field/subsystem: `LivingEntity.last_hurt_mob` (the "victim" field) plus every consumer. Vanilla `.vendor/.../AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`; consumers include `world/entity/ai/goal/target/OwnerHurtTargetGoal.java`, `world/entity/animal/fox/Fox.java`, and `Mob.java`. Pumpkin `LivingEntity` has only `last_hurt_by_mob` (the attacker), so this needs the new field plus all AI consumers - a whole missing engine subsystem, not a generated `pumpkin-data` field. |
+
+No pure-unit-test seam exists for any remaining row (they need a live world/target, an inventory
+instance, or an engine hook); row 30 already ships the `can_hold_reports_capacity` pure test and
+the pickup-byte codec test is already present in `arrow.rs`. No cargo/git run (worker shell is
+denied); all remaining code edits were landed in prior passes and re-read here, so prior edits
+remain UNVERIFIED by compilation in this pass. No code changed in this pass.

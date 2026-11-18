@@ -451,3 +451,66 @@ No pure unit test added: `explosion_strength` already has
 `tnt_minecart_explosion_bonus_is_speed_capped`, the block_effects traversal helpers have five
 tests, and the remaining seams (interact/prime/tick/explode, boat sweep) are covered by the
 registered gametests or need a live world.
+
+
+---
+
+## Result (FINAL PASS, unit scoped to rideable.rs + tnt.rs)
+
+Definitive per-row closure. Every row now ends FIXED, VERIFIED or BLOCKED-DATA; no STILL OPEN
+rows remain. In-scope files were re-read and checked line by line against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/{Minecart,MinecartTNT}.java`.
+Out-of-scope FIXED claims were re-confirmed against the current tree. No source edit was needed
+this pass: both in-scope rows are already faithful. No cargo/git/rustfmt was run by this worker.
+
+- minecart 10 (TNT priming, `minecart/tnt.rs`): VERIFIED faithful. `prime` guards
+  `fuse >= 0 || !tnt_explodes` (vanilla `MinecartTNT.java:170-191` `primeFuse` no-ops with
+  TNT_EXPLODES off; callers `destroy`/`activateMinecart` gate on `fuse < 0` at lines 90,151).
+  `tick` decrements a positive fuse and emits one SMOKE particle at `y+0.5` with zero velocity
+  (line 61), then explodes at `fuse == 0` on
+  `getDeltaMovement().horizontalDistanceSqr()` (= x*x+z*z, line 63). `explode` uses
+  `min(sqrt(speedSqr),5)` and `base + factor * rand(0..1) * 1.5 * speed` (lines 109,113),
+  preserves rails while primed (`getBlockExplosionResistance`/`shouldBlockExplode`, lines
+  201-214) and discards a primed cart when TNT_EXPLODES is off (lines 133-135). NBT keys,
+  defaults and clamps (fuse -1, power 4.0 clamp 0..128, factor 1.0 clamp 0..128) match lines
+  217-235. `tnt_minecart_explosion_bonus_is_speed_capped` pins the speed cap. The fuse
+  `rand(20)+rand(20)`, burning-arrow explode and horizontal-collision `>= 0.01` explode live in
+  `minecart.rs` (out of scope) and match lines 66-94.
+- minecart 12 (sneak interact, `minecart/rideable.rs`): VERIFIED faithful. Vanilla
+  `Minecart.interact` (`Minecart.java:25-32`) returns PASS when `isSecondaryUseActive()` or
+  `isVehicle()`; `RideableMinecart::interact` returns false on `is_sneaking()`, non-empty
+  `passengers` or `has_vehicle()`, matching. The `has_vehicle()` guard only blocks a mounted
+  player switching carts, which vanilla `startRiding` also rejects.
+
+- block_effects 1 (non-lily-pad dispatch): FIXED. `block_effects.rs:115-117` dispatches
+  `on_entity_collision` for every non-air block whose inside shape the path enters, matching
+  vanilla `Entity.checkInsideBlocks` (`Entity.java:2037-2047`).
+- block_effects 2 (endpoint double dispatch): FIXED. The sweep skips positions inside the
+  final standing box (`block_effects.rs:72-77,106-114`), leaving them to `tick_block_collisions`;
+  vanilla dedupes via `Entity.visitedBlocks` (`Entity.java:1953,1977`).
+- block_effects 3 (chunk loaded guard): FIXED (`block_effects.rs:84-89`
+  `is_chunk_loaded`), matching vanilla `getChunkIfLoaded` (`Entity.java:2021-2027`).
+- block_effects 4 (take before early return): VERIFIED faithful (`Entity.java:1521-1529`).
+- block_effects 5 (requested-movement axis split): VERIFIED faithful (`Entity.java:1959-1970`).
+- block_effects 6 (gametest): FIXED. `builtin_game_tests/boat_block_effects.rs` provides
+  `test_boat_breaks_lily_pad_on_landing` and `test_boat_sweep_ignites_on_fire`, registered in
+  `builtin_game_tests/mod.rs:1817,1824`.
+- minecart 1 (rideable damage): FIXED (`minecart.rs:456-460`), parity per
+  `Minecart.java:45-58` (eject riders + setHurtDir/setHurtTime(10)/setDamage(50.0)/markHurt).
+- minecart 2 (rustfmt): FIXED.
+- minecart 3 (activator rail ejects riders): VERIFIED faithful (`Minecart.java:45-58`).
+- minecart 4 (push direction): VERIFIED faithful (`AbstractMinecart.java:614-628`).
+- minecart 5 (powered rail boost): FIXED (`minecart.rs:118,482`,
+  `stopped_powered_rail_velocity` derived from rail shape; `OldMinecartBehavior.java:233-262`).
+- minecart 6 (container friction): VERIFIED faithful
+  (`AbstractMinecartContainer.applyNaturalSlowdown`).
+- minecart 7 (passenger repositioning): VERIFIED faithful (`Minecart.java:77-85`).
+- minecart 8 (slope tests): FIXED (`minecart.rs:1215,1235`).
+- minecart 9 (double move_entity): VERIFIED faithful (`AbstractMinecart.move`).
+- minecart 11 (portal): FIXED. `Entity::tick_portal` (`entity/mod.rs:4110`) teleports the
+  entity/passengers and is called by `Minecart::tick` (`minecart.rs:388`), mirroring vanilla
+  `AbstractMinecart.tick` calling `handlePortal`. No longer BLOCKED-DATA.
+
+No pure unit test added: `explosion_strength` already has
+`tnt_minecart_explosion_bonus_is_speed_capped`; `interact`/`prime`/`tick`/`explode` need live
+entities/world, so no new pure seam exists in these two files.

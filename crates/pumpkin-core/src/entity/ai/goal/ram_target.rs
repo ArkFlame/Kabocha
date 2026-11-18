@@ -8,7 +8,7 @@ use crate::entity::mob::Mob;
 use crate::entity::passive::goat::GoatEntity;
 use crate::world::World;
 use pumpkin_data::effect::StatusEffect;
-use pumpkin_data::entity::EntityStatus;
+use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::Taggable;
 use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
@@ -340,6 +340,10 @@ impl Goal for RamTargetGoal {
             return false;
         };
         if !target.get_entity().is_alive() {
+            return false;
+        }
+        // Vanilla GoatAi.RAM_TARGET_CONDITIONS excludes goats as ram targets.
+        if target.get_entity().entity_type == &EntityType::GOAT {
             return false;
         }
         let now = mob.get_entity().world.load().get_world_age();

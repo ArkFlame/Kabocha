@@ -226,3 +226,47 @@ historically-open rows need a live `World`); the existing formula/cosine-boundar
 `daylight_detector.rs:141-186` still cover the only pure logic.
 
 Rows newly fixed this pass: 0 (all 5 already terminal). Rows open: 0.
+
+
+## Result (FINAL PASS 2026-11-18, worker direct)
+
+Re-read the decompiled vanilla source and the live Pumpkin source directly. Every row is terminal
+as FIXED or VERIFIED; none is STILL OPEN and none is BLOCKED-DATA. No `.rs` edit was required: the
+checkout already matches vanilla. Citations use
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java` (DDB) and
+`.../Block.java`.
+
+1. M - Tick architecture: VERIFIED (no gap). Vanilla ticks via a `BlockEntityTicker` from `getTicker`
+   (DDB:99-104), gated on `!level.isClientSide() && level.dimensionType().hasSkyLight()`; `tickEntity`
+   runs on `getRedstoneGameTime() % 20L == 0L` (DDB:106-110) and requires a live block entity. There
+   is no scheduled block tick anywhere in the class. Pumpkin's `DaylightDetectorBlockEntity::tick`
+   (`entities/daylight_detector.rs:37-46`) mirrors this with `world.dimension.has_skylight` and
+   `get_world_age() % 20 == 0`. The proposed `on_scheduled_tick` rework is rejected as a divergence.
+2. S - Stale BE guard: VERIFIED (fixed at HEAD). `update_signal_strength` returns unless the block is
+   `DAYLIGHT_DETECTOR` (`blocks/redstone/daylight_detector.rs:97-103`), mirroring vanilla's ticker
+   passing the block entity's own state.
+3. S - Inversion flag: VERIFIED. `useWithoutItem` uses `setBlock(pos, state.cycle(INVERTED),
+   Block.UPDATE_CLIENTS)` (DDB:75-76) with `UPDATE_CLIENTS = 2` (Block.java:93). Pumpkin uses
+   `BlockFlags::NOTIFY_LISTENERS = 0b10 = 2` (`pumpkin-world/src/world.rs:18`) at
+   `blocks/redstone/daylight_detector.rs:43-44`. Same flag, same client-update path.
+4. S - Game event context: VERIFIED (fixed at HEAD). Vanilla `gameEvent(BLOCK_CHANGE, pos,
+   Context.of(player, newState))` (DDB:77); Pumpkin `emit_game_event_with_source(..., Some(player))`
+   (`blocks/redstone/daylight_detector.rs:47-51`) records the player as vibration source.
+5. S - Unused update_power wrapper: VERIFIED (removed). No such method remains in
+   `entities/daylight_detector.rs`.
+
+Formula cross-check: `calculate_signal_strength` (`daylight_detector.rs:75-95`) matches DDB:47-64
+(max(skyLight - skyDarken, 0), invert 15 - target, sun shade with f < PI ? 0 : 2PI and 0.2 lerp,
+Math.round = floor(x + 0.5), clamp 0..15). `get_effective_sky_brightness`
+(`pumpkin-core/src/world/mod.rs:7385-7392`) applies `.max(0)`, matching
+`.vendor/vanilla-decompiled/net/minecraft/world/level/LevelReader.java:171-173`; `get_sun_angle`
+(`world/mod.rs:7395-7401`) converts VisualSunAngle degrees to radians, matching
+`SUN_ANGLE * DEG_TO_RAD` (DDB:49). Shape-occlusion row (parent tracker): VERIFIED;
+`pumpkin-world/src/lighting/occlusion.rs:14` includes `Block::DAYLIGHT_DETECTOR` in `SINGLETONS`
+and the pure test `daylight_detector_occludes_only_its_bottom_face` (occlusion.rs:106) is present.
+
+No new pure unit-test seam exists for the tick rows (they need a live `World`); the existing
+formula/cosine-boundary tests at `daylight_detector.rs:141-186` still cover the only pure logic.
+The parent tracker's "STILL OPEN until closed..." placeholder is orchestrator-managed and its
+resolved Result section already closes every row. No `.rs` file was edited, so rustfmt was not
+required. Rows newly fixed: 0. Rows open: 0.
