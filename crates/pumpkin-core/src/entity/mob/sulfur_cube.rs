@@ -495,6 +495,13 @@ impl SulfurCubeEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .explosion;
         let Some(explosion) = explosion else {
+            // Paper clears a stale fuse when the archetype loses its explosion data.
+            let entity = self.get_entity();
+            if entity.tick_count.load(Ordering::Relaxed) > 1 && self.is_primed() {
+                self.fuse.store(-1, Ordering::Relaxed);
+                entity.set_synced_data(tracked_data::sulfur_cube::MAX_FUSE, -1);
+                entity.set_invulnerable(false);
+            }
             return;
         };
         if self.fuse.load(Ordering::Relaxed) != 0 {
@@ -787,6 +794,10 @@ impl Bucketable for SulfurCubeEntity {
 
     fn save_to_bucket_tag(&self, bucket: &mut ItemStack) {
         self.save_default_data_to_bucket_tag(bucket);
+        let body_item = self.body_item();
+        if !body_item.is_empty() {
+            bucket.set_data_component(SulfurCubeContentImpl { item: body_item });
+        }
         let mut nbt = bucket
             .get_data_component::<BucketEntityDataImpl>()
             .and_then(|data| data.nbt.clone())

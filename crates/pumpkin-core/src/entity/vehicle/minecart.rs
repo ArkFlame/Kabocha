@@ -8,9 +8,12 @@ mod spawner;
 mod tnt;
 
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI32, Ordering};
 
+use crossbeam::atomic::AtomicCell;
+use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::server::play::SPlayerInput;
+use pumpkin_world::block::BlockStateCodec;
 use rand::RngExt;
 
 use crate::entity::projectile::abstract_arrow::is_abstract_arrow;
@@ -186,9 +189,67 @@ const GRAVITY: f64 = 0.04;
 const RAIL_HEIGHT_OFFSET: f64 = 0.0625;
 const STOPPED_RAIL_NUDGE: f64 = 0.02;
 
+/// Vanilla `AbstractMinecart` display block default offset (`getDefaultDisplayOffset`).
+const DEFAULT_DISPLAY_OFFSET: i32 = 6;
+
+/// Vanilla `AbstractMinecart` custom display block and offset: NBT `DisplayState` /
+/// `DisplayOffset` and tracked data `DATA_ID_CUSTOM_DISPLAY_BLOCK` / `DATA_ID_DISPLAY_OFFSET`.
+struct MinecartDisplay {
+    /// `None` is vanilla `Optional.empty()` and is encoded as varint 0 on the wire.
+    block_state: AtomicCell<Option<BlockStateId>>,
+    offset: AtomicI32,
+}
+
+impl MinecartDisplay {
+    const fn new() -> Self {
+        Self {
+            block_state: AtomicCell::new(None),
+            offset: AtomicI32::new(DEFAULT_DISPLAY_OFFSET),
+        }
+    }
+
+    fn write_nbt(&self, nbt: &mut NbtCompound) {
+        if let Some(state) = self.block_state.load() {
+            nbt.put_compound("DisplayState", BlockStateCodec::state_to_nbt(state));
+        }
+        let offset = self.offset.load(Ordering::Relaxed);
+        if offset != DEFAULT_DISPLAY_OFFSET {
+            nbt.put_int("DisplayOffset", offset);
+        }
+    }
+
+    fn read_nbt(&self, nbt: &NbtCompound) {
+        let state = nbt
+            .get_compound("DisplayState")
+            .and_then(BlockStateCodec::state_from_nbt);
+        self.block_state.store(state);
+        self.offset.store(
+            nbt.get_int("DisplayOffset")
+                .unwrap_or(DEFAULT_DISPLAY_OFFSET),
+            Ordering::Relaxed,
+        );
+    }
+
+    fn init_data_tracker(&self, entity: &Entity) {
+        // Vanilla encodes an absent display block as 0 and a present one as state id + 1.
+        let state = self.block_state.load().map_or(0, |id| {
+            i32::from(id.as_u16()) + 1
+        });
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::abstract_minecart::DATA_ID_CUSTOM_DISPLAY_BLOCK,
+            VarInt(state),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::abstract_minecart::DATA_ID_DISPLAY_OFFSET,
+            self.offset.load(Ordering::Relaxed),
+        );
+    }
+}
+
 pub struct MinecartEntity {
     pub vehicle: VehicleEntity,
     kind: MinecartKind,
+    display: MinecartDisplay,
 }
 
 enum MinecartKind {
@@ -226,6 +287,7 @@ impl MinecartEntity {
         Self {
             vehicle: VehicleEntity::new(entity),
             kind,
+            display: MinecartDisplay::new(),
         }
     }
 
@@ -288,6 +350,7 @@ impl EntityBase for MinecartEntity {
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
+        self.display.write_nbt(nbt);
         match &self.kind {
             MinecartKind::Chest(minecart) => minecart.write_nbt(nbt),
             MinecartKind::CommandBlock(minecart) => minecart.write_nbt(nbt),
@@ -300,6 +363,7 @@ impl EntityBase for MinecartEntity {
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
+        self.display.read_nbt(nbt);
         match &self.kind {
             MinecartKind::Chest(minecart) => minecart.read_nbt(nbt),
             MinecartKind::CommandBlock(minecart) => minecart.read_nbt(&self.vehicle.entity, nbt),
@@ -897,6 +961,7 @@ impl EntityBase for MinecartEntity {
 
     fn init_data_tracker(&self) {
         self.vehicle.send_wobble_metadata();
+        self.display.init_data_tracker(&self.vehicle.entity);
         match &self.kind {
             MinecartKind::CommandBlock(minecart) => {
                 minecart.init_data_tracker(&self.vehicle.entity);
