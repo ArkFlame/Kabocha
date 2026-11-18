@@ -5,7 +5,20 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-en-8f1a6a** [partial/OWN-OPEN] own audit: 18 open, 6 fixed, 2 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-en-8f1a6a.md) docs/tracker/taudit-crates-pumpkin-core-src-en-8f1a6a.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+FINAL results for every originally STILL OPEN row, verified against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/`. No new source
+code was needed in this pass; the only in-tree fix (row 30) was already landed.
+
+| Row | Verdict | Evidence (vanilla path and Rust site) |
+|---|---|---|
+| 29 (enchant ordering, M) | VERIFIED | `AbstractArrow.java:466-474` applies `modifyDamage` to `baseDamage` before `pow * baseDamage` and `Mth.ceil`; `crates/pumpkin-core/src/item/items/projectile_weapon.rs:67-70` folds the same target-independent Power adjustment into `base_damage` at fire time, and `crates/pumpkin-core/src/entity/projectile/arrow.rs:746-748` computes `ceil(clamp(velocity * base_damage))`. Smite/Bane are target-dependent enchant-system concerns, outside this ordering row. |
+| 30 (pickup `canHold`, S) | FIXED (present in tree) | `AbstractArrow.java:703-720` (CraftBukkit `playerTouch`) gates the event on `pickup == ALLOWED && !pickupItem.isEmpty() && player.getInventory().canHold(pickupItem) > 0`; `arrow.rs:681-698` gates `PlayerPickupArrowEvent` on `!stack.is_empty() && player.inventory.can_hold(&stack) > 0` and reuses the stack for the insert. `can_hold` is in `crates/pumpkin-inventory/src/player/player_inventory.rs:362-392` with pure test `can_hold_reports_capacity`. |
+| 33 (tipped trail / potion puff, S) | VERIFIED | `Arrow.java:88-99` emits the trail only in the `isClientSide()` branch; the server branch only broadcasts entity event 0 and swaps to a plain arrow, both done in `decay_exposed_potion` (`arrow.rs:423-446`). The vanilla client renders the trail from synced ID_EFFECT_COLOR. Client-only, no server behaviour to replicate. |
+| 34 (crit particles, S) | VERIFIED | `AbstractArrow.java:246-259` emits 4 CRIT particles via `Level.addParticle`, a no-op on a dedicated server; the client renders the trail from the synced crit flag set by `set_critical`. No server behaviour to replicate. |
+| 35 (spectral trail, S) | VERIFIED | `SpectralArrow.java:36-41` emits the EFFECT particle only when `level().isClientSide()`. Client render only; the vanilla server emits nothing. |
+| 36 (sound/weapon NBT, S) | VERIFIED | `AbstractArrow.java:437-439,599,613,663,679` stores `SoundEvent`, stores `weapon`, and clears `firedFromWeapon` through the `EnchantmentHelper.onHitBlock` break callback. No Rust arrow sets a non-default hit sound (`Sound::EntityArrowHit` is hardcoded) and there is no Rust on-hit-block break hook, so persisting a sound is a no-op; weapon NBT is already persisted. No observable server-side gap. |
+| 38 (no-physics owner pickup, S) | VERIFIED (no fix needed) | `AbstractArrow.java:703-704` checks only `(isInGround() || isNoPhysics()) && shakeTime <= 0` and `tryPickup:724-729` has no owner branch, so the original claim is contradicted by vanilla. `arrow.rs:656-728` (`on_player_collision`) already matches. |
+| 39 (`last_hurt_mob`, M) | BLOCKED-DATA | Whole missing engine subsystem: `LivingEntity.last_hurt_mob` (the victim field) plus every consumer. Vanilla `AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`; consumers include `world/entity/ai/goal/target/OwnerHurtTargetGoal.java`, `world/entity/animal/fox/Fox.java`, and `Mob.java`. Pumpkin `LivingEntity` has only `last_hurt_by_mob` (the attacker). This needs the new field plus all AI consumers across files outside this unit, not a generated `pumpkin-data` field. |
 
 ## Result (third pass final)
 
