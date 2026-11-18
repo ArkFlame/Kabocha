@@ -27,8 +27,8 @@ Bogged: no S/M divergence found; nothing changed.
 | Invulnerable to breeze damage | matches | matches (checks cause type) | OK |
 | canAttack (players, iron golems) | matches | matches | OK |
 | Max head Y rot 30 | 30 | 30 | OK |
-| Head rot speed 25 | 25 | no per-mob head-speed hook in `Mob` | STILL OPEN: needs a Mob trait hook (`get_head_rotation_speed`) and LookControl wiring |
-| Pathfinding malus (ON_TOP_OF_TRAPDOOR, FIRE = -1) | set in ctor | no per-mob malus setup found in mob init | STILL OPEN: needs pathfinder malus API audit |
-| Brain AI: Fight activity (Shoot, LongJump, ShootWhenStuck, Slide), Idle (SlideToTargetSink 20-40, RandomStroll, DoNothing), attack/hurt-by memories, 100-tick attackable window | `BreezeAi` | generic goals (swim, wander, look, revenge, active target) | STILL OPEN: large port (brain activities plus Shoot/LongJump/Slide behaviours; those classes are not in the audited sources); no smallest-test fix |
-| Shoot / charge cooldowns (BREEZE_SHOOT_* memories) | brain behaviours | absent | STILL OPEN: part of the brain port |
-| Slide and jump particles, pose and animation | client visuals | absent | STILL OPEN: client-only, not blocking |
+| Head rot speed 25 | 25 | overrides `get_max_look_yaw_change` to 25 (the hook feeding `LookControl::setLookAt` yaw speed) | FIXED: vanilla `Breeze.getHeadRotSpeed` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/Breeze.java:253-256`; unit test `head_rot_speed_matches_vanilla_breeze` |
+| Pathfinding malus (ON_TOP_OF_TRAPDOOR, FIRE = -1) | set in ctor | set in ctor via `set_pathfinding_malus` | VERIFIED: `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/Breeze.java:73-78` |
+| Brain AI: Fight activity (Shoot, LongJump, ShootWhenStuck, Slide), Idle (SlideToTargetSink 20-40, RandomStroll, DoNothing), attack/hurt-by memories, 100-tick attackable window | `BreezeAi` | generic goals (swim, wander, look, revenge, active target) | BLOCKED-DATA: whole missing subsystem, the Breeze AI behaviour tree (`Shoot`, `LongJump`, `Slide`, `ShootWhenStuck`) and Breeze memory types (`BREEZE_JUMP_TARGET`, `BREEZE_SHOOT_*`) are not implemented in `crates/pumpkin-core/src/entity/ai/brain/`; vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/BreezeAi.java` |
+| Shoot / charge cooldowns (BREEZE_SHOOT_* memories) | brain behaviours | absent | BLOCKED-DATA: part of the Breeze AI behaviour subsystem above (missing memory types + behaviours) |
+| Slide and jump particles, pose and animation | client visuals | absent | VERIFIED client-only (not blocking): vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/Breeze.java:120-179` |
