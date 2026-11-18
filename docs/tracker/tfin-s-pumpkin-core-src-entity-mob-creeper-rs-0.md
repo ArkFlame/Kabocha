@@ -32,11 +32,11 @@ fall path in `.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity
     override in creeper.rs that keeps the current target when a Goat is proposed, matching vanilla's
     early `return false`. VERIFIED.
 
-- **Sub-gap: getMaxFallDistance (Creeper.java:82-85)**: BLOCKED-DATA. Requires a whole missing
-  subsystem: a target/health-aware per-mob pathfinding max-fall-distance hook.
-  `MobData::from_entity` (`crates/pumpkin-core/src/entity/ai/pathfinder/node_evaluator.rs:57`)
-  takes only `&LivingEntity` (no target) and hardcodes `max_fall_distance: 3.0`, while vanilla
-  returns `floor(health + 2)` while chasing. No generated field is missing; the hook does not exist.
+- **Sub-gap: getMaxFallDistance (Creeper.java:82-85)**: FIXED. `MobData::from_entity` now
+  resolves the spawned creeper via `world.get_entity_by_uuid` and sets `max_fall_distance` to
+  `comfortable_fall_distance(0.0)` (3.0) when there is no target, or
+  `comfortable_fall_distance(health - 1.0)` (= floor(health + 2)) while chasing, matching vanilla.
+  Helper `MobData::comfortable_fall_distance` added; pure unit test added.
 
 - **Sub-gap: Paper CreeperIgniteEvent (Creeper.java:286-295)**: BLOCKED-DATA. Requires a whole missing
   subsystem: a new WIT plugin event plus regenerated `pumpkin-plugin-api`,
