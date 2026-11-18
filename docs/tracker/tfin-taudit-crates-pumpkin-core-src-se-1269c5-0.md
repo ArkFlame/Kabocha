@@ -8,4 +8,17 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 | 5 | `mod.rs:780` (`get_world_from_dimension`) | Never terminates the process from a lookup | `std::process::exit(1)` on an empty world list hides a caller bug behind a hard exit and skips the shutdown save. Return an error or fall back explicitly. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Final pass: re-read current source plus vendored decompiled vanilla. No source change
+was needed: every row was already fixed or confirmed to match vanilla in earlier passes.
+Rows closed below.
+
+| # | final status | evidence |
+|---|---|---|
+| 1 | VERIFIED | `BorderSizeLerpTime` / `world_border.lerp_time` is a remaining tick count, not an absolute game-time deadline. `.vendor/vanilla-decompiled/net/minecraft/world/level/border/WorldBorder.java:489-491,413,513` (`getLerpTime()` returns `MovingBorderExtent.lerpProgress`, initialised to `duration` and decremented each tick), `:564,579` (`Settings.CODEC` stores `extent.getLerpTime()` as `lerp_time`), `:343-344,360-362` (`applyInitialSettings` / `applySettings` pass `lerpTime()` straight to `lerpSizeBetween` as a duration). Datafixers copy `BorderSizeLerpTime` verbatim: `.vendor/vanilla-decompiled/ca/spottedleaf/dataconverter/minecraft/versions/V4544.java:24` and `.vendor/vanilla-decompiled/net/minecraft/util/datafix/fixes/LegacyWorldBorderFix.java:26`. Pumpkin matches: `server/mod.rs:1041-1055` writes `current_diameter()` / `remaining_ms()` into `LevelData`; `world_info/anvil.rs:184-186` converts ticks to internal ms on read and `:330-334` converts ms back to ticks on write; `world/border.rs:86-115` resumes the lerp from the saved size over the saved remaining time and uses `current_diameter()` for bounds. Round-trip test `anvil.rs:876-886`. The 'deadline' wording in the original table is wrong; no epoch-scale value is involved. |
+| 2 | FIXED (present) | `server/mod.rs:631-666` `restore_forced_chunks` reads `<dim_folder>/data/minecraft/chunks.dat`, called for every startup world at `:686-688` and for runtime worlds at `:944` inside `spawn_world`; scoreboard and command storage stay server-wide in `load_persistent_data`. Matches the `ServerLevel` constructor restore. |
+| 4 | VERIFIED (matches vanilla) | The deferred `#minecraft:load` run is correct. `.vendor/vanilla-decompiled/net/minecraft/server/ServerFunctionManager.java:39-49` runs the load tag inside `tick()` under `runsNormally()` using the `postReload` flag set in `postReload()` (`:74-77`) on library replacement (`:69-72`). Pumpkin: `server/mod.rs:1092-1094` `mark_load_pending()` on reload and `:1994-1999` `take_load_pending()` then `#minecraft:load` then `#minecraft:tick` in the tick path. |
+| 5 | FIXED (present) | `server/mod.rs:813-823` `get_world_from_dimension` returns `Option`, falls back to the first loaded world, and never calls `std::process::exit`; no `process::exit` call remains in `server/mod.rs`. |
+
+No new test: `world/border.rs` already covers lerp resume and bounds-during-lerp, and
+`world_info/anvil.rs` already has the `border_lerp_time_is_stored_in_game_ticks`
+round-trip test; duplicating them would violate the MVP test rule.
