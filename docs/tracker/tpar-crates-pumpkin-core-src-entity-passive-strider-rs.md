@@ -20,3 +20,15 @@ THIRD PASS (final) verification against `.vendor/vanilla-decompiled/net/minecraf
   - Row 25 (eating sound, M): VERIFIED. Vanilla `mobInteract` (Strider.java:427-439) plays `STRIDER_EAT` when fed. `Animal::play_eating_sound` override in strider.rs plays `EntityStriderEat`.
 - Tests: no new pure unit test; every resolved seam (suffocation, navigation, jockey, attachment, eating sound, ambient sound) needs a live entity/world rather than a pure function. The boost-timing pure test already exists in `item_steerable.rs`.
 - Not compiled by this worker (shell denied); orchestrator batch-checks. Risk: only one minimal, mechanically-verified edit (`get_ambient_sound`, mirroring armadillo.rs) was made this pass; all other rows were already present.
+
+
+## Result
+
+FINAL PASS (this worker). Re-checked every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Strider.java` and `ItemBasedSteering.java`. Two genuine parity gaps were found in the previously-declared-complete `entities/Strider` audit and fixed in `crates/pumpkin-core/src/entity/passive/strider.rs`; all other rows remain VERIFIED as recorded above. No row remains STILL OPEN.
+
+- **entities/Strider** [AUDITED]: FIXED/VERIFIED. Two source edits:
+  1. `get_ambient_sound` (strider.rs:152-156): vanilla `getAmbientSound` (Strider.java:357-360) returns `STRIDER_AMBIENT` only when `!isPanicking() && !isBeingTempted()`, `null` otherwise. Prior code checked only `is_panicking()`, so a tempted strider still played the ambient sound. Now also requires `!goals_selector.is_running::<TemptGoal>()` (`TemptGoal` already imported; Pumpkin analogue of vanilla's `temptGoal.isRunning()`, Strider.java:327-329). Generated field `Sound::EntityStriderAmbient` exists (sound.rs:1546).
+  2. `mob_tick` (strider.rs:201-209): vanilla `tick` (Strider.java:299-304) plays `STRIDER_HAPPY` on an if branch when tempted (`random.nextInt(140) == 0`) and `STRIDER_RETREAT` on the else-if when panicking (`random.nextInt(60) == 0`). Prior code handled only the retreat branch. Now mirrors the if/else with `random_range(0..140)` then `random_range(0..60)`, using the `TemptGoal` running check. Generated field `Sound::EntityStriderHappy` exists (sound.rs:1547).
+- **own/tentities-strider-ff96d3** [OWN-OPEN, 7 rows]: all still VERIFIED as recorded in the prior Result blocks (rows 19-25). No further change needed.
+- Tests: no new pure unit test; both new seams (`get_ambient_sound`, tick sound selection) require a live entity/world. The boost-timing pure test remains in `item_steerable.rs`.
+- Compile check: not run by this worker (shell denied); orchestrator batch-checks. Both edits use patterns already present in the same crate (`ocelot.rs:210` for `is_running::<TemptGoal>()`, `strider.rs` existing `random_range`/`play_entity_sound` calls), so no new imports or trait bounds were introduced.
