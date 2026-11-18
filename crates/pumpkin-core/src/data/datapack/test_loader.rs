@@ -121,6 +121,10 @@ pub fn to_registry_entry(entry_id: String, instance: &TestInstance) -> RegistryE
     let mut nbt = NbtCompound::new();
     nbt.put_string("type", instance.instance_type.serialized_name().to_string());
     nbt.put("environment", json_value_to_nbt(&instance.environment));
+    // TestData.CODEC encodes dimension with optionalFieldOf(Level.OVERWORLD); DFU still writes
+    // defaulted optional fields during encode, so the canonical payload carries the id. Pumpkin's
+    // model has no dimension field and every test runs in the default overworld.
+    nbt.put_string("dimension", "minecraft:overworld");
     if let Some(function) = &instance.function {
         nbt.put_string("function", function.clone());
     }
@@ -331,6 +335,7 @@ mod tests {
 
         assert_eq!(nbt.get_string("type"), Some("minecraft:function"));
         assert_eq!(nbt.get_string("environment"), Some("minecraft:default"));
+        assert_eq!(nbt.get_string("dimension"), Some("minecraft:overworld"));
         assert_eq!(nbt.get_string("function"), Some("minecraft:always_pass"));
         assert_eq!(nbt.get_string("structure"), Some("minecraft:empty"));
         assert_eq!(nbt.get_string("rotation"), Some("none"));
@@ -375,6 +380,7 @@ mod tests {
             .root_tag;
 
         // Defaults that raw JSON-as-NBT would omit are present in the codec payload.
+        assert_eq!(nbt.get_string("dimension"), Some("minecraft:overworld"));
         assert_eq!(nbt.get_int("setup_ticks"), Some(0));
         assert_eq!(nbt.get_bool("required"), Some(true));
         assert_eq!(nbt.get_int("max_attempts"), Some(1));

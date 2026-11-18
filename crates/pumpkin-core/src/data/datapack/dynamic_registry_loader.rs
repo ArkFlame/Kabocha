@@ -112,9 +112,10 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Worldgen subdirectories that already have dedicated typed loaders in `datapack/mod.rs`
-/// (`structure_loader`). They are parsed there into the gameplay registries, and none of
-/// these registry ids is in vanilla's `RegistryDataLoader.SYNCHRONIZED_REGISTRIES`, so a
+/// Worldgen subdirectories already covered by dedicated typed loaders.
+///
+/// They are parsed in `datapack/mod.rs` (`structure_loader`) into the gameplay registries,
+/// and none of these ids is in vanilla's `RegistryDataLoader.SYNCHRONIZED_REGISTRIES`, so a
 /// second generic NBT copy here would be redundant I/O with no client or gameplay reader.
 const DEDICATED_WORLDGEN_DIRS: &[&str] = &["template_pool", "processor_list"];
 

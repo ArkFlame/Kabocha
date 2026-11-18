@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::registry::{Registry, RegistryEntryData};
@@ -9,7 +9,7 @@ use pumpkin_util::version::JavaMinecraftVersion;
 #[derive(Clone, Debug, Default)]
 pub struct DynamicRegistry {
     pub registry_id: String,
-    pub entries: Vec<RegistryEntryData>,
+    pub entries: Arc<Vec<RegistryEntryData>>,
     pub id_to_index: HashMap<String, usize>,
 }
 
@@ -27,7 +27,7 @@ impl DynamicRegistry {
         }
         Self {
             registry_id,
-            entries,
+            entries: Arc::new(entries),
             id_to_index,
         }
     }
@@ -82,14 +82,24 @@ impl DynamicRegistry {
     }
 
     #[must_use]
-    pub const fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.entries.len()
     }
 
     #[must_use]
-    pub const fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+}
+
+/// A cheap-to-clone snapshot of one synced registry's data.
+///
+/// Entries are shared behind an `Arc` so a per-player registry-data send does not
+/// deep-copy every entry on each join, matching vanilla's frozen registry set.
+#[derive(Clone, Debug)]
+pub struct SyncedRegistry {
+    pub registry_id: String,
+    pub entries: Arc<Vec<RegistryEntryData>>,
 }
 
 /// Manages all dynamic registries (vanilla base registries and datapack additions/overrides).
@@ -114,7 +124,7 @@ impl DynamicRegistryManager {
         let mut registries = HashMap::new();
         let mut synced_order = Vec::new();
 
-        let base_regs = pumpkin_data::registry::Registry::get_synced(version);
+        let base_regs = Registry::get_synced(version);
         for reg in base_regs {
             let reg_id = if reg.registry_id.contains(':') {
                 reg.registry_id.clone()
@@ -162,7 +172,7 @@ impl DynamicRegistryManager {
 
             if let Some(existing) = reg_guard.get_mut(&reg_id) {
                 let merged = super::dynamic_registry_loader::merge_dynamic_registry_entries(
-                    &existing.entries,
+                    existing.entries.as_slice(),
                     custom_entries,
                 );
                 *existing = DynamicRegistry::new(reg_id.clone(), merged);
@@ -243,7 +253,7 @@ impl DynamicRegistryManager {
             .registries
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        Self::find_registry(&reg_guard, registry_id).map_or_else(Vec::new, |r| r.entries.clone())
+        Self::find_registry(&reg_guard, registry_id).map_or_else(Vec::new, |r| (*r.entries).clone())
     }
 
     #[must_use]
@@ -258,7 +268,7 @@ impl DynamicRegistryManager {
     }
 
     #[must_use]
-    pub fn get_synced_registries(&self) -> Vec<Registry> {
+    pub fn get_synced_registries(&self) -> Vec<SyncedRegistry> {
         // Same order as `apply_custom_registries` (registries before synced_order) so
         // a concurrent datapack reload cannot deadlock against this read.
         let reg_guard = self
@@ -273,9 +283,9 @@ impl DynamicRegistryManager {
         let mut result = Vec::with_capacity(order_guard.len());
         for id in order_guard.iter() {
             if let Some(dyn_reg) = reg_guard.get(id) {
-                result.push(Registry {
+                result.push(SyncedRegistry {
                     registry_id: dyn_reg.registry_id.clone(),
-                    registry_entries: dyn_reg.entries.clone(),
+                    entries: Arc::clone(&dyn_reg.entries),
                 });
             }
         }
@@ -369,5 +379,16 @@ mod tests {
             manager.get_entry_id("custom:spells", 0),
             Some("custom:fire_spell".to_string())
         );
+    }
+
+    #[test]
+    fn synced_registries_share_entry_storage_between_calls() {
+        let manager = DynamicRegistryManager::new(CURRENT_MC_VERSION);
+        let first = manager.get_synced_registries();
+        let second = manager.get_synced_registries();
+        assert!(!first.is_empty());
+        for (a, b) in first.iter().zip(second.iter()) {
+            assert!(Arc::ptr_eq(&a.entries, &b.entries));
+        }
     }
 }

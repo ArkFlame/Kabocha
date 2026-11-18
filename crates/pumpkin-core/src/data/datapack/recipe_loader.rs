@@ -314,6 +314,11 @@ fn normalize_potion_id(id: &str) -> String {
     }
 }
 
+// A tag entry in a potion holder set keeps its leading hash so it is not mistaken for an id.
+fn normalize_potion_tag(tag: &str) -> String {
+    normalize_potion_id(&format!("#{}", tag.strip_prefix('#').unwrap_or(tag)))
+}
+
 // Vanilla PotionIngredient is an Ingredient plus an optional PotionsPredicate.
 fn parse_potion_ingredient(value: &Value) -> Option<OwnedPotionIngredient> {
     let ingredient = parse_ingredient(value.get("item")?)?;
@@ -328,14 +333,16 @@ fn parse_potion_ingredient(value: &Value) -> Option<OwnedPotionIngredient> {
                     if let Some(s) = id.as_str() {
                         potions.push(normalize_potion_id(s));
                     } else if let Some(tag) = id.get("tag").and_then(Value::as_str) {
-                        potions.push(normalize_potion_id(tag));
+                        potions.push(normalize_potion_tag(tag));
                     } else {
                         return None;
                     }
                 }
             }
             Value::Object(map) => {
-                potions.push(normalize_potion_id(map.get("tag").and_then(Value::as_str)?));
+                potions.push(normalize_potion_tag(
+                    map.get("tag").and_then(Value::as_str)?,
+                ));
             }
             _ => return None,
         }
@@ -689,12 +696,12 @@ mod tests {
             );
             assert!(matches!(
                 brewing.input.ingredient,
-                OwnedRecipeIngredient::Simple(ref id) if id == "minecraft:potion"
+                OwnedRecipeIngredient::Simple(ref id) if id.as_str() == "minecraft:potion"
             ));
             assert_eq!(brewing.input.potions, vec!["minecraft:water".to_string()]);
             assert!(matches!(
                 brewing.reagent.ingredient,
-                OwnedRecipeIngredient::Simple(ref id) if id == "minecraft:nether_wart"
+                OwnedRecipeIngredient::Simple(ref id) if id.as_str() == "minecraft:nether_wart"
             ));
             assert!(brewing.reagent.potions.is_empty());
             assert_eq!(brewing.output.item_id, "minecraft:potion");

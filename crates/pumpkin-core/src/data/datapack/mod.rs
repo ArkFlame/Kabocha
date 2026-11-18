@@ -39,6 +39,7 @@ use crate::world::loot::LootTableHandle;
 
 use self::context_provider_loader::ContextProviderRegistry;
 use self::damage_type_loader::{DamageTypeDefinition, DamageTypeEntry, DamageTypeRegistry};
+use self::dynamic_registry_manager::SyncedRegistry;
 use self::tag_loader::DynamicTagEntry;
 use self::test_loader::{
     TestInstance, TestInstanceRegistry, load_test_instances_from_dir, to_registry_entry,
@@ -133,9 +134,9 @@ enum PackCompatibility {
     Compatible,
 }
 
-/// Mirrors vanilla PackCompatibility.forVersion for the single-format case:
-/// a pack is usable only when its pack_format equals the game's format.
-fn pack_format_compatibility(pack_format: u32, current_format: u32) -> PackCompatibility {
+/// Mirrors vanilla `PackCompatibility.forVersion` for the single-format case:
+/// a pack is usable only when its `pack_format` equals the game's format.
+const fn pack_format_compatibility(pack_format: u32, current_format: u32) -> PackCompatibility {
     if pack_format < current_format {
         PackCompatibility::TooOld
     } else if pack_format > current_format {
@@ -933,7 +934,7 @@ impl DatapackManager {
     }
 
     #[must_use]
-    pub fn get_all_synced_registries(&self) -> Vec<pumpkin_data::registry::Registry> {
+    pub fn get_all_synced_registries(&self) -> Vec<SyncedRegistry> {
         self.dynamic_registry_manager.get_synced_registries()
     }
 
@@ -1674,7 +1675,7 @@ impl DatapackManager {
         Self::get_enabled_packs(server).contains(&resolved)
     }
 
-    /// Returns the declared pack_format of an on-disk file/<name> pack.
+    /// Returns the declared `pack_format` of an on-disk `file/<name>` pack.
     fn pack_file_format(server: &Server, name: &str) -> Option<u32> {
         let stripped = name.strip_prefix("file/")?;
         let pack_path = server
