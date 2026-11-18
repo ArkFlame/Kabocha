@@ -1567,10 +1567,6 @@ mod tests {
     use crate::entity::ageable::AgeableMob;
     use crate::entity::ai::test_support::world;
     use crate::entity::mob::skeleton::bogged::BoggedSkeletonEntity;
-    use crate::entity::passive::copper_golem::CopperGolemEntity;
-    use crate::entity::passive::snow_golem::SnowGolemEntity;
-    use crate::entity::shearable::Shearable;
-
     #[test]
     fn dispensed_mob_drops_only_under_overhead_collision() {
         let bounds = BoundingBox {
@@ -1666,8 +1662,11 @@ mod tests {
         Ok(())
     }
     use crate::entity::passive::abstract_horse::AbstractHorse;
+    use crate::entity::passive::copper_golem::CopperGolemEntity;
     use crate::entity::passive::copper_golem::EQUIPMENT_SLOT_ANTENNA;
     use crate::entity::passive::donkey::DonkeyEntity;
+    use crate::entity::passive::snow_golem::SnowGolemEntity;
+    use crate::entity::shearable::Shearable;
     use pumpkin_data::data_component_impl::SulfurCubeContentImpl;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;

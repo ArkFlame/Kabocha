@@ -64,13 +64,12 @@ impl Shearable for BoggedSkeletonEntity {
         world.play_sound(Sound::EntityBoggedShear, sound_category, &pos);
 
         let drop_pos = Vector3::new(pos.x, pos.y + f64::from(entity.height()), pos.z);
-        for drop in shearing_loot(entity, BOGGED_SHEAR_LOOT_TABLE, tool) {
+        for drop in shearing_loot(self, BOGGED_SHEAR_LOOT_TABLE, tool) {
             world.spawn_entity(Arc::new(ItemEntity::new(
                 Entity::new(world.clone(), drop_pos, &EntityType::ITEM),
                 drop,
             )));
         }
-
         self.set_sheared(true);
         true
     }
@@ -162,6 +161,8 @@ impl Mob for BoggedSkeletonEntity {
         if item_stack.get_item() == &Item::SHEARS && self.ready_for_shearing() {
             return shear_by_player(self, player, item_stack, Hand::Right);
         }
-        false
+        self.entity
+            .mob_entity
+            .mob_interact(player, item_stack, self.can_be_leashed())
     }
 }
