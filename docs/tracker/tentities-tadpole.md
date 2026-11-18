@@ -226,3 +226,44 @@ Existing tests cover the only seams; no new test added because no behaviour
 changed. No unwrap/expect/panic and no println introduced. No .rs changed, so
 the compile-pitfalls table is not applicable and no rustfmt was run. No
 cargo/git per task rules.
+
+
+## Result
+
+Third-pass scope (unrestricted source edits). Independently re-verified every
+previously STILL OPEN row against vendored decompiled vanilla (Java 26.3) and
+the current Pumpkin source. No .rs file was edited: Pumpkin matches vanilla on
+every row, so no behaviour change and no new test seam exists.
+
+- Gap 1 (tadpole variant): VERIFIED, false premise. Full
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java`
+  (260 lines) defines only `AGE_LOCKED` synched data (line 45). No
+  `DATA_VARIANT` accessor, no `TadpoleVariant` class (grep/glob: zero
+  matches), and no tadpole variant in `assets/`. `tadpole.rs` correctly has
+  none. A fix would need generated data/Extractor assets outside this unit.
+  This is BLOCKED-DATA only if a fix were required; none is, because the
+  premise is false.
+- Gap 2 (age-up variant mapping): VERIFIED, false premise. `Tadpole#ageUp`
+  (`Tadpole.java:236-250`) converts to FROG via
+  `ConversionParams.single(this, false, false)`, calls `finalizeSpawn`,
+  `setPersistenceRequired`, `fudgePositionAfterSizeChange` and
+  `playSound(TADPOLE_GROW_UP, 0.15F, 1.0F)`; no variant is carried over (frog
+  variant is biome-selected). `tadpole.rs:120-146` matches. Also depends on
+  generated data outside this unit.
+- Gap 3 (water animal max air): VERIFIED, false premise.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fish/WaterAnimal.java:39-49`
+  hardcodes `setAirSupply(300)` with no `getMaxAirSupply` override; only
+  Dolphin overrides (`.../animal/dolphin/Dolphin.java:78` = 4800,
+  `getMaxAirSupply` at :204). `water_animal.rs:10` = 300,
+  `abstract_fish.rs:303-305` returns 300, `bucketable.rs:192` comment reads
+  (300), `breath.rs:9 MAX_AIR` = 300 is player-only, `dolphin.rs:39` = 4800.
+  All consistent with vanilla.
+
+Also re-confirmed fromBucket: `Tadpole.java:172-179` returns `true` and
+`setFromBucket` is a no-op, matched by `tadpole.rs:260-267` and covered by
+`tadpole_is_always_from_bucket`.
+
+No STILL OPEN rows remain. Existing tests cover the only seams; no new test
+added because no behaviour changed. No unwrap/expect/panic or println
+introduced. No .rs changed, so the compile-pitfalls table is not applicable and
+no rustfmt was run. No cargo/git per task rules.
