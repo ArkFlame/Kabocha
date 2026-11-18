@@ -7,7 +7,6 @@ Verified every STILL OPEN row against `AbstractFurnaceBlockEntity.java` in the
 Re-verified every STILL OPEN row against `AbstractFurnaceBlockEntity.java` in the
 STILL OPEN only for plugin exposure: the v0.1/v0.2 WIT `furnace-burn-event` records have no
 
-## Result
 ## Result (final pass, 2026-11-18)
 
 All rows re-verified against
