@@ -5,6 +5,7 @@ use std::sync::{
 
 use rand::RngExt;
 
+use crossbeam::atomic::AtomicCell;
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::effect::StatusEffect;
@@ -14,8 +15,12 @@ use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tracked_data;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 
+use crate::entity::ai::brain::memory::codec::{block_pos_from_tag, block_pos_to_tag};
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::ai::util::default_random_pos;
+use crate::entity::mob::spawn::{EntitySpawnReason, SpawnGroupData};
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
@@ -29,6 +34,7 @@ use crate::world::World;
 
 pub struct PiglinBruteEntity {
     pub mob_entity: MobEntity,
+    pub home_pos: AtomicCell<BlockPos>,
     pub immune_to_zombification: AtomicBool,
     pub time_in_overworld: AtomicI32,
     pub aggressive: AtomicBool,
@@ -39,11 +45,21 @@ impl PiglinBruteEntity {
     pub const XP_REWARD: u32 = 20;
     /// Vanilla `PiglinBruteAi.ACTIVITY_SOUND_LIKELIHOOD_PER_TICK`
     pub const ACTIVITY_SOUND_LIKELIHOOD_PER_TICK: f32 = 0.0125;
+    /// Vanilla `PiglinBruteAi.HOME_CLOSE_ENOUGH_DISTANCE`.
+    pub const HOME_CLOSE_ENOUGH_DISTANCE: f64 = 2.0;
+    /// Vanilla `PiglinBruteAi.HOME_TOO_FAR_DISTANCE`.
+    pub const HOME_TOO_FAR_DISTANCE: f64 = 100.0;
+    /// Vanilla `PiglinBruteAi.HOME_STROLL_AROUND_DISTANCE`.
+    pub const HOME_STROLL_AROUND_DISTANCE: f64 = 5.0;
+    /// Vanilla `PiglinBruteAi.SPEED_MULTIPLIER_WHEN_IDLING`.
+    pub const IDLE_SPEED: f64 = 0.6;
 
     pub fn new(entity: Entity) -> Arc<Self> {
+        let home_pos = AtomicCell::new(entity.block_pos.load());
         let mob_entity = MobEntity::new(entity);
         let piglin = Self {
             mob_entity,
+            home_pos,
             immune_to_zombification: AtomicBool::new(false),
             time_in_overworld: AtomicI32::new(0),
             aggressive: AtomicBool::new(false),
@@ -61,6 +77,24 @@ impl PiglinBruteEntity {
             goal_selector.add_goal(1, Box::new(OpenDoorGoal::new(true)));
             goal_selector.add_goal(2, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(
+                5,
+                Box::new(
+                    WanderAroundGoal::with_interval(Self::IDLE_SPEED, HOME_GOAL_INTERVAL)
+                        .with_check_no_action_time(false)
+                        .with_start_condition(should_return_home)
+                        .with_position(home_center, 0.0),
+                ),
+            );
+            goal_selector.add_goal(
+                5,
+                Box::new(
+                    WanderAroundGoal::with_interval(Self::IDLE_SPEED, HOME_GOAL_INTERVAL)
+                        .with_check_no_action_time(false)
+                        .with_start_condition(can_stroll_around_home)
+                        .with_position(random_stroll_pos, 0.0),
+                ),
+            );
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -94,6 +128,15 @@ impl PiglinBruteEntity {
             tracked_data::piglin_brute::DATA_IMMUNE_TO_ZOMBIFICATION,
             immune,
         );
+    }
+
+    #[must_use]
+    pub fn get_home_pos(&self) -> BlockPos {
+        self.home_pos.load()
+    }
+
+    pub fn set_home_pos(&self, pos: BlockPos) {
+        self.home_pos.store(pos);
     }
 
     #[must_use]
@@ -201,6 +244,17 @@ impl Mob for PiglinBruteEntity {
         }
     }
 
+    fn finalize_spawn(
+        &self,
+        world: &Arc<World>,
+        _reason: EntitySpawnReason,
+        group_data: Option<SpawnGroupData>,
+    ) -> Option<SpawnGroupData> {
+        // Vanilla `PiglinBruteAi.initMemories` stores the spawn block as HOME.
+        self.set_home_pos(self.get_entity().block_pos.load());
+        self.default_finalize_spawn(world, group_data)
+    }
+
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         if self.is_immune_to_zombification() {
             nbt.put_bool("IsImmuneToZombification", true);
@@ -210,6 +264,7 @@ impl Mob for PiglinBruteEntity {
             nbt.put_int("TimeInOverworld", time_in_overworld);
         }
         nbt.put_bool("CanPickUpLoot", true);
+        nbt.put("HomePos", block_pos_to_tag(self.get_home_pos()));
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
@@ -218,6 +273,9 @@ impl Mob for PiglinBruteEntity {
         }
         if let Some(time) = nbt.get_int("TimeInOverworld") {
             self.time_in_overworld.store(time, Ordering::Relaxed);
+        }
+        if let Some(home) = nbt.get("HomePos").and_then(block_pos_from_tag) {
+            self.set_home_pos(home);
         }
     }
 
@@ -251,5 +309,72 @@ impl Mob for PiglinBruteEntity {
 
     fn xp_reward(&self) -> u32 {
         Self::XP_REWARD
+    }
+}
+
+const HOME_GOAL_INTERVAL: i32 = 10;
+
+const fn is_close_to_home(distance_sq: f64) -> bool {
+    distance_sq <= PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
+        * PiglinBruteEntity::HOME_CLOSE_ENOUGH_DISTANCE
+}
+
+const fn is_too_far_from_home(distance_sq: f64) -> bool {
+    distance_sq >= PiglinBruteEntity::HOME_TOO_FAR_DISTANCE
+        * PiglinBruteEntity::HOME_TOO_FAR_DISTANCE
+}
+
+fn home_distance_sq(mob: &dyn Mob) -> f64 {
+    let pos = mob.get_entity().block_pos.load();
+    let Some(brute) = mob.cast_any().downcast_ref::<PiglinBruteEntity>() else {
+        return 0.0;
+    };
+    let home = brute.get_home_pos();
+    let dx = f64::from(pos.0.x - home.0.x);
+    let dy = f64::from(pos.0.y - home.0.y);
+    let dz = f64::from(pos.0.z - home.0.z);
+    dx * dx + dy * dy + dz * dz
+}
+
+/// Vanilla `StrollToPoi` runs while the brute is past `HOME_CLOSE_ENOUGH_DISTANCE`
+/// but within `HOME_TOO_FAR_DISTANCE` of its stored home.
+fn should_return_home(mob: &dyn Mob) -> bool {
+    let distance_sq = home_distance_sq(mob);
+    !is_close_to_home(distance_sq) && !is_too_far_from_home(distance_sq)
+}
+
+fn home_center(mob: &dyn Mob) -> Option<Vector3<f64>> {
+    let brute = mob.cast_any().downcast_ref::<PiglinBruteEntity>()?;
+    let home = brute.get_home_pos();
+    Some(Vector3::new(
+        f64::from(home.0.x) + 0.5,
+        f64::from(home.0.y),
+        f64::from(home.0.z) + 0.5,
+    ))
+}
+
+/// Vanilla `StrollAroundPoi` runs while the brute is within
+/// `HOME_STROLL_AROUND_DISTANCE` of its stored home.
+fn can_stroll_around_home(mob: &dyn Mob) -> bool {
+    home_distance_sq(mob)
+        <= PiglinBruteEntity::HOME_STROLL_AROUND_DISTANCE
+            * PiglinBruteEntity::HOME_STROLL_AROUND_DISTANCE
+}
+
+fn random_stroll_pos(mob: &dyn Mob) -> Option<Vector3<f64>> {
+    default_random_pos::get_pos(mob, 8, 6)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_close_to_home, is_too_far_from_home};
+
+    #[test]
+    fn home_distance_boundaries_match_vanilla() {
+        assert!(is_close_to_home(0.0));
+        assert!(is_close_to_home(4.0));
+        assert!(!is_close_to_home(9.0));
+        assert!(!is_too_far_from_home(9_999.0));
+        assert!(is_too_far_from_home(10_000.0));
     }
 }

@@ -39,6 +39,8 @@ use pumpkin_data::data_component_impl::BucketEntityDataImpl;
 use pumpkin_data::environment_attribute::Activity;
 
 const TICKS_TO_BE_FROG: i32 = 24000;
+// Vanilla `Tadpole#ageUp` passes 0.15F to `playSound` for the grow-up sound only.
+// Tadpole does not override `getSoundVolume`, so flop, hurt and death play at 1.0.
 const SOUND_VOLUME: f32 = 0.15;
 const MAX_TURN_X: i32 = 85;
 const MAX_TURN_Y: i32 = 10;
