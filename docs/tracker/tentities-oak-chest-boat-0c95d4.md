@@ -98,7 +98,7 @@ run (worker rule: orchestrator batch-compiles), so tests remain unexecuted here.
 
 ## Re-review Result (second pass)
 
-All eight STILL OPEN rows were re-verified against `.vendor/vanilla-decompiled/net/minecraft/` and are already fixed in the current source; no source edits were needed this pass.
+All eight previously-open rows were re-verified against `.vendor/vanilla-decompiled/net/minecraft/` and are already fixed in the current source; no source edits were needed this pass.
 
 - 1 canPlayerUse: FIXED - `container::open` installs `EntityContainerScreenHandler` with validity `is_alive() && can_interact_with_entity(vehicle, 4.0)`; matches `ContainerEntity.isChestVehicleStillValid` = `!isRemoved() && isWithinEntityInteractionRange(bb, 4.0)`.
 - 2 instabuild named: FIXED - `drops_item_when_destroyed(creative, _named) -> !creative`; `VehicleEntity.hurtServer` calls `discard` on instabuild hits without `destroy`, so no item drops even when named.
@@ -115,7 +115,7 @@ No cargo run (orchestrator batch-compiles); no new source files touched. Row 4 s
 
 Decompiled vanilla confirmed present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/`
 (`AbstractBoat.java`, `AbstractChestBoat.java`, `VehicleEntity.java`, `ContainerEntity.java`), target 26.3
-(Paper + CraftBukkit patches). All eight STILL OPEN rows re-checked directly against those classes.
+(Paper + CraftBukkit patches). All eight previously-open rows re-checked directly against those classes.
 
 Every fix from the earlier passes is present in the current source; no source edits were needed this pass.
 
@@ -156,7 +156,7 @@ batch-compiles), so tests remain unexecuted here. No new source edits this pass.
 
 ## Third-pass Result (row 4 gate fix)
 
-All eight STILL OPEN rows re-verified against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 26.3). Rows 1-3 and 5-8 remain fixed in current source; no edits needed.
+All eight previously-open rows re-verified against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 26.3). Rows 1-3 and 5-8 remain fixed in current source; no edits needed.
 
 - 4 destroying removal spills container: FIXED (in scope) - `BoatEntity::on_removed` now gates `scatter_chest_contents` on `removal_reason.load().is_some_and(|reason| reason.should_destroy())`. `World::remove_entity` (world/mod.rs:6630-6649) sets `removal_reason = Some(RemovalReason::Discarded)` via compare_exchange BEFORE invoking `on_removed`, so the field is always present at the hook; `RemovalReason::should_destroy()` already distinguishes KILLED/DISCARDED from unload/dimension-change. This matches vanilla `AbstractChestBoat.remove` (`reason.shouldDestroy()`) and clears the earlier blocker without any cross-crate or engine-signature change.
 
@@ -164,7 +164,7 @@ Files edited: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (on_removed gate)
 
 ## Result (final third pass)
 
-All eight rows previously marked STILL OPEN were re-checked directly against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/` (Paper/CraftBukkit target 26.3). Every fix from earlier passes is present in the current source; no source edits were needed this pass. The stale "Gap status" labels were the only open markers and are now set to VERIFIED above with .vendor citations.
+All eight rows previously marked open were re-checked directly against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/` (Paper/CraftBukkit target 26.3). Every fix from earlier passes is present in the current source; no source edits were needed this pass. The stale "Gap status" labels were the only open markers and are now set to VERIFIED above with .vendor citations.
 
 - 1 canPlayerUse: VERIFIED - `EntityContainerScreenHandler.can_use` evaluates the `open` validity closure (`is_alive() && can_interact_with_entity(vehicle, 4.0)`); `ContainerEntity.java:181-183`.
 - 2 instabuild named: VERIFIED - `drops_item_when_destroyed(creative, _named) -> !creative`; `VehicleEntity.java:59-80` discards on instabuild without `destroy`; covered by existing test `creative_boat_drops_no_item_even_when_named`.

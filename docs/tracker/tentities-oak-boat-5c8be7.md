@@ -237,3 +237,54 @@ edit was needed in this pass:
 Compile-pitfall re-check: no source file was edited this pass, so no new import paths,
 helper placement, struct initializers, clones, or clippy-pedantic issues were introduced.
 No rustfmt run (no .rs file touched). No compile run (shell denied to workers).
+
+
+## Result (third pass 2026-11-18, main checkout, final)
+
+Full re-verify of all 8 rows against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/ (the task-given path, now present in this checkout).
+Every row is in a terminal state; no STILL OPEN rows remain. No source file needed an edit this
+pass because every fix was already present and verified below.
+
+- Row 1 (bubble time publish, boat.rs): VERIFIED FIXED, matches vanilla
+  .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java
+  onAboveBubbleColumn :165-172, tickBubbleColumn :351-386, handleBubbleColumnEffect :399-408.
+  Pumpkin boat.rs arms the 60-tick countdown and writes ID_BUBBLE_TIME (:647-659),
+  decrements and republishes it (:429-447), ejects riders and broadcasts BoatSink/BoatLaunch
+  (:451-467), and applies the -0.7 / 0.6 vertical impulse via bubble_column_vertical_velocity
+  (:472 and :994-996). Generated field ID_BUBBLE_TIME exists, so this is not BLOCKED-DATA.
+- Row 2 (rider rotation clamp, boat.rs): VERIFIED FIXED, matches vanilla AbstractBoat.java
+  positionRider :696-706 and clampRotation :740-754. Pumpkin on_rider_positioned (:856-894) and
+  on_passenger_turned (:896-944) clamp non-player riders to +/-105 deg via clamp_rider_yaw and
+  clamp_head_to_body (:1009-1038), with pure unit tests (:1039-1051). Players and
+  CAN_TURN_IN_BOATS riders stay client authoritative, as in vanilla.
+- Row 3 (float_boat air-to-water snap, physics.rs): VERIFIED CORRECT, matches vanilla
+  AbstractBoat.java floatBoat :611-618. The noCollision test runs first (:201) and the surface
+  snap offset is returned only when the target box is clear (:211). The doc premise was inverted;
+  no snap-while-blocked change is required.
+- Row 4 (floatBoat gravity, physics.rs): VERIFIED CORRECT, matches vanilla floatBoat :608
+  (-getGravity) and :645 (getDefaultGravity/0.65). Pumpkin physics.rs:214 uses -get_gravity() and
+  :235 uses DEFAULT_GRAVITY/0.65; get_gravity honours no_gravity just like vanilla getGravity().
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED, matches vanilla
+  .vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+  handleMoveVehicle :606-607 (Mth.wrapDegrees). Pumpkin wraps at move_vehicle.rs:49-50 and applies
+  via set_rotation at :91; client_move.rs also wraps.
+- Row 6 (paddle boat handler, paddle_boat.rs): VERIFIED FIXED, matches vanilla
+  ServerGamePacketListenerImpl.java handlePaddleBoat :2466 and Entity.java getControlledVehicle
+  :6661-6662 (immediate vehicle plus controlling-passenger check). Pumpkin reads the immediate
+  vehicle, checks its controlling passenger, downcasts to BoatEntity and sets paddle state.
+- Row 7 (dead move_from_client path, physics.rs): VERIFIED FIXED, no move_from_client definition
+  remains; the generic move_vehicle.rs handler supersedes it.
+- Row 8 (boat gametest coverage): VERIFIED FIXED, coverage present in
+  crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs:
+  test_boat_floats_up_after_fall (:135-169), test_boat_ejects_passenger_after_60_underwater_ticks
+  (:173-229) and test_chest_boat_scatters_27_slots_on_break (:233-278). These are exactly the
+  float-up, 60-tick ejection and 27-slot scatter scenarios the row asked for, so the old "no boat
+  gametest coverage" premise is stale; no duplicate test was added. Runtime execution is the
+  orchestrator gate because the worker shell is denied.
+
+Compile-pitfall re-check: no .rs file was edited this pass, so no new import paths, helper
+placement, struct initializers, clones or clippy-pedantic issues were introduced. No rustfmt run
+(no .rs file touched). No cargo or git command run (shell denied to workers).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
