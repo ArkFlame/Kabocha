@@ -125,18 +125,24 @@ pub enum CommandSender {
     Dummy,
 }
 
+/// Vanilla `BaseCommandBlock#getName`: the custom name when one is set, otherwise `@`.
+fn command_block_name(entity: &CommandBlockEntity) -> TextComponent {
+    entity
+        .custom_name
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .unwrap_or_else(|| TextComponent::text("@"))
+}
+
 impl fmt::Display for CommandSender {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Console => "Server",
-                Self::Player(p) => &p.gameprofile.name,
-                Self::CommandBlock(..) => "@",
-                Self::Dummy => "",
-            }
-        )
+        match self {
+            Self::Console => write!(f, "Server"),
+            Self::Player(p) => write!(f, "{}", p.gameprofile.name),
+            Self::CommandBlock(entity, _) => write!(f, "{}", command_block_name(entity).get_text()),
+            Self::Dummy => Ok(()),
+        }
     }
 }
 

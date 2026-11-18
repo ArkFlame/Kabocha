@@ -105,3 +105,8 @@ present in the working tree and correct, so no new code edits were needed.
 `rustfmt --edition 2024 crates/pumpkin-core/src/entity/decoration/cushion.rs`
 run successfully (via context-mode shell). No build/tests run: CODER cannot
 compile; orchestrator verifies in the batch check.
+
+## Result (native-2 triage 2026-11-18)
+
+- mount/dismount game events: NOT A GAP. Already emitted at `crates/pumpkin-core/src/entity/mod.rs:6214` (`EntityMount`) and `:6467` (`EntityDismount`). Line refs in the row are stale.
+- Details: docs/investigations/native-2.md

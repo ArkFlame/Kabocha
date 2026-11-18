@@ -182,3 +182,7 @@ Pumpkin tree and the prior decompiled findings already recorded above. No
   cannot widen it alone.
 
 No source files changed this pass; only this Result section was appended.
+
+## Result (native-3: lid event viewer count row)
+
+- **Row 3 (lid event viewer count truncated to u8): NOT A GAP.** Vanilla keeps `b1` as an int in memory, but the wire packet writes it as a byte: `.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java:17-18` (`int b0`, `int b1`) and `:37-38` (`output.writeByte(this.b0)`, `output.writeByte(this.b1)`). Pumpkin's `CBlockEvent` (`crates/pumpkin-protocol/src/java/client/play/block_event.rs`, `write_u8` for `action_parameter`) matches that wire format, so `as u8` at `chest_like_block_entity.rs:344` and `ender_chest.rs:85` produces the same bytes vanilla does. Widening the sink to `i32` would change nothing on the wire and would need a protocol change, so no code edit.

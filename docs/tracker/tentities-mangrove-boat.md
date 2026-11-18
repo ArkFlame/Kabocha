@@ -103,3 +103,30 @@ net/minecraft/world/entity/Entity.java:4149,4185.
 - Row 3 (passenger attachment point): dedup belongs in passengers.rs -> outside unit, OPEN.
 - Changed: crates/pumpkin-core/src/block/blocks/bubble_column.rs only. No cargo/git run (task
   forbids it), rustfmt left to the orchestrator.
+
+## Result
+
+Re-verification 2026-11-18 (fourth pass) against decompiled vanilla in
+.vendor/vanilla-decompiled/net/minecraft/.
+
+- Row 1 (bubble-column physics / bubble time): the in-unit portion of
+  bubble_column.rs is already correct and unchanged. bubble_column_vertical_velocity
+  matches Entity.handleOnAboveBubbleColumn (Entity.java:4149: up min(1.8, y+0.1),
+  down max(-0.9, y-0.03)) and handleOnInsideBubbleColumn (Entity.java:4185: up
+  min(0.7, y+0.06), down max(-0.3, y-0.03)); send_bubble_column_particles matches
+  Entity.sendBubbleColumnParticles (Entity.java:4165). is_open_above matches
+  BubbleColumnBlock.entityInside (BubbleColumnBlock.java:56-57: empty collision shape
+  AND empty fluid). Tests downward_push_cap_depends_on_surface,
+  upward_push_cap_depends_on_surface and open_above_requires_no_collision_and_no_fluid
+  already lock these. Remaining boat-side work (AbstractBoat.java:164-172
+  onAboveBubbleColumn sets isAboveBubbleColumn / direction / setBubbleTime(60)) is in
+  boat.rs + physics.rs + generated tracked_data.rs -> outside unit, OPEN.
+- Row 2 (interact mounting): verified AbstractBoat.java:779-787; the gate is
+  isSecondaryUseActive() || !(outOfControlTicks < 60) || (!clientSide && !startRiding),
+  with no isEyeInWater check. Dropping the !is_eye_in_water gate belongs in boat.rs
+  -> outside unit, OPEN.
+- Row 3 (passenger attachment point): verified AbstractBoat.java:143-161,687;
+  rideHeight(dimensions) plus single-passenger offset 0 and multi-rider 0.2/-0.6.
+  Dedup of hardcoded seating belongs in passengers.rs -> outside unit, OPEN.
+- No .rs source file changed this pass (nothing left to fix in bubble_column.rs), so
+  no rustfmt and no compile. No cargo/git/run commands executed (task forbids them).

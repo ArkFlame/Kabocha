@@ -128,3 +128,10 @@ STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/world/level/Se
 No `.rs` source edited, no test seam in this event data holder (a `new()` field
 setter test would be a getter/Default-style test the rules exclude). No rustfmt,
 cargo or git run per task.
+
+## Result (native-2 triage 2026-11-18)
+
+- Row 2 unloaded-chunk force-load: FIXED (present), explosion.rs:138 get_or_fetch_chunk, test at :1267.
+- Row 4 seeded RNG: NOT A GAP (observable). explosion_random seeded from level seed, world/mod.rs:700.
+- Row 8 particles/sound: FIXED (present), world/mod.rs:5124-5130.
+- Details: docs/investigations/native-2.md

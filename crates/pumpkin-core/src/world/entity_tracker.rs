@@ -606,7 +606,7 @@ impl TrackedEntity {
     /// current state to a player that starts tracking it.
     #[allow(clippy::too_many_lines)]
     pub fn add_pairing(&self, player: &Arc<Player>) {
-        player.client.try_enqueue_spawn_packet(&self.entity);
+        player.client.enqueue_spawn_packet(&self.entity);
         player.try_restore_vehicle(&self.entity);
 
         if let Some(target_player) = self.entity.get_player() {

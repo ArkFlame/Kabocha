@@ -183,3 +183,12 @@ here.
 
 No `.rs` file changed (no source seam in `place_on_water.rs` for any boat row),
 so no rustfmt and no unit test. Risk: none, verification/docs only.
+
+## Result (native-2 triage 2026-11-18)
+
+- 2 chest-boat destroy: NOT A GAP (VehicleEntity.java:94-101 sets only CUSTOM_NAME).
+- 3 placement container component: NOT A GAP (BoatItem.java:93-104; no container write).
+- 4 leash hooks: FIXED (present), boat.rs:752-763.
+- 6 damage early-out: FIXED (present), boat.rs:691-710.
+- 5 movement: not re-verified, unchanged.
+- Details: docs/investigations/native-2.md
