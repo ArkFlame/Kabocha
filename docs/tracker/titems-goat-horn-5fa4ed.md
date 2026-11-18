@@ -234,3 +234,37 @@ not modified: `goat_horn.rs`, `use_item.rs`, `registry.rs`, `basic.rs`, bedrock 
   `use_item.rs:82-87` does not swing on `Fail`.
 
 Final row state: 1-7 VERIFIED (matches vanilla). No STILL OPEN rows, no BLOCKED-DATA rows.
+
+
+## Result
+Final pass. Re-verified all 7 rows against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java` (this version folds the
+goat horn into `InstrumentItem`) and against the current checkout. Every row is VERIFIED; no code
+change, no new test, no rustfmt run and no `.rs` file was touched this pass. There is no
+"STILL OPEN until closed" placeholder and no remaining STILL OPEN or BLOCKED-DATA row.
+
+- 1 Used statistic: VERIFIED. Vanilla awards `Stats.ITEM_USED` once (`InstrumentItem.java:47`).
+  Pumpkin awards once at `goat_horn.rs:106`; `use_item.rs` no longer awards it on generic
+  right-click (only the equip path at `:169`). Bedrock equip/consume awards are separate paths.
+- 2 TOOT_HORN use animation: VERIFIED. Client-only: `getUseAnimation` (`InstrumentItem.java:65-68`)
+  is read only by the client arm renderer via `ItemStack.getUseAnimation`; no server/network caller,
+  no synced pose (`Pose.java:11-29`). The server contract is `startUsingItem` (`:35`), which Pumpkin
+  matches with `set_active_hand` (`goat_horn.rs:66`). No framework hook required.
+- 3 Per-stack use duration: VERIFIED. `get_use_duration(&ItemStack)` (`goat_horn.rs:109-114`)
+  reads the stack instrument and returns 0 without one, matching `getUseDuration`
+  (`InstrumentItem.java:54-58`); covered by unit tests (`goat_horn.rs:146-175`).
+- 4 Instrument dispatch: VERIFIED. `registry.rs:61-85` dispatches via `get_pumpkin_item(item.id)`
+  with only spear/knowledge-book component fallbacks; no generic `InstrumentImpl` broadcast path.
+- 5 Custom/datapack instruments: VERIFIED (representable case). `InstrumentImpl` decodes an inline
+  custom instrument (`basic.rs:555-629`), consumed for sound, range, duration and durability
+  (`goat_horn.rs:48-53`). All 8 vanilla instruments resolve; no BLOCKED-DATA condition. The inline
+  custom-sound branch still broadcasts to the blower (`play_custom_sound` has no exclude-listener
+  variant in `world/mod.rs`, outside this unit's editable basenames), but vanilla sounds are
+  unaffected and this is not one of the 7 rows.
+- 6 Cooldown when duration is 0: VERIFIED. Vanilla guards `instrumentCooldown > 0.0F`
+  (`InstrumentItem.java:42-45`); Pumpkin guards `if duration > 0` (`goat_horn.rs:103-105`).
+- 7 Fail interaction result: VERIFIED. `use_result` returns `Fail` without an instrument
+  (`goat_horn.rs:116-126`), matching `InteractionResult.FAIL` (`InstrumentItem.java:49-51`);
+  `registry.rs:89-95` skips cooldown side effects on `Fail`.
+
+Final row state: 1-7 VERIFIED (matches vanilla). No STILL OPEN rows, no BLOCKED-DATA rows.

@@ -69,7 +69,7 @@ Remaining gaps (not fixed):
 - Row 2 yaw from facing: FIXED already in code (`set_facing` sets rotation, `read_custom_nbt` calls it). Verified by reading painting.rs:134, 308.
 - Row 4 build-limit check: FIXED, painting branch of `hanging_entity.rs` now checks `is_in_build_limit`. UNVERIFIED (no cargo).
 - Row 6 support re-check interval: FIXED, first check now on tick 100 (`painting.rs` tick). UNVERIFIED (no cargo).
-- Rows 1, 3, 5: STILL OPEN.
+- Rows 1, 3, 5: see terminal results in the sections below (Row 1 FIXED, Row 3 FIXED plus a BLOCKED-DATA residual, Row 5 VERIFIED).
 
 
 ## Result
@@ -263,3 +263,61 @@ no code change was needed this pass.
 
 No generated-data, WIT or cross-crate change made; no shared file rewritten.
 UNVERIFIED by worker build (no cargo by worker).
+
+
+## Result (2026-11-18 FINAL PASS, all six rows terminal)
+
+Re-read all six rows in order against the vendored decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`, and re-checked the current code in
+`painting.rs`, `hanging_entity.rs` and `item_frame.rs`. No STILL OPEN row remains.
+No generated-data, WIT or shared-file change was needed this pass.
+
+- Row 1 (variant-sized hit box): FIXED. `painting_box_size()` in `painting.rs`
+  sizes width along the axis perpendicular to facing, height on Y and `DEPTH`
+  along the facing axis, matching `Painting.calculateBoundingBoxStatic`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/painting/Painting.java:158-175`,
+  `DEPTH = 0.0625` at line 44). `hanging_bounding_box()`/`recalculate_bounding_box()`
+  install it on `set_variant`, `set_facing` and `read_custom_nbt`; test
+  `painting_box_size_matches_vanilla_axes` covers it. Generated `entity_type.rs`
+  `[0.5,0.5]` intentionally left untouched.
+- Row 2 (yaw from facing): FIXED. `facing_to_yaw()` multiplies the 2D data value
+  by 90 and `set_facing` applies it, matching `HangingEntity.setDirection`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/HangingEntity.java:60-67`)
+  and `Direction.toYRot`
+  (`.vendor/vanilla-decompiled/net/minecraft/core/Direction.java:361-363`). Test
+  `facing_to_yaw_matches_vanilla_direction_yaw` covers it.
+- Row 3 (front-space check): original is-air premise DISPROVEN; actionable
+  parity FIXED, residual BLOCKED-DATA. `HangingEntity.survives()` uses voxel
+  collision shapes plus `isSupportingBlock` (solid || DiodeBlock.isDiode), not
+  an is-air front-cell test
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/HangingEntity.java:82-110`),
+  so switching front cells to `is_air()` would wrongly reject torches, signs and
+  water. Diode support is FIXED via `is_supporting_block` in `painting_fits`
+  (test `diode_blocks_support_hanging_entities`); `survives()` enforces
+  `is_space_empty` + `no_border_collision` + overlap. Residual: non-solid blocks
+  that carry a collision shape (slabs, stairs, fences) are ignored by the shared
+  `World::check_collision`, which short-circuits `!state.is_solid()`
+  (pumpkin-core/src/world/mod.rs:3210), whereas vanilla `noBlockCollision`
+  tests every block shape
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/CollisionGetter.java:59-67`).
+  Faithful parity needs per-block voxel-shape evaluation in the shared collision
+  routine, which governs all entity movement/collision/spawning: BLOCKED-DATA
+  (missing subsystem = per-block collision-shape evaluation in
+  `World::check_collision`).
+- Row 4 (build-limit check): FIXED. The painting branch of `hanging_entity.rs`
+  calls `world.is_in_build_limit(target_pos)` before choosing a variant,
+  matching vanilla `Level.isOutsideBuildHeight`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/Level.java:811-816`).
+- Row 5 (variant RNG): VERIFIED, no code change. `Painting.create` samples with
+  `candidate.random`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/painting/Painting.java:112`);
+  `Entity.random = SHARED_RANDOM = ThreadLocalRandomSource.INSTANCE`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:175,356`)
+  and `Level.random` is the same thread-local source
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/Level.java:136`), so
+  Rust `rand::rng()` is functionally equivalent; no world-seeded seam exists in
+  this unit's files.
+- Row 6 (support re-check interval): FIXED. `SUPPORT_CHECK_INTERVAL = 100` with
+  `fetch_add(1)+1 < 100` fires the check on ticks 100, 200, ... matching
+  `BlockAttachedEntity.CHECK_INTERVAL` and its tick guard
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/BlockAttachedEntity.java:26,46-49`).
