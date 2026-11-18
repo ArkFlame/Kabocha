@@ -465,10 +465,10 @@ impl EntityBase for CushionEntity {
         {
             return false;
         }
-        // Vanilla `BlockAttachedEntity.hurtServer` returns true for a hit on an already removed
-        // entity (after the refusal checks), so one cushion cannot drop twice in the same tick.
+        // Vanilla `isInvulnerableToBase` refuses a removed entity, so a hit on an
+        // already removed cushion is not handled and cannot drop it twice.
         if !self.entity.is_alive() {
-            return true;
+            return false;
         }
         self.drop_and_remove(source);
         true
@@ -696,7 +696,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn hit_on_already_removed_cushion_reports_handled() {
+    async fn hit_on_already_removed_cushion_is_not_handled() {
         let directory = tempfile::tempdir().unwrap();
         let level = Level::from_root_folder(
             &LevelConfig::default(),
@@ -727,8 +727,8 @@ mod tests {
         level.shutdown().await;
 
         assert!(
-            handled,
-            "a second hit on a removed cushion must count as handled"
+            !handled,
+            "a hit on a removed cushion must be refused, as vanilla isInvulnerableToBase does"
         );
     }
 }
