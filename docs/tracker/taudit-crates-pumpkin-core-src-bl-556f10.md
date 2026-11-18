@@ -151,3 +151,19 @@ or new test (the existing tests already cover the in-scope fixes).
 
 No source files changed this pass. Rows 31/35/75 remain OPEN solely because
 they require files outside this unit (entity/mod.rs, registry.rs, plugin API).
+
+
+## Result (third pass, final resolution)
+
+Final resolution of the three rows left OPEN in the previous Result. Each was
+re-checked against .vendor/vanilla-decompiled/net/minecraft/. No source edits
+were needed: all three are already correct in the current checkout, so there is
+no new seam for a pure unit test.
+
+| Row | Disposition | Evidence |
+|---|---|---|
+| 31 inside-collision shape | VERIFIED, NO CHANGE | The tracker's vanilla premise was wrong. The default `getEntityInsideCollisionShape` returns `Shapes.block()` (BlockBehaviour.java:336-338), i.e. a full cube, exactly matching Pumpkin's default `BoundingBox::full_block()` in block/mod.rs:305. Only PowderSnowBlock (PowderSnowBlock.java:128-131), EndPortalBlock, TripWireBlock, LayeredCauldronBlock and LavaCauldronBlock override it, and Pumpkin has the matching in-scope overrides (powder_snow.rs, end_portal.rs, tripwire.rs). No union API change is required. |
+| 35 player_placed direction | VERIFIED, NO CHANGE | Vanilla `Block.setPlacedBy(Level, BlockPos, BlockState, LivingEntity, ItemStack)` has no face parameter (Block.java:543). Pumpkin's `PlayerPlacedArgs` (block/mod.rs:510-516) now has no direction field and `BlockRegistry::player_placed` (registry.rs:1289-1307) passes only the player, so the vestigial guessing argument was removed. Matches vanilla. |
+| 75 BlockFertilizeEvent payload | VERIFIED, NO CHANGE (already fixed) | `BlockRegistry::bone_meal` (registry.rs:556-601) now grows first while capturing every written state via `World::capture_bonemeal_changes` (world/mod.rs:6808), then passes them as `changed_blocks` to `BlockFertilizeEvent::new`. The event struct carries `changed_blocks: Vec<(BlockPos, BlockStateId)>` (plugin/api/events/block/block_fertilize.rs:11-16) and cancellation reverts each changed state (registry.rs:592-597). This matches Bukkit's `BlockFertilizeEvent.getBlocks()` list and Paper region protection. |
+
+No STILL OPEN / OPEN rows remain. No source files changed this pass.

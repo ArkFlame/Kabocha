@@ -68,7 +68,7 @@ accurate, not TODOs). No TODO/FIXME markers in the file.
   `hurt`.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- Rows: RESOLVED (see Result sections below; final third-pass verification at end).
 
 ## Result
 - Row 1 (explosion immunity): FIXED. Decompiled `Display` does not override `ignoreExplosion`; `Entity#ignoreExplosion` returns false by default (Entity.java:6469) and `ServerExplosion.hurtEntities` (ServerExplosion.java:482,556) processes entities where `!ignoreExplosion`, applying `pushFromExplosion` knockback even to non-living entities. Pumpkin's display `damage_with_context` already returns false, so no damage. Changed all three `is_immune_to_explosion()` overrides (Block/Item/Text display) from `true` to `false`, so explosions now push display entities without damaging them.
@@ -119,3 +119,18 @@ Files changed: `crates/pumpkin-core/src/entity/decoration/display.rs`. `rustfmt 
 - Rows 1-3 and the two NEW FINDINGS remain fixed/matching: explosion immunity false on all three displays; TextDisplay flags rebuilt from zero with unknown alignment leaving bits unset; `text` NBT key always written with empty-string fallback; brightness uses `LightCoordsUtil` packing (`block<<4 | sky<<20`, FULL_BRIGHT 15728880); NBT reads reset all fields to vanilla defaults. Unit test at display.rs:1280 asserts exact pack values.
 - No remaining STILL OPEN rows; no new unit-test seam (packing already covered). Source files changed this pass: none (all fixes already present); tracker doc updated. Orchestrator must regenerate WIT bindings via `cargo run --locked -p pumpkin-codegen -- wit` (not run by this worker).
 Status: PASS fixed=1 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md
+
+
+## Result (third pass, final verification against .vendor decompiled vanilla)
+
+All rows re-verified exact against /run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/.vendor/vanilla-decompiled/net/minecraft/. No source change was needed this pass: every row was already fixed in the checkout and matches vanilla. No row needs a generated pumpkin-data field or a missing subsystem.
+
+- Row 1 (explosion immunity): FIXED. net/minecraft/world/entity/Display.java has no ignoreExplosion override (grep: 0 matches), so the base applies: Entity.ignoreExplosion returns false (Entity.java:6469-6470). All three Pumpkin display is_immune_to_explosion() overrides return false (display.rs:816, 972, 1269) and damage_with_context returns false, so explosions push but do not damage displays, matching vanilla.
+- Row 2 (TextDisplay flags reset on load): VERIFIED, no change. Display.TextDisplay.readAdditionalSaveData (Display.java:760-777) builds flags from (byte)0; an unknown alignment name makes input.read(...) return Optional.empty(), leaving alignment bits unset. Pumpkin display.rs:1195-1212 matches exactly.
+- Row 3 (text NBT key): FIXED. Display.TextDisplay.addAdditionalSaveData (Display.java:800-802) stores text unconditionally via output.store("text", ComponentSerialization.CODEC, ...). Pumpkin display.rs:1148-1155 always writes the key with an empty-JSON fallback on serialization failure.
+- Row 4 (set_brightness pre-packed int): FIXED. Vanilla Display.setBrightnessOverride(Brightness) packs brightness.pack() (Display.java:311-312); field range 0..=15 (Brightness.java:6-11) and Brightness.pack -> LightCoordsUtil.pack = block << 4 | sky << 20 with FULL_BRIGHT 15728880 (Brightness.java:14-16; LightCoordsUtil.java:9,13-14). Additive WIT set-brightness-override: func(block: s32, sky: s32) present at pumpkin-plugin-wit/v0.1/display.wit:99 and v0.2/display.wit:103; WASM hosts implement it (pumpkin-wasm-host-v0_1/src/display.rs:448, v0_2/src/display.rs:451); core clamps 0..=15 and packs (display.rs:278-280) and re-packs non -1 values (display.rs:261-274). Orchestrator action: regenerate WIT bindings via cargo run --locked -p pumpkin-codegen -- wit before the shared compile (not run by this worker).
+- NEW FINDING (brightness packing): FIXED and unit-tested. pack_brightness / brightness_block / brightness_sky match LightCoordsUtil exactly; test at display.rs:1290-1299 asserts pack_brightness(15,12) and FULL_BRIGHT 15728880.
+- NEW FINDING (NBT read defaults): FIXED. Display.readAdditionalSaveData (Display.java:212-224) reads each field with a default; Pumpkin read_display_nbt (display.rs:602-702) resets every field on missing keys and clears brightness on a missing/incomplete/out-of-range compound (Brightness.CODEC requires both fields 0..=15, Brightness.java:6-11).
+
+No remaining STILL OPEN rows. Source files changed this pass: none. Orchestrator regenerates WIT bindings once, then compiles.
+Status: PASS fixed=4 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md
