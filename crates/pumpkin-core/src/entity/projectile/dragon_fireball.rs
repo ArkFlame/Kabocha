@@ -112,12 +112,6 @@ impl EntityBase for DragonFireballEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
         let owner = self.thrown.owner.get(&world);
-        // Vanilla `DragonFireball.onHit` wraps the whole burst in `owner == null || !owner.isRemoved()`.
-        if let Some(owner_entity) = owner.as_ref()
-            && owner_entity.get_entity().is_removed()
-        {
-            return;
-        }
         let fireball_pos = entity.pos.load();
         let search_box =
             entity

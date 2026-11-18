@@ -64,11 +64,11 @@ Re-reviewed 2026-11-17 against vanilla `net.minecraft.world.entity.animal.Tadpol
    `dolphin.rs:342-347`). Vanilla `WaterAnimal`. Fix: pass `WATER_ANIMAL_MAX_AIR_SUPPLY` there and
    override `mob_max_air_supply` in the squid `Mob` macros. Size: S.
 
-## Gap status
-- 1 BLOCKED-DATA: `tadpole_variant` not generated in `pumpkin-data` (`generated/tracked_data.rs:17973-17978` only has AGE_LOCKED); needs Extractor.
-- 2 STILL OPEN: depends on gap 1.
-- 3 STILL OPEN: RunIf combinator missing under `entity/ai/brain/behavior/`, M.
-- 4 STILL OPEN: squid max air supply, S, not attempted in sweep (vanilla WaterAnimal value UNVERIFIED).
+## Gap status (final third pass 2026-11-18)
+- 1 VERIFIED: no-gap, premise false. Vanilla `Tadpole.java` has no variant; no missing generated field.
+- 2 VERIFIED: no-gap, depends on non-existent gap 1.
+- 3 VERIFIED: no-gap, `TadpoleAi.java:64` triggerIf is a deliberate no-op.
+- 4 VERIFIED: no-gap, vanilla air refill is hardcoded 300 (Dolphin-only 4800 override).
 
 ## Result
 
@@ -185,3 +185,28 @@ gap 1 is also a false premise, not a genuine BLOCKED-DATA item, so the whole uni
   a 4800 water-animal value was NOT applied to the code; do not re-apply it.
 
 Recommendation: close all four rows as verified no-gaps. Status: PASS, fixed=0, open=0, files=none.
+
+## Result (final third pass 2026-11-18, all rows closed)
+
+Independently re-verified every gap against the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. All premises are false in this version, so current Pumpkin
+code matches vanilla and no source edit was warranted. No source file was touched, so no rustfmt was
+needed. Every row is now VERIFIED; none remain STILL OPEN or BLOCKED-DATA.
+
+- Gap 1 (was BLOCKED-DATA, add TadpoleVariant): VERIFIED no-gap. `Tadpole.java` fields 44-51 define only
+  `AGE_LOCKED`; no `TadpoleVariant` class, no `DATA_VARIANT`, no `variant` NBT/bucket key anywhere in the
+  decompiled tree (frog dir has only `FrogVariant`/`FrogVariants`). `tracked_data.rs` has no tadpole
+  variant because vanilla has none, so there is no missing generated field and BLOCKED-DATA does not apply.
+- Row 2 (was STILL OPEN, carry variant into frog): VERIFIED. `Tadpole.ageUp()` (236-250) only calls
+  `frog.finalizeSpawn`, `setPersistenceRequired`, `fudgePositionAfterSizeChange` and the grow-up sound;
+  frog variant is biome-picked in `Frog#finalizeSpawn` (`frog.rs:146-148`). Depends on non-existent gap 1.
+- Row 3 (was STILL OPEN, RunIf + RandomLookAround gate): VERIFIED. `TadpoleAi.java:64` is
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a deliberate no-op matching Pumpkin's
+  `trigger_if(...is_in_water)` at `tadpole/ai.rs:85-90`. No `RunIf`/`RandomLookAround` in this brain version.
+- Row 4 (was STILL OPEN, squid air supply): VERIFIED. `WaterAnimal.java:47` and
+  `AgeableWaterCreature.java:45` refill to hardcoded `300`; only `Dolphin.TOTAL_AIR_SUPPLY = 4800`.
+  Pumpkin `ageable_water_creature.rs:22` uses `MAX_AIR` (300), `water_animal.rs:10` and
+  `abstract_fish.rs:305` use `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, `dolphin.rs` overrides to 4800. Correct.
+  The stale "Fixed in this pass" 4800 note was NOT applied; do not re-apply it.
+
+Recommendation: close all four rows as VERIFIED no-gaps. Status: PASS, fixed=0, open=0, files=none.

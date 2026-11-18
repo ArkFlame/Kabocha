@@ -60,6 +60,8 @@ impl ElderGuardianEntity {
         );
         let moving = Arc::new(AtomicBool::new(false));
         let mut mob_entity = MobEntity::new(entity);
+        // Vanilla `ElderGuardian` constructor calls `setPersistenceRequired()`; elders never despawn.
+        mob_entity.set_persistence_required();
         *mob_entity
             .move_control
             .get_mut()
