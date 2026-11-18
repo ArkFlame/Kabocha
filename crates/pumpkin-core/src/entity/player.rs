@@ -9830,6 +9830,10 @@ pub struct ChatSession {
     pub messages_sent: i32,
     pub messages_received: i32,
     pub signature_cache: Vec<Box<[u8]>>,
+    /// Next index in the incoming signed-message chain; None once the chain is broken.
+    pub next_index: Option<i32>,
+    /// Epoch seconds of the last accepted signed message (SignedMessageChain.lastTimeStamp).
+    pub last_time_stamp: i64,
 }
 
 impl Default for ChatSession {
@@ -9854,6 +9858,8 @@ impl ChatSession {
             messages_sent: 0,
             messages_received: 0,
             signature_cache: Vec::new(),
+            next_index: Some(0),
+            last_time_stamp: 0,
         }
     }
 }

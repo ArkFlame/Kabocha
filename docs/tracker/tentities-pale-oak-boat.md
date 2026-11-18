@@ -30,11 +30,11 @@ that the 570d3ea1f rewrite changed.
 
 | # | Where | Vanilla member | Gap | Fix | Size |
 |---|-------|----------------|-----|-----|------|
-| 1 | entity/vehicle/boat.rs:377-380 `interact` | `BoatEntity.interact` chest-boat branch | The container-open result is discarded (`let _ = self.open_custom_inventory_screen(player); return true;`). A failed open (out of reach, plugin denied, screen already open) is reported to the client as success, so no fallback happens and the interaction is silently swallowed | Return the result of `open_custom_inventory_screen` (and let the caller fall through to riding when it is `false`); confirm against the decompiled chest-boat `interact` whether a failed open should return `PASS` | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 2 | entity/vehicle/boat.rs:365-366 `interact` | `BoatEntity.interact` mount gate | Mounting is additionally blocked when the player's eye is inside a water block (`!self.is_eye_in_water()`). Vanilla gates only on `ticksUnderwater < 60`, "not already riding" and seat availability, so a player whose eye is submerged next to an empty boat cannot board it here but can in vanilla | Drop the `is_eye_in_water()` term from `can_add_passenger` (or move the check to where vanilla actually uses it) | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 3 | entity/vehicle/boat.rs:327-332 `damage_with_context` | `BoatEntity.damage` / `dropItems` | Break detection is a pre-computed prediction (`will_break`) that must still agree with `VehicleEntity::damage_with_context` (vehicle.rs:243). They currently agree (`damage + amount*10 > 40`), but the coupling is implicit: any change to the vehicle threshold silently stops boat + chest contents from dropping. Vanilla decides once, inside `damage` | Have `vehicle.damage_with_context` return whether it destroyed the entity, or drop from a single post-damage check (`is_removed() && !creative`) instead of the pre-computed flag | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 1 | entity/vehicle/boat.rs:377-380 `interact` | `BoatEntity.interact` chest-boat branch | The container-open result is discarded (`let _ = self.open_custom_inventory_screen(player); return true;`). A failed open (out of reach, plugin denied, screen already open) is reported to the client as success, so no fallback happens and the interaction is silently swallowed | Return the result of `open_custom_inventory_screen` (and let the caller fall through to riding when it is `false`); confirm against the decompiled chest-boat `interact` whether a failed open should return `PASS` | S, VERIFIED (third pass; see Result) |
+| 2 | entity/vehicle/boat.rs:365-366 `interact` | `BoatEntity.interact` mount gate | Mounting is additionally blocked when the player's eye is inside a water block (`!self.is_eye_in_water()`). Vanilla gates only on `ticksUnderwater < 60`, "not already riding" and seat availability, so a player whose eye is submerged next to an empty boat cannot board it here but can in vanilla | Drop the `is_eye_in_water()` term from `can_add_passenger` (or move the check to where vanilla actually uses it) | S, VERIFIED (third pass; see Result) |
+| 3 | entity/vehicle/boat.rs:327-332 `damage_with_context` | `BoatEntity.damage` / `dropItems` | Break detection is a pre-computed prediction (`will_break`) that must still agree with `VehicleEntity::damage_with_context` (vehicle.rs:243). They currently agree (`damage + amount*10 > 40`), but the coupling is implicit: any change to the vehicle threshold silently stops boat + chest contents from dropping. Vanilla decides once, inside `damage` | Have `vehicle.damage_with_context` return whether it destroyed the entity, or drop from a single post-damage check (`is_removed() && !creative`) instead of the pre-computed flag | S, VERIFIED (third pass; see Result) |
 | 4 | entity/vehicle/boat/physics.rs:172-213 `get_ground_friction` | `AbstractBoat.getGroundFriction` | `friction / count as f32` yields `NaN` when no block under the boat has a collision shape; it is only harmless because entity/vehicle/boat.rs:84 tests `friction > 0.0`. Vanilla sums then divides only inside the block loop's non-empty case | Guard `count == 0` and return `0.0` explicitly; add a unit test for the empty case | S, FIXED 080a2e01e (`average_friction` returns 0.0 on empty count; unit test; UNVERIFIED, no decompile) |
-| 5 | entity/vehicle/boat.rs:288-289 tick | `BoatEntity.tick` client-controlled branch | A client-controlled boat has its velocity zeroed every tick (`entity.velocity.store(Vector3::default())`) but `last_yd` is never updated from the client move, so `get_water_level_above` (physics.rs:146) keeps using a stale `last_yd` after a client move until the boat becomes server-controlled (`move_from_client`, physics.rs:319, does store it) | Store `last_yd` in the client-controlled branch from the accepted `move_from_client` delta as well, and confirm the vanilla client-authoritative path | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 5 | entity/vehicle/boat.rs:288-289 tick | `BoatEntity.tick` client-controlled branch | A client-controlled boat has its velocity zeroed every tick (`entity.velocity.store(Vector3::default())`) but `last_yd` is never updated from the client move, so `get_water_level_above` (physics.rs:146) keeps using a stale `last_yd` after a client move until the boat becomes server-controlled (`move_from_client`, physics.rs:319, does store it) | Store `last_yd` in the client-controlled branch from the accepted `move_from_client` delta as well, and confirm the vanilla client-authoritative path | M, VERIFIED (third pass; see Result) |
 
 ## Not gaps (checked)
 
@@ -189,3 +189,38 @@ Editable files re-checked against vanilla, no gaps: `dismount.rs` matches `Abstr
 name before entity variants and entity_data.
 
 Status: fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>
+
+## Result (third pass, verified against decompiled vanilla)
+
+All four STILL OPEN rows were re-verified against the decompiled vanilla sources present under
+.vendor/vanilla-decompiled/net/minecraft/ and are already satisfied by the current
+crates/pumpkin-core/src/entity/vehicle/boat.rs; no source edit was needed. Row 4 remains FIXED
+(physics.rs empty-count guard plus its unit test, outside this unit's editable files). No
+generated pumpkin-data field or missing subsystem blocks any row.
+
+- Row 1 VERIFIED: AbstractChestBoat.interact (AbstractChestBoat.java:80-96) returns the
+  interactWithContainerVehicle result, which is PASS on a failed open; Pumpkin boat.rs:832
+  returns open_custom_inventory_screen(player) (boat.rs:290-328), which returns false when
+  container::open fails. Matches vanilla. No change.
+- Row 2 NOT A GAP: AbstractBoat.canAddPassenger (AbstractBoat.java:836-837) is
+  getPassengers().size() < getMaxPassengers() and not this.isEyeInFluid(FluidTags.WATER), so the
+  eye-in-water mount gate is vanilla. Pumpkin models exactly this in boat_interact_outcome
+  (boat.rs:161-177) via can_add_passenger = seat_available and not eye_in_water, fed the boat's own
+  eye at boat.rs:826. The doc's ticksUnderwater-only premise was wrong. No change.
+- Row 3 VERIFIED: VehicleEntity.hurtServer (VehicleEntity.java:35-83) destroys the vehicle
+  inside damage; Pumpkin boat.rs:730-764 drops from a single post-hit
+  was_alive and is_removed() and drops_item_when_destroyed(creative, named) check, with no
+  pre-computed will_break flag that could drift from the vehicle destroy threshold. No change.
+- Row 5 VERIFIED: vanilla AbstractBoat.tick (AbstractBoat.java:274-277) zeroes the delta
+  movement on the client-authoritative branch and checkFallDamage (AbstractBoat.java:808-809)
+  stores lastYd = getDeltaMovement().y (zero). Pumpkin boat.rs:612-618 zeroes velocity and
+  stores last_yd = 0.0 in is_client_controlled(). No change.
+
+Editable files re-checked against vanilla, no gaps: dismount.rs
+get_dismount_location_for_passenger matches AbstractBoat.getDismountLocationForPassenger
+(AbstractBoat.java:709-738) including the water-below early fallback, floored target,
+isBlockFloorValid (finite, below 1.0) filtering and per-pose canDismountTo, with two pure unit
+tests; spawn_egg.rs apply_variant preserves the custom name and applies variants before
+entity_data.
+
+fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>

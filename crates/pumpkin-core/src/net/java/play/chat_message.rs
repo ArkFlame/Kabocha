@@ -1,6 +1,13 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use pumpkin_data::world::RAW;
+use rsa::PublicKey as RsaPublicKey;
+use rsa::pkcs8::DecodePublicKey;
+use sha2::Sha256;
+use uuid::Uuid;
+
+/// A signed message is stale after five minutes (PlayerChatMessage.MESSAGE_EXPIRES_AFTER_SERVER).
+const EXPIRED_CHAT_MS: i64 = 5 * 60 * 1000;
 
 impl JavaClient {
     pub async fn handle_chat_message(
@@ -204,6 +211,51 @@ impl JavaClient {
             {
                 return Err(ChatError::ChatValidationFailed);
             }
+
+            // Vanilla SignedMessageChain.Decoder#unpack: a broken chain and a
+            // non-monotonic timestamp reject the message, a valid signature advances the link.
+            let mut session = player
+                .chat_session
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(index) = session.next_index else {
+                return Err(ChatError::ChatValidationFailed);
+            };
+            let timestamp_secs = chat_message.timestamp / 1000;
+            if timestamp_secs < session.last_time_stamp {
+                session.next_index = None;
+                return Err(ChatError::OutOfOrderChat);
+            }
+            let payload = signed_message_payload(
+                player.gameprofile.id,
+                session.session_id,
+                index,
+                chat_message.message,
+                timestamp_secs,
+                chat_message.salt,
+                &acknowledged,
+            );
+            let signature_bytes = chat_message.signature.ok_or(ChatError::UnsignedChat)?;
+            let signature = RsaPkcs1v15Signature::try_from(signature_bytes)
+                .map_err(|_| ChatError::UnsignedChat)?;
+            let public_key = RsaPublicKey::from_public_key_der(&session.public_key)
+                .map_err(|_| ChatError::InvalidPublicKey)?;
+            if VerifyingKey::<Sha256>::new(public_key)
+                .verify(&payload, &signature)
+                .is_err()
+            {
+                session.next_index = None;
+                return Err(ChatError::ChatValidationFailed);
+            }
+            // hasExpiredServer only warns; an expired message is still accepted.
+            if now > chat_message.timestamp.saturating_add(EXPIRED_CHAT_MS) {
+                warn!(
+                    "Received expired chat: '{}'. Is the client/server system time unsynchronized?",
+                    chat_message.message
+                );
+            }
+            session.last_time_stamp = timestamp_secs;
+            session.next_index = index.checked_add(1);
         }
         Ok(())
     }
@@ -346,9 +398,39 @@ fn is_chat_message_illegal(message: &str) -> bool {
         .any(|c| c == '\u{a7}' || c < ' ' || c == '\u{7f}')
 }
 
+/// The byte sequence vanilla signs with SHA256withRSA: Ints.toByteArray(1), then the
+/// link and the body (PlayerChatMessage.updateSignature and its nested updates).
+#[must_use]
+fn signed_message_payload(
+    sender: Uuid,
+    session_id: Uuid,
+    index: i32,
+    content: &str,
+    timestamp_secs: i64,
+    salt: i64,
+    last_seen: &[Box<[u8]>],
+) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&1i32.to_be_bytes());
+    bytes.extend_from_slice(sender.as_bytes());
+    bytes.extend_from_slice(session_id.as_bytes());
+    bytes.extend_from_slice(&index.to_be_bytes());
+    bytes.extend_from_slice(&salt.to_be_bytes());
+    bytes.extend_from_slice(&timestamp_secs.to_be_bytes());
+    let content = content.as_bytes();
+    bytes.extend_from_slice(&(content.len() as i32).to_be_bytes());
+    bytes.extend_from_slice(content);
+    bytes.extend_from_slice(&(last_seen.len() as i32).to_be_bytes());
+    for signature in last_seen {
+        bytes.extend_from_slice(signature);
+    }
+    bytes
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_chat_message_illegal;
+    use super::{is_chat_message_illegal, signed_message_payload};
+    use uuid::Uuid;
 
     #[test]
     fn only_section_sign_and_control_chars_are_illegal() {
@@ -357,5 +439,33 @@ mod tests {
         assert!(is_chat_message_illegal("\u{a7}c"));
         assert!(is_chat_message_illegal("tab\there"));
         assert!(is_chat_message_illegal("del\u{7f}"));
+    }
+
+    #[test]
+    fn signed_payload_matches_vanilla_layout() {
+        let signature = vec![7u8; 256].into_boxed_slice();
+        let payload = signed_message_payload(
+            Uuid::nil(),
+            Uuid::nil(),
+            1,
+            "a",
+            2,
+            3,
+            &[signature.clone()],
+        );
+        let mut expected = vec![
+            0, 0, 0, 1, // Ints.toByteArray(1)
+            // sender (nil UUID)
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // session id (nil UUID)
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 1, // link index
+            0, 0, 0, 0, 0, 0, 0, 3, // salt
+            0, 0, 0, 0, 0, 0, 0, 2, // timestamp seconds
+            0, 0, 0, 1, b'a', // content length and content
+            0, 0, 0, 1, // last seen count
+        ];
+        expected.extend_from_slice(&signature);
+        assert!(payload == expected);
     }
 }
