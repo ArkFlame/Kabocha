@@ -21,6 +21,7 @@ use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::translation;
@@ -639,15 +640,31 @@ impl EntityBase for BoatEntity {
 
         // Vanilla `AbstractBoat.onAboveBubbleColumn` also emits GameEvent.SPLASH at a 1% roll
         // while the boat is not fully submerged, using the controlling passenger as the
-        // vibration source. The accompanying splash sound and particle are client effects.
+        // vibration source, alongside the splash sound and particle.
         if !self.status.load().is_some_and(BoatStatus::is_underwater)
             && rand::random::<u32>() % 100 == 0
         {
             let entity = &self.vehicle.entity;
-            entity.world.load_full().emit_game_event_with_source(
+            let pos = entity.pos.load();
+            let world = entity.world.load_full();
+            world.emit_game_event_with_source(
                 pumpkin_data::game_event::GameEvent::Splash.name(),
-                entity.pos.load(),
+                pos,
                 self.get_controlling_passenger(),
+            );
+            world.play_sound_fine(
+                Sound::EntityGenericSplash,
+                SoundCategory::Neutral,
+                &pos,
+                1.0,
+                0.8 + rand::random::<f32>() * 0.4,
+            );
+            world.spawn_particle(
+                Vector3::new(pos.x + rand::random::<f64>(), pos.y + 0.7, pos.z + rand::random::<f64>()),
+                Vector3::new(0.0, 0.0, 0.0),
+                0.0,
+                1,
+                Particle::Splash,
             );
         }
     }
