@@ -1,12 +1,14 @@
 use super::BlockEntity;
+use crate::entity::EntityBase;
 use crate::world::World;
+use crate::world::game_event::GameEventContext;
 use pumpkin_data::block_properties::{SculkCatalystLikeProperties, WaterLikeProperties};
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::particle::Particle;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{BlockId, BlockState, BlockStateId};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::random::RandomGenerator;
 use pumpkin_util::random::RandomImpl;
@@ -42,6 +44,46 @@ impl BlockEntity for SculkCatalystBlockEntity {
 
     fn get_position(&self) -> BlockPos {
         self.position
+    }
+
+    fn game_event_radius(&self) -> Option<i32> {
+        Some(HEARING_RADIUS)
+    }
+
+    /// Vanilla `SculkCatalystBlockEntity.CatalystListener.handleGameEvent`:
+    /// an `ENTITY_DIE` BY_DISTANCE listener feeds the dying living entity's
+    /// soul into the spreader and blooms the catalyst.
+    fn on_game_event(
+        &self,
+        world: &std::sync::Arc<World>,
+        event: GameEvent,
+        context: &GameEventContext<'_>,
+        source_position: Vector3<f64>,
+    ) {
+        if event != GameEvent::EntityDie {
+            return;
+        }
+        let Some(source) = context.source_entity else {
+            return;
+        };
+        // Vanilla ignores player deaths and entities that drop no experience.
+        if source.get_player().is_some() || !source.should_drop_experience() {
+            return;
+        }
+        let Some(living) = source.get_living_entity() else {
+            return;
+        };
+        // Vanilla passes `lastDamageSource.getEntity()` so Looting raises the
+        // soul charge; `recent_damage_attacker_id` is that entity (0 == none).
+        let killer = living
+            .recent_damage_attacker_id()
+            .and_then(|id| world.get_entity_by_id(id));
+        let charge = source.get_experience_reward(killer.as_deref());
+        let soul_pos = BlockPos::floored_v(source_position);
+        let offset = soul_pos.0 - self.position.0;
+        if within_hearing_radius(offset.x, offset.y, offset.z) {
+            self.add_soul(world, soul_pos, i32::try_from(charge).unwrap_or(i32::MAX));
+        }
     }
 
     fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
@@ -161,49 +203,6 @@ impl SculkCatalystBlockEntity {
 /// floored block positions and rejects only when `distSqr > radiusSqr`.
 const fn within_hearing_radius(dx: i32, dy: i32, dz: i32) -> bool {
     dx * dx + dy * dy + dz * dz <= HEARING_RADIUS * HEARING_RADIUS
-}
-
-/// Feeds the death of an entity at `death_pos` into every sculk catalyst
-/// within hearing range, matching vanilla's game-event dispatch.
-pub fn on_entity_death(world: &std::sync::Arc<World>, death_pos: BlockPos, charge: i32) {
-    if charge <= 0 {
-        return;
-    }
-    let mut catalysts: Vec<BlockPos> = Vec::new();
-    // A catalyst within 8 blocks lies in one of the 3x3 chunks around the
-    // death position; iterating those block-entity maps is far cheaper than
-    // probing every block in the sphere.
-    for dx in -1..=1 {
-        for dz in -1..=1 {
-            let chunk_pos = Vector2::new(
-                death_pos.0.x.div_euclid(16) + dx,
-                death_pos.0.z.div_euclid(16) + dz,
-            );
-            let Some(chunk_block_entities) = world.block_entities.get(&chunk_pos) else {
-                continue;
-            };
-            for (pos, entity) in chunk_block_entities.iter() {
-                if entity
-                    .as_any()
-                    .downcast_ref::<SculkCatalystBlockEntity>()
-                    .is_none()
-                {
-                    continue;
-                }
-                let offset = pos.0 - death_pos.0;
-                if within_hearing_radius(offset.x, offset.y, offset.z) {
-                    catalysts.push(*pos);
-                }
-            }
-        }
-    }
-    for catalyst_pos in catalysts {
-        if let Some(entity) = world.get_block_entity(&catalyst_pos)
-            && let Some(catalyst) = entity.as_any().downcast_ref::<SculkCatalystBlockEntity>()
-        {
-            catalyst.add_soul(world, death_pos, charge);
-        }
-    }
 }
 
 /// Live-world view used by the sculk spreader.
