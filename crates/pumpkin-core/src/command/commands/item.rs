@@ -1514,10 +1514,10 @@ mod tests {
         compound.put_float("max", 5.0);
         let tag = NbtTag::Compound(compound);
         for _ in 0..256 {
-            let sample = number_provider(Some(&tag)).expect("uniform provider yields a sample");
+            let sample = number_provider(Some(&tag));
             assert!(
-                (2.0..5.0).contains(&sample),
-                "sample {sample} out of [2, 5)"
+                sample.is_some_and(|value| (2.0..5.0).contains(&value)),
+                "sample {sample:?} out of [2, 5)"
             );
         }
     }
