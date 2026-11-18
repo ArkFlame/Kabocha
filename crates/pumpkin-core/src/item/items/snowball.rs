@@ -86,3 +86,15 @@ impl ItemBehaviour for SnowBallItem {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn throw_spawn_pos_uses_eye_height() {
+        let feet = Vector3::new(3.0, 10.0, -2.0);
+        let spawn = throw_spawn_pos(feet, 11.62);
+        assert_eq!(spawn, Vector3::new(3.0, 11.52, -2.0));
+    }
+}

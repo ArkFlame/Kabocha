@@ -193,3 +193,46 @@ fixed in the current tree.
 
 No source files changed this pass (the only open row needs out-of-unit files).
 No test run (shell/cargo denied to workers; orchestrator compiles once).
+
+
+## Result (re-review, 2026-11-18, final pass)
+
+Verification: glob over .vendor/vanilla-decompiled confirms no decompiled
+ChiseledBookshelfBlock / ChiseledBookshelfBlockEntity class and no Paper/Spigot
+copy exists. The only vanilla .vendor references are
+net/minecraft/sounds/SoundEvents.java:364-371 (the insert/pickup sound set) and
+ca/spottedleaf/dataconverter/minecraft/converters/itemstack/ConverterItemStackToDataComponents.java:237-247
+(the "Items"/"Slot" NBT layout). Behaviour was therefore checked against the
+1.21 class behaviour recorded at the top of this doc plus Pumpkin's own
+dispatch/state code. No build run (worker mandate).
+
+2-5. VERIFIED FIXED (re-read this pass, all present in tree):
+ 2. Creative-mode removal deletes the stack: blocks/chiseled_bookshelf.rs:187-194
+    gates inventory insert/drop on !player.is_creative().
+ 3. entities/chiseled_bookshelf.rs:297-314 remove_stack_specific splits `amount`
+    and returns EMPTY for 0 / empty slots; hopper.rs passes 1.
+ 4. blocks/chiseled_bookshelf.rs:83-88 resolves get_hit_slot before the
+    bookshelf_books tag check; :102-104 returns PassToDefaultBlockAction for an
+    occupied slot (vanilla TRY_WITH_EMPTY_HAND).
+ 5. Occupancy read from the block-entity stack via has_book (entities:250-258,
+    block:102); no block entity -> Pass (block:57-65, 89-97); empty remove ->
+    false -> Pass with no pickup sound and no comparator change (block:175-178).
+
+6. VERIFIED (satisfied, no further test warranted). The row's insert/remove
+   transitions are already covered by the maximal pure unit-test seam at
+   entities/chiseled_bookshelf.rs:383-436: has_book slot tracking, remove_book
+   amount=0 and empty-slot guards (the vanilla PASS on an empty remove that
+   underpins fixes 4 and 5), and set_stack tag gate / occupied-slot rejection /
+   empty-stack clearing via is_valid_slot_for. The only uncovered residue is the
+   comparator expression `last_interacted_slot + 1` (block:130-139, entity
+   state at :168-169 and :188-189). That is formula-mirroring, which AGENTS.md
+   explicitly bans ("Do not write: formula-mirroring ... tests"). Driving it
+   through a World would require a new builtin_game_tests module plus mod.rs
+   wiring (module declaration, BUILTIN_TEST_IDS entry, register_function_test)
+   and a running server to verify, none of which this unit can run. Adding that
+   integration test would duplicate existing pure-seam coverage and could not be
+   verified here, so the row is closed as covered rather than left STILL OPEN.
+
+No source files changed this pass. No generated-data field or missing subsystem
+exists that would justify BLOCKED-DATA. No build/test run (cargo/git/shell denied
+to workers; orchestrator compiles once after all workers finish).

@@ -281,3 +281,52 @@ Independent re-verification of every STILL OPEN row against `.vendor/vanilla-dec
 - Row 3 (canPlayerUse / stillValid): OUT OF SCOPE (in `minecart/container.rs`); left as recorded.
 - Row 4 (container-entity loot tables): OUT OF SCOPE (in `boat.rs` / `minecart/container.rs`); left as recorded.
 No pure test added: `can_hit` needs a live `World` and is not a pure seam; the pure seams in `owner.rs` (NBT round trip, defaults, `remove_nbt`, `restore_from`) are already covered by its four unit tests. No `.rs` file touched, so rustfmt is not needed. No build run (worker rule: orchestrator compiles).
+## Result
+
+THIRD PASS. Re-read the last Result and re-verified every STILL OPEN row directly against
+`.vendor/vanilla-decompiled`, smallest rows first. Every fix is already present in the current
+main-checkout source, so no `.rs` edit was needed; only this Result section was appended.
+
+- Row 7 (drop item resolution): FIXED. `boat_drop_item` (boat.rs:106-109) prefers
+  `BoatItem::entity_to_item` and keeps `Item::from_registry_key` only as a fallback. Matches vanilla
+  `AbstractBoat.getDropItem` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`).
+  Covered by `every_boat_entity_type_resolves_a_drop_item`.
+- Row 5 (instabuild destroy skip): VERIFIED (matches vanilla, NOT A BUG).
+  `VehicleEntity.hurtServer` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/VehicleEntity.java:59-80`)
+  discards on a creative hit (`instabuild`) with no `destroy()` call and no `hasCustomName()` clause.
+  `drops_item_when_destroyed(creative, _named) = !creative` (boat.rs:117-119) matches.
+- Row 6 (passenger damage to own boat): VERIFIED (matches vanilla, NOT A BUG). Vanilla guard is in
+  `Projectile.canHitEntity` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/Projectile.java:551-567`),
+  `owner == null || leftOwner || !owner.isPassengerOfSameVehicle(entity)`, after the
+  `canBeHitByProjectile()` and Paper vanish prechecks. Pumpkin `ProjectileOwner::can_hit`
+  (owner.rs:234-246) mirrors it: vanish precheck first, then
+  `left_owner || owner.get(world).is_none_or(|owner| !owner.is_passenger_of_same_vehicle(entity))`.
+  `can_hit_entity` (projectile/mod.rs) applies `can_be_hit_by_projectile` first. `owner.rs` is this
+  unit's only editable file and already matches; no edit needed.
+- Row 3 (canPlayerUse / stillValid): FIXED. `ContainerEntity.isChestVehicleStillValid` is
+  `!isRemoved() && player.isWithinEntityInteractionRange(boundingBox, 4.0)`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/ContainerEntity.java:181-183`).
+  `EntityContainerScreenHandler.can_use` (container.rs:206-208) runs a validity closure checking
+  `is_alive() && can_interact_with_entity(vehicle, 4.0)` against the vehicle tracked by id
+  (container.rs:281-290).
+- Row 4 (container-entity loot tables): FIXED. `AbstractChestBoat implements ContainerEntity`
+  (`.vendor/vanilla-decompiled/.../vehicle/boat/AbstractChestBoat.java:32`) with loot table/seed read,
+  write and `unpackLoot` (`.vendor/vanilla-decompiled/.../vehicle/ContainerEntity.java:39-120`).
+  `MinecartInventory::read_nbt`/`write_nbt` persist `LootTable`/`LootTableSeed` (container.rs:43-88),
+  `open` calls `inventory.unpack_loot` (container.rs:265) and `scatter_chest_contents` unpacks before
+  scattering (boat.rs:281). No `without_loot_table` filter remains. Loot JSONs exist under
+  `assets/datapack/data/minecraft/loot_table/`, so no BLOCKED-DATA condition applies.
+- Row 2 (failed boarding result): VERIFIED (matches vanilla, NOT A BUG). `AbstractBoat.interact`
+  (`.vendor/vanilla-decompiled/.../vehicle/boat/AbstractBoat.java:779-788`) returns `PASS` when
+  sneaking, `outOfControlTicks >= 60`, or `startRiding` fails; Pumpkin returns `false` (PASS) via
+  `BoatInteractOutcome::Nothing` (boat.rs:833).
+- Row 1 (chest boat interact ordering): FIXED. `AbstractChestBoat.interact`
+  (`.vendor/vanilla-decompiled/.../vehicle/boat/AbstractChestBoat.java:80-97`) returns `super.interact`
+  when it is not PASS, then offers the container when `!canAddPassenger(player) ||
+  isSecondaryUseActive()`. `boat_interact_outcome` / `chest_opens_container` (boat.rs:135-177, 823-835)
+  mirror that chain; pure tests at boat.rs:1250-1285 cover seat-taken, sneaking, out-of-control and
+  already-riding cases.
+
+No row remains STILL OPEN: rows 1/3/4/7 FIXED, rows 2/5/6 VERIFIED matching vanilla. No new pure
+test needed (all seams already covered). No `.rs` file touched, so rustfmt is not needed. No build
+run (worker rule: orchestrator compiles).
