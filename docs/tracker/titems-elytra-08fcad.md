@@ -235,3 +235,35 @@ Every STILL OPEN row is now resolved; each fix is present in code and confirmed 
   the worker shell is denied). Orchestrator compiles once after all workers finish.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/titems-elytra-08fcad.md
+
+
+## Result (third pass re-verify 2026-11-18)
+
+Re-read this unit's last Result and re-checked every row against
+.vendor/vanilla-decompiled/net/minecraft plus the current code. All rows were resolved in prior
+passes and each fix is still present and internally consistent; no new code edit was needed.
+
+- Row `ee43e7835` "vanilla-parity fixes for gliding and flight state (#3459)": VERIFIED. Its sole
+  change (crates/pumpkin-wasm-host-v0_2/src/player.rs, set_flying delegates to player.set_flying)
+  is present; that file is outside this unit.
+- Gap 1 fall-distance clamp: VERIFIED. .vendor/.../world/entity/Entity.java:4215-4219
+  `getDeltaMovement().y() > -0.5 && fallDistance > 1.0 -> 1.0`; player.rs:4093-4094 matches exactly.
+- Gap 2 gliding exhaustion: VERIFIED. .vendor/.../server/level/ServerPlayer.java
+  checkMovementStatistics awards only AVIATE_ONE_CM while gliding; grep confirms no stale TODO.
+- Gap 3 glide start gate + unit tests: VERIFIED. .vendor/.../world/entity/player/Player.java:1605-1606
+  gates tryToStartFallFlying on !isInLiquid (Entity.java:2323-2325 = water or lava). player.rs:460
+  fall_flying_start_allowed is called with entity.is_in_liquid() at :4053; helper exists at
+  entity/mod.rs:4591. Both pure seams are unit-tested: toggle_glide_event_veto_keeps_the_current_state
+  (:10857) and fall_flying_start_gate_checks_glider_flight_and_liquid (:10874).
+- Gap 4 Unbreaking/durability: VERIFIED. .vendor/.../world/item/ItemStack.java:629-636
+  processDurabilityChange; Pumpkin applies UNBREAKING via compute_durability_damage_applied and
+  unit-tests it (per prior verification).
+- In-unit files unchanged and correct against vanilla: firework_rocket.rs boost (:276-277) and
+  horizontal accel (:288-295) match FireworkRocketEntity.java:167-193; player_command.rs
+  StartFlyingElytra (:31-40) matches Player.java:1605-1612 plus the toggle-glide veto; utility.rs
+  elytra field (:1035-1158) matches PlayerSkin.Patch.
+- Compile-pitfall review of the player.rs edits: const fns use no unwrap/expect/panic,
+  `is_in_liquid` resolves, no struct-initializer or macro-path changes; tests use `super::` correctly.
+- rustfmt not run (worker shell denied); orchestrator compiles once after all workers finish.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/titems-elytra-08fcad.md
