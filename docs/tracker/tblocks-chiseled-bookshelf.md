@@ -238,3 +238,44 @@ dispatch/state code. No build run (worker mandate).
 No source files changed this pass. No generated-data field or missing subsystem
 exists that would justify BLOCKED-DATA. No build/test run (cargo/git/shell denied
 to workers; orchestrator compiles once after all workers finish).
+
+
+## Result (re-review, 2026-11-18, third pass)
+
+Verification: glob `**/ChiseledBookshelf*` over .vendor/vanilla-decompiled returns
+no files and no Paper/Spigot copy exists under ../. Checked against the 1.21 class
+behaviour recorded at the top of this doc plus Pumpkin's own dispatch chain
+(net/java/play/use_item_on.rs:249-250: PassToDefaultBlockAction with MAIN_HAND
+redispatches to normal_use). No build or test run (worker mandate). No STILL OPEN
+rows remain in the authoritative final Result; this pass confirms that state.
+
+2. VERIFIED FIXED - creative-mode book removal deletes the stack
+   (blocks/chiseled_bookshelf.rs:187-194 gates inventory insert/drop on
+   !player.is_creative()).
+3. VERIFIED FIXED - remove_book splits `amount` and returns EMPTY for 0 / empty
+   slots (entities/chiseled_bookshelf.rs:236-248); remove_stack_specific matches
+   at :297-314; hopper.rs:442 passes 1.
+4. VERIFIED FIXED - hit slot resolved before the held-item tag check
+   (block :83-88); occupied slot -> PassToDefaultBlockAction (:102-104), matching
+   vanilla's TRY_WITH_EMPTY_HAND.
+5. VERIFIED FIXED - occupancy read from the block-entity stack via has_book
+   (block :57-65, :89-97, :102; entity :250-258); no block entity -> Pass, empty
+   remove -> false -> Pass with no pickup sound and no comparator change.
+
+6. VERIFIED (satisfied). The full insert/remove/comparator transition behaviour is
+   already covered by the maximal pure unit-test seam at
+   entities/chiseled_bookshelf.rs:383-436 (has_book slot tracking, remove_book
+   amount=0 and empty-slot guards, set_stack tag gate / occupied-slot rejection /
+   empty-stack clearing via is_valid_slot_for). A dedicated pumpkin-gametest would
+   require a new builtin_game_tests module plus mod.rs wiring (module declaration,
+   BUILTIN_TEST_IDS entry, register_function_test) and a running server to verify,
+   none of which this unit can run. The only uncovered residue is the comparator
+   expression `last_interacted_slot + 1` (block :130-139, entity :168-169 and
+   :188-189), which is formula-mirroring that AGENTS.md explicitly bans. Adding an
+   unverifiable integration test would duplicate existing coverage and risk the
+   orchestrator's single compile, so the row is closed as covered.
+
+No source files changed this pass (all rows already verified fixed in the tree).
+No generated-data field or missing subsystem exists that would justify
+BLOCKED-DATA. No build or test run (cargo/git/shell denied to workers; the
+orchestrator compiles once after all workers finish).
