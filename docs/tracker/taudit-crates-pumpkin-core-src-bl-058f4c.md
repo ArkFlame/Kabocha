@@ -116,3 +116,40 @@ ComparatorBlock.java and the current sources. This section supersedes the earlie
 
 Unit-test note: the only pure seam is calculate_signal_strength, already covered by two
 vanilla-derived tests. Row 1's fix is World/registry coupled with no pure seam, so no new test was added.
+
+
+## Result
+
+Third pass. Re-audited the two rows still marked STILL OPEN in the previous Result against
+.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java,
+GameEvent.java and VibrationSystem.java. Both now reach a terminal status; no source edits were
+needed. This section supersedes the earlier Result sections.
+
+- Row 2 (shape-driven light occlusion): VERIFIED. The subsystem earlier passes reported as
+  missing now exists in another crate: crates/pumpkin-world/src/lighting/occlusion.rs implements
+  `uses_shape_for_light_occlusion` (lines 25-39) and lists `Block::DAYLIGHT_DETECTOR` in its
+  SINGLETONS set (line 14), which feeds `OCCLUDING_FACES` (lines 42-59) built from the generated
+  per-face solid flags (pumpkin-data/src/block_state.rs:253-261). The light engine consumes it in
+  `is_empty_shape` / `has_different_light_properties` (lighting/engine.rs:1052-1069). This matches
+  vanilla `getShape` = `Block.column(16, 0, 6)` and `useShapeForLightOcclusion` = true
+  (DaylightDetectorBlock.java:30, 38-45). Not BLOCKED-DATA: the subsystem is present and the
+  detector is wired into it, so no generated field or subsystem is missing.
+- Row 5 (BLOCK_CHANGE game-event context): VERIFIED for this block. Vanilla
+  `GameEvent.Context.of(player, newState)` (DaylightDetectorBlock.java:77; GameEvent.java:92-103)
+  stores `affectedState`, which the vanilla engine reads in exactly one place:
+  `VibrationSystem.Listener#isVibrationSourceValid` suppresses the vibration only when the
+  affected state is in `#minecraft:dampens_vibrations` (VibrationSystem.java:445). A daylight
+  detector state is never in that tag, so carrying it produces no behaviour change for this
+  block. The player half of the context, which does matter (spectator / careful-stepping /
+  vibration-dampening source checks, VibrationSystem.java:426-443), is already forwarded via
+  `emit_game_event_with_source(..., Some(player))` (daylight_detector.rs:47-51) and consumed by
+  Pumpkin's listener (allay/vibration.rs:219-235). Adding an `affectedState` field to
+  GameEventContext would require changing all ~35 struct literals across the crate plus the
+  plugin GenericGameEvent payload, none in this unit's file scope; for a behavioural no-op on
+  this block that cross-cutting change is not justified. No gameplay delta.
+- Rows 1, 3, 4, 6: unchanged. Row 1 FIXED in comparator.rs (daylight detector POWER read
+  directly); Rows 3/4/6 already verified against vanilla in the prior Result. No further edits.
+
+Unit-test note: no new test. The only pure seam, calculate_signal_strength, already has two
+vanilla-derived tests in blocks/redstone/daylight_detector.rs. Rows 2 and 5 are engine/API
+coupled with no pure seam, so no unit test was added.

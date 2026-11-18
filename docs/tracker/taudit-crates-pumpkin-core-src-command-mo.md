@@ -56,3 +56,17 @@ All six rows re-verified against decompiled vanilla at `.vendor/vanilla-decompil
 - Row 16 (`world_or_first`): no change; anchoring console/dummy sources to the overworld matches vanilla.
 
 No unit test added: every row with a pure seam already has one (`command_block_y_rot`, `command_block_custom_name_nbt_round_trip`, `command_block_last_execution_nbt_round_trip`, `command_block_last_output_nbt_round_trip`); `chain_execute`, `send_to_ops` and `Display` require a live `World`/`Server`. No source file edited, so no rustfmt run needed.
+
+
+## Result (third pass, final)
+
+Re-read the last Result and re-checked every row against the checkout and decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN; all six are FIXED or VERIFIED. No source edit was needed this pass (all fixes already present), so no rustfmt run.
+
+- Row 11 (CustomName in Display / `into_source`): VERIFIED FIXED. `command_block_name` (`command/mod.rs:129-136`) returns `custom_name` or `@`, used by `Display` (line 143) and `into_source` (line 394). Matches vanilla `CommandBlockEntity.CloseableCommandBlockSource#createCommandSourceStack` passing `this.getName()` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CommandBlockEntity.java:55-65`, where `getName` is `BaseCommandBlock#getName` = custom name or `@`).
+- Row 12 (LastExecution / UpdateLastExecution / CustomName NBT): VERIFIED FIXED. `CommandBlockEntity` fields and NBT read/write (`block/entities/command_block.rs:14-160`) plus the three round-trip unit tests match vanilla `BaseCommandBlock` save/load semantics.
+- Row 13 (`chain_execute` / conditions): VERIFIED FIXED. `conditions_met` (`block/blocks/command.rs:61-83`) returns true for unconditional blocks and checks the block behind facing + `SuccessCount > 0` for conditional ones, matching vanilla `CommandBlockEntity.markConditionMet` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CommandBlockEntity.java:146-159`). `execute`/`chain_execute` stop when `last_execution == world_age` (lines 164, 240-244), matching vanilla `BaseCommandBlock#performCommand` once-per-tick guard. The row's original "gate unconditional links on previous SuccessCount" suggestion contradicts vanilla and was correctly not applied.
+- Row 14 (admin broadcast target): VERIFIED FIXED. `send_to_ops` (`command/context/command_source.rs:383-413`) targets op-list members via `operator_config.get_entry(...).is_some()` instead of a permission-level threshold, matching vanilla `broadcastToAdmins` gating on op status (`.vendor/vanilla-decompiled/net/minecraft/commands/CommandSourceStack.java:539-548`, Paper `hasPermission("minecraft.admin.command_feedback")` / `PlayerList#isOp`).
+- Row 15 (console feedback): VERIFIED FIXED. `CommandSender::Console` routes through `tracing::info!` (`command/mod.rs:154`); no `println!`/`print!`/`eprintln!` under `command/`. Matches vanilla `MinecraftServer#sendSystemMessage` logging via the server LOGGER.
+- Row 16 (`world_or_first`): VERIFIED, no change. Console/dummy sources anchoring to the first (overworld) world (`command/mod.rs:299-302`) matches vanilla.
+
+Final row status: 11 FIXED, 12 FIXED, 13 FIXED, 14 FIXED, 15 FIXED, 16 VERIFIED. No BLOCKED-DATA rows (no missing generated fields or subsystems). No STILL OPEN rows.
