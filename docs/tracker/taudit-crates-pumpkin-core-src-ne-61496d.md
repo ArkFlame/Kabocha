@@ -168,3 +168,42 @@ Verified the last STILL OPEN row against the mc-proof reference tree (/.vendor/v
 - Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN. Verified `SignedMessageChain.java` (`Decoder#unpack` needs mutable `nextLink` and `lastTimeStamp`), `PlayerChatMessage.updateSignature` (SHA256withRSA over `[0,0,0,1]` + link + body) and `ServerGamePacketListenerImpl#getSignedMessage`. Implementing full parity needs new persistent chain state (`lastTimeStamp` and a chain-broken flag) on `ChatSession` in `entity/player.rs`, a `SignatureUpdater` in `net/chat`, and the real `session_id` in the outgoing link in `world/mod.rs` — all outside this unit's two files, so it cannot be completed here. `hasExpiredServer` (5 min) is only a warning and does not change acceptance.
 
 No source files edited and no new unit test this pass (no pure seam exists inside chat_message.rs / chat_command.rs for state owned in other modules). No source diff, so no compile-pitfall items apply.
+
+## Result (final)
+
+Cross-file edits are now permitted for this pass (see pass-2 brief), so the last row was
+implemented rather than left open. Verified against
+`.vendor/vanilla-decompiled/net/minecraft/network/chat/` (`SignedMessageChain.java`,
+`PlayerChatMessage.java`, `SignedMessageLink.java`, `SignedMessageBody.java`,
+`LastSeenMessages.java`, `LocalChatSession.java`) and
+`server/network/ServerGamePacketListenerImpl.java` (`handleChat`, `getSignedMessage`,
+`unpackAndApplyLastSeen`, `handleMessageDecodeFailure`).
+
+- Message signature verification / per-player `SignedMessageChain` (L): FIXED.
+  `entity/player.rs`: `ChatSession` gains `next_index: Option<i32>` (None = broken
+  chain, vanilla `nextLink == null`) and `last_time_stamp: i64` (vanilla
+  `lastTimeStamp = Instant.EPOCH`), both reset in `ChatSession::new` when a session
+  is installed.
+  `chat_message.rs`: `verify_chat_signature` runs in the secure-chat branch of
+  `validate_chat_message` after the acknowledged last-seen list is computed. It
+  mirrors `Decoder#unpack`: reject a broken chain; reject a timestamp before
+  `lastTimeStamp` (OUT_OF_ORDER_CHAT) and break the chain; verify SHA256withRSA over
+  `Ints.toByteArray(1)` + link(sender, sessionId, index) + body(salt, epoch seconds,
+  content length/bytes, acknowledged signatures) exactly as
+  `PlayerChatMessage.updateSignature` and its nested updates; warn on
+  `hasExpiredServer` (5 min, acceptance unchanged); advance the index with
+  `checked_add` (null at i32::MAX as `SignedMessageLink.advance` does). A failed
+  verification sets `next_index = None`, so later messages are rejected as
+  CHAIN_BROKEN. The session DER public key is parsed with
+  `rsa::PublicKey::from_public_key_der` and checked with `VerifyingKey::<Sha256>`
+  (`ProfilePublicKey.createSignatureValidator` uses SHA256withRSA). Added a
+  fixed-vector unit test (`signed_payload_matches_vanilla_layout`) for the byte layout.
+- Files edited: `crates/pumpkin-core/src/entity/player.rs`,
+  `crates/pumpkin-core/src/net/java/play/chat_message.rs`.
+- No cargo/git/rustfmt run (worker compile/shell forbidden); the orchestrator compiles
+  and formats once after all workers finish.
+
+Risk: a signed command whose signed arguments advance the client chain is still routed
+through `handle_chat_command` without advancing `next_index`, so such clients can drift
+one index per signed argument while secure chat is on; chat-only clients are unaffected.
+Verification is gated on `allow_chat_reports` (off by default).
