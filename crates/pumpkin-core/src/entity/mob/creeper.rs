@@ -256,6 +256,17 @@ impl Mob for CreeperEntity {
         &self.mob_entity
     }
 
+    fn apply_mob_target(&self, target: Option<Arc<dyn EntityBase>>) {
+        // Vanilla `Creeper.setTarget` never targets a goat; keep the current target instead.
+        if target
+            .as_ref()
+            .is_some_and(|t| t.get_entity().entity_type == &EntityType::GOAT)
+        {
+            return;
+        }
+        self.get_mob_entity().set_target(target);
+    }
+
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
         Some(self)
     }

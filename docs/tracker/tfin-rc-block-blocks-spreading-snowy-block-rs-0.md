@@ -7,7 +7,6 @@ Re-read the last Result of each referenced audit doc and re-verified every STILL
 - **own/taudit-crates-pumpkin-core-src-block-bloc** (0 rows STILL OPEN): all four rows VERIFIED in that doc (on_place inherited from `SnowyBlock.getStateForPlacement` `SnowyBlock.java:41-44`, generic fluid amount, `LAYERS == 1` light-block short-circuit, and randomTick coverage by the `plants_and_support_blocks.rs` GameTest).
 was needed; the implementation already matches vanilla on every row. No row remains STILL OPEN,
 
-## Result
 ## Result (FINAL PASS, independently verified 2026-11-18)
 
 Re-verified every row in this unit directly against the decompiled 1.21 source in
