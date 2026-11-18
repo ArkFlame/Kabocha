@@ -483,10 +483,10 @@ impl EntityBase for ArrowEntity {
             self.pierce_level.load(Ordering::Relaxed) as i8,
         );
         nbt.put_byte("pickup", self.pickup.load(Ordering::Relaxed) as i8);
-        if let Some(weapon) = self.get_weapon_item() {
-            if let Some(weapon_nbt) = weapon.copy_with_count(1).to_nbt() {
-                nbt.put_compound("weapon", weapon_nbt);
-            }
+        if let Some(weapon) = self.get_weapon_item()
+            && let Some(weapon_nbt) = weapon.copy_with_count(1).to_nbt()
+        {
+            nbt.put_compound("weapon", weapon_nbt);
         }
         if self.entity.entity_type.id == EntityType::SPECTRAL_ARROW.id {
             // Vanilla `SpectralArrow.writeAdditionalSaveData`.

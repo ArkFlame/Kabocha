@@ -393,6 +393,7 @@ mod tests {
         assert!(nbt.get_list("Items").is_none());
     }
 
+    #[test]
     fn slot_outside_the_inventory_is_ignored() {
         let inventory = MinecartInventory::new(5);
         inventory.set_stack(5, ItemStack::new(1, &Item::STONE));

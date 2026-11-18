@@ -236,10 +236,8 @@ impl VaultBlockEntity {
         let data = shared.get_or_insert_with(NbtCompound::new);
         if stack.is_empty() {
             data.child_tags.remove("display_item");
-        } else {
-            if let Some(item_compound) = stack.to_nbt() {
-                data.put_compound("display_item", item_compound);
-            }
+        } else if let Some(item_compound) = stack.to_nbt() {
+            data.put_compound("display_item", item_compound);
         }
     }
 

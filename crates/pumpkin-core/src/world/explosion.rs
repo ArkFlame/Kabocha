@@ -1372,7 +1372,7 @@ mod tests {
 
         let filtered = filter_destroyed_blocks(vec![keep, drop], &allowed);
 
-        assert!(filtered == [keep]);
+        assert_eq!(filtered, [keep]);
     }
 
     #[test]

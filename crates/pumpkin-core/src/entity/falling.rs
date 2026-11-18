@@ -231,6 +231,7 @@ impl EntityBase for FallingEntity {
         !self.get_entity().is_removed()
     }
 
+    #[expect(clippy::too_many_lines)]
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         let entity = &self.entity;
         if self.block_state_id.load() == BlockStateId::AIR {
@@ -250,9 +251,8 @@ impl EntityBase for FallingEntity {
         self.add_fall_distance((start_y - entity.pos.load().y) as f32);
         entity.tick_block_collisions(caller);
 
-        // Preserve collision and block-interaction velocity changes (for example,
-        // cobweb slowdown) instead of overwriting them with the pre-move velocity.
-        let velo = entity.velocity.load();
+        // Collision and block-interaction velocity changes (for example, cobweb
+        // slowdown) are kept: the stored velocity is read back, never overwritten.
         if entity.on_ground.load(Ordering::Relaxed) {
             entity
                 .velocity
