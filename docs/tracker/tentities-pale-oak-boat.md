@@ -69,3 +69,57 @@ a change, so each is left open with a one-line reason. No source file was edited
   no decompiled source to confirm the vanilla client-authoritative path.
 
 Row 4 was already FIXED in a prior pass.
+
+## Result (re-review)
+
+Re-verified against decompiled vanilla now present under `.vendor/vanilla-decompiled/net/minecraft/`
+(`world/entity/vehicle/boat/AbstractBoat.java`, `AbstractChestBoat.java`). This unit's only editable
+source file is `spawn_egg.rs`, which handles custom-name preservation on placement
+(`apply_entity_variant`, line 146), already confirmed working. None of the STILL OPEN rows map to
+`spawn_egg.rs`, so no source file was edited and no rustfmt/test run was needed. fixed=0 open=0.
+
+All four STILL OPEN rows have ALREADY been resolved in the current `boat.rs` by concurrent workers
+since this doc was last updated (the doc's old line numbers no longer match the file):
+
+- Row 1 (chest-boat interact result discarded): RESOLVED - `boat.rs:822` now returns
+  `self.open_custom_inventory_screen(player)` directly, matching vanilla `AbstractChestBoat.interact`
+  which returns the `interactWithContainerVehicle` result.
+- Row 2 (eye-in-water mount gate): NON-GAP - decompiled `AbstractBoat.canAddPassenger` is
+  `getPassengers().size() < getMaxPassengers() && !isEyeInFluid(FluidTags.WATER)`, so vanilla also
+  blocks mounting when the eye is in water; the doc's "vanilla gates only on ticksUnderwater" premise
+  was wrong. Current `boat.rs:816` checks `is_eye_in_water(&self.vehicle.entity)` (the boat's own eye),
+  matching vanilla. No change needed.
+- Row 3 (damage prediction coupling): RESOLVED - `boat.rs:729-732` now drops from a post-damage
+  `was_alive && self.vehicle.entity.is_removed()` check instead of a pre-computed `will_break` flag,
+  so it cannot drift from the vehicle destroy threshold.
+- Row 5 (client velocity vs last_yd): RESOLVED - `boat.rs:602` now stores `last_yd = 0.0` in the
+  client-controlled branch, matching vanilla `AbstractBoat.checkFallDamage` storing `lastYd` each tick.
+
+Row 4 remains FIXED from a prior pass.
+
+## Result (wave 3)
+
+Re-checked each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
+`AbstractChestBoat.java` and `vehicle/VehicleEntity.java`. All four are already satisfied by the current
+`crates/pumpkin-core/src/entity/vehicle/boat.rs`; no code in this unit's editable file (`spawn_egg.rs`)
+is involved, so no source edit, rustfmt or test run was needed.
+
+- Row 1 VERIFIED: vanilla `AbstractChestBoat.interact` (AbstractChestBoat.java:90-96) returns
+  `interactWithContainerVehicle`'s result, and `ContainerEntity.interactWithContainerVehicle`
+  (ContainerEntity.java:93-100) returns `PASS` when `player.openMenu` fails. Pumpkin `boat.rs:822`
+  returns `open_custom_inventory_screen(player)` (false on a failed open), matching PASS. No change.
+- Row 2 NOT A GAP: vanilla `AbstractBoat.canAddPassenger` (AbstractBoat.java:836-838) is
+  `getPassengers().size() < getMaxPassengers() && !this.isEyeInFluid(FluidTags.WATER)`, so the
+  eye-in-water gate is vanilla. Pumpkin gates the boat's own eye in `boat_interact_outcome` (boat.rs:169)
+  and reads it at boat.rs:816. The doc's "vanilla gates only on ticksUnderwater" premise was wrong.
+- Row 3 VERIFIED: `VehicleEntity.hurtServer` (VehicleEntity.java:35-79) calls `discard`/`destroy`
+  itself; Pumpkin's boat `damage_with_context` (boat.rs:720-752) drops from the post-hit
+  `was_alive && is_removed() && drops_item_when_destroyed(creative, named)` state, so the tail follows
+  the vehicle threshold with no separate `will_break` prediction to drift. No change.
+- Row 5 VERIFIED: vanilla `AbstractBoat.tick` (AbstractBoat.java:274-277) sets
+  `setDeltaMovement(Vec3.ZERO)` on the client-authoritative branch and `checkFallDamage` (:808-809)
+  stores `lastYd = getDeltaMovement().y`, i.e. 0 while a player steers. Pumpkin stores
+  `last_yd = 0.0` in the same branch (boat.rs:596-602). No change.
+- Row 4 remains FIXED 080a2e01e (`average_ground_friction` guard plus its unit test, physics.rs:264-281).
+
+Status: fixed=0 open=0 verified=4 (rows 1, 2, 3, 5).
