@@ -217,3 +217,35 @@ reading code against .vendor/vanilla-decompiled only. Diff re-checked against th
 table: no changes made, so none apply.
 
 Status: PASS fixed=0 open=1 files=none
+
+
+## Result (third pass: all remaining rows resolved)
+
+Independent verification of the current checkout against decompiled vanilla FishingHook.java
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java`) and CraftBukkit
+FishingHook. No .rs file needed changes this pass.
+
+- **Row 5 (random f64 vs f32): VERIFIED (matches vanilla).** Every random roll in fishing_bobber.rs
+  now uses f32 precision, matching vanilla `RandomSource.nextFloat()` / `Mth.nextFloat(..., float)`:
+  bob_velocity caller passes `rand::random::<f32>()` (fishing_bobber.rs:482) vs FishingHook.java:232
+  `force * this.random.nextFloat() * 0.2`; fish approach `rand::rng().triangle(0.0, 9.188) as f32`
+  (:685) vs FishingHook.java:348 `(float) this.random.triangle(0.0, 9.188)`; tease roll
+  `rand::random::<f32>() < tease_chance` (:770) vs :403 `this.random.nextFloat() < teaseChance`;
+  tease angle/distance (:771-772) `f64::from(rand::random::<f32>() * 360.0)` /
+  `f64::from(25.0f32 + rand::random::<f32>() * 35.0)` vs :404-405
+  `Mth.nextFloat(random, 0.0F, 360.0F)` / `Mth.nextFloat(random, 25.0F, 60.0F)`; lure angle
+  `rand::random::<f32>() * 360.0` (:789) vs :417 `Mth.nextFloat(random, minLureAngle,
+  maxLureAngle)` (defaults 0/360); synced bite kick `synced.next_f32()` (:756) vs :153
+  `Mth.nextFloat(syncronizedRandom, 0.6F, 1.0F)`. The earlier f64 rolls were converted to f32 in
+  a prior pass; no `random::<f64>()` remains in the file. No fix required.
+
+Rows 1-4 were already FIXED/CORRECT in prior passes (open-water flag, cancelled-event hook
+retention, should_stop_fishing discard, rod durability). Every STILL OPEN row is now resolved:
+none remains open, and none needs generated data or a missing subsystem, so BLOCKED-DATA does not
+apply.
+
+No .rs file changed, so rustfmt was not required. No compile run (workers do not compile);
+verification by reading code against .vendor/vanilla-decompiled only. Diff re-checked against the
+worker compile-pitfalls table: no changes made, so none apply.
+
+Status: PASS fixed=0 open=0 files=none
