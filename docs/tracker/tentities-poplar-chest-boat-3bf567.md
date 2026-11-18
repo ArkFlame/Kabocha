@@ -89,3 +89,31 @@ Re-verified against the (now populated) `.vendor/vanilla-decompiled` tree:
 - 6 chest-boat NBT round-trip test: STILL OPEN. The test belongs to `boat.rs`, outside this unit.
 
 `rustfmt --edition 2024` run on both touched files (exit 0). No cargo run (worker constraint).
+
+
+## Result (re-review 2)
+
+Re-checked each STILL OPEN row against the current tree; this unit may edit only
+`hopper.rs`. All work achievable here was already landed by the prior pass and is
+present in this checkout, verified by re-reading the files (no new code needed).
+
+- 1 contents drop gated by `doEntityDrops`: already FIXED. `minecart.rs:980-996` moves
+  `claim_drops`/`scatter_inventory_at` outside the `entity_drops` rule; `boat.rs` already
+  scatters before the check. Both outside this unit's editable file, no action.
+- 2 dropped item spawn position: already FIXED. `minecart.rs:996` uses
+  `drop_stack_at(entity.pos)`; `boat.rs` already uses `drop_stack_at`. Outside this
+  unit's editable file, no action.
+- 3 `stillValid` / `canPlayerUse`: STILL OPEN, requires `ScreenHandler::can_use` in
+  `pumpkin-inventory` plus `MinecartScreenFactory` and `player.rs`, all outside this unit.
+- 4 `BoatItem` `minecraft:container` component: STILL OPEN, fix lives in
+  `item/items/boat.rs`, outside this unit.
+- 5 hopper path over a chest vehicle: already FIXED and verified. `hopper.rs:331-340`
+  selects a live entity with `has_container_inventory()`; `is_sided()` default `false`
+  gives all-slot access on every face, matching vanilla plain-`Container` behaviour.
+  Regression test `hopper_moves_items_both_ways_with_a_plain_entity_container`
+  (`hopper.rs:890`) covers insertion above and extraction below against a 27-slot
+  `MinecartInventory`. Re-read; correct, no change needed.
+- 6 chest-boat NBT round-trip test: STILL OPEN, test belongs to `boat.rs`, outside this unit.
+
+No code edits this pass (only `hopper.rs` is in scope and it was already correct);
+`rustfmt` not needed. No cargo run (worker constraint); orchestrator batch-compiles.
