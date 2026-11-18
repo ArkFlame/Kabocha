@@ -295,6 +295,7 @@ impl Bucketable for TadpoleEntity {
 mod tests {
     use super::*;
     use crate::entity::ai::test_support::world;
+    use crate::entity::custom_sound::CustomSound;
     use pumpkin_util::math::vector3::Vector3;
 
     #[tokio::test]
@@ -315,6 +316,22 @@ mod tests {
         nbt.put_bool("FromBucket", false);
         tadpole.fish_read_nbt(&nbt);
         assert!(bucketable.is_from_bucket());
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tadpole_sound_volume_matches_vanilla() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let tadpole = TadpoleEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::TADPOLE,
+        ));
+        // Vanilla Tadpole does not override getSoundVolume; only the grow-up sound is 0.15.
+        let sound = tadpole.as_custom_sound().ok_or("missing CustomSound")?;
+        assert!((CustomSound::sound_volume(sound) - 1.0).abs() < f32::EPSILON);
         world.level.shutdown().await;
         Ok(())
     }
