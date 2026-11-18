@@ -66,3 +66,49 @@ STILL OPEN: gap 11 (S): note says verify intent; the legacy-scan dragon spawn pa
 - gap 10 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `validPlayer` uses `withinDistance(origin.x, 128 + origin.y, origin.z, 192.0)`, so the origin + (0,128,0) sphere centre is correct.
 - gap 11 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `scanState` also sets `dragonKilled = false` when `!hasPreviouslyKilledDragon && dragonKilled`.
 - Test: added pure unit test `gateway_shuffle_is_deterministic_per_seed` in dragon_fight.rs guarding the deterministic (seeded) gateway order from gap 8.
+
+## Final Result (re-verification)
+
+All STILL OPEN rows re-checked against `.vendor/vanilla-decompiled/net/minecraft/`.
+The earlier Result section was stale: gaps 1 and 2 were subsequently fixed in code
+but still recorded as open. Final status of every row:
+
+- gap 1 (M): FIXED. `get_spikes()` (dragon_fight.rs:238-241) now calls
+  `EndSpikeFeature::get_spikes_for_seed(self.seed)`; `self.seed` is stored in
+  `new_with_seed`/`init`. Worldgen `end_spike.rs:140-144` now uses
+  `chunk.world_seed()` instead of seed 0, so fight crystals and worldgen pillars
+  agree on every seed.
+- gap 2 (M): FIXED AND WIRED. `write_nbt`/`from_nbt` exist (dragon_fight.rs:168-232)
+  and are consumed by `world/mod.rs:686` (load) and `world/mod.rs:9176` (save).
+  Gateways, exit portal, respawn stage/crystals, dragon uuid and killed flags persist.
+- gap 3 (S): VERIFIED MATCHING VANILLA, no change. Decompiled `EnderDragonFight.tick()`
+  (EnderDragonFight.java:184-233) wraps the state scan, respawn stage machine and
+  dragon/crystal ticking in `if (!dragonEvent.getPlayers().isEmpty())`, with the
+  else branch only removing the DRAGON chunk ticket. Pumpkin's early return when
+  `bossbar_players.is_empty()` is the same gate; the earlier claim that vanilla
+  advances the stage machine for an empty arena was a misreading.
+- gap 4 (S): FIXED (already recorded). `spawn_exit_portal` matches vanilla
+  `spawnExitPortal` exactly: heightmap MOTION_BLOCKING_NO_LEAVES at the podium
+  location, `.below()`, skip bedrock while y > 63, clamp to `min_y + 1`
+  (EnderDragonFight.java:518-528).
+- gap 7 (S): VERIFIED MATCHING VANILLA, no change. `spawnNewGateway` places the
+  END_GATEWAY_DELAYED feature; `spawn_new_gateway_at`'s bedrock/air shell is that
+  delayed feature's placement, not extra writes.
+- gap 9 (S): VERIFIED MATCHING VANILLA, no change. `hasActiveExitPortal` uses
+  absolute chunks -8..=8 while `findExitPortal` offsets by the origin chunk
+  (EnderDragonFight.java:339-360); the asymmetry is a vanilla quirk.
+- gap 10 (S): VERIFIED MATCHING VANILLA, no change. `validPlayer` uses
+  `withinDistance(origin.x, 128 + origin.y, origin.z, 192.0)`
+  (EnderDragonFight.java:163).
+- gap 11 (S): VERIFIED MATCHING VANILLA, no change. `scanState` sets
+  `dragonKilled = false` when `!hasPreviouslyKilledDragon && dragonKilled`
+  (EnderDragonFight.java:296-298).
+- Tests already present: `gateway_shuffle_is_deterministic_per_seed`,
+  `spikes_follow_fight_seed`, `dragon_fight_nbt_round_trip`. No new test seam:
+  remaining rows are vanilla-matching no-ops needing a live `World`.
+- Formatting: `rustfmt --edition 2024 --check` clean on all four in-scope .rs files.
+
+Post-restart re-verification: all fixes above confirmed present in source on disk (seeded spikes
+and gateways, `write_nbt`/`from_nbt`, heightmap podium Y, `world_seed()` worldgen fix, save/load
+wiring at world/mod.rs 686/689/9210, and the three unit tests). API signatures checked against
+the NBT and world crates; no further edits required.

@@ -74,3 +74,61 @@ Re-reviewed against the decompiled vanilla tree at
   `AbstractChestBoat.openCustomInventoryScreen` has no such check (the
   `(!isVehicle() || hasPassenger(player))` rule belongs to `AbstractHorse`), and `player.openMenu`
   succeeds while another player rides, so a full chest boat must still offer its container.
+
+## Result (re-review 2)
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`
+and the current Pumpkin source. All three are already fixed in the tree; no source
+edits were needed this pass (this unit had no editable basenames).
+
+- 1 chest contents scatter on any destroying removal: FIXED and verified.
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77) drops contents for every
+  `reason.shouldDestroy()`. Pumpkin `BoatEntity::on_removed` (boat.rs:488) calls
+  `scatter_chest_contents` (boat.rs:272), guarded by `MinecartInventory::claim_drops`
+  (minecart/container.rs:39) so the scatter fires at most once; `World::remove_entity`
+  (world/mod.rs:6649) invokes `on_removed` for kill, void and discard. The damage path
+  scatters explicitly too, matching `AbstractChestBoat.destroy` (:65-68) and
+  `ContainerEntity.chestVehicleDestroyed` (:84-91), which gates the damage drop on
+  `doEntityDrops`.
+- 2 shared `getMaxPassengers` helper: FIXED (corrects the prior "LEFT OPEN" note).
+  `boat.rs::max_passengers` (boat.rs:95) is now the single source of truth and is reused
+  by the mob-push mounting path in `entity/mod.rs:1337-1338`, replacing the duplicated
+  chest-boat literal. Matches vanilla `AbstractBoat.getMaxPassengers` = 2 (:840-842)
+  and `AbstractChestBoat.getMaxPassengers` = 1 (:47-50). No behaviour change.
+- 3 interact deciding result on a failed mount: FIXED and verified.
+  `AbstractBoat.interact` (:779-788), `canAddPassenger` (:836-838) and
+  `AbstractChestBoat.interact` (:80-97) offer the container whenever the ride did not
+  consume the click. The pure `chest_opens_container` (boat.rs:135) drives
+  `boat_interact_outcome` (boat.rs:161) used by `interact` (boat.rs:807), so an occupied
+  boat still opens its container; covered by the pure unit test
+  `chest_boat_offers_container_only_when_no_seat_or_secondary_use` (boat.rs:1189).
+  `open_custom_inventory_screen` (boat.rs:290) keeps only the alive guard, matching
+  vanilla's lack of a rider/spectator check.
+
+## Result (re-review 3, 2026-11-18)
+
+Re-verified the three STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`
+and the current Pumpkin source via read/grep only. This unit declares no editable source
+basenames, so no code edits were possible; every row is already fixed in the tree. No
+cargo run was performed (workers may not run cargo).
+
+- 1 chest contents scatter on any destroying removal: ALREADY FIXED, verified.
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77) drops contents for every
+  `reason.shouldDestroy()`. `BoatEntity::on_removed` (boat.rs:488) calls
+  `scatter_chest_contents` (boat.rs:272), with `claim_drops` guarding a second scatter; the
+  damage path scatters too (boat.rs:730). Matches vanilla `destroy` (:65-68) and
+  `ContainerEntity.chestVehicleDestroyed`.
+- 2 shared `getMaxPassengers` helper: ALREADY FIXED, verified.
+  `boat.rs::max_passengers` (boat.rs:95) is the single source of truth
+  (`CHEST_BOAT_MAX_PASSENGERS` = 1, `BOAT_MAX_PASSENGERS` = 2) and is reused by the mob-push
+  mounting path (entity/mod.rs:1337-1338). Matches `AbstractChestBoat.getMaxPassengers`
+  (:47-50). No behaviour change.
+- 3 interact deciding result on a failed mount: ALREADY FIXED, verified.
+  `AbstractChestBoat.interact` (:80-97) offers the container when the ride did not consume
+  the click. The pure `chest_opens_container` (boat.rs:135) feeds `boat_interact_outcome`
+  (boat.rs:161), used by `interact` (boat.rs:807), with pure unit tests in the boat test
+  module (boat.rs:1189-1258). `open_custom_inventory_screen` keeps only the alive guard,
+  matching vanilla (:100-106), which has no rider/spectator check.
+
+Status: PASS fixed=0 open=0 files=none (no editable basenames; all STILL OPEN rows already fixed; no cargo run allowed for workers)

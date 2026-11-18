@@ -102,3 +102,57 @@ Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraf
 No pure seam exists for the shape-update pass (it needs Arc<World>), so no new unit test was added;
 the existing palette/identifier tests in the same file still cover the data-only rows.
 rustfmt --edition 2024 was run on the one touched .rs file. Compile deferred to the orchestrator.
+
+
+## Result
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft (1.21.x Paper/Canvas tree).
+
+- Old line 49, entity capture and placement: VERIFIED ALREADY FIXED in the checkout. capture_structure_template_from_world fills entity_info_list (players excluded, AABB.encapsulatingFullBlocks, painting block_pos, int-array codec) and place_structure_template_in_world calls place_template_entities behind !ignore_entities, matching fillEntityList (StructureTemplate.java:175-193) and placeEntities (:511-547). No new change needed.
+- Old line 50, collision-shape-full + hasDynamicShape: VERIFIED ALREADY FIXED. has_dynamic_shape matches the only eight .dynamicShape() declarations in Blocks.java (moving_piston, bamboo, scaffolding, powder_snow, pointed_dripstone, sulfur_spike, shulkerBoxProperties for all 16 colors); is_full_cube comes from extracted collision boxes and the glass test covers the occlusion distinction. No new change needed.
+- Old line 51, non-strict shape reconnect: VERIFIED ALREADY FIXED. The !strict pass runs update_shape_at_edge then update_from_neighbor_shapes and writes NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE, equal to updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE for non-strict (updateMode = UPDATE_CLIENTS). No new change needed.
+- Old line 52, LootTableSeed gating (not marked STILL OPEN): FIXED a real mismatch. is_randomizable_container_id listed suspicious_sand and suspicious_gravel, but vanilla BrushableBlockEntity extends BlockEntity (not RandomizableContainer); the only implementors are RandomizableContainerBlockEntity subclasses (chest/trapped_chest, barrel, dispenser/dropper, hopper, shulker boxes, crafter) plus DecoratedPotBlockEntity. Removed the two brushable ids and extended loot_seed_only_for_randomizable_containers to assert they are excluded.
+- Old line 53, strict placement side effects: VERIFIED ALREADY FIXED. WorldBlockPlacer::new_with_skip_side_effects(world, strict) suppresses on_block_replaced drops in strict mode, mapping to vanilla UPDATE_SKIP_ALL_SIDEEFFECTS; nbt entries pre-clear the old block entity in both modes like the BARRIER pre-set. No new change needed.
+- Old line 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION. ServerLevel.sendBlockUpdated only fires blockChanged plus path/navigation cache invalidation; register_block_change already does both, so no neighbour update is missing.
+
+Only the LootTableSeed row needed an edit; the other STILL OPEN rows were already implemented in this checkout and are now verified against vanilla. rustfmt --edition 2024 run on the touched .rs file. Compile deferred to the orchestrator.
+
+
+## Result
+
+Third pass. Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft
+(StructureTemplate.java, StructureBlockEntity.java, RandomizableContainer implementors,
+BrushableBlockEntity.java, DecoratedPotBlockEntity.java). No new source edits were needed; every
+row is already implemented and matches vanilla.
+
+- Old line 49, entity capture and placement: VERIFIED ALREADY FIXED. capture_structure_template_from_world
+  fills entity_info_list (players excluded via EntityType::PLAYER, AABB.encapsulatingFullBlocks,
+  painting block_pos via int-array codec), and place_structure_template_in_world calls
+  place_template_entities behind !ignore_entities. Matches fillEntityList (StructureTemplate.java:175-193)
+  and placeEntities (:414-425, :511).
+- Old line 50, collision-shape-full + hasDynamicShape: VERIFIED ALREADY FIXED. Palette split uses
+  state.is_full_cube() && !has_dynamic_shape(block.name) (structure_block.rs:287-289), matching
+  StructureTemplate.java:150. has_dynamic_shape covers all eight dynamicShape() declaration sites
+  (moving_piston, bamboo, scaffolding, powder_snow, pointed_dripstone, sulfur_spike, 16 shulker boxes).
+- Old line 51, non-strict shape reconnect: VERIFIED ALREADY FIXED. The !strict pass runs
+  update_shape_at_edge then update_from_neighbor_shapes, writes
+  NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE, then update_neighbors_at (structure_block.rs:720-739),
+  equal to updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE for non-strict
+  (StructureTemplate.java:377-401).
+- Old line 52, LootTableSeed gating: VERIFIED ALREADY FIXED. is_randomizable_container_id lists
+  chest/trapped_chest/barrel/dispenser/dropper/hopper/crafter/decorated_pot plus all shulker boxes.
+  Confirmed against decompiled classes: RandomizableContainerBlockEntity subclasses are Chest
+  (incl. trapped), Dispenser (incl. dropper), Barrel, Hopper, ShulkerBox, Crafter, and
+  DecoratedPotBlockEntity implements RandomizableContainer directly; BrushableBlockEntity extends
+  plain BlockEntity and is correctly excluded (StructureTemplate.java:322-324).
+- Old line 53, strict placement side effects: VERIFIED ALREADY FIXED.
+  WorldBlockPlacer::new_with_skip_side_effects(world, strict) suppresses drop callbacks, and the
+  remove_block_entity pre-clear for NBT entries mirrors the BARRIER pre-set
+  (StructureTemplate.java:293-295).
+- Old line 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION. set_structure_block.rs
+  ends with mark_dirty + update_block_entity + register_block_change (:147-150), matching
+  ServerLevel.sendBlockUpdated (blockChanged + cache invalidation), which sends no neighbour update.
+
+No pure unit-test seam exists for the Arc<World> placement paths; the existing palette and
+loot_seed_only_for_randomizable_containers tests in structure_block.rs cover the data-only rows.
+No files edited this pass. Compile deferred to the orchestrator.

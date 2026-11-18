@@ -22,9 +22,9 @@ tracker's "2 vanilla markers" are the `vanilla_data` constructor parameter (line
 | lib.rs:839 (`rl.readline("$ ")`) | `DedicatedServer` console thread | Vanilla's dedicated console has no prompt; Pumpkin prints a custom "$ " prompt. Cosmetic, config-gated `use_tty`. | Leave as is unless strict console-output parity is wanted. | S |
 
 ## Gap status
-- 1 login/config stop closes silently (lib.rs:240): STILL OPEN, M.
-- 2 shutdown log wording (lib.rs:599-636): STILL OPEN, S, cosmetic.
-- 3 console "$ " prompt (lib.rs:839): STILL OPEN, S, cosmetic.
+- 1 login/config stop closes silently (lib.rs:240): FIXED (see Result).
+- 2 shutdown log wording (lib.rs:599-636): FIXED (see Result).
+- 3 console "$ " prompt (lib.rs:839): FIXED (see Result).
 - Shutdown key at lib.rs:626 and server/mod.rs:1268: FIXED (verified).
 
 ## Result
@@ -44,3 +44,4 @@ tracker's "2 vanilla markers" are the `vanilla_data` constructor parameter (line
   vanilla's `readLine()`; rustyline keeps the history/completion behaviour.
 - Verified: `rustfmt --edition 2024` exits 0 on `crates/pumpkin-core/src/lib.rs`. No cargo run
   (orchestrator batch-compiles).
+- Re-verified this pass: vanilla Connection.java:323 disconnects pending login/config clients with multiplayer.disconnect.server_shutdown; MinecraftServer.java logs "Stopping server"/"Saving worlds"; DedicatedServer.java:181 uses reader.readLine() with no prompt. rustfmt --edition 2024 exits 0 (RUSTFMT_OK).

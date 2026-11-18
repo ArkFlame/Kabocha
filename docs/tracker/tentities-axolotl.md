@@ -48,3 +48,28 @@ Verified the rows marked STILL OPEN against the decompiled vanilla source under 
 Outcome: fixed 1 row (row 4); rows 2 and 3 verified already correct. Row 1 (travel effective-AI guard) was already fixed in a prior pass; row 6 (duplicated doc comment) is already a single line. Row 5 (bucket NBT keys) left open: needs checking against generated bucket data and is outside the explicit STILL OPEN set.
 
 Only axolotl.rs was edited; rustfmt --edition 2024 on it exited 0. No cargo/git run (per task rules), so compilation and tests are UNVERIFIED.
+
+## Result (recheck)
+
+Re-checked every STILL OPEN row against the current code in the main checkout. No decompiled vanilla source is present in this worktree (.vendor/ is absent and git clone is not permitted), so verification used the prior pass's decompiled-source notes plus direct code inspection.
+
+- Row 2 (play-dead regen): axolotl/ai.rs:40 sets PLAY_DEAD_REGENERATION_DURATION = 200 with amplifier 0 (ai.rs:359), matching vanilla Regeneration 200/0. That file is outside this unit; no edit.
+- Row 3 (no-AI air path): axolotl.rs:574-580 keeps the standard air rules for no-AI axolotls and the dry-out handler for AI axolotls, as previously verified against vanilla; no mismatch found. No change.
+- Row 4 (hurt play-dead condition): axolotl.rs:158-166 and :374 already implement the two-roll OR and the source||cause check; tests at :1358-1359 assert only_source and only_cause both play dead. No change.
+- Row 1 (travel effective-AI guard) and row 6 (duplicated doc comment) were already fixed in earlier passes (axolotl.rs:592-599 and :183).
+- Row 5 (extra bucket NBT keys): left open because confirming whether Age/AgeLocked/HuntingCooldown are vanilla requires generated bucket data outside this unit (axolotl.rs:412-435).
+
+No .rs file was changed, so rustfmt was not needed. No cargo or git command was run per task rules; compile and tests remain UNVERIFIED.
+
+## Result (decompiled-source verification, .vendor present)
+
+The decompiled vanilla tree is now available under .vendor/vanilla-decompiled/net/minecraft/, so every STILL OPEN row was checked against real method bodies this pass. No code change was needed: all rows already match vanilla.
+
+- Row 1 (effective-AI travel guard): axolotl.rs:592-599 falls back to `LivingEntity::travel_in_water` on `is_no_ai()`, matching vanilla `Axolotl.travel` gating the swim path on `isEffectiveAi() && isInWater()`. Already fixed.
+- Row 2 (play-dead regen): `PlayDead.start` (PlayDead.java:32) is `new MobEffectInstance(MobEffects.REGENERATION, 200, 0)`. ai.rs:40,358-359 use duration 200, amplifier 0. The doc's guessed (100, 1) was wrong. No change.
+- Row 3 (no-AI air path): vanilla `Axolotl.baseTick` (Axolotl.java:184-189) always runs the standard air rules via `super.baseTick()` (LivingEntity.java:507-528) and runs the dry-out handler only with AI; `Axolotl.handleAirSupply` (256-266) is exactly `water_animal::handle_air_supply` (water_animal.rs:52-60). axolotl.rs:574-580 routes no-AI to `tick_air_supply` and AI to `handle_air_supply`, and the dry-out helper sets air in both branches, so net air/damage match. No change.
+- Row 4 (hurt play-dead): `Axolotl.hurtServer` (Axolotl.java:396-408) confirmed the roll/half-health OR, `damage < health`, and `(source.getEntity() != null || source.getDirectEntity() != null)`. axolotl.rs:158-166,374 (source.is_some() || cause.is_some()) and tests at :1358-1359 match. Already fixed.
+- Row 5 (bucket NBT keys): RESOLVED. Vanilla `Axolotl.saveToBucketTag` (Axolotl.java:427-437) explicitly writes `Age`, `AgeLocked` and `HuntingCooldown` (gated on HAS_HUNTING_COOLDOWN memory value) into bucket entity data, and `loadFromBucketTag` (441-449) restores them. axolotl.rs:410-452 matches; the keys are vanilla, not speculative. Prior passes left this open only because vanilla source was absent. No change.
+- Row 6 (duplicated doc comment): axolotl.rs:183 is a single doc line. Already fixed.
+
+Outcome: fixed 0 rows this pass (all six already correct); row 5 newly verified against vanilla, closing the last open item. No pure unit test added: existing tests already cover hurt source/cause (:1358-1359) and bucket round trip (:1494-1545). No .rs file changed, so rustfmt was not applicable. No cargo/git run (per task rules); compile and tests UNVERIFIED.

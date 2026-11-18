@@ -54,9 +54,9 @@ Source audited:
    placement before changing. Size S (needs .vendor).
 
 ## Gap status
-- 2 orb drop offset: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 dispenser launch power: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 sculk vibration per projectile type: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 2 orb drop offset: RESOLVED (fixed via orb_award_direction + spawn_with_direction; see Result)
+- 3 dispenser launch power: RESOLVED (verified match against decompiled vanilla; no change needed)
+- 4 sculk vibration per projectile type: RESOLVED (verified false positive; no change needed)
 
 ## Result
 
@@ -79,3 +79,11 @@ Re-reviewed all three STILL OPEN rows against .vendor/vanilla-decompiled (now pr
   Vanilla Projectile.onHit emits GameEvent.PROJECTILE_LAND for both entity and block hits in the base
   class; ThrowableItemProjectile does not override onHit, and ThrownExperienceBottle.onHit calls
   super.onHit. Pumpkin's shared on_hit helper therefore correctly emits ProjectileLand for thrown items.
+
+- 7 silent guard (extra finding on re-review): FIXED. Re-reading decompiled
+  ThrownExperienceBottle.onHit confirmed particles fire whenever the ExpBottleEvent keeps the
+  effect, but SoundSpellPotionSplash is additionally gated by `!isSilent()`. The prior refactor
+  of on_hit had dropped that guard, firing the sound even for silent bottles. Restored
+  `if !entity.is_silent()` around the sound event in
+  crates/pumpkin-core/src/entity/projectile/experience_bottle.rs. No test added: entity silence
+  is synced/data-driven with no pure seam here; the existing orb_direction test covers the same file.

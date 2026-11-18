@@ -367,15 +367,22 @@ impl CampfireBlockEntity {
         });
     }
 
-    fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, stack: ItemStack) {
-        // Vanilla CampfireBlockEntity.cookItems spawns the result at the block
-        // centre, one block above the campfire.
-        let spawn_position = Vector3::new(
+    /// Vanilla `CampfireBlockEntity.cookItems` drops the result at the campfire
+    /// block centre in all three axes.
+    fn cooked_item_spawn_position(position: BlockPos) -> Vector3<f64> {
+        Vector3::new(
             f64::from(position.0.x) + 0.5,
-            f64::from(position.0.y) + 1.0,
+            f64::from(position.0.y) + 0.5,
             f64::from(position.0.z) + 0.5,
+        )
+    }
+
+    fn spawn_cooked_item(world: &Arc<World>, position: BlockPos, stack: ItemStack) {
+        let entity = Entity::new(
+            world.clone(),
+            Self::cooked_item_spawn_position(position),
+            &EntityType::ITEM,
         );
-        let entity = Entity::new(world.clone(), spawn_position, &EntityType::ITEM);
         world.spawn_entity(Arc::new(ItemEntity::new(entity, stack)));
     }
 }
@@ -459,5 +466,13 @@ mod tests {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
         );
+    }
+
+    #[test]
+    fn cooked_item_spawns_at_block_centre() {
+        let spawn = CampfireBlockEntity::cooked_item_spawn_position(BlockPos::new(3, 64, -7));
+        assert_eq!(spawn.x, 3.5);
+        assert_eq!(spawn.y, 64.5);
+        assert_eq!(spawn.z, -6.5);
     }
 }

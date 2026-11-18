@@ -121,3 +121,35 @@ workers and are recorded as fixed rather than re-fixed. This section supersedes 
 
 Net code changes this pass: none (no source basenames assigned to this unit). No rustfmt (no
 .rs file touched). No build/test run (worker constraint); the orchestrator batch-compiles.
+
+
+## Result
+
+Decompiled tree is present this pass at `.vendor/vanilla-decompiled/net/minecraft/`. This unit
+has no source basenames, so no .rs file may be edited; rows needing `boat.rs` or
+`item/items/boat.rs` are left open with a reason. This section supersedes the older "Gap status"
+and "Result" sections above.
+
+- Gap 2 (BoatItem `minecraft:container` component): VERIFIED FALSE POSITIVE, left open OUT OF
+  UNIT. Decompiled `BoatItem.getBoat` (BoatItem.java:93-104) only calls
+  `EntityType.createDefaultStackConfig(...).apply(boat)`. That resolves to
+  `appendComponentsConfig` -> `Entity.applyComponentsFromItemStack` ->
+  `applyImplicitComponents` (EntityType.java:156-170, Entity.java:7215-7217), whose base
+  `applyImplicitComponent` handles only `CUSTOM_NAME` and `CUSTOM_DATA` (Entity.java:7239-7249).
+  `AbstractChestBoat` does not override `applyImplicitComponent`, so this target version does NOT
+  copy `minecraft:container` contents on placement. Pumpkin ignoring the component is correct
+  parity; no fix warranted, and the file (`item/items/boat.rs`, basename `boat.rs`) is outside
+  this unit regardless.
+- Gap 3 (hopper / worldly container): VERIFIED FALSE POSITIVE, left open OUT OF UNIT. Decompiled
+  `HopperBlockEntity.getEntityContainer` (HopperBlockEntity.java:783-788) selects any entity that
+  is a `Container` (`EntitySelector.CONTAINER_ENTITY_SELECTOR`); `getContainerAt` (754-765) feeds
+  it to both push and pull. `AbstractChestBoat implements ContainerEntity` which `extends Container,
+  MenuProvider` (ContainerEntity.java:32), so in vanilla a hopper above a chest boat CAN insert
+  into and extract from all slots. Pumpkin exposing it via `has_container_inventory` matches this;
+  no change needed, and the file (`boat.rs`, basename `boat.rs`) is outside this unit regardless.
+- Gaps 1, 4, 5: not re-litigated; prior pass recorded them ALREADY FIXED in the checkout
+  (stillValid validity closure in `minecart/container.rs`, `entity.pos.load()` scatter in
+  `boat.rs`/`minecart.rs`, chest-boat NBT round-trip test in `boat.rs`). No change by this unit.
+
+Net code changes: none (no source basenames assigned). No rustfmt (no .rs file touched). No
+build/test run (worker constraint); the orchestrator batch-compiles.

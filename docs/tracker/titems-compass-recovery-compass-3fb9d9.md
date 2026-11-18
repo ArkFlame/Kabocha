@@ -78,3 +78,15 @@ Re-verified this pass against `.vendor/vanilla-decompiled/net/minecraft/` (`SetW
 - Row 2 STILL OPEN, out of scope: `isFoil` glint needs `ItemBehaviour::is_foil` (`item/mod.rs`) plus `ItemStack::has_foil` (cross-crate pumpkin-data).
 - Row 3 STILL OPEN, out of scope: dead `compass_target` field/methods live in `entity/player.rs`.
 - Row 5 STILL OPEN, out of scope: gametest needs a new test file; no pure unit-test seam in either in-scope file (`use_on_block` needs Player/Server/World, `execute` needs CommandContext).
+
+## Result
+
+Re-verified all STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/` this pass. No in-scope source change was needed; both allowed files already match vanilla. No .rs file touched, so no rustfmt run; no compile check (shell/cargo forbidden for this worker).
+
+- In scope `setworldspawn.rs` `execute`: `SetWorldSpawnCommand.java:22-29` uses `BlockPos.containing` for the no-arg self path (Rust `BlockPos::floored_v`, :34) and `BlockPosArgument.getSpawnablePos` for both `pos` variants (Rust `get_spawnable_pos`, :38/:42). Verified `get_spawnable_pos` (pumpkin-command block_pos.rs:125) bounds-checks via `is_valid_block_pos` (x/z -30M..30M, y -20M..20M), identical to vanilla `Level.isInSpawnableBounds` (Level.java:1107-1123). Rotation uses `getRotation` (vanilla `RotationArgument.getRotation`, :28). No gap.
+- In scope `compass.rs` `use_on_block` (:25-76): matches `CompassItem.useOn` (CompassItem.java:46-69): lodestone check, `LODESTONE_COMPASS_LOCK` on `Players`, `transmuteCopy` then consume then set/drop, in-place set when `!hasInfiniteMaterials && count==1`. The extra `item.item.id == COMPASS.id` guard (:35) is the intentional Pumpkin workaround because RECOVERY_COMPASS shares this behaviour class; it stops a recovery compass acquiring a `LODESTONE_TRACKER`, matching vanilla (vanilla recovery compass is a plain Item). No gap.
+- Row 1 STILL OPEN, out of scope: lodestone `inventoryTick`/`tick` lives in `entity/player.rs`. Verified vanilla `LodestoneTracker.tick` (LodestoneTracker.java:26-42): returns `this` on dimension mismatch, `new LodestoneTracker(Optional.empty(), true)` when the lodestone is gone (tracked stays true); the doc's "tracked: false on missing world" wording is inaccurate. Body already marks FIXED (UNVERIFIED). Left for the player.rs owner.
+- Row 2 STILL OPEN, out of scope: `isFoil` glint needs `ItemBehaviour::is_foil` (`item/mod.rs`) plus `ItemStack::has_foil` (cross-crate pumpkin-data). Cannot add from compass.rs. Verified vanilla `CompassItem.isFoil` (CompassItem.java:30-32) returns `has(LODESTONE_TRACKER) || super.isFoil`.
+- Row 3 STILL OPEN, out of scope: dead `compass_target` field/methods live in `entity/player.rs`.
+- Row 4 verified, no change needed in scope: it is a note, not a gap; RECOVERY_COMPASS kept under CompassItem for shared hooks as documented.
+- Row 5 STILL OPEN, out of scope: a gametest needs a new test file, not an allowed file. No pure unit-test seam in either in-scope file (`use_on_block` needs Player/Server/World; `execute` needs CommandContext), so no smallest pure unit test could be added.

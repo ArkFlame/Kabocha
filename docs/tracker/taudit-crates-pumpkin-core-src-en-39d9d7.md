@@ -46,26 +46,38 @@ Remaining gaps:
 
 ## Gap status
 
-- STILL OPEN: all combat.rs/player.rs rows (mace push, can_smash_attack !on_ground intentional, record_damage hooks, sweep damage, causeExtraKnockback, bedrock sweep kept). Not re-verified in h3 sweep.
+- FIXED in combat.rs (and its existing call site): mace push, combat enter/leave hooks,
+  live assisted-fall item, non-living knockback helper. Verified against decompiled vanilla
+  now present in the .vendor/vanilla-decompiled tree (MaceItem, CombatTracker, CombatRules, Player).
+- OPEN, outside this unit: player.rs sweep damage (needs a sweep damage type in generated
+  data); player.rs sweep knockback and post-attack effects (separate worker).
 
 ## Result
 
-- `combat.rs` `mace_smash_knockback` (S) - FIXED. The impulse now goes through
-  `Entity::push_by`, which marks velocity dirty and keeps Bedrock's predicted push in step,
-  and a motion packet is still sent to each pushed player, mirroring vanilla
-  `MaceItem.knockback` (`push(x, 0.7, z, attacker)` + `ClientboundSetEntityMotionPacket`).
-  Added `non_living_knockback_impulse` helper plus a pure unit test for it.
-- `combat.rs` `record_damage` combat enter/leave hooks (M) - OPEN. Firing
-  `mob.onEnterCombat()`/`onLeaveCombat()` needs the owning entity passed into the tracker
-  and the hooks fired at the call sites in `entity/living.rs`, which is outside this unit.
-- `combat.rs` `get_message_for_assisted_fall` live main-hand item (S) - OPEN. Reading the
-  attacker's current main hand at message time requires passing the attacker entity into
-  `CombatTracker::get_death_message` from the `entity/living.rs` call site, outside this unit.
-- `player.rs` sweep damage (M) - OPEN. Vanilla V_26_3 `doSweepAttack` needs the sweep damage
-  source/model; no sweep damage type exists in `pumpkin-data` generated data, so a faithful
-  port needs generated data this unit cannot add.
-- `player.rs` `causeExtraKnockback` non-living push (S) - FIXED. Non-living victims now get the
-  raw push with vanilla's opposite horizontal sign and 0.1 lift, the attacker stops sprinting,
-  and its velocity decays by 0.6. Verified against decompiled `Player.causeExtraKnockback`.
-- `player.rs` sweep ally/marker/distance checks, knockback and box - already match vanilla in
-  the current checkout; no change needed.
+- combat.rs mace_smash_knockback (S) - FIXED. The impulse goes through Entity::push_by, which
+  marks velocity dirty (vanilla MaceItem.knockback calls Entity.push(x, 0.7, z, attacker)), and a
+  motion packet is still sent to each pushed player. Power and radius use the full 3D offset.
+  Unit test smash_knockback_power_uses_full_3d_distance covers the falloff.
+- combat.rs record_damage combat enter/leave hooks (M) - FIXED. The tracker returns
+  CombatStateChange { entered, left, end_duration } computed where vanilla fires
+  mob.onEnterCombat / onLeaveCombat; the call site in entity/living.rs consumes it and calls
+  on_enter_combat / on_leave_combat(end_duration). Vanilla shouldEnterCombat checks
+  source.getEntity() instanceof LivingEntity, which maps to Pumpkin cause.or(source) living.
+  Unit test combat_reset_clears_state_and_reports_duration covers reset and leave duration.
+- combat.rs get_message_for_assisted_fall live main-hand item (S) - FIXED. get_fall_message
+  resolves the attacker's current main hand by entity id via
+  live_main_hand_item_name(world, attacker_id) at message time, matching vanilla
+  getMessageForAssistedFall reading attackerEntity.getMainHandItem(). No call-site change was
+  needed, so this stays in this unit. Unit test
+  assisted_fall_uses_live_item_name_and_falls_back_without_it covers both branches.
+- player.rs sweep damage (M) - OPEN. Vanilla doSweepAttack needs a sweep damage type; none
+  exists in pumpkin-data generated data, so a faithful port needs generated data this unit
+  cannot add. Also in player.rs, which is outside this unit.
+- player.rs causeExtraKnockback non-living push (S) - FIXED. The pure impulse helper
+  non_living_knockback_impulse lives in combat.rs and is used by the player.rs call site with
+  vanilla's opposite horizontal sign and 0.1 lift. Unit test
+  non_living_knockback_uses_opposite_horizontal_sign_and_small_lift covers it.
+- Kept: AttackType::new skips sweeping on Bedrock (Bedrock clients cannot sweep);
+  can_smash_attack omits not-on-ground intentionally (Pumpkin fall distance is client-driven,
+  so a ground-only packet would otherwise keep a stale smash); the get_killer_entry heuristic
+  has no parity requirement.

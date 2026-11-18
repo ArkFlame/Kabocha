@@ -87,3 +87,74 @@ Verified STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/serve
 Test: no pure seam exists for a command executor's return literal, so no new unit test
 was added; the existing `wrap_time` test is unchanged.
 Files touched: crates/pumpkin-core/src/command/commands/time.rs.
+
+
+## Result (pass 2, current HEAD 1cddd3e37)
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java`,
+`world/clock/ClockTimeMarker.java`, `world/clock/ServerClockManager.java` and the
+en_us translation strings. The source has advanced since the prior Result: rows 1, 2, 3,
+5, 9 and 10 are now implemented in `crates/pumpkin-core/src/command/commands/time.rs`
+(clean against HEAD). Smallest rows first:
+
+- `/time rate` Bedrock message: verified, no change. Bedrock has no rate key; both branches
+  fall back to `COMMANDS_TIME_SET` with the rate. LEFT OPEN (needs a generated Pumpkin key).
+- 8. f32/i64 `to_string` formatting: verified. `format!("{rate:?}")` matches Java
+  `Float.toString` for ordinary values; only the scientific-notation edge differs.
+  LEFT OPEN (minor; a faithful Java formatter is out of scope).
+- 10. `/time add` negative bound: verified. `TimeArgumentType::new(i32::MIN)` matches
+  vanilla `TimeArgument.time(Integer.MIN_VALUE)`. CLOSED.
+- 9. pause/resume/rate return value: verified. `ActionExecutor` returns `Ok(1)` for those
+  actions (`Command.SINGLE_SUCCESS`); queries still return `wrap_time` as in vanilla.
+  CLOSED.
+- 6. Bedrock rate key: LEFT OPEN (same reason as first row; translation keys are generated).
+- 1. `/time set <timemarker>`: verified CLOSED. `SetTimeMarkerExecutor`, `builtin_time_marker`
+  and the 4 suggestions match `ClockTimeMarker.occursAt`/`resolveTimeToMoveTo` and `day.json`
+  (`show_in_commands` only for day/noon/night/midnight). Extended the pure test to cover
+  all six builtin markers and their vanilla ticks.
+- 2. foreign clock id: verified CLOSED. `resolve_clock_name` checks
+  `has_dynamic_registry_entry("minecraft:world_clock")` and errors with `ERROR_UNKNOWN_CLOCK`;
+  non-default clocks use `ServerClockManager` instances.
+- 3. `no_default_clock`: verified CLOSED. `default_clock_name` returns `None` for the Nether,
+  producing `ERROR_NO_DEFAULT_CLOCK`.
+- 5. one LevelTime per world / clocks: verified CLOSED. Per-clock `ClockInstance`s live in
+  `ServerClockManager` in `world/time.rs`.
+- 7. query day/daytime hardcoded `minecraft:day`: verified partial. `ensure_day_timeline_clock`
+  reproduces vanilla `wrong_timeline_for_clock` for other clocks, but arbitrary timelines
+  (`moon`, `villager_schedule`, datapacks) are not queryable. LEFT OPEN (needs timeline
+  registry support, outside this unit).
+
+Test: extended `builtin_markers_resolve_against_the_day_timeline` in `time.rs` (pure, no new
+seam needed elsewhere). `rustfmt --edition 2024` run on the touched file. Compile/tests were
+NOT run (orchestrator compiles after all workers finish).
+Files touched: crates/pumpkin-core/src/command/commands/time.rs (test only); no code change.
+
+## Result (pass 3, current HEAD)
+
+Re-verified the three remaining STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java` (26.3, Paper/Canvas
+patched) and the generated Bedrock translation table. Every remaining row needs a resource
+outside this unit (registry_id.rs / time.rs), so no source change was made.
+
+- 6. Bedrock `/time rate` message: LEFT OPEN. Vanilla has no rate command; Pumpkin falls back
+  to `COMMANDS_TIME_SET` ("Set the time to <rate>"). The Bedrock table has no rate key (only
+  CLOCK_SET/ADDED/PAUSED/RESUMED/QUERY_TIME/FAILED/NUM_TOOSMALL/TIMEMARKER_*), and adding one
+  means editing generated translation data (outside this unit).
+- 7. query day/daytime for arbitrary timelines: LEFT OPEN. Vanilla resolves a `timeline`
+  resource against the TIMELINE registry in `queryTimelineTicks`/`queryTimelineRepetitions`;
+  Pumpkin only models `minecraft:day`. Needs the timeline registry and world/time.rs (outside
+  this unit). `ensure_day_timeline_clock` still reproduces vanilla `wrong_timeline_for_clock`
+  for non-default clocks.
+- 8. rate float formatting: LEFT OPEN. Java `Float.toString` differs from Rust `{rate:?}` only
+  for rates in [1e-5, 1e-3) (e.g. "1.0E-5" vs "1e-5"); `{rate:?}` matches Java for every
+  ordinary rate in the valid [1e-5, 1000] range. The tested Java formatter
+  (`java_float_to_string`) is private in data.rs (outside this unit); duplicating it here
+  would risk drift.
+
+Also re-checked the already-CLOSED rows against vanilla; all remain correct: `setPaused` and
+`setRate` return `Command.SINGLE_SUCCESS` (1), `addTime` uses `TimeArgument.time(Integer.MIN_VALUE)`,
+per-clock instances and the dimension's `default_clock` are modelled, and the `<timemarker>` and
+registry-id validation paths match vanilla (TimeCommand.java:104,281,295 and the clock helpers).
+
+No pure seam for a new test; existing tests unchanged. No compile run (orchestrator builds all).
+Files touched: docs/tracker/taudit-crates-pumpkin-core-src-co-122988.md (this Result only).

@@ -117,3 +117,35 @@ present in this checkout, verified by re-reading the files (no new code needed).
 
 No code edits this pass (only `hopper.rs` is in scope and it was already correct);
 `rustfmt` not needed. No cargo run (worker constraint); orchestrator batch-compiles.
+
+
+## Result (re-review 3)
+
+Re-verified the STILL OPEN rows against the populated `.vendor/vanilla-decompiled` tree
+(`world/level/block/entity/HopperBlockEntity.java`, `world/entity/vehicle/ContainerEntity.java`,
+`world/entity/vehicle/boat/AbstractChestBoat.java`). Only `block/entities/hopper.rs` is in scope.
+
+- 1 contents drop vs `doEntityDrops`: OUT OF SCOPE (lives in `boat.rs`/`minecart.rs`; prior passes
+  already moved the cart drop outside the gamerule). No edit here.
+- 2 dropped item spawn position: OUT OF SCOPE (`boat.rs`/`minecart.rs`; already uses
+  `drop_stack_at(entity.pos)`). No edit here.
+- 3 `stillValid`/`canPlayerUse`: OUT OF SCOPE. Needs `ScreenHandler::can_use` in
+  `pumpkin-inventory` plus `MinecartScreenFactory` and `player.rs`, none of which are this unit's file.
+  (Vanilla confirms the gap: `ContainerEntity.isChestVehicleStillValid` requires
+  `!isRemoved() && player within 4.0 of the entity box`.)
+- 4 `BoatItem` `minecraft:container` component: OUT OF SCOPE (`item/items/boat.rs`).
+- 5 hopper path over a chest vehicle: FIXED and re-verified against vanilla. Vanilla
+  `HopperBlockEntity.getEntityContainer` (783-788) uses the same +/-0.5 AABB, alive+Container
+  filter (`EntitySelector.CONTAINER_ENTITY_SELECTOR`) and random pick as Pumpkin's
+  `get_entity_container` (`hopper.rs:321-341`). `MinecartInventory` does not override `is_sided()`
+  (default false) or `is_valid_slot_for()` (default true), matching a plain vanilla `Container`
+  reachable from every face. Regression test
+  `hopper_moves_items_both_ways_with_a_plain_entity_container` (`hopper.rs:890`) covers insertion
+  above and extraction below. Re-read; correct, no change needed.
+- 6 chest-boat NBT round-trip test: OUT OF SCOPE (test belongs to `boat.rs`).
+
+No code edits this pass: every row fixable in `hopper.rs` (row 5) was already landed and now
+re-verified against vanilla; the rest require files outside this unit. No cargo run (worker
+constraint); orchestrator batch-compiles.
+
+Status: PASS fixed=0 open=3 files=block/entities/hopper.rs (unchanged, re-verified)

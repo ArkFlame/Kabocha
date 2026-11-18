@@ -191,6 +191,18 @@ impl Raid {
         self.raid_omen_level
     }
 
+    /// Vanilla `Raid.getEnchantOdds`.
+    #[must_use]
+    pub const fn get_enchant_odds(&self) -> f32 {
+        match self.raid_omen_level {
+            2 => 0.1,
+            3 => 0.25,
+            4 => 0.5,
+            5 => 0.75,
+            _ => 0.0,
+        }
+    }
+
     pub fn set_raid_omen_level(&mut self, level: i32) {
         self.raid_omen_level = level.clamp(0, Self::MAX_RAID_OMEN_LEVEL);
     }
@@ -384,6 +396,14 @@ impl Raid {
                         None,
                     );
                     raider.apply_raid_buffs(group_number, false);
+                    // Vanilla Raid.spawnGroup enchants raid weapons from the raid omen
+                    // level; the world raid map is swapped out mid-tick, so use self.
+                    crate::entity::mob::equipment::apply_raid_weapon_buffs(
+                        mob.get_mob_entity(),
+                        raider_type.entity_type(),
+                        group_number,
+                        self.get_enchant_odds(),
+                    );
                 }
 
                 self.join_raid(group_number, uuid, &entity_base);
@@ -417,6 +437,12 @@ impl Raid {
                                 None,
                             );
                             raider.apply_raid_buffs(group_number, false);
+                            crate::entity::mob::equipment::apply_raid_weapon_buffs(
+                                mob.get_mob_entity(),
+                                riding_type,
+                                group_number,
+                                self.get_enchant_odds(),
+                            );
                         }
                         self.join_raid(group_number, rider_uuid, &rider_base);
                         world.spawn_entity_non_save(rider_base);
@@ -823,6 +849,15 @@ mod tests {
         assert!(is_within_raid_spawn_y(64 - 96, 64));
         assert!(!is_within_raid_spawn_y(64 + 97, 64));
         assert!(!is_within_raid_spawn_y(64 - 97, 64));
+    }
+
+    #[test]
+    fn raid_enchant_odds_match_vanilla_omen_table() {
+        let mut raid = Raid::new(1, BlockPos::ZERO, Difficulty::Normal);
+        for (omen, want) in [(0, 0.0), (1, 0.0), (2, 0.1), (3, 0.25), (4, 0.5), (5, 0.75)] {
+            raid.set_raid_omen_level(omen);
+            assert!((raid.get_enchant_odds() - want).abs() < f32::EPSILON);
+        }
     }
 
     #[test]

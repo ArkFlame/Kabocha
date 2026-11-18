@@ -232,6 +232,15 @@ pub(crate) fn tick_spawner<F: FnOnce()>(
             continue;
         }
 
+        // Vanilla BaseSpawner checks `mob.checkSpawnRules(level, SPAWNER)` before
+        // finalizeSpawn; for a PathfinderMob that is `getWalkTargetValue(pos) >= 0.0`.
+        if entity
+            .get_mob()
+            .is_some_and(|mob| mob.get_walk_target_value(&mob.get_entity().block_pos.load()) < 0.0)
+        {
+            continue;
+        }
+
         // TODO: support SpawnData NBT (`entity` tag, custom_spawn_rules, equipment).
         finalize_spawn(
             &entity,

@@ -80,3 +80,41 @@ the 1.21 `Enderman` / `EndermanLookForPlayerGoal` / `EndermanFreezeWhenLookedAt`
 - Gap 3 (freeze look limits): already FIXED. Re-verified in `chase_player.rs:57-84`:
   `look_at_with_range(.., 30.0, 30.0)`, no 256-block gate in `can_start`, and `should_continue`
   re-checks `is_player_staring`. No change.
+
+## Result (re-review 2026-11-18)
+
+- All three rows are already fixed; no source changes were needed this pass.
+- Gap 1 (projectile immunity, the only STILL OPEN row): confirmed FIXED and correct. Re-read decompiled
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Enderman.java:390-415`: vanilla gates the
+  dodge on `source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger()`, a damage-type tag (not a
+  direct-entity check), so the tracker premise was wrong. `enderman.rs:70-72` now uses
+  `damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)` with the `!entity.has_vehicle()` gate,
+  matching the same canonical check used in `living.rs:3581`. Imports (`tag`, `tag::Taggable`, `DamageType`)
+  and the six referenced `DamageType` constants all exist; `has_tag` reads the static registry-id list so the
+  unit test `projectile_damage_uses_damage_type_tag` needs no live registry. No change.
+- Gap 2 (double splash-potion teleport): confirmed FIXED. `entity/mob/mod.rs:3267-3269` returns early when
+  `pre_damage_with_context` is false, so `post_damage_with_context` is skipped for any pre-teleported hit
+  (projectiles and non-hurting potions). Water-sensitive potions teleport once in post-damage. Matches
+  vanilla `hurtServer` branches. No change.
+- Gap 3 (freeze look limits / re-check): confirmed FIXED. `chase_player.rs:57-84` uses
+  `look_at_with_range(.., 30.0, 30.0)`, has no 256-block gate in `can_start`, and `should_continue`
+  re-checks `is_player_staring`. No change.
+- No .rs file modified, so rustfmt was not run.
+
+## Result (CODER re-verify 2026-11-18)
+
+- Only STILL OPEN row is Gap 1 (projectile immunity). Verified against decompiled vanilla
+  `Enderman.hurtServer` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Enderman.java:395-399`):
+  the dodge is gated on `source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger()`, a damage-type
+  tag check, NOT a direct-entity `instanceof Projectile` check as the tracker row claimed. The premise
+  was wrong; Pumpkin is already correct.
+- `enderman.rs:70-72` `is_projectile_damage` uses `damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)`,
+  the canonical numeric-id tag check (same as `living.rs:3595`), covering dynamic tags and all projectile
+  translation-key mismatches (`mob_projectile`, `unattributed_fireball`, `wither_skull`, `wind_charge`).
+  `pre_damage_with_context:600` pairs it with `!entity.has_vehicle()`, which reads `Entity.vehicle` and is
+  the exact analogue of vanilla `!this.isPassenger()`. Bug-repro test `projectile_damage_uses_damage_type_tag`
+  (`:654-663`) is present. No change.
+- Gaps 2 and 3 already marked FIXED; spot-checked again: `post_damage_with_context:620-627` teleports once
+  per water-sensitive potion (pre-damage handles the rest), and `chase_player.rs` uses `look_at_with_range(.., 30.0, 30.0)`
+  with no 256-gate and `is_player_staring` re-check. Both correct, no change.
+- No .rs file modified, so rustfmt was not run.

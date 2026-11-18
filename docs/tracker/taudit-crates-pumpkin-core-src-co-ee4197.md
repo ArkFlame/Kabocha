@@ -89,3 +89,56 @@ Verification used the unmodded MC 26.2 source at
   No pure unit test seam exists (suggestion providers need a CommandContext), so no test added.
 
 Edits: crates/pumpkin-core/src/command/commands/datapack.rs; rustfmt --edition 2024 applied.
+
+
+## Result
+
+Re-verified against `.vendor/vanilla-decompiled` (26.3, protocol 777); anchor
+handling cross-checked against the unmodded 26.2 mache source. This run also had
+`version.rs` in scope.
+
+- 1. pack_format hardcode - FIXED (already in checkout). `JavaMinecraftVersion::data_pack_format()` in `pumpkin-util/src/version.rs` returns 121 for `V_26_3`, matching vanilla `SharedConstants.DATA_PACK_FORMAT_MAJOR = 121` / `MINOR = 0`; `LAST_PRE_MINOR_DATA_PACK_FORMAT = 81` matches `PackFormat.lastPreMinorVersion(SERVER_DATA)`. `pack_mcmeta_content` writes `min_format`/`max_format` as integers because minor == 0, matching `PackFormat.minorRange()` + `fullCodec`. Covered by `pack_mcmeta_json_structure`.
+- 2. Duplicate enable/disable logic - FIXED (already in checkout). `datapack.rs` calls `DatapackManager::enable_pack_checked` / `disable_pack_checked` and maps typed `DatapackError` via `error_type_for`; the local copies are gone.
+- 3. Anchor known but not enabled - VERIFIED MATCHING, NO CHANGE. Vanilla `getPack(c, "existing", false)` throws `ERROR_PACK_ALREADY_DISABLED` for a known-but-unselected anchor -> `NotEnabled` -> `ERROR_DISABLE_FAILED`; a truly unknown anchor throws `ERROR_UNKNOWN_PACK` -> `UnknownAnchor` -> `ERROR_UNKNOWN_DATAPACK`. `error_type_for` maps both correctly.
+- 4. reload_datapacks result discarded - NO CHANGE NEEDED. Vanilla `enablePack`/`disablePack` call `ReloadCommand.reloadPacks(...)` which returns void and reports failures asynchronously; the command result is `selected.size()`. Pumpkin logs a warning instead. Propagating a `Result` would diverge and needs `server/mod.rs` (outside this unit).
+- 5. pumpkin-unit-test exposed - LEFT OPEN. `get_enabled_packs` lives in `data/datapack/mod.rs` (basename mod.rs, outside this unit).
+- 6. Suggestion ids - FIXED (already in checkout). Both providers suggest each id once, quoting only ids with spaces or slashes; no internal `file/<name>` duplicates.
+- 7. `is_valid_pack_name` (Remaining gaps, in scope) - FIXED this run. Now mirrors vanilla `FileUtil.isValidPathSegment` (`[-._a-z0-9]+`, rejecting `.`/`..` and uppercase) and `isPathPartPortable` (trailing dot, reserved device names such as CON/COM1/LPT9). Extended the `valid_pack_name_check` unit test with those cases and a leading-dot positive case.
+
+Edits this run: `crates/pumpkin-core/src/command/commands/datapack.rs` (name validation + test); `rustfmt --edition 2024` applied. `version.rs` verified, no edit needed.
+
+
+## Result
+
+Final verification pass against `.vendor/vanilla-decompiled` (26.3). No further source edits were
+needed: every in-scope STILL OPEN row is already resolved in the checkout and matches vanilla.
+
+- 1. `pack_format` hardcode - VERIFIED FIXED. `SharedConstants.DATA_PACK_FORMAT_MAJOR = 121`,
+  `MINOR = 0`; `PackFormat.lastPreMinorVersion(SERVER_DATA) = 81`. `version.rs::data_pack_format()`
+  returns 121 for V_26_3, `LAST_PRE_MINOR_DATA_PACK_FORMAT` is 81, and `CURRENT_MC_VERSION = V_26_3`.
+  `PackFormat.fullCodec` serializes `minor == defaultMinor` as a single int, so `min_format`/`max_format`
+  are integers 121, matching `pack_mcmeta_content` and its `pack_mcmeta_json_structure` test. The
+  remaining `61` literals in `data/datapack/mod.rs` are legacy test fixtures, not production values.
+- 2. Duplicate enable/disable - VERIFIED FIXED. `datapack.rs` calls `enable_pack_checked` /
+  `disable_pack_checked`; all six `DatapackError` variants are mapped by `error_type_for`.
+- 3. Anchor known-but-not-enabled - VERIFIED MATCHING. Vanilla `DataPackCommand.getPack` throws
+  `commands.datapack.disable.failed` for a known-but-unselected anchor and `commands.datapack.unknown`
+  for an unknown id; `enable_pack_checked` returns `NotEnabled` / `UnknownAnchor` accordingly and
+  `error_type_for` maps both to the matching command error.
+- 4. `reload_datapacks` result - VERIFIED NO CHANGE. Vanilla `enablePack`/`disablePack` call
+  `ReloadCommand.reloadPacks(...)` which returns void and reports failures asynchronously; the command
+  result is `selected.size()`. Propagating a `Result` would diverge from vanilla.
+- 5. `pumpkin-unit-test` exposed - LEFT OPEN. `get_enabled_packs` lives in `data/datapack/mod.rs`
+  (outside this unit's files: datapack.rs, version.rs).
+- 6. Suggestion ids - VERIFIED FIXED. Both providers suggest each id once, quoting ids with spaces or
+  slashes; no internal `file/<name>` duplicates.
+- 7. `is_valid_pack_name` - VERIFIED FIXED. Mirrors vanilla `FileUtil.isValidPathSegment`
+  (`[-._a-z0-9]+`, rejects `.`/`..`) and `isPathPartPortable` (trailing dot plus reserved device names
+  CON/PRN/AUX/NUL/CLOCK$/COM[1-9]/LPT[1-9]); covered by `valid_pack_name_check`.
+- 8. Pack order model - LEFT OPEN. Truly preceding `vanilla` requires modeling selection order in
+  `LevelData` inside `data/datapack/mod.rs` (outside this unit); the current clamp to the first
+  configurable slot is the smallest in-scope behaviour.
+
+No code edits this pass (all in-scope rows already fixed/matching); existing tests cover the only pure
+unit-test seams (`is_valid_pack_name`, `pack_mcmeta_content`, `data_pack_format`); suggestion providers
+need a `CommandContext`, so no seam. Files changed this pass: none (unit doc only).

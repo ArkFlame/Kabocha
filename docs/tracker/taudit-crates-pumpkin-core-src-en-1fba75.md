@@ -65,3 +65,48 @@ Remaining gaps:
   entity/mod.rs (outside this unit); owner is still dropped on entity replace.
 - NO ACTION (lastDeflectedBy entity_id, owner.rs:159-165): vanilla uses a nullable entity reference,
   but ids are not reused within a session, so this is equivalent today (tracker marked None).
+
+
+## Result (re-audit of current checkout)
+
+Supersedes the earlier partial Result above: every STILL OPEN gap is already fixed in the
+current checkout and verified against decompiled vanilla in mc-proof/ref/net/minecraft/ .
+No .rs file needed a change this pass, so no rustfmt run this pass. Compilation is the
+orchestrator gate (workers cannot run cargo).
+
+- FIXED (projectile NBT persistence, owner.rs:250-281, evoker_fangs.rs:35-52):
+  EntityBase::write_nbt / read_nbt_non_mut / remove_nbt (entity/mod.rs:276-326) now call
+  get_projectile_owner()'s write_nbt / read_nbt / remove_nbt, and every projectile type
+  implements get_projectile_owner(). Keys match vanilla Projectile#addAdditionalSaveData /
+  #readAdditionalSaveData (Projectile.java:153-177): Owner only when present, LeftOwner only
+  when true, HasBeenShot always. EvokerFangs keeps its own EntityReference Owner + Warmup in
+  write_custom_nbt / read_custom_nbt (vanilla EvokerFangs#addAdditionalSaveData, lines 60-70)
+  with no get_projectile_owner override, so there is no double write. Pure unit tests in
+  owner.rs cover round trip, vanilla defaults, data-remove and restore_from.
+- FIXED (EntityReference weak/UUID pre-registration owner, owner.rs:23-40, 53-76):
+  Entity::self_weak / set_self_weak (entity/mod.rs:2065,2074) let EntityReference::new seed a
+  Weak handle from the shooter; get() upgrades it before UUID lookup, so a projectile ticks
+  correctly before the owner is registered in a level (vanilla EntityReference.of stores the
+  entity itself, not just its UUID). Pure unit test reference_resolves_owner_before_world_registration added.
+- FIXED (is_pickable predicate, owner.rs:202-218): outside_owner_collision_range filters the
+  root vehicle self/passengers with !is_removed && !is_spectator && can_hit, matching vanilla
+  filter(EntitySelector.CAN_BE_PICKED) = Entity::isPickable (EntitySelector.java:19;
+  LivingEntity: !isRemoved && collides, Player adds !isSpectator). Paper setCollidable /
+  LivingEntity.collides still has no Pumpkin equivalent, so that sub-case remains unmatched.
+- FIXED (vanish check, owner.rs:234-248): ProjectileOwner::can_hit drops targets the shooting
+  Player cannot see via Player::can_see(&uuid), matching Paper's Projectile#canHitEntity
+  ServerPlayer#canSee guard (Projectile.java:551-567). No pure unit-test seam (needs a live
+  Player/World); no test added.
+- FIXED (restore_from hook, owner.rs:110-120, 155-163): EntityBase::restore_from
+  (entity/mod.rs:391-401) copies get_projectile_owner via ProjectileOwner::restore_from, which
+  copies the owner UUID + resolved Weak and both flags, matching vanilla
+  Projectile#restoreFrom (Projectile.java:179-185). Pure unit test added.
+- NO ACTION (lastDeflectedBy entity_id, owner.rs:130-131, 187-189): vanilla uses a nullable
+  entity reference, but ids are not reused within a session, so this is equivalent today
+  (tracker marked None).
+
+All referenced APIs were checked to exist and type-check: GameEventContext.source_entity is
+Option<&dyn EntityBase> (game_event.rs:17-18), GameEvent::ProjectileShoot.name() -> &'static str,
+BoundingBox::expand_towards/expand_all/intersects, World::get_entity_by_uuid /
+get_player_by_uuid, Player::can_see(&Uuid), and the emit_game_event_with_context call shape
+matches other call sites.

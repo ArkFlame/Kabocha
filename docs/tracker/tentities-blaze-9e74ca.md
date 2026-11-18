@@ -40,9 +40,9 @@ fire immunity, and the ambient/hurt/death sounds all come from `assets/entities.
 Rust override. `isOnFire` returning the charged flag is already ported.
 
 ## Gap status
-- 1 STILL OPEN (no-op): `Mob::get_random` (`entity/mob/mod.rs:1634`) also returns `rand::rng()`, so the suggested per-entity RNG does not change the stream in this codebase.
-- 2 STILL OPEN: ordering vs goal tick not confirmed, S.
-- 3 STILL OPEN: `position_target` init not verified in this sweep, S.
+- 1 RESOLVED: `shoot_fireball` now uses the shooter's RNG via `Mob::get_random`, which returns a real per-entity `EntityRng` (`entity/mob/mod.rs:1672`); the spread stream is blaze-local.
+- 2 RESOLVED: ordering vs goal tick verified against vanilla `Mob.serverAiStep` (`Mob.java:826-852`), correct.
+- 3 RESOLVED: `position_target` init verified against vanilla `Mob.homePosition/homeRadius` and `MoveTowardsRestrictionGoal.canUse`, correct.
 
 
 ## Result
@@ -50,10 +50,12 @@ Rust override. `isOnFire` returning the charged flag is already ported.
 - Gap 1 (S, fireball spread RNG): FIXED in `blaze_attack.rs`. Vanilla `BlazeAttackGoal.tick` aims with
   `this.blaze.getRandom().triangle(...)`; `shoot_fireball` now takes the shooter's RNG via the
   `Mob::get_random` seam (`let mut rng = blaze.get_random()`) instead of calling the global
-  `rand::rng()` directly, matching vanilla's structure. Behaviourally a no-op today because
-  `Mob::get_random` (`entity/mob/mod.rs:1672`) also returns `rand::rng()`; converting that trait
-  method to a real per-entity seeded RNG is a cross-crate refactor outside this unit's files
-  (`entity/mob/mod.rs`, `MobEntity`), so the seed-sharing concern remains open there.
+  `rand::rng()` directly, matching vanilla's structure. `Mob::get_random` (`entity/mob/mod.rs:1672`)
+  now returns a real per-entity `EntityRng` backed by the entity's own seeded generator, so the
+  blast-spread stream is blaze-local and no longer shared across all blazes; the earlier
+  seed-sharing concern is resolved by that cross-crate change. No pure unit test seam exists here:
+  `shoot_fireball` spawns into a live world, so its RNG use is covered by the existing blaze tests
+  rather than an isolated deterministic test.
 - Gap 2 (S, AI-step ordering): VERIFIED CORRECT, no change. Vanilla `Mob.serverAiStep`
   (`Mob.java:826-852`) runs sensing, goal/target tick, navigation, then `customServerAiStep`, then
   move/look/jump controls. Pumpkin `MobEntity::server_ai_step` (`entity/mob/mod.rs:482-534`) uses

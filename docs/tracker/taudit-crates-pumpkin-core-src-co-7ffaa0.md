@@ -75,3 +75,75 @@ Files touched:
 
 Checks run: rustfmt --edition 2024 on both touched .rs files (rc 0, no errors). No cargo run per
 worker rules; compilation and tests left to orchestrator batch check.
+
+
+## Result
+
+Second verification pass against decompiled vanilla (current main-checkout state). Sources read:
+vanilla server/commands/RecipeCommand.java and stats/ServerRecipeBook.java.
+
+All five STILL OPEN rows are already resolved in the tree; no new code edits were required this
+pass (the current recipe.rs / recipe_book_add.rs already contain the fixes, and the per-player
+recipe-book state was added in player.rs by another worker outside this unit's edit scope):
+
+- 5. Raw argument in error text (XS): VERIFIED, no change needed. Pumpkin passes the parsed
+  Identifier (context.get_argument::<Identifier>("recipe")?.to_string(), always namespace:path)
+  to recipe.notFound, matching vanilla's parsed ResourceLocation echo in ResourceKeyArgument.
+- 4. Suggestion provider ids (S): VERIFIED fixed. recipe_suggestion_ids suggests only
+  DynamicRecipe::recipe_id() manager keys, skips SpecialCrafting (vanilla LEARNABLE_RECIPE =
+  !isSpecial) and deduplicates. Pure unit test recipe_suggestions_are_unique_and_skip_special passes.
+- 3. Display-id layout duplicated (S): VERIFIED fixed. static_recipe_display_count,
+  dynamic_recipe_has_display and dynamic_recipe_display_ids in recipe_book_add.rs are shared by
+  CRecipeBookAdd::write_packet_data (entry count at :567-575, skip at :664, id increments at
+  :613-615/:659) and /recipe take (offset in take_display_ids via the same helper). write_entry
+  returns Ok(false) for CraftingSpecial/CraftingDecoratedPot (:502-503), matching the skip set.
+  Pure unit test dynamic_display_ids_skip_non_displayed_recipes (recipe_book_add.rs :1400) and
+  take_removes_only_known_recipes_with_displays (recipe.rs :396) cover it.
+- 1. No server-side recipe book (M): VERIFIED fixed (outside this unit). Player.known_recipes
+  Mutex<HashSet<String>> (player.rs :884) is persisted under recipeBook.recipes NBT (:9397-9407
+  write, :9584-9596 read) and consumed by award_recipes (:10626). give now uses
+  new_learnable_recipes: adds only unknown learnable ids, sends CRecipeBookAdd only when changed,
+  returns the number actually added, and throws commands.recipe.give.failed when total == 0.
+  Mirrors vanilla ServerRecipeBook.addRecipes (:61-87, only !known && !isSpecial).
+- 2. take remove packet / wrong count (M): VERIFIED fixed. take_display_ids removes only known
+  learnable ids that have a display, sends CRecipeBookRemove only when changed, returns the number
+  actually removed, and throws commands.recipe.take.failed when total == 0. Mirrors vanilla
+  ServerRecipeBook.removeRecipes (:89-106). Counts are per-recipe (vanilla counts display entries);
+  for current data one display per recipe makes these equal.
+
+No rows remain open. No .rs file was edited this pass, so rustfmt was not run. Compilation and the
+two pure unit tests are left to the orchestrator batch check per worker rules.
+
+
+## Result
+
+Third verification pass. Current main-checkout state re-checked against decompiled vanilla
+server/commands/RecipeCommand.java, stats/ServerRecipeBook.java and
+commands/arguments/ResourceKeyArgument.java. All five STILL OPEN rows were already resolved in
+the tree on arrival; no code edits were required this pass.
+
+- 5. Raw argument in error text (XS): VERIFIED, no change. Pumpkin passes the parsed
+  Identifier (`context.get_argument::<Identifier>("recipe")?.to_string()`, always namespace:path)
+  to recipe.notFound; vanilla's ResourceKeyArgument echoes the parsed ResourceLocation.
+- 4. Suggestion provider ids (S): VERIFIED fixed. `recipe_suggestion_ids` (recipe.rs:99) suggests
+  only non-special `recipe_id()` keys and deduplicates, matching vanilla
+  `ResourceKeyArgument.key(RECIPE, LEARNABLE_RECIPE)` with `LEARNABLE_RECIPE = r -> !r.isSpecial()`.
+  Pure test `recipe_suggestions_are_unique_and_skip_special` present (recipe.rs:360).
+- 3. Display-id layout duplicated (S): VERIFIED fixed. `static_recipe_display_count`,
+  `dynamic_recipe_has_display`, `dynamic_recipe_display_ids` (recipe_book_add.rs:71/87/98) are
+  shared by the writer (count :567-575, skip :664) and `/recipe take`. `write_entry` returns
+  Ok(false) for CraftingSpecial/CraftingDecoratedPot (:502-503), matching the static skip set.
+  Pure test `dynamic_display_ids_skip_non_displayed_recipes` present (recipe_book_add.rs:1373).
+- 1. No server-side recipe book (M): VERIFIED fixed (outside this unit). `Player.known_recipes`
+  (player.rs:884) is persisted and consumed by give. `give` adds only unknown, non-special ids,
+  sends CRecipeBookAdd only when changed, returns the added count and throws give.failed at 0,
+  matching vanilla `ServerRecipeBook.addRecipes` (:61-87).
+- 2. take remove packet / wrong count (M): VERIFIED fixed. `take_display_ids` removes only known
+  ids with a display, sends CRecipeBookRemove only when changed, returns the removed count and
+  throws take.failed at 0, matching vanilla `ServerRecipeBook.removeRecipes` (:89-106).
+
+Compile-pitfall re-check against AGENTS.md: no new .rs diff, so no new risk. Existing helpers use
+full paths in tests, `#[must_use]`/`const fn` where applicable, `unwrap_or_else(PoisonError::into_inner)`
+instead of unwrap, `tracing`-free, and re-export via `pub use recipe_book_add::*;` (play/mod.rs:173)
+so recipe.rs imports resolve. No rows remain open. No .rs file edited, so rustfmt not run; the two
+pure unit tests and compilation are left to the orchestrator batch check.

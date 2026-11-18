@@ -96,3 +96,41 @@ Also tightened `damage_with_context` with the vanilla `isRemoved()` early return
 invulnerability check. Edited `boat.rs` directly (rustfmt --edition 2024 run); `passengers.rs`
 and `entity/mod.rs` changes came from concurrent work in the same checkout. No cargo/git run
 (worker constraint); code is syntax-reviewed, not compiled.
+
+
+## Result
+
+Re-review against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
+The only STILL OPEN marker (h6 note, line 57: delta-rotation accumulation) is stale. The current
+`boat.rs` already samples consecutive server yaw into `last_yaw`/`yaw_delta` (lines 231-232,
+575-577) and applies the delta to non-player, non-CAN_TURN_IN_BOATS riders in
+`on_rider_positioned` (lines 873-889) before the +/-105 deg `clamp_rider_yaw` window;
+`on_passenger_turned` (lines 891-939) re-clamps and folds the adjustment into `yRotO`.
+This matches vanilla `positionRider` (L696-705), `clampRotation` (L740-754) and
+`onPassengerTurned` (L762-766). Wiring confirmed at `entity/mod.rs:1673` and `:4475`;
+tests `rider_yaw_clamps_to_boat_heading_window` and `rider_yaw_follows_boat_yaw_delta_then_clamps`
+cover it. No source change needed and no generated-data, WIT or cross-crate change required.
+
+## Result
+
+Independent verification of the single STILL OPEN marker (line 57, delta-rotation accumulation)
+against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
+The marker is stale; no source change was needed this pass.
+
+- `AbstractBoat.positionRider` (L696-705) adds `deltaRotation` to rider yaw and head yaw for
+  passengers outside `CAN_TURN_IN_BOATS`, then calls `clampRotation` (L740-754, +/-105 deg).
+  `onPassengerTurned` (L762-766) re-clamps and folds the adjustment into `yRotO`.
+- Pumpkin already matches: `boat.rs` samples `yaw_delta` from consecutive yaw in `tick`
+  (L575-577), applies it in `on_rider_positioned` (L840-883) with the +/-105 `clamp_rider_yaw`
+  (L993-997), and re-clamps in `on_passenger_turned` (L885-933) folding the adjustment into
+  `y_rot_o`. Players and `CAN_TURN_IN_BOATS` riders are skipped, mobs get the hull heading as
+  body yaw with the head clamped to `get_max_head_rotation()`, matching the Mob branch of
+  `clampRotation`.
+- Wiring confirmed live, not dead code: `position_passenger` calls `on_rider_positioned`
+  (`entity/mod.rs:1673`) and `Entity::turn` calls `on_passenger_turned` (`entity/mod.rs:4485`;
+  the earlier note said 4475, the actual call is the next line). Tests
+  `rider_yaw_clamps_to_boat_heading_window` and `rider_yaw_follows_boat_yaw_delta_then_clamps`
+  cover the clamp and delta paths.
+
+All rows in this unit are resolved (open=0). No generated-data, WIT, cross-crate change or
+file outside the unit was touched. No cargo/git run (worker constraint); read-only verification.

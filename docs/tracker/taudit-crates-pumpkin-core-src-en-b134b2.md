@@ -91,3 +91,30 @@ Extra verification from the newly available source (not STILL OPEN, no edits):
   BLOCKED-DATA row resolves as correct-as-is.
 - No `.rs` files were edited, so rustfmt was not run.
 
+
+
+## Result (second pass, verification only)
+
+Re-checked both STILL OPEN rows against the decompiled vanilla source, smallest first.
+Neither is a real gap in the current code, so no source file was edited and rustfmt was
+not needed. No pure unit-test seam exists for either (both depend on wall-clock date or
+live world state), so no test was added.
+
+- **Halloween timezone (`is_halloween`, spawn.rs:26)** - RESOLVED as correct-as-is.
+  Decompiled `SpecialDates.java:16-22` computes the date with `ZonedDateTime.now()`, i.e.
+  the host process default timezone, NOT a ServerLevel-local date. Pumpkin's
+  `OffsetDateTime::now_local()` (UTC fallback) is the equivalent host-local clock, so it
+  already matches vanilla. The earlier "needs the level-local date source" premise was
+  wrong: switching to a level date would actually diverge from vanilla. Cosmetic only.
+
+- **Reinforcement condition/RNG order (`summon_reinforcements`, zombie/mod.rs:465-489)** -
+  RESOLVED as correct-as-is. Decompiled `Zombie.java:293-301` short-circuits
+  `target != null && difficulty == HARD && random.nextFloat() < chance && level.isSpawningMonsters()`.
+  Pumpkin's current code resolves the target first (469-476), then difficulty (477-479),
+  then rolls the RNG and checks `should_spawn_monsters()` in the same short-circuiting
+  `||` (480-489): `should_spawn_monsters()` runs only when the roll passes, matching
+  vanilla's trailing `&&`. Neither target lookup nor the difficulty read consumes RNG,
+  so the random stream and short-circuit order are identical. The earlier "difficulty
+  first" description was stale; the code already matches vanilla.
+
+No `.rs` files were edited in this pass.

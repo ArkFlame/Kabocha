@@ -125,14 +125,11 @@ impl DaylightDetectorBlock {
             let power = event.new_current.clamp(0, 15) as u8;
             props.power = power;
             let new_state = props.to_state_id(block);
-            // Vanilla always calls setBlockAndUpdate after the event (flags NEIGHBORS|CLIENTS),
-            // even when a plugin sets the current back to the old power. FORCE_STATE keeps that
-            // same-state write observable so neighbours still receive the update as in vanilla.
-            world.set_block_state(
-                block_pos,
-                new_state,
-                BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
-            );
+            // Vanilla setBlockAndUpdate is a no-op on an unchanged state (LevelChunk returns
+            // null, Level.setBlock returns false before physics/client updates), so plain
+            // NOTIFY_ALL's unchanged-state early return matches it; FORCE_STATE would wrongly
+            // notify neighbours when a plugin restores the old power.
+            world.set_block_state(block_pos, new_state, BlockFlags::NOTIFY_ALL);
         }
     }
 }

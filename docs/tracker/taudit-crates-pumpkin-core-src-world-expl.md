@@ -70,3 +70,61 @@ Verification against `.vendor/vanilla-decompiled/net/minecraft/` (target version
 - Row 8 (finalizeExplosion particles/sound): LEFT OPEN. world/mod.rs:4711-4725 is outside this unit; client-visual only.
 
 Changed: crates/pumpkin-core/src/world/explosion.rs. Check: `rustfmt --edition 2024` on that file (exit 0). No cargo/git run (per task).
+
+## Result
+
+Re-verification 2026-11-18 (block_explode.rs slice). Checked STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java`
+(CraftBukkit/Paper-instrumented target version).
+
+- Row 1 (BlockExplodeEvent block list + yield): VERIFIED, already applied in this file.
+  `interactWithBlocks` (ServerExplosion.java:610-643) fires the event with the non-air
+  block list and a yield of `1.0/radius` for DESTROY_WITH_DECAY else `1.0`
+  (finite-guarded at :318-319), then replaces the target list from `event.blockList()`
+  and reads `event.getYield()`. `BlockExplodeEvent` already exposes a mutable
+  `blocks: Vec<BlockPos>` and `yield_rate: f32`, and its `new()` signature matches
+  the call site at `explosion.rs:859-865` (`event.cancelled/yield_rate/blocks` are all
+  consumed at :869). The firing/filter/yield-to-loot side lives in `explosion.rs`,
+  outside this file. No change needed here.
+- Row 2 (unloaded-chunk force-load): LEFT OPEN, outside this file. Needs `World`/
+  `explosion.rs` changes (sync tick currently reads unloaded chunks as air).
+- Row 4 (seeded level RNG): LEFT OPEN, outside this file. Now partly addressed via
+  `World::explosion_random` (world/mod.rs:373), which is in another unit's file.
+- Row 6 (ClientboundExplodePacket blockCount): LEFT OPEN, outside this file
+  (packet construction in world/mod.rs; client-visual only).
+- Row 8 (finalizeExplosion particles/sound): LEFT OPEN, outside this file
+  (world/mod.rs; client-visual only).
+- Rows 3, 5, 7: previously VERIFIED MATCHING/FIXED; unchanged.
+
+No `.rs` source edited (block_explode.rs already satisfied row 1), so no rustfmt
+run was required. No cargo/git run per task.
+
+## Result
+
+Re-verification 2026-11-18 (block_explode.rs unit, only file permitted). Checked
+STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java`
+(CraftBukkit/Paper-instrumented target version); all sit outside this file.
+
+- Row 1 (this file's only concern): VERIFIED, already applied. `interactWithBlocks`
+  (ServerExplosion.java:610-643) fires `BlockExplodeEvent` with the non-air block
+  list and `yield = 1.0/radius` for DESTROY_WITH_DECAY else `1.0` (:318-319), then
+  rebuilds `targetBlocks` from `event.blockList()` and reads `event.getYield()`.
+  `BlockExplodeEvent` here exposes mutable `blocks: Vec<BlockPos>` and
+  `yield_rate: f32`, `new()` matches the explosion.rs call site, and `#[cancellable]`
+  provides `cancelled`. No change needed.
+- Row 2 (unloaded-chunk force-load): LEFT OPEN. Vanilla samples via `level.getChunk`
+  (ServerExplosion.java:119), which force-loads; this unit's only file is the event
+  struct, so the sampler fix belongs in explosion.rs (outside this unit).
+- Row 4 (seeded level RNG): LEFT OPEN. Vanilla draws from `level.getRandom()`
+  (ServerExplosion.java:410,612,674); the fix belongs in explosion.rs / world/mod.rs
+  (outside this unit).
+- Row 6 (ClientboundExplodePacket blockCount): LEFT OPEN. Packet construction is in
+  world/mod.rs (outside this unit); client-visual only.
+- Row 8 (finalizeExplosion particles/sound): LEFT OPEN. Vanilla emits
+  `gameEvent(EXPLODE)` (ServerExplosion.java:693) and the sound/particle fan-out is in
+  world/mod.rs (outside this unit); client-visual only.
+- Rows 3, 5, 7: previously VERIFIED MATCHING/FIXED; unchanged.
+
+No `.rs` source edited, no test seam in this event data holder (a `new()` field
+setter test would be a getter/Default-style test the rules exclude). No rustfmt,
+cargo or git run per task.

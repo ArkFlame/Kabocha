@@ -101,3 +101,52 @@ Verified against decompiled vanilla `ShelfBlock.java` (real source at
   shape data for `#minecraft:wooden_shelves`; engine/codegen work, not shelf.rs.
 - Piston push reaction for shelves: LEFT OPEN. Pumpkin has no engine-level piston
   push-reaction / moveability concept, and the fix is outside this unit.
+
+
+## Result (re-verification vs `.vendor/vanilla-decompiled`, MC 26.3)
+
+Supersedes the earlier "Result" / "Fixed in this pass" rows, which were written while `.vendor/`
+was absent and guessed that `FluidState#is(Fluids.WATER)` covers flowing water. The decompiled
+source now present disproves that guess.
+
+- Flowing-water waterlogging (`shelf.rs:325`): NO CODE CHANGE. `ShelfBlock.getStateForPlacement`
+  (`ShelfBlock.java:125-131`) sets `WATERLOGGED = replacedFluidState.is(Fluids.WATER)`.
+  Decompiled `FluidState.is(Fluid)` is `this.fluidOwner == rawType` (`FluidState.java:174-176`);
+  flowing states are built from `this.getFlowing().defaultFluidState()` (`FlowingFluid.java:72`,
+  which resolves to `Fluids.FLOWING_WATER` via `WaterFluid.java:34-35`), so their owner is
+  `Fluids.FLOWING_WATER` and `is(Fluids.WATER)` is FALSE. Only source water (level 0) waterlogs.
+  Pumpkin's `args.replacing.is_water()` (`Water(0)`, shelf.rs:325) is correct and matches the
+  40+ other blocks that map `is(Fluids.WATER)` to `is_water()`. `SmallDripleafBlock` uses
+  `level.isWaterAt` / `is(FluidTags.WATER)` (any level), which Pumpkin maps to `is_any_water()`;
+  that distinction confirms the helper semantics. No pure test seam: one-line property decision.
+- `BlockIsReplacing::water_source` / 46 call sites: LEFT OPEN, cross-file refactor outside this
+  unit (only shelf.rs editable). Already handled elsewhere: `is_water()` / `is_any_water()` /
+  `is_full_water()` helpers exist at `mod.rs:787-813` and the call sites, including shelf.rs:325,
+  are migrated.
+- Shelf collision/occlusion shape: LEFT OPEN, BLOCKED-DATA (generated shape data for
+  `#minecraft:wooden_shelves`); codegen/engine work, not shelf.rs.
+- Piston push reaction for shelves: LEFT OPEN, engine-level moveability, outside this unit.
+
+
+## Result (final re-verification, MC 26.3)
+
+Verified every STILL OPEN row against decompiled vanilla. `.vendor/vanilla-decompiled`
+has no `ShelfBlock.java`; used the real decompiled source at
+`/run/media/linsaftw/SDD/tmp/mc-proof/final/net/minecraft/world/level/block/ShelfBlock.java`
+plus `SideChainPart`/`SelectableSlotContainer`. No code change made: all remaining
+rows are outside this unit (only shelf.rs editable) or blocked by generated data.
+
+- Flowing-water waterlogging (`shelf.rs:325`): CONFIRMED CORRECT, no change.
+  `getStateForPlacement` (Java :125-131) sets `WATERLOGGED = replacedFluidState.is(Fluids.WATER)`;
+  only level-0 source water has `Fluids.WATER` as owner, so Pumpkin's
+  `args.replacing.is_water()` (helper at `mod.rs:793`) is the exact match. No pure
+  unit-test seam (one-line property decision); existing tests at :567/:581 cover the
+  real logic seams.
+- `BlockIsReplacing::water_source` / 46 call sites (`mod.rs`): LEFT OPEN. Cross-file
+  refactor in `block/mod.rs`, which is outside this unit; helpers `is_water()` /
+  `is_any_water()` / `is_full_water()` already exist (`mod.rs:787-813`) and the call
+  sites, including `shelf.rs:325`, are already migrated.
+- Shelf collision/occlusion shape: LEFT OPEN. Needs generated shape data for
+  `#minecraft:wooden_shelves` (engine/codegen), not shelf.rs.
+- Piston push reaction for shelves: LEFT OPEN. Pumpkin has no engine-level piston
+  push-reaction/moveability concept; fix is outside this unit.

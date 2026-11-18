@@ -87,3 +87,20 @@ Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehic
 The h6 status note is stale: delta-rotation accumulation and the +/-105 rider yaw clamp are both implemented in boat.rs (not passengers.rs) under the names rider_yaw_with_delta / clamp_rider_yaw, with unit tests. Marking them resolved.
 
 No .rs files touched, so rustfmt was not run.
+
+## Result
+
+Re-re-verified against decompiled vanilla AbstractBoat.java in .vendor/vanilla-decompiled on the main checkout. All rows are ALREADY FIXED in the current source; no source edits were needed. This corrects the stale line numbers in the earlier Result block.
+
+| # | Row | Status | Evidence (current lines) |
+|---|-----|--------|--------------------------|
+| 1 | canAddPassenger / eye-in-water boarding gate (S) | FIXED | boat.rs is_eye_in_water at 123-131; gate passed to boat_interact_outcome at 815-816; pushed-mob path entity/mod.rs:1345. Matches AbstractBoat.java:836-837. |
+| 2 | positionRider + clampRotation + deltaRotation (M) | FIXED | delta derived in tick boat.rs:571-577 (wrap_degrees of consecutive yaw); on_rider_positioned boat.rs:846-889 applies rider_body_yaw + yaw_delta, clamp_rider_yaw (105 deg) and mob head clamp; on_passenger_turned 891-939; helpers 972-1009. Matches AbstractBoat.java:696-705,740-765. |
+| 3 | Bubble-time metadata (M) | FIXED | on_above_bubble_column boat.rs:631-682 arms BUBBLE_COLUMN_DELAY=60 and writes ID_BUBBLE_TIME; tick_bubble_column 429-454 decrements/writes and impulses at zero; helper 966-968. Matches AbstractBoat.java:165-170,351-387,399-408. |
+| 4 | Leashable (M) | FIXED | tick calls entity.tick_leash boat.rs:593; support_quad_leash true at 946-948; shared leash path in entity/mod.rs. |
+| 5 | hasEnoughSpaceFor width gate (S) | FIXED | entity/mod.rs:1353-1359 checks other.width < self.width plus CANNOT_BE_PUSHED_ONTO_BOATS before add_passenger. Matches AbstractBoat.java:691-693. |
+| 6 | deltaRotation decay / server prediction (L) | NO ACTION (by design) | Client-authoritative engine difference; doc recommends no action. |
+
+The h6 status note is stale: delta-rotation accumulation is implemented at boat.rs:571-577 and applied to riders at 873-888 (mob and non-mob), with pure unit tests rider_yaw_clamps_to_boat_heading_window / rider_yaw_follows_boat_yaw_delta_then_clamps at boat.rs:1027-1042. Marking it resolved.
+
+No .rs files touched, so rustfmt was not run.

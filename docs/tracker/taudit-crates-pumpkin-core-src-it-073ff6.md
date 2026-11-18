@@ -136,3 +136,71 @@ false positives or need files/refactors outside this unit.
 
 No pure unit test added: `apply_entity_data` and the consumption paths need a live
 `EntityBase`/world, so the only meaningful coverage is the gametest in gap 7.
+
+## Result (2026-11-18 verification pass)
+
+Re-checked every row left STILL OPEN in the prior Result against the decompiled
+Paper 1.21.4 source in `.vendor/vanilla-decompiled/net/minecraft/`. All
+in-scope gaps are already fixed in the current checkout; no source edits were
+needed this pass.
+
+- Gap 3: FIXED (verified). Vanilla `TrialSpawnerBlockEntity.setEntityId` calls
+  `trialSpawner.overrideEntityToSpawn`, whose body is exactly `data.reset()` +
+  `config.overrideEntity(type)` + `setState(INACTIVE)`
+  (`TrialSpawner.overrideEntityToSpawn`). Pumpkin's `set_entity_type` ->
+  `override_entity_to_spawn` and `TrialSpawnerFullConfig::override_entity`
+  (both normal/ominous via `with_spawning`) match; there is no separate
+  supported-type check in vanilla. Pure unit test
+  `trial_spawner_override_entity_regenerates_potentials` is present.
+- Gap 5: FIXED (verified). Vanilla `ServerGamePacketListenerImpl.handleUseItem`
+  never awards `ITEM_USED`; it only calls `gameMode.useItem` and swings on
+  `Success.shouldSwing()`. The generic award was removed from `use_item.rs`,
+  the swing narrowed to `Success|SuccessServer`, and per-item stat awards left
+  intact.
+- Gap 9: FIXED (verified). `ItemBehaviour::use_on_entity` now returns
+  `BlockActionResult`; all impls (spawn_egg, dye, name_tag, bucket) and the
+  `interact.rs` caller are updated. Spawn-egg success returns `SuccessServer`,
+  so interact.rs swings and awards `ITEM_USED` only on a real stack change.
+- Gap 7: STILL OPEN. Needs a `pumpkin-gametest` scenario (file outside this
+  unit) plus a compiled run; neither is permitted in this pass.
+- Gap 12: CLOSED (no-op confirmed). Vanilla `BaseSpawner.setEntityId` writes
+  `nextSpawnData.id` and clears `spawnPotentials`; Pumpkin's flat `entity_type`
+  has neither, so there is nothing to reset.
+
+No new pure unit test: the remaining seams are a gametest (gap 7) and network
+handlers with no pure-test seam; gap 3 already ships its unit test.
+
+## Result (2026-11-18 CODER re-verification pass)
+
+Re-verified every row left STILL OPEN against the decompiled Paper 1.21.4 source in
+`.vendor/vanilla-decompiled/net/minecraft/`. All in-scope rows are already fixed in the
+current checkout; no source edits were needed this pass.
+
+- Gap 1/8: CLOSED (false positive). `SpawnEggItem.spawnOffspringFromSpawnEgg` (lines 157-185)
+  has no adult gate on the parent: it calls `ageableMob.getBreedOffspring(level, ageableMob)`
+  for `AgeableMob`, else `type.create(...)` then `setBaby(true)`. Pumpkin's
+  `use_on_entity` (`Some(_)`/`None` arms plus `spawn_as_baby`) matches; the offspring yaw
+  is set to `0.0` per `snapTo(..., 0.0F, 0.0F)`.
+- Gap 2: FIXED (verified). `apply_entity_data` strips only `id` and `UUID`, matching
+  `TypedEntityData.loadInto` (`Pos` is read by `Entity.load`).
+- Gap 3: FIXED (verified). `trial_spawner.rs` has `override_entity_to_spawn` and
+  `TrialSpawnerFullConfig::override_entity` plus the
+  `trial_spawner_override_entity_regenerates_potentials` unit test.
+- Gap 4: FIXED (verified). Spawner/trial-spawner branches use `item.decrement(1)`
+  (vanilla `shrink(1)`); spawn path uses `decrement_unless_creative` (vanilla `consume`).
+- Gap 5: FIXED (verified). `use_item.rs` has no generic `ITEM_USED` award; swing is
+  narrowed to `Success|SuccessServer` per `handleUseItem`.
+- Gap 6: CLOSED (false premise). `Player.mayUseItemAt` checks build ability and
+  adventure-mode `canPlaceOnBlockInAdventureMode`, not the world border.
+- Gap 9: FIXED (verified). `ItemBehaviour::use_on_entity` returns `BlockActionResult`;
+  spawn-egg success returns `SuccessServer`.
+- Gap 12: CLOSED (no-op). Pumpkin's flat `entity_type` has no pending spawn data or
+  spawn potentials, so `BaseSpawner.setEntityId`'s reset is a no-op.
+- Gap 7: STILL OPEN. Needs a `pumpkin-gametest` scenario file (outside this unit's
+  listed files) plus a compiled run, neither permitted in this pass. The pure-test
+  seams are already covered by four tests in `spawn_egg.rs` (component override,
+  egg-mapping fallback, NBT-authored entity data, peaceful guard).
+
+No new pure unit test added: the only remaining seam is a gametest requiring a file
+outside this unit and a compiled run; adding another pure test would duplicate the
+existing coverage.

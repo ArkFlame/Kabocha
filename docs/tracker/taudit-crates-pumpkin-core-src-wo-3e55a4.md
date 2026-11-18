@@ -40,3 +40,35 @@ Re-verified the remaining/STILL OPEN rows against `.vendor/vanilla-decompiled/ne
 | h3 | M | STILL OPEN - Ender dragon TODO (world/mod.rs:5978), outside this unit; needs dragon-fight rewrite. |
 
 No .rs file was edited, so no rustfmt was run. No unit test added: there is no behaviour change in this unit, and a helper-method mirror test would be a forbidden constant/derive test.
+
+## Result
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/` (`LevelChunk.java:389-430`, `ServerChunkCache.java:967-990`, `ServerPlayer.java:3003-3035`, `ChunkMap.java:766-800`) and the current Pumpkin `world/mod.rs` / `entity/player.rs`. This unit's editable basenames are `none`, so no source file was changed; each fix below is already present in the checkout (landed by sibling units) and needs no in-unit seam. This section supersedes the earlier Result below.
+
+- Row 1 (M, neighbouring-chunk light sections): already fixed. `mark_unsent_light` (world/mod.rs:2490) now dirties the adjacent-chunk mask on x/z borders (`trailing_zeros >= 4` / `& 15 == 15`), with pure test `border_block_dirties_light_sections_in_adjacent_chunks` (:9879). Matches vanilla `LevelChunk.setBlockState -> LightEngine.checkBlock` / `SectionPos.aroundAndAtBlockPos`. No edit needed.
+- Row 2 (M, spawn player-proximity gate): already fixed. `any_player_close_enough_for_spawning` (:3408) uses a 128-block squared range and `tick_chunk` bails before `spawn_for_chunk` (:3434), matching vanilla `ChunkMap.anyPlayerCloseEnoughForSpawning`. No edit needed.
+- Row 3 (S, respawn xp/difficulty/effects): already fixed. The respawn path calls `player.send_difficulty_update()` and `player.send_active_effects()` (:5469-5470); helpers live in `entity/player.rs` (:4654, :7405). Vanilla `ServerPlayer.restoreFrom` sets `lastSentExp = -1` (:3030) and Paper comments out the effect re-copy (:3014-3016). No edit needed.
+- Row 4 (S, Bedrock world spawn): already fixed. `spawn_bedrock_player` sends `CSetSpawnPosition { WorldRespawn, .. }` after `CStartGame` (:4079). No edit needed.
+- Row 5 (L, EnderDragonPart radius/hit detection): already fixed. `dragon_parts: DashMap` (:351) is populated via `add_dragon_parts` (:5804), included in `get_entities_at_box` / `get_entities_of_type_at_box` (:5845, :5861), and hit-tested via `dragon_part_by_id` (:5797); the dragon-fight rewrite has landed. No edit needed.
+- Row 6 (XS, stale comment): no behaviour gap; broadcast methods already filter on `watched_section.is_within_distance` (:8972+) and the stale comment is gone. Comment-only cleanup in world/mod.rs (outside unit), not required.
+- Row 7 (XS, marker/comment-only): no behaviour gap; only a structured-logging note (:4932) and a world-spawn compass TODO (:4990) remain, both comment-only and outside this unit.
+- h3 (M, ender dragon TODO): already fixed; the `TODO: Implement ender dragon handling` marker no longer exists and dragon handling is wired through `dragon_fight::DragonFight::tick` (:2398).
+
+No .rs file was edited (unit has zero editable basenames), so rustfmt was not run. No unit test added: row 1's pure seam is already covered by the existing test; the rest are World/engine coupled with no in-unit seam.
+
+## Result
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/` and the current `world/mod.rs`. This unit has zero editable basenames (`none`), so no source file was changed; each fix is already present in the checkout (landed by sibling units) and needs no in-unit seam.
+
+| # | Size | Result |
+|---|---|---|
+| 1 | M | FIXED elsewhere - `mark_unsent_light` (world/mod.rs:2514) dirties adjacent-chunk masks on x/z borders, matching vanilla `SectionPos.aroundAndAtBlockPos` (SectionPos.java:270); pure test `border_block_dirties_light_sections_in_adjacent_chunks` at :9913. |
+| 2 | M | FIXED elsewhere - `any_player_close_enough_for_spawning` (:3432) uses a 128-block squared gate before spawning (:3458), matching vanilla `ChunkMap.anyPlayerCloseEnoughForSpawning` (ChunkMap.java:766). |
+| 3 | S | FIXED elsewhere - respawn calls `send_difficulty_update()` / `send_active_effects()` (:5499-5500) after `send_world_info`, matching vanilla `ServerPlayer` `lastSentExp = -1` resend (ServerPlayer.java:902+). |
+| 4 | S | FIXED elsewhere - `spawn_bedrock_player` sends `CSetSpawnPosition` with `WorldRespawn` after `CStartGame` (:4103-4111). |
+| 5 | L | FIXED elsewhere - `dragon_parts: DashMap` (:352) merged into `get_entities_at_box`/`get_entities_of_type_at_box` (:5882, :5902) and hit-tested via `dragon_part_by_id` (:5827), matching vanilla `addToGetEntities`. |
+| 6 | XS | N/A - no behaviour gap; stale broadcast comment is gone. |
+| 7 | XS | N/A - only comment-only TODOs remain (:4962 structured logging, :5020 world-spawn compass). |
+| h3 | M | FIXED elsewhere - `DragonFight::tick` wired at :2422; the `Implement ender dragon handling` TODO no longer exists. |
+
+No .rs file edited (zero editable basenames), so no rustfmt run and no unit test added; row 1's pure seam is already covered by an existing test and the rest are World/engine coupled.

@@ -108,3 +108,31 @@ server/level/{ServerLevel,WorldGenRegion}.java). Smallest rows first.
 
 Files edited: `crates/pumpkin-core/src/entity/mob/equipment.rs` (rustfmt --edition 2024 applied).
 `piglin.rs` untouched: no row maps to it. No compile/test run (forbidden for this role).
+
+## Result (2026-11-18 re-audit, supersedes stale rows in the section above)
+
+Re-verified against .vendor/vanilla-decompiled/net/minecraft/ with source present. Smallest rows first. The earlier Result section wrongly left rows 5 and 6 open; the code in this checkout already fixes both, so their status is corrected here.
+
+- **Row 2 (S) FIXED (verified).** WitherSkeleton.populateDefaultEquipmentEnchantments (WitherSkeleton.java:78-80) is empty, so enchanted: false is correct; AbstractSkeleton.finalizeSpawn (AbstractSkeleton.java:131-139) rolls setCanPickUpLoot for every skeleton, so can_pick_up_loot: true is correct. Both are set in EQUIPMENT_REGISTRY and asserted by wither_skeleton_spawn_flags_match_vanilla.
+- **Row 3 (S) FIXED (verified).** Mob.populateDefaultEquipmentSlots (Mob.java:1153) guards armor with if (itemStack.isEmpty()); equip_mob_on_spawn now skips non-empty armor slots.
+- **Row 6 (S) FIXED (verified, prior section stale).** apply_vanilla_enchantments takes (stack, special_multiplier) only; the unused slot parameter was dropped and the caller at mob/mod.rs:2736 passes two args. Vanilla's slot check lives in enchantSpawnedEquipment (Mob.java:1246-1254), which the caller mirrors.
+- **Row 5 (M) FIXED (verified, prior section stale).** equip_mob_from_def, select_vanilla_armor, should_happen and weighted_select_item take &mut impl RandomImpl; equip_mob_on_spawn supplies world.loot_random, matching vanilla finalizeSpawn drawing from level.getRandom() (Mob.java:1259).
+- **Row 4 (M) NO CHANGE - verified faithful.** getCurrentDifficultyAt uses 0 inhabited time when no FULL chunk exists (WorldGenRegion passes 0L during generation); the loaded_chunks lookup with 0 fallback matches.
+- **Row 7 (M) NO CHANGE - verified faithful.** Mob.finalizeSpawn does not roll can-pick-up-loot; species overrides do (AbstractSkeleton.java:139). Pumpkin's roll in spawn.rs:populate_spawn_equipment is gated per definition.
+- **Row 1 (L) OPEN.** Deleting the duplicate EQUIPMENT_REGISTRY dispatch or the dead per-species overrides spans skeleton/mod.rs, zombie/mod.rs and mod.rs:2570, all outside this unit; behaviour-visible, needs a compile.
+
+Also replaced the two .expect() calls in equipment.rs tests with ok_or(..)? and Result<(), &'static str> returns (expect_used = deny); rustfmt applied. No new behaviour change in this pass beyond that lint fix; no compile run (forbidden).
+
+## Result (verification pass, source present)
+
+Re-verified all seven rows against .vendor/vanilla-decompiled/net/minecraft/. No in-scope code changes were needed; the fixes below are already present in equipment.rs and spawn.rs and match vanilla. No code was compiled (forbidden for this role).
+
+- **Row 2 (S) FIXED, verified.** WitherSkeleton.java:79-80 populateDefaultEquipmentEnchantments is empty; enchanted: false is correct. AbstractSkeleton.java:139 rolls setCanPickUpLoot for every skeleton; can_pick_up_loot: true is correct. Both set in EQUIPMENT_REGISTRY and asserted by wither_skeleton_spawn_flags_match_vanilla (equipment.rs:1201).
+- **Row 3 (S) FIXED, verified.** Mob.java:1146-1158 guards armor with if (itemStack.isEmpty()). equip_mob_on_spawn (equipment.rs:776) skips non-empty armor slots; MAIN_HAND stays unconditional as in the skeleton overrides.
+- **Row 5 (M) FIXED, verified.** Mob.java:1259 draws from level.getRandom(). should_happen, select_vanilla_armor, equip_mob_from_def, weighted_select_item take &mut impl RandomImpl and equip_mob_on_spawn supplies world.loot_random. Residual: apply_vanilla_enchantments still uses process-wide rand::rng() for the provider cost roll, but its signature has a caller in mob/mod.rs:2736 (outside this unit), so it was not changed.
+- **Row 6 (S) FIXED, verified.** Vanilla's slot filter lives in enchantSpawnedEquipment (Mob.java:1246-1254), which the caller mirrors; apply_vanilla_enchantments takes (stack, special_multiplier) only.
+- **Row 4 (M) NO CHANGE, verified faithful.** getCurrentDifficultyAt uses 0 inhabited time when no FULL chunk exists; the loaded_chunks lookup with a 0 fallback matches.
+- **Row 7 (M) NO CHANGE, verified faithful.** Mob.finalizeSpawn (Mob.java:1256-1269) does not roll can-pick-up-loot; species overrides do (AbstractSkeleton.java:139). Pumpkin's roll in spawn.rs:populate_spawn_equipment is gated per definition.
+- **Row 1 (L) OPEN.** Duplicate EQUIPMENT_REGISTRY dispatch and dead per-species overrides span skeleton/mod.rs, zombie/mod.rs, piglin.rs and mod.rs:2570, files outside this unit; behaviour-visible and needs a compile.
+
+Files edited this pass: none (only this doc). piglin.rs and spawn.rs need no change: no in-scope row maps to them beyond the already-fixed spawn roll.

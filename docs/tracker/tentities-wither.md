@@ -42,3 +42,16 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wit
 - Row 9 (powered projectile immunity): FIXED. Vanilla `hurtServer` blocks `AbstractArrow` (arrow, spectral arrow, trident; tipped arrows reuse the ARROW type) and `WindCharge`. `BreezeWindCharge` extends `AbstractWindCharge`, not `WindCharge`, so a breeze charge still damages a powered wither. Replaced the hand-written type list with `is_projectile_immune_to_powered_wither` (the `minecraft:arrows` tag plus `TRIDENT` and `WIND_CHARGE`), dropped `BREEZE_WIND_CHARGE`, and added a unit test over the type set.
 
 Files touched: `crates/pumpkin-core/src/entity/boss/wither.rs`. `rustfmt --edition 2024` passed. No build run (task rules); compile verification left to the orchestrator.
+
+## Result (re-review 2026-11-18)
+
+Independent verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java` for the STILL OPEN rows (2, 3, 5, 7, 8, 9). Source already matches vanilla; no source edits were needed this pass.
+
+- Row 2 (WitherDoNothingGoal): MATCH. Vanilla registers the goal at priority 0 with MOVE/JUMP/LOOK while Invul > 0 (lines 102, 613-620). Pumpkin gates its only LOOK-flagged goals via `goals_selector.disable_control(Controls::LOOK)` in `mob_tick` (wither.rs:647-659); the ranged attack runs only in the invul==0 branch (wither.rs:469). `disable_control` sets an idempotent bitflag (goal_selector.rs:419-431) and LookAtEntityGoal declares LOOK control (look_at_entity.rs:88). No test: needs a mob/world fixture.
+- Row 3 (gravity): NOT A GAP. Constructor only sets `FlyingMoveControl(this, 10, false)` (line 87); no `setNoGravity`, so `set_has_no_gravity(true)` would be wrong. A full flying-navigator/move-control port remains an out-of-scope cross-cutting AI item.
+- Row 5 (bossbar progress): MATCH. Spawn phase uses `1 - newCount/220` (line 273; wither.rs:441-442); post-spawn uses `health/maxHealth` (line 391; wither.rs:604-609); `make_invulnerable` sets 0.0 (line 401; wither.rs:171).
+- Row 7 (idle head offsets): NOT A GAP. Lines 319-321 use `Mth.nextDouble` uniform `x +/-10`, `y +/-5`, `z +/-10`; `random_range(-10.0..10.0)` (wither.rs:486-488) is correct.
+- Row 8 (peaceful): MATCH. `tick_wither_lifecycle` (wither.rs:414-422) clears the bossbar and removes the entity on Peaceful, matching the observable shared despawn path.
+- Row 9 (projectile immunity): MATCH. `hurtServer` lines 504-508 block `AbstractArrow`/`WindCharge`. `is_projectile_immune_to_powered_wither` (wither.rs:65-69) uses the arrows tag plus TRIDENT and WIND_CHARGE; BREEZE_WIND_CHARGE is correctly not immune. The existing unit test (wither.rs:739-756) covers the type set.
+
+Files touched this pass: `docs/tracker/tentities-wither.md` only (no source edits). No build run (task rules); compile verification left to the orchestrator.

@@ -20,30 +20,12 @@ pub const ONLY_SINGLE_SLOT_ALLOWED_ERROR_TYPE: CommandErrorType<1> = CommandErro
     translation::java::SLOT_ONLY_SINGLE_ALLOWED,
 );
 
-/// Resolves a slot name: the generated table, plus villager and horse inventory slots it lacks.
+/// Resolves a slot source name through vanilla's generated `SlotRanges` table.
+///
+/// Vanilla 26.3 has no `villager.*`, `horse.saddle` or `horse.armor` names:
+/// mob slots are `mob.inventory.*`, horse gear is `saddle`/`armor.body`.
 fn resolve_slot_range(name: &str) -> Option<&'static [usize]> {
-    if let Some(index) = name.strip_prefix("villager.") {
-        return villager_slot_range(index);
-    }
-    match name {
-        "horse.saddle" => Some(&[400usize]),
-        "horse.armor" => Some(&[401usize]),
-        _ => get_slot_range(name),
-    }
-}
-
-fn villager_slot_range(index: &str) -> Option<&'static [usize]> {
-    match index {
-        "0" => Some(&[300usize]),
-        "1" => Some(&[301usize]),
-        "2" => Some(&[302usize]),
-        "3" => Some(&[303usize]),
-        "4" => Some(&[304usize]),
-        "5" => Some(&[305usize]),
-        "6" => Some(&[306usize]),
-        "7" => Some(&[307usize]),
-        _ => None,
-    }
+    get_slot_range(name)
 }
 
 pub struct SlotArgumentType;
@@ -127,17 +109,22 @@ mod tests {
     use super::resolve_slot_range;
 
     #[test]
-    fn resolves_villager_slots_300_to_307() {
-        assert_eq!(resolve_slot_range("villager.0"), Some(&[300usize][..]));
-        assert_eq!(resolve_slot_range("villager.7"), Some(&[307usize][..]));
-        assert_eq!(resolve_slot_range("villager.8"), None);
-        assert_eq!(resolve_slot_range("villager.07"), None);
+    fn rejects_pre_26_slot_source_names() {
+        // Vanilla 26.3 replaced these with `mob.inventory.*`, `saddle` and `armor.body`.
+        assert!(resolve_slot_range("villager.0").is_none());
+        assert!(resolve_slot_range("horse.saddle").is_none());
+        assert!(resolve_slot_range("horse.armor").is_none());
     }
 
     #[test]
-    fn resolves_horse_saddle_and_armor_slots() {
-        assert_eq!(resolve_slot_range("horse.saddle"), Some(&[400usize][..]));
-        assert_eq!(resolve_slot_range("horse.armor"), Some(&[401usize][..]));
+    fn resolves_vanilla_equipment_and_crafting_slots() {
+        assert_eq!(resolve_slot_range("saddle"), Some(&[106usize][..]));
+        assert_eq!(resolve_slot_range("player.cursor"), Some(&[499usize][..]));
+        assert_eq!(
+            resolve_slot_range("player.crafting.2"),
+            Some(&[502usize][..])
+        );
+        assert_eq!(resolve_slot_range("mob.inventory.7"), Some(&[307usize][..]));
     }
 
     #[test]

@@ -41,3 +41,11 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - Row 5 (teleport broadcast only to destination chunk): STILL OPEN. Correct fix requires routing the position sync through the entity tracker's current `seen_by` set and the cross-chunk re-track plus Bedrock teleport packet flow; a partial single-file edit risks duplicate packets or a `seen_by` read lock during tracker updates. Network path outside a safe single-file change.
 - Row 7 (kill fallback for non-living entities): STILL OPEN. Not a behaviour bug: verified vanilla `Entity.kill` removes (Entity.java:765-768) while `LivingEntity.kill` damages, matching Pumpkin's split. Tracking-only TODO cleanup, no fix required.
 - Verified with rustfmt --edition 2024 on entity/mod.rs (exit 0). Cargo/test execution forbidden by task scope, so compilation of the new test is UNVERIFIED.
+
+
+## Result (re-verification pass)
+- Row 3 (Bedrock climate_variant): STILL OPEN. Needs the Bedrock `climate_variant` property id, biome-temperature classification and a `PropertySyncData` int entry; the TODO at entity/mod.rs:997 documents this. Generated/Bedrock property data is outside this unit, so left open.
+- Row 5 (teleport broadcast only to destination chunk): FIXED in code; the earlier Result line was stale. `Entity::teleport` (entity/mod.rs:5337-5345) now builds `CEntityPositionSync` with the absolute position and calls `world.send_to_tracking_players(self, &packet)`, which broadcasts via the tracker's `seen_by` set (world/mod.rs:1283-1287, entity_tracker.rs:1019-1028), so old-chunk viewers receive the move instead of keeping a ghost. Matches vanilla `Entity.sendTeleportTransitionToPlayers` (Entity.java:6057-6082). No new source change needed.
+- Row 7 (kill fallback for non-living entities): STILL OPEN, non-bug cleanup only. Pumpkin `kill` (entity/mod.rs:1485-1507) matches vanilla `Entity.kill` (Entity.java:765-768): non-living entities remove then emit `ENTITY_DIE`, living entities take `GENERIC_KILL` damage. No behaviour fix to make.
+- Confirmed prior fixes still present: row 1 `format_name_for_team` (entity/mod.rs:1474), row 2 `set_frozen_ticks(0)` (entity/mod.rs:1114), row 4 dead stub removed, row 6 `set_rotation` normalisation (entity/mod.rs:4458).
+- No .rs file changed this pass, so no rustfmt run. Cargo/test execution forbidden by task scope.

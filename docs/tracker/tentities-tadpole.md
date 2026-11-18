@@ -87,3 +87,36 @@ to true and makes `set_from_bucket()` a no-op, matching Tadpole.java:172-179.
 
 Verification: decompiled vanilla + assets read directly; no cargo/git per task
 rules. No rustfmt run because no .rs file was edited.
+
+
+## Result
+
+Third re-review. Re-verified all three STILL OPEN gaps against the vendored
+decompiled vanilla (Java 26.3). No .rs source was edited: Pumpkin already
+matches vanilla on every row.
+
+- Gap 1 (tadpole variant): CLOSED, false premise. Full `Tadpole.java` (260
+  lines) defines only `AGE_LOCKED` synched data (line 45). There is no
+  `DATA_VARIANT` accessor and no `TadpoleVariant` class in vanilla, and
+  `assets/` has no tadpole variant registry. `tadpole.rs` correctly has none.
+  Any fix would require generated data and Extractor assets outside this unit.
+- Gap 2 (age-up variant mapping): CLOSED, false premise. `Tadpole#ageUp`
+  (Tadpole.java:236-250) converts to `FROG` via `ConversionParams.single`,
+  calls `finalizeSpawn`, sets persistence, fudges position and plays the
+  grow-up sound; no variant is carried over (frog variant is biome-selected).
+  `tadpole.rs:120-146` matches. Also needs generated data outside this unit.
+- Gap 3 (water animal max air): CLOSED, already correct. `WaterAnimal.java:39-48`
+  hardcodes `setAirSupply(300)` and has no `getMaxAirSupply` override. Base
+  `Entity.getMaxAirSupply` returns `maxAirTicks`, initialised from
+  `getDefaultMaxAirSupply` = `Entity.TOTAL_AIR_SUPPLY` = 300
+  (Entity.java:245,438,4058). Only `Dolphin` overrides to 4800
+  (Dolphin.java:78,114,204), and `dolphin.rs:39,342` returns 4800 to match.
+  `water_animal.rs:10` is 300, `abstract_fish.rs:304-305` returns 300,
+  `bucketable.rs:192` comment reads (300), and `breath.rs MAX_AIR=300` is
+  player-only (`BreathManager::tick(&Player)`). All consistent.
+
+The existing tests cover the only seams (`tadpole.rs::tadpole_is_always_from_bucket`
+and `water_animal.rs::fish_keep_the_drowning_rule`); no new test added because
+no behaviour changed. No unwrap/expect/panic and no println introduced. No .rs
+file changed, so the compile-pitfalls table is not applicable and no rustfmt was
+run. No cargo/git per task rules.

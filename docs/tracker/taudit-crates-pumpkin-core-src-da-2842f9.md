@@ -112,3 +112,84 @@ were needed: gap 2 is already correct, gaps 1/3/4 cannot be fixed inside this un
 No STILL OPEN row can be fixed with a small, type-safe change confined to
 dynamic_registry_loader.rs / dynamic_registry_manager.rs / known_packs.rs, and no rustfmt was run
 because no .rs file was modified.
+
+
+## Result (sweep 2026-11-18, re-verified against 26.3 decompiled vanilla)
+
+Fresh pass over the four STILL OPEN rows. Decompiled tree is present this time at
+`.vendor/vanilla-decompiled/net/minecraft/resources/` and matches the 26.3 target.
+Re-read all three source files plus the send site; no .rs file was changed.
+
+- Gap 1 (codec validation of datapack entries): LEFT OPEN, needs generated codec data.
+  Re-confirmed at `ResourceManagerRegistryLoadTask.java:47-56` (each entry is parsed through
+  `data.elementCodec().parse(RegistryOps<JsonElement>, json)`) and
+  `RegistryLoadTask.java:98-109` (`loadFromResource` records `Either.right(error)` on any parse
+  failure), with errors collected and thrown in `RegistryDataLoader.java:250-264`. Pumpkin
+  stores opaque NBT with no per-registry schema; `json_to_registry_nbt_bytes`
+  (dynamic_registry_loader.rs:191-205) always emits structurally valid NBT, so a "decode NBT"
+  stopgap cannot detect a schema-invalid entry (e.g. a painting_variant missing `asset_id`).
+  Rejecting such entries requires the per-element DIRECT/NETWORK codecs, which exist only as
+  generated vanilla data outside this unit's files.
+
+- Gap 2 (override semantics of an existing entry): RESOLVED, no code change (re-confirmed).
+  `ResourceManagerRegistryLoadTask.java:44` uses `FileToIdConverter.listMatchingResources`
+  (`FileToIdConverter.java:44-45` -> `ResourceManager.listResources`), which returns ONE
+  resource per id with the highest-priority pack winning, then registers all entries in
+  sorted-key order (`:65`, `sorted(Entry.comparingByKey())`). A datapack file sharing a vanilla
+  id therefore replaces the built-in value outright while keeping its resource key; genuinely
+  new ids are appended in key order. `merge_dynamic_registry_entries`
+  (dynamic_registry_loader.rs:344-401) already replaces in place (keeping entry_id/index) and
+  appends only new ids sorted by entry_id, and `merge_preserves_and_appends`
+  (dynamic_registry_loader.rs:532-569) locks this in. No new test needed.
+
+- Gap 3 (cross-entry validation): LEFT OPEN, needs generated reference schema.
+  Re-confirmed at `ResourceManagerRegistryLoadTask.java:47` (`RegistryOps.create(JsonOps.INSTANCE,
+  context)` resolves holder references while decoding) and
+  `RegistryLoadTask.java:86-95`/`RegistryDataLoader.java:257-262` (`validateRegistry` fails the
+  whole reload on any dangling reference or `RegistryValidator` failure such as `nonEmpty`).
+  Pumpkin has no map of which JSON fields are cross-registry references
+  (dimension_type->biome, enchantment->damage_type, ...) or which registries are `nonEmpty`,
+  so this requires generated codec metadata. Out of scope for these files.
+
+- Gap 4 (reload cost): LEFT OPEN, cross-crate API change; per-join path already mitigated.
+  The hot path is already cheap: `SyncedRegistry` holds `Arc<Vec<RegistryEntryData>>`
+  (dynamic_registry_manager.rs:102) and `get_synced_registries` (`:271-293`) Arc-clones it, so
+  `known_packs.rs:9-15` reuses entry storage across joins without deep copying. The remaining
+  clones (`get_registry_entries` :251-257, `get_all_entry_ids` :260-268, `get_entry_data`
+  :231-239 clones one entry's bytes, not the whole vector) are lookup helpers, not per-join.
+  Removing them means changing return types to borrowed slices and updating callers in
+  `data/datapack/mod.rs` and elsewhere (other files / cross-crate), so deferred.
+
+No STILL OPEN row has a small, type-safe fix confined to dynamic_registry_loader.rs,
+dynamic_registry_manager.rs, known_packs.rs or packet.rs (the latter is the unrelated plugin
+`PacketSentEvent` definitions). No rustfmt run because no .rs file was modified.
+
+## Result (sweep 2026-11-18, fresh re-verification after server restart)
+
+Re-read all four source files and re-verified each STILL OPEN row against the 26.3 decompiled
+tree at `.vendor/vanilla-decompiled/net/minecraft/resources/`. No .rs file was changed.
+
+New evidence re-confirming the prior verdicts:
+- `ResourceManagerRegistryLoadTask.load` (`:44`) uses `FileToIdConverter.listMatchingResources`,
+  which yields one resource per id (highest-priority pack wins), and registers every entry in
+  sorted-key order (`:65`, `sorted(Entry.comparingByKey())`). This re-confirms gap 2: a datapack
+  file with a vanilla id replaces it outright while keeping key/id, exactly what
+  `merge_dynamic_registry_entries` (dynamic_registry_loader.rs:344-401) and
+  `merge_preserves_and_appends` (:532-569) already do. No change.
+- `RegistryLoadTask.loadFromResource` (`:98-109`) parses each entry through `elementDecoder.parse`
+  and records `Either.right(error)` on failure; `validateRegistry` (`:86-95`) fails the reload on
+  any dangling reference. This re-confirms gaps 1 and 3 require the per-element codec and
+  cross-reference schemas that exist only as generated vanilla data, not in these files.
+- `RegistryLoadTask.registerElements` (`:59-68`) registers in the supplied (sorted) stream order
+  into a freshly built `MappedRegistry` per reload; Pumpkin's frozen `Arc<Vec<..>>` snapshot
+  (`dynamic_registry_manager.rs:99-103`, `:271-293`) already avoids per-join deep copies, so gap 4
+  remains perf-only and needs a cross-crate API change to remove the lookup-helper clones.
+
+- Gap 1 (codec validation): LEFT OPEN, needs generated codec data (out of scope).
+- Gap 2 (override semantics): RESOLVED, no code change, matches vanilla (re-confirmed).
+- Gap 3 (cross-entry validation): LEFT OPEN, needs generated reference schema (out of scope).
+- Gap 4 (reload cost): LEFT OPEN, cross-crate API change, not observable parity; hot path already Arc-backed.
+
+No STILL OPEN row has a small, type-safe fix confined to dynamic_registry_loader.rs,
+dynamic_registry_manager.rs, known_packs.rs or packet.rs. No rustfmt run because no .rs file
+was modified.

@@ -114,3 +114,44 @@ Reference: `.vendor/vanilla-decompiled/net/minecraft/` (protocol 777 = target `V
 4. Per-world scoreboards vs server-wide vanilla (L): STILL OPEN. Scoreboard ownership move across the server/world layers, tracked separately; files outside this unit.
 
 No compile/test run (worker rule); orchestrator batch-checks. rustfmt --edition 2024 run on all touched .rs files.
+
+
+## Result (recheck)
+
+Reference: `.vendor/vanilla-decompiled/net/minecraft/` read directly for every row.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): already resolved in the code by an earlier pass; rechecked, no change.
+   - `objective.rs:61`, `team.rs:37`, `operation.rs:122`, `scoreboard_slot.rs:85`, `score_holder.rs:134` and `parser.rs:610` all use `filter_and_suggest_one`; no `filter_and_suggest_one_prefix` call site remains in `command/argument_types/`.
+   - Confirmed correct: `ObjectiveArgument.listSuggestions` (ObjectiveArgument.java:61), `TeamArgument`, `ScoreHolderArgument`, `ScoreboardSlotArgument` and `OperationArgument` all call `SharedSuggestionProvider.suggest`, which filters with `matchesSubStr` (`MATCH_SPLITTER` = `._/`). Segment-aware substring matching is correct for this version.
+   - Resource-id sites (`template.rs`, `resource_key.rs`) still use `filter_and_suggest_iter` and were left alone.
+
+2. Criteria as raw strings / no vanilla registry (M): already resolved in the code by an earlier pass; rechecked, no change.
+   - `world/scoreboard.rs:934 resolve_criterion` is the `ObjectiveCriteria.byName` equivalent (custom criteria, teamkill/killedByTeam colours, stat names containing `:`; `None` -> `argument.criteria.invalid`). Covered by `world/scoreboard/tests.rs::resolve_criterion_matches_vanilla_custom_and_stat_names`.
+   - `commands/scoreboard.rs:72` resolves/validates on `objectives add` and uses `resolved.render_type`; `objective.rs:25` derives read-only via `resolve_criterion`; `execute.rs:915` reuses it. This matches `ObjectiveCriteriaArgument.parse` (`ObjectiveCriteria.byName`) and `ScoreboardCommand.addObjective` (`criteria.getDefaultRenderType()`).
+   - Stat names are accepted verbatim when they contain `:` (no stat registry in Pumpkin); documented at `world/scoreboard.rs:931`.
+
+3. Argument errors without cursor context (M): STILL OPEN, out of scope.
+   - For `objective.rs` specifically the audit claim is wrong: vanilla `ObjectiveArgument` (lines 37, 46) uses `DynamicCommandExceptionType.create(id)` WITHOUT a reader, so `create_without_context` is parity here.
+   - Vanilla `ObjectiveCriteriaArgument.parse` (line 51) does use `createWithContext`, but Pumpkin's `CommandErrorType` has no `create_with_context` at all (`pumpkin-command/src/errors/error_types.rs` only exposes `create_without_context*`). Adding it is a cross-crate refactor of the error-type fleet; files outside this unit.
+
+4. Per-world scoreboards vs server-wide vanilla (L): STILL OPEN, out of scope.
+   - `ObjectiveArgument.java:34` reads `source.getServer().getScoreboard()`; Pumpkin reads the source's world. Moving scoreboard ownership across the server/world layers is a cross-crate refactor; files outside this unit.
+
+Extra in-scope parity fix found while verifying: `objective.rs::examples` returned `["objective", "trigger_obj"]`, but vanilla `ObjectiveArgument.EXAMPLES` (line 20) is `["foo", "*", "012"]`. Corrected to the vanilla values. The unit doc's earlier "Verified correct" claim about examples was wrong for this version.
+
+No new test: examples are static data, and `resolve_criterion` already has a pure unit test. No compile/test run (worker rule); orchestrator batch-checks. `rustfmt --edition 2024` run on `objective.rs` (rc 0).
+
+
+## Result (final recheck)
+
+Reference: `.vendor/vanilla-decompiled/net/minecraft/` read directly for every STILL OPEN row.
+
+1. Prefix matching / resource-id suggestions (S): already resolved by earlier passes; rechecked, no change. `objective.rs:61`, `team.rs:37`, `operation.rs:122`, `scoreboard_slot.rs:85`, `score_holder.rs:134` and `parser.rs:610` use `filter_and_suggest_one` (vanilla `SharedSuggestionProvider.suggest` uses segment-aware `matchesSubStr`); `template.rs`/`resource_key.rs` keep `filter_and_suggest_iter` (vanilla `suggestResource`/`filterResources`).
+
+2. Criteria raw strings, no registry (M): already resolved; rechecked, no change. `commands/scoreboard.rs:72` resolves via `resolve_criterion` before creating an objective; `objective.rs:25`/`execute.rs` derive read-only from the same table. `world/scoreboard.rs` carries the unit test.
+
+3. Argument errors without cursor context (M): STILL OPEN, out of scope. Verified `ObjectiveArgument.java:37,46` uses `DynamicCommandExceptionType.create(id)` WITHOUT a reader, so `objective.rs:85,99` `create_without_context` is exact parity. Pumpkin's `CommandErrorType` DOES exposes a context-aware `create(context_provider, ...)` (`error_types.rs:323-334`), and all parse-time argument errors already use `.create(reader, ...)` (entity.rs:137, game_profile.rs:264, operation.rs:96, scoreboard_slot.rs:72, entity_selector/*). The only unmatched case is vanilla `ObjectiveCriteriaArgument.parse:51` `createWithContext(reader, id)`; Pumpkin has no `ObjectiveCriteriaArgument` type and resolves criteria at execution time (`commands/scoreboard.rs:72-74`), so reproducing the cursor requires a dedicated argument type plus a fleet-wide change. Files outside this unit / cross-crate refactor.
+
+4. Per-world scoreboards vs server-wide vanilla (L): RESOLVED in current code, no change needed. Verified `ObjectiveArgument.java:34` reads `source.getServer().getScoreboard()`. Pumpkin now owns one shared scoreboard: `server/mod.rs:210-211` `pub scoreboard: Arc<Mutex<Scoreboard>>` ("The single scoreboard shared by every world, matching vanilla's server-wide scoreboard"), and `world.scoreboard = server.scoreboard.clone()` at `server/mod.rs:543,933`. Every world's `Scoreboard` is an `Arc` clone of the server's, so objectives are visible cross-dimension, matching vanilla.
+
+No code change and no new test: rows 1/2/4 are resolved in code with existing coverage, row 3 is parity or a cross-crate refactor outside this unit. No compile/test run (worker rule); orchestrator batch-checks.

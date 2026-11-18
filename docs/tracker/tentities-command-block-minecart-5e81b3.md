@@ -63,9 +63,13 @@ covers NBT round trip, `TrackOutput=false`, cooldown and the Searge output.
 6. Remaining risk, not a gap: a client that does not open `MinecartCommandBlockEditScreen` locally gets no
    server fallback for `interact` (`command_block.rs:235-237`). Size: S.
 
-## Gap status
-- Remaining-gap items 1-5 (CustomName/LastOutput persistence, performCommand gating, etc.): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 6 (risk, not a gap): n/a, no action
+## Gap status (final, re-verified against decompiled vanilla in .vendor)
+- Row 1 (success_count reset before gamerule guard): NO GAP - vanilla BaseCommandBlock.java line 105 resets SuccessCount before the guard at line 106; Pumpkin matches.
+- Row 2 (Searge skips lastExecution): NO GAP - vanilla returns at line 102 before the lastExecution write at lines 134-138; Pumpkin matches.
+- Row 3 (custom_name on command-block state): NO GAP - vanilla keeps its own customName field and getName() defaults to "@"; Pumpkin matches.
+- Row 4 (thread target protocol version through entity NBT): STILL OPEN (BLOCKED) - cross-crate refactor outside this unit's files and a repo-wide convention.
+- Row 5 (gamerule-off test): FIXED - command_block_minecart_perform_command_gamerule added in minecart.rs.
+- Row 6 (no GUI fallback): n/a, risk only.
 
 
 ## Result
@@ -100,3 +104,50 @@ blocks disabled. Changed `command_block.rs` to `eq_ignore_ascii_case("Searge")` 
 
 Files touched: `command_block.rs`, `minecart.rs`. `rustfmt --edition 2024` run on both (rc 0).
 No compile/test run by this worker (orchestrator compiles once).
+
+
+## Result (re-verification, this pass)
+
+Re-checked every row against the decompiled vanilla now present in `.vendor/vanilla-decompiled`
+(`world/level/BaseCommandBlock.java`, `world/entity/vehicle/minecart/MinecartCommandBlock.java`,
+`server/network/ServerGamePacketListenerImpl.java`). No new source change was required.
+
+- Row 1: NO GAP. Vanilla clears SuccessCount before `isCommandBlockEnabled()` (line 105 vs 106);
+  Pumpkin's reset at `command_block.rs:169` is also before the guard at line 170.
+- Row 2: NO GAP. Vanilla returns from the Searge branch at line 102, before the lastExecution write
+  at lines 134-138; Pumpkin returns at lines 161-166 before the bookkeeping at lines 218-223.
+- Row 3: NO GAP. Vanilla `BaseCommandBlock` owns `customName` and `getName()` returns it or "@"
+  (lines 147-149), independent of the entity name; Pumpkin matches.
+- Row 4: STILL OPEN (BLOCKED). Needs a cross-crate refactor to thread the target protocol version
+  through entity NBT saving, outside this unit's files and a repo-wide convention (16 sites).
+- Row 5: FIXED. `command_block_minecart_perform_command_gamerule` exists at `minecart.rs:1234` and
+  asserts the vanilla behaviour (disabled command resets SuccessCount to 0 and does not run;
+  lowercase "searge" still fires before the gamerule guard).
+- Row 6: n/a (risk only, no server fallback needed).
+
+`set_command_minecart.rs` also matches vanilla `handleSetCommandMinecart` lines 1100-1120:
+permission check, unconditional setCommand/setTrackOutput/setLastOutput, gamerule-gated onUpdated,
+and the success/disabled message. No change needed.
+
+No .rs file touched this pass, so no rustfmt run. No compile/test run by this worker.
+
+
+## Result (this pass)
+
+Only Row 4 is marked STILL OPEN. Re-read all three in-scope files to confirm the other rows stay
+resolved: `command_block.rs:169` resets SuccessCount before the gamerule guard at 170 (Row 1 NO GAP),
+the Searge branch returns at 161-166 before the lastExecution write at 218-223 (Row 2 NO GAP), the
+command-block state keeps its own `custom_name` field at line 45 (Row 3 NO GAP), the
+`command_block_minecart_perform_command_gamerule` test lives in `minecart.rs` (Row 5 FIXED, and that
+file is outside this unit's edit scope), and Row 6 is risk only. `set_command_minecart.rs` matches
+vanilla. No edits needed for these.
+
+- Row 4 (hardcoded `CURRENT_MC_VERSION` in `to_nbt_tag_for_version` at `command_block.rs:242,256`):
+  STILL OPEN (BLOCKED). One-line reason: threading the target protocol version through entity NBT
+  saving needs a cross-crate refactor of the `EntityBase::write_nbt` trait signature
+  (`entity/mod.rs:276`, no version parameter) and all callers, plus a repo-wide convention (16 sites),
+  all outside this unit's files; vanilla `Component.Serializer` is version-agnostic, so no
+  vanilla-grounded fix exists inside `command_block.rs`. `TextComponent` only exposes
+  `to_nbt_tag_for_version` (no version-free `to_nbt_tag`), so the version cannot be dropped locally.
+
+No .rs file touched this pass. No compile/test run by this worker (orchestrator compiles once).

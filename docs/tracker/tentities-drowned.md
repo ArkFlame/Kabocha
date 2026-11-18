@@ -67,11 +67,11 @@ is empty — the Rust guard matches. No change expected; listed only because the
 
 
 ## Gap status
-- 1 turtle egg goal leaks into Drowned: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 trident attack hand: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 trident goal continue condition: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 equipment roll distribution (needs Drowned.java): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 5 nautilus shell drop chance (needs decompile): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 1 turtle egg goal leaks into Drowned: FIXED (already in source; re-verified against decompile 2026-11-18)
+- 2 trident attack hand: VERIFIED MATCH (no change needed; re-verified 2026-11-18)
+- 3 trident goal continue condition: VERIFIED MATCH (no change needed; re-verified 2026-11-18)
+- 4 equipment roll distribution: VERIFIED MATCH (no change needed; re-verified 2026-11-18)
+- 5 nautilus shell drop chance: VERIFIED MATCH (no change needed; re-verified 2026-11-18)
 
 
 ## Result
@@ -100,3 +100,36 @@ Verified 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 1
 
 No pure unit-test seam exists for goal registration (needs constructed entities); no test added. Only `drowned.rs`
 was edited (plus this doc); rustfmt --edition 2024 applied and clean.
+
+
+## Result
+
+Re-verified 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 1.21.x, Mojang mappings).
+Every row was already resolved in the source from the prior audit; this pass independently confirms each against
+decompiled vanilla, so no source edit was required and no source file was touched this pass.
+
+- 1 turtle egg goal: FIXED (already present). `Zombie#registerGoals` (Zombie.java:128-132) adds the
+  `ZombieAttackTurtleEggGoal` at priority 4 then calls `addBehaviourGoals()`; `Drowned#addBehaviourGoals`
+  (Drowned.java:93) does not add an egg goal and there is no `registerGoals` override, so Drowned inherits the
+  egg goal. `drowned.rs:126` registers `DestroyEggGoal::new(1.0, 3)` at priority 4 in `DrownedEntity::new`
+  (goals are built directly, not via the zombie base helper), so there is no double registration. Matches.
+- 2 trident attack hand: VERIFIED MATCH, no change. `DrownedTridentAttackGoal#start` (Drowned.java:557-560)
+  uses `startUsingItem(InteractionHand.MAIN_HAND)` and `performRangedAttack` reads `getMainHandItem()`.
+  `drowned.rs:594-602` takes the `EquipmentSlot::MAIN_HAND` stack and calls `set_active_hand(Hand::Right, ..)`;
+  `Hand::Right` is Pumpkin's main hand (e.g. snowball.rs:47 maps it to `inventory.held_item()`). Matches.
+- 3 trident goal continue condition: VERIFIED MATCH, no change. `RangedAttackGoal#canContinueToUse`
+  (RangedAttackGoal.java:55-56) is `canUse() || target.isAlive() && !navigation.isDone()`. The trident goal
+  overrides only `canUse` (Drowned.java:551-554) and inherits `canContinueToUse`, so `this.canUse()` there is the
+  trident-aware override. `drowned.rs:582-588`: `can_start = ranged.can_start && holds_trident`,
+  `should_continue = can_start || ranged.target_alive() && !is_navigator_idle()`. Faithful mirror. Matches.
+- 4 equipment roll distribution: VERIFIED MATCH, no change. `Drowned#populateDefaultEquipmentSlots`
+  (Drowned.java:199-207) is `nextFloat() > 0.9` then `nextInt(16) < 10` (else fishing rod).
+  `drowned.rs:355-366` uses `TRIDENT_ROLL=0.9`, `WEAPON_WEIGHTS=16`, `TRIDENT_WEIGHT=10`:
+  `random::<f32>() > 0.9` then `random_range(0..16) < 10`. Same uniform second roll. Matches.
+- 5 nautilus shell drop chance: VERIFIED MATCH, no change. `Drowned#finalizeSpawn` (Drowned.java:113-116)
+  guards on empty OFFHAND and `nextFloat() < 0.03F`, then `setItemSlot` + `setGuaranteedDrop(OFFHAND)`.
+  `drowned.rs:303-306` uses `NAUTILUS_SHELL_CHANCE=0.03` under the same `offhand_empty && random < 0.03`
+  guard with `set_item_slot_and_drop_when_killed`. Matches.
+
+No pure unit-test seam exists for goal registration or equipment rolls (both require constructed entities/world);
+no test added. No `.rs` file edited this pass, so rustfmt was not needed.

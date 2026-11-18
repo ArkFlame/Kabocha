@@ -212,3 +212,77 @@ Note for orchestrator: minecart 1 was marked FIXED after removing the rideable-c
 (from `Minecart.activateMinecart`). That removal is a parity regression for this vanilla
 version; the eject arm and damage should both be present. Not re-added here because that row
 is not marked STILL OPEN.
+
+
+---
+
+## Result (pass 2, vanilla verification against .vendor/vanilla-decompiled/net/minecraft/)
+
+Editable files this unit: minecart.rs, minecart/rideable.rs, minecart/tnt.rs.
+block_effects.rs is NOT in scope, so its open rows stay open.
+
+- block_effects 1 (non-lily-pad dispatch): STILL OPEN, M. Needs block_effects.rs, outside this unit's files.
+- block_effects 2 (endpoint double dispatch): STILL OPEN, M. Same shared-pass change, out of scope.
+- block_effects 3 (chunk loaded guard): FIXED in prior pass (block_effects.rs guard added).
+- block_effects 4 (take before early return): verified faithful in prior pass, no change.
+- block_effects 5 (requested-movement axis split): verified faithful in prior pass, no change.
+- block_effects 6 (gametest): STILL OPEN, M. Needs a pumpkin-gametest harness outside this unit's files.
+- minecart 1 (powered rail damages rideable cart): FIXED this pass. The prior removal (8c7debbe3) was a
+  parity regression the doc flagged; decompiled Minecart.java:45-58 shows a powered activator rail under a
+  plain minecart DOES eject riders and, when hurtTime==0, setHurtDir(-hurtDir)/setHurtTime(10)/setDamage(50.0)/
+  markHurt. Re-added that hurt block in the Rideable arm (minecart.rs:452-462) using
+  set_hurt_dir/set_hurt_time/set_damage/send_wobble_metadata/mark_hurt. 50.0 exceeds the 40 destroy threshold.
+- minecart 2 (rustfmt): FIXED prior pass (note).
+- minecart 3 (activator rail ejects riders): verified faithful in prior pass, NO change. Vanilla ejects.
+- minecart 4 (push direction): verified faithful in prior pass, NO change.
+- minecart 5 (powered-rail boost): FIXED prior pass.
+- minecart 6 (container friction): verified faithful in prior pass, NO change.
+- minecart 7 (passenger repositioning): verified faithful, NO change. Decompiled Minecart.positionRider
+  (Minecart.java:77-85) just calls super.positionRider; no manual `to - from` offset. Pumpkin calls
+  crate::entity::position_riders(self) when attempted_to!=from (minecart.rs:686), which routes through
+  position_rider. The doc's "offsets by real displacement" claim is wrong for this version.
+- minecart 8 (slope tests): FIXED prior pass. Tests all_ascending_rails_snap_center_to_vanilla_height and
+  rail_position_snap_covers_north_south_and_curve cover ascending + diagonal shapes.
+- minecart 9 (double move_entity): verified faithful, NO change. AbstractMinecart.move (lines 446-463)
+  replays the residual only in experimental movement; Pumpkin's move_entity (minecart.rs:1023-1040) uses
+  the base Entity::move_entity for both moves, so no recursive push/double apply.
+- minecart 10 (TNT priming): verified faithful, NO change. minecart.rs damage_with_context (918-970) plus
+  tnt.rs prime/tick/explode implement vanilla MinecartTNT.destroy (prime fuse rand(20)+rand(20) on ignite or
+  speedSqr>=0.01), hurtServer (burning-arrow explode) and tick (horizontal-collision explode). The prior note
+  that this is blocked on tnt.rs being out of scope is outdated; tnt.rs is in scope and already correct.
+- minecart 11 (portal): BLOCKED-DATA, unchanged. Needs entity dimension change.
+- minecart 12 (sneak interact): verified faithful in prior pass, NO change. RideableMinecart::interact gates
+  on is_sneaking.
+
+rustfmt --edition 2024 run on minecart.rs (exit 0). No compile run (orchestrator compiles centrally).
+
+---
+
+## Result (pass 3, CODER unit scoped to rideable.rs + tnt.rs)
+
+Editable files this pass: `crates/pumpkin-core/src/entity/vehicle/minecart/rideable.rs` and
+`.../minecart/tnt.rs` only. Every other STILL OPEN row touches `block_effects.rs`, `minecart.rs`
+or a `pumpkin-gametest` harness, all outside this unit's files. Verified against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/{Minecart,MinecartTNT}.java`.
+No code changes: both in-scope rows are already faithful.
+
+- minecart 10 (TNT priming, tnt.rs): verified faithful, NO change. `TntMinecart::prime/tick/explode`
+  match `MinecartTNT`: `prime` guards on `fuse >= 0` and the tntExplodes rule and emits the prime
+  status/sound; `tick` decrements a positive fuse, spawns one smoke particle at y+0.5, and explodes
+  at fuse==0 with `x*x+z*z` (= `getDeltaMovement().horizontalDistanceSqr()`); `explode` uses
+  `min(sqrt(speedSqr),5)` and `base + factor*rand*1.5*speed`, preserves rails while primed, and
+  discards a primed cart when tntExplodes is off. The fuse `rand(20)+rand(20)`, the burning-arrow
+  immediate explode and the horizontal-collision (>=0.01) explode live in minecart.rs (out of
+  scope) and already match. `explosion_strength` is pinned by
+  `tnt_minecart_explosion_bonus_is_speed_capped`.
+- minecart 12 (sneak interact, rideable.rs): verified faithful, NO change. Vanilla `Minecart.interact`
+  (Java 25-32) returns PASS when `isSecondaryUseActive()` or the cart already is a vehicle.
+  `RideableMinecart::interact` returns false on `player.is_sneaking()` or non-empty `passengers`,
+  matching. The extra `player.has_vehicle()` guard is benign: a mounted player cannot start riding
+  another cart.
+- block_effects 1,2,3,4,5,6: STILL OPEN, out of scope (block_effects.rs / gametest harness).
+- minecart 3,4,5,6,7,8,9: out of scope (minecart.rs); pass-2 verdicts stand.
+- minecart 11 (portal): BLOCKED-DATA, needs entity dimension change.
+
+No pure unit test added: `explosion_strength` already has one and the remaining seams require live
+entities/world. No repo tools were run by this worker.

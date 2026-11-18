@@ -63,3 +63,31 @@ Verified against decompiled vanilla (`CreakingHeartBlock.java`, `CreakingHeartBl
 Also: comparator rounding is now verified as vanilla `Redstone.SIGNAL_MAX - (int)floor(clamp(distance,0,32)/32*15)`
 (`CreakingHeartBlockEntity.java:341-348`), matching `blocks/creaking_heart.rs:141-142`. Not compiled here (orchestrator batch check).
 Added pure unit test `creaking_too_far_boundary` for the vanilla 34-block threshold. Formatted with rustfmt.
+
+
+## Result (re-review pass, vanilla decompiled present)
+
+Re-checked the three STILL OPEN rows (4, 5, 6) against `.vendor/vanilla-decompiled`.
+
+| row | outcome | evidence |
+|---|---|---|
+| 4 creaking wander/melee goals | STILL OPEN (files outside unit) | Vanilla `CreakingAi.java:30-85` drives CORE/IDLE/FIGHT through a Brain/Behaviour system Pumpkin does not have. `creaking.rs:162-189` already registers `SwimGoal`, `MeleeAttackGoal(1.0,false,interval 40)` gated by `canMove`, `WanderAroundGoal(0.3)` gated by `canMove`, `LookAtEntityGoal(8.0)`, `RandomLookAroundGoal`, and `ActiveTargetGoal`, reproducing the observable gating/speed/interval. Full Brain/Activity parity needs new goal types under `entity/ai/goal/` (outside this unit's files) and is tracked on the mob side in `tentities-creaking.md`. |
+| 5 hurt particle / emitter trail | STILL OPEN (client-only) | Vanilla `CreakingHeartBlockEntity.java:228-250` `creakingHurt` emits `TrailParticleOption` particles and seeds `emitter` so `CREAKING_HEART_HURT` replays 10x over 100 ticks (`:82-99`); all of that is client-side sound/particles. `creaking.rs:619-627` calls `creaking_hurt` only for a bound protector, and `creaking_heart.rs:221-245` plays the hurt sound and grows resin while awake. No server-observable divergence; client-only effects do not block. |
+| 6 piston push | RESOLVED (already correct, no change) | Vanilla blocks pushing via `PistonBaseBlock.isPushable` returning `!state.hasBlockEntity()` (`PistonBaseBlock.java:284`), not a push-reaction field; `CREAKING_HEART` has no explicit `pushReaction` (`Blocks.java:1392-1396`). Pumpkin's `piston.rs:92-99` uses the equivalent `!has_block_block_entity(block)`, and `CREAKING_HEART` carries a block-entity type (`entities/mod.rs:558-565`, `generated/block.rs:6479`), so it is already unpushable. No generated-data or cross-crate change needed. |
+
+No source files changed: row 6 was already correct, rows 4 and 5 are out of unit / client-only. No pure unit-test seam exists for these rows (goal behavior needs live world state; piston push needs world + block-entity data). No rustfmt run (no `.rs` touched). Not compiled in this role; orchestrator batch check.
+
+## Result (verification pass)
+
+Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled`. No source files needed changing.
+
+| row | outcome | evidence |
+|---|---|---|
+| 1 spawn/despawn loop | VERIFIED (already fixed) | `entities/creaking_heart.rs:155-244` has `try_spawn_creaking` + `try_despawn_creaking` matching `CreakingHeartBlockEntity.java:73-136`. |
+| 2 `is_protector` UUID match | VERIFIED (already fixed) | `entities/creaking_heart.rs:129-133` `is_some_and(|uuid| uuid == creaking_uuid)` matches `CreakingHeartBlockEntity.java:333-335` (`map(c -> c == creaking).orElse(false)`). |
+| 3 mob 34-block distance | VERIFIED (already fixed) | Heart-side `is_creaking_too_far` (`entities/creaking_heart.rs:246-251`, 34.0) tears the mob down; mob-side `tick` (`creaking.rs:586-599`) only checks `isProtector` then sets health 0, matching `Creaking.java:241-258`. No mob edit needed. |
+| 4 creaking wander/melee goals | STILL OPEN (out of unit) | Vanilla `CreakingAi.java:30-85` uses a Brain/Activity/Behaviour system plus a 32-block-to-home path constraint (`Creaking.java:601-611`, `MAX_DISTANCE_TO_HOME_SQ=1024`). `creaking.rs:162-189` already registers Swim, canMove-gated Melee (interval 40) and Wander (0.3), LookAt(8), RandomLook and ActiveTarget, reproducing the observable gating/speed/interval. Full parity needs new goal/navigation types under `entity/ai/` (files outside this unit). |
+| 5 hurt particle / `setChanged` | RESOLVED (no-op, vanilla claim stale) | Vanilla `creakingHurt` (`CreakingHeartBlockEntity.java:228-250`) does NOT call `setChanged`; it only emits client particles and seeds `emitter`/`emitterTarget` for a client-side sound replay. The server-observable parts (2-3 resin clumps + `RESIN_PLACE` sound + `BLOCK_PLACE` game event while awake) are already in `entities/creaking_heart.rs:253-277`. No server divergence, nothing to change. |
+| 6 piston push | VERIFIED (already correct) | Vanilla `PistonBaseBlock.java:284` `isPushable` returns `!state.hasBlockEntity()`; Pumpkin `piston.rs:92-99` uses the equivalent `!has_block_block_entity(block)`, and `CREAKING_HEART` carries a block entity, so it is already unpushable. |
+
+Also re-verified comparator rounding: vanilla `getAnalogOutputSignal` (`CreakingHeartBlockEntity.java:337-348`) is `SIGNAL_MAX - (int)floor(clamp(distance,0,32)/32*15)`, matching `blocks/creaking_heart.rs:141-148`. No test seam exists for rows 4/5 (live-world goal behaviour / client-only effects). No `.rs` touched, so no rustfmt. Not compiled in this role; orchestrator batch check.

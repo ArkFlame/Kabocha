@@ -52,6 +52,58 @@ impl PistonBlockEntity {
         )
     }
 
+    /// Vanilla `Direction.from3DDataValue`: `abs(data % 6)`, so out-of-range ids wrap
+    /// instead of falling back to `Down`.
+    const fn facing_from_data_value(data: i32) -> BlockDirection {
+        match data % 6 {
+            0 => BlockDirection::Down,
+            1 | -1 => BlockDirection::Up,
+            2 | -2 => BlockDirection::North,
+            3 | -3 => BlockDirection::South,
+            4 | -4 => BlockDirection::West,
+            _ => BlockDirection::East,
+        }
+    }
+
+    /// Vanilla `moveStuckEntities`: a horizontal honey block drags grounded entities
+    /// standing on top of it along for the whole move.
+    fn drag_stuck_entities(&self, world: &Arc<World>, new_progress: f32) {
+        if self.pushed_block_state.id.to_block() != &Block::HONEY_BLOCK {
+            return;
+        }
+        let motion_dir = self.movement_direction();
+        if !motion_dir.is_horizontal() {
+            return;
+        }
+        let sticky_top = self
+            .pushed_block_state
+            .get_block_collision_shapes()
+            .fold(0.0f64, |top, shape| top.max(shape.max.y));
+        let zone = BoundingBox::new(
+            Vector3::new(0.0, sticky_top, 0.0),
+            Vector3::new(1.0, 1.500_001, 1.0),
+        )
+        .at_pos(self.position)
+        .shift(Self::dir_vec(
+            self.facing,
+            f64::from(self.amount_extended(self.last_progress.load())),
+        ));
+        let delta = f64::from(new_progress - self.last_progress.load());
+        for entity in world.get_entities_at_box(&zone) {
+            let e = entity.get_entity();
+            let pos = e.pos.load();
+            let grounded = e.on_ground.load(Ordering::Relaxed);
+            let inside = pos.x >= zone.min.x
+                && pos.x <= zone.max.x
+                && pos.z >= zone.min.z
+                && pos.z <= zone.max.z;
+            if !grounded || !inside || entity.get_player().is_some() {
+                continue;
+            }
+            Self::move_entity(e, motion_dir, delta);
+        }
+    }
+
     /// Ports vanilla `PistonBlockEntity.pushEntities`: pushes entities whose
     /// bounding box intersects the moving block's swept volume during this tick.
     fn push_entities(&self, world: &Arc<World>, new_progress: f32) {
@@ -102,6 +154,17 @@ impl PistonBlockEntity {
             // via Entity.move(PISTON), but we skip them here to avoid teleport jank.
             if entity.get_player().is_some() {
                 continue;
+            }
+            // Vanilla `moveCollidedEntities` bounces entities off a moving slime block.
+            if self.pushed_block_state.id.to_block() == &Block::SLIME_BLOCK {
+                let off = motion_dir.to_offset();
+                let mut velocity = e.velocity.load();
+                match motion_dir {
+                    BlockDirection::East | BlockDirection::West => velocity.x = f64::from(off.x),
+                    BlockDirection::Up | BlockDirection::Down => velocity.y = f64::from(off.y),
+                    BlockDirection::South | BlockDirection::North => velocity.z = f64::from(off.z),
+                }
+                e.set_velocity(velocity);
             }
 
             let entity_aabb = e.bounding_box.load();
@@ -285,6 +348,7 @@ impl BlockEntity for PistonBlockEntity {
         }
         let new_progress = (current_progress + 0.5).min(1.0);
         self.push_entities(world, new_progress);
+        self.drag_stuck_entities(world, new_progress);
         self.current_progress.store(new_progress);
     }
 
@@ -296,14 +360,15 @@ impl BlockEntity for PistonBlockEntity {
             .get_compound(BLOCK_STATE)
             .and_then(BlockStateCodec::state_from_nbt)
             .map_or(Block::AIR.default_state, BlockState::from_id);
-        let facing = nbt.get_byte(FACING).unwrap_or(0);
-        let last_progress = nbt.get_float(LAST_PROGRESS).unwrap_or(0.0);
-        let extending = nbt.get_bool(EXTENDING).unwrap_or(false);
-        let source = nbt.get_bool(SOURCE).unwrap_or(false);
+        let facing = Self::facing_from_data_value(i32::from(nbt.get_byte(FACING).unwrap_or(0)));
+        // Vanilla reads these with `getFloatOr`/`getBooleanOr`, which accept any numeric tag.
+        let last_progress = nbt.get_numeric_float(LAST_PROGRESS).unwrap_or(0.0);
+        let extending = nbt.get_numeric_short(EXTENDING).unwrap_or(0) != 0;
+        let source = nbt.get_numeric_short(SOURCE).unwrap_or(0) != 0;
         Self {
             pushed_block_state,
             position,
-            facing: BlockDirection::from_index(facing as u8).unwrap_or(BlockDirection::Down),
+            facing,
             current_progress: last_progress.into(),
             last_progress: last_progress.into(),
             last_ticked: 0.into(),
@@ -365,6 +430,23 @@ mod test {
         entity.write_nbt(&mut nbt);
         let restored = PistonBlockEntity::from_nbt(&nbt, BlockPos::new(1, 2, 3));
         assert_eq!(restored.pushed_block_state.id, state.id);
+    }
+
+    #[test]
+    fn facing_id_wraps_like_vanilla() {
+        // Vanilla `Direction.from3DDataValue` is `abs(data % 6)`.
+        assert_eq!(
+            PistonBlockEntity::facing_from_data_value(7),
+            BlockDirection::Up
+        );
+        assert_eq!(
+            PistonBlockEntity::facing_from_data_value(-1),
+            BlockDirection::Up
+        );
+        let mut nbt = NbtCompound::new();
+        nbt.put_byte("facing", 4);
+        let restored = PistonBlockEntity::from_nbt(&nbt, BlockPos::new(0, 0, 0));
+        assert_eq!(restored.facing, BlockDirection::West);
     }
 
     #[test]

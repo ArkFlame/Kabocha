@@ -56,3 +56,41 @@ Re-checked every STILL OPEN row against decompiled vanilla at .vendor/vanilla-de
 - Line 17 passenger offsets: CLOSED, NO GAP. boat.rs passenger_attachment (204-222) reads the generated entity.entity_type.boat seat data (ride_height, single_passenger_x_offset) and passenger_seat_offset (181-200) mirrors AbstractBoat.getPassengerAttachmentPoint. No local chest/bamboo branch remains.
 
 No new unit test: the pure helpers boat_interact_outcome, chest_opens_container and passenger_seat_offset already have direct tests (1191-1200); adding more would duplicate them. No .rs file touched, so rustfmt is not applicable.
+
+## Result (dismount.rs re-verification 2026-11-18)
+
+Scope for this unit is `crates/pumpkin-core/src/entity/vehicle/boat/dismount.rs` only. No STILL OPEN row maps to dismount.rs: the only open row (line 16, c:boats missing poplar_chest_boat) needs pumpkin-codegen regeneration of the generated tag.rs and is explicitly out of scope (generated data, no hand-edits). Left open with that one-line reason.
+
+Re-verified dismount.rs against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/:
+- AbstractBoat.getDismountLocationForPassenger (Java 709-738): escape vector from getBbWidth()*SQRT_OF_TWO and passenger yaw; target BlockPos built with boat maxY; water-at-below early return; two floor targets gated by isBlockFloorValid (floor.is_finite() && floor < 1.0); pose order Standing/Crouching/Swimming for players, Standing only for non-players; canDismountTo checks collisions + world border; setPose before returning. dismount.rs:18-74 matches all of these.
+- Entity.getCollisionHorizontalEscapeVector (Java 6645-6651): distance=(collider+colliding+1e-5)/2, x=-sin, z=cos, scale=max(|x|,|z|). dismount.rs:77-92 matches exactly (DISMOUNT_EPSILON=1e-5).
+- Base fallback Entity.getDismountLocationForPassenger (Java 6653-6655) returns (getX, maxY, getZ); dismount.rs fallback = (pos.x, top, pos.z) at lines 26 and 73 matches.
+
+No gap found, no source edit made. The extra `pose.load() != pose` recheck at line 66 is stricter than vanilla (retries the next pose if a setPose is rejected) but harmless. No new unit test: no in-scope row was fixed and the pure helpers are unchanged; a test would duplicate existing coverage.
+
+## Result (2026-11-18, dismount unit)
+
+Reworked `crates/pumpkin-core/src/entity/vehicle/boat/dismount.rs` against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:709-738`,
+`Entity.java:6645-6655` and `DismountHelper.java:38-54`.
+
+- FIXED: the dismount search only used `get_dimensions(pose)` for players and fell back to
+  `entity_dimension.load()` (the rider's current, riding pose box) for mobs. Vanilla
+  `DismountHelper.canDismountTo` always tests `passenger.getLocalBoundsForPose(pose)` ->
+  `LivingEntity.getDimensions(pose)`, so every rider now tests the pose box.
+- FIXED: the pose list is now the vanilla `getDismountPoses()` shape (`LivingEntity` =
+  `[Standing]`, `Player` = `[Standing, Crouching, Swimming]`) via a pure `dismount_poses`
+  helper instead of the `take(if is_player { 3 } else { 1 })` count hack.
+- Targets are collected once into a `Vec` so the pose/target loops mirror vanilla's
+  `targets` list ordering (above block first, then the block below).
+- Added two pure unit tests: `only_players_offer_the_crouching_and_swimming_dismount_poses`
+  and `escape_vector_moves_half_the_two_widths_plus_epsilon_along_the_heading`
+  (vanilla `getCollisionHorizontalEscapeVector` distances for yaw 0 and 90).
+- Already correct, unchanged: water short-circuit uses `minecraft:water` on
+  `target_pos.down()`, `getBlockFloorHeight` validity is `is_finite() && < 1.0`,
+  escape vector scale division, world-border epsilon check.
+- Row "c:boats missing poplar_chest_boat" (line 16): STILL OPEN, needs
+  `cargo run --locked -p pumpkin-codegen`; generated data must not be hand-edited.
+- Not changed on purpose: vanilla calls `passenger.setPose(dismountPose)` for every rider,
+  but Pumpkin's `set_pose` also refreshes dimensions and fires a cancellable pose event, so
+  the set stays player-only; a mob rider is already `Standing`, so behaviour is the same.

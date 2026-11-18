@@ -41,3 +41,15 @@ Verified every STILL OPEN row against decompiled vanilla 1.21.4 (`Goat.java` / `
 Already-resolved rows re-checked while verifying (no change):
 - #5 per-goat follow distance: correct (goat.rs:90-95 samples 5..=16 at speed 1.25, matching `ADULT_FOLLOW_RANGE`).
 - #7 head lowering: client-only animation (`handleEntityEvent` 58/59, `aiStep` pitch), no server-observable behaviour.
+
+## Result (re-review h4)
+
+Re-verified every STILL OPEN row against decompiled vanilla 1.21.4 (`Goat.java`, `GoatAi.java`, `RamTarget.java`, `PrepareRamNearestTarget.java`). This unit now owns `ram_target.rs` as well as `goat.rs`, so the two in-file parity bugs below were fixed; the rest need files outside this unit or a full Brain port.
+
+- #1 ram activity: PARTIALLY FIXED. The folded `RamTargetGoal` already matches vanilla constants (speed 3.0 / prepare 1.25, 20-tick prepare, 4..7 trigger, 600..6000 / 100..300 cooldowns, 2.5 adult / 1.0 baby force). Two real divergences fixed in `ram_target.rs`: (a) knockback direction was inverted - vanilla `RamTarget.start` stores `ramDirection = goatPos - targetPos` and `apply_knockback` subtracts it, so the target is pushed away from the goat; the goal passed `target - goat` instead; (b) knockback strength omitted vanilla's `RAM_SPEED_FORCE_FACTOR` clamp - now `clamp(speed * 1.65, 0.2, 3.0) * knockbackForce`. Still open: vanilla `PrepareRamNearestTarget` target scan (4..7 walkable positions, `RAM_TARGET_CONDITIONS`), potion/blocking factors and END_RAM/START_RAM entity-event broadcasts need a full Brain-activity port, out of scope.
+- #2 long jump: ADDRESSED ELSEWHERE - `LongJumpGoal` exists in the out-of-unit `long_jump.rs` and is wired at `goat.rs:102` with the 600..1200 cooldown, 5x5 search, 3.5714288x multiplier and screamer sound. No change here.
+- #3 horn drop: FIXED AND VERIFIED (no change this pass). `create_horn`/`drop_horn` in `goat.rs` pick from `MINECRAFT_(SCREAMING|REGULAR)_GOAT_HORNS`, clear the horn and spawn the item with vanilla's offsets (-0.2..0.2, 0.3..0.7, -0.2..0.2); `ram_target.rs::ram_into_block` is the caller. Confirmed `world.spawn_entity` returns bool, `Instrument::asset_id()` round-trips through `from_name`, and the generated tag names are valid. UUID-hash seeding uses the low 64 bits rather than Java's 32-bit `UUID.hashCode()` - cosmetic, no test pins it.
+- #4 memory init: FOLDED - `initial_ram_cooldown()` seeds 600..6000 like `GoatAi.initMemories` (RAM); the long-jump goal self-seeds (out of unit). Residual dependence on #1/#2.
+- #5, #6, #7: unchanged from prior pass - #5 fixed (per-goat 5..16 follow distance), #6 fixed out of unit in `entity/type.rs`, #7 client-only animation with no server-observable effect.
+
+Edits: `crates/pumpkin-core/src/entity/ai/goal/ram_target.rs` (knockback direction + vanilla speed-force clamp). `rustfmt --edition 2024` passed on that file. No cargo build run (worker restriction); orchestrator compiles.

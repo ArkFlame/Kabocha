@@ -87,3 +87,41 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
   `confirm`, a controlled RNG); the existing `#[tokio::test]` flee tests cover goal behaviour.
   No test added. Not compiled here per worker rules; orchestrator will batch-check.
 - Files touched: crates/pumpkin-core/src/entity/ai/goal/avoid_entity.rs (rustfmt --edition 2024 run, exit 0).
+
+
+## Result
+
+2026-11-18 re-verification against `.vendor/vanilla-decompiled` (`AvoidEntityGoal.java`,
+`TargetingConditions.java`, `Wolf.java`). No source change was needed: every STILL OPEN
+row is already addressed in the current tree.
+
+- Row 1 (brain-sensor threats reuse goal path logic): LEFT OPEN, out of scope. The current
+  `avoid_entity.rs` has no `per_type`/`nearest_of` (removed by the `TargetMatch`/`Flee`
+  refactor). Villager hostile fleeing now runs through `VillagerHostilesSensor` and
+  `SetWalkTargetAwayFrom` in `entity/ai/brain/...` plus `entity/passive/villager/ai.rs`,
+  all files outside this unit. Porting those behavior details is a cross-file refactor.
+- Row 2 (confirm on ranked nearest only): FIXED in tree, verified. Decompiled
+  `Wolf.WolfAvoidEntityGoal.canUse` is `super.canUse() && toAvoid instanceof Llama &&
+  !isTame() && avoidLlama(toAvoid)`; the 5-arg super constructor sets `avoidPredicate` to
+  always-true, so `avoidLlama` applies to the already-ranked nearest AFTER `createPath`,
+  one RNG draw. Current `can_start` (avoid_entity.rs:186-193) applies `confirm` after
+  `find_threat` + path creation, and `scares_wolves` (llama.rs:61-63) draws `0..5` once
+  only for a llama. Matches.
+- Row 3 (tick_reach range): resolved by refactor. No `per_type` field remains, so there is
+  no short-distance split. `tick_reach` (avoid_entity.rs:131-150) reports `flee_distance`
+  for entities, which equals the radius `find_threat` searches via `SearchArea::from_feet`
+  (avoid_entity.rs:121). No mismatch to fix.
+- Row 4 (drop_target per-tick clear): FIXED in tree, verified. Decompiled `Wolf` overrides
+  both `start()` and `tick()` calling `setTarget(null)`. Current `start()`
+  (avoid_entity.rs:207-217) and `tick()` (avoid_entity.rs:219-235) both clear the mob
+  target when `drop_target` is set. Matches.
+- Tests: no pure unit seam exists (`confirm` needs controlled RNG plus a spawned mob;
+  target clearing needs a mob/world), so the existing tokio flee tests cover goal behavior.
+  None added.
+- Files touched: none (all rows already fixed in tree). rustfmt not run, no `.rs` changed.
+- Observation (out of scope, NOT changed): this decompiled `AvoidEntityGoal` constructor
+  calls only `.range(maxDist).selector(...)`, not `ignoreLineOfSight()`/
+  `ignoreInvisibilityTesting()`. The first-pass targeting change (`create_attackable()` +
+  `ignore_visibility()` + `ignore_distance_scaling_factor()`) is therefore more permissive
+  than this vanilla snapshot. Left as-is: it is a FIXED row with an existing test and
+  outside this pass's STILL OPEN scope. Flagged for a follow-up audit.

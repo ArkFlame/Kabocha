@@ -114,3 +114,116 @@ the orchestrator; left untouched because it is a closed/re-audited row outside t
 
 Files touched: `crates/pumpkin-core/src/block/blocks/plant/eyeblossom.rs`,
 `crates/pumpkin-core/src/block/blocks/flower_pots.rs`, this doc.
+
+
+## Result (re-audit 2026-11-18, decompiled vanilla available)
+
+Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`
+(`world/level/block/EyeblossomBlock.java`, `world/level/block/FlowerPotBlock.java`,
+`tags/BlockItemTags.java`) plus `crates/pumpkin-data/src/generated/tag.rs`. No code change was
+needed: the STILL OPEN rows are now either verified equal to vanilla or already fixed in the
+current source. Verified the referenced APIs exist (`World::block_random: Mutex<Xoroshiro>` at
+world/mod.rs:377, `play_sound`/`play_sound_fine` at world/mod.rs:1884/1971,
+`RandomImpl::next_inbetween_i32`), so the current code type-checks by inspection. rustfmt run on
+both files.
+
+- 1. Peaceful bee-poison gate (eyeblossom.rs:90-92): VERIFIED EQUAL. Vanilla
+  `EyeblossomBlock#entityInside` requires `getDifficulty() != Difficulty.PEACEFUL`; the guard matches.
+- 3. Shared RNG per state change (eyeblossom.rs:131-135, flower_pots.rs:119-124): FIXED in code.
+  Both paths now draw from `world.block_random` (the level RNG) for the particle and the neighbour
+  delays, mirroring vanilla's level `RandomSource`. Existing test
+  `transform_particle_is_reproducible_from_a_seed` covers the seam; no new test needed.
+- 4. Potted variants (flower_pots.rs:85-133): FIXED in code. Vanilla `FlowerPotBlock#randomTick`
+  does `newType = Type.fromBoolean(isOpen).transform()`, then `newType.spawnTransformParticle` and
+  `newType.longSwitchSound()` -- both keyed on the type turned INTO. Pumpkin now spawns the shared
+  trail particle colored for the target type and plays the target's long sound. The "missing
+  neighbour-tick loop" half remains a non-bug: vanilla `FlowerPotBlock#randomTick` has no loop;
+  only the ground form schedules neighbours. No pure seam beyond `transform_particle` (already
+  tested for both colors), so no new test added.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (eyeblossom.rs:117, flower_pots.rs:93): VERIFIED EQUAL.
+  Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current
+  type's open value, exactly `unwrap_or(is_open)`.
+
+Re-flagged for the orchestrator (FIXED row, deliberately out of this unit's STILL OPEN scope):
+`Bee.attractsBees` tests the `bee_attractive` tag, which lists `open_eyeblossom` (tag.rs:2593),
+not `closed_eyeblossom`. Vanilla therefore poisons bees in an OPEN eyeblossom, while commit
+977e9c71c made Pumpkin poison bees in a CLOSED one (eyeblossom.rs:95). This is a real divergence
+on a closed/re-audited row; left untouched per scope.
+
+Files touched: this doc only (rustfmt run on eyeblossom.rs and flower_pots.rs, no content edits).
+
+## Result 2026-11-18 (vanilla 26.3 decompiled present at `.vendor/vanilla-decompiled`)
+
+- 1. Peaceful bee-poison gate: STILL OPEN -> already correct, no change. Vanilla
+  `EyeblossomBlock#entityInside` guards on `level.getDifficulty() != Difficulty.PEACEFUL`.
+- 3. Shared RNG: STILL OPEN -> CLOSED, verified equal. `try_changing_state` already draws from
+  `world.block_random` (Xoshiro seeded from the level seed, `world/mod.rs:377`), not `rand::rng()`;
+  the tracker row was stale. Particle and neighbour delays share that one stream, like vanilla's
+  `RandomSource`.
+- 4. Potted variants: STILL OPEN -> CLOSED. `flower_pots.rs:85-133` now matches vanilla
+  `FlowerPotBlock#randomTick` exactly: `isRandomlyTicking` gate on the two potted ids, attribute
+  lookup falling back to the current type, `opposite()` state write, transform particle coloured for
+  the type turned into, then `newType.longSwitchSound()` at volume/pitch 1.0. Vanilla emits no
+  `BLOCK_CHANGE` game event on this path and schedules no neighbour ticks, and neither does Pumpkin.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)`: STILL OPEN -> CLOSED, verified equal. Vanilla reads
+  `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)`, i.e. the current type's own value.
+
+### Regression found and fixed in this unit (the "Fixed here" row)
+
+`977e9c71c` was wrong and is reverted here. Vanilla `EyeblossomBlock#entityInside` gates the poison
+on `Bee.attractsBees(state)`, which is the `minecraft:bee_attractive` tag
+(`Bee.java:693-697`, `assets/datapack/data/minecraft/tags/block/bee_attractive.json:4`), and that tag
+contains `open_eyeblossom`, not `closed_eyeblossom`. So vanilla poisons bees in an OPEN eyeblossom;
+Pumpkin had been poisoning them in the closed one.
+
+- `eyeblossom.rs`: `on_entity_collision` now calls `poisons_bees(args.block)`, which tests
+  `MINECRAFT_BEE_ATTRACTIVE`, mirroring `Bee.attractsBees`. Vanilla's other two clauses of
+  `attractsBees` (not waterlogged, sunflower upper half) cannot apply to an eyeblossom.
+- Added pure unit test `only_the_open_eyeblossom_poisons_bees`.
+
+Also fixed: `try_changing_state` now emits `GameEvent.BlockChange` after the state write, which
+vanilla does at `EyeblossomBlock.java:76` and Pumpkin omitted.
+
+### Left open
+
+- `animateTick` idle sound (`EyeblossomBlock.java:41-48`: open type only, 1/700 chance, pale moss
+  block below, `EYEBLOSSOM_IDLE` on `SoundCategory::Ambient`, client-local). Pumpkin has no
+  `animate_tick` hook on `BlockBehaviour` at all, so implementing it needs a new trait method plus a
+  world/dispatch change outside this unit.
+- `spawn_particle_with_options` broadcasts world-wide where vanilla uses a 32 block radius; shared
+  helper, out of unit.
+
+Files touched: `crates/pumpkin-core/src/block/blocks/plant/eyeblossom.rs`, this doc.
+(`flower_pots.rs` was only re-run through rustfmt; its fix landed in the previous pass.)
+
+## Result (post-restart final check, 2026-11-18)
+
+Server restarted mid-pass. Re-read both source files: every fix and test described in the
+prior Result sections is already applied on disk (no content edits were needed this pass).
+Verified each STILL OPEN row against the decompiled vanilla now present at
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/{EyeblossomBlock,FlowerPotBlock}.java`
+and `world/entity/animal/bee/Bee.java`:
+
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): CLOSED. Vanilla `entityInside` (EyeblossomBlock.java:98-104) lists `getDifficulty() != PEACEFUL` as a conjunct; the guard matches.
+- 3. Shared RNG (`eyeblossom.rs:140-144`, `flower_pots.rs:119-124`): CLOSED. Both draw from `world.block_random` (world/mod.rs:380 `Mutex<Xoroshiro>`), mirroring vanilla's level `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
+- 4. Potted variants (`flower_pots.rs:85-133`): CLOSED. Vanilla `FlowerPotBlock#randomTick` (lines 157-169) gates on the two potted ids, falls back to current type, writes `opposite(state)`, spawns `newType.spawnTransformParticle` and plays `newType.longSwitchSound()` at BLOCKS 1.0/1.0, with NO game event and NO neighbour-tick loop. Pumpkin matches all of these; `newType` is keyed on `should_be_open` (equal to `!is_open`) as in vanilla.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): CLOSED. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the type's own open value.
+
+Also confirmed the reverted regression from the prior pass is correct: `Bee.attractsBees`
+(Bee.java:693-697) tests the `bee_attractive` tag; `open_eyeblossom` is the only eyeblossom in
+that tag (tag.rs:2590 + assets/.../bee_attractive.json), so `poisons_bees` (`eyeblossom.rs:119`,
+test `only_the_open_eyeblossom_poisons_bees`) mirrors vanilla. Vanilla `tryChangingState` also
+emits BLOCK_CHANGE (EyeblossomBlock.java:76), now present at eyeblossom.rs:138.
+
+Type-check by inspection: `emit_game_event(impl Into<String>, ..)` (world/mod.rs:9111),
+`play_sound`/`play_sound_fine` signatures (world/mod.rs:1908/1995), `eyeblossom_open -> Option<bool>`
+(world/mod.rs:7360), `RandomImpl::next_inbetween_i32` (pumpkin-util/src/random/mod.rs:211),
+`Xoroshiro` (pumpkin-util/src/random/xoroshiro128.rs), and `ParticleOptions: Debug + PartialEq`
+(pumpkin-protocol/.../particle.rs:49) all exist. No new `unwrap`/`expect`/`panic`; the sole
+`panic!` is a let-else in a `#[cfg(test)]` module (clippy `allow-panic-in-tests` default).
+
+Left open (out of unit, unchanged): `animateTick` idle sound needs a new `BlockBehaviour` hook +
+world/dispatch change; `spawn_particle_with_options` broadcasts world-wide vs vanilla's 32-block
+radius (shared helper).
+
+Files touched this pass: this doc only.

@@ -60,3 +60,49 @@ Re-verified every STILL OPEN row against
 
 Already fixed before this pass, confirmed unchanged: `StartJumping` (rides JUMP/charge),
 `analog_move` deadzone (`ANALOG_DEADZONE`), `on_ground`/delta handling.
+
+## Result
+
+Re-verification pass (2026-11-18) over every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/`. All rows are already addressed in this
+checkout; one residual bug was found and fixed this pass. rustfmt 2024 run on the
+touched file; cargo not run (forbidden by the unit).
+
+| row | outcome | evidence |
+|---|---|---|
+| camera-relative movement (S) | FIXED (this pass) | Decompiled `ServerPlayer.getLastClientMoveIntent` builds `(left, 0, forward)` and `Entity.getInputVector` maps LEFT to world +X at yaw 0. Old `camera_relative_move` returned the RIGHT bit for +X (inverted). Renamed the strafe projection to `left_intent`; +X now sets LEFT, -X sets RIGHT. Two test expectations and the doc comment corrected. |
+| `await_teleport` (M) | FIXED (already) | `SPlayerAuthInput.teleport` ack (field exists in `pumpkin-protocol`) + `HandledTeleport` flag + `player_action.rs` clearing on `HandledTeleport`/`ChangeDimensionAck`. No cross-crate change needed; proximity resend kept as fallback. |
+| `InputData::StartJumping` (M) | FIXED (already) | `bedrock_jump_charge_ticks` (capped 90) swapped into `start_riding_jump(server, charge)`, mirroring Java `Action::StartHorseJump` in `player_command.rs`. |
+| `apply_mount_move` (M) | FIXED (already) | `get_controlling_passenger()` check, `vehicle_id_matches(vehicle_unique_id)`, `mount_rotation` from `vehicle_rotation`; matches vanilla `handleMoveVehicle` `absSnapTo(targetYRot, targetXRot)` + `positionRider`. Tests present. |
+| vehicle branch, boats/minecarts (L) | FIXED (already, MVP) | `apply_mount_move` now takes `&Arc<dyn EntityBase>` and moves any controlled vehicle (boats included); paddle flags applied; minecarts steer via server-side `last_input` in `minecart.rs`. |
+| sneak raw flags (S) | FIXED (already) | `sneaking_from_flags` treats `SneakToggleDown` as an edge and falls back to `SneakPressedRaw`/`SneakReleasedRaw`/`SneakCurrentRaw`; edges win; four unit tests. Bedrock-only, UNVERIFIED against a live client. |
+| analog deadzone (S) | FIXED (already) | `ANALOG_DEADZONE` 0.1 in `analog_move`; test added. Threshold not from a decompiled source (UNVERIFIED). |
+| spin attack flags (S) | FIXED (already) | Verified `Player.getDesiredPose()` returns `SPIN_ATTACK` only when `isAutoSpinAttack()` (Player.java:382-393). Both Bedrock handlers now call `update_player_pose()` (which uses `get_desired_pose()`), never `set_pose(SpinAttack)` from a client flag. |
+| `inventory_action.rs` `ReleaseItem` (adjacent, S) | FIXED (already) | `player.stop_using_item()` called; it internally calls `clear_active_hand()` (`player.rs:8534`), so `using_item` and active hand are both cleared like the Java path. |
+| `player_action.rs` `// TODO` catch-all (adjacent, M) | FIXED (already) | `HandledTeleport`/`ChangeDimensionAck` clear the pending teleport; remaining sneak/item-use/swing actions are documented intentional no-ops because auth-input applies those effects each tick and `animate.rs` broadcasts swings. |
+
+Skipped: no code change outside `player_auth_input.rs`; no build/test run (orchestrator compiles). Risk: Bedrock field conventions (`camera_orientation`/`raw_move`) have no Geyser or protocol fixture in `.vendor`, so only the LEFT/RIGHT vs vanilla-input mapping was corrected; the look-axis signs follow the existing implementation.
+
+## Result
+
+Fresh re-audit (2026-11-18). No row is STILL OPEN in the latest status; every gap is
+already fixed in this checkout. Verified each fix against `.vendor/vanilla-decompiled/`
+and left the code unchanged. No cargo/git run (forbidden by the unit); orchestrator compiles.
+
+| row | outcome | evidence checked this pass |
+|---|---|---|
+| spin attack flags (S) | FIXED (already) | `Player.getDesiredPose()` returns SPIN_ATTACK only from `isAutoSpinAttack()` (Player.java:382-390). Both Bedrock handlers call `update_player_pose()`, never `set_pose(SpinAttack)`. |
+| camera-relative movement (S) | FIXED (already) | `ServerPlayer.getLastClientMoveIntent()` (3777-3781) builds `(left, 0, forward)`; `Entity.getInputVector` (2471-2481) rotates to world `(x*cos - z*sin, z*cos + x*sin)`. `camera_relative_move` inverse (forward dot, left = `(forward_z, -forward_x)` dot) is sign-correct; LEFT bit set for +X at yaw 0. |
+| sneak raw flags (S) | FIXED (already) | `sneaking_from_flags` handles toggle edge + raw fallbacks with edges winning; four unit tests. Bedrock-only, no vanilla reference. |
+| analog deadzone (S) | FIXED (already) | `ANALOG_DEADZONE` 0.1 in `analog_move`; test present. Threshold not from a decompiled source. |
+| `await_teleport` (M) | FIXED (already) | `SPlayerAuthInput.teleport` echo + `HandledTeleport` flag + `player_action.rs` clearing on ack; proximity resend fallback. Vanilla `handleAcceptTeleportation` equivalent. |
+| `InputData::StartJumping` (M) | FIXED (already) | Held `JumpDown` charge (capped 90, MAX_JUMP_CHARGE_TICKS) swapped into `start_riding_jump`. |
+| `apply_mount_move` (M) | FIXED (already) | `get_controlling_passenger()` check, `vehicle_id_matches`, `mount_rotation` from `vehicle_rotation` (x=pitch, y=yaw); tests present. |
+| vehicle branch boats/minecarts (L) | FIXED (already, MVP) | `apply_mount_move` takes `&Arc<dyn EntityBase>`, moves any controlled vehicle; paddle flags applied. |
+| `inventory_action.rs` `ReleaseItem` (adjacent, S) | FIXED (already) | Calls `player.stop_using_item()` (line 552), matching the Java path. |
+| `player_action.rs` `// TODO` catch-all (adjacent, M) | FIXED (already) | `HandledTeleport`/`ChangeDimensionAck` clear pending teleport; remaining sneak/item-use/swing actions documented as intentional no-ops (lines 296-299). |
+
+Skipped: no code changes (all rows already fixed); no build/test (orchestrator compiles).
+Risk: Bedrock-only field conventions (`camera_orientation`/`raw_move`, sneak raw flags,
+analog deadzone threshold) have no Geyser/protocol fixture or live client in `.vendor` to
+verify end-to-end; only the vanilla-input mapping was checked here.

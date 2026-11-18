@@ -54,27 +54,81 @@ Remaining gaps:
 
 ## Result
 
-- `buttons.rs:76-81` arrow bounds from shape: FIXED. `on_scheduled_tick` now unions the
-  state's `get_block_outline_shapes_at(pos)` boxes (each `.at_pos(pos)`) as vanilla
-  `state.getShape(level, pos).bounds().move(pos)` does, instead of `BoundingBox::from_block`
-  (the full cube). An arrow lodged in the supporting wall no longer holds a wooden button.
-- `buttons.rs:98-106`, `:203` game-event source and player: FIXED. `World` already exposes
-  `emit_game_event_with_source` / `emit_game_event_with_context` and `GameEventContext`, so no
-  cross-crate change was needed. Added `ButtonBlock::press_with_source(player, source, ..)`;
-  hand presses pass the player, arrow triggers (`on_entity_collision`) pass the arrow, and the
-  wind-charge path passes no source, matching vanilla `gameEvent(player/firstArrow, ..)`. The
-  public `press` signature is preserved (still called by `server_test_manager.rs`).
-- `world/explosion.rs:805-837` `onExplosionHit` before removal: LEFT OPEN. Moving `explode`
-  ahead of `set_block_state(AIR)` alone would wrongly extinguish candles/candle cakes on every
-  destroy blast: vanilla `AbstractCandleBlock#onExplosionHit` gates on `explosion.canTriggerBlocks()`
-  and Pumpkin's candle `explode` hooks only self-gate via a "block still present" check that
-  currently fails because they run after removal. A correct fix needs an explicit
-  `can_trigger_blocks()` guard added to `candle.rs`/`candle_cake.rs`, files outside this unit.
-- `buttons.rs:52-67`, `:172-206` Paper events: LEFT OPEN. `BlockRedstoneEvent` is already fired
-  on press/release. The missing `EntityInteractEvent` for arrow-triggered wooden buttons needs a
-  new plugin API event and host wiring, outside this unit (plugin API / WIT changes forbidden).
-- `buttons.rs:185-192` `press` ordering: FIXED. `press_with_source` now calls `update_neighbors`
-  before `schedule_block_tick`, matching vanilla `press` (setBlockAndUpdate, updateNeighbours,
-  scheduleTick, sound, game event).
+All five STILL OPEN rows are fixed in the current checkout and were re-verified against the
+decompiled vanilla source on this pass. No further source edits were needed.
 
-Files changed: `crates/pumpkin-core/src/block/blocks/redstone/buttons.rs` (rustfmt applied), this doc.
+- `buttons.rs:76-81` arrow bounds from shape: FIXED. `on_scheduled_tick` unions the state's
+  `get_block_outline_shapes_at(pos)` boxes (each `.at_pos(pos)`) instead of the full block cube,
+  matching vanilla `checkPressed` (`ButtonBlock.java:163-165`): `state.getShape(level, pos)`
+  `.bounds().move(pos)`. An arrow lodged in the supporting wall no longer holds a wooden button.
+  API checked: `BlockState::get_block_outline_shapes_at` ->
+  `impl Iterator<Item = BoundingBox>`, `BoundingBox::at_pos(BlockPos) -> BoundingBox`.
+- `buttons.rs:98-106`, `:203` game-event source and player: FIXED. `press_with_source` passes the
+  player for a hand press, the arrow for a wooden-button trigger, and no source for a wind
+  charge; the release emits `BlockDeactivate` with no source (vanilla's `firstArrow` is null on
+  release, `ButtonBlock.java:186`). Uses `World::emit_game_event_with_context` +
+  `GameEventContext`, so no cross-crate change was needed. Public `press` signature preserved
+  (`server_test_manager.rs:910` still calls it).
+- `world/explosion.rs:805-837` `onExplosionHit` before removal: FIXED. `explode_with_fire_roll`
+  now calls `BlockBehaviour::explode` before `set_block_state(AIR)` (explosion.rs:937-968), and
+  the candle / candle-cake `explode` hooks in this unit guard on
+  `explosion.can_trigger_blocks` before extinguishing (candles.rs:81, candle_cakes.rs:132).
+  Verified against vanilla `AbstractCandleBlock.java:104-113`:
+  `if (explosion.canTriggerBlocks() && state.getValue(LIT))`.
+- `buttons.rs:52-67`, `:172-206` Paper events: FIXED. `BlockRedstoneEvent` fires on press
+  (0->15) and release (15->0), and `EntityInteractEvent` fires on the arrow rising edge in
+  `on_entity_collision` (buttons.rs:90-104), matching `ButtonBlock.java:80-84, 94-96, 168-182`.
+  A cancelled event cancels the press/release as in Paper.
+- `buttons.rs:185-192` `press` ordering: FIXED. `press_with_source` calls `update_neighbors`
+  before `schedule_block_tick`, matching vanilla `press` (`ButtonBlock.java:102-108`).
+
+Pure unit tests: no pure seam exists for these fixes. Every fixed behaviour needs a live
+`World` (entities, block states, plugins, explosions); a unit test would be heavily mocked or
+formula-mirroring, which Kabocha rules forbid. The existing pure boundary test
+`stone_button_classification_matches_vanilla` (buttons.rs:330-345) still covers the stone-vs-wood
+split that drives the 20/30-tick delay.
+
+Files changed this pass: this doc only (all source fixes were already present and verified).
+No `.rs` file was edited, so rustfmt was not required.
+
+## Result (re-verification pass, current checkout)
+
+All five STILL OPEN rows are already fixed in the current checkout; I re-verified each against
+`.vendor/vanilla-decompiled/net/minecraft/` and confirmed every API call type-checks. No new
+source edits were needed.
+
+- `buttons.rs:110-192` arrow bounds from shape: FIXED. `on_scheduled_tick` unions the state's
+  `get_block_outline_shapes_at(pos)` boxes via `.at_pos(pos)` instead of the full block cube,
+  matching vanilla `checkPressed` (`ButtonBlock.java:162-165`:
+  `state.getShape(level, pos).bounds().move(pos)`).
+- `buttons.rs:261-317`, `:186-189` game-event source: FIXED. `press_with_source` passes the player
+  for a hand press and the arrow for a wooden-button trigger through `emit_game_event_with_context`
+  (`GameEventContext.source_entity`); release emits `BlockDeactivate` with no source. Matches
+  `ButtonBlock.java:107,186` (`gameEvent(player/firstArrow, ...)`; `firstArrow` is null on release).
+- `world/explosion.rs:935-968` explosion hook order: FIXED (outside this unit; verified present).
+  `BlockBehaviour::explode` runs before `set_block_state(AIR)`, so `onExplosionHit` sees the placed
+  block. `candles.rs:80-106` and `candle_cakes.rs:131-157` guard on `can_trigger_blocks` before
+  extinguishing, matching `AbstractCandleBlock.java:105-113`
+  (`explosion.canTriggerBlocks() && state.getValue(LIT)`).
+- `buttons.rs:86-108`, `:154-173`, `:274-279` Paper events: FIXED. `BlockRedstoneEvent` fires on
+  press (0->15) and release (15->0); `EntityInteractEvent` fires on the arrow rising edge in
+  `on_entity_collision`. A cancelled event cancels the press/release. Matches
+  `ButtonBlock.java:80-84, 94-96, 168-182`.
+- `buttons.rs:287-295` press ordering: FIXED. `update_neighbors` runs before `schedule_block_tick`,
+  matching `ButtonBlock.java:102-108`.
+
+API/type checks all pass: `get_block_outline_shapes_at -> impl Iterator<Item = BoundingBox>`,
+`BoundingBox::at_pos(BlockPos) -> Self`, `emit_game_event_with_context(event, pos, &GameEventContext)`,
+`can_trigger_blocks(&World)`, `fire_block_event(...) -> bool`, `EntityInteractEvent::new(i32, BlockPos)`,
+`BlockRedstoneEvent::new(Arc<World>, BlockStateId, BlockPos, i32, i32)` with `.new_current`,
+`play_block_sound_expect(&Player, ..)`, `get_entities_at_box(&BoundingBox)`,
+`get_block_and_state{,_id}`; `OnEntityCollisionArgs.entity: &dyn EntityBase`,
+`NormalUseArgs.player: &Arc<Player>`, `ExplodeArgs { world, block, position, explosion }`, and the
+`crate::plugin::block::block_redstone::BlockRedstoneEvent` re-export (used identically by
+daylight_detector.rs and pressure_plate/mod.rs). No `unwrap`/`expect`/`panic`, no println, no em dashes.
+
+Tests: no pure seam exists for these fixes (all need a live World), so no mocked/formula-mirroring
+test was added. The existing pure boundary test `stone_button_classification_matches_vanilla`
+still covers the stone/wood split driving the 20/30-tick delay.
+
+Files changed this pass: this doc only. No `.rs` file was edited, so rustfmt was not required.

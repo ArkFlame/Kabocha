@@ -3,6 +3,7 @@ use crate::entity::mob::spawn::{EntitySpawnReason, finalize_spawn};
 use crate::entity::projectile::owner::ProjectileOwner;
 use crate::plugin::api::events::player::player_teleport::TeleportCause;
 use pumpkin_util::math::position::BlockPos;
+use rand::RngExt;
 
 use crate::entity::projectile::ProjectileHit;
 use crate::{
@@ -145,10 +146,11 @@ impl EntityBase for EnderPearlEntity {
         {
             let is_player = owner.get_player().is_some();
             if is_player {
-                // Vanilla spawns the endermite at the owner's position before the teleport,
-                // captured here before dismounting (`EnderPearl#onHit`), not at the pearl's
-                // impact point where the owner is about to be teleported.
+                // Vanilla spawns the endermite at the owner's position and rotation before
+                // the teleport (`ThrownEnderpearl#onHit`), captured here before dismounting.
                 let owner_pos = owner.get_entity().pos.load();
+                let owner_yaw = owner.get_entity().yaw.load();
+                let owner_pitch = owner.get_entity().pitch.load();
 
                 // Vanilla `stopRiding`s the shooter before teleporting it.
                 if let Some(vehicle) = owner.get_entity().get_vehicle() {
@@ -156,14 +158,15 @@ impl EntityBase for EnderPearlEntity {
                         .get_entity()
                         .remove_passenger_before_teleport(owner.get_entity().entity_id);
                 }
-                let should_spawn_endermite = rand::random::<f32>() < ENDERMITE_SPAWN_CHANCE;
+                let should_spawn_endermite =
+                    entity.get_rng().random::<f32>() < ENDERMITE_SPAWN_CHANCE;
                 // Vanilla gates the endermite on `isSpawningMonsters() && !PEACEFUL`,
                 // i.e. SPAWN_MOBS && SPAWN_MONSTERS && not peaceful (non-Folia path).
                 if world.should_spawn_monsters() && should_spawn_endermite {
-                    let pearl_yaw = entity.yaw.load();
-                    let entity = Entity::new(world.clone(), owner_pos, &EntityType::ENDERMITE);
-                    entity.set_rotation(pearl_yaw, 0.0);
-                    let endermite = EndermiteEntity::new(entity);
+                    let endermite_entity =
+                        Entity::new(world.clone(), owner_pos, &EntityType::ENDERMITE);
+                    endermite_entity.set_rotation(owner_yaw, owner_pitch);
+                    let endermite = EndermiteEntity::new(endermite_entity);
                     finalize_spawn(
                         &(endermite.clone() as std::sync::Arc<dyn EntityBase>),
                         &world,

@@ -6,7 +6,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::tracked_data::TrackedData;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::boundingbox::BoundingBox;
-use pumpkin_util::random::RandomImpl;
+use rand::RngExt;
 use uuid::Uuid;
 
 use crate::entity::EntityBase;
@@ -76,11 +76,14 @@ pub const fn should_refresh_anger_timer(
     is_new_target || stays_angry_with_target
 }
 
-/// Draw a grudge length from a seeded random source. Vanilla samples
-/// `PERSISTENT_ANGER_TIME` from `this.random` (a level-seeded `RandomSource`);
-/// `next_inbetween_i32` matches its inclusive `UniformInt` draw.
-fn draw_anger_duration(rng: &mut impl RandomImpl, range: RangeInclusive<i32>) -> i32 {
-    rng.next_inbetween_i32(*range.start(), *range.end())
+/// Draw a grudge length. Vanilla samples `PERSISTENT_ANGER_TIME` from `this.random`,
+/// the entity random; the end is inclusive like vanilla `UniformInt`.
+fn draw_anger_duration(rng: &mut impl RngExt, range: RangeInclusive<i32>) -> i32 {
+    let (start, end) = range.into_inner();
+    if start > end {
+        return start;
+    }
+    rng.random_range(start..=end)
 }
 
 /// Players live in their own list, everything else in the entity list.
@@ -172,15 +175,11 @@ pub trait NeutralMob: Mob {
         self.set_anger_end_time(now + i64::from(ticks));
     }
 
-    /// Draws from the world-seeded level random, not fresh OS entropy, so a
-    /// world seed reproduces the grudge length (vanilla `this.random`).
+    /// Draws from the entity random (vanilla `this.random`), not the level loot
+    /// random, so the grudge length follows the mob tick order.
     fn sample_anger_duration(&self) -> i32 {
-        let world = self.get_entity().world.load();
-        let mut rng = world
-            .loot_random
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        draw_anger_duration(&mut *rng, self.anger_duration())
+        let mut rng = self.get_random();
+        draw_anger_duration(&mut rng, self.anger_duration())
     }
 
     fn is_angry(&self) -> bool {
@@ -503,12 +502,21 @@ mod tests {
 
     #[test]
     fn anger_duration_uses_seeded_random_and_stays_in_range() {
-        use pumpkin_util::random::xoroshiro128::Xoroshiro;
-        let mut a = Xoroshiro::from_seed(11);
+        use rand::{SeedableRng, rngs::StdRng};
+        let mut a = StdRng::seed_from_u64(11);
         let first = draw_anger_duration(&mut a, DEFAULT_ANGER_DURATION);
-        let mut b = Xoroshiro::from_seed(11);
+        let mut b = StdRng::seed_from_u64(11);
         let second = draw_anger_duration(&mut b, DEFAULT_ANGER_DURATION);
         assert_eq!(first, second);
         assert!(DEFAULT_ANGER_DURATION.contains(&first));
+    }
+
+    #[test]
+    fn anger_duration_draw_covers_both_inclusive_ends() {
+        use rand::{SeedableRng, rngs::StdRng};
+        let mut rng = StdRng::seed_from_u64(7);
+        assert_eq!(draw_anger_duration(&mut rng, 5..=5), 5);
+        // An inverted range must not panic on a cold, empty `random_range`.
+        assert_eq!(draw_anger_duration(&mut rng, 9..=1), 9);
     }
 }

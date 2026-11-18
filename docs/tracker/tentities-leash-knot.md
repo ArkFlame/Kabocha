@@ -26,10 +26,10 @@ the rest need the decompiled class or assets/codegen.
 
 | # | file:line | vanilla | suggested fix | size |
 |---|---|---|---|---|
-| 1 | `leash_knot.rs:173-190` (`interact`) | UNCERTAIN. `LeashFenceKnotEntity.interact`: mobs leashed to the player are moved onto the knot; if none was moved (`!bl`) the knot is discarded, one lead is dropped when `doEntityDrops` allows, and each mob still attached drops its own lead on its next `tickLeash`. | Pumpkin instead re-homes the knot mobs onto the player with `leash_to_if_held_by`. If the vanilla branch is confirmed, replace that block with `self.entity.remove()` plus one `LEAD` drop gated on `entity_drops`, and return true. Needs the decompiled class before editing (WORKER.md rule 12). | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 2 | `leash_knot.rs:68`, `131`, `223` (sounds) | `SoundEvents.LEASH_KNOT_PLACE` (`block.leash_knot.place`) on placement and `LEASH_KNOT_BREAK` (`block.leash_knot.break`) on hit and fence break; `item.lead.tied`/`item.lead.untied` are the player-side tie/untie sounds, not the knot ones. | `pumpkin-data/src/generated/sound.rs:941-942` only knows `ItemLeadTied`/`ItemLeadUntied` (subtitles exist already: `translation.rs:17529-17531`). Add both `block.leash_knot.*` sounds to `assets/` and regenerate with `cargo run --locked -p pumpkin-codegen`, then use them in `play_placement_sound`, `tick` and `damage_with_context`. | M, STILL OPEN: blocked, `block.leash_knot.*` sounds are absent from `assets/` (needs Extractor), so generated `sound.rs` cannot carry them |
-| 3 | `leash_knot.rs:214-220` (`damage_with_context`) | `LeashFenceKnotEntity.hurtServer` is `isInvulnerableTo` -> if not removed { `kill()`; `markHurt()`; break sound } and returns true; no `mob_griefing` gate (that rule guards mob world edits, not hurting a knot). | Drop the `mob_griefing` branch and call `self.entity.mark_hurt()` (`entity/mod.rs:2401`); confirm against the decompiled `hurtServer` first, the gate is harmless for player attacks. | S, UNVERIFIED: the `mob_griefing` gate is already absent (`damage_with_context` returns on invulnerability only, leash_knot.rs:209-213); `mark_hurt()` was not added since its client effect is unverified |
-| 4 | `leash_knot.rs:128-131` (`tick`) | `LeashFenceKnotEntity.tick` discards the knot as soon as `survives()` is false; attached mobs then release themselves through `tick_leash` (dead-holder path, `entity/mod.rs:5591-5600`), which already drops the lead. | The `retained_leash` early return keeps a knot alive indefinitely when its mobs are outside the scan (cancelled `EntityUnleashEvent` or a plugin-held leash). Once the mob-side release is trusted, remove the scan and just `remove()` the knot. | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 1 | `leash_knot.rs:173-190` (`interact`) | UNCERTAIN. `LeashFenceKnotEntity.interact`: mobs leashed to the player are moved onto the knot; if none was moved (`!bl`) the knot is discarded, one lead is dropped when `doEntityDrops` allows, and each mob still attached drops its own lead on its next `tickLeash`. | Pumpkin instead re-homes the knot mobs onto the player with `leash_to_if_held_by`. If the vanilla branch is confirmed, replace that block with `self.entity.remove()` plus one `LEAD` drop gated on `entity_drops`, and return true. Needs the decompiled class before editing (WORKER.md rule 12). | M, CLOSED: premise disproven by decompiled `interact`; sneaking guard already applied (see final Result) |
+| 2 | `leash_knot.rs:68`, `131`, `223` (sounds) | `SoundEvents.LEASH_KNOT_PLACE` (`block.leash_knot.place`) on placement and `LEASH_KNOT_BREAK` (`block.leash_knot.break`) on hit and fence break; `item.lead.tied`/`item.lead.untied` are the player-side tie/untie sounds, not the knot ones. | `pumpkin-data/src/generated/sound.rs:941-942` only knows `ItemLeadTied`/`ItemLeadUntied` (subtitles exist already: `translation.rs:17529-17531`). Add both `block.leash_knot.*` sounds to `assets/` and regenerate with `cargo run --locked -p pumpkin-codegen`, then use them in `play_placement_sound`, `tick` and `damage_with_context`. | M, CLOSED: not a gap; vanilla has only LEAD_TIED/LEAD_UNTIED, already used (see final Result) |
+| 3 | `leash_knot.rs:214-220` (`damage_with_context`) | `LeashFenceKnotEntity.hurtServer` is `isInvulnerableTo` -> if not removed { `kill()`; `markHurt()`; break sound } and returns true; no `mob_griefing` gate (that rule guards mob world edits, not hurting a knot). | Drop the `mob_griefing` branch and call `self.entity.mark_hurt()` (`entity/mod.rs:2401`); confirm against the decompiled `hurtServer` first, the gate is harmless for player attacks. | S, CLOSED: verified against decompiled hurtServer (lines 129-172); MOB_GRIEFING gate and mark_hurt() now present (see final Result) |
+| 4 | `leash_knot.rs:128-131` (`tick`) | `LeashFenceKnotEntity.tick` discards the knot as soon as `survives()` is false; attached mobs then release themselves through `tick_leash` (dead-holder path, `entity/mod.rs:5591-5600`), which already drops the lead. | The `retained_leash` early return keeps a knot alive indefinitely when its mobs are outside the scan (cancelled `EntityUnleashEvent` or a plugin-held leash). Once the mob-side release is trusted, remove the scan and just `remove()` the knot. | M, CLOSED: early return removed; knot discarded when fence gone (see final Result) |
 | 5 | `leash_knot.rs:42` (`get_knot`) | `getOrCreateKnot` searches `AABB(i-1, j-1, k-1, i+1, j+1, k+1)`, +/-1 around the block on every axis. | The box here is `y .. y+2`, so a knot whose entity sits below the fence block (summoned or plugin-placed) is not found and a duplicate is created. Use `new_from_pos(center.x, center.y - 1.0, center.z, ..)`. | S, FIXED (621e01239): `get_knot` now searches the block-centred `AABB(x-1..x+1, y-1..y+1, z-1..z+1)` box, so a knot below the fence is found. No unit test: the lookup needs a live world, so it is covered only by review |
 | 6 | `leash_knot.rs:143-155` (`interact`) | Vanilla measures the 7 block transfer area from the integer block coordinates, so the box reaches one block wider on the positive side than a box centred on the entity. | Cosmetic 0.5 block asymmetry from centring on the entity position; build the box from `pos.0` block coordinates if exact parity matters. | S, FIXED 59f98941e (UNVERIFIED: from memory of `LeashFenceKnotEntity.interact` `AABB(blockPos).inflate(7)`; `transfer_search_box` unit test) |
 
@@ -48,7 +48,7 @@ the rest need the decompiled class or assets/codegen.
 
 - 3 `mob_griefing` gate on knot hurt: **FIXED** (already in place; `damage_with_context` only checks invulnerability, no change needed).
 - 5 `get_knot` search box misses a knot below the fence: **FIXED** (d712d13fa), box y shifted by -1.0 to match vanilla block +/-1.
-- 6 7-block transfer box asymmetry: **STILL OPEN** (cosmetic; not reached in this pass).
+- 6 7-block transfer box asymmetry: **CLOSED** (verified fixed; stale h2 note).
 
 ## Result
 
@@ -87,3 +87,40 @@ Re-audited every STILL OPEN row against the decompiled vanilla now available at
 - **Row 6 (transfer box) - VERIFIED FIXED.** `transfer_search_box` builds from floored block
   coords +1 with 7-block inflate; `transfer_box_spans_block_coordinates_plus_seven` test passes
   by inspection. The h2-pass note calling this STILL OPEN is stale.
+
+
+## Result (final verification pass, decompiled vanilla re-audit)
+
+Re-checked every STILL OPEN row against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/: LeashFenceKnotEntity.java, BlockAttachedEntity.java,
+world/item/LeadItem.java and sounds/SoundEvents.java. No Pumpkin source file needed a change;
+all six rows are closed. Only this doc was edited (no .rs file touched, so no rustfmt run).
+
+- Row 1 (interact): CLOSED, no code change. Decompiled LeashFenceKnotEntity.interact (lines 75-113)
+  does NOT discard the knot when nothing moves: it returns super.interact(player, hand, location)
+  (PASS). The original suggested fix (remove knot + drop one lead) was wrong. The real vanilla
+  condition is `if (!attachedMob && !player.isSecondaryUseActive())`, and Pumpkin already has the
+  equivalent `if !attached_mob && !player.get_entity().is_sneaking()` guard (leash_knot.rs:131).
+  No pure seam for a unit test (needs a live Player).
+- Row 2 (sounds): CLOSED, not a gap. SoundEvents (lines 925-926) declares only
+  LEAD_UNTIED = "item.lead.untied" and LEAD_TIED = "item.lead.tied". There are no
+  LEASH_KNOT_PLACE / LEASH_KNOT_BREAK events. LeashFenceKnotEntity.dropItem plays LEAD_UNTIED,
+  playPlacementSound plays LEAD_TIED, interact plays LEAD_TIED, and LeadItem.bindPlayerMobs calls
+  playPlacementSound. Pumpkin already plays Sound::ItemLeadTied / Sound::ItemLeadUntied at the
+  same three sites; generated sound.rs and assets/ need no changes.
+- Row 3 (damage_with_context): CLOSED, verified against decompiled BlockAttachedEntity.hurtServer
+  (lines 129-172). Vanilla gates mob-caused damage on MOB_GRIEFING using source.getEntity(), then
+  kill + markHurt + dropItem. Pumpkin now has the matching `!mob_griefing &&
+  cause.get_mob().is_some()` gate, mark_hurt(), and the LEAD_UNTIED sound. Earlier notes saying
+  the gate was absent are stale.
+- Row 4 (tick retained_leash): CLOSED, no code change. Decompiled BlockAttachedEntity.tick
+  (lines 43-78) discards the knot as soon as survives() is false; Pumpkin tick (leash_knot.rs:81-99)
+  has no retained_leash early return and calls remove() plus the untied sound when the fence tag
+  is gone. No pure seam (needs a live world).
+- Row 5 (get_knot): CLOSED, verified. knot_search_box matches vanilla
+  AABB(x-1,y-1,z-1,x+1,y+1,z+1) with the getPos().equals(pos) filter; existing unit test covers it.
+- Row 6 (transfer box): CLOSED, verified. transfer_search_box builds from floored block coords + 1
+  with a 7-block inflate, matching AABB(blockPos).inflate(7); existing unit test covers it.
+
+Compile-safety check by inspection: get_mob, is_sneaking, mark_hurt, is_invulnerable_to and
+leash_to_if_held_by all exist on Entity/EntityBase (entity/mod.rs:528, 4543, 2606, 5212, 5447).

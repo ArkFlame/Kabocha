@@ -917,7 +917,7 @@ impl AbstractArrow for ArrowEntity {
 
 #[cfg(test)]
 mod tests {
-    use super::ArrowEntity;
+    use super::{ArrowEntity, ArrowPickup};
     use pumpkin_data::data_component::DataComponent;
     use pumpkin_data::data_component_impl::{
         DataComponentImpl, PotionContentsImpl, PotionDurationScaleImpl,
@@ -1024,5 +1024,15 @@ mod tests {
         let power_5 = base_damage + 5.0 * 0.5 + 0.5;
         assert_eq!(power_1, 3.0);
         assert_eq!(power_5, 5.0);
+    }
+
+    #[test]
+    fn arrow_pickup_byte_codec_matches_vanilla_ordinals() {
+        assert_eq!(ArrowPickup::from_byte(0), ArrowPickup::Disallowed);
+        assert_eq!(ArrowPickup::from_byte(1), ArrowPickup::Allowed);
+        assert_eq!(ArrowPickup::from_byte(2), ArrowPickup::CreativeOnly);
+        assert_eq!(ArrowPickup::Disallowed.to_byte(), 0);
+        assert_eq!(ArrowPickup::Allowed.to_byte(), 1);
+        assert_eq!(ArrowPickup::CreativeOnly.to_byte(), 2);
     }
 }

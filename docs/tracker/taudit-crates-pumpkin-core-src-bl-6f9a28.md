@@ -146,3 +146,54 @@ Files changed: crates/pumpkin-core/src/block/blocks/structure_block.rs,
 crates/pumpkin-core/src/block/entities/structure_block.rs. Both run through
 rustfmt --edition 2024. No cargo/git run (per brief). No new unit test: neither fix has a pure seam
 (mutex-contention timing / redstone tick) testable without a live world.
+
+
+## Result
+
+Re-verified on 2026-11-18 against .vendor/vanilla-decompiled/net/minecraft/
+(StructureBlockEntity, StructureBlock, templatesystem/StructureTemplate). This section
+supersedes the earlier Result block: the code has since been reworked well past that
+snapshot (entity capture, placement, block-section scan and blocking payload locks are
+all already present). Per-row outcome:
+
+- 1. Entity capture on save: FIXED in code. `capture_structure_template_from_world` takes
+  `include_entities`, fills `entity_info_list` over `AABB.encapsulatingFullBlocks` via
+  `world.get_entities_at_box`, and derives `block_pos` from the three-int `block_pos` codec.
+  This pass closed one remaining divergence: vanilla `fillEntityList` filters
+  `!(input instanceof Player)` but `get_entities_at_box` also returns players, so players
+  inside the captured box were saved into the template. Added a player-type filter in
+  `block/entities/structure_block.rs` (new import `pumpkin_data::entity::EntityType`).
+- 2. ignoreEntities / StructurePlaceSettings: FIXED in code. `place_template_entities` is
+  gated by `!ignore_entities` and transforms pos/yaw/UUID like vanilla `placeEntities`;
+  placement settings carry mirror/rotation/integrity/seed/strict. No change.
+- 3. Wall-clock seed when seed == 0: NOT A BUG. Vanilla `createRandom` is
+  `seed == 0 ? RandomSource.create(Util.getMillis()) : RandomSource.create(seed)`;
+  `create_structure_seed` matches, including two independent draws for integrity and loot
+  as vanilla makes two `createRandom` calls. No change.
+- 4. Name canonicalisation: NOT A BUG. Vanilla `loadAdditional -> setStructureName ->
+  Identifier.tryParse`; `parse_structure_identifier` adds `minecraft:` and rejects invalid
+  or uppercase names identically. No change.
+- 5. Offset clamp +-48: NOT A BUG. Vanilla clamps posX/posY/posZ to -48..48; Pumpkin uses
+  `MAX_OFFSET_PER_AXIS = 48`; sizes clamp 0..48 as vanilla. No change.
+- 6. detectSize enumerates block entities: FIXED in code. `detect_size` now reads chunk
+  block sections (`collect_structure_block_positions`) across the +-80 x/z, full-height
+  box, the equivalent of vanilla `findBlocksIn(...).filterState(STRUCTURE_BLOCK)`, then
+  checks each BE for CORNER mode and a matching name. No change needed.
+- 7. chunk_data_nbt drops payload: FIXED in code. Every field uses
+  `lock().unwrap_or_else(PoisonError::into_inner)` like the getters; no `try_lock().ok()?`
+  remains. No change.
+- 8. Redstone SAVE does not write disk: NOT A BUG. Vanilla `StructureBlock.trigger` calls
+  `saveStructure(false)`, so the redstone path deliberately does not persist to disk;
+  Pumpkin passes `false` and registers the template to the in-memory cache. The earlier
+  Result block's claim that redstone passes `true` was wrong and is superseded. No change.
+- 9. Multiblock bucketing: OPEN (needs generated data). Vanilla `addToLists` uses
+  `!hasDynamicShape() && isCollisionShapeFullBlock(...)`; Pumpkin matches the second half
+  with `is_full_cube()` and approximates `hasDynamicShape` via a name list. No
+  `has_dynamic_shape` flag exists in pumpkin-data, so exact parity needs regenerating
+  generated data (outside this unit).
+
+Files changed this pass: crates/pumpkin-core/src/block/entities/structure_block.rs
+(player filter + `EntityType` import). `rustfmt --edition 2024` run on it. No cargo/git run
+(per brief); the orchestrator compiles. No new unit test: the only new behaviour lives in
+a live-`World` capture path with no pure seam, and the existing tests already cover palette
+bucketing, identifier validation, the corner scan, yaw transform and entity `block_pos` shape.

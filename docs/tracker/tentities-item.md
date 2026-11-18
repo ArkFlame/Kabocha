@@ -117,3 +117,56 @@ no change. No .rs files touched, so no rustfmt run.
 
 Net: no source edits this unit; two verification discrepancies (rows 3 and 4) flagged for whoever
 owns item.rs. No build run (none required: no .rs changed).
+
+
+## Result (2026-11-18 re-verification)
+
+Re-checked all 5 STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/` (Paper/Canvas
+1.21.x). Every fix lives in `item.rs` / `player.rs`, which are OUTSIDE this unit's editable files
+(`allay.rs`, `utils.rs`). No source edits made, no rustfmt run.
+
+- 1 owner pickup protection (M): LEAVE OPEN - fix is in `item.rs:826-838` (outside unit) and is
+  already present: return when `item_age <= 60 && thrower != picker && thrower resolves via
+  get_player_by_uuid`; target gate at `item.rs:822`. Matches vanilla `ItemEntity.playerTouch` plus
+  `Player.take` (ItemEntity.java:423). allay/fox throwers are not players, so they do not block.
+- 2 player drops record thrower (M): LEAVE OPEN - fix is in `player.rs:6991` (outside unit) and is
+  already present (`item_entity.set_thrower(self.gameprofile.id)`). The editable-file calls
+  `allay.rs:205` and `utils.rs:289` match vanilla `BehaviorUtils.throwItem`
+  (BehaviorUtils.java:100-105: setThrower + setDefaultPickUpDelay). No edit needed.
+- 3 never-despawn merge (S): LEAVE OPEN - `item.rs:250-272` (outside unit). Current `can_merge`
+  checks `!removed && !never_despawn && !never_pickup && count < max`, matching vanilla
+  `isMergable` (ItemEntity.java:276-278: alive, pickupDelay != 32767, age != -32768,
+  age < despawnRate, count < max). Doc premise (never-despawn should merge) was wrong; no divergence
+  now. The 2026-11-17 note claiming guards were removed is stale.
+- 4 spilled contents pickup delay (S): LEAVE OPEN - `item.rs:461-467` (outside unit). Current code
+  keeps `set_pickup_delay(0)`, matching vanilla `Containers.dropItemStack` /
+  `ItemUtils.onContainerDestroyed`, which spawn a plain ItemEntity at delay 0 (no
+  setDefaultPickUpDelay); only Block.popResource sets 10. The 2026-11-17 note claiming the call was
+  removed is stale; doc premise (vanilla default 10) was wrong. No change needed.
+- 5 despawn before merge (S): LEAVE OPEN - `item.rs:589-628` (outside unit). Merge runs at 597-599
+  before the age increment (603-607) and 6000-tick discard (609), matching vanilla
+  `ItemEntity.tick` (ItemEntity.java:203-219). No divergence.
+
+Net: no source edits this unit; all 5 gaps already addressed in item.rs/player.rs by their owners.
+The only editable-file check (set_thrower in allay.rs/utils.rs) already matches vanilla.
+
+## Result (2026-11-18 final)
+
+Re-verified all 5 STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`. Every row's
+fix lives in `item.rs`/`player.rs`, OUTSIDE this unit's editable files (`allay.rs`, `utils.rs`);
+the only editable-file behaviour (`set_thrower` in `allay.rs:205`, `utils.rs:289`) already matches
+vanilla `BehaviorUtils.throwItem` (setThrower + default pickup delay). No .rs file touched; no
+rustfmt run.
+
+- 1 owner pickup protection (M): LEAVE OPEN - fix in `item.rs:826-838` (outside unit); returns when
+  `item_age <= 60 && thrower != picker && thrower resolves via get_player_by_uuid`.
+- 2 player drops record thrower (M): LEAVE OPEN - fix in `player.rs:7030` (outside unit);
+  editable-file `set_thrower` calls already match vanilla.
+- 3 never-despawn merge (S): LEAVE OPEN - `item.rs:250-272` (outside unit); `can_merge` matches
+  vanilla `isMergable` (excludes never-despawn/never-pickup/removed).
+- 4 spilled contents pickup delay (S): LEAVE OPEN - `item.rs:466` (outside unit); keeps
+  `set_pickup_delay(0)`, matching vanilla container spill at delay 0.
+- 5 despawn before merge (S): LEAVE OPEN - `item.rs:589-628` (outside unit); merge runs before
+  age increment/discard, matching vanilla `ItemEntity.tick`.
+
+Net: no source edits; all fixes already present outside this unit. No build run (no .rs changed).

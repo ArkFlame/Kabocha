@@ -52,3 +52,14 @@ Re-review against `.vendor/vanilla-decompiled/net/minecraft/` (Creeper.java, Swe
 - Row 4 (SwellGoal aliveness guard): VERIFIED, NO CHANGE. The tracker premise was wrong. Vanilla `SwellGoal.canUse` (SwellGoal.java:18-21) is `getSwellDir() > 0 || (target != null && !target.isDeadOrDying() && distanceToSqr < 9.0)`, i.e. it DOES carry the aliveness guard, and `tick` (line 42) checks `!target.isDeadOrDying()` too. The Rust `creeper_ignite.rs:39` `is_alive()` guard is therefore correct and must stay. No observable difference to fix.
 
 No unit test added: the changed behaviour (loot drop through `World`/`LootContextParameters`) has no pure seam; the row-4 resolution required no code change.
+
+
+## Result
+
+Re-verify of the two STILL OPEN rows against decompiled vanilla, now reachable through the `.vendor/vanilla-decompiled` symlink (`rel-mc-backup/net/minecraft/`). No source file in this unit required a change: both rows were already resolved in the checkout.
+
+- Row 3 (explodeCreeper on-death effects): FIXED in checkout, verified. The cross-file hook the previous pass called a blocker is now present: `MobEffect::on_mob_removed`, a damage-type-free removal hook, exists in `entity/effect/mod.rs:45-47` with concrete impls in `oozing.rs`, `weaving.rs`, `wind_charged.rs`; `get_mob_effect` resolves all three. `CreeperEntity::explode` (`creeper.rs:121-196`) now calls them in the vanilla order: `dead=true` -> `explode_from` -> lingering cloud (duration 300, radius 2.5) -> `on_mob_removed` for each active effect -> `entity.remove()`. This matches vanilla `Creeper.explodeCreeper` (`Creeper.java:245-264`) and `LivingEntity.triggerOnDeathMobEffects` (`LivingEntity.java:826-833`). `entity.remove()` only calls `world.remove_entity`, so the normal damage/death path in `living.rs` cannot double-fire the hooks. Code change needed: none.
+- Row 4 (SwellGoal aliveness guard): VERIFIED, NO CHANGE. Decompiled vanilla `SwellGoal.canUse` (`SwellGoal.java:18-21`) is `getSwellDir() > 0 || (target != null && !target.isDeadOrDying() && distanceToSqr < 9.0)` and `tick` (line 42) checks `!target.isDeadOrDying()`; `LivingEntity.isDeadOrDying` is `health <= 0 || dead`. The Rust `creeper_ignite.rs` `is_dead_or_dying` guard plus `is_alive()` correctly suppresses a swell toward an already dead/dying target, so the tracker premise (vanilla has no guard) is false. The extra `is_alive()` (`entity.is_alive() && health > 0`) is redundant but not observable, so left to avoid speculative churn.
+- Row 2 (charged-creeper heads): re-checked, still FIXED (`dropped_skulls` one-shot guard at `creeper.rs:374-407`, matching `Creeper.java:174-179`).
+
+No pure unit test seam: row 3 fires through `World`/effect impls (entities, blocks, explosions), row 2 through `World::get_loot_table`/`LootContextParameters`, row 4 through live entity targets. No `.rs` file touched this pass, so no `rustfmt` run.

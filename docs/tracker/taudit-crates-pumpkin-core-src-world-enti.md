@@ -95,3 +95,77 @@ FIXED: encode/rotation packing uses pumpkin_util pack_degrees (world/entity_trac
   unchanged. No build was run (CODER cannot compile); orchestrator to check.
 
 Status: PASS fixed=1 (CHeadRot) verified-no-change=1 (velocity cadence) open=3 files=crates/pumpkin-core/src/world/entity_tracker.rs
+
+
+## Result (follow-up sweep)
+
+All remaining STILL OPEN rows (3, 4, 5) resolved against decompiled vanilla.
+
+- **Row 3 (duplicate player customisation metadata) - FIXED.**
+  `ServerEntity.sendPairingData`
+  (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerEntity.java:392-446`)
+  emits the entity-data packet once. In `add_pairing`, the explicit
+  `CSetEntityMetadata` carrying `PLAYER_MODE_CUSTOMISATION` /
+  `PLAYER_MODE_CUSTOMIZATION_ID` duplicated the non-default synched-data packet
+  sent at the end of the same method. `PLAYER_MODE_CUSTOMIZATION_ID` is an alias
+  of `DATA_PLAYER_MODE_CUSTOMISATION` in generated tracked data, so the explicit
+  packet even wrote the same field twice. Skin parts are always inserted as
+  non-default in synched data by `Player::send_client_information()` (called on
+  join and respawn), so they are already covered by
+  `get_non_default_values_for_version`. Removed the explicit metadata send and
+  the now-unused `bytes::BufMut` / `Metadata` imports; kept the `CHeadRot` send.
+  No unit test added: `add_pairing` needs a full `Player` + Java client (no pure
+  seam) and the change only removes a duplicate packet (no observable delta).
+  `rustfmt --edition 2024` clean.
+- **Row 4 (passenger-widened tracking range) - verified, no change.**
+  `ChunkMap$TrackedEntity.getEffectiveRange()`
+  (`.vendor/vanilla-decompiled/net/minecraft/server/level/ChunkMap.java:1446-1465`)
+  raises the range to the max indirect-passenger `clientTrackingRange()`. Pumpkin
+  `get_effective_range` does the same; vanilla's `clientTrackingRange() << 4`
+  corresponds to Pumpkin's later `* 16` in `update_player_in_view`. Matches.
+- **Row 5 (player removal as viewer) - verified, no change.**
+  `ChunkMap.removeEntity` (`ChunkMap.java:1014-1042`) removes the player as a
+  viewer from every tracked entity, then calls the entity's own
+  `broadcastRemoved()`. Pumpkin `remove_entity` mirrors this; `remove_player` is
+  a no-op unless the player is in `seen_by` (a player is never its own viewer),
+  so no duplicate despawn packet. Matches.
+
+Status: PASS fixed=1 (duplicate player metadata) verified-no-change=2
+(passenger range, player removal) open=0 files=crates/pumpkin-core/src/world/entity_tracker.rs
+No build was run (CODER cannot compile); orchestrator to check.
+
+
+## Result (verification sweep)
+
+Independently re-verified all previously STILL OPEN rows against the local
+decompile. No code changes were needed: each fix is already present and matches
+vanilla. Files were read only.
+
+- **Row 1 (velocity resend cadence) - verified, no change.** `ServerEntity.sendChanges`
+  gates motion via `velocityChangedSinceSent` (diff > 1e-7 or just stopped);
+  Pumpkin `velocity_changed_since_sent` and throttled `send_motion` match.
+- **Row 2 (CHeadRot cadence) - verified FIXED.** `ServerEntity.java:269-271` emits
+  `ClientboundRotateHeadPacket` inside the throttled block guarded by
+  `Math.abs(yHeadRot - lastSentYHeadRot) >= 1`. Pumpkin `send_changes`
+  (entity_tracker.rs:218-228) now sends `CHeadRot` only when the packed head yaw
+  differs, inside the throttled `if`, with corrected comments. Regression test
+  `head_rotation_is_throttled_with_tracker_interval` (line 1484) is present and
+  uses `Result`/`?` (no unwrap/expect/panic).
+- **Row 3 (duplicate player metadata) - verified FIXED.** `ServerEntity.java:403-405`
+  sends the entity-data packet once. `add_pairing` (entity_tracker.rs:659-673) now
+  sends a single `CSetEntityMetadata` from synched data; the duplicate explicit
+  skin-parts send and the `bytes::BufMut`/`Metadata` imports are gone.
+- **Row 4 (passenger-widened range) - verified, no change.** Pumpkin
+  `get_effective_range` (line 419) raises range to the max indirect-passenger
+  `client_tracking_range`, matching vanilla `ChunkMap$TrackedEntity`.
+- **Row 5 (player removal as viewer) - verified, no change.** `remove_entity`
+  (line 1251) removes the player from viewer sets then calls `broadcast_removed`,
+  matching vanilla `ChunkMap.removeEntity`.
+- **Markers - verified fixed.** `pack_degrees` used at lines 182-183; no TODO left.
+- Compile-pitfall re-check: imports resolve, helper placement/macro paths,
+  struct initializers, clones and clippy pedantic concerns unchanged; no new
+  helper code added this sweep.
+
+Status: PASS fixed=0 (all rows already resolved and re-verified) open=0
+files=crates/pumpkin-core/src/world/entity_tracker.rs (no edits this sweep).
+No build run (CODER cannot compile); orchestrator to check.

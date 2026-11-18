@@ -97,7 +97,7 @@ Paper only adds the `CreatureSpawnEvent` hook, which Pumpkin already fires.
   (`SpawnPlacements` registers one per type) and the has-ceiling downward walk.
 
 ## Status (h3 sweep)
-- Two divergent `adjust_spawn_*` (natural_spawner.rs:767 `adjust_spawn_position_cache`, :786 `adjust_spawn_position`): STILL OPEN (confirmed both exist, M, not changed).
+- Two divergent `adjust_spawn_*` (natural_spawner.rs:767 `adjust_spawn_position_cache`, :786 `adjust_spawn_position`): FIXED (both delegate to shared `adjust_spawn_position_down`; see Result below).
 
 
 ## Result

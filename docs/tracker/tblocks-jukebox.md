@@ -28,3 +28,7 @@ For #4128, insert/eject/break/hopper-extract each drop the record once in the cu
 - #1 dynamic registry song resolution: LEFT OPEN. Needs dynamic `jukebox_song` registry access at the four call sites (generated-data / cross-crate change outside this unit).
 - #2 duplicate stop on eject/break: RESOLVED in current tree; no code change needed. Vanilla `JukeboxSongPlayer.stop` early-returns on `song == null` and `JukeboxBlockEntity.setRemoved` emits stop once; Pumpkin's `clear_record` -> `stop_playing` emits the single stop event + 1011 sound for both eject and `on_block_replaced`, which no longer resend them.
 - #4 `player_placed` HAS_RECORD: NOT A GAP; no code change needed. Decompiled `JukeboxBlock.setPlacedBy` sets `HAS_RECORD` when the placed item's `BLOCK_ENTITY_DATA` contains `RecordItem`; Pumpkin's `player_placed` mirrors this via the block entity's record.
+
+## Result (re-review)
+- Decompiled vanilla is now present in `.vendor/vanilla-decompiled/net/minecraft/` (header above is stale). Re-verified against `JukeboxBlock.java`, `JukeboxBlockEntity.java`, `JukeboxSongPlayer.java`, `JukeboxPlayable.java`.
+- No new in-scope fix. #2/#3/#4/#5 already resolved in the current tree and confirmed correct against vanilla; #1 stays open because datapack songs require a dynamic `jukebox_song` registry lookup at four call sites (cross-crate/generated-data change outside this unit). No code or test changes made this pass.

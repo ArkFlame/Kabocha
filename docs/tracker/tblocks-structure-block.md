@@ -88,3 +88,34 @@ Re-verified every STILL OPEN row against the decompiled vanilla tree at
   implemented (complexity beyond the fix described in the row).
 
 File changed: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 45 only).
+
+
+## Result
+
+Re-verified every STILL OPEN row against the decompiled Paper/Canvas tree at
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft` (`.vendor/vanilla-decompiled` is absent in
+this checkout), target `V_26_3`. Smallest rows first.
+
+- Row 46 (empty palette + entities, S): ALREADY FIXED in the current source, no new change.
+  `place_structure_template_in_world` returns false only when the palette is empty AND
+  (`ignore_entities` OR no entities), matching `StructureTemplate.java:253-255,271`.
+- Row 45 (LootTableSeed, S): ALREADY FIXED, no new change. `is_randomizable_container_id` gates the
+  seed and the extra `LootTable`-presence check is gone, matching `StructureTemplate.java:322-324`.
+- Row 44 (structure_void, S): NON-GAP, no change. Vanilla ignores `STRUCTURE_VOID` only during
+  capture (`StructureBlockEntity.java:348-350`); `placeInWorld` has no void filter
+  (`StructureTemplate.java:288-311`). Pumpkin skips void at capture and places every palette entry.
+- Row 43 (LegacyRand, M): PARTIAL FIX. `RandomSource.create(seed)` returns `LegacyRandomSource` for
+  this target (`RandomSource.java:23-25`), so Pumpkin's 48-bit LCG is correct and the proposed
+  switch to the non-legacy `RandomImpl` was NOT applied. One real ordering gap found: vanilla's
+  `BlockRotProcessor` consumes one `nextFloat()` per palette entry in `processBlockInfos`
+  (`StructureTemplate.java:485-500`, `BlockRotProcessor.java:49-52`) regardless of build limits,
+  while Pumpkin drew only for in-limit, resolvable entries. Moved the integrity draw to the top of
+  the placement loop so skipped entries advance the RNG identically. Two independent streams from
+  one seed still match vanilla's two `createRandom(this.seed)` calls
+  (`StructureBlockEntity.java:419,429`).
+- Row 42 (non-strict neighbour shapes, M): ALREADY FIXED, no new change. The `!strict` pass runs
+  `update_shape_at_edge` then `update_from_neighbor_shapes` and `update_neighbors_at`
+  (`structure_block.rs:721-740`), matching `StructureTemplate.java:376-401,434-463`.
+
+Files changed this pass: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 43 RNG
+ordering only). `rustfmt --edition 2024` applied. No compile run (worker restriction).

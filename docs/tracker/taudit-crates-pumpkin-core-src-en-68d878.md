@@ -85,3 +85,34 @@ Verified each remaining gap against decompiled vanilla (`Enchantments.java`, `En
 
 No pure unit-test seam exists for the gap 4 change (`is_world_thundering` needs a live `World`),
 so no test was added.
+
+
+## Result
+
+Re-audit 2026-11-18 against decompiled vanilla. All five original gaps are already fixed in
+the current helper.rs; no source change was needed this pass.
+
+- Gap 1 (on_post_attack post-attack requirements): VERIFIED FIXED. helper.rs hardcodes the
+  vanilla predicates for Fire Aspect (direct damage source), Bane of Arthropods (victim has
+  SENSITIVE_TO_BANE_OF_ARTHROPODS plus direct) and Wind Burst (DIRECT_ATTACKER not flying and
+  fallDistance >= 1.5); Channeling lightning is handled by on_trident_post_attack. Checked
+  against Enchantments.java:648-672, 705-711, 1091-1107, 1260-1265 and
+  EntityFlagsPredicate.java:60-63; the meets_* helpers match.
+- Gap 2 (on_location_changed Frost Walker gate): VERIFIED FIXED. helper.rs gates on on_ground
+  and no vehicle via meets_frost_walker_requirements, matching Enchantments.java:419-428.
+  entity.on_ground is now populated from the client on_ground flag (client_move.rs:338-340),
+  so the gate is valid for players. Equip-time firing kept: vanilla runs location_changed
+  effects on equip.
+- Gap 3 (generic on_hit_block): VERIFIED FIXED. The callerless generic fn is gone; only
+  on_trident_hit_block remains, gating Channeling on thundering, lightning rod and canSeeSky
+  per Enchantments.java:1115-1125. No dangling callers.
+- Gap 4 (is_world_thundering): VERIFIED FIXED. World::is_thundering() already folds
+  can_have_weather() (weather.rs:582-583, 620-624), matching Level.isThundering()
+  (Level.java:2451-2452); redundant dimension checks are gone.
+- Gap 5 (modify_durability_change): VERIFIED FIXED. The dead, unwired function is gone;
+  no dangling callers.
+
+Pure unit tests already exist for the three requirement helpers in the helper.rs tests module
+(frost_walker_needs_ground_and_no_vehicle, bane_of_arthropods_needs_arthropod_victim,
+wind_burst_needs_fall_while_not_flying). No new test seam exists without generated-data or
+cross-crate changes. No .rs file was touched this pass, so no rustfmt was needed.

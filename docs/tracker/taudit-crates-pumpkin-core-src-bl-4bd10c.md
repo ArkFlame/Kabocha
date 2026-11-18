@@ -97,3 +97,16 @@ Fixed this pass, from the "Still open" prose at line 57:
 
 No pure test seam exists for the verified rows (`is_full_fluid` needs a live `World`;
 `can_stay_alive_with_above` would only mirror its own logic), so none was added.
+
+
+## Result (re-audit)
+
+Re-checked every STILL OPEN row against the decompiled tree in
+`.vendor/vanilla-decompiled/net/minecraft/world/level/` and the current source.
+No code changes were needed: all actionable rows are already fixed in the tree.
+
+- `block_fade.rs` new-state field: resolved in the current tree. `pumpkin-core/src/plugin/api/events/block/block_fade.rs` carries `new_state_id: BlockStateId` and `SpreadingSnowyBlock::random_tick` passes `base_block.default_state.id`, matching Paper's `callBlockFadeEvent(level, pos, baseBlock.defaultBlockState())`. The WIT surface is updated too: `v0.2/event.wit` `block-fade-event` and `v0.1/event.wit` `block-fade-event-data` both declare `new-state-id: u16`. `pumpkin-plugin-api/src/events/block/block_fade.rs` is only a type marker over the generated `BlockFadeEventData`, so it needs no edit.
+- `spreading_snowy_block.rs:60-76` `is_full_fluid`: fixed in the tree. It calls `world.get_fluid_and_fluid_state(pos)` and checks `!fluid_state.is_empty && fluid_state.level == 8`, matching vanilla `aboveState.getFluidState().isFull()` (amount 8).
+- `spreading_snowy_block.rs:100-106` opacity: verified non-issue at this call site. Vanilla `BlockBehaviour.getLightDampening` is a fixed per-state value (15 solid render, 0 skylight propagator, else 1); generated `BlockState.opacity` is that same value, so passing `above_state.opacity` as `simple_opacity` is correct. A faithful `Shapes.mergedFaceOccludes` face occlusion needs voxel-shape occlusion data and a cross-cutting rewrite of `LightEngine::get_light_dampening_into` in `pumpkin-world/src/lighting/engine.rs`. The current solid-render heuristic already matches vanilla for every block that can sit above grass (full cube, slab, glass, snow), and a slab case is covered by the existing `a_slab_above_does_not_add_occlusion` test. Left open for that reason.
+
+No new unit test was added: the verified rows need a live `World` or would only mirror their own logic. Files touched this pass: this doc only, so no rustfmt run.

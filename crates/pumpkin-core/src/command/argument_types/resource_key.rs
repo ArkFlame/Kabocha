@@ -56,9 +56,23 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
                 .filter_and_suggest_iter(advancements.iter().map(ToString::to_string))
                 .build()
         } else if self.0 == BIOME_REGISTRY {
-            let biomes = pumpkin_data::biome::Biome::ALL
-                .iter()
-                .map(|biome| format!("minecraft:{}", biome.registry_id));
+            // Vanilla's ResourceArgument suggests every element of the biome
+            // registry, including datapack additions. Fall back to the generated
+            // set when the context has no server (unit tests).
+            let biomes: Vec<String> = context.source.server.as_deref().map_or_else(
+                || {
+                    pumpkin_data::biome::Biome::ALL
+                        .iter()
+                        .map(|biome| format!("minecraft:{}", biome.registry_id))
+                        .collect()
+                },
+                |server| {
+                    server
+                        .datapack_manager
+                        .dynamic_registry_manager
+                        .get_all_entry_ids(&BIOME_REGISTRY.to_string())
+                },
+            );
             suggestions_builder.filter_and_suggest_iter(biomes).build()
         } else if self.0 == DIMENSION_REGISTRY {
             let worlds = context.server().worlds.load();

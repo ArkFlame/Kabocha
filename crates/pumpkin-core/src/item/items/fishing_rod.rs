@@ -123,14 +123,10 @@ impl ItemBehaviour for FishingRodItem {
             let bobber_arc: Arc<FishingBobberEntity> = Arc::new(bobber);
             world.spawn_entity(bobber_arc);
 
-            // Vanilla `ItemStack.causeUseVibration(player, ITEM_INTERACT_START)`.
-            // Vanilla FishingRodItem.use awards ITEM_USED on the cast branch only,
-            // after any plugin cancellation and before the start vibration.
-            player.increment_stat(StatisticCategory::Used, i32::from(Item::FISHING_ROD.id), 1);
-
-            world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
-            // Vanilla `FishingRodItem.use` awards `ITEM_USED` only on the cast branch.
+            // Vanilla `FishingRodItem.use` awards ITEM_USED once on the cast branch, after any
+            // plugin cancellation and before the start vibration.
             player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
+            world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
         } else {
             // Reel in
             let mut keep_hook = false;

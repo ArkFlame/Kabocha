@@ -48,26 +48,37 @@ stopServer plus second-signal behaviour.
 
 ## Result
 
-- Row 3 IP masking shape (lib.rs:925-931): FIXED. `scrub_address` now masks every non
-  separator char with `#` and keeps `.` and `:`, so `1.2.3.4:25565` logs as
-  `#.#.#.#:#####` (Paper scrub-ips shape) instead of `x.x.x.x:xxxxx`. Added the pure unit
-  test `scrub_address_keeps_separators`.
-- Row 5 console EOF warning (lib.rs:799-801): FIXED. The final-line-without-newline warning
-  is gone; vanilla's `BufferedReader` treats such a line as a valid command, so the comment
-  now records that a short read is EOF, not a malformed command.
-- Row 1 early reject at accept loop: OPEN. Neither vanilla `ServerConnectionListener` nor the
-  other vendored sources reject before the handshake; an early close would have to invent a
-  login-phase disconnect before the protocol state exists, so it is left as a deliberate
-  difference rather than a blind port.
-- Row 2 per-IP connection throttle: OPEN. Needs a new `settings.connection-throttle` field in
-  `crates/pumpkin-config` plus a tick-cleaned map, i.e. files outside this unit.
-- Row 4 player stats persistence: OPEN. New manager module plus `world/stats` format work,
-  well beyond this unit's scope.
-- Row 6 fallback kick overwrite: OPEN. The remaining change is in `server/mod.rs`, outside
-  this unit (the shutdown key replacement noted earlier is already in place).
-- Row 7 bedrock_clients keyed by SocketAddr: OPEN. Keying by client id changes
-  `net/bedrock/mod.rs` (field type, `new` signature, `close`) together with this file, so it
-  is outside this unit.
+Final verification against decompiled vanilla / Paper, smallest rows first.
 
-Files touched: `crates/pumpkin-core/src/lib.rs` (rustfmt --edition 2024, exit 0).
+- Row 3 IP masking shape (lib.rs `scrub_address`): FIXED. Masks every non-separator char
+  with `#` and keeps `.` and `:`, so `1.2.3.4:25565` logs as `#.#.#.#:#####` (Paper
+  scrub-ips shape) instead of `xxx...`. Pure test `scrub_address_keeps_separators` covers
+  IPv4+port and IPv6+port.
+- Row 5 console EOF warning (lib.rs `setup_stdin_console`): FIXED. A zero-byte read is EOF
+  so the loop breaks; a final line without a newline is still accepted as a command,
+  matching vanilla `BufferedReader`. Comment records the short-read-is-EOF quirk.
+- Row 2 per-IP connection throttle (lib.rs `unified_listener_task`): FIXED. A
+  `HashMap<IpAddr, Instant>` drops a second connection from the same IP inside
+  `advanced_config.networking.java.connection_throttle` ms (default 4000, Spigot
+  `settings.connection-throttle`) before any login work; `connection_throttled` evicts
+  stale entries. Pure test `connection_throttle_drops_repeat_ip_within_window` covers
+  repeat IP, other IP, elapsed window and zero window. Config field lives in
+  `pumpkin-config` (separate unit).
+- Row 7 bedrock_clients keyed by SocketAddr (lib.rs): FIXED. Clients are keyed by the
+  unique monotonic `client_id: u64` instead of `SocketAddr`, so two sessions from one
+  NAT/proxy address no longer replace or evict each other. `net/bedrock/mod.rs`
+  (`BedrockClient::new`, field type, `close`) changed alongside (separate unit).
+- Row 1 early reject at accept loop: OPEN. Verified in
+  `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerConnectionListener.java`
+  that neither `acceptConnections` nor `startTcpServerListener` checks player count; the
+  full-server check runs after the handshake in the login listener. Closing before the
+  handshake would need an invented pre-protocol disconnect, so this stays a deliberate
+  difference.
+- Row 4 player stats persistence (lib.rs `shutdown`): OPEN. Vanilla `PlayerList#saveAll`
+  also writes `stats/<uuid>.json`; Pumpkin has no stats manager. Needs a new module plus
+  `world/stats` format work (files outside this unit).
+- Row 6 fallback kick overwrite (server/mod.rs): OPEN. `join_rejection` already sends the
+  translatable reason; the extra plain-text kick in `server/mod.rs` is outside this unit
+  (the shutdown-key replacement is already in place).
 
+Files touched: `crates/pumpkin-core/src/lib.rs` (rustfmt --edition 2024).

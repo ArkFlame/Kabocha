@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::tag::Taggable;
+use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 
 use crate::entity::living::LivingEntity;
 
@@ -8,13 +11,46 @@ use super::super::BrainTick;
 use super::super::memory::{MemoryModuleId, types};
 use super::Sensor;
 
-const REQUIRES: [MemoryModuleId; 5] = [
+const REQUIRES: [MemoryModuleId; 6] = [
     types::NEAREST_VISIBLE_LIVING_ENTITIES.id(),
+    types::NEAREST_REPELLENT.id(),
     types::NEAREST_VISIBLE_ADULT_PIGLIN.id(),
     types::NEAREST_VISIBLE_ADULT_HOGLINS.id(),
     types::VISIBLE_ADULT_PIGLIN_COUNT.id(),
     types::VISIBLE_ADULT_HOGLIN_COUNT.id(),
 ];
+
+/// Vanilla `HoglinSpecificSensor.findNearestRepellent` search box: `findBlocksInBoxByManhattanDistance(pos, 8, 4)`.
+const REPELLENT_SEARCH_XZ: i32 = 8;
+const REPELLENT_SEARCH_Y: i32 = 4;
+
+/// Returns the repellent with the smallest Manhattan distance from `origin` inside the search box.
+/// Ties keep the first block in scan order, matching vanilla iteration.
+fn find_nearest_repellent(
+    origin: BlockPos,
+    is_repellent: impl Fn(BlockPos) -> bool,
+) -> Option<BlockPos> {
+    let mut best: Option<(i32, BlockPos)> = None;
+    for dy in -REPELLENT_SEARCH_Y..=REPELLENT_SEARCH_Y {
+        for dx in -REPELLENT_SEARCH_XZ..=REPELLENT_SEARCH_XZ {
+            for dz in -REPELLENT_SEARCH_XZ..=REPELLENT_SEARCH_XZ {
+                let distance = dx.abs() + dy.abs() + dz.abs();
+                if best.is_some_and(|(best_distance, _)| best_distance <= distance) {
+                    continue;
+                }
+                let candidate = BlockPos(Vector3::new(
+                    origin.0.x + dx,
+                    origin.0.y + dy,
+                    origin.0.z + dz,
+                ));
+                if is_repellent(candidate) {
+                    best = Some((distance, candidate));
+                }
+            }
+        }
+    }
+    best.map(|(_, pos)| pos)
+}
 
 /// Vanilla hoglin sensor: records the nearest visible adult piglin and every visible adult
 /// hoglin so the brain can decide when to retreat from an outnumbering crowd.
@@ -26,6 +62,21 @@ impl Sensor for HoglinSpecificSensor {
     }
 
     fn do_tick(&mut self, tick: &mut BrainTick) {
+        let origin = tick
+            .mob
+            .get_mob_entity()
+            .living_entity
+            .entity
+            .block_pos
+            .load();
+        let nearest_repellent = find_nearest_repellent(origin, |candidate| {
+            tick.world
+                .get_block(&candidate)
+                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_HOGLIN_REPELLENTS)
+        });
+        tick.state
+            .set_optional(types::NEAREST_REPELLENT, nearest_repellent);
+
         let mut adult_piglin: Option<Arc<dyn crate::entity::EntityBase>> = None;
         let mut adult_hoglins: Vec<Arc<dyn crate::entity::EntityBase>> = Vec::new();
         let mut piglin_count = 0i32;
@@ -97,6 +148,16 @@ mod tests {
             Vector3::new(x, 64.0, 0.0),
             &EntityType::HOGLIN,
         ))
+    }
+
+    #[test]
+    fn nearest_repellent_prefers_smaller_manhattan_distance() {
+        let origin = BlockPos(Vector3::new(0, 64, 0));
+        let found = find_nearest_repellent(origin, |candidate| {
+            candidate == BlockPos(Vector3::new(3, 64, 0))
+                || candidate == BlockPos(Vector3::new(1, 64, 1))
+        });
+        assert_eq!(found, Some(BlockPos(Vector3::new(1, 64, 1))));
     }
 
     #[tokio::test]

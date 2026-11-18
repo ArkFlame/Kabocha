@@ -57,3 +57,17 @@ Re-audited every row against `.vendor/vanilla-decompiled/net/minecraft/world/lev
 - Row 6 (unused `update_power` wrapper): verified already fixed, no change. No `update_power` method remains in `block/entities/daylight_detector.rs`; the impl block only holds `ID` and `new`.
 
 Unit-test note: the pure seam for this block is `calculate_signal_strength`, already covered by the two vanilla-derived tests in blocks/redstone/daylight_detector.rs. Rows 2-5 have no pure seam (World/engine/API coupling), so no new test was added.
+
+
+## Result
+
+Re-audited every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`, `Level.java:1256-1265,1298-1312`, `chunk/LevelChunk.java:389-404` and the current Pumpkin sources. This section supersedes the earlier Result below.
+
+- Row 1 (comparator analog flag): still BLOCKED-DATA. `assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector/tripwire_hook/target, so `get_comparator_output` stays unreachable and comparator.rs:224 takes the conductor branch. Needs Extractor; generated data must not be hand-edited.
+- Row 2 (shape light occlusion): left open. `BlockBehaviour` has no `get_shape`/`use_shape_for_light_occlusion` seam and the light engine treats blocks as full cubes; column occlusion is a cross-crate engine refactor outside this unit.
+- Row 3 (tickEntity re-reads block): verified already fixed, no change. `update_signal_strength` (blocks/redstone/daylight_detector.rs:98-104) returns early unless `block == Block::DAYLIGHT_DETECTOR` before decoding props.
+- Row 4 (Paper callRedstoneChange ordering): FIXED. The checkout had regressed to `set_block_state(..., NOTIFY_ALL | FORCE_STATE)`, forcing neighbour updates even when a plugin restored the old power. Vanilla `LevelChunk.setBlockState` returns null for an unchanged state (LevelChunk.java:402-404) and `Level.setBlock` returns false before physics/client updates (Level.java:1258-1265), so `setBlockAndUpdate` is a no-op. Changed to plain `NOTIFY_ALL`, whose unchanged-state early return in `on_block_state_set` (world/mod.rs:6891) reproduces that no-op. Cancellation still returns early (no gameplay delta, consistent with buttons/pressure plates).
+- Row 5 (BLOCK_CHANGE game-event context): left open. The player is already forwarded as the vibration source via `emit_game_event_with_source(..., Some(player))`. Adding the `newState` from `GameEvent.Context.of` needs a `block_state` field on `GameEventContext`, which has ~20 initializers across the crate (explosion, note, composter, buttons, sculk, mobs, etc.), most outside this unit; no listener consumes a state today, so no gameplay delta.
+- Row 6 (unused update_power wrapper): verified already fixed, no change. No `update_power` method remains in `block/entities/daylight_detector.rs`.
+
+Unit-test note: the only pure seam is `calculate_signal_strength`, already covered by two vanilla-derived tests. Rows 2-5 are World/engine/API coupled, so no new test was added.

@@ -100,3 +100,30 @@ vanilla version. No source file was touched, so no rustfmt run was needed.
   `TOTAL_AIR_SUPPLY = 4800`), already handled in `dolphin.rs:342-347`. Current
   `water_animal.rs:10` and `abstract_fish.rs:303-306` use `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, matching
   vanilla, so the "Fixed in this pass" note claiming 4800 is stale and must not be re-applied.
+
+## Result (re-verification 2026-11-18)
+
+Re-checked every STILL OPEN row against the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled`. All three premises are false for this version, so no source edit was
+warranted. No source file was touched, so no rustfmt was needed. Findings below match the earlier
+Result section; rows 2-4 remain open for the recorded reasons.
+
+- Row 2 (carry tadpole variant into frog): NO GAP, premise false. Vanilla
+  `net/minecraft/world/entity/animal/frog/Tadpole.java` (fields 44-51, `ageUp()` lines 236-250) has no
+  `TadpoleVariant`, no `DATA_VARIANT`, and no `variant` NBT or bucket key; `ageUp()` only calls
+  `frog.finalizeSpawn`, `frog.setPersistenceRequired`, `fudgePositionAfterSizeChange` and the grow-up
+  sound. The frog variant is picked from the biome in `Frog#finalizeSpawn`, which Pumpkin already
+  does (`frog.rs:146-148`). Left open: depends on BLOCKED-DATA gap 1, whose tracked data does not
+  exist (`crates/pumpkin-data/src/generated/tracked_data.rs` has only AGE_LOCKED); generating it needs
+  an Extractor entry plus codegen, and `crates/pumpkin-data/src/generated` must not be hand-edited.
+- Row 3 (RunIf + RandomLookAround gate): NO GAP, premise false. Vanilla `TadpoleAi.java:64` is
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a deliberate no-op, matching Pumpkin's
+  `trigger_if(...is_in_water)` at `tadpole/ai.rs:85-90`. There is no `RunIf` or `RandomLookAround` in
+  the tadpole brain in this version, so the proposed combinator is unnecessary.
+- Row 4 (squid max air supply): NO GAP, premise false. Vanilla `AgeableWaterCreature.java:37-47`
+  refills to a hardcoded 300 and squid overrides no air methods (no matches under
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/squid/`); the default max air is
+  `MAX_AIR = 300` (`breath.rs:9`). `ageable_water_creature.rs:22` passes `MAX_AIR = 300` and
+  `abstract_fish.rs:305` returns `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, both correct. Only Dolphin
+  overrides to 4800 (`dolphin.rs:342-347`, vanilla `Dolphin.TOTAL_AIR_SUPPLY = 4800`). The "Fixed in
+  this pass" note claiming a 4800 water-animal value is stale and must not be re-applied.

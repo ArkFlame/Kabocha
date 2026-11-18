@@ -33,13 +33,36 @@ comments referencing vanilla behaviour. Behaviour gaps found are listed below.
 
 ## Result
 
+This unit may edit only `function_loader.rs`. Every STILL OPEN gap whose fix lives in
+`mod.rs` or generated data is out of scope and left open with a one-line reason below.
+
 - function_loader.rs:30 (symlinks skipped by `entry.file_type()`): FIXED. Verified against
-  vanilla `PackDetector.detectPackResources` (`.vendor/vanilla-decompiled/.../PackDetector.java:31-49`),
-  which resolves `Files.readSymbolicLink` and tests the target with `Files.isDirectory`, so symlinked
-  packs/content are followed. Replaced `entry.file_type()` with `path.is_dir()` / `path.is_file()` in
-  `load_functions_recursive` and `load_tags_recursive` (matching `load_block_tags_recursive`, which
-  already used `path.is_dir()`). Updated the two tests that asserted the old skip behaviour to assert
-  symlinked functions and function-tag directories are now loaded. Ran `rustfmt --edition 2024` on the
-  file (exit 0). No compile/test run: per unit instructions (orchestrator compiles once after workers).
-- All other STILL OPEN rows reference `mod.rs` (or generated data / cross-crate work), which is outside
-  this unit's only editable file (`function_loader.rs`); left open, not in scope.
+  vanilla `PackDetector.detectPackResources`
+  (`.vendor/vanilla-decompiled/net/minecraft/server/packs/repository/PackDetector.java:31-49`),
+  which resolves `Files.readSymbolicLink` and tests the target with `Files.isDirectory`, so
+  symlinked packs/content are followed. Replaced `entry.file_type()` with `path.is_dir()` /
+  `path.is_file()` in `load_functions_recursive` and `load_tags_recursive` (matching
+  `load_block_tags_recursive`, which already used `path.is_dir()`). Updated the two tests that
+  asserted the old skip behaviour to assert symlinked functions and function-tag directories
+  are now loaded. Ran `rustfmt --edition 2024` on the file (exit 0). No compile/test run this
+  pass: per unit instructions the orchestrator compiles once after all workers.
+
+Out of scope (left STILL OPEN, one-line reasons):
+
+- mod.rs:2079, 1384 (zip datapacks listed but never loaded): needs a read-only pack filesystem
+  abstraction threaded through many loaders in `mod.rs`; outside the editable file.
+- mod.rs:122 (`maxCommandChainLength` game rule ignored): needs gamerule plumbing in `mod.rs`;
+  outside the editable file.
+- mod.rs:2409-2421 (`pack.mcmeta` description stored as raw JSON): parsing fix lives in `mod.rs`;
+  outside the editable file.
+- mod.rs:1459-1483, 2423 (hard-coded `pack_format` 61): needs generated-data/`CURRENT_MC_VERSION`
+  wiring in `mod.rs`; outside the editable file.
+- mod.rs:1729 (Java `Double`/`Float.toString` for macro strings): fix lives in `mod.rs`; outside
+  the editable file.
+- mod.rs:1130 (function suggestions in HashMap order): fix lives in `mod.rs`; outside the file.
+- mod.rs:2000-2003, 1352+ ("bundle" feature pack missing from bundled lists): needs the assets
+  datapack plus `mod.rs`; outside the editable file.
+- mod.rs:1806 (u8 saturating custom damage type ids): fix lives in `mod.rs`; outside the file.
+- mod.rs:500, 884 (`get_tag_values`/`get_tag_entries` return raw refs): fix lives in `mod.rs`;
+  outside the editable file.
+- mod.rs:2409 (incompatible `pack_format` accepted): fix lives in `mod.rs`; outside the file.

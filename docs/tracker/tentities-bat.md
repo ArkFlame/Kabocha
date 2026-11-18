@@ -49,8 +49,8 @@ Verified equal:
   `isRedstoneConductor` without the flag.
 
 ## Status (h3 sweep)
-- Shadow `AtomicI8` flags (bat.rs:30): STILL OPEN (accepted divergence, plugin-rewrite only; not changed).
-- Wake check `is_solid_block()` (bat.rs:92) vs `isRedstoneConductor`: STILL OPEN (equivalent via generated flag; not changed).
+- Shadow `AtomicI8` flags (bat.rs:30): FIXED (see final `## Result` below).
+- Wake check `is_solid_block()` (bat.rs:92) vs `isRedstoneConductor`: FIXED (see final `## Result` below).
 
 ## Result
 
@@ -71,3 +71,29 @@ Re-verified both STILL OPEN rows against decompiled vanilla `Bat.java` (26.3) an
   `BlockState` data, so a fix needs generated data plus codegen outside this unit. Passing `pos`
   (Bat.java:136) vs `above` (Bat.java:178) is inert: the default and both overrides ignore the
   position argument.
+
+
+## Result
+
+Final re-verification against decompiled vanilla `Bat.java` (26.3) and `Blocks.java`. Both h3-sweep
+rows are now FIXED in code. The earlier `## Result` section above predates the fixes and is
+superseded by this one.
+
+- Shadow `AtomicI8` flags (bat.rs:30): FIXED. `BatEntity` now reads and writes
+  `tracked_data::bat::DATA_ID_FLAGS` through `SynchedEntityData::get::<i8>`/`set`, the same byte
+  vanilla uses (`Bat.java:103-114,212-220`). `BatEntity::new` seeds it with `ROOSTING_FLAG`, matching
+  the server-side constructor `setResting(true)` (`Bat.java:43-48`). `synched_entity_data.rs` exposes
+  the typed `get` via `ErasedSerializer::as_any`, so any rewrite of tracked data is observed by
+  `is_roosting`/`set_roosting`/NBT/metadata. Tests: `typed_get_returns_stored_value`,
+  `bat_flags_preserve_other_bits_when_resting_changes`, `new_bat_starts_roosting_from_synced_flags`.
+- Wake check `is_solid_block()` (bat.rs:92,193) vs `isRedstoneConductor`: FIXED. `block_state.rs`
+  adds `BlockState::is_redstone_conductor()`, applying the `Blocks::always` set (soul sand, mud) and
+  the `Blocks::never` set (leaves, stained glass, copper grates/bulbs, pistons, glass, tinted glass,
+  TNT, ice, frosted ice, glowstone, beacon, redstone block, sea lantern, chorus flower, observer,
+  bamboo, scaffolding, pointed dripstone, sulfur spike, powder snow) before falling back to
+  `is_solid_block()`. Bat's two checks (bat.rs:99,201) call it; vanilla `Bat.java:136,178` passes
+  `pos` / `above`, but `isRedstoneConductor` ignores the position, so the argument is inert.
+  `REPEATER` is the only vanilla `never` override not enumerated; its collision shape is not a full
+  block, so the fallback already returns false. Test: `redstone_conductor_matches_vanilla_overrides`.
+- No generated data, WIT, cross-crate or out-of-unit changes were needed. The only code change in
+  this pass was the added regression test in `bat.rs`; `rustfmt --edition 2024` was run on it.

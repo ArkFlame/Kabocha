@@ -44,3 +44,28 @@ Markers: the tracker note counts 3 markers, all are doc comments that mention "v
 - Row 4: OPEN (L) - the rest of the loot-function set needs component, enchantment and data-component APIs outside this unit.
 - Row 7: OPEN - BlockEntity::mark_dirty lives in block/entities/mod.rs (outside this unit); item.rs cannot set the saved flag.
 - Row 9: OPEN - pure maintenance dedup with no behavioural difference; skipped to avoid risk during parallel edits.
+
+## Result
+
+Pass 2 (verified against decompiled vanilla 26.3). The only supported version is `V_26_3` (`pumpkin-data/src/generated/packet.rs:3-6`), and generated `slot_ranges.rs` matches vanilla `SlotRanges.java` exactly. Rows 5/6/8 stay as recorded above; they were not re-audited in this pass.
+
+- Row 1 (M): OPEN for the executor rewrite. One-to-many slot-source iteration lives in `commands/item.rs` (already using `SlotsArgumentType` at item.rs:85/223/1293/1303), which is outside this unit. Within this unit, `resolve_slot_range` in `argument_types/slot.rs` accepted stale pre-26.3 names (`villager.0-7` -> 300-307, `horse.saddle` -> 400, `horse.armor` -> 401) that vanilla 26.3 rejects; vanilla uses `mob.inventory.*`, `saddle` and `armor.body`, all present in the generated table. Removed the stale names and added 2 pure tests (reject old names, resolve vanilla equipment/crafting slots). `rustfmt --edition 2024` applied.
+- Row 2 (M): OPEN - `item set` executors and Set-success feedback are in `commands/item.rs` (`SuccessFeedback::Set` at item.rs:85/87/223/225/1311/1316); outside this unit.
+- Row 3 (M): OPEN - entity slot 300-307/499/500-514 mapping needs inventory APIs and lives in `commands/item.rs`; outside this unit.
+- Row 4 (L): OPEN - remaining loot functions need component/enchantment/data-component APIs outside this unit.
+- Row 7 (M): OPEN - `BlockEntity::mark_dirty` lives in `block/entities/mod.rs`; outside this unit.
+- Row 9 (S): OPEN - maintenance dedup inside `commands/item.rs`, no behavioural difference; outside this unit.
+
+## Result
+
+Pass 3 (verified against decompiled vanilla 26.3 in `.vendor/vanilla-decompiled`). No source changes this pass: every remaining STILL OPEN row needs a file outside this unit (`commands/item.rs`, `block/entities/mod.rs`) or cross-crate inventory/component APIs. Verified the two editable argument types are already vanilla-correct, so no new edits or tests were added (would duplicate the existing tests).
+
+- Row 1 (M): OPEN - one-to-many slot-source iteration and `target.failed*` counting live in the `commands/item.rs` executors (outside this unit). In this unit `SlotsArgumentType`/`resolve_slot_range` already match vanilla `SlotRanges.read`/`SlotsArgument.parse` (`SlotRanges.java`, `SlotArgument.java`, `SlotsArgument.java`); stale pre-26.3 names were removed in pass 2. Generated `slot_ranges.rs` matches vanilla `SlotRanges.java` exactly.
+- Row 2 (M): OPEN - `item set` subcommand executors and Set-success feedback are in `commands/item.rs` (`SuccessFeedback::Set`); outside this unit.
+- Row 3 (M): OPEN - entity slot 300-307/499/500-514 mapping needs inventory/crafting-grid APIs and lives in `commands/item.rs`; outside this unit. The slot-name table itself is verified correct.
+- Row 4 (L): OPEN - the remaining loot functions need component/enchantment/data-component APIs in pumpkin-core (cross-crate). `ItemModifierArgumentType` here already parses reference-or-inline like vanilla `ResourceOrIdArgument.parse` (`ResourceOrIdArgument.java`); verified.
+- Row 5 (S): already FIXED in pass 1 (number providers); not re-audited this pass.
+- Row 6 (S): already FIXED in pass 1 (set_count does not clamp to max stack size); not re-audited this pass.
+- Row 7 (M): OPEN - `BlockEntity::mark_dirty` lives in `block/entities/mod.rs` (outside this unit); `item.rs` cannot set the saved flag.
+- Row 8 (S): already FIXED in pass 1 (modify feedback); not re-audited this pass.
+- Row 9 (S): OPEN - maintenance dedup inside `commands/item.rs`, no behavioural difference; outside this unit.

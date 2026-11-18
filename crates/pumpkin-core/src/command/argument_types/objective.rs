@@ -64,7 +64,8 @@ impl ArgumentType<CommandSource> for ObjectiveArgumentType {
     }
 
     fn examples(&self) -> Vec<String> {
-        vec!["objective".to_string(), "trigger_obj".to_string()]
+        // Vanilla `ObjectiveArgument.EXAMPLES`.
+        vec!["foo".to_string(), "*".to_string(), "012".to_string()]
     }
 }
 

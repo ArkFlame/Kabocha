@@ -947,9 +947,12 @@ macro_rules! impl_block_entity_for_cooking {
                 Some(nbt)
             }
 
-            // Vanilla `getUpdateTag` carries the items and cook/burn state, same as the saved data.
-            fn client_update_tag(&self, _saved: pumpkin_nbt::compound::NbtCompound) -> pumpkin_nbt::compound::NbtCompound {
-                // Vanilla furnaces keep the default `getUpdateTag`, which is empty.
+            fn client_update_tag(
+                &self,
+                _saved: pumpkin_nbt::compound::NbtCompound,
+            ) -> pumpkin_nbt::compound::NbtCompound {
+                // Vanilla `AbstractFurnaceBlockEntity` does not override `getUpdateTag`, so the
+                // base `BlockEntity` empty compound is used; items go out via container packets.
                 pumpkin_nbt::compound::NbtCompound::new()
             }
 

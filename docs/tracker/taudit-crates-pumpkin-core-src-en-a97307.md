@@ -73,3 +73,29 @@ Verified against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft 
 - Row 6 (Halloween constants): VERIFIED NO ACTION. Decompiled Zombie.java:520-521 and AbstractSkeleton.java:140-141 confirm 0.25 head roll and 0.1 jack-o'-lantern share; spawn.rs:20-22 constants match.
 
 Files edited: crates/pumpkin-core/src/entity/mob/spawn.rs (rustfmt --edition 2024 passed, exit 0). No tests added: the change is a one-line RNG type swap with no pure seam (finalize_spawn_base needs a live World/attribute set).
+
+## Result (re-verification, this pass)
+
+Independently re-checked every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft (authoritative dump).
+
+- Row 1 (baby spawn chance ignores difficulty): VERIFIED NO ACTION. AgeableMob.java:341-343 `getBabySpawnChance()` takes no LocalDifficulty and returns plain `babySpawnChance`; finalizeSpawn (AgeableMob.java:47-62) applies it with no difficulty multiplier. Pumpkin ageable.rs:156-161 matches.
+- Row 2 (first group mob never rolls baby): VERIFIED NO ACTION. AgeableMob.java:55-57 keeps the `getGroupSize() > 0` guard, so the first mob also skips the baby roll. Pumpkin `group_size > 0` guard matches.
+- Row 3 (AgeableMobGroupData lacks can_spawn_another): VERIFIED NO ACTION. AgeableMob.java:311-344 has only groupSize / increaseGroupSizeByOne / getBabySpawnChance / isShouldSpawnBaby, no cap method. Pumpkin group_size plus species caps matches.
+- Row 4 (triangle draw precision): FIXED (fix already present from prior pass, re-confirmed here). spawn.rs:97 uses `rng.random::<f64>() - rng.random::<f64>()`; vanilla Mob.java:1263 `triangle(0.0, 0.11485)` and RandomSource.java:59-61 f64 overload match. `Modifier.amount` is f64 (attributes.rs:51), so the expression type-checks.
+- Row 5 (equipment roll ignores spawn reason): LEFT OPEN (one-line reason). Needs EntitySpawnReason threaded through finalize_spawn_base / populate_spawn_equipment and every finalize_spawn caller outside this unit, a cross-crate refactor. No observable difference today: no registry mob is converted in-tree per prior AbstractSkeleton.finalizeSpawn check.
+- Row 6 (Halloween constants): VERIFIED NO ACTION (prior Zombie.java / AbstractSkeleton.java verification stands).
+
+No .rs files edited this pass: the row 4 fix was already in place. rustfmt --edition 2024 re-run on spawn.rs, exit 0. No pure test seam for the RNG type swap (finalize_spawn_base needs a live World and attribute set); did not add a formula-mirroring test.
+
+## Result (independent re-verification, this pass)
+
+Re-checked every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft (authoritative) and the current source files.
+
+- Row 1 (baby spawn chance ignores difficulty): VERIFIED NO ACTION. AgeableMob.java:341-343 getBabySpawnChance() takes no LocalDifficulty and returns plain babySpawnChance; finalizeSpawn (AgeableMob.java:47-62) applies it with no difficulty multiplier. Pumpkin ageable.rs matches.
+- Row 2 (first group mob never rolls baby): VERIFIED NO ACTION. AgeableMob.java:55-57 keeps the getGroupSize() > 0 guard, so the first mob skips the baby roll. Pumpkin group_size > 0 guard matches.
+- Row 3 (AgeableMobGroupData lacks can_spawn_another): VERIFIED NO ACTION. AgeableMob.java:311-344 exposes only groupSize / increaseGroupSizeByOne / getBabySpawnChance / isShouldSpawnBaby, no cap method. Pumpkin group_size plus species caps matches.
+- Row 4 (triangle draw precision): FIXED, fix present and confirmed. spawn.rs:97 uses rng.random::<f64>() - rng.random::<f64>(); vanilla Mob.java:1263 random.triangle(0.0, 0.11485) and RandomSource.java:59-61 f64 overload mean + spread * (nextDouble() - nextDouble()) match. Modifier.amount is f64 (attributes.rs:51), so the expression type-checks.
+- Row 5 (equipment roll ignores spawn reason): LEFT OPEN, one-line reason. Needs EntitySpawnReason threaded through finalize_spawn_base / populate_spawn_equipment and every finalize_spawn caller outside this unit (cross-crate refactor). AbstractSkeleton.java:134-137 rolls equipment for all reasons; only Zombie.java:479,514 gates equipment/loot on CONVERSION, and zombies are handled by their own finalize_spawn rather than this registry path, so no observable difference today.
+- Row 6 (Halloween constants): VERIFIED NO ACTION. Zombie.java:520-521 and AbstractSkeleton.java:140-141 confirm 0.25 head roll and 0.1 jack-o'-lantern share; spawn.rs:20-22 constants match.
+
+No .rs files edited this pass (all actionable rows resolved earlier or verified NO ACTION). No pure test seam for the RNG swap, and no formula-mirroring test added. Checked row 4 against the Worker compile pitfalls table: f64 literal 0.114_85 and f64 RNG draw match Modifier.amount type, no unwrap/expect/panic, no import or macro-path changes.

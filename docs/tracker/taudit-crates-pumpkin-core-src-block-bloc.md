@@ -70,3 +70,32 @@ is false, with no such gate (SpreadingSnowyBlock.java:68-75); the current file a
 is_full_fluid and canPropagate parameter notes are accurate.
 
 Files touched: spreading_snowy_block.rs (unit tests only), this doc.
+
+
+## Result (verify 2026-11-18)
+
+Re-checked every STILL OPEN row against .vendor/vanilla-decompiled (SnowyBlock.java,
+SpreadingSnowyBlock.java, GrassBlock.java, MyceliumBlock.java, BlockBehaviour.java).
+No source changes were needed: the code from the earlier pass is present and matches vanilla.
+
+- Row 1 (on_place grass/mycelium/podzol; :29-34 / :192-201): RESOLVED, no change.
+  Vanilla SnowyBlock.getStateForPlacement (SnowyBlock.java:41-44) sets SNOWY from the block
+  above; GrassBlock/MyceliumBlock inherit it and do not override it. Pumpkin's
+  SnowyBlock::on_place is correct, so on_place must stay on all three blocks.
+- Row 2 (get_amount generic for any fluid; :57-64): RESOLVED, no change. Vanilla
+  FluidState.isFull() is getAmount() == 8 for any fluid. Pumpkin's is_full_fluid reads
+  fluid_state.level, which fluid_state_from_block_state computes generically via liquid_level
+  (crates/pumpkin-world/src/world.rs:137-152): it reads the LEVEL property of any liquid block
+  and clamps source/falling amounts to 8, not just WATER/LAVA. The earlier note claiming only
+  WATER/LAVA are normalized is outdated; there is no vanilla-parity gap in this unit.
+- Row 3 (LAYERS == 1 short-circuit and light block; :70-94): RESOLVED, no change.
+  SpreadingSnowyBlock.canStayAlive checks SNOW && LAYERS == 1 (line 33) then
+  getLightDampeningInto(..., aboveState.getLightDampening()) (line 41). Pumpkin maps
+  getLightDampening to BlockState::opacity (block_state.rs:35, "light subtracted through this
+  block"), so both the short-circuit and the light value match vanilla.
+- Row 4 (randomTick coverage; :116-179): pure unit tests already cover the testable seam
+  can_stay_alive_with_above (snow-layer-1 short-circuit, full fluid, clear air, opaque cover).
+  Full randomTick still needs a pumpkin-gametest scenario with a live world (light + fluid +
+  rng), which lives outside this unit: left OPEN (out of unit, no pure seam remains).
+
+Files touched this pass: this doc only; no .rs edits, so no rustfmt run.

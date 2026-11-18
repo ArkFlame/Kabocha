@@ -118,3 +118,66 @@ Re-reviewed each gap against `.vendor/vanilla-decompiled/net/minecraft/world/ent
 
 Verification: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/vehicle/boat.rs` succeeded.
 No cargo run (CODER rule); compile UNVERIFIED.
+
+
+## Result (re-review 2026-11-18, scope player_auth_input.rs)
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled, smallest first. This unit may
+edit only player_auth_input.rs, and none of the open rows live in that file, so no source change was
+made and no unit-test seam exists here.
+
+- Row 6 (CONTAINER_CLOSE, S): CONFIRMED OPEN. Vanilla AbstractChestBoat.stopOpen
+  (AbstractChestBoat.java:197-199) emits GameEvent.CONTAINER_CLOSE at this.position() with the user
+  context. Pumpkin's shared vehicle screen close (entity/vehicle/minecart/container.rs:210-212
+  on_closed) only delegates to inner and emits no CONTAINER_CLOSE. One-line reason: the close hook
+  lives in container.rs/player.rs, outside the editable file, and passing a block pos from
+  container::open would double-emit CONTAINER_OPEN.
+- Row 3 (bubble column, M): verified vanilla AbstractBoat.onAboveBubbleColumn /
+  handleBubbleColumnEffect (updraft 0.6, whirlpool current_y - 0.7, 60-tick timer, rider eject).
+  Current boat.rs already has the bubble fields, tick_bubble_column, on_above_bubble_column,
+  on_inside_bubble_column, bubble_column_vertical_velocity (0.6 / y-0.7) and a pure unit test.
+  One-line reason: implemented in boat.rs/block wiring, outside the editable file.
+- Row 4 (leash, M): verified vanilla AbstractBoat Leashable. Current boat.rs already wires
+  write_leash_data/read_leash_data, tick_leash, the lead/unleash interaction and support_quad_leash.
+  One-line reason: lead interaction and NBT live in boat.rs/mob interaction, outside the editable file.
+- Row 8 (fluid push, L): engine-wide client-authority difference; per the vanilla-port guide it is
+  skipped unless server-side divergence is observed. One-line reason: not an input-codec bug.
+
+Caller check for the row 7 fix: apply_mount_move (player_auth_input.rs:512-514) reads
+get_controlling_passenger().is_some_and(|c| c.entity_id == rider.entity_id). That already returns
+false when the new player-only filter yields None, and the controller is required to be the player
+rider, so no caller-side change is needed. No pure seam for a unit test (needs live BoatEntity and
+Player instances), so none was added.
+
+No source file changed. rustfmt not applicable (no .rs edit). No cargo run (CODER rule).
+
+
+## Result (re-verification 2026-11-18, scope player_auth_input.rs)
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled, smallest first, and against
+the current on-disk Pumpkin source. This unit may edit only player_auth_input.rs; none of the open
+rows live in that file, so no source change was possible and no unit-test seam exists here.
+
+- Row 6 (CONTAINER_CLOSE, S): CONFIRMED OPEN. Vanilla AbstractChestBoat.stopOpen
+  (AbstractChestBoat.java:197-198) emits GameEvent.CONTAINER_CLOSE at this.position() with the
+  living-entity context. Current Pumpkin entity/vehicle/minecart/container.rs:210-211 on_closed
+  only calls self.inner.on_closed(player) and emits no CONTAINER_CLOSE. One-line reason: the close
+  hook lives in container.rs/player.rs, outside the editable file, and player_auth_input.rs handles
+  only auth-input movement/inventory actions, not screen close.
+- Row 3 (bubble column, M): CONFIRMED ALREADY FIXED in boat.rs. Current source has bubble_column_time
+  / bubble_column_drag_down / bubble_column_above fields, tick_bubble_column (velocity y 0.6 /
+  y-0.7 via bubble_column_vertical_velocity), on_above_bubble_column and a pure unit test. One-line
+  reason: implemented in boat.rs/block wiring, outside the editable file.
+- Row 4 (leash, M): CONFIRMED ALREADY FIXED in boat.rs. Current source wires write_leash_data /
+  read_leash_data (boat.rs:521-530), tick_leash (:592-593), leash_to / unleash / get_leash_holder
+  (:757-781) and support_quad_leash (:940). One-line reason: lead interaction and NBT live in
+  boat.rs, outside the editable file.
+- Row 8 (fluid push, L): engine-wide client-authority difference; per the vanilla-port guide it is
+  skipped unless server divergence is observed. One-line reason: not an input-codec bug.
+
+Row 7 caller recheck: apply_mount_move (player_auth_input.rs:514-516) reads
+get_controlling_passenger().is_some_and(|c| c.entity_id == rider.entity_id), which stays correct
+under the player-only controller filter (returns false when the filter yields None). No caller-side
+change needed. No pure seam for a unit test (would need live BoatEntity and Player), so none added.
+
+No source file changed. rustfmt not applicable (no .rs edit). No cargo run (CODER rule).

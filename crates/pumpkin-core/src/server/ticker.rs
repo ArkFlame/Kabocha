@@ -10,7 +10,7 @@ use pumpkin_gametest::GameTestRunner;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 const NANOSECONDS_PER_MILLISECOND: i64 = 1_000_000;
 const NANOSECONDS_PER_SECOND: i64 = 1_000_000_000;
@@ -139,7 +139,7 @@ impl Ticker {
 
             if paused {
                 if pause_crossing {
-                    warn!(
+                    info!(
                         "Server empty for {} seconds, pausing",
                         pause_threshold_ticks / 20
                     );

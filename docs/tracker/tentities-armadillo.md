@@ -66,3 +66,18 @@ Vanilla reference: decompiled `net.minecraft.world.entity.animal.armadillo.Armad
   `is_scared_by`, matching the vanilla sensor). **6 state-id mapping: already guarded** by
   `state_ids_and_names_match_vanilla_order`. Added pure test `shell_thresholds_match_vanilla`.
 - No generated-data, WIT, cross-crate changes or files outside this unit.
+
+
+## Result (CODER re-review, 2026-11-18)
+
+Decompiled vanilla is now present at .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/armadillo/Armadillo.java; all rows re-verified directly against it.
+
+- 1 proximity scan: VERIFIED, no change. The 5-tick get_all_at_box probe in custom_server_ai_step matches the vanilla armadillo_scare_detected sensor; is_scared_by covers all three vanilla conditions (UNDEAD tag, getLastHurtByMob() == candidate already in source, sprinting/passenger player). Vanilla bounding-box inflate 7/2/7 is approximated by centre distances.
+- 2 dead can_stay_rolled_up branch: VERIFIED, no change. on_damage matches vanilla actuallyHurt: the 80-tick danger memory is stored only for living-attacker sources and roll_up() is gated on can_stay_rolled_up(); vanilla never zeroes the memory.
+- 3 shell damage: VERIFIED, no change. modify_incoming_damage is exactly vanilla hurtServer: if (isScared()) damage = (damage - 1.0F) / 2.0F; - no should_hide_in_shell gate, no .max(0.0).
+- 4 redundant baby flag: VERIFIED, no change. mob_init_data_tracker sets only ARMADILLO_STATE; AgeableMob::set_age syncs DATA_BABY_ID on each age-boundary crossing, and the compile-time assert ties armadillo::BABY_ID to ageable_mob::DATA_BABY_ID (both id 16).
+- 5 scute spawn helper: VERIFIED, no change. Brush and shed drops both use world.spawn_entity, matching vanilla spawnAtLocation (saved).
+- 6 state ids: VERIFIED, no change. state_ids_and_names_match_vanilla_order and shell_thresholds_match_vanilla pin ids 0..3 and thresholds 5/26 to the vanilla enum order.
+- Bonus fix: get_ambient_sound now returns None while scared, matching vanilla getAmbientSound() returning null; previously it always played the ambient sound, leaving the tracker's ambient-sound fix incomplete.
+
+No generated-data, WIT or cross-crate changes; only armadillo.rs touched (rustfmt clean). No pure test seam exists for sound/AI behaviour; existing state tests cover the pure logic.

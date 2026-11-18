@@ -9,14 +9,20 @@ use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::vault::VaultBlockEntity;
 use crate::block::registry::BlockActionResult;
-use crate::block::{BlockBehaviour, OnPlaceArgs, PlacedArgs, UseWithItemArgs};
+use crate::block::{BlockBehaviour, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs, UseWithItemArgs};
 use crate::entity::item::ItemEntity;
 use crate::entity::{Entity, EntityBase};
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
+
+/// Vanilla `VaultBlockEntity.Server#UNLOCKING_DELAY_TICKS`.
+const UNLOCKING_DELAY_TICKS: u32 = 14;
+/// Vanilla `VaultState#DELAY_BETWEEN_EJECTIONS_TICKS`.
+const EJECTION_DELAY_TICKS: u32 = 20;
 
 #[pumpkin_block("minecraft:vault")]
 pub struct VaultBlock;
@@ -91,26 +97,10 @@ impl BlockBehaviour for VaultBlock {
         args.item_stack
             .decrement_unless_creative(args.player.gamemode.load(), 1);
 
+        // Vanilla `VaultState.UNLOCKING#onEnter` plays the insert sound when `unlock`
+        // enters UNLOCKING; the shutter and eject sounds follow on later ticks.
         args.world.play_sound(
             Sound::BlockVaultInsertItem,
-            SoundCategory::Blocks,
-            &args.position.to_f64(),
-        );
-        args.world.play_sound(
-            Sound::BlockVaultOpenShutter,
-            SoundCategory::Blocks,
-            &args.position.to_f64(),
-        );
-
-        props.vault_state = VaultState::Ejecting;
-        args.world.set_block_state(
-            args.position,
-            props.to_state_id(args.block),
-            BlockFlags::NOTIFY_ALL,
-        );
-
-        args.world.play_sound(
-            Sound::BlockVaultEjectItem,
             SoundCategory::Blocks,
             &args.position.to_f64(),
         );
@@ -174,44 +164,119 @@ impl BlockBehaviour for VaultBlock {
             vault_entity.set_display_item(&display_event.item);
         }
 
-        for stack in dispense_event.items {
-            if stack.is_empty() {
-                continue;
-            }
-            let spawn_pos = ejection_spawn_position(args.position);
-            let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::ITEM);
-            let mut item_event =
-                crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
-                    entity.entity_id,
-                    spawn_pos,
-                    stack.item.registry_key.to_string(),
-                );
-            if let Some(server) = args.world.server.upgrade() {
-                server
-                    .plugin_manager
-                    .fire_blocking(&server, &mut item_event);
-            }
-            if item_event.cancelled {
-                continue;
-            }
-            // Vanilla `DefaultDispenseItemBehavior#spawnItem`, speed 2 and Direction.UP.
-            let velocity = Vector3::new(
-                rand::random::<f64>().mul_add(0.015, -0.0075),
-                0.6 + rand::random::<f64>().mul_add(0.015, -0.0075),
-                rand::random::<f64>().mul_add(0.015, -0.0075),
-            );
-            let item_entity = Arc::new(ItemEntity::new_with_velocity(entity, stack, velocity, 10));
-            args.world.spawn_entity(item_entity);
-        }
+        // Vanilla `VaultServerData#setItemsToEject`: store the resolved loot so a reload
+        // mid-ejection keeps the rewards, then drive UNLOCKING -> EJECTING -> ACTIVE on ticks.
+        let items_to_eject: Vec<ItemStack> = dispense_event
+            .items
+            .into_iter()
+            .filter(|stack| !stack.is_empty())
+            .collect();
+        vault_entity.set_items_to_eject(items_to_eject);
 
-        props.vault_state = VaultState::Active;
+        props.vault_state = VaultState::Unlocking;
         args.world.set_block_state(
             args.position,
             props.to_state_id(args.block),
             BlockFlags::NOTIFY_ALL,
         );
+        args.world.schedule_block_tick(
+            args.block,
+            *args.position,
+            UNLOCKING_DELAY_TICKS,
+            TickPriority::Normal,
+        );
 
         BlockActionResult::SuccessServer
+    }
+
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        let state_id = args.world.get_block_state_id(args.position);
+        let mut props = VaultLikeProperties::from_state_id(state_id);
+        match props.vault_state {
+            VaultState::Unlocking => {
+                props.vault_state = VaultState::Ejecting;
+                args.world.set_block_state(
+                    args.position,
+                    props.to_state_id(args.block),
+                    BlockFlags::NOTIFY_ALL,
+                );
+                // Vanilla `VaultState.EJECTING#onEnter` plays the shutter-open sound.
+                args.world.play_sound(
+                    Sound::BlockVaultOpenShutter,
+                    SoundCategory::Blocks,
+                    &args.position.to_f64(),
+                );
+                args.world.schedule_block_tick(
+                    args.block,
+                    *args.position,
+                    EJECTION_DELAY_TICKS,
+                    TickPriority::Normal,
+                );
+            }
+            VaultState::Ejecting => {
+                let Some(block_entity) = args.world.get_block_entity(args.position) else {
+                    return;
+                };
+                let Some(vault_entity) = block_entity.as_any().downcast_ref::<VaultBlockEntity>()
+                else {
+                    return;
+                };
+                let Some(stack) = vault_entity.pop_next_item_to_eject() else {
+                    // Vanilla `VaultState.EJECTING#onExit` plays the shutter-close sound.
+                    props.vault_state = VaultState::Active;
+                    args.world.set_block_state(
+                        args.position,
+                        props.to_state_id(args.block),
+                        BlockFlags::NOTIFY_ALL,
+                    );
+                    args.world.play_sound(
+                        Sound::BlockVaultCloseShutter,
+                        SoundCategory::Blocks,
+                        &args.position.to_f64(),
+                    );
+                    return;
+                };
+
+                let spawn_pos = ejection_spawn_position(args.position);
+                let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::ITEM);
+                let mut item_event =
+                    crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
+                        entity.entity_id,
+                        spawn_pos,
+                        stack.item.registry_key.to_string(),
+                    );
+                if let Some(server) = args.world.server.upgrade() {
+                    server
+                        .plugin_manager
+                        .fire_blocking(&server, &mut item_event);
+                }
+                // Vanilla `ejectResultItem`: `DefaultDispenseItemBehavior#spawnItem`, speed 2, Direction.UP.
+                if !item_event.cancelled {
+                    let velocity = Vector3::new(
+                        rand::random::<f64>().mul_add(0.015, -0.0075),
+                        0.6 + rand::random::<f64>().mul_add(0.015, -0.0075),
+                        rand::random::<f64>().mul_add(0.015, -0.0075),
+                    );
+                    let item_entity =
+                        Arc::new(ItemEntity::new_with_velocity(entity, stack, velocity, 10));
+                    args.world.spawn_entity(item_entity);
+                }
+                args.world.play_sound(
+                    Sound::BlockVaultEjectItem,
+                    SoundCategory::Blocks,
+                    &args.position.to_f64(),
+                );
+                let next = vault_entity.next_item_to_eject();
+                vault_entity.set_display_item(&next);
+                args.world.schedule_block_tick(
+                    args.block,
+                    *args.position,
+                    EJECTION_DELAY_TICKS,
+                    TickPriority::Normal,
+                );
+            }
+            VaultState::Active | VaultState::Inactive => {}
+        }
     }
 }
 

@@ -1902,7 +1902,7 @@ pub enum CriterionConditions {
         victim_type: Option<String>,
     },
     LightningStrike {
-        bystander_type: Option<String>,
+        bystander: Option<EntityPredicate>,
         blocks_set_on_fire: Option<IntBounds>,
         entity_struck: Option<EntityPredicate>,
         distance_max: Option<f64>,
@@ -2261,7 +2261,12 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 blocks_set_on_fire,
                 distance_max,
             } => Self::LightningStrike {
-                bystander_type: bystander_type.map(ToString::to_string),
+                bystander: bystander_type.map(|entity_type| EntityPredicate {
+                    entity_type: Some(TagOrIdMatcher {
+                        patterns: vec![entity_type.to_string()],
+                    }),
+                    ..Default::default()
+                }),
                 blocks_set_on_fire: blocks_set_on_fire.map(|v| IntBounds {
                     min: Some(i64::from(v)),
                     max: Some(i64::from(v)),
@@ -2662,15 +2667,7 @@ impl CriterionConditions {
                 let lightning_pred = val.get("lightning").and_then(|l| l.get("predicate"));
                 let type_specific =
                     lightning_pred.and_then(|p| p.get("minecraft:type_specific/lightning"));
-                let bystander_type = val
-                    .get("bystander")
-                    .and_then(|b| b.get("predicate"))
-                    .and_then(|p| {
-                        p.get("minecraft:entity_type")
-                            .or_else(|| p.get("entity_type"))
-                    })
-                    .and_then(Value::as_str)
-                    .map(ToString::to_string);
+                let bystander = val.get("bystander").map(parse_entity_pred);
                 let blocks_set_on_fire = type_specific
                     .and_then(|t| t.get("blocks_set_on_fire"))
                     .and_then(IntBounds::from_value);
@@ -2683,7 +2680,7 @@ impl CriterionConditions {
                     .and_then(|a| a.get("max"))
                     .and_then(Value::as_f64);
                 Self::LightningStrike {
-                    bystander_type,
+                    bystander,
                     blocks_set_on_fire,
                     entity_struck,
                     distance_max,
@@ -3037,6 +3034,20 @@ mod tests {
         };
         assert!(struck.is_some_and(|p| p.matches("minecraft:villager", None, None)));
         assert!(struck.is_none_or(|p| !p.matches("minecraft:zombie", None, None)));
+    }
+
+    #[test]
+    fn lightning_strike_bystander_uses_entity_predicate() {
+        let cond = CriterionConditions::parse(
+            "minecraft:lightning_strike",
+            r#"{"bystander": {"type": "minecraft:player"}}"#,
+        );
+        let bystander = match &cond {
+            CriterionConditions::LightningStrike { bystander, .. } => bystander.as_ref(),
+            _ => None,
+        };
+        assert!(bystander.is_some_and(|p| p.matches("minecraft:player", None, None)));
+        assert!(bystander.is_none_or(|p| !p.matches("minecraft:zombie", None, None)));
     }
 
     #[test]

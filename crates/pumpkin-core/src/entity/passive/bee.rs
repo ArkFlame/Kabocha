@@ -1,6 +1,6 @@
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicI32, AtomicU8, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
 };
 
 use pumpkin_data::BlockState;
@@ -74,6 +74,18 @@ fn is_angry(mob: &dyn Mob) -> bool {
     mob.as_neutral().is_some_and(NeutralMob::is_angry)
 }
 
+/// Vanilla `Bee.wantsToEnterHive` early-outs: while still staying out, pollinating, having
+/// stung or holding a target, a bee never returns to its hive.
+#[must_use]
+pub const fn wants_to_enter_hive_gate(
+    stay_out_of_hive_ticks: i32,
+    is_pollinating: bool,
+    has_stung: bool,
+    has_target: bool,
+) -> bool {
+    stay_out_of_hive_ticks <= 0 && !is_pollinating && !has_stung && !has_target
+}
+
 /// Vanilla `BeePollinateGoal.canBeeUse`: no nectar and no flower-search cooldown.
 fn can_pollinate(mob: &dyn Mob) -> bool {
     mob.cast_any()
@@ -88,18 +100,25 @@ fn no_flower_found(mob: &dyn Mob) {
     }
 }
 
-/// Vanilla `BeePollinateGoal.stop`: wait 200 ticks before locating another flower.
+/// Vanilla `BeePollinateGoal.start` sets the `pollinating` flag.
+fn pollination_started(mob: &dyn Mob) {
+    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        bee.set_pollinating(true);
+    }
+}
+
+/// Vanilla `BeePollinateGoal.stop`: clear `pollinating` and wait 200 ticks before another flower.
 fn pollination_stopped(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        bee.set_pollinating(false);
         bee.set_flower_search_cooldown(200);
     }
 }
 
 fn record_nectar(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
+        // Vanilla `Bee.setHasNectar(true)` resets the no-nectar timer.
         bee.set_has_nectar(true);
-        // Vanilla `BeePollinateGoal.start` resets this counter when pollination begins.
-        bee.ticks_without_nectar.store(0, Ordering::Relaxed);
         // Vanilla remembers the flower found at pollination start; here the bee is at the flower.
         bee.set_flower_pos(Some(bee.get_entity().block_pos.load()));
     }
@@ -129,32 +148,31 @@ fn read_block_pos(nbt: &NbtCompound, key: &str) -> Option<BlockPos> {
 /// Vanilla `Bee.MAX_CROPS_GROWN` per pollination cycle.
 const MAX_CROPS_GROWN_SINCE_POLLINATION: i32 = 10;
 
+/// Vanilla `BeeGrowCropGoal.canBeeUse` stops growing once the cap is reached.
+#[must_use]
+pub const fn has_crop_growth_budget(crops_grown: i32) -> bool {
+    crops_grown < MAX_CROPS_GROWN_SINCE_POLLINATION
+}
+
 /// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar, has growth budget left,
 /// and remembers a live hive (`Bee.isHiveValid`).
 fn can_grow_crop(mob: &dyn Mob) -> bool {
     let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() else {
         return false;
     };
-    if !bee.has_nectar() || bee.crops_grown_since_pollination() >= MAX_CROPS_GROWN_SINCE_POLLINATION
-    {
+    if !bee.has_nectar() || !has_crop_growth_budget(bee.crops_grown_since_pollination()) {
         return false;
     }
-    bee.hive_pos().is_some_and(|pos| {
-        mob.get_entity()
-            .world
-            .load()
-            .get_block_entity(&pos)
-            .is_some_and(|entity| entity.as_any().is::<BeehiveBlockEntity>())
-    })
+    bee.is_hive_valid(&mob.get_entity().world.load())
 }
 
-/// Counts a fertilized crop; the bee loses its nectar once it has grown the maximum.
+/// Counts a fertilized crop.
+///
+/// Vanilla keeps HasNectar after the cap so the bee can deliver it to its hive;
+/// `canBeeUse` alone stops further growth at ten crops.
 fn record_crop_grown(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        let grown = bee.record_crop_grown();
-        if grown >= MAX_CROPS_GROWN_SINCE_POLLINATION {
-            bee.set_has_nectar(false);
-        }
+        bee.record_crop_grown();
     }
 }
 
@@ -184,6 +202,7 @@ pub struct BeeEntity {
     pub hive_pos: Mutex<Option<BlockPos>>,
     pub flower_pos: Mutex<Option<BlockPos>>,
     pub flower_search_cooldown: AtomicI32,
+    pub is_pollinating: AtomicBool,
 }
 
 impl BeeEntity {
@@ -226,6 +245,7 @@ impl BeeEntity {
             hive_pos: Mutex::new(None),
             flower_pos: Mutex::new(None),
             flower_search_cooldown: AtomicI32::new(rand::rng().random_range(20..=60)),
+            is_pollinating: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(bee);
 
@@ -256,6 +276,7 @@ impl BeeEntity {
                     record_nectar,
                     no_flower_found,
                     pollination_stopped,
+                    pollination_started,
                 )),
             );
             // Vanilla `BeeGoToKnownFlowerGoal` priority 6.
@@ -322,6 +343,10 @@ impl BeeEntity {
     }
 
     pub fn set_has_nectar(&self, val: bool) {
+        // Vanilla `Bee.setHasNectar` resets the no-nectar timer on gain.
+        if val {
+            self.ticks_without_nectar.store(0, Ordering::Relaxed);
+        }
         self.set_flag(FLAG_HAS_NECTAR, val);
     }
 
@@ -381,10 +406,12 @@ impl BeeEntity {
 
     /// Vanilla Bee.wantsToEnterHive. Fire-near-hive avoidance is not checked here.
     pub fn wants_to_enter_hive(&self, mob: &dyn Mob) -> bool {
-        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0
-            || self.has_stung()
-            || mob.get_mob_entity().get_target().is_some()
-        {
+        if !wants_to_enter_hive_gate(
+            self.cannot_enter_hive_ticks.load(Ordering::Relaxed),
+            self.is_pollinating(),
+            self.has_stung(),
+            mob.get_mob_entity().get_target().is_some(),
+        ) {
             return false;
         }
         let world = mob.get_entity().world.load();
@@ -441,6 +468,25 @@ impl BeeEntity {
     #[must_use]
     pub fn is_tired_of_looking_for_nectar(&self) -> bool {
         tired_of_looking_for_nectar(self.ticks_without_nectar.load(Ordering::Relaxed))
+    }
+
+    /// Vanilla `BeePollinateGoal.pollinating`, which blocks a return to the hive.
+    #[must_use]
+    pub fn is_pollinating(&self) -> bool {
+        self.is_pollinating.load(Ordering::Relaxed)
+    }
+
+    pub fn set_pollinating(&self, val: bool) {
+        self.is_pollinating.store(val, Ordering::Relaxed);
+    }
+
+    /// Vanilla `Bee.isHiveValid`: the remembered hive must still have a block entity.
+    fn is_hive_valid(&self, world: &Arc<crate::world::World>) -> bool {
+        self.hive_pos().is_some_and(|pos| {
+            world
+                .get_block_entity(&pos)
+                .is_some_and(|entity| entity.as_any().is::<BeehiveBlockEntity>())
+        })
     }
 }
 
@@ -613,6 +659,25 @@ impl Mob for BeeEntity {
         if self.flower_search_cooldown() > 0 {
             self.flower_search_cooldown.fetch_sub(1, Ordering::Relaxed);
         }
+        // Vanilla `Bee.aiStep` rolls when angry and close to the current target.
+        let should_roll = is_angry(self)
+            && !self.has_stung()
+            && self.mob_entity.get_target().is_some_and(|target| {
+                target
+                    .get_entity()
+                    .pos
+                    .load()
+                    .squared_distance_to_vec(&self.get_entity().pos.load())
+                    < 4.0
+            });
+        self.set_rolling(should_roll);
+        // Vanilla `Bee.aiStep` forgets an invalid hive every 20 ticks.
+        let world = self.get_entity().world.load();
+        if self.get_entity().tick_count.load(Ordering::Relaxed) % 20 == 0
+            && !self.is_hive_valid(&world)
+        {
+            self.set_hive_pos(None);
+        }
         self.update_persistent_anger();
     }
 
@@ -668,7 +733,10 @@ mod tests {
     use pumpkin_util::Difficulty;
     use pumpkin_util::math::position::BlockPos;
 
-    use super::{read_block_pos, sting_poison_ticks, tired_of_looking_for_nectar, write_block_pos};
+    use super::{
+        has_crop_growth_budget, read_block_pos, sting_poison_ticks, tired_of_looking_for_nectar,
+        wants_to_enter_hive_gate, write_block_pos,
+    };
 
     #[test]
     fn sting_poison_scales_with_difficulty() {
@@ -707,5 +775,22 @@ mod tests {
         assert!(!tired_of_looking_for_nectar(3600));
         assert!(tired_of_looking_for_nectar(3601));
         assert!(tired_of_looking_for_nectar(7200));
+    }
+
+    #[test]
+    fn crop_growth_budget_stops_at_ten() {
+        assert!(has_crop_growth_budget(0));
+        assert!(has_crop_growth_budget(9));
+        assert!(!has_crop_growth_budget(10));
+        assert!(!has_crop_growth_budget(11));
+    }
+
+    #[test]
+    fn pollinating_bee_does_not_want_to_enter_hive() {
+        assert!(wants_to_enter_hive_gate(0, false, false, false));
+        assert!(!wants_to_enter_hive_gate(1, false, false, false));
+        assert!(!wants_to_enter_hive_gate(0, true, false, false));
+        assert!(!wants_to_enter_hive_gate(0, false, true, false));
+        assert!(!wants_to_enter_hive_gate(0, false, false, true));
     }
 }

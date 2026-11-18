@@ -14,6 +14,23 @@ use crate::world::World;
 
 const DISMOUNT_EPSILON: f64 = 1.0e-5f32 as f64;
 
+/// Vanilla `LivingEntity.getDismountPoses`.
+const BASE_DISMOUNT_POSES: &[EntityPose] = &[EntityPose::Standing];
+/// Vanilla `Player.getDismountPoses` override adds the crouching and swimming boxes.
+const PLAYER_DISMOUNT_POSES: &[EntityPose] = &[
+    EntityPose::Standing,
+    EntityPose::Crouching,
+    EntityPose::Swimming,
+];
+
+const fn dismount_poses(is_player: bool) -> &'static [EntityPose] {
+    if is_player {
+        PLAYER_DISMOUNT_POSES
+    } else {
+        BASE_DISMOUNT_POSES
+    }
+}
+
 impl BoatEntity {
     pub(in crate::entity) fn get_dismount_location_for_passenger(
         &self,
@@ -37,28 +54,24 @@ impl BoatEntity {
             return fallback;
         }
 
-        let targets = [target_pos, target_pos.down()].map(|block_pos| {
-            let floor = world.get_dismount_height(&block_pos);
-            (floor.is_finite() && floor < 1.0).then_some(Vector3::new(
-                target.x,
-                f64::from(block_pos.0.y) + floor,
-                target.z,
-            ))
-        });
+        let targets: Vec<Vector3<f64>> = [target_pos, target_pos.down()]
+            .into_iter()
+            .filter_map(|block_pos| {
+                let floor = world.get_dismount_height(&block_pos);
+                (floor.is_finite() && floor < 1.0).then_some(Vector3::new(
+                    target.x,
+                    f64::from(block_pos.0.y) + floor,
+                    target.z,
+                ))
+            })
+            .collect();
         let is_player = passenger.get_player().is_some();
-        let poses = [
-            EntityPose::Standing,
-            EntityPose::Crouching,
-            EntityPose::Swimming,
-        ];
-        for pose in poses.into_iter().take(if is_player { 3 } else { 1 }) {
-            let dimensions = if is_player {
-                passenger_entity.get_dimensions(pose)
-            } else {
-                passenger_entity.entity_dimension.load()
-            };
-            for target in targets.into_iter().flatten() {
-                if !can_dismount_to(&world, passenger, target, &dimensions) {
+        for &pose in dismount_poses(is_player) {
+            // Vanilla `DismountHelper.canDismountTo` tests `getLocalBoundsForPose`, i.e.
+            // `LivingEntity.getDimensions(pose)` for the rider, never its riding pose box.
+            let dimensions = passenger_entity.get_dimensions(pose);
+            for candidate in &targets {
+                if !can_dismount_to(&world, passenger, *candidate, &dimensions) {
                     continue;
                 }
                 if is_player {
@@ -67,7 +80,7 @@ impl BoatEntity {
                         continue;
                     }
                 }
-                return target;
+                return *candidate;
             }
         }
         fallback
@@ -110,4 +123,38 @@ fn can_dismount_to(
             bounds.max.x - DISMOUNT_EPSILON,
             bounds.max.z - DISMOUNT_EPSILON,
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{dismount_poses, get_collision_horizontal_escape_vector};
+    use pumpkin_data::entity::EntityPose;
+
+    #[test]
+    fn only_players_offer_the_crouching_and_swimming_dismount_poses() {
+        assert_eq!(dismount_poses(false).len(), 1);
+        assert_eq!(dismount_poses(false)[0], EntityPose::Standing);
+        assert_eq!(
+            dismount_poses(true),
+            &[
+                EntityPose::Standing,
+                EntityPose::Crouching,
+                EntityPose::Swimming
+            ][..]
+        );
+    }
+
+    #[test]
+    fn escape_vector_moves_half_the_two_widths_plus_epsilon_along_the_heading() {
+        // Vanilla `Entity.getCollisionHorizontalEscapeVector`: (1 + 0 + 1e-5) / 2.
+        let expected = 0.500_005;
+        let north = get_collision_horizontal_escape_vector(1.0, 0.0, 0.0);
+        assert!(north.x.abs() < 1.0e-9);
+        assert!(north.y.abs() < 1.0e-9);
+        assert!((north.z - expected).abs() < 1.0e-6);
+
+        let east = get_collision_horizontal_escape_vector(1.0, 0.0, 90.0);
+        assert!((east.x + expected).abs() < 1.0e-6);
+        assert!(east.z.abs() < 1.0e-6);
+    }
 }

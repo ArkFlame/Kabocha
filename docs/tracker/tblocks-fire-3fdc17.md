@@ -120,3 +120,76 @@ Re-review against `.vendor/vanilla-decompiled/.../FireBlock.java` + `BaseFireBlo
   verify without a runtime test; behaviour is a Pumpkin-only gamerule.
 
 Files touched: crates/pumpkin-core/src/block/blocks/fire/fire.rs (rustfmt --edition 2024 OK).
+
+
+## Result (re-verification, this pass)
+
+Re-checked the two STILL OPEN rows from the code-verified sweep against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
+(`getStateForPlacement`:126-143, `canSurvive`:146-149, `canBurn`:326-329,
+`getIgniteOdds`:251-255 and 311-324). Both already match vanilla in the current
+fire.rs, so no code change was needed this pass.
+
+- STILL OPEN "canSurvive neighbour rule": verified matching. `is_flammable`
+  (fire.rs:50-52) delegates to `get_ignite_odds` (fire.rs:39-48), which reads
+  flammable.spread_chance and returns 0 for waterlogged states. This matches
+  vanilla `canBurn` -> `getIgniteOdds`, which also uses ignite odds (spread
+  chance), not burn odds. No change.
+- STILL OPEN "getStateForPosition shape": verified matching. fire.rs:73-75
+  returns the flat default state when the block below is flammable or is
+  face-solid on `Up`, otherwise the per-direction shaped state. `is_side_solid`
+  is documented as Java `isFaceSturdy` in pumpkin-data block_state.rs:251-253,
+  so this matches vanilla `getStateForPlacement`. No change.
+- Remaining gap 4 (TNT replace ordering, fire.rs:165-168): left open. Net effect
+  matches vanilla `checkBurnOut`:258-292 (air plus primed TNT in both branches);
+  an exact ordering fix would touch TNTBlock, a file outside this unit.
+- Remaining gap 5 (fire tick timer, mod.rs:126-133): left open. mod.rs is outside
+  this unit's files.
+- Remaining gap 6 (can_place_at portal variant, mod.rs:79): left open. mod.rs is
+  outside this unit's files.
+- Suspicion (fire_spread_radius_around_player sentinel, fire.rs:383-411): left
+  open. This is a Pumpkin-only gamerule with no decompiled-vanilla seam; it
+  needs a runtime test to verify.
+
+No .rs files were touched this pass (the fixes from the earlier pass are
+already present in fire.rs), so rustfmt was not applicable. The existing unit
+test `waterlogged_flammable_has_zero_ignite_odds` (fire.rs:479-489) already
+covers the ignite-odds seam.
+
+
+## Result (this pass)
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
+(`tick`:152-235, `checkBurnOut`:257-294, `getStateForPlacement`:126-143,
+`canSurvive`:146-149) and `world/mod.rs::is_raining_at`:3801-3813.
+
+- Gap 1 (age >= 15 gate): verified matching, no change. Current tick has no
+  blanket gate; the `age == 15` extinguish roll at fire.rs:331-337 matches
+  vanilla `FireBlock.tick:181`, and the burn/spread loop still runs at max age.
+- Gap 2 (spread odds / rain): verified matching, no change. fire.rs:432 uses
+  `Self::is_near_rain` in the spread loop, matching vanilla `tick:216`. The
+  missing `!level.isRaining()` term is redundant: `is_raining_at` returns false
+  immediately when it is not raining globally (world/mod.rs:3802).
+- Gap 3 (getStateForPosition shape): verified matching, no change. fire.rs:73
+  returns the flat state when the block below is flammable or face-solid Up;
+  `is_side_solid` is Java `isFaceSturdy`, matching vanilla `getStateForPlacement:129`.
+- Gap 4 (TNT replace ordering): FIXED. Vanilla `checkBurnOut:275-292` always
+  removes TNT before `TntBlock.prime`, even when the re-light roll succeeds;
+  the old code left a fire block behind on that path. `try_spreading_fire` now
+  routes TNT to the air branch (`relight && old_block != &Block::TNT`) before
+  `spawn_primed`, so TNT ends as air + primed entity in every branch. A
+  redundant nested TNT check from a concurrent edit was consolidated into this
+  single guard.
+- Gap 5 (fire tick timer, mod.rs): left open, mod.rs is outside this unit.
+- Gap 6 (can_place_at portal variant, mod.rs): left open, mod.rs is outside
+  this unit.
+- Suspicion (isRaining in checkBurnOut): verified, no change. `is_raining_at`
+  short-circuits on `!is_raining()`, so the single-column test covers it.
+- Suspicion (fire_spread_radius_around_player sentinel): left open, Pumpkin-only
+  gamerule with no decompiled-vanilla seam; needs a runtime test.
+
+Files touched: crates/pumpkin-core/src/block/blocks/fire/fire.rs. No pure unit
+test seam exists for the TNT branch (it needs `World`, `Arc` and plugin events);
+the existing `waterlogged_flammable_has_zero_ignite_odds` test still covers the
+ignite-odds seam. Cannot compile as a worker; orchestrator verifies.

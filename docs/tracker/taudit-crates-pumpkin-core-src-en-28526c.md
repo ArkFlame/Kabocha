@@ -94,3 +94,24 @@ available and most do not hold against 1.21.x vanilla.
 
 No unit test added: value.rs has no genuine gap to test, and mod.rs already covers
 empty-collection clearing with `setting_an_empty_collection_clears_the_slot`.
+
+## Result (independent re-verification)
+
+Re-checked all five STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/` and the current `value.rs` / `types.rs`.
+No source change was required in this unit's files; the earlier Result above is confirmed.
+
+- empty-collection set semantics (value.rs:23-26, 81-83, 152-154, 170-172): NOT A GAP.
+  `Brain.setMemoryInternal` nulls out any empty `Collection` then calls `slot.clear()` in
+  both overloads (Brain.java:217-219, 242-244), so Pumpkin's `MemoryValue::is_empty_collection`
+  clearing matches vanilla. No test added: asserting `is_empty()` on an empty `Vec` is a
+  formula-mirroring test the repo rules forbid.
+- setMemoryInternal unregistered put (mod.rs:240-242): OUT OF UNIT. Vanilla
+  `getMemorySlotIfPresent` returns null and both overloads return early (Brain.java:157-159,
+  215-216, 240-241), so Pumpkin's drop matches.
+- negative ttl (mod.rs:124-131): OUT OF UNIT. Vanilla `MemorySlot.hasExpired()` is `<= 0`.
+- dump ttl wording (mod.rs:136-141): OUT OF UNIT (comment and code both in mod.rs).
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (types.rs:122-123): declared
+  correctly (ids 79/80, names match MemoryModuleType.java:116-117). Vanilla populates them
+  only in `PiglinSpecificSensor` (107-108) and `HoglinSpecificSensor` (56-57); those sensor
+  files are outside this unit.

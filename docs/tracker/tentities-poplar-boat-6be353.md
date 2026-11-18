@@ -77,9 +77,9 @@ consistent with the poplar entries.
   reduced but not removed. Size S.
 
 ## Gap status
-- 1 seat offset magic numbers (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 break drop resolves by registry key (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 is_chest_boat id allow-list (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 1 seat offset magic numbers (S): FIXED (see Result; single shared helper, vanilla constants verified against .vendor decompile)
+- 2 break drop resolves by registry key (S): FIXED (see Result; entity_to_item mapping with registry-key fallback, vanilla getDropItem verified)
+- 3 is_chest_boat id allow-list (S): FIXED (see Result; derived from resource-name suffix, vanilla class distinction verified)
 
 ## Result
 
@@ -109,3 +109,11 @@ crates/pumpkin-core/src/entity/vehicle/boat.rs and boat/passengers.rs.
   'boat_stat_classification_covers_every_boat_entity_type' verify all entity types.
 
 No generated data, WIT, or cross-crate changes were needed. Rustfmt run on boat.rs.
+
+Re-verified against .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/:
+AbstractBoat.getPassengerAttachmentPoint confirms single-passenger offset, +0.2/-0.6 for two
+riders and +0.2 for an Animal rider; AbstractBoat.getDropItem/getPickResult return the per-type
+dropItem; AbstractChestBoat.getMaxPassengers=1 and getSinglePassengerXOffset=0.15. All three rows
+are FIXED and the code matches vanilla. Compile-pitfall review clean: entity_to_item is pub(crate),
+Item::from_registry_key exists, helpers are module-level free functions, no const callers of the
+now non-const max_passengers/is_chest_boat, no unwrap/expect/panic in new code.

@@ -39,3 +39,28 @@ Vanilla decompiled source is now available at `.vendor/vanilla-decompiled/net/mi
 - **Row 4 (hunting cooldown arming) - MATCHES, no change.** `AxolotlAi.java:150-159` skips re-picking while old activity is PLAY_DEAD and arms `HAS_HUNTING_COOLDOWN` for 2400 ticks only when leaving FIGHT for a non-FIGHT activity; `ai.rs:245-260` is exact. Breeding erases `ATTACK_TARGET` (fight) and `PLAY_DEAD_TICKS` (play dead) via `EraseMemoryIf` in both vanilla and `ai.rs:76-77,103-105`. `AxolotlAttackablesSensor.java` guard `!hasMemoryValue(HAS_HUNTING_COOLDOWN)` also matches the Pumpkin sensor.
 
 Only `crates/pumpkin-core/src/entity/passive/axolotl.rs` was edited. No generated data, WIT or cross-crate changes needed. `rustfmt --edition 2024` passed on the touched file; cargo was not run (forbidden by task), so compilation is unverified.
+
+
+## Re-verification (independent pass)
+
+All four STILL OPEN rows were already resolved by the prior pass; each was re-checked directly against the decompiled source and no new gap or source change was found.
+
+- Row 1 - CONFIRMED: `PlayDead.java:32` = REGENERATION 200/0; `axolotl/ai.rs` constants (200) and effect amplifier 0 match.
+- Row 2 - CONFIRMED: `Axolotl.java:427-450` writes Age/AgeLocked/conditional HuntingCooldown over the default bucket data; `save_to_bucket_tag`/`load_from_bucket_tag` match.
+- Row 3 - CONFIRMED FIXED: `Axolotl.java:396-408` rolls before `super.hurtServer` using pre-hit health (`damage < currentHealth`, `currentHealth/max < 0.5`). Present: `last_hurt_health` snapshot in `mob_hurt_server`, `try_play_dead` with `HurtCheck`, `plays_dead_when_hurt` conditions, and tests `play_dead_roll_uses_pre_hit_health_like_vanilla` / `a_blocked_hit_still_rolls_for_play_dead`.
+- Row 4 - CONFIRMED: `AxolotlAi.java:150-159` arms HAS_HUNTING_COOLDOWN 2400 only when leaving FIGHT; `ai.rs` and the sensor guard match.
+
+Overridden hooks (`mob_hurt_server`, `post_damage_with_context`, `on_damage_with_context`) match the `Mob` trait signatures. No source file touched this pass. cargo forbidden by task, so compilation remains unverified.
+
+## Result
+
+Third independent pass. Re-verified all four STILL OPEN rows directly against the decompiled source now present at `.vendor/vanilla-decompiled/`; every row was already correctly resolved, so no source change was required.
+
+- **Row 1 - MATCHES.** `PlayDead.java:32` adds `MobEffectInstance(REGENERATION, 200, 0)`. `axolotl/ai.rs:40` sets `PLAY_DEAD_REGENERATION_DURATION = 200` and `ai.rs:357-359` applies amplifier 0. The doc's original "100 / Regeneration II" suspicion was wrong (100 is the separate player `REGEN_BUFF_BASE_DURATION`).
+- **Row 2 - MATCHES.** `Axolotl.java:427-450` writes `Age`, `AgeLocked` and a gated `HuntingCooldown` on top of `Bucketable.saveDefaultDataToBucketTag`, and restores them on load. `axolotl.rs:410-452` matches, including the `hasMemoryValue` presence gate for the cooldown.
+- **Row 3 - MATCHES (already fixed).** `Axolotl.java:396-408` snapshots `currentHealth` and performs the entire roll before `super.hurtServer`. `axolotl.rs:615-632` captures pre-hit health in `mob_hurt_server`; `try_play_dead` (`axolotl.rs:353-382`) consumes it, and `plays_dead_when_hurt` (158-166) mirrors the vanilla condition order and RNG draws. Verified the hosting flow in `mob/mod.rs:3263-3283`: `mob_hurt_server` runs before `living_entity.damage_with_context`, `post_damage_with_context` fires for blocked hits too, so a blocked hit can still start play dead with pre-hit health. Tests `play_dead_roll_uses_pre_hit_health_like_vanilla` and `a_blocked_hit_still_rolls_for_play_dead` cover this.
+- **Row 4 - MATCHES.** `AxolotlAi.java:150-159` arms `HAS_HUNTING_COOLDOWN` for 2400 ticks only when leaving FIGHT for a non-FIGHT activity; `ai.rs:245-260` is exact. The sensor guard matches `AxolotlAttackablesSensor.java:21-23` (`!hasMemoryValue(HAS_HUNTING_COOLDOWN)`), present in `axolotl_attackables.rs:27-29`.
+
+Out-of-scope finding (not changed, not a STILL OPEN row): `axolotl.rs:234,238` comment and code install `Navigator::water_bound(false)` claiming vanilla uses `WaterBoundPathNavigation`, but authoritative `Axolotl.java:386-388` returns `AmphibiousPathNavigation` (axolotls move on land, cf. `SPEED_MULTIPLIER_ON_LAND` in `ai.rs`, and `Navigator::amphibious` already used by `turtle.rs:114`). Left for the orchestrator to scope: correcting it also requires rewriting the `navigation_is_water_bound_like_vanilla` regression test (`axolotl.rs:1554`).
+
+No source file touched this pass. cargo/rustfmt forbidden by task; compilation unverified.

@@ -838,6 +838,12 @@ pub fn adjust_spawn_position(
     pos
 }
 
+/// Vanilla `Mth.ceil(random.nextFloat() * 4.0F)`: the initial attempt budget for a
+/// spawn cluster, in the range 1..=4 (0 only when the roll is exactly 0.0).
+const fn initial_cluster_attempts(roll: f32) -> i32 {
+    (roll * 4.0).ceil() as i32
+}
+
 #[allow(clippy::too_many_lines)]
 pub fn spawn_category_for_position(
     category: &'static MobCategory,
@@ -860,9 +866,9 @@ pub fn spawn_category_for_position(
         let mut x = pos.0.x;
         let mut z = pos.0.z;
         let mut current_spawner: Option<SpawnerRef<'static>> = None;
-        // Vanilla starts every cluster with six attempts and only replaces that budget
-        // with the pack size once a spawner has been picked.
-        let mut max = 6;
+        // Vanilla draws the initial attempt budget with Mth.ceil(random.nextFloat() * 4.0F)
+        // and replaces it with the pack size once a spawner has been picked.
+        let mut max = initial_cluster_attempts(rng.next_f32());
         let mut group_size = 0;
         let mut group_data = None;
         let mut ll = 0;
@@ -1600,6 +1606,15 @@ mod tests {
         }
         assert!(choose_spawner(&spawners[..1], &mut rng).is_none());
         assert!(choose_spawner(&[], &mut rng).is_none());
+    }
+
+    #[test]
+    fn initial_cluster_attempts_matches_vanilla_ceil() {
+        assert_eq!(initial_cluster_attempts(0.0), 0);
+        assert_eq!(initial_cluster_attempts(0.01), 1);
+        assert_eq!(initial_cluster_attempts(0.25), 1);
+        assert_eq!(initial_cluster_attempts(0.5), 2);
+        assert_eq!(initial_cluster_attempts(0.99), 4);
     }
 
     #[test]

@@ -64,3 +64,21 @@ Correction to the "Fixed in this audit" section: its row 1 (LOS removed from `ca
 Tests: `melee_attack.rs` gained pure unit tests for the new `should_recalculate_path` helper (timer, moved-block threshold, 5 percent roll, and that the roll is not drawn when the target moved, which is vanilla's short-circuit).
 
 Other unit files: `polar_bear.rs`, `piglin.rs`, `ravager.rs`, `wolf.rs`, `iron_golem.rs` only register the goal; their `new(speed, true)` calls mean `followingTargetEvenIfNotSeen == true`, which matches vanilla for Ravager, IronGolem, Wolf, Rabbit, Panda and Fox, so no call site changed.
+
+
+## Result (2026-11-18 re-audit)
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java` (present, matches `CURRENT_MC_VERSION`). No source edits were needed: every row is already fixed in the checkout.
+
+| # | Result | Detail |
+|---|--------|--------|
+| 1 | VERIFIED (no gap) | `should_continue` matches vanilla `canContinueToUse`: the `!is_idle` (navigation.isDone) check is in the `!follow_even_if_unseen` branch and `is_in_position_target_range_pos` (vanilla `isWithinHome`, `mob/mod.rs:398`) in the `true` branch. The creative/spectator half of the `true` branch is already filtered by `get_target()`. |
+| 2 | VERIFIED (fixed) | `can_start` calls `navigator.create_path(&living_entity, target_pos, 0)` and starts when a path exists or the target is inside melee reach, exactly vanilla `path != null || isWithinMeleeAttackRange(target)`. |
+| 3 | VERIFIED (fixed in code) | The `+15` penalty is present: `tick()` consumes `navigator.take_last_path_search_failed()` (set by the deferred search at `pathfinder/mod.rs:887`), matching vanilla `if (!moveTo(...)) ticksUntilNextPathRecalculation += 15`. The original cross-crate prerequisite (a path-result flag on `Navigator`) is already implemented in the checkout, so no code change was needed in this unit. |
+| 4 | VERIFIED (fixed) | `start()` leaves `last_target_position` as `None` (constructor default), so the first tick recalculates like vanilla's zeroed `pathedTarget*` sentinel. |
+| 5 | VERIFIED (fixed) | Field/param renamed to `follow_even_if_unseen` and used in both `should_continue` and `tick` (vanilla `followingTargetEvenIfNotSeen`); all call sites use the new name. |
+| 6 | VERIFIED (no change) | `MAX_ATTACK_TIME = 20` matches vanilla `COOLDOWN_BETWEEN_CAN_USE_CHECKS = 20L`. |
+
+Other unit files (`iron_golem.rs`, `piglin.rs`, `polar_bear.rs`, `ravager.rs`, `wolf.rs`) only register `MeleeAttackGoal::new(speed, true)`, which sets `followingTargetEvenIfNotSeen == true`, matching vanilla for these mobs. No call-site change needed.
+
+No pure seam was left untested: `should_recalculate_path` already has unit tests covering the timer, moved-block threshold, 5% roll, and the roll short-circuit; the `+15` penalty lives in `tick()` behind a `Mob`/`Navigator`, so no additional pure test applies.

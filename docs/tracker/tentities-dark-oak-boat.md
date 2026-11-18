@@ -86,3 +86,21 @@ Re-review against `.vendor/vanilla-decompiled/net/minecraft` (AbstractBoat / Boa
 - h6 (delta rotation): verified already fixed per code. `yaw_delta` field (boat.rs:169), computed at 433-439 and applied via `rider_yaw_with_delta` at 673, replaces the missing accumulation noted in the previous pass. No fix.
 
 Rustfmt `--edition 2024` run on both edited .rs files (exit 0). Did not compile (CODER rule).
+## Result
+
+Re-review pass against the decompiled tree at `.vendor/vanilla-decompiled` (AbstractBoat.java reached via the symlink). Only rows still marked STILL OPEN in the prior Result were revisited.
+
+- Row 3 (BUBBLE_TIME): verified already fixed in the current `boat.rs`. `tick_underwater` (lines 392-419) now only increments `ticks_underwater` for the 60-tick eject and deliberately does not write `ID_BUBBLE_TIME` (comment lines 393-395). A grep for `ID_BUBBLE_TIME`/`bubble_time` in pumpkin-core finds exactly three writes, all in bubble-column paths: `on_above_bubble_column` (639-642, sets 60 once) and `tick_bubble_column` (436, 446, decrement to 0 and clear). This matches vanilla `AbstractBoat.onAboveBubbleColumn` (line 165-172, `setBubbleTime(60)` only when 0) and `tickBubbleColumn` (351-387, decrement while above a column, then sink/launch effect at 0); `handleBubbleColumnEffect` (399-408) is mirrored by `bubble_column_vertical_velocity`. No code change. The prior STILL OPEN note and its boat.rs:286-291 line reference are stale.
+- Row 8 (boat gametest): left open. Adding it needs a new file under `crates/pumpkin-gametest`, which is not a source file named in this unit. Reason: new gametest file outside this unit.
+
+No .rs files touched this pass, so rustfmt was not run.
+
+## Result
+
+Third re-review pass against the decompiled tree at `.vendor/vanilla-decompiled` (AbstractBoat, BoatItem, EntitySelector, Entity, LivingEntity, Player). Only the prior STILL OPEN items were revisited.
+
+- Row 3 (BUBBLE_TIME / underwater ticks): verified already fixed. `ID_BUBBLE_TIME` writes in boat.rs are confined to bubble columns: `on_above_bubble_column` (line 640, sets 60) and `tick_bubble_column` (lines 436, 446, decrement/clear). `tick_underwater` (lines 392-402) only accumulates `ticks_underwater` for the 60-tick eject and deliberately does not touch the id, matching `AbstractBoat.onAboveBubbleColumn` / `tickBubbleColumn`. No change.
+- h6 (delta rotation): verified already fixed. `yaw_delta` field (line 232), stored at 577, applied via `rider_yaw_with_delta`/`clamp_rider_yaw` at 867-870 in `on_rider_positioned`. No change.
+- Row 8 (boat gametest): left open. Requires a new file under `crates/pumpkin-gametest`, which is outside this unit (basenames: none). Reason: new gametest file outside this unit.
+
+Spot-check of the other rows confirmed they remain fixed in the current source (e.g. `is_chest_boat`/`max_passengers` helpers at boat.rs:76/95, `drop_stack_at(self.vehicle.entity.pos.load())` at boat.rs:743, dispenser water predicate `has_tag(MINECRAFT_WATER)` at dispenser.rs:532, BoatItem eye-block sweep with the post-clip pass removed at item/items/boat.rs:138-168). No source files edited this pass (unit grants no source basenames); rustfmt not run.

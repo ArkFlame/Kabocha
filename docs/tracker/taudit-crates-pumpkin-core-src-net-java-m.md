@@ -94,3 +94,62 @@ splitting on `\0`, no disconnect packet in handshake/status (`serialize_disconne
 
 Checked with `rustfmt --edition 2024` on `player.rs`. No build/test run here (orchestrator compiles
 once after all workers). No pure seam exists for the packet-drain loop, so no unit test was added.
+
+
+## Result (re-audit)
+
+Re-verified every STILL OPEN row against the vendored decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`.
+
+- Row 3 (UPDATE_RECIPES item property sets): FIXED and VERIFIED. The nine vanilla
+  property sets are now written by `recipe_book_add.rs` (`recipe_property_sets`,
+  `write_recipe_property_sets`, `stonecutter_update_recipes_data`). Verified the wire
+  format against `ClientboundUpdateRecipesPacket.STREAM_CODEC` ->
+  `ByteBufCodecs.map(ResourceKey.streamCodec, RecipePropertySet.STREAM_CODEC)` (VarInt map
+  size, ResourceLocation key, VarInt item count, VarInt item ids) and membership against
+  `RecipeManager#RECIPE_PROPERTY_SETS`/`#finalizeRecipeLoading` and
+  `RecipePropertySet#create` (smithing base/template/addition, four cooking inputs,
+  brewing input/reagent). No generated data or WIT change was needed: it uses existing
+  `RECIPES_COOKING`, `RECIPES_SMITHING_*`, `BREWING_RECIPES`, `Item::from_registry_key`
+  and `resolve_item_tag`. Dynamic datapack cooking/smithing/brewing recipes extend the
+  same sets. Pure unit tests already cover the mapping and byte layout
+  (`update_recipes_includes_vanilla_property_sets`,
+  `property_sets_include_datapack_cooking_and_smithing_recipes`). No further change.
+- Row 1 (command/chat/session ordering): STILL OPEN - fix requires `net/java/mod.rs`
+  (spawn_task sites), a file outside this unit; needs a per-connection ordered queue.
+- Row 5 (unknown packet id warn!): STILL OPEN - the log site is `net/java/mod.rs`
+  (outside this unit); needs `warn!` -> `debug!` there.
+
+Rows 2 and 4 remain resolved as recorded in the earlier Result section above (keep-alive
+matches vendored Paper; per-tick packet cap removed). No source file was edited in this
+pass, so no rustfmt run was required, and no build/test was run (orchestrator compiles once).
+
+## Result (final verification)
+
+Re-checked every in-unit fix still on disk after the restart and grounded each against the
+vendored decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`. No source file
+was changed in this pass; all edits were already present and verified.
+
+- Config-state disconnect: VERIFIED fixed. `config_disconnect.rs` holds `&TextComponent` and
+  writes it with `write_component`; `pending.rs:353` passes the full component in Config state.
+- Row 2 (keep-alive): VERIFIED, matches vendored Paper. `ServerCommonPacketListenerImpl.java`
+  (`handleKeepAlive` 103-145, `keepConnectionAlive` 268-302, `KEEPALIVE_LIMIT` line 54 = 30 s)
+  uses a pending queue, sends every 1 s, and disconnects an unmatched/out-of-order id with
+  `disconnect.timeout`. `play/keep_alive.rs` mirrors this and has a pure unit test for the
+  outstanding-id lookup. Send loop lives in `net/java/mod.rs` (outside this unit).
+- Row 3 (UPDATE_RECIPES property sets): VERIFIED fixed. `recipe_book_add.rs` writes the nine
+  vanilla sets; keys match `RecipePropertySet.java` `registerVanilla` names (smithing_base,
+  smithing_template, smithing_addition, furnace_input, blast_furnace_input, smoker_input,
+  campfire_input, brewing_input, brewing_reagent) and the count in `RecipeManager.java`
+  `RECIPE_PROPERTY_SETS`. Wire format matches `ClientboundUpdateRecipesPacket.STREAM_CODEC`
+  (`ByteBufCodecs.map` -> VarInt size, ResourceLocation key, `RecipePropertySet.STREAM_CODEC`
+  = VarInt count + VarInt item ids). Pure tests cover the mapping, byte layout and datapack
+  recipes. No generated data or WIT change.
+- Row 4 (per-tick packet cap): VERIFIED resolved as recorded above.
+- Row 1 (command/chat/session ordering): STILL OPEN - the `spawn_task` sites are in
+  `net/java/mod.rs`, a file outside this unit; needs a per-connection ordered queue.
+- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is in `net/java/mod.rs`,
+  a file outside this unit; needs `warn!` -> `debug!` there.
+
+No rustfmt run (no edits) and no build/test run (orchestrator compiles once). The two remaining
+open rows require `net/java/mod.rs`, which is outside the files this unit may edit.

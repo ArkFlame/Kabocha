@@ -88,3 +88,55 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/item/crafting/`
   already fixed in an earlier pass; no change needed this pass.
 
 Status: UNVERIFIED (code written without compiling per worker rules; orchestrator compiles once).
+
+## Result
+
+Pass 2 (2026-11-18). Editable file touched: crates/pumpkin-core/src/data/datapack/recipe_loader.rs.
+
+- FIXED, parse_cooking checked int/float conversion (S, row was marked STILL OPEN): the prior
+  pass recorded this row as VERIFIED, but the source still used unchecked `t as i32` and
+  `e as f32`. Replaced with `i32::try_from(t.as_i64()?).ok()?` for cookingtime and a finite
+  check after the f32 cast for experience. This matches vanilla `Codec.INT`/`Codec.FLOAT`
+  range checks in `AbstractCookingRecipe.cookingMapCodec` (verified in the decompiled ref tree,
+  where .vendor is absent). Test: `cooking_time_and_experience_use_checked_conversion`.
+- VERIFIED, parse_result count 1..=99 (S, row was marked STILL OPEN): already implemented in the
+  source via an explicit `1..=99` range check (rejects 0 and >99). No change needed.
+- LEFT OPEN, parse_ingredient mixed item/tag OneOf alternatives (M): needs a tag representation on
+  `OwnedRecipeIngredient::OneOf` plus updates to the bedrock recipe.rs and plugin API Ingredient
+  encoders (cross-crate/WIT refactor, outside this unit's files).
+- LEFT OPEN, crafting_special_* type-specific fields for display (M): needs
+  `OwnedSpecialCraftingRecipe` (pumpkin-protocol) extended and its consumers updated (cross-crate).
+- LEFT OPEN, brewing/transmute/dye/decorated_pot/imbue shapes (M): needs pumpkin-protocol types and
+  pumpkin-inventory brewing matching changed (cross-crate refactor).
+- VERIFIED, no regressions: parse_category strict enums, the ingredient both-keys rule, the
+  transmute result requirement and shaped-key validation are all still in place.
+
+Status: UNVERIFIED (code written and rustfmt'd but not compiled, per worker rules; orchestrator compiles once).
+
+## Result
+
+Pass 3 (2026-11-18). Verified against `.vendor/vanilla-decompiled/net/minecraft/`:
+`world/item/ItemStackTemplate.java` (`intRange(1, 99).optionalFieldOf("count", 1)`),
+`world/item/crafting/AbstractCookingRecipe.java` (`Codec.INT` cookingtime, `Codec.FLOAT`
+experience), `CraftingBookCategory.java`, `CookingBookCategory.java`,
+`world/item/crafting/Ingredient.java`.
+
+- FIXED, parse_result present-but-invalid count (S, in scope): the prior `as_u64().unwrap_or(1)`
+  silently turned a negative, fractional or string `count` into 1. Vanilla's `intRange(1, 99)`
+  rejects the whole recipe when a present count is not an integer in range. Now an absent count
+  defaults to 1, while a present count must be a non-negative integer within 1..=99 or the recipe
+  is rejected. Test: `result_count_must_be_an_integer`.
+- VERIFIED already fixed, no change needed: parse_result 0/>99 range, parse_cooking checked
+  `i32::try_from` cookingtime and finite f32 experience, parse_category strict separate enums,
+  ingredient both-keys rejection, shaped-key validation, transmute required result and the
+  eight-registry crafting_special_* whitelist.
+- LEFT OPEN, parse_ingredient mixed item/tag OneOf alternatives (M): `OwnedRecipeIngredient::OneOf`
+  matches only exact item ids in pumpkin-protocol (a `#` prefix is not treated as a tag), so this
+  needs a tag variant plus bedrock `recipe.rs` and plugin API Ingredient encoder updates, a
+  cross-crate/WIT refactor outside this unit's files.
+- LEFT OPEN, crafting_special_* type-specific display fields (M): needs
+  `OwnedSpecialCraftingRecipe` (pumpkin-protocol) extended and its consumers updated (cross-crate).
+- LEFT OPEN, brewing/transmute/dye/decorated_pot/imbue shapes (M): needs pumpkin-protocol types and
+  pumpkin-inventory brewing matching changed (cross-crate refactor).
+
+Status: UNVERIFIED (code written without compiling per worker rules; orchestrator compiles once).

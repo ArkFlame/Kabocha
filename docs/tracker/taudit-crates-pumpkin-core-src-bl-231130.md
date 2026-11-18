@@ -75,3 +75,45 @@ Tests: added `assemble_cooking_result_applies_recipe_components` and `stored_exp
 - **furnace_like_slot.rs take path (unlock recipes in recipe book, M)** -- OPEN: needs `awardRecipes`/`triggerRecipeCrafted` on `InventoryPlayer` (screen_handler.rs) and the player implementation, both outside this unit.
 
 Tests: added `cooking_time_divides_by_the_persisted_multiplier`, `relight_rescales_progress_by_the_multiplier_change` and `furnace_speed_multiplier_round_trips_through_nbt` (pure unit tests); replaced the obsolete block-kind `cooking_speed_matches_vanilla`. `rustfmt --edition 2024` run on all four edited .rs files. No compile check run (worker rule).
+
+
+## Result (re-audit pass)
+
+Verified every STILL OPEN row from the "Remaining gaps" table against decompiled vanilla
+(`AbstractFurnaceBlockEntity.java` 500-595, `FurnaceResultSlot.java` 28-53, `Player.java` 1536,
+`ServerRecipeBook.java` 61-87) and the current working tree. All rows are resolved in code:
+
+- **`furnace_like_block_entity.rs:30-38,511` (data-driven fuel `speed_multiplier`, M)** -- already
+  FIXED in the follow-up pass: persisted `speed_multiplier_bits`, read/written under the vanilla
+  `speed_multiplier` float key, applied at ignition from `CookingFuelImpl`.
+- **`furnace_like_block_entity.rs:511-535` (rescale timer on relight, S)** -- already FIXED:
+  `rescale_cooking_after_relight` implements `ceil(timer / oldTotal * newTotal)`.
+- **`furnace_like_block_entity.rs:177-198` (one XP orb per recipe, S)** -- FIXED in tree.
+  `ExperienceContainer::extract_recipes()` (`window_property.rs`) returns one `RecipeExperience`
+  per id; `ExperienceContainer::extract_experience()` maps them to a `Vec<i32>`; and
+  `block/entities/mod.rs::on_block_replaced` spawns one `ExperienceOrbEntity` per entry, matching
+  vanilla `getRecipesToAwardAndPopExperience`. Covered by
+  `experience_per_recipe_returns_one_amount_for_each_used_recipe`.
+  Caveat: the `on_take_item` path (`furnace_like_slot.rs`) still sums the per-recipe amounts into a
+  single `award_experience` call; spawning one world orb there would need a `World`-aware method on
+  `InventoryPlayer` implemented in `entity/player.rs` (outside this unit). Not re-opened because
+  the row's suggested fix (per-recipe amounts + block-entity orb spawn) is present.
+- **`furnace_like_slot.rs` take path (unlock recipes, M)** -- FIXED in tree. `on_take_item` passes
+  the extracted recipe ids to `player.award_recipes()`; `screen_handler.rs` declares the trait
+  method and `entity/player.rs` implements it (recipe book update, `RecipeUnlocked` for newly
+  learned, `RecipeCrafted` for every used recipe, and a `CRecipeBookAdd` packet), matching
+  `awardUsedRecipesAndPopExperience` + `Player.awardRecipes` + `ServerRecipeBook.addRecipes`.
+- **`furnace_like_block_entity.rs:867-876` (Bedrock `StoredXPInt`, S)** -- already FIXED via
+  `stored_experience()`.
+- **`furnace_like_block_entity.rs:235-274` (result data components, S)** -- already FIXED via
+  `assemble_cooking_result()`.
+- **`furnace_like_block_entity.rs:225` (`isSameItemSameComponents`, S)** -- SATISFIED by the
+  existing `are_items_and_components_equal` calls.
+- **`furnace_like_block_entity.rs:856-858` (`getUpdateTag`, S)** -- verified correct: vanilla
+  `AbstractFurnaceBlockEntity` has no `getUpdateTag` override, so the base `BlockEntity` returns an
+  empty compound. Removed the stale comment that claimed the update tag carried items and
+  cook/burn state, and documented the real vanilla quirk.
+
+No new tests added: both seams (per-recipe XP extraction, recipe-id collection) already have pure
+unit coverage. `rustfmt --edition 2024` run on `furnace_like_block_entity.rs`. No compile check run
+(worker rule).

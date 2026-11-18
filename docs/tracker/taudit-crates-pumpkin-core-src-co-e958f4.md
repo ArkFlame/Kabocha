@@ -113,3 +113,51 @@ rows. `rustfmt --edition 2024` run on both touched files (exit 0).
 | Bedrock success arguments (`locate.rs`) | Already fixed for Bedrock player sources via `bedrock_success_args`. The remaining cross-cutting split needs `pumpkin-util/src/text/mod.rs`, outside this unit (out of scope). |
 
 Files changed: `locate.rs`, `structure_finder.rs`.
+
+
+## Result (final re-audit)
+
+Re-verified every STILL OPEN row against the decompiled vanilla tree in
+`.vendor/vanilla-decompiled/net/minecraft`. All in-scope, fixable rows are
+already fixed in the current checkout by earlier passes; no further code
+change was needed this pass, so no `.rs` file was touched and no `rustfmt`
+run was required. Each row was checked against vanilla source, not memory.
+
+| Row | Outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | Already matches vanilla Canvas (`LocateCommand.java:109-112`): the `StructureSearch::Pending` arm sends `Searching for <name>...` and returns 0. No change. |
+| Datapack/modded structures via registry (`wanted_structures`) | STILL OPEN, out of scope: needs a dynamic `worldgen/structure` registry in generated `pumpkin-data`; `StructureKeys::from_name` cannot resolve custom ids (generated-data / cross-crate change). |
+| POI argument type (`resource_or_tag.rs`) | Already fixed: `ResourceOrTagArgument::parse` rejects unknown POI ids via generated `pumpkin_data::poi_type::PoiType::from_name` (`:162-164`), covered by `poi_ids_are_validated_at_parse_time`; matches vanilla `resourceOrTag(POINT_OF_INTEREST_TYPE)`. |
+| All placements per structure set (`structure_set_containing`) | Already fixed: `structure_sets_containing` returns every set index (vanilla `getPlacementsForStructure` returns a list); the executor scans each set; `all_sets_containing_a_structure_are_returned` test. |
+| Random-spread nearest ordering (`structure_finder.rs`) | Already fixed: `find_nearest_structure` evaluates every placement at a radius, keeps the nearest hit, and advances only after the full ring (vanilla `ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | Already fixed: ring candidates are ranked with y=32 while the reported position stays y=0 (vanilla `ChunkGenerator.java:296-297`). |
+| Structure arm placement candidates (`locate.rs:273-279`) | Verified the row's premise is invalid: vanilla `getStructureGeneratingAt` (`ChunkGenerator.java:349-362`) calls `checkStructurePresence` and only reports a candidate where a start can exist, so the current start-resolving code (`find_nearest_structure_start`) already matches. No change. |
+| Bedrock success arguments (`locate.rs`) | Already fixed for player sources via `bedrock_success_args` plus `bedrock_success_args_match_bedrock_arity`. Remaining cross-cutting split needs `pumpkin-util/src/text/mod.rs`, outside this unit (out of scope). |
+
+Open rows (both out of scope, one-line reason each):
+- Datapack/modded structures: needs a dynamic structure registry in generated `pumpkin-data` (generated-data / cross-crate change).
+- Bedrock success args for console/shared sources: needs a separate Java/Bedrock `with` list in `TextContent::Translate` (`pumpkin-util/src/text/mod.rs`), touching ~10 match sites across crates.
+
+## Result
+
+Continuation pass after the server restart. Re-verified every STILL OPEN row
+against `.vendor/vanilla-decompiled/net/minecraft`, including
+`ChunkGenerator.java`. All in-scope fixes are already present in the checkout;
+this pass changed no `.rs` file, so no rustfmt run was needed.
+
+| Row | Outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | Already matches Canvas: the `StructureSearch::Pending` arm sends "Searching for ..." and returns 0. No change. |
+| Datapack/modded structures (`wanted_structures`) | OPEN: needs a dynamic `worldgen/structure` registry in generated `pumpkin-data`; `StructureKeys::from_name` cannot resolve custom ids. |
+| POI argument type (`resource_or_tag.rs`) | Fixed: `PoiType::from_name` validation plus `poi_ids_are_validated_at_parse_time`. |
+| All placements per structure set | Fixed: `structure_sets_containing` plus `all_sets_containing_a_structure_are_returned`. |
+| Random-spread nearest ordering (`structure_finder.rs`) | Fixed: whole ring is evaluated before advancing (vanilla `ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | Fixed: candidates ranked at y=32, reported at y=0 (vanilla `ChunkGenerator.java:319-324`). |
+| Structure arm placement candidates (`locate.rs`) | No change: vanilla `getStructureGeneratingAt` calls `checkStructurePresence` and rejects placement-only candidates (`ChunkGenerator.java:349-362`), so the start-resolving code already matches. The row's premise is invalid. |
+| Bedrock success arguments (`locate.rs`) | Fixed for player sources via `bedrock_success_args` plus the arity test. Console/shared split needs `pumpkin-util/src/text/mod.rs`, outside this unit. |
+
+Files changed: none (all fixes already present from earlier passes).
+
+Open rows:
+- Datapack/modded structures: needs a dynamic structure registry in generated `pumpkin-data` (generated-data / cross-crate change).
+- Bedrock success args for console/shared sources: needs separate Java/Bedrock `with` lists in `TextContent::Translate` (`pumpkin-util/src/text/mod.rs`).

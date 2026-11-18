@@ -100,3 +100,73 @@ Verified each STILL OPEN row against decompiled vanilla at
 (`bob_velocity`, `throw_setup`, `bobber_sound_pitch`) are either already covered or trivial
 formula-mirrors that the project's test rules discourage, and the row-2/3/4 behaviour requires a
 live `Player`/`World`. No `.rs` file was changed, so no rustfmt was required.
+
+
+## Result (re-verification against decompiled vanilla, current checkout)
+
+Every fixable row is already implemented in the working tree; no `.rs` file needed changes. This
+supersedes the earlier `## Result` above, whose row 1 was stale.
+
+- **Row 1 (open-water flag, M): FIXED in code.** `FishingBobberEntity` stores
+  `open_water: AtomicBool` and exposes `is_open_water_fishing()` (fishing_bobber.rs:56,175). It
+  latches the flag in `process_tick` through the pure `latched_open_water` helper
+  (fishing_bobber.rs:481-491,932-944), matching `FishingHook.tick:233-237`
+  (`openWater = openWater && outOfWaterTime < 10 && calculateOpenWater`, reset to true when no fish
+  is near). `world/loot/predicates.rs` gates `fishing_hook.in_open_water` on that latched flag
+  (predicates.rs:268-273,372-392) and implements the 5x5 / y=-1..=2 `calculateOpenWater` scan
+  (predicates.rs:365-370,414-449). Pure unit tests exist for both helpers (fishing_bobber.rs:1065+,
+  predicates.rs:1034+). No cross-file work remains.
+- **Row 2 (cancelled PlayerFishEvent, S): FIXED.** `reel_in -> Option<i32>` returns `None` on a
+  cancelled CAUGHT_ENTITY/CAUGHT_FISH/IN_GROUND/REEL_IN event; `fishing_rod.rs:136-158` keeps the
+  hook and `player.fishing_bobber` on `None` and removes only on `Some`. Matches CraftBukkit
+  `FishingHook.retrieve`, which returns 0 on a cancelled event before the `discard()` at line 588
+  (FishingHook.java:518-520, 544-546, 573-575, 582-584).
+- **Row 3 (should_stop_fishing discard, trivial): FIXED.** Calls `self.discard(player)` before
+  returning true (fishing_bobber.rs:605-622), matching `FishingHook.shouldStopFishing`
+  (FishingHook.java:273-291).
+- **Row 4 (rod durability, S): CORRECT.** `fishing_rod.rs:146` uses `damage_item_in_slot` ->
+  `damage_item_stack_internal` (player.rs:2289-2383), which rolls Unbreaking via
+  `compute_durability_damage_applied`, fires `PlayerItemDamageEvent`/`PlayerItemBreakEvent` and
+  broadcasts/syncs the break. This covers vanilla `stack.hurtAndBreak(dmg, player, slot)`.
+- **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by
+  note. Reason: cosmetic, no fix planned.
+
+No `.rs` file was changed, so `rustfmt` was not required. No compile was run (workers do not
+compile); verification was by reading the code against `.vendor/vanilla-decompiled` sources only.
+
+
+## Result (post-restart independent re-verification)
+
+The server restarted mid-unit. Re-verified every STILL OPEN row against the actual current
+checkout (not the two prior `## Result` blocks) and decompiled vanilla. All fixable rows are
+already implemented correctly; no `.rs` file needed changes this pass.
+
+- **Row 1 (open-water flag, M): CORRECT in code.** `FishingBobberEntity` stores
+  `open_water: AtomicBool` and exposes `is_open_water_fishing()`. `process_tick` latches the flag
+  via the pure `latched_open_water` helper (`nibble<=0 && hooked<=0 -> true`, else
+  `current && out_of_water_time<10 && area_open`), reading `out_of_water_time` from the state at
+  tick start before its update - exactly vanilla `FishingHook.tick:233-237` (latch at 236, counter
+  updated at 240/251). `predicates.rs` `is_open_water` (5x5, y=-1..=2) reproduces vanilla
+  `calculateOpenWater` layer rules (FishingHook.java:442-466): uniform layer, air-not-on-bottom,
+  water-not-above-air; the `is_water_source` gate matches `getOpenWaterTypeForBlock`'s
+  `fluidState.isSource()` requirement (475-485). The loot `in_open_water` predicate reads the
+  latched flag. Pure tests already exist for both helpers (`latched_open_water`,
+  `is_open_water`), so no new test was added (duplicates are discouraged).
+- **Row 2 (cancelled PlayerFishEvent, S): CORRECT.** `reel_in -> Option<i32>`; `fire_fish_event`
+  returns `None` on cancel; `fishing_rod.rs:132-154` keeps the hook and `player.fishing_bobber` on
+  `None` and removes only on `Some`. Matches CraftBukkit `FishingHook.retrieve` early return
+  before `discard()`.
+- **Row 3 (should_stop_fishing discard, trivial): CORRECT.** Calls `self.discard(player)` before
+  returning `true` (fishing_bobber.rs:620), matching vanilla `shouldStopFishing`.
+- **Row 4 (rod durability, S): CORRECT.** `fishing_rod.rs:142` uses `damage_item_in_slot` ->
+  `damage_item_stack_internal` (player.rs:2289-2412), which rolls Unbreaking via
+  `compute_durability_damage_applied`, fires `PlayerItemDamageEvent`/`PlayerItemBreakEvent`, plays
+  the break sound, broadcasts the equipment-break entity status and awards the BROKEN stat. This
+  covers vanilla `stack.hurtAndBreak(dmg, player, slot)`.
+- **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by
+  note. Reason: cosmetic, no fix planned.
+
+No `.rs` file changed, so no rustfmt. No compile run (workers do not compile); verification by
+reading code against `.vendor/vanilla-decompiled` only.
+
+Status: PASS fixed=0 open=1 files=none

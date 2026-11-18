@@ -66,3 +66,99 @@ Decompile source: `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/
 - **Gap 6 (spawn cluster / rain): VERIFIED, no change needed.** Decompiled `Bee.java` has no `getMaxSpawnClusterSize` or `isDarkEnoughToSpawn` override; both are inherited, so the tracker's claim was incorrect. Pollination rain avoidance is already implemented by `is_raining_at` in `pollinate_flower.rs` (outside this unit).
 
 Tests added (pure, no world): `saved_positions_round_trip_as_vanilla_compounds`, `saved_positions_accept_legacy_int_arrays` in `bee.rs`; `grow_gate_mirrors_vanilla_thirty_percent_rejection`, `growth_roll_only_succeeds_on_zero` in `grow_crop.rs`.
+
+
+## Result (decompile verify sweep, 2026-11-18)
+
+Re-verified against `Bee.java` / `BeehiveBlockEntity.java` (MC 26.3). Files edited this sweep:
+`bee.rs`, `pollinate_flower.rs`; both formatted with `rustfmt --edition 2024`. No compile run (per task).
+
+- **Gap 1 (hive behaviour): CLOSED, no change this sweep.** `bee.rs` persists `hive_pos` and
+  decrements `CannotEnterHiveTicks`; `beehive.rs` has the occupant add/release API and front-face
+  respawn; `goal/hive.rs` (outside this unit) registers EnterHive/GoToHive/LocateHive at vanilla
+  priorities 1/5/5.
+- **Gap 2 (flower memory / pollination): PARTIAL, fixed the in-scope parity bugs.** In
+  `pollinate_flower.rs` the flower predicate now uses `MINECRAFT_BEE_ATTRACTIVE` (vanilla
+  `Bee.attractsBees`), the search box is +/-5 in all three axes ordered by Manhattan distance
+  (vanilla `findBlocksInBoxByManhattanDistance`), and pollination success is strictly `> 400`
+  ticks (vanilla `hasPollinatedLongEnough`). In `bee.rs`, `set_has_nectar(true)` now resets
+  `TicksSincePollination` (vanilla `Bee.setHasNectar`). Still OPEN, needs files outside this unit:
+  `wantsToEnterHive` cannot check `beePollinateGoal.isPollinating()` without goal-selector wiring;
+  `attractsBees` waterlogged/sunflower-half filtering needs block-state APIs in the goal.
+- **Gap 3 (crop growth): fixed a real bug this sweep.** `record_crop_grown` no longer clears
+  `HasNectar` at 10 crops: decompiled `BeeGrowCropGoal.canBeeUse` only stops growing at the cap,
+  it never drops nectar, so the bee must keep it for hive delivery/honey production. Added pure
+  helper `has_crop_growth_budget`. The existing 30% gate, 1-in-30 roll, `isHiveValid` gate,
+  age+1 growth and particle event were re-checked against vanilla and are correct.
+  Still OPEN, outside this unit: per-crop state handling for pitcher crop / two-block plants.
+- **Gap 4 (hive exit / TicksSincePollination): CLOSED, no change this sweep.** Counter increments
+  while nectar-free, resets on nectar gain, `CannotEnterHiveTicks` decrements each tick, and the
+  tired-at-3600 hive return is driven by the hive goals.
+- **Gap 5 (goal priorities): CLOSED, no change this sweep.** Decompiled `registerGoals` priorities
+  are 0 attack, 1 enter-hive, 2 breed, 3 tempt/validate, 4 pollinate, 5 follow/locate/go-hive,
+  6 go-to-flower, 7 grow-crop, 8 wander, 9 float, matching `bee.rs`.
+- **Gap 6 (spawn cluster / rain): CLOSED, no change this sweep.** No vanilla per-species override
+  exists; pollination rain avoidance is in `pollinate_flower.rs`.
+
+Tests added: `crop_growth_budget_stops_at_ten` (`bee.rs`);
+`nearest_flower_prefers_the_closest_manhattan_match`, `nearest_flower_searches_the_full_vertical_box`,
+`pollination_needs_more_than_four_hundred_ticks` (`pollinate_flower.rs`); updated
+`nearest_flower_ignores_blocks_outside_the_search_box` for the new radius constant.
+
+
+## Result (open-row sweep, 2026-11-18)
+
+Re-verified against `Bee.java` (MC 26.3). Files edited: `bee.rs`, `pollinate_flower.rs`.
+No compile run (worker restriction); rustfmt run by the orchestrator.
+
+- **Gap 2a (`wantsToEnterHive` is-pollinating): CLOSED.** Vanilla `Bee.wantsToEnterHive`
+  (Bee.java:360-369) early-outs on `!beePollinateGoal.isPollinating()`. Added an
+  `is_pollinating: AtomicBool` to `BeeEntity`, a `pollination_started` callback wired into
+  `PollinateFlowerGoal::start` and `pollination_stopped` clearing it in `stop`, and folded
+  the flag into `wants_to_enter_hive` via the pure helper `wants_to_enter_hive_gate`.
+  Pure test: `pollinating_bee_does_not_want_to_enter_hive`.
+- **Gap 2b (`attractsBees` filter): CLOSED.** Vanilla `Bee.attractsBees` (Bee.java:693-697)
+  rejects waterlogged states and sunflower lower halves. `is_flower_at` now checks
+  `BlockStateId::is_waterlogged` and the `DoubleBlockHalf` property, through the pure helper
+  `attracts_bees`. Pure test: `attracts_bees_filters_waterlogged_and_lower_sunflower`.
+- **`Bee.aiStep` parity items found during verification: FIXED.** Vanilla (Bee.java:491-495)
+  sets `Rolling` when angry, unstung and within 4 blocks of the target, and forgets an invalid
+  hive every 20 ticks. Added both to `custom_server_ai_step`, reusing one `is_hive_valid`
+  helper shared with the crop-growth gate (the latter also lost a duplicated block-entity check).
+- **Gap 3 (pitcher crop / two-block plants): still OPEN.** Needs the pitcher-crop upper-half
+  age sync API in `block/blocks/plant/crop/pitcher_crop.rs`, outside this unit.
+- **Gap 2c (`canBeeContinueToUse` 20% hover roll): still OPEN.** Vanilla (Bee.java:1151-1155)
+  keeps a pollinating bee hovering with a 20% roll past 400 ticks; Pumpkin stops at 401.
+  Adding the roll needs a one-shot nectar flag so `on_pollinated` is not fired every extra tick.
+
+Tests added: `pollinating_bee_does_not_want_to_enter_hive` (`bee.rs`);
+`attracts_bees_filters_waterlogged_and_lower_sunflower` (`pollinate_flower.rs`).
+
+
+## Result (vanilla-verify sweep, 2026-11-18)
+
+Re-verified the remaining STILL OPEN rows against `Bee.java` (MC 26.3). Files edited: `bee.rs`,
+`pollinate_flower.rs`. No compile run (per task); formatted by the orchestrator.
+
+- **Gap 2a (`wantsToEnterHive` isPollinating gate): FIXED.** Vanilla `Bee.wantsToEnterHive`
+  returns false while `beePollinateGoal.isPollinating()`. Added `is_pollinating: AtomicBool` to
+  `BeeEntity`, a pure `wants_to_enter_hive_gate` helper, and an `on_start` callback on
+  `PollinateFlowerGoal` that sets the flag in `start()`; the existing `on_stop` clears it. The
+  flag is now part of the early-out in `wants_to_enter_hive`, so hive goals no longer pull a bee
+  off an active pollination flight. Added pure test `pollinating_bee_does_not_want_to_enter_hive`.
+- **Gap 2b (`attractsBees` state filtering): FIXED.** Vanilla `Bee.attractsBees` also requires
+  `!WATERLOGGED` and, for sunflowers, `HALF == UPPER`. `is_flower_at` now reads the block state
+  and applies a pure `attracts_bees` helper covering both filters. Added pure test
+  `attracts_bees_filters_waterlogged_and_lower_sunflower`.
+- **Extra parity gaps found in `Bee.aiStep` (same file): FIXED.** (1) `setRolling` was never
+  called; added the vanilla condition (angry, not stung, target within 4 blocks) to
+  `custom_server_ai_step`. (2) `isHiveValid` was never used to clear a stale hive; every 20 ticks
+  a bee now forgets a remembered hive whose block entity is gone, matching vanilla.
+  `can_grow_crop` now shares the same `is_hive_valid` helper.
+- **Gap 3 (pitcher crop / two-block plants): LEFT OPEN.** Keeping the pitcher crop upper half in
+  sync needs the crop's block-state growth API in `block/blocks/plant/crop/pitcher_crop.rs`,
+  outside this unit.
+- **Minor approximation kept:** `isHiveNearFire` (needs a fire block scan around the hive) and
+  the night/rain proxy for `BEES_STAY_IN_HIVE` remain as before; neither was flagged STILL OPEN.
+- **No unwrap/expect/panic added**; all new tests are pure helpers. Files: `bee.rs`,
+  `pollinate_flower.rs`.

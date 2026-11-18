@@ -485,31 +485,66 @@ pub fn apply_vanilla_enchantments(stack: &mut ItemStack, special_multiplier: f32
     }
 }
 
-/// Applies pillager crossbow enchantments based on raid wave or default spawn provider.
+/// Applies pillager crossbow enchantments for a spawn or a raid wave.
 pub fn apply_pillager_crossbow_enchantments(stack: &mut ItemStack, wave: Option<u32>) {
     match wave {
-        Some(w) if w >= 5 => {
-            EnchantmentProvider::RAID_PILLAGER_POST_WAVE_5.apply_to_stack(stack, 0.0);
-        }
-        Some(w) if w >= 3 => {
-            EnchantmentProvider::RAID_PILLAGER_POST_WAVE_3.apply_to_stack(stack, 0.0);
-        }
-        _ => {
+        None => {
             EnchantmentProvider::PILLAGER_SPAWN_CROSSBOW.apply_to_stack(stack, 0.0);
         }
+        // Vanilla Raid.getNumGroups(NORMAL)=5 and EASY=3; earlier waves have no provider,
+        // so Pillager.applyRaidBuffs leaves the plain spawn crossbow in place.
+        Some(w) if w > 5 => {
+            EnchantmentProvider::RAID_PILLAGER_POST_WAVE_5.apply_to_stack(stack, 0.0);
+        }
+        Some(w) if w > 3 => {
+            EnchantmentProvider::RAID_PILLAGER_POST_WAVE_3.apply_to_stack(stack, 0.0);
+        }
+        Some(_) => {}
     }
 }
 
-/// Applies vindicator weapon enchantments based on raid wave.
+/// Applies vindicator weapon enchantments for a raid wave.
 pub fn apply_vindicator_weapon_enchantments(stack: &mut ItemStack, wave: Option<u32>) {
     match wave {
-        Some(w) if w >= 5 => {
+        Some(w) if w > 5 => {
             EnchantmentProvider::RAID_VINDICATOR_POST_WAVE_5.apply_to_stack(stack, 0.0);
         }
         Some(_) => {
             EnchantmentProvider::RAID_VINDICATOR.apply_to_stack(stack, 0.0);
         }
         None => {}
+    }
+}
+
+/// Applies vanilla `Pillager.applyRaidBuffs` and `Vindicator.applyRaidBuffs` to a mob.
+///
+/// Enchanting rolls on `enchantOdds` and the provider is picked from the one-based raid
+/// wave. Vanilla only replaces the main-hand item when a provider actually applies.
+pub fn apply_raid_weapon_buffs(
+    mob: &MobEntity,
+    entity_type: &EntityType,
+    wave: i32,
+    enchant_odds: f32,
+) -> bool {
+    let should_enchant = rand::random::<f32>() <= enchant_odds;
+    let wave = wave.max(0) as u32;
+    if *entity_type == EntityType::PILLAGER {
+        if !should_enchant || wave <= 3 {
+            return false;
+        }
+        let mut stack = ItemStack::new(1, &Item::CROSSBOW);
+        apply_pillager_crossbow_enchantments(&mut stack, Some(wave));
+        mob.set_item_slot(&EquipmentSlot::MAIN_HAND, stack);
+        true
+    } else if *entity_type == EntityType::VINDICATOR {
+        let mut stack = ItemStack::new(1, &Item::IRON_AXE);
+        if should_enchant {
+            apply_vindicator_weapon_enchantments(&mut stack, Some(wave));
+        }
+        mob.set_item_slot(&EquipmentSlot::MAIN_HAND, stack);
+        true
+    } else {
+        false
     }
 }
 
@@ -1140,10 +1175,10 @@ mod tests {
     /// Vanilla `AbstractSkeleton#populateDefaultEquipmentSlots` always puts a bow in the main
     /// hand, so a naturally spawned skeleton can shoot (issue #4492).
     #[test]
-    fn skeleton_spawn_equipment_always_holds_a_bow() {
+    fn skeleton_spawn_equipment_always_holds_a_bow() -> Result<(), &'static str> {
         let def = EQUIPMENT_REGISTRY
             .get("skeleton")
-            .expect("skeleton must stay in the equipment registry");
+            .ok_or("skeleton must stay in the equipment registry")?;
         for difficulty in [Difficulty::Easy, Difficulty::Normal, Difficulty::Hard] {
             let regional = RegionalDifficulty::calculate(difficulty, 1_000_000, 3_600_000, 0.0);
             let mut rng = Xoroshiro::from_seed(12345);
@@ -1157,15 +1192,16 @@ mod tests {
                 "{difficulty:?}: skeleton spawned without a bow"
             );
         }
+        Ok(())
     }
 
     /// `AbstractSkeleton.finalizeSpawn` rolls can-pick-up-loot for every skeleton,
     /// while `WitherSkeleton.populateDefaultEquipmentEnchantments` is an empty override.
     #[test]
-    fn wither_skeleton_spawn_flags_match_vanilla() {
+    fn wither_skeleton_spawn_flags_match_vanilla() -> Result<(), &'static str> {
         let def = EQUIPMENT_REGISTRY
             .get("wither_skeleton")
-            .expect("wither_skeleton must stay in the equipment registry");
+            .ok_or("wither_skeleton must stay in the equipment registry")?;
         assert!(
             !def.enchanted,
             "wither skeleton equipment must stay unenchanted"
@@ -1174,6 +1210,7 @@ mod tests {
             def.can_pick_up_loot,
             "wither skeleton must roll can-pick-up-loot"
         );
+        Ok(())
     }
 
     #[test]
@@ -1272,13 +1309,22 @@ mod tests {
         super::apply_pillager_crossbow_enchantments(&mut stack, None);
         assert_eq!(stack.get_enchantment_level(&Enchantment::PIERCING), 1);
 
+        // Vanilla picks a provider only for waves > 3 (post wave 3) and > 5 (post wave 5).
         let mut stack3 = ItemStack::new(1, &Item::CROSSBOW);
         super::apply_pillager_crossbow_enchantments(&mut stack3, Some(3));
-        assert_eq!(stack3.get_enchantment_level(&Enchantment::QUICK_CHARGE), 1);
+        assert_eq!(stack3.get_enchantment_level(&Enchantment::QUICK_CHARGE), 0);
+
+        let mut stack4 = ItemStack::new(1, &Item::CROSSBOW);
+        super::apply_pillager_crossbow_enchantments(&mut stack4, Some(4));
+        assert_eq!(stack4.get_enchantment_level(&Enchantment::QUICK_CHARGE), 1);
 
         let mut stack5 = ItemStack::new(1, &Item::CROSSBOW);
         super::apply_pillager_crossbow_enchantments(&mut stack5, Some(5));
-        assert_eq!(stack5.get_enchantment_level(&Enchantment::QUICK_CHARGE), 2);
+        assert_eq!(stack5.get_enchantment_level(&Enchantment::QUICK_CHARGE), 1);
+
+        let mut stack6 = ItemStack::new(1, &Item::CROSSBOW);
+        super::apply_pillager_crossbow_enchantments(&mut stack6, Some(6));
+        assert_eq!(stack6.get_enchantment_level(&Enchantment::QUICK_CHARGE), 2);
     }
 
     #[test]
@@ -1293,6 +1339,10 @@ mod tests {
 
         let mut stack5 = ItemStack::new(1, &Item::IRON_AXE);
         super::apply_vindicator_weapon_enchantments(&mut stack5, Some(5));
-        assert_eq!(stack5.get_enchantment_level(&Enchantment::SHARPNESS), 2);
+        assert_eq!(stack5.get_enchantment_level(&Enchantment::SHARPNESS), 1);
+
+        let mut stack6 = ItemStack::new(1, &Item::IRON_AXE);
+        super::apply_vindicator_weapon_enchantments(&mut stack6, Some(6));
+        assert_eq!(stack6.get_enchantment_level(&Enchantment::SHARPNESS), 2);
     }
 }

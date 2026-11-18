@@ -41,3 +41,33 @@ Re-audited 2026-11-17 against .vendor/vanilla-decompiled. Rows verified against 
 - 6 Breach double clamp (combat.rs:285): FIXED. The old code seeded a multiplier at 1.0 and multiplied armor_fraction by it, but Breach's extracted effect is Add(Linear -0.15/-0.15): vanilla seeds modifyArmorEffectiveness with armorFraction itself and subtracts directly, then clamps once to [0,1]. Now apply the ADD effect to armor_fraction and clamp once. Added pure unit test breach_subtracts_from_armor_fraction_like_vanilla (level 4 -> 10.0 dmg, level 1 -> 9.5 dmg, both fail with the old multiplier).
 
 No player.rs changes needed; no open rows remain. rustfmt --edition 2024 run on combat.rs.
+
+
+## Result (re-verified 2026-11-18)
+
+Independently re-checked all six STILL OPEN rows against .vendor/vanilla-decompiled. No new code changes were needed: current combat.rs already matches vanilla on every row.
+
+- 1 sweep walk distance (combat.rs:57): CLOSED, no change. Player.isSweepAttack uses getKnownMovement().horizontalDistanceSqr() < square(getSpeed() * 2.5); Entity.getKnownMovement() returns getDeltaMovement() for an unmounted player, so Pumpkin's velocity check is equivalent. Adding walkDist fields would be a cross-crate refactor and is unnecessary.
+- 2 combat event 128 (combat.rs:471,486): CLOSED, no change. CombatTracker.recordDamageAndCheckCombatState / recheckStatus only call mob.onEnterCombat() / onLeaveCombat(); no entity event 128 broadcast exists in this vanilla. Pumpkin's CombatStateChange models those hooks at the damage call site.
+- 3 knockback resistance once (combat.rs:189): CLOSED, no change. LivingEntity.knockback scales power by (1 - KNOCKBACK_RESISTANCE) once. Pumpkin applies it only in handle_knockback's !handled fallback via knockback_after_resistance; mob_knockback handlers apply it internally once; Entity::apply_knockback does not reapply it.
+- 4 death message killer fallback (combat.rs:714): CLOSED, no change. DamageSource.getLocalizedDeathMessage uses victim.getKillCredit() on the no-attacker path, which Pumpkin passes as kill_credit_name; the get_killer_entry() fallback only adds an offline-killer enhancement when kill credit is absent.
+- 5 mace owner identity (combat.rs:140): CLOSED, no change. TamableAnimal.isOwnedBy is entity == getOwner(), and getOwner() resolves the owner UUID. The victim is always loaded, so UUID equality is functionally identical; exact identity needs an owner-resolution API outside combat.rs.
+- 6 Breach double clamp (combat.rs:285): CLOSED, already fixed. CombatRules.getDamageAfterAbsorb seeds modifyArmorEffectiveness with armorFraction and clamps once; Pumpkin applies the ADD effect (base/per-level -0.15) to armor_fraction and clamps once. Existing test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0) and level 1 (9.5), confirmed against the generated BREACH effect (Add Linear -0.15/-0.15).
+
+No .rs files changed this pass, so no rustfmt was needed. No open rows remain.
+
+
+## Result (re-verified 2026-11-18, third pass)
+
+Re-checked every STILL OPEN row directly against the current decompiled vanilla in .vendor/vanilla-decompiled (1.21.x + Paper/Folia) and the live combat.rs. No code changes were required; all rows stay closed.
+
+- 1 sweep walk distance (AttackType::new, combat.rs:65-77): CLOSED, no change. Player.isSweepAttack (Player.java:1134-1144) gates on getKnownMovement().horizontalDistanceSqr() < square(getSpeed() * 2.5) plus grounded/sword/full-strength. Pumpkin checks entity.velocity.horizontal_length_squared() < (MOVEMENT_SPEED * 2.5)^2 with the same grounded/sword/strong gates and the Bedrock exclusion. Movement is client-authoritative in Pumpkin, so velocity is the correct equivalent; adding walkDist fields would be a cross-crate refactor and is not needed.
+- 2 combat event 128 (combat.rs:501,570): CLOSED, no change. CombatTracker.recordDamageAndCheckCombatState (CombatTracker.java:47-68) and resetCombatState (165-185) only call mob.onEnterCombat()/onLeaveCombat(); no entity event 128 broadcast exists in this vanilla. Pumpkin models those hooks via CombatStateChange at the damage call site.
+- 3 knockback resistance once (combat.rs:236,252): CLOSED, no change. LivingEntity.knockback (LivingEntity.java:2145-2146) applies (1 - KNOCKBACK_RESISTANCE) exactly once. Pumpkin's handle_knockback applies it once via knockback_after_resistance on the !handled fallback; mob_knockback handlers apply it internally once; apply_knockback does not reapply it.
+- 4 death message killer fallback (combat.rs:631,816): CLOSED, no change. DamageSource.getLocalizedDeathMessage (DamageSource.java:169-183) uses victim.getKillCredit() on the no-attacker path; Pumpkin passes that as kill_credit_name. The get_killer_entry() fallback only runs when kill credit is absent, an offline-killer enhancement, documented at living.rs.
+- 5 mace owner identity (combat.rs:198-203): CLOSED, no change. MaceItem.knockback (MaceItem.java:126-153) checks animal.isOwnedBy(livingAttacker) where livingAttacker is the victim; TamableAnimal.isOwnedBy (TamableAnimal.java:188-190) is entity == getOwner(). Pumpkin compares the owner UUID to the victim UUID; both are loaded entities so this is functionally identical. Exact identity would need an owner-resolution API outside combat.rs.
+- 6 Breach double clamp (combat.rs:351-376): CLOSED, already fixed. CombatRules.getDamageAfterAbsorb (CombatRules.java:16-32) seeds modifyArmorEffectiveness with armorFraction and clamps once; EnchantmentHelper.modifyArmorEffectiveness (198-206) starts MutableFloat at armorFraction, so Breach's ADD subtracts from the fraction. Pumpkin does the same. Existing test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg).
+
+No .rs files changed, so no rustfmt needed. No open rows remain; diff re-checked against the Worker compile pitfalls table with no changes to review.
+
+Status: PASS fixed=0 open=0 files=none

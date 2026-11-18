@@ -74,16 +74,11 @@ impl BlockBehaviour for MultifaceBlock {
     }
 
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
-        get_attach_direction(
-            args.world,
-            args.position,
-            args.block,
-            Some(args.player),
-            args.direction,
-            true,
-        )
-        .0
-        .is_some()
+        // Vanilla MultifaceBlock.canBeReplaced allows replacing the clicked block with the
+        // same item only while a face is still vacant; support is checked later for the
+        // chosen direction, not here.
+        let props = GlowLichenLikeProperties::from_state_id(args.state_id);
+        active_directions(props).len() < 6
     }
 
     fn get_state_for_neighbor_update(
@@ -158,14 +153,6 @@ fn get_attach_direction(
     let (clicked_block, clicked_state) =
         block_accessor.get_block_and_state(&block_pos.offset(click_direction.to_offset()));
 
-    if !replacing && clicked_block == target_block {
-        return (None, false);
-    }
-
-    if can_attach_to(clicked_state, click_direction) {
-        return (Some(click_direction), false);
-    }
-
     let (replacing_block, replacing_block_state) = block_accessor.get_block_and_state(block_pos);
     let already_active = if replacing_block == target_block {
         active_directions(GlowLichenLikeProperties::from_state_id(
@@ -174,6 +161,15 @@ fn get_attach_direction(
     } else {
         FxHashSet::default()
     };
+
+    if !replacing && clicked_block == target_block {
+        return (None, false);
+    }
+
+    // Vanilla isValidStateForPlacement rejects a direction whose face is already occupied.
+    if !already_active.contains(&click_direction) && can_attach_to(clicked_state, click_direction) {
+        return (Some(click_direction), false);
+    }
 
     if let Some(player) = player_wrapper {
         let fs = player.get_entity().get_entity_facing_order();
@@ -233,5 +229,20 @@ const fn set_face(props: &mut GlowLichenLikeProperties, direction: BlockDirectio
         BlockDirection::South => props.south = true,
         BlockDirection::West => props.west = true,
         BlockDirection::East => props.east = true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn multiface_replacement_needs_a_vacant_face() {
+        let mut props = GlowLichenLikeProperties::default(&Block::SCULK_VEIN);
+        assert!(active_directions(props).len() < 6);
+        for dir in BlockDirection::all() {
+            set_face(&mut props, dir);
+        }
+        assert_eq!(active_directions(props).len(), 6);
     }
 }

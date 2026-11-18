@@ -58,3 +58,55 @@ Remaining gaps:
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla only recomputes levels
   when `beamSections` is non-empty (beacon.rs gates on `beam_active`); parity already matches.
 - Row 40 (Levels not loaded from NBT): documented upstream difference; no change.
+
+## Result (re-review 2026-11-18)
+
+- Row 36 (beam sections / client beam): server-side model is already present in beacon.rs and was
+  verified against the decompiled reference this pass. `BeamSection`, `BeamState`,
+  `append_beam_block` and `get_beam_sections()` mirror vanilla `BeaconBlockEntity.tick` /
+  `BeaconBeamOwner.Section`: push when `size <= 1`, increase height on equal colour,
+  `ARGB.average` on colour change, clear on opaque non-bedrock, and return empty at level 0.
+  Confirmed `ARGB.average` is per-channel `(a+b)/2` (u32::midpoint matches), `beam_color` suffix
+  strip resolves `DyeColor::by_name("red")`, and four pure unit tests cover merge / average /
+  cut / average-math. LEFT OPEN, one reason: consuming `get_beam_sections()` in a client-side
+  beam renderer spans crates and is outside this beacon.rs-only unit.
+- Row 37 (spectator filter): VERIFIED already fixed, no change. Neither `apply_effects` nor
+  `trigger_construct_beacon` filters spectators; vanilla `getHumansInRange` only applies
+  `NO_SPECTATORS` on the >128-block global-player fallback, never for beacon ranges 20-50.
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED already fixed, no change.
+  `set_property(DATA_PRIMARY, ...)` plays the sound immediately via the `OnceLock<Weak<World>>`
+  populated by `BlockEntity::set_world` (called in `World::add_block_entity`, same pattern as
+  jukebox), matching vanilla `dataAccess.set`. No pure unit-test seam exists for sound playback.
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
+  `updateBase` on `!beamSections.isEmpty()`; beacon.rs gates on `beam_active`. Parity matches.
+- Row 40 (Levels not loaded from NBT): not STILL OPEN; documented upstream difference, out of scope.
+
+## Result (verify pass, 2026-11-18)
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
+and `BeaconBeamOwner.java` / `util/ARGB.java`. No code change needed: all four rows are
+already fixed or parity-neutral in the current beacon.rs.
+
+- Row 36 (beam sections): VERIFIED already implemented server-side. `append_beam_block`
+  matches `tick`: `size <= 1` pushes a section, equal colour grows it, different colour
+  pushes `argb_average(last, new)`, opaque non-bedrock clears. `get_beam_sections()`
+  returns empty at level 0, matching `getBeamSections()`. `argb_average` per-channel
+  `u32::midpoint` equals `ARGB.average`'s `(a+b)/2`; `BeamSection` fields match
+  `BeaconBeamOwner.Section` (color final, height starting at 1). LEFT OPEN, one reason:
+  consuming sections in a client-side beam renderer spans crates and is outside the
+  beacon.rs-only unit. Existing pure tests (merge / average / cut / average-math /
+  beam colour) already cover the seam, so no duplicate test added.
+- Row 37 (spectator filter): VERIFIED already fixed. `applyEffects` uses the range box
+  with no spectator filter (`getHumansInRange` only applies `NO_SPECTATORS` on the
+  >128-block global fallback; beacon ranges cap at 50); `trigger_construct_beacon`
+  iterates players with a bounds check only, matching `getEntitiesOfClass(ServerPlayer,
+  box)`. No change.
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED already fixed. `set_property`
+  (`DATA_PRIMARY`) plays the sound immediately via the `OnceLock<Weak<World>>` set by
+  `BlockEntity::set_world`, matching vanilla's `dataAccess.set` handler; no
+  `play_select_sound` flag remains. No pure unit-test seam (requires a live world).
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
+  `updateBase` on `!beamSections.isEmpty()` (line 215); beacon.rs gates on `beam_active`,
+  which is committed from the same scan as `beam.sections`, so the two are equivalent.
+  Parity matches.

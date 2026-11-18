@@ -50,7 +50,7 @@ use crate::command::commands::data::{
     make_target_arg,
 };
 use crate::command::commands::summon::{
-    ERROR_FAILED_PEACEFUL, INVALID_POSITION, is_blocked_on_peaceful,
+    ERROR_DUPLICATE_UUID, ERROR_FAILED_PEACEFUL, INVALID_POSITION, is_blocked_on_peaceful,
 };
 use crate::command::context::command_context::CommandContext;
 use crate::command::context::command_source::{
@@ -67,7 +67,7 @@ use crate::command::node::{
 use crate::data::datapack::FunctionRunError;
 use crate::entity::EntityBase;
 use crate::entity::mob::spawn::finalize_spawn;
-use crate::entity::r#type::from_type;
+use crate::entity::r#type::{from_type, self_and_passengers};
 use crate::world::World;
 use crate::world::scoreboard::{NoTarget, Scoreboard, ScoreboardObjective, ScoreboardTarget};
 use crate::world::stopwatches::Stopwatches;
@@ -140,6 +140,14 @@ const ERROR_POS_NOT_LOADED: CommandErrorType<0> = CommandErrorType::new(
     translation::java::ARGUMENT_POS_UNLOADED,
     translation::java::ARGUMENT_POS_UNLOADED,
 );
+
+/// Vanilla resolves `if predicate <id>` through `ResourceOrIdArgument` while parsing and
+/// reports an unknown id with `argument.resource_or_id.no_such_element`.
+static ERROR_UNKNOWN_PREDICATE: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::ARGUMENT_RESOURCE_OR_ID_NO_SUCH_ELEMENT,
+    "argument.resource_or_id.no_such_element",
+);
+const PREDICATE_REGISTRY: &str = "minecraft:predicate";
 
 /// Vanilla `ExecuteCommand.MAX_TEST_AREA`.
 const MAX_TEST_AREA: i64 = 32768;
@@ -226,6 +234,27 @@ fn execute_positioned_as_modifier(
     Ok(sources)
 }
 
+/// Vanilla `Heightmap.Types` names accepted by `execute positioned over`. Worldgen-only
+/// `_wg` variants are dropped by `keepAfterWorldgen`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HeightmapKind {
+    WorldSurface,
+    MotionBlocking,
+    MotionBlockingNoLeaves,
+    OceanFloor,
+}
+
+/// Maps a lower-cased heightmap id to the map to read, like `HeightmapTypeArgument`.
+fn heightmap_kind(name: &str) -> Option<HeightmapKind> {
+    match name {
+        "world_surface" => Some(HeightmapKind::WorldSurface),
+        "motion_blocking" => Some(HeightmapKind::MotionBlocking),
+        "motion_blocking_no_leaves" => Some(HeightmapKind::MotionBlockingNoLeaves),
+        "ocean_floor" => Some(HeightmapKind::OceanFloor),
+        _ => None,
+    }
+}
+
 fn execute_positioned_over_modifier(
     context: &CommandContext,
 ) -> crate::command::node::RedirectModifierResult {
@@ -235,31 +264,31 @@ fn execute_positioned_over_modifier(
     let block_z = pos.z.floor() as i32;
     // Vanilla HeightmapTypeArgument converts the id to lower case before matching.
     let heightmap_name = context.get_argument::<String>("heightmap")?.to_lowercase();
+    let Some(kind) = heightmap_kind(&heightmap_name) else {
+        return Err(
+            ERROR_INVALID_HEIGHTMAP.create_without_context(TextComponent::text(heightmap_name))
+        );
+    };
 
     if let Some(ref world) = source.world {
         // Vanilla checks only that the chunk is loaded (`Level#hasChunk`), not the source y.
         if !world.has_chunks_at(block_x, block_z, block_x, block_z) {
             return Err(ERROR_POS_NOT_LOADED.create_without_context());
         }
-        // OCEAN_FLOOR is a live-world heightmap: vanilla computes it from block states and it
-        // ignores fluids, unlike the three persisted heightmaps.
-        let y = match heightmap_name.as_str() {
-            "world_surface" => {
+        let y = match kind {
+            HeightmapKind::WorldSurface => {
                 world.get_heightmap_height(ChunkHeightmapType::WorldSurface, block_x, block_z)
             }
-            "motion_blocking" => {
+            HeightmapKind::MotionBlocking => {
                 world.get_heightmap_height(ChunkHeightmapType::MotionBlocking, block_x, block_z)
             }
-            "motion_blocking_no_leaves" => world.get_heightmap_height(
+            HeightmapKind::MotionBlockingNoLeaves => world.get_heightmap_height(
                 ChunkHeightmapType::MotionBlockingNoLeaves,
                 block_x,
                 block_z,
             ),
-            "ocean_floor" => world.get_ocean_floor_height(block_x, block_z),
-            other => {
-                return Err(ERROR_INVALID_HEIGHTMAP
-                    .create_without_context(TextComponent::text(other.to_string())));
-            }
+            // OCEAN_FLOOR is live-world only, so it is scanned from block states.
+            HeightmapKind::OceanFloor => world.get_ocean_floor_height(block_x, block_z),
         };
         source.position.y = f64::from(y + 1);
     }
@@ -306,20 +335,24 @@ fn test_predicate(context: &CommandContext) -> Result<bool, CommandSyntaxError> 
         // Vanilla parses an inline predicate as a single LootItemCondition, so a bare
         // list is not a valid condition and cannot match.
         LootPredicate::Inline(_) => false,
-        LootPredicate::Reference(id) => context
-            .source
-            .server
-            .as_deref()
-            .and_then(|server| server.datapack_manager.get_predicate(&id.to_string()))
-            .is_some_and(|value| {
-                let params = crate::world::loot::LootContextParameters {
-                    world: context.source.world.as_deref(),
-                    this_entity: this,
-                    position: Some(context.source.position),
-                    ..Default::default()
-                };
-                crate::world::loot::evaluate_predicate_value(&value, &params)
-            }),
+        LootPredicate::Reference(id) => {
+            let Some(server) = context.source.server.as_deref() else {
+                return Ok(false);
+            };
+            let Some(value) = server.datapack_manager.get_predicate(&id.to_string()) else {
+                return Err(ERROR_UNKNOWN_PREDICATE.create_without_context_args_slice(&[
+                    TextComponent::text(id.to_string()),
+                    TextComponent::text(PREDICATE_REGISTRY),
+                ]));
+            };
+            let params = crate::world::loot::LootContextParameters {
+                world: context.source.world.as_deref(),
+                this_entity: this,
+                position: Some(context.source.position),
+                ..Default::default()
+            };
+            crate::world::loot::evaluate_predicate_value(&value, &params)
+        }
     })
 }
 
@@ -1696,6 +1729,15 @@ fn execute_summon_modifier(
         return Err(ERROR_FAILED_PEACEFUL.create_without_context());
     }
     let entity = from_type(entity_type, position, world, Uuid::new_v4());
+    // Same duplicate-UUID refusal as `/summon`; vanilla `createEntity` shares that check.
+    let with_passengers = self_and_passengers(&entity);
+    if world.entities.load().iter().any(|existing| {
+        with_passengers
+            .iter()
+            .any(|e| e.get_entity().entity_uuid == existing.get_entity().entity_uuid)
+    }) {
+        return Err(ERROR_DUPLICATE_UUID.create_without_context());
+    }
     // Vanilla creates it like `/summon` without NBT: finalized.
     finalize_spawn(
         &entity,
@@ -2571,6 +2613,26 @@ mod tests {
     use pumpkin_protocol::java::client::play::RenderType;
     use pumpkin_protocol::{BClientPacket, ClientPacket};
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn positioned_over_accepts_only_kept_heightmaps() {
+        assert_eq!(
+            heightmap_kind("world_surface"),
+            Some(HeightmapKind::WorldSurface)
+        );
+        assert_eq!(
+            heightmap_kind("motion_blocking_no_leaves"),
+            Some(HeightmapKind::MotionBlockingNoLeaves)
+        );
+        assert_eq!(
+            heightmap_kind("ocean_floor"),
+            Some(HeightmapKind::OceanFloor)
+        );
+        // Worldgen-only variants are filtered out, and the caller lower-cases first.
+        assert!(heightmap_kind("world_surface_wg").is_none());
+        assert!(heightmap_kind("OCEAN_FLOOR").is_none());
+        assert!(heightmap_kind("bogus").is_none());
+    }
 
     struct CountingTarget(AtomicUsize);
 

@@ -1070,8 +1070,8 @@ mod tests {
 
     #[test]
     fn connection_throttle_drops_repeat_ip_within_window() {
-        let ip: IpAddr = "1.2.3.4".parse().unwrap();
-        let other: IpAddr = "5.6.7.8".parse().unwrap();
+        let ip = IpAddr::from([1, 2, 3, 4]);
+        let other = IpAddr::from([5, 6, 7, 8]);
         let start = Instant::now();
         let mut map = HashMap::new();
         let window = Duration::from_millis(4000);

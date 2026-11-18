@@ -56,3 +56,10 @@ Unit files: `crates/pumpkin-core/src/world/border.rs`, `crates/pumpkin-world/src
 
 `ticker.rs` re-read: overload skip, warning rate limit, sprint deadline reset and the park loop match
 Paper `runServer` / `waitUntilNextTick`; no change needed.
+
+## Re-verification (vanilla 1.21 decompiled source)
+Row 1 fix confirmed correct; no new code change needed this pass.
+- WorldBorder.Settings serializes lerp_time from extent.getLerpTime() (WorldBorder.java:564,579), which is MovingBorderExtent.lerpProgress: a remaining tick count decremented each tick in update() (line 513) and returned by getLerpTime() (line 490). applySettings and the world-border constructor pass settings.lerpTime() straight to lerpSizeBetween as a duration (lines 343-344, 360-362), NOT an absolute game-time deadline. The "deadline" wording in the Remaining gaps table is therefore wrong; storing remaining ticks in NBT is the correct contract.
+- ClientboundInitializeBorderPacket and ClientboundSetBorderLerpSizePacket write border.getLerpTime() (remaining ticks) directly, so remaining_ticks() and speed / MILLIS_PER_TICK are the right packet units. Call site worldborder.rs:90 passes time_in_ticks * 50 as the ms duration, confirming the inverse.
+- sync_level_border (mod.rs:1043) writes remaining_ms() into the internal field; anvil.rs converts ticks to ms on read (saturating_mul(50), line 185) and ms to ticks on write (div_ceil equivalent, line 333). Round-trip test border_lerp_time_is_stored_in_game_ticks (200 ticks <-> 10,000 ms) is present.
+- Rows 2, 3, 4, 5, 7, 8 remain open: all live in server/mod.rs, outside this unit's editable files. ticker.rs re-read: no change needed.

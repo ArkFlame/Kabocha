@@ -98,3 +98,67 @@ confirms the `TRY_WITH_EMPTY_HAND` mapping. No build run (worker mandate).
 Files touched: `crates/pumpkin-core/src/block/blocks/chiseled_bookshelf.rs`,
 `crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs` (both rustfmt'd).
 `hopper.rs` unchanged: no STILL OPEN row implicates it; its `remove_stack_specific(slot, 1)` call is correct.
+
+## Result (re-review, 2026-11-18)
+
+Verification source: decompiled ChiseledBookshelfBlock/ChiseledBookshelfBlockEntity
+are absent from .vendor/vanilla-decompiled and no Paper/Spigot copy exists under
+../; verified against the 1.21 class behaviour recorded above plus Pumpkin's own
+dispatch chain (net/java/play/use_item_on.rs:145-269, block/registry.rs:495-514).
+No build run (worker mandate).
+
+4. VERIFIED FIXED (already in tree) - use_with_item resolves get_hit_slot first
+   (blocks/chiseled_bookshelf.rs:83-88), then reads the block-entity stack, returning
+   PassToDefaultBlockAction for an occupied slot before the bookshelf_books tag check
+   (:102-111). This matches vanilla useItemOn returning TRY_WITH_EMPTY_HAND for any
+   held item on an occupied slot; the dispatch redispatches MAIN_HAND to normal_use.
+   No code change needed this pass.
+5. VERIFIED FIXED (already in tree) - occupancy now comes from the block-entity
+   stack: has_book in use_with_item (:102) and remove_book inside try_remove_book
+   in normal_use (:175-178, entities:236-248). Blockstate slot flags are no longer
+   read for interaction; a /setblock shelf with no block entity returns Pass
+   (vanilla getBlockEntity==null -> PASS). No code change needed this pass.
+6. STILL OPEN - full insert/remove/comparator transition gametest still requires the
+   pumpkin-gametest world harness, a test file outside this unit's allowed files
+   (basenames: chiseled_bookshelf.rs, hopper.rs, use_item_on.rs). Left open.
+   Strengthened the pure unit-test seam in entities/chiseled_bookshelf.rs with a
+   guard that removing from an already-empty slot stays empty (vanilla PASS on an
+   empty removeStack result), which underpins both fixes above. UNVERIFIED (no build).
+
+Files touched: crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs
+(test-only), docs/tracker/tblocks-chiseled-bookshelf.md. rustfmt --edition 2024
+run on the touched .rs file. blocks/chiseled_bookshelf.rs, hopper.rs and
+use_item_on.rs unchanged this pass (no outstanding row implicates them).
+
+## Result (re-review, 2026-11-18, second pass)
+
+Verification: decompiled ChiseledBookshelfBlock/BlockEntity are absent from
+.vendor/vanilla-decompiled (glob `**/ChiseledBookshelf*` returns no files) and no
+Paper/Spigot copy exists under ../; verified against the 1.21 class behaviour
+recorded above and Pumpkin's dispatch chain (net/java/play/use_item_on.rs:231-269:
+PassToDefaultBlockAction + MAIN_HAND -> on_use/normal_use). No build run (worker
+mandate).
+
+2. VERIFIED FIXED - creative-mode book removal deletes the stack
+   (blocks/chiseled_bookshelf.rs:187-194).
+3. VERIFIED FIXED - `remove_stack_specific` splits `amount` and returns EMPTY for
+   `amount == 0` (entities/chiseled_bookshelf.rs:297-314); hopper.rs:442 passes 1.
+4. VERIFIED FIXED - hit slot resolved before the held-item tag check (block
+   :83-88), occupied slot -> PassToDefaultBlockAction (:102-104).
+5. VERIFIED FIXED - occupancy read from the block-entity stack via `has_book`
+   (block :102, entity :250-258); no block entity -> Pass, no pickup sound and
+   no comparator change for an empty stack (`try_remove_book` :175-178).
+
+6. STILL OPEN - full insert/remove/comparator transition gametest still requires
+   the pumpkin-gametest world harness and a new test file outside this unit's
+   allowed basenames (chiseled_bookshelf.rs, hopper.rs, use_item_on.rs). Cannot
+   be completed here. Strengthened the pure unit-test seam in
+   entities/chiseled_bookshelf.rs with `set_stack_and_hopper_validity_follow_bookshelf_rules`,
+   covering the insert path (tag gate on `set_stack`/`is_valid_slot_for`, occupied
+   slot rejection, empty-stack clearing) that underpins this row. UNVERIFIED (no
+   build).
+
+Files touched: crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs
+(test-only), docs/tracker/tblocks-chiseled-bookshelf.md.
+blocks/chiseled_bookshelf.rs, hopper.rs and use_item_on.rs unchanged (no
+outstanding row implicates them).

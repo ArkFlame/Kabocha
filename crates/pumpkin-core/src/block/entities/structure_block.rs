@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pumpkin_data::block_properties::{StructureBlockLikeProperties, StructureblockMode};
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::{Block, BlockDirection, BlockStateId, Mirror, Rotation};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::nbt_compress::write_gzip_compound_tag_to_bytes;
@@ -310,6 +311,10 @@ pub fn capture_structure_template_from_world(
             Vector3::new(max_x as f64 + 1.0, max_y as f64 + 1.0, max_z as f64 + 1.0),
         );
         for entity in world.get_entities_at_box(&area) {
+            // Vanilla fillEntityList excludes players from the saved entity list.
+            if entity.get_entity().entity_type == &EntityType::PLAYER {
+                continue;
+            }
             let entity_pos = entity.get_entity().pos.load();
             let rel_pos = Vector3::new(
                 entity_pos.x - min_x as f64,
@@ -427,8 +432,6 @@ fn is_randomizable_container_id(id: &str) -> bool {
             | "hopper"
             | "crafter"
             | "decorated_pot"
-            | "suspicious_sand"
-            | "suspicious_gravel"
     ) || path.ends_with("shulker_box")
 }
 
@@ -651,6 +654,12 @@ pub fn place_structure_template_in_world(
     let pivot = Vector3::new(0, 0, 0);
 
     for block_info in palette.blocks() {
+        // Vanilla applies BlockRotProcessor in processBlockInfos, consuming one draw for every
+        // palette entry before build-limit filtering, so skipped entries still advance the RNG.
+        if clamped_integrity < 1.0 && integrity_rng.next_f32() > clamped_integrity {
+            continue;
+        }
+
         let Some(resolved_state) = BlockStateResolver::resolve(&block_info.state, rotation, mirror)
         else {
             continue;
@@ -663,11 +672,6 @@ pub fn place_structure_template_in_world(
             continue;
         }
 
-        // Vanilla BlockRotProcessor applies to every info (with or without NBT) and
-        // drops the rejected entry, leaving any block already at that position intact.
-        if clamped_integrity < 1.0 && integrity_rng.next_f32() > clamped_integrity {
-            continue;
-        }
         let state = resolved_state;
 
         // Vanilla pre-sets a BARRIER with UPDATE_SKIP_ALL_SIDEEFFECTS before placing an entry
@@ -1657,6 +1661,10 @@ mod tests {
         assert!(!is_randomizable_container_id("minecraft:brewing_stand"));
         assert!(!is_randomizable_container_id("minecraft:furnace"));
         assert!(!is_randomizable_container_id("minecraft:sign"));
+        // BrushableBlockEntity extends BlockEntity, not RandomizableContainer: vanilla never
+        // writes a LootTableSeed for suspicious sand or gravel.
+        assert!(!is_randomizable_container_id("minecraft:suspicious_sand"));
+        assert!(!is_randomizable_container_id("minecraft:suspicious_gravel"));
     }
 
     #[test]

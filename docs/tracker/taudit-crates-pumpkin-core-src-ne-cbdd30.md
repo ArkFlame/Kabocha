@@ -105,3 +105,56 @@ No pure unit test seam exists for either move_vehicle change (both need a JavaCl
 entity); login_start change is a deletion of an early check covered by join_rejection.
 
 No cargo/git run (forbidden for this worker): UNVERIFIED.
+
+
+## Result (re-audit 2026-11-18)
+
+No code changes: every row touching the granted files (login_start.rs, move_vehicle.rs) is
+already fixed, and the remaining open rows live in files outside this unit.
+
+- Row 2 (server-full before ban/whitelist) - VERIFIED FIXED in-scope. login_start.rs has no
+  pre-auth max-players check; vanilla ServerLoginPacketListenerImpl#
+  verifyLoginAndFinishConnectionSetup calls PlayerList#canPlayerLogin (ban -> whitelist ->
+  ip-ban -> full) only after auth. Enforcement is now solely in server/mod.rs join_rejection
+  (outside this unit), so the effective order matches vanilla.
+- Row 3 (op bypass for player limit) - FIXED in server/mod.rs join_rejection
+  (can_bypass_player_limit via operator_config, checked before the limit at 1403-1415),
+  outside this unit. login_start.rs holds no limit logic. max_players = 0 unlimited is kept.
+- Row 4 (ban date tz name) - OPEN, outside this unit: net/mod.rs FORMAT_DESCRIPTION/can_not_join
+  is cosmetic kick text; vanilla PlayerList.BAN_DATE_FORMAT uses "yyyy-MM-dd 'at' HH:mm:ss z".
+- Row 5 (PlayerConfig defaults) - OPEN, outside this unit: net/mod.rs PlayerConfig::default
+  (view_distance 8, skin_parts 0x7F); the view-distance seed at profile creation is in the same
+  file.
+- Row 6 (try_enqueue_spawn_packet not fallible) - OPEN, outside this unit: net/mod.rs:359; no
+  vanilla counterpart and no caller needs the back-pressure signal.
+- move_vehicle.rs extra findings - VERIFIED FIXED against vanilla ServerGamePacketListenerImpl#
+  handleMoveVehicle (lines 582-607): finite-value check kicks with
+  multiplayer.disconnect.invalid_vehicle_movement, yaw/pitch wrapped with Mth.wrapDegrees
+  (wrap_degrees) before absSnapTo, positions clamped via clamp_horizontal/vertical. No further
+  in-scope gap found.
+- No pure unit test seam in either granted file (both need JavaClient + entity/network); no test
+  added.
+- No cargo/git run (forbidden for this worker): UNVERIFIED.
+
+## Result (verify pass, server-restart resume 2026-11-18)
+
+Re-verified the granted files directly against decompiled vanilla; no code changes needed because
+every in-scope row is already fixed. fixed=0 new this pass.
+
+- Row 2 (server-full before ban/whitelist) - VERIFIED FIXED in-scope. login_start.rs contains no
+  max-players / server-full branch; only name validation, proxy handoff and profile creation.
+  Enforcement lives in server/mod.rs (outside this unit).
+- move_vehicle invalid-value kick - VERIFIED against ServerGamePacketListenerImpl.java:565-583:
+  containsInvalidValues checks NaN/finite, disconnect uses
+  multiplayer.disconnect.invalid_vehicle_movement; move_vehicle.rs:20-31 matches (uses is_finite,
+  which is a superset of the vanilla check).
+- move_vehicle clamp + rotation wrap - VERIFIED against lines 569-607: clampHorizontal
+  -3.0E7..3.0E7 / clampVertical -2.0E7..2.0E7 and Mth.wrapDegrees on yRot/xRot;
+  move_vehicle.rs:36-44 matches via clamp_horizontal/vertical + wrap_degrees.
+- Row 3 (op bypass for limit) - OPEN, outside unit (server/mod.rs join_rejection).
+- Row 4 (ban date tz name) - OPEN, outside unit (net/mod.rs FORMAT_DESCRIPTION).
+- Row 5 (PlayerConfig defaults) - OPEN, outside unit (net/mod.rs).
+- Row 6 (try_enqueue_spawn_packet not fallible) - OPEN, outside unit (net/mod.rs).
+- No pure unit test seam in either granted file (both need JavaClient + entity/network); none added.
+- No code changes, so no worker compile pitfalls to re-check. No cargo/git run (forbidden):
+  UNVERIFIED.

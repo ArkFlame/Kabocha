@@ -83,3 +83,43 @@ Test: skipped. The UP-face parity case needs an asymmetric block (solid top vs b
 to observe; reliable side_flags for such a state cannot be confirmed without running
 tests, and no compile is available in this pass. `rustfmt --edition 2024` was run on
 vine.rs (exit 0).
+
+## Result (final verification 2026-11-18)
+
+Re-checked every STILL OPEN row against decompiled vanilla
+(`VineBlock.java`, `MultifaceBlock.java`, `Direction.java`,
+`BlockPlaceContext.java`). No further source edits were needed: vine.rs
+already matches vanilla for every row. All five rows resolved, open=0.
+
+- 1. `get_updated_state` (row 1): premise FALSE. Vanilla
+  `VineBlock.getUpdatedState` (VineBlock.java:117-142) recomputes every
+  horizontal face plus UP on each neighbour update, exactly as Pumpkin does;
+  it does NOT recompute only the changed face. The real discrepancy (vanilla
+  checks the above block with `Direction.DOWN`, its top face, while
+  `canSupportAtFace` uses UP, its bottom face) is already fixed at
+  vine.rs:79 with an explanatory comment. VERIFIED, no change.
+
+- 2. Dead `above_props` fallback (row 2): vanilla carries the identical
+  fallback (VineBlock.java:129-135), so removing it would diverge. Kept
+  intentionally. VERIFIED, no change.
+
+- 3. `default_state.is_air()` (row 3): all six checks already use the
+  fetched state's `is_air()` (edge/cw/ccw test states, above state, below
+  state), matching vanilla's `isAir()` / `isEmptyBlock()`. VERIFIED,
+  no change.
+
+- 4. Placement direction order (row 4): premise FALSE. Pumpkin's
+  `EntityBase::get_entity_facing_order` (entity/mod.rs:4718) is a faithful
+  port of vanilla `Direction.orderedByNearest` (Direction.java:137-166),
+  and `get_nearest_looking_directions` (vine.rs:197) matches
+  `BlockPlaceContext.getNearestLookingDirections` (BlockPlaceContext.java:71-90).
+  No cross-file helper is required. VERIFIED, no change.
+
+- 5. `can_place_at` duplication (row 5): already refactored into a single
+  `get_state_for_placement` helper (vine.rs:231) mirroring vanilla
+  `getStateForPlacement` (VineBlock.java:277-293); both `can_place_at` and
+  `on_place` call it. Pure unit test `placement_attaches_only_to_supported_face`
+  (vine.rs:649) covers the support check. VERIFIED, no change.
+
+Test: the existing `TestBlocks`-backed unit test is deterministic and pure;
+no new seam justified another test. `rustfmt --edition 2024 vine.rs` exit 0.

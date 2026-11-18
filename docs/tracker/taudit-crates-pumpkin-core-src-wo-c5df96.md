@@ -136,3 +136,70 @@ Verified, no change:
 - 148-189 find_open_position / 191-220 is_position_clear: require world
   collision-shape queries (Level.noCollision / findCollisionFreePosition),
   outside this single-file pass; left open.
+
+
+## Result (re-verification 2026-11-18)
+
+Re-checked every STILL OPEN row against decompiled vanilla in
+.vendor/vanilla-decompiled/net/minecraft/ (PortalForcer, PortalShape,
+NetherPortalBlock). All rows are already resolved in the current nether.rs;
+no further source edit was needed. No build run (orchestrator compiles).
+
+- 45-65 calculate_teleport_yaw: FIXED in code. NetherPortalBlock:300
+  outputRotation = portalAxis == axis ? 0 : 90; :279 defaults a missing source
+  axis to X. Code adds +90 on axis change, defaults None to X. Correct.
+- 103-106 entity_pos_in_portal: FIXED in code. PortalShape.getRelativePosition:246
+  leaves the forward offset unclamped; code no longer clamps perp_offset.
+- 488-495 valid_state_inside_portal: FIXED in code. PortalShape.isEmpty:192-194
+  accepts air, fire tag or any NETHER_PORTAL state regardless of axis; code
+  ignores axis and matches.
+- 714 fallback_y: FIXED in code. PortalForcer.createPortal:170 uses
+  Math.max(getMinY() + 1, 70); fallback_y lower bound is (min_y + 1).max(70).
+- 732-769 is_valid_portal_pos / is_valid_portal_air: FIXED in code.
+  canHostFrame:235-261 checks the same -1..3 by -1..4 area with isSolid on the
+  floor row and canPortalReplaceBlock above; code matches.
+- 791-813 fallback clear volume: NO CHANGE. createPortal:183-196 loops
+  box -1..2, width 0..2, height -1..3 with obsidian below and air above;
+  Pumpkin build_portal_frame loops match.
+- 382-404 get_lower_cornor: NO CHANGE. Returns None when get_width == 0
+  (nether.rs:336-338), matching vanilla calculateBottomLeft null.
+- 629-680 find_safe_location order: NO CHANGE. spiralAround keeps the nearest
+  candidate by distSqr, not first-usable; Pumpkin also keeps nearest.
+- 497-595 search_for_portal was_already_valid: NO CHANGE. Vanilla trusts POI;
+  Pumpkin is stricter, which avoids stale records; retained.
+- 526-542 POI chunk loading: note-only, no change.
+- 148-189 / 191-220 find_open_position / is_position_clear: FIXED in code since
+  the prior Result. find_open_position now calls World.find_free_position
+  (pumpkin-core/src/world/mod.rs:3265), a port of vanilla
+  PortalShape.findCollisionFreePosition / Level.findFreePosition using block
+  collision shapes and allowed_centers; the old is_position_clear boolean test
+  no longer exists. Vanilla PortalShape:250-259 confirms the box/semantics.
+- 810-826 fallback clear flags: previously fixed; not revisited.
+
+Tests already present and type-correct: portal_yaw_rotation,
+portal_relative_forward_offset_is_not_clamped,
+any_portal_axis_counts_as_empty_inside_shape, fallback_y_uses_min_y_plus_one,
+allowed_exit_centres_box_matches_vanilla. No unwrap/expect/panic, no println.
+
+## Result (final confirmation 2026-11-18)
+
+Re-read nether.rs after the restart; every STILL OPEN row is already resolved in
+source and needs no further edit this pass:
+
+- 45-65 calculate_teleport_yaw: unwrap_or(X) default, fixed +90 on axis change.
+- 103-106 entity_pos_in_portal: perp_offset left unclamped.
+- 488-495 valid_state_inside_portal: axis ignored (`_axis`), any portal state counts.
+- 714 fallback_y: `(min_y + 1).max(70)`, `Option` when band empty.
+- 732-769 is_valid_portal_pos/air: -1..3 by -1..4, is_solid_block floor,
+  replaceable && !is_liquid above.
+- 791-813 fallback clear loops and client-only flags: match decompiled createPortal.
+- 148-189 find_open_position: uses World.find_free_position (world/mod.rs:3289),
+  a collision-shape port; old is_position_clear removed.
+- 382-404 get_lower_corner: returns None at zero width.
+- 629-680 / 497-595 / 526-542: verified no change (nearest-by-distSqr, stricter
+  POI filter retained, note-only chunk loading).
+
+Cross-crate check: World.find_free_position exists at world/mod.rs:3289, so the
+call compiles. Tests present and type-correct (BlockState::from_id returns
+&'static BlockState, matching the &BlockState parameter). No new edits, no build
+run (orchestrator compiles).

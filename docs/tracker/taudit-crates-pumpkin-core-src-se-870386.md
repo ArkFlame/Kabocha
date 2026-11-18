@@ -101,3 +101,73 @@ Verified, no change needed:
 - `ticker.rs:114-118` game-test gate already runs after `server.tick()` next to the
   runner (vanilla `MinecraftServer.java:1929-1930` `runsNormally()` gate); `|| sprinting`
   is redundant but harmless.
+
+
+## Result
+
+Re-audited all rows against `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`
+(`runServer` / `tickServer`, lines 1353-1430, 1603-1639). Both supplied decompiled trees are
+Paper/Canvas/Folia: the classic `l - lastOverloadWarningNanos` gate is gone (replaced by
+`tickSchedule` catchup, `lastOverloadWarningNanos = nextTickTimeNanos` at line 1385), so the
+`>=`/`>` detail recorded by the prior Result cannot be re-derived here. Classic vanilla uses
+`>=`, which matches the current `ticker.rs:258`, so no change was made there and
+`sustained_overload_warns_again_after_wall_clock_interval` stays `[1, 6]`.
+
+- FIXED (XS) `ticker.rs:13,142` - pause-when-empty "Server empty for {} seconds, pausing"
+  logged at `warn!`; vanilla uses `LOGGER.info` (MinecraftServer.java:1620). Changed to `info!`
+  and added `info` to the `tracing` import. The rest of the pause path (threshold `seconds*20`,
+  reset when players present or sprinting, one-shot log+autosave on the crossing tick,
+  connection/scheduler ticking while paused) already matches vanilla tickServer 1608-1639;
+  the runtime-settable config is wired in `net/management/handlers.rs:956-973` and defaults to
+  60s in `hub.rs:52`. Ran `rustfmt --edition 2024 crates/pumpkin-core/src/server/ticker.rs` (rc 0).
+  No compile/test run (unit rules).
+
+Rows left OPEN (reasons):
+
+- `ticker.rs:190` tick_count-at-start: needs `server/mod.rs` `update_tick_times` + the
+  `sync_game_time` `+1` patch and an audit of every in-tick reader; outside hub.rs,
+  server_tick_end.rs and ticker.rs. Size M.
+- `ticker.rs:87-203` try/catch crash report: needs `catch_unwind` plus cross-crate wiring to the
+  `pumpkin` binary's panic hook / `CrashReport`; not reproducible in ticker.rs alone. Size L.
+
+Verified, no change needed:
+
+- `ticker.rs:95` sprint gate (`is_sprinting() && runs_normally()`), `ticker.rs:165-175`
+  post-tick game-test gate and `ticker.rs:136-163` tick body still match vanilla.
+- `server_tick_end.rs` events unchanged; nanosecond payload and event numbering are fork API.
+
+## Result
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`. No in-unit
+code change was needed in this pass.
+
+Verified, no change needed:
+
+- `ticker.rs:140-153` pause-when-empty already matches vanilla `tickServer` 1608-1639:
+  `emptyTicks++`/reset (Pumpkin `EmptyTickClock::observe`), threshold `seconds*20`,
+  one-shot `LOGGER.info("Server empty for {} seconds, pausing")` + `autoSave()` on
+  the crossing tick (Pumpkin `info!` + `autosave_if_due(true)`), scheduler heartbeat
+  and connection ticking while paused. Default 60s in `hub.rs:52` matches vanilla
+  `pauseWhenEmptySeconds()`; runtime setter in `handlers.rs:956-973` is intact.
+- `ticker.rs:95` sprint gate is `is_sprinting() && runs_normally()`, matching vanilla
+  `isSprinting() && checkShouldSprintThisTick()` (1360).
+- `ticker.rs:165-175` game-test gate runs after `server.tick()` under `runs_normally()`
+  (vanilla 1929-1930 `GameTestTicker.SINGLETON.tick()`).
+- `ticker.rs:255-259` overload gate keeps classic `>=` on `since_warning` and the
+  `[1, 6]` test. The supplied tree is Folia/Paper (`lastOverloadWarningNanos =
+  nextTickTimeNanos`, 1385), so the classic `l - lastOverloadWarningNanos` gate
+  cannot be re-derived here; the fork targets classic vanilla, keep `>=`.
+- `server_tick_end.rs` (fork API) and the `EmptyTickClock`/sprint/overload unit tests
+  are unchanged and still cover every pure seam; no new test added.
+
+Rows left OPEN (files outside this unit):
+
+- `ticker.rs:179,190` tick_count-at-start: vanilla increments at the top of
+  `tickServer` (`// this.tickCount++;`, line 1705); fixing requires editing
+  `server/mod.rs` `update_tick_times` + the `sync_game_time` `+1` patch and auditing
+  every in-tick reader, all outside this unit. Size M.
+- `ticker.rs:87-203` try/catch crash report: vanilla wraps the tick in
+  `catch (Throwable)` and writes `crash-reports/crash-<date>-server.txt` (1413-1424).
+  Needs `catch_unwind` plus cross-crate wiring to the `pumpkin` binary's panic hook
+  and `CrashReport`; not reproducible in ticker.rs alone. Size L.

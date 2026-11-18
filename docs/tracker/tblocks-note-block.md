@@ -45,3 +45,9 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
   range would diverge. Added a short comment so the quirk is not fixed incorrectly later.
 - Rows: fixed=0, open=0. No test added: no behaviour change, and on_synced_block_event needs a live
   World so there is no pure seam in this file.
+- Re-verified 2026-11-18 against `.vendor/vanilla-decompiled`: NoteBlock.java:172 uses
+  `Holder.direct(SoundEvent.createVariableRangeEvent(soundId))`; SoundEvent.java:35-37 returns
+  `Optional.empty()` with no registry lookup, range computed from volume at play time (:43-45).
+  Pumpkin `range: None` (note.rs:188) writes an absent fixed range (sound_effect.rs:51-54), matching
+  vanilla. No change needed; leaving the explanatory comment in place. data_component.rs sound
+  converters copy `range` verbatim (:34-59), so no fix or pure test seam there.

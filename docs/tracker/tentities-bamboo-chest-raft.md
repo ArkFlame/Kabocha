@@ -59,3 +59,48 @@ loot/damage helpers in `entity/vehicle/vehicle.rs`.
   `base_tick_without_fluid_push` in `entity/mod.rs`, outside this unit, and the tracker only
   authorises it on observed server-side divergence; boat motion is client-predicted, so adding
   it unprompted risks fighting the client.
+
+
+### Re-verification 2026-11-18 (CODER pass)
+
+- #3 bubble column: verified present (`tick_bubble_column`, `on_above_bubble_column`,
+  `on_inside_bubble_column` in `boat.rs`, called from `tick`). No change.
+- #4 chest contents vs gamerule: verified `scatter_chest_contents()` runs before the
+  `entity_drops` gate. No change.
+- #5 double boat drop: verified `has_entity_loot_table()` returns false for all boat types
+  so the loot roll is skipped; single hardcoded drop remains. No change.
+- #6 fluid current push: LEFT OPEN. Needs `base_tick_without_fluid_push` in `entity/mod.rs`,
+  outside this unit, and is only authorised on observed server-side divergence; boat motion
+  is client-predicted. No change.
+- Paddle handler (`net/java/play/paddle_boat.rs`): matches decompiled vanilla
+  `ServerGamePacketListenerImpl.handlePaddleBoat` (line 2464) which gates on
+  `player.getControlledVehicle() instanceof AbstractBoat`; `Entity.getControlledVehicle`
+  (line 6661) requires the immediate vehicle whose controlling passenger is the sender.
+  Pumpkin checks the immediate vehicle, that its controlling passenger is the sender
+  (by entity id, unique), and downcasts to `BoatEntity`. `get_controlling_passenger()`
+  returns the first player passenger, matching vanilla `AbstractBoat`. No parity gap, no
+  pure-logic seam for a unit test in this handler. No change.
+
+
+## Result (2026-11-18 re-review, second CODER pass)
+
+Unit scope: only `net/java/play/paddle_boat.rs` is editable. No source change was needed.
+
+- Paddle handler (`paddle_boat.rs`): verified line-by-line against decompiled vanilla
+  `ServerGamePacketListenerImpl.handlePaddleBoat` (line 2464). Vanilla gates on
+  `getControlledVehicle() instanceof AbstractBoat`, where `Entity.getControlledVehicle`
+  (line 6661) = immediate vehicle whose `getControllingPassenger() == this`, and
+  `AbstractBoat.getControllingPassenger` (line 845) = first passenger if it is a Player.
+  Pumpkin checks the immediate vehicle, matches its controlling passenger by unique entity
+  id, downcasts to `BoatEntity` (all boat/chest-boat types), then calls `set_paddle_state`,
+  which is a plain metadata set in vanilla (line 418). Exact parity, no gap. No pure-logic
+  seam worth a unit test in this network glue. No change.
+- #3 bubble column: open row targets `boat.rs` (outside this unit); already fixed there
+  (`tick_bubble_column` at line 429, called at line 613). No change.
+- #4 chest contents vs gamerule: targets `boat.rs` (outside this unit); `scatter_chest_contents`
+  at lines 272/489/730 runs unconditionally before the drops gate. No change.
+- #5 double boat drop: targets `vehicle.rs` (outside this unit); `has_entity_loot_table`
+  (line 27) returns false for boats, gating the roll at line 201. No change.
+- #6 fluid current push: LEFT OPEN. Needs `base_tick_without_fluid_push` in `entity/mod.rs`,
+  outside this unit, and is authorised only on observed server-side divergence; boat motion
+  is client-predicted. No change.

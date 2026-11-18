@@ -91,3 +91,50 @@ Other remaining gaps left open:
 - Row 4 (players excluded from pushes): intentional divergence, client-authoritative movement (`docs/LEDGER.tsv` #1679).
 
 Files touched: `crates/pumpkin-core/src/block/entities/piston.rs` (test/import only, no behaviour change); `rustfmt --edition 2024` ran clean on it.
+
+
+## Result (recheck)
+
+Only row 3 of the h6 gap status is marked STILL OPEN: the piston-head collision slab anchoring in `entities/piston.rs`. Rechecked against the decompiled target and it is already correct, so no code change was needed.
+
+- `PistonHeadBlock.SHAPE_PLATFORM` is `Block.boxZ(16, 0, 4)` = box(0,0,0,16,16,4) (Block.java:200-212), a 4-pixel plate on the NORTH/front face. `Shapes.rotateAll` (Shapes.java:504-520) puts that plate on the facing side for every direction: NORTH z 0-0.25, SOUTH z 0.75-1.0, EAST x 0.75-1.0 (`BLOCK_ROT_Y_90` = `ROT_90_Y_NEG`, OctahedralGroup.java:70), WEST x 0-0.25, UP y 0.75-1.0 (`BLOCK_ROT_X_270` = `ROT_90_X_POS`), DOWN y 0-0.25.
+- `PistonBlockEntity::head_shape_aabb` (`entities/piston.rs:188-201`) produces exactly these six slabs, and the pure test `head_shape_slab_sits_on_facing_side` locks all six directions. The tracked `EAST_AABB = box(0,0,0,4,16,16)` and `SHORT_*` 8-pixel variants come from an older MC convention and do not apply here. Current vanilla keeps the plate 4 pixels thick for both normal and short heads; `SHORT` only shortens the arm (z 4-16 vs 4-20), which Pumpkin intentionally does not model for the sweep.
+- End-crystal push geometry is unchanged, so no recheck is needed.
+
+Other rows remain as previously recorded:
+
+- Row 2 (collision-shape entity sweep): now implemented in the current tree via `get_block_collision_shapes_at` in `push_entities` (`entities/piston.rs:78-86`), matching vanilla `PistonMovingBlockEntity.moveCollidedEntities` (line 131). No action left.
+- Row 1 (non-cancellable destroy): still open. Needs a non-cancellable destroy API on `World`, a cross-crate refactor outside this unit's files.
+- Row 4 (players excluded from pushes): intentional divergence because movement is client-authoritative (`docs/LEDGER.tsv` #1679).
+
+No source files were modified this pass; rustfmt was not needed.
+
+## Result (vanilla re-verification, decompiled tree available)
+
+Only h6 row 3 was marked STILL OPEN; re-checked every "Remaining gaps" row against the
+decompiled vanilla now present under `.vendor/vanilla-decompiled/`. All four rows are already
+closed in the current tree, so no source files were modified and no new test was needed (the
+row-3 test already exists).
+
+- Row 3 (head slab anchoring): CLOSED, already correct. `PistonHeadBlock.java:38` defines
+  `SHAPE_PLATFORM = Block.boxZ(16.0, 0.0, 4.0)`; `Block.boxZ` (Block.java:200-212) expands that
+  to `box(0,0,0,16,16,4)`, a 4-pixel plate on the NORTH/front face, and `Shapes.rotateAll`
+  keeps it on the facing side for all six directions. `PistonBlockEntity::head_shape_aabb`
+  (`entities/piston.rs:251-264`) produces exactly those six slabs, locked by the existing pure
+  test `head_shape_slab_sits_on_facing_side` (`entities/piston.rs:452-481`). No change needed.
+- Row 1 (non-cancellable destroy): CLOSED in tree, not open. `PistonBaseBlock.move`
+  (PistonBaseBlock.java:359-370) destroys unconditionally via `dropResources` +
+  `setBlock(AIR, UPDATE_CLIENTS|UPDATE_KNOWN_SHAPE)` + `gameEvent(GameEvent.BLOCK_DESTROY)`.
+  `piston.rs:422-439` now uses `world.break_block_naturally(...)` plus
+  `GameEvent::BlockDestroy`, i.e. non-cancellable with drops and the game event. Matches.
+- Row 2 (collision-shape entity sweep): CLOSED in tree, not open. Vanilla
+  `PistonMovingBlockEntity.moveCollidedEntities` (line 131) sweeps
+  `getCollisionRelatedBlockState().getCollisionShape(...)` for every sub-shape.
+  `entities/piston.rs:124-139` now uses the 4-pixel head slab for the head BE and
+  `pushed_block_state.get_block_collision_shapes_at(...)` for pushed blocks. Matches.
+- Row 4 (players excluded): LEFT OPEN. One-line reason: intentional divergence because player
+  movement is client-authoritative (`docs/LEDGER.tsv` #1679); fixing needs cross-crate movement
+  reconciliation and entity `Entity.move(PISTON)` behavior outside this unit's three files.
+
+No behaviour change, so no unit test seam was added; the existing row-3 test already locks the
+only STILL OPEN row. rustfmt not needed (no source edits).

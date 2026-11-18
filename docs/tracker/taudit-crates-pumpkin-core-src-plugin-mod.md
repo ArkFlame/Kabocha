@@ -61,3 +61,22 @@ unload path relies on (deactivating one plugin hides its command and its `/`-var
 alias while another plugin's command keeps executing).
 
 Files touched: `crates/pumpkin-command/src/node/dispatcher.rs` (test only).
+
+## Result (verification pass 2)
+
+Re-checked the only STILL OPEN row against the Paper reference recorded above
+(`CommandMap.unregister` removes a plugin's root label and aliases from
+`knownCommands`; vanilla has no plugin system). The command-node removal is
+implemented across this unit's files and verified:
+
+| Row | Result |
+|---|---|
+| Remove plugin command nodes from the tree after reload | VERIFIED FIXED. `Tree::remove_root_command` (tree.rs) detaches the primary root, its redirecting aliases and their subtrees, drops executors and predicates by replacing nodes with inert literals, and clears cached names and global ids. `CommandDispatcher::remove_commands_from_source` (dispatcher.rs) drives it by source and `Context::unregister_commands` (context.rs) calls it on unload. `release_library` no longer keeps the library resident for commands (mod.rs change, outside this unit). |
+| Blocking/non-blocking dispatch order | Already FIXED in b9ab007b1; unchanged this pass |
+| Per-handler panic isolation | Already FIXED in b9ab007b1; unchanged this pass |
+
+Added `removing_plugin_command_also_removes_aliases` in `dispatcher.rs`: pins that
+unload removes both the primary root and its explicit alias from the tree, so no
+residual label can reach the plugin executor (Paper `CommandMap.unregister` parity).
+
+Files touched this pass: `crates/pumpkin-command/src/node/dispatcher.rs` (test only).

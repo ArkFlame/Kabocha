@@ -105,10 +105,10 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
         NbtTag::Long(value) => TextComponent::text(format!("{value}"))
             .color_named(NamedColor::Gold)
             .add_child(TextComponent::text("L").color_named(NamedColor::Red)),
-        NbtTag::Float(value) => TextComponent::text(format!("{value}"))
+        NbtTag::Float(value) => TextComponent::text(java_float_to_string(*value))
             .color_named(NamedColor::Gold)
             .add_child(TextComponent::text("f").color_named(NamedColor::Red)),
-        NbtTag::Double(value) => TextComponent::text(format!("{value}"))
+        NbtTag::Double(value) => TextComponent::text(java_double_to_string(*value))
             .color_named(NamedColor::Gold)
             .add_child(TextComponent::text("d").color_named(NamedColor::Red)),
         NbtTag::ByteArray(value) => {
@@ -135,9 +135,7 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
             content.add_child(TextComponent::text("]"))
         }
         NbtTag::String(value) => {
-            // Vanilla `NbtString.quoteAndEscape` escapes backslashes and quotes.
-            let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-            TextComponent::text(format!("\"{escaped}\"")).color_named(NamedColor::Green)
+            TextComponent::text(snbt_quote_and_escape(value)).color_named(NamedColor::Green)
         }
         NbtTag::List(value) => {
             let mut content = TextComponent::text("[");
@@ -160,7 +158,8 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
                 let tag = &value.child_tags[key];
                 content = content
                     .add_child(
-                        TextComponent::text(format!("{key}: ")).color_named(NamedColor::Aqua),
+                        TextComponent::text(format!("{}: ", snbt_quote_key(key)))
+                            .color_named(NamedColor::Aqua),
                     )
                     .add_child(snbt_colorful_display(tag, 0));
                 if index < value.child_tags.len() - 1 {
@@ -515,6 +514,53 @@ fn java_number_from_scientific(sign: &str, scientific: &str) -> String {
         let frac = if digits.len() > 1 { &digits[1..] } else { "0" };
         format!("{sign}{}.{frac}E{exp}", &digits[..1])
     }
+}
+
+/// Vanilla `TextComponentTagVisitor.handleEscapePretty`: keys matching `[A-Za-z0-9._+-]+`
+/// stay bare, everything else is quoted and escaped.
+fn snbt_quote_key(key: &str) -> String {
+    let simple = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '+' | '-'));
+    if simple {
+        key.to_string()
+    } else {
+        snbt_quote_and_escape(key)
+    }
+}
+
+/// Vanilla `StringTag.quoteAndEscape`: picks the quote character from the first quote found so
+/// that character never needs escaping, escapes backslashes and control characters, and wraps.
+fn snbt_quote_and_escape(input: &str) -> String {
+    let mut quote: Option<char> = None;
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' | '\'' => {
+                let chosen = *quote.get_or_insert(if c == '"' { '\'' } else { '"' });
+                if chosen == c {
+                    out.push('\\');
+                }
+                out.push(c);
+            }
+            '\u{8}' => out.push_str("\\b"),
+            '\t' => out.push_str("\\t"),
+            '\n' => out.push_str("\\n"),
+            '\u{c}' => out.push_str("\\f"),
+            '\r' => out.push_str("\\r"),
+            _ if (c as u32) < 0x20 => {
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                out.push_str("\\x");
+                out.push(char::from(HEX[((c as u32) >> 4) as usize]));
+                out.push(char::from(HEX[((c as u32) & 0xF) as usize]));
+            }
+            _ => out.push(c),
+        }
+    }
+    let quote = quote.unwrap_or('"');
+    format!("{quote}{out}{quote}")
 }
 
 /// Java `Double.toString`: plain decimal for `1e-3 <= |v| < 1e7`, otherwise `d.dddE[-]n`,
@@ -1312,10 +1358,37 @@ mod tests {
     }
 
     #[test]
-    fn string_display_escapes_backslashes() {
+    fn float_and_double_display_use_java_layout() {
         assert_eq!(
-            snbt_colorful_display(&NbtTag::String(r"a\b".into()), 0).get_text(),
-            r#""a\\b""#
+            snbt_colorful_display(&NbtTag::Double(2.0), 0).get_text(),
+            "2.0d"
         );
+        assert_eq!(
+            snbt_colorful_display(&NbtTag::Float(0.5), 0).get_text(),
+            "0.5f"
+        );
+    }
+
+    #[test]
+    fn pretty_compound_quotes_unsafe_keys() {
+        let mut compound = NbtCompound::new();
+        compound.put_int("simple.key+1", 1);
+        compound.put_int("with space", 2);
+        assert_eq!(
+            snbt_colorful_display(&NbtTag::Compound(compound), 0).get_text(),
+            r#"{simple.key+1: 1, "with space": 2}"#
+        );
+    }
+
+    #[test]
+    fn string_display_escapes_backslashes_and_picks_the_quote() {
+        let display =
+            |value: &str| snbt_colorful_display(&NbtTag::String(value.into()), 0).get_text();
+        assert_eq!(display("a\\b"), r#""a\\b""#);
+        // The first quote found becomes the delimiter and stays unescaped.
+        assert_eq!(display("a\"b"), r#"'a"b'"#);
+        assert_eq!(display("a'b"), r#""a'b""#);
+        assert_eq!(display("a'b\"c"), r#""a'b\"c""#);
+        assert_eq!(display("a\nb"), r#""a\nb""#);
     }
 }

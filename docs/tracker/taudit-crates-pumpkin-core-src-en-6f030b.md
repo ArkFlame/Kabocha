@@ -46,3 +46,14 @@ Unit scope: only `entity/living.rs` may be edited.
 - No pure unit-test seam: the changed call sits inside `LivingEntity::on_death` and requires a full world/entity setup, so no test was added.
 
 Commands: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/living.rs` (exit 0). Cargo/git intentionally not run per worker contract.
+
+
+## Result
+
+Unit scope: `crates/pumpkin-core/src/entity/mob/mod.rs` (the file in this unit's title); no other source file edited.
+
+- Row 18 `entity/mob/mod.rs` `PathAwareEntity::can_spawn` (the only STILL OPEN row): verified against decompiled vanilla `PathfinderMob.checkSpawnRules(LevelAccessor, EntitySpawnReason)` at `net/minecraft/world/entity/PathfinderMob.java:31-33` = `getWalkTargetValue(this.blockPosition(), level) >= 0.0F`. The fix is already present in the current checkout: `can_spawn` now takes a `spawn::EntitySpawnReason` parameter and calls `get_pathfinding_favor` -> `Mob::get_walk_target_value` -> `>= 0.0` (`mod.rs:3514-3527`), so the missing MobSpawnType TODO is resolved. The walk-target spawn rule runs in both natural-spawn paths: `natural_spawner.rs:720-725` (CHUNK_GENERATION) and `:928-939` (NATURAL) both gate the freshly created mob on `get_walk_target_value(block_pos) >= 0.0` before `finalize_spawn`. No species overrides `get_pathfinding_favor` or `can_spawn`, so the direct checks are equivalent to the trait method. Marking row 18 FIXED (verified); no code change needed in this unit's file.
+- No pure unit-test seam: `can_spawn` needs a live `Mob` plus `World`, and the direct gate is a one-line comparison with no isolated logic, so no test was added.
+- The two other vanilla `checkSpawnRules` call sites (`SpawnUtil.trySpawnMob`, `BaseSpawner`) live in `entity/spawn_util.rs` and `block/entities/mob_spawner.rs`, files outside this unit; not touched. All other audit rows are already marked FIXED and were not re-opened.
+
+Commands: none (no `.rs` file changed, so no rustfmt needed). Cargo/git intentionally not run per worker contract.

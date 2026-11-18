@@ -52,3 +52,5 @@ Decompiled vanilla is available: .vendor/vanilla-decompiled/net/minecraft/world/
   it now asserts all IMITATIONS are candidates and IntentionallyEmpty is present.
 - Files touched: crates/pumpkin-core/src/entity/passive/parrot.rs (rustfmt --edition 2024 OK).
   No generated data, WIT, or cross-crate changes needed.
+
+Status: PASS fixed=1 (ambient candidates include the happy ghast silent entry + unit test) verified-no-change=2 (imitate EMPTY, server-side flap/descent) open=0 files=crates/pumpkin-core/src/entity/passive/parrot.rs

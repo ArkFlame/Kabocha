@@ -908,6 +908,23 @@ mod tests {
             builtin_time_marker(&noon, DEFAULT_CLOCK),
             Some((6000, 24000))
         );
+        let night = Identifier::from_static("minecraft", "night");
+        assert_eq!(
+            builtin_time_marker(&night, DEFAULT_CLOCK),
+            Some((13000, 24000))
+        );
+        let midnight = Identifier::from_static("minecraft", "midnight");
+        assert_eq!(
+            builtin_time_marker(&midnight, DEFAULT_CLOCK),
+            Some((18000, 24000))
+        );
+        let wake = Identifier::from_static("minecraft", "wake_up_from_sleep");
+        assert_eq!(builtin_time_marker(&wake, DEFAULT_CLOCK), Some((0, 24000)));
+        let siege = Identifier::from_static("minecraft", "roll_village_siege");
+        assert_eq!(
+            builtin_time_marker(&siege, DEFAULT_CLOCK),
+            Some((18000, 24000))
+        );
         assert_eq!(builtin_time_marker(&day, "minecraft:the_end"), None);
         let custom = Identifier::from_static("mymod", "day");
         assert_eq!(builtin_time_marker(&custom, DEFAULT_CLOCK), None);

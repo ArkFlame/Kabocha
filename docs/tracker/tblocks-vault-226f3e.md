@@ -67,3 +67,70 @@ Verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft
 Files edited: `crates/pumpkin-core/src/block/blocks/vault.rs`,
 `crates/pumpkin-core/src/block/entities/vault.rs`. Both formatted with `rustfmt --edition 2024`.
 Not compiled (worker restriction); orchestrator batch-checks.
+
+
+## Result (second pass: state machine + stored loot)
+
+Verified against decompiled vanilla `VaultBlock.java`, `VaultBlockEntity.java` (Server.tick,
+tryInsertKey, unlock, cycleDisplayItemFromLootTable), `VaultState.java` (tickAndGetNext,
+ejectResultItem) and `VaultServerData.java`.
+
+- Gap 1 (ejecting/display state machine): FIXED. `use_with_item` now enters UNLOCKING and
+  schedules a block tick after `UNLOCKING_DELAY_TICKS` (14). A new `on_scheduled_tick` drives
+  UNLOCKING -> EJECTING (shutter-open sound) -> one stack per `EJECTION_DELAY_TICKS` (20) ->
+  ACTIVE (shutter-close sound), matching vanilla's timing (`stateUpdatingResumesAt` equivalent
+  via self-rescheduling block ticks) and sound order (insert on UNLOCKING enter, open shutter on
+  EJECTING enter, eject per stack, close shutter on EJECTING exit).
+- Gap 2 (loot stored for reload): FIXED. `VaultBlockEntity` now owns `items_to_eject`, written to
+  and read from `server_data.items_to_eject` as a list of item-stack compounds (vanilla
+  `VaultServerData#itemsToEject`). Loot resolved at insertion is stored there and popped from the
+  back (`popNextItemToEject` order), so a reload mid-ejection keeps the rewards.
+- Gap 7 (ejection shape): retained from prior pass; spawn now happens once per EJECTING tick via
+  the same `ejection_spawn_position` + upward-velocity + pickup-delay path, with its pure test.
+- Gap 4 (non-key items): NO CHANGE NEEDED. Decompiled `VaultBlockEntity.Server.isValidToInsert`
+  uses `ItemStack.isSameItemSameComponents(stackToInsert, config.keyItem())` and plays
+  `VAULT_INSERT_ITEM_FAIL` for ANY non-matching item; `useItemOn` returns SUCCESS_SERVER whenever
+  the state is ACTIVE. Pumpkin already plays `BlockVaultInsertItemFail` and returns
+  `SuccessServer`, so the doc's `ItemTags.TRIAL_KEYS` / `TRY_WITH_EMPTY_HAND` claim is outdated.
+  Remaining minor gap: vanilla's 15-tick `last_insert_fail_timestamp` sound buffer (needs game time).
+- Gap 5 (check ordering): unchanged from prior pass; vanilla checks valid key before rewarded set.
+- Gap 3 remainder (periodic 20t ACTIVE display cycle): STILL OPEN - client-only visual (gap 8)
+  needing a persistent every-tick ACTIVE ticker; no gameplay blocker.
+- Gap 6 (ominous activation): STILL OPEN - vanilla converts a vault for nearby players with the
+  Trial Omen effect via TrialSpawner/effect entry points, which are outside this unit's files.
+- Gap 8: client-only (shutter animation, ambient loop, particles); no gameplay blocker.
+
+Files edited: `crates/pumpkin-core/src/block/blocks/vault.rs`,
+`crates/pumpkin-core/src/block/entities/vault.rs`. Both formatted with `rustfmt --edition 2024`
+(`--check` clean). Not compiled (worker restriction); orchestrator batch-checks.
+
+
+## Result (re-review pass)
+
+Re-verified the two remaining `STILL OPEN` rows against decompiled vanilla
+(`VaultBlockEntity.Server.tick`, `VaultState.tickAndGetNext`, `VaultServerData`,
+`TrialSpawner.applyOminous`, `TrialSpawnerStateData.tryDetectPlayers`).
+
+- Gap 3 remainder (periodic 20-tick ACTIVE display cycle): verified real in vanilla -
+  `Server.tick` calls `cycleDisplayItemFromLootTable` when `shouldCycleDisplayItem` holds
+  (`gameTime % 20 == 0 && state == ACTIVE`), which picks a random loot item and fires
+  `VaultDisplayItemEvent`. LEFT OPEN: purely client visual (the floating item) with no
+  gameplay blocker (gap 8); matching it needs a perpetual self-rescheduling 20-tick ticker
+  on every ACTIVE vault (a loaded-chunk perf cost) plus a proximity/ticker lifecycle
+  Pumpkin's vault does not have. The unlock-time `VaultDisplayItemEvent` path is already
+  wired, so plugins can still customise the displayed item. Per AGENTS.md client-only
+  effects are noted, not blocked on.
+- Gap 6 (ominous activation): NO CHANGE NEEDED - premise is false. The only runtime
+  `OMINOUS = true` write in vanilla is `TrialSpawner.applyOminous` (sets the spawner block,
+  never a vault), triggered by the Trial Omen / Bad Omen effect in
+  `TrialSpawnerStateData.tryDetectPlayers`. Vault ominous state is structural (placed that
+  way by worldgen); no code path converts a Vault block at runtime, so there is nothing to
+  port here. Converting vaults would also require trialspawner/effect files outside this
+  unit.
+- Stale status line 41 (`Gaps 3, 5, 7 STILL OPEN`) is superseded: both Result sections above
+  already fixed 3 and 7 and confirmed 5 (vanilla `tryInsertKey` checks `isValidToInsert`
+  before `hasRewardedPlayer`, matching Pumpkin's order).
+
+No source changes made this pass; both named files already contain the earlier fixes.
+
+Status: PASS fixed=0 open=1 files=docs/tracker/tblocks-vault-226f3e.md

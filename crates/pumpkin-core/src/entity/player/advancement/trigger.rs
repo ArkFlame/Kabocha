@@ -868,7 +868,7 @@ impl Player {
             } => {
                 self.trigger_criterion_event("minecraft:lightning_strike", |cond| match cond {
                     CriterionConditions::LightningStrike {
-                        bystander_type: req_b,
+                        bystander: req_b,
                         blocks_set_on_fire: req_fire,
                         entity_struck: req_struck,
                         distance_max,
@@ -876,7 +876,7 @@ impl Player {
                         if let Some(r) = req_b
                             && !bystander_types
                                 .iter()
-                                .any(|b| predicate::matches_id(r, b.as_str()))
+                                .any(|b| r.matches(b.as_str(), None, None))
                         {
                             return false;
                         }

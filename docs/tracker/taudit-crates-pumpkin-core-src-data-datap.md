@@ -78,3 +78,85 @@ Still open (one-line reasons):
 - maxCommandChainLength gamerule: budget is a const thread-local; needs the gamerule
   threaded into outermost chain start.
 - function chain depth: needs an iterative dispatch refactor to drop the 256-deep limit.
+
+## Result (verification pass)
+
+Verified every STILL OPEN row against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft (V_26_3). The sole source file in this
+unit (crates/pumpkin-core/src/data/datapack/mod.rs) was edited concurrently by
+another worker for the whole pass (git diff grew 155 to 318 insertions, mtime
+advanced 08:01:15 to 08:03:13). I did NOT edit it, to avoid clobbering that work;
+several rows below were already fixed in that shared tree, not by me.
+
+- zip packs (scan_datapacks_dir): STILL OPEN. Needs a zip reader crate in
+  pumpkin-core/Cargo.toml (file outside this unit).
+- load_all pack order: RESOLVED in current tree. Bundled packs load before
+  world packs so world packs override them.
+- feature flags from features.enabled (FeatureFlagsMetadataSection.java):
+  RESOLVED in current tree. read_pack_mcmeta parses root features.enabled into
+  LoadedDatapack.requested_features; get_enabled_features unions them over
+  loaded packs; resolve_enabled_features stays the id-based fallback.
+- pack format ranges / compatibility (PackFormat.java, PackCompatibility.java):
+  RESOLVED in current tree for load/enable (PackFormatRange from pack_format /
+  min_format / max_format / supported_formats, pack_format_compatibility).
+  Sub-gap STILL OPEN: DatapackInfo carries no incompatible marker as
+  displayPackList does; adding it propagates through command-crate consumers.
+- pack.mcmeta filter (row 28): STILL OPEN / OBSOLETE for V_26_3. Vanilla
+  PackMetadataSection.java declares only description + supportedFormats; a tree
+  grep found no pack filter section. No Pumpkin change warranted this version.
+- generic tag queries and get_tag_values leading hash: RESOLVED in prior Result.
+- maxCommandChainLength gamerule: RESOLVED in current tree by the concurrent
+  worker (enter_with_budget, FUNCTION_CHAIN_BUDGET, chain_budget reads
+  max_command_sequence_length at outermost start). Vanilla GameRules line 53
+  (default 65536) and Commands.java:463 confirm the top-context read. Not
+  authored by me.
+- function chain depth: STILL OPEN. Vanilla ExecutionControl imposes no depth
+  limit, only the command budget; Pumpkin MAX_FUNCTION_CHAIN_DEPTH=256 aborts
+  legitimate deep chains. Removing it needs an iterative dispatch refactor
+  touching command dispatch outside a minimal single-file change.
+- macro template validation and disable_pack embedded: RESOLVED in prior Result
+  and 722e94305.
+
+## Result (gapwave datapack rows, mod.rs only)
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft` (`server/packs/**`,
+`commands/Commands.java`, `server/packs/FeatureFlagsMetadataSection.java`,
+`world/level/gamerules/GameRules.java`).
+
+Fixed:
+
+- Pack format ranges / compatibility (S-M): `read_pack_mcmeta` now returns a
+  `PackMetadata` with a `PackFormatRange`, parsed from `min_format`/`max_format`
+  (major or `[major, minor]`), legacy `supported_formats`, or single `pack_format`.
+  `pack_format_compatibility` mirrors `PackCompatibility.forVersion` (TooOld / TooNew /
+  Compatible over the declared range) and enable still refuses incompatible packs.
+  Tests: range+compat cases in `pack_format_compatibility_matches_vanilla`, plus
+  `read_pack_mcmeta_reads_format_range_and_features`.
+- Feature flags from mcmeta (M): `read_pack_mcmeta` collects `features.enabled`
+  (`FeatureFlagsMetadataSection`) onto `LoadedDatapack.requested_features`;
+  `get_enabled_features` unions them over the loaded packs, and
+  `resolve_enabled_features` no longer infers flags from `file/...` world pack names
+  (vanilla only unions metadata). Unknown ids are dropped like `FeatureFlags.REGISTRY`.
+  Test updated in `resolve_enabled_features_works`.
+- maxCommandChainLength gamerule (S-M): the per-chain command budget is taken from
+  `game_rules.max_command_sequence_length` when the outermost function starts
+  (`Commands#executeCommandInContext`), stored in a thread-local budget that nested
+  functions reuse; the constant remains the fallback. Test:
+  `function_chain_budget_uses_the_outermost_limit`.
+- Builtin tag fallback (S-M, part of the generic tag rows): `get_tag_entries` now
+  delegates to `get_tag_values` (builtin fallback + nested expansion + `#` strip),
+  and `is_in_tag` falls back to `pumpkin_data::tag` for tags with no datapack file
+  and for nested references that resolve to builtin tags. Test extended in
+  `is_in_tag_follows_nested_tag_references`.
+
+Still open (one-line reasons):
+
+- zip packs: needs a zip reader crate added to `pumpkin-core/Cargo.toml` (dependency
+  change outside this unit).
+- `filter` block/namespace handling: must be threaded through every pack scanner
+  (load_pack_contents, load_recipes_*, advancement loader), outside this unit.
+- function chain depth: dropping the 256-deep cap needs an iterative dispatch refactor
+  of the recursive `dispatcher.execute_input` path, too large for this pass.
+- macro instantiation cache (8 entries): optional optimisation, no behaviour gap.
+- `(incompatible)` suffix in pack listings: `DatapackInfo` is exported through the
+  plugin WIT API, so adding the flag is a cross-crate change.

@@ -62,3 +62,49 @@ No pure unit-test seam exists for these rows: row 3 needs a world/sleep harness,
 row 5 needs command + registry plumbing, row 7 is a single registry id constant.
 Existing `time.rs` tests (`clock_instance_ticking`, `level_time_set_and_add`)
 and `set_time.rs` packet tests already cover the pure seams in this unit.
+
+
+## Result (re-audit, this pass)
+
+All three STILL OPEN rows were re-checked against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/clock/` and
+`ClientboundSetTimePacket.java`. No source edits were needed: rows 3 and 7 are
+fixed in `time.rs` (with call sites in files outside this unit wired by prior
+work), and row 5's in-unit portion is fixed while the rest lives in
+`command/commands/time.rs`, outside this unit.
+
+| # | Verdict | One-line reason |
+|---|---------|-----------------|
+| 3 | FIXED | `time.rs` holds `SleepWakeMarker`, `parse_sleep_wake_marker` and `resolve_time_to_move_to`, matching vanilla `ClockTimeMarker.resolveTimeToMoveTo` and `ServerClockManager.resolveTimerMove`; `world/mod.rs:2773` calls `sleep_wake_marker(self).resolve(time_of_day)`, and pure seams have tests (`wake_up_marker_resolves_forward_to_next_day`, `datapack_day_timeline_moves_wake_up_marker`, `wake_up_marker_compound_form_parses`). |
+| 5 | STILL OPEN (outside unit) | In-unit `ServerClockManager` now keeps one `ClockInstance` per clock name (`server_clock_manager_keeps_clocks_independent`); `/time set <timemarker>`, `of <clock>` and the timemarker resolver already exist in `command/commands/time.rs` (outside this unit). No remaining work in `time.rs` or `set_time.rs`. |
+| 7 | FIXED | `default_clock_id` reads the `minecraft:world_clock` dynamic-registry raw id (both `world_clock` and `timeline` are loaded by the datapack loader), used at `player.rs:4703` and `time.rs:281`; matches vanilla `WorldClocks.bootstrap` (overworld 0, the_end 1). `default_clock_name_matches_vanilla_dimension_types` covers the mapping. |
+
+No new unit test added: every pure seam in `time.rs` and `set_time.rs` already
+has a test that fails without its fix, so more tests would duplicate them.
+
+
+## Result (re-audit, current pass)
+
+Re-verified every gap row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/clock/` (`ServerClockManager.java`,
+`ClockTimeMarker.java`, `WorldClocks.java`, `ClockInstance.java`) and
+`world/timeline/Timelines.java`, plus the two in-unit source files. No source
+edits were made: nothing fixable remains in `time.rs` or `set_time.rs`.
+
+| # | Verdict | One-line reason |
+|---|---------|-----------------|
+| 5 | STILL OPEN (outside unit) | Clock registry, `/time set <timemarker>` and `of <clock>` already live in `command/commands/time.rs`; the in-unit `ServerClockManager` keeps one `ClockInstance` per clock name and `SleepWakeMarker` resolves the marker, so the residue needs command + full timeline-attribute data (L, outside unit). |
+
+Confirmation of the other rows: rows 3 and 7 are already fixed in this unit
+(`resolve_time_to_move_to`/`SleepWakeMarker` match `ClockTimeMarker.resolveTimeToMoveTo`;
+`default_clock_id` matches `WorldClocks.bootstrap` overworld 0/the_end 1); row 2's
+night window matches `Timelines.java` (nightStart 12600, nightEnd 23401) and its
+skip call site is `world/mod.rs` (outside unit); row 1 is a Bedrock protocol limit
+(its `SetTime` has no frozen field). The `ClockInstance.tick`/`packNetworkState`/
+`addTicks`/`setTotalTicks` ports match vanilla line for line.
+
+No new unit test: every pure seam already has a failing-without-fix test
+(`clock_instance_ticking`, `level_time_pack_network_state_marks_frozen_clock`,
+`server_clock_manager_keeps_clocks_independent`, the three wake-marker tests,
+and the legacy/clock packet tests in `set_time.rs`). Adding more would duplicate
+them.

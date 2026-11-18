@@ -46,3 +46,27 @@ Verified all four STILL OPEN rows against decompiled vanilla at .vendor/vanilla-
 - Row 4 (weathering boundary one tick early, S): NO BUG, no change. Vanilla uses gameTime >= nextWeatheringTick (line 270), not > as the doc recalled. Effective progression runs in update_weathering (post_tick) using >=, matching vanilla; the <= in tick_weathering is redundant because post_tick progresses first at the boundary.
 
 Test: no pure unit-test seam (NBT read/write require a live entity and world), so none added.
+
+
+## Result (re-review 2026-11-18)
+
+Re-verified all four STILL OPEN rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). No code changes needed; the prior pass's fixes are intact.
+
+- Row 1 (statue conversion): ALREADY FIXED. `turn_to_statue` in copper_golem.rs matches vanilla `turnToStatue`/`canTurnToStatue` (lines 284-321): oxidized block + random pose/facing, EntityChangeBlockEvent, `create_statue` name transfer (copper_golem_statue.rs:121, covered by its own unit test), equipment drop, entity remove, become-statue sound, leash drop; constants TURN_TO_STATUE_CHANCE 0.0058 and weathering 504000..=552000 match vanilla lines 266/285.
+- Row 2 (item pickup / chest deposit): ALREADY FIXED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs) drives every CopperGolemState variant via set_state and is registered in copper_golem_ai.rs:49.
+- Row 3 (NBT keys): ALREADY FIXED. mob_write_nbt writes `next_weather_age` (long) + `weather_state` string via constants; matches vanilla lines 166-176. Legacy `next_weathering_tick` kept as read fallback only.
+- Row 4 (boundary): NO BUG. Vanilla uses `gameTime >= nextWeatheringTick` (line 270); update_weathering uses `>=`, tick_weathering uses `<=` and is redundant because post_tick advances first at the boundary. No double advancement: tick_weathering only seeds the -1 timer.
+
+No pure unit-test seam for the verified behaviour (NBT and statue conversion need a live entity/world); enum conversion tests would only mirror constants/derives, excluded by the test policy.
+
+
+## Result (re-review 2026-11-18)
+
+Third pass. Re-verified all four STILL OPEN rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java`). No code changes: every row is already resolved by prior passes and confirmed correct.
+
+- Row 1 (oxidized golem to statue, M/L): ALREADY FIXED. `update_weathering` (copper_golem.rs:261) gates statue conversion on Oxidized + air + `TURN_TO_STATUE_CHANCE` 0.0058 (line 292), matching vanilla `canTurnToStatue` (line 285). `turn_to_statue` (line 298) sets OXIDIZED_COPPER_GOLEM_STATUE with random pose and horizontal facing, fires EntityChangeBlockEvent, calls `create_statue` (custom name transfer in copper_golem_statue.rs:121-125, covered by its own unit test), drops preserved equipment, handles the leash, removes the entity, and plays EntityCopperGolemBecomeStatue. Matches vanilla lines 284-321.
+- Row 2 (item pickup / chest deposit, L): ALREADY FIXED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs) drives every CopperGolemState variant: `interaction_state` (lines 384-397) selects GettingNoItem/GettingItem/DroppingItem/DroppingNoItem, and `on_container_interaction` (copper_golem.rs:226) calls `set_state` plus the four interaction sounds. Registered as an Idle behavior at priority 0 in copper_golem_ai.rs:49. File carries its own unit tests (lines 720, 731).
+- Row 3 (weathering NBT keys, S): ALREADY FIXED. `mob_write_nbt` (copper_golem.rs:582) writes `next_weather_age` (long) and `weather_state` as a lowercase string via `WeatherState::name()` (lines 107-113), matching vanilla `addAdditionalSaveData` lines 166-170. `mob_read_nbt` (line 594) prefers `next_weather_age`, keeps `next_weathering_tick` as a legacy read fallback, and decodes string then int, matching vanilla lines 172-177.
+- Row 4 (weathering boundary, S): NO BUG. Traced both paths across a full cycle: `tick_weathering` (line 464, strict `game_time > next`) and `update_weathering` (line 261, `game_time >= next`) never double-advance because whichever advances first pushes `next` to a future tick (or 0 when Oxidized, where the `state != Oxidized` guard blocks further advancement). Combined effect is advancement at `game_time >= next`, matching vanilla line 270; `tick_weathering` only seeds the -1 timer.
+
+No pure unit-test seam (NBT/statue conversion need a live entity and world; enum tests would only mirror constants/derives). Skipped: no code changed, so no rustfmt/compile run by this worker.

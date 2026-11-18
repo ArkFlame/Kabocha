@@ -66,33 +66,42 @@ so references below cite the vanilla classes.
    Size S (trait change touches every impl).
 
 ## Gap status
-- Remaining-gap items (lines 26-49, incl. Guardian.hurt source checks): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- Remaining-gap items verified against `.vendor/vanilla-decompiled` on 2026-11-18; see Result.
 
-## Result
+## Result (re-verified 2026-11-18)
 
-Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java`,
-`ElderGuardian.java` and `world/effect/MobEffectUtil.java`.
+All six remaining gaps were checked against decompiled vanilla in this checkout:
+`Guardian.java`, `ElderGuardian.java`, `world/effect/MobEffectUtil.java`, and the
+`pumpkin-data` generated tracked-data/tag files. Gaps 1-5 are already implemented in
+`guardian.rs` / `elder_guardian.rs` and match vanilla; no source edit was needed this pass.
 
-- Gap 1 (guardian beam attack): OPEN. Needs the synced `DATA_ID_ATTACK_TARGET` field, the
-  `GUARDIAN_ATTACK_SOUND` entity-event packet, and indirect-magic/melee damage on the server tick.
-  The synced-data field and packet are generated/protocol surface outside these three files.
-- Gap 2 (monument restriction): FIXED. Added `MoveTowardsRestrictionGoal::new(1.0)` at vanilla
-  priority 5 to both `GuardianEntity` and `ElderGuardianEntity`. The goal no-ops without a home;
-  the elder already sets home in `custom_server_ai_step`, matching `ElderGuardian`.
-- Gap 3 (`GuardianMoveControl`): VERIFIED already fixed in this checkout (custom move control and
-  `travel_in_water` present in `guardian.rs`, used by both mobs). No change needed.
-- Gap 4 (thorns reflect): FIXED. Decompiled `Guardian.hurtServer` has no 0.5 roll and no
-  guardian-attacker exclusion; `minecraft:avoids_guardian_thorns` already contains `thorns` and
-  `magic`. Removed the extra guardian exclusion and added a pure `thorns_reflection_blocked` seam
-  with a unit test over the tag contents. The creative-player guard stays because Pumpkin's
-  `damage()` lacks vanilla's creative immunity, so it preserves the observable behaviour.
-- Gap 5 (appearance effect gating): VERIFIED already fixed and correct. `should_apply_fatigue`
-  matches `MobEffectUtil.addEffectToPlayersAround` (`displayEffectLimit - 1` == duration < 1200,
-  survival/adventure only), with a boundary test. No change needed.
-- Gap 6 (ambient/flop): PARTIAL. Water/land ambient split is already implemented via
-  `get_ambient_sound` overrides and matches vanilla; no `CustomSound` change needed. Flop sound is
-  still OPEN: vanilla plays it from `Guardian.aiStep` on landing, and there is no generic flop hook
-  on Pumpkin's Mob/entity tick (only fish have one), so adding it needs a file outside this unit.
+1. Guardian beam attack: FIXED (present in checkout). `GuardianAttackGoal` mirrors
+   `Guardian.GuardianAttackGoal`: attack_time starts at -10, at tick 0 it writes
+   `DATA_ID_ATTACK_TARGET` and broadcasts `GuardianAttackSound`, at attack_duration it deals
+   `INDIRECT_MAGIC` (1.0, +2 Hard, +2 elder) plus a melee swing, gated on line of sight and,
+   for non-elders, squared distance > 9. The synced INT fields already exist in pumpkin-data
+   for both mobs. Pure tests cover damage and charge duration.
+2. Monument restriction: FIXED. `MoveTowardsRestrictionGoal::new(1.0)` sits at vanilla
+   priority 5 on both mobs; the elder sets home via `set_home_to` in `custom_server_ai_step`
+   when it has no position target, matching `ElderGuardian.customServerAiStep`.
+3. GuardianMoveControl: VERIFIED. The custom control and `travel_in_water` are already in
+   `guardian.rs` and used by both mobs; they match vanilla's wave push, look lerp and moving flag.
+4. Thorns reflect: FIXED. `reflect_thorns` / `thorns_reflection_blocked` mirror
+   `Guardian.hurtServer`: skip when moving or when the damage type is in
+   `minecraft:avoids_guardian_thorns` (which already contains thorns, magic, fireworks,
+   explosion, player_explosion and bad_respawn_point), then reflect 2.0 onto the living direct
+   cause. Vanilla has no 0.5 roll and no guardian-attacker exclusion. The creative-player guard
+   is retained because Pumpkin `damage()` lacks vanilla's creative immunity. Pure test covers
+   the tag gate.
+5. Appearance effect gating: VERIFIED. `should_apply_fatigue` matches
+   `MobEffectUtil.addEffectToPlayersAround`: apply when there is no effect, amplifier < 2, or
+   `endsWithin(displayEffectLimit - 1)` (remaining < 1200), survival/adventure players only.
+   The `GUARDIAN_ELDER_EFFECT` packet is sent only to players that pass the gate, matching
+   vanilla sending it only to the affected-player list it returns. Pure boundary test present.
+6. Ambient/flop: the water/land ambient split is already implemented via `get_ambient_sound`
+   overrides on both mobs and matches vanilla; no `CustomSound` change needed. Flop sound is
+   still OPEN: vanilla plays `getFlopSound()` from client-side `Guardian.aiStep` on landing,
+   and Pumpkin has no generic flop hook on the Mob tick (only fish have one), so adding it
+   needs a file outside this unit. It is a client-only sound effect and does not block landing.
 
-Files changed: `guardian.rs`, `elder_guardian.rs`, this doc. `rustfmt --edition 2024` applied to both
-`.rs` files. No cargo/git run (per unit rules).
+Files changed this pass: this doc only. No cargo/git run (per unit rules).

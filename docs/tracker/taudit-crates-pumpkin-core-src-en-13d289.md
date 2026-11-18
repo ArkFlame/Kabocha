@@ -50,3 +50,23 @@ Re-verified each STILL OPEN row against `vanilla-decompiled` 1.21.4 (Paper where
 - Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED, NO CHANGE. Vanilla also never updates `previousGameMode` in a plain `setGameMode`; the commented segment documents this deliberate parity. Left intact.
 
 Files edited: `crates/pumpkin-core/src/entity/player.rs` (rows 2, 6, 7). No changes to living.rs/item.rs were needed: the row 6 root cause was the duplicate sends in player.rs, and living.rs already broadcasts correctly.
+
+
+## Result (re-audit, current code state)
+
+Re-verified every STILL OPEN row against vanilla 1.21.4 decompiled sources (`.vendor/vanilla-decompiled`) and the current code. The current `player.rs` is ahead of the earlier Result section: rows 1, 4 and 11 are now also implemented, so no source edit was needed this pass. `rustfmt --edition 2024` is not rerun because no `.rs` file was touched. Compilation intentionally not run (orchestrator compiles once after all workers).
+
+- Row 1 (respawn food/breath carry-over): FIXED BY DESIGN, NO CHANGE. `World::respawn_player` takes `&Arc<Player>` and repositions the same instance (`player.rs:6407` respawn calls it directly); no `Player::new` on the respawn path. Hunger/saturation/air live on that instance and persist across respawn, exactly the state vanilla's copy-constructor preserves. The constructor comment at `player.rs:1151` records this.
+- Row 2 (stale spawn-position TODO): FIXED in prior pass; TODO absent, join path sends `CPlayerSpawnPosition`.
+- Row 3 (attack cooldown / enchant damage order): VERIFIED, NO CHANGE. Vanilla `Player.attack` (`Player.java:1036-1061`): `getAttackStrengthScale(0.5)` is the raw cooldown progress `p` (`Player.java:1993-1995`); `magicBoost = p * (getEnchantedDamage - baseDamage)`; `baseDamage *= 0.2 + p*p*0.8` (`baseDamageScaleFactor`, `Player.java:1319-1321`). Pumpkin matches at `player.rs:1902-1907`: `damage_multiplier = p^2*0.8+0.2` for base damage and `extra_ench_damage * attack_cooldown_progress` for the enchant bonus. The doc's original premise was inverted; scaling is correct.
+- Row 4 (gliding movement statistics): FIXED in prior pass. `statistics::movement_statistic` (`entity/player/statistics.rs:73`) orders branches vanilla-style and returns `AviateOneCm` for fall-flying; wired via `Player::get_movement_statistic` (`player.rs:4563-4629`, used by `move_vehicle.rs:146`). A pure unit test covers the ordering (`statistics.rs:120-190`). `progress_motion` (`player.rs:4176`) handles only food exhaustion, matching vanilla `checkMovementStatistics`; AVIATE_ONE_CM is a separate stat path, not that function.
+- Row 5 (difficulty damage scaling): LEFT OPEN, BLOCKED (needs generated data). Vanilla `DamageSource.scalesWithDifficulty()` (`DamageSource.java:190-196`) switches on `DamageType.scaling()` (NEVER / WHEN_CAUSED_BY_LIVING_NON_PLAYER / ALWAYS); Pumpkin's `crates/pumpkin-data/src/generated/damage_type.rs` has no `scaling` field and `scales_with_difficulty` appears nowhere in `pumpkin-data/src` outside generated code. Requires a codegen/data change, forbidden for this unit.
+- Row 6 (duplicate effect-removal packets): FIXED in prior pass; `LivingEntity::remove_effect` broadcasts once and player.rs no longer double-sends.
+- Row 7 (team colour on display name): FIXED in prior pass; team formatting in `get_display_name` with a pure `format_team_name` helper and unit test.
+- Row 8 (dimension-change duplication): LEFT OPEN, BLOCKED (cross-crate refactor). Deduping `player.rs` and `world/mod.rs` change-dimension paths spans files outside this unit; vanilla shares the logic but the duplication is upstream parity.
+- Row 9 (relative teleport flags): VERIFIED, NO CHANGE. `request_teleport_with_flags` (`player.rs:5668`) builds the `PositionFlag` list; `send_teleport` sets YRot/XRot when yaw/pitch are None (`player.rs:5649-5650`). Absolute teleports send zero velocity, matching vanilla `ServerPlayer.teleportTo`.
+- Row 10 (drop-time merging TODO): FIXED in commit 11d974fc7 (prior pass); no action.
+- Row 11 (experience state atomicity): FIXED in current code. `ExperienceState` (`player.rs:70`) holds level/progress/points behind one `Mutex` (`player.rs:847`, init `1231`); `set_experience` writes all three under one lock (`player.rs:7337-7345`). No stale separate-field references remain.
+- Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED, NO CHANGE. Vanilla never updates `previousGameMode` in a plain `setGameMode`; the commented segment at `player.rs:6665-6667` documents deliberate parity.
+
+Files edited this pass: none (documentation only). Rows 5 and 8 left open with the one-line reasons above; both are explicitly out of this unit's scope (generated data / cross-crate refactor).

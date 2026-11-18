@@ -56,8 +56,8 @@ remaining cook time to continue from the pre-extinguish progress.
 ## h6 gap status
 - Row 3 (stale cook progress on container/pick-block restore): FIXED 5694877b6 (`apply_item_components` resets `cooking_times` and `cooking_total_times`).
 - Row 6 (`cool_down` clamp): FIXED 5694877b6 (clamps to `[0, cooking_total_times]`).
-- Row 4 (neighbour update clears `lit` when waterlogged): STILL OPEN, needs decompiled `CampfireBlock.getStateForNeighborUpdate` to confirm.
-- Row 5 (`isSmokeyPos` collision vs solid stop): STILL OPEN, needs decompiled `isSmokeyPos`.
+- Row 4 (neighbour update clears `lit` when waterlogged): RESOLVED. Re-verified against decompiled `CampfireBlock.updateShape`; already matched vanilla (no `LIT` write), no code change needed.
+- Row 5 (`isSmokeyPos` collision vs solid stop): RESOLVED. Fixed in prior pass (pure `is_smokey_pos_from` seam + unit test); re-verified against decompiled `CampfireBlock.isSmokeyPos`.
 
 ## Result
 
@@ -85,3 +85,73 @@ Only `crates/pumpkin-core/src/block/blocks/campfire.rs` changed (rustfmt run).
 Rows 1, 2 and 7 in the 'Remaining gaps' table are not marked STILL OPEN and need
 event-timing/world-tick/client hooks; left unchanged. No generated data, WIT,
 cross-crate refactors or files outside this unit were touched.
+
+## Result
+
+Re-audit pass 2026-11-18. Decompiled vanilla is available at
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/CampfireBlock.java`.
+The two rows marked STILL OPEN in the prior h6 gap status were already resolved
+in the code by an earlier pass; this pass re-verified both against vanilla and
+found no further change necessary.
+
+- Row 4 (neighbour update clears `lit` when waterlogged): VERIFIED, no change.
+  Decompiled `CampfireBlock.updateShape` (lines 141-158) only schedules the
+  `Fluids.WATER` tick when `WATERLOGGED` and recomputes `SIGNAL_FIRE` on a `DOWN`
+  neighbour update; it never writes `LIT`.
+  `blocks/campfire.rs:get_state_for_neighbor_update` (lines 240-261) matches this
+  and contains no `props.lit = false`.
+- Row 5 (`isSmokeyPos` smoke stop): VERIFIED, no change. Decompiled
+  `CampfireBlock.isSmokeyPos` (lines 268-284) scans cells 1..=5 below the origin,
+  intersects `SHAPE_VIRTUAL_POST` (4x16 column, 0.375..0.625) against the
+  collision shape, and on a blocker returns `isLitCampfire(posToCheck.below())`.
+  `blocks/campfire.rs:is_smokey_pos`/`is_smokey_pos_from` (lines 44-77) reproduce
+  this, including the check-cell-below-the-blocker-then-stop case, with the pure
+  unit test `smoke_scans_five_cells_and_stops_at_a_blocker` (lines 276-288)
+  covering lit-in-range, lit-blocker, lit-below-blocker,
+  blocked-with-nothing-below and beyond-distance.
+
+No `.rs` file was modified this pass (both fixes and the unit test were already
+present), so no new test was added. No generated data, WIT, cross-crate refactor
+or file outside this unit was touched.
+
+## Result
+
+Re-audit 2026-11-18 against the vendored decompiled tree
+(`.vendor/vanilla-decompiled/net/minecraft/world/level/block/` and
+`.../block/entity/CampfireBlockEntity.java`). No STILL OPEN row remains in the
+code; every row was re-verified and no source edit was necessary.
+
+- Row 1 (no-recipe stacks never tick): already fixed. `entities/campfire.rs:tick`
+  increments `cooking_times[slot]` first (line 142) and resolves the recipe only
+  at completion (lines 151-162), falling back to the raw stack when none matches.
+  This matches vanilla `CampfireBlockEntity.cookTick`, which advances every
+  non-empty stack before the `recipeCache` lookup and uses `orElse(itemStack)`.
+- Row 2 (`CampfireStartEvent` timing): already fixed. `blocks/campfire.rs:103-135`
+  fires the event at insertion with `recipe.cookingtime`, stores the event's
+  `cooking_time` as the slot total and keeps `cooking_cancelled`. This matches
+  Paper `CampfireBlockEntity.placeFood` (`cookingTime[slot] =
+  event.getTotalCookTime(); cookingProgress[slot] = 0`).
+- Row 3 (stale progress on container/pick-block restore): verified fixed at
+  `entities/campfire.rs:228-238` (both `cooking_times` and `cooking_total_times`
+  reset for each written slot).
+- Row 4 (neighbour update clears `lit`): verified. Decompiled
+  `CampfireBlock.updateShape` (lines 141-158) only schedules the `Fluids.WATER`
+  tick and recomputes `SIGNAL_FIRE` on a `DOWN` update; it never writes `LIT`.
+  `get_state_for_neighbor_update` matches (no `props.lit = false`).
+- Row 5 (`isSmokeyPos` stop case): verified. Decompiled `isSmokeyPos` (lines
+  268-284) scans 1..=5, intersects `SHAPE_VIRTUAL_POST`, and returns
+  `isLitCampfire(posToCheck.below())` at a blocker. `is_smokey_pos_from` plus
+  `smoke_scans_five_cells_and_stops_at_a_blocker` reproduce this.
+- Row 6 (`cool_down` clamp): verified fixed at `entities/campfire.rs:344-361`
+  (`(*progress - 2).clamp(0, total.max(0))` == `Mth.clamp(x - 2, 0, cookingTime)`).
+- Unlit branch: current code runs `cool_down()` on every unlit campfire, which
+  matches the vendored `CampfireBlock.getTicker` (LIT -> cookTick, else
+  cooldownTick). This supersedes the older "waterlogged-only" note above.
+- Row 7 (crackle/smoke/flame visuals): left open, client-only. Vanilla
+  `particleTick` is a client effect; no `random_display_tick`/`animate_tick`
+  hook exists in `crates/pumpkin-core/src/block`, so it cannot be implemented
+  within these files. Noted, not blocking.
+
+No `.rs` source file was modified (all fixes and pure seams were already
+present), so no new test was added. No generated data, WIT, cross-crate refactor
+or file outside this unit was touched.

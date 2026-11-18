@@ -86,3 +86,79 @@ encoding.
 Rustfmt: `rustfmt --edition 2024` run on
 `crates/pumpkin-core/src/command/commands/particle.rs` (exit 0). No cargo run (forbidden here);
 compilation left to the orchestrator.
+
+## Result (final verification)
+
+Re-checked the STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/core/particles/*` and
+`world/level/gameevent/PositionSource.java`, smallest first. The code in
+`particle.rs` already carries working fixes for every in-scope row; this pass
+verified each against vanilla and confirmed the referenced APIs exist
+(`ItemStack::read_item_stack_template`, `NetworkWriteExt::write_block_pos`,
+`BlockPos::as_long_for_version`, `ParticleOptions::Spell/Trail::write`,
+`Particle::to_id/to_name`, `JavaMinecraftVersion` variants, `CURRENT_MC_VERSION`).
+
+- **dust_pillar / block_crumble / item_cobweb / geyser* / firefly /
+  sulfur_cube_goo payloads (`particle.rs:157-197`): FIXED.**
+  `ParticleTypes` confirms `dust_pillar`/`block_crumble` are block options
+  (handled by the `block_state` branch) and `item_cobweb`/`firefly`/
+  `sulfur_cube_goo` are simple (empty payload, correct). Added
+  `Particle::Geyser | GeyserPlume` (INT `water_blocks`) and
+  `Particle::GeyserBase | GeyserPoof` (INT `water_blocks` + FLOAT
+  `burst_impulse_base`), matching `GeyserParticleOptions` /
+  `GeyserBaseParticleOptions.STREAM_CODEC`. Tests:
+  `geyser_writes_water_blocks_int`, `geyser_base_writes_water_blocks_and_burst_impulse`.
+- **Item particle component-less ItemStackTemplate (`particle.rs:107-131`): FIXED.**
+  `item_stack` now calls `ItemStack::read_item_stack_template`, the exact codec
+  vanilla `ItemParticleOption.CODEC` uses (bare id or `{id,count,components}`,
+  count 1..=99, no AIR). Test: `item_option_decodes_through_item_stack_template`.
+- **Vibration options ignored (`particle.rs:157-197`): FIXED.**
+  Added `block_position_source` decoder (block source only; the vanilla
+  `SAFE_POSITION_SOURCE_CODEC` rejects entity sources). Payload is the position
+  source (registry id VAR_INT 0 = block, then version-aware block-pos long) plus
+  VAR_INT `arrival_in_ticks`, matching `VibrationParticleOption.STREAM_CODEC`
+  and `PositionSource.STREAM_CODEC`. Test:
+  `vibration_writes_block_source_and_arrival`.
+- **Codec validation of options instead of command parser
+  (`pumpkin-command/src/argument_types/particle.rs:52-60`): STILL OPEN.**
+  Vanilla `ParticleArgument.readParticle` parses with the per-type codec and
+  throws `particle.invalidOptions` for missing required fields. Needs per-type
+  validation in `pumpkin-command`, a different crate that owns the error type
+  and is outside this unit's file. No edit made.
+- **26.x packet layout (`pumpkin-protocol/.../particle.rs:280-320`): STILL OPEN.**
+  The packet layout (options first, per-axis speeds, VAR_INT count, trailing
+  `randomization_type`) lives in `pumpkin-protocol`, outside this unit's file;
+  needs a byte-exact audit against a vanilla packet dump. No edit made.
+
+Also confirmed in code (already FIXED by the earlier pass, not re-litigated):
+`entity_effect`/`tinted_leaves`/`flash` per-viewer colour gate
+(`color_particle_payload`, test `colour_payload_is_stripped_for_pre_1_21_4_viewers`),
+trail and spell payloads via `ParticleOptions`, sculk-charge/shriek payloads,
+and the block-centre viewer range check.
+
+Flag for the protocol unit (out of scope here): `ParticleOptions::Spell` in
+`pumpkin-protocol/src/java/client/play/particle.rs` writes the colour as VAR_INT,
+but decompiled `SpellParticleOption.streamCodec` uses `ByteBufCodecs.INT`.
+That affects `effect`/`instant_effect`, which route through this helper.
+
+Rustfmt: `rustfmt --edition 2024` run on
+`crates/pumpkin-core/src/command/commands/particle.rs` (exit 0). No cargo run
+(forbidden here); compilation left to the orchestrator.
+
+## Result (post-restart verification)
+
+Re-read the full `particle.rs` after the server restart. Every in-scope fix is
+present and the file is coherent: `read_item_stack_template` for `item`,
+`block_position_source` + version-aware long + VAR_INT arrival for `vibration`,
+`Geyser`/`GeyserPlume`/`GeyserBase`/`GeyserPoof` payloads, `ParticleOptions::Trail`
+and `::Spell`, `color_particle_payload` gate keyed on viewer version,
+`is_particle_viewer_in_range` from block centre with strict `<`, sculk/shriek
+payloads and the registry-key success message. Nine tests cover these seams
+(no `unwrap`/`expect`/`panic`). No new edits needed.
+
+Both remaining STILL OPEN rows stay open: codec validation of required options
+belongs to `pumpkin-command/src/argument_types/particle.rs` (owns the error
+type), and the 26.x packet layout to `pumpkin-protocol/src/java/client/play/
+particle.rs`; both are outside this unit's editable file. No cargo run (forbidden
+here); compilation left to the orchestrator.
+

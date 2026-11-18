@@ -438,4 +438,28 @@ mod tests {
         assert!(woke_up);
         Ok(())
     }
+
+    /// Vanilla's constructor sets the resting bit on the synced byte (Bat.java:43-48), so a
+    /// freshly created bat must read as roosting straight from tracked data, not a shadow field.
+    #[tokio::test]
+    async fn new_bat_starts_roosting_from_synced_flags() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let bat = BatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::BAT,
+        ));
+        assert!(bat.is_roosting());
+        assert_eq!(
+            bat.mob_entity
+                .living_entity
+                .entity
+                .synched_data
+                .get::<i8>(tracked_data::bat::DATA_ID_FLAGS),
+            Some(ROOSTING_FLAG)
+        );
+        world.level.shutdown().await;
+        Ok(())
+    }
 }

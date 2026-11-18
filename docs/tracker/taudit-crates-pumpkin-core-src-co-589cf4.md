@@ -51,7 +51,7 @@ doc comments that cite vanilla (lines 19, 42, 92, 111 pre-change).
 
 ## Gap status
 - Slot name/parse agreement: FIXED (`command/argument_types/scoreboard_slot.rs:165` test `slot_name_and_parse_agree_for_every_known_name`).
-- Remaining gaps section and re-audit items: STILL OPEN (not re-read this pass).
+- Remaining gaps section and re-audit items: CLOSED (re-verified against decompiled vanilla across three passes; see Results below).
 
 
 ## Result
@@ -62,3 +62,23 @@ Re-read every STILL OPEN row against decompiled vanilla (`.vendor/vanilla-decomp
 - Gap 3 (scoreboard.rs slot argument): NO ACTION. `display_slot_component` at scoreboard.rs:614-616 uses `slot_name(slot)`, matching vanilla's plain serialized-name string argument.
 - Re-audit 2026-11-17 items: no new gap. The 19 `SLOT_NAMES`, parse error via `INVALID_DISPLAY_SLOT_ERROR.create(&*reader, ...)` (vanilla `ERROR_INVALID_VALUE.createWithContext(reader, name)`) with regression test at scoreboard_slot.rs:139, and suggestions over all 19 serialized names all match decompiled vanilla.
 - No .rs file touched, so rustfmt not run.
+
+
+## Result (2026-11-18 re-verify)
+Re-checked every STILL OPEN row against decompiled vanilla; all already match, no source change needed.
+
+- Gap 1 (`examples()`): CLOSED. scoreboard_slot.rs:90-93 returns `["sidebar", "foo.bar"]`, identical to `ScoreboardSlotArgument.EXAMPLES` (ScoreboardSlotArgument.java:19 `Arrays.asList("sidebar", "foo.bar")`). Stale note.
+- Gap 2 (`slot_name`): CLOSED. scoreboard_slot.rs:110-131 is an exhaustive `match` over all 19 `ScoreboardDisplaySlot` variants with no fallback; names match every `getSerializedName()` in DisplaySlot.java:8-26.
+- Gap 3 (scoreboard.rs slot argument): NO ACTION. `display_slot_component` (scoreboard.rs:623-625) passes `slot_name(slot)`, the serialized name, matching vanilla `ScoreboardCommand.java:783,797` (`slot.getSerializedName()`). Use sites scoreboard.rs:696,716.
+- Re-audit items: SLOT_NAMES (19, vanilla order/spelling), parse error at scoreboard_slot.rs:72 via `INVALID_DISPLAY_SLOT_ERROR.create(&*reader, ...)` (vanilla `ERROR_INVALID_VALUE.createWithContext(reader, name)`, ScoreboardSlotArgument.java:40), and suggestions over all 19 serialized names (scoreboard_slot.rs:84-87) all match. `get` (97-102) matches `getDisplaySlot` (ScoreboardSlotArgument.java:31-33).
+- No .rs file touched, so rustfmt not run.
+
+
+## Result (2026-11-18 final re-verify after restart)
+Re-read all formerly STILL OPEN rows against decompiled vanilla; every row is closed, no source change needed.
+
+- Gap 1 (`examples()`, scoreboard_slot.rs:90-93): returns `["sidebar", "foo.bar"]`, identical to `ScoreboardSlotArgument.EXAMPLES` (ScoreboardSlotArgument.java:19).
+- Gap 2 (`slot_name`, scoreboard_slot.rs:110-131): exhaustive `match` over all 19 variants, no fallback; each name equals its `DisplaySlot.getSerializedName()` (DisplaySlot.java:8-26).
+- Gap 3 (scoreboard.rs slot argument): NO ACTION; serialized-name string argument matches vanilla `ScoreboardCommand` use sites.
+- parse error (scoreboard_slot.rs:72) = vanilla `ERROR_INVALID_VALUE.createWithContext(reader, name)`; suggestions (84-87) = vanilla stream over `DisplaySlot.values()` serialized names; `SLOT_NAMES` order/spelling = enum declaration order.
+- No .rs file touched; rustfmt not run. Marked the stale "Gap status" STILL OPEN line CLOSED.

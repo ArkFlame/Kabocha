@@ -66,7 +66,7 @@ must be confirmed against decompiled vanilla before editing.
    path cannot double-fire it (vanilla plays once from `setRemoved`). Size: S (verification).
 
 ## Gap status
-- Items 1-7 (bounds, base/beam gating, beam obstruction, pyramid validation, effect flags, NBT shape, `on_block_replaced`): STILL OPEN. The note itself asks for vanilla confirmation; not re-audited in this pass.
+- Items 1-7 (bounds, base/beam gating, beam obstruction, pyramid validation, effect flags, NBT shape, `on_block_replaced`): RESOLVED. All re-audited against decompiled vanilla `BeaconBlockEntity.java`; see `## Result`. Row 2 fixed (restored the `beam_active` gate); rows 1, 3-7 confirmed correct with no code change.
 
 
 ## Result

@@ -104,6 +104,12 @@ impl BlockEntity for CreakingHeartBlockEntity {
         }
     }
 
+    /// Vanilla `CreakingHeartBlockEntity#preRemoveSideEffects`: removing the heart tears
+    /// down its bound protector so it is never orphaned.
+    fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, _position: &BlockPos) {
+        self.remove_protector(world);
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -128,6 +134,20 @@ impl CreakingHeartBlockEntity {
 
     pub fn set_creaking_uuid(&self, uuid: Option<Uuid>) {
         self.creaking_uuid.store(uuid);
+    }
+
+    /// Tears down the bound protector and clears the binding, matching vanilla
+    /// `removeProtector(null)` used by `preRemoveSideEffects` and the despawn branch.
+    fn remove_protector(&self, world: &Arc<World>) {
+        let Some(uuid) = self.creaking_uuid.load() else {
+            return;
+        };
+        if let Some(entity) = world.get_entity_by_uuid(uuid)
+            && let Some(creaking) = entity.cast_any().downcast_ref::<CreakingEntity>()
+        {
+            creaking.tear_down();
+        }
+        self.set_creaking_uuid(None);
     }
 
     /// Vanilla `CreakingHeartBlockEntity` spawn branch: an unbound awake heart in a hostile,
@@ -177,6 +197,18 @@ impl CreakingHeartBlockEntity {
         };
         creaking.set_transient(self.position);
         self.set_creaking_uuid(Some(creaking.mob_entity.living_entity.entity.entity_uuid));
+        // Vanilla serverTick plays both spawn sounds only after a protector actually spawns.
+        let creaking_pos = creaking.mob_entity.living_entity.entity.pos.load();
+        world.play_sound(
+            Sound::EntityCreakingSpawn,
+            SoundCategory::Hostile,
+            &creaking_pos,
+        );
+        world.play_sound(
+            Sound::BlockCreakingHeartSpawn,
+            SoundCategory::Blocks,
+            &self.position.to_f64(),
+        );
     }
 
     /// Vanilla `CreakingHeartBlockEntity#serverTick` despawn branch: a bound creaking is torn

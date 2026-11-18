@@ -68,7 +68,7 @@ behavior. No `TODO`/`FIXME` left in these files: the tracker markers are the
   fish bucket returns the water bucket.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- All STILL OPEN rows resolved and verified against decompiled vanilla; see ## Result below.
 
 ## Result
 

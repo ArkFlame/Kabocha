@@ -390,7 +390,10 @@ impl CreakingEntity {
             {
                 has_potential_target = true;
                 let is_disguised = Self::is_player_disguised(&player);
-                if !is_disguised && self.is_looking_at_me(&player) {
+                // Vanilla `checkCanMove`: `(!active || PLAYER_NOT_WEARING_DISGUISE_ITEM.test(player))`.
+                // The disguise only shields against an already-active creaking; it does not
+                // stop a disguised player from activating a dormant one by looking at it.
+                if (!active || !is_disguised) && self.is_looking_at_me(&player) {
                     if active {
                         return false;
                     }
@@ -455,6 +458,34 @@ impl Mob for CreakingEntity {
 
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
         Some(self)
+    }
+
+    /// Vanilla `Creaking.doHurtTarget`: a living target starts the attack animation
+    /// (entity event 4) before the hit is resolved.
+    fn do_hurt_target(&self, target: &dyn EntityBase) -> bool {
+        if target.get_living_entity().is_none() {
+            return false;
+        }
+        self.attack_animation_remaining_ticks
+            .store(ATTACK_ANIMATION_DURATION, Ordering::Relaxed);
+        let entity = self.get_entity();
+        {
+            let world = entity.world.load();
+            world.broadcast_to_chunk(
+                entity.chunk_pos.load(),
+                &CEntityStatus::new(entity.entity_id, 4),
+            );
+        }
+        let damaged = self.get_mob_entity().try_attack(entity, target);
+        if damaged {
+            self.play_attack_sound();
+        }
+        damaged
+    }
+
+    /// Vanilla `Creaking.playAttackSound`.
+    fn play_attack_sound(&self) {
+        self.play_entity_sound(Sound::EntityCreakingAttack, 1.0, 1.0);
     }
 
     fn mob_is_pushable(&self) -> bool {

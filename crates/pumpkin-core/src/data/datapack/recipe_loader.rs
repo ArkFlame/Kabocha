@@ -108,12 +108,19 @@ fn parse_result(value: &Value) -> Option<OwnedRecipeResult> {
                 .get("id")
                 .or_else(|| map.get("item"))
                 .and_then(Value::as_str)?;
-            // Vanilla `ItemStackTemplate` codec rejects counts outside 1..=99 (the recipe fails to load).
-            let count = map.get("count").and_then(Value::as_u64).unwrap_or(1);
-            if !(1..=99).contains(&count) {
-                return None;
-            }
-            let count = count as u8;
+            // Vanilla `ItemStackTemplate` uses `intRange(1, 99).optionalFieldOf("count", 1)`:
+            // an absent count defaults to 1, but a present non-integer or out-of-range count
+            // rejects the recipe rather than being silently defaulted.
+            let count = match map.get("count") {
+                None => 1u8,
+                Some(value) => {
+                    let count = value.as_u64()?;
+                    if !(1..=99).contains(&count) {
+                        return None;
+                    }
+                    count as u8
+                }
+            };
             Some(OwnedRecipeResult {
                 item_id: normalize_id(id),
                 count,
@@ -281,14 +288,22 @@ fn parse_cooking(
         .get("group")
         .and_then(Value::as_str)
         .map(ToString::to_string);
-    let cooking_time = value
-        .get("cookingtime")
-        .and_then(Value::as_i64)
-        .map_or(default_cooking_time, |t| t as i32);
-    let experience = value
-        .get("experience")
-        .and_then(Value::as_f64)
-        .map_or(0.0, |e| e as f32);
+    // Vanilla `Codec.INT`/`Codec.FLOAT` reject out-of-range numbers. Checked casts avoid
+    // silently wrapping an oversized cookingtime or overflowing experience to infinity.
+    let cooking_time = match value.get("cookingtime") {
+        Some(t) => i32::try_from(t.as_i64()?).ok()?,
+        None => default_cooking_time,
+    };
+    let experience = match value.get("experience") {
+        Some(e) => {
+            let experience = e.as_f64()? as f32;
+            if !experience.is_finite() {
+                return None;
+            }
+            experience
+        }
+        None => 0.0,
+    };
 
     Some(OwnedCookingRecipe {
         recipe_id,
@@ -740,6 +755,52 @@ mod tests {
         assert!(
             parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 100})).is_none()
         );
+    }
+
+    #[test]
+    fn result_count_must_be_an_integer() {
+        // Vanilla `intRange` rejects a present count that is not a non-negative integer;
+        // the old `as_u64().unwrap_or(1)` silently turned these into a count of 1.
+        assert!(parse_result(&serde_json::json!({"id": "minecraft:stick", "count": -1})).is_none());
+        assert!(
+            parse_result(&serde_json::json!({"id": "minecraft:stick", "count": 2.5})).is_none()
+        );
+        assert!(
+            parse_result(&serde_json::json!({"id": "minecraft:stick", "count": "2"})).is_none()
+        );
+        assert_eq!(
+            parse_result(&serde_json::json!({"id": "minecraft:stick"})).map(|r| r.count),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn cooking_time_and_experience_use_checked_conversion() {
+        let recipe = |cookingtime: &str, experience: &str| {
+            format!(
+                r#"{{
+                    "type": "minecraft:smelting",
+                    "ingredient": "minecraft:raw_iron",
+                    "result": {{"id": "minecraft:iron_ingot"}},
+                    "cookingtime": {cookingtime},
+                    "experience": {experience}
+                }}"#
+            )
+        };
+
+        // In-range values still parse.
+        let ok = recipe("200", "0.7");
+        assert!(parse_recipe("test", "ok", &ok).is_some());
+
+        // A cookingtime outside i32 range is rejected instead of wrapping.
+        let too_big = recipe("2147483648", "0.0");
+        assert!(parse_recipe("test", "too_big", &too_big).is_none());
+        let too_small = recipe("-2147483649", "0.0");
+        assert!(parse_recipe("test", "too_small", &too_small).is_none());
+
+        // A finite f64 that overflows to an infinite f32 is rejected.
+        let overflow = recipe("200", "1e100");
+        assert!(parse_recipe("test", "overflow", &overflow).is_none());
     }
 
     #[test]

@@ -33,3 +33,21 @@ Remaining gaps:
 
 - Row 1 (no occlusion test for `#occludes_vibrations`): FIXED and VERIFIED against decompiled vanilla. `net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java:270-283` (`Listener.isOccluded`) centers origin and destination with floor+0.5, nudges the source by 1e-5 along each `Direction`, and occludes only when every line crosses an `OCCLUDES_VIBRATION_SIGNALS` block. Pumpkin's shared `world/game_event.rs::is_occluded` (`:139-152`) matches this exactly, and `SculkSensorBlock::on_vibration` (`block/blocks/redstone/sculk_sensor.rs:100`) calls it before `trigger`. The allay listener still uses the same helper. No code change was needed: the fix described in the table is already applied in this checkout. Covered by the existing allay gametest `wool_occludes_notes_but_a_solid_stone_block_does_not` (`entity/passive/allay/vibration.rs:357`). No new pure unit test seam exists: `is_occluded` needs a live `World` with block state, and the direction/traverse logic has no pure boundary worth extracting. No generated data, WIT, or cross-crate refactor required.
 - Rows 2-4: already resolved in the table above (FIXED / CONFIRMED-INTENTIONAL); not marked STILL OPEN, so out of scope for this pass.
+
+
+## Result (re-verification pass)
+
+- Row 1 (only STILL OPEN row): CONFIRMED FIXED, no code change needed. Independently re-checked decompiled `net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java:270-283`: from/to are floor+0.5, each `Direction` nudges the source by 1e-5, and occlusion requires every line to cross an `OCCLUDES_VIBRATION_SIGNALS` block. Pumpkin `world/game_event.rs::is_occluded` (:139-152) matches. `SculkSensorBlock::on_vibration` (`block/blocks/redstone/sculk_sensor.rs:100`) calls it before `trigger`; import at :11. Allay uses the same helper (`entity/passive/allay/vibration.rs:15,187`). No pure unit-test seam exists (needs a live `World`); no generated data, WIT, or cross-crate refactor needed. No source files edited this pass.
+- Rows 2-4: not marked STILL OPEN, out of scope.
+
+
+## Result (decompiled-vanilla verification pass)
+
+Re-verified every row against decompiled vanilla (`net/minecraft/...`); no code change was needed, all four rows match.
+
+- Row 1 (occlusion): `VibrationSystem.Listener.tryScheduleVibration` (`VibrationSystem.java:239`) drops the event when `isOccluded` (`:270-283`: floor+0.5 endpoints, 1e-5 nudge per `Direction`, occluded only when all lines cross `OCCLUDES_VIBRATION_SIGNALS`). Pumpkin `world/game_event.rs::is_occluded` (`:139-152`) matches exactly and `SculkSensorBlock::on_vibration` (`sculk_sensor.rs:100`) calls it before `trigger`; allay uses the same helper (`vibration.rs:15,187`). FIXED, verified.
+- Row 2 (comparator output gate): `SculkSensorBlock.getAnalogOutputSignal` (`SculkSensorBlock.java:289-295`) returns `getPhase(state) == ACTIVE ? getLastVibrationFrequency() : 0`. Pumpkin `get_comparator_output` (`sculk_sensor.rs:309-336`) gates on `Active` identically, so the gate is intentional and correct. CONFIRMED-INTENTIONAL, verified.
+- Row 3 (calibrated radius): `CalibratedSculkSensorBlockEntity.VibrationUser.getListenerRadius` (`CalibratedSculkSensorBlockEntity.java:35-39`) returns 16; regular `SculkSensorBlockEntity.VibrationUser` returns 8 (`SculkSensorBlockEntity.java:87,97-100`). Pumpkin `CALIBRATED_LISTENER_RADIUS=16` / `LISTENER_RADIUS=8` (`sculk_sensor.rs:34,36`). FIXED, verified.
+- Row 4 (power formula): `VibrationSystem.getRedstoneStrengthForDistance` (`VibrationSystem.java:118-121`) = `max(1, 15 - floor((15.0/R)*distance))`. Pumpkin `get_power` (`sculk_sensor.rs:83-86`) is equivalent, with a pure unit test at `sculk_sensor.rs:432-438`. FIXED, verified.
+
+No new pure unit-test seam exists for rows 1-3 (all require a live `World` or are constants); row 4 is already unit-tested. No source files edited this pass.

@@ -94,3 +94,17 @@ Vanilla source checked: `.vendor/vanilla-decompiled/net/minecraft/world/entity/a
 
 Files changed: `crates/pumpkin-core/src/entity/passive/happy_ghast.rs` (rustfmt --edition 2024,
 exit 0). Not compiled, per CODER rules.
+
+
+## Result
+
+Second pass, verified directly against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/happyghast/HappyGhast.java`. All six gaps are resolved in the current code; one additional vanilla-ordering bug was found and fixed in this pass.
+
+- 1 flying movement (M): FIXED (already in code). `get_mob_gravity -> 0.0`, `get_mob_y_velocity_drag -> Some(0.95)` and `HappyGhastFloatAroundGoal` gated on `is_on_still_timeout()` mirror vanilla `travel`/`Ghast.RandomFloatAroundGoal`. Pumpkin has no `GhastMoveControl`, so velocity-based float is used; observable hover/roam matches.
+- 2 `server_still_timeout` (M): FIXED (already in code). Vanilla `tick` (414-434) and `scanPlayerAboveGhast` (545-566) match: `setServerStillTimeout(10)` when a non-spectator player (or its root vehicle, excluding a Happy Ghast) is inside the box above the ghast; no decrement before `tickCount > 60`. Pure test `still_detection_box_matches_vanilla_extents` covers the extents.
+- 3 `leash_holder_time` (S): FIXED. Vanilla `notifyLeashHolder` (523-527) sets 5 only for a quad-leash leashee; the generic hook is wired `entity/mod.rs:5882 -> mob/mod.rs:3153 -> happy_ghast.rs::mob_notify_leash_holder`. This pass fixed an ordering bug: `mob_tick` set `IS_LEASH_HOLDER` from the pre-decrement value, keeping the flag set one tick too long (vanilla decrements first, then evaluates). Extracted pure `tick_leash_holder_time` helper plus `leash_holder_flag_uses_decremented_time` test.
+- 4 harness / rider control (L): FIXED (already in code). `mobInteract` item-first then mount when harnessed and not sneaking, `canAddPassenger` cap 4, `getControllingPassenger` gated on harness plus still timeout, and `addPassenger`/`removePassenger` still-timeout, goggles-sound and clearHome side effects match vanilla 279-350. Pure tests `player_mount_requires_harness_and_a_free_seat` and `goggles_sound_only_on_vehicle_transition` cover the seams.
+- 5 `still_timeout` NBT key (S): RESOLVED, NO CHANGE. Vanilla writes/reads `tag.putInt("still_timeout", ...)` / `getIntOr("still_timeout", 0)` (530-538); existing Pumpkin code is correct.
+- 6 baby metadata (S): RESOLVED, NO CHANGE. `AgeableMob::set_age` (ageable.rs:108-115) writes `ageable_mob::DATA_BABY_ID` on every age sign change and `happy_ghast::BABY_ID` is an alias (tracked_data.rs:9408) of that id, so aging up clears the client flag.
+
+Files changed this pass: `crates/pumpkin-core/src/entity/passive/happy_ghast.rs` (rustfmt --edition 2024, exit 0). Not compiled, per CODER rules. Left open: none of the six rows. Untracked note: vanilla `registerGoals` (104-113) switches the tempt tag between `HAPPY_GHAST_TEMPT_ITEMS` and `HAPPY_GHAST_FOOD` based on harness/baby state; Pumpkin uses a single static tag. This is outside the tracked rows and needs a `TemptGoal::for_cube_mob`-style predicate seam, so it was not changed.

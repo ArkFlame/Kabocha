@@ -70,7 +70,9 @@ in this worktree (.vendor/ absent), so vanilla class behaviour is from knowledge
 
 ## h6 gap status
 
-- Rows 1-6: STILL OPEN (chest-boat contents and seat logic, M; needs gametest harness).
+- Rows 1-5: FIXED (verified against decompiled vanilla; see Result sections).
+- Row 6: STILL OPEN (pumpkin-gametest needs a new file and a build run, both forbidden
+  under this worker's no-cargo/no-new-file constraints; pure unit seams cover rows 2-5).
 
 
 ## Result
@@ -108,3 +110,56 @@ without being imported in that module.
 
 Verification: `rustfmt --edition 2024` applied cleanly to
 `crates/pumpkin-core/src/entity/vehicle/boat.rs`. Cargo/clippy not run (worker constraint).
+
+
+## Result (re-verification pass)
+
+Re-checked every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`
+(`AbstractBoat`, `AbstractChestBoat`) and `world/item/BoatItem.java`, and against the current
+Pumpkin `boat.rs`, `entity/mod.rs`, `entity/player.rs` and `world/mod.rs`. No source edit was
+needed: rows 1-5 are already correct in the checkout.
+
+1. FIXED. `BoatEntity::on_removed` -> `scatter_chest_contents`, guarded by `claim_drops`. Grep
+   confirms `on_removed()` is invoked only from `World::remove_entity`, which sets
+   `RemovalReason::Discarded` (`should_destroy() == true`). The damage path also scatters once,
+   so contents drop exactly once on break/void/kill/discard. Vanilla
+   `AbstractChestBoat.remove`/`destroy` gated on `reason.shouldDestroy()` is matched.
+2. FIXED. `boat_drop_item` prefers `BoatItem::entity_to_item` with a registry-key fallback;
+   `every_boat_entity_type_resolves_a_drop_item` covers all boat types. Vanilla uses one
+   `dropItem` supplier for both `getDropItem` and `getPickResult`.
+3. FIXED. Vanilla `AbstractBoat.interact` gates mount behind `isSecondaryUseActive`,
+   `outOfControlTicks < 60` and `startRiding`; `canAddPassenger` checks only seat count and
+   eye-in-water. `AbstractChestBoat.interact` opens the container only when the ride returned
+   PASS and `canAddPassenger(player) && !isSecondaryUseActive()` is false. The pure
+   `boat_interact_outcome` model encodes this chain and
+   `chest_boat_interact_follows_vanilla_mount_container_nothing_chain` covers the full table,
+   so an out-of-control or already-ridden chest boat no longer opens on plain use.
+4. FIXED. `max_passengers` is the single seat rule used by `boat.rs` and `entity/mod.rs:1338`;
+   `chest_boat_detection_covers_every_chest_boat_entity_type` asserts 1 vs 2.
+5. FIXED. `entity/player.rs:4567` uses `boat::is_boat(entity_type)`;
+   `boat_stat_classification_covers_every_boat_entity_type` covers every boat type.
+6. OPEN (unchanged). A pumpkin-gametest for contents/drop on break needs a new gametest file
+   plus a build run; both are forbidden here (no new sources, no cargo). The smallest
+   in-file pure seams were added for rows 2-5 instead.
+
+No rustfmt needed: no `.rs` file was touched this pass. Cargo/clippy not run (worker constraint).
+
+## Result (final re-review)
+
+Read-only verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`
+and the current Pumpkin `crates/pumpkin-core/src/entity/vehicle/boat.rs`. No source file was
+touched: this unit names no source basenames and the only open row needs a new file.
+
+- Rows 1-5: already FIXED in the checkout. `on_removed` -> `scatter_chest_contents` gated by
+  `claim_drops` (row 1); `boat_drop_item` prefers `BoatItem::entity_to_item` (row 2);
+  `boat_interact_outcome` models the vanilla mount/container/nothing chain (row 3);
+  `max_passengers` is the single seat rule used by both sites (row 4); `player.rs` uses
+  `boat::is_boat` (row 5). Confirmed present by grep; no edit needed.
+- Row 6: STILL OPEN. Requires a new pumpkin-gametest source file plus a build/run; a new file
+  outside this unit's permitted sources and cargo are both forbidden under this worker's
+  constraints. The pure seams a unit test could cover (`drops_item_when_destroyed`,
+  `boat_drop_item`, `boat_interact_outcome`, including no item on creative break) already have
+  unit tests in `boat.rs`; the remaining integration assertion (spawn, fill, break, inspect world
+  drops) has no pure seam.
+
+No `.rs` file touched, so no rustfmt needed. Cargo/clippy not run (worker constraint).

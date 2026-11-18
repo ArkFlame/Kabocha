@@ -32,7 +32,7 @@ pub const ERROR_FAILED_PEACEFUL: CommandErrorType<0> = CommandErrorType::new(
 pub fn is_blocked_on_peaceful(difficulty: Difficulty, category: &MobCategory) -> bool {
     difficulty == Difficulty::Peaceful && category == &MobCategory::MONSTER
 }
-const ERROR_DUPLICATE_UUID: CommandErrorType<0> = CommandErrorType::new(
+pub const ERROR_DUPLICATE_UUID: CommandErrorType<0> = CommandErrorType::new(
     translation::java::COMMANDS_SUMMON_FAILED_UUID,
     translation::bedrock::COMMANDS_SUMMON_FAILED,
 );

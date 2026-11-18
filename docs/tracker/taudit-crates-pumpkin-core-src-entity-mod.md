@@ -43,3 +43,31 @@ Re-audited 2026-11-17 against `.vendor/vanilla-decompiled`. Files touched: `crat
 - 6 stopRiding ENTITY_DISMOUNT: FIXED previously (verified at the current emit site).
 
 Summary: fixed=2 (rows 2 and 4), already satisfied=3 (rows 3, 5, 6), open=1 (row 1, cross-crate).
+
+
+## Result
+
+Re-audited 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java`. No source files needed edits this pass: every fixable row was already resolved in earlier passes. Files touched: this doc only.
+
+- 1 TemperatureVariantAnimal Bedrock `climate_variant` (entity/mod.rs:997): STILL OPEN. `climate_variant` is a Bedrock Molang property whose numeric id is absent from `pumpkin-protocol`/`pumpkin-data`; filling `synced_properties` needs a generated property table plus a spawn-biome-temperature hook in `mob/mod.rs` (outside this unit). One-line reason: cross-crate, blocked on Bedrock property-id data. TODO comment kept.
+- 2 igniting clears freeze (entity/mod.rs:1097): verified FIXED. `set_on_fire_for_ticks` raises fire ticks then calls `set_frozen_ticks(0)`, matching vanilla `Entity.igniteForTicks` (Entity.java:1168-1174: setRemainingFireTicks then clearFreeze); `set_frozen_ticks` clamps and resends Java + Bedrock metadata. Test `igniting_clears_freeze_progress` present. No change.
+- 3 team name decoration (entity/mod.rs:258,1474): verified satisfied. `format_name_for_team` applies prefix + name + suffix with team colour on the root component and `get_display_name` adds hover/insertion on the result, matching vanilla `Entity.getDisplayName` (Entity.java:6231-6234). No change.
+- 4 kill fallback (entity/mod.rs:1485): verified FIXED. Non-living `kill` scatters container inventory, calls `remove()` then emits `GameEvent::EntityDie`, matching vanilla `Entity.kill` (Entity.java:765-768). No change.
+- 5 dead `tick_block_underneath` stub (entity/mod.rs:3078): verified absent. No stub/TODO remains; `stepOn` parity is live via `LivingEntity::tick_movement` -> `block_registry.on_entity_step` (living.rs:4881) for magma/slime/turtle-egg/sculk, while campfire relies on `entityInside` via `on_entity_collision` (mod.rs:3331). No change.
+- 6 stopRiding ENTITY_DISMOUNT (entity/mod.rs:6457): verified FIXED. `emit_game_event(EntityDismount, self.pos)` uses the vehicle position, matching vanilla `Entity.removeVehicle` (Entity.java:3672: oldVehicle.position). No change.
+
+Summary: verified=5, fixed=0 new this pass (all fixable rows already resolved), open=1 (row 1, cross-crate/Bedrock data).
+
+
+## Result
+
+Re-audited 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java` and the live code. This unit has no editable source files (`basenames: none`), so no source was touched; only this doc changed.
+
+- 1 TemperatureVariantAnimal Bedrock `climate_variant` (entity/mod.rs:997): STILL OPEN. TODO kept; `climate_variant` is a Bedrock Molang property whose numeric id is absent from `pumpkin-protocol`/`pumpkin-data`. One-line reason: filling `synced_properties` needs a generated Bedrock property-id table plus a spawn-biome-temperature hook in `mob/mod.rs`, both cross-crate/outside this unit. No source file in scope.
+- 2 igniting clears freeze (entity/mod.rs:1097): verified FIXED. `set_on_fire_for_ticks` raises fire ticks then calls `set_frozen_ticks(0)`, matching vanilla `Entity.igniteForTicks` (Entity.java:1170-1173: setRemainingFireTicks then clearFreeze). Unit test `igniting_clears_freeze_progress` present. No change.
+- 3 team name decoration (entity/mod.rs:258,1474): verified satisfied. `format_name_for_team` applies team colour/prefix/suffix and `get_display_name` adds hover/insertion to the whole result, matching vanilla `Entity.getDisplayName` (Entity.java:6231-6234: PlayerTeam.formatNameForTeam then withHoverEvent/withInsertion). Test `team_formatting_adds_prefix_suffix_and_colour` present. No change.
+- 4 kill fallback (entity/mod.rs:1485): verified FIXED. Non-living `kill` scatters container inventory, calls `remove()` then emits `GameEvent::EntityDie`, matching vanilla `Entity.kill` (Entity.java:765-768). No change.
+- 5 dead `tick_block_underneath` stub: verified absent (no grep matches for `tick_block_underneath`/`stepOn`/`on_entity_step` in mod.rs). `stepOn` parity lives in the living/block-registry path outside this unit. No change.
+- 6 stopRiding ENTITY_DISMOUNT (entity/mod.rs:6467): verified FIXED. `emit_game_event(EntityDismount, self.pos)` uses the vehicle (self) position. No change.
+
+Summary: verified=5, fixed=0 new this pass (all fixable rows already resolved), open=1 (row 1, cross-crate/Bedrock data). Compile pits replay: no new code, no unwrap/expect/panic, no edits to generated data.

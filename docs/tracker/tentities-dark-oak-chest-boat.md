@@ -49,3 +49,17 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/` (26.3, Paper). The 
 | 5 | CLOSED, no change | `AbstractChestBoat` implements only `Container` (via `ContainerEntity`), not `WorldlyContainer`. `HopperBlockEntity.addItem` (:612-628) iterates every slot for a plain Container, so a hopper above a chest boat DOES insert and one below DOES extract. | `MinecartInventory` is not sided (`Inventory::is_sided` default is false, pumpkin-inventory/src/inventory/inventory.rs:115-117), so the hopper path (hopper.rs:343-365) also uses all slots; matches vanilla. Doc premise wrong. |
 
 The changed line is entity/world/game-event integration with no pure unit-test seam, so no test was added. No generated data, WIT, cross-crate refactor or out-of-unit file was touched.
+
+## Result
+
+Independent re-review 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 26.3). All five STILL OPEN rows were re-verified smallest-first. Every fix described by the prior pass is already present in the source, so no new code changes were needed in this unit's editable files (hopper.rs, inventory.rs).
+
+| # | Outcome | Vanilla evidence | Pumpkin state |
+|---|---------|------------------|---------------|
+| 3 | CLOSED, no change | `VehicleEntity.destroy` (VehicleEntity.java:94-100) sets `DataComponents.CUSTOM_NAME` from `getCustomName()`. | boat.rs:743-748 already copies `custom_name` onto the dropped stack; matches vanilla. Out of this unit's editable files. |
+| 4 | CLOSED, no change | `Boat.rideHeight` (Boat.java:14-17) returns `dimensions.height()/3.0`, the value carried by `BoatSeats.ride_height`. | boat/passengers.rs and boat.rs already read `entity_type.boat.ride_height` from data; no formula/data desync. Out of this unit's editable files. |
+| 5 | CLOSED, no change, test present | `ContainerEntity` (ContainerEntity.java:32) extends `Container, MenuProvider`, not `WorldlyContainer`; `HopperBlockEntity.addItem` iterates all slots for a plain Container, so insert-above and extract-below both work. | `MinecartInventory` inherits `Inventory::is_sided` = false; hopper.rs `add_item`/`is_full_container`/`try_take_from_source` use the all-slots path. Test `hopper_moves_items_both_ways_with_a_plain_entity_container` (block/entities/hopper.rs:889) pins it. |
+| 1 | CLOSED, no change, fix already in source | `AbstractChestBoat.interact` (:90-94) and `openCustomInventoryScreen` (:99-106) emit `GameEvent.CONTAINER_OPEN` with the player as source, so the doc's "entity containers emit nothing" premise is wrong and the emit must stay. | boat.rs:317-326 uses `emit_game_event_with_source(.., Some(player.clone()))`; matches vanilla. Out of this unit's editable files. |
+| 2 | CLOSED, no change | `BoatItem.getBoat` (:93-104) applies only `createDefaultStackConfig`; `Entity.applyImplicitComponents` (Entity.java:7210-7213) copies only CUSTOM_NAME and CUSTOM_DATA. No container component is copied on placement. | item/items/boat.rs spawns an empty chest boat; matches vanilla. Out of this unit's editable files. |
+
+No pure unit-test seam applies to rows 1-4 (world/game-event and item-placement integration), and row 5's seam already has a test. No generated data, WIT, cross-crate refactor or out-of-unit file was touched. No .rs file was edited this pass, so rustfmt was not needed.

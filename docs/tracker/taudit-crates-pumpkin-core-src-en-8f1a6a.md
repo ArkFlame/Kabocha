@@ -93,3 +93,52 @@ Re-verified every STILL OPEN row against decompiled vanilla
   outside this unit).
 
 No pure unit-test seam exists for the row 37 change (it needs a live world/target); no test added.
+
+## Result (re-verification pass)
+
+Re-checked every STILL OPEN row against decompiled vanilla
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/{AbstractArrow,Arrow,SpectralArrow}.java`).
+No new code fix was possible in this unit: the fixes feasible here were already applied in the
+prior pass, and the remaining rows are either already vanilla-correct or outside this unit's
+files. Added one pure codec test for the pickup byte values.
+
+| Row | Verdict | Reason |
+|---|---|---|
+| 29 (enchant ordering, M) | open, no fix needed | Vanilla `AbstractArrow#onHitEntity:470-474` calls `modifyDamage` before `pow * base` and `ceil`; `projectile_weapon.rs:67` applies the same target-independent damage adjustment at fire time. Smite/Bane are target-dependent and belong to the enchantment system, not this unit. |
+| 30 (pickup `canHold` pre-check, S) | open | Vanilla `playerTouch:707` gates the pickup event on `inventory.canHold(pickupItem) > 0`; no `canHold` helper exists in `pumpkin-inventory` (only the mutating `insert_stack_anywhere`). Cross-crate refactor, outside this unit. The event is already correctly restricted to `ALLOWED`. |
+| 33 (tipped-arrow trail / potion puff, S) | open | Vanilla `Arrow#tick:88-95` emits the trail only in the `isClientSide()` branch; server side only broadcasts `EVENT_POTION_PUFF` and swaps to a plain arrow (`Arrow#tick:96-99`), both already done in `decay_exposed_potion`. Client renders from synced ID_EFFECT_COLOR. |
+| 34 (crit particles, S) | open | Vanilla `AbstractArrow#tick:246-259` calls `Level.addParticle`, a no-op on the server; client renders from the synced crit flag. |
+| 35 (spectral trail particle, S) | open | Vanilla `SpectralArrow#tick:38-39` emits the EFFECT particle only when `level().isClientSide()`. Client render only. |
+| 36 (sound/weapon NBT, S) | open | Vanilla `AbstractArrow` stores `SoundEvent` (`addAdditionalSaveData:663`), but no Rust arrow sets a non-default hit sound and there is no `onItemBreak` hook, so persisting it is a no-op; weapon NBT is already persisted. Engine hook outside this unit. |
+| 37 (pierce deflect branch, S) | verified | Prior fix confirmed: the deflect branch is the plain `else if` at `AbstractArrow.java:554` with no pierce guard, and `arrow.rs:803` matches. |
+| 38 (no-physics owner pickup, S) | open, no fix needed | Vanilla `playerTouch:703-704` checks only `(inGround || noPhysics) && shake <= 0` and `tryPickup:724-729` has no owner branch. `on_player_collision` already matches. |
+| 39 (last_hurt_mob, M) | open | Vanilla `AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`; `LivingEntity` has no such field. Engine-wide field plus every consumer, outside this unit. |
+
+Pure test added: `arrow_pickup_byte_codec_matches_vanilla_ordinals` in `arrow.rs` locks the
+`ArrowPickup` byte codec to the vanilla `Pickup.LEGACY_CODEC` ordinals (0/1/2).
+No other pure seam exists for the remaining rows (they need a live world, a target, or an
+inventory instance).
+
+## Result (final verification pass)
+
+Re-read every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/{AbstractArrow,Arrow,SpectralArrow}.java`
+and re-read the four in-unit files (`entity/projectile/{abstract_arrow,arrow,trident}.rs`,
+`item/items/projectile_weapon.rs`). No new code fix is possible in this unit: the fixes that
+belong here were already landed in the prior passes, and every remaining row is either already
+vanilla-correct, a client-only particle effect, or outside this unit's files. No code changed.
+
+| Row | Verdict | Evidence |
+|---|---|---|
+| 29 (enchant ordering, M) | open, no fix needed | `AbstractArrow#onHitEntity:470-474` applies `modifyDamage` to `baseDamage` before `pow * base`/`ceil`; `projectile_weapon.rs:67` applies the same target-independent Power adjustment at fire time, so the pre-ceil value matches. Smite/Bane (target-dependent) belong to the enchant system, not this unit. |
+| 30 (pickup `canHold`, S) | open | `AbstractArrow#playerTouch:707` gates the event on `canHold(pickupItem) > 0`; `PlayerInventory` has only the mutating `insert_stack_anywhere` (no `canHold`), so a capacity helper in `pumpkin-inventory` is required. The event is already correctly restricted to `ALLOWED` (`arrow.rs:673`). Cross-crate, outside this unit. |
+| 33 (tipped trail / potion puff, S) | open | `Arrow#tick` emits the trail only in the `isClientSide()` branch; server only broadcasts entity event 0 and resets color, both done in `decay_exposed_potion`. Client renders from synced ID_EFFECT_COLOR. |
+| 34 (crit particles, S) | open | `AbstractArrow#tick` calls `Level.addParticle` (server no-op); client renders from synced crit flag. |
+| 35 (spectral trail, S) | open | `SpectralArrow#tick` emits EFFECT particle only when `isClientSide()`; client render only. |
+| 36 (sound/weapon NBT, S) | open | `AbstractArrow#addAdditionalSaveData:663` stores `SoundEvent`, but no Rust arrow sets a non-default hit sound (`Sound::EntityArrowHit` is hardcoded) and there is no `onItemBreak` hook, so persisting it is a no-op; weapon NBT is already persisted (`arrow.rs:486-490,510-520`). |
+| 38 (no-physics owner pickup, S) | open, no fix needed | `AbstractArrow#playerTouch:703-704` checks only `(inGround || noPhysics) && shake <= 0`; `tryPickup:724-729` has no owner branch. `on_player_collision:657-669` already matches. |
+| 39 (`last_hurt_mob`, M) | open | `AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`; `LivingEntity` has no such field and no consumer. Engine-wide field plus consumers, outside this unit. |
+
+No pure-test seam exists for any remaining row (they require a live world/target or an inventory
+instance), and the existing codec/damage tests already cover the pure seams, so no test added.
+Unverified by compilation (worker may not run cargo); all edits are read-only verification.

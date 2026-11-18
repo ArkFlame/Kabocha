@@ -158,3 +158,33 @@ Remaining gaps (all now FIXED in the checkout by other workers):
   container size, NBT round trip and interact outcomes.
 
 No source files edited; only this doc. No rustfmt needed. No tests run (worker rule: orchestrator compiles).
+
+## Result (worker re-verification pass)
+
+Re-verified all rows marked STILL OPEN in this unit against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java` and
+current Pumpkin sources in the checkout.
+
+STILL OPEN table rows (verified, no edit needed):
+- 27-slot inventory: VERIFIED. Vanilla `CONTAINER_SIZE = 27` / `getContainerSize() = 27`
+  (`AbstractChestBoat.java:33,114-116`); Pumpkin `CHEST_BOAT_CONTAINER_SIZE = 27` and
+  `boat_container_size()` allocate only for chest boats (`boat.rs:44,84-86`).
+- Single passenger seat: VERIFIED. Vanilla `getMaxPassengers() = 1` (`AbstractChestBoat.java:48-50`);
+  Pumpkin `max_passengers()` returns `CHEST_BOAT_MAX_PASSENGERS = 1` for chest boats vs
+  `BOAT_MAX_PASSENGERS = 2` (`boat.rs:47-48,95-101`).
+- Seat offset 0.15: VERIFIED. Vanilla `getSinglePassengerXOffset() = 0.15F`
+  (`AbstractChestBoat.java:43-45`); Pumpkin consumes generated `single_passenger_x_offset` via
+  `passenger_seat_offset` (`boat.rs:181-218`). Generated data is off-limits; not edited.
+
+Remaining gaps:
+- Gap 1 (screen validity): already fixed outside this unit's editable scope (`minecart/container.rs`
+  `EntityContainerScreenHandler` validity checks `is_alive()` and `can_interact_with_entity(..., 4.0)`).
+- Gap 2 (chest open states): already fixed outside this unit's editable scope (`boat.rs`
+  `chest_opens_container` / `boat_interact_outcome`, tested in `seat_and_container_tests`).
+- Gap 3 (spill position): already fixed outside this unit's editable scope (`boat.rs:287` and
+  `minecart.rs:985` call `scatter_inventory_at` at entity position).
+- Gap 4 (chest-boat test): already fixed outside this unit's editable scope (`boat.rs`
+  `seat_and_container_tests`).
+
+No source files edited; unit allows no source files (basenames: none). No rustfmt needed. No tests
+run (worker rule: orchestrator compiles).

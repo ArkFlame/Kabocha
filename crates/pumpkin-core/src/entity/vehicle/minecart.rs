@@ -449,6 +449,16 @@ impl EntityBase for MinecartEntity {
                                     }
                                 }
                             }
+                            // Vanilla Minecart.activateMinecart: while not already hurt, a powered
+                            // activator rail flips the wobble and sets damage to 50 (above the
+                            // 40 destroy threshold), so the next hit destroys the cart.
+                            if self.vehicle.get_hurt_time() == 0 {
+                                self.vehicle.set_hurt_dir(-self.vehicle.get_hurt_dir());
+                                self.vehicle.set_hurt_time(10);
+                                self.vehicle.set_damage(50.0);
+                                self.vehicle.send_wobble_metadata();
+                                self.vehicle.entity.mark_hurt();
+                            }
                         }
                         _ => {}
                     }
@@ -951,21 +961,10 @@ impl EntityBase for MinecartEntity {
             let destroy = (!creative && will_break) || ignites;
             if destroy && (ignites || speed_squared >= 0.01) {
                 self.vehicle.apply_damage_wobble(amount);
-                // Vanilla MinecartTNT.destroy: nextInt(20) + nextInt(20) fuse, primed only while
-                // the cart is unprimed and the tntExplodes rule is on.
+                // Vanilla MinecartTNT.destroy calls primeFuse unconditionally; primeFuse (like
+                // TntMinecart::prime) no-ops while the tntExplodes rule is off.
                 let fuse = rand::rng().random_range(0..20) + rand::rng().random_range(0..20);
-                if self
-                    .vehicle
-                    .entity
-                    .world
-                    .load()
-                    .level_info
-                    .load()
-                    .game_rules
-                    .tnt_explodes
-                {
-                    minecart.prime(&self.vehicle.entity, fuse);
-                }
+                minecart.prime(&self.vehicle.entity, fuse);
                 return true;
             }
         }

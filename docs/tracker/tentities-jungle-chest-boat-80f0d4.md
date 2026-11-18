@@ -161,3 +161,80 @@ main-checkout source. All fixes are already present in code; no source edit was 
 
 No .rs file touched this pass (rustfmt not needed). No build run (worker rule: orchestrator
 compiles). The "Gap status" table above remains stale; all seven rows are resolved in code.
+
+
+## Result
+
+Re-read every STILL OPEN row against `.vendor/vanilla-decompiled` and the current main-checkout
+source. This unit permits no source edits (basenames: none); all fixes are already present, so no
+`.rs` file was touched. Smallest rows first:
+
+- Row 7 (drop item resolution): VERIFIED FIXED. `boat_drop_item` (boat.rs:106-109) prefers
+  `BoatItem::entity_to_item` with the registry-key lookup only as a fallback, matching the
+  suggested fix; `every_boat_entity_type_resolves_a_drop_item` covers all 11 chest variants.
+- Row 5 (instabuild destroy skip): VERIFIED NOT A BUG. `VehicleEntity.hurtServer`
+  (VehicleEntity.java:59-80) `discard`s on a creative hit with no `destroy` and no
+  `hasCustomName()` clause; `drops_item_when_destroyed(creative, _named) = !creative` matches.
+- Row 6 (passenger damage): VERIFIED NOT A BUG. Vanilla protection is in
+  `Projectile.canHitEntity` (`!owner.isPassengerOfSameVehicle`); `damage_with_context` early-returns
+  via `source.is_passenger_of_same_vehicle(self)` (boat.rs:711-716).
+- Row 3 (canPlayerUse / stillValid): VERIFIED FIXED. `ContainerEntity.isChestVehicleStillValid`
+  (ContainerEntity.java:181-183) is `!isRemoved() && within 4.0`. `EntityContainerScreenHandler.can_use`
+  (minecart/container.rs:206-208) runs a validity closure checking `is_alive() &&
+  can_interact_with_entity(vehicle, 4.0)` against the vehicle tracked by id (lines 281-290).
+- Row 4 (container-entity loot tables): VERIFIED FIXED. `AbstractChestBoat` implements
+  `ContainerEntity` loot table/seed and calls `unpackLootTable` from `createMenu`
+  (AbstractChestBoat.java:152-184); `MinecartInventory::read_nbt`/`write_nbt` persist
+  `LootTable`/`LootTableSeed` (container.rs:44-71) and `get_container_inventory` /
+  `scatter_chest_contents` unpack loot. No `without_loot_table` filter remains.
+- Row 2 (failed boarding result): VERIFIED NOT A BUG. `AbstractBoat.interact`
+  (AbstractBoat.java:779-788) returns `InteractionResult.PASS` when sneaking, `outOfControlTicks
+  >= 60` or `startRiding` fails; Pumpkin returns `false` (PASS) via `BoatInteractOutcome::Nothing`.
+- Row 1 (chest boat interact ordering): VERIFIED FIXED. `AbstractChestBoat.interact`
+  (AbstractChestBoat.java:80-97) opens the container only when `super.interact` is PASS and
+  (`!canAddPassenger` or secondary use); `boat_interact_outcome` / `chest_opens_container`
+  (boat.rs:135-177) mirror that chain, with pure tests for seat-taken, sneaking, out-of-control and
+  already-riding cases.
+
+No new pure test needed: seams are already covered by `boat_interact_outcome`,
+`chest_opens_container`, `drops_item_when_destroyed`, `every_boat_entity_type_resolves_a_drop_item`
+and the container NBT round trips. No build run (worker rule: orchestrator compiles).
+
+
+## Result
+
+Independent re-verification of every STILL OPEN row against `.vendor/vanilla-decompiled` and the
+current main-checkout source, smallest rows first. This unit permits no source edits (basenames:
+none) and all seven fixes are already present, so no `.rs` file was touched. The "Gap status"
+table above is stale; all rows are resolved in code.
+
+- Row 7 (drop item resolution): VERIFIED FIXED. `boat_drop_item` (boat.rs:106-109) prefers
+  `BoatItem::entity_to_item` with the registry-key lookup only as fallback, matching the suggested
+  fix; `every_boat_entity_type_resolves_a_drop_item` (boat.rs:1132) covers all 11 chest variants.
+- Row 5 (instabuild destroy skip): VERIFIED NOT A BUG. `VehicleEntity.hurtServer`
+  (VehicleEntity.java:59-80) `discard`s on a creative hit with no `destroy` and no `hasCustomName()`
+  clause; `drops_item_when_destroyed(creative, _named) = !creative` (boat.rs:117-119) matches.
+- Row 6 (passenger damage): VERIFIED NOT A BUG. The vanilla guard is in `Projectile.canHitEntity`
+  (Projectile.java:566, `!owner.isPassengerOfSameVehicle`), not in `hurtServer`.
+  `projectile/owner.rs:can_hit` (owner.rs:247) uses the equivalent
+  `!owner.is_passenger_of_same_vehicle(entity)`; boat.rs:709-710 correctly adds no `hurtServer`
+  early return.
+- Row 2 (failed boarding result): VERIFIED NOT A BUG. `AbstractBoat.interact`
+  (AbstractBoat.java:779-788) returns `PASS` when sneaking, `outOfControlTicks >= 60`, or a failed
+  `startRiding`; Pumpkin returns `false` (PASS) via `BoatInteractOutcome::Nothing` (boat.rs:817).
+- Row 1 (chest boat interact ordering): VERIFIED FIXED. `AbstractChestBoat.interact`
+  (AbstractChestBoat.java:80-97) opens the container only when `super.interact` is PASS and
+  (`!canAddPassenger` or secondary use). `chest_opens_container` / `boat_interact_outcome`
+  (boat.rs:135-177) mirror that chain; pure tests at boat.rs:1190 and 1222 cover seat-taken,
+  sneaking, out-of-control and already-riding cases.
+- Row 3 (canPlayerUse / stillValid): VERIFIED FIXED. `ContainerEntity.isChestVehicleStillValid`
+  (ContainerEntity.java:181-183) is `!isRemoved() && within 4.0`. `EntityContainerScreenHandler.can_use`
+  (container.rs:206-208) runs the validity closure checking `is_alive() &&
+  can_interact_with_entity(vehicle, 4.0)` against the vehicle tracked by id (container.rs:281-290).
+- Row 4 (container-entity loot tables): VERIFIED FIXED. `AbstractChestBoat` implements
+  `ContainerEntity` loot table/seed; `open` (container.rs:265) calls `inventory.unpack_loot`, and
+  `MinecartInventory::read_nbt`/`write_nbt` persist `LootTable`/`LootTableSeed` (container.rs:43-71).
+  No `without_loot_table` filter remains.
+
+No new pure test needed: all seams are already covered. No build run (worker rule: orchestrator
+compiles); no source edit so no rustfmt needed.

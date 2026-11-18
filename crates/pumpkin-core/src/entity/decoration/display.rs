@@ -52,18 +52,18 @@ impl MetadataSerializer for QuaternionfSerializer {
     }
 }
 
-/// Packs a display brightness override the way vanilla's `Display.Brightness` does:
-/// block light in the low 16 bits, sky light in the high 16 bits.
+/// Packs a display brightness override the way vanilla's `Brightness.pack` does,
+/// through `LightCoordsUtil.pack`: block light in bits 4-7, sky light in bits 20-23.
 const fn pack_brightness(block: i32, sky: i32) -> i32 {
-    (block & 0xFFFF) | ((sky & 0xFFFF) << 16)
+    (block << 4) | (sky << 20)
 }
 
 const fn brightness_block(packed: i32) -> i32 {
-    packed & 0xFFFF
+    (packed >> 4) & 15
 }
 
 const fn brightness_sky(packed: i32) -> i32 {
-    (packed >> 16) & 0xFFFF
+    (packed >> 20) & 15
 }
 
 /// Reads a fixed-length float list such as a transformation vector/quaternion
@@ -259,6 +259,13 @@ impl DisplayEntity {
     }
 
     pub fn set_brightness(&self, brightness: i32) {
+        // -1 is the "no override" sentinel; anything else is re-packed from its
+        // two 4-bit light fields so a garbage value cannot leak into the bits.
+        let brightness = if brightness == -1 {
+            -1
+        } else {
+            pack_brightness(brightness_block(brightness), brightness_sky(brightness))
+        };
         self.brightness.store(brightness, Ordering::Relaxed);
         self.entity.set_synced_data(
             pumpkin_data::tracked_data::display::BRIGHTNESS,
@@ -269,7 +276,7 @@ impl DisplayEntity {
     /// Sets a brightness override from independent block and sky light levels,
     /// matching vanilla's `setBrightnessOverride(Brightness(block, sky))`.
     pub fn set_brightness_override(&self, block: i32, sky: i32) {
-        self.set_brightness(pack_brightness(block, sky));
+        self.set_brightness(pack_brightness(block.clamp(0, 15), sky.clamp(0, 15)));
     }
 
     pub fn get_view_range(&self) -> f32 {
@@ -600,10 +607,12 @@ impl DisplayEntity {
             self.interpolation_start_delta_ticks
                 .store(start, Ordering::Relaxed);
         }
-        if let Some(td) = nbt.get_int("teleport_duration") {
-            self.teleport_duration
-                .store(td.clamp(0, TELEPORT_DURATION_MAX), Ordering::Relaxed);
-        }
+        self.teleport_duration.store(
+            nbt.get_int("teleport_duration")
+                .unwrap_or(0)
+                .clamp(0, TELEPORT_DURATION_MAX),
+            Ordering::Relaxed,
+        );
         if let Some(vr) = nbt.get_float("view_range") {
             *self
                 .view_range
@@ -647,12 +656,19 @@ impl DisplayEntity {
             self.billboard.store(mode, Ordering::Relaxed);
         }
 
-        if let Some(b) = nbt.get_compound("brightness") {
-            let block = b.get_int("block").unwrap_or(0);
-            let sky = b.get_int("sky").unwrap_or(0);
-            self.brightness
-                .store(pack_brightness(block, sky), Ordering::Relaxed);
-        }
+        // Vanilla decodes the whole `Brightness` record (both fields required,
+        // each 0..=15); a missing key or a bad value clears the override.
+        let brightness = nbt.get_compound("brightness").and_then(|b| {
+            let block = b.get_int("block")?;
+            let sky = b.get_int("sky")?;
+            if (0..=15).contains(&block) && (0..=15).contains(&sky) {
+                Some(pack_brightness(block, sky))
+            } else {
+                None
+            }
+        });
+        self.brightness
+            .store(brightness.unwrap_or(-1), Ordering::Relaxed);
 
         // Vanilla decodes transformation as a single value, so a malformed or partial
         // tag leaves the whole transform unchanged instead of applying only the
@@ -1274,17 +1290,13 @@ mod tests {
     use super::{brightness_block, brightness_sky, pack_brightness};
 
     #[test]
-    fn brightness_packing_uses_independent_16_bit_fields() {
-        // Vanilla LightCoordsUtil.pack stores block in the low 16 bits and sky in the high 16.
+    fn brightness_packing_matches_light_coords_pack() {
+        // Vanilla LightCoordsUtil.pack: block << 4 | sky << 20, FULL_BRIGHT = 15728880.
         let packed = pack_brightness(15, 12);
-        assert_eq!(packed, 0x000C_000F);
+        assert_eq!(packed, 15 << 4 | 12 << 20);
         assert_eq!(brightness_block(packed), 15);
         assert_eq!(brightness_sky(packed), 12);
-
-        // Out-of-range light values must stay in their own field, not wrap into the other.
-        let overflow = pack_brightness(0x1_000F, 0x1_000C);
-        assert_eq!(overflow, packed);
-        assert_eq!(brightness_block(overflow), 15);
-        assert_eq!(brightness_sky(overflow), 12);
+        assert_eq!(pack_brightness(15, 15), 15_728_880);
+        assert_eq!(pack_brightness(0, 0), 0);
     }
 }

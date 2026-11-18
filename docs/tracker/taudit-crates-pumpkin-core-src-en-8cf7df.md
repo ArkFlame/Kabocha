@@ -39,7 +39,7 @@ defend_village_target.rs, fox/goals.rs, trader_llama.rs, teleport_towards_player
   restriction. Vanilla: TrackTargetGoal.canAttack -> Mob.isWithinRestriction.
 
 ## Gap status
-- can_navigate_to_entity pathfinder (row 1): STILL OPEN, no path-finding API (only NavigatorGoal, entity/mob/mod.rs:955). Prior fix track_target.rs:125 FIXED.
+- can_navigate_to_entity pathfinder (row 1): FIXED (see Result). No longer blocked: pathfinder Navigator::create_path exists. Prior fix track_target.rs:125 FIXED.
 
 ## Result
 

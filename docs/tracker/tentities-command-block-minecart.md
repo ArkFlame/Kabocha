@@ -65,3 +65,42 @@ All three STILL OPEN rows re-verified against decompiled vanilla under `.vendor/
 Adjacent observations, left unchanged as outside STILL OPEN scope:
 - `net/java/play/set_command_minecart.rs:36` calls `on_updated` unconditionally, while vanilla `ServerGamePacketListenerImpl#handleSetCommandMinecart` (lines 1112-1115) gates `onUpdated` behind `commandBlocksWork`; only `setCommand`/`setTrackOutput` are unconditional in vanilla.
 - `block/blocks/command.rs:155-158,171` gates Searge behind the gamerule and compares case-sensitively, while vanilla `BaseCommandBlock#performCommand` (lines 99-106) uses `equalsIgnoreCase` before the gamerule guard.
+
+
+## Result (2026-11-18 re-verification against `.vendor/vanilla-decompiled`)
+
+All three STILL OPEN rows (doc lines 43, 47, 50) re-checked against decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No `.rs` source files changed this pass, so rustfmt was not needed.
+
+- Gap 4 (entity display name, doc lines 41-45): RESOLVED, no code change, premise is false. Decompiled `world/level/BaseCommandBlock.java` owns its own `customName` field (line 32), `getName()` returns it or the `@` default (lines 147-149), and NBT stores it under `CustomName` (lines 53, 68). `MinecartCommandBlock.java:32` embeds that `BaseCommandBlock`. Pumpkin's `CommandBlockMinecart.custom_name` plus `get_name()` defaulting to `@` therefore mirror vanilla; dropping the copy would diverge from vanilla.
+- Gap 5 (hardcoded NBT component version, doc lines 46-49): LEFT OPEN, one-line reason: threading a target `JavaMinecraftVersion` through `Entity` NBT saving is a cross-crate refactor across ~16 sites, outside this unit's files. Current code uses the repo-standard `CURRENT_MC_VERSION` constant, matching the other sites.
+- Gap 6 (gamerule-off test, doc lines 50-53): RESOLVED, no new test needed. `crates/pumpkin-core/src/entity/vehicle/minecart.rs::tests::command_block_minecart_perform_command_gamerule` (lines 1233-1274) already sets `command_blocks_work = false`, asserts `success_count == 0` and empty output for a normal command, and asserts the case-insensitive Searge path still fires. Verified against `BaseCommandBlock#performCommand`: successCount reset before the gamerule guard (line 105), `equalsIgnoreCase` Searge check before the guard (line 99), and `lastExecution` updated even with the gamerule off (lines 134-138). The current minecart `command_block.rs` and `set_command_minecart.rs` already match this ordering, so they were left untouched.
+
+Adjacent observations from the prior Result were outside STILL OPEN scope and were not changed by this pass.
+
+## Result (2026-11-18 CODER re-verification against `.vendor/vanilla-decompiled`)
+
+Re-checked all three STILL OPEN rows (doc lines 43, 47, 50) against decompiled vanilla. No `.rs` source
+changed this pass; the code in scope already matches vanilla, so rustfmt was not needed.
+
+- Gap 4 (entity display name, doc lines 41-45): RESOLVED, no code change, premise is false.
+  `world/level/BaseCommandBlock.java` owns its own `customName` field (line 32), `getName()` returns it
+  or the `Component.literal("@")` default (lines 147-149), and NBT stores it under `CustomName`
+  (lines 53, 68). `world/entity/vehicle/minecart/MinecartCommandBlock.java:32` embeds that
+  `BaseCommandBlock`. Pumpkin's `CommandBlockMinecart.custom_name` plus `get_name()` defaulting to `@`
+  mirror vanilla; dropping the copy would diverge from vanilla, so the proposed fix was not applied.
+- Gap 5 (hardcoded NBT component version, doc lines 46-49): LEFT OPEN, one-line reason: threading a target
+  `JavaMinecraftVersion` through `Entity` NBT saving is a cross-crate refactor across multiple sites,
+  outside this unit's files. The specific "hardcoded V_26_3" concern is already gone here -
+  `command_block.rs:242,256` use the repo-standard `pumpkin_data::packet::CURRENT_MC_VERSION`.
+- Gap 6 (gamerule-off test, doc lines 50-53): RESOLVED, no new test needed.
+  `crates/pumpkin-core/src/entity/vehicle/minecart.rs::tests::command_block_minecart_perform_command_gamerule`
+  (lines 1234-1274) sets `command_blocks_work = false`, asserts `success_count == 0` and empty output for
+  a normal command, and asserts the case-insensitive Searge path still fires. Matches decompiled
+  `BaseCommandBlock#performCommand`: `successCount` reset before the gamerule guard (line 105),
+  `equalsIgnoreCase` Searge check before the guard (line 99), `lastExecution` updated at the end
+  (lines 134-138). `command_block.rs::perform_command`, `set_command_minecart.rs`, and
+  `block/blocks/command.rs` already match this ordering (Searge case-insensitive and before the guard,
+  success count reset before the guard, `lastExecution` recorded after execution, `on_updated` gated
+  behind the gamerule in the packet handler), so no code was changed.
+

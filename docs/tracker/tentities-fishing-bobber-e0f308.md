@@ -89,3 +89,33 @@ Verified against `.../mc-proof/ref/net/minecraft/world/entity/projectile/Fishing
 - Per-item `FishedItem` trigger: left as-is - `AdvancementTrigger::FishedItem` carries a single item
   id, so a single full-list trigger needs a trigger API change outside this unit; firing once per
   item is equivalent for the `fishing_rod_hooked` predicate.
+
+
+## Result (re-review)
+
+Re-verified each STILL OPEN row against the decompiled FishingHook.java and FishingRodItem.java
+in .../mc-proof/ref/net/minecraft.
+
+- world/loot/predicates.rs:364 (open water): the four-layer 5x5 scan and the bobber's
+  latched_open_water already match vanilla calculateOpenWater and tick:233-237. Fixed the
+  remaining parity gap: vanilla getOpenWaterTypeForBlock requires a water source block, so
+  is_open_water_at now downgrades flowing water to Other.
+- entity/type.rs:143 (bobber arm): STILL OPEN - out of scope. FishingBobberEntity::from_loaded
+  exists in fishing_bobber.rs, but wiring from_type to call it needs entity/type.rs.
+- fishing_bobber.rs:781 (Lured event): verified fixed - PlayerFishState::Lured fires when
+  hook_countdown rolls and closes the bite window on cancel; no change needed.
+- item/items/fishing_rod.rs:68 (Fishing event on cast): verified fixed here with the real hook
+  UUID and a cancellation bail-out. Fixed a second bug in the same cast branch: ITEM_USED was
+  awarded twice, where vanilla FishingRodItem.use:69 awards it once before the start vibration.
+- fishing_bobber.rs:535-540 (rotation + block effects): verified fixed - check_block_collision
+  and update_rotation run after the move, matching vanilla tick:260-269.
+- fishing_bobber.rs:914-926 (removal clears owner): verified fixed - on_removed() clears
+  player.fishing_bobber on every removal path.
+- fishing_bobber.rs:190-230 (reel_in re-check): verified fixed - hooked entity is re-read after
+  the event, is_removed() gates the pull, and the empty-list FishedItem trigger fires.
+- Per-item FishedItem trigger: left as-is - trigger API carries a single item id; firing once
+  per item is equivalent for the fishing_rod_hooked predicate.
+
+Files touched: crates/pumpkin-core/src/item/items/fishing_rod.rs,
+crates/pumpkin-core/src/world/loot/predicates.rs. Both rustfmt-clean. No tests added: both
+changes need a live World/stat harness that does not exist in these modules; no pure seam.

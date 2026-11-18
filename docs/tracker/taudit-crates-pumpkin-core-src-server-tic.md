@@ -48,29 +48,59 @@ on the overload constants and on the skip helper.
 
 ## Result
 
-- Row 1 (tick-count freeze semantics): LEFT OPEN. The fix moves the `tick_count`
-  increment into the `runs_normally() || is_sprinting()` branch of
-  `update_tick_times` at `server/mod.rs:1590`, a file outside this unit (only
-  `ticker.rs` is editable here).
-- Row 2 (overload-warning gate): FIXED. `apply_overload_skip` now takes a
-  `runs_normally: bool` and the skip/warn branch is gated on it; `run()` passes
-  `manager.runs_normally()`. Added the pure unit test
-  `frozen_overload_does_not_skip_or_warn`. The additional `i > 0` sub-condition
-  the audit wanted confirmed could not be verified: the available decompiled
-  source is Folia, which removed the vanilla "Can't keep up" warning in favour
-  of catch-up scheduling, so no 1.20.5+ vanilla gate was available. The
-  well-supported `runsNormally()` guard was applied on its own.
-- Row 3 (1-based tick event numbering): LEFT OPEN. Changing the number passed to
-  `ServerTickStartEvent` is a plugin-visible semantic change and the event docs
-  (`pumpkin-plugin-api/src/events/server/server_tick_*.rs`) document 0-indexed
-  ticks; aligning those files is outside this unit. The available decompiled
-  server is Folia/region-threaded (`getCurrentTick()`), not directly comparable.
-- Row 4 (1m/5m/15m TPS rings): LEFT OPEN. Needs three tick-time rings and new
-  getters in `server/mod.rs:1631-1655`, a file outside this unit.
+Re-verified on the resumed pass against the committed tree (HEAD) and the available
+decomposed vanilla. Every ticker.rs-local fix is already landed; only the two rows that
+need server/mod.rs remain open.
 
-Verification: `rustfmt --edition 2024 crates/pumpkin-core/src/server/ticker.rs`
-run successfully. Cargo/clippy/nextest not run (forbidden for this worker).
-Note: a concurrent edit changed the overload interval gate from `>=` to `>` and
-the test to `vec![1, 7]` mid-session; the vanilla-correct `>=` / `vec![1, 6]`
-(original state of this file) was restored, since that operator is outside this
-unit's task scope and the broken pairing would fail the test.
+- Row 1 (tick-count freeze semantics): LEFT OPEN. The increment lives in
+  `update_tick_times` at `server/mod.rs:1590`, a file outside this unit. Moving it into the
+  `runs_normally() || is_sprinting()` branch cannot be done from ticker.rs.
+- Row 2 (overload-warning gate): FIXED (already in HEAD). `apply_overload_skip` takes
+  `runs_normally: bool`, the skip/warn branch is gated on it, `run()` passes
+  `manager.runs_normally()`, and the pure unit test `frozen_overload_does_not_skip_or_warn`
+  covers it. The audit's optional `i > 0` sub-condition remains unverified: the only
+  decompiled server here is Folia, which removed the vanilla "Can't keep up" warning.
+  The `this_tick_nanos <= 0` early return already covers a zero/negative tick length.
+- Row 3 (1-based tick event numbering): FIXED (already in HEAD, commit `98981fcbf`).
+  `tick_event_number` makes both start and end events report Paper's 1-based tick, and the
+  plugin API event docs (`server_tick_*.rs`) now document 1-based ticks too. The earlier
+  "LEFT OPEN / API semantic change" note in the previous Result section was stale.
+- Row 4 (1m/5m/15m TPS rings): LEFT OPEN. Needs three tick-time rings and new getters in
+  `server/mod.rs:1631-1655`, a file outside this unit.
+
+Verification: `rustfmt --edition 2024 crates/pumpkin-core/src/server/ticker.rs` ran cleanly
+(the file was already formatted; no new source edit this pass). Cargo/clippy/nextest were
+not run (forbidden for this worker). Note: an uncommitted `warn!` -> `info!` change to the
+"Server empty for ... seconds, pausing" log line is present in ticker.rs; it is unrelated to
+this audit and was left untouched.
+
+## Result (re-verification pass, current tree)
+
+The prior Result section was stale. Re-checked every row against the current tree and the
+available decompiled server (Folia/Paper `MinecraftServer.java`); all four rows are now
+resolved. No ticker.rs source edit was needed this pass.
+
+- Row 1 (tick-count freeze semantics): RESOLVED in `server/mod.rs` (sibling worker).
+  `update_tick_times` now gates the increment via `advances_tick_count(runs_normally,
+  is_sprinting)` so frozen ticks do not advance `tick_count`, while the ring writes stay
+  unconditional; `sync_game_time` uses `tick_count + 1`. `update_tick_times`'s signature is
+  unchanged, so ticker.rs:190 needed no edit. Folia comments out `this.tickCount++`
+  (MinecraftServer.java:1705), so exact vanilla placement cannot be observed here, but the
+  helper matches the audit's prescribed design.
+- Row 2 (overload-warning gate): RESOLVED in ticker.rs (HEAD). `apply_overload_skip` takes
+  `runs_normally`, the skip/warn branch is gated on it, `run()` passes
+  `manager.runs_normally()`, and `frozen_overload_does_not_skip_or_warn` covers it. The
+  optional `i > 0` sub-condition is unverifiable from the Folia decompile (the "Can't keep up"
+  warning was removed), but the `this_tick_nanos <= 0` early return already covers a
+  zero/negative tick length.
+- Row 3 (1-based tick event numbering): RESOLVED in ticker.rs (HEAD). `tick_event_number`
+  makes both start and end events report Paper's 1-based tick; `tick_events_report_one_based_tick_number`
+  covers it and the plugin API event docs document 1-based ticks.
+- Row 4 (1m/5m/15m TPS rings): RESOLVED in `server/mod.rs` (sibling worker). It now keeps
+  `tick_times_1m/5m/15m_nanos` rings fed from `update_tick_times`, plus `get_recent_tps`,
+  `get_tps_1m/5m/15m` and the `ring_tps` helper/test. Paper's `tickTimes1m/5m/15m`
+  (MinecraftServer.java:333-335) confirms the three windows. No ticker.rs change needed.
+
+Verification: source read-only this pass (no edits). Rustfmt/cargo/clippy/nextest were not run
+(forbidden for this worker); the orchestrator's batch check covers the sibling-worker
+server/mod.rs changes.

@@ -57,3 +57,53 @@ Files touched: `crates/pumpkin-core/src/server/mod.rs` (imports, `add_player`, t
 `#[cfg(test)] mod tests`). `rustfmt --edition 2024` ran on that file with exit 0. No build or test
 run: shell/cargo access is blocked in this session; orchestrator verification required.
 
+
+## Result (second pass, vanilla decompiled available)
+
+The decompiled vanilla copy is now present under `.vendor/vanilla-decompiled/`, so the
+previously unverifiable row 3 was re-checked against
+`MinecraftServer.forceGameTimeSynchronization` (per-region `world.getGameTime()` in an
+empty-clock-map `ClientboundSetTimePacket`, staggered `(tick + playerId) % 20`),
+`ServerClockManager.createFullSyncPacket` / `getGameTime` (per-world level data), and
+`ClockTimeMarker.resolveTimeToMoveTo`.
+
+| # | result | detail |
+|---|--------|--------|
+| 1 | no change (fixed in prior pass) | `Player::read_nbt` restores `playerGameType`; join constructs with the saved mode. Outside this unit (`server/mod.rs`). |
+| 2 | OPEN | Map-id counter needs a per-`World` counter plus per-dimension persistence in `world/`; cross-crate refactor, outside this unit (`time.rs` only). |
+| 3 | FIXED (verified) | `LevelTime::send_game_time_sync` already emits `CUpdateTime` per world with that world's `world_age` (vanilla `world.getGameTime()`) and an empty clock map (vanilla `Map.of()`); `sync_game_time` fires every 20th tick, also while frozen. Added a pure unit test for the frozen-rate packing that drives the packet's frozen flag. |
+| 4 | OPEN | `update_tick_times` debug-sample ring lives in `server/mod.rs`; vanilla `DebugSampleType.TICK_TIME` layout is outside this unit (`time.rs` only). |
+| 5 | no change | `get_tps` already clamps to `basic_config.tps`. |
+| 6 | no change | Already fixed in a prior pass (per-connection sample ticket). |
+| 7 | no change (fixed in prior pass) | `HasPlayedBefore` read from saved tag with Pos fallback only when absent. |
+
+Files touched: `crates/pumpkin-core/src/world/time.rs` (one pure unit test). No source
+behaviour change was needed: row 3 was already fixed before this pass and is now verified
+against the vendored vanilla source. `rustfmt --edition 2024` ran on the touched file with
+exit 0 (no reformat needed). No build or test run (cargo blocked in this session);
+orchestrator verification required.
+
+## Result (third pass, re-audit of remaining open rows)
+
+Both rows still marked OPEN from the prior pass were re-checked against the vendored
+decompiled vanilla. Neither can be fixed in this unit: the only source file in scope is
+`crates/pumpkin-core/src/world/time.rs`, and both remaining rows live in `server/mod.rs`
+or need a cross-crate refactor. `time.rs` itself was re-verified against
+`ServerClockManager`, `ClockTimeMarker`, `ServerLevel.tickTime` and
+`MinecraftServer.forceGameTimeSynchronization`; no parity gap found, so no source change
+was made.
+
+| # | result | detail |
+|---|--------|--------|
+| 1 | no change | Gamemode restore lives in `server/mod.rs add_player`; fixed in a prior pass. |
+| 2 | OPEN (out of scope) | Per-dimension map-id counter + persistence needs a cross-crate refactor in `world/` and edits `server/mod.rs`, outside this unit (`time.rs` only). |
+| 3 | no change (re-verified) | `send_game_time_sync` emits one empty-clock `CUpdateTime` per world using that world's `world_age` (`getGameTime()`) plus legacy day-time/frozen flag, matching vanilla `MinecraftServer.forceGameTimeSynchronization` (`new ClientboundSetTimePacket(world.getGameTime(), Map.of())`). |
+| 4 | OPEN (out of scope) | `update_tick_times` debug-sample ring and `DebugSampleType.TICK_TIME` layout live in `server/mod.rs` (no `DebugSampleType.java` vendored); outside this unit (`time.rs` only). |
+| 5 | no change | `get_tps` already clamps to the tick-rate target, matching Paper's `[0, tps]`. |
+| 6 | no change | Already fixed in a prior pass (per-connection sample ticket). |
+| 7 | no change | Already fixed in a prior pass (`HasPlayedBefore` read from saved tag). |
+
+No source files changed this pass. No unit test added: no fixable seam remained in `time.rs`
+(all clock/time behaviour already covered by the existing test module). No build or test run
+(shell/cargo blocked for workers); orchestrator verification required for the existing
+`time.rs` tests.

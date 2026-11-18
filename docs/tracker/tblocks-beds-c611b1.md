@@ -62,3 +62,30 @@ outside this unit (generated data / plugin API), so no source file was changed t
 Rechecked row 38 (already FIXED): `player_sleep_height`/`sleep_shape_pos` in `bed.rs` and the
 `straw_bed_sleep_shape_is_the_lower_foot_surface` unit test already cover the straw head->foot
 resolution; no change needed.
+
+## Result
+
+Re-review pass 2 against decompiled vanilla 26.3 (`AbstractBedBlock.java`,
+`BedRule.java`, `StrawBedBlock.java`, `EnvironmentAttributes.java:139-142`,
+`ServerPlayer.java:2455-2498`) and Paper's `PlayerBedFailEnterEvent`. No source file was
+changed this pass: every remaining gap needs generated data / WIT bindings / the off-limits
+generated file, all outside this unit.
+
+- Row 1 (`bed.rs:267,284-285` / `straw_bed.rs:272-273` / `environment.rs:228`): OPEN -
+  vanilla evaluates `BED_RULE`/`STRAW_BED_RULE` per position, but generated `Biome` stores
+  only `boolean_attributes`; biome overrides need pumpkin-codegen + regenerated data. No
+  vanilla biome overrides either rule, so the dimension-level value is behaviourally
+  equivalent; `get_value_bed_rule(pos)` is the correct seam for a future codegen change.
+- Row 2 (`pumpkin-data/src/generated/dimension.rs:14-18`): OPEN - generated file is off-limits;
+  `destroy_on_leave` / `error_message` need pumpkin-codegen and regeneration from `assets/`.
+- Row 3 (`bed.rs:389-402`): OPEN - vanilla sends `BedRule.errorMessage`, which in vanilla data
+  is only ever `block.minecraft.bed.no_sleep`, already hardcoded as
+  `BLOCK_MINECRAFT_BED_NO_SLEEP`; full fidelity blocked on adding `error_message` via codegen.
+- Row 4 (`bed.rs` failure paths): FIXED in current tree - `fire_bed_fail_event` fires
+  `PlayerBedFailEnterEvent` on TooFarAway/Obstructed/NoSleep/NotSafe and honours `cancelled()`
+  via `resolve_fail_message`; explode-first ordering preserved (bed.rs:267). Verified against
+  `AbstractBedBlock.java:112-135` and `ServerPlayer.java:2455-2498`. Verified, no change.
+
+Also rechecked row 38 (already FIXED): `sleep_height` / `player_sleep_height` in bed.rs plus
+`straw_bed_sleep_shape_is_the_lower_foot_surface` cover the head->foot straw resolution;
+sleep.rs consumes the shared helper. No change.

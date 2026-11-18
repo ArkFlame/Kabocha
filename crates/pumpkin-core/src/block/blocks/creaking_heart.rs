@@ -4,7 +4,6 @@ use pumpkin_data::block_properties::{
     Axis, CreakingHeartLikeProperties, CreakingHeartState, PaleOakWoodLikeProperties,
 };
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
-use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{BlockStateId, Enchantment};
 use pumpkin_macros::pumpkin_block;
@@ -82,13 +81,6 @@ impl CreakingHeartBlock {
         let new_state = if Self::should_uproot(has_logs, bound) {
             CreakingHeartState::Uprooted
         } else {
-            if has_logs && props.creaking_heart_state == CreakingHeartState::Uprooted {
-                world.play_sound(
-                    Sound::BlockCreakingHeartSpawn,
-                    SoundCategory::Blocks,
-                    &position.to_f64(),
-                );
-            }
             Self::active_state(world, position)
         };
 

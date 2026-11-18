@@ -115,3 +115,111 @@ are comments that mention vanilla behaviour.
 No pure unit-test seam exists for these command modifiers (they need a live World/context), so
 no tests were added. `rustfmt --edition 2024` was run on execute.rs. No compile was run per unit
 rules; orchestrator batch-checks.
+
+
+## Result (re-verification pass)
+
+The earlier "## Result" block went stale: subsequent edits in this checkout had already
+resolved every row it left open. I re-checked each against ExecuteCommand.java and the
+current source, and confirmed every referenced symbol exists; no further source change was
+needed this pass.
+
+- 2. Predicate reference and inline shape: FIXED (already present). `test_predicate`
+  (execute.rs:299) resolves `LootPredicate::Reference` through
+  `server.datapack_manager.get_predicate` and evaluates it with
+  `world::loot::evaluate_predicate_value` using ORIGIN/THIS_ENTITY/world parameters,
+  matching vanilla `checkCustomPredicate` (ExecuteCommand.java:869-878). A bare inline
+  list returns false, matching vanilla parsing of an inline predicate as a single
+  LootItemCondition (the whole `if predicate` branch is commented out in this Canvas tree,
+  ExecuteCommand.java:697-709).
+- 3. `if items`: FIXED (already present). `literal("items")` tree at execute.rs:575 and
+  :2051; `count_items_entity`/`count_items_block` sum the counts of predicate-matching
+  stacks (vanilla `countItems`, ExecuteCommand.java:801-805). Slot mapping is covered by
+  `items_equipment_slot_matches_vanilla_indices`. Note this Canvas tree disables `if items`
+  with `if (true) break;` (ExecuteCommand.java:742); Pumpkin implements real vanilla
+  behaviour, which is correct parity.
+- 4. `if function`: FIXED (already present). `literal("function")` tree at execute.rs:2061
+  and :2304; `function_condition_value` runs `execute_function_with` and returns the
+  function result (vanilla `ExecuteIfFunctionCustomModifier`).
+- 5. `on origin`: FIXED (already present). `traceable_owner` (execute.rs:1835) resolves
+  `get_owner_entity` plus the `EntityReference` owners of TNT, area effect clouds and
+  evoker fangs (vanilla `TraceableEntity`). Vex still has no owner tracking in Pumpkin.
+- 6. Positioned over ocean_floor: FIXED (already present). `execute_positioned_over_modifier`
+  maps `ocean_floor` to `world.get_ocean_floor_height` (world/mod.rs:3845), a live
+  block-state scan matching vanilla `Heightmap.Types.OCEAN_FLOOR`. The helper already exists
+  in pumpkin-core, so no cross-crate change was needed.
+
+No .rs source file needed editing this pass, so none were touched and rustfmt was not
+required. The only additional unit-test seam would be `test_predicate`/`count_items`/
+`traceable_owner`, all of which need a live World/context; the existing slot-index test
+covers the pure mapping. No compile was run per unit rules; the orchestrator batch-checks.
+
+## Result (re-audit)
+
+Re-checked each STILL OPEN row against the decompiled tree; several were already stale.
+
+- 1. if blocks block-entity comparison: FIXED (already in code, verified against
+  ExecuteCommand.java:977-1005). `count_blocks_match` compares state ids, then the source
+  block entity's `resource_location()` and `write_nbt` payload against the destination's.
+  Vanilla additionally compares data components, which Pumpkin has no API for.
+- 2. Predicate reference and inline shape: FIXED. A referenced predicate is resolved through
+  `datapack_manager.get_predicate` and evaluated with ORIGIN/THIS_ENTITY loot params, and an
+  unknown id now raises `argument.resource_or_id.no_such_element` (registry
+  `minecraft:predicate`) instead of silently failing, which is how vanilla's
+  `ResourceOrIdArgument` rejects it at parse time. An inline bare SNBT list is still rejected
+  because vanilla parses an inline predicate as a single `LootItemCondition`.
+- 3. `if items` missing: STALE, already implemented. `items_conditional_node` registers both
+  sources (entity, block) with the `slots` and `item_predicate` arguments and the numeric
+  conditional executor, and parses in the existing parse test.
+- 4. `if function` missing: STALE, already implemented via `function_condition_value` and
+  `execute_function_with`, reporting the function's return value.
+- 5. `on origin` exact only for projectiles: FIXED (already in code). `traceable_owner` covers
+  projectiles and item entities through `get_owner_entity` and the `EntityReference` of
+  primed TNT, area effect clouds and evoker fangs. Vex still has no owner tracking.
+- 6. Positioned over ocean_floor fallback: FIXED. `World::get_ocean_floor_height` already
+  scans the column with the `blocks_motion_in_heightmap` tag (live-world map, fluids
+  excluded) and `execute_positioned_over_modifier` uses it; the `WorldSurface` fallback is
+  gone. Heightmap ids are now resolved by `heightmap_kind`, which accepts exactly the four
+  `keepAfterWorldgen` types and rejects `*_wg` ones like `HeightmapTypeArgument`.
+- 7. store score orphan objectives: STILL OPEN (M). The scoreboard cannot retain scores whose
+  objective was removed, so `write_stored_score` must skip an inactive objective;
+  supporting it needs `world/scoreboard.rs`, outside this unit.
+
+Added `positioned_over_accepts_only_kept_heightmaps`, a pure unit test over `heightmap_kind`
+(the only seam here that does not need a live world). `rustfmt --edition 2024` run on
+execute.rs; no compile run per unit rules, the orchestrator batch-checks.
+
+## Result (this pass)
+
+- 1. if blocks block-entity comparison: FIXED (already in code, verified against
+  ExecuteCommand.java:977-1005). count_blocks_match compares state ids, then the source block
+  entity's resource_location() and write_nbt payload against the destination's. Vanilla also
+  compares data components, which Pumpkin has no API for.
+- 2. Predicate reference and inline shape: FIXED. A referenced predicate is resolved through
+  datapack_manager.get_predicate and evaluated with ORIGIN/THIS_ENTITY loot params; an unknown
+  id now raises argument.resource_or_id.no_such_element (registry minecraft:predicate) like
+  ResourceOrIdArgument does at parse time, instead of silently failing. An inline bare SNBT
+  list is still rejected, since vanilla parses an inline predicate as one LootItemCondition.
+- 3. if items missing: STALE, already implemented. items_conditional_node registers the entity
+  and block sources with the slots and item_predicate arguments plus the numeric executor, and
+  the parse test covers it.
+- 4. if function missing: STALE, already implemented through function_condition_value and
+  execute_function_with, reporting the function's return value.
+- 5. on origin exact only for projectiles: FIXED (already in code). traceable_owner covers
+  projectiles and item entities through get_owner_entity and the EntityReference of primed
+  TNT, area effect clouds and evoker fangs. Vex still has no owner tracking.
+- 6. Positioned over ocean_floor fallback: FIXED. World::get_ocean_floor_height already scans
+  the column with the blocks_motion_in_heightmap tag (live-world map, fluids excluded) and the
+  modifier uses it; the WorldSurface fallback is gone. Heightmap ids now resolve through
+  heightmap_kind, which accepts exactly the four keepAfterWorldgen types and rejects the *_wg
+  ones like HeightmapTypeArgument.
+- 7. store score orphan objectives: STILL OPEN (M). The scoreboard cannot retain scores whose
+  objective was removed, so write_stored_score must skip an inactive objective; the retention
+  change lives in world/scoreboard.rs, outside this unit.
+- 8. execute summon duplicate UUID: FIXED. ERROR_DUPLICATE_UUID is now pub in summon.rs and
+  execute_summon_modifier refuses a UUID that is already live (as /summon does) before
+  spawning.
+
+Added positioned_over_accepts_only_kept_heightmaps, a pure unit test over heightmap_kind, the
+one seam here that needs no live world. rustfmt --edition 2024 was run on execute.rs and
+summon.rs; no compile was run per unit rules, the orchestrator batch-checks.

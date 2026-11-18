@@ -48,3 +48,53 @@ cross-cutting feature spanning the block callback, world-event and client render
 deferred to its own verified pass because it cannot be compiled here.
 
 No source files changed (fix out of unit scope); no rustfmt needed.
+
+## Result (re-review)
+
+Re-checked the single STILL OPEN row (boat.rs bubble time) against the now-available
+decompiled vanilla `AbstractBoat.java` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`
+(onAboveBubbleColumn 164-184, tickBubbleColumn 351-386, handleEntityEvent 389-397,
+handleBubbleColumnEffect 399-408).
+
+The row is now FIXED on master by other workers since the previous review. boat.rs now
+carries the full bubble-column state machine: `bubble_column_time` / `bubble_column_drag_down` /
+`bubble_column_above` fields, `on_above_bubble_column` (arms the 60-tick BUBBLE_COLUMN_DELAY,
+publishes `ID_BUBBLE_TIME`, and emits the 1% SPLASH game event / sound / particle),
+`tick_bubble_column` (decrements and publishes `ID_BUBBLE_TIME`, clears the counter on leaving
+the column, ejects passengers on drag-down, broadcasts BOAT_SINK / BOAT_LAUNCH, then applies the
+impulse), `on_inside_bubble_column`, and `bubble_column_vertical_velocity` (drag-down adds -0.7
+to current y, updraft sets y = 0.6), covered by the pure unit test
+`bubble_column_impulse_matches_vanilla_boat_effect`. This matches the vanilla countdown and
+impulse, including the previously missing `DATA_ID_BUBBLE_TIME` publication. No source files
+changed (fix already on master; this unit has no editable source basenames); no rustfmt needed.
+
+## Result (dismount re-review)
+
+Verified the one editable source file, `boat/dismount.rs`, against decompiled vanilla now that
+`.vendor/vanilla-decompiled/` is available. Every step of `get_dismount_location_for_passenger`
+matches the vanilla call chain:
+
+- `get_collision_horizontal_escape_vector` matches `Entity.getCollisionHorizontalEscapeVector`
+  (6645-6651): `-sin/cos` with `DEG_TO_RAD`, `max(|x|,|z|)` scale, and the `1.0e-5f32` epsilon
+  added before the `/2.0`. `DISMOUNT_EPSILON` is the exact f32-as-f64 widening of vanilla's
+  float literal. The two existing pure tests cover this.
+- `fallback` = `(pos.x, bounding_box.max.y, pos.z)` matches `Entity.getDismountLocationForPassenger`
+  (6653-6655), which is also what `AbstractBoat` returns when the landing cell is water
+  (AbstractBoat.java:715,737).
+- `target_pos` / `.down()`, `get_dismount_height` + `is_finite && < 1.0`, and the `x,z` recompose
+  match `AbstractBoat.getDismountLocationForPassenger` (709-737) and
+  `DismountHelper.isBlockFloorValid` / `canDismountTo`.
+- `dismount_poses` matches `LivingEntity` `[STANDING]` vs `Player.getDismountPoses`
+  (Player.java:2069: `[STANDING, CROUCHING, SWIMMING]`); pose is set before returning for players
+  only, as in vanilla 727-731.
+- Border check matches `WorldBorder.isWithinBounds(AABB)` (WorldBorder.java:76-82), including the
+  `max - 1.0e-5F` epsilon. `get_dimensions(pose)` is the per-pose box used by
+  `DismountHelper.getLocalBoundsForPose`.
+
+No divergence found, so no fix was needed in the editable file. The only STILL OPEN table row
+(bubble time) targets `boat.rs`, outside this unit's editable basenames; re-confirmed already
+fixed on master (`bubble_column_*` fields, `tick_bubble_column`, `on_above_bubble_column`,
+`ID_BUBBLE_TIME` publication, and `bubble_column_impulse_matches_vanilla_boat_effect`).
+
+fixed=0 open=0 files=dismount.rs (verified only, no source change).
+

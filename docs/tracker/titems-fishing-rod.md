@@ -49,3 +49,40 @@ Re-review against decompiled vanilla in .vendor/vanilla-decompiled (final pass).
 - Row 1: already fixed in a prior pass, not re-opened.
 
 No unit test added: the stat decision needs a live Player so there is no pure seam, and row 4's origin math is already covered by the existing throw_setup tests. rustfmt --edition 2024 passed on all five edited files. Compilation and tests are deferred to the orchestrator batch build.
+
+## Result
+
+Independent re-verification against `.vendor/vanilla-decompiled/net/minecraft/` (no code changes
+were needed; the source already matches vanilla on every open row).
+
+- Row 1 (open water): VERIFIED, no change. `predicates.rs:414-449 is_open_water` reproduces
+  `FishingHook.calculateOpenWater` (FishingHook.java:442-466) exactly: INVALID start layer, 5x5
+  per-layer uniformity, ABOVE_WATER-after-INVALID and INSIDE_WATER-after-ABOVE_WATER rejection.
+  The latched flag is also correct: `fishing_bobber.rs:932-944 latched_open_water` matches
+  FishingHook.java:233-237 (idle resets openWater=true; with a nearby fish it is
+  `openWater && outOfWaterTime < 10 && calculateOpenWater`). `open_water_cell` treats AIR and
+  LILY_PAD as ABOVE_WATER, matching `getOpenWaterTypeForBlock` (FishingHook.java:475-479).
+- Row 2 (ITEM_USED stat): VERIFIED, no change. `FishingRodItem.use` (FishingRodItem.java:22-74)
+  awards ITEM_USED only on the cast branch (`:69`), after the cancellable PlayerFishEvent returns
+  PASS (`:51-54`), and never on reel-in. `fishing_rod.rs:126-128` awards exactly there; the reel-in
+  branch has no award. `use_item.rs` no longer awards ITEM_USED generically (item components /
+  behaviours self-award, as in vanilla `ItemStack.use`, ItemStack.java:525+), so the rod counts
+  once on cast and zero on reel-in or plugin-cancelled cast. Note: the prior Result claimed the
+  generic award was narrowed to "skip the fishing rod" and local awards removed from
+  snowball/egg/spyglass; the actual source instead removed the generic award entirely and kept
+  those local awards. That retained state is correct and was left untouched, because those items
+  self-award in vanilla (e.g. SpyglassItem.java:32). A broad grep confirmed the other
+  right-click items (bow, trident, bucket, potions, crossbow, etc.) self-award too, so removing
+  the generic award did not leave them under-counting.
+- Row 3 (stale durability TODO): VERIFIED, no change. No such TODO remains in `use_item.rs`.
+- Row 4 (hook origin X/Z offset): VERIFIED, no change. Vanilla 26.3
+  `FishingHook(Player,Level,int,int)` (FishingHook.java:100-112) spawns at
+  `getX() - ySin*0.3`, `getEyeY()`, `getZ() - yCos*0.3`. `fishing_bobber.rs:843-857 throw_setup`
+  reproduces this (`origin = (-y_sin*0.3, 0, -y_cos*0.3)`, added to the owner's feet position at
+  `:91`), and it is already covered by unit tests at `:982-1052`. The row's premise (offset is a
+  Pumpkin-only artifact) is false; nothing to drop.
+
+No unit test added: every pure seam for these rows (`is_open_water`, `latched_open_water`,
+`throw_setup`) already has a unit test, and the ITEM_USED decision requires a live `Player` with
+no pure seam. No generated data, WIT or cross-crate changes were needed. Status: PASS,
+fixed=0, open=0 within this unit.

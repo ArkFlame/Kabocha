@@ -64,3 +64,21 @@ Still open:
 - `remove entity` at depth (`data.rs:263-271`): vanilla mutates the full compound then calls `setData`; whether nested removals persist needs a live entity repro, and a nested-aware `remove_nbt` lives outside these two files.
 - Block data live load (`data.rs:310-348`): no concrete lossy block entity identified; current NBT rebuild approach retained, a real fix needs cross-crate `block_entity_from_nbt` changes.
 - Storage persistence (`data.rs:413-431`): deciding whether command storage is written on world save requires the server save loop, outside this unit.
+
+
+## Result (re-verification, this pass)
+
+Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled` (target `V_26_3`). All rows that can be fixed in these two files were already fixed in the prior pass and are confirmed correct; no .rs file needed changes this pass, so no rustfmt was run.
+
+- Entity data accessor: no change. `EntityDataAccessor.getData` (EntityDataAccessor.java:68-71) calls `NbtPredicate.getEntityTagToCompare`, which adds a synthetic `SelectedItem` for players (NbtPredicate.java:42-55), matching `entity_nbt_with_selected_item`.
+- `modify string` on non-string tags / numeric to_string: fixed. `DataCommands.getAsText` (172-178) returns the raw value for `StringTag` and `PrimitiveTag.toString()` for numeric tags; `StringTagVisitor` appends the `b`/`s`/`L`/`f`/`d` suffixes, matching `get_as_text` (data.rs:565-583). Compound/list/array/end throw `expected_value`.
+- Empty arrays / float+double display / quoted keys / escaped backslashes: no change, already fixed and covered by tests in data.rs.
+- Substring error indices: fixed. Reports resolved `abs_start`/`abs_end`.
+- Double formatting in translatable: fixed. All three accessors use `String.format(Locale.ROOT, "%.2f", scale)` (EntityDataAccessor.java:87, BlockDataAccessor.java:104, StorageDataAccessor.java:77), matching `format!("{scale:.2}")`.
+- `SET` with empty source: fixed. `DataCommands.java:133` uses `Iterables.getLast(source)`; `execute_modify` returns `ERROR_GET_NON_EXISTENT` before writing.
+- `expected_list` argument text: fixed. `nbt_path.rs:632-636` renders the tag via `Display` (SNBT).
+
+Still open (out of unit / needs runtime repro):
+- `remove entity` at depth: vanilla `removeData` (DataCommands.java:377-390) mutates the full compound then calls `setData`; Pumpkin already passes the full compound to `set_data`, so persistence of nested removals depends on entity `read_nbt_non_mut`, which lives outside these two files and needs a live-entity repro.
+- Block data live load: vanilla `BlockDataAccessor.setData` loads into the live block entity; a lossless fix needs cross-crate `block_entity_from_nbt` changes outside this unit.
+- Storage persistence: whether `command_storage` is written on world save depends on the server save loop, outside this unit.

@@ -111,3 +111,13 @@ Re-verified all 4 STILL OPEN rows against
 
 `rustfmt --edition 2024` run on the one touched .rs file. Not compiled by me
 (orchestrator gate). No generated data, WIT or cross-crate changes needed.
+
+### Second-pass verification
+
+Re-read source against vanilla again; all 4 rows still match, no new edits.
+Row 3 sound seam re-checked: `get_ambient_sound`/`get_ambient_sound_interval`
+signatures in `mob/mod.rs:2445-2451` and the
+`self.get_entity().entity_type.ambient_sound` pattern match `phantom.rs:157`.
+Generated `entity_type.rs:7743-7745` confirms Ocelot hurt/death/ambient sounds
+are populated, so no `CustomSound` impl is needed. Row 4 re-checked against
+`Entity.java:3936` (`isSteppingCarefully()` = `isShiftKeyDown()`).

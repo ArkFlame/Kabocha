@@ -62,3 +62,43 @@ Note: `destroy_on_leave` for straw beds is already handled in
 - Files touched: crates/pumpkin-core/src/block/blocks/bed.rs,
   crates/pumpkin-core/src/entity/player.rs. Ran rustfmt --edition 2024 on both.
 - Did not compile (per task: no cargo); orchestrator verifies.
+
+
+## Result (re-review verification)
+
+- Row 42 / h6 row 4 (straw bed getSleepHeight): verified STILL OPEN fix is already
+  present and correct in the tree, no new edit needed. The head-half redirect in
+  bed.rs::sleep_shape_pos + player_sleep_height matches vanilla
+  StrawBedBlock.java#getSleepHeight (head -> connected foot via
+  getConnectedDirection = facing.getOpposite; super uses the foot shape). The
+  foot shape max Y (4/16 = 0.25) is lower than the head pillow shape (5/16 =
+  0.3125) and is observable because player.rs#sleep sends the height via set_pos.
+- SLEEP_HEIGHT_OFFSET = 0.125 verified against vanilla LivingEntity.java#setPosToBed
+  (adjustHeight = 0.125). Pure unit tests already present in bed.rs.
+- Row 43 / h6 row 5 (sleeping/dead guard) remains FIXED as previously recorded.
+- Rows 39-41 stay open (not marked STILL OPEN): need pumpkin-data BedRule codegen
+  and per-position environment attribute lookup; generated files are off-limits.
+- No source edits this pass (fix pre-existing). Rustfmt previously applied to
+  bed.rs; no .rs file touched this pass. Did not compile (no cargo per task).
+
+## Result (fresh verification pass)
+
+- Only row marked STILL OPEN is row 42 (straw bed `getSleepHeight`). Verified it is
+  already fixed and correct in the tree; no new source edit needed.
+- Vanilla evidence: `StrawBedBlock.java#getSleepHeight:63-78` redirects a HEAD half
+  to the connected FOOT (`getConnectedDirection(state)`, i.e. facing.getOpposite),
+  returns empty if that state is not the same block's FOOT, then calls
+  `super.getSleepHeight(footState)`; FOOT shape max Y = 4/16 = 0.25, HEAD pillow
+  shape max Y = 5/16 = 0.3125. `AbstractBedBlock.java#getSleepHeight:71-77` returns
+  `state.getShape(level, pos).max(Y)`. `LivingEntity.java#setPosToBed:4812-4813`
+  adds `adjustHeight = 0.125`.
+- Pumpkin: `bed.rs:581` `SLEEP_HEIGHT_OFFSET = 0.125`, `sleep_height()` (shape max
+  Y), `sleep_shape_pos()` (straw HEAD -> opposite/foot), `player_sleep_height()`,
+  and pure unit tests `sleep_height_plus_offset_is_the_bed_top` and
+  `straw_bed_sleep_shape_is_the_lower_foot_surface`. Wiring at
+  `entity/player.rs:2819-2824` sends the height via `set_pos`. All present.
+- Rows 39-41 (per-position bed rule / generated BedRule record / straw STRAW_BED_RULE)
+  are not marked STILL OPEN: they need pumpkin-data codegen + regeneration and a
+  cross-crate per-position environment-attribute lookup (generated files off-limits,
+  outside this unit). Left open.
+- No source files edited this pass; only this doc. Did not compile (no cargo per task).

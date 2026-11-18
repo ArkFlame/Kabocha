@@ -95,3 +95,18 @@ patches, target 26.3). Every row was re-checked against it on this pass.
 
 `rustfmt --edition 2024` was run on `crates/pumpkin-core/src/entity/vehicle/boat.rs`. Cargo was not
 run (worker rule: orchestrator batch-compiles), so tests remain unexecuted here.
+
+## Re-review Result (second pass)
+
+All eight STILL OPEN rows were re-verified against `.vendor/vanilla-decompiled/net/minecraft/` and are already fixed in the current source; no source edits were needed this pass.
+
+- 1 canPlayerUse: FIXED - `container::open` installs `EntityContainerScreenHandler` with validity `is_alive() && can_interact_with_entity(vehicle, 4.0)`; matches `ContainerEntity.isChestVehicleStillValid` = `!isRemoved() && isWithinEntityInteractionRange(bb, 4.0)`.
+- 2 instabuild named: FIXED - `drops_item_when_destroyed(creative, _named) -> !creative`; `VehicleEntity.hurtServer` calls `discard` on instabuild hits without `destroy`, so no item drops even when named.
+- 3 passenger immunity: FIXED - no passenger-immunity early-return remains; `VehicleEntity.hurtServer` (26.3) has no `isPassengerOfSameVehicle` branch and `AbstractBoat` does not override `hurt`.
+- 4 destroying removal spills container: PARTIAL/OPEN - `on_removed` scatters via `scatter_chest_contents` with a `claim_drops` guard, but `EntityBase::on_removed(&self)` carries no removal reason, so it cannot gate on `RemovalReason.shouldDestroy()` as vanilla `AbstractChestBoat.remove` does. Needs an engine API change outside this unit.
+- 5 interact open condition: FIXED - `boat_interact_outcome` mirrors `AbstractBoat.interact` then `AbstractChestBoat.interact`; verified against decompiled `interact`/`canAddPassenger` (seat count + eye-in-water only).
+- 6 bubble time publish: FIXED - `tick_bubble_column` writes `ID_BUBBLE_TIME`, `tick_underwater` does not; matches `AbstractBoat.tickBubbleColumn` only writing `setBubbleTime`.
+- 7 container entity line: FIXED - chest boats retain `LootTable`/`LootTableSeed` through `MinecartInventory`; vanilla `AbstractChestBoat` is a `ContainerEntity` with `unpackChestVehicleLootTable`.
+- 8 pick result / drop item: FIXED - `boat_drop_item` uses `BoatItem::entity_to_item` with registry fallback; matches vanilla `getDropItem`/`getPickResult` `dropItem.get()` supplier.
+
+No cargo run (orchestrator batch-compiles); no new source files touched. Row 4 stays open only for the engine API reason above.

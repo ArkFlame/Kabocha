@@ -63,3 +63,37 @@ Verified all three STILL OPEN rows against `.vendor/vanilla-decompiled/net/minec
 - `:112-145` XP float accumulation: CLOSED (no change). `extract_experience_from_recipes` now derives XP from `RecipesUsed` at take time with one `split_experience` roll per recipe (`floor(count * xp) + P(roll < frac)`), matching vanilla `createExperience` lines 550-555 and clearing the map like `awardUsedRecipesAndPopExperience` line 528. `split_experience` and `stored_experience` have direct unit tests.
 
 Source files changed: none. rustfmt: not applicable (no .rs file touched).
+
+Re-verified 2026-11-18 against `AbstractFurnaceBlockEntity.java`: `serverTick` line 320 resets
+`cookingTimer = 0` on blocked output (row 2 premise false); lines 326-327 cool-down has no extra
+`canAcceptRecipeOutput`/non-empty guards (row 3 premise false); `getRecipesToAwardAndPopExperience`
+(lines 535-548) + `createExperience` (lines 550-555) award per-recipe floor + fraction roll, matched
+by `experience_per_recipe`/`split_experience` with direct unit tests (row 5 already fixed). All three
+rows CLOSED, no source edit, no new test seam needed.
+
+## Result (independent re-verification)
+
+Re-checked each STILL OPEN row directly against decompiled
+`world/level/block/entity/AbstractFurnaceBlockEntity.java` and the current shared macro. No source
+file needed editing; the existing `## Result` above is confirmed accurate.
+
+- `:555-557` lit with blocked output: CLOSED (no change). Vanilla `serverTick` line 257 gates on
+  `canBurn`, and the output-blocked `else` at lines 319-321 sets `cookingTimer = 0`; a null recipe
+  has no `else` and freezes. Pumpkin maps this exactly: `can_accept_recipe_output` returns false for
+  output blocked/null recipe, and the `else if is_top_items_empty || furnace_recipe.is_some()` arm
+  (line 727) resets only for empty input or a found recipe, freezing on null recipe. The row's
+  "vanilla leaves progress untouched" premise is false for this decompile.
+- `:558-569` cool-down branch: CLOSED (no change). Vanilla's outer `else if (cookingTimer > 0)` at
+  lines 326-327 has no `canAcceptRecipeOutput`/input-fuel guard and clamps `cookingTimer - 2` to
+  `[0, cookingTotalTime]`. Pumpkin's `else if !is_burning && cooking_time_spent > 0` at line 732
+  does `saturating_sub(2).min(total)`, identical, reached on the same `!(isLit || hasFuel &&
+  hasIngredient)` condition. The row's claimed extra guard does not exist in vanilla.
+- `:112-145` XP float accumulation: CLOSED (no change). `extract_experience_from_recipes` (lines
+  247-267) derives XP from `RecipesUsed` at take time via `experience_per_recipe`, rolls each
+  recipe's fraction once in `split_experience` (floor + `frac != 0 && roll < frac`), and clears the
+  map. Matches vanilla `getRecipesToAwardAndPopExperience`/`createExperience` lines 535-555 and
+  `awardUsedRecipesAndPopExperience` line 528. `split_experience`, `experience_per_recipe`,
+  `stored_experience`, and the NBT round trip already have direct unit tests.
+
+No pure seam needed: the tick reset/cool-down decisions live in the macro-generated `tick` that
+requires `Arc<World>` + plugin manager. Files changed: none. rustfmt: not applicable.

@@ -129,12 +129,10 @@ impl LookAtEntityGoal {
         target_match: TargetMatch,
         range: f32,
     ) -> TargetPredicate {
-        // Vanilla `LookAtEntityGoal` picks the nearest candidate by distance only: no line of
-        // sight and no visibility scaling, so a mob keeps looking at a player behind a wall or at
-        // an invisible one.
-        let mut target_predicate = TargetPredicate::create_non_attackable()
-            .ignore_visibility()
-            .ignore_distance_scaling_factor();
+        // Vanilla targets with `TargetingConditions.forNonCombat()`, which keeps the line of
+        // sight check and scales the range by the target's visibility percent (an invisible
+        // target is only found within the 2 block floor).
+        let mut target_predicate = TargetPredicate::create_non_attackable();
         target_predicate.base_max_distance = f64::from(range);
         if target_match.is_player() {
             target_predicate.set_predicate(move |living_entity, _world| {
@@ -154,8 +152,7 @@ impl Goal for LookAtEntityGoal {
         let looks_at_players = self.target_match.is_player();
         Some(GoalReach {
             entities: if looks_at_players { 0.0 } else { range },
-            // The player search covers every player, but candidates must be within `range`
-            // (the predicate ignores visibility and distance scaling).
+            // The targeting test bounds candidates by `range` and its visibility percent.
             players: if looks_at_players { range } else { 0.0 },
             links: self
                 .target
@@ -320,7 +317,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_invisible_target_is_still_looked_at() -> Result<(), Box<dyn std::error::Error>> {
+    async fn an_invisible_target_is_only_found_within_two_blocks()
+    -> Result<(), Box<dyn std::error::Error>> {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let spawn = |x: f64| {
@@ -331,18 +329,28 @@ mod tests {
             ))
         };
         let looker = spawn(0.5);
-        let target = spawn(4.5);
-        // Vanilla searches by distance only, so invisibility does not hide the target.
-        target.get_entity().set_invisible(true);
-        // The search goes through the world's entity index, so the target must be in the world.
-        world.spawn_entity(target.clone());
+        let far = spawn(4.5);
+        far.get_entity().set_invisible(true);
+        let near = spawn(1.5);
+        near.get_entity().set_invisible(true);
         let mob: Arc<dyn Mob> = looker.clone();
-        let mut goal =
-            LookAtEntityGoal::new(Arc::downgrade(&mob), &EntityType::COW, 6.0, 1.0, false);
+        // Vanilla's visibility percent shrinks the range down to the 2 block floor.
+        let mut predicate = LookAtEntityGoal::create_target_predicate(
+            Arc::downgrade(&mob),
+            TargetMatch::Type(&EntityType::COW),
+            6.0,
+        );
+        // A bare test world has no loaded chunks, so the sight check cannot be exercised here.
+        predicate.respects_visibility = false;
 
+        let tester: &dyn EntityBase = looker.as_ref();
         assert!(
-            goal.can_start(looker.as_ref()),
-            "the invisible target was not found"
+            !predicate.test(&world, Some(tester), far.as_ref()),
+            "the invisible target was accepted beyond the 2 block floor"
+        );
+        assert!(
+            predicate.test(&world, Some(tester), near.as_ref()),
+            "the invisible target was rejected up close"
         );
         world.level.shutdown().await;
         Ok(())

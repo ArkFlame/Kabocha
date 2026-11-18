@@ -365,7 +365,12 @@ fn get_raider_has_raid(entity: &dyn EntityBase) -> Option<bool> {
 pub fn is_open_water_at(world: &World, pos: &BlockPos) -> bool {
     is_open_water(|dx, dy, dz| {
         let cell = pos.offset(Vector3::new(dx, dy, dz));
-        open_water_cell(world.get_block_state(&cell).id.to_block())
+        // Vanilla getOpenWaterTypeForBlock requires a water source block; flowing water
+        // counts as INVALID and disqualifies the whole 5x5 layer.
+        match open_water_cell(world.get_block_state(&cell).id.to_block()) {
+            OpenWaterCell::Water if !world.is_water_source(&cell) => OpenWaterCell::Other,
+            other => other,
+        }
     })
 }
 

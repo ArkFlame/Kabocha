@@ -882,12 +882,9 @@ impl LookAtTradingPlayerGoal {
 
 impl Goal for LookAtTradingPlayerGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
-        let Some(player) = mob.get_trading_player() else {
-            return false;
-        };
-        let mob_pos = mob.get_mob_entity().living_entity.entity.pos.load();
-        let player_pos = player.get_entity().pos.load();
-        mob_pos.squared_distance_to_vec(&player_pos) <= self.range * self.range
+        // Vanilla only requires a trading player; an out of range one is dropped by
+        // `should_continue` on the next tick.
+        mob.get_trading_player().is_some()
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {

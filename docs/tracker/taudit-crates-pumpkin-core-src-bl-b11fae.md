@@ -78,3 +78,14 @@ Remaining gaps:
 - Row 7 (silk touch): FIXED. Replaced the per-break name lookup with the generated `Enchantment::SILK_TOUCH` constant, matching the pattern used across pumpkin-core.
 
 Edited: crates/pumpkin-core/src/block/mod.rs (rustfmt --edition 2024 applied). No compile/test run (worker constraint).
+
+
+## Result (verification pass 2)
+
+- Re-checked all 7 gap rows against decompiled vanilla. No code change is possible within this unit's sole permitted file, leaves.rs.
+- leaves.rs already matches vanilla LeavesBlock.java: DECAY_DISTANCE=7 / getOptionalDistanceAt distance-at, updateDistance, getStateForPlacement (persistent + waterlogged), updateShape (water tick + schedule on distance mismatch), tick, randomTick (LeavesDecayEvent, dropResources, removeBlock -> water/air), and mangrove bonemeal propagule.
+- The CraftBukkit/Paper post-event block-change re-check in LeavesBlock.randomTick is already implemented centrally in World::fire_block_event (captures state_id, verifies block and state unchanged after firing), so no leaves.rs edit is needed.
+- Row 1-3: require a cross-crate VoxelShape/Inventory API, outside leaves.rs. Unchanged, still open.
+- Row 4: leaf decay is a natural (non-player) removal, so drop_loot's player=None in leaves.rs is correct. Threading Option<&Player> touches world/mod.rs and explosion.rs, outside this unit. Unchanged, still open.
+- Row 5-7: already fixed in block/mod.rs by the prior pass; verified, not re-edited (out of this unit's scope).
+- No edit to leaves.rs; no rustfmt needed; no compile/test run (worker constraint).

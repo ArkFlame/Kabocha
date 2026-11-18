@@ -113,3 +113,72 @@ run on `chests.rs`.
 Files changed: `crates/pumpkin-core/src/block/blocks/chests.rs` (row 4 + test).
 Other unit files (chest_like_block_entity.rs, hopper.rs, player_action.rs,
 viewer.rs) needed no change.
+
+
+## Result
+
+Re-verified every STILL OPEN row against decompiled vanilla
+(`ChestBlock.java`, `ChestBlockEntity.java`) on 2026-11-18. No `.rs` file needed a
+change; every in-unit row was already fixed in the tree, and the sole remaining
+row is out of this unit's scope. No `cargo` was run (per unit rules).
+
+- **Row 1 (partner half detached on non-player removal): FIXED, already in tree.**
+  All three chest blocks wire `get_state_for_neighbor_update` to
+  `chest_state_for_neighbor_update` (chests.rs:623,666,850,922), a faithful port of
+  vanilla `ChestBlock.updateShape` (decompiled 173-200). Verified the engine reaches
+  it on removal: `on_block_state_set` -> `update_neighbors` ->
+  `replace_with_state_for_neighbor_update` -> `neighbor_updater::update_shape` ->
+  `get_state_for_neighbor_update` (world/mod.rs:8243-8276). Vanilla's own
+  `affectNeighborsAfterRemoval` for chests only calls
+  `Containers.updateNeighboursAfterDestroy` (comparator updates), so the split
+  correctly belongs in the shape hook. No `on_state_replaced` needed.
+- **Row 2 (blocked-chest predicate): FIXED, already in tree.** `has_block_on_top`
+  uses `state.is_full_cube()` (chests.rs:1109), matching vanilla
+  `isBlockedChestByBlock` -> `isRedstoneConductor` (decompiled 368-370).
+- **Row 3 (lid event viewer count truncated to u8): STILL OPEN (out of unit).**
+  `on_viewer_count_update` still casts `new as u8` (chest_like_block_entity.rs:344)
+  because the sink `World::add_synced_block_event(pos, type, data: u8)`
+  (world/mod.rs:1416), `BlockEvent.data: u8` and `OnSyncedBlockEventArgs.data: u8`
+  (block/mod.rs:459,623) and `BlockRegistry` (registry.rs:1004) all cap the payload
+  at u8. Vanilla `EVENT_SET_OPEN_COUNT` carries an int. Widening requires edits to
+  world/mod.rs, block/mod.rs and registry.rs, none of which are in this unit's files.
+  Reason: cross-crate/protocol API change outside this unit.
+- **Row 4 (double-chest menu title): FIXED, already in tree.** Verified against
+  vanilla `getDisplayName` (decompiled 130-135): first (RIGHT) half custom name,
+  else second (LEFT) half, else `container.chestDouble`. `chests.rs:487-493,555-560`
+  resolves both halves and selects the key by `double_chest`; pure unit test
+  `chest_menu_title_matches_vanilla` (chests.rs:1144) present.
+
+No files changed this pass (verification only). Unit files
+(chest_like_block_entity.rs, chests.rs, hopper.rs, player_action.rs, viewer.rs)
+needed no edits; no new test seam exists for the one out-of-unit row.
+
+
+## Result
+
+Re-checked the sole STILL OPEN row (3) on 2026-11-18. The decompiled vanilla
+tree under `.vendor/vanilla-decompiled/` is empty this pass (0 `.java` files),
+so there was no new vanilla source to consult; verification used the current
+Pumpkin tree and the prior decompiled findings already recorded above. No
+`cargo` was run (per unit rules).
+
+- **Row 1 (partner half detached on non-player removal): FIXED, already in tree.**
+  All three chest blocks wire `get_state_for_neighbor_update` to
+  `chest_state_for_neighbor_update` (chests.rs:623,666,850,922), matching vanilla
+  `ChestBlock.updateShape`. No change.
+- **Row 2 (blocked-chest predicate): FIXED, already in tree.** `has_block_on_top`
+  uses `state.is_full_cube()` (chests.rs:1104-1109), matching vanilla
+  `isBlockedChestByBlock` -> `isRedstoneConductor`. No change.
+- **Row 4 (double-chest menu title): FIXED, already in tree.** Both halves'
+  custom names resolved and default key picked by `double_chest`
+  (chests.rs:73-79,487-493,555-560); test `chest_menu_title_matches_vanilla`
+  present (chests.rs:1144). No change.
+- **Row 3 (lid event viewer count truncated to u8): STILL OPEN, out of unit.**
+  Reason: widening the payload needs a cross-crate/protocol refactor outside
+  this unit's files (`CBlockEvent.action_parameter: u8` in
+  pumpkin-protocol/.../block_event.rs:21, `World::add_synced_block_event(..,
+  data: u8)` at world/mod.rs:1440, `BlockEvent.data: u8` at block/mod.rs:620,
+  plus registry dispatch); the in-unit call site chest_like_block_entity.rs:344
+  cannot widen it alone.
+
+No source files changed this pass; only this Result section was appended.

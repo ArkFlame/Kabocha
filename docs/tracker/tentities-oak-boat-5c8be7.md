@@ -128,3 +128,31 @@ handleMoveVehicle :578 / handlePaddleBoat :2464, Entity.getControlledVehicle :66
 No code changes this pass: the two in-scope rows were already fixed by a prior pass and verified
 here. No pure unit-test seam exists for these packet handlers (they need a live Player/world/vehicle
 graph), so none was added. No rustfmt run (no .rs file touched).
+
+
+## Result (verify pass 2026-11-18, main checkout)
+
+Re-checked every STILL OPEN row against decompiled vanilla at
+/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup/net/minecraft/
+(ServerGamePacketListenerImpl.java handleMoveVehicle :578 / handlePaddleBoat :2464,
+Entity.java getControlledVehicle :6661).
+
+- Row 1 (bubble time publish): STILL OPEN - needs boat.rs, physics.rs and generated tracked_data
+  edits, all outside this unit.
+- Row 2 (rider position clamp): STILL OPEN - needs passengers.rs/boat.rs, outside this unit.
+- Row 3 (float_boat air-to-water snapping): STILL OPEN - physics.rs outside this unit.
+- Row 4 (floatBoat gravity constant): STILL OPEN - physics.rs outside this unit.
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED, no change needed. Vanilla
+  wraps with Mth.wrapDegrees (:606-607) before absSnapTo; Pumpkin wraps at move_vehicle.rs:43-44 and
+  applies via set_rotation at :81. client_move.rs also wraps (:392-428). No edit required.
+- Row 6 (paddle boat handler, paddle_boat.rs): VERIFIED FIXED, no change needed. Vanilla
+  getControlledVehicle (:6661) returns the immediate vehicle only when it is the controlling
+  passenger; handlePaddleBoat (:2466) requires that vehicle be an AbstractBoat. Pumpkin reads the
+  immediate vehicle, checks its controlling passenger, downcasts to BoatEntity and sets paddle state.
+  Matches vanilla (the doc's get_root_vehicle suggestion is not what decompiled vanilla does).
+- Row 7 (dead move_from_client path): STILL OPEN - physics.rs outside this unit.
+- Row 8 (boat gametest coverage): STILL OPEN - gametest files outside this unit.
+
+No code changes: both in-scope rows were already fixed by a prior pass and re-verified here. No
+pure unit-test seam exists for these packet handlers (they need a live Player/world/vehicle graph).
+No rustfmt run (no .rs file touched). No compile run (shell denied to workers).

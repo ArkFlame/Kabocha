@@ -70,3 +70,38 @@ chain.
 
 Formatting: `rustfmt --edition 2024` run successfully on cushion.rs. Build/tests
 not run (CODER cannot compile); orchestrator verifies in the batch check.
+
+## Result (re-verification pass)
+
+All STILL OPEN rows re-checked against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`; the prior fixes are already
+present in the working tree and correct, so no new code edits were needed.
+
+- `cushion.rs:394` (`interact` seat): CONFIRMED FIXED. Uses
+  `crate::entity::position_rider(vehicle, passenger)`. Vanilla
+  `Entity.positionRider` (`Entity.java:3540-3544`) computes
+  `vehicle.pos + getPassengerRidingPosition - getVehicleAttachmentPoint`,
+  exactly what `entity/mod.rs:1648-1674` implements (cushion passenger
+  point 0.25 minus rider vehicle point 0.6). `awaiting_teleport` target
+  still updated.
+- `cushion.rs:176-214` (`drop_and_remove`): CONFIRMED FIXED. No early
+  return on `has_passengers()`. Vanilla `BlockAttachedEntity.hurtServer`
+  (`BlockAttachedEntity.java:166-168`) does `kill()` then `dropItem()`
+  unconditionally, and `Entity.setRemoved` (`Entity.java:7097`) dismounts
+  passengers but removes regardless of a cancelled dismount. Cushion drop
+  stays gated on `entity_drops` and creative attacker (`Cushion.java:58-69`).
+- `entity/mod.rs:6217/5883` (mount/dismount game events): LEFT OPEN - needs
+  `entity/mod.rs` and possible `pumpkin-data` `GameEvent` additions, both
+  outside this unit's files (cushion.rs, painting.rs). Current checkout
+  already emits `GameEvent::EntityMount`/`EntityDismount` upstream; verify
+  at integration.
+- `cushion.rs` placement/support tests: gametest cases LEFT OPEN - need
+  `pumpkin-gametest` world manipulation (cross-crate). Pure unit seam tests
+  are present and cover `canBePlacedAt`/`wouldSurviveAt`: anchor required,
+  suffocating cover rejected, buried anchor detection
+  (`subtract_box_underpins_anchor_buried_detection`). Slab and
+  post-support-removal drop remain for a gametest in a later unit.
+
+`rustfmt --edition 2024 crates/pumpkin-core/src/entity/decoration/cushion.rs`
+run successfully (via context-mode shell). No build/tests run: CODER cannot
+compile; orchestrator verifies in the batch check.

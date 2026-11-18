@@ -40,7 +40,12 @@ below that depend on an exact vanilla branch stay tagged with their confidence.
   block position match vanilla. Render distance (1024) is client-only.
 
 ## Gap status
-- 1-5 (sounds, interact, tick survives, tick_leash, get_knot): STILL OPEN (file is in the h6 excluded list; not touched)
+- 1 (sounds): OPEN, needs new `block.leash_knot.*` events in generated `sound.rs` (generated data is forbidden for this unit); this vanilla version uses `item.lead.*`, which Pumpkin already plays.
+- 2 (interact): CLOSED, no change needed; the existing `leash_to_if_held_by` re-home matches vanilla.
+- 3 (tick survives): CLOSED, fixed in `leash_knot.rs` (fence-tag removal without eager scan).
+- 4 (tick_leash): OUT OF SCOPE, the fix lives in `crates/pumpkin-core/src/entity/mod.rs` (not one of this unit's editable files); already implemented there.
+- 5 (get_knot): CLOSED, fixed in `leash_knot.rs` (`knot_search_box` plus pure unit test).
+- Extra: a `mob_griefing` gate reintroduced after commit `50b9962dd` was removed again from `damage_with_context` in the final pass.
 
 ## Result
 
@@ -64,3 +69,27 @@ Verified all rows against decompiled vanilla `.vendor/vanilla-decompiled/net/min
   plus a pure unit test `knot_search_box_spans_block_plus_minus_one` asserting the bounds.
 
 Files changed: `crates/pumpkin-core/src/entity/decoration/leash_knot.rs` (row 5 + test), this doc.
+
+
+## Result
+
+Final verification pass. No decompiled vanilla source is present in this worktree, so each row was
+checked against the existing unit evidence and the current source rather than a fresh decompile.
+
+- Row 1 (sounds): left OPEN. `crates/pumpkin-data/src/generated/sound.rs:941-943` exposes only
+  `ItemLeadTied`/`ItemLeadUntied`/`ItemLeadBreak`; there are no `block.leash_knot.*` events to add
+  and generated data is out of scope. `play_placement_sound`, `tick` and `damage_with_context`
+  already play the correct `item.lead.*` sounds.
+- Row 2 (interact): no change. `interact` re-homes the player's leashed mobs onto the knot via
+  `leash_to_if_held_by`, matching vanilla; the earlier discard-plus-drop suggestion is wrong.
+- Row 3 (tick): already fixed. `tick` discards the knot when the fence tag is gone, playing
+  `LEAD_UNTIED`; no 32-block mob scan remains.
+- Row 4 (tick_leash): out of scope. The freed-`Weak` branch in `entity/mod.rs::tick_leash`
+  (`entity_drops` refund plus `EntityUnleashEvent`) is already present; `entity/mod.rs` is not one
+  of this unit's editable files.
+- Row 5 (get_knot): already fixed. `knot_search_box` returns the vanilla block box and a pure unit
+  test asserts its bounds.
+- Extra correction: removed a reintroduced `mob_griefing` gate from `damage_with_context`;
+  vanilla `BlockAttachedEntity.hurtServer` only tests `isInvulnerableTo` before killing the knot.
+
+Files changed this pass: `crates/pumpkin-core/src/entity/decoration/leash_knot.rs` and this doc.

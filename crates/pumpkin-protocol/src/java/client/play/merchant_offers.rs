@@ -3,9 +3,56 @@ use pumpkin_macros::java_packet;
 
 use crate::ClientPacket;
 use crate::VarInt;
+use crate::codec::data_component::deserialize;
 use crate::codec::item_stack_seralizer::ItemStackSerializer;
-use crate::ser::NetworkWriteExt;
+use crate::ser::{NetworkReadExt, NetworkWriteExt, ReadingError};
 use pumpkin_util::version::JavaMinecraftVersion;
+
+/// Upper bound on the capacity reserved for an offer list read from the wire.
+const MAX_INITIAL_OFFERS: usize = 64;
+
+/// Upper bound on the component patch of an `ItemCost`, matching the item stack patch limit.
+const MAX_ITEM_COST_COMPONENTS: usize = 256;
+
+/// Reads one `ItemCost`: item id, count, then the exact-predicate component list.
+///
+/// The components are written inline (id followed by the component body), so every
+/// entry has to be decoded to keep the stream aligned.
+fn read_item_cost(
+    read: &mut impl NetworkReadExt,
+) -> Result<ItemStackSerializer<'static>, ReadingError> {
+    let item_id = read.get_var_int()?.0;
+    let count = read.get_var_int()?.0;
+    let component_count = read.get_var_int()?.0;
+
+    let component_capacity = usize::try_from(component_count)
+        .ok()
+        .filter(|count| *count <= MAX_ITEM_COST_COMPONENTS)
+        .ok_or_else(|| {
+            ReadingError::Message(format!(
+                "Invalid item cost component count: {component_count}"
+            ))
+        })?;
+    let mut patch = Vec::with_capacity(component_capacity);
+    for _ in 0..component_count {
+        let raw_id = read.get_var_int()?.0;
+        let id = u8::try_from(raw_id)
+            .ok()
+            .and_then(pumpkin_data::data_component::DataComponent::try_from_id)
+            .ok_or_else(|| ReadingError::Message(format!("Unknown component ID: {raw_id}")))?;
+        patch.push((id, Some(deserialize(id, read)?)));
+    }
+
+    let item_id = u16::try_from(item_id)
+        .map_err(|_| ReadingError::Message(format!("Invalid item id: {item_id}")))?;
+    let count = u8::try_from(count)
+        .map_err(|_| ReadingError::Message(format!("Invalid item cost count: {count}")))?;
+    let item = pumpkin_data::item::Item::from_id(item_id).unwrap_or(&pumpkin_data::item::Item::AIR);
+
+    Ok(ItemStackSerializer(std::borrow::Cow::Owned(
+        pumpkin_data::item_stack::ItemStack::new_with_component(count, item, patch),
+    )))
+}
 
 #[derive(Clone)]
 pub struct MerchantOffer {
@@ -133,7 +180,6 @@ impl<'a> crate::ServerPacket<'a> for CMerchantOffers {
         bytebuf: &mut &'a [u8],
         version: &JavaMinecraftVersion,
     ) -> Result<Self, crate::ser::ReadingError> {
-        use crate::ser::NetworkReadExt;
         let window_id = bytebuf.get_var_int()?;
         let offers_count = if *version >= JavaMinecraftVersion::V_1_19 {
             bytebuf.get_var_int()?.0 as usize
@@ -141,34 +187,16 @@ impl<'a> crate::ServerPacket<'a> for CMerchantOffers {
             bytebuf.get_u8()? as usize
         };
 
-        let mut offers = Vec::with_capacity(offers_count);
+        // The count comes from the wire: reserve a bounded amount and let the
+        // body reads fail if the client lied.
+        let mut offers = Vec::with_capacity(offers_count.min(MAX_INITIAL_OFFERS));
         for _ in 0..offers_count {
             let (base_cost_a, output, cost_b) = if *version >= JavaMinecraftVersion::V_1_20_5 {
-                let item_id = bytebuf.get_var_int()?.0 as u16;
-                let count = bytebuf.get_var_int()?.0 as u8;
-                let comp_count = bytebuf.get_var_int()?.0 as usize;
-                for _ in 0..comp_count {
-                    let _comp_id = bytebuf.get_var_int()?;
-                }
-                let item = pumpkin_data::item::Item::from_id(item_id)
-                    .unwrap_or(&pumpkin_data::item::Item::AIR);
-                let base_cost_a = ItemStackSerializer(std::borrow::Cow::Owned(
-                    pumpkin_data::item_stack::ItemStack::new(count, item),
-                ));
+                let base_cost_a = read_item_cost(bytebuf)?;
                 let output = ItemStackSerializer::read_with_version(bytebuf, version)?;
                 let has_cost_b = bytebuf.get_bool()?;
                 let cost_b = if has_cost_b {
-                    let item_id_b = bytebuf.get_var_int()?.0 as u16;
-                    let count_b = bytebuf.get_var_int()?.0 as u8;
-                    let comp_count_b = bytebuf.get_var_int()?.0 as usize;
-                    for _ in 0..comp_count_b {
-                        let _comp_id = bytebuf.get_var_int()?;
-                    }
-                    let item_b = pumpkin_data::item::Item::from_id(item_id_b)
-                        .unwrap_or(&pumpkin_data::item::Item::AIR);
-                    Some(ItemStackSerializer(std::borrow::Cow::Owned(
-                        pumpkin_data::item_stack::ItemStack::new(count_b, item_b),
-                    )))
+                    Some(read_item_cost(bytebuf)?)
                 } else {
                     None
                 };
@@ -230,14 +258,15 @@ mod tests {
     use pumpkin_data::{
         data_component::DataComponent,
         data_component_impl::{
-            DataComponentImpl, DyedColorImpl, ItemNameImpl, MapIdImpl, SuspiciousStewEffect,
-            SuspiciousStewEffectsImpl,
+            DamageImpl, DataComponentImpl, DyedColorImpl, ItemNameImpl, MapIdImpl,
+            SuspiciousStewEffect, SuspiciousStewEffectsImpl,
         },
         item::Item,
         item_stack::ItemStack,
     };
     use pumpkin_util::version::JavaMinecraftVersion;
 
+    use crate::ServerPacket;
     use crate::ser::NetworkReadExt;
 
     use super::*;
@@ -302,6 +331,36 @@ mod tests {
         lightly_used.uses = 1;
         lightly_used.update_demand();
         assert_eq!(lightly_used.demand, 0);
+    }
+
+    #[test]
+    fn item_cost_components_survive_a_round_trip() {
+        let version = JavaMinecraftVersion::V_26_2;
+        let mut cost = ItemStack::new(3, &Item::DIAMOND_SWORD);
+        cost.patch.push((
+            DataComponent::Damage,
+            Some(DamageImpl { damage: 7 }.to_dyn()),
+        ));
+        let mut priced = offer();
+        priced.base_cost_a = ItemStackSerializer(Cow::Owned(cost));
+
+        let packet =
+            CMerchantOffers::new(VarInt(1), vec![priced], VarInt(1), VarInt(0), true, true);
+        let mut bytes = Vec::new();
+        packet.write_packet_data(&mut bytes, &version).unwrap();
+
+        let mut slice = bytes.as_slice();
+        let decoded = CMerchantOffers::read(&mut slice, &version).unwrap();
+        let cost = decoded.offers[0].base_cost_a.0.as_ref();
+        assert_eq!(cost.item, &Item::DIAMOND_SWORD);
+        assert_eq!(cost.item_count, 3);
+        assert_eq!(cost.patch.len(), 1);
+        assert_eq!(cost.patch[0].0, DataComponent::Damage);
+        let damage = cost.patch[0]
+            .1
+            .as_ref()
+            .and_then(|data| data.as_any().downcast_ref::<DamageImpl>());
+        assert_eq!(damage.map(|damage| damage.damage), Some(7));
     }
 
     #[test]

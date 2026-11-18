@@ -234,6 +234,14 @@ impl CommandBlock {
             if powered || auto {
                 let condition_met = Self::mark_condition_met(world, command_entity, &pos);
                 if condition_met {
+                    // Vanilla `BaseCommandBlock#performCommand` returns false when this
+                    // block already ran this tick, and `CommandBlock#executeChain` stops
+                    // the whole chain in that case.
+                    if world.get_world_age()
+                        == command_entity.last_execution.load(Ordering::Relaxed)
+                    {
+                        break;
+                    }
                     let command = command_entity
                         .command
                         .lock()

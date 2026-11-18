@@ -396,9 +396,16 @@ impl CommandSource {
                 CommandSender::Player(sender) => Some(sender),
                 _ => None,
             };
+            // Vanilla CommandSourceStack#broadcastToAdmins targets ops (PlayerList#isOp),
+            // not a permission-level threshold.
+            let ops = server
+                .data
+                .operator_config
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for player in server.get_all_players() {
                 if output_player != Some(&player)
-                    && player.permission_lvl.load() >= server.basic_config.op_permission_level
+                    && ops.get_entry(&player.gameprofile.id).is_some()
                 {
                     player.send_system_message(&text);
                 }

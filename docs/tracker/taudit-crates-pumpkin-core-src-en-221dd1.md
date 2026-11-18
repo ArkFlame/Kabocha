@@ -59,8 +59,9 @@ Re-audited both in-scope files against decompiled vanilla (`Activity`,
   `ActivitySet` is a bitset over enum discriminants; `iter()` yields registry order,
   matching vanilla's `ActivityBitSet`. No code gap.
 - `timed.rs`: `try_start`, `tick_or_stop`, `do_stop`, `timed_out` and defaults match
-  vanilla `Behavior` step for step. `stop_with_timeout` is a superset that is
-  behaviourally identical to vanilla's `stop` (no in-tree behavior overrides it).
+  vanilla `Behavior` step for step. `stop_with_timeout` passes `has_timed_out(tick.time)` = `time > end_timestamp`,
+  identical to vanilla's `timedOut(timestamp)` inside `stop`; the sniffer Digging /
+  FinishedDigging behaviors override it and use that flag (verified vs SnifferAi.java).
   The `.max(1)` clamp on the random range is a safe deviation (vanilla throws on a
   misconfigured max<min). No code gap.
 
@@ -75,3 +76,5 @@ test). `rustfmt --edition 2024` run on `activity.rs`.
 Remaining open: none in scope. Deviation rows #1-#3 in the parent note remain
 deliberate / out-of-scope (memory ttl clock and debug formatting live in
 `memory/mod.rs`; #1 is the documented hash-order deviation).
+
+Re-verified 2026-11-18 against decompiled vanilla `Behavior.java` (tryStart/tickOrStop/doStop/timedOut match step for step) and `Activity.java` (name.hashCode + h^(h>>>16) + resize at 0.75 load factor). Bucket values core=1, idle=5, fight=14 confirmed by hand. Both tests present and correct; no new gaps, no .rs edits needed this pass.

@@ -83,3 +83,24 @@ Re-read against decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/`,
 
 No source file changed: both STILL OPEN rows were already correct. No pure unit test was added (existing tests
 `spawn_tests.rs:284` and `:203,227` cover them) and rustfmt was not needed.
+
+
+## Result (re-verify 2026-11-18)
+
+Re-checked every row against decompiled vanilla (target V_26_3). The code already matches on all rows; no source
+edit was required this pass.
+
+- Row 1 (spawn height, player_spawn_finder.rs:229) VERIFIED MATCHING. ChunkGenerator.java:568-570 returns constant
+  64; NoiseBasedChunkGenerator.java has no getSpawnHeight override, so Noise/Custom correctly use
+  DEFAULT_SPAWN_HEIGHT. FlatLevelSource.java:67-69 uses getMinY() + min(getHeight(), layers.size()), matching the
+  Flat arm at :223-226. The stale "sea_level + 1" note in the sweep status is no longer true in the file.
+- Row 2 (scan range, player_spawn_finder.rs:257) VERIFIED MATCHING. PlayerSpawnFinder.java:179 runs
+  for (y = topY + 1; y >= minY; y--), identical to (get_bottom_y()..=top + 1).rev(). No clamp exists in vanilla.
+- Row 3 (can_be_collided_with, player_spawn_finder.rs:66-85) VERIFIED MATCHING. Exactly three non-base overrides of
+  canBeCollidedWith exist: AbstractBoat.java:129 (true), Shulker.java:496 (isAlive), HappyGhast.java:574. For the
+  null source at EntityGetter.java:112 the ghast reduces to !isBaby && isAlive && isOnStillTimeout. Pumpkin's three
+  arms match; no minecart/armor stand/end crystal override exists.
+- spawn_tests.rs:404-419 pins the constant-64 ceiling case and :284, :203, :227 pin the scan range and entity
+  filter, so no new pure unit test was warranted.
+
+No .rs file touched; rustfmt not needed. All rows CLOSED.

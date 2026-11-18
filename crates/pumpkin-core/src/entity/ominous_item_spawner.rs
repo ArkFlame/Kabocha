@@ -137,17 +137,12 @@ impl OminousItemSpawnerEntity {
         self.set_item(ItemStack::EMPTY.clone());
     }
 
-    /// Plays the dispenser launch sound used by every `ProjectileItem` branch in vanilla.
-    fn play_launch_sound(&self, world: &World) {
-        world.sync_world_event(
-            WorldEvent::SoundDispenserProjectileLaunch,
-            self.entity.block_pos.load(),
-            0,
-        );
-    }
-
     /// Mirrors `OminousItemSpawner.spawnProjectile`: shoots downward `(0, -1, 0)` using each
     /// `ProjectileItem`'s `DispenseConfig` and assigns `this` as owner.
+    ///
+    /// Vanilla emits a launch sound only from `DispenseConfig.overrideDispenseEvent`, which is
+    /// empty for arrow, trident, snowball, egg, potion and experience bottle, so those projectiles
+    /// are silent.
     fn spawn_projectile(
         &self,
         world: &Arc<World>,
@@ -172,7 +167,6 @@ impl OminousItemSpawnerEntity {
             );
             let arc: Arc<dyn EntityBase> = Arc::new(arrow);
             world.spawn_entity(arc.clone());
-            self.play_launch_sound(world);
             if let Some(arrow_ref) = arc.cast_any().downcast_ref::<ArrowEntity>() {
                 arrow_ref.apply_on_projectile_spawned(item);
             }
@@ -194,7 +188,6 @@ impl OminousItemSpawnerEntity {
             );
             let arc: Arc<dyn EntityBase> = Arc::new(trident);
             world.spawn_entity(arc.clone());
-            self.play_launch_sound(world);
             if let Some(trident_ref) = arc.cast_any().downcast_ref::<TridentEntity>() {
                 trident_ref.apply_on_projectile_spawned(item);
             }
@@ -274,7 +267,6 @@ impl OminousItemSpawnerEntity {
         };
 
         world.spawn_entity(arc.clone());
-        self.play_launch_sound(world);
         Some(arc)
     }
 

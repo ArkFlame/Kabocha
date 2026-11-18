@@ -45,3 +45,56 @@ handlePlayerCommand, ServerboundMoveVehiclePacket, ServerboundMovePlayerPacket).
 
 Touched: crates/pumpkin-core/src/net/bedrock/play/player_auth_input.rs (rustfmt 2024).
 1 row resolved in this pass, 1 left open (protocol change outside unit), 4 confirmed already fixed.
+
+
+## Result (re-audit, current checkout)
+
+Verified the current checkout against decompiled vanilla
+`ServerGamePacketListenerImpl` (`handleMoveVehicle` 578-810,
+`handlePlayerCommand` 2915-2969, `handleAcceptTeleportPacket` 857-884,
+`handleMovePlayer` 1582-1930) and the Bedrock `SPlayerAuthInput` protocol struct.
+No source change was needed: every STILL OPEN row is already implemented in
+`player_auth_input.rs` and compiles against the current protocol fields
+(`SPlayerAuthInput.teleport`, `InputData::HandledTeleport`,
+`BedrockClient.teleport_sent_pos`). The older Result section above is stale on
+row 1, which is now implemented.
+
+| row | outcome |
+|---|---|
+| 1 await_teleport / Teleport ack | FIXED (supersedes the stale "STILL OPEN" line below). `await_teleport` now clears the pending teleport on the `HandledTeleport` input flag, on a `PlayerAuthInputTeleportData.server_position` echo of `teleport_sent_pos`, or on proximity, with a 20-input resend fallback. `send_bedrock_teleport` stores `teleport_sent_pos` at the same point the pending teleport is set, so the target is not stale. Pure tests `teleport_ack_flag_confirms_without_reaching_the_target`, `teleport_echoed_server_position_confirms_a_stale_input_position`, `teleport_confirms_by_proximity_without_the_ack_flag` cover all three signals. No transaction-id match is needed: Bedrock has no teleport id in auth input, and vanilla `handleAcceptTeleportPacket` (857) only gates on an id to correlate the ack, which the flag/echo substitute here. |
+| 2 StartJumping on saddled mounts | Verified fixed, no change. `StartJumping` swaps the held `JumpDown` charge (clamped 0..90) into `player.start_riding_jump`, which gates on controlling passenger, mount presence, `can_jump` and `jump_scale > 0`, matching vanilla `handlePlayerCommand` START_RIDING_JUMP (2947-2954). |
+| 3 vehicle_rotation / vehicle_unique_id | Verified fixed, no change. `apply_mount_move` rejects a present but mismatched `vehicle_unique_id` and snaps the mount to `vehicle_rotation` (x=pitch, y=yaw), falling back to the rider yaw, matching vanilla `handleMoveVehicle` use of `targetYRot`/`targetXRot` (606-607, 704-710). Pure tests `mount_rotation_uses_the_reported_vehicle_yaw_when_present`, `mount_rotation_falls_back_to_the_rider_yaw`, `mount_step_rejects_an_unknown_vehicle_id` present. |
+| 4 on_ground zero delta | Verified fixed, no change. `is_on_ground` keeps the stored ground state on a zero delta and lands on a downward delta; pure tests present. |
+| 5 sprint SprintDown fallback | Verified fixed, no change. Edge flags win, then `SprintDown` held state, matching vanilla START/STOP_SPRINTING (2935-2940). |
+| 6 unclamped stored delta | Verified fixed, no change. `store_input_state` zeroes non-finite or over-budget deltas via `MAX_CLIENT_STEP_SQUARED`, shared with `apply_mount_move`. |
+
+No .rs files changed this pass. 0 newly fixed, 0 left open. rustfmt not needed (no .rs touched).
+
+
+## Result (verification pass, post-restart)
+
+Re-read the current checkout of `player_auth_input.rs`, `client_push.rs` and
+`net/java/play/player_command.rs` and re-checked every STILL OPEN row against
+decompiled vanilla `ServerGamePacketListenerImpl`
+(`handlePlayerCommand` 2915-2974, `handleAcceptTeleportPacket` 857-886,
+`handleMoveVehicle` 578-613). All six rows are already implemented; no source
+change was needed this pass. Vanilla facts re-confirmed:
+`handlePlayerCommand` START_RIDING_JUMP (2947-2953) gates on a controlled
+`PlayerRideableJumping`, `canJump()` and `data > 0`; `handleMoveVehicle` (591,
+606-607) gates on `getControllingPassenger() == player` and takes the mount yaw
+and pitch from the packet's `targetYRot`/`targetXRot`;
+`handleAcceptTeleportPacket` (859) correlates the ack by id, which Bedrock auth
+input lacks, so the flag/echo signal substitutes.
+
+| row | outcome |
+|---|---|
+| 1 await_teleport / Teleport ack | Verified fixed. `await_teleport` clears on `HandledTeleport`, on a `teleport.server_position` echo of `teleport_sent_pos`, or on proximity, with a 20-input resend. Tests present. |
+| 2 StartJumping on saddled mounts | Verified fixed. Held `JumpDown` charge (clamped 0..90) is swapped into `start_riding_jump`, which gates on controlling passenger, mount, `can_jump` and `jump_scale > 0`, matching vanilla. |
+| 3 vehicle_rotation / vehicle_unique_id | Verified fixed. `apply_mount_move` rejects a present-but-mismatched id and snaps the mount to `vehicle_rotation` (x=pitch, y=yaw) with rider-yaw fallback, matching `targetYRot`/`targetXRot`. Tests present. |
+| 4 on_ground zero delta | Verified fixed. `is_on_ground` keeps stored ground state on a zero delta and lands on a downward delta. Tests present. |
+| 5 sprint SprintDown fallback | Verified fixed. Edge flags win, then held `SprintDown` state. |
+| 6 unclamped stored delta | Verified fixed. `store_input_state` zeroes non-finite / over-budget deltas via `MAX_CLIENT_STEP_SQUARED` before they reach `client_delta` and `client_push.rs`. |
+
+No .rs files changed. 0 newly fixed, 0 left open, 6 confirmed fixed against
+vanilla. All pure seams already carry tests; no new test needed. rustfmt not
+applicable (no .rs touched).

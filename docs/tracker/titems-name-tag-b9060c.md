@@ -24,3 +24,11 @@ Checked, no change: CUSTOM_NAME component presence gates the action (vanilla `ha
 - ArmorStand is a serializable LivingEntity but not a Mob, so it is now nameable again, matching vanilla; it simply does not get persistence_required.
 - No pure unit-test seam: use_on_entity needs a live Player, ItemStack and EntityBase, with no helper isolating the naming rule. Test skipped.
 - Files changed: name_tag.rs only; rustfmt --edition 2024 applied.
+
+## Result (final re-review 2026-11-18)
+
+- Row 1 (ItemBehaviour use_on_entity result): RESOLVED. The premise "the trait returns ()" is obsolete: ItemBehaviour::use_on_entity now returns BlockActionResult (crates/pumpkin-core/src/item/mod.rs:79), the registry wrapper forwards it (item/registry.rs:193-209), and the network handler consumes it via result.consumes_action() (net/java/play/interact.rs:150-156). name_tag.rs returns SuccessServer on a successful tag and Pass otherwise, so the SUCCESS/PASS signalling the row asked for is present. No change needed and the row is no longer open.
+- Re-verified name_tag.rs against decompiled vanilla NameTagItem.interactLivingEntity: custom name present + target.getType().canSerialize() gate, setCustomName on any LivingEntity, setPersistenceRequired only for Mob, shrink(1). Pumpkin's get_living_entity() outer guard, entity_type.saveable check, is_alive check, get_mob()-conditional persistence_required, decrement_unless_creative and SuccessServer/Pass match this. No code change needed.
+- ArmorStand remains nameable (serializable LivingEntity, not a Mob) without persistence, matching vanilla. No change.
+- No pure unit-test seam exists: the naming rule is inline in use_on_entity and needs a live Player, ItemStack and EntityBase, with no isolated helper. Test skipped.
+- Files changed this pass: none (doc only). Previously-correct name_tag.rs left intact.

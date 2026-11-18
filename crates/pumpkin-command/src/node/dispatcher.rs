@@ -1211,6 +1211,33 @@ mod test {
     }
 
     #[test]
+    fn removing_plugin_command_also_removes_aliases() {
+        let mut dispatcher = CommandDispatcher::new();
+        let executor: fn(&CommandContext) -> CommandExecutorResult = |_| Ok(1);
+        dispatcher.register_with_aliases(
+            CommandArgumentBuilder::new("plugin-command", "A plugin command")
+                .with_source("test-plugin")
+                .executes(executor),
+            &["plugin-alias"],
+        );
+        let source = DummySource::dummy();
+        for name in ["plugin-command", "plugin-alias"] {
+            assert!(dispatcher.has_command(name));
+            assert_eq!(dispatcher.execute_input(name, &source), Ok(1));
+        }
+
+        dispatcher.remove_commands_from_source("test-plugin");
+        for name in ["plugin-command", "plugin-alias"] {
+            assert!(!dispatcher.has_command(name));
+            assert!(
+                dispatcher
+                    .execute_input(name, &source)
+                    .is_err_and(|error| error.error_type == &DISPATCHER_UNKNOWN_COMMAND)
+            );
+        }
+    }
+
+    #[test]
     fn arithmetic_command() {
         enum Operation {
             Add,

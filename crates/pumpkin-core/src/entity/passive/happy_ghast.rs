@@ -170,6 +170,13 @@ impl HappyGhastEntity {
         quad_leash.then_some(5)
     }
 
+    /// Vanilla `HappyGhast.tick`: decrement the lead-holder timer before evaluating the synced
+    /// `IS_LEASH_HOLDER` flag, so the flag clears on the tick the timer reaches zero.
+    const fn tick_leash_holder_time(current: i32) -> (i32, bool) {
+        let next = current.saturating_sub(1);
+        (next, next > 0)
+    }
+
     fn scan_player_above_ghast(&self) -> bool {
         let entity = self.get_entity();
         let detection_box = Self::still_detection_box(entity.bounding_box.load());
@@ -330,11 +337,11 @@ impl Mob for HappyGhastEntity {
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
         const TICKS_PER_HEAL: i32 = 600;
-        let leash_time = self.leash_holder_time.load(Ordering::Relaxed);
-        if leash_time > 0 {
-            self.leash_holder_time.fetch_sub(1, Ordering::Relaxed);
-        }
-        self.set_leash_holder(leash_time > 0);
+        let (next_leash_time, is_leash_holder) =
+            Self::tick_leash_holder_time(self.leash_holder_time.load(Ordering::Relaxed));
+        self.leash_holder_time
+            .store(next_leash_time, Ordering::Relaxed);
+        self.set_leash_holder(is_leash_holder);
 
         let still_timeout = self.server_still_timeout.load(Ordering::Relaxed);
         if still_timeout > 0 {
@@ -557,6 +564,13 @@ mod tests {
     fn leash_holder_notify_only_quad_leashee_extends_timer() {
         assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(true), Some(5));
         assert_eq!(HappyGhastEntity::leash_holder_notify_ticks(false), None);
+    }
+
+    #[test]
+    fn leash_holder_flag_uses_decremented_time() {
+        assert_eq!(HappyGhastEntity::tick_leash_holder_time(5), (4, true));
+        assert_eq!(HappyGhastEntity::tick_leash_holder_time(1), (0, false));
+        assert_eq!(HappyGhastEntity::tick_leash_holder_time(0), (0, false));
     }
 
     #[test]

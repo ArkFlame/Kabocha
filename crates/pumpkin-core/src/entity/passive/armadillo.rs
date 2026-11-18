@@ -291,13 +291,23 @@ impl ArmadilloEntity {
             return false;
         }
 
-        let target_type = living_entity.get_entity().entity_type;
+        let target_ent = living_entity.get_entity();
+        let target_type = target_ent.entity_type;
         if target_type.has_tag(&tag::EntityType::MINECRAFT_UNDEAD) {
             return true;
         }
 
+        // Vanilla isScaredBy also accepts the mob that last hurt this armadillo.
+        if self
+            .mob_entity
+            .living_entity
+            .get_last_hurt_by_mob()
+            .is_some_and(|attacker| attacker.get_entity().entity_uuid == target_ent.entity_uuid)
+        {
+            return true;
+        }
+
         if target_type == &EntityType::PLAYER {
-            let target_ent = living_entity.get_entity();
             // Vanilla isScaredBy skips spectators; sprinting or riding scares.
             if !living_entity.is_spectator()
                 && (target_ent.is_sprinting() || target_ent.has_vehicle())
@@ -351,7 +361,8 @@ impl Mob for ArmadilloEntity {
     }
 
     fn get_ambient_sound(&self) -> Option<Sound> {
-        Some(Sound::EntityArmadilloAmbient)
+        // Vanilla getAmbientSound returns null for the whole scared state.
+        (!self.is_scared()).then_some(Sound::EntityArmadilloAmbient)
     }
 
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {

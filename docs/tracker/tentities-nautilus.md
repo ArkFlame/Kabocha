@@ -55,3 +55,23 @@ Also picked up in the same vanilla file: `isPushedByFluid` false, `checkSpawnObs
 
 Tests: replaced the stale dash-cooldown NBT test with `taming_persists_as_vanilla_owner_only` (owner-only NBT plus read-back) and added `wild_adult_only_eats_taming_items` (cooked cod is not food for a wild adult, pufferfish is, a tamed nautilus eats both). Not compiled here, per the wave brief.
 
+
+
+## Result (re-review 2026-11-18, decompiled vanilla present)
+
+Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`,
+now populated. All fixes recorded in the earlier Result section are present in the
+code and match vanilla; the three "verify" rows were re-checked with source:
+
+| # | Result |
+|---...|
+| 5 | VERIFIED, no change. `AbstractNautilus` ctor uses `SmoothSwimmingMoveControl(85,10,0.011,0,true)`, `SmoothSwimmingLookControl(10)`, `setPathfindingMalus(WATER,0.0)` and `createNavigation` -> `WaterBoundPathNavigation`; `NautilusEntity::new` matches all four. |
+| 6 | LEFT OPEN, confirmed client-only. Full decompiled-tree search finds `SoundEvents.NAUTILUS_RIDING` only registered (`SoundEvents.java:139`) and never played; the nautilus riding loop is client-side and not vendored. The dash sound IS played server-side in `handle_rider_start_jump`, matching vanilla `handleStartJump`. No server-side seam to fix. |
+| 7 | VERIFIED, no change. `checkNautilusSpawnRules` (sea-25..sea-5, water below+above) matches `entity/type.rs:786-798`; nautilus is data-driven in `water_creature` biome spawns. Zombie nautilus is MONSTER/Unrestricted and absent from biome assets. |
+| 9 | VERIFIED, no change. `TamableAnimal.feed` heals `2.0 * nutrition` (fallback `1.0`) at `TamableAnimal.java:135-140`, nautilus calls `feed(...,2.0,1.0)`, and the Rust heal matches. |
+
+Rows 1-4 and 8 remain as recorded above (FIXED); the code was re-read and matches
+those results. No new code changes this pass: the fixes and the two unit tests
+(`taming_persists_as_vanilla_owner_only`, `wild_adult_only_eats_taming_items`) are
+already in place. Helper paths and struct initializers were re-checked against the
+Worker compile pitfalls table.

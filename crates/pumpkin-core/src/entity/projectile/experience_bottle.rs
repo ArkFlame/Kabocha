@@ -139,7 +139,10 @@ impl EntityBase for ExperienceBottleEntity {
                 block_pos,
                 WATER_COLOR,
             );
-            world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
+            // Vanilla ThrownExperienceBottle.onHit: particles always, sound only when not silent.
+            if !entity.is_silent() {
+                world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
+            }
         }
         if event.cancelled {
             return;

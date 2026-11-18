@@ -58,3 +58,23 @@ Doc comment says "first (overworld) world" but `server.worlds.load().first()` is
 - Row 3 (player source text name): OPEN. Entirely in `command/mod.rs#player_source`,
   a file outside this unit. Verified against vanilla
   `ServerPlayer#createCommandSourceStack`.
+
+
+## Result (final verification, CODER)
+
+All in-unit code for the STILL OPEN rows is already present and re-verified against decompiled vanilla; no source edits were needed in this pass.
+
+- Row 1 (custom name): IN-UNIT WORK COMPLETE (previously applied, re-verified). `CommandBlockEntity` has `custom_name: StdMutex<Option<TextComponent>>`; `write_sync_nbt`/`from_nbt` read/write `CustomName` via `CustomNameImpl` (equivalent to vanilla `ComponentSerialization.CODEC`); `net/java/play/set_command_block.rs` initialises it from the old entity; `bedrock_block_actor_data` passes it to `build_command_block_actor`. Verified against `BaseCommandBlock.java#save/load/getName`, `CommandBlockEntity.java#createCommandSourceStack`, and `ComponentSerialization.java#createCodec`. OUTSIDE this unit (left open): `command/mod.rs#into_source` still builds `TextComponent::text("@")` (lines 388-389 TODO) instead of the entity custom name with `@` fallback, so the source display name is wrong when CustomName is set. `mod.rs` is not in this unit's allowed basenames.
+- Row 2 (LastOutput text component): FIXED and verified. `last_output` is `StdMutex<Option<TextComponent>>`; NBT uses `to_nbt_tag_for_version(V_26_3)`, which matches vanilla `ComponentSerialization.CODEC` (bare String NBT for collapsible plain text, Compound otherwise) per `ComponentSerialization.java#createCodec` `tryCollapseToString` branch. `command/mod.rs#send_message` appends a `[HH:mm:ss] ` child using `now_local()` with `now_utc()` fallback, matching `BaseCommandBlock.java#sendSystemMessage`. `block/blocks/command.rs` and both `pumpkin-wasm-host-v0_1/v0_2/src/block_entity.rs` already consume the new type; round-trip unit tests exist in `command_block.rs`.
+- Row 3 (player source text name): FIXED and verified (previously applied, outside this unit, no action needed). `command/mod.rs#player_source` passes `player.get_name().get_text()` for textName and `get_display_name()` for the display name; `Entity#get_name` returns the plain profile name, matching vanilla `ServerPlayer#createCommandSourceStack`.
+
+
+## Result (post-restart re-verification, CODER)
+
+Re-read all four in-unit files and decompiled vanilla `BaseCommandBlock.java` / `CommandBlockEntity.java`; no source edits were needed, all fixes already present and correct.
+
+- Row 1 (custom name): IN-UNIT COMPLETE. `block/entities/command_block.rs` holds `custom_name: StdMutex<Option<TextComponent>>`, saves/loads `CustomName` via `CustomNameImpl` (String/Compound codec, matching `ComponentSerialization.CODEC`), and feeds it to `build_command_block_actor`; `net/java/play/set_command_block.rs` initialises it from the old entity; the original todo is gone. LEFT OPEN (outside unit): `command/mod.rs#into_source` still uses literal `@` (lines 388-389 TODO) instead of the entity custom name; `mod.rs` is not in this unit's allowed basenames.
+- Row 2 (LastOutput text component): FIXED. `last_output` is `StdMutex<Option<TextComponent>>` written via `to_nbt_tag_for_version(V_26_3)` (== `CURRENT_MC_VERSION`, bare String for collapsible text, Compound otherwise) and read via `TextComponent::from_nbt`; consumers in `block/blocks/command.rs` and both `pumpkin-wasm-host-v0_1/v0_2/src/block_entity.rs` use the new type; `command/mod.rs#send_message` builds the literal `[HH:mm:ss] ` prefix plus message child, matching `BaseCommandBlock#sendSystemMessage`. Round-trip unit tests exist.
+- Row 3 (player source text name): FIXED outside this unit (`command/mod.rs#player_source`), no action needed.
+
+Compilation not run (worker shell denied; orchestrator compiles once).

@@ -48,3 +48,23 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/advancements/predicat
 - Row 13 (effects_changed distance): predicate.rs side already FIXED (matches_effects_changed_condition takes source_distance and tests cover it). Remaining: caller must pass the real distance, outside predicate.rs.
 
 Formatting: rustfmt could not be invoked (shell execution denied in this environment); inserted code follows rustfmt style and the file was already rustfmt-formatted on read-back.
+
+## Result
+
+Fresh verification against `.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/` (LightningBoltPredicate.java, EntityPredicate.java, ItemPredicate.java, LocationPredicate.java) and the current source. This section supersedes the earlier Result: that note predated fixes that are now present in the files.
+
+- Row 1 (durability): already fixed. `ItemPredicate` has no durability field; `item_predicate_ignores_non_vanilla_durability_field` covers it.
+- Row 2 (location light/fluid): already fixed. `LocationPredicate` parses `light`/`fluid`, `matches_at` evaluates them, and the `minecraft:location` trigger reads brightness/fluid from the world and passes them.
+- Row 3 (EntityPredicate fields): still OPEN. effects and equipment are evaluated in `matches_entity`, but nbt, slots, type_specific and the parsed vehicle/passenger/looking_at/feet_item fields need target-entity state that callers outside these three files must supply.
+- Row 4 (safe_armor_disallowed): already fixed structurally; `safe_armor_not_inferred_from_unrelated_conditions` and `distract_piglin_safe_armor_predicate` cover it. The parallel heuristic in tools/pumpkin-codegen/src/advancement.rs is outside this unit.
+- Row 5 (DamagePredicate source_entity / type tags): already fixed. `DamageTypeTagPredicate`, `DamageEntities` and `matches_with_damage_type` handle tags and the source entity; `dealt`/`taken` see distinct damage values.
+- Row 6 (BredAnimals roles): already fixed. `BredAnimalsPredicate::matches` checks parent, partner and child against their own types with symmetric parent/partner matching.
+- Row 7 (PlacedBlock actual stack): predicate side already fixed (`matches` takes item_count + enchantments). Still OPEN at the call site: `AdvancementTrigger::PlacedBlock` carries only `block_id`, so trigger.rs passes count 1; the enum variant and the block-placement caller live outside this unit.
+- Row 8 (item condition count): predicate side already fixed (`matches_item_condition` takes count). Still OPEN at the call sites: consume_item/filled_bucket/fishing_rod_hooked/used_totem/shot_crossbow variants carry only an item id and pass count 1; their emitters are outside this unit.
+- Row 9 (fall_after_explosion cause): already fixed. `cause_entity` is an `EntityPredicate` and the trigger evaluates it.
+- Row 10 (lightning_strike): FIXED THIS PASS. Vanilla `LightningStrikeTrigger` uses a full `EntityPredicate` for `bystander`; the field was a bare `Option<String>` so tag/array/compound bystander predicates were dropped. Changed `CriterionConditions::LightningStrike.bystander` to `Option<EntityPredicate>`, parse it with `parse_entity_pred` (both `{"bystander": {"type": ...}}` and the wrapped `predicate` form), convert generated `bystander_type` strings into a type matcher, and evaluate in trigger.rs via `EntityPredicate::matches`. Added `lightning_strike_bystander_uses_entity_predicate`.
+- Row 11 (distance axes): already fixed. `DistancePredicate` covers x/y/z/horizontal/absolute with f32 truncation; `distance_trigger_checks_x_z_and_absolute_axes` covers it.
+- Row 12 (ItemUsedOnBlock merge): already fixed. `ItemUsedOnBlockTerm` models AllOf/AnyOf/Inverted and `ItemUsedOnBlockPredicate::matches` evaluates the full tree.
+- Row 13 (effects_changed distance): already fixed. `matches_effects_changed_condition` takes source_distance and the trigger passes it.
+
+Formatting: `rustfmt --edition 2024` run on predicate.rs and trigger.rs (both rc 0). Cargo check not run (worker must not compile); orchestrator will batch compile.

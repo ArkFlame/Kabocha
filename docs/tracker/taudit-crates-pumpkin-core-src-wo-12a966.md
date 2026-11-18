@@ -46,3 +46,5 @@ matches; dropping the clamp would break parity, so it stays. The existing
 `level_time_set_and_add` unit test already covers the negative clamp, now annotated with
 the vanilla source. No generated data, WIT, cross-crate or out-of-unit work needed.
 Rows 1-8 were not marked STILL OPEN and are out of scope for this pass.
+
+Re-verified against decompiled source this pass: `ServerClockManager.java:147` is `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`; Pumpkin's `max(0)` clamp matches, so no source change and no rustfmt needed.

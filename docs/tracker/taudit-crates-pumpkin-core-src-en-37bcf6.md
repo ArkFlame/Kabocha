@@ -61,7 +61,7 @@ mob and assert it is not picked (4 block vanilla box).
 
 ## Gap status
 
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- RESOLVED (re-audit 2026-11-18): all five gaps verified against decompiled vanilla; no STILL OPEN rows remain. Gap 1 and Gap 4 were fixed in code, Gap 3 was implemented (and its premise refuted), Gap 2 and Gap 5 were confirmed correct as-is, and the vertical-search observation is resolved. No source changes needed in this pass.
 
 ## Result
 
@@ -74,3 +74,18 @@ Audited 2026-11-17 against `.vendor/vanilla-decompiled` (MC 26.3). Smallest gaps
 - Gap 5 (NoDaylight comment): no change. Verified decompiled `Spider.SpiderTargetGoal` only overrides `canUse`; daylight is checked only in `can_start`, which is correct.
 
 Observation (out of STILL OPEN scope, for a later pass): the prior 'Fixed in this pass' note claims `getTargetSearchArea(d)` inflates vertically by 4.0, but the vendored decompiled source uses `inflate(followDistance, followDistance, followDistance)` (full follow range vertically). `TARGET_SEARCH_VERTICAL_RANGE = 4.0` in `active_target.rs` therefore diverges from this reference; left as-is to avoid undoing prior verified work without an explicit ticket.
+
+
+## Result
+
+Re-audit 2026-11-18 against `.vendor/vanilla-decompiled` (MC 26.3), smallest rows first. No code changes: every earlier gap is already resolved or refuted in the current tree.
+
+- Vertical search box (earlier observation): RESOLVED. `active_target.rs::find_closest_target` now calls `SearchArea::from_eyes(entity, follow_range, follow_range)`, which expands the bounding box by the full follow range on every axis. Matches decompiled `NearestAttackableTargetGoal.getTargetSearchArea(d)` = `getBoundingBox().inflate(d, d, d)`. No `TARGET_SEARCH_VERTICAL_RANGE` constant remains.
+- Gap 1 (Adult uses AgeableMob): RESOLVED in code. `TargetCondition::allows_search` calls `mob.mob_is_baby()`, the unified `Mob` trait method (`entity/mob/mod.rs:2418`), not an `as_ageable` special case. Matches decompiled `Mob.isBaby()`.
+- Gap 2 (Untamed continuation): NO CHANGE, verified correct. Decompiled `NonTameRandomTargetGoal.canContinueToUse` re-tests `targetConditions.test(...)` and never calls `super`, so `accepts()` re-test in `should_continue` is the correct mirror; there is no unseen-memory window for untamed mobs.
+- Gap 3 (mustReach): NO CHANGE, premise refuted. Decompiled `NearestAttackableTargetGoal.findTarget` selects via plain `getTargetConditions()` and never calls `TargetGoal.canAttack(target, conditions)`, so `mustReach` does not filter target choice. `TrackTargetGoal::can_navigate_to_entity`/`can_track` are implemented and used by the goals that do call `canAttack` (revenge, owner-hurt, fox, llama). The polar bear flag stays `true`, matching decompiled `PolarBearAttackPlayersGoal` `super(..., 20, true, true, null)`.
+- Gap 4 (Untamed target reason): RESOLVED in code. `start()` uses the player/entity split for every condition; the `Untamed -> RandomTarget` arm is gone. Matches decompiled `NearestAttackableTargetGoal.start()` (`CLOSEST_PLAYER`/`CLOSEST_ENTITY`), since `NonTameRandomTargetGoal` does not override `start`.
+- Gap 5 (NoDaylight comment): NO CHANGE. Decompiled `Spider.SpiderTargetGoal` overrides only `canUse`, so the daylight check belongs in `can_start` only.
+- Tests: no pure seam for `TargetCondition`/`start` (needs a live `Mob`/`World`). Existing pure tests in `track_target.rs` already cover `end_node_reaches_target` (2.25 tolerance) and `remembers_visible_target` (unseen-memory window), both matching decompiled `TargetGoal.canReach`/`canContinueToUse`. No tests added.
+
+Source files unchanged this pass; only this doc edited. `rustfmt` not run (no `.rs` file touched).

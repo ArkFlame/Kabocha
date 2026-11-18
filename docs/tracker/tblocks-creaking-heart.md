@@ -71,3 +71,36 @@ FIXED: block entity tick re-syncs state every 20 ticks (block/entities/creaking_
 Verification: rustfmt --edition 2024 run on the touched .rs file (passed). Cargo/git deliberately not
 run per worker contract, so compile/test result is UNVERIFIED. No generated data, WIT, cross-crate or
 out-of-unit files were touched. All prior STILL OPEN rows are resolved; open = 0.
+
+
+## Result - decompiled vanilla re-verification
+
+Sources: .vendor/vanilla-decompiled/net/minecraft/world/level/block/CreakingHeartBlock.java and
+.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CreakingHeartBlockEntity.java.
+
+- Previously UNVERIFIED constants now confirmed exact against the decompiled source:
+  PLAYER_DETECTION_RANGE = 32 (CREAKING_SPAWN_DISTANCE 32.0), ATTEMPTS_PER_SPAWN = 5,
+  SPAWN_RANGE_XZ = 16, SPAWN_RANGE_Y = 8, ON_TOP_OF_COLLIDER_NO_LEAVES with check_collisions true
+  (CreakingHeartBlockEntity.java:46-52, 202-215), DISTANCE_CREAKING_TOO_FAR = 34 (line 48).
+  No change.
+- idle heartbeat: confirmed client-only. CreakingHeartBlock.animateTick (lines 64-73) is the
+  only CREAKING_HEART_IDLE path: 1-in-16, CREAKING_ACTIVE true, state != UPROOTED, and all six
+  neighbours are logs. No server tick plays it. No change, per the client-only sound rule.
+- teardown on uproot: confirmed updateCreakingState (lines 140-149) uproots only when there are
+  no required logs AND creakingInfo is null; a bound heart stays awake/dormant. should_uproot
+  (!has_logs && !bound) already matches. No change.
+- break sound routing: confirmed CreakingHeartBlock has no break-sound override. No change.
+- FIXED: spawn sounds were triggered at the wrong time. Vanilla serverTick (lines 118-120)
+  plays Entity CREAKING_SPAWN on the creaking and Block CREAKING_HEART_SPAWN at the heart only
+  after a protector actually spawns; the block updateState plays no sound. Removed the
+  BlockCreakingHeartSpawn playback from CreakingHeartBlock::update_state (which fired on
+  UPROOTED to awake on log placement) and added both sounds to try_spawn_creaking.
+- FIXED: bound protector teardown on heart removal. Vanilla preRemoveSideEffects (lines 313-315)
+  calls removeProtector(null), tearing down the bound creaking. Added a BlockEntity
+  on_block_replaced override and a remove_protector helper on CreakingHeartBlockEntity.
+- No new pure unit test: both new paths need a live world and entity, so there is no pure seam.
+  The existing should_uproot, is_protector and too-far tests still cover the pure logic.
+
+Verification: rustfmt --edition 2024 ran with exit 0 on both touched .rs files. Cargo and git
+were deliberately not run under the worker contract, so compile/test result is UNVERIFIED.
+No generated data, WIT, cross-crate or out-of-unit files touched. open = 0.

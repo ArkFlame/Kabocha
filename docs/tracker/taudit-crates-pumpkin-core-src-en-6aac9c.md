@@ -110,3 +110,55 @@ Verified against decompiled vanilla in `.vendor/vanilla-decompiled/net/minecraft
 - Gap 2 (M) open: still needs non-player dimension-change infrastructure that does not exist yet.
 
 Files: minecart.rs only. `rustfmt --edition 2024` run; no cargo or git run.
+
+
+## Result (pass 2, decompiled vanilla available)
+
+Re-verified the four STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`.
+
+- Gap 5 (S) FIXED: vanilla `MinecartTNT.destroy` calls `primeFuse` unconditionally, and
+  `primeFuse` no-ops when `tntExplodes` is off. `TntMinecart::prime` already has that same
+  gamerule guard (and is also called from the activator-rail path), so the redundant outer
+  `if tnt_explodes` wrapper in the TNT destroy branch was removed. The fuse
+  `nextInt(20)+nextInt(20)` and the unprimed check remain unchanged. No behaviour change.
+- Gap 8 (S) verified, no change: current friction code already prefers
+  `on_ground`/`touching_water` with the block probe only as a fallback, which is the gap's own
+  suggested fix. The probe must stay because the vehicle movement path never writes
+  `on_ground`; removing it needs general vehicle physics outside these files.
+- Gap 1 (M) open: NBT keys confirmed (`DisplayState` via `BlockState.CODEC`, `DisplayOffset` int),
+  but Pumpkin has no block-state NBT serializer and the tracked-data wiring needs cross-crate
+  support outside minecart.rs.
+- Gap 2 (M) open: needs non-player dimension-change/portal infrastructure that does not exist yet.
+
+Files: minecart.rs only. `rustfmt --edition 2024 minecart.rs` run; no cargo or git run.
+
+
+## Result (pass 3, files command_block.rs + tnt.rs)
+
+This unit's allowed basenames were derived from the file references in this doc:
+`minecart/command_block.rs` and `minecart/tnt.rs`. Re-verified both against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/` and no `.rs` file needed an
+edit. No cargo, git or rustfmt run (no source change).
+
+- `minecart/tnt.rs`: faithful to decompiled `MinecartTNT`. `prime` guards on `fuse >= 0` and the
+  `tnt_explodes` rule, broadcasts `TNT_PRIME` and plays `TNT_PRIMED`; `tick` decrements the fuse,
+  emits smoke at `y + 0.5` and explodes at fuse 0; `explosion_strength` is
+  `base + factor * random * 1.5 * min(sqrt(speedSqr), 5.0)`; NBT keys `fuse`/`explosion_power`/
+  `explosion_speed_factor` and the primed-rails preservation match. The gap-5 note about an
+  orphaned `set_fuse` is stale: no such method exists. The horizontal-collision explode and
+  burning-arrow paths are handled in `minecart.rs`, outside this unit. No change.
+- `minecart/command_block.rs`: faithful to decompiled `MinecartCommandBlock` + `BaseCommandBlock`.
+  Activation cooldown `tick_count - last_activated >= 4`, case-insensitive Searge branch before the
+  gamerule guard, success-count reset before the guard, `last_execution`/`UpdateLastExecution`
+  bookkeeping and NBT keys (`Command`, `SuccessCount`, `CustomName`, `TrackOutput`, `LastOutput`,
+  `LastExecution`) all match. Kept as-is.
+- Gap 1 (M) still open, one-line reason: vanilla uses `DisplayState` (`BlockState.CODEC`) and
+  `DisplayOffset` NBT, but Pumpkin has no block-state NBT serializer or `CUSTOM_DISPLAY_BLOCK`
+  tracked-data field; fixing it needs generated tracked data, a serializer and `minecart.rs`, all
+  outside these two files.
+- Gap 2 (M) still open, one-line reason: needs non-player portal/dimension-change infrastructure
+  that does not exist (vanilla CraftBukkit comments out `handlePortal` in `AbstractMinecart.tick`
+  too), and lives in `minecart.rs`, outside this unit.
+- No pure unit-test seam in either file beyond the existing `tnt_minecart_explosion_bonus_is_speed_capped`
+  test; `perform_command`/`prime` need a live `Arc<World>`. None added.

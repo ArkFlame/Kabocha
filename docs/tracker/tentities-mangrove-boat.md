@@ -83,3 +83,23 @@ and no cargo run (task forbids it).
 - Row 2 (interact mounting): fix belongs in boat.rs (drop the !is_eye_in_water gate) ->
   outside unit, OPEN.
 - Row 3 (passenger attachment point): dedup belongs in passengers.rs -> outside unit, OPEN.
+
+## Result
+
+Re-verification 2026-11-18 (third pass), decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/world/level/block/BubbleColumnBlock.java:50-63 and
+net/minecraft/world/entity/Entity.java:4149,4185.
+
+- Row 1 (bubble-column physics / bubble time): the push caps are already correct. Found and fixed a
+  separate in-unit gap: entity_inside picked the surface push whenever the block above was AIR,
+  while vanilla requires the above state to have an empty collision shape AND an empty fluid. A
+  water plant, kelp or torch above a column therefore wrongly got the 1.8 / -0.9 surface push.
+  bubble_column.rs now uses is_open_above(has_collision_shape, fluid_is_empty) built from
+  get_block_collision_shapes and get_fluid_and_fluid_state, plus pure unit test
+  open_above_requires_no_collision_and_no_fluid. Boat timer/impulse/ID_BUBBLE_TIME stays in
+  boat.rs + physics.rs + generated tracked_data.rs -> outside unit, OPEN.
+- Row 2 (interact mounting): fix belongs in boat.rs (drop the !is_eye_in_water gate; vanilla
+  AbstractBoat.java:779-784 has no eye check) -> outside unit, OPEN.
+- Row 3 (passenger attachment point): dedup belongs in passengers.rs -> outside unit, OPEN.
+- Changed: crates/pumpkin-core/src/block/blocks/bubble_column.rs only. No cargo/git run (task
+  forbids it), rustfmt left to the orchestrator.

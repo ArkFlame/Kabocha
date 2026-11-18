@@ -2,10 +2,14 @@ use super::{Controls, Goal};
 
 use crate::entity::EntityBase;
 use crate::entity::ageable::AgeableMob;
+use crate::entity::living::LivingEntity;
 use crate::entity::mob::Mob;
 use crate::entity::passive::goat::GoatEntity;
+use pumpkin_data::effect::StatusEffect;
+use pumpkin_data::entity::EntityStatus;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::Taggable;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
@@ -32,6 +36,8 @@ const RAM_STUN_TICKS: i64 = 40;
 const REPATH_INTERVAL_TICKS: i32 = 10;
 /// Below this horizontal length the knockback direction is undefined.
 const MIN_KNOCKBACK_DIRECTION_LENGTH: f64 = 1e-4;
+/// Vanilla `RamTarget.RAM_SPEED_FORCE_FACTOR`.
+const RAM_SPEED_FORCE_FACTOR: f64 = 1.65;
 
 /// Ram timer kept in world ticks, so it needs no per-tick countdown while the goal is idle.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -69,6 +75,35 @@ fn knockback_force(mob: &dyn Mob) -> f64 {
     }
 }
 
+/// Vanilla `RamTarget.tick`: `0.25 * (speedLevel - slownessLevel)` added to the speed factor.
+fn speed_boost_power(mob: &dyn Mob) -> f64 {
+    let living = &mob.get_mob_entity().living_entity;
+    let speed_level = living
+        .get_effect(&StatusEffect::SPEED)
+        .map_or(0, |effect| i32::from(effect.amplifier) + 1);
+    let slowness_level = living
+        .get_effect(&StatusEffect::SLOWNESS)
+        .map_or(0, |effect| i32::from(effect.amplifier) + 1);
+    knockback_speed_boost(speed_level, slowness_level)
+}
+
+/// Pure form of vanilla's `0.25 * (speedLevel - slownessLevel)` knockback modifier.
+fn knockback_speed_boost(speed_level: i32, slowness_level: i32) -> f64 {
+    0.25 * f64::from(speed_level - slowness_level)
+}
+
+/// Vanilla `RamTarget.tick` halves knockback when the target blocks with a shield.
+fn blocking_factor(target: &dyn EntityBase) -> f64 {
+    if target
+        .get_living_entity()
+        .is_some_and(LivingEntity::is_blocking)
+    {
+        0.5
+    } else {
+        1.0
+    }
+}
+
 fn roll_cooldown(screaming: bool) -> i64 {
     if screaming {
         rand::rng().random_range(SCREAMER_RAM_COOLDOWN_MIN_TICKS..=SCREAMER_RAM_COOLDOWN_MAX_TICKS)
@@ -97,7 +132,6 @@ pub struct RamTargetGoal {
 
 impl RamTargetGoal {
     fn impact(&mut self, mob: &dyn Mob, target: &dyn EntityBase) {
-        let now = mob.get_entity().world.load().get_world_age();
         let screaming = is_screaming(mob);
         self.charging = false;
         self.preparing = false;
@@ -112,17 +146,32 @@ impl RamTargetGoal {
 
         let from = mob.get_entity().pos.load();
         let to = target.get_entity().pos.load();
-        let (dx, dz) = (to.x - from.x, to.z - from.z);
+        // Vanilla RamTarget.start stores ramDirection = goatPos - targetPos and passes it to
+        // knockback, which subtracts it so the target is pushed away from the goat.
+        let (dx, dz) = (from.x - to.x, from.z - to.z);
         let length = dx.hypot(dz);
         if length > MIN_KNOCKBACK_DIRECTION_LENGTH {
+            let speed_factor = (f64::from(mob.get_mob_entity().living_entity.get_speed())
+                * RAM_SPEED_FORCE_FACTOR)
+                .clamp(0.2, 3.0)
+                + speed_boost_power(mob);
             target.get_entity().apply_knockback(
-                knockback_force(mob),
+                blocking_factor(target) * speed_factor * knockback_force(mob),
                 dx / length,
                 dz / length,
                 Some(mob.get_entity()),
             );
         }
-        self.timer.finish_ram(now, roll_cooldown(screaming));
+        self.finish_ram(mob);
+    }
+
+    /// Vanilla `RamTarget.finishRam`: broadcast END_RAM, then seed the next cooldown.
+    fn finish_ram(&mut self, mob: &dyn Mob) {
+        let cooldown = roll_cooldown(is_screaming(mob));
+        let entity = mob.get_entity();
+        let world = entity.world.load();
+        world.broadcast_entity_event(entity, EntityStatus::EndRam, ActorEventID::None);
+        self.timer.finish_ram(world.get_world_age(), cooldown);
     }
 
     /// Vanilla `RamTarget.hasRammedHornBreakingBlock`.
@@ -145,7 +194,6 @@ impl RamTargetGoal {
 
     /// Vanilla `RamTarget.tick` horn-breaking branch: snapping a horn on a snappable block.
     fn ram_into_block(&mut self, mob: &dyn Mob) {
-        let now = mob.get_entity().world.load().get_world_age();
         let screaming = is_screaming(mob);
         let impact_sound = if screaming {
             Sound::EntityGoatScreamingRamImpact
@@ -163,7 +211,7 @@ impl RamTargetGoal {
         if dropped {
             mob.play_entity_sound(Sound::EntityGoatHornBreak, 1.0, 1.0);
         }
-        self.timer.finish_ram(now, roll_cooldown(screaming));
+        self.finish_ram(mob);
     }
 }
 
@@ -195,16 +243,31 @@ impl Goal for RamTargetGoal {
                 .is_some_and(|target| target.get_entity().is_alive())
     }
 
-    fn start(&mut self, _mob: &dyn Mob) {
+    fn start(&mut self, mob: &dyn Mob) {
         self.preparing = true;
         self.prepare_ticks = 0;
         self.repath_ticks = 0;
+        // Vanilla PrepareRamNearestTarget broadcasts START_RAM when the ram position is reached.
+        let entity = mob.get_entity();
+        entity
+            .world
+            .load()
+            .broadcast_entity_event(entity, EntityStatus::StartRam, ActorEventID::None);
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
+        let was_raming = self.charging || self.preparing;
         self.charging = false;
         self.preparing = false;
         mob.get_mob_entity().stop_navigation();
+        if was_raming {
+            // Vanilla PrepareRamNearestTarget broadcasts END_RAM when a ram is cancelled.
+            let entity = mob.get_entity();
+            entity
+                .world
+                .load()
+                .broadcast_entity_event(entity, EntityStatus::EndRam, ActorEventID::None);
+        }
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
@@ -284,6 +347,14 @@ mod tests {
         for _ in 0..64 {
             assert!(initial_ram_cooldown() > SCREAMER_RAM_COOLDOWN_MAX_TICKS);
         }
+    }
+
+    #[test]
+    fn speed_and_slowness_cancel_in_knockback_boost() {
+        assert_eq!(knockback_speed_boost(2, 0), 0.5);
+        assert_eq!(knockback_speed_boost(0, 2), -0.5);
+        assert_eq!(knockback_speed_boost(1, 1), 0.0);
+        assert_eq!(knockback_speed_boost(0, 0), 0.0);
     }
 
     #[test]

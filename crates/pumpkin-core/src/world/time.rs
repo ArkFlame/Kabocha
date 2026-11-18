@@ -444,6 +444,24 @@ mod tests {
     }
 
     #[test]
+    fn level_time_pack_network_state_marks_frozen_clock() {
+        let mut time = LevelTime::new();
+        time.set_time(1234);
+        time.set_rate(2.0);
+
+        // Normal tick: the clock rate passes through so the client advances.
+        assert_eq!(time.pack_network_state(true), (1234, 0.0, 2.0));
+
+        // `/tick freeze` (advance_time = false) forces a zero rate, which is
+        // exactly what send_game_time_sync reads to set the frozen flag.
+        assert_eq!(time.pack_network_state(false), (1234, 0.0, 0.0));
+
+        // An explicitly paused clock packs the same stopped rate.
+        time.set_paused(true);
+        assert_eq!(time.pack_network_state(true), (1234, 0.0, 0.0));
+    }
+
+    #[test]
     fn default_clock_name_matches_vanilla_dimension_types() {
         assert_eq!(
             default_clock_name("minecraft:overworld"),

@@ -59,3 +59,11 @@ Vanilla reference: `net.minecraft.commands.arguments.ResourceKeyArgument`,
   Pumpkin only has instantiated worlds (outside this unit).
 - 4. LEFT OPEN: suggestion/`get_*` tests need a live server `CommandContext`
   (pumpkin-gametest candidate, outside this unit).
+
+### Final pass (this session)
+
+- 3. FIXED (confirmed): ERROR_NOT_SUMMONABLE_ENTITY / ERROR_INVALID remain removed; repo-wide search finds no callers.
+- 1. Biome half FIXED: get_biome_id + resolve_biome_id resolve datapack biomes via DynamicRegistryManager, and list_suggestions for BIOME_REGISTRY now reads get_all_entry_ids("minecraft:worldgen/biome") with a generated-data fallback when the context has no server. Verified against FillBiomeCommand.java and ResourceArgument.java (both use ResourceArgument + registry element suggestions).
+- 1. Advancement half LEFT OPEN: vanilla resolves getAdvancement against the server's dynamic advancement registry; Pumpkin's AdvancementManager::get_advancements returns only generated Advancement data, so datapack advancements need a dynamic advancement registry (cross-crate, outside this unit).
+- 2. LEFT OPEN: vanilla suggests all dimension_type registry elements, but Pumpkin's execute in resolves against instantiated worlds only (execute.rs:190-193); advertising unloaded dimension types would yield always-failing commands. Needs a dimension registry / level registration (cross-crate, outside this unit).
+- 4. Partially FIXED: seven pure unit tests in resource_key.rs cover parse, client parser, biome suggestions (server-less fallback), get_registry_key, get_biome, get_advancement, and resolve_biome_id (vanilla + datapack). A live-server gametest for execute in / fillbiome remains LEFT OPEN (needs a running server, outside this unit).

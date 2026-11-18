@@ -44,8 +44,55 @@ Client-only shape/outline rendering comes from generated block data.
 
 ## Result
 
-Verified against decompiled Paper 26.3 DaylightDetectorBlock.java and Level.java#setBlock / Block.UPDATE_*.
+Re-review verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`,
+`Level.java#setBlock`/`notifyAndUpdatePhysics` and `chunk/LevelChunk.java#setBlockState`, cross-checked
+with the Paper 26.3 tree. No source edit was needed: the single STILL OPEN row was already correct,
+one row was already fixed at HEAD, and one is outside this unit's files.
 
-- Row (plugin same-state redundant update, S) - FIXED. Vanilla lines 60-63 always call setBlockAndUpdate(pos, state.setValue(POWER, target)) after callRedstoneChange, using flags UPDATE_NEIGHBORS|UPDATE_CLIENTS (3), so neighbours/clients are updated even when a plugin sets newCurrent back to the old power. daylight_detector.rs:update_signal_strength previously skipped set_block_state whenever the resolved power equalled the old power. It now always writes NOTIFY_ALL | FORCE_STATE; FORCE_STATE is required because world/mod.rs:6651 otherwise early-returns same-state writes with no update. Normal power changes are unaffected (state differs, so that early return never fired for them). No pure unit-test seam exists for the event path; the existing calculate_signal_strength tests already cover the signal math.
-- Row (effective sky brightness can go negative, S) - already FIXED at HEAD and outside this unit: world/mod.rs:7100 effective_sky_brightness_from uses .max(0).
-- Row (shape-based light occlusion / 6px column, L) - left OPEN. Needs a generated use_shape_for_light_occlusion flag (generated data, forbidden to hand-edit) plus a cross-crate light-engine change to occlude by shape; both are outside this unit's files.
+- Plugin same-state redundant update (S, the STILL OPEN row) - NOT A GAP; the code already matches
+  vanilla. Vanilla `updateSignalStrength` (lines 60-63) does call
+  `setBlockAndUpdate(pos, state.setValue(POWER, target))` unconditionally after `callRedstoneChange`,
+  with flags `UPDATE_NEIGHBORS|UPDATE_CLIENTS` (3). But `Level.setBlock` (Level.java:1256-1265) returns
+  false with no physics/client/neighbour updates when `chunk.setBlockState` returns null, and
+  `LevelChunk.setBlockState` (LevelChunk.java:402-404) returns null when the new state equals the old
+  one (BlockState values are interned, so a plugin restoring `newCurrent` to the old power yields the
+  identical state). Vanilla therefore emits NO redundant update for a same-state write.
+  `daylight_detector.rs:update_signal_strength` uses `BlockFlags::NOTIFY_ALL` (= 0b11 = vanilla flags
+  3) with no `FORCE_STATE`, and `world/mod.rs:6891` `on_block_state_set` early-returns on an unchanged
+  state unless FORCE_STATE is set. That is exactly vanilla's behaviour. Adding FORCE_STATE (as an
+  earlier Result note incorrectly claimed) would be wrong: it would notify neighbours when a plugin
+  restores the old power. No pure unit-test seam exists for the event/flags path (needs a World +
+  plugin host); the existing `calculate_signal_strength` tests already cover the signal math.
+- Effective sky brightness can go negative (S) - already FIXED at HEAD and outside this unit:
+  `world/mod.rs:7338-7341` `effective_sky_brightness_from` applies `.max(0)`, matching
+  `LevelReader#getEffectiveSkyBrightness`. Verified present.
+- Shape-based light occlusion / 6px column (L) - left OPEN. Needs a generated
+  `use_shape_for_light_occlusion` flag (generated data, forbidden to hand-edit) plus a cross-crate
+  light-engine change to occlude by shape; both are outside this unit's files (`brightness.rs`,
+  `daylight_detector.rs`). No generated data, WIT, or cross-crate change is permitted here.
+
+## Result (re-review 2026-11-18)
+
+Re-verified against the decompiled `DaylightDetectorBlock.java` (Paper 26.3) in
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/world/level/block/` and the current Pumpkin
+sources. No source edit was needed; no new test seam exists beyond the math tests already present.
+
+- Plugin same-state redundant update (S, the only STILL OPEN row) - NOT A GAP; no change. The current
+  `update_signal_strength` (`block/blocks/redstone/daylight_detector.rs:113-133`) unconditionally calls
+  `set_block_state(pos, new_state, BlockFlags::NOTIFY_ALL)` after firing `BlockRedstoneEvent` and using
+  its (clamped) `new_current` - it does NOT skip the write when the plugin leaves current unchanged.
+  This matches vanilla lines 60-63, which always call `setBlockAndUpdate(pos, state.setValue(POWER,
+  target))`. `NOTIFY_ALL` = 0b11 excludes `FORCE_STATE` (pumpkin-world `world.rs:21,24`), and
+  `on_block_state_set` (`world/mod.rs:6925-6927`) early-returns on an unchanged state, so a plugin
+  restoring the old power emits no redundant neighbour/client update, exactly like vanilla's
+  `LevelChunk.setBlockState` returning null for an interned equal state. Adding `FORCE_STATE` would be
+  wrong. No pure seam exists for the event/flags path (needs World + plugin host); the existing
+  `calculate_signal_strength` tests already cover the signal math.
+- Effective sky brightness can go negative (S) - already FIXED at HEAD, outside this unit's files.
+  `world/mod.rs:7372-7375` `effective_sky_brightness_from` applies `.max(0)`, matching
+  `LevelReader#getEffectiveSkyBrightness`; `get_effective_sky_brightness` (7368-7370) routes through it.
+- Shape-based light occlusion / 6px column (L) - left OPEN, out of scope. Requires a generated
+  `use_shape_for_light_occlusion` flag (generated data, forbidden to hand-edit) and a cross-crate
+  light-engine occlusion change, neither in this unit's files (`brightness.rs`, `daylight_detector.rs`).
+- `brightness.rs` (`light_level_curve`, `DAYLIGHT_BRIGHTNESS`) and `block/entities/daylight_detector.rs`
+  have no STILL OPEN rows and no gaps; left untouched.

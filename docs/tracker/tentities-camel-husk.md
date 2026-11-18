@@ -81,3 +81,50 @@ genuine parity gap needs a file outside this unit.
 
 No unit test added: no pure seam exists for the bridge code, and constants-only tests are
 excluded by the repository test rules. No .rs file was touched, so rustfmt was not run.
+
+## Result (verification sweep 2026-11-18)
+
+Only Row 5 was marked STILL OPEN. Verified against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Husk.java:93-133`.
+
+- Row 5 (jockey pairing): FIXED in source already; no new edit needed. `spawn.rs:64-70` now
+  carries `SpawnGroupData::Zombie.tried_spawn_camel_husk`, set at all three constructors
+  (`zombie/mod.rs:266` false, `zombie/mod.rs:662` true for conversion, `passive/strider.rs:331`
+  false). `husk.rs:45-55` `claim_camel_jockey_attempt` sets the flag before the 10% roll, skips
+  non-natural spawns and blocked space, matching `Husk.java:103-112`. `husk.rs:91-106` spawns the
+  camel husk and parched; `world/mod.rs:6442-6476` `add_pending_riders` adds both to the world and
+  mounts the husk then the parched onto the camel, matching `Husk.java:113-126`
+  (`addFreshEntity` / `addFreshEntityWithPassengers`). Pure-seam tests already exist at
+  `husk.rs:184-219`; no duplicate added.
+
+Remaining runtime-only work (outside this unit's file scope): a gametest that spawns a natural
+husk group and asserts the camel husk carries both the husk and the parched as passengers, to
+exercise the two-rider layout end to end.
+
+Rows 1-4 unchanged from the Result above. No `.rs` file was touched, so rustfmt was not run.
+
+## Result (re-verify 2026-11-18, code-reading pass)
+
+Re-read all five rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Husk.java:93-133`
+and the current source. No row is STILL OPEN; no source or test edit was needed.
+
+- Row 1 (husk love gate): CONFIRMED. `camel.rs:382-386` gates love on `!self.is_husk()` and
+  `camel.rs:425-427` `can_fall_in_love` returns false for husks. Matches `CamelHusk.canFallInLove() = false`.
+- Row 2 (love/tempt goals): CONFIRMED inert. `AnimalMakeLove` only starts when `is_in_love()` is set
+  (`animal_make_love.rs:97-99`), which a husk never gets after Row 1. No change needed.
+- Row 3 (`is_preventing_player_rest`): CONFIRMED. `camel.rs:467-471` returns false; only vanilla
+  `Monster` returns true. `target_match.rs:32,230` also excludes `CAMEL_HUSK` from `Enemy`.
+- Row 4 (numeric constants): CONFIRMED. `camel.rs:48` `HUSK_STEP_VOLUME = 0.4` used at `:457-458`,
+  and `camel.rs:437-443` `charge_speed_modifier` returns 4.0 for husk, 1.0 otherwise.
+- Row 5 (jockey pairing): CONFIRMED. `spawn.rs:64-70` carries `SpawnGroupData::Zombie.tried_spawn_camel_husk`,
+  initialized at all three constructors (read-only checked: `zombie/mod.rs:266` false, `:662` true for
+  conversion, `strider.rs:330` false). `finalize_zombie_spawn` (`zombie/mod.rs:245-319`) and
+  `finalize_spawn_super` (`mob/mod.rs:2634-2643`) preserve the flag across a group, so
+  `husk.rs:45-55` `claim_camel_jockey_attempt` enforces the once-per-group rule from
+  `Husk.java:105-112`. `husk.rs:77-106` spawns camel husk plus parched, and
+  `world/mod.rs:6475-6510` `add_pending_riders` adds and mounts husk then parched onto the camel,
+  matching `Husk.java:113-126`. Pure-seam tests already present at `husk.rs:184-219`.
+
+Remaining runtime-only work (gametest for the two-rider layout) needs a file outside this unit and is
+not a code gap. No new test added because the pure seam is already covered. No compile run (worker rule);
+no `.rs` file touched, so rustfmt was not run.

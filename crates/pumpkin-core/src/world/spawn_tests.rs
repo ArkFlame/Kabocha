@@ -402,6 +402,23 @@ async fn waterlogged_support_and_partial_top_faces_are_not_spawn_floors() {
 }
 
 #[tokio::test]
+async fn adventure_mode_fixes_height_on_the_suggestion_not_the_column() {
+    use pumpkin_util::gamemode::GameMode;
+
+    let fixture = SpawnWorld::new();
+    let mut level_info = (**fixture.world.level_info.load()).clone();
+    level_info.game_type = GameMode::Adventure;
+    fixture.world.level_info.store(Arc::new(level_info));
+    // Vanilla skips the radius search in adventure mode and calls fixupSpawnHeight on the
+    // suggestion, so a suggestion in the void resolves near the floor instead of the surface.
+    assert_eq!(
+        fixture.world.get_safe_player_spawn_position(0, 0, 0).await,
+        Vector3::new(0.5, f64::from(fixture.world.get_bottom_y() + 1), 0.5),
+    );
+    fixture.shutdown().await;
+}
+
+#[tokio::test]
 async fn ceiling_dimensions_use_the_fixed_get_spawn_height() {
     let mut fixture = SpawnWorld::new();
     fixture.world.dimension.has_ceiling = true;

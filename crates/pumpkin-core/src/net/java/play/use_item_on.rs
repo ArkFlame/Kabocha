@@ -48,11 +48,7 @@ impl JavaClient {
             return Ok(());
         }
 
-        // Vanilla validates the hit relative to the clicked block's center for every item.
-        if ![cursor_pos.x, cursor_pos.y, cursor_pos.z]
-            .into_iter()
-            .all(|coordinate| (f64::from(coordinate) - 0.5).abs() < 1.000_000_1)
-        {
+        if !is_within_block_center_limit(&cursor_pos) {
             return Ok(());
         }
 
@@ -380,6 +376,15 @@ fn sync_used_hand_item(
     player.sync_hand_slot(slot_index, after);
 }
 
+/// Vanilla `handleUseItemOn` drops hits whose offset from the clicked block's
+/// center reaches `1.0000001` on any axis.
+fn is_within_block_center_limit(cursor_pos: &Vector3<f32>) -> bool {
+    const LIMIT: f64 = 1.000_000_1;
+    [cursor_pos.x, cursor_pos.y, cursor_pos.z]
+        .into_iter()
+        .all(|coordinate| (f64::from(coordinate) - 0.5).abs() < LIMIT)
+}
+
 /// A vanilla client clips its block hit position to the interacted block, so every component
 /// lies in `0..=1`. Anything outside that range cannot come from a real client view.
 fn is_valid_hit_position(cursor_pos: &Vector3<f32>) -> bool {
@@ -391,8 +396,23 @@ fn is_valid_hit_position(cursor_pos: &Vector3<f32>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_valid_hit_position;
+    use super::{is_valid_hit_position, is_within_block_center_limit};
     use pumpkin_util::math::vector3::Vector3;
+
+    #[test]
+    fn block_center_hit_limit_matches_vanilla() {
+        assert!(is_within_block_center_limit(&Vector3::new(0.5, 0.5, 0.5)));
+        assert!(is_within_block_center_limit(&Vector3::new(
+            1.49, -0.49, 0.5
+        )));
+        assert!(!is_within_block_center_limit(&Vector3::new(1.6, 0.5, 0.5)));
+        assert!(!is_within_block_center_limit(&Vector3::new(0.5, -0.6, 0.5)));
+        assert!(!is_within_block_center_limit(&Vector3::new(
+            f32::NAN,
+            0.5,
+            0.5
+        )));
+    }
 
     #[test]
     fn hit_position_must_be_inside_clicked_block() {

@@ -114,3 +114,72 @@ Files touched: `crates/pumpkin-core/src/entity/vehicle/boat.rs` only
 damage paths without a live world/player, so none was added. `physics.rs` and
 `place_on_water.rs` needed no edits. Risk: another worker edited the same
 `boat.rs` concurrently; my edits were re-read and confirmed present afterwards.
+
+
+## Result (re-review 2026-11-18)
+
+Re-checked the four rows still marked STILL OPEN in `## Gap status` against
+`.vendor/vanilla-decompiled/net/minecraft` (MC 26.3). Only gap 3 names a source
+file in this unit (`item/items/place_on_water.rs`); gaps 2, 4, 5, 6 live in
+`entity/vehicle/boat.rs` / `boat/physics.rs`, outside this unit's editable file.
+
+- 3 CLOSED - not a gap (independent re-verification): `BoatItem.getBoat`
+  (`world/item/BoatItem.java:93-104`) only calls
+  `EntityType.createDefaultStackConfig` -> `appendComponentsConfig` ->
+  `Entity.applyComponentsFromItemStack` -> `applyImplicitComponents`. Base
+  `Entity.applyImplicitComponent` (`world/entity/Entity.java:7239-7249`) handles
+  only CUSTOM_NAME and CUSTOM_DATA; no boat/container class (`VehicleEntity`,
+  `ContainerEntity`, `AbstractBoat`, `AbstractChestBoat`) overrides it to read
+  `minecraft:container`. Vanilla 26.3 therefore neither writes that component on
+  destroy (`VehicleEntity.destroy` sets CUSTOM_NAME only, slots scattered via
+  `chestVehicleDestroyed`) nor reads it on placement, which also disproves
+  gap 2's premise. Pumpkin's boat placement (`item/items/boat.rs:170-184`,
+  applying implicit CUSTOM_NAME/CUSTOM_DATA via `apply_entity_variant` onto an
+  empty inventory) already matches. No `place_on_water.rs` change: that file
+  implements `PlaceOnWaterBlockItem` (lily pad / frogspawn) and has no boat code.
+
+- 2 LEFT OPEN (out of unit) - file `entity/vehicle/boat.rs`, not editable here;
+  premise disproven by vanilla (see gap 3). Prior Result section already found no change.
+
+- 4 LEFT OPEN (out of unit) - `boat.rs` leash hooks; outside this unit's only
+  editable source file. Prior Result section reports it FIXED; not re-touched.
+
+- 5 LEFT OPEN (out of unit) - `boat.rs` / `boat/physics.rs` movement; outside this
+  unit. Prior Result section reports it CLOSED; not re-touched.
+
+- 6 LEFT OPEN (out of unit) - `boat.rs` damage early-out/return; outside this unit.
+  Prior Result section reports it FIXED; not re-touched.
+
+No `.rs` file changed, so no rustfmt and no unit test (no seam in
+`place_on_water.rs` for these boat rows). Risk: none, verification/docs only.
+
+
+## Result (CODER re-verify 2026-11-18)
+
+Independently re-checked every STILL OPEN row against decompiled vanilla
+(MC 26.3). This unit may edit only `item/items/place_on_water.rs`, which
+implements `PlaceOnWaterBlockItem` for LILY_PAD/FROGSPAWN only (`ids()` at
+line 25); it contains no boat code, so none of the boat rows are actionable
+here.
+
+- 2 LEFT OPEN (outside unit) - `entity/vehicle/boat.rs` chest-boat destroy;
+  premise disproven anyway: `VehicleEntity.destroy` (`VehicleEntity.java:94-101`)
+  sets only `CUSTOM_NAME` on the drop, and `AbstractChestBoat.destroy`
+  (`AbstractChestBoat.java:65-67`) scatters slots via `chestVehicleDestroyed`;
+  no `minecraft:container` component is written.
+- 3 LEFT OPEN (outside unit) - row names `place_on_water.rs`, but boat placement
+  lives in `item/items/boat.rs:170-184`, not this file. Premise disproven:
+  `BoatItem.getBoat` (`BoatItem.java:93-104`) calls only
+  `EntityType.createDefaultStackConfig`, and `Entity.applyImplicitComponent`
+  (`Entity.java:7239-7245`) handles only `CUSTOM_NAME`/`CUSTOM_DATA`; no boat
+  class reads `minecraft:container` on placement. No `place_on_water.rs` edit.
+- 4 LEFT OPEN (outside unit) - `entity/vehicle/boat.rs` leash hooks;
+  `AbstractBoat.java:54,428-449` confirms `implements Leashable` with
+  `getLeashOffset`/`supportQuadLeash`. Prior Result reports it FIXED.
+- 5 LEFT OPEN (outside unit) - `boat.rs` / `boat/physics.rs` movement; not this
+  file. Prior Result reports it CLOSED (no server-side paddle path in vanilla).
+- 6 LEFT OPEN (outside unit) - `boat.rs` damage early-out/return; not this
+  file. Prior Result reports it FIXED.
+
+No `.rs` file changed (no source seam in `place_on_water.rs` for any boat row),
+so no rustfmt and no unit test. Risk: none, verification/docs only.

@@ -75,3 +75,51 @@ per `docs/VANILLA_REF.md:3` the source wins, so no code change was made.
 - No pure unit-test seam exists for either row (both require a live `World`); the existing pure
   formula/cosine-boundary tests in `daylight_detector.rs` remain valid. No `.rs` file edited,
   so rustfmt was not required.
+
+
+## Result (re-verify 2026-11-18)
+
+Independently re-checked both STILL OPEN rows against the decompiled tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. Both premises in the write-up are contradicted by
+the source, so no code change was warranted:
+
+- Inversion flag (h6 row 3 / Remaining gaps row 3): vanilla `useWithoutItem` calls
+  `level.setBlock(pos, newState, Block.UPDATE_CLIENTS)` (`DaylightDetectorBlock.java:76`), and
+  `UPDATE_CLIENTS = 2` (`Block.java:93`). Pumpkin uses `BlockFlags::NOTIFY_LISTENERS`
+  (`daylight_detector.rs:45`), which is `0b10 = 2` (`pumpkin-world/src/world.rs:18`) and triggers
+  the same client block-update path. The write-up's "flag 4" claim is wrong (4 is
+  `UPDATE_INVISIBLE`). Already correct; no change.
+- Tick architecture (Remaining gaps table row 1, M): vanilla ticks this block through a
+  `BlockEntityTicker` from `getTicker`, gated on `dimensionType().hasSkyLight()` with cadence
+  `getRedstoneGameTime() % 20 == 0` (`DaylightDetectorBlock.java:100-110`). It does NOT use a
+  scheduled block tick, and it also requires a live block entity. Pumpkin's
+  `DaylightDetectorBlockEntity::tick` (`entities/daylight_detector.rs:37-46`) already mirrors this
+  (`has_skylight` guard + `get_world_age() % 20 == 0`; no separate redstone clock in Pumpkin). The
+  scheduled-tick rework would diverge from vanilla, so it is rejected.
+- Note: the "Fixed this pass" note claiming the skylight guard was removed is stale/incorrect -
+  the decompiled source confirms the guard belongs; current code retains it correctly.
+- No pure unit-test seam for either row (both need a live `World`); existing pure formula/cosine
+  tests in `daylight_detector.rs` remain valid. No `.rs` file edited, so rustfmt was not required.
+
+
+## Result (verify 2026-11-18, CODER pass)
+
+Re-read the decompiled `DaylightDetectorBlock.java` directly; both STILL OPEN premises are false,
+so no source edit was needed.
+
+- Inversion flag: `useWithoutItem` calls `level.setBlock(pos, newState, Block.UPDATE_CLIENTS)`
+  (`DaylightDetectorBlock.java:76`). `UPDATE_CLIENTS = 2` (`Block.java:93`), NOT flag 4 (that is
+  `UPDATE_INVISIBLE`, `Block.java:94`). Pumpkin uses `BlockFlags::NOTIFY_LISTENERS`
+  (`daylight_detector.rs:45`), defined as `0b000_0000_0010 = 2` (`pumpkin-world/src/world.rs:18`).
+  Same flag, same client update path. Already correct; no change.
+- Tick architecture: vanilla ticks via a `BlockEntityTicker` returned from `getTicker`
+  (`DaylightDetectorBlock.java:100-110`), not a scheduled block tick. It is gated on
+  `dimensionType().hasSkyLight()` and cadence `getRedstoneGameTime() % 20 == 0`, and requires a
+  live block entity. Pumpkin's `DaylightDetectorBlockEntity::tick`
+  (`entities/daylight_detector.rs:37-46`) mirrors this with `world.dimension.has_skylight` and
+  `get_world_age() % 20 == 0`. The proposed scheduled-tick rework would diverge from vanilla,
+  so it is rejected; no change.
+- The stale "Fixed this pass" note claiming the skylight guard was removed is wrong - the current
+  code retains the guard, which vanilla confirms belongs there.
+- No pure unit-test seam for either row (both need a live `World`); existing pure formula/cosine
+  tests in `daylight_detector.rs:137-188` remain valid. No `.rs` file touched.

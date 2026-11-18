@@ -111,3 +111,91 @@ clamp the slot target and do not widen the goal's distance.
 LookAtPlayerGoal.java:41 calls setFlags(EnumSet.of(Goal.Flag.LOOK)). Pumpkin's
 goal_control: Controls::LOOK matches; no goal-arbitration change is needed and the two
 goals are mutually exclusive in vanilla too. The audit's "calls no setFlags" premise was wrong.
+
+## Result (second pass, decompiled vanilla available)
+
+### REGRESSION FOUND AND REVERTED: visibility / distance scaling in the look predicate
+The "Fixed in this pass" change above was wrong. `LookAtPlayerGoal.java:44,46` targets with
+`TargetingConditions.forNonCombat()`, which leaves `checkLineOfSight = true` and
+`testInvisible = true` (TargetingConditions.java:14-15, 96-97) and applies `range(range)`
+(:39). So vanilla look-at goals *do* require line of sight and *do* scale the range by
+`getVisibilityPercent` with the `max(range * modifier, 2.0)` floor (:87-93).
+`look_at_entity.rs:create_target_predicate` now uses plain
+`TargetPredicate::create_non_attackable()` (visibility and distance scaling both kept) and the
+test asserts the 2 block floor: an invisible cow is rejected at 4 blocks and accepted at 1.
+The old `an_invisible_target_is_still_looked_at` test encoded the deviation and is replaced by
+`an_invisible_target_is_only_found_within_two_blocks`.
+
+### 3. look_forward - CLOSED (already vanilla)
+`Shulker.java:101` is the only `LookAtPlayerGoal(..., true)` caller in the whole decompiled
+tree, and `crates/pumpkin-core/src/entity/mob/shulker.rs:94-100` already passes `true` with
+8.0 / 0.02. Every other goal keeps `false`. Nothing left to wire.
+
+### Wandering trader LookAtTradingPlayerGoal - FIXED
+`LookAtTradingPlayerGoal.java:15-22` only checks `villager.isTrading()` in `canUse`; the
+`lookDistance` of 8.0 lives in the inherited `canContinueToUse`. Pumpkin's
+`wandering_trader.rs` also range-checked in `can_start`, so a trading player further than 8
+blocks never started the goal (and the trader never turned to look). `can_start` now only
+requires a trading player; `should_continue` keeps the 8 block test. No decompiled panda
+equivalent of the attack-target copy was needed: `LookAtPlayerGoal.java:56-58` assigns
+`getTarget()` but lines 62/64 always overwrite it, and `PandaLookAtPlayerGoal.canUse`
+(Panda.java:935-959) does not read the attack target at all, so Pumpkin's slot path already
+matches.
+
+### 1, 4, 5, 6 - CONFIRMED VANILLA, no change
+Same conclusions as the previous pass, re-verified against the vendored sources:
+`inflate(lookDistance, 3.0, lookDistance)` (LookAtPlayerGoal.java:67),
+`EntitySelector.notRiding(mob)` (:43), the preset-target path in `PandaLookAtPlayerGoal`
+(Panda.java:925-959) and `setFlags(EnumSet.of(Goal.Flag.LOOK))` (:41).
+
+
+## Result (third pass, re-verified against vendored decompiled vanilla)
+
+Re-checked all six STILL OPEN rows against `.vendor/vanilla-decompiled/.../LookAtPlayerGoal.java`,
+`targeting/TargetingConditions.java`, `animal/panda/Panda.java` and the full
+`new LookAtPlayerGoal(...)` caller list. Every row is already correct in Pumpkin; no source file
+was changed, so rustfmt was not run and no new test was added (the three existing tests already
+lock in the behaviour).
+
+- Row 1 (box inflated 3.0 vertically) - CONFIRMED VANILLA. LookAtPlayerGoal.java:67 uses
+  `getBoundingBox().inflate(lookDistance, 3.0, lookDistance)` for non-player entities;
+  `SearchArea::from_eyes(entity, range, 3.0)` in look_at_entity.rs:193 matches. Keep 3.0.
+- Row 3 (look_forward) - CLOSED. LookAtPlayerGoal.java:97 drives onlyHorizontal exactly as tick
+  does (own eye Y vs target eye Y). Shulker.java:101 is the sole `onlyHorizontal=true` caller and
+  shulker.rs:94-100 already passes 8.0/0.02/true. pillager.rs:81-97, wandering_trader.rs:251-257,
+  interact.rs:20 and panda.rs:281 all pass false, matching every other vanilla caller.
+- Row 4 (rider filter) - CONFIRMED VANILLA. LookAtPlayerGoal.java:42-44 applies
+  `EntitySelector.notRiding(mob)` for Player.class; `EntityPredicate::Rides` returns false for a
+  rider, so the predicate keeps non-riders and rejects riders. Keep the filter.
+- Row 5 (slot target range) - CONFIRMED VANILLA. Panda.java:940 only searches when lookAt is null
+  and BREED_TARGETING has range 8.0 (:82) while the goal is 6.0 (:276); canUse does not recheck a
+  preset target (:925-959) and canContinueToUse (:930-932, super :81) drops it once past 6.0.
+  look_at_entity.rs:174-175 / :217-219 match. Do not clamp.
+- Row 6 (Controls::LOOK) - CONFIRMED VANILLA. LookAtPlayerGoal.java:41 calls
+  `setFlags(EnumSet.of(Goal.Flag.LOOK))`; goal_control: Controls::LOOK matches.
+- Visibility / distance scaling - CONFIRMED VANILLA. TargetingConditions.java:14-15, 88-98 keeps
+  line of sight and scales range by visibility with a 2.0 floor; create_target_predicate uses
+  create_non_attackable() (both checks kept) and the test
+  `an_invisible_target_is_only_found_within_two_blocks` asserts the floor. The earlier
+  ignore_visibility() variant was correctly reverted.
+
+
+## Result (final, post-restart continuation)
+
+The three passes above already resolved every STILL OPEN row; this continuation re-read the
+final source rather than repeating the decompiled verification. All in-scope files already
+carry the settled state, so no source file was edited and no new test was added.
+
+- look_at_entity.rs: `create_target_predicate` uses `TargetPredicate::create_non_attackable()`
+  with `base_max_distance = range` (visibility + 2-block floor kept), `tick_reach` declares
+  `players: range` (row 2 fix), `SearchArea::from_eyes(..., 3.0)` kept (row 1 confirmed vanilla),
+  `EntityPredicate::Rides` rider filter kept (row 4 confirmed vanilla), slot target set without
+  range clamp and dropped past `range` in `should_continue` (row 5 confirmed vanilla),
+  `goal_control: Controls::LOOK` (row 6 confirmed vanilla), and `look_forward` drives own-eye-Y
+  in `tick` (row 3). Tests present: slot target, invisible 2-block floor, look_forward.
+- shulker.rs:94-100 passes `8.0 / 0.02 / true` (sole vanilla onlyHorizontal caller) - row 3 closed.
+- wandering_trader.rs:884-897 `LookAtTradingPlayerGoal::can_start` only requires a trading
+  player, with the 8-block test in `should_continue` (prior-pass fix) - confirmed present.
+- interact.rs / panda.rs / pillager.rs callers all pass `false`, matching vanilla.
+
+No rows remain open. `fixed=0 open=0` for this continuation pass (prior passes hold the edits).

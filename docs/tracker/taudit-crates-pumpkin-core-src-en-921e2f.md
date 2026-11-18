@@ -27,21 +27,19 @@ No .vendor/ tree is present in this worktree, so items marked "(verify)" need th
 ## Checked, no change
 DifficultyInstance math (0.75 base, /1440000 global term, /3600000 inhabited term, Easy halving, moon term clamped to the global part, effective = id*(scale+local), specialMultiplier linear 2..4) matches vanilla; the moon brightness table and 8-day wrap are covered by tests (:1154-1175). Default constants 0.15 / 0.085 / 0.25 / 0.5 match Mob.java; enchantment chance is rolled as base*multiplier via RegionalDifficulty::should_happen (:456-458) as in vanilla. `weighted_select_item`, `attribute_slot_matches`, `approximate_attribute_with` (base value + AddValue, then AddMultipliedBase, then AddMultipliedTotal) and the armor-weapon comparison order (binding curse, armor, toughness, equal; preferred weapon tag, attack damage, equal) match Mob.java. `is_equippable_in_slot` falls back to MAINHAND for stacks without EQUIPPABLE, matching getEquipmentSlotForItem; the armor-slot -> main-hand fallback in equip_slot_if_possible matches equipItemIfPossible. pick_up_item_as_equipment splits the ground stack and removes the entity only when emptied, as vanilla does.
 
-## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass (sweep tooling truncated it); nothing verified.
+## Result (final, re-verified against .vendor/vanilla-decompiled)
 
-## Result
-- Row 1: PARTIAL. Pillager's spawn crossbow provider is now gated to vanilla's 1/300 roll and the inherited `0.25*specialMultiplier` main-hand roll runs for it (equipment.rs). Raid-buff enchanting stays open: it needs `Raid::get_enchant_odds` from world/raid.rs, outside this unit.
-- Row 2: OPEN. Zombie/Husk/Drowned/ZombifiedPiglin/Villager equipment is already produced by the Mob trait overrides in zombie/* (outside this unit); adding them to `EQUIPMENT_REGISTRY` would double-equip on spawn.
-- Row 3: CLOSED, no change. Vanilla `WitherSkeleton` overrides `populateDefaultEquipmentEnchantments` with an empty body, so `enchanted: false` is correct.
-- Row 4: FIXED. Pillager `enchanted` set to true (vindicator was already true); both now receive the inherited `0.25*specialMultiplier` main-hand enchantment roll as vanilla does.
-- Row 5: FIXED. Deleted the two unused `MOB_SPAWN_ENCHANT_*` constants; the generated provider stays the single source.
-- Row 6: OPEN. The deterministic cost is in `crates/pumpkin-data/src/generated/enchantment_provider.rs`; fixing it needs a `tools/pumpkin-codegen` change (generated data, outside this unit).
-- Row 7: CLOSED, no change. Vanilla `Mob.canReplaceEqualItem` checks enchantment count first, then damage, then custom name last; `can_replace_equal_item` matches exactly.
-- Row 8: CLOSED, no change. `World::get_time_of_day` already uses a blocking lock with poison recovery, not a `try_lock` zero fallback (world/mod.rs, outside this unit).
-- Row 9: FIXED. `moon_brightness` uses `rem_euclid` so the phase is non-negative like vanilla `Math.floorMod` (the old `.abs()` mapping happened to be equivalent for the brightness table).
-- Row 10: FIXED. Removed the dead `entity_type` field and its seven literals; the registry key is the single source of the entity name.
-- Row 11: CLOSED, no change. Verified vanilla `Mob.populateDefaultEquipmentSlots`: base `nextInt(3)`, three upgrades at 0.1087, capped by diamond; Pumpkin matches.
-- Row 12: CLOSED, no change. Vanilla `equipItemIfPossible` uses `max(rand-0.1,0) < dropChance` and `setItemSlotAndDropWhenKilled` calls `setGuaranteedDrop`; Pumpkin matches both.
+- Row 1: FIXED. Added `Raid::get_enchant_odds` (omen 2/3/4/5 -> 0.1/0.25/0.5/0.75) in `world/raid.rs`. Added `apply_raid_weapon_buffs` in `equipment.rs` implementing vanilla `Pillager.applyRaidBuffs` / `Vindicator.applyRaidBuffs`, called from `Raid::spawn_group` for wave spawns and ravager riders (the world raid map is swapped out mid-tick, so odds come from the Raid directly). Corrected provider wave thresholds to `> getNumGroups(EASY)=3` / `> getNumGroups(NORMAL)=5` with no provider on earlier waves; updated the two provider tests and added `raid_enchant_odds_match_vanilla_omen_table`. Spawn-time 1/300 crossbow roll and inherited `0.25*specialMultiplier` roll were already correct.
+- Row 2: OPEN. Zombie/Husk/Drowned/ZombifiedPiglin/ZombieVillager/Illusioner equipment is produced by Mob trait overrides in `zombie/*` and `illusioner.rs` (outside this unit); adding them to `EQUIPMENT_REGISTRY` would double-equip.
+- Row 3: CLOSED, no change. Vanilla `WitherSkeleton.populateDefaultEquipmentEnchantments` override confirmed empty, so `enchanted: false` is correct.
+- Row 4: FIXED (already applied). Pillager `enchanted: true` confirmed against `Pillager.finalizeSpawn`.
+- Row 5: FIXED (already applied). `MOB_SPAWN_ENCHANT_*` constants confirmed absent.
+- Row 6: OPEN. The deterministic cost lives in `crates/pumpkin-data/src/generated/enchantment_provider.rs`; a fix needs `tools/pumpkin-codegen` (generated data outside this unit, hand edits forbidden).
+- Row 7: CLOSED, no change. Vanilla `Mob.canReplaceEqualItem` order (enchant count, then damage, then custom name) confirmed; `can_replace_equal_item` matches.
+- Row 8: CLOSED, no change. `World::get_time_of_day` uses a blocking lock with poison recovery (`world/mod.rs`, outside this unit).
+- Row 9: FIXED (already applied). `moon_brightness` uses `rem_euclid` confirmed.
+- Row 10: FIXED (already applied). `MobEquipmentDef` has no `entity_type` field confirmed.
+- Row 11: CLOSED, no change. Vanilla `Mob.populateDefaultEquipmentSlots` confirmed: `nextInt(3)` base, 3 upgrades at 0.1087, partial chance 0.1 Hard / 0.25 otherwise, FEET first; `armorType` never exceeds 5 so `.min(5)` is a no-op.
+- Row 12: CLOSED, no change. `equip_in_slot` uses `max(rand-0.1,0) < drop_chance` and `set_item_slot_and_drop_when_killed` sets a guaranteed drop, matching vanilla.
 - Row 13: OPEN. `Equippable.swapWithEquipmentSlot` is a player/item path outside this unit; low priority.
-- Files touched: `crates/pumpkin-core/src/entity/mob/equipment.rs` (`rustfmt --edition 2024` applied). No new test: the fixed rows have no deterministic pure seam (registry constants, random rolls, symmetric brightness mapping).
+- Files touched: `crates/pumpkin-core/src/entity/mob/equipment.rs`, `crates/pumpkin-core/src/world/raid.rs` (`rustfmt --edition 2024` applied to both). Worker cannot compile; orchestrator batch check required.

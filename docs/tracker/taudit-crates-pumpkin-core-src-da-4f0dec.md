@@ -114,3 +114,69 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/resources/RegistryDat
 
 Files touched: crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs (rustfmt applied).
 Checks not run here (orchestrator compiles/nextests the batch).
+
+
+## Result (verification pass)
+
+Re-verified every STILL OPEN / open note against `.vendor/vanilla-decompiled/net/minecraft/`:
+`resources/RegistryDataLoader.java` (WORLD_REGISTRIES 98-150, SYNCHRONIZED_REGISTRIES 164-197),
+`core/registries/Registries.java:344-350` (`elementsDirPath` = `registryKey.identifier().getPath()`),
+and `resources/FileToIdConverter.java:10-45` (exact `.json` suffix, singular registry dir).
+The source already carries the in-scope fixes from earlier passes; this pass confirms them
+against vanilla and records the one remaining out-of-scope gap. No new code edits were needed.
+
+- Gap 2 (plural directory aliases, S): already FIXED in source. `DYNAMIC_REGISTRIES` now lists
+  only singular paths (`enchantment`, `test_instance`, ...), matching vanilla `elementsDirPath`.
+  Covered by existing `plural_directory_aliases_are_not_loaded` and
+  `instance_registry_uses_singular_directory_only`.
+- Gap 3 (auto-discovery of unknown folders, S): already FIXED in source. Only `worldgen/<sub>`
+  folders are discovered, keyed `minecraft:worldgen/<sub>`; other `data/<ns>/<dir>` folders are
+  ignored, matching vanilla's fixed loader set. Covered by
+  `unknown_non_worldgen_folders_are_ignored` and `unknown_worldgen_dirs_use_minecraft_registry_key`.
+- New small note (duplicate builtin carver/feature registries, S): already FIXED. Only canonical
+  `worldgen/carver` / `worldgen/feature` ids exist; `configured_*` dirs remain aliases.
+  Covered by `configured_carver_entries_load_into_canonical_registry`.
+- New small note (duplicated I/O for item_modifier/slot_source/trade_set/villager_trade/
+  template_pool/processor_list, S): already FIXED. Those ids are absent from `DYNAMIC_REGISTRIES`;
+  `datapack/mod.rs` loads them through dedicated loaders (`item_modifier_loader`,
+  `slot_source_loader`, `structure_loader`, trade loader) and merges `damage_type` via
+  `damage_type_loader`. No duplicate generic NBT pass remains.
+- Gap 1 (JSON streamed to NBT bypassing element codecs, L): STILL OPEN - correct long-vs-int
+  typing needs each registry's element codec, whose schema lives in generated data / other
+  crates, out of scope for this file. A vanilla-grounded partial hint (`LONG_FIELDS = ["seed"]`,
+  confirmed by `Codec.LONG.fieldOf("seed")` in WorldOptions / NoiseBasedStateProvider /
+  SeededContainerLoot) is already present with test `long_typed_seed_fields_encode_as_long_tags`.
+
+Files touched this pass: none (all in-scope fixes already present in
+crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs). rustfmt not run (no .rs edits).
+Checks not run here (orchestrator compiles/nextests the batch).
+
+
+## Result (re-verification pass)
+
+Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`:
+`resources/RegistryDataLoader.java` (WORLD_REGISTRIES 98-149, each entry pairs a registry key with
+its `DIRECT_CODEC`/`NETWORK_CODEC`; SYNCHRONIZED_REGISTRIES 164+), `core/registries/Registries.java:344-350`
+(`elementsDirPath` = registry identifier path, singular) and `resources/FileToIdConverter.java`
+(exact `.json` suffix, singular registry dir). The source already carries the in-scope fixes from
+earlier passes; no new code edits were needed this pass.
+
+- Gap 1 (JSON streamed to NBT bypassing element codecs, L): STILL OPEN / out of scope. Vanilla
+  `RegistryDataLoader` decodes each element through its registry's codec (e.g. `Codec.LONG`) and
+  re-encodes via NbtOps, so field types are normalized and unknown fields dropped by the codec.
+  Pumpkin's generic `json_to_nbt_tag` has no schema, so it cannot know which fields are long/float;
+  correct typing requires the per-registry element codec schemas, which live in generated data /
+  other crates, not this file. The vanilla-grounded `LONG_FIELDS = ["seed"]` partial hint plus test
+  `long_typed_seed_fields_encode_as_long_tags` remains the in-file mitigation.
+- Gap 2 (plural directory aliases, S): already FIXED in source. `DYNAMIC_REGISTRIES` lists singular
+  paths matching `elementsDirPath`; only legacy `configured_*` aliases remain under canonical ids.
+  Covered by `plural_directory_aliases_are_not_loaded` and `instance_registry_uses_singular_directory_only`.
+- Gap 3 (auto-discovery of unknown folders, S): already FIXED in source. Only `worldgen/<sub>`
+  folders are discovered, keyed `minecraft:worldgen/<sub>`; other `data/<ns>/<dir>` folders are
+  ignored, matching vanilla's fixed loader set. Covered by `unknown_non_worldgen_folders_are_ignored`
+  and `unknown_worldgen_dirs_use_minecraft_registry_key`.
+- Notes (duplicate configured carver/feature registries, dead `datapacks` entry, duplicated I/O
+  for item_modifier/slot_source/etc.): already FIXED in earlier passes, confirmed present in source.
+
+Files touched this pass: none (dynamic_registry_loader.rs unchanged). rustfmt not run (no .rs edits).
+Checks not run here (orchestrator compiles/nextests the batch).

@@ -79,3 +79,55 @@ Verified each STILL OPEN row against decompiled vanilla `net/minecraft/world/ent
   and outside this unit's files; the module already documents why the flag is false.
 
 Status: no code changes; open rows 3 and 5 remain for the reasons above.
+
+## Result
+
+Fresh pass against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (protocol 777). The current main-checkout source already matches vanilla on every STILL OPEN row; no source edits were needed. The note's claimed roll fix (keep rollDelta.x/z on hops) and its mobInteract `canPerformAction()` variant are not present in the checkout and do not match this decompiled source.
+
+- Row 1 (genes, `panda.rs:150-171`): FALSE POSITIVE, no edit. Vanilla two-parent `setGeneFromParents` (`Panda.java:575-589`) does one `nextBoolean` for parent order, one per parent via `getOneOfGenesRandomly`, then two independent `nextInt(32)` mutations. `genes_from_parents` matches the RNG order; `foal_genes_come_from_the_parents_and_mutate_independently` covers it. Pumpkin exposes no single-parent path, so the `parent2 == null` branch does not apply.
+- Row 2 (bamboo range, `goals.rs:144-159`): FALSE POSITIVE, no edit. Vanilla `canFindBamboo` (`Panda.java:834-851`) walks ring perimeters `r in 0..8`, `yOff in 0..3`; the union of Chebyshev rings 0..7 is exactly `x,z in -7..=7`, matching `BAMBOO_SEARCH_RADIUS=7`, `BAMBOO_SEARCH_HEIGHT=2`. Bamboo at +/-7 is in range in both.
+- Row 3 (mobInteract guard, `panda.rs:620-636`): covered, no edit. Decompiled vanilla gates the sit/eat branch with `isSitting() || isInWater()` (`Panda.java:644`) after the earlier `isBaby()` PASS (`Panda.java:635-637`). `sit_and_eat` checks `is_baby() || is_sitting() || is_in_water()`, matching it.
+- Row 4 (playAttackSound, `panda.rs:876-879`, `goals.rs:224-235`): covered, no edit. Vanilla `doHurtTarget` sets `didBite` on every swing (`Panda.java:324-329`) and `playAttackSound()` fires only on a landed hit through `LivingEntity.doHurtTarget`; Rust `bite` sets `did_bite` on every swing and calls `on_attack` (PANDA_BITE) only when `try_attack` returns true.
+- Row 5 (sneeze reach / tick_reach, `sneeze.rs:36-43,186-188`): reach reported. `after_sneeze` matches vanilla (`Panda.java:506-531`) and `PandaSneezeGoal::tick_reach` reports `SNEEZE_JUMP_RANGE=10` as entity reach; every panda goal now implements `tick_reach`. LEFT OPEN: enabling `has_audited_tick` requires auditing the full panda tick/AI/Brain and the cross-crate entity-island reach system, outside this unit's files.
+
+No .rs files touched; no new tests (existing pure tests already cover rows 1, 2, 4 and 5); rustfmt not needed.
+
+## Result
+
+Fresh independent pass against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (Paper, protocol 777).
+Every STILL OPEN row was checked line by line; no source edit is warranted in this unit's files
+(`panda.rs`, `roll.rs`, `sneeze.rs`). No new tests added: each row is already covered by an existing
+pure test, so adding another would be a duplicate.
+
+- Row 1 (genes, `panda.rs:151-171`): FALSE POSITIVE, no edit. Vanilla two-parent `setGeneFromParents`
+  (`Panda.java:566-590`) does one `nextBoolean` for parent order, one `getOneOfGenesRandomly` per
+  parent, then two independent `nextInt(32)` mutations; `getOneOfGenesRandomly` is one `nextBoolean`
+  (`Panda.java:592-594`). `genes_from_parents` matches that RNG order exactly and `get_random_gene`
+  (`panda.rs:122-132`) matches `Gene.getRandom` weights (`Panda.java:755-770`). Pumpkin's only caller
+  (`panda.rs:373-382`, from breeding) passes two parents, so the `parent2 == null` branch does not
+  apply. `foal_genes_come_from_the_parents_and_mutate_independently` (`panda.rs:1009`) covers it.
+- Row 2 (bamboo range, `goals.rs:134-149`): FALSE POSITIVE, no edit (file out of scope anyway).
+  Vanilla `canFindBamboo` (`Panda.java:834-852`) walks Chebyshev rings `r in 0..8`, `yOff in 0..3`,
+  whose union is exactly `x,z in -7..=7`, `y in 0..=2`; bamboo at +/-7 is in range in both.
+- Row 3 (mobInteract guard, `panda.rs:622-636`): confirmed at parity, no edit. Decompiled vanilla
+  gates the sit/eat branch on `isSitting() || isInWater()` (`Panda.java:644`) after the earlier
+  `isBaby()` PASS (`Panda.java:635-637`). `sit_and_eat` checks `is_baby() || is_sitting() ||
+  is_in_water()`; `is_scared`/`is_on_back` are handled earlier in `mob_interact` (`panda.rs:882-888`).
+  The `canPerformAction()` variant is not in the available reference and is deliberately not applied;
+  `sit_and_eat_takes_food_from_a_rolling_panda` (`panda.rs:1482-1487`) documents the chosen reading.
+- Row 4 (playAttackSound, `panda.rs:877-879`): covered, no edit. Vanilla `doHurtTarget` sets `didBite`
+  on every swing (`Panda.java:324-329`) and `playAttackSound` fires PANDA_BITE only on a landed hit
+  (`LivingEntity.doHurtTarget`). Rust `bite` (`goals.rs:224-234`) and `MeleeAttackGoal` both call
+  `on_attack` only when `try_attack`/`do_hurt_target` return true, so the sound path matches.
+- Row 5 (sneeze reach / tick_reach, `sneeze.rs:96-121,186-188`): LEFT OPEN, out of scope. `after_sneeze`
+  matches vanilla (`Panda.java:506-531`: inflate 10, jump non-baby/grounded/no-water/canPerformAction
+  pandas, drop gift) and `PandaSneezeGoal::tick_reach` reports `SNEEZE_JUMP_RANGE=10` as entity reach.
+  Enabling `has_audited_tick` needs a full panda tick/AI/Brain audit plus the cross-crate entity-island
+  reach system, outside this unit's files; the module already documents why the flag stays false.
+
+Also re-checked the two "Fixed in this pass" claims in the note: the claimed roll fix (keep
+`rollDelta.x/z` on hops 7/15/23) would break parity, since vanilla `handleRoll` zeroes the horizontal
+push there (`Panda.java:497-501`); `roll_velocity` (`roll.rs:84-94`) already zeroes it, so no change.
+The `thunder_scares` fix is already present (`panda.rs:185-205`). No unwrap/expect/panic, no println
+and no em dashes introduced; no .rs file touched.

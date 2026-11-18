@@ -112,3 +112,25 @@ Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled` (2026-11-17
 
 No `.rs` file was changed, so no rustfmt run; no new pure test seam exists in either handler beyond
 the existing `is_valid_hit_position` test.
+
+
+## Result
+
+Re-verified the three STILL OPEN rows (5, 6, 7) against `.vendor/vanilla-decompiled` (2026-11-18), smallest first. The prior pass's fixes for rows 5 and 7 are present in the current files; no further in-unit code change was needed.
+
+5. Advancement `state`: RESOLVED (already fixed in current code). `use_item_on.rs:326-337` now serializes `block.property_values(state_id)` into a generic `Vec<(String, String)>` instead of hardcoding copper-bulb `lit`; `trigger.rs:82` holds `Option<Vec<(String, String)>>` and `trigger.rs:581` passes `state.as_deref().unwrap_or(&[])` to `CriterionConditions::ItemUsedOnBlock(pred).matches`, whose `ItemUsedOnBlockCheck.matches` (`advancement/predicate.rs:643-671`) looks up `state_key` by name in that map. Vanilla `StatePropertiesPredicate.matches` (`net/minecraft/advancements/predicates/StatePropertiesPredicate.java:34-46`) matches arbitrary named properties against the clicked block's own state, so the generic map restores parity. No pure test seam in this unit (serialization needs `World`/`Block` state; the matcher lives in `predicate.rs`, outside this unit).
+
+6. Enabled-feature gate: STILL OPEN. Vanilla `ServerPlayerGameMode#useItemOn:539` returns FAIL when `!block.isEnabled(level.enabledFeatures())` and `ServerGamePacketListenerImpl#handleUseItemOn:2307` / `handleUseItem:2397` check `itemStack.isItemEnabled(features)`. Pumpkin's generated `Block`/`Item` data has no feature-flag field (`pumpkin-data/src/blocks.rs:21` has none) and no enabled-feature resolution exists (`grep isEnabled|enabledFeatures` finds only the `CFeatureFlags` protocol packet), so the gate needs generated data plus datapack feature resolution, both outside this unit.
+
+7. `ITEM_USED` stat in `use_item.rs`: RESOLVED within this unit (already fixed in current code), residual needs out-of-scope work. `use_item.rs:39-42` removed the central award and documents that vanilla `handleUseItem` never awards it centrally; `use_item.rs:168-169` awards only for `Equippable.swapAndEquip`. Vanilla `ServerPlayerGameMode#useItem:473-524` confirms no central award and item implementations self-award (Pumpkin `bow.rs`/`trident.rs` already call `increment_stat(Used, ...)`). A consume-result API across item behaviours would be needed to gate any remaining generic award, which is outside this unit.
+
+No `.rs` file was changed this pass (both fixable rows were already applied in the current files), so no rustfmt run; no new pure test seam exists in these three files.
+
+
+## Result
+
+Re-verified the sole remaining STILL OPEN row (6) against decompiled vanilla `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java` (2026-11-18). Spot-checked that rows 5 and 7 are still resolved in the current files (no regression): `use_item_on.rs:326` serializes `property_values(state_id)`, `trigger.rs:82/581` carries and passes the generic `Vec<(String, String)>` state map, `predicate.rs:661` looks up `state_key` by name, and `use_item.rs:39-42` has no central `ITEM_USED` award.
+
+6. Enabled-feature gate: STILL OPEN. Vanilla `ServerPlayerGameMode#useItemOn:539` returns `FAIL` when `!state.getBlock().isEnabled(level.enabledFeatures())`. Feature-flag *resolution* now exists in this crate (`data/datapack/mod.rs:1182` `get_enabled_features`, `:1227` `is_feature_enabled`, `:2293` `known_feature_flag`), but the generated `Block`/`Item` definitions (`pumpkin-data/src/blocks.rs:21`) carry no `requiredFeatures` field and there is no per-element `is_enabled` check, so the block/item-to-feature mapping is unavailable. Implementing the gate needs a codegen change to `crates/pumpkin-data/src/generated` (forbidden for workers) plus a cross-crate gate at use time; left open with that reason.
+
+No `.rs` file changed this pass, so no rustfmt run; no new pure test seam exists in these files.

@@ -78,3 +78,36 @@ one-tick lag with no divergence. No code change needed. No pure unit-test seam e
 paths require a live MobEntity/world, and `detect_body_item_change` is covered by the
 pickup/equip/shear integration paths. Remaining gaps 3-8 were not marked STILL OPEN and were
 left untouched.
+
+Additional verification against decompiled vanilla (no source changes required):
+
+3. Contact-damage RNG: already fixed. `sulfur_cube.rs:621-629` samples each archetype
+   `FloatProvider` from the entity-owned `contact_random` (seeded once in `new()` at 240-242)
+   and releases the lock before `damage_with_context`, matching vanilla
+   `SulfurCube.applyContactDamage` (`SulfurCube.java:584-590`, which samples with
+   `this.getRandom()`).
+4. set_size dimensions: effectively covered. `sulfur_cube.rs:337` calls
+   `set_default_dimensions`, which (`entity/mod.rs:5090-5093`) calls `refresh_dimensions` and
+   rebuilds the bounding box from the new size at the current position
+   (`refresh_dimensions_into`, 5115-5123), the equivalent of vanilla `AbstractCubeMob.setSize`
+   calling `reapplyPosition()` + `refreshDimensions()` (`AbstractCubeMob.java:80-90`). A full
+   reapplyPosition y-clamp would be a shared entity-path change outside this unit.
+5. get_base_experience_reward: already correct. `sulfur_cube.rs:1239-1245` returns
+   `1 + rand(0..2)`, baby 0, matching vanilla `SulfurCube.getBaseExperienceReward`
+   (`SulfurCube.java:732-734`). No change.
+6. set_size health: already correct. `sulfur_cube.rs:315` uses `4 * size`, matching vanilla
+   `SulfurCube.setCubeMobHealth` (`SulfurCube.java:1004-1007`), which deliberately overrides
+   the slime-family `size * size` default in `AbstractCubeMob` (`AbstractCubeMob.java:92-94`).
+   No change.
+7. Squish tracked data: LEFT OPEN. Client-only squash animation needs a tracked-data id from
+   generated pumpkin-data, outside this unit.
+8. Mob NBT keys/defaults: already correct. `sulfur_cube.rs:1281-1305` writes `Size`(size-1)
+   and `wasOnGround` plus `pickup_timer`/`from_bucket`/`fuse`, then reads them back with
+   defaults 0/false/-1 (including the `fuse` default on read), matching vanilla
+   `SulfurCube.addAdditionalSaveData`/`readAdditionalSaveData` (`SulfurCube.java:787-801`) and
+   `AbstractCubeMob` (`AbstractCubeMob.java:101-114`). No change.
+
+Observation outside scope (marked Fixed previously): decompiled vanilla `SulfurCube.hurtServer`
+returns `true` for the `SULFUR_CUBE_WITH_BLOCK_IMMUNE_TO` tag after knockback
+(`SulfurCube.java:254-260`); the current `sulfur_cube.rs:1007` returns `Some(false)`. Flagged
+for a follow-up tracker entry; not changed here because that row is closed and out of scope.

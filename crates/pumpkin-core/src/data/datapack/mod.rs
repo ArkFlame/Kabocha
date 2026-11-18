@@ -63,6 +63,17 @@ pub struct LoadedDatapack {
     pub recipe_count: usize,
     pub function_count: usize,
     pub known_packs: Vec<KnownPackData>,
+    /// `features.enabled` from `pack.mcmeta` (`FeatureFlagsMetadataSection`).
+    pub requested_features: Vec<String>,
+}
+
+/// Fields read from one pack's `pack.mcmeta`.
+#[derive(Clone, Debug)]
+struct PackMetadata {
+    description: String,
+    format: PackFormatRange,
+    known_packs: Vec<KnownPackData>,
+    requested_features: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -126,7 +137,7 @@ impl fmt::Display for DatapackError {
     }
 }
 
-/// Outcome of comparing a pack's declared data pack format to the game's.
+/// Outcome of comparing a pack's declared data pack format range to the game's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PackCompatibility {
     TooOld,
@@ -134,16 +145,80 @@ enum PackCompatibility {
     Compatible,
 }
 
-/// Mirrors vanilla `PackCompatibility.forVersion` for the single-format case:
-/// a pack is usable only when its `pack_format` equals the game's format.
-const fn pack_format_compatibility(pack_format: u32, current_format: u32) -> PackCompatibility {
-    if pack_format < current_format {
+/// The inclusive range of data pack formats a `pack.mcmeta` declares
+/// (`PackFormat.IntermediaryFormat`): `min_format`/`max_format`, the legacy
+/// `supported_formats`, or a single `pack_format`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PackFormatRange {
+    min: u32,
+    max: u32,
+}
+
+impl PackFormatRange {
+    const fn single(format: u32) -> Self {
+        Self {
+            min: format,
+            max: format,
+        }
+    }
+}
+
+/// Mirrors vanilla `PackCompatibility.forVersion`: the pack is usable when the game's
+/// format lies inside the declared range.
+const fn pack_format_compatibility(
+    declared: PackFormatRange,
+    current_format: u32,
+) -> PackCompatibility {
+    if declared.max < current_format {
         PackCompatibility::TooOld
-    } else if pack_format > current_format {
+    } else if current_format < declared.min {
         PackCompatibility::TooNew
     } else {
         PackCompatibility::Compatible
     }
+}
+
+/// Reads one `PackFormat` field, which is either a major version or `[major, minor]`.
+fn pack_format_value(value: &serde_json::Value) -> Option<u32> {
+    let major = match value {
+        serde_json::Value::Array(items) => items.first()?.as_u64()?,
+        other => other.as_u64()?,
+    };
+    u32::try_from(major).ok()
+}
+
+/// Declared format range of a `pack.mcmeta` `pack` section, defaulting to the game's format.
+fn pack_format_range(pack: Option<&serde_json::Value>) -> PackFormatRange {
+    let current = PackFormatRange::single(CURRENT_MC_VERSION.data_pack_format());
+    let Some(pack) = pack else {
+        return current;
+    };
+    if let (Some(min), Some(max)) = (
+        pack.get("min_format").and_then(pack_format_value),
+        pack.get("max_format").and_then(pack_format_value),
+    ) {
+        return PackFormatRange {
+            min,
+            max: max.max(min),
+        };
+    }
+    if let Some(range) = pack
+        .get("supported_formats")
+        .and_then(serde_json::Value::as_array)
+        && let (Some(min), Some(max)) = (range.first(), range.get(1))
+        && let (Some(min), Some(max)) = (pack_format_value(min), pack_format_value(max))
+    {
+        return PackFormatRange {
+            min,
+            max: max.max(min),
+        };
+    }
+    if let Some(supported) = pack.get("supported_formats").and_then(pack_format_value) {
+        return PackFormatRange::single(supported);
+    }
+    pack.get("pack_format")
+        .and_then(pack_format_value)
+        .map_or(current, PackFormatRange::single)
 }
 
 /// Maps an index in the exposed enabled list (embedded packs first) onto the
@@ -190,8 +265,8 @@ fn share_function_bodies(
 /// (65536): each level costs stack frames and a Rust stack overflow aborts the process.
 pub const MAX_FUNCTION_CHAIN_DEPTH: usize = 256;
 
-/// Maximum dispatched commands per chain (vanilla `maxCommandChainLength` default).
-/// Depth alone cannot bound a fanning chain, which grows exponentially without nesting deep.
+/// Fallback command budget per chain, used when the game rules are unavailable.
+/// Vanilla reads `max_command_sequence_length` (default 65536) when a chain starts.
 pub const MAX_FUNCTION_CHAIN_COMMANDS: usize = 65536;
 
 thread_local! {
@@ -203,6 +278,8 @@ thread_local! {
     static FUNCTION_CHAIN_HIT_DEPTH_LIMIT: Cell<bool> = const { Cell::new(false) };
     /// Command budget tripped somewhere in the chain; tells every level to stop.
     static FUNCTION_CHAIN_HIT_COMMAND_LIMIT: Cell<bool> = const { Cell::new(false) };
+    /// Budget of the running chain, taken from `max_command_sequence_length` at its start.
+    static FUNCTION_CHAIN_BUDGET: Cell<usize> = const { Cell::new(MAX_FUNCTION_CHAIN_COMMANDS) };
 }
 
 /// Why a function could not be executed.
@@ -212,7 +289,7 @@ pub enum FunctionRunError {
     Unknown(String),
     /// The command chain already nested [`MAX_FUNCTION_CHAIN_DEPTH`] functions.
     ChainLimitExceeded,
-    /// The command chain dispatched [`MAX_FUNCTION_CHAIN_COMMANDS`] commands.
+    /// The command chain dispatched its `max_command_sequence_length` budget.
     CommandChainLimitExceeded,
     /// A macro function could not be instantiated with the given arguments.
     Instantiation(String),
@@ -232,10 +309,9 @@ impl fmt::Display for FunctionRunError {
                 f,
                 "Maximum number of nested function calls reached ({MAX_FUNCTION_CHAIN_DEPTH})"
             ),
-            Self::CommandChainLimitExceeded => write!(
-                f,
-                "Maximum number of commands in a function chain reached ({MAX_FUNCTION_CHAIN_COMMANDS})"
-            ),
+            Self::CommandChainLimitExceeded => {
+                f.write_str("Maximum number of commands in a function chain reached")
+            }
         }
     }
 }
@@ -244,11 +320,23 @@ impl fmt::Display for FunctionRunError {
 struct FunctionChainGuard;
 
 impl FunctionChainGuard {
+    #[cfg(test)]
     fn enter() -> Result<Self, FunctionRunError> {
+        Self::enter_with_budget(MAX_FUNCTION_CHAIN_COMMANDS)
+    }
+
+    /// Starts a chain, taking `budget` for the outermost level only.
+    ///
+    /// Vanilla builds its `ExecutionContext` with `max_command_sequence_length` when the
+    /// outermost command runs, and nested functions reuse that same context.
+    fn enter_with_budget(budget: usize) -> Result<Self, FunctionRunError> {
         FUNCTION_CHAIN_DEPTH.with(|depth| {
             if depth.get() >= MAX_FUNCTION_CHAIN_DEPTH {
                 FUNCTION_CHAIN_HIT_DEPTH_LIMIT.with(|hit| hit.set(true));
                 return Err(FunctionRunError::ChainLimitExceeded);
+            }
+            if depth.get() == 0 {
+                FUNCTION_CHAIN_BUDGET.with(|stored| stored.set(budget));
             }
             depth.set(depth.get() + 1);
             Ok(Self)
@@ -257,10 +345,11 @@ impl FunctionChainGuard {
 
     /// Records one dispatched line against the chain budget; false means stop the chain.
     fn count_command() -> bool {
+        let budget = FUNCTION_CHAIN_BUDGET.with(Cell::get);
         FUNCTION_CHAIN_COMMANDS.with(|commands| {
             let count = commands.get() + 1;
             commands.set(count);
-            if count > MAX_FUNCTION_CHAIN_COMMANDS {
+            if count > budget {
                 FUNCTION_CHAIN_HIT_COMMAND_LIMIT.with(|hit| hit.set(true));
                 return false;
             }
@@ -280,6 +369,7 @@ impl Drop for FunctionChainGuard {
         if outermost == 0 {
             // Outermost chain ended; reset the budget and fail flags for the next chain.
             FUNCTION_CHAIN_COMMANDS.with(|commands| commands.set(0));
+            FUNCTION_CHAIN_BUDGET.with(|budget| budget.set(MAX_FUNCTION_CHAIN_COMMANDS));
             FUNCTION_CHAIN_HIT_DEPTH_LIMIT.with(|hit| hit.set(false));
             FUNCTION_CHAIN_HIT_COMMAND_LIMIT.with(|hit| hit.set(false));
         }
@@ -599,22 +689,25 @@ impl DatapackManager {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let category = category.strip_prefix("minecraft:").unwrap_or(category);
-        let cat_map = guard.get(category)?;
         // Vanilla treats a leading # as a tag reference in every tag query.
         let raw_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
         let full_id = normalize_id(raw_id);
-        if !cat_map.contains_key(&full_id) && !cat_map.contains_key(raw_id) {
-            return category_registry_key(category)
-                .and_then(|key| {
-                    pumpkin_data::tag::get_tag_values(key, &full_id)
-                        .or_else(|| pumpkin_data::tag::get_tag_values(key, raw_id))
-                })
-                .map(|values| values.iter().map(|v| (*v).to_string()).collect());
+        if let Some(cat_map) = guard.get(category)
+            && (cat_map.contains_key(&full_id) || cat_map.contains_key(raw_id))
+        {
+            let mut values = Vec::new();
+            let mut visited = Vec::new();
+            collect_generic_tag_values(cat_map, raw_id, &mut values, &mut visited);
+            return Some(values);
         }
-        let mut values = Vec::new();
-        let mut visited = Vec::new();
-        collect_generic_tag_values(cat_map, raw_id, &mut values, &mut visited);
-        Some(values)
+        // Builtin tags ship with the data pack, so a tag with no datapack definition
+        // still resolves, and datapack-defined tags expand their nested references.
+        category_registry_key(category)
+            .and_then(|key| {
+                pumpkin_data::tag::get_tag_values(key, &full_id)
+                    .or_else(|| pumpkin_data::tag::get_tag_values(key, raw_id))
+            })
+            .map(|values| values.iter().map(|v| (*v).to_string()).collect())
     }
 
     #[must_use]
@@ -946,30 +1039,28 @@ impl DatapackManager {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let category = category.strip_prefix("minecraft:").unwrap_or(category);
-        let Some(cat_tags) = guard.get(category) else {
-            return false;
-        };
         let full_entry = normalize_id(entry_id);
-        tag_contains_entry(cat_tags, tag_id, &full_entry, entry_id, &mut Vec::new())
+        let key = category_registry_key(category);
+        let found = guard.get(category).is_some_and(|cat_tags| {
+            tag_contains_entry(
+                cat_tags,
+                tag_id,
+                &full_entry,
+                entry_id,
+                key,
+                &mut Vec::new(),
+            )
+        });
+        // Builtin tags are part of the data pack, so a tag with no datapack file
+        // still has the vanilla members.
+        found || builtin_tag_contains(key, tag_id, &full_entry)
     }
 
     #[must_use]
     pub fn get_tag_entries(&self, category: &str, tag_id: &str) -> Option<Vec<String>> {
-        let guard = self
-            .tags
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let category = category.strip_prefix("minecraft:").unwrap_or(category);
-        let cat_tags = guard.get(category)?;
-        let raw_id = tag_id.strip_prefix('#').unwrap_or(tag_id);
-        let full_id = normalize_id(raw_id);
-        if !cat_tags.contains_key(&full_id) && !cat_tags.contains_key(raw_id) {
-            return None;
-        }
-        let mut values = Vec::new();
-        let mut visited = Vec::new();
-        collect_generic_tag_values(cat_tags, raw_id, &mut values, &mut visited);
-        Some(values)
+        // Builtin tags are part of the vanilla data pack, so a tag that only exists in
+        // `pumpkin_data` still has entries; `get_tag_values` owns that fallback.
+        self.get_tag_values(category, tag_id)
     }
 
     #[must_use]
@@ -1083,38 +1174,46 @@ impl DatapackManager {
 
     /// Returns the enabled world feature flags (e.g. `minecraft:vanilla`, `minecraft:trade_rebalance`,
     /// `minecraft:minecart_improvements`, `minecraft:redstone_experiments`).
+    ///
+    /// Vanilla `PackRepository#getRequestedFeatureFlags` unions `features.enabled` from the
+    /// selected packs' `pack.mcmeta`, so metadata is the source of truth; the id-based
+    /// fallback only covers bundled packs whose metadata directory is missing.
     #[must_use]
     pub fn get_enabled_features(&self, server: &Server) -> Vec<&'static str> {
         let enabled_packs = Self::get_enabled_packs(server);
-        Self::resolve_enabled_features(&enabled_packs)
+        let mut features = Self::resolve_enabled_features(&enabled_packs);
+        let requested: Vec<&'static str> = {
+            let loaded = self
+                .loaded_packs
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            loaded
+                .iter()
+                .flat_map(|pack| pack.requested_features.iter())
+                .filter_map(|flag| known_feature_flag(flag))
+                .collect()
+        };
+        for feature in requested {
+            if !features.contains(&feature) {
+                features.push(feature);
+            }
+        }
+        features
     }
 
-    /// Resolves enabled feature flag names given a list of enabled pack names.
+    /// Resolves feature flags from bundled pack ids when their metadata is unavailable.
+    ///
+    /// World packs (`file/...`) never imply a flag; only their `pack.mcmeta` can.
     #[must_use]
     pub fn resolve_enabled_features(enabled_packs: &[String]) -> Vec<&'static str> {
         let mut features = vec!["minecraft:vanilla"];
 
         for pack_name in enabled_packs {
-            let feature: &'static str = match pack_name.as_str() {
-                "trade_rebalance" | "file/trade_rebalance" => "minecraft:trade_rebalance",
-                "minecart_improvements" | "file/minecart_improvements" => {
-                    "minecraft:minecart_improvements"
-                }
-                "redstone_experiments" | "file/redstone_experiments" => {
-                    "minecraft:redstone_experiments"
-                }
-                _ => {
-                    if let Some(stripped) = pack_name.strip_prefix("file/") {
-                        match stripped {
-                            "trade_rebalance" => "minecraft:trade_rebalance",
-                            "minecart_improvements" => "minecraft:minecart_improvements",
-                            "redstone_experiments" => "minecraft:redstone_experiments",
-                            _ => continue,
-                        }
-                    } else {
-                        continue;
-                    }
-                }
+            if pack_name.starts_with("file/") {
+                continue;
+            }
+            let Some(feature) = known_feature_flag(pack_name) else {
+                continue;
             };
             if !features.contains(&feature) {
                 features.push(feature);
@@ -1283,7 +1382,7 @@ impl DatapackManager {
         name: &str,
         arguments: Option<&NbtCompound>,
     ) -> Result<FunctionResult, FunctionRunError> {
-        let Ok(_guard) = FunctionChainGuard::enter() else {
+        let Ok(_guard) = FunctionChainGuard::enter_with_budget(Self::chain_budget(server)) else {
             return Err(FunctionRunError::ChainLimitExceeded);
         };
         let functions = self.resolve_functions(name)?;
@@ -1433,6 +1532,16 @@ impl DatapackManager {
                 names.push(member.clone());
             }
         }
+    }
+
+    /// Vanilla `Commands#executeCommandInContext`: `Math.max(1, max_command_sequence_length)`.
+    fn chain_budget(server: &Server) -> usize {
+        let limit = server
+            .level_info
+            .load()
+            .game_rules
+            .max_command_sequence_length;
+        usize::try_from(limit.max(1)).unwrap_or(MAX_FUNCTION_CHAIN_COMMANDS)
     }
 
     fn boundary_limit() -> Option<FunctionRunError> {
@@ -1624,8 +1733,13 @@ impl DatapackManager {
                 .get_world_path()
                 .join("datapacks")
                 .join(stripped);
-            let (desc, format, _) = read_pack_mcmeta(&pack_path);
-            (resolved_name.clone(), stripped.to_string(), desc, format)
+            let metadata = read_pack_mcmeta(&pack_path);
+            (
+                resolved_name.clone(),
+                stripped.to_string(),
+                metadata.description,
+                metadata.format.max,
+            )
         } else {
             (
                 resolved_name.clone(),
@@ -1676,16 +1790,15 @@ impl DatapackManager {
         Self::get_enabled_packs(server).contains(&resolved)
     }
 
-    /// Returns the declared `pack_format` of an on-disk `file/<name>` pack.
-    fn pack_file_format(server: &Server, name: &str) -> Option<u32> {
+    /// Returns the declared format range of an on-disk `file/<name>` pack.
+    fn pack_file_format(server: &Server, name: &str) -> Option<PackFormatRange> {
         let stripped = name.strip_prefix("file/")?;
         let pack_path = server
             .basic_config
             .get_world_path()
             .join("datapacks")
             .join(stripped);
-        let (_, pack_format, _) = read_pack_mcmeta(&pack_path);
-        Some(pack_format)
+        Some(read_pack_mcmeta(&pack_path).format)
     }
 
     /// Enables a pack and returns its resolved id, with a typed error so
@@ -1711,7 +1824,9 @@ impl DatapackManager {
             let current = CURRENT_MC_VERSION.data_pack_format();
             if pack_format_compatibility(pack_format, current) != PackCompatibility::Compatible {
                 tracing::warn!(
-                    "Refusing to enable datapack '{resolved_name}': pack_format {pack_format} is incompatible with the game's format {current}"
+                    "Refusing to enable datapack '{resolved_name}': formats {}-{} are incompatible with the game's format {current}",
+                    pack_format.min,
+                    pack_format.max
                 );
                 return Err(DatapackError::Incompatible(resolved_name));
             }
@@ -2112,6 +2227,7 @@ fn tag_contains_entry<S: std::hash::BuildHasher>(
     tag_id: &str,
     full_entry: &str,
     raw_entry: &str,
+    key: Option<pumpkin_data::tag::RegistryKey>,
     visited: &mut Vec<String>,
 ) -> bool {
     let tag = normalize_id(tag_id.strip_prefix('#').unwrap_or(tag_id));
@@ -2120,13 +2236,30 @@ fn tag_contains_entry<S: std::hash::BuildHasher>(
     }
     visited.push(tag.clone());
     let Some(entry) = tags.get(&tag) else {
-        return false;
+        return builtin_tag_contains(key, &tag, full_entry);
     };
     entry.values.iter().any(|value| {
         value.strip_prefix('#').map_or_else(
             || value == full_entry || value == raw_entry,
-            |nested| tag_contains_entry(tags, nested, full_entry, raw_entry, visited),
+            |nested| tag_contains_entry(tags, nested, full_entry, raw_entry, key, visited),
         )
+    })
+}
+
+/// True when the builtin tag `tag_id` lists `full_entry`, whose members are bare names.
+fn builtin_tag_contains(
+    key: Option<pumpkin_data::tag::RegistryKey>,
+    tag_id: &str,
+    full_entry: &str,
+) -> bool {
+    let tag = normalize_id(tag_id.strip_prefix('#').unwrap_or(tag_id));
+    let Some(key) = key else {
+        return false;
+    };
+    pumpkin_data::tag::get_tag_values(key, &tag).is_some_and(|members| {
+        members
+            .iter()
+            .any(|member| normalize_id(member) == full_entry)
     })
 }
 
@@ -2153,6 +2286,19 @@ fn collect_generic_tag_values<S: std::hash::BuildHasher>(
             values.push(value.clone());
         }
     }
+}
+
+/// Maps a feature flag id or bundled pack name onto the known vanilla flags
+/// (`FeatureFlags.REGISTRY`). Unknown ids are ignored, like the registry does.
+fn known_feature_flag(id: &str) -> Option<&'static str> {
+    let bare = id.strip_prefix("minecraft:").unwrap_or(id);
+    Some(match bare {
+        "vanilla" => "minecraft:vanilla",
+        "trade_rebalance" => "minecraft:trade_rebalance",
+        "minecart_improvements" => "minecraft:minecart_improvements",
+        "redstone_experiments" => "minecraft:redstone_experiments",
+        _ => return None,
+    })
 }
 
 fn category_registry_key(category: &str) -> Option<pumpkin_data::tag::RegistryKey> {
@@ -2266,7 +2412,7 @@ fn load_bundled_datapacks(
             && !already_loaded
             && let Some(pack_path) = find_bundled_datapack_dir(bundled)
         {
-            let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
+            let metadata = read_pack_mcmeta(&pack_path);
             let counts = load_pack_contents(&pack_path, acc);
             info!(
                 "Loaded bundled datapack '{bundled}': {} recipe(s), {} function(s), {} test instance(s), {} damage type(s), {} int provider(s), {} float provider(s), {} loot table(s), {} structure(s), {} template pool(s), {} processor list(s), {} dynamic registry entry/entries, {} trade set(s), {} trade(s), {} predicate(s), {} tag(s)",
@@ -2289,12 +2435,13 @@ fn load_bundled_datapacks(
             loaded_packs_vec.push(LoadedDatapack {
                 id: format!("minecraft:{bundled}"),
                 name: bundled.to_string(),
-                description,
-                pack_format,
+                description: metadata.description,
+                pack_format: metadata.format.max,
                 root_path: pack_path,
                 recipe_count: counts.recipes,
                 function_count: counts.functions,
-                known_packs,
+                known_packs: metadata.known_packs,
+                requested_features: metadata.requested_features,
             });
         }
     }
@@ -2325,7 +2472,7 @@ fn scan_datapacks_dir(
             continue;
         }
 
-        let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
+        let metadata = read_pack_mcmeta(&pack_path);
         let counts = load_pack_contents(&pack_path, acc);
 
         info!(
@@ -2350,12 +2497,13 @@ fn scan_datapacks_dir(
         loaded_packs_vec.push(LoadedDatapack {
             id: pack_id,
             name: file_name,
-            description,
-            pack_format,
+            description: metadata.description,
+            pack_format: metadata.format.max,
             root_path: pack_path,
             recipe_count: counts.recipes,
             function_count: counts.functions,
-            known_packs,
+            known_packs: metadata.known_packs,
+            requested_features: metadata.requested_features,
         });
     }
 
@@ -2682,7 +2830,7 @@ fn pack_metadata_error(pack_path: &Path) -> Option<String> {
         .map(|err| format!("invalid pack.mcmeta in {}: {err}", mcmeta_path.display()))
 }
 
-fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
+fn read_pack_mcmeta(pack_path: &Path) -> PackMetadata {
     let mcmeta_path = pack_path.join("pack.mcmeta");
     if let Ok(content) = fs::read_to_string(mcmeta_path)
         && let Ok(val) = serde_json::from_str::<serde_json::Value>(&content)
@@ -2703,14 +2851,7 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
                 }
             })
             .unwrap_or_default();
-        let pack_format =
-            pack.and_then(|p| {
-                p.get("pack_format")
-                    .or_else(|| p.get("max_format"))
-                    .or_else(|| p.get("min_format"))
-            })
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(u64::from(CURRENT_MC_VERSION.data_pack_format())) as u32;
+        let format = pack_format_range(pack);
 
         let mut known_packs = Vec::new();
         let parse_item = |item: &serde_json::Value| -> Option<KnownPackData> {
@@ -2751,13 +2892,35 @@ fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
             }
         }
 
-        return (description, pack_format, known_packs);
+        // Vanilla reads FeatureFlagsMetadataSection#flags from the pack root.
+        let mut requested_features = Vec::new();
+        if let Some(enabled) = val
+            .get("features")
+            .and_then(|features| features.get("enabled"))
+            .and_then(serde_json::Value::as_array)
+        {
+            for flag in enabled {
+                if let Some(flag) = flag.as_str()
+                    && !requested_features.iter().any(|existing| existing == flag)
+                {
+                    requested_features.push(flag.to_string());
+                }
+            }
+        }
+
+        return PackMetadata {
+            description,
+            format,
+            known_packs,
+            requested_features,
+        };
     }
-    (
-        String::new(),
-        CURRENT_MC_VERSION.data_pack_format(),
-        Vec::new(),
-    )
+    PackMetadata {
+        description: String::new(),
+        format: PackFormatRange::single(CURRENT_MC_VERSION.data_pack_format()),
+        known_packs: Vec::new(),
+        requested_features: Vec::new(),
+    }
 }
 
 fn load_recipes_recursive(
@@ -2833,17 +2996,28 @@ mod tests {
     #[test]
     fn pack_format_compatibility_matches_vanilla() {
         let current = CURRENT_MC_VERSION.data_pack_format();
+        let single = super::PackFormatRange::single;
         assert_eq!(
-            super::pack_format_compatibility(current, current),
+            super::pack_format_compatibility(single(current), current),
             super::PackCompatibility::Compatible
         );
         assert_eq!(
-            super::pack_format_compatibility(current.saturating_sub(1), current),
+            super::pack_format_compatibility(single(current.saturating_sub(1)), current),
             super::PackCompatibility::TooOld
         );
         assert_eq!(
-            super::pack_format_compatibility(current.saturating_add(1), current),
+            super::pack_format_compatibility(single(current.saturating_add(1)), current),
             super::PackCompatibility::TooNew
+        );
+        // A declared range that covers the game's format is compatible, like
+        // PackCompatibility.forVersion over PackFormat.IntermediaryFormat.
+        let range = super::PackFormatRange {
+            min: current.saturating_sub(3),
+            max: current.saturating_add(2),
+        };
+        assert_eq!(
+            super::pack_format_compatibility(range, current),
+            super::PackCompatibility::Compatible
         );
     }
 
@@ -3002,6 +3176,29 @@ mod tests {
             assert_eq!(error, FunctionRunError::CommandChainLimitExceeded);
             assert_eq!(visited, MAX_FUNCTION_CHAIN_COMMANDS);
         };
+    }
+
+    #[test]
+    fn function_chain_budget_uses_the_outermost_limit() {
+        // Vanilla reads max_command_sequence_length when the outermost command runs;
+        // nested functions share that budget instead of restoring the default.
+        let manager = DatapackManager::new();
+        manager
+            .functions
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
+                "test:short".to_string(),
+                vec!["say hi".to_string(); 5].into(),
+            );
+
+        let _guard = FunctionChainGuard::enter_with_budget(2).expect("chain must start");
+        let mut visited = 0;
+        let error = manager
+            .visit_function_lines("test:short", |_| visited += 1)
+            .expect_err("a budget of 2 must stop the third command");
+        assert_eq!(error, FunctionRunError::CommandChainLimitExceeded);
+        assert_eq!(visited, 2);
     }
 
     #[test]
@@ -3204,13 +3401,15 @@ mod tests {
         }"#;
         std::fs::write(pack_path.join("pack.mcmeta"), mcmeta_content).unwrap();
 
-        let (desc, format, known_packs) = super::read_pack_mcmeta(pack_path);
-        assert_eq!(desc, "Test Pack");
-        assert_eq!(format, 61);
+        let metadata = super::read_pack_mcmeta(pack_path);
+        assert_eq!(metadata.description, "Test Pack");
+        assert_eq!((metadata.format.min, metadata.format.max), (61, 61));
+        let known_packs = &metadata.known_packs;
         assert_eq!(known_packs.len(), 1);
         assert_eq!(known_packs[0].namespace, "example");
         assert_eq!(known_packs[0].id, "content");
         assert_eq!(known_packs[0].version, "1.0.0");
+        assert!(metadata.requested_features.is_empty());
 
         // 2. Test nested pack.known_packs
         let mcmeta_content_nested = r#"{
@@ -3228,7 +3427,8 @@ mod tests {
         }"#;
         std::fs::write(pack_path.join("pack.mcmeta"), mcmeta_content_nested).unwrap();
 
-        let (_, _, known_packs) = super::read_pack_mcmeta(pack_path);
+        let metadata = super::read_pack_mcmeta(pack_path);
+        let known_packs = &metadata.known_packs;
         assert_eq!(known_packs.len(), 1);
         assert_eq!(known_packs[0].namespace, "nested");
         assert_eq!(known_packs[0].id, "pack");
@@ -3241,9 +3441,42 @@ mod tests {
         )
         .unwrap();
 
-        let (desc, _, _) = super::read_pack_mcmeta(pack_path);
+        let desc = super::read_pack_mcmeta(pack_path).description;
         assert!(desc.contains("Hi"), "component text is kept: {desc}");
         assert!(!desc.contains('{'), "raw JSON is not shown: {desc}");
+    }
+
+    #[test]
+    fn read_pack_mcmeta_reads_format_range_and_features() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let pack_path = temp_dir.path();
+
+        // min_format/max_format declare an inclusive range, and features.enabled
+        // is the FeatureFlagsMetadataSection vanilla unions over selected packs.
+        std::fs::write(
+            pack_path.join("pack.mcmeta"),
+            r#"{
+                "features": {"enabled": ["minecraft:trade_rebalance", "unknown:flag"]},
+                "pack": {"description": "Range Pack", "min_format": [100, 1], "max_format": 110}
+            }"#,
+        )
+        .unwrap();
+
+        let metadata = super::read_pack_mcmeta(pack_path);
+        assert_eq!((metadata.format.min, metadata.format.max), (100, 110));
+        assert_eq!(
+            metadata.requested_features,
+            ["minecraft:trade_rebalance", "unknown:flag"]
+        );
+
+        // Legacy single pack_format stays a one-format range.
+        std::fs::write(
+            pack_path.join("pack.mcmeta"),
+            r#"{"pack": {"description": "Legacy", "pack_format": 61}}"#,
+        )
+        .unwrap();
+        let metadata = super::read_pack_mcmeta(pack_path);
+        assert_eq!((metadata.format.min, metadata.format.max), (61, 61));
     }
 
     #[test]
@@ -3252,11 +3485,15 @@ mod tests {
         let default_features = DatapackManager::resolve_enabled_features(&[]);
         assert_eq!(default_features, ["minecraft:vanilla"]);
 
-        // With minecart improvements
-        let minecart_features =
+        // A world pack only enables flags through its pack.mcmeta, never by its name.
+        let world_pack =
             DatapackManager::resolve_enabled_features(&["file/minecart_improvements".to_string()]);
+        assert_eq!(world_pack, ["minecraft:vanilla"]);
+
+        let bundled_features =
+            DatapackManager::resolve_enabled_features(&["minecart_improvements".to_string()]);
         assert_eq!(
-            minecart_features,
+            bundled_features,
             ["minecraft:vanilla", "minecraft:minecart_improvements"]
         );
 
@@ -3599,6 +3836,11 @@ mod tests {
         assert!(!manager.is_in_tag("block", "test:rocks", "dirt"));
         assert!(manager.is_in_tag("block", "test:loop", "dirt"));
         assert!(!manager.is_in_tag("block", "test:loop", "stone"));
+        // Tags with no datapack definition still resolve to their builtin members.
+        // Builtin members are stored bare, so both spellings must match.
+        assert!(manager.is_in_tag("block", "minecraft:dirt", "dirt"));
+        assert!(manager.is_in_tag("block", "minecraft:dirt", "minecraft:dirt"));
+        assert!(!manager.is_in_tag("block", "minecraft:dirt", "minecraft:stone"));
     }
 
     #[test]

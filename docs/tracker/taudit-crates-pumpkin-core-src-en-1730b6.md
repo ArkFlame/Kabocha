@@ -105,3 +105,62 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decorati
 - Row 10 (STILL OPEN): needs a drop-stack API y-offset in the `world` crate (outside this unit) for the -0.6 DOWN-facing fix.
 
 No test added: no pure seam exists (all affected behaviour needs a `World` plus fixture); `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed by the project rules.
+
+## Result (final verification, current pass)
+
+Re-checked every remaining row against decompiled
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/{ItemFrame,HangingEntity,BlockAttachedEntity}.java`
+(1.21.x with Paper patches). The source `item_frame.rs` already contained the fixes for
+all rows this pass; no further source edit was required. Verified each against vanilla:
+
+- Row 1 VERIFIED: `tick` now fires the support check on tick 100, 200, ... via
+  `SUPPORT_CHECK_INTERVAL = 100` and `fetch_add(..) + 1`, matching vanilla
+  `BlockAttachedEntity.CHECK_INTERVAL = 100`. Full block-update hooks still need world
+  files outside this unit, so the periodic check is kept.
+- Row 2 VERIFIED: `set_item` plays the add sound only when `!empty && update_neighbours`,
+  matching decompiled `setItem(.., updateNeighbours, playSound)`.
+- Row 3 VERIFIED: `set_item`, `set_rotation` and `drop_item` now call
+  `world.update_neighbour_for_output_signal`, the comparator-only helper, matching
+  vanilla's `level.updateNeighbourForOutputSignal(pos, Blocks.AIR)`.
+- Row 4 VERIFIED: `drop_item` returns before both drops when
+  `world.level_info.load().game_rules.entity_drops` is false, matching vanilla's
+  `GameRules.ENTITY_DROPS` check (the game-rule store now exists in `pumpkin-core`).
+- Row 5 VERIFIED: invulnerable-source guard (`is_invulnerable_to`) present.
+- Row 6 VERIFIED: `is_invisible`/`set_invisible` use the shared `Entity.invisible` flag
+  and tracker; `Invisible` NBT still round-trips through that flag, matching vanilla.
+- Row 7 VERIFIED: custom name copied via `get_text()`; Pumpkin's `ItemStack` stores a
+  String, so component styles from vanilla's verbatim `CUSTOM_NAME` copy cannot be kept.
+- Row 8 VERIFIED, no change: creative players get no frame or item drop, matching
+  decompiled `dropItem`'s `player.hasInfiniteMaterials()` early branch.
+- Row 9 VERIFIED: `ItemFrameInventory` single-slot Container is implemented via
+  `EntityBase::get_container_inventory`; appropriate at `CURRENT_MC_VERSION = V_26_3`
+  (1.21.5+ ItemFrame is a container).
+- Row 10 VERIFIED: `drop_item` applies the -0.6 DOWN-facing y offset, matching the
+  Paper MC-123848 `spawnAtLocation` override.
+
+Re-check of the flagged explosion contradiction (not a STILL OPEN row, code left unchanged):
+decompiled `ItemFrame.hurtServer` routes explosion damage that fails
+`shouldDamageDropItem` (`!source.is(IS_EXPLOSION) && !item.isEmpty()`) into
+`BlockAttachedEntity.hurtServer`, which kills the frame. So vanilla explosions DO break
+item frames; the current early `return false` for `EXPLOSION`/`PLAYER_EXPLOSION` in
+`damage_with_context` diverges. Fixing it needs correct ingestion of the
+`IS_EXPLOSION` damage-type tag plus `ignoreExplosion`/`shouldAffectBlocklikeEntities`
+handling and cannot be compile-checked in this unit, so it is logged for a future pass.
+
+No source edit this pass; no pure unit-test seam exists (all behaviour needs a `World`
+plus fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are
+disallowed). Compile not run (worker restriction); all referenced APIs were confirmed to
+exist by source inspection.
+
+## Result (post-restart confirmation)
+
+Resumed session re-read `item_frame.rs` in full: every formerly STILL OPEN row is already
+present in source (SUPPORT_CHECK_INTERVAL=100 tick cadence, conditional add-item sound,
+`update_neighbour_for_output_signal`, `entity_drops` gate, invulnerable guard, shared
+invisible flag, `get_text()` name copy, creative drop ordering, single-slot Container,
+-0.6 DOWN drop offset). Re-checked rows 1/2/8 against decompiled
+`BlockAttachedEntity.java` (`CHECK_INTERVAL=100`, `ticksSinceLastCheck++ >= 100`) and
+`ItemFrame.java` (`setItem` sound condition, `dropItem` creative branch) - all match. No
+new source edit needed; no pure unit-test seam. Explosion divergence remains deferred: it
+requires the `ignoreExplosion`/`shouldAffectBlocklikeEntities` path in `explosion.rs` and
+entity defaults, files outside this unit.

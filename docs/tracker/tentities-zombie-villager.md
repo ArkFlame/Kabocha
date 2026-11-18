@@ -129,3 +129,30 @@ Re-checked all five rows against `.vendor/vanilla-decompiled/net/minecraft/` now
 Also confirmed the cure duration `VILLAGER_CONVERSION_WAIT_MIN..=MAX` = 3600..=6000 inclusive matches vanilla `nextInt(2401) + 3600` (line 171).
 
 No .rs files touched this pass; no build run per worker rules.
+
+
+## Result (second-pass re-verification)
+
+All five rows previously marked STILL OPEN were already fixed in the working tree by an
+earlier pass; no new source edits were needed. Re-checked each against the current code:
+
+1. Strength amplifier: `cure_strength_amplifier` maps Peaceful -> None and the other three
+   difficulties -> Some(0), matching vanilla `min(id - 1, 0)` (only Peaceful differs, where -1
+   grants no bonus). Covered by the existing `cure_strength_skipped_only_on_peaceful` test.
+   No change.
+2. Special-block scan: `conversion_progress` guards with `special_blocks >= 14` before each
+   candidate, so exactly 14 special blocks get the 30% roll, matching vanilla's `j >= 14` cap.
+   No change.
+3. Equipment on cure: `prevents_armor_change` keeps binding-curse gear; other slots drop when
+   `drop_chance(slot) > 1.0`, matching vanilla `isPreserved(slot)` (`byEquipment > 1.0F`).
+   Kept gear gets `set_guaranteed_drop`, matching vanilla `setDropChance(slot, 2.0F)`. No change;
+   a cure gametest would live outside this unit's files.
+4. Cured villager effects: `convert_common` copies every active effect, matching vanilla
+   `convertCommon`; the earlier stripping block is gone. No change.
+5. `set_villager_data`: drops stored Offers when the profession changes, matching vanilla
+   `setVillagerData` clearing tradeOffers on a profession change. No change.
+
+Also confirmed the cure duration is `random_range(3600..=6000)` inclusive, i.e. vanilla
+`nextInt(2401) + 3600`; the doc's earlier "exclusive upper bound" note was wrong.
+
+No .rs files touched this pass; no build run per worker rules.

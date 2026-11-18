@@ -44,11 +44,17 @@ impl BlockEntity for SculkCatalystBlockEntity {
         self.position
     }
 
-    fn from_nbt(_nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
+    fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
     where
         Self: Sized,
     {
-        Self::new(position)
+        let mut spreader = SculkSpreader::new_level_spreader();
+        spreader.load(nbt);
+        Self {
+            position,
+            spreader: Mutex::new(spreader),
+            bloomed: AtomicBool::new(false),
+        }
     }
 
     fn tick(&self, world: &std::sync::Arc<World>) {
@@ -67,7 +73,13 @@ impl BlockEntity for SculkCatalystBlockEntity {
         spreader.update_cursors(&mut level, self.position, &mut random, true);
     }
 
-    fn write_nbt(&self, _nbt: &mut NbtCompound) {}
+    fn write_nbt(&self, nbt: &mut NbtCompound) {
+        let spreader = self
+            .spreader
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        spreader.save(nbt);
+    }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         None
@@ -145,10 +157,10 @@ impl SculkCatalystBlockEntity {
     }
 }
 
-/// Strict-radius test matching vanilla `Vec3.closerThan`: a death exactly on
-/// the 8-block boundary is not heard by the catalyst.
+/// Inclusive-radius test matching vanilla's game-event dispatch, which compares
+/// floored block positions and rejects only when `distSqr > radiusSqr`.
 const fn within_hearing_radius(dx: i32, dy: i32, dz: i32) -> bool {
-    dx * dx + dy * dy + dz * dz < HEARING_RADIUS * HEARING_RADIUS
+    dx * dx + dy * dy + dz * dz <= HEARING_RADIUS * HEARING_RADIUS
 }
 
 /// Feeds the death of an entity at `death_pos` into every sculk catalyst
@@ -238,10 +250,11 @@ mod tests {
     use super::within_hearing_radius;
 
     #[test]
-    fn catalyst_hearing_is_strict_at_boundary() {
+    fn catalyst_hearing_includes_boundary() {
         assert!(within_hearing_radius(7, 0, 0));
-        assert!(!within_hearing_radius(8, 0, 0));
+        assert!(within_hearing_radius(8, 0, 0));
         assert!(within_hearing_radius(4, 4, 4));
         assert!(!within_hearing_radius(5, 5, 5));
+        assert!(!within_hearing_radius(9, 0, 0));
     }
 }

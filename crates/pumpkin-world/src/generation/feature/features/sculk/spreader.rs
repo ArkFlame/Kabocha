@@ -3,6 +3,8 @@
 use pumpkin_data::BlockDirection;
 use pumpkin_data::BlockId;
 use pumpkin_data::BlockStateId;
+use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::random::RandomGenerator;
@@ -175,6 +177,85 @@ impl SculkSpreader {
     /// Clears all cursors (called between rounds).
     pub fn clear(&mut self) {
         self.cursors.clear();
+    }
+
+    /// Writes the active cursors into `nbt` under the vanilla `cursors` list key.
+    pub fn save(&self, nbt: &mut NbtCompound) {
+        let mut list = Vec::with_capacity(self.cursors.len());
+        for cursor in &self.cursors {
+            let mut tag = NbtCompound::new();
+            tag.put(
+                "pos",
+                NbtTag::IntArray(vec![cursor.pos.0.x, cursor.pos.0.y, cursor.pos.0.z]),
+            );
+            tag.put_int("charge", i32::from(cursor.charge));
+            tag.put_int("decay_delay", i32::from(cursor.decay_delay));
+            tag.put_int("update_delay", i32::from(cursor.update_delay));
+            if let Some(faces) = cursor.faces {
+                let names = ["down", "up", "north", "south", "west", "east"];
+                let facings = names
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| faces & (1 << index) != 0)
+                    .map(|(_, name)| NbtTag::String((*name).into()))
+                    .collect();
+                tag.put_list("facings", facings);
+            }
+            list.push(NbtTag::Compound(tag));
+        }
+        nbt.put_list("cursors", list);
+    }
+
+    /// Restores the active cursors from the vanilla `cursors` list key.
+    pub fn load(&mut self, nbt: &NbtCompound) {
+        self.cursors.clear();
+        let Some(list) = nbt.get_list("cursors") else {
+            return;
+        };
+        for tag in list {
+            let Some(comp) = tag.extract_compound() else {
+                continue;
+            };
+            let Some(values) = comp.get("pos").and_then(|tag| tag.extract_int_array()) else {
+                continue;
+            };
+            let &[x, y, z] = values else {
+                continue;
+            };
+            let pos = BlockPos::new(x, y, z);
+            let charge = comp
+                .get_int("charge")
+                .unwrap_or(0)
+                .clamp(0, i32::from(MAX_CHARGE)) as u16;
+            let decay_delay = comp.get_int("decay_delay").unwrap_or(1).clamp(0, 1) as u8;
+            let update_delay = comp.get_int("update_delay").unwrap_or(0).max(0) as u8;
+            let faces = comp.get_list("facings").map(|facings| {
+                let mut bits = 0u8;
+                for name in facings {
+                    let Some(name) = name.extract_string() else {
+                        continue;
+                    };
+                    let index = match name {
+                        "down" => 0,
+                        "up" => 1,
+                        "north" => 2,
+                        "south" => 3,
+                        "west" => 4,
+                        "east" => 5,
+                        _ => continue,
+                    };
+                    bits |= 1 << index;
+                }
+                bits
+            });
+            self.add_cursor(ChargeCursor {
+                pos,
+                charge,
+                update_delay,
+                decay_delay,
+                faces,
+            });
+        }
     }
 
     /// Returns a reference to the active cursors (for testing).
@@ -630,6 +711,31 @@ mod tests {
     use pumpkin_util::random::legacy_rand::LegacyRand;
 
     use crate::generation::feature::features::sculk::test_utils::MockSculkLevel;
+
+    #[test]
+    fn cursor_nbt_round_trip() {
+        let origin = BlockPos::new(10, 64, -5);
+        let mut saved = SculkSpreader::new_level_spreader();
+        saved.add_cursors(origin, 1500);
+        let mut nbt = NbtCompound::new();
+        saved.save(&mut nbt);
+
+        let mut loaded = SculkSpreader::new_level_spreader();
+        loaded.load(&nbt);
+
+        let expected = saved.cursors();
+        let actual = loaded.cursors();
+        assert_eq!(expected.len(), actual.len());
+        for (before, after) in expected.iter().zip(actual) {
+            assert!(
+                before.pos == after.pos
+                    && before.charge == after.charge
+                    && before.decay_delay == after.decay_delay
+                    && before.update_delay == after.update_delay
+                    && before.faces == after.faces
+            );
+        }
+    }
 
     #[test]
     fn non_corner_neighbours_count() {

@@ -114,3 +114,49 @@ Decompiled tree is present at `.vendor/vanilla-decompiled/net/minecraft/world/en
 | 3 | STILL OPEN. No `pumpkin-gametest` boat scenario; the crate is outside this unit's file list. |
 
 Commands: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/vehicle/boat.rs` (ok). No cargo run in this pass.
+
+
+## Result (re-review, birch boat)
+
+Checked the sole remaining STILL OPEN row against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. Also checked the three files in this unit's
+scope (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`); none has an open gap.
+
+| # | Outcome |
+|---%|---|
+| 1 | FIXED (present in `boat.rs`: `on_rider_positioned` at :846). Outside this unit's file scope; no edit. |
+| 2 | FIXED (present in `boat.rs`: `bubble_column_above` :239/:636, `tick_underwater` :392). Outside this unit's file scope; no edit. |
+| 3 | STILL OPEN. Needs a `pumpkin-gametest` scenario, a crate outside this unit's file list (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`); left open with that reason. |
+
+In-scope checks: `paddle_boat.rs` matches vanilla `ServerGamePacketListenerImpl.handlePaddleBoat`
+(`ServerGamePacketListenerImpl.java:2464-2468`) and `Entity.getControlledVehicle`
+(`Entity.java:6661-6663`, controlling-passenger gate); `vehicle_damage.rs` carries damage by
+value only, so the amount cannot diverge between computations (no edit); `entity_tracker.rs`
+`velocity_dirty` motion sync is unchanged. No pure unit-test seam exists for the open row in
+this unit's files, so no test was added. No .rs files touched; rustfmt not required. No cargo run.
+
+
+## Result (CODER pass)
+
+Re-verified the single STILL OPEN row (row 3) against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. Rows 1 and 2 were already FIXED in the prior pass (present in `boat.rs`, outside this unit's file list); no edit. Re-checked all three in-scope files; no fixable gap exists in this unit's file list.
+
+| # | Outcome |
+|---|---------|
+| 1 | FIXED (present in `boat.rs` `on_rider_positioned`, outside this unit's file list; no edit). |
+| 2 | FIXED (present in `boat.rs` bubble-column handling, outside this unit's file list; no edit). |
+| 3 | STILL OPEN. Needs a `pumpkin-gametest` boat scenario; that crate is outside this unit's file list (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`), so left open with that reason. |
+
+In-scope vanilla checks: `net/java/play/paddle_boat.rs` matches `ServerGamePacketListenerImpl.handlePaddleBoat` (`ServerGamePacketListenerImpl.java:2464-2468`, `getControlledVehicle` controlling-passenger gate); `plugin/api/events/vehicle/vehicle_damage.rs` carries `damage: f32` by value so it cannot diverge between the two computations; `world/entity_tracker.rs:176` `velocity_dirty` motion sync unchanged. No pure unit-test seam exists for row 3 in these files, so no test was added. No .rs files touched; rustfmt not required. No cargo run.
+
+
+## Result (CODER pass, final)
+
+Re-verified the single STILL OPEN row (row 3) and all three in-scope files against the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/`. Rows 1 and 2 remain FIXED in `boat.rs` (outside this unit's file list); no edit.
+
+| # | Outcome |
+|---|---------|
+| 1 | FIXED (present in `boat.rs` `on_rider_positioned`, outside this unit's file list; no edit). |
+| 2 | FIXED (present in `boat.rs` bubble-column handling, outside this unit's file list; no edit). |
+| 3 | STILL OPEN. Needs a `pumpkin-gametest` boat scenario; that crate is outside this unit's file list (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`), so left open with that reason. |
+
+In-scope vanilla checks: `paddle_boat.rs:6-23` matches `ServerGamePacketListenerImpl.handlePaddleBoat` (`ServerGamePacketListenerImpl.java:2464-2468`) and the `getControlledVehicle` immediate-vehicle + controlling-passenger gate (`Entity.java:6661-6663`); both `vehicle_damage.rs` files carry `damage: f32` by value with a cancel flag, so the amount cannot diverge between computations; `entity_tracker.rs:174-181` `velocity_dirty` feeds the `needs_sync` motion sync unchanged. No fixable gap and no pure unit-test seam in these files, so no .rs file was touched and no test added. No cargo run (shell denied to workers).

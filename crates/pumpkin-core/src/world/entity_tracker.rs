@@ -4,7 +4,6 @@ use std::sync::atomic::{
 };
 use std::sync::{Arc, RwLock};
 
-use bytes::BufMut;
 use crossbeam::atomic::AtomicCell;
 use dashmap::DashMap;
 use pumpkin_data::entity::EntityType;
@@ -23,7 +22,7 @@ use pumpkin_protocol::codec::var_ulong::VarULong;
 use pumpkin_protocol::java::client::play::{
     CEntityPositionSync, CEntityVelocity, CHeadRot, CRemoveEntities, CSetEntityLink,
     CSetEntityMetadata, CSetEquipment, CSetPassengers, CUpdateEntityPos, CUpdateEntityPosRot,
-    CUpdateEntityRot, Metadata,
+    CUpdateEntityRot,
 };
 use pumpkin_protocol::{BClientPacket, ClientPacket};
 use pumpkin_util::GameMode;
@@ -611,33 +610,13 @@ impl TrackedEntity {
         player.try_restore_vehicle(&self.entity);
 
         if let Some(target_player) = self.entity.get_player() {
-            let skin_parts = target_player.config.load().skin_parts;
             let target_entity = target_player.get_entity();
             let target_id = target_entity.entity_id;
 
             if let ClientPlatform::Java(client) = player.client.as_ref() {
-                let version = CURRENT_MC_VERSION;
-                let mut buf = Vec::new();
-                for meta in [
-                    Metadata::new(
-                        pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
-                        skin_parts,
-                    ),
-                    Metadata::new(
-                        pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMIZATION_ID,
-                        skin_parts,
-                    ),
-                ] {
-                    let _ = meta.write(&mut buf, &version);
-                }
-                buf.put_u8(255);
-                let meta_packet = CSetEntityMetadata::new(target_id.into(), buf.into());
-                if let Ok(packet_data) =
-                    JavaClient::serialize_packet_for_version(&meta_packet, version)
-                {
-                    client.try_enqueue_packet(packet_data);
-                }
-
+                // Skin parts (DATA_PLAYER_MODE_CUSTOMISATION) are already part of the
+                // non-default synched-data packet sent at the end of this method, matching
+                // vanilla's single metadata packet in ServerEntity.sendPairingData.
                 let head_yaw = pack_degrees(target_entity.head_yaw.load());
                 let head_rot_packet = CHeadRot::new(target_id.into(), head_yaw);
                 if let Ok(data) = client.serialize_packet(&head_rot_packet) {

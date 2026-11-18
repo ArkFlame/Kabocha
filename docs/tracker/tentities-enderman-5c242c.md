@@ -76,3 +76,14 @@ Re-verified both STILL OPEN rows against the decompiled source now present under
 ### Row 2 (S) stare line-of-sight 128-block cap: NO GAP, closed
 - Vanilla LivingEntity.hasLineOfSight (world/entity/LivingEntity.java:4121-4132) DOES cap at 128 blocks: to.distanceToSqr(from) > Mth.square(128.0) fails the check. The tracker "unbounded block clip" claim is wrong (the Paper patch only rewrote it to squared distance).
 - Pumpkin LINE_OF_SIGHT_RANGE = 128.0 check (enderman.rs:65, :402-404) matches that cap. The cone check also matches isLookingAtMe(player, 0.025, true, false, getEyeY()) (LivingEntity.java:2276-2296), endpoints and eye heights included.
+
+
+### 2026-11-18 independent re-verification (both rows remain closed)
+- Row 1 (M): confirmed at Enderman.java:396 `source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger()`; Pumpkin enderman.rs:70-72 + :600 match. No gap.
+- Row 2 (S): confirmed at LivingEntity.java:4131 `to.distanceToSqr(from) > Mth.square(128.0)`; Pumpkin enderman.rs:65 + :402-404 match. No gap.
+- No code changes or tests: both rows already match vanilla; no behaviour change to test.
+
+### 2026-11-18 second independent re-verification (both rows closed)
+- Row 1 (M): re-read the decompiled Enderman.hurtServer. Line 396 gates the teleport on `source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger()` (the damage-type tag), exactly what Pumpkin enderman.rs:70-72 (`has_tag(MINECRAFT_IS_PROJECTILE)`) + :600 (`!entity.has_vehicle()`) do. `has_vehicle()` is `isPassenger()`. The sole direct-entity check in that method is `getDirectEntity() instanceof AbstractThrownPotion` at line 395, which Pumpkin handles separately through `as_splash_potion`/`hurts_water_sensitive_entities` at :604-609. The tracker's "instanceof Projectile" premise is wrong. No gap.
+- Row 2 (S): re-read decompiled LivingEntity.hasLineOfSight. Line 4131 rejects `to.distanceToSqr(from) > Mth.square(128.0)`, a hard 128-block cap. Pumpkin LINE_OF_SIGHT_RANGE = 128.0 (enderman.rs:65) with the squared-distance check at :402-404 matches. isLookingAtMe (LivingEntity.java:2276-2296) cone/eye-height/endpoint logic also matches enderman.rs:390-414. No gap.
+- No code changes and no test added: both rows already match vanilla; adding a constant/clip-mirror test would be a forbidden formula/constant test.

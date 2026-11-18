@@ -134,3 +134,48 @@ API change outside the files named in this unit.
   additive `consume_fuel` field to the plugin event and honouring it requires edits to
   `pumpkin-core/src/plugin/api/events/inventory/furnace_burn.rs`, the matching
   `pumpkin-plugin-api` event and host/SDK wiring, all outside this unit's two files.
+
+
+## Result (re-audit 2026-11-18)
+
+Re-verified every STILL OPEN row against `AbstractFurnaceBlockEntity.java` in the
+`mc-proof/ref` tree (Paper/Canvas, MC 26.3) and against `CookingFuelImpl` in `pumpkin-data`.
+All in-scope rows are already fixed in the current tree, so no source change was needed
+this pass.
+
+- First table row 44 / re-audit row 90 (data-driven speed multiplier, M): FIXED in tree.
+  `tick` resolves the fuel multiplier with `CookingFuelImpl::get_speed_multiplier(is_fast)`
+  (`:593-594`); that helper maps `cooking/speed_default` to 2.0 for smokers/blast furnaces
+  and 1.0 otherwise, matching vanilla `ResolvableFloat.getFromItem(..., 1.0F)`.
+  `cooking_total_time` divides the recipe time by it (`:32-41`), and `from_nbt` restores
+  the persisted `speed_multiplier` float (`:798-802`) while `write_nbt`/`chunk_data_nbt`
+  save it (`:844,926`). Tests: `cooking_time_divides_by_the_persisted_multiplier`,
+  `furnace_speed_multiplier_round_trips_through_nbt`.
+- First table row 45 (FurnaceStartSmeltEvent total, S): FIXED in tree. `:672-683` computes
+  the event total from the current recipe via `cooking_total_time` with a default of 200,
+  matching Paper `getTotalCookTime(level, entity)`.
+- First table row 46 (result count, S): FIXED in tree. `:332` increments the output slot by
+  `recipe.result.count` and `can_accept_recipe_output` (`:303-306`) checks room for the whole
+  count, matching vanilla `burn`/`canBurn`.
+- First table row 47 / re-audit row 91 (relight rescale, S): FIXED in tree.
+  `rescale_cooking_after_relight` (`:46-62`) implements the `oldTotal > 0 && spent < oldTotal`
+  guarded `ceil(timer / oldTotal * newTotal)` rescale, called at ignition (`:621-630`),
+  matching vanilla `AbstractFurnaceBlockEntity.java:278-282`. Test:
+  `relight_rescales_progress_by_the_multiplier_change`.
+- Re-audit row 92 (recipe result components, S): FIXED in tree. `assemble_cooking_result`
+  (`:86-100`) applies `recipe.result.components` and is used by `can_accept_recipe_output`
+  (`:298`) and `craft_recipe` (`:327`), matching vanilla `recipe.assemble(input)` in
+  `canBurn`/`burn`. Test: `assemble_cooking_result_applies_recipe_components`.
+- Re-audit row 93 (FurnaceBurnEvent `consume_fuel`, M): core portion FIXED in tree. The
+  `consume_fuel` field exists on the core event
+  (`plugin/api/events/inventory/furnace_burn.rs:20`) and the tick honours it
+  (`furnace_like_block_entity.rs:600,608,636`), matching Paper `burnEvent.willConsumeFuel()`.
+  STILL OPEN only for plugin exposure: the v0.1/v0.2 WIT `furnace-burn-event` records have no
+  `consume-fuel` field and both wasm-host conversions hardcode `consume_fuel: true`, so a
+  plugin cannot call `setConsumeFuel(false)`. Reason left open: exposing it needs WIT record
+  edits in both versions plus regenerated bindings and host/SDK wiring, all outside this
+  unit's files.
+
+No new source file was touched, so `rustfmt` was not needed. No seam for a new pure unit
+test: every in-scope fix is already covered by the pure-function tests listed above, and
+the remaining row's only gap is plugin API plumbing.

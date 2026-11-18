@@ -89,3 +89,35 @@ needed; no unit-test seam exists (only constant values and a flag were in questi
   `damage_with_context -> false` gives identical damage immunity, and `is_immune_to_explosion ->
   true` merely skips that already-invisible noPhysics knockback. Both overrides are used
   (`world/explosion.rs:634` honours `is_immune_to_explosion`) and neither should be removed.
+
+## Result (re-review of FIXED rows 1 and 4 against vendored decompiled vanilla)
+Verified all five rows against `.vendor/vanilla-decompiled/net/minecraft/` (1.21.x Paper).
+One real parity regression found and fixed; rows 2/3/5 re-confirmed no change. No pure unit-test
+seam exists (the change removes spurious event emission; the remaining values are constants), so no
+test was added.
+
+- Row 1 (launch sound): FIXED by CORRECTING the earlier fix. Decompiled
+  `OminousItemSpawner.spawnProjectile` emits a sound only via
+  `dispenseConfig.overrideDispenseEvent().ifPresent(...)`. `ProjectileItem.DispenseConfig.DEFAULT`
+  has `overrideDispenseEvent = Optional.empty()`; arrow, trident, snowball, egg use the default
+  config and splash/lingering potion and experience bottle override only power/uncertainty, so all
+  six are silent in vanilla. Only `FireworkRocketItem` (SOUND_FIREWORK_SHOOT), `FireChargeItem`
+  (SOUND_BLAZE_FIREBALL) and `WindChargeItem` (SOUND_WIND_CHARGE_SHOOT) set an override event, and
+  those branches already emit their sounds. The earlier fix wrongly called `play_launch_sound`
+  (SoundDispenserProjectileLaunch) for the six silent branches; that helper and its three calls
+  were removed. (The dispenser port's unconditional 1002 emission comes from
+  `ProjectileDispenseBehavior.playDispenseSound`, a different vanilla code path, and is correct
+  there.)
+- Row 2 (experience-bottle config): CHECKED, no change. `ExperienceBottleItem.createDispenseConfig()`
+  = `DEFAULT.power()*1.25 = 1.375`, `DEFAULT.uncertainty()*0.5 = 3.0`, identical to
+  `ThrowablePotionItem`; `POTION_PROJECTILE_POWER`/`POTION_PROJECTILE_UNCERTAINTY` already correct.
+- Row 3 (particle data flag): CHECKED, no change. `level.levelEvent(PARTICLES_TRIAL_SPAWNER_SPAWN_ITEM,
+  this.blockPosition(), 1)`; data flag `1` confirmed.
+- Row 4 (spawn origin): CHECKED, no change. Decompiled vanilla uses `this.position()` in
+  `spawnProjectile` and `getX/getY/getZ` in `spawnItem`, i.e. the entity origin, NOT the bounding-box
+  centre. `self.entity.pos.load()` is correct; the original "use bounding-box centre" suggestion
+  was wrong and the earlier fix already chose correctly.
+- Row 5 (explosion immunity): CHECKED, no change. Vanilla overrides only `hurtServer -> false` and
+  leaves `ignoreExplosion` at its Entity default false; Pumpkin's `damage_with_context -> false`
+  gives the same damage immunity and `is_immune_to_explosion -> true` only skips knockback that is a
+  no-op under `noPhysics`.

@@ -116,3 +116,77 @@ re-run on bucket.rs with exit 0.
 Files changed this pass: crates/pumpkin-core/src/item/items/bucket.rs (rows 3, 4).
 dispenser.rs left untouched after verification. No pure unit-test seam exists for the
 sound/spawn-protection changes (both require a live World), so no test added.
+
+## Result (pass 2 re-verification, 2026-11-18)
+
+Re-checked every STILL OPEN row against .vendor/vanilla-decompiled BucketItem.java
+(use:45-106, emptyContents:135-193) plus SimpleWaterloggedBlock/MobBucketItem carried
+over from the prior pass. No source edits needed this pass: every in-scope row is
+already fixed in bucket.rs and the one remaining row is outside this unit's file
+scope. No cargo/git run (forbidden). rustfmt --edition 2024 on bucket.rs exit 0.
+
+- Row 1 (waterlogged pickup can_survive, bucket.rs:309-318): VERIFIED, already fixed.
+  Dried-state can_place_at + break_block with drops = SimpleWaterloggedBlock.pickupBlock
+  destroyBlock(pos, true).
+- Row 2 (sneak waterlogging, bucket.rs:423): VERIFIED, no change. BucketItem.emptyContents:146
+  gates canPlaceFluidInsideBlock on (!shiftKeyDown || hitResult == null); Pumpkin's
+  !is_sneaking matches. The doc's proposed removal would be wrong.
+- Row 3 (ultrawarm mob bucket, bucket.rs:541-598): VERIFIED, already fixed. Vanilla returns
+  at BucketItem:170 after the fire-extinguish sound with no playEmptySound, then use():64
+  still calls checkExtraContent so the mob spawns. Pumpkin skips the empty sound on
+  evaporation and still spawns; matches. Doc premise (no spawn) was wrong.
+- Row 4 (mayInteract / spawn protection): VERIFIED, already fixed. Vanilla use():60 gates on
+  level.mayInteract(player, pos); Pumpkin's is_in_spawn_protection gates at bucket.rs:661/750
+  match. mayUseItemAt is region/spectator-only, covered upstream/plugin events.
+- Row 5 (hardcoded Hand::Right, bucket.rs:823-841): FIXED since the prior Result. use_on_block
+  now derives the hand via item::hand_holding(player, stack.item) at bucket.rs:835 and threads
+  it into place_filled_bucket, so an off-hand bucket no longer edits the main-hand slot.
+  No trait signature change needed; helper lives at item/mod.rs:28 (outside this unit, read only).
+- Row 6 (event payload lacks face/stack): STILL OPEN, out of scope. PlayerBucketEmptyEvent /
+  PlayerBucketFillEvent (plugin/api/events/player/player_bucket.rs, not in this unit) carry only
+  player/block_pos/bucket/block_face. Adding Bukkit's BlockFace + ItemStack needs those structs
+  plus the WIT/SDK/runtime plugin API (additive WIT change). Cannot edit from this unit:
+  only the bucket.rs basename is permitted.
+- Row 7 (dispenser break_block drops, redstone/dispenser.rs:910-923): VERIFIED, no change.
+  Vanilla filled-bucket dispensing runs BucketItem.emptyContents -> destroyBlock(pos, true) at
+  BucketItem:177, so rolling loot for replaceable blocks is correct; SKIP_DROPS would break parity.
+
+No pure unit-test seam (all changes require a live World), so no test added.
+
+## Result (pass 3 re-verification, 2026-11-18)
+
+Continued after a server restart; no prior work repeated. Re-checked the one
+remaining STILL OPEN row (Row 6) end to end against the current code. No new
+source edits needed: the Row 6 fix was already present in bucket.rs / the core
+player_bucket.rs event at restart, and this pass verified the full chain.
+
+- Row 6 (event payload lacks face/stack): FIXED, previously landed. The core
+  `PlayerBucketEmptyEvent`/`PlayerBucketFillEvent`
+  (pumpkin-core/src/plugin/api/events/player/player_bucket.rs) now carry
+  `bucket: String` and `block_face: String`. bucket.rs builds them with
+  `block_face_name(hit.direction)` (empty/pickup, :658/:674) and
+  `block_face_name(direction)` (place, :769), passing the bucket registry key
+  (:673/:768). Both wasm hosts convert the fields into the WIT event data
+  (host-v0_1/src/events/player.rs:1086-1102/1117-1133, host-v0_2:1125-1141/
+  1155-1171), and the v0.1/v0.2 event.wit records already declare `bucket` and
+  `block-face`. A pure unit test `block_face_names_match_bukkit` (bucket.rs:918)
+  verifies the Bukkit face-name mapping for all six `BlockDirection` variants.
+  Vanilla/Bukkit `PlayerBucketEmptyEvent`/`PlayerBucketFillEvent` expose getFace()
+  and getItemStack(); the string forms are Pumpkin's equivalent representation.
+- Rows 1-5, 7: previously verified and fixed/unchanged in the Result sections
+  above; current code still matches (spawn-protection gates :661/:750, hand
+  derived via `hand_holding` :835, mob-bucket spawn preserved, SKIP_DROPS and
+  waterlogged pickup intact, dispenser left untouched). No re-verification run.
+
+Compile-pitfall re-check of in-scope files: `BlockDirection` has exactly the six
+variants the `block_face_name` match covers (exhaustive); `hand_holding` imported
+from `crate::item` with signature `(&Player, &Item) -> Hand`, and `stack.item` is
+`&'static Item` so the call type-checks; `assert_eq!` in the test uses `&str`
+(Debug ok); no new struct initializers, clones, or helper-in-trait issues; no
+`unwrap`/`expect`/`panic!`/`println!`/`todo!` in bucket.rs. No cargo/git run
+(forbidden for this worker).
+
+All seven rows are now addressed (fixed or verified parity). No open rows remain
+in this unit's scope. Files changed this pass: none (fix already present at
+restart); unit doc updated with this Result.
+

@@ -127,3 +127,25 @@ All three gaps are therefore invalid for the target version and no code change w
   change was made.
 
 No `.rs` file was touched, so no rustfmt run and no unit test added (no code seam changed).
+
+
+## Result (re-verification, this pass)
+
+Independently re-checked all three gaps against the shipped decompiled vanilla
+(.vendor/vanilla-decompiled/net/minecraft/) and the current Pumpkin source. Every
+gap remains NO GAP; no code was changed.
+
+- Gap 1: Dolphin.java:74 is "public class Dolphin extends AgeableWaterCreature",
+  with BABY_SCALE (:81), getBreedOffspring (:108) and finalizeSpawn (:98).
+  Pumpkin impl AgeableMob (dolphin.rs:148), impl AgeableWaterCreature (:158),
+  0.1 baby chance (:153), finalize_ageable_spawn (:325) and the
+  DATA_BABY_ID/AGE_LOCKED writes (:328-340) match. Removing them as proposed
+  would break parity; keep as is.
+- Gap 2: Dolphin.mobInteract (:321-339) gates on ItemTags.FISHES (:323);
+  this vanilla has no dolphin_food tag. Pumpkin dolphin.rs:414 uses
+  MINECRAFT_FISHES with the same age-up/else-GotFish branch. Not data-blocked.
+- Gap 3: decompiled ai/goal/DolphinJumpGoal.java:56-59 is
+  (!(yd*yd<0.03) || xRot==0 || !(abs(xRot)<10) || !isInWater()) && !onGround().
+  Pumpkin goals.rs:427-435 is its exact boolean equivalent. Keep as is.
+
+No .rs file was touched, so no rustfmt run and no unit test added (no code seam changed).

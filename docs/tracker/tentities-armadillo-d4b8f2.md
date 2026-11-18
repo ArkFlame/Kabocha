@@ -67,3 +67,63 @@ All six STILL OPEN rows verified against decompiled vanilla (`.vendor/vanilla-de
 Additional finding during verification: the doc's "Not gaps" claim that `CustomSound::hurt_sound` matches `getHurtSound` was wrong. Vanilla `getHurtSound` (line 358) gates on `isScared()`, not `shouldHideInShell()`. Changed `hurt_sound()` to `self.is_scared()`; `None` still falls back to the normal hurt sound.
 
 `rustfmt --edition 2024` ran successfully on `armadillo.rs`. No cargo/git run per unit rules; compilation left to the orchestrator.
+
+
+## Result (re-audit 2026-11-18)
+
+Re-verified all six STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`.
+No generated data, WIT or cross-crate changes were needed; only `armadillo.rs` was edited
+(`ageable.rs` was not touched).
+
+- Row 1 CONFIRMED: `Armadillo.hurtServer` (Armadillo.java:280-286) gates on `isScared()` and uses
+  `(damage - 1.0F) / 2.0F` with no clamp; `modify_incoming_damage` matches.
+- Row 2 CONFIRMED (cadence): `SensorType.ARMADILLO_SCARE_DETECTED = new MobSensor<>(5,
+  Armadillo::isScaredBy, Armadillo::canStayRolledUp, DANGER_DETECTED_RECENTLY, 80)`
+  (SensorType.java:26-28), so 5-tick scans are correct. Residual (MVP, unchanged): the scan stays
+  `Idle`-only and does not refresh the 80-tick counter while a threat persists, unlike the vanilla
+  sensor; deferred as in the prior Result.
+- Row 3 CONFIRMED: `Armadillo.actuallyHurt` (Armadillo.java:290-305) matches `on_damage`, including
+  the `!isNoAi() && !isDeadOrDying()` guard, the 80-tick memory write, the `canStayRolledUp` gate,
+  and the panic-environment roll-out.
+- Row 4 FIXED: `Armadillo.isScaredBy` (Armadillo.java:238-245) has three acceptance clauses; Pumpkin
+  had only the undead and player clauses. Added the missing `this.getLastHurtByMob() == livingEntity`
+  clause by comparing the armadillo's `get_last_hurt_by_mob()` UUID to the candidate's `entity_uuid`.
+  Confirmed `EntityBase::is_passenger()` is `has_vehicle()` (entity/mod.rs:1126-1128) and the
+  spectator exclusion was already present.
+- Row 5 CONFIRMED: compile-time `const` assert ties `armadillo::BABY_ID` to
+  `ageable_mob::DATA_BABY_ID`.
+- Row 6 CONFIRMED: pure unit test binds ids 0..3 to idle/rolling/scared/unrolling with
+  `from_id`/`from_name` round-trips.
+
+No pure seam exists for `is_scared_by` (it needs a live world and entities), so no new unit test was
+added for Row 4. `rustfmt --edition 2024` ran successfully on `armadillo.rs`. Per unit rules no
+cargo/git was run; compilation is left to the orchestrator.
+
+
+## Result (re-audit 2026-11-18, second pass)
+
+Verified all six STILL OPEN rows against the decompiled vanilla source; no code changes were
+needed because the current `armadillo.rs` already matches vanilla in every row. `ageable.rs` was
+read only; no generated data, WIT or cross-crate changes were involved.
+
+- Row 1 CONFIRMED: `Armadillo.hurtServer` (Armadillo.java:280-286) gates on `isScared()` and uses
+  `(damage - 1.0F) / 2.0F` with no clamp; `modify_incoming_damage` (armadillo.rs:400-413) matches,
+  as does `hurt_sound` using `is_scared()` (getHurtSound, line 357-359).
+- Row 2 CONFIRMED: scan runs on `age % SCARE_SCAN_INTERVAL` with `SCARE_SCAN_INTERVAL = 5`
+  (armadillo.rs:471-488), matching the 5-tick `armadillo_scare_detected` sensor. The documented
+  residual - Idle-only scan that does not refresh the 80-tick memory while a threat persists -
+  stays deferred as MVP, as in both prior Results; it is outside the six rows.
+- Row 3 CONFIRMED: `actuallyHurt` (lines 290-305) matches `on_damage` (armadillo.rs:417-431):
+  `!isNoAi() && !isDeadOrDying()` guard, 80-tick memory write, `canStayRolledUp` gate, and the
+  panic-environment roll-out.
+- Row 4 CONFIRMED: `isScaredBy` (lines 238-245) three clauses all present in `is_scared_by`
+  (armadillo.rs:279-320), including the `getLastHurtByMob()` clause, spectator exclusion, and
+  sprinting-or-passenger (Pumpkin `has_vehicle()` == vanilla `isPassenger()`).
+- Row 5 CONFIRMED: compile-time `const` assert ties `armadillo::BABY_ID` to
+  `ageable_mob::DATA_BABY_ID` (armadillo.rs:545-549).
+- Row 6 CONFIRMED: state enum order/ids/names (Armadillo.java:383-407: idle/0, rolling/1,
+  scared/2, unrolling/3) and `shouldHideInShell` thresholds (>5, true, <26) exactly match the
+  pure unit test (armadillo.rs:555-580).
+
+No pure seam exists for `is_scared_by`, so no new unit test was added. No edits made this pass.
+Per unit rules no cargo/git was run; compilation is left to the orchestrator.

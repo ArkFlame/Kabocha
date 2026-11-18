@@ -161,6 +161,11 @@ pub fn try_spawn_mob<T: Mob + 'static>(
             position,
             entity_type,
         ));
+        // Vanilla `SpawnUtil.trySpawnMob` calls `mob.checkSpawnRules(level, spawnReason)`.
+        // For a `PathfinderMob` (e.g. Iron Golem) that is `getWalkTargetValue(blockPos) >= 0.0`.
+        if mob.get_walk_target_value(&mob.get_entity().block_pos.load()) < 0.0 {
+            continue;
+        }
         if !mob.check_spawn_obstruction(world) {
             continue;
         }

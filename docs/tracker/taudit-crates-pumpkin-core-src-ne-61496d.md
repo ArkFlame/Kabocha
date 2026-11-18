@@ -95,3 +95,43 @@ Still open:
   on Player in entity/player.rs and a SignatureUpdater in net/chat, both outside this unit.
 - A leading slash parsed as a command out of the chat packet - size S, but vanilla never does
   this and removing it needs chat_command.rs and the signed command packet, outside this unit.
+
+## Result (pass 2)
+
+Verified both remaining STILL OPEN rows against .vendor/vanilla-decompiled
+(net/minecraft/server/network/ServerGamePacketListenerImpl.java):
+
+- Leading slash parsed as a command out of the chat packet (S): FIXED. Vanilla
+  `handleChat(ServerboundChatPacket)` never treats a leading `/` as a command;
+  commands arrive via `ServerboundChatCommandPacket` /
+  `ServerboundChatCommandSignedPacket`, both already routed to
+  `handle_chat_command` in net/java/mod.rs. Removed the `strip_prefix('/')`
+  branch from `handle_chat_message` so chat-packet messages run the visibility
+  gate, validation and `PlayerChatEvent` and are broadcast as chat, matching
+  `tryHandleChat`.
+- Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN.
+  Needs chain state on `Player` (entity/player.rs) and a `SignatureUpdater` in
+  net/chat, both outside this unit (basenames chat_command.rs, chat_message.rs).
+
+No new unit test: the change only removes a branch in an async packet handler, so
+no pure seam exists. `rustfmt --edition 2024` run on chat_message.rs.
+
+## Result (pass 3)
+
+Verified the last STILL OPEN row against decompiled vanilla (mc-proof ref tree;
+`.vendor/vanilla-decompiled` is empty in this checkout). The four smaller rows
+were already fixed in passes 1-2 and need no further change.
+
+- Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN.
+  Verified `SignedMessageChain.java` (`Decoder#unpack` needs mutable `nextLink` and
+  `lastTimeStamp`), `PlayerChatMessage.updateSignature` (SHA256withRSA over
+  `[0,0,0,1]` + link + body) and `ServerGamePacketListenerImpl#getSignedMessage`.
+  Implementing full parity needs new persistent chain state (`nextLink` /
+  chain-broken flag and `lastTimeStamp`) on `Player`/`ChatSession` in
+  `entity/player.rs`, a `SignatureUpdater` in `net/chat`, and the real `session_id`
+  in the outgoing link in `world/mod.rs` — all outside this unit's two files,
+  so it cannot be completed here. `hasExpiredServer` (5 min) is only a warning and
+  does not change acceptance.
+
+No source files edited this pass; no new test (no safe pure seam inside the two
+allowed files for the out-of-unit chain state).

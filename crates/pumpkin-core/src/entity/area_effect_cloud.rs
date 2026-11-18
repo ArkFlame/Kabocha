@@ -136,7 +136,8 @@ impl AreaEffectCloudEntity {
         Arc::new(Self {
             entity,
             item_stack: Mutex::new(ItemStack::new(0, &pumpkin_data::item::Item::DRAGON_BREATH)),
-            // Vanilla DragonFireball.onHit uses INSTANT_DAMAGE amplifier 1 and leaves wait time at its 20-tick default.
+            // Vanilla DragonFireball.onHit uses INSTANT_DAMAGE amplifier 1, sets potion duration scale to 0.25,
+            // and leaves wait time at its 20-tick default.
             effects: Mutex::new(vec![(
                 &StatusEffect::INSTANT_DAMAGE,
                 0,
@@ -153,7 +154,7 @@ impl AreaEffectCloudEntity {
             radius_on_tick: Mutex::new(radius_per_tick),
             radius_on_use: Mutex::new(0.0),
             duration_on_use: Mutex::new(0),
-            potion_duration_scale: Mutex::new(1.0),
+            potion_duration_scale: Mutex::new(0.25),
             wait_time: Mutex::new(20),
             owner: EntityReference::new(owner),
         })
@@ -300,8 +301,13 @@ impl EntityBase for AreaEffectCloudEntity {
             );
         }
 
-        // Unverified: radius advances during the wait period (note: dragon breath
-        // ordering, decompiled `AreaEffectCloud.tick` not available in .vendor/).
+        if age < wait_time {
+            // Respect waiting/grace period
+            return;
+        }
+
+        // Vanilla `AreaEffectCloud.serverTick` grows the radius only inside its
+        // `if (!shouldWait)` block, so it stays at its initial value while waiting.
         {
             let mut radius = self
                 .radius
@@ -324,11 +330,6 @@ impl EntityBase for AreaEffectCloudEntity {
                 pumpkin_data::tracked_data::area_effect_cloud::RADIUS,
                 current_radius,
             );
-        }
-
-        if age < wait_time {
-            // Respect waiting/grace period
-            return;
         }
 
         // Tick down reapplication map

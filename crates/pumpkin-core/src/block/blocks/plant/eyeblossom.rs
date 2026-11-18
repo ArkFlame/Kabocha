@@ -4,7 +4,9 @@ use pumpkin_data::{
     Block, BlockId, BlockStateId,
     effect::StatusEffect,
     entity::EntityType,
+    game_event::GameEvent,
     sound::{Sound, SoundCategory},
+    tag::{self, Taggable},
 };
 use pumpkin_protocol::java::client::play::ParticleOptions;
 use pumpkin_util::{
@@ -92,7 +94,7 @@ impl BlockBehaviour for EyeblossomBlock {
         }
 
         if args.entity.get_entity().entity_type == &EntityType::BEE
-            && args.block == &Block::CLOSED_EYEBLOSSOM
+            && poisons_bees(args.block)
             && let Some(living_entity) = args.entity.get_living_entity()
             && !living_entity.has_effect(&StatusEffect::POISON)
         {
@@ -112,6 +114,12 @@ impl BlockBehaviour for EyeblossomBlock {
 
 impl PlantBlockBase for EyeblossomBlock {}
 
+/// Vanilla `EyeblossomBlock#entityInside` gates on `Bee.attractsBees(state)`, i.e. the
+/// `minecraft:bee_attractive` tag, which lists only the open eyeblossom.
+fn poisons_bees(block: &Block) -> bool {
+    block.has_tag(&tag::Block::MINECRAFT_BEE_ATTRACTIVE)
+}
+
 pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &BlockPos) -> bool {
     let is_open = current_block == &Block::OPEN_EYEBLOSSOM;
     let should_be_open = world.eyeblossom_open(pos).unwrap_or(is_open);
@@ -127,6 +135,7 @@ pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &Block
     };
 
     world.set_block_state(pos, new_block.default_state.id, BlockFlags::NOTIFY_ALL);
+    world.emit_game_event(GameEvent::BlockChange.name(), pos.to_centered_f64());
 
     let mut rng = world
         .block_random
@@ -213,7 +222,10 @@ mod tests {
     use pumpkin_protocol::java::client::play::ParticleOptions;
     use pumpkin_util::random::xoroshiro128::Xoroshiro;
 
-    use super::{Block, BlockPos, CLOSED_PARTICLE_COLOR, OPEN_PARTICLE_COLOR, transform_particle};
+    use super::{
+        Block, BlockPos, CLOSED_PARTICLE_COLOR, OPEN_PARTICLE_COLOR, poisons_bees,
+        transform_particle,
+    };
 
     /// Vanilla bounds: `lifetime` is `0.5 + random()`, so it lies in `[0.5, 1.5)`,
     /// and the velocity components in `[-0.5, 0.5)` and `[1.0, 2.0)`.
@@ -246,6 +258,14 @@ mod tests {
                 offset.y
             );
         }
+    }
+
+    /// Vanilla gates the bee poison on `Bee.attractsBees`, i.e. the `minecraft:bee_attractive`
+    /// tag, which holds the open eyeblossom and not the closed one.
+    #[test]
+    fn only_the_open_eyeblossom_poisons_bees() {
+        assert!(poisons_bees(&Block::OPEN_EYEBLOSSOM));
+        assert!(!poisons_bees(&Block::CLOSED_EYEBLOSSOM));
     }
 
     /// The color identifies the state the flower turned into, not the one it left.

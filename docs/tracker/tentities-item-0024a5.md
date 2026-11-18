@@ -144,3 +144,50 @@ in a command executor.
 
 `rustfmt --edition 2024 crates/pumpkin-core/src/command/commands/give.rs` was NOT run (no shell or
 cargo access in this worker; the edit is a single added line inside an existing block).
+
+
+## Result (give.rs recheck 2026-11-18)
+
+Re-verified the two rows left STILL OPEN by the previous give.rs pass against
+.vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java and
+server/commands/GiveCommand.java. No .rs source change was possible in this unit.
+
+- Age-based thrower gate (item.rs:826-838): STILL OPEN, out of unit. Decompiled
+  playerTouch (ItemEntity.java:490) gates only on
+  `pickupDelay == 0 && (target == null || target.equals(player.getUUID()))`;
+  the thrower/owner reference is not a pickup gate, so the age <= 60 block in
+  on_player_collision is a real divergence. Removal lives in item.rs, not give.rs.
+- Fake item entity on the `added && copyToDrop.isEmpty()` branch: STILL OPEN,
+  out of unit and client-only. Vanilla giveItem (GiveCommand.java:82-100) spawns
+  a makeFakeItem() entity (setNeverPickUp + age = despawnRate - 1,
+  ItemEntity.java:585), plays ITEM_PICKUP and broadcasts container changes.
+  Pumpkin has no make_fake_item helper / never_pickup setter in item.rs; wiring
+  it needs item.rs changes. Per project rule client-only effects do not block,
+  so this is left for an item.rs unit.
+
+In-scope fix from the previous pass is present and correct: give.rs:68-69 calls
+set_pickup_delay(0) before set_target, matching vanilla setNoPickUpDelay +
+setTarget (GiveCommand.java:104-105). No new give.rs change needed.
+
+No pure unit test: both remaining rows are item.rs-only seams; a command
+executor has no testable seam here. No rustfmt needed (no .rs change).
+
+## Result (give.rs recheck 2026-11-18, second pass)
+
+Re-verified the in-scope fix and re-confirmed both remaining STILL OPEN rows against
+.vendor/vanilla-decompiled/net/minecraft/server/commands/GiveCommand.java (73-118).
+
+- In-scope fix present and correct: give.rs:68-69 calls `set_pickup_delay(0)` then
+  `set_target(target.gameprofile.id)` before dropping, matching vanilla's
+  `drop.setNoPickUpDelay(); drop.setTarget(player.getUUID())` (GiveCommand.java:104-105)
+  in the `else` (did-not-all-fit) branch. No change needed.
+- Age-based thrower gate (item.rs:826-838): STILL OPEN, out of unit. Removal of the
+  `item_age <= 60` block in `on_player_collision` lives in item.rs, not give.rs.
+- Fake item entity on the `added && copyToDrop.isEmpty()` branch: STILL OPEN, out of
+  unit and client-only. Vanilla spawns a `makeFakeItem()` (GiveCommand.java:83-87). item.rs
+  exposes no public `set_never_pickup`/`make_fake_item` helper (`never_pickup` is a private
+  AtomicBool), so this cannot be wired from give.rs alone; it needs item.rs changes. Per
+  project rule client-only effects do not block.
+
+No .rs file was modified this pass, so no new pure unit test or rustfmt run was needed
+(the only in-scope change is already present from the earlier pass).

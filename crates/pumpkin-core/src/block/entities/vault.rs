@@ -13,6 +13,8 @@ pub struct VaultBlockEntity {
     pub shared_data: Mutex<Option<NbtCompound>>,
     /// Insertion-ordered, capped at [`Self::MAX_REWARDED_PLAYERS`] like vanilla.
     pub rewarded_players: Mutex<Vec<Uuid>>,
+    /// Loot awaiting ejection, popped from the back like vanilla `VaultServerData#itemsToEject`.
+    pub items_to_eject: Mutex<Vec<ItemStack>>,
 }
 
 impl VaultBlockEntity {
@@ -69,6 +71,35 @@ fn rewarded_players_tag(rewarded: &[Uuid]) -> NbtTag {
     )
 }
 
+/// Vanilla `VaultServerData#itemsToEject` is a list of item-stack compounds under `server_data`.
+fn read_items_to_eject(server_data: &NbtCompound) -> Vec<ItemStack> {
+    let mut items = Vec::new();
+    let Some(list) = server_data.get_list("items_to_eject") else {
+        return items;
+    };
+    for tag in list {
+        if let NbtTag::Compound(compound) = tag
+            && let Some(stack) = ItemStack::read_item_stack(compound)
+        {
+            items.push(stack);
+        }
+    }
+    items
+}
+
+fn items_to_eject_tag(items: &[ItemStack]) -> NbtTag {
+    NbtTag::List(
+        items
+            .iter()
+            .map(|stack| {
+                let mut compound = NbtCompound::new();
+                stack.write_item_stack(&mut compound);
+                NbtTag::Compound(compound)
+            })
+            .collect(),
+    )
+}
+
 impl BlockEntity for VaultBlockEntity {
     fn resource_location(&self) -> &'static str {
         Self::ID
@@ -89,12 +120,19 @@ impl BlockEntity for VaultBlockEntity {
                 .map(read_rewarded_players)
                 .unwrap_or_default(),
         );
+        let items_to_eject = Mutex::new(
+            server_data
+                .as_ref()
+                .map(read_items_to_eject)
+                .unwrap_or_default(),
+        );
         Self {
             position,
             config: Mutex::new(nbt.get_compound("config").cloned()),
             server_data: Mutex::new(server_data),
             shared_data: Mutex::new(nbt.get_compound("shared_data").cloned()),
             rewarded_players,
+            items_to_eject,
         }
     }
 
@@ -114,9 +152,19 @@ impl BlockEntity for VaultBlockEntity {
             .lock()
             .map(|players| players.clone())
             .unwrap_or_default();
-        if !rewarded.is_empty() {
+        let items = self
+            .items_to_eject
+            .lock()
+            .map(|stacks| stacks.clone())
+            .unwrap_or_default();
+        if !rewarded.is_empty() || !items.is_empty() {
             let mut data = server_data.take().unwrap_or_default();
-            data.put("rewarded_players", rewarded_players_tag(&rewarded));
+            if !rewarded.is_empty() {
+                data.put("rewarded_players", rewarded_players_tag(&rewarded));
+            }
+            if !items.is_empty() {
+                data.put("items_to_eject", items_to_eject_tag(&items));
+            }
             server_data = Some(data);
         }
         if let Some(data) = server_data {
@@ -155,6 +203,7 @@ impl VaultBlockEntity {
             server_data: Mutex::new(None),
             shared_data: Mutex::new(None),
             rewarded_players: Mutex::new(Vec::new()),
+            items_to_eject: Mutex::new(Vec::new()),
         }
     }
 
@@ -173,6 +222,33 @@ impl VaultBlockEntity {
             stack.write_item_stack(&mut item_compound);
             data.put_compound("display_item", item_compound);
         }
+    }
+
+    /// Replaces the loot awaiting ejection (vanilla `VaultServerData#setItemsToEject`).
+    pub fn set_items_to_eject(&self, items: Vec<ItemStack>) {
+        let mut stored = self
+            .items_to_eject
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *stored = items;
+    }
+
+    /// Removes and returns the next stack to eject (vanilla `#popNextItemToEject`, popping the back).
+    pub fn pop_next_item_to_eject(&self) -> Option<ItemStack> {
+        self.items_to_eject
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .pop()
+    }
+
+    /// The stack currently shown inside the vault (vanilla `#getNextItemToEject`).
+    pub fn next_item_to_eject(&self) -> ItemStack {
+        self.items_to_eject
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .last()
+            .cloned()
+            .unwrap_or_else(|| (*ItemStack::EMPTY).clone())
     }
 
     pub fn has_rewarded(&self, player_id: &Uuid) -> bool {

@@ -528,4 +528,34 @@ mod tests {
         assert!(water.has_fluid_at(&Fluid::FLOWING_WATER, bubble));
         assert!(!water.has_fluid_at(&Fluid::FLOWING_LAVA, bubble));
     }
+
+    #[test]
+    fn dry_waterloggable_slab_is_not_a_source_but_a_waterlogged_one_is() {
+        // `pathfinder::get_spread` skips side targets that already hold a source. A dry
+        // waterloggable slab must not be reported as a source, or water could never
+        // waterlog it; once waterlogged it must be recognised as water.
+        let water = FlowingWater;
+        let slab = &Block::OAK_SLAB;
+        let dry = slab.default_state.id;
+        assert!(
+            water
+                .get_effective_props(&Fluid::FLOWING_WATER, dry)
+                .is_none()
+        );
+
+        let wet = slab.set_waterlogged(dry, true);
+        assert!(wet.is_some());
+        if let Some(wet) = wet {
+            assert!(
+                water
+                    .get_effective_props(&Fluid::FLOWING_WATER, wet)
+                    .is_some()
+            );
+            assert!(
+                water
+                    .get_effective_props(&Fluid::FLOWING_LAVA, wet)
+                    .is_none()
+            );
+        }
+    }
 }

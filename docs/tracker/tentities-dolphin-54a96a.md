@@ -111,10 +111,10 @@ Trigger for the re-review: `0505dd44e` "fix(entity): give all living entities an
 
 
 ## Gap status
-- 1 dolphin modelled as ageable (M, shared AgeableWaterCreature refactor): STILL OPEN (size M, not in S scope)
-- 2 dolphin_food tag: BLOCKED-DATA (tag not extracted into assets/)
-- 3 DolphinJumpGoal clause grouping: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 PlayWithItemsGoal split priorities 7/8: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 1 dolphin modelled as ageable (M): CLOSED (NO GAP - vanilla `Dolphin extends AgeableWaterCreature`; see re-verify Result)
+- 2 dolphin_food tag: CLOSED (NO GAP - vanilla uses ItemTags.FISHES, not dolphin_food; see re-verify Result)
+- 3 DolphinJumpGoal clause grouping: CLOSED (NO GAP - OR grouping confirmed by decompile; see re-verify Result)
+- 4 PlayWithItemsGoal split priorities 7/8: CLOSED (NO GAP - two goals confirmed by decompile; see re-verify Result)
 
 
 ## Result
@@ -146,3 +146,58 @@ verified smallest-first; every one resolves to NO GAP, so no source file was cha
   and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
 - Files touched: none (docs only). rustfmt not applicable. No unit test added because there is no
   code seam to guard.
+
+
+## Result (re-verify 54a96a)
+
+Independent re-check of every STILL OPEN row against the decompiled tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. All four resolve to NO GAP, so no
+source file (dolphin.rs / squid.rs) was changed and no test seam exists.
+
+- Row 1 (ageable, M): NO GAP. `Dolphin.java:74` declares
+  `public class Dolphin extends AgeableWaterCreature`, and `mobInteract` calls
+  `canAgeUp()` / `ageUp()` at `:328-330`. Pumpkin's `impl AgeableMob`
+  (`dolphin.rs:148`) and `impl AgeableWaterCreature` (`:158`) match. The prior
+  "extends WaterAnimal / no breeding" premise was false for this MC version;
+  do NOT apply the de-ageable refactor or the `entity/type.rs` edit.
+- Row 2 (FISHES vs dolphin_food, S): NO GAP. `Dolphin.java:323` gates on
+  `itemStack.is(ItemTags.FISHES)`; Pumpkin uses
+  `item.has_tag(&tag::Item::MINECRAFT_FISHES)` (`dolphin.rs:414`), which matches.
+  Vanilla does not check `dolphin_food` here; do not hardcode item ids.
+- Row 3 (DolphinJumpGoal grouping, S): NO GAP. `DolphinJumpGoal.java:56-59` is
+  `(!(yd*yd < 0.03) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`,
+  equivalent to Pumpkin's `>= 0.03 || pitch==0 || abs(pitch)>=10 || !is_in_water()`
+  AND `!on_ground` (`goals.rs:427-435`). Keep the current condition.
+- Row 4 (PlayWithItemsGoal split 7/8, S): NO GAP. `Dolphin.java:176-177` registers
+  `MoveToItemGoal` at 7 with cooldown only in `stop()` (`:578-581`) and
+  `PlayWithItemsGoal` at 8 dropping in both `stop()` and `tick()` (`:613-620`).
+  Pumpkin's split matches; the proposed merge would diverge from vanilla.
+- The Gap status section above is superseded: rows 1-4 are CLOSED (NO GAP).
+- Verification source: `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java`
+  and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
+- Files touched: doc only. rustfmt not applicable. No unit test added: no code seam to guard.
+
+
+## Result (CODER re-verify)
+
+No row is marked STILL OPEN: the Gap status section lists all four as CLOSED, and the only
+"STILL OPEN" string is prose inside the prior Result. Independently re-checked all four against
+the decompiled tree, smallest-first; every one is NO GAP, and current Pumpkin source has not
+drifted. No source file (dolphin.rs / squid.rs) was changed.
+
+- Row 1 (ageable, M): NO GAP. `Dolphin.java:74` is `public class Dolphin extends AgeableWaterCreature`;
+  `mobInteract` calls `canAgeUp()` / `ageUp()` at `:328-330`. Pumpkin keeps `impl AgeableMob`
+  (`dolphin.rs:148`), `impl AgeableWaterCreature` (`:158`), `finalize_ageable_spawn` (`:325`),
+  ageable tracker writes (`:331-334`) and the age-up branch (`:417-418`). Matches; do NOT
+  de-ageable or touch `entity/type.rs`.
+- Row 2 (FISHES vs dolphin_food, S): NO GAP. `Dolphin.java:323` is `itemStack.is(ItemTags.FISHES)`;
+  Pumpkin uses `item.has_tag(&tag::Item::MINECRAFT_FISHES)` (`dolphin.rs:414`). No `dolphin_food`
+  check in vanilla; do not hardcode ids.
+- Row 3 (DolphinJumpGoal grouping, S): NO GAP. `DolphinJumpGoal.java:56-59` is exactly
+  `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`,
+  the OR grouping Pumpkin uses. Keep the current `should_continue`.
+- Row 4 (PlayWithItemsGoal split 7/8, S): NO GAP. `Dolphin.java:176-177` registers
+  `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two goals; cooldown only in
+  `MoveToItemGoal.stop()` (`:578-581`), `PlayWithItemsGoal` drops in both `stop()` and `tick()`
+  (`:613-620`). Pumpkin's split matches; the proposed merge would diverge.
+- Files touched: doc only. rustfmt not applicable. No unit test added: no code seam to guard.

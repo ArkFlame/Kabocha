@@ -47,3 +47,56 @@ neither could be fixed within `ai/sensing.rs` (only a line-of-sight cache) or
   outside this unit. Piglins/hoglins currently use goal-based AI with no brain sensors.
 
 No source files changed; no rustfmt needed.
+
+## Result (2026-11-18, re-verified against .vendor/vanilla-decompiled, source fixed)
+
+Re-read `HoglinSpecificSensor.java` and `MemoryModuleType.java` and compared with the
+current `hoglin_specific.rs`, `hoglin.rs`, `sensing.rs` and `types.rs`.
+
+Verified the hoglin half of both STILL OPEN rows is already wired: the counts
+(`VISIBLE_ADULT_PIGLIN_COUNT`, `VISIBLE_ADULT_HOGLIN_COUNT`) and the
+`NEAREST_VISIBLE_ADULT_PIGLIN`/`NEAREST_VISIBLE_ADULT_HOGLINS` lists are written by
+`hoglin_specific.rs` and read by `hoglin.rs:43` (`piglins_outnumber_hoglins`). The stale
+`// TODO` at `types.rs:120` is already gone. No change needed in `types.rs` (all 115
+entries match vanilla) or `sensing.rs` (line-of-sight cache only).
+
+Fixed one real parity gap inside this unit's own file: vanilla
+`HoglinSpecificSensor.requires()` lists `NEAREST_REPELLENT` (6 memories) and `doTick`
+sets it from `findBlocksInBoxByManhattanDistance(pos, 8, 4)` filtered by
+`BlockTags.HOGLIN_REPELLENTS`. `hoglin_specific.rs` omitted it. Added
+`types::NEAREST_REPELLENT` to `REQUIRES`, added a `find_nearest_repellent` helper with
+the same 8/4 box and Manhattan tie-break, and set the memory each scan using
+`Block::MINECRAFT_HOGLIN_REPELLENTS`. Added one pure unit test
+`nearest_repellent_prefers_smaller_manhattan_distance`.
+
+Remaining open (both still need files outside this unit, so left open):
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN only for the
+  piglin side; needs `PiglinSpecificSensor` writes and the `PiglinAi` retreat call site,
+  both outside this unit.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS (L): STILL OPEN; needs the
+  `PiglinSpecificSensor` brain sensor (outside this unit). The hoglin memories are done.
+
+## Result (re-verified 2026-11-18 against .vendor/vanilla-decompiled)
+
+The decompiled tree is now present at `.vendor/vanilla-decompiled/net/minecraft/`.
+Verified `world/entity/ai/memory/MemoryModuleType.java`: 115 registrations in the
+same order as `types.rs` (`DUMMY`=0 through `BREEZE_LEAVING_WATER`=114); no
+`IS_TEMPTED`; `NEARBY_ADULT_PIGLINS`, `NEAREST_VISIBLE_ADULT_*`,
+`VISIBLE_ADULT_PIGLIN_COUNT`/`VISIBLE_ADULT_HOGLIN_COUNT` and
+`NEAREST_VISIBLE_ZOMBIFIED` are all registered without a codec, matching the
+`None` entries in `types.rs`. Both declaration files in this unit are already
+correct; the two STILL OPEN rows need write/read sites that live in other files.
+
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN.
+  Vanilla writes both in `PiglinSpecificSensor.java:107-108` and
+  `HoglinSpecificSensor.java:56-57`, and reads them in the `PiglinAi`/`HoglinAi`
+  retreat logic. The hoglin write now exists in `brain/sensing/hoglin_specific.rs`
+  (outside this unit); the piglin write and both retreat call sites are also
+  outside this unit's two files. No seam exists in `types.rs` or `ai/sensing.rs`.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS (L): STILL OPEN.
+  Written only by `PiglinSpecificSensor.java:105-106` in `brain/sensing/` (outside
+  this unit); `NEAREST_VISIBLE_ADULT_HOGLINS`/`NEAREST_VISIBLE_ADULT_PIGLIN` are
+  now written by `brain/sensing/hoglin_specific.rs`. The piglin species sensor is
+  absent and lives outside this unit; `ai/sensing.rs` is only a line-of-sight cache.
+
+No source files changed; no rustfmt needed.

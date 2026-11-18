@@ -193,10 +193,25 @@ fn bubble_column_velocity(
     )
 }
 
+/// Whether the block above a bubble column is open: no collision shape and no fluid.
+///
+/// Vanilla `BubbleColumnBlock.entityInside` uses this to pick the surface push, so a water plant
+/// or torch above still counts as a lid.
+const fn is_open_above(has_collision_shape: bool, fluid_is_empty: bool) -> bool {
+    !has_collision_shape && fluid_is_empty
+}
+
 /// Pushes an entity in a bubble column. One at the top of the column gets the stronger push.
 pub fn entity_inside(world: &World, pos: &BlockPos, state: BlockStateId, entity: &dyn EntityBase) {
     let drag_down = kind_from_state(state) == BubbleColumnKind::Downward;
-    if world.get_block(&pos.up()) == &Block::AIR {
+    let above = pos.up();
+    let above_state = world.get_block_state(&above);
+    let (_, above_fluid) = world.get_fluid_and_fluid_state(&above);
+    let open_above = is_open_above(
+        above_state.get_block_collision_shapes().next().is_some(),
+        above_fluid.is_empty,
+    );
+    if open_above {
         entity.on_above_bubble_column(drag_down, pos);
     } else {
         entity.on_inside_bubble_column(drag_down);
@@ -430,6 +445,15 @@ mod tests {
             ReconcileAction::RestoreWater
         );
     }
+    #[test]
+    fn open_above_requires_no_collision_and_no_fluid() {
+        assert!(is_open_above(false, true));
+        // Fluid above keeps the entity on the inside branch while it is still submerged.
+        assert!(!is_open_above(false, false));
+        // A torch or plant above blocks the surface push.
+        assert!(!is_open_above(true, true));
+    }
+
     #[test]
     fn downward_push_cap_depends_on_surface() {
         // Entity.handleOnAboveBubbleColumn clamps a downward push at -0.9; the

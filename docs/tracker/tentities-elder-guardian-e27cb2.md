@@ -21,8 +21,56 @@ No decompiled vanilla tree vendored here; references cite `net.minecraft.world.e
 5. **Guardian flop sound** (S). No `CustomSound`/`Mob` hook for `getFlopSound` (`ELDER_GUARDIAN_FLOP`); vanilla plays it when the guardian flops outside water. Fix: add a flop hook (trait change touches every impl) or leave as client audio.
 6. **Fluid push** (S, unverified). Vanilla `Guardian#isPushedByFluid` -> confirm against a decompiled source before adding `mob_is_pushed_by_fluids() -> false`.
 
-## Gap status
-- 1 guardian beam attack (L): STILL OPEN (size L)
-- 3 restriction goal priority 5 (M, unverified): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 6 fluid push (S, unverified): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2, 4, 5: STILL OPEN (unverified: no .vendor decompile in h6; not changed) (not individually re-checked in this sweep)
+## Gap status (see ## Result below for the current outcome)
+- 1 beam attack, 2 move control/travel, 3 restriction goal, 4 effect gating: VERIFIED - already implemented in guardian.rs / elder_guardian.rs and match decompiled vanilla.
+- 5 flop sound: LEFT OPEN - client-side only; no server action, trait change out of scope.
+- 6 fluid push: VERIFIED - vanilla has no override; Pumpkin default true matches.
+
+## Result (2026-11-18, decompiled vanilla at .vendor/vanilla-decompiled)
+
+All actionable rows are already implemented in the two allowed source files and match vanilla
+`net.minecraft.world.entity.monster.Guardian` / `ElderGuardian` (1.21.x). Verified with direct reads
+of `Guardian.java`, `ElderGuardian.java` and `MobEffectUtil.java`; no source changes were required.
+
+- Row 1 - beam attack: VERIFIED (already implemented). `GuardianAttackGoal` in `guardian.rs`
+  registers at priority 3 (vanilla 4), charges `attack_time` from -10, syncs `DATA_ID_ATTACK_TARGET`
+  at tick 0, broadcasts `GUARDIAN_ATTACK_SOUND` when not silent, stops on line-of-sight loss, and at
+  `getAttackDuration()` (80 guardian / 60 elder) deals `indirectMagic(this, this)` with the
+  1.0 +2 Hard +2 elder damage and calls `do_hurt_target` for the melee swing. `stop()` clears the
+  synced target and the mob target. Matches `Guardian.GuardianAttackGoal` lines 347-429 and
+  `ElderGuardian.getAttackDuration()`.
+
+- Row 2 - move control / travel: VERIFIED (already implemented). `GuardianMoveControl` in
+  `guardian.rs` lerps speed 0.125 toward `speedModifier * MOVEMENT_SPEED` with a 90 degree yaw
+  cap (`MoveControl::MAX_TURN == 90.0`), applies the vanilla `sin(t*0.5)*0.05` / `sin(t*0.75)*0.05`
+  wave push and lerps the look target 0.125 with the no-target snap. `travel_in_water` in both
+  files uses 0.1 speed, 0.9 drag and -0.005 idle sink with no target. Matches `Guardian.java`
+  lines 338-345 and 444-489. No water-only gate is needed because Pumpkin only calls this while
+  in water, matching vanilla's `travelInWater` dispatch.
+
+- Row 3 - restriction goal: VERIFIED (already implemented). Both `new()` functions register
+  `MoveTowardsRestrictionGoal::new(1.0)` at priority 5 and `custom_server_ai_step` sets home
+  to `block_pos` radius 16 when absent. Vanilla registers `MoveTowardsRestrictionGoal(this, 1.0)`
+  at priority 5 (`Guardian.java:74,77`) and `ElderGuardian.java:76-78` sets the same home.
+
+- Row 4 - effect application gating: VERIFIED (already implemented). `should_apply_fatigue` in
+  `elder_guardian.rs` skips a player with amplifier >= 2 and duration >= 1200; the game event is
+  sent only to players that pass the gate, and creative/spectator players are excluded. Matches
+  `MobEffectUtil.addEffectToPlayersAround(..., 1200)` (`endsWithin(1199)` == `duration <= 1199`,
+  i.e. `duration < 1200`) and `ElderGuardian.java:67-74`. The event amplitude is
+  `isSilent() ? 0.0 : 1.0`, matching `ClientboundGameEventPacket` construction in vanilla; the
+  earlier note claiming a random `[0.75, 1.0)` amplitude was wrong. Existing unit test
+  `fatigue_application_matches_vanilla_display_limit` covers the 1199/1200 boundary.
+
+- Row 5 - flop sound: LEFT OPEN (no server-side fix). Vanilla `Guardian.aiStep` plays
+  `getFlopSound()` only inside `level().isClientSide()` (local sound from client animation state),
+  so a dedicated Pumpkin server sends nothing; the vanilla client plays the sound itself. Adding a
+  `CustomSound` flop hook would require a trait change touching every Mob impl (outside this unit)
+  for no observable server behaviour.
+
+- Row 6 - fluid push: VERIFIED (no change needed). Neither `Guardian.java` nor `ElderGuardian.java`
+  overrides `isPushedByFluid`, so vanilla uses the default `true`; Pumpkin's
+  `mob_is_pushed_by_fluids()` default is also `true`. Do not add a `false` override.
+
+Existing pure unit tests already cover the seams (beam damage, charge duration, thorns tag,
+fatigue boundary, move-control look lerp), so no new test was added.

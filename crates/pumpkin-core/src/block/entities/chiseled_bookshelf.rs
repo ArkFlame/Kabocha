@@ -400,11 +400,40 @@ mod tests {
         let removed = shelf.remove_book(0, 1);
         assert_eq!(removed.item_count, 1);
         assert!(!shelf.has_book(0));
+
+        // Removing again from the now-empty slot stays empty (vanilla PASS).
+        assert!(shelf.remove_book(0, 1).is_empty());
+        assert!(!shelf.has_book(0));
     }
 
     #[test]
     fn has_book_is_false_for_out_of_range_slot() {
         let shelf = ChiseledBookshelfBlockEntity::new(BlockPos::new(0, 64, 0));
         assert!(!shelf.has_book(ChiseledBookshelfBlockEntity::INVENTORY_SIZE));
+    }
+
+    #[test]
+    fn set_stack_and_hopper_validity_follow_bookshelf_rules() {
+        let shelf = ChiseledBookshelfBlockEntity::new(BlockPos::new(0, 64, 0));
+        let book = ItemStack::new(1, &Item::BOOK);
+
+        // Only bookshelf-books may enter an empty, in-range slot (vanilla setStack tag gate).
+        assert!(shelf.is_valid_slot_for(0, &book));
+        assert!(!shelf.is_valid_slot_for(0, &ItemStack::new(1, &Item::STICK)));
+        assert!(!shelf.is_valid_slot_for(
+            ChiseledBookshelfBlockEntity::INVENTORY_SIZE,
+            &book
+        ));
+
+        shelf.set_stack(0, book.clone());
+        assert!(shelf.has_book(0));
+        assert_eq!(shelf.get_stack(0).item.id, book.item.id);
+        // An occupied slot is no longer a valid hopper target.
+        assert!(!shelf.is_valid_slot_for(0, &book));
+
+        // setStack(EMPTY) clears the slot, matching vanilla's empty-stack removal.
+        shelf.set_stack(0, ItemStack::EMPTY);
+        assert!(!shelf.has_book(0));
+        assert!(shelf.is_valid_slot_for(0, &book));
     }
 }

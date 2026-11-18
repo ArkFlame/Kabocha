@@ -30,11 +30,11 @@ Compared against vanilla BoatItem (use/clip/entity check), AbstractBoat (interac
 
 ## Result
 
-Verified both STILL OPEN rows against decompiled vanilla (AbstractBoat.java getPaddleSound/tick, ServerGamePacketListenerImpl.handlePaddleBoat, Boat.java getGroundFriction) and the matching Pumpkin code.
+Re-verified both STILL OPEN rows against decompiled vanilla and the current Pumpkin code.
 
 | # | Result | One-line reason |
 |---|---|---|
-| 1 | STILL OPEN | Paddle/land sound is emitted from AbstractBoat.tick via getPaddleSound(); the fix belongs in entity/vehicle/boat.rs and boat/block_effects.rs, which are outside this unit's editable files (paddle_boat.rs, spawn_egg.rs). paddle_boat.rs only mirrors vanilla handlePaddleBoat (setPaddleState) and needs no change. |
-| 2 | STILL OPEN here (already fixed elsewhere) | Vanilla returns 0.0 when no supporting block has collision; boat/physics.rs already has the average_ground_friction count==0 guard + unit test (lines 257-274), added by another worker, but that file is outside this unit's editable files so no change was made here. |
+| 1 | FIXED elsewhere (outside this unit) | `ServerGamePacketListenerImpl.handlePaddleBoat` only calls `setPaddleState` when `getControlledVehicle()` returns the boat (`vehicle.getControllingPassenger() == player`), which paddle_boat.rs mirrors exactly; the missing paddle/land sound fix landed in boat.rs (`play_paddle_sounds`), outside this unit's editable files. |
+| 2 | FIXED elsewhere (outside this unit) | Vanilla `Boat#getGroundFriction` returns 0.0 when no supporting block has collision; boat/physics.rs now has the `average_ground_friction` count==0 guard + unit test, outside this unit's editable files. |
 
-No source files changed: both rows require files outside this unit, and the two in-scope files (paddle_boat.rs, spawn_egg.rs) already match vanilla per the audit's Checked/no change notes. No .rs file touched, so rustfmt was not needed.
+No source files changed: both rows are already resolved in files outside this unit, and the two in-scope files (paddle_boat.rs, spawn_egg.rs) match vanilla per handlePaddleBoat / getControlledVehicle verification and the audit's Checked/no-change notes. No .rs file touched, so rustfmt was not needed.

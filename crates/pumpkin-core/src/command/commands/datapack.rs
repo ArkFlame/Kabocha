@@ -316,14 +316,37 @@ impl CommandExecutor for DatapackDisableExecutor {
     }
 }
 
+/// Matches vanilla `FileUtil.isValidPathSegment` and `isPathPartPortable` for
+/// the folder name written by `datapack create`.
 fn is_valid_pack_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.contains('/')
-        && !name.contains('\\')
-        && !name.contains("..")
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+    if name.is_empty() || name == "." || name == ".." {
+        return false;
+    }
+    if name
+        .chars()
+        .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && !matches!(c, '-' | '_' | '.'))
+    {
+        return false;
+    }
+    !is_reserved_windows_name(name)
+}
+
+/// Vanilla `FileUtil.RESERVED_WINDOWS_FILENAMES`: a trailing dot or a device
+/// name, with an optional extension, is not portable.
+fn is_reserved_windows_name(name: &str) -> bool {
+    if name.ends_with('.') {
+        return true;
+    }
+    let stem = name.split_once('.').map_or(name, |(stem, _)| stem);
+    let stem = stem.to_ascii_uppercase();
+    if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CLOCK$") {
+        return true;
+    }
+    let bytes = stem.as_bytes();
+    (stem.starts_with("COM") || stem.starts_with("LPT"))
+        && bytes.len() == 4
+        && bytes[3].is_ascii_digit()
+        && bytes[3] != b'0'
 }
 
 /// Builds the `pack.mcmeta` content for a newly created data pack.
@@ -472,12 +495,20 @@ mod tests {
         assert!(is_valid_pack_name("my_pack"));
         assert!(is_valid_pack_name("test-1.0"));
         assert!(is_valid_pack_name("pack123"));
+        assert!(is_valid_pack_name(".hidden"));
 
         assert!(!is_valid_pack_name(""));
+        assert!(!is_valid_pack_name("."));
+        assert!(!is_valid_pack_name(".."));
         assert!(!is_valid_pack_name("../hack"));
         assert!(!is_valid_pack_name("folder/pack"));
         assert!(!is_valid_pack_name("pack\\test"));
         assert!(!is_valid_pack_name("invalid char"));
+        assert!(!is_valid_pack_name("MyPack"));
+        assert!(!is_valid_pack_name("pack."));
+        assert!(!is_valid_pack_name("CON"));
+        assert!(!is_valid_pack_name("com1.txt"));
+        assert!(!is_valid_pack_name("lpt9"));
     }
 
     #[test]

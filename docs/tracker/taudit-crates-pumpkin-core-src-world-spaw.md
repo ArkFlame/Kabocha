@@ -53,3 +53,29 @@ Remaining gaps:
 ## Result
 - `player_spawn_finder.rs:99-109` stored-Y path: FIXED. Decompiled `ServerPlayer.adjustSpawnLocation` calls `PlayerSpawnFinder.findSpawn` on respawn too, and `findSpawn` has no stored-Y path: with `RESPAWN_RADIUS=0` the only candidate resolves through `getLevelRespawnPos` (column surface), and the suggestion's Y is used only as the final fallback. Dropped the stored-Y early-return branch, the linked raw-suggestion early return (`findSpawn` always randomises inside the radius first), and the now-unused `fixup_spawn_height_up_at`. Updated `zero_radius_uses_the_stored_spawn_height` to `zero_radius_uses_the_column_surface_not_the_stored_height` asserting surface Y 65. `rustfmt --edition 2024` run on both touched files.
 - `player_spawn_finder.rs:110-117` adventure gate: STILL OPEN. Vanilla reads `serverLevelData.getGameType()` from level.dat, but Pumpkin `LevelData` (pumpkin-world) has no game-type field, so using the level's own type needs a cross-crate field plus serialization and `/defaultgamemode` persistence changes, outside this unit.
+
+
+## Result (resume verification against decompiled vanilla)
+- player_spawn_finder.rs:99-109 stored-Y path: CONFIRMED FIXED in current code. No stored-Y early return remains, and zero_radius_uses_the_column_surface_not_the_stored_height covers it. Decompiled PlayerSpawnFinder.findSpawn (Paper ref, :50-67) has no stored-Y path.
+- player_spawn_finder.rs:110-117 adventure gate: FIXED / VERIFIED. Current code at :98 reads self.level_info.load().game_type == GameMode::Adventure. LevelData.game_type is the level own level.dat GameType (serialized as GameType in pumpkin-world/src/world_info/anvil.rs :354, deserialized :274, written by /defaultgamemode), so it matches vanilla serverLevelData.getGameType() at PlayerSpawnFinder.findSpawn :51. The earlier STILL OPEN / no game-type field note is stale. Added deterministic test adventure_mode_fixes_height_on_the_suggestion_not_the_column in spawn_tests.rs: sets game_type to Adventure and asserts a void suggestion resolves near the floor (fixupSpawnHeight) instead of the column surface. rustfmt --edition 2024 run on spawn_tests.rs.
+- Both STILL OPEN rows resolved; open=0.
+
+## Result (final parallel sweep)
+- Task vanilla path `.vendor/vanilla-decompiled/` is absent; verified against the doc's reference at
+  `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/server/level/PlayerSpawnFinder.java`, which
+  confirms both behaviours: `findSpawn` :50-68 has no stored-Y path (adventure returns `fixupSpawnHeight`,
+  otherwise the radius search runs and Y comes from `getLevelRespawnPos`/column surface), and :51 reads
+  the level's own `serverLevelData.getGameType()`.
+- `player_spawn_finder.rs:99-109` stored-Y path: CONFIRMED FIXED. `get_safe_player_spawn_position` has no
+  early return for a standable suggestion or `respawn_radius <= 0`; radius 0 resolves through
+  `check_spawn_column` to the column surface, with the `fixup_spawn_height_at(suggestion)` fallback only
+  after all candidates fail (vanilla `scheduleNext` else-branch at :82-86). Covering test
+  `zero_radius_uses_the_column_surface_not_the_stored_height` present.
+- `player_spawn_finder.rs:110-117` adventure gate: CONFIRMED FIXED. Reads `self.level_info.load().game_type`
+  (pumpkin-world `LevelData.game_type: GameMode`, mod.rs:59), persisted as `GameType` in level.dat
+  (anvil.rs:354 write, :270-274 read); matches vanilla `serverLevelData.getGameType()`. Covering test
+  `adventure_mode_fixes_height_on_the_suggestion_not_the_column` present.
+- No source edits needed; no code risk. The other four "Remaining gaps" rows are not marked STILL OPEN
+  (out of scope): stored-Y is settled, `isRemoved` needs a reproduced spurious block, `scheduleCandidate`
+  chunk-dedup test and flat-generator fixture are optional coverage, none affect correctness here.
+- No files changed this pass. open=0, fixed=0 (both rows were already resolved by prior passes).

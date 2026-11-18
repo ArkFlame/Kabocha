@@ -59,3 +59,10 @@ Remaining gaps (not fixed here):
 - Row 2 (config disconnect loses Component, mod.rs 651-670): STILL OPEN, M, protocol change in `pumpkin-protocol`, outside this unit.
 - Row 3 (stonecutter-only recipe packet, mod.rs 772-781): STILL OPEN, M, needs generated recipe property sets in `pumpkin-data`/`recipe_helper`, outside this unit.
 - `play/keep_alive.rs`: collapsed the duplicated "pending list" vtable path and the fallback `keep_alive_id` comparison into one `outstanding_keep_alive` helper. Only one keep-alive can be outstanding now, so the two branches were identical and the fallback allowed accepting a reply after the pending entry had been trimmed. Verified against `ServerCommonPacketListenerImpl#handleKeepAlive`: any id that is not an outstanding challenge disconnects with `disconnect.timeout`. Added unit test `only_an_outstanding_challenge_is_accepted`. FIXED.
+
+### Re-verified 2026-11-18 (main checkout, re-audit pass)
+- Row 1 chat/command/session off-thread (mod.rs:908-977, 1201): STILL OPEN, M - needs a per-player ordered dispatch queue in mod.rs, outside this unit's keep_alive.rs.
+- Row 2 config disconnect loses Component (mod.rs:651-670): STILL OPEN, M - needs a CConfigDisconnect protocol change in pumpkin-protocol, outside this unit.
+- Row 3 stonecutter-only recipe packet (mod.rs:772-781): STILL OPEN, M - needs generated recipe property sets in pumpkin-data/codegen, outside this unit.
+- keep_alive.rs: re-verified against Paper decompiled ServerCommonPacketListenerImpl#handleKeepAlive (lines 103-144): accept only a reply matching an outstanding challenge (remove it + update ping), disconnect with timeout for unsolicited/stale/duplicate ids. The outstanding_keep_alive helper + only_an_outstanding_challenge_is_accepted test already match; no further change needed. FIXED.
+- Final pass (main checkout): re-read decompiled ServerCommonPacketListenerImpl#handleKeepAlive lines 103-144 and confirmed keep_alive.rs matches (accept matching id, drop pending, update latency; disconnect with timeout otherwise). No new edit required. Rows 1-3 remain STILL OPEN, all in files outside this unit (mod.rs, pumpkin-protocol, pumpkin-data).

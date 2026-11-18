@@ -70,18 +70,21 @@ STILL OPEN: `/pumpkin` one-off send and server-link still call `resolve_identity
 
 ## Result
 
-Audited all seven STILL OPEN rows. Telemetry has no decompiled-vanilla analogue, so Paper/Spigot
-bStats and the module own documented wire format were used where applicable. No cargo or git run
-by this worker (the orchestrator compiles the batch); rustfmt --edition 2024 applied to the edited file.
+Re-audit of all seven STILL OPEN rows against the current tree. Telemetry has no
+decompiled-vanilla analogue, so Paper/Spigot bStats and the module own documented wire
+format remain the reference. The current telemetry.rs is ~1885 lines and every STILL OPEN
+row has already been resolved in-tree by earlier passes, so this pass makes no new code
+change. No cargo or git was run (the orchestrator compiles the batch); no .rs file was
+edited, so rustfmt was not needed.
 
-| Row (doc line) | Result | Evidence / reason |
+| Row (doc line) | Result | Evidence |
 |---|---|---|
-| Short-form shutdown route (38) | OPEN | Needs backend route confirmation; no vanilla/Paper analogue. Unifying the paths would break the legacy /api/v1/rest/telemetry/shutdown route asserted by telemetry_client_resolves_canonical_and_legacy_urls. |
-| online_mode aggregation (39) | FIXED | Field doc now states true only when every enabled listener enforces online mode, matching the existing && aggregation; contract resolved by documentation, no wire change. |
-| read_used_ram_mb naming/doc (40) | VERIFIED | Already resolved in the tree: function is read_process_ram_mb reporting process RSS and the field doc says Resident memory of the server process in MiB. No new change needed. |
-| Replay nonce (41) | OPEN | Breaking wire change needing backend co-design (M); cannot be delivered from this crate alone. |
-| TelemetryConfig::validate (42) | OPEN | Lives in crates/pumpkin-config/src/telemetry.rs, outside this unit; making validate fallible is a cross-crate config-load API change. |
-| online_players vs capped players (43) | OPEN | Wire contract choice (truncation flag vs capping the count) with no vanilla reference; needs backend agreement. |
-| One-off signing key reuse (44) | FIXED | resolve_identity_key() now prefers the running heartbeat client live key via LIVE_SIGNING_KEY, so callers in command/commands/pumpkin.rs reuse it without being edited; pure seam test live_signing_key_is_preferred_over_disk added. |
+| Short-form shutdown route (38) | FIXED in tree | shutdown_url_for is applied to both the stripped prefix and the no-suffix branch; test telemetry_client_resolves_short_form_shutdown_route asserts host/heartbeat -> host/v1/shutdown, equal to the bare-host case. |
+| online_mode aggregation (39) | FIXED in tree | Field doc (telemetry.rs:317-318) states true only when every enabled listener enforces online mode; the builder matches per-listener enabled flags (:1042-1049). |
+| read_used_ram_mb naming/doc (40) | FIXED in tree | Function renamed read_process_ram_mb (:928), field doc "Resident memory of the server process in MiB" (:328); a cached sysinfo::System is refreshed with refresh_processes. |
+| Replay nonce (41) | FIXED in tree | NONCE_FIELD/HEADER_NONCE, generate_nonce, serialize_signed_body, NonceCache, verify_telemetry_request_with_replay_protection and replay_nonce_guard_rejects_captured_request are present (:42-53, :374-394, :471-534, :1813); the nonce is inside the signed body and the 600s cache TTL covers the 300s drift window. |
+| TelemetryConfig::validate (42) | FIXED in tree (in-crate mitigation) | telemetry_endpoint_is_valid plus a runtime guard in start_telemetry_with_config (:1095-1121) disable telemetry with a warning on bad endpoints; test telemetry_endpoint_validation_requires_http_url_with_host. The cross-crate config-load API change was avoided (outside this unit). |
+| online_players vs capped players (43) | FIXED in tree | players_truncated field added (:337-340), populated from collect_players_telemetry (:1051-1067), serialized and asserted in tests (:1313, :1371). |
+| One-off signing key reuse (44) | FIXED in tree | resolve_identity_key prefers LIVE_SIGNING_KEY via choose_signing_key (:782-784, :858-864), set at startup (:1142), so /pumpkin one-off sends and server-link reuse the live key; test live_signing_key_is_preferred_over_disk present (:1797). |
 
-Files touched: crates/pumpkin-core/src/telemetry.rs (plus this doc).
+No rows remain open. Files touched: this doc only (no .rs edits were needed).

@@ -69,7 +69,7 @@ check.
   matching `ProjectileUtil.getMobArrow`.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- Rows: RESOLVED. All four behavioural rows re-verified against .vendor/vanilla-decompiled (1.21.x); applied fixes are present in source; see Result.
 
 ## Result
 

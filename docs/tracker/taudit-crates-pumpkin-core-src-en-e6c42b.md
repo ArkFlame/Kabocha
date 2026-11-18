@@ -103,3 +103,64 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft` (Paper/CraftBukkit-p
 | 7 special prices computed once | CLOSED, no change | Vanilla MerchantMenu.slotsChanged only calls updateSellItem (MerchantMenu.java:67-70); no per-update special-price recompute, so no port needed. |
 | 8 talked-to stat without trade | CLOSED, no change | Vanilla awards `TALKED_TO_VILLAGER` on MAIN_HAND before the noOffers check (Villager.java:306); Pumpkin matches. |
 | 9 regen effect placement | OPEN, needs mod.rs | Vanilla applies REGENERATION inside rewardTradeXp (Villager.java:618) immediately, not in aiStep; fix requires mod.rs (outside unit). |
+
+## Result
+
+Re-audited after the fix below against `.vendor/vanilla-decompiled` (Paper/CraftBukkit patched,
+MC 26.x): `Villager.java`, `AbstractVillager.java`, `MerchantOffer.java`, `ItemCost.java`,
+`MerchantMenu.java`, `DataComponentExactPredicate.java`. Rows 1 to 9 of "Remaining gaps" all
+live in `crates/pumpkin-core/src/entity/passive/villager/mod.rs` (or were already verified
+correct in the earlier pass), which is outside this unit's editable basenames, so they stay open
+for a mod.rs unit. One real bug in an editable file was found and fixed.
+
+| Row | Status this pass | Finding |
+|---|---|---|
+| 1 plugin events never fired | OPEN, needs mod.rs | Fire sites for all four events now exist in mod.rs (714, 1006, 1122) and reputation.rs:44, so the remaining work is only mod.rs-level behaviour. Structs in this unit are correct. |
+| 2 level-up XP bonus +5 | CLOSED, no change | `Villager.java:621` does `popXp += 5` on level up; Pumpkin matches. |
+| 3 catch_up_demand resets uses | CLOSED, no change | `Villager.java:414-421` calls `offer.resetUses()` per offer; Pumpkin matches. |
+| 4 LastGossipShare write-only | CLOSED (fixed by a prior pass) | `mob_write_nbt` no longer writes the key; grep finds no `LastGossipShare` in `crates/`. |
+| 5 wants_to_pick_up VillagerFood | CLOSED, no change | `Villager.java:835` includes `DataComponents.VILLAGER_FOOD`; Pumpkin matches. |
+| 6 should_restock moves restock time | CLOSED, no change | `Villager.java:407-408` sets `lastRestockGameTime` in the day-change branch; Pumpkin matches. |
+| 7 special prices computed once | CLOSED, no change | `MerchantMenu.slotsChanged` only calls `updateSellItem`; no per-update special-price recompute. |
+| 8 talked-to stat without trade | CLOSED, no change | `Villager.java:302-306` awards the stat before the no-offers check; Pumpkin matches. |
+| 9 regen effect placement | CLOSED, no change | The effect is now applied inside `complete_trade` (`mod.rs:862`), matching `rewardTradeXp`. |
+
+### Fixed this pass: `CMerchantOffers` read dropped `ItemCost` components
+
+`merchant_offers.rs` read `1.20.5+` `ItemCost` values as item id, count, component count, and then
+skipped each component with a bare `get_var_int()`. Vanilla's `ItemCost.STREAM_CODEC` is
+`Item.STREAM_CODEC`, count, then `DataComponentExactPredicate.STREAM_CODEC`, which is a list of
+`TypedDataComponent` (id followed by the component body, `TypedDataComponent.java:11-31`). A
+component body is more than one `VarInt`, so the stream desynchronised as soon as a base cost
+carried a component (a damaged tool or a renamed item as the price input) and every following
+field was garbage.
+
+New `read_item_cost` decodes the component list with the same `deserialize` used by the item
+stack codec, rejects a negative or over-limit count, and builds the stack through
+`ItemStack::new_with_component`. The wire writer already emitted the bodies inline, so this only
+fixes the reader side. The offer list `Vec::with_capacity` is also now capped by
+`MAX_INITIAL_OFFERS`, because the length comes straight from the client.
+
+Test: `item_cost_components_survive_a_round_trip` writes an offer whose base cost is a damaged
+diamond sword, reads it back, and asserts the item, count and `DamageImpl` value survive.
+
+Files: `crates/pumpkin-protocol/src/java/client/play/merchant_offers.rs`.
+`rustfmt --edition 2024` on that file exited 0. Compile and tests intentionally skipped (worker
+restriction; the orchestrator batch-builds).
+
+
+## Result (verification pass 2026-11-18, corrected against current code)
+
+Re-verified all nine rows against `.vendor/vanilla-decompiled/net/minecraft` (Paper-patched 26.x) **and** against the current source state. No .rs file in this unit changed this pass: every row is either a false positive in the original tracker text or was already fixed by a prior pass in files outside this unit's editable scope. The four villager event structs are structurally correct, and `merchant_offers.rs` already carries both the `update_demand` zero clamp and the `read_item_cost` component decoding fix with their tests. rustfmt: not applicable (no .rs file touched this pass).
+
+| Row | Status | Finding / reason |
+|---|---|---|
+| 1 plugin events never fired | CLOSED, already fixed in mod.rs | Fire sites now exist: VillagerAcquireTradeEvent (mod.rs:714), VillagerReplenishTradeEvent (mod.rs:1006), VillagerCareerChangeEvent (mod.rs:1122), VillagerReputationChangeEvent (reputation.rs:44). Structs in this unit are correct. |
+| 2 level-up XP bonus +5 | CLOSED, no change | Vanilla `Villager.rewardTradeXp` does `popXp += 5` on level up (Villager.java:621); Pumpkin's `pop_xp += 5` matches. Tracker claim false. |
+| 3 catch_up_demand resets uses | CLOSED, no change | Vanilla `catchUpDemand` calls `offer.resetUses()` per offer (Villager.java:417-422, Paper event-wrapped); Pumpkin matches. Tracker claim false. |
+| 4 LastGossipShare write-only | CLOSED, already fixed in mod.rs | Vanilla persists only LastGossipDecay (Villager.java:501/520); grep finds no `LastGossipShare` key in the source. Prior pass removed it. |
+| 5 wants_to_pick_up VillagerFood | CLOSED, no change | Vanilla `wantsToPickUp` includes `itemStack.has(DataComponents.VILLAGER_FOOD)` (Villager.java:835); Pumpkin matches. Tracker claim false. |
+| 6 should_restock moves restock time | CLOSED, no change | Vanilla sets `lastRestockGameTime = gameTime` inside the new-day branch (Villager.java:406-407); Pumpkin matches. Tracker claim false. |
+| 7 special prices computed once | CLOSED, no change | Vanilla `MerchantMenu.slotsChanged` only calls `updateSellItem` (MerchantMenu.java:67-70); no per-update recompute, specialPriceDiff is applied in `MerchantOffer.getPrice` (MerchantOffer.java:145). No port needed. |
+| 8 talked-to stat without trade | CLOSED, no change | Vanilla awards `TALKED_TO_VILLAGER` on MAIN_HAND before the noOffers check (Villager.java:299-309); Pumpkin matches. Tracker claim false. |
+| 9 regen effect placement | CLOSED, already fixed in mod.rs | Vanilla applies REGENERATION inside `rewardTradeXp` (Villager.java:618); Pumpkin now applies it inside `complete_trade` (mod.rs:866), matching vanilla. |

@@ -65,3 +65,73 @@ Reviewed but not in the STILL OPEN set (no change made):
 - Remaining gaps rows 1-2 are already fixed in tree: cooking_cancelled flag skips cancelled slots (entities/campfire.rs:119-124); progress increments for every non-empty stack with a raw-stack fallback when no recipe matches (:126-128, 162, 178-179), matching CampfireBlockEntity.cookTick.
 - Row 3 (cooked result count split) left open: latent, no current campfire recipe yields more than one result; splitting into vanilla random 10-30 chunks adds complexity for no observable gain.
 - Vanilla passes the origin pos (not posToCheck) to getCollisionShape; Rust passes check_pos. Kept as-is: static collision shapes are position-independent and using the actual cell is correct, so this vanilla quirk is not worth copying.
+
+## Result
+
+Re-review against decompiled Paper/vanilla (`CampfireBlock.java`,
+`CampfireBlockEntity.java`). Smallest rows first.
+
+- Row 3 (cooked result count split): LEFT OPEN, latent. No campfire cooking
+  recipe yields more than one result. Vanilla splits the result into random
+  10-30 chunks with motion deviation (`CampfireBlockEntity.java:122-127`);
+  copying that needs random/motion wiring for no observable gain.
+- Row 12 (STILL OPEN, `isSmokeyPos` obstruction probe): VERIFIED already fixed,
+  no change. `is_smokey_pos_from` (`block/blocks/campfire.rs:64-77`) returns
+  `state_at(dy + 1).0` at the first shape crossing the 0.375..0.625 post,
+  exactly `CampfireBlock.isSmokeyPos` (`:268-284`). Test
+  `smoke_scans_five_cells_and_stops_at_a_blocker` (`:277`) already covers the
+  lit-under-blocker and unlit-under-blocker cases.
+- Rows 1-2 (already fixed in tree): VERIFIED, no change. The `cooking_cancelled`
+  flag skips cancelled slots and progress increments for every non-empty stack
+  with a raw-stack fallback (`entities/campfire.rs:121-162`), matching Paper
+  `cookTick` (`:89-100`).
+- Correction to the prior pass ("Fixed in this pass" row 14): the decompiled
+  `CampfireBlockEntity.cookItems` drops at `pos.getX()+0.5, pos.getY()+0.5,
+  pos.getZ()+0.5`, i.e. the block centre in all three axes
+  (`CampfireBlockEntity.java:123-124`), NOT `y + 1.0`. `spawn_cooked_item` used
+  `y + 1.0`, so the prior fix was wrong on the Y axis. Changed to `y + 0.5`,
+  extracted pure `cooked_item_spawn_position`, and added
+  `cooked_item_spawns_at_block_centre` test. This is a real parity fix.
+- `bucket.rs` / `splash_potion.rs`: listed only under "Verified matching
+  vanilla", no open rows; no change.
+
+## Result
+
+Independent re-review against decompiled `CampfireBlock.java` and
+`CampfireBlockEntity.java`. Smallest rows first. No code changes warranted.
+
+- Row 12 (the only row explicitly marked STILL OPEN, h6 status line 57):
+  VERIFIED already fixed, no change. Decompiled `isSmokeyPos`
+  (`CampfireBlock.java:268-284`) scans `i = 1..=5`, returns true on a lit
+  campfire, and at the first shape crossing the virtual post returns
+  `isLitCampfire(posToCheck.below())`, i.e. only the single cell directly
+  below the blocker. Rust `is_smokey_pos_from`
+  (`block/blocks/campfire.rs:64-77`) mirrors this with `state_at(dy + 1).0`
+  after the 0.375..0.625 post intersection. The pure test
+  `smoke_scans_five_cells_and_stops_at_a_blocker` (`:277`) already asserts
+  lit-under-blocker true and unlit-under-blocker false, plus the range edge.
+  The one remaining difference (vanilla passes the origin `pos`, Rust the
+  `check_pos`, to `getCollisionShape`) is benign: static campfire-cell
+  collision shapes are position independent. Marking this row resolved.
+- Rows 1-2 ("Remaining gaps"): VERIFIED already fixed, no change.
+  `cooking_cancelled` (`entities/campfire.rs:125-130`) makes a cancelled
+  `CampfireStartEvent` insertion skip cooking rather than refire; progress
+  increments for every non-empty stack and the recipe is resolved only at
+  completion with a raw-stack fallback (`:138-162`). This matches
+  `CampfireBlockEntity.cookTick` (`:89-100`). `Paper.StopCooking` NBT
+  persistence (`:67-75`, `:330-341`) matches `loadAdditional`/`saveAdditional`
+  (`:210-234`).
+- Row 14 Y-axis correction: VERIFIED, no change. `cooked_item_spawn_position`
+  (`entities/campfire.rs:372-378`) uses block centre in all three axes
+  (`y + 0.5`), matching the Paper `cookItems` drop at `pos.getY() + 0.5`
+  (`CampfireBlockEntity.java:124`), with the pure test at `:472`.
+- Row 3 (cooked result count split): LEFT OPEN, latent, same call as prior
+  passes. Decompiled `cookItems` (`:122-127`) splits the result into random
+  `nextInt(21) + 10` (10-30) chunks with triangle-distributed motion, but no
+  campfire cooking recipe yields more than one result, so the current single
+  `ItemStack::new(recipe.result.count, ...)` spawn is observationally
+  identical for every real recipe. Adding random chunking plus velocity
+  wiring would change only an unobservable edge case and risks unverified
+  compile errors, so it is not worth the change here.
+- No source file was modified; `bucket.rs`, `splash_potion.rs`, both
+  `campfire.rs` files are untouched.

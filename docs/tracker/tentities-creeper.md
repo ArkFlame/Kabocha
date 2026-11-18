@@ -46,3 +46,12 @@ Re-review against the decompiled tree now present at `.vendor/vanilla-decompiled
 - No new unit test: the inline cloud parameters have no pure seam, and the creeper metadata seam is already covered by an existing test. No `.rs` file was touched, so no rustfmt run.
 
 Observation (out of scope, not changed): the same decompiled class gates charged-creeper heads behind `this.droppedSkulls` (one head per explosion), while the row 2 change on master removed that gate. Flagging only; row 2 is outside the STILL OPEN set for this unit.
+
+## Result
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` (Paper 1.21.x) and the current Pumpkin sources. No `.rs` edit was needed, so no rustfmt was run.
+
+- Row 4 (spawnLingeringCloud cloud params): NO GAP. Vanilla calls setRadius(2.5F), setRadiusOnUse(-0.5F), setWaitTime(10), setDuration(300), setPotionDurationScale(0.25F), setRadiusPerTick(-radius/duration). `creeper.rs:168-185` passes duration 300, radius 2.5, reapplication 20, wait 10, radius-on-use -0.5, duration-on-use 0; `AreaEffectCloudEntity::create` computes radius-on-tick as `-radius/max(duration,1)` and hardcodes potion scale 0.25. The tracker's `600` claim is incorrect.
+- Row 6 (readAdditionalSaveData sync): NO GAP. Vanilla sets DATA_IS_POWERED and, when ignited, DATA_IS_IGNITED into synced data on load. Pumpkin's `mob_read_nbt` stores the atomics and sets IS_IGNITED synced data; at spawn `java_spawn_metadata` -> `mob_java_spawn_metadata` -> `mob_metadata()` serialises charged/ignited/fuse_speed from those atomics for Java clients, and `mob_bedrock_spawn_metadata` does the same for Bedrock. Same observable behaviour; this seam is already covered by the `creeper_metadata_generation` test in `metadata.rs`.
+- Row 7 (charged_creeper/root loot table): RESOLVED BY DATA. `pumpkin_data::loot_table::get_loot_table("minecraft:charged_creeper/root")` resolves through the generated static `CHARGED_CREEPER_ROOT` table, and `datapack_manager.get_loot_table` falls back to that static table. `killed_entity` therefore drops charged-creeper heads without a datapack. Generated data is outside this unit; no edit possible or needed.
+- No new unit test: the inline cloud parameters have no pure seam, and the creeper metadata seam already has a test. No `.rs` file was touched, so no rustfmt run.

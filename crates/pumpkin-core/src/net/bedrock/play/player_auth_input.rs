@@ -467,10 +467,11 @@ fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
     )
 }
 
-/// Projects Bedrock's camera-relative `raw_move` onto the camera horizontal view axes.
+/// Projects Bedrock's camera-relative `raw_move` back onto the Java view-relative input axes.
 ///
-/// A level camera facing yaw 0 looks down +Z (getViewVector) and its right axis is +X, so
-/// for a look vector (x, _, z) the horizontal forward is (x, z) and right is (z, -x).
+/// Vanilla maps a pressed LEFT to +X and FORWARD to +Z at yaw 0
+/// (`ServerPlayer.getLastClientMoveIntent` builds `(left, 0, forward)`). For a camera look
+/// vector (x, _, z) the horizontal forward axis is (x, z) and the left-intent axis is (z, -x).
 /// A zero look vector yields no movement bits.
 fn camera_relative_move(
     camera_orientation: Vector3<f32>,
@@ -485,12 +486,13 @@ fn camera_relative_move(
         camera_orientation.z / look_length,
     );
     let forward = raw_move.x.mul_add(forward_x, raw_move.y * forward_z);
-    let right = raw_move.y.mul_add(-forward_x, raw_move.x * forward_z);
+    // Vanilla strafe intent is +1 for LEFT, -1 for RIGHT; at yaw 0 that axis is +X.
+    let left_intent = raw_move.y.mul_add(-forward_x, raw_move.x * forward_z);
     (
         forward > ANALOG_DEADZONE,
         forward < -ANALOG_DEADZONE,
-        right < -ANALOG_DEADZONE,
-        right > ANALOG_DEADZONE,
+        left_intent > ANALOG_DEADZONE,
+        left_intent < -ANALOG_DEADZONE,
     )
 }
 
@@ -591,7 +593,7 @@ mod tests {
 
     #[test]
     fn camera_relative_move_projects_world_move_onto_view_axes() {
-        // Camera facing +Z (yaw 0): forward is +Z, right is +X.
+        // Camera facing +Z (yaw 0): forward is +Z, left is +X (vanilla getLastClientMoveIntent).
         let facing_z = Vector3::new(0.0, 0.0, 1.0);
         assert_eq!(
             camera_relative_move(facing_z, Vector2::new(0.0, 1.0)),
@@ -599,7 +601,7 @@ mod tests {
         );
         assert_eq!(
             camera_relative_move(facing_z, Vector2::new(1.0, 0.0)),
-            (false, false, false, true)
+            (false, false, true, false)
         );
         assert_eq!(
             camera_relative_move(facing_z, Vector2::new(0.0, -1.0)),
@@ -607,9 +609,9 @@ mod tests {
         );
         assert_eq!(
             camera_relative_move(facing_z, Vector2::new(-1.0, 0.0)),
-            (false, false, true, false)
+            (false, false, false, true)
         );
-        // Camera facing -X (yaw 90): forward is -X, right is +Z.
+        // Camera facing -X (yaw 90): forward is -X, left is +Z.
         let facing_neg_x = Vector3::new(-1.0, 0.0, 0.0);
         assert_eq!(
             camera_relative_move(facing_neg_x, Vector2::new(-1.0, 0.0)),
@@ -617,7 +619,7 @@ mod tests {
         );
         assert_eq!(
             camera_relative_move(facing_neg_x, Vector2::new(0.0, 1.0)),
-            (false, false, false, true)
+            (false, false, true, false)
         );
     }
 

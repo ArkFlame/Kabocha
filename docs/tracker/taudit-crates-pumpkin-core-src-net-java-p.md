@@ -116,3 +116,83 @@ Pass 2026-11-17 (no decompiled sources in `.vendor/`; vanilla is `ServerGamePack
   border half it relies on is already covered by `world/border.rs` tests.
 
 Gap status: 2 fixed, 2 stale, 4 open (reasons above).
+
+
+## Result (2026-11-18, decompiled vanilla now present)
+
+Vanilla reference: `ServerGamePacketListenerImpl.handleUseItemOn`
+(`server/network/ServerGamePacketListenerImpl.java:2298`), `ServerPlayerGameMode.useItemOn`
+(`server/level/ServerPlayerGameMode.java:532`), `ServerLevel.mayInteract`
+(`server/level/ServerLevel.java:3058`), `WorldBorder.isWithinBounds`
+(`world/level/border/WorldBorder.java:88`).
+
+- VERIFIED FIXED **max build height gate**: vanilla uses `getMaxY()`/`getMinY()`
+  (`handleUseItemOn:2322-2327`); existing `position.y > world.get_top_y()` gate matches for the
+  max side. No new accessor was needed. (Vanilla also sends a build-limit chat message and resyncs
+  the neighbour block; Pumpkin only resyncs the clicked block. Cosmetic, no gameplay effect, and
+  not a listed row.)
+- VERIFIED FIXED **`ServerLevel.mayInteract`**: vanilla is
+  `!(player && (isUnderSpawnProtection || !border.isWithinBounds(pos)))` (`ServerLevel.java:3059`).
+  Existing `may_interact` matches via `Worldborder::is_within_bounds(x, z, 0.0)` and
+  `World::is_in_spawn_protection`. The latter already handles overworld-only, permission-level
+  bypass, radius 0 and no-operators, so the earlier "needs OP handling, size M" caveat is stale.
+  Border bounds use the interpolated current diameter, matching `WorldBorder.getMinX/getMaxX`.
+- VERIFIED FIXED **`awaitingPositionFromClient` guard**: vanilla guards the interaction with
+  `this.awaitingPositionFromClient == null` (`handleUseItemOn:2334`). The existing
+  `player.awaiting_teleport` lock check is the equivalent. Deliberately uses the raw lock instead
+  of `Player::is_awaiting_teleport()`, which resends the teleport after 20 ticks (a side effect
+  this read-only guard must not trigger).
+- VERIFIED CORRECT, NO CHANGE **hit-position epsilon check**: earlier passes were wrong to call
+  this redundant and to ask for a runtime capture. Vanilla explicitly drops hits where
+  `abs(location - centerOf(block)) >= 1.0000001` on any axis (`handleUseItemOn:2317-2319`). The
+  inline check already matched; extracted it to the pure `is_within_block_center_limit` helper and
+  added the boundary test `block_center_hit_limit_matches_vanilla` in `use_item_on.rs` to lock the
+  vanilla constant in place. This was the only code change this pass.
+- VERIFIED CORRECT, NO CHANGE **`PlayerInteractEvent` for spectators**: earlier passes claimed
+  Paper fires the event only in the non-spectator branch. `ServerPlayerGameMode.java:551` calls
+  `CraftEventFactory.callPlayerInteractEvent` unconditionally, *before* the spectator branch at
+  line 574. Pumpkin firing the event for spectators therefore matches Paper, not a superset.
+- VERIFIED CORRECT, NO CHANGE **item `on_use` fallback removal**: `useItemOn:619/626/639-642`
+  calls `state.useItemOn`, `state.useWithoutItem` and `itemStack.useOn`, but never `Item#use` (the
+  right-click-in-air path, handled by `handle_use_item`). Pumpkin's `use_with_item`/`on_use`
+  plus `item_registry.use_on_block`/`place_block` cover those vanilla calls; the removed
+  `ItemRegistry::on_use` fallback would have double-fired `Item#use`. Removal stands.
+- STALE **`increment_stat(Used, ...)` unconditional**: still gated on
+  `item_result.consumes_action() || should_try_decrement`; nothing to change.
+- OPEN **`isItemEnabled(level.enabledFeatures())`**: confirmed real at `handleUseItemOn:2307` and
+  `useItemOn:539`. `Server::get_enabled_features`/`DatapackManager::is_feature_enabled` exist, but
+  `Item` (`pumpkin-data/src/generated/item.rs`) has no required-features field, so per-item/per-block
+  feature data must be added in the generated data layer. Outside this unit, left open.
+- `border.rs`, `hub.rs`, `worldborder.rs`: no open rows, no changes. `Worldborder::is_within_bounds`
+  matches vanilla `WorldBorder.isWithinBounds` and is covered by existing tests.
+
+Gap status after this pass: 3 resolved by verification (teleport guard, spectator event, item
+fallback), 1 verified-and-tested (hit epsilon), 1 stale, 1 open (isItemEnabled, outside unit).
+
+
+## Result (2026-11-18, post-restart pass)
+
+Only one row remains open from the earlier passes: `isItemEnabled(level.enabledFeatures())`.
+No other row was re-verified; the prior Result sections already resolved them against the
+decompiled sources and those fixes are present in the working tree.
+
+- VERIFIED OPEN **`isItemEnabled(level.enabledFeatures())`**: vanilla rejects the interaction
+  before any action when the held stack's item requires features absent from the level
+  (`ServerGamePacketListenerImpl.handleUseItemOn:2307`, `handleUseItem:2397`), and
+  `Item.isEnabled` is driven by a per-item `Item.requiredFeatures: FeatureFlagSet` populated
+  through `Item.Properties.requiredFeatures(...)` (`Item.java:133/155/384/657`).
+  LEFT OPEN: Pumpkin's generated `Item` (`pumpkin-data/src/generated/item.rs:22`) has only
+  `id`/`registry_key`/`crafting_remainder`/`components`, with no required-features field, so a
+  correct check needs per-item/per-block feature data added in the generated data layer. That is
+  generated data, outside this unit's files (`border.rs`, `hub.rs`, `use_item_on.rs`,
+  `worldborder.rs`); Pumpkin's known-flag list (`datapack/mod.rs:2293`) only names flags and does
+  not map items to them, so no safe conservative check exists here.
+- NO CODE CHANGES: `use_item_on.rs`, `world/border.rs`, `net/management/hub.rs` and
+  `command/commands/worldborder.rs` needed no edits this pass.
+- NO NEW TEST: the open row has no pure seam without generated feature data. The helpers that
+  remain in `use_item_on.rs` (`is_within_block_center_limit`, `is_valid_hit_position`) are already
+  covered by their unit tests, and `Worldborder::is_within_bounds`/`contains` are covered by the
+  `world/border.rs` tests.
+
+Gap status after this pass: 0 fixed, 1 open (isItemEnabled, needs generated per-item feature
+data outside this unit).

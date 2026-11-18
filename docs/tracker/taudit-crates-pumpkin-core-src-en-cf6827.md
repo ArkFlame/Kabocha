@@ -44,7 +44,7 @@ Source: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs`. No decompile
 - 8 bare drop_stack for equipment: STILL OPEN, S, cosmetic.
 
 ## Result
-- Row 1 (flags not synced): OPEN, out of scope. It was BLOCKED-DATA, not STILL OPEN. The generated tracked data now exposes `DATA_CLIENT_FLAGS` (index 15), so the blocker is gone; syncing the four flag bits is a follow-up in armor_stand.rs.
+- Row 1 (flags not synced): FIXED (corrected on re-verification). `set_bit_field` (used by all four flag setters, armor_stand.rs:162-168) and NBT load (armor_stand.rs:679-681) call `sync_flags()`, writing `DATA_CLIENT_FLAGS` (index 15) so Small/ShowArms/NoBasePlate/Marker reach clients. The original BLOCKED-DATA reason no longer applies.
 - Row 2 (pose not synced): FIXED. `new()` and `unpack_rotation()` now write all six ROTATIONS synched entries (indices 16-21) as `Vector3<f32>` Euler triples, matching decompiled `ArmorStand.defineSynchedData`/`setArmorStandPose`.
 - Row 3 (clicked slot hitboxes): VERIFIED, NO CODE CHANGE. Decompiled `ArmorStand.getClickedSlot` matches `clicked_slot` exactly: feet `0.1 .. 0.1 + (small ? 0.8 : 0.45)`, chest `0.9 + (small ? 0.3 : 0.0) .. 0.9 + (small ? 1.0 : 0.7)`, legs `0.4 .. 0.4 + (small ? 1.0 : 0.8)`, head `>= 1.6`, and `/ (scale * ageScale)` equals the existing `/ 0.5` for small stands. The doc note's older thresholds were from a different MC version. Decompiled source now available, so the BLOCKED-DATA reason no longer applies. Added a small-stand regression test.
 - Row 4 (PlayerArmorStandManipulateEvent never fired): FIXED. `swap_item` fires the existing event with `fire_blocking` after the disabled-slot checks and returns `true` without touching either stack when cancelled, matching Paper's `swapItem`/`PlayerArmorStandManipulateEvent` cancellation.
@@ -54,3 +54,18 @@ Source: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs`. No decompile
 - Row 8 (bare drop_stack for equipment): VERIFIED, NO CODE CHANGE. `drop_stack_at` spawns an `ItemEntity` with random +/-0.25 offsets at the stand position + 1.0, so cosmetic-only randomness is already present.
 
 Files changed: `crates/pumpkin-core/src/entity/decoration/armor_stand.rs` only. `rustfmt --edition 2024` ran with exit 0. Build/tests were not run by this worker (orchestrator compiles once after all workers finish).
+
+## Result (re-verification)
+
+Re-checked every STILL OPEN / BLOCKED-DATA row against the current tree. All eight are resolved in code; the earlier Result's Row 1 status was stale and is corrected above. Static verification only (no cargo run, per worker rules):
+
+1. Flags synced: FIXED (see corrected Row 1 above; sync_flags writes DATA_CLIENT_FLAGS on setter and NBT-load paths).
+2. Pose synced: FIXED. new() and unpack_rotation() call sync_pose(), writing DATA_HEAD_POSE..DATA_RIGHT_LEG_POSE (indices 16-21) as Vector3<f32>; that type implements MetadataSerializer (entity_metadata.rs:419).
+3. Clicked-slot hitboxes: VERIFIED, no code change (decompiled ArmorStand.getClickedSlot matches clicked_slot; regression test present).
+4. PlayerArmorStandManipulateEvent: FIXED. swap_item fires it via fire_blocking after disabled-slot checks; cancellation returns true without mutating either stack. Event fields plus cancelled from #[cancellable] match the construction; fire_blocking(&server, &mut event) matches experience_orb.rs:383.
+5. ENTITY_DIE on destroy paths: FIXED (kill, explosion branch, cause_damage break branch all emit EntityDie).
+6. ENTITY_DAMAGE on survivable damage: FIXED (cause_damage surviving branch and wobble branch).
+7. Break particle block state: VERIFIED (Block::OAK_PLANKS, count 10, speed 0.05; spawn_block_particle signature matches).
+8. Equipment drops: VERIFIED (drop_stack_at at stand pos +1.0 for every slot).
+
+No .rs file changed in this pass, so rustfmt was not required. Build/tests not run (orchestrator compiles once after all workers finish).

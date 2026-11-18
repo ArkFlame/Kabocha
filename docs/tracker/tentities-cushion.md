@@ -26,3 +26,22 @@ Both rows marked STILL OPEN were verified against decompiled vanilla. Neither ne
 - Creative-attacker no-drop (cushion.rs drop_and_remove, lines 193-212): RESOLVED (already at HEAD). Vanilla Cushion.dropItem (Cushion.java:58-69) gates the item on GameRules.ENTITY_DROPS and skips it when causedBy is a Player with hasInfiniteMaterials(); Pumpkin gates on entity_drops and skips drop_stack for a caused_by that downcasts to a creative Player (Player::is_creative == GameMode::Creative, player.rs:8357). Source threading is correct: a player attack passes Some(self) as source (player.rs:1814-1827) and damage_with_context forwards it to drop_and_remove (cushion.rs:429). No pure seam for a unit test: the creative check needs a real Player fixture. Note (client-only, not changed): vanilla plays CUSHION_BREAK unconditionally, while Pumpkin gates the sound on entity_drops (copied from Painting.dropItem, which does gate it); a sound difference, so left as-is.
 - Game events ENTITY_MOUNT / ENTITY_DISMOUNT: OPEN (out of unit). The fix lives in shared Entity::add_passenger / remove_passenger in entity/mod.rs, which is not one of this unit's allowed files. Verified the events are already emitted at HEAD at the vehicle position: mount at entity/mod.rs:6000-6003 and 6059-6062, dismount at 6312-6315, matching vanilla Entity.startRiding / stopRiding. Also observed a duplicate ENTITY_MOUNT emission at 6000-6003 and 6059-6062 in the same function (out of scope, left for the owning unit). No code change made here.
 
+
+
+## Result (pass 3)
+
+Verified both STILL OPEN rows against decompiled vanilla (`Cushion.java`, `Entity.java`) and the current HEAD; no source change was needed in this unit.
+
+- Creative-attacker no-drop (cushion.rs `drop_and_remove`, lines 176-214): RESOLVED at HEAD, no change. Vanilla `Cushion.dropItem` (Cushion.java:58-69) drops only under `GameRules.ENTITY_DROPS` and skips the drop for a `Player` with `hasInfiniteMaterials()`; Pumpkin gates `drop_stack` on `entity_drops` and skips it for a `caused_by` that downcasts to `Player` with `is_creative` (gamemode == Creative, player.rs:8487), matching vanilla. `damage_with_context` forwards the attack source correctly. No pure unit-test seam: the creative check needs a real `Player`. Note (client-only, not changed): vanilla plays the break sound/particles unconditionally while Pumpkin gates the sound on `entity_drops` (copied from `Painting.dropItem`); a sound/particle difference only, so left as-is.
+- Game events ENTITY_MOUNT / ENTITY_DISMOUNT (entity/mod.rs): OUT OF UNIT, left open with reason. The fix belongs in shared `Entity::add_passenger` / `remove_passenger` (entity/mod.rs:6201-6204, 6454-6457), not an allowed file for this unit. Verified both events are already emitted at HEAD at the vehicle position, matching vanilla `Entity.startRiding` / `stopRiding`.
+
+No .rs file was touched, so no rustfmt run.
+
+## Result (pass 4)
+
+Re-verified both STILL OPEN rows against decompiled vanilla `Cushion.java` and current HEAD; no source change was needed in this unit.
+
+- Creative-attacker no-drop (cushion.rs `drop_and_remove`, lines 176-214): RESOLVED at HEAD, no change. Vanilla `Cushion.dropItem` (`Cushion.java:58-69`) drops only under `GameRules.ENTITY_DROPS` and skips the item for a `causedBy` that is a `Player` with `hasInfiniteMaterials()`. Pumpkin gates `drop_stack`/sound on `game_rules.entity_drops` and skips the drop for a `caused_by` that downcasts to a creative `Player` (`Player::is_creative`), matching vanilla; `damage_with_context` forwards the attack `source`. No pure unit-test seam (needs a real `Player`). Client-only difference left as-is: vanilla plays `CUSHION_BREAK` and breaking particles unconditionally, Pumpkin gates the sound on `entity_drops` (pattern copied from `Painting.dropItem`, which also gates). `painting.rs` uses the identical drop/creative/damage pattern (lines 278-423), consistent with vanilla `HangingEntity`.
+- Game events ENTITY_MOUNT / ENTITY_DISMOUNT: OUT OF UNIT, left open. Fix belongs in shared `Entity::add_passenger` / `remove_passenger` in `entity/mod.rs`, not an allowed file for this unit (cushion.rs / painting.rs only). Verified both are already emitted at HEAD at the vehicle position (`entity/mod.rs:6214` `GameEvent::EntityMount`, `entity/mod.rs:6467` `GameEvent::EntityDismount`), matching vanilla `Entity.startRiding` / `stopRiding`.
+
+No .rs file was touched, so no rustfmt run.

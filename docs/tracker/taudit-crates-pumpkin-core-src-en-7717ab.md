@@ -103,3 +103,77 @@ Only crates/pumpkin-core/src/entity/mob/neutral.rs was changed. No cargo run
 (CODER policy); orchestrator compiles once. rustfmt --edition 2024 run on the file.
 
 Status: PASS fixed=1 (timer rule made explicit + tests) verified-no-change=2 (death box, NBT) open=3 files=crates/pumpkin-core/src/entity/mob/neutral.rs
+
+
+## Result
+
+Final re-audit of the three STILL OPEN rows against .vendor/vanilla-decompiled
+(Paper/26.x) and the current Pumpkin sources. All resolved; no new code change
+was required in this pass because the fixes are already present and correct.
+
+3. World-seeded RNG - ALREADY FIXED. `NeutralMob::sample_anger_duration` in
+   neutral.rs draws from `World::loot_random` (Xoroshiro seeded from
+   level.seed.0) through the `RandomImpl` trait, matching vanilla
+   `PERSISTENT_ANGER_TIME.sample(this.random)` (Bee.java:446, Wolf.java:591).
+   The existing test `anger_duration_uses_seeded_random_and_stays_in_range`
+   locks the seeded determinism in. No cross-crate refactor remains necessary.
+4. Spawn-packet metadata define - ALREADY FIXED. bee.rs:242 and wolf.rs:99 both
+   call `synched_data.define(DATA_ANGER_END_TIME, -1i64)` at construction,
+   matching vanilla `Bee.defineSynchedData` (Bee.java:183) and
+   `Wolf.defineSynchedData` (Wolf.java:229). Both files are in this unit, so
+   the earlier "outside unit" blocker no longer applies. No pure seam exists
+   for a test: `define` requires a constructed entity, not a free function.
+5. Iron golem / polar bear / zombified piglin accessor - NOT A BUG. Vanilla
+   IronGolem.java:162-168, PolarBear.java:137-143 and ZombifiedPiglin.java:204-210
+   keep `persistentAngerEndTime` in a plain field, not SynchedEntityData; only
+   Bee and Wolf define DATA_ANGER_END_TIME (for the angry pose). Pumpkin's three
+   mobs use the default `anger_end_time_data() -> None` and a plain NeutralData
+   field, so no generated data needs regenerating. Editing generated data would
+   be wrong. Row closed with no action.
+
+No .rs file changed this pass, so rustfmt is not applicable. No cargo run
+(CODER policy); orchestrator compiles once.
+
+Status: PASS fixed=0 open=0 resolved=3 files=docs/tracker/taudit-crates-pumpkin-core-src-en-7717ab.md
+
+## Result
+
+Second pass with the decompiled tree as ground truth.
+
+1. Timer refresh semantics - NOT A BUG. `NeutralMob.updatePersistentAnger`
+   (NeutralMob.java:62-93) restarts the timer on a new target or every tick while
+   `stayAngryIfTargetPresent`; the timer is never counted down. Every implementor
+   passes true except Bee (Bee.java:412 passes false), which is exactly Pumpkin's
+   default `stays_angry_with_target()` plus the Bee override.
+2. Death-notice box - NOT A BUG. `ServerPlayer.tellNeutralMobsThatIDied`
+   (ServerPlayer.java:1507-1514) builds `new AABB(this.blockPosition()).inflate(32, 10, 32)`,
+   a block-position box, as Pumpkin does; the quirk is commented at the site.
+3. FIXED. Vanilla samples `PERSISTENT_ANGER_TIME` from `this.random`
+   (Bee.java:445-447, Wolf.java:590-592), i.e. the entity random. Pumpkin used the
+   level loot random; `sample_anger_duration` now draws from `Mob::get_random` and
+   `draw_anger_duration` takes `&mut impl RngExt`. No cross-crate refactor needed,
+   so the previous reason no longer applies. Added
+   `anger_duration_draw_covers_both_inclusive_ends` and switched the seeded-random
+   test to `StdRng`.
+4. NOT A BUG ANY MORE. `Bee.defineSynchedData` (Bee.java:180-184) and
+   `Wolf.defineSynchedData` (Wolf.java:222-230) register `DATA_ANGER_END_TIME` with
+   -1L; bee.rs:236-242 and wolf.rs:92-99 already do the same at construction,
+   before NBT load.
+5. NOT A BUG. Iron golem, polar bear and zombified piglin keep the end time in a
+   plain `private long persistentAngerEndTime` field (IronGolem.java:60,167,
+   PolarBear.java:65,142, ZombifiedPiglin.java:59,209) and never touch
+   `SynchedEntityData`, so the generated `tracked_data.rs` is right as is.
+6. NOT A BUG. `addPersistentAngerSaveData` (NeutralMob.java:34-37) always writes
+   `anger_end_time` with putLong and uses `storeNullable` for `angry_at`, which
+   drops the key when null. Pumpkin matches; commented at the site.
+7. Goal files re-checked against `ResetUniversalAngerTargetGoal.java` and
+   `NearestAttackableTargetGoal.java`/`TargetGoal.java`: gamerule gate, hurt-by
+   timestamp gate, self exclusion, same-type alert box (follow range, 10 vertical),
+   reciprocal interval 10 reduced to goal ticks, and the CLOSEST_PLAYER /
+   CLOSEST_ENTITY reason all line up. No change made to active_target.rs or
+   reset_universal_anger.rs.
+
+Only crates/pumpkin-core/src/entity/mob/neutral.rs was changed; rustfmt
+--edition 2024 run on it. No cargo (CODER policy).
+
+Status: PASS fixed=1 open=0 files=crates/pumpkin-core/src/entity/mob/neutral.rs

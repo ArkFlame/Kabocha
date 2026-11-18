@@ -91,3 +91,41 @@ Audited all STILL OPEN rows against .vendor/vanilla-decompiled/net/minecraft/
 | player_placed direction (row 35) | OPEN | PlayerPlacedArgs.direction is read by no implementation and vanilla setPlacedBy has no face parameter, so either choice is a guess. No observable behaviour to fix. |
 | BlockFertilizeEvent payload (row 75) | OPEN | Requires a plugin-API payload change (BlockFertilizeEvent.getBlocks list) outside this unit. |
 | TestBlock registered twice (row 76) | FIXED | Removed the second manager.register(TestBlock) (was registry.rs:382). It burned a behaviour index; indices are runtime-assigned so removing it is safe. |
+
+
+## Result
+
+Second-pass audit of the STILL OPEN rows, scoped to ladder.rs, lanterns.rs,
+sculk_vein.rs, slabs.rs and torches.rs. Verified against
+.vendor/vanilla-decompiled/net/minecraft/ (SlabBlock, MultifaceBlock,
+BlockPlaceContext, LadderBlock, LanternBlock, WallTorchBlock/BaseTorchBlock).
+
+| Row | Disposition | Evidence |
+|---|---|---|
+| 28 can_update_at face convention | FIXED (sculk_vein.rs) | slabs.rs:56 matches vanilla SlabBlock.canBeReplaced for all face/height/type combos given args.direction = clickedFace.opposite(). sculk_vein.rs can_update_at instead used get_attach_direction support checks; vanilla MultifaceBlock.canBeReplaced is `!item.is(this.asItem()) || hasAnyVacantFace(state)`, i.e. only a vacant face matters. Replaced it with active_directions(props).len() < 6, and guarded get_attach_direction step 1 with !already_active.contains so on_place cannot re-set an occupied face. Added pure test multiface_replacement_needs_a_vacant_face. |
+| 29 BlockIsReplacing Other/None | VERIFIED, NO CHANGE | rotation in torches.rs:41, ladder.rs:20/36 and lanterns.rs:24 keys on `None`/`Water`, matching vanilla BlockPlaceContext.getNearestLookingDirections (unrotated when replaceClicked, rotated by clickedFace.opposite() otherwise). The Water/Itself cases are either no-op rotations (face already nearest) or unreachable for these blocks. |
+| 31 inside-collision shape | OPEN | Requires a BoundingBox-union API change in entity/mod.rs plus powder-snow/cauldron/campfire overrides, outside this unit. |
+| 32 isPathfindable Water default | VERIFIED, NO CHANGE (in scope) | registry.rs fallback is outside this unit. slabs.rs is_pathfindable returns is_waterlogged for Water and false for Land/Air, matching vanilla SlabBlock.isPathfindable. |
+| 35 player_placed direction | OPEN | PlayerPlacedArgs.direction is read by no implementation and registry.rs is outside this unit. |
+| 75 BlockFertilizeEvent payload | OPEN | Needs a plugin-API payload change (getBlocks list), outside this unit. |
+| 76 TestBlock registered twice | N/A | registry.rs, outside this unit; already removed per the earlier Result above. |
+
+Files changed: crates/pumpkin-core/src/block/blocks/sculk/sculk_vein.rs (rustfmt run).
+
+## Result (post-restart confirmation)
+
+Re-read all five in-scope files after the restart: both prior passes' edits are
+applied and intact, no half-moved helpers or partial edits. Re-confirmed the two
+in-scope fixes against `.vendor/vanilla-decompiled`:
+- `MultifaceBlock.canBeReplaced` (MultifaceBlock.java:168-169) =
+  `!item.is(this.asItem()) || hasAnyVacantFace(state)`; sculk_vein.rs
+  `can_update_at` = `active_directions(props).len() < 6` matches, and the
+  `isValidStateForPlacement` vacant-face guard (Java:184-190) is mirrored by the
+  `!already_active.contains(&click_direction)` check. Test uses Copy props.
+- `SlabBlock.canBeReplaced` (SlabBlock.java:77-91) keys on the raw clicked face
+  and click Y > 0.5; slabs.rs `.opposite()` conversion from the placement
+  direction is correct.
+
+Rows 31, 35, 75 remain OPEN (outside this unit: entity/mod.rs BoundingBox union,
+PlayerPlacedArgs.direction/registry.rs, plugin API payload). Rows 29 and 32
+remain VERIFIED, NO CHANGE. No new edits needed.

@@ -124,3 +124,30 @@ Re-review on 2026-11-17 against decompiled vanilla at
 - Row 6 (support re-check): VERIFIED FIXED. First check at tick 100 (SUPPORT_CHECK_INTERVAL = 100).
 - No STILL OPEN row is actionable within this unit; no generated-data, WIT or cross-crate change made.
 
+
+
+## Result (2026-11-18 worker re-verify, vendored vanilla available)
+
+Both remaining STILL OPEN rows re-checked directly against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (Paper/Folia 26.3). No code change was needed.
+
+- Row 3 (front-space check): remains open by design, premise does not hold in this source.
+  `HangingEntity.survives()` (HangingEntity.java:82-88) uses `hasLevelCollision(getPopBox())`,
+  which is `!level.noBlockCollision(this, popBox)` (HangingEntity.java:108-110), i.e. a
+  voxel collision-shape check on the thin painting AABB, not an is-air cell test.
+  Support uses `state.isSolid() || DiodeBlock.isDiode(state)` (HangingEntity.java:91-92) and
+  coexistence uses `canCoexist` (HangingEntity.java:99-105). Torches/signs/water have no
+  collision shape and are allowed. `Painting.create()` filters candidates with the same
+  `survives()`. Pumpkin already enforces the collision check in `survives()` via
+  `World::is_space_empty`; switching `painting_fits` front cells to `is_air()` would wrongly
+  reject those blocks. True per-cell parity needs collision shapes at filter time (cross-crate).
+- Row 5 (variant RNG): remains open by design, premise does not hold in this source.
+  `Painting.create()` samples with `Util.getRandomSafe(potentialVariants, candidate.random)`
+  (Painting.java:112). `Entity.random` is `SHARED_RANDOM` (Entity.java:356), which in this
+  bundled build is `ThreadLocalRandomSource.INSTANCE` (Entity.java:175). It is thread-local,
+  not world-seeded, so Rust `rand::rng()` (also thread-local) is functionally equivalent;
+  there is no world-seeded seam to adopt within this unit's files.
+- Rows 1, 2, 4, 6 re-confirmed fixed in code (variant-sized box + `painting_box_size` test,
+  yaw via `facing_to_yaw`/`set_facing`, `is_in_build_limit` check in the painting branch,
+  support check on tick 100). No generated-data, WIT or cross-crate change made. No new test
+  seam for rows 3/5.

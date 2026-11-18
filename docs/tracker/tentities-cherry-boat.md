@@ -96,3 +96,68 @@ Also fixed: `is_collidable` returned `!is_removed()` from an UNVERIFIED comment;
 `AbstractBoat.canBeCollidedWith` returns true unconditionally.
 
 Files: `crates/pumpkin-core/src/entity/vehicle/boat.rs`.
+
+
+## Result (2026-11-18, shared-checkout worker)
+
+Only row still marked STILL OPEN was the h6 note on line 69: "Delta-rotation accumulation not added".
+Re-checked against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`
+(26.3) plus `Mob.java` and `Entity.java`. It is already implemented and correct; no code change needed.
+
+- Vanilla `AbstractBoat.positionRider` adds `deltaRotation` to the rider's yaw and head yaw when the
+  rider is authoritative and not in `CAN_TURN_IN_BOATS`, then calls `clampRotation`. Vanilla builds
+  `deltaRotation` in `controlBoat` (client-side paddle input) and decays it by friction in `floatBoat`;
+  the server instead receives the boat yaw from the client's vehicle-move packet, so Pumpkin derives
+  the same per-tick value as `wrap_degrees(yaw - last_yaw)` in `BoatEntity::tick` (boat.rs:574-577).
+- `BoatEntity::on_rider_positioned` (boat.rs:846-889) applies that `yaw_delta` before clamping, skips
+  players and `CAN_TURN_IN_BOATS` riders, and uses `rider_body_yaw` + `clamp_head_to_body` for mob
+  riders, matching `clampRotation`/`calculatePassengerBodyYRot`/`Mob.clampHeadRotationToBody` exactly.
+  `on_passenger_turned` (boat.rs:891-939) re-clamps and folds `rider_clamp_adjustment` into `y_rot_o`,
+  matching vanilla `onPassengerTurned`. Call order after `set_pos` matches vanilla (entity/mod.rs:1673).
+- All helper math was verified line-by-line against vanilla: `clamp_rider_yaw` (+/-105),
+  `clamp_head_to_body` (getMaxHeadYRot default 75), `rider_body_yaw` (full-boat animal +90/+270),
+  `rider_clamp_adjustment` (yDelta). Existing tests `rider_yaw_follows_boat_yaw_delta_then_clamps`,
+  `rider_yaw_clamps_to_boat_heading_window`, `rider_clamp_adjustment_feeds_previous_yaw` and
+  `animal_in_a_full_boat_sits_sideways` cover this seam, so no duplicate test was added.
+
+Rows 1-5 and the `is_collidable` fix in the 2026-11-17 Result remain as recorded there; this pass
+found no regression. No source files edited, so no rustfmt or build was required (cargo is forbidden
+for this worker). Status: PASS (verified by source comparison, not compilation).
+
+## Result (2026-11-18, second pass)
+
+Re-ran the row audit after the 11-18 pass above. Rows 1-5 and the `is_collidable` note stay as
+recorded (1, 2, 5 FIXED; 3, 4 NOT A GAP against `AbstractBoat.interact` and
+`AbstractChestBoat.getMaxPassengers`). The h6 delta-rotation note is closed: `yaw_delta` from
+`wrap_degrees(yaw - last_yaw)` is applied before the +/-105 clamp in `on_rider_positioned`.
+Also re-checked `boat_interact_outcome` against vanilla for the out-of-control and already-riding
+container cases: both return PASS in vanilla, nothing opens, and the helper returns `Nothing`.
+No row is STILL OPEN, so no source edit and no rustfmt were needed (cargo is forbidden here).
+Status: PASS (source comparison only, not compiled).
+
+## Result (2026-11-18, third pass)
+
+Fresh audit against decompiled vanilla 26.3 at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/{AbstractBoat,AbstractChestBoat}.java`
+plus the current Pumpkin source. No row is marked STILL OPEN; all prior conclusions re-confirm:
+
+1. Rider clamp + delta rotation: CLOSED. Vanilla `AbstractBoat.positionRider` (696-706) adds
+   `deltaRotation` to yaw/head yaw then calls `clampRotation`; `clampRotation` (740-754) clamps
+   non-Mob riders to +/-105 and handles Mob riders via `setYBodyRot` + `clampHeadRotationToBody`.
+   Pumpkin `on_rider_positioned`/`on_passenger_turned` + helpers `clamp_rider_yaw`,
+   `clamp_head_to_body`, `rider_body_yaw`, `rider_clamp_adjustment` match, with `yaw_delta` from
+   `wrap_degrees(yaw - last_yaw)` (boat.rs:575-577). h6 delta-rotation note stays closed.
+2. Buoyancy/drag/friction: CLOSED. `float_boat` is implemented in `boat/physics.rs:184`
+   (`get_water_level_above` at :113), called for server-authoritative cases at boat.rs:609.
+3. Boarding gate: NOT A GAP. Vanilla `interact` (AbstractBoat.java:784) gates on
+   `!(outOfControlTicks < 60.0F)`, exactly Pumpkin's `out_of_control` condition.
+4. Chest passenger cap: NOT A GAP. `AbstractChestBoat.getMaxPassengers()` returns 1
+   (AbstractChestBoat.java:48-50); its `interact` (86) falls back to the container when
+   `!canAddPassenger`. Pumpkin keeps a 1-seat chest boat.
+5. Chest contents on destroy: CLOSED. Vanilla `AbstractChestBoat.remove` drops contents when
+   `reason.shouldDestroy()` (70-77); Pumpkin `scatter_chest_contents` runs from `on_removed`
+   (boat.rs:488-490) guarded by `claim_drops`. `is_collidable` still returns true unconditionally.
+
+No source files edited, so no rustfmt/build was required (cargo forbidden for this worker).
+Status: PASS (verified by vanilla/Pumpkin source comparison, not compilation).

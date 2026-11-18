@@ -84,39 +84,67 @@ Reference: `PaperMC/Paper/paper-server/src/minecraft/java/net/minecraft/world/en
   defaults or have no observable server effect.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- Rows 1, 4, 5, 6, 7: fixed / no action (verified 2026-11-18, see Result).
+- Rows 2, 3: partially fixed; remaining parts need cross-crate changes outside this unit.
 
 
 ## Result
 
-Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`
-(Paper 1.21 decompiled) on 2026-11-17. Only armor_stand.rs was edited (plus this doc).
+Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`
+(Paper 1.21 decompiled) on 2026-11-18. Only armor_stand.rs was ever edited by this unit; no
+further code change was needed this pass because every row fixable inside the unit is already
+present and matches the decompiled call chain. Verification of each row:
 
-1. Markers still have physics / fall: FIXED at the smallest seam. Vanilla
-   `hasPhysics() = !isMarker() && !isNoGravity()` gates travel; Pumpkin's equivalent
-   gravity consumer is LivingEntity::get_effective_gravity, so get_gravity now returns
-   0.0 for markers. No synced NoGravity flag or NoGravity NBT is written, matching
-   vanilla (markers only set the internal noPhysics). Piston push reaction and the
-   travel gate have no EntityBase hook in this crate and stay unrepresented.
-2. Explosion immunity: PARTIALLY FIXED. Added is_immune_to_explosion() returning
-   is_invisible(), which the explosion loop in world/explosion.rs:577 already honours
-   for both damage and knockback, matching vanilla ignoreExplosion's invisible clause.
-   Still open: !explosion.shouldAffectBlocklikeEntities() depends on the explosion's
-   BlockInteraction, which the no-argument trait method cannot observe.
-3. Paper plugin events: PARTIALLY FIXED. The manipulation event (swap_item) was already
-   present. Added EntityDeathEvent in broken_by_anything, the single seam shared by
-   kill, cause_damage and the explosion path, before the equipment lock is taken.
-   Still open: Pumpkin's EntityDeathEvent is not cancellable and cannot move equipment
-   clearing past the event; that needs the event struct outside this unit.
+1. Markers still have physics / fall: FIXED. Vanilla `hasPhysics() = !isMarker() && !isNoGravity()`
+   gates `travel` and `readAdditionalSaveData` sets `noPhysics = !hasPhysics()`. Pumpkin's
+   gravity consumer `LivingEntity::get_effective_gravity` calls `EntityBase::get_gravity`, which
+   now returns 0.0 for markers, so markers never fall. Not represented: the `travel` gate and
+   `getPistonPushReaction() = IGNORE_ENTITY` have no EntityBase hook in this crate; markers have
+   zero-size dimensions so collisions/pushing are negligible.
+2. Explosion immunity: PARTIALLY FIXED. `is_immune_to_explosion()` returns `is_invisible()`,
+   honoured by the explosion loop in world/explosion.rs:634 for damage and knockback, matching
+   vanilla `ignoreExplosion`'s invisible clause. STILL OPEN: `!explosion.shouldAffectBlocklikeEntities()`
+   requires the `Explosion` argument, but `EntityBase::is_immune_to_explosion()` takes none, so
+   this needs a cross-crate trait-signature refactor (outside this unit).
+3. Paper plugin events: PARTIALLY FIXED. `PlayerArmorStandManipulateEvent` fires in `swap_item`
+   (disabled slots rejected first), and `EntityDeathEvent` fires in `broken_by_anything`, the
+   shared seam reached from kill/burn/explosion, before the equipment lock is taken. STILL OPEN:
+   Pumpkin's `EntityDeathEvent` is not cancellable and carries no drops, so vanilla/Paper's
+   cancellable event with equipment removal moved past it needs an event-struct change outside
+   this unit.
 4. skipAttackInteraction / may_interact: FIXED. The player-attacker branch of
-   damage_with_context now also calls world.is_in_spawn_protection(player, block_pos)
-   alongside the mayBuild check, mirroring vanilla skipAttackInteraction.
-5. Potion immunity: OPEN (one-line reason). Vanilla isAffectedByPotions() returning false
-   has no Pumpkin EntityBase method and the effect-application filter lives outside this
-   unit, so it needs a cross-file trait change.
-6. Paper no-tick equipment: OPEN (one-line reason). Requires Paper.CanTickOverride NBT
-   and a tick hook outside this file; optimisation only, no gameplay effect.
+   `damage_with_context` calls `world.is_in_spawn_protection(player, block_pos)` alongside the
+   mayBuild check, matching vanilla `skipAttackInteraction` (`level.mayInteract`) plus the
+   `!mayBuild` guard in `hurtServer`.
+5. Potion immunity: FIXED (doc previously said OPEN; the code is present). `is_affected_by_potions()`
+   returns false; the trait method exists in `EntityBase` (mod.rs:492) and is honoured by both
+   splash_potion.rs:354 and area_effect_cloud.rs:376, so clouds/potions cannot effect a stand.
+6. Paper no-tick equipment: FIXED (doc previously said OPEN; the code is present). `Paper.CanTickOverride`
+   is read/written via `read_can_tick_override`, and `tick()` skips `LivingEntity::tick` when
+   `can_tick` is false. Equipment is applied eagerly in `set_item_slot`, so no deferred
+   `detectEquipmentUpdates` sync is needed; the death-tick branch has no Pumpkin equivalent.
 7. Client-only parity: no action needed, as documented.
 
-No pure seam exists for the state-dependent methods above, so no new unit test was added;
-the existing pure tests in armor_stand.rs were left intact.
+No new pure seam exists for the state-dependent methods verified above, so no new unit test was
+added; the existing pure tests in armor_stand.rs were left intact. `rustfmt --edition 2024 --check`
+on armor_stand.rs exits 0.
+
+## Result - re-audit 2026-11-18
+
+Re-checked every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`.
+No source file changed this pass: every row fixable inside this unit was already present in the
+checkout. Confirmed: marker gravity (`get_gravity` returns 0.0 for markers, vanilla `hasPhysics`
+at ArmorStand.java:129-130); potion immunity (`is_affected_by_potions` false, honoured by
+`area_effect_cloud.rs:376` and `splash_potion.rs:354`); spawn protection / `mayInteract` guard in
+`damage_with_context` (vanilla `skipAttackInteraction`, ArmorStand.java:713-715); can-tick override
++ `read_flags` + main-hand drop + wobble/death game events + interaction slot fallbacks +
+`is_ignoring_block_triggers`. No new pure seam, so no unit test added.
+
+STILL OPEN (out of this unit, one-line reasons):
+- Row 2 explosion immunity: vanilla `ignoreExplosion(Explosion) = !explosion.shouldAffectBlocklikeEntities() || isInvisible()`
+  (ArmorStand.java:603-604) needs the `Explosion` argument, but `EntityBase::is_immune_to_explosion()`
+  takes none and the dispatch is in world/explosion.rs -> cross-crate trait-signature refactor.
+- Row 3 Paper events: making death cancellable and moving equipment removal past the event needs
+  `EntityDeathEvent` changed to carry drops and be cancellable -> event-struct change outside this unit.
+
+Status: PASS fixed=0 open=2 files=none

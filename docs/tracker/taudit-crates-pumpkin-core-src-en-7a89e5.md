@@ -100,3 +100,37 @@ Paper/vanilla source. Both are already correct in Pumpkin; no source change was 
   No fix.
 
 No .rs files changed, so rustfmt was not applicable. Only this doc was updated.
+
+## Result (re-check 2026-11-18)
+
+Re-verified the single STILL OPEN row (the two "Unverified suspicions") against the
+decompiled Paper/vanilla source. Both are already correct in Pumpkin: no source change and
+no pure unit test were needed.
+
+- Arrow spawn position (doc :123, bow_attack.rs:92/:130) - CLOSED, no issue. `shoot()` builds
+  the arrow at the mob's feet, but `ArrowEntity::new_shot_with_weapon` -> `new_shot`
+  (arrow.rs:117-119) overwrites the position to `shooter.pos + eye_height - 0.1`, matching
+  decompiled `AbstractArrow.java:130`. The `dy` term reads the already-offset arrow Y,
+  matching `AbstractSkeleton.java:182`. Confirmed.
+
+- Difficulty cast (doc :150-153, bow_attack.rs:108/:136) - CLOSED, no issue. `Difficulty`
+  discriminants are 0..3 (pumpkin-util/src/difficulty.rs:16-25), matching
+  `Difficulty.getId()`. `arrow.rs:331-338` matches `AbstractArrow.java:790-791`
+  (`power*2 + triangle(id*0.11, 0.57425)`); `bow_attack.rs:136` matches
+  `RangedAttackMob.java:10` (`base - id*4`, vanilla base 14). Confirmed.
+
+Non-STILL-OPEN gaps reviewed while verifying; left open with one-line reasons:
+- Gap 1 (EntityShootBowEvent, S): doc premise is stale. Decompiled Paper
+  `AbstractSkeleton.java:190-200` DOES fire `EntityShootBowEvent` for mob shots (real bow,
+  real hand, draw power, before the sound) and supports projectile replacement. Pumpkin fires
+  it with a hardcoded "minecraft:bow"/1.0 after the sound and cannot honour replacement: the
+  plugin event has no projectile field (pumpkin-core .../entity_shoot_bow.rs) and the goal
+  has no power plumbing. Full parity needs a plugin-API event change (out of scope: WIT/plugin
+  API) plus Gap 2. Left open.
+- Gap 2 (draw power, M): needs the item-use tick counter plumbed into `shoot`; size M, left open.
+- Gap 3 (mob enchantments, M): needs decompiled confirmation of the `ProjectileUtil.getMobArrow`
+  attachment path; size M, left open.
+- Gap 4 (line of sight, S): Pumpkin raycast equals sensing today; aligning future sensing
+  modifiers is a cross-cutting refactor, left open.
+
+No .rs files changed, so rustfmt was not applicable. Only this doc was updated.

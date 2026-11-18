@@ -25,3 +25,15 @@ Re-review against decompiled net/minecraft/world/item/MaceItem.java (26.3, Paper
 - combat.rs mace_smash_knockback_power (row 15): CONFIRMED matches vanilla getKnockbackPower = (3.5 - dist) * 0.7 * heavy * (1 - resistance) with a fixed 0.7 vertical push and full 3D distance. No change.
 - Rows 11, 12, 14 target files outside this unit (mob/mod.rs, player.rs); already recorded FIXED/UNVERIFIED, not touched.
 - Row 16 STILL OPEN: asks for a pumpkin-gametest (drop player onto cow, assert base+bonus damage, knockback and no fall damage). A gametest fixture lives outside this unit's editable files (client_move.rs, combat.rs, mace.rs), so it cannot be added here. Added the smallest pure-unit seam instead: mace_smash_damage_curve_matches_vanilla_branches in combat.rs verifies the three linear segments at their 3/8-block boundaries against vanilla getAttackDamageBonus.
+
+
+## Result (current re-review)
+
+Re-verified every remaining row against decompiled net/minecraft/world/item/MaceItem.java (26.3, Paper-patched):
+- Row 13 (combat.rs can_smash_attack / smash_fall_ready): CONFIRMED. Vanilla canSmashAttack is fallDistance > 1.5 && !isFallFlying (MaceItem.java:160-161); current code matches, no on-ground gate. No change.
+- Row 15 (combat.rs mace_smash_knockback_power / mace_smash_knockback): CONFIRMED. Vanilla getKnockbackPower is (3.5 - dist) * 0.7 * heavy * (1 - resistance) (MaceItem.java:156-158) with a fixed 0.7F vertical push, full 3D distance and the same predicate filters; matches. No change.
+- Row 14 (player.rs velocity pin): CONFIRMED no change needed. Vanilla setDeltaMovement(y=0.01F) is unconditional, outside the mob.onGround branch (MaceItem.java:65 vs :71); file is outside this unit anyway.
+- Rows 11, 12 (mob/mod.rs, player.rs): outside this unit's editable files (client_move.rs, combat.rs, mace.rs); unchanged.
+- Row 16 STILL OPEN (pumpkin-gametest: drop a player ~6 blocks onto a cow, assert base+bonus damage, knockback and no fall damage afterwards): the gametest fixture lives outside this unit's editable files, so it cannot be added here. The pure-unit seam mace_smash_damage_curve_matches_vanilla_branches in combat.rs (three linear segments meeting at the 3/8-block boundaries) is present and verified against MaceItem.getAttackDamageBonus (MaceItem.java:100-124); a new test would duplicate it, so none was added.
+
+No source file required a fix this pass.

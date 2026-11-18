@@ -60,3 +60,41 @@ before fixing the "verify" rows.
   `checkEyeBlink` only when `isClientSide()` (Creaking.java:262-265). Reason: needs generated synced-data to wire a
   flag (outside this unit); the fields/methods are private to `creaking.rs`, so removing them has no server-observable
   effect and is not worth the churn.
+
+
+## Result (re-review, decompiled vanilla available)
+
+Re-verified every open row against `.vendor/vanilla-decompiled/` (now present). Two new fixes in `creaking.rs`;
+other rows confirmed already-correct or intentionally left open.
+
+- `is_looking_at_me` gaze cone (was STILL OPEN): already FIXED in code; re-verified. Vanilla
+  `LivingEntity.isLookingAtMe` (LivingEntity.java:2290) uses `dot > 1.0 - coneSize/(adjustForDistance?dist:1)`;
+  `Creaking.checkCanMove` (Creaking.java:476-477) passes coneSize 0.5, adjustForDistance=false, so the
+  threshold is the constant 0.5. Rust `GAZE_CONE_SIZE` + `dot > 1.0 - GAZE_CONE_SIZE` matches. No change.
+- death sound ordering (was STILL OPEN): verified NO change. `creakingDeathEffects` -> `die()` broadcasts
+  EntityEvent.DEATH (client plays CREAKING_DEATH) then plays CREAKING_TWITCH; `tearDown` plays
+  getDeathSound() again (Creaking.java:325). Vanilla intentionally sounds the death twice; Pumpkin matches.
+- unused eye-glow fields (was STILL OPEN): LEFT OPEN. `setupAnimationStates`/`checkEyeBlink` run only when
+  `level().isClientSide()` (Creaking.java:262-265); wiring a synced flag needs generated data outside this unit,
+  and the fields are private with no server-observable effect. One-line reason: client-only, needs generated
+  synced-data (outside unit).
+- NEW FIX `check_can_move` disguise gating (regression from a prior "fixed" row, now disproved by decompiled
+  source): vanilla `Creaking.checkCanMove` (Creaking.java:475) is `(!active || PLAYER_NOT_WEARING_DISGUISE_ITEM.test(player))
+  && isLookingAtMe`; `PLAYER_NOT_WEARING_DISGUISE_ITEM.test(player)` == `!disguised` (LivingEntity.java:226-229). The disguise only shields
+  against an already-active creaking, so a disguised player can still activate a dormant one by gaze. Rust was
+  unconditional `!is_disguised && is_looking_at_me`; restored `(!active || !is_disguised) && is_looking_at_me`.
+  No pure unit test (formula-mirroring / world state); rustfmt applied; UNVERIFIED (no compile in this role).
+- NEW FIX `attack_animation_remaining_ticks` never assigned (Remaining-gaps row 26): vanilla `Creaking.doHurtTarget`
+  (Creaking.java:140-147) sets 15 and broadcasts EntityEvent.START_ATTACKING (id 4) for a living target before the
+  hit resolves; the client handles id 4 by animating and playing CREAKING_ATTACK (Creaking.java:340-342); server
+  `playAttackSound` also plays CREAKING_ATTACK on a landed hit (LivingEntity.java:3625). Added `do_hurt_target`
+  override in `impl Mob for CreakingEntity` (reject non-living target, set counter, broadcast event 4 via the
+  file's existing `CEntityStatus` pattern, then `try_attack` + `play_attack_sound`) and a `play_attack_sound`
+  override playing `Sound::EntityCreakingAttack`. rustfmt applied; UNVERIFIED (no compile in this role).
+- `player_is_stuck_in_you` (Remaining-gaps row 24): NO change. Decompiled `checkCanMove` (Creaking.java:460-497)
+  does NOT call `playerIsStuckInYou`; the doc premise is wrong. Vanilla calls it from the heart despawn tick, and
+  Rust already does at `creaking_heart.rs:238` (`try_despawn_creaking`). Already correct.
+- wander/melee canMove gating + 0.3 idle speed (row 27) and heart UUID binding (row 29): NO change; already
+  implemented in code (`new()` goals at lines ~164-178, `try_spawn_creaking` -> `set_creaking_uuid` at line 199).
+- creaking loot (row 32): LEFT OPEN. Loot tables are generated/data-driven outside `creaking.rs`/`creaking_heart.rs`;
+  one-line reason: needs generated loot-table data (outside unit).

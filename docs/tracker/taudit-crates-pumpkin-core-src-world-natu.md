@@ -210,3 +210,85 @@ outside this unit.
   outside this unit.
 
 Files changed: crates/pumpkin-core/src/world/natural_spawner.rs; this doc.
+
+
+## Result (recheck against .vendor/vanilla-decompiled, 1.21.x)
+
+Re-read every gap against the decompiled vanilla source now present under
+`.vendor/vanilla-decompiled/net/minecraft/`. Earlier in-file fixes for rows 1, 2,
+4, 7, 10 and 11 were checked and left in place; one later regression was fixed.
+
+- Row 1 (local mob-cap player window): CONFIRMED FIXED. Vanilla
+  ChunkMap.playerIsCloseEnoughForSpawning (ChunkMap.java:860-866) rejects spectators
+  and uses horizontal distSqr < 16384.0; Pumpkin's is_near is identical. No change.
+- Row 2 (cached vs fallback player paths): CONFIRMED FIXED. Both paths call the same
+  is_near predicate from get_players_near. No change.
+- Row 3 (chunk-gen honours doMobSpawning): CONFIRMED MATCHING. Vanilla gates
+  spawnMobsForChunkGeneration on GameRules.SPAWN_MOBS (NaturalSpawner.java:599).
+  No change.
+- Row 4 (level RandomSource threading): CONFIRMED FIXED. world.spawn_random is
+  threaded through spawn_for_chunk, get_random_pos_within,
+  spawn_category_for_position and spawn_mobs_for_chunk_generation, so the sequence
+  advances once per spawn tick instead of reseeding per chunk. Exact seed parity is
+  still impossible (Pumpkin uses Xoroshiro), but the structural gap is closed.
+  No change.
+- Row 5 (initial cluster size): FIXED. A later edit hardcoded max = 6 from the
+  unused vanilla local `int ss = 6;` (NaturalSpawner.java:351). Vanilla actually uses
+  Mth.ceil(fastRandom.nextFloat() * 4.0F) (line 354). Replaced with the pure helper
+  initial_cluster_attempts(rng.next_f32()), which mirrors Mth.ceil, plus a unit test.
+- Row 6 (ON_GROUND head-block check): CONFIRMED MATCHING. SpawnPlacementTypes.java:24-36
+  validates the floor and calls isValidEmptySpawnBlock on both feet and head. No change.
+- Row 7 (chunk-gen vs live adjust_spawn_position): still open only for blocks that
+  override isPathfindable. The cache path uses !is_full_cube(), which equals the
+  BlockBehaviour LAND default, and the live path queries the block registry; a narrow
+  divergence remains for overridden blocks. Fixing it needs the registry inside
+  pumpkin-world's GenerationCache, outside this unit.
+- Row 8 (shared-spawn bubble / ticking chunk): CONFIRMED MATCHING. Vanilla applies the
+  respawn-point check only when respawnData.dimension() == level.dimension()
+  (NaturalSpawner.java:453-457) and Canvas replaces the trailing chunk check with
+  `return true` (lines 459-463). Pumpkin's OVERWORLD gate plus active-chunks check is
+  a conservative approximation. No change.
+- Row 9 (canSpawnEntitiesInChunk gate): LEFT OPEN. The caller is in world/mod.rs,
+  outside this unit's file (basenames: natural_spawner.rs).
+- Row 10 (structure spawn overrides): CONFIRMED FIXED. structure_spawn_entries checks
+  the world-gen spawn override before the biome list, and the weighted pick has a
+  unit test. No change.
+- Row 11 (unknown spawner aborts chunk-gen): CONFIRMED FIXED. EntityType::from_name
+  failure logs and continues. Vanilla's spawner list already stores entity types, so
+  skipping an unresolvable data-pack entry is the closest equivalent. No change.
+- h3-sweep row (canSpawnEntitiesInChunk TODO, world/mod.rs): LEFT OPEN. File is
+  outside this unit.
+
+Files changed this pass: crates/pumpkin-core/src/world/natural_spawner.rs; this doc.
+
+
+## Result (verification sweep, no in-file fix available)
+
+Re-verified every STILL OPEN / LEFT OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/`. No code change was needed in
+natural_spawner.rs this pass; all remaining rows are outside this unit or were
+already resolved by other workers.
+
+- Row 7 (chunk-gen vs live adjust_spawn_position, narrow case): STILL OPEN, out
+  of unit. Vanilla `SpawnPlacementTypes.ON_GROUND.adjustSpawnPosition` calls
+  `state.isPathfindable(LAND)` (SpawnPlacementTypes.java:45-48), whose default is
+  `!isCollisionShapeFullBlock` (BlockBehaviour.java:130-132); Pumpkin's cache path
+  uses `!is_full_cube()` (matches the default) and its live path queries the block
+  registry. `is_pathfindable` is a `BlockBehaviour` trait method reachable only
+  through the block registry, which GenerationCache (pumpkin-world) does not hold.
+  Fixing the overridden-block case needs a cross-crate change, outside this unit.
+- Row 9 (canSpawnEntitiesInChunk gate): RESOLVED outside this unit. world/mod.rs:3458
+  now calls `any_player_close_enough_for_spawning` (128-block non-spectator test,
+  lines 3430-3445) from `tick_spawning_chunk`, matching vanilla
+  `ChunkMap.anyPlayerCloseEnoughForSpawning`; no change by this unit.
+- h3-sweep row (canSpawnEntitiesInChunk TODO): RESOLVED by the same world/mod.rs gate
+  at line 3458. File is outside this unit (basenames: natural_spawner.rs).
+- Rows 1-6, 8, 10, 11: re-confirmed matching/fixed in the current file (128-block
+  is_near predicate; shared players-near path; spawn_mobs gate at line 653 matching
+  NaturalSpawner.java:599; spawn_random threaded; `initial_cluster_attempts` mirror
+  of Mth.ceil at NaturalSpawner.java:354; ON_GROUND feet+head check at
+  SpawnPlacementTypes.java:31-33; OVERWORLD respawn gate at
+  NaturalSpawner.java:453-457; structure spawn overrides; unknown spawner logs and
+  continues). after_spawn matches NaturalSpawner.java:754-775. No change.
+
+No new pure unit test: no seam was added this pass. Files changed: this doc only.

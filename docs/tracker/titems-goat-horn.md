@@ -90,7 +90,6 @@ No unit test added: the behaviour is entirely side-effectful (world sound/event,
 and stats) with no pure seam in `goat_horn.rs`; extracting a `duration > 0` helper would be a
 formula-mirroring test, which the rules exclude.
 
-
 ## Result
 
 Re-verified all STILL OPEN rows against decompiled vanilla
@@ -125,3 +124,69 @@ delta; the ordering now matches vanilla exactly.
 No unit test added: the use path is entirely side-effectful (world sound/event, player cooldown,
 hand stack, stats) with no pure seam. The existing tests already cover the pure duration and
 use-result helpers.
+
+## Result (latest re-review)
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java`.
+The current `goat_horn.rs` already carries the framework-integrated fixes; no
+further source edit was needed in this unit this pass.
+
+- Row 1 (TOOT_HORN use animation): STILL OPEN. Vanilla `getUseAnimation`
+  returns `ItemUseAnimation.TOOT_HORN` (`InstrumentItem.java:65-68`). `ItemBehaviour`
+  has no use-animation hook and `SwingAnimationType` has no `TootHorn` variant;
+  generated data, `item/mod.rs` and third-person client packet plumbing are all
+  outside this unit. Client-visible only.
+- Row 2 (per-stack use duration): FIXED. `ItemBehaviour::get_use_duration(&self,
+  &ItemStack)` now takes the stack (`item/mod.rs:109`); `GoatHornItem` returns the
+  instrument's duration in ticks or 0 (`goat_horn.rs:106-111`), matching vanilla
+  `getUseDuration` (`InstrumentItem.java:54-58`). `ItemStack::get_max_use_time`
+  and `ItemRegistry::get_use_duration` consume the stack-aware value.
+- Row 3 (datapack/custom instruments): STILL OPEN. Vanilla resolves a
+  `Holder<Instrument>` from the `INSTRUMENT` registry (`InstrumentItem.java:23-27,60-63`).
+  Pumpkin encodes an inline custom definition in the component string and
+  resolves built-ins with `Instrument::from_name`; registry-loaded datapack
+  instruments need a runtime instrument registry and datapack codec, which are
+  cross-crate/generated-data changes outside this unit.
+- Row 4 (cooldown): FIXED. Vanilla adds the cooldown only when the instrument's
+  use duration is positive (`InstrumentItem.java:42-45`); `goat_horn.rs:100-102`
+  matches with `if duration > 0 { player.start_cooldown(..) }`.
+- Row 5 (fail interaction result): FIXED. Vanilla returns `InteractionResult.FAIL`
+  for an instrument-less horn (`InstrumentItem.java:49-50`). `ItemBehaviour` now
+  has a `use_result(&self, &ItemStack) -> BlockActionResult` hook wired in
+  `item/registry.rs`, and `GoatHornItem::use_result` returns `Fail`/`Consume`
+  (`goat_horn.rs:113-123`), so the registry skips use-cooldown on FAIL.
+
+Three pure unit tests in `goat_horn.rs` cover stack-aware duration, custom
+instrument acceptance and instrument-less FAIL. Could not run them: worker shell
+is denied; the orchestrator compiles once after all workers finish.
+
+Rows 2, 4, 5 fixed; rows 1, 3 left open as framework/cross-crate work outside
+this unit. No source edit made this pass.
+
+## Result
+
+Re-verified both remaining STILL OPEN rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java`.
+No source edit made: both rows require files outside this unit (only `goat_horn.rs`
+is editable here), and the current `goat_horn.rs` already matches vanilla for
+every fixable behaviour.
+
+- Row 1 (TOOT_HORN use animation): STILL OPEN. Vanilla `getUseAnimation` returns
+  `ItemUseAnimation.TOOT_HORN` (`InstrumentItem.java:65-68`), but `ItemBehaviour`
+  (`item/mod.rs:24-`) has no use-animation hook and there is no third-person
+  animation packet path - a framework + generated-data + client-packet change
+  outside this unit. Client-visible only.
+- Row 3 (datapack/custom instruments via registry): STILL OPEN. Vanilla
+  `getInstrument` resolves a `Holder<Instrument>` from the component
+  (`InstrumentItem.java:60-63`), whereas Pumpkin stores a string resolved through
+  `Instrument::from_name` plus an inline custom encoding in
+  `pumpkin-data/src/data_component_impl/basic.rs` (outside this unit); resolving a
+  registry-loaded datapack instrument needs a runtime instrument registry and
+  datapack codec (cross-crate/generated data), outside this unit.
+
+`goat_horn.rs` already implements the in-unit fixes (stack-aware duration,
+`duration > 0` cooldown, `Fail` use-result, context-attributed game event) and
+carries pure unit tests for the duration/custom/use-result seams; no new seam
+exists for the two open client/registry rows. Worker shell is denied, so the
+tests could not be run here; the orchestrator compiles once after all workers.

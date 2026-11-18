@@ -119,3 +119,33 @@ Files changed: `crates/pumpkin-core/src/entity/experience_orb.rs`,
 `crates/pumpkin-core/src/entity/projectile/splash_potion.rs`.
 All touched `.rs` files formatted with `rustfmt --edition 2024`. Build not run
 (orchestrator compiles once after all workers finish).
+
+
+## Result (re-verification, session 2)
+
+Re-checked every STILL OPEN row against decompiled vanilla at
+`.vendor/vanilla-decompiled` (symlink to protocol-777 Paper/Canvas decompile). All row
+fixes from the earlier pass are present in the working tree and correct:
+
+- Row 1 (XP orb merge): VERIFIED. `ExperienceOrbEntity::spawn_with_direction` splits via
+  `orb_sizes` (tiers match vanilla `getExperienceValue`: 11->[7,3,1], 14->[7,7]) then
+  `try_merge_to_existing` searches a 1x1x1 box centred on the pos and adds the tier value
+  to an equal-valued orb, resetting `orb_age`. Vanilla uses a `count++` multi-pickup model,
+  but Pumpkin awards the whole `amount` on pickup, so total XP is identical. All 13 award
+  call sites route through `spawn` -> `spawn_with_direction`; the bottle calls it directly.
+  `amount: AtomicU32` supports the in-place absorb. Closed.
+- Row 2 (dispenser power): VERIFIED, NO CHANGE. Vanilla experience bottle uses the potion
+  config (1.375 power / 3.0 uncertainty), matching `POTION_PROJECTILE_*`. Closed.
+- Row 3 (throw spawn Y): VERIFIED. Vanilla `ThrowableItemProjectile(owner, ...)` uses
+  `owner.getEyeY() - 0.1`; `throw_spawn_pos` matches for bottle/snowball/egg/pearl. The
+  throw sound stays at feet (`player.getY()`), matching vanilla `ExperienceBottleItem`.
+  Closed.
+- Row 4 (automated test): pure unit tests exist (`orb_sizes` split tiers,
+  `throw_spawn_pos` eye offset, water buoyancy). The suggested on_hit integration test
+  needs a live `World` and is not a pure unit test; left to the orchestrator gametest pass.
+  Closed for pure-unit scope; integration test is out of scope for this unit.
+- Row 5 (splash potion sound): VERIFIED. Vanilla `AbstractThrownPotion.splash` emits
+  particles 2002/2007 plus sound 1053/1054 (data 0) when not silent. `splash_potion.rs`
+  broadcasts both with the matching generated `WorldEvent` constants. Closed.
+
+No new code changes required; no `.rs` files touched this pass (nothing to rustfmt).

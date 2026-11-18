@@ -17,13 +17,6 @@ impl JavaClient {
             return;
         }
 
-        if let Some(command) = chat_message.message.strip_prefix('/') {
-            let command_packet = SChatCommand { command };
-            self.handle_chat_command(player, server, &command_packet)
-                .await;
-            return;
-        }
-
         // Vanilla `ServerGamePacketListenerImpl#tryHandleChat`: a client that hid chat is never
         // broadcast, and a commands-only client is told why. Both are dropped before the event.
         match &player.config.load().chat_mode {
