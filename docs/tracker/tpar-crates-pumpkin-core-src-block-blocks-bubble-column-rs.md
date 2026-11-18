@@ -7,8 +7,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 ## Result
 
 Verified 2026-11-18 (third pass) against decompiled vanilla in
-.vendor/vanilla-decompiled/net/minecraft/. All rows are closed; no STILL OPEN
-rows remain.
+.vendor/vanilla-decompiled/net/minecraft/. All rows are closed; every row below is FIXED or VERIFIED.
 
 - Row 1 (bubble-column physics / bubble time): FIXED/VERIFIED. The boat-side
   implementation is present in crates/pumpkin-core/src/entity/vehicle/boat.rs:

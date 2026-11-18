@@ -37,7 +37,7 @@ seat offsets, dismount search and damage/drop match `AbstractBoat`. Rider positi
 | `server/builtin_game_tests/` | runtime parity | No boat gametest coverage (grep confirms only the dispenser boat test), so the rewritten water physics is unverified at runtime | Add one gametest: boat floats up after a fall, ejects a rider after 60 underwater ticks, chest boat scatters its 27 slots when broken | S |
 
 ## Gap status
-- Remaining-gap items (lines 29-37, incl. missing boat gametest coverage): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- Remaining-gap items (lines 29-37, incl. missing boat gametest coverage): CLOSED. All five were fixed in the tree by parallel work and are re-verified against .vendor/vanilla-decompiled in the Result sections below; no row remains STILL OPEN.
 
 
 ## Result
@@ -213,3 +213,45 @@ in the tree from parallel work), so rustfmt had nothing to format.
   `test_chest_boat_scatters_27_slots_on_break` (233), plus related chest-boat/fire tests.
 
 Compile pitfalls: no source code changed by me, so none apply.
+
+## Result
+
+FINAL PASS (CODER direct edit). Re-verified all five rows against the decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft` and the current working-tree source. Every row is
+already FIXED in the tree (parallel work) and each matches the decompiled vanilla; no row remains
+STILL OPEN. No source edits were needed, so rustfmt had nothing to format; only the stale Gap
+status line above and this Result section were changed.
+
+- Air->water snap (S): FIXED / VERIFIED. `boat/physics.rs:191-212` guards the surface snap with
+  `entity.world.load().no_collision(entity, moved_box)` and stores `InWater` unconditionally,
+  matching vanilla `AbstractBoat.floatBoat` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:611-620`
+  (`noCollision` guard at 614, `status = IN_WATER` at 620). No pure seam (needs `world.noCollision`),
+  so no new unit test.
+- Gravity (S): VERIFIED ALREADY CORRECT. Vanilla `floatBoat` starts `-this.getGravity()`
+  (`AbstractBoat.java:608`) and `Entity.getGravity()` returns 0.0 under `noGravity`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:2231-2233`);
+  `boat/physics.rs:214 -self.get_gravity()` with `boat.rs:964-970 get_gravity()` honouring
+  `has_no_gravity()` matches. Replacing it with `DEFAULT_GRAVITY` would diverge. No unit-test seam.
+- Bubble column / `ID_BUBBLE_TIME` (M): FIXED / VERIFIED. Boat side (`boat.rs`): `bubble_column_time`,
+  `tick_bubble_column` writing `pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME`,
+  `on_above_bubble_column`/`on_inside_bubble_column` and `bubble_column_vertical_velocity` (-0.7 / +0.6)
+  match `AbstractBoat.tickBubbleColumn`/`handleBubbleColumnEffect`
+  (`AbstractBoat.java:351-408`; `DATA_ID_BUBBLE_TIME` at 57, `BUBBLE_TIME`/`TIME_TO_EJECT` = 60 at 60/63).
+  Block side (`bubble_column.rs`): `bubble_column_vertical_velocity` matches
+  `Entity.handleOnAboveBubbleColumn` (`Entity.java:4149-4163`: up +0.1/cap 1.8, down -0.03/cap -0.9)
+  and `handleOnInsideBubbleColumn` (`Entity.java:4185-4199`: up +0.06/cap 0.7, down -0.03/cap -0.3);
+  `push_projectile` matches `Projectile`, and `entity_inside` uses the collision/fluid test from
+  `BubbleColumnBlock.entityInside`. Tests `upward_push_cap_depends_on_surface`,
+  `downward_push_cap_depends_on_surface` and `open_above_requires_no_collision_and_no_fluid` lock the
+  pure seams, so no new unit test is warranted.
+- Rider-rotation clamp (M): FIXED / VERIFIED. `boat.rs:856-944` `on_rider_positioned` /
+  `on_passenger_turned` with pure helpers `rider_body_yaw`/`clamp_head_to_body`/`clamp_rider_yaw`/
+  `rider_clamp_adjustment` and tests match `AbstractBoat.positionRider` (`AbstractBoat.java:696-706`),
+  `clampRotation` (740-754, 105 deg clamp) and `onPassengerTurned` (763-766), including the
+  animal-in-full-boat side seating (`calculatePassengerBodyYRot`, 756-760).
+- Boat gametest (S): FIXED. `server/builtin_game_tests/boat_block_effects.rs` has
+  `test_boat_floats_up_after_fall` (135), `test_boat_ejects_passenger_after_60_underwater_ticks`
+  (173) and `test_chest_boat_scatters_27_slots_on_break` (233), registered in that dir's `mod.rs`.
+
+Compile pitfalls: no source code changed this pass, so none apply.
