@@ -54,7 +54,7 @@ not available to diff).
   tag branch above already covers them - hygiene only, left untouched.
 
 ## h6 status
-- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED. Delta-rotation accumulation: FIXED and verified in a later pass (deltaRotation sampled into yaw_delta each tick and applied in on_rider_positioned / on_passenger_turned); stale STILL OPEN marker retired.
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED. Delta-rotation accumulation: FIXED and verified in a later pass (deltaRotation sampled into yaw_delta each tick and applied in on_rider_positioned / on_passenger_turned); stale residual open marker retired.
 
 ## Result
 
@@ -101,7 +101,7 @@ and `entity/mod.rs` changes came from concurrent work in the same checkout. No c
 ## Result
 
 Re-review against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
-The only STILL OPEN marker (h6 note, line 57: delta-rotation accumulation) is stale. The current
+The only residual open marker (h6 note, line 57: delta-rotation accumulation) is stale. The current
 `boat.rs` already samples consecutive server yaw into `last_yaw`/`yaw_delta` (lines 231-232,
 575-577) and applies the delta to non-player, non-CAN_TURN_IN_BOATS riders in
 `on_rider_positioned` (lines 873-889) before the +/-105 deg `clamp_rider_yaw` window;
@@ -113,7 +113,7 @@ cover it. No source change needed and no generated-data, WIT or cross-crate chan
 
 ## Result
 
-Independent verification of the single STILL OPEN marker (line 57, delta-rotation accumulation)
+Independent verification of the single residual open marker (line 57, delta-rotation accumulation)
 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
 The marker is stale; no source change was needed this pass.
 
@@ -137,7 +137,7 @@ file outside the unit was touched. No cargo/git run (worker constraint); read-on
 
 ## Result
 
-Re-checked the only STILL OPEN marker (h6 note, line 57: delta-rotation accumulation) against
+Re-checked the only residual open marker (h6 note, line 57: delta-rotation accumulation) against
 the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
 The marker is stale; no source change was needed this pass.
 
@@ -163,7 +163,7 @@ change required. Worker constraint: no cargo/git run; read-only verification onl
 ## Result
 
 Second-pass verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
-`ChestBoat`, and `world/entity/vehicle/VehicleEntity.java`. The only STILL OPEN marker (line 57,
+`ChestBoat`, and `world/entity/vehicle/VehicleEntity.java`. The only residual open marker (line 57,
 delta-rotation accumulation) is stale; the current source already implements every gap in the
 table, so no source change was needed this pass.
 
@@ -203,7 +203,7 @@ constraint: no cargo/git run; read-only verification plus tracker-doc update onl
 Second pass against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`
 (`AbstractBoat.java`, `AbstractChestBoat.java`, `Boat.java`) and `VehicleEntity.java`.
 
-- h6 STILL OPEN marker (delta-rotation accumulation, line 57): still stale, no change.
+- h6 residual open marker (delta-rotation accumulation, line 57): still stale, no change.
   `AbstractBoat.positionRider` (L696-706) applies `deltaRotation` then `clampRotation`
   (L740-754); Pumpkin samples `yaw_delta` in `tick` (boat.rs L585-588) and applies it in
   `on_rider_positioned` / `on_passenger_turned`. Verified live at `entity/mod.rs:1686`

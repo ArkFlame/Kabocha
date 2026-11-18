@@ -233,42 +233,6 @@ impl VaultBlockEntity {
         *stored = items;
     }
 
-    /// Cycles the display item from the vault's loot table (vanilla [`VaultBlockEntity.Server.cycleDisplayItemFromLootTable`]).
-    /// Picks a random stack from the loot table and sets it as the displayed item via [`shared_data`].
-    pub fn cycle_display_item_from_loot_table(&self) {
-        let mut shared = self
-            .shared_data
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let data = shared.get_or_insert_with(NbtCompound::new);
-
-        let config_guard = self
-            .config
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(config) = config_guard.as_ref() else {
-            // No config; set empty display item and return.
-            data.child_tags.remove("display_item");
-            return;
-        };
-        let ominous = config.get_bool("ominous").unwrap_or(false);
-        let loot_table = config.get_string("loot_table").unwrap_or(if ominous {
-            "minecraft:chests/trial_chambers/reward_ominous"
-        } else {
-            "minecraft:chests/trial_chambers/reward"
-        });
-        // Generate loot and set display item
-        let stacks = Self::resolve_loot_table(loot_table);
-        if let Some(stack) = stacks.last() {
-            self.set_display_item(stack);
-        }
-    }
-
-    const fn resolve_loot_table(_loot_table: &str) -> Vec<ItemStack> {
-        // TODO: implement proper loot table resolution using world
-        Vec::new()
-    }
-
     /// Removes and returns the next stack to eject (vanilla [`#popNextItemToEject`], popping the back).
     pub fn pop_next_item_to_eject(&self) -> Option<ItemStack> {
         self.items_to_eject
@@ -306,30 +270,5 @@ impl VaultBlockEntity {
             rewarded.remove(0);
         }
         rewarded.push(player_id);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cycle_display_item_handles_missing_config() {
-        let entity = VaultBlockEntity::new(BlockPos::new(0, 0, 0));
-        // entity has no config, so cycle should set empty display item without panic
-        entity.cycle_display_item_from_loot_table();
-        // The display item should remain empty or be set to empty
-        let display = entity.next_item_to_eject();
-        // When no loot is available, the display item should be empty
-        assert!(display.is_empty());
-    }
-
-    #[test]
-    fn cycle_display_item_preserves_behavior() {
-        let entity = VaultBlockEntity::new(BlockPos::new(0, 0, 0));
-        // Call multiple times; should not panic
-        entity.cycle_display_item_from_loot_table();
-        entity.cycle_display_item_from_loot_table();
-        entity.cycle_display_item_from_loot_table();
     }
 }

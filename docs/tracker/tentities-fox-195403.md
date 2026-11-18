@@ -13,7 +13,7 @@ Verdict: structure complete (goal list/priorities, variants, spawn variant, bree
 
 | file:line | vanilla | gap | fix | size |
 |---|---|---|---|---|
-| `mod.rs:877` (`get_ambient_sound`) | `Fox.getAmbientSound` gates the night screech on `!level.isDay()` | Rust uses `world.is_bright_outside()`, which is false in rain/thunder, so a fox screeches on a rainy day and stays silent on a dark-but-raining night | use a day-time check (`world.is_day()`) instead of `is_bright_outside` | S | **STILL OPEN**
+| `mod.rs:877` (`get_ambient_sound`) | `Fox.getAmbientSound` gates the night screech on `!level.isBrightOutside()` | The row premise (`isDay()`) was wrong: decompiled vanilla uses `isBrightOutside()` | none: Rust already matches vanilla | S | **VERIFIED (matches vanilla)**
 
 ## Notes (not gaps)
 - `goals.rs` (`has_shelter`) uses the motion-blocking heightmap; vanilla `Fox$FoxSleepGoal` shelter test needs decompiled confirmation (possible `canSeeSky` difference), left unchanged.
@@ -28,3 +28,5 @@ Verdict: structure complete (goal list/priorities, variants, spawn variant, bree
 
 - Re-verified this pass against decompiled source: Fox.java:693 uses isBrightOutside(), confirming the row suggested isDay() fix is incorrect and Rust at mod.rs:877 already matches. Result stands; no source file in this unit is editable (basenames: none).
 - Independent re-check (decompiled source present): Fox.java:693 `!isBrightOutside() && nextFloat() < 0.1F` vs mod.rs:877 `!is_bright_outside() && random_range(0..10) == 0`; both gate on bright-outside and both give a 10% screech chance, so parity holds. is_bright_outside itself is engine-level (world crate), out of this unit's scope. No editable source files (basenames: none), so no code/test changes this pass.
+
+- THIRD PASS: verified the sole STILL OPEN row against decompiled vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fox/Fox.java:678-702`. getAmbientSound screech gate is `!level().isBrightOutside() && random.nextFloat() < 0.1F`; Rust `mod.rs:877` is `!world.is_bright_outside() && rand::rng().random_range(0..10) == 0` - same condition and same 10% chance. Nearby-player/spectator check (Fox.java:694-698 vs mod.rs:879-884) and screech volume/pitch (Fox.java:680-681 vs mod.rs:897-899) also match. The proposed `isDay()` fix was based on an incorrect premise and is not applied; no code change warranted. Row marked VERIFIED (matches vanilla); no source files edited this pass.
