@@ -373,6 +373,7 @@ impl ToTokens for ItemComponents {
             translate: text,
             bedrock_translate: _,
             with: _,
+            bedrock_with: _,
         } = *self.item_name.clone().0.content
         else {
             unreachable!()

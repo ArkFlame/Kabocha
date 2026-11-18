@@ -148,6 +148,7 @@ impl SynchedEntityData {
 
     /// Returns the stored value of the requested type, or `None` when it is not
     /// registered or was written with a different type.
+    #[must_use]
     pub fn get<T: Clone + 'static>(&self, tracked: TrackedData) -> Option<T> {
         let items = self
             .items
