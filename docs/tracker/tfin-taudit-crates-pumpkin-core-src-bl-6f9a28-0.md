@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: structure_block.rs
 
-- 1. Entities never captured on save (`structure_block.rs:188-262`): STILL OPEN (M).
-- 2. Placement ignores `ignoreEntities`/`StructurePlaceSettings`: STILL OPEN (M).
-- 3. Wall-clock seed when `seed == 0` (`structure_block.rs:327-334`): STILL OPEN (S).
-- 4. Structure name canonicalisation (`from_nbt` 535-541): STILL OPEN (S).
+- 1. Entities never captured on save (`structure_block.rs:188-262`): FIXED / VERIFIED.
+- 2. Placement ignores `ignoreEntities`/`StructurePlaceSettings`: FIXED / VERIFIED.
+- 3. Wall-clock seed when `seed == 0` (`structure_block.rs:327-334`): VERIFIED (already matches vanilla).
+- 4. Structure name canonicalisation (`from_nbt` 535-541): FIXED / VERIFIED.
 
 ## Result
 1. Entities never captured on save: FIXED and VERIFIED. `capture_structure_template_from_world` gates entity capture on `include_entities`, uses `AABB.encapsulatingFullBlocks` (min..max+1), excludes players, stores relative `pos` and painting `block_pos` / floored `BlockPos.containing` block_pos. Matches `.vendor/vanilla-decompiled/net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate.java` `fillFromWorld`/`fillEntityList` (lines 101-192). Callers pass `!ignoreEntities` (`StructureBlockEntity.java` saveStructure line 348-350).
