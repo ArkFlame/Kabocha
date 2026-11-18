@@ -85,3 +85,33 @@ Remaining gaps:
   can_smash_attack omits not-on-ground intentionally (Pumpkin fall distance is client-driven,
   so a ground-only packet would otherwise keep a stale smash); the get_killer_entry heuristic
   has no parity requirement.
+
+
+## Result (third pass, final)
+
+Re-read the prior Result and re-checked all five rows against the decompiled vanilla in
+.vendor/vanilla-decompiled/net/minecraft/ and the live source. All rows are terminal; the
+stale STILL OPEN markers in the Remaining gaps table and Gap status were corrected.
+
+- mace_smash_knockback (S): FIXED. mace_smash_knockback routes the impulse through Entity::push_by
+  and still sends a motion packet to pushed players, matching MaceItem.knockback
+  (MaceItem.java:126-153, Entity.push(x, 0.7, z, attacker)). Full 3D offset falloff. Test
+  smash_knockback_power_uses_full_3d_distance.
+- record_damage combat enter/leave hooks (M): FIXED. record_damage returns CombatStateChange
+  {entered, left, end_duration}; living.rs:4625-4629 fires on_leave_combat/on_enter_combat at
+  the points vanilla fires mob.onLeaveCombat/onEnterCombat (CombatTracker.java:47-68,165-185).
+  Test combat_reset_clears_state_and_reports_duration.
+- get_message_for_assisted_fall live item (S): FIXED. get_fall_message resolves the attacker's
+  current main hand by entity id via live_main_hand_item_name at message time, matching
+  CombatTracker.java:74-81 (attackerEntity.getMainHandItem()). Test
+  assisted_fall_uses_live_item_name_and_falls_back_without_it.
+- player.rs sweep damage (M): VERIFIED. compute_sweep_damage uses vanillas
+  (1 + SWEEPING_DAMAGE_RATIO * base) * attackStrengthScale (Player.java:1280,1288), scans the
+  victim box inflated by (1.0, 0.25, 1.0), skips allies/marker stands/3+ block targets, applies
+  0.4 knockback and the sweep particle (Player.java:1282-1303). No sweep damage type is required.
+- player.rs causeExtraKnockback non-living push (S): FIXED. non_living_knockback_impulse returns
+  (-sin*strength, 0.1, cos*strength), used at player.rs:2140, matching Player.causeExtraKnockback
+  (Player.java:1213). Test non_living_knockback_uses_opposite_horizontal_sign_and_small_lift.
+
+No parity code change was needed (all second-pass fixes are present); one cosmetic fix moved the
+knockback-resistance doc comment onto knockback_after_resistance in combat.rs.
