@@ -2,8 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- Row 6 (game-event system): STILL OPEN. Soul feeding is a manual call from `LivingEntity::on_death` only; a real `GameEvent.ENTITY_DIE` BY_DISTANCE listener is a cross-crate change outside this unit.
-- Row 6 (game-event system): STILL OPEN. Real GameEvent.ENTITY_DIE BY_DISTANCE listener dispatch is a cross-crate change; only the manual LivingEntity::on_death path exists. reason: cross-crate game-event system outside this unit.
+- Row 6 (game-event system): FIXED. Catalyst is now a real `GameEvent.ENTITY_DIE` BY_DISTANCE listener; see `## Result` below.
 
 ## Result
 - Row 6 (game-event system): FIXED. Sculk catalysts are now real `GameEvent.ENTITY_DIE` BY_DISTANCE listeners (`game_event_radius()` = 8, `on_game_event()` in `block/entities/sculk_catalyst.rs`), and living deaths emit `GameEvent::EntityDie` (`entity/living.rs`) instead of the manual `on_entity_death` scan. Vanilla: `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java:68-114` (CatalystListener, radius 8, BY_DISTANCE, `handleGameEvent`) and the dispatcher in `.vendor/vanilla-decompiled/net/minecraft/world/level/gameevent/GameEventDispatcher.java:22-75`; Pumpkin listener path `crates/pumpkin-core/src/world/game_event.rs:61-133`. The prior "no game-event subsystem" blocker is obsolete: that subsystem (with block-entity listeners) now exists. Files touched: `block/entities/sculk_catalyst.rs`, `entity/living.rs`.
