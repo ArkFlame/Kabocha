@@ -236,3 +236,6 @@ All remaining STILL OPEN rows resolved against decompiled vanilla.
 No pure unit-test seam exists for these rows: all three paths need `World`,
 `Arc`, player lists or entity collision state, so none was added. Cannot
 compile as a worker; orchestrator verifies with `scripts/integrate.sh`.
+
+
+WRITE_TEST_OK
