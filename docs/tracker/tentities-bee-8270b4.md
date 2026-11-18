@@ -261,3 +261,50 @@ no source file needed an edit this pass.
 
 No code edits, no new unwrap/expect/panic, no generated-data or subsystem blocker. Files: none
 changed this pass (verification only).
+
+
+## Result (FINAL PASS - authoritative, 2026-11-18)
+
+Re-verified all six rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/bee/Bee.java`
+and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java`
+(MC 26.3), then re-read the current source. Files edited this pass: `bee.rs`,
+`pollinate_flower.rs`. No cargo run (worker restriction); the orchestrator runs rustfmt and
+the build.
+
+- **Gap 1 (hive behaviour): VERIFIED.** `Bee.java:360-369, 499-513, 1050-1130`;
+  `bee.rs` persists `hive_pos` and decrements the cooldowns,
+  `beehive.rs::add_occupant`/`tick_occupants` respawn from the front face, and `goal/hive.rs`
+  registers EnterHive/LocateHive/GoToHive. No change this pass.
+- **Gap 2 (flower memory / pollination): FIXED this pass, now VERIFIED.** `Bee.java:1129-1141`
+  saves the found flower on the bee, `:1151-1155` stops pollination in the rain and keeps a
+  20% hover roll past 400 ticks, and `:1170-1177` resets the no-nectar timer at start.
+  Previously Pumpkin remembered the bee's own position at nectar gain, never checked rain
+  while continuing, and did not reset the timer at start. `pollinate_flower.rs` now passes
+  the found `BlockPos` to `on_start` and checks `World::is_raining()` in both `can_start`
+  and `should_continue`; `bee.rs::pollination_started` remembers the flower and resets
+  `ticks_without_nectar`. `stop()` still grants nectar once (`:1180-1188`). These three
+  fixes need world/entity state so there is no pure seam for a new test; the existing pure
+  helper tests still cover the 20% roll, the `>400` boundary, Manhattan search and flower
+  filtering.
+- **Gap 3 (crop growth): VERIFIED, no change.** `Bee.java:978-1030` confirms
+  `BeeGrowCropGoal.tick` branches only on `CropBlock`, `StemBlock`, `SweetBerryBushBlock` and
+  cave vines; Pumpkin's priority 7, 30% `canBeeUse` reject, 1-in-30 roll, `isHiveValid` gate,
+  age+1 growth, ten-crop cap that keeps nectar, and `PITCHER_CROP` exclusion all match.
+- **Gap 4 (hive exit / TicksSincePollination): VERIFIED.** `Bee.java:346-348, 408-410,
+  491-495, 519-525`; the counter increments while nectar-free and resets on nectar gain
+  (now also at pollination start, `:1176`), `CannotEnterHiveTicks` decrements each tick, and
+  the tired-at-3600 return is driven by the hive goals.
+- **Gap 5 (goal priorities): VERIFIED, no change.** `Bee.java:192-213` priorities 0 attack,
+  1 enter-hive, 2 breed, 3 tempt/validate, 4 pollinate, 5 follow/locate/go-hive,
+  6 go-to-flower, 7 grow-crop, 8 wander, 9 float match `bee.rs`.
+- **Gap 6 (spawn cluster / rain): VERIFIED.** `Bee.java` has no per-species
+  `getMaxSpawnClusterSize`/`isDarkEnoughToSpawn` override. Rain avoidance is now world-wide
+  through `World::is_raining()` in `pollinate_flower.rs`, matching vanilla `Level.isRaining()`
+  at `:1134` and `:1154`, instead of the earlier sky-access-only `is_raining_at` proxy.
+
+No row remains STILL OPEN. No BLOCKED-DATA: no missing generated `pumpkin-data` field and no
+missing subsystem. No unwrap/expect/panic added.
+
+Files changed this pass:
+- `crates/pumpkin-core/src/entity/ai/goal/pollinate_flower.rs`
+- `crates/pumpkin-core/src/entity/passive/bee.rs`

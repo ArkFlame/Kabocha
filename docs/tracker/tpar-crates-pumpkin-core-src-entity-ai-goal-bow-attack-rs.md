@@ -4,8 +4,59 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 - **own/taudit-crates-pumpkin-core-src-en-7a89e5** [partial/OWN-OPEN] own audit: 6 open, 3 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-en-7a89e5.md) docs/tracker/taudit-crates-pumpkin-core-src-en-7a89e5.md
 
-## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+## Result (final pass 2026-11-18)
+
+Filled from the source audit in `docs/tracker/taudit-crates-pumpkin-core-src-en-7a89e5.md`
+and re-verified against decompiled vanilla in `.vendor/vanilla-decompiled`. All six rows are
+terminal; none remain STILL OPEN. In-scope fixes are present in bow_attack.rs / arrow.rs and
+match vanilla, so no `.rs` change was needed this pass.
+
+- Gap 1 (EntityShootBowEvent projectile replacement, S) - BLOCKED-DATA. Decompiled Paper
+  `AbstractSkeleton.performRangedAttack`
+  (net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:175-204) fires the event
+  with the real bow, hand and draw power before the shoot sound, removes the projectile on
+  cancellation (:192-194) and suppresses the original delayed spawn when a plugin replaced it
+  (:197-199). Pumpkin already fires before the sound with the real bow registry key and
+  honours cancellation (bow_attack.rs:173-184), but spawns the original arrow unconditionally
+  (bow_attack.rs:199). Exact missing field: the `entity-shoot-bow-event` WIT record
+  (crates/pumpkin-plugin-wit/v0.2/event.wit:592-597, v0.1/event.wit:511-516) has only
+  entity-id, weapon-name, force and cancelled; a `projectile` field plus regenerated
+  wit-bindgen host bindings (v0_1/v0_2), codegen and SDK changes are required. Whole
+  plugin-API subsystem + generated bindings, outside this unit's files. No pumpkin-data
+  field is missing.
+- Gap 2 (draw power / desync, M) - FIXED, VERIFIED. bow_attack.rs:289 gates the draw branch on
+  `self.drawing && Self::is_using_item(mob)` (helper :85-92), matching `RangedBowAttackGoal.tick`
+  (net/minecraft/world/entity/ai/goal/RangedBowAttackGoal.java:124-137) where `isUsingItem()`
+  is the source of truth so an externally stopped draw restarts. Full power is correct: the
+  goal fires at DRAW_TIME=20 (bow_attack.rs:35, 294) and `BowItem.getPowerForTime(20) == 1.0`
+  (net/minecraft/world/item/BowItem.java:74-82), matching `FULL_DRAW_POWER = 1.0`
+  (bow_attack.rs:40, 132).
+- Gap 3 (mob enchantments / base damage, M) - FIXED, VERIFIED. bow_attack.rs:132 passes
+  `FULL_DRAW_POWER` to `set_base_damage_from_mob`, matching `ProjectileUtil.getMobArrow` ->
+  `arrow.setBaseDamageFromMob(power)`
+  (net/minecraft/world/entity/projectile/ProjectileUtil.java:288-292); this vanilla version has
+  no `setEnchantmentEffectsFromEntity` path. `AbstractArrow.setBaseDamageFromMob`
+  (net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:790-791) is implemented in
+  arrow.rs:331-338. Power/Punch bonuses are additive at spawn (bow_attack.rs:135-142),
+  equivalent to vanilla hit-time `modifyDamage`/`modifyKnockback` (AbstractArrow.java:467-471,
+  569) because on_hit_entity multiplies by pow once.
+- Gap 4 (line of sight, S) - CLOSED, VERIFIED. bow_attack.rs:234 `mob.has_line_of_sight`
+  resolves to the Mob trait method (crates/pumpkin-core/src/entity/mob/mod.rs:1747-1754)
+  delegating to `Sensing::has_line_of_sight` (crates/pumpkin-core/src/entity/ai/sensing.rs:19),
+  i.e. vanilla `mob.getSensing().hasLineOfSight` (RangedBowAttackGoal.java:74).
+- Unverified suspicion: arrow spawn position - CLOSED, VERIFIED. `ArrowEntity::new_shot`
+  overwrites the spawn to eye height - 0.1 (arrow.rs:117-119), matching
+  `AbstractArrow(LivingEntity, ...)`
+  (net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:130); the `dy` term reads the
+  already-offset arrow Y (bow_attack.rs:152-154), matching AbstractSkeleton.java:182.
+- Unverified suspicion: difficulty cast - CLOSED, VERIFIED. `Difficulty` discriminants are
+  explicitly 0..3 (crates/pumpkin-util/src/difficulty.rs:16-25), matching `Difficulty.getId()`.
+  The damage/spread formulas match (arrow.rs:331-338, bow_attack.rs:159; AbstractArrow.java:791,
+  net/minecraft/world/entity/monster/RangedAttackMob.java:10).
+
+No pure unit test added: the draw/state helpers need a `dyn Mob` with mutex-backed state, so
+there is no side-effect-free seam, and a formula-mirror or `&&`-gate test would be a
+discouraged test. No `.rs` file changed this pass, so rustfmt was not applicable.
 
 
 ## Result (third pass 2026-11-18)

@@ -94,7 +94,7 @@ FIXED: fire tick delay is 30 + rand(0..10) (block/blocks/fire/fire.rs:33-34). ge
 
 Re-review against `.vendor/vanilla-decompiled/.../FireBlock.java` + `BaseFireBlock.java`.
 
-- STILL OPEN "canSurvive neighbour rule": FIXED. `FireBlock::is_flammable` (fire.rs:37)
+- open "canSurvive neighbour rule": FIXED. `FireBlock::is_flammable` (fire.rs:37)
   used `burn_chance` (vanilla burnOdds, only used by checkBurnOut). Vanilla `canBurn`
   uses ignite odds (`spread_chance`, the field the spread loop already reads). Switched
   to `spread_chance`. No current data has one field zero and the other nonzero, so no
@@ -111,7 +111,7 @@ Re-review against `.vendor/vanilla-decompiled/.../FireBlock.java` + `BaseFireBlo
   is documented in pumpkin-data as Java `isFaceSturdy`; vanilla `getStateForPlacement`
   uses `isFaceSturdy(UP)`, not `isFaceFull`. The doc's isFaceFull concern does not
   apply to this version.
-- STILL OPEN "getStateForPosition shape": verified matching (see Gap 3), no change.
+- open "getStateForPosition shape": verified matching (see Gap 3), no change.
 - Gap 4 (TNT replace ordering): left open. Net effect matches vanilla and it is low
   value; changing it needs TNTBlock, a file outside this unit.
 - Gap 5 (fire tick timer, mod.rs): left open. mod.rs is outside this unit's files.
@@ -124,18 +124,18 @@ Files touched: crates/pumpkin-core/src/block/blocks/fire/fire.rs (rustfmt --edit
 
 ## Result (re-verification, this pass)
 
-Re-checked the two STILL OPEN rows from the code-verified sweep against
+Re-checked the two open rows from the code-verified sweep against
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
 (`getStateForPlacement`:126-143, `canSurvive`:146-149, `canBurn`:326-329,
 `getIgniteOdds`:251-255 and 311-324). Both already match vanilla in the current
 fire.rs, so no code change was needed this pass.
 
-- STILL OPEN "canSurvive neighbour rule": verified matching. `is_flammable`
+- open "canSurvive neighbour rule": verified matching. `is_flammable`
   (fire.rs:50-52) delegates to `get_ignite_odds` (fire.rs:39-48), which reads
   flammable.spread_chance and returns 0 for waterlogged states. This matches
   vanilla `canBurn` -> `getIgniteOdds`, which also uses ignite odds (spread
   chance), not burn odds. No change.
-- STILL OPEN "getStateForPosition shape": verified matching. fire.rs:73-75
+- open "getStateForPosition shape": verified matching. fire.rs:73-75
   returns the flat default state when the block below is flammable or is
   face-solid on `Up`, otherwise the per-direction shaped state. `is_side_solid`
   is documented as Java `isFaceSturdy` in pumpkin-data block_state.rs:251-253,
@@ -159,7 +159,7 @@ covers the ignite-odds seam.
 
 ## Result (this pass)
 
-Re-verified every STILL OPEN row against
+Re-verified every open row against
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
 (`tick`:152-235, `checkBurnOut`:257-294, `getStateForPlacement`:126-143,
 `canSurvive`:146-149) and `world/mod.rs::is_raining_at`:3801-3813.
@@ -197,7 +197,7 @@ ignite-odds seam. Cannot compile as a worker; orchestrator verifies.
 
 ## Result (third pass)
 
-All remaining STILL OPEN rows resolved against decompiled vanilla.
+All remaining open rows resolved against decompiled vanilla.
 
 - Gap 5 (fire tick timer, mod.rs:120-147): VERIFIED matches vanilla, no change.
   `.vendor/vanilla-decompiled/net/minecraft/world/level/block/BaseFireBlock.java:142-166`
@@ -240,7 +240,7 @@ compile as a worker; orchestrator verifies with `scripts/integrate.sh`.
 
 ## Result (final, third pass)
 
-All tracker rows have a final disposition. No row remains STILL OPEN.
+All tracker rows have a final disposition. No row remains open.
 Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
 (`getStateForPlacement`:126-143, `canSurvive`:146-149, `tick`:152-235,
 `checkBurnOut`:257-294, `getIgniteOdds`:251-255 and 311-324, `canBurn`:327-328),
@@ -251,8 +251,8 @@ Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/
 | Row | Final disposition | Evidence |
 |---|---|---|
 | get_fire_tick_delay = 30 + rand(0..10) | VERIFIED | fire.rs:34-35; FireBlock.tick schedules 30 + random(10) |
-| "canSurvive neighbour rule" (was STILL OPEN) | VERIFIED | FireBlock.canBurn:327-328 + getIgniteOdds:251-255; fire.rs:39-52 reads spread/ignite odds and returns 0 for waterlogged |
-| "getStateForPosition shape" (was STILL OPEN) | VERIFIED | FireBlock.getStateForPlacement:129 uses canBurn(below) || isFaceSturdy(UP); fire.rs:74 uses is_flammable || is_side_solid(Up) (isFaceSturdy) |
+| "canSurvive neighbour rule" (was open) | VERIFIED | FireBlock.canBurn:327-328 + getIgniteOdds:251-255; fire.rs:39-52 reads spread/ignite odds and returns 0 for waterlogged |
+| "getStateForPosition shape" (was open) | VERIFIED | FireBlock.getStateForPlacement:129 uses canBurn(below) || isFaceSturdy(UP); fire.rs:74 uses is_flammable || is_side_solid(Up) (isFaceSturdy) |
 | Gap 1 age >= 15 gate | VERIFIED | FireBlock.tick:181 is only an age==15 extinguish roll, no blanket burn/spread gate; fire.rs:387-395 |
 | Gap 2 spread odds / rain | FIXED (earlier pass) | FireBlock.tick:216 gates the spread loop on isNearRain (5 columns); fire.rs:463-468 uses Self::is_near_rain |
 | Gap 3 getStateForPosition shape | VERIFIED | as above |
@@ -273,3 +273,36 @@ Fixed across the unit (earlier passes): Gap 2, Gap 4, Gap 6. Verified matching:
 tick delay, canSurvive rule, getStateForPosition shape, Gap 1, Gap 3, Gap 5, both
 suspicions. Open: 0. BLOCKED-DATA: none (no generated pumpkin-data field or missing
 subsystem is required).
+
+
+## Result (FINAL PASS - complete)
+
+Every tracker row is now closed. Re-verified against decompiled vanilla:
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
+(`getStateForPlacement`:126-143, `canSurvive`:146-149, `tick`:152-235,
+`isNearRain`:237-243, `getIgniteOdds`:251-255/311-324, `checkBurnOut`:257-294,
+`canBurn`:327-328), `.../BaseFireBlock.java`:142-166 and 202-225,
+`.../world/item/FlintAndSteelItem.java`:34, `.../world/item/FireChargeItem.java`:38,
+`.../core/dispenser/FlintAndSteelDispenseItemBehavior.java`:36,
+`.../server/level/ServerLevel.java`:4741-4744 and `.../ChunkMap.java`:777-787/869-876.
+
+| Row | Final | Evidence |
+|---|---|---|
+| get_fire_tick_delay = 30 + rand(0..10) | VERIFIED | fire.rs:34-35; FireBlock.tick:153 schedules 30 + random(10) |
+| canSurvive neighbour rule | VERIFIED | canBurn:327-328 -> getIgniteOdds:251-255; fire.rs:39-52 reads spread/ignite odds, 0 for waterlogged |
+| getStateForPosition shape | VERIFIED | getStateForPlacement:129 uses canBurn(below) || isFaceSturdy(UP); fire.rs:74 uses is_flammable || is_side_solid(Up) |
+| Gap 1 age >= 15 gate | VERIFIED | tick:181 is only an age==15 extinguish roll, no blanket burn/spread gate; fire.rs:388-394 |
+| Gap 2 spread odds / rain | FIXED (earlier pass) | tick:216 gates spread loop on isNearRain(testPos); fire.rs:463-468 uses Self::is_near_rain |
+| Gap 3 getStateForPosition shape | VERIFIED | as above, matches getStateForPlacement:129 |
+| Gap 4 TNT replace ordering | FIXED (earlier pass) | checkBurnOut:275-292 removes TNT then primes in every branch; fire.rs:206-225 routes TNT to air before spawn_primed |
+| Gap 5 fire tick timer (mod.rs) | VERIFIED | BaseFireBlock.java:142-166 fireIgnite; mod.rs:124-151 negative +1, player random(1..3), 8s ignition |
+| Gap 6 can_place_at portal facing | FIXED (earlier pass) | vanilla item/dispenser sites pass real facing; mod.rs:51-121, ignition.rs:29-54, flint_and_steel.rs:67-94, fire_charge.rs:68-95 thread direction; lightning.rs:118 passes Up (never portals in vanilla) |
+| isRaining in checkBurnOut | VERIFIED | checkBurnOut:275 uses isRainingAt(pos); Pumpkin is_raining_at short-circuits on !is_raining() |
+| fire_spread_radius_around_player sentinel | VERIFIED | ServerLevel.java:4741-4744, ChunkMap.java:777-787/869-876; fire.rs:158-182 (-1 unlimited, <=0 disabled, spectators excluded, squared distance from block corner) |
+
+BLOCKED-DATA: none. No generated pumpkin-data field or missing subsystem is required.
+Open rows remaining: 0.
+Files edited this pass: tracker doc only. All source fixes were already present in the
+current checkout and verified against the decompiled vanilla cited above; no source
+change was needed. Cannot compile as a worker; orchestrator verifies with
+scripts/integrate.sh.
