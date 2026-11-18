@@ -73,14 +73,17 @@ impl MobData {
         data.sea_level = world.sea_level;
         if entity.entity.entity_type.id == EntityType::CREEPER.id {
             if let Some(mob) = world.get_entity_by_uuid(entity.entity.uuid) {
-                if let Some(creeper) =
-                    mob.cast_any().downcast_ref::<crate::entity::mob::creeper::CreeperEntity>()
+                if let Some(creeper) = mob
+                    .cast_any()
+                    .downcast_ref::<crate::entity::mob::creeper::CreeperEntity>()
                 {
                     let mob_entity = crate::entity::mob::Mob::get_mob_entity(creeper);
                     let max_fall = if mob_entity.get_target().is_none() {
                         Self::comfortable_fall_distance(0.0)
                     } else {
-                        Self::comfortable_fall_distance(mob_entity.living_entity.health.load() - 1.0)
+                        Self::comfortable_fall_distance(
+                            mob_entity.living_entity.health.load() - 1.0,
+                        )
                     };
                     data.max_fall_distance = max_fall;
                 }
@@ -89,7 +92,6 @@ impl MobData {
 
         data
     }
-}
 
     #[must_use]
     pub const fn new_zombie(position: Vector3<f64>, on_ground: bool) -> Self {
