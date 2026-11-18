@@ -156,10 +156,10 @@ impl PaintingEntity {
         self.entity.bounding_box.store(self.hanging_bounding_box());
     }
 
-    /// Vanilla `HangingEntity#survives`: the variant-sized box must be clear of
-    /// blocks, the supporting wall must still be solid, and no other hanging
-    /// entity may occupy the same space. Placement re-checks this on the
-    /// finished entity before spawning it.
+    /// Vanilla `HangingEntity#survives`: the variant-sized box must have no block
+    /// or world-border collision (`hasLevelCollision`), the supporting wall must
+    /// still be solid, and no other hanging entity may occupy the same space.
+    /// Placement re-checks this on the finished entity before spawning it.
     #[must_use]
     pub fn survives(&self) -> bool {
         let world = self.entity.world.load();
@@ -170,6 +170,7 @@ impl PaintingEntity {
         let facing = BlockDirection::from_index(self.entity.data.load(Ordering::Relaxed) as u8)
             .unwrap_or(BlockDirection::South);
         world.is_space_empty(bounding_box)
+            && world.no_border_collision(self, bounding_box)
             && Self::painting_fits(&world, location, facing, self.variant())
             && !hanging::overlaps_hanging_entity(&world, &bounding_box, self.entity.entity_id)
     }

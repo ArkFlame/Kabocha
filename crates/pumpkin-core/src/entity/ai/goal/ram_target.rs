@@ -1,10 +1,12 @@
 use super::{Controls, Goal};
 
+use crate::entity::ai::pathfinder::PathNavigationTrait;
 use crate::entity::EntityBase;
 use crate::entity::ageable::AgeableMob;
 use crate::entity::living::LivingEntity;
 use crate::entity::mob::Mob;
 use crate::entity::passive::goat::GoatEntity;
+use crate::world::World;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityStatus;
 use pumpkin_data::sound::Sound;
@@ -22,6 +24,9 @@ const SCREAMER_RAM_COOLDOWN_MIN_TICKS: i64 = 100;
 const SCREAMER_RAM_COOLDOWN_MAX_TICKS: i64 = 300;
 /// Vanilla `GoatAi.RAM_MAX_DISTANCE`: `PrepareRamNearestTarget` picks a target 4..7 blocks away.
 const RAM_TRIGGER_DISTANCE: f64 = 7.0;
+// Vanilla PrepareRamNearestTarget min/max ram distance (4..7 blocks).
+const RAM_MIN_DISTANCE: i32 = 4;
+const RAM_MAX_DISTANCE: i32 = 7;
 /// Vanilla `GoatAi.SPEED_MULTIPLIER_WHEN_RAMMING`.
 const RAM_SPEED: f64 = 3.0;
 /// Vanilla `GoatAi.SPEED_MULTIPLIER_WHEN_PREPARING_TO_RAM`.
@@ -137,6 +142,77 @@ const fn fail_cooldown(screaming: bool) -> i64 {
 
 /// Vanilla goat ram activity: `PrepareRamNearestTarget` (walk in and prepare) then `RamTarget`
 /// (charge, hit, knock back, cool down). Pumpkin folds the two brain behaviours into one goal.
+/// Vanilla `PrepareRamNearestTarget.RamCandidate`: a validated ram start plus the target block it
+/// was computed from, so a moved target re-runs the scan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RamCandidate {
+    start_position: BlockPos,
+    target_position: BlockPos,
+}
+
+/// Vanilla `PrepareRamNearestTarget.isWalkableBlock`: a stable destination with zero path malus.
+fn is_walkable_block(
+    navigator: &mut dyn PathNavigationTrait,
+    living: &LivingEntity,
+    world: &World,
+    pos: BlockPos,
+) -> bool {
+    let path_type = navigator.get_path_type(living, pos);
+    navigator.get_pathfinding_malus(path_type) == 0.0 && navigator.is_stable_destination(world, &pos)
+}
+
+/// Pure directional scan of vanilla `calculateRammingStartPosition`: from the target, walk out in
+/// each horizontal direction while `walkable` holds, keeping the furthest walkable block when it
+/// is at least `minRamDistance` away.
+fn ram_start_candidates(
+    target_pos: BlockPos,
+    mut walkable: impl FnMut(BlockPos) -> bool,
+) -> Vec<BlockPos> {
+    let mut candidates = Vec::new();
+    for (dx, dz) in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+        let mut pos = target_pos;
+        for _ in 0..RAM_MAX_DISTANCE {
+            let next = BlockPos::new(pos.0.x + dx, pos.0.y, pos.0.z + dz);
+            if !walkable(next) {
+                break;
+            }
+            pos = next;
+        }
+        if pos.manhattan_distance(target_pos) >= RAM_MIN_DISTANCE {
+            candidates.push(pos);
+        }
+    }
+    candidates
+}
+
+/// Vanilla `PrepareRamNearestTarget.calculateRammingStartPosition`: the walkable ram start closest
+/// to the goat whose path is reachable.
+fn calculate_ram_start_position(mob: &dyn Mob, target_pos: BlockPos) -> Option<BlockPos> {
+    let entity = mob.get_entity();
+    let world = entity.world.load_full();
+    let mob_entity = mob.get_mob_entity();
+    let living = &mob_entity.living_entity;
+    let steered = mob_entity.steered();
+    let mut navigator = steered.navigator();
+
+    if !is_walkable_block(&mut **navigator, living, world.as_ref(), target_pos) {
+        return None;
+    }
+
+    let mut candidates = {
+        let mut walkable =
+            |pos: BlockPos| is_walkable_block(&mut **navigator, living, world.as_ref(), pos);
+        ram_start_candidates(target_pos, &mut walkable)
+    };
+    let goat_block = entity.block_pos.load();
+    candidates.sort_by_key(|pos| pos.squared_distance(&goat_block));
+    candidates.into_iter().find(|pos| {
+        navigator
+            .create_path(living, pos.0.to_f64(), 0)
+            .is_some_and(|path| path.can_reach())
+    })
+}
+
 #[derive(Default)]
 pub struct RamTargetGoal {
     timer: RamTimer,
@@ -144,13 +220,38 @@ pub struct RamTargetGoal {
     prepare_ticks: i32,
     charging: bool,
     repath_ticks: i32,
+    candidate: Option<RamCandidate>,
 }
 
 impl RamTargetGoal {
+    fn begin_charge(&mut self, mob: &dyn Mob) {
+        self.preparing = false;
+        self.charging = true;
+        let prepare_sound = if is_screaming(mob) {
+            Sound::EntityGoatScreamingPrepareRam
+        } else {
+            Sound::EntityGoatPrepareRam
+        };
+        mob.play_entity_sound(prepare_sound, 1.0, 1.0);
+    }
+
+    /// Throttled path updates: vanilla re-issues the walk target each tick, but repathing on an
+    /// interval keeps the pathfinder cheap.
+    fn repath_to(&mut self, mob: &dyn Mob, destination: Vector3<f64>, speed: f64) {
+        if self.repath_ticks > 0 {
+            self.repath_ticks -= 1;
+            return;
+        }
+        self.repath_ticks = REPATH_INTERVAL_TICKS;
+        let from = mob.get_entity().pos.load();
+        mob.navigate_to(from, destination, speed);
+    }
+
     fn impact(&mut self, mob: &dyn Mob, target: &dyn EntityBase) {
         let screaming = is_screaming(mob);
         self.charging = false;
         self.preparing = false;
+        self.candidate = None;
         mob.get_mob_entity().stop_navigation();
         let impact_sound = if screaming {
             Sound::EntityGoatScreamingRamImpact
@@ -218,6 +319,7 @@ impl RamTargetGoal {
         };
         self.charging = false;
         self.preparing = false;
+        self.candidate = None;
         mob.get_mob_entity().stop_navigation();
         mob.play_entity_sound(impact_sound, 1.0, 1.0);
         let dropped = mob
@@ -261,21 +363,28 @@ impl Goal for RamTargetGoal {
 
     fn start(&mut self, mob: &dyn Mob) {
         self.preparing = true;
+        self.charging = false;
         self.prepare_ticks = 0;
         self.repath_ticks = 0;
-        // Vanilla PrepareRamNearestTarget broadcasts START_RAM when the ram position is reached.
-        let entity = mob.get_entity();
-        entity.world.load().broadcast_entity_event(
-            entity,
-            EntityStatus::StartRam,
-            ActorEventID::None,
-        );
+        // Vanilla PrepareRamNearestTarget.start picks a ram position 4..7 blocks from the target;
+        // START_RAM is broadcast once the goat reaches it (handled in tick).
+        let target_position = mob
+            .get_mob_entity()
+            .get_target()
+            .map(|target| BlockPos::containing_vec(target.get_entity().pos.load()));
+        self.candidate = target_position.and_then(|target_position| {
+            calculate_ram_start_position(mob, target_position).map(|start_position| RamCandidate {
+                start_position,
+                target_position,
+            })
+        });
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
         let was_raming = self.charging || self.preparing;
         self.charging = false;
         self.preparing = false;
+        self.candidate = None;
         mob.get_mob_entity().stop_navigation();
         if was_raming {
             // Vanilla PrepareRamNearestTarget broadcasts END_RAM and sets the minimum
@@ -292,29 +401,57 @@ impl Goal for RamTargetGoal {
         let Some(target) = mob.get_mob_entity().get_target() else {
             return;
         };
-        if self.preparing && self.prepare_ticks < RAM_PREPARE_TIME {
-            self.prepare_ticks += 1;
-            if self.repath_ticks > 0 {
-                self.repath_ticks -= 1;
-            } else {
-                self.repath_ticks = REPATH_INTERVAL_TICKS;
-                let from = mob.get_entity().pos.load();
-                let to = target.get_entity().pos.load();
-                mob.navigate_to(from, to, PREPARE_SPEED);
-            }
-            return;
-        }
+        let target_pos = BlockPos::containing_vec(target.get_entity().pos.load());
+
         if self.preparing {
-            self.preparing = false;
-            self.charging = true;
-            // Vanilla PrepareRamNearestTarget plays the prepare sound when the 20-tick stand ends.
-            let prepare_sound = if is_screaming(mob) {
-                Sound::EntityGoatScreamingPrepareRam
-            } else {
-                Sound::EntityGoatPrepareRam
-            };
-            mob.play_entity_sound(prepare_sound, 1.0, 1.0);
+            match self.candidate {
+                Some(candidate) => {
+                    if candidate.target_position != target_pos {
+                        // Vanilla re-chooses the ram position when the target moves.
+                        self.candidate =
+                            calculate_ram_start_position(mob, target_pos).map(|start| RamCandidate {
+                                start_position: start,
+                                target_position: target_pos,
+                            });
+                        return;
+                    }
+                    if mob.get_entity().block_pos.load() != candidate.start_position {
+                        self.repath_to(
+                            mob,
+                            candidate.start_position.0.to_centered_f64(),
+                            PREPARE_SPEED,
+                        );
+                        return;
+                    }
+                    // Vanilla broadcasts START_RAM once the start position is reached, then the
+                    // goat stands still for ramPrepareTime ticks.
+                    if self.prepare_ticks == 0 {
+                        let entity = mob.get_entity();
+                        entity.world.load().broadcast_entity_event(
+                            entity,
+                            EntityStatus::StartRam,
+                            ActorEventID::None,
+                        );
+                        mob.get_mob_entity().stop_navigation();
+                    }
+                    if self.prepare_ticks < RAM_PREPARE_TIME {
+                        self.prepare_ticks += 1;
+                        return;
+                    }
+                    self.begin_charge(mob);
+                }
+                None => {
+                    // No walkable ram start: keep the direct approach from before the scan.
+                    if self.prepare_ticks < RAM_PREPARE_TIME {
+                        self.prepare_ticks += 1;
+                        self.repath_to(mob, target.get_entity().pos.load(), PREPARE_SPEED);
+                        return;
+                    }
+                    self.begin_charge(mob);
+                }
+            }
         }
+
         if mob.is_in_attack_range(target.as_ref()) {
             self.impact(mob, target.as_ref());
             return;
@@ -323,14 +460,7 @@ impl Goal for RamTargetGoal {
             self.ram_into_block(mob);
             return;
         }
-        if self.repath_ticks > 0 {
-            self.repath_ticks -= 1;
-            return;
-        }
-        self.repath_ticks = REPATH_INTERVAL_TICKS;
-        let from = mob.get_entity().pos.load();
-        let to = target.get_entity().pos.load();
-        mob.navigate_to(from, to, RAM_SPEED);
+        self.repath_to(mob, target.get_entity().pos.load(), RAM_SPEED);
     }
 
     fn controls(&self) -> Controls {
@@ -402,4 +532,30 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn ram_start_scan_keeps_furthest_walkable_block_per_direction() {
+        let target = BlockPos::new(0, 64, 0);
+        let candidates = ram_start_candidates(target, |pos| pos.manhattan_distance(target) <= 5);
+        assert_eq!(candidates.len(), 4);
+        assert!(candidates.contains(&BlockPos::new(-5, 64, 0)));
+        assert!(candidates.contains(&BlockPos::new(5, 64, 0)));
+        assert!(candidates.contains(&BlockPos::new(0, 64, -5)));
+        assert!(candidates.contains(&BlockPos::new(0, 64, 5)));
+    }
+
+    #[test]
+    fn ram_start_scan_rejects_directions_shorter_than_min_distance() {
+        let target = BlockPos::new(0, 64, 0);
+        let candidates = ram_start_candidates(target, |pos| {
+            if pos.0.x > 0 {
+                pos.0.x <= 5 && pos.0.y == 64 && pos.0.z == 0
+            } else {
+                pos.manhattan_distance(target) <= 2
+            }
+        });
+        assert_eq!(candidates.len(), 1);
+        assert!(candidates.contains(&BlockPos::new(5, 64, 0)));
+    }
+
 }

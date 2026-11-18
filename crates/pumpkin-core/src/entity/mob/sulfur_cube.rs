@@ -1003,8 +1003,9 @@ impl Mob for SulfurCubeEntity {
                 .living_entity
                 .deal_default_knockback(self, position, source, cause, amount);
         }
-        // Vanilla returns false: the block body absorbs the hit, only the knockback lands.
-        Some(false)
+        // Vanilla returns true even though no health is lost: the knockback lands and the
+        // hit still counts as damage for hurt effects and attacker feedback.
+        Some(true)
     }
 
     fn mob_knockback(
