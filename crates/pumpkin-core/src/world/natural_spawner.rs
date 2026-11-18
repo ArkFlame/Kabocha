@@ -21,12 +21,9 @@ use pumpkin_util::math::get_section_cord;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::math::vector3::Vector3;
-use pumpkin_util::random::xoroshiro128::Xoroshiro;
-use pumpkin_util::random::{RandomImpl, get_seed};
+use pumpkin_util::random::RandomImpl;
 use pumpkin_world::chunk::{ChunkData, ChunkHeightmapType};
 use pumpkin_world::generation::proto_chunk::GenerationCache;
-use rand::seq::IndexedRandom;
-use rand::{RngExt, rng};
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering::Relaxed};
@@ -595,9 +592,14 @@ pub fn spawn_for_chunk(
     spawn_list: &Vec<&'static MobCategory>,
     is_thundering: bool,
 ) {
+    let mut rng = world
+        .spawn_random
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let rng = &mut *rng;
     for category in spawn_list {
         if spawn_state.can_spawn_for_category_local(world, category, chunk_pos) {
-            let random_pos = get_random_pos_within(world.min_y, &chunk_pos, chunk);
+            let random_pos = get_random_pos_within(world.min_y, &chunk_pos, chunk, rng);
             if random_pos.0.y > world.min_y {
                 spawn_category_for_position(
                     category,
@@ -606,6 +608,7 @@ pub fn spawn_for_chunk(
                     &chunk_pos,
                     spawn_state,
                     is_thundering,
+                    rng,
                 );
             }
         }
@@ -616,9 +619,8 @@ pub fn get_random_pos_within(
     min_y: i32,
     chunk_pos: &Vector2<i32>,
     chunk: &Arc<ChunkData>,
+    rng: &mut impl RandomImpl,
 ) -> BlockPos {
-    let mut rng = Xoroshiro::from_seed(get_seed());
-
     let x = (chunk_pos.x << 4) + rng.next_bounded_i32(16);
     let z = (chunk_pos.y << 4) + rng.next_bounded_i32(16);
     let temp_y = chunk
@@ -640,6 +642,11 @@ pub fn spawn_mobs_for_chunk_generation(
     chunk_x: i32,
     chunk_z: i32,
 ) {
+    let mut rng = world
+        .spawn_random
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let rng = &mut *rng;
     let mob_settings = &biome.spawners;
     let creatures = &mob_settings.creature;
 
@@ -650,15 +657,15 @@ pub fn spawn_mobs_for_chunk_generation(
     let xo = chunk_x << 4;
     let zo = chunk_z << 4;
 
-    while rand::random::<f32>() < biome.creature_spawn_probability {
+    while rng.next_f32() < biome.creature_spawn_probability {
         // Vanilla ends the pass when the weighted pick fails; retrying would spin
         // forever on a spawner list whose weights are all zero.
-        let Some(spawner_data) = choose_spawner(creatures, &mut rand::rng()) else {
+        let Some(spawner_data) = choose_spawner(creatures, rng) else {
             return;
         };
 
         let count = spawner_data.min_count
-            + rand::random_range(0..=(spawner_data.max_count - spawner_data.min_count).max(0));
+            + rng.next_bounded_i32((spawner_data.max_count - spawner_data.min_count).max(0) + 1);
         let name = spawner_data
             .r#type
             .strip_prefix("minecraft:")
@@ -670,8 +677,8 @@ pub fn spawn_mobs_for_chunk_generation(
             continue;
         };
 
-        let mut x = xo + rand::random_range(0..16);
-        let mut z = zo + rand::random_range(0..16);
+        let mut x = xo + rng.next_bounded_i32(16);
+        let mut z = zo + rng.next_bounded_i32(16);
         let start_x = x;
         let start_z = z;
 
@@ -709,7 +716,7 @@ pub fn spawn_mobs_for_chunk_generation(
                         let entity = from_type(entity_type, spawn_pos_f64, world, Uuid::new_v4());
                         entity
                             .get_entity()
-                            .set_rotation(rand::random::<f32>() * 360.0, 0.0);
+                            .set_rotation(rng.next_f32() * 360.0, 0.0);
                         group_data = finalize_spawn(
                             &entity,
                             world,
@@ -721,11 +728,11 @@ pub fn spawn_mobs_for_chunk_generation(
                     }
                 }
 
-                x += rand::random_range(0..5) - rand::random_range(0..5);
-                z += rand::random_range(0..5) - rand::random_range(0..5);
+                x += rng.next_bounded_i32(5) - rng.next_bounded_i32(5);
+                z += rng.next_bounded_i32(5) - rng.next_bounded_i32(5);
                 while x < xo || x >= xo + 16 || z < zo || z >= zo + 16 {
-                    x = start_x + rand::random_range(0..5) - rand::random_range(0..5);
-                    z = start_z + rand::random_range(0..5) - rand::random_range(0..5);
+                    x = start_x + rng.next_bounded_i32(5) - rng.next_bounded_i32(5);
+                    z = start_z + rng.next_bounded_i32(5) - rng.next_bounded_i32(5);
                 }
             }
         }
@@ -832,6 +839,7 @@ pub fn spawn_category_for_position(
     chunk_pos: &Vector2<i32>,
     spawn_state: &SpawnState,
     is_thundering: bool,
+    rng: &mut impl RandomImpl,
 ) {
     let y_start = pos.0.y;
     let state = world.get_block_state(&pos);
@@ -853,8 +861,8 @@ pub fn spawn_category_for_position(
         let mut ll = 0;
 
         while ll < max {
-            x += rng().random_range(0..6) - rng().random_range(0..6);
-            z += rng().random_range(0..6) - rng().random_range(0..6);
+            x += rng.next_bounded_i32(6) - rng.next_bounded_i32(6);
+            z += rng.next_bounded_i32(6) - rng.next_bounded_i32(6);
             let check_pos = BlockPos::new(x, y_start, z);
             let xx = f64::from(x) + 0.5;
             let zz = f64::from(z) + 0.5;
@@ -872,13 +880,15 @@ pub fn spawn_category_for_position(
                 )
             {
                 if current_spawner.is_none() {
-                    let Some(spawner) = get_random_spawn_mob_at(world, category, &check_pos) else {
+                    let Some(spawner) = get_random_spawn_mob_at(world, category, &check_pos, rng)
+                    else {
                         break;
                     };
                     current_spawner = Some(spawner);
                     max = spawner.min_count()
-                        + rng()
-                            .random_range(0..=(spawner.max_count() - spawner.min_count()).max(0));
+                        + rng.next_bounded_i32(
+                            (spawner.max_count() - spawner.min_count()).max(0) + 1,
+                        );
                 }
 
                 let Some(spawner) = current_spawner else {
@@ -906,7 +916,7 @@ pub fn spawn_category_for_position(
                     let entity = from_type(entity_type, spawn_pos_f64, world, Uuid::new_v4());
                     entity
                         .get_entity()
-                        .set_rotation(rng().random::<f32>() * 360.0, 0.0);
+                        .set_rotation(rng.next_f32() * 360.0, 0.0);
 
                     let is_valid_for_mob = entity.get_mob().is_none_or(|mob| {
                         let despawn_dist = f64::from(entity_type.category.despawn_distance);
@@ -1082,11 +1092,11 @@ impl SpawnerRef<'_> {
 
 /// Picks a weighted random spawner from a structure spawn override, like vanilla
 /// `WeightedList.getRandom` on `StructureSpawnOverride.spawns()`.
-fn choose_structure_spawner<'a, R: rand::Rng + ?Sized>(
+fn choose_structure_spawner<'a, R: RandomImpl + ?Sized>(
     entries: &'a [SpawnEntry],
     rng: &mut R,
 ) -> Option<&'a SpawnEntry> {
-    entries.choose_weighted(rng, |s| s.weight).ok()
+    choose_weighted(entries, |s| s.weight, rng)
 }
 
 #[must_use]
@@ -1135,16 +1145,17 @@ fn get_random_spawn_mob_at(
     world: &Arc<World>,
     category: &'static MobCategory,
     block_pos: &BlockPos,
+    rng: &mut impl RandomImpl,
 ) -> Option<SpawnerRef<'static>> {
     let biome = world.level.get_rough_biome(block_pos);
     if category == &MobCategory::WATER_AMBIENT
         && biome.has_tag(&MINECRAFT_REDUCE_WATER_AMBIENT_SPAWNS)
-        && rng().random::<f32>() < 0.98f32
+        && rng.next_f32() < 0.98f32
     {
         return None;
     }
     if let Some(entries) = structure_spawn_entries(world, category, block_pos) {
-        return choose_structure_spawner(entries, &mut rng()).map(SpawnerRef::Structure);
+        return choose_structure_spawner(entries, rng).map(SpawnerRef::Structure);
     }
     let spawners = match category.id {
         id if id == MobCategory::MONSTER.id => biome.spawners.monster,
@@ -1159,16 +1170,37 @@ fn get_random_spawn_mob_at(
         id if id == MobCategory::MISC.id => biome.spawners.misc,
         _ => biome.spawners.misc,
     };
-    choose_spawner(spawners, &mut rng()).map(SpawnerRef::Biome)
+    choose_spawner(spawners, rng).map(SpawnerRef::Biome)
 }
 
 /// Picks a spawner in proportion to its weight, like vanilla `WeightedList::getRandom`.
 /// Returns `None` for an empty list or when every weight is zero.
-fn choose_spawner<'a, R: rand::Rng + ?Sized>(
+fn choose_spawner<'a, R: RandomImpl + ?Sized>(
     spawners: &'a [Spawner],
     rng: &mut R,
 ) -> Option<&'a Spawner> {
-    spawners.choose_weighted(rng, |s| s.weight).ok()
+    choose_weighted(spawners, |s| s.weight, rng)
+}
+
+/// Vanilla `WeightedList.getRandom`: one bounded draw over the total weight,
+/// then walk the cumulative weights. `None` matches an empty or all-zero list.
+fn choose_weighted<'a, T, F, R>(items: &'a [T], weight: F, rng: &mut R) -> Option<&'a T>
+where
+    F: Fn(&T) -> i32,
+    R: RandomImpl + ?Sized,
+{
+    let total: i32 = items.iter().map(|item| weight(item)).sum();
+    if total <= 0 {
+        return None;
+    }
+    let mut selection = rng.next_bounded_i32(total);
+    for item in items {
+        selection -= weight(item);
+        if selection < 0 {
+            return Some(item);
+        }
+    }
+    None
 }
 
 #[must_use]
@@ -1356,6 +1388,7 @@ fn is_burning_block(block: &Block) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pumpkin_util::random::xoroshiro128::Xoroshiro;
 
     #[test]
     fn local_mob_cap_uses_128_block_horizontal_range() {
@@ -1492,8 +1525,6 @@ mod tests {
 
     #[test]
     fn structure_spawn_entries_are_picked_by_weight() {
-        use rand::{SeedableRng, rngs::StdRng};
-
         let entries: &[SpawnEntry] = &[
             SpawnEntry {
                 entity_type: "minecraft:guardian",
@@ -1508,7 +1539,7 @@ mod tests {
                 weight: 1,
             },
         ];
-        let mut rng = StdRng::seed_from_u64(0);
+        let mut rng = Xoroshiro::from_seed(0);
         let rare = (0..10_000)
             .filter(|_| {
                 choose_structure_spawner(entries, &mut rng).map(|s| s.entity_type)
@@ -1524,15 +1555,13 @@ mod tests {
 
     #[test]
     fn spawners_are_picked_by_weight() {
-        use rand::{SeedableRng, rngs::StdRng};
-
         let spawner = |r#type, weight| Spawner {
             r#type,
             min_count: 1,
             max_count: 1,
             weight,
         };
-        let mut rng = StdRng::seed_from_u64(0);
+        let mut rng = Xoroshiro::from_seed(0);
 
         let spawners = [
             spawner("minecraft:common", 99),
@@ -1561,5 +1590,31 @@ mod tests {
         }
         assert!(choose_spawner(&spawners[..1], &mut rng).is_none());
         assert!(choose_spawner(&[], &mut rng).is_none());
+    }
+
+    #[test]
+    fn weighted_pick_is_deterministic_for_a_seed() {
+        let spawners = [
+            Spawner {
+                r#type: "minecraft:a",
+                min_count: 1,
+                max_count: 1,
+                weight: 1,
+            },
+            Spawner {
+                r#type: "minecraft:b",
+                min_count: 1,
+                max_count: 1,
+                weight: 1,
+            },
+        ];
+        let mut first = Xoroshiro::from_seed(42);
+        let mut second = Xoroshiro::from_seed(42);
+        for _ in 0..32 {
+            assert_eq!(
+                choose_spawner(&spawners, &mut first).map(|s| s.r#type),
+                choose_spawner(&spawners, &mut second).map(|s| s.r#type),
+            );
+        }
     }
 }

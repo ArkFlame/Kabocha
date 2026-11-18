@@ -368,6 +368,24 @@ fn builder_scores_are_keyed_by_objective() {
     );
 }
 
+#[test]
+fn add_score_wraps_on_i32_overflow() {
+    let target = NoTarget;
+    let mut board = ScoreboardBuilder::new()
+        .objective("board", TextComponent::text("Board"))
+        .score("Alice", "board", i32::MAX)
+        .build();
+
+    // Vanilla stores score values in a Java int, so overflow wraps instead of panicking.
+    let incremented = board.add_score(&target, "Alice", "board", 1);
+    assert_eq!(incremented, i32::MIN);
+    assert_eq!(board.get_score_value("Alice", "board"), Some(i32::MIN));
+
+    let decremented = board.add_score(&target, "Alice", "board", -1);
+    assert_eq!(decremented, i32::MAX);
+    assert_eq!(board.get_score_value("Alice", "board"), Some(i32::MAX));
+}
+
 #[derive(Default)]
 struct CountingTarget(std::sync::atomic::AtomicUsize);
 

@@ -619,8 +619,8 @@ impl World {
         // Vanilla ServerClockManager restores one instance per world_clock from
         // data/minecraft/world_clocks.dat. This world's default clock is already
         // loaded from LevelData above; every other clock gets its own instance.
-        let default_clock =
-            crate::world::time::default_clock_name(dimension.minecraft_name).unwrap_or("minecraft:overworld");
+        let default_clock = crate::world::time::default_clock_name(dimension.minecraft_name)
+            .unwrap_or("minecraft:overworld");
         for (name, saved) in read_world_clocks(&level.level_folder).clocks {
             if name == default_clock {
                 continue;
@@ -6162,7 +6162,7 @@ impl World {
         }
         // Vanilla merges ender dragon parts into whole-level entity enumerations so
         // commands and area effects can target a dragon's individual body parts.
-        for part in self.dragon_parts.iter() {
+        for part in &self.dragon_parts {
             if predicate(part.value().as_ref()) {
                 list.push(Arc::clone(part.value()) as Arc<dyn EntityBase>);
                 if list.len() > max_list_capacity {
@@ -6739,7 +6739,10 @@ impl World {
         old_state: BlockStateId,
         new_state: BlockStateId,
     ) {
-        if !self.bonemeal_recording.load(std::sync::atomic::Ordering::Relaxed) {
+        if !self
+            .bonemeal_recording
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return;
         }
         let mut recorder = self
@@ -7879,42 +7882,7 @@ impl World {
     }
 
     fn fluid_state_from_block_state(id: BlockStateId) -> (&'static Fluid, FluidState) {
-        let fluid = Self::get_fluid_from_state_id(id);
-        let source = if fluid.matches_type(&Fluid::WATER) {
-            &Fluid::WATER
-        } else if fluid.matches_type(&Fluid::LAVA) {
-            &Fluid::LAVA
-        } else {
-            &Fluid::EMPTY
-        };
-        let mut state = source.states[source.default_state_index as usize].clone();
-
-        if matches!(
-            id.to_block_id(),
-            pumpkin_data::BlockId::WATER | pumpkin_data::BlockId::LAVA
-        ) {
-            // LiquidBlock#getFluidState: source, amounts 7..1, then falling amount 8.
-            // The fluid family's first state is not the state of the actual block.
-            let level =
-                pumpkin_data::block_properties::WaterLikeProperties::from_state_id(id).level;
-            let amount = if level == 0 || level >= 8 {
-                8
-            } else {
-                8 - level
-            };
-            state.height = f32::from(amount) / 9.0;
-            state.level = i16::from(amount);
-            state.is_source = level == 0;
-            state.is_still = state.is_source;
-            state.falling = level >= 8;
-            state.block_state_id = pumpkin_data::block_properties::WaterLikeProperties {
-                level: level.min(8),
-            }
-            .to_state_id(id.to_block());
-        }
-
-        // Keep the normalized family used by fluid callbacks, independently of source state.
-        (fluid, state)
+        pumpkin_world::world::fluid_state_from_block_state(id)
     }
 
     pub fn get_fluid(&self, position: &BlockPos) -> &'static pumpkin_data::fluid::Fluid {

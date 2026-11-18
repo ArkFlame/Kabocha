@@ -391,4 +391,34 @@ mod tests {
         // The nether dimension type has no default_clock.
         assert_eq!(default_clock_name("minecraft:the_nether"), None);
     }
+
+    #[test]
+    fn server_clock_manager_keeps_clocks_independent() {
+        let mut manager = ServerClockManager::default();
+        manager.clock_mut("minecraft:the_end").set_total_ticks(1000);
+        manager.clock_mut("minecraft:overworld").set_paused(true);
+
+        assert_eq!(
+            manager.clock("minecraft:the_end").map(|c| c.total_ticks),
+            Some(1000)
+        );
+        assert!(
+            manager
+                .clock("minecraft:overworld")
+                .is_some_and(|c| c.paused)
+        );
+        assert!(manager.clock("minecraft:unknown").is_none());
+
+        // Ticking advances only the unpaused clock, by its own rate.
+        manager.clock_mut("minecraft:the_end").set_rate(2.0);
+        manager.tick_all();
+        assert_eq!(
+            manager.clock("minecraft:the_end").map(|c| c.total_ticks),
+            Some(1002)
+        );
+        assert_eq!(
+            manager.clock("minecraft:overworld").map(|c| c.total_ticks),
+            Some(0)
+        );
+    }
 }

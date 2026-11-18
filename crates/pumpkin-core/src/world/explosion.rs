@@ -834,7 +834,8 @@ impl<'a> Explosion<'a> {
                 0
             }
             BlockInteraction::Destroy | BlockInteraction::DestroyWithDecay => {
-                let (mut blocks, affected_positions, to_blow_count) = self.get_blocks_to_destroy(world);
+                let (mut blocks, affected_positions, to_blow_count) =
+                    self.get_blocks_to_destroy(world);
                 let decay_drops = self.block_interaction == BlockInteraction::DestroyWithDecay;
 
                 // Paper ServerExplosion.interactWithBlocks fires the event after the destroyed
@@ -933,7 +934,6 @@ impl<'a> Explosion<'a> {
                 }
 
                 to_blow_count
-            }
             }
         }
     }
