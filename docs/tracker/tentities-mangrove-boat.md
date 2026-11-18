@@ -63,3 +63,23 @@ re-verified and is correct, so no fix was needed for the row itself:
   passengers.rs (outside this unit) -> left OPEN.
 - Changed: crates/pumpkin-core/src/block/blocks/bubble_column.rs (constant, match arm,
   unit test). rustfmt --edition 2024 exit 0. No cargo/git run (per task).
+
+## Result
+
+Re-verification 2026-11-18 against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:4149,4185:
+handleOnAboveBubbleColumn = dragDown max(-0.9, y-0.03) / up min(1.8, y+0.1);
+handleOnInsideBubbleColumn = dragDown max(-0.3, y-0.03) / up min(0.7, y+0.06).
+bubble_column.rs constants and bubble_column_vertical_velocity match all four branches,
+and downward_push_cap_depends_on_surface locks the surface -0.9 vs inside -0.3 split.
+Splash/bubble particle offsets and speeds match Entity.sendBubbleColumnParticles too.
+No new source edit is needed in this unit; no .rs file touched, so no rustfmt required,
+and no cargo run (task forbids it).
+
+- Row 1 (bubble-column physics / bubble time): push-cap portion in bubble_column.rs
+  FIXED (commit 36a9c640f) and re-verified here; the remaining boat
+  timer/impulse/ID_BUBBLE_TIME portion lives in boat.rs + physics.rs + generated
+  tracked_data.rs -> outside unit, OPEN.
+- Row 2 (interact mounting): fix belongs in boat.rs (drop the !is_eye_in_water gate) ->
+  outside unit, OPEN.
+- Row 3 (passenger attachment point): dedup belongs in passengers.rs -> outside unit, OPEN.
