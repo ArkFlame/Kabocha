@@ -801,10 +801,11 @@ impl BlockIsReplacing {
         matches!(self, Self::Water(_))
     }
 
-    /// Returns true for the full water vanilla's coral and conduit placement accepts.
+    /// Returns true for the full water coral and conduit placement accepts.
     ///
-    /// Vanilla tests `FluidState#is(FluidTags.WATER) && FluidState#isFull()`; the amount is
-    /// 8 for a source (level 0) and for falling water (levels 8-15), less for levels 1-7.
+    /// Vanilla tests `FluidState#is(FluidTags.WATER) && FluidState#isFull()`. `LiquidBlock`
+    /// clamps its fluid level to 8, so a source (0) and every falling level (8-15) have the
+    /// full amount of 8, while levels 1-7 do not.
     #[must_use]
     pub const fn is_full_water(&self) -> bool {
         matches!(self, Self::Water(0 | 8..=15))
