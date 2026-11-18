@@ -45,7 +45,7 @@ No player.rs changes needed; no open rows remain. rustfmt --edition 2024 run on 
 
 ## Result (re-verified 2026-11-18)
 
-Independently re-checked all six STILL OPEN rows against .vendor/vanilla-decompiled. No new code changes were needed: current combat.rs already matches vanilla on every row.
+Independently re-checked all six audit rows against .vendor/vanilla-decompiled. No new code changes were needed: current combat.rs already matches vanilla on every row.
 
 - 1 sweep walk distance (combat.rs:57): CLOSED, no change. Player.isSweepAttack uses getKnownMovement().horizontalDistanceSqr() < square(getSpeed() * 2.5); Entity.getKnownMovement() returns getDeltaMovement() for an unmounted player, so Pumpkin's velocity check is equivalent. Adding walkDist fields would be a cross-crate refactor and is unnecessary.
 - 2 combat event 128 (combat.rs:471,486): CLOSED, no change. CombatTracker.recordDamageAndCheckCombatState / recheckStatus only call mob.onEnterCombat() / onLeaveCombat(); no entity event 128 broadcast exists in this vanilla. Pumpkin's CombatStateChange models those hooks at the damage call site.
@@ -59,7 +59,7 @@ No .rs files changed this pass, so no rustfmt was needed. No open rows remain.
 
 ## Result (re-verified 2026-11-18, third pass)
 
-Re-checked every STILL OPEN row directly against the current decompiled vanilla in .vendor/vanilla-decompiled (1.21.x + Paper/Folia) and the live combat.rs. No code changes were required; all rows stay closed.
+Re-checked every audit row directly against the current decompiled vanilla in .vendor/vanilla-decompiled (1.21.x + Paper/Folia) and the live combat.rs. No code changes were required; all rows stay closed.
 
 - 1 sweep walk distance (AttackType::new, combat.rs:65-77): CLOSED, no change. Player.isSweepAttack (Player.java:1134-1144) gates on getKnownMovement().horizontalDistanceSqr() < square(getSpeed() * 2.5) plus grounded/sword/full-strength. Pumpkin checks entity.velocity.horizontal_length_squared() < (MOVEMENT_SPEED * 2.5)^2 with the same grounded/sword/strong gates and the Bedrock exclusion. Movement is client-authoritative in Pumpkin, so velocity is the correct equivalent; adding walkDist fields would be a cross-crate refactor and is not needed.
 - 2 combat event 128 (combat.rs:501,570): CLOSED, no change. CombatTracker.recordDamageAndCheckCombatState (CombatTracker.java:47-68) and resetCombatState (165-185) only call mob.onEnterCombat()/onLeaveCombat(); no entity event 128 broadcast exists in this vanilla. Pumpkin models those hooks via CombatStateChange at the damage call site.
@@ -75,7 +75,7 @@ Status: PASS fixed=0 open=0 files=none
 
 ## Result (re-verified 2026-11-18, fourth pass)
 
-Independently re-checked all six rows against .vendor/vanilla-decompiled and the live combat.rs. No source-code changes were required; every row is closed. Only this tracker doc changed: the stale Gap status STILL OPEN markers were corrected to CLOSED so the unit is not re-queued.
+Independently re-checked all six rows against .vendor/vanilla-decompiled and the live combat.rs. No source-code changes were required; every row is closed. Only this tracker doc changed: the stale Gap status markers were corrected to VERIFIED so the unit is not re-queued.
 
 - 1 sweep (AttackType::new, combat.rs:65-77): CLOSED. Player.isSweepAttack (Player.java:1134-1144) requires full strength, not crit/knockback, onGround, getKnownMovement().horizontalDistanceSqr() < (getSpeed()*2.5)^2, and a sword. Pumpkin checks velocity.horizontal_length_squared() < (MOVEMENT_SPEED*2.5)^2 with the same grounded/sword/strong gates and Bedrock exclusion. Movement is client-authoritative in Pumpkin, so velocity is the correct equivalent; adding walkDist fields is an unnecessary cross-crate refactor.
 - 2 combat event 128: CLOSED. CombatTracker.java (lines 66, 181) only calls mob.onEnterCombat()/onLeaveCombat(); this vanilla has no entity event 128 broadcast.

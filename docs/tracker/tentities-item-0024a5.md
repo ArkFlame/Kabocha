@@ -312,3 +312,51 @@ arg types, so the in-place code type-checks. No new pure unit test, no rustfmt r
 edit). Re-read the current give.rs and item.rs diffs against the worker compile pitfalls:
 no new imports, helpers are methods in impl ItemEntity, no macro/struct-init/clone changes,
 no unwrap/expect/panic, no em dashes.
+
+
+## Result (FINAL PASS 2026-11-18)
+
+Definitive per-row closure. Each row re-checked against the current main-checkout sources
+(give.rs, item.rs) and the decompiled vanilla files under .vendor/vanilla-decompiled.
+No STILL OPEN rows and no rows needing generated data remain.
+
+- 1 despawn before merge check (S): VERIFIED. process_age_and_merge (item.rs:596-606) calls
+  merge_with_neighbours before age++ and the LIFETIME discard, matching decompiled
+  .vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java tick()
+  (mergeWithNeighbours at line 204 precedes the age++ / despawnRate discard at line 219).
+- 2 is_mergeable age guard (S): VERIFIED. is_mergeable/can_merge (item.rs:257-279) check only
+  removed, never_despawn (vanilla age != -32768), never_pickup (vanilla pickupDelay != 32767)
+  and count < maxStackSize; no item_age >= LIFETIME guard remains, matching decompiled
+  ItemEntity.java isMergable (line 276-278). The fork's extra 'age < despawnRate' guard is
+  enforced by the despawn discard in process_age_and_merge.
+- 3 Persisted Health NBT (S): VERIFIED. write/read still round-trip "Health", matching
+  decompiled ItemEntity.java addAdditionalSaveData putShort("Health", ...) (line 385) and
+  readAdditionalSaveData getShortOr("Health", 5) (line 402). The doc premise was wrong.
+- 4 owner and thrower collapsed (M): VERIFIED. item.rs carries separate thrower/target fields,
+  set_target/get_target/target_allows_pickup (item.rs:187-198), both "Thrower" and "Owner" NBT,
+  and tryToMerge gates on the target. Matches decompiled ItemEntity.java lines 284
+  (Objects.equals(this.target, other.target)), 389/405 (Owner NBT) and setTarget (line 545).
+- give.rs pickup delay (did-not-fit branch): VERIFIED. give.rs:103-105 calls
+  set_pickup_delay(0) then set_target(target.gameprofile.id), matching decompiled
+  .vendor/vanilla-decompiled/net/minecraft/server/commands/GiveCommand.java lines 102-105
+  (setNoPickUpDelay + setTarget) and ItemEntity.java setNoPickUpDelay (line 561).
+- Age-based thrower gate: FIXED in an earlier pass; VERIFIED absent here. on_player_collision
+  (item.rs:821-834) gates only on pickup_delay, never_pickup and target; no age <= 60 block.
+  Matches decompiled ItemEntity.java playerTouch (line 490):
+  pickupDelay == 0 && (target == null || target.equals(player.getUUID())).
+- Fake item on the all-fits branch: FIXED in an earlier pass; VERIFIED here. give.rs:79-99
+  spawns ItemEntity::make_fake_item() at eye height - 0.3, plays EntityItemPickup at 0.2 volume
+  with vanilla pitch, and calls sync_inventory_to_client(). Matches GiveCommand.java:82-100
+  and makeFakeItem (ItemEntity.java:585-587, age = despawnRate - 1 + setNeverPickUp).
+
+No .rs source changed this pass; every fix was already present and type-consistent:
+play_sound_fine(Sound, SoundCategory, &Vector3<f64>, f32, f32) (world/mod.rs:1995),
+spawn_entity(&Arc<Self>, Arc<dyn EntityBase>) (world/mod.rs:6531),
+Player::drop_item(ItemStack) -> Arc<ItemEntity> (player.rs:7012),
+Player::sync_inventory_to_client(&self) (player.rs:2201), and rand::random::<f32>() is used
+elsewhere in the crate. No new pure unit test (no new seam); existing tests
+target_gate_matches_vanilla_player_touch and never_pickup_or_never_despawn_items_never_merge
+cover the pickup/merge gates. Rustfmt not run by this worker (no shell access); no .rs edit.
+Re-read give.rs/item.rs diffs against the worker compile pitfalls: no new imports, helpers are
+methods in impl ItemEntity, no macro/struct-init/clone changes, no unwrap/expect/panic added,
+no em dashes.

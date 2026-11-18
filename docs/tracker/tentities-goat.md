@@ -123,3 +123,21 @@ Edits: `crates/pumpkin-core/src/entity/ai/goal/ram_target.rs` only (ram start-po
 integration + 2 pure unit tests). No cargo/git/shell run (worker restriction); orchestrator compiles.
 
 Status: UNVERIFIED fixed=1 open=0 files=ram_target.rs
+
+
+
+## Result (final pass)
+
+Independent re-verification of all seven rows against decompiled vanilla 1.21.4 under `.vendor/vanilla-decompiled/net/minecraft/`. None remain STILL OPEN; none is BLOCKED-DATA.
+
+- #1 ram activity: FIXED. Verified `ram_target.rs` against `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/behavior/PrepareRamNearestTarget.java` (`calculateRammingStartPosition` 139-168, `isWalkableBlock` 170, `stop`/`tick` 90-130), `.../behavior/RamTarget.java` (knockback 92-101, `hasRammedHornBreakingBlock` 124-129, `finishRam` 131-135) and `.../animal/goat/GoatAi.java` (`initRamActivity` 135-169). This pass added the one missing `RAM_TARGET_CONDITIONS` clause: `can_start` now rejects goat targets (`!target.is(EntityTypes.GOAT)`, GoatAi.java:50-55), matching vanilla which never rams another goat. Already present and verified: 4..7 walkable scan sorted by squared distance with reachable-path filter, 20-tick prepare, 3.0 charge / 1.25 prepare speed, 2.5 adult / 1.0 baby force, speed factor clamp 0.2..3.0 times 1.65 plus 0.25*(speed-slowness), shield halving, START_RAM/END_RAM broadcasts, fail cooldown 600/100 and post-ram cooldown 600..6000 / 100..300. The niche armor-stand/mob-griefing and world-border selector clauses stay folded into the goal architecture (no Brain memory); not a data blocker.
+- #2 long jump: VERIFIED. `long_jump.rs` matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/behavior/LongJumpToRandomPos.java` (600..1200 cooldown, half on fail, 5x5x5 weighted candidate search, 20 tries, 65/70/75/80 angles, 3.5714288x multiplier, 40-tick prepare, path-unreachable landing check, jump/landing sounds, LongJumping pose); its landing helper `crates/pumpkin-core/src/entity/ai/brain/behavior/long_jump.rs` matches vanilla `defaultAcceptableLandingSpot` (solid render below + zero pathfinding malus, LongJumpToRandomPos.java:65-69).
+- #3 horn drop: VERIFIED. `goat.rs::create_horn`/`drop_horn` and `ram_target.rs::ram_into_block` match `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/goat/Goat.java` (`createHorn` 96-105, `dropHorn` 314-342, UUID.hashCode seeding) and `.../behavior/RamTarget.java:104-111` (SNAPS_GOAT_HORN check, horn-break sound, -0.2..0.2 / 0.3..0.7 spawn offsets).
+- #4 memory init: VERIFIED. `initial_ram_cooldown()` seeds 600..6000 and `RamTimer.can_ram` self-seeds like `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/goat/GoatAi.java:61-64 initMemories`; long jump self-seeds its 600..1200 cooldown.
+- #5 per-goat follow distance: VERIFIED. `goat.rs:119-123` samples 5..=16 at 1.25 via `FollowParentGoal::with_min_distance` (goals/follow_parent.rs:29), matching `ADULT_FOLLOW_RANGE` and `BabyFollowAdult` in `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/goat/GoatAi.java:38,93`.
+- #6 spawn rule: VERIFIED (out of unit, already fixed). `entity/type.rs:680-681` applies MINECRAFT_GOATS_SPAWNABLE_ON plus `is_bright_enough_to_spawn`, matching `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/goat/Goat.java:357-361 checkGoatSpawnRules`; the tag exists in pumpkin-data.
+- #7 head lowering: VERIFIED client-only. `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/goat/Goat.java:276-295 handleEntityEvent/aiStep` only animate the client; START_RAM(58)/END_RAM(59) broadcasts under #1 drive it, no server-observable state.
+
+Edits: `crates/pumpkin-core/src/entity/ai/goal/ram_target.rs` (goat-target filter + `EntityType` import, row #1). No cargo/git/shell build (worker restriction); orchestrator compiles. No pure unit-test seam for the target filter (needs a live target).
+
+Status: UNVERIFIED fixed=1 open=0 files=ram_target.rs

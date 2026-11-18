@@ -5,8 +5,14 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **entities/Copper Golem** [partial/RE-REVIEW] The reviewed source has changed. The previous assessment needs a new review. The reviewed source has changed.
 - **own/tentities-copper-golem** [partial/OWN-OPEN] own audit: 7 open, 10 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-copper-golem.md) docs/tracker/tentities-copper-golem.md
 
-## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+## Result (FINAL PASS 2026-11-18)
+
+Both rows closed against decompiled vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java`. No row remains open.
+
+- **entities/Copper Golem [partial/RE-REVIEW]**: FIXED. `mob_on_lightning_strike` (copper_golem.rs:615) previously reset the state to `Unaffected` and re-rolled the timer before the bolt-UUID dedup, making vanilla's `thunderHit` step-back dead code. It now calls the super lightning effect first, dedups by bolt UUID, and on a new bolt steps weathering back one stage (`weather.previous()` at copper_golem.rs:99) and re-rolls the timer (`UNSET_WEATHERING_TICK`) only when the golem is not already `Unaffected`. Matches vanilla `thunderHit` exactly (CopperGolem.java:488-499: `super.thunderHit`, UUID dedup, `nextWeatheringTick = -1L`, `weatherState.previous()` when not UNAFFECTED). Waxed (-2) golems at Unaffected stay waxed, as in vanilla.
+- **own/tentities-copper-golem [partial/OWN-OPEN]**: VERIFIED. All four documented gaps in `docs/tracker/tentities-copper-golem.md` remain resolved against `CopperGolem.java`: oxidized-to-statue conversion (`update_weathering`/`turn_to_statue`, lines 261-321), item pickup/deposit via `TransportItemsBetweenContainers` (copper_golem_ai.rs:49), NBT `next_weather_age` (long) + `weather_state` (string) (`mob_write_nbt`/`mob_read_nbt`, lines 166-177), and the `gameTime >= nextWeatheringTick` boundary (line 270). No code change needed this pass.
+
+No pure unit-test seam exists (lightning/NBT/statue behaviour each needs a live entity and world; enum-conversion tests would only mirror constants/derives, excluded by test policy). Did not compile or rustfmt per the worker contract (no shell); the orchestrator handles that.
 
 
 ## Result (third pass 2026-11-18)

@@ -162,4 +162,29 @@ mod tests {
         assert_eq!(y, 28);
         assert_eq!(z, 36);
     }
+
+    #[test]
+    fn variable_range_sound_event_omits_fixed_range() -> Result<(), Box<dyn std::error::Error>> {
+        let packet = CSoundEffect::new(
+            IdOr::Value(SoundEvent {
+                sound_name: "minecraft:test.sound".to_string(),
+                range: None,
+            }),
+            SoundCategory::Players,
+            &Vector3::new(0.0, 0.0, 0.0),
+            1.0,
+            1.0,
+            42,
+        );
+        let mut bytes = Vec::new();
+        packet.write_packet_data(&mut bytes, &JavaMinecraftVersion::V_1_21_11)?;
+
+        // Direct holder marker, then a VarInt length of 20 and 20 sound-id bytes,
+        // then the fixed-range option flag. createVariableRangeEvent carries
+        // Optional.empty(), so the flag must be absent (0); a fixed range would diverge.
+        assert_eq!(bytes[0], 0);
+        assert_eq!(bytes[1], 20);
+        assert_eq!(bytes[22], 0);
+        Ok(())
+    }
 }

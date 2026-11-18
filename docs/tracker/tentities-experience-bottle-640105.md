@@ -253,3 +253,42 @@ Also re-checked ThrownExperienceBottle.java:41-69: colour -13083194, sound gated
 !isSilent(), show-effect gate, and 3+rand(5)+rand(5) XP all match experience_bottle.rs.
 No generated data, WIT, cross-crate refactor or compile fix was needed. Build not run
 (orchestrator compiles once after all workers finish).
+
+
+## Result (FINAL PASS, all rows closed)
+
+All five rows are closed against the decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (protocol 777 Paper/Canvas). No row is left
+STILL OPEN. No generated `pumpkin-data` fields, WIT changes or cross-crate refactors are
+required. Rows in order:
+
+- Row 1 (XP orbs never merged): FIXED / VERIFIED.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/ExperienceOrb.java:270-316`
+  `awardWithDirection` splits `amount` into `getExperienceValue` tiers then
+  `tryMergeToExisting` absorbs an equal-valued orb in a 1x1x1 box (count++, age reset).
+  `ExperienceOrbEntity::spawn_with_direction` matches with `orb_sizes` +
+  `try_merge_to_existing` (`amount: AtomicU32`, age reset to 0); all award call sites route
+  through it. Closed.
+- Row 2 (dispenser launch power): VERIFIED, NO CHANGE.
+  `.vendor/vanilla-decompiled/net/minecraft/world/item/ExperienceBottleItem.java:64-67`
+  uses `DEFAULT.uncertainty()*0.5` (3.0) and `DEFAULT.power()*1.25` (1.375), matching
+  `POTION_PROJECTILE_POWER` / `POTION_PROJECTILE_UNCERTAINTY` in dispenser.rs. Closed.
+- Row 3 (thrown items spawn at feet): FIXED / VERIFIED.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrowableItemProjectile.java:32-35`
+  spawns at `owner.getEyeY() - 0.1F` with owner X/Z; `throw_spawn_pos` matches for bottle,
+  snowball, egg and ender pearl, with the throw sound left at feet. Closed.
+- Row 4 (no automated test): FIXED / VERIFIED. Pure unit tests present in this unit:
+  `orb_sizes` split tiers (experience_orb.rs), `throw_spawn_pos` eye offset (snowball.rs and
+  item experience_bottle.rs), water buoyancy and unstuck (experience_orb.rs), orb hit
+  direction (projectile/experience_bottle.rs). The suggested on_hit integration test needs a
+  live `World` and is out of pure-unit scope. Closed.
+- Row 5 (splash potion sound): FIXED / VERIFIED.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/AbstractThrownPotion.java:87-97`
+  emits particles 2002/2007 plus sound 1053/1054 (data 0), each sound gated on `!isSilent()`;
+  `splash_potion.rs` matches, including the silent gate. Also re-checked
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownExperienceBottle.java:41-69`:
+  colour -13083194, sound gated on `!isSilent()`, and 3+rand(5)+rand(5) XP all match
+  `experience_bottle.rs` on_hit (orb direction = block face normal or velocity*-1). Closed.
+
+No source file changed this pass (all fixes already present and verified); nothing to
+rustfmt. Build not run (orchestrator compiles once after all workers finish).

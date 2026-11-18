@@ -19,7 +19,9 @@ already replaced by `f64::from(range)`); the two `vanilla` mentions are doc comm
   `ignore_visibility().ignore_distance_scaling_factor()`; test
   `an_invisible_target_is_still_looked_at`.
 
-## Remaining gaps
+## Originally flagged gaps (all resolved; per-row dispositions in the FINAL Result at end of file)
+
+> FINAL: every row below is now terminal (FIXED or VERIFIED against vendored vanilla). The audit narrative is retained for provenance only; the authoritative per-row results are in the last section.
 
 ### 1. Entity search inflates the box 3 blocks vertically (S)
 `look_at_entity.rs:195` uses `SearchArea::from_eyes(entity, range, 3.0)`; vanilla
@@ -302,3 +304,61 @@ test were needed: the three look_at_entity tests already lock the behaviour).
 - Wandering trader - VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtTradingPlayerGoal.java:15-22` canUse only checks isTrading; wandering_trader.rs:884-888 can_start checks only a trading player and :890-897 should_continue keeps the 8-block test.
 
 No rows remain STILL OPEN. fixed=0 open=0 for this pass.
+
+
+## Result (FINAL PASS - every row terminal, re-audited against vendored vanilla)
+
+Re-read every in-scope source file and the decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/` this pass. No source edit was needed:
+each row was already correct (row 2 was fixed in an earlier pass). Rows are listed
+in order with their terminal status, the deciding vanilla location and the current
+Pumpkin location. No Rust file was touched, so rustfmt was not run and no new test
+was added (behaviour is locked by the three existing look_at_entity.rs tests).
+
+1. Entity box inflated 3 blocks vertically - VERIFIED.
+   `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java:67`
+   searches with `getBoundingBox().inflate(lookDistance, 3.0, lookDistance)`.
+   `look_at_entity.rs:193` `SearchArea::from_eyes(entity, range, 3.0)` expands the box
+   by (range, 3.0, range) via `target_match.rs:159 expand(horizontal, vertical, horizontal)`.
+   Matches; keep 3.0.
+2. Player reach 10x too large - FIXED (earlier pass, `fix(core): bound look-at player
+   reach by range`) and VERIFIED. `LookAtPlayerGoal.java:44` uses
+   `TargetingConditions.range(lookDistance)`; `look_at_entity.rs:156` declares
+   `players: range` (the old `range * MAX_VISIBILITY` bound is gone).
+3. `look_forward` dead - VERIFIED. `LookAtPlayerGoal.java:97` uses the mob's own eye Y
+   when `onlyHorizontal`; `look_at_entity.rs:242-246` drives it identically.
+   `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Shulker.java:101`
+   is the sole `onlyHorizontal=true` caller and `shulker.rs:94-100` passes
+   `8.0 / 0.02 / true`. All in-scope callers pass false: `interact.rs:20`,
+   `pillager.rs:86/96`, `panda.rs:281/1209` (`with_default` passes false) and
+   `wandering_trader.rs:251/256`.
+4. Rider filter - VERIFIED. `LookAtPlayerGoal.java:42-44` applies
+   `EntitySelector.notRiding(mob)` for Player.class; `look_at_entity.rs:138-143`
+   installs `EntityPredicate::Rides`, which rejects a rider. Keep the filter.
+5. Slot target not range-checked at set time - VERIFIED. Vanilla
+   `PandaLookAtPlayerGoal.canUse`
+   (`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java:940`)
+   only searches when `lookAt == null` and does not recheck a preset target;
+   `canContinueToUse` (`Panda.java:930-932`, via `LookAtPlayerGoal.java:80-82`)
+   range-drops it. `look_at_entity.rs:174-175` keeps a preset target and `:217-219`
+   drops it past range. Do not clamp.
+6. Controls::LOOK vs empty flag set - VERIFIED. `LookAtPlayerGoal.java:41` calls
+   `setFlags(EnumSet.of(Goal.Flag.LOOK))`; `look_at_entity.rs:88` `goal_control:
+   Controls::LOOK` matches.
+
+Visibility / distance scaling - VERIFIED. `TargetingConditions.forNonCombat()` keeps
+line of sight and scales range by visibility with a 2.0 floor
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/targeting/TargetingConditions.java`).
+`look_at_entity.rs:135-136` uses `TargetPredicate::create_non_attackable()` with
+`base_max_distance = range` (`target_predicate.rs:8 MIN_DISTANCE=2.0`, `:25-26` both
+checks on); the test `an_invisible_target_is_only_found_within_two_blocks` locks the floor.
+
+Wandering trader LookAtTradingPlayerGoal - VERIFIED.
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtTradingPlayerGoal.java:15-22`
+checks only `isTrading` in canUse (the 8.0F is the inherited lookDistance);
+`wandering_trader.rs:884-888` can_start only requires a trading player and
+`:890-897` should_continue keeps the 8-block test (earlier-pass fix).
+
+All 6 rows are terminal: row 2 FIXED in an earlier pass, all 6 VERIFIED against
+vendored vanilla, 0 BLOCKED-DATA, 0 remaining open.
+fixed=0 open=0.

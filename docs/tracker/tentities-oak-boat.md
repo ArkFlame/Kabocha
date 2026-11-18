@@ -37,7 +37,7 @@ seat offsets, dismount search and damage/drop match `AbstractBoat`. Rider positi
 | `server/builtin_game_tests/` | runtime parity | No boat gametest coverage (grep confirms only the dispenser boat test), so the rewritten water physics is unverified at runtime | Add one gametest: boat floats up after a fall, ejects a rider after 60 underwater ticks, chest boat scatters its 27 slots when broken | S |
 
 ## Gap status
-- Remaining-gap items (lines 29-37, incl. missing boat gametest coverage): CLOSED. All five were fixed in the tree by parallel work and are re-verified against .vendor/vanilla-decompiled in the Result sections below; no row remains STILL OPEN.
+- Remaining-gap items (lines 29-37): CLOSED. All five rows end FIXED or VERIFIED with per-row .vendor citations in the FINAL PASS Result below; no row remains open.
 
 
 ## Result
@@ -255,3 +255,59 @@ status line above and this Result section were changed.
   (173) and `test_chest_boat_scatters_27_slots_on_break` (233), registered in that dir's `mod.rs`.
 
 Compile pitfalls: no source code changed this pass, so none apply.
+
+
+## Result
+
+FINAL PASS (direct edit, main checkout). Worked all five rows in order and re-verified each against
+the decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft`. The fixes for four rows already
+exist in the working tree from parallel work; that is not mine to rewrite, so I made no source edits
+to those files. The only source file in this unit's edit scope is `bubble_column.rs`; it already
+matches vanilla with pure-seam tests in place, so no source edit or new test was needed there.
+
+- Row 1, air->water snap (S): FIXED / VERIFIED. `crates/pumpkin-core/src/entity/vehicle/boat/physics.rs:191-212`
+  guards the surface snap with `entity.world.load().no_collision(entity, moved_box)` and stores
+  `InWater` unconditionally. Matches vanilla `AbstractBoat.floatBoat` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:611-620`
+  (`noCollision` guard at 614, `status = IN_WATER` at 620). No pure seam (needs `world.noCollision`),
+  so no new unit test.
+- Row 2, gravity (S): VERIFIED ALREADY CORRECT. `physics.rs:214` `-self.get_gravity()` matches
+  vanilla `AbstractBoat.java:608` `double vspeed = -this.getGravity()` and `Entity.getGravity()`
+  returning 0 under `noGravity`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:2231-2233`). Using
+  `DEFAULT_GRAVITY` would diverge. No unit-test seam.
+- Row 3, bubble column / `ID_BUBBLE_TIME` (M): FIXED / VERIFIED. Block side
+  (`crates/pumpkin-core/src/block/blocks/bubble_column.rs`) `bubble_column_vertical_velocity` matches
+  `Entity.handleOnAboveBubbleColumn`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:4149-4163`: up +0.1 cap 1.8,
+  down `max(-0.9, y - 0.03)`) and `handleOnInsideBubbleColumn`
+  (`Entity.java:4185-4199`: up +0.06 cap 0.7, down `max(-0.3, y - 0.03)`); `entity_inside` uses the
+  collision/fluid test from
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/BubbleColumnBlock.java:56-62`;
+  `push_projectile` matches `Projectile.onAbove/onInsideBubbleColumn`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/Projectile.java:277-288`:
+  -0.03 / +0.1 / +0.06, uncapped); `send_bubble_column_particles` matches the SPLASH/BUBBLE emissions
+  (`Entity.java:4165-4179`). Boat side (`boat.rs:429-474`, `647`, `700`, `976-978`):
+  `bubble_column_time`, `tick_bubble_column` writing
+  `pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME`, `on_above/inside_bubble_column` and the -0.7 /
+  +0.6 impulse match `AbstractBoat.tickBubbleColumn`/`handleBubbleColumnEffect`
+  (`AbstractBoat.java:351-408`; `DATA_ID_BUBBLE_TIME` at 57, `BUBBLE_TIME` = 60 at 63). Pure-seam tests
+  `upward_push_cap_depends_on_surface`, `downward_push_cap_depends_on_surface` and
+  `open_above_requires_no_collision_and_no_fluid` already lock the block-side constants, so no new
+  test is warranted (a push-amount helper would be formula-mirroring).
+- Row 4, rider-rotation clamp (M): FIXED / VERIFIED. `boat.rs:856-944` `on_rider_positioned` /
+  `on_passenger_turned` with pure helpers `rider_body_yaw`/`clamp_head_to_body`/`clamp_rider_yaw`/
+  `rider_clamp_adjustment` and tests match vanilla `AbstractBoat.positionRider`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:696-706`),
+  `clampRotation` (740-754, 105 deg clamp), `calculatePassengerBodyYRot` (756-760, animal-in-full-boat
+  side seating) and `onPassengerTurned` (763-766), wired through `entity/mod.rs` trait defaults and
+  call sites.
+- Row 5, boat gametest (S): FIXED. All three tests exist in
+  `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs`:
+  `test_boat_floats_up_after_fall` (135),
+  `test_boat_ejects_passenger_after_60_underwater_ticks` (173) and
+  `test_chest_boat_scatters_27_slots_on_break` (233), registered in that dir's `mod.rs`
+  (1845/1852/1859).
+
+Compile pitfalls: no source code changed by me, so none apply. Risk: none from my edits; the
+parallel fixes above are unverified by me via build (the orchestrator compiles once).

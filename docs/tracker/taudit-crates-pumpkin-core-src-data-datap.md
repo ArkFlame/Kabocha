@@ -188,7 +188,7 @@ No STILL OPEN rows remain. No source files changed; no rustfmt/cargo run (shell 
 
 ## Result (final pass - authoritative, all rows terminal)
 
-Re-verified every row of the the "Remaining gaps" table against the decompiled V_26_3
+Re-verified every row of the "Remaining gaps" table against the decompiled V_26_3
 tree (canonical .vendor/vanilla-decompiled/net/minecraft, actually present at
 /run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft), and confirmed each claimed
 source fix is present in crates/pumpkin-core/src/data/datapack/mod.rs. No STILL OPEN

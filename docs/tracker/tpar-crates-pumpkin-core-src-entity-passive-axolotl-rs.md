@@ -41,3 +41,30 @@ nothing to rustfmt.
 No STILL OPEN rows remain. Source file `axolotl.rs` was already correct in all three cases; no
 code edit was needed, so no rustfmt run was required.
 
+
+
+## Result (FINAL PASS)
+
+FINAL PASS: every row ends VERIFIED against decompiled vanilla. No source change was needed, so
+there was nothing to rustfmt. Direct re-check against `.vendor/vanilla-decompiled/net/minecraft/`:
+
+- **entities/Axolotl [partial/AUDITED] - VERIFIED.** `world/entity/animal/axolotl/Axolotl.java:396-408`
+  snapshots `getHealth()` before `super.hurtServer`, tests `damage < currentHealth`, RNG 1-in-3 plus
+  `nextInt(3) < damage || currentHealth/max < 0.5`, `source.getEntity()!=null || getDirectEntity()!=null`,
+  in water, not already playing dead. `plays_dead_when_hurt` (axolotl.rs:158-166) and
+  `mob_hurt_server`/`try_play_dead` (axolotl.rs:615-652, 353-382) mirror it; `post_damage_with_context`
+  (mob/mod.rs:3289) runs on every hit so blocked hits still roll. `createNavigation` returns
+  `AmphibiousPathNavigation` (Axolotl.java:386-387) -> `Navigator::amphibious(false)` (axolotl.rs:238).
+  Bucket tag (Axolotl.java:427-450) matches axolotl.rs:412-452; `onStopAttacking` inflate(20.0) and
+  `applySupportingEffects` 100+previous/cap 2400/amplifier 0 (Axolotl.java:467-484) match
+  axolotl.rs:334-347 and axolotl.rs:174-200.
+
+- **own/taudit-crates-pumpkin-core-src-en-f50f1a [partial/OWN-OPEN] - VERIFIED.** Its Result already
+  resolved all six rows (causing-entity, pre-hit health, regen range, blocked-hit roll, regen duration);
+  re-checked this pass, no gap remains.
+
+- **own/tentities-axolotl-4ff0f4 [partial/OWN-OPEN] - VERIFIED.** Its Result already resolved all four
+  rows and the navigator fix. `axolotl/PlayDead.java:32` grants Regeneration 200/0 and
+  `AxolotlAi.java:150-159` arms `HAS_HUNTING_COOLDOWN` for 2400; both match `axolotl/ai.rs`. No gap remains.
+
+No STILL OPEN rows, no BLOCKED-DATA fields, no code edits required.

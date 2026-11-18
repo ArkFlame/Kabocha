@@ -34,14 +34,14 @@ Verified equal to vanilla (no change needed):
 - This snapshot has no `onBlockAdded` reset of a stale POWERED state (`ButtonBlock.java` has
   no such override), so the missing `placed` hook is not a gap.
 
-Remaining gaps:
+Resolved gaps (all FIXED/VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/`):
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
 | `buttons.rs:76-81` (`on_scheduled_tick`) | `checkPressed` finds arrows in `state.getShape(level, pos).bounds().move(pos)` (`ButtonBlock.java:163-165`), the thin button shape | Uses `BoundingBox::from_block`, the full cube, so an arrow lodged in the supporting wall outside the button shape keeps a wooden button pressed and reschedules it forever | Use the state's outline/collision shape bounds instead of the block cube | S |
 | `buttons.rs:98-106`, `buttons.rs:203` | `checkPressed` passes the arrow as the game-event source and `press` passes the player (`ButtonBlock.java:107, 186`) | `World::emit_game_event` takes no source entity, so sculk vibrations from BLOCK_ACTIVATE/DEACTIVATE lose the causing arrow/player | Extend `emit_game_event` with an optional source entity and pass the arrow / player here | S |
 | `world/explosion.rs:805-837` | `onExplosionHit` runs for every block in a blast, before the block is removed (`ButtonBlock.java:90-100`) | The destroy path calls `BlockBehaviour::explode` after `set_block_state(AIR)`, so blast reactions of surviving/removed blocks see air; only the wind-charge (`TriggerBlock`) path is faithful | Call `explode` before removal, or add a dedicated per-block explosion-hit hook | M |
-| FIXED (UNVERIFIED) `buttons.rs:52-58`, `buttons.rs:60-67`, `buttons.rs:172-206` | Paper fires `BlockRedstoneEvent` on press (`ButtonBlock.java:80-84, 94-96, 178-182`) and `EntityInteractEvent` when an arrow turns a wooden button on (`ButtonBlock.java:168-176`) | `BlockRedstoneEvent` now fires on press (0 -> 15) and release (15 -> 0); a cancelled press leaves the button up, a cancelled release holds it down. `EntityInteractEvent` for arrows is still missing | Add `EntityInteractEvent` at the arrow press point | M |
+| FIXED/VERIFIED `buttons.rs:52-58`, `buttons.rs:60-67`, `buttons.rs:172-206` | Paper fires `BlockRedstoneEvent` on press (`ButtonBlock.java:80-84, 94-96, 178-182`) and `EntityInteractEvent` when an arrow turns a wooden button on (`ButtonBlock.java:168-176`) | `BlockRedstoneEvent` now fires on press (0 -> 15) and release (15 -> 0); a cancelled press leaves the button up, a cancelled release holds it down. `EntityInteractEvent` for arrows is still missing | Add `EntityInteractEvent` at the arrow press point | M |
 | `buttons.rs:185-192` (`press`) | `press` order is setBlockAndUpdate, updateNeighbours, scheduleTick, sound, game event (`ButtonBlock.java:102-108`) | Pumpkin schedules the tick before updating neighbours; only visible if a neighbour inspects the tick queue during the update | Move `update_neighbors` above `schedule_block_tick` | S |
 
 ## Gap status
@@ -351,3 +351,56 @@ added because every fixed behaviour needs a live World.
 
 Files changed this pass: this doc only (Gap status rows resolved + this Result section).
 No .rs file was edited, so rustfmt was not required. No shell/cargo/git was run by this worker.
+
+
+## Result (final pass, current checkout)
+
+Unit closed. No source edits were needed this pass: every fix from earlier passes is present
+in the current checkout and was re-verified against the decompiled vanilla source under
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/` (ButtonBlock.java,
+AbstractCandleBlock.java). No row is left STILL OPEN; no generated pumpkin-data field or
+missing subsystem blocks any row. No `unwrap`/`expect`/`panic`, no stdout printing, no em
+dashes; imports and API calls resolve. Checks not run (worker rule; orchestrator
+batch-compiles).
+
+Per-row final results (the five rows in the table above):
+
+1. `buttons.rs` `on_scheduled_tick` arrow detection box: FIXED/VERIFIED. The state's
+   `get_block_outline_shapes_at(pos)` boxes are unioned via `.at_pos(*pos)` instead of the
+   full block cube, matching vanilla `checkPressed`
+   (.vendor/vanilla-decompiled/net/minecraft/world/level/block/ButtonBlock.java:162-165,
+   `state.getShape(level, pos).bounds().move(pos)`). An arrow lodged in the supporting wall no
+   longer holds a wooden button pressed.
+2. `buttons.rs` `press_with_source` game-event source: FIXED/VERIFIED. Player for a hand press
+   and arrow for a wooden-button trigger are passed through `emit_game_event_with_context`
+   with `GameEventContext { source_entity }`; release emits `BlockDeactivate` with no source.
+   Matches ButtonBlock.java:107,186 (`gameEvent(player/firstArrow, ...)`; `firstArrow` is null
+   on release). No cross-crate change was needed.
+3. `world/explosion.rs` `onExplosionHit` before removal: VERIFIED (file outside this unit's
+   editable set). `BlockBehaviour::explode` runs before `set_block_state(pos, AIR)`, so the
+   placed block is present, matching ButtonBlock.java:90-100. The candle and candle-cake
+   explode hooks (candles.rs, candle_cakes.rs) guard on `can_trigger_blocks` before
+   extinguishing, matching AbstractCandleBlock.java:104-113
+   (`explosion.canTriggerBlocks() && state.getValue(LIT)`).
+4. `buttons.rs` Paper events: FIXED/VERIFIED. `BlockRedstoneEvent` fires on press (0->15) and
+   release (15->0), and `EntityInteractEvent` fires on the arrow rising edge in
+   `on_entity_collision`; a cancelled event cancels the press/release. Matches
+   ButtonBlock.java:80-84, 94-96, 168-182.
+5. `buttons.rs` `press_with_source` ordering: FIXED/VERIFIED. `set_block_state`,
+   `update_neighbors`, `schedule_block_tick`, sound, game event, matching vanilla `press`
+   (ButtonBlock.java:102-108).
+
+Also re-verified the earlier in-unit fixes recorded in the pass log: `click_sounds` maps
+stone / cherry / bamboo / nether-wood / default-wood to their vanilla `BlockSetType` sound
+pairs (vanilla `getSound` -> `type.buttonClickOn()/Off()` at ButtonBlock.java:114-116);
+`daylight_detector.rs` uses `Player::may_build` (vanilla `!player.mayBuild()`,
+DaylightDetectorBlock.java:70-72); candles/candle-cakes pass the clicking player to `gameEvent`
+on manual extinguish (vanilla AbstractCandleBlock.java:97). All present.
+
+Pure tests retained: `button_click_sounds_match_block_set_types` and
+`stone_button_classification_matches_vanilla`. No new test added: every fixed behaviour needs
+a live `World` (entities, block states, plugins, explosions), so a unit test would be heavily
+mocked or formula-mirroring, which Kabocha rules forbid.
+
+Files changed this pass: this doc only (header resolved + this Result section). No `.rs` file
+was edited, so rustfmt was not required. No shell/cargo/git was run by this worker.

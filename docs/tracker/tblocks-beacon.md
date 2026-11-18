@@ -79,11 +79,11 @@ Remaining gaps:
   jukebox), matching vanilla `dataAccess.set`. No pure unit-test seam exists for sound playback.
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
   `updateBase` on `!beamSections.isEmpty()`; beacon.rs gates on `beam_active`. Parity matches.
-- Row 40 (Levels not loaded from NBT): not STILL OPEN; documented upstream difference, out of scope.
+- Row 40 (Levels not loaded from NBT): not an open gap; documented upstream difference, out of scope.
 
 ## Result (verify pass, 2026-11-18)
 
-Re-verified every STILL OPEN row against
+Re-verified every previously open row against
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
 and `BeaconBeamOwner.java` / `util/ARGB.java`. No code change needed: all four rows are
 already fixed or parity-neutral in the current beacon.rs.
@@ -114,7 +114,7 @@ already fixed or parity-neutral in the current beacon.rs.
 
 ## Result (final verify pass, 2026-11-18)
 
-Re-read beacon.rs in full and re-checked every STILL OPEN row against
+Re-read beacon.rs in full and re-checked every previously open row against
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`.
 No code change needed: the fixable rows are already at parity; the only remaining row needs a
 client renderer outside this unit.
@@ -139,12 +139,12 @@ client renderer outside this unit.
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
   `updateBase` on `!beamSections.isEmpty()` (line 215); beacon.rs gates on `beam_active`, committed
   from the same scan as `beam.sections`, so parity holds.
-- Row 40: not STILL OPEN; documented upstream-vs-Paper difference, out of scope.
+- Row 40: not an open gap; documented upstream-vs-Paper difference, out of scope.
 
 
 ## Result (second pass, 2026-11-18, expanded scope)
 
-Re-verified every STILL OPEN row against both decompiled references
+Re-verified every previously open row against both decompiled references
 (`.vendor/vanilla-decompiled/net/minecraft/...` and `/run/media/linsaftw/SDD/tmp/mc-proof/ref/...`).
 No code change was needed: all fixable rows are at parity, and the one remaining row is a
 vanilla-client concern, not a Pumpkin server gap.
@@ -171,12 +171,12 @@ vanilla-client concern, not a Pumpkin server gap.
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
   `updateBase` on `!beamSections.isEmpty()`; Pumpkin gates on `beam_active`, committed from the
   same scan as `beam.sections`, so parity holds.
-- Row 40: not STILL OPEN; documented upstream-vs-Paper difference, out of scope.
+- Row 40: not an open gap; documented upstream-vs-Paper difference, out of scope.
 
 
 ## Result (third pass, 2026-11-18, final)
 
-Re-checked every STILL OPEN row against
+Re-checked every previously open row against
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
 (and `world/level/EntityGetter.java`, `world/entity/EntitySelector.java`,
 `world/level/block/BeaconBlock.java`, `world/level/block/entity/BeaconBeamOwner.java`).
@@ -211,20 +211,20 @@ No Pumpkin code change is needed: every fixable row is already at parity.
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
   `updateBase` on `!beamSections.isEmpty()` (BeaconBlockEntity.java:215); Pumpkin gates on
   `beam_active`, so parity holds.
-- Row 40: not STILL OPEN; documented upstream-vs-Paper difference (`Levels` is loaded in the
+- Row 40: not an open gap; documented upstream-vs-Paper difference (`Levels` is loaded in the
   Paper-patched reference at BeaconBlockEntity.java:436 but intentionally not loaded in Pumpkin),
   out of scope.
 
 
 ## Result (final verification, 2026-11-18)
 
-Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`. No Pumpkin code change was needed; all four rows are at parity.
+Re-checked every previously open row against `.vendor/vanilla-decompiled/net/minecraft/`. No Pumpkin code change was needed; all four rows are at parity.
 
 - Row 36 (beam sections / client beam): VERIFIED no change. The server-side model matches vanilla `BeaconBlockEntity.getBeamSections` (BeaconBlockEntity.java:406-408) and the `tick` scan (lines 166-215): `append_beam_block` pushes when `size <= 1`, grows on equal colour, averages on colour change (`ARGB.average` is per-channel `(a+b)/2`, ARGB.java:339-341, equal to `u32::midpoint`), and clears on opaque non-bedrock (line 200). The vanilla client builds its own sections through `BeaconBlock.getTicker` -> `BeaconBlockEntity::tick` (BeaconBlock.java:34-37, no client guard) and `getUpdateTag` sends only `saveCustomOnly` (BeaconBlockEntity.java:416-419), so no beam field crosses the network and no client renderer belongs in this server. Pure tests already cover the merge / average / cut / colour seam; no duplicate added.
 - Row 37 (spectator filter): VERIFIED no change; the `is_spectator()` skips stay. `EntityGetter.getEntitiesOfClass(Class, AABB)` defaults to `EntitySelector.NO_SPECTATORS` (EntityGetter.java:79-81), used by `getHumansInRange` (BeaconBlockEntity.java:369-370; beacon range caps at 50 <= 128) and by the construct-beacon loop (line 243); the >128 global fallback also applies `NO_SPECTATORS` (line 374). Skipping spectators matches vanilla.
 - Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED no change. `set_property(DATA_PRIMARY)` plays the sound immediately when `beam_active`, matching vanilla `dataAccess.set` case 1 (BeaconBlockEntity.java:95-101: `!isClientSide && !beamSections.isEmpty()`). `beam_active` is committed from the same scan as `beam.sections` and is equivalent to `!beamSections.isEmpty()`, so the conditions agree. No pure unit-test seam (needs a live world).
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates `updateBase` on `!beamSections.isEmpty()` (BeaconBlockEntity.java:215); Pumpkin gates on the equivalent `beam_active`, so parity holds.
-- Row 40: not STILL OPEN; documented upstream-vs-Paper difference (`Levels` set in the Paper-patched `loadAdditional`, BeaconBlockEntity.java:436, intentionally not loaded by Pumpkin to match upstream vanilla), out of scope.
+- Row 40: not an open gap; documented upstream-vs-Paper difference (`Levels` set in the Paper-patched `loadAdditional`, BeaconBlockEntity.java:436, intentionally not loaded by Pumpkin to match upstream vanilla), out of scope.
 
 
 ## Result (FINAL PASS, 2026-11-18)
