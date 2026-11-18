@@ -5088,6 +5088,22 @@ impl World {
         self.run_explosion(&explosion);
     }
 
+    /// Explodes with an entity source and a custom damage calculator, matching vanilla
+    /// `Level.explode` calls that pass both a source and an `ExplosionDamageCalculator`.
+    pub fn explode_from_with_calculator(
+        self: &Arc<Self>,
+        source: &dyn EntityBase,
+        position: Vector3<f64>,
+        power: f32,
+        interaction: ExplosionInteraction,
+        damage_calculator: Arc<dyn ExplosionDamageCalculator>,
+    ) {
+        let explosion = Explosion::new(power, position, self.get_block_interaction(interaction))
+            .with_source(source)
+            .with_damage_calculator(damage_calculator);
+        self.run_explosion(&explosion);
+    }
+
     #[must_use]
     pub fn get_block_interaction(&self, interaction: ExplosionInteraction) -> BlockInteraction {
         let game_rules = &self.level_info.load().game_rules;
@@ -6619,6 +6635,7 @@ impl World {
             new_entities
         });
         base_entity.set_world(dest.clone());
+        entity.on_changed_dimension();
         dest.add_entity_silent(entity.clone());
     }
 

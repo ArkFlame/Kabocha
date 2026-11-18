@@ -317,6 +317,9 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn read_custom_nbt(&self, _nbt: &NbtCompound) {}
 
+    /// Vanilla `Entity.postChangeDimension`, called after an entity changes dimension.
+    fn on_changed_dimension(&self) {}
+
     /// Explicit removal of top-level keys, since a missing key on read keeps the field.
     fn remove_nbt(&self, removed: &[Box<str>]) {
         if let Some(owner) = self.get_projectile_owner() {

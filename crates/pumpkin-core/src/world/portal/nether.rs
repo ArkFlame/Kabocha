@@ -795,16 +795,13 @@ impl NetherPortal {
                             .offset_dir(perpendicular.to_offset(), perp)
                             .offset_dir(BlockDirection::Up.to_offset(), height);
 
-                        // Vanilla clears with client-only flags (2 for air, 18 for the floor).
-                        let (state, flags) = if height < 0 {
-                            (
-                                obsidian_state,
-                                BlockFlags::NOTIFY_LISTENERS | BlockFlags::UPDATE_KNOWN_SHAPE,
-                            )
+                        // Vanilla `createPortal` clears this fallback box with `Block.UPDATE_ALL`.
+                        let state = if height < 0 {
+                            obsidian_state
                         } else {
-                            (air_state, BlockFlags::NOTIFY_LISTENERS)
+                            air_state
                         };
-                        world.set_block_state(&pos, state, flags);
+                        world.set_block_state(&pos, state, BlockFlags::NOTIFY_ALL);
                     }
                 }
             }
