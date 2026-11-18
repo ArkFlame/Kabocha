@@ -109,8 +109,8 @@ impl ParticleOptions {
                 write.write_var_int(&VarInt(duration))
             }
             Self::Spell { color, power } => {
-                // Vanilla `SpellParticleOption.STREAM_CODEC`: VAR_INT, then FLOAT.
-                write.write_var_int(&VarInt(color))?;
+                // Vanilla `SpellParticleOption.STREAM_CODEC`: INT colour, then FLOAT power.
+                write.write_i32_be(color)?;
                 write.write_f32_be(power)
             }
         }
@@ -489,9 +489,9 @@ mod tests {
         let mut payload = Vec::new();
         options.write(&mut payload).unwrap();
 
-        // Vanilla `SpellParticleOption.STREAM_CODEC`: VAR_INT colour, FLOAT power.
+        // Vanilla `SpellParticleOption.STREAM_CODEC`: INT colour, FLOAT power.
         let mut expected = Vec::new();
-        expected.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF, 0x0F]);
+        expected.extend_from_slice(&(-1i32).to_be_bytes());
         expected.extend_from_slice(&1.0f32.to_be_bytes());
 
         assert_eq!(payload, expected);
