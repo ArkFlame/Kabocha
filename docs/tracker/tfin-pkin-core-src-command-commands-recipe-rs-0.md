@@ -13,4 +13,4 @@ Final pass (worker, direct, no cargo/git). All five rows were already fixed in t
 - 5. Raw argument in error text (XS): VERIFIED. `ERROR_RECIPE_NOT_FOUND` passes the parsed `context.get_argument::<Identifier>("recipe")?.to_string()` (always namespace:path) to `recipe.notFound`, matching vanilla's parsed `ResourceLocation` echo in `ResourceKeyArgument.java` (:78, :92, :106).
 - Fifth-pass id-resolution fix: VERIFIED. `recipe_matches` (recipe.rs:40) matches manager keys only, so a keyless recipe never matches its result item id, matching `ResourceKeyArgument.java` `getRecipe` byKey resolution (:103-106). Pure test `recipe_matching_uses_manager_keys_only` (recipe.rs:444) present.
 
-No rows remain STILL OPEN and none are BLOCKED-DATA. No .rs file was edited this pass, so rustfmt was not needed; compilation and the three pure unit tests are left to the orchestrator batch check.
+No rows remain unresolved and none are BLOCKED-DATA. No .rs file was edited this pass, so rustfmt was not needed; compilation and the three pure unit tests are left to the orchestrator batch check.

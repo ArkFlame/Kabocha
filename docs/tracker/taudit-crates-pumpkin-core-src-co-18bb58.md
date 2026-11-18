@@ -342,3 +342,15 @@ diff against the Worker compile pitfalls table: no guessed import paths (the
 `VarInt`/`NetworkWriteExt` imports remain used elsewhere in the file), no helper
 or struct-initializer or macro-path hazards, no moved-then-reused values, no
 unwrap/expect/panic added.
+## Result (coder pass 2, batch r2_003)
+- Particle rows (codec option validation, vibration options, dust_pillar/block_crumble/item_cobweb/geyser/firefly/sulfur_cube_goo payloads, item particle component-less ItemStackTemplate, 26.x packet layout): STILL OPEN, not reached in this pass. No source edited.
+
+## Result (coder pass 3, batch r3_016)
+- Codec validation of options instead of command parser (`particle.rs:157-197`, `pumpkin-command/src/argument_types/particle.rs:52-60`): STILL OPEN. Needs per-particle required-field validation in the `pumpkin-command` crate (owns `ERROR_INVALID_OPTIONS`); cross-crate, not attempted. Note: an item with no valid `item` option now encodes an empty payload (`write_template0` rejects empty stacks), so the missing-option fallback is still wrong here.
+- Vibration options (`particle.rs:236-247`): VERIFIED. Vanilla `VibrationParticleOption.java:23-29` (`PositionSource.STREAM_CODEC`, VAR_INT `arrival_in_ticks`), `PositionSourceType.java:10` (block = registry id 0), `BlockPos.java:37-45`. Rust encodes id 0, `write_block_pos` version-aware, VAR_INT arrival. Test `vibration_writes_block_source_and_arrival` exists. Row was stale.
+- `dust_pillar`/`block_crumble`/`item_cobweb`/`geyser*`/`firefly`/`sulfur_cube_goo` payloads: VERIFIED. `ParticleTypes.java:163-173`: dust_pillar and block_crumble are `BlockParticleOption` (Rust block branch, `particle.rs:258-265`); item_cobweb, firefly, sulfur_cube_goo are `SimpleParticleType` (fall to `_ => Ok(())`); geyser payloads already fixed.
+- Item particle component-less `ItemStackTemplate` (`particle.rs:266-271`): FIXED. Vanilla `ItemParticleOption.java:17-18` uses `ItemStackTemplate.STREAM_CODEC` (`ItemStackTemplate.java:30-38`: item id, count, components). The Rust wrote the `ItemStack` order (count first). Now calls `ItemStackSerializer::write_template_with_version` (`item_stack_seralizer.rs:600-610`, `write_template0` writes id, count, patch). Test `item_writes_template_order_id_then_count` asserts `[1, 5, 0, 0]`. Components are already accepted by `read_item_stack_template` (`pumpkin-data/src/item_stack/mod.rs:1057`), so the "component-less" wording was stale.
+- 26.x packet layout (`pumpkin-protocol/src/java/client/play/particle.rs:264-284`): VERIFIED. Vanilla `ClientboundLevelParticlesPacket.java:30-58` order: particle, overrideLimiter, alwaysShow, x/y/z DOUBLE, xDist/yDist/zDist + three max speeds FLOAT, count VAR_INT, RandomizationType (`DEFAULT(0)`, line 104). Rust matches field for field.
+- Player-centre range, Spell colour INT, trail, geyser, sculk_charge, shriek: already FIXED in earlier passes; no change here.
+
+Rustfmt: `rustfmt --edition 2024` on `crates/pumpkin-core/src/command/commands/particle.rs` (exit 0). No cargo run (forbidden for workers).

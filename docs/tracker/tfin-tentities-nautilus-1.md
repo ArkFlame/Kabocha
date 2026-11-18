@@ -2,10 +2,11 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: natural_spawner.rs nautilus.rs sound.rs tag.rs
 
-| 6 | `nautilus.rs` (absent) | `AbstractNautilus#tick` riding sound | `Sound::EntityNautilusRiding` (`pumpkin-data/src/generated/sound.rs:120`) is never played. **verify** the vanilla interval/volume/condition (ridden by a player). | Play it from the nautilus tick. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 7 | `crates/pumpkin-core/src/world/natural_spawner.rs` (absent) | nautilus spawn placement | Neither `Nautilus` nor `ZombieNautilus` appears in the natural spawner, although biome tags exist (`tag.rs:30248 spawns_coral_variant_zombie_nautilus`). | Register both with spawn group/weight/biome tags (verify vanilla weights). | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 8 | `nautilus.rs:258-278` | `TamableAnimal#addAdditionalSaveData` | Hand-rolled taming state: writes non-vanilla `IsTame`/`DashCooldown` keys and duplicates the owner, while `ZombieNautilusEntity` uses `TamableData`. Two representations of one vanilla concept. **verify** whether vanilla persists the dash cooldown at all. | Move to `TamableData` (tame derived from owner) and drop the extra keys. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 9 | `nautilus.rs:442-456` | `Animal#mobInteract` food healing | Heal is `2.0 * nutrition`. **verify** the vanilla heal value for the nautilus food set before changing. | Match the vanilla heal amount. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| # | Pumpkin | Vanilla | Status |
+|---|---|---|---|
+| 6 | `nautilus.rs` (absent) | `AbstractNautilus` tick riding sound | OPEN. `Sound::EntityNautilusRiding` is still never played; the vanilla interval and condition need a verified read of `AbstractNautilus.java` before porting (size S). |
+| 7 | `world/natural_spawner.rs` (absent) | nautilus spawn placement | OPEN. Neither `Nautilus` nor `ZombieNautilus` is registered in the natural spawner; needs spawn group, weight and biome tags verified against vanilla (size M). |
+| 8 | `nautilus.rs:258-278` | `TamableAnimal#addAdditionalSaveData` | OPEN. Hand-rolled taming NBT (`IsTame`/`DashCooldown`) remains; moving it to `TamableData` needs a check of whether vanilla persists the dash cooldown (size S). |
+| 9 | `nautilus.rs:570-580` food heal | `TamableAnimal.feed` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/TamableAnimal.java`) and `AbstractNautilus.mobInteract` `feed(player, hand, stack, 2.0F, 1.0F)` (AbstractNautilus.java:420-423) | VERIFIED. Vanilla heals `healingFactor * nutrition` (2.0) when food is present, else `defaultHeal` (1.0). Pumpkin uses `2.0 * nutrition` with a `1.0` fallback, which matches. |
 
-## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Status: verified=1 (row 9); open=3 (rows 6, 7, 8). No compile run.

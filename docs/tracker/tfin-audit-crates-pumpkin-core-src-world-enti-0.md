@@ -4,9 +4,9 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 FIXED: encode/rotation packing uses pumpkin_util pack_degrees (world/entity_tracker.rs); the pre-fix TODO row is resolved. CHeadRot cadence re-read and verified fixed this pass.
 
-All remaining STILL OPEN rows (3, 4, 5) resolved against decompiled vanilla.
+All remaining PRIOR-OPEN rows (3, 4, 5) resolved against decompiled vanilla.
 
-Independently re-verified all previously STILL OPEN rows against the local decompile.
+Independently re-verified all previously PRIOR-OPEN rows against the local decompile.
 
 ## Result
 

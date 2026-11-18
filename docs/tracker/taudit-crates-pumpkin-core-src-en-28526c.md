@@ -263,3 +263,16 @@ and the current source. No new code edits were required: every row is FIXED or V
 
 Compile-pitfall table re-read: no source code edited this pass, so no new imports, clones, struct
 initializers, macro paths or clippy-pedantic concerns. No source files touched, so no rustfmt needed.
+
+## Result (batch r2x_003 pass)
+
+Each row of the "Remaining gaps" table was checked against the vendored vanilla and the Rust source. No row was left STILL OPEN and no source was edited in this pass.
+
+- memory/mod.rs:243, :321 (value.rs:23-26), empty-collection set: VERIFIED. Vanilla `world/entity/ai/Brain.java:214-262` and `isEmptyCollection` at 573-575; Rust `value.rs:24`, `value.rs:81`, `value.rs:152`.
+- memory/mod.rs:240-242, setMemoryInternal unregistered put: VERIFIED. Vanilla `Brain.java:157-159`, `215-216`, `240-241`; Rust `memory/mod.rs:240-242`.
+- memory/mod.rs:155-163, UTF-16 truncation: FIXED (earlier pass). Rust `memory/mod.rs:155-170`, test covering UTF-16 counting at `memory/mod.rs:623`.
+- memory/mod.rs:124-131, negative ttl: VERIFIED. Vanilla `world/entity/ai/memory/MemorySlot.java:16-24,61-63`; Rust `memory/mod.rs:126` (`self.ttl <= 0`).
+- memory/mod.rs:136-141, dump ttl wording: VERIFIED. Vanilla `util/debug/DebugBrainDump.java:158-160`; Rust `memory/mod.rs:136-141`.
+- memory/types.rs:123, VISIBLE_ADULT_PIGLIN/HOGLIN_COUNT: FIXED and VERIFIED (earlier pass). Declared at `types.rs:122-123` (ids 79/80); populated in `hoglin_specific.rs` and `piglin.rs`; consumed in `hoglin.rs:38-62` and `piglin_ai.rs:71-78`. Vanilla `MemoryModuleType.java:116-117`, `HoglinSpecificSensor.java:41-57`, `PiglinSpecificSensor.java:73-80`.
+
+Files edited this pass: none.

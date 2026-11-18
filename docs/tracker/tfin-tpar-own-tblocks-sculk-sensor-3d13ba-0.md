@@ -6,4 +6,4 @@ Re-verified all four rows against decompiled vanilla (`.vendor/vanilla-decompile
 file was edited this pass. No row remains STILL OPEN and no row needs generated data.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED: all four rows match decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`. No source change needed.

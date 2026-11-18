@@ -52,3 +52,6 @@ matches vanilla, so no source edits were needed this pass. No row is left STILL 
 
 Files touched this pass: docs/tracker/tfin-tentities-wither-0.md only (no source edits).
 No build run (task rules); compile verification left to the orchestrator.
+
+## Result
+- Wither rows 1, 2, 3, 5, 7, 8, 9: VERIFIED per `docs/tracker/tentities-wither.md` "Result (x_14 re-verification)" with vanilla and Rust citations. No source edits.

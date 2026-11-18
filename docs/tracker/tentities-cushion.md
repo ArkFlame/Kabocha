@@ -55,3 +55,12 @@ Re-verified all rows in `cushion.rs`/`painting.rs` against decompiled vanilla (`
 - Placement/support `pumpkin-gametest` cases (table row, M): OPEN, out of unit scope (would require test files outside allowed basenames `cushion.rs`, `painting.rs`).
 
 No .rs file was touched, so no rustfmt run.
+## Result (r2y_020 pass)
+- Creative-attacker no-drop and entity_drops gate (`cushion.rs` drop_and_remove, 177-218): VERIFIED. Vanilla `Cushion.dropItem` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/Cushion.java:58-69`; Rust sound before gate at `cushion.rs:195-199`, `entity_drops` gate at `:200`, creative `Player` skip at `:201-207`.
+- Game events ENTITY_MOUNT / ENTITY_DISMOUNT: VERIFIED. Vanilla `Entity.java:3625` (mount at `vehicle.position`) and `:3672` (dismount at `oldVehicle.position`); Rust `entity/mod.rs:6258-6261` and `:6513-6516`, each emitted once at HEAD (the duplicate noted above is no longer present).
+- Hit on removed entity returns handled: FIXED. The removed-entity early return ran before the invulnerability, griefing and build/spawn refusals. Vanilla returns `true` for a removed entity only after those refusals (`BlockAttachedEntity.java:129-160`, `Cushion.java:79-82`). Moved the `is_alive` check after them in `cushion.rs` `damage_with_context` (about 445-472).
+- Colour save/load key: FIXED. Vanilla stores `"color"` as the `DyeColor.CODEC` name and reads it back with white as fallback (`Cushion.java:232-241`, `DyeColor.java:52`). Pumpkin wrote a legacy `"Color"` byte. Now writes/reads `"color"` by name (`cushion.rs:334-348`) with white fallback; the by-id clamp row is superseded by this.
+- Placement and support `pumpkin-gametest` cases (M): STILL OPEN. Not reached in this pass; no test files were written and no cargo run was allowed.
+- Lightning drop invulnerability (`Cushion.thunderHit` / `LIGHTNING_DROP_INVULNERABLE_TICKS`, `Cushion.java:42,64-66,143-149`): BLOCKED-DATA. Missing subsystem: no entity `thunder_hit` dispatch exists in `crates/pumpkin-core/src/entity` (grep `thunder_hit` finds nothing), and `ItemEntity` has no invulnerable-time field (`entity/item.rs`).
+- Break sound/particles on drop (`Cushion.showBreakingParticles`, `Cushion.java:157-171`): STILL OPEN, client-visual. Needs a block-state particle payload (`BlockParticleOption` with wool state) that the `spawn_particle` helper does not take here.
+Files edited: `crates/pumpkin-core/src/entity/decoration/cushion.rs` (rustfmt --edition 2024 --check passes). Not compiled (cargo forbidden in this brief).

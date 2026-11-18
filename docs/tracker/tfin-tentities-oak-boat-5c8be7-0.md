@@ -2,10 +2,15 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: boat.rs passengers.rs physics.rs
 
-- Row 1 (bubble time publish): STILL OPEN - needs boat.rs, physics.rs and generated tracked_data
-- Row 2 (rider position clamp): STILL OPEN - needs passengers.rs/boat.rs edits, outside this unit.
-- Row 3 (float_boat air-to-water snapping): STILL OPEN - physics.rs outside this unit.
-- Row 4 (floatBoat gravity constant): STILL OPEN - physics.rs outside this unit.
+- Row 1 (bubble time publish)
+- Row 2 (rider position clamp)
+- Row 3 (float_boat air-to-water snapping)
+- Row 4 (floatBoat gravity constant)
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- Row 1 (bubble time publish): VERIFIED. `boat.rs` `tick_bubble_column` (~:429-474) publishes `ID_BUBBLE_TIME` on every countdown change, matching `AbstractBoat.tickBubbleColumn` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java` :351-387). No generated tracked-data field is missing.
+- Row 2 (rider position clamp): OPEN. Not audited in this pass (passengers.rs / boat.rs clamp path).
+- Row 3 (float_boat air-to-water snapping): OPEN. Needs physics.rs audit against `AbstractBoat.floatBoat`; the vendored tree is a Paper-era version (see oak-boat-0).
+- Row 4 (floatBoat gravity constant): BLOCKED. The vendored `floatBoat` uses `getGravity()`; the 26.3 constant cannot be confirmed from `.vendor` (not generated data).
+
+Status: verified=1, open=2 (rows 2, 3), blocked=1 (row 4). No compile run.

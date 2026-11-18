@@ -177,3 +177,13 @@ Only crates/pumpkin-core/src/entity/mob/neutral.rs was changed; rustfmt
 --edition 2024 run on it. No cargo (CODER policy).
 
 Status: PASS fixed=1 open=0 files=crates/pumpkin-core/src/entity/mob/neutral.rs
+
+## Result (batch r2_008, code re-check)
+
+- Row 1 (timer refresh semantics): VERIFIED. Vanilla `NeutralMob.updatePersistentAnger` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/NeutralMob.java:72-81`) restarts the timer only when `newTarget || stayAngryIfTargetPresent`; Rust `crates/pumpkin-core/src/entity/mob/neutral.rs:297` (`should_refresh_anger_timer`) and `crates/pumpkin-core/src/entity/passive/bee.rs:544` (`stays_angry_with_target` false) match the callers (Bee.java:412 passes false, Wolf/Enderman/IronGolem/PolarBear/ZombifiedPiglin pass true).
+- Row 2 (death notice box): VERIFIED. Vanilla `ServerPlayer.tellNeutralMobsThatIDied` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:1508`) uses `new AABB(this.blockPosition()).inflate(32, 10, 32)`; Rust `crates/pumpkin-core/src/entity/mob/neutral.rs:364-372` builds the same 1x1x1 block-pos box and expands 32/10/32.
+- Row 3 (anger sampling rng): VERIFIED. Vanilla samples `this.random` (Wolf.java:591, Bee.java:446, IronGolem.java:158, PolarBear.java:133); Rust `neutral.rs:180-183` (`sample_anger_duration` uses `self.get_random()`).
+- Row 4 (bee/wolf anger metadata define on spawn): VERIFIED already fixed. Rust defines it in `crates/pumpkin-core/src/entity/passive/wolf.rs:99` and `crates/pumpkin-core/src/entity/passive/bee.rs:283`; vanilla Wolf.java:96 / Bee.java:102,183.
+- Row 5 (golem/polar bear/piglin DATA_ANGER_END_TIME): VERIFIED no accessor needed. Vanilla defines `DATA_ANGER_END_TIME` only in Bee.java:102 and Wolf.java:96; Rust `neutral.rs:147` default `None` for the others.
+- Row 6 (`write_anger_nbt` shape): VERIFIED. Vanilla `NeutralMob.addPersistentAngerSaveData` (NeutralMob.java:34-37) always `putLong`, `storeNullable` for `angry_at`; Rust `neutral.rs:334-341` matches.
+- Commands: none run (workers do not build). Files edited: none.

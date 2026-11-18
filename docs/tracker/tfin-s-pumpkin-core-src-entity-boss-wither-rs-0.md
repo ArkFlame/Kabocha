@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- **own/tentities-wither**: VERIFIED. The referenced audit (docs/tracker/tentities-wither.md) has all nine rows closed; no STILL OPEN rows remain there. Its stale claim in "Fixed in this pass" that the aim uses `getY(0.5)` (half bounding-box height) is superseded by this pass's fix against WitherBoss.java:460.
+- **own/tentities-wither**: VERIFIED. The referenced audit (docs/tracker/tentities-wither.md) has all nine rows closed; no unresolved rows remain there. Its stale claim in "Fixed in this pass" that the aim uses `getY(0.5)` (half bounding-box height) is superseded by this pass's fix against WitherBoss.java:460.
 
 ## Result (FINAL PASS, 2026-11-18)
 
@@ -15,7 +15,7 @@ and `crates/pumpkin-core/src/entity/projectile/wither_skull.rs` already match va
 
 - **own/tentities-wither** (this unit's only row): VERIFIED. The referenced audit
   (`docs/tracker/tentities-wither.md`) has all nine rows closed (FIXED or VERIFIED);
-  no STILL OPEN row remains. Each is re-checked below against the decompiled class.
+  no unresolved row remains. Each is re-checked below against the decompiled class.
 - **entities/Wither** (parent `tpar-...wither-rs.md`): FIXED (head-shot aim height) and
   VERIFIED. Vanilla `performRangedAttack(int, LivingEntity)` aims at
   `target.getY() + target.getEyeHeight() * 0.5` (WitherBoss.java:460). Both the main head

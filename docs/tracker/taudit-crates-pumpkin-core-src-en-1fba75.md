@@ -207,3 +207,13 @@ Compilation not run (worker restriction); rustfmt and compile are the orchestrat
 ## Result (third pass, final disposition)
 
 - Paper `setCollidable` / `LivingEntity.collides` sub-case: BLOCKED-DATA. Supersedes the prior "LEFT OPEN" line. Vanilla keeps a `public boolean collides = true` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:299`, `// CraftBukkit`) read by `isPickable` (`:4154`) and the `// Paper - setCollidable API` path (`:4170`). Pumpkin has no `collides` field, no setter and no plugin/WIT API; its `is_collidable` trait method is a different push/mob predicate. Missing subsystem: a `collides: bool` field on `Entity` (default true) wired into `is_pickable`, a `set_collidable(bool)` setter, and a Paper-style plugin API. With no reachable caller the behaviour is equivalent today, so the is_pickable fix (owner.rs:213-215 / entity/mod.rs:713-715) stays correct. All other rows remain FIXED as previously documented. No source edit this pass.
+
+## Result (fourth pass, row-by-row verification, current checkout)
+
+- VERIFIED (projectile NBT persistence): `Projectile.java:154` addAdditionalSaveData and `:171` readAdditionalSaveData match `entity/projectile/owner.rs:248-257` (write_nbt/read_nbt); `entity/mod.rs:306,324` read_nbt_non_mut/remove_nbt delegate via `get_projectile_owner` (`entity/mod.rs:387`), implemented by projectile types (e.g. `projectile/arrow.rs`, `projectile/trident.rs`).
+- VERIFIED (EntityReference weak/UUID pre-registration): `EntityReference.of` stores the entity itself; Rust seeds a Weak via `entity/mod.rs:2081` set_self_weak / `:2090` self_weak, read in `owner.rs:33,53`.
+- VERIFIED (is_pickable predicate): `EntitySelector.java:19` CAN_BE_PICKED = Entity::isPickable; Rust filter `owner.rs:203-218` (any_self_or_passenger) uses !is_removed, !is_spectator, can_hit. Paper `setCollidable` sub-case is BLOCKED-DATA (missing `collides` subsystem, see third pass).
+- VERIFIED (vanish check): `Projectile.java:561` `shooter.canSee(collided)` matches `owner.rs:234-237` (`!shooter.can_see(&entity.entity_uuid)`); `entity/player.rs:5117` can_see exists.
+- VERIFIED (restore_from hook): `Projectile.java:180` restoreFrom matches `entity/mod.rs:394` EntityBase::restore_from and `owner.rs:112,157`.
+- VERIFIED (lastDeflectedBy): no action; equivalent (ids not reused in a session), `owner.rs:183-189`.
+- Files changed this pass: none. Checks not run (workers cannot run cargo; compile is the orchestrator gate).

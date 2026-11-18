@@ -241,3 +241,18 @@ Re-verified every row against .vendor/vanilla-decompiled/net/minecraft/world/ent
 No new pure test seam exists for the state-dependent fixes; the existing pure tests (paper_can_tick_override_nbt_round_trip, read_flags_keeps_the_base_plate_unless_no_base_plate_is_true) remain. No source file edited this pass. Re-read the relevant source against the Worker compile pitfalls table: full paths used, no new struct literals with missing fields, no unwrap/expect/panic, no em dashes.
 
 Status: PASS fixed=0 open=1 files=none
+
+## Result (CODER batch r2_011)
+- No row changed this pass: CODER did not reach these rows in the time budget (only entity/mod.rs row 2 was checked). All open rows remain STILL OPEN.
+
+## Result (CODER batch r3_031)
+- Row 1 markers physics: VERIFIED. Vanilla `hasPhysics` ArmorStand.java:129-130, `ignoreExplosion` n/a; Rust `get_gravity` returns 0.0 for markers at crates/pumpkin-core/src/entity/decoration/armor_stand.rs:832.
+- Row 2 explosion immunity: VERIFIED. Vanilla `ignoreExplosion(Explosion)` ArmorStand.java:603-604; Rust `ignore_explosion` at armor_stand.rs:639 (dispatch in crates/pumpkin-core/src/world/explosion.rs:643). No change.
+- Row 3 Paper events (core): VERIFIED. Vanilla skips `postDeathEventTasks` when death event cancelled, ArmorStand.java:510-515; Rust `EntityDeathEvent` is `#[cancellable]` (crates/pumpkin-core/src/plugin/api/events/entity/entity_death.rs:7) and `broken_by_anything` returns on cancel (armor_stand.rs:282-293). No change.
+- Row 3 Paper events (WASM surface): BLOCKED-DATA. Missing `cancelled: bool` and a drops list on `entity-death-event` in crates/pumpkin-plugin-wit/v0.2/event.wit:493 (and v0.1 event.wit:414). Needs WIT edit plus `cargo run --locked -p pumpkin-codegen -- wit` regeneration and PLUGIN_API_VERSION bump; codegen is forbidden for this worker.
+- Row 4 skipAttackInteraction / mayInteract: VERIFIED. Vanilla ArmorStand.java:713-714; Rust spawn-protection + mayBuild check at armor_stand.rs:800.
+- Row 5 potion immunity: VERIFIED. Vanilla `isAffectedByPotions` false (ArmorStand.java:742); Rust `is_affected_by_potions` false at armor_stand.rs:644.
+- Row 6 Paper no-tick equipment: VERIFIED. Vanilla CanTickOverride handling; Rust `read_can_tick_override` and tick skip at armor_stand.rs:605, 614-615.
+- Row 7 client-only parity: VERIFIED (no action).
+
+Status: PARTIAL fixed=0 verified=6 blocked=1 files=docs/tracker/taudit-crates-pumpkin-core-src-entity-dec.md

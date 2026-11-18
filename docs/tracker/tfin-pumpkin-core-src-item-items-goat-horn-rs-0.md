@@ -2,9 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-single BLOCKED-DATA subsystem row (own/titems-goat-horn row 3). No STILL OPEN rows remain.
-rustfmt run applies. No STILL OPEN rows remain.
-except the one BLOCKED-DATA subsystem row. No STILL OPEN rows.
+single BLOCKED-DATA subsystem row (own/titems-goat-horn row 3). No unresolved rows remain.
+rustfmt run applies. No unresolved rows remain.
+except the one BLOCKED-DATA subsystem row. No unresolved rows.
 
 ## Result (final)
 
@@ -63,4 +63,4 @@ to confirm.
     returns `Fail`).
 
 Final row state: every row is terminal (FIXED or VERIFIED matches vanilla) except
-the single BLOCKED-DATA subsystem row (own/titems-goat-horn row 3). No STILL OPEN rows remain.
+the single BLOCKED-DATA subsystem row (own/titems-goat-horn row 3). No unresolved rows remain.

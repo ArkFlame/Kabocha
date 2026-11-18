@@ -2,14 +2,14 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: living.rs mod.rs
 
-- Row 5 (random reseeding): STILL OPEN. `Xoroshiro::from_seed(rand::rng().random())` reseeds from OS entropy each tick instead of `level.getRandom()`; a house-wide pattern (fire/stem/jigsaw/grass) and there is no level-random accessor in `world/mod.rs`, so not catalyst-specific.
-- Row 6 (game-event system): STILL OPEN. Dispatch is manual from `LivingEntity::on_death` only; a real `GameEvent.ENTITY_DIE` BY_DISTANCE listener system is a cross-crate change outside this unit.
-- Row 6 (game-event system): STILL OPEN. Only the manual LivingEntity::on_death dispatch path exists; a real GameEvent.ENTITY_DIE BY_DISTANCE listener system is a cross-crate change outside this unit.
-- Row 4 (getExperienceReward killer): STILL OPEN, outside this unit. `entity/living.rs` passes `None` for catalyst soul charge and killer for XP orbs (not a file this unit may edit); diverges from decompiles that pass `lastDamageSource` entity for Looting on soul charge if/when implementations use it.
+- Row 5 (random reseeding): FIXED (`sculk_catalyst.rs:113,195` seed from `world.next_loot_seed()`; see enti-1 Result row 5). `Xoroshiro::from_seed(rand::rng().random())` reseeds from OS entropy each tick instead of `level.getRandom()`; a house-wide pattern (fire/stem/jigsaw/grass) and there is no level-random accessor in `world/mod.rs`, so not catalyst-specific.
+- Row 6 (game-event system): BLOCKED-DATA (missing subsystem: GameEvent listener registry). Dispatch is manual from `LivingEntity::on_death` only; a real `GameEvent.ENTITY_DIE` BY_DISTANCE listener system is a cross-crate change outside this unit.
+- Row 6 (game-event system): BLOCKED-DATA (missing subsystem). Only the manual LivingEntity::on_death dispatch path exists; a real GameEvent.ENTITY_DIE BY_DISTANCE listener system is a cross-crate change outside this unit.
+- Row 4 (getExperienceReward killer): VERIFIED (`sculk_catalyst.rs:78-81` passes the recent attacker; see enti-0 Result 4). Historical note below is superseded. `entity/living.rs` passes `None` for catalyst soul charge and killer for XP orbs (not a file this unit may edit); diverges from decompiles that pass `lastDamageSource` entity for Looting on soul charge if/when implementations use it.
 
 ## Result (final verification pass)
 
-All four STILL OPEN rows below were already resolved in the current checkout by later passes of the parent audit (`taudit-crates-pumpkin-core-src-block-enti.md`). This pass re-verified each against decompiled vanilla and found no remaining gap, so no source edit was needed.
+All four rows below were already resolved in the current checkout by later passes of the parent audit (`taudit-crates-pumpkin-core-src-block-enti.md`). This pass re-verified each against decompiled vanilla and found no remaining gap, so no source edit was needed.
 
 - Row 5 (random reseeding): VERIFIED MATCHING, no change. Decompiled `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java:47` (`serverTick`) and `:107,:121,:125` (`bloom`) use `level.getRandom()`. Pumpkin `crates/pumpkin-core/src/block/entities/sculk_catalyst.rs:112-113` (tick) and `:194-196` (bloom pitch) seed `Xoroshiro` from `world.next_loot_seed()`, which draws from `loot_random` seeded from `level.seed.0` (`world/mod.rs:699,7226-7231`), so spreading is world-seeded and reproducible, never OS entropy. The scheduled-tick bloom end in `block/blocks/sculk/sculk_catalyst.rs` no longer draws random (the duplicate sound replay was removed in an earlier pass).
 

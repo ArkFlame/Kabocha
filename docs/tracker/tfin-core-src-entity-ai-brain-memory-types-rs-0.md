@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Both STILL OPEN rows are FIXED by write/read sites completed in earlier passes:
-vanilla tree. No "STILL OPEN until closed..." placeholder remains: every row is terminal
+Both PRIOR-OPEN rows are FIXED by write/read sites completed in earlier passes:
+vanilla tree. No "PRIOR-OPEN until closed..." placeholder remains: every row is terminal
 
 ## Result (FINAL PASS, 2026-11-18, verified against .vendor/vanilla-decompiled)
 

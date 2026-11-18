@@ -186,3 +186,15 @@ generated pumpkin-data. No source files required changes: this pass is verificat
 
 Files edited: none. Skipped: no tests added (no new pure seam). UNVERIFIED in this role
 (no compile; orchestrator batch-checks).
+## Result (batch r2y_016, CODER pass)
+- row 24 `player_is_stuck_in_you`: VERIFIED. Vanilla `Creaking.playerIsStuckInYou` Creaking.java:363-381; Rust creaking.rs:300-317 (AABB contains eye pos, counter > 4).
+- row 25 `is_looking_at_me`: FIXED. Vanilla `LivingEntity.isLookingAtMe` LivingEntity.java:2276-2297 has no distance cap; removed the non-vanilla 128-block cutoff in creaking.rs:319-367 (gaze cone and LOS unchanged).
+- row 26 `attack_animation_remaining_ticks`: VERIFIED. Creaking.java:140-147 (doHurtTarget sets 15, broadcasts START_ATTACKING), 217-218 (decrement); Rust creaking.rs:484-492, 575-590.
+- row 27 wander cancel on `!canMove`: FIXED. Vanilla CreakingAi.java:80-84 drops the wander activity; Rust `WanderAroundGoal::should_continue` (ai/goal/wander_around.rs:155-163) now honours `start_condition` so the goal stops. Only Creaking sets a start_condition (creaking.rs:184) plus a `|_| true` site.
+- row 28 melee gate: VERIFIED. CreakingAi.java:63 `MeleeAttack.create(Creaking::canMove, 40)`; Rust creaking.rs:176-181 `gated_by(creaking_can_move)`, interval ATTACK_INTERVAL.
+- row 29 `set_creaking_uuid`: VERIFIED (now called). Rust block/entities/creaking_heart.rs:199 (bind on spawn), 225/229/245 (clear on teardown), 412 (bind on placement).
+- row 30 heart-bound creaking drops: VERIFIED. Creaking.java:355 `canUsePortal` gated on heart bound; drop behaviour per row 32.
+- row 31 eye-glow fields: VERIFIED as already removed (client-only, Creaking.java:262-265 `isClientSide` gate). No Rust callers.
+- row 32 creaking loot/XP: VERIFIED. Creaking.java:91 `xpReward = 0`; generated `pumpkin-data/src/generated/loot_table.rs` ENTITIES_CREAKING `pools: &[]`, entity_type.rs CREAKING `experience_reward: 0`.
+- Client-only tear_down particles: LEFT OPEN (client-only visual, no server seam; not a server row).
+Files edited: crates/pumpkin-core/src/entity/mob/creaking.rs, crates/pumpkin-core/src/entity/ai/goal/wander_around.rs. rustfmt --edition 2024 run on both. Not compiled (no cargo in this role).

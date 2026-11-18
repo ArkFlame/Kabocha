@@ -2,10 +2,14 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
-- Row 1 (command/chat/session ordering): STILL OPEN - the `server.spawn_task` sites are in
-- Row 3 (UPDATE_RECIPES item property sets): STILL OPEN - writing real `itemSets` needs generated
-- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is `net/java/mod.rs:1370-1372`
+- Rows: all three closed in the Result section below (final pass, re-verified against current
+  source and decompiled vanilla; no remaining open or BLOCKED-DATA rows).
+- Row 1 (command/chat/session ordering): FIXED, VERIFIED - see Result; per-connection FIFO chain
+  in net/java/mod.rs (`chain_after` / `enqueue_ordered_packet`).
+- Row 3 (UPDATE_RECIPES item property sets): FIXED, VERIFIED - see Result; all nine vanilla
+  itemSets written by recipe_book_add.rs (`recipe_property_sets`).
+- Row 5 (unknown packet id `warn!`): FIXED, VERIFIED - see Result; kick via
+  DISCONNECT_PACKETERROR in net/java/mod.rs play dispatcher.
 
 ## Result
 
@@ -46,4 +50,4 @@ decompiled vanilla and found no remaining gap. No code changes were needed.
   (`disconnect.packetError`, generated in `pumpkin-data/src/generated/translation.rs:8441`), which
   matches vanilla's decoder rejection. No per-packet `warn!` remains in the play dispatcher.
 
-Every STILL OPEN row is now closed as FIXED and VERIFIED; no BLOCKED-DATA rows remain.
+Every PRIOR-OPEN row is now closed as FIXED and VERIFIED; no BLOCKED-DATA rows remain.

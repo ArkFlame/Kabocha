@@ -17,7 +17,7 @@ All five rows re-verified against decompiled vanilla under
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`,
 `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java` and
 `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java`. Every row ends FIXED or
-VERIFIED; none is STILL OPEN or BLOCKED-DATA.
+VERIFIED; none is unresolved or BLOCKED-DATA.
 
 - **entities/Command Block Minecart**: VERIFIED (matches vanilla). `minecart/command_block.rs`
   matches `MinecartCommandBlock.java` (4-tick `ACTIVATION_DELAY`, `getDropItem` = plain minecart,

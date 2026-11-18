@@ -184,3 +184,7 @@ actionable row. No row remains STILL OPEN.
 No pure unit-test seam exists beyond the already-present tests: the fluid/light rows need a
 live `World`, and further tests would only mirror their own logic. Files edited this pass:
 this doc only, so no rustfmt run.
+
+## Result (r2 batch, CODER pass)
+
+Not re-verified this pass; the "final pass, all rows closed" Result above stands. No source edits. No row was changed here.

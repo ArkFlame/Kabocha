@@ -236,3 +236,8 @@ decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/. No file needed 
 - No pure unit test seam in the three granted files (all paths need a JavaClient plus a live
   entity/network); none added. No code changed this pass, so no rustfmt needed.
 - No cargo/git run (forbidden for this worker): UNVERIFIED compile status; source was not modified.
+
+## Result (coder pass 2026-11-18, batch r2_013)
+- No STILL OPEN rows in the latest pass result above. Every row is FIXED, VERIFIED or BLOCKED-DATA per that result.
+- This pass did not re-verify each row against vanilla (time budget); status carried from the latest prior pass, unchanged.
+- Files edited this pass: none. No rustfmt run. Cargo and git not run (forbidden).

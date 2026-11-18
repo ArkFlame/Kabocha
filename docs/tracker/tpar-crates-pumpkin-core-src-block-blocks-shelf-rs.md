@@ -54,3 +54,10 @@ two remaining rows require generated data or a whole missing subsystem.
   `ShelfBlock extends BaseEntityBlock`, which is not piston-pushable. Pumpkin has no
   `PushReaction` field, no per-block moveability concept and no piston push-reaction
   subsystem in `crates/pumpkin-core/src`, so this cannot be fixed in shelf.rs.
+
+## Result (x_03 recheck)
+- Row 1 (flowing-water waterlogging): VERIFIED. Vanilla ShelfBlock.java:125-131; Rust crates/pumpkin-core/src/block/blocks/shelf.rs:325 and block/mod.rs:793-795 (is_water matches Water(0) only).
+- Row 2 (BlockIsReplacing::water_source migration): VERIFIED. No water_source hits under crates/; helpers block/mod.rs:793-813.
+- Row 3 (shelf collision/occlusion shape): BLOCKED-DATA. Missing generated per-state voxel/collision shape and light-occlusion data for wooden_shelves states (grep of crates/pumpkin-data/src for wooden_shelf / use_shape_for_light_occlusion: no hits). Vanilla ShelfBlock.java:53-77.
+- Row 4 (piston push reaction): BLOCKED-DATA, whole missing subsystem. Grep of crates/ for push_reaction / PushReaction / PistonPushReaction: no hits. Vanilla BlockBehaviour.java:451,864-865,1239,1430.
+- Files edited this pass: none. No cargo run (forbidden).

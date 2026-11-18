@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: recipe.rs
 
-- 1. No server-side recipe book (`recipe.rs:59-128`): STILL OPEN (M).
-- 2. `take` remove packet always sent (`recipe.rs:130-237`): STILL OPEN (M).
-- 3. Display-id layout duplicated (`recipe.rs:160`): STILL OPEN (S).
-- 4. Suggestion provider ids (`recipe.rs:40-57`): STILL OPEN (S).
+- 1. No server-side recipe book (`recipe.rs:59-128`): FIXED & VERIFIED (see Result).
+- 2. `take` remove packet always sent (`recipe.rs:130-237`): FIXED & VERIFIED (see Result).
+- 3. Display-id layout duplicated (`recipe.rs:160`): FIXED & VERIFIED (see Result).
+- 4. Suggestion provider ids (`recipe.rs:40-57`): FIXED & VERIFIED (see Result).
 
 ## Result
 FINAL PASS (worker, direct; no cargo/git). All four rows re-verified against decompiled
@@ -44,7 +44,7 @@ vanilla .vendor/vanilla-decompiled/net/minecraft/server/commands/RecipeCommand.j
   LEARNABLE_RECIPE = r -> !r.isSpecial() (RecipeCommand.java:22,43,69). Pure test
   recipe_suggestions_are_unique_and_skip_special (recipe.rs:347).
 
-No STILL OPEN rows. No .rs file edited this pass (all fixes/tests already present in the tree and
+No open rows. No .rs file edited this pass (all fixes/tests already present in the tree and
 verified by reading), so rustfmt was not run. Compile-pitfall re-check against AGENTS.md: no new
 .rs diff, so no new risk; all external refs resolve (DynamicRecipe::recipe_id -> Option<&str>,
 CRecipeBookRemove::new(&[VarInt]), translation constants exist in generated/translation.rs,

@@ -399,3 +399,17 @@ caller) is already correct, so no source edit was made and no rustfmt/cargo run 
 
 Final tallies: FIXED=6 (rows 1,3,4,5,6,7), VERIFIED=2 (rows 2,8), BLOCKED-DATA=0,
 STILL OPEN=0. No source file changed this pass.
+
+## Result (BRIEF2 pass 2026-11-18, one line per row)
+
+- Row 1 (piglin anger on chest open): VERIFIED. Vanilla `AbstractChestBoat.java:93,104` calls `PiglinAi.angerNearbyPiglins`; Rust `boat.rs:325` calls `PiglinAi::on_guarded_block_interacted` on successful open.
+- Row 2 (rider yaw clamp / delta rotation): FIXED. Vanilla `AbstractBoat.java:699-704` clamps every non-`CAN_TURN_IN_BOATS` rider, including players; only the `deltaRotation` add is gated by `isLocalInstanceAuthoritative`. Rust `boat.rs:856-905` returned early for all players, so players were never clamped. Now only the `CAN_TURN_IN_BOATS` check returns early, the delta is zero for players, and a player's head yaw is left untouched (matches `clampRotation` non-mob branch, `AbstractBoat.java:740-761`). Test: existing `rider_yaw_clamps_to_boat_heading_window` and `rider_yaw_follows_boat_yaw_delta_then_clamps` (`boat.rs:~1038-1052`) cover the clamp math; no new player-path unit seam (needs live `Player`). Compile UNVERIFIED (CODER rule).
+- Row 3 (bubble column): VERIFIED. Vanilla `AbstractBoat.java:165,381-408` (60-tick timer, y=0.6 updraft, current_y-0.7 drag-down). Rust `boat.rs:429` `tick_bubble_column`, `:472`, `:700` `on_inside_bubble_column`, `:976` `bubble_column_vertical_velocity`, unit test `:1077-1078`.
+- Row 4 (leash): VERIFIED. Vanilla `AbstractBoat.java:54,428-449` implements `Leashable`. Rust `boat.rs` leash NBT read/write (`:539`/`:546`), `tick_leash`, `leash_to`/`unleash`/`get_leash_holder`, `support_quad_leash` (`:956`).
+- Row 5 (destroy-removal chest scatter): VERIFIED. Vanilla `AbstractChestBoat.java:71-76`. Rust `boat.rs:504` `on_removed` and `:746` damage-break both call `scatter_chest_contents`, gated by `MinecartInventory::claim_drops`.
+- Row 6 (CONTAINER_CLOSE): VERIFIED. Vanilla `AbstractChestBoat.java:198` emits `CONTAINER_CLOSE` at `this.position()` with living-entity context. Rust `entity/player.rs:7771` reads `open_container_entity_pos`, set on entity-screen open (`player.rs:7995`), emitted as `GameEvent::ContainerClose` at `player.rs:7837`; cleared on close paths (`:7846`, `:8124`, `:8173`).
+- Row 7 (controlling passenger): VERIFIED. Vanilla `AbstractBoat.java:840-847` returns the first passenger only if it is a `Player`. Rust `boat.rs:526-534` filters on `get_player().is_some()`.
+- Row 8 (fluid current push, L): VERIFIED as deliberate client-authority difference, not a server gap. No code change; AGENTS.md records client-authoritative movement.
+
+Tally: FIXED=1 (row 2), VERIFIED=7 (rows 1,3,4,5,6,7,8), BLOCKED-DATA=0, STILL OPEN=0.
+Files edited: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (rustfmt --edition 2024 exit 0). No cargo, git or worktree use (CODER rule).

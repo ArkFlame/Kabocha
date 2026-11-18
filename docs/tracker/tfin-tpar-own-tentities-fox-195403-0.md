@@ -6,4 +6,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - THIRD-PASS re-verification (this pass): independently re-read `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fox/Fox.java:678-702` and Rust `crates/pumpkin-core/src/entity/passive/fox/mod.rs:871-903`; parity holds. No source file needed an edit, so no code/test changes and no rustfmt this pass. No STILL OPEN rows remain.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED: `get_ambient_sound` matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fox/Fox.java:678-702`. No open rows.

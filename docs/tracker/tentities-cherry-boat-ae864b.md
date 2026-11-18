@@ -274,3 +274,13 @@ carries pure tests. The only file in this unit's allowlist, `boat/dismount.rs`, 
 
 No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No `.rs` file
 was edited, so rustfmt is not applicable.
+
+## Result (batch r2y_012, 2026-11-18)
+
+Vanilla source used: `/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup/net/minecraft/world/entity/vehicle/boat/` (`.vendor/vanilla-decompiled` is empty in this checkout). No .rs file edited, so no rustfmt or build.
+
+- Row 1 (rider rotation clamp, h6 status): VERIFIED. Vanilla `AbstractBoat.java:700-704` (add deltaRotation to YRot/YHeadRot, then clampRotation), `:740` clampRotation. Rust `entity/vehicle/boat.rs:856-883` (`on_rider_positioned`, applies `rider_yaw_with_delta` with `yaw_delta`), `boat/passengers.rs` clamp path. Delta accumulation: vanilla `:642-670`, Rust `boat.rs:593`.
+- Row 2 (interact gate, `ticks_underwater >= TIME_TO_EJECT` and eye-in-water): VERIFIED. Vanilla `AbstractBoat.java:784` keeps `!(outOfControlTicks < 60)` in interact. Vanilla `:837` `canAddPassenger` keeps `!isEyeInFluid(WATER)`. Rust `boat.rs:825-826` matches both. The doc's proposed drop of these checks is rejected: it contradicts vanilla.
+- Row 3 (outOfControlTicks counts UNDER_FLOWING_WATER): VERIFIED. Vanilla `AbstractBoat.java:243-247` increments for both UNDER_WATER and UNDER_FLOWING_WATER. Rust `boat.rs:392-402` `tick_underwater` uses `status.is_underwater()` (`boat/physics.rs:22-24`), which covers both.
+- Row 4 (chest scatter on every destroying removal): VERIFIED. Vanilla `AbstractChestBoat.java:71-72` (`remove` scatters when `reason.shouldDestroy()`). Rust `boat.rs:488-506` `on_removed` gates on `should_destroy()` and calls `scatter_chest_contents` (`boat.rs:272-288`, `claim_drops` once).
+- Correction to "Fixed in this pass" (`boat.rs:92-94`, MAX_PASSENGERS=2 for chest boats): vanilla `AbstractChestBoat.java:48-49` `getMaxPassengers` returns 1, base `AbstractBoat.java:840-842` returns 2. Current Rust `boat.rs:47-48, 97-99` (`CHEST_BOAT_MAX_PASSENGERS = 1`) matches vanilla, so the chest-boat cap is correct as it stands.

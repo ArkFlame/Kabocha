@@ -116,3 +116,9 @@ Pure unit tests already exist for the three requirement helpers in the helper.rs
 (frost_walker_needs_ground_and_no_vehicle, bane_of_arthropods_needs_arthropod_victim,
 wind_burst_needs_fall_while_not_flying). No new test seam exists without generated-data or
 cross-crate changes. No .rs file was touched this pass, so no rustfmt was needed.
+
+## Result (batch r2_007, spot-check)
+- Gap 4 (is_world_thundering): VERIFIED. helper.rs:259 fn present, no dimension/skylight extras.
+- Gap 5 and generic on_hit_block (gap 3): VERIFIED removed. No `modify_durability_change` or `fn on_hit_block` in helper.rs.
+- Gap 2 (Frost Walker gate): VERIFIED. helper.rs:512 `meets_frost_walker_requirements`, defined helper.rs:546.
+- Gap 1 (post_attack requirements): VERIFIED by prior pass (vanilla Enchantments.java:648-672); not re-read this pass.

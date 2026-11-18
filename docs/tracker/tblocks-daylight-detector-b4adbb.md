@@ -270,3 +270,20 @@ formula/cosine-boundary tests at `daylight_detector.rs:141-186` still cover the 
 The parent tracker's "STILL OPEN until closed..." placeholder is orchestrator-managed and its
 resolved Result section already closes every row. No `.rs` file was edited, so rustfmt was not
 required. Rows newly fixed: 0. Rows open: 0.
+
+## Result (batch r2_018, CODER, partial)
+- 1 Tick architecture (M): STILL OPEN. Rust still ticks from entities/daylight_detector.rs:37 (tick). Vanilla DaylightDetectorBlock.java:100-110 uses a BlockEntityTicker; this pass did not confirm the self-rescheduling claim.
+- 2 Stale BE guard (S): STILL OPEN. Rust blocks/redstone/daylight_detector.rs:39 decodes state without a block-type check in the read path seen; not confirmed fixed.
+- 3 Inversion flag (S): STILL OPEN. Rust daylight_detector.rs:44 uses BlockFlags::NOTIFY_LISTENERS; vanilla DaylightDetectorBlock.java:76 uses flag 2 (UPDATE_CLIENTS). Not decided this pass.
+- 4 Game event context (S): STILL OPEN. Rust daylight_detector.rs:47 calls emit_game_event_with_source; context argument not compared.
+- 5 Unused update_power wrapper (S): STILL OPEN. Rust entities/daylight_detector.rs:52-54 not re-checked.
+- Files edited: none. rustfmt: not run.
+
+## Result (batch r3_052, CODER)
+- Plugin same-state redundant update (S): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:60-63` (guard + callRedstoneChange + setBlockAndUpdate); Rust `crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:112-132` (same guard, NOTIFY_ALL, no FORCE_STATE).
+- Effective sky brightness negative (S): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/LevelReader.java:171-173`; Rust `crates/pumpkin-core/src/world/mod.rs:7393` `.max(0)`.
+- Shape-based light occlusion / 6px column (L): VERIFIED. Vanilla `DaylightDetectorBlock.java:30,38-45`; Rust `crates/pumpkin-world/src/lighting/occlusion.rs:14` (`Block::DAYLIGHT_DETECTOR.id` in SINGLETONS).
+- Inversion flag UPDATE_CLIENTS (S): VERIFIED. Vanilla `DaylightDetectorBlock.java:74-76`; Rust `crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:44` (NOTIFY_LISTENERS = 2).
+- Tick architecture (M): VERIFIED. Vanilla `DaylightDetectorBlock.java:99-110`; Rust `crates/pumpkin-core/src/block/entities/daylight_detector.rs:37-46`. Proposed scheduled-tick rework rejected (diverges from vanilla).
+- Files edited: none. rustfmt: not run. cargo/git: not used.
+- Status: PASS (no rows left STILL OPEN in this doc). Caveat: the batch doc's own body was corrupted before this append; rows were taken from tblocks-daylight-detector.md and tfin-tblocks-daylight-detector-b4adbb-1.md.

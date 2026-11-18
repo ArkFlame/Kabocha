@@ -6,4 +6,8 @@ STILL OPEN rows of the audit were re-checked directly against `.vendor/vanilla-d
 No row remains STILL OPEN.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows remain. The audit's STILL OPEN rows were re-checked against `.vendor/vanilla-decompiled/net/minecraft/`.
+
+## Result (batch x_16, CODER pass)
+- Zero STILL OPEN rows in this file. Checked the referenced audit `taudit-crates-pumpkin-core-src-en-b134b2.md`: its four rows (fire-on-hit guard, chicken filter, reinforcement order, Halloween zone) are VERIFIED against vanilla `Zombie.java:293-301,349-353,492-498`, `EntitySelector.java:12`, `SpecialDates.java:16-22`. Rust: `zombie/mod.rs:334` (filter `is_alive && !has_passengers && !has_vehicle` equals `ENTITY_NOT_BEING_RIDDEN`), `mob/spawn.rs:26`.
+Status: PASS fixed=0 verified=4 open=0 blocked=0 files=none edited

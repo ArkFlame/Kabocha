@@ -40,3 +40,6 @@ checked each row directly against the decompiled vanilla sources in
   uses `length + 20` (`world/item/JukeboxSong.java:50-52`), matching `song_length_ticks`.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tfin-taudit-crates-pumpkin-core-src-bl-31ea5a-4.md
+
+## Result (x_00 batch)
+- Rows: VERIFIED, spot-checked `JukeboxBlockEntity.java:129-138` vs `crates/pumpkin-core/src/block/entities/jukebox.rs:94`, and `blocks/jukebox.rs:192-195`. No edit.

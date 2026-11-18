@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Allowed to touch any cross-file row this pass; re-verified every STILL OPEN row against
+Allowed to touch any cross-file row this pass; re-verified every PRIOR-OPEN row against
 
 ## Result
 FINAL PASS (2026-11-18). Re-verified all 8 rows against

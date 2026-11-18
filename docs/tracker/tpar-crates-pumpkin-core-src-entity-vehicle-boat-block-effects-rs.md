@@ -49,3 +49,7 @@ own/taudit-crates-pumpkin-core-src-entity-veh (entity vehicle audit), block_effe
 - Remaining minecart rows (1-12 incl. portal 11): FIXED or VERIFIED faithful in the current tree per the entity-veh audit final pass; no BLOCKED-DATA rows remain.
 
 Tests: pure unit tests pin the shape gate, sweep traversal/boundaries and the 100-entry merge cap; the live dispatch seams are covered by the registered boat gametests. No new pure seam exists. Pitfall re-check: no new Rust edits this pass, so no import/helper-placement/macro-path/struct-initializer/clone/clippy-pedantic issues.
+
+## Result (x_18)
+
+- Every row already closed per the FINAL PASS above; not re-audited line by line in this pass (spot-check only on lily pad, `block/blocks/plant/lily_pad.rs`). No `.rs` edited, no BLOCKED-DATA. Status: PASS.

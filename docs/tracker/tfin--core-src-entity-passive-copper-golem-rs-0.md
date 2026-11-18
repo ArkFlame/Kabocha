@@ -11,3 +11,6 @@ FINAL PASS. Both rows closed against decompiled vanilla `.vendor/vanilla-decompi
 - **own/tentities-copper-golem [partial/OWN-OPEN]**: VERIFIED. All four documented gaps resolved against CopperGolem.java: (1) oxidized-to-statue conversion via `update_weathering`/`turn_to_statue` (copper_golem.rs:261/298; vanilla 263-321) with random pose/facing, EntityChangeBlockEvent, `create_statue` custom-name transfer (copper_golem_statue.rs:121-125, unit test at :178), equipment drop, leash handling, entity removal and become-statue sound; (2) item pickup/deposit via `TransportItemsBetweenContainers` (registered copper_golem_ai.rs:49) driving all CopperGolemState variants; (3) NBT `next_weather_age` (long) + `weather_state` (string); (4) `gameTime >= nextWeatheringTick` boundary (line 270). No code change needed this pass.
 
 No pure unit-test seam exists for lightning/NBT/statue timing (each needs a live entity and world; enum-conversion tests would only mirror constants/derives). Did not compile or rustfmt (workers have no shell); the orchestrator handles that.
+
+## Result (batch x_17, CODER pass)
+- Copper golem rows: NOT RE-VERIFIED this pass. The prior VERIFIED entry above stands on its own citations; vanilla CopperGolem.java exists at .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java. No edit made.

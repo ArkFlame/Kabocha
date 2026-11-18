@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: ai.rs
 
-| Play-dead regeneration duration | `ai.rs:39,353-364` grants 200 ticks at amplifier 0 | wiki states Regeneration I while playing dead; duration is not documented in code we can read here | keep amplifier 0 (wiki: Regeneration I); only shorten to 100 ticks if 1.21.x source confirms | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-- All STILL OPEN rows resolved and verified against decompiled vanilla; see ## Result below.
+| Play-dead regeneration duration | `ai.rs:39,353-364` grants 200 ticks at amplifier 0 | wiki states Regeneration I while playing dead; duration is not documented in code we can read here | keep amplifier 0 (wiki: Regeneration I); only shorten to 100 ticks if 1.21.x source confirms | S, CLOSED: see Result (row 5 verified, no change) |
+- All rows resolved and verified against decompiled vanilla; see ## Result below.
 
 ## Result
 

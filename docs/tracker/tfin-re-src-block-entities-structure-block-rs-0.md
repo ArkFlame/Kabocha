@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: structure_block.rs
 
-Final pass. Every row that was ever STILL OPEN in the two referenced audits
+Final pass. Every row that was ever unresolved in the two referenced audits
 (tblocks-structure-block.md and tblocks-structure-block-328c1d.md) was re-checked directly
 against the decompiled vanilla tree at
 `/run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/.vendor/vanilla-decompiled/net/minecraft/`.
@@ -71,7 +71,7 @@ Rows inherited from own/tblocks-structure-block-328c1d (old lines 49-54), all VE
   path/navigation cache invalidation, no neighbour update; `set_structure_block.rs:147-150`
   (`mark_dirty` + `update_block_entity` + `register_block_change`) already covers it.
 
-No STILL OPEN or BLOCKED-DATA rows remain. Pure unit tests in structure_block.rs already cover
+No unresolved or BLOCKED-DATA rows remain. Pure unit tests in structure_block.rs already cover
 the data-only seams (palette selection, dynamic shape, full-cube-vs-occlusion, loot-seed gating,
 integrity/NaN gating, identifier validation, detect-size, yaw, edge-neighbour). The `Arc<World>`
 placement paths have no pure-test seam. No source file was changed this pass; rustfmt was not

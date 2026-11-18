@@ -218,3 +218,10 @@ Row 1 (VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT, M): FIXED/VERIFI
 Row 2 (NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS, L): FIXED/VERIFIED.
 Both verified against the cited `.vendor/vanilla-decompiled` paths. No generated pumpkin-data,
 WIT or cross-crate changes. Not compiled by worker (orchestrator batch-check); orchestrator runs rustfmt.
+
+## Result (batch r2s_003, coder pass, verified)
+
+- Row 1 (VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT, M): VERIFIED. Vanilla PiglinSpecificSensor.java:107 writes count; PiglinAi.java:779-783 reads. Rust crates/pumpkin-core/src/entity/mob/piglin.rs:540 refresh_visible_adult_counts, piglin_ai.rs hoglins_outnumber_piglins. Already closed in prior pass.
+- Row 2 (NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS, L): VERIFIED. Vanilla PiglinSpecificSensor.java:105-106 writes; PiglinAi.java:688 broadcastAngerTarget reads. Rust piglin.rs:90 nearby_adult_piglins, :600 populate, :923 broadcast_anger_target, :949 start_retreat_from_hoglin; tests at piglin.rs:1480 and :1505.
+
+Batch note: this doc holds 2 open rows, not 20. No rows left STILL OPEN; no source edits this pass. Not compiled (no cargo per brief).

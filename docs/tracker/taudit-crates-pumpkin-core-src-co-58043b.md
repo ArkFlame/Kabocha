@@ -196,3 +196,5 @@ No generated pumpkin-data fields or whole missing subsystems block any row
 (so no BLOCKED-DATA). No new unit-test seam (all seams covered by existing
 round-trip tests in `command_block.rs`). No source edits this pass; rustfmt not
 needed; compilation not run (worker shell denied; orchestrator compiles once).
+## Result (coder pass 2, batch r2_003)
+- Not re-verified in this pass. Prior Result sections record all rows FIXED / VERIFIED / BLOCKED-DATA; no new evidence gathered here, no source edited.

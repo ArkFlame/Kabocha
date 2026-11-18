@@ -4,7 +4,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 - 5. `pumpkin-unit-test` exposed (`data/datapack/mod.rs:1399`): VERIFIED FIXED (S; see Result).
 - 6. Suggestion ids are Pumpkin-internal (`datapack.rs:73-122`): VERIFIED FIXED (S; see Result).
-needed: every in-scope STILL OPEN row is already resolved in the checkout and matches vanilla.
 - 5. `pumpkin-unit-test` exposed: VERIFIED FIXED (see Result; fix lives in `data/datapack/mod.rs`).
 
 ## Result

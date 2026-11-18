@@ -95,3 +95,17 @@ Third-pass re-audit 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft
 - 2-6: unchanged from the prior pass and confirmed still satisfied. Row 2 igniting clears freeze (set_on_fire_for_ticks -> set_frozen_ticks(0)), row 3 team name decoration (format_name_for_team + get_display_name), row 4 non-living kill emits GameEvent::EntityDie, row 5 no tick_block_underneath stub remains (stepOn parity lives in the living/block-registry path), row 6 stopRiding emits EntityDismount. No source edits needed.
 
 Summary: fixed=0 new this pass, verified=5 (rows 2-6 already fixed in earlier passes), blocked-data=1 (row 1: missing generated Bedrock entity-property-ID registry for `minecraft:climate_variant`). Compile-pit replay: no source code added, no unwrap/expect/panic, no em dashes, no generated-data edits, no rustfmt needed.
+
+## Result (CODER batch r2_011)
+- Row 2 igniting clears freeze: VERIFIED. Vanilla `Entity.igniteForTicks` then `clearFreeze` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:1170-1174`, `clearFreeze` at 4082-4086); Rust `set_on_fire_for_ticks` clears `frozen_ticks` (`crates/pumpkin-core/src/entity/mod.rs:1128-1131`). Note: Paper `freezeLocked` gate is not implemented in Rust (no hits); vanilla-only parity holds.
+- Rows 1, 3, 4, 5, 6: STILL OPEN (not reached this pass; row 6 is already FIXED at entity/mod.rs:6324 per prior gap status).
+- Summary: verified=1 (row 2), fixed=0, blocked-data=0 new (row 1 already BLOCKED-DATA above), open=rows 3,4,5.
+
+## Result (CODER batch r3_034)
+- Row 1 TemperatureVariantAnimal Bedrock `climate_variant`: BLOCKED-DATA. `climate_variant` appears only as a TODO at `crates/pumpkin-core/src/entity/mod.rs:1013`; no Bedrock property-id entry exists in `crates/pumpkin-protocol` or `crates/pumpkin-data` (grep of `crates/` and `assets/`). Missing: generated Bedrock entity-property-ID table for `minecraft:climate_variant`.
+- Row 2 igniting clears freeze: VERIFIED in r2_011 (`Entity.java:1170-1174`, Rust `entity/mod.rs:1128-1131`); carried forward, not re-checked this pass.
+- Row 3 team name decoration: VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:6231-6234` (`PlayerTeam.formatNameForTeam` plus hover and insertion) matches Rust `crates/pumpkin-core/src/entity/mod.rs:258` (`format_name_for_team`) and `:1475-1490` (`get_display_name`).
+- Row 4 kill fallback: VERIFIED. Vanilla `Entity.java:765-768` (`remove(KILLED)` then `ENTITY_DIE`) matches Rust `entity/mod.rs:1501-1523` (`remove()` then `emit_own_game_event(EntityDie)` at 1521).
+- Row 5 dead `tick_block_underneath` stub: VERIFIED absent (no grep hits in `entity/mod.rs`). `stepOn` parity is live via `crates/pumpkin-core/src/entity/living.rs:4891-4899` (`on_entity_step`) and `block/blocks/magma.rs:43`; campfire `entityInside` from `CampfireBlock.java:112`.
+- Row 6 stopRiding ENTITY_DISMOUNT: VERIFIED. Vanilla `Entity.java:3672` (`oldVehicle.position`) matches Rust `entity/mod.rs:6516` (`emit_game_event(EntityDismount, self.pos)`, self is the vehicle).
+- Summary: fixed=0 (no Rust edits), verified=5 (rows 2-6), blocked-data=1 (row 1). Files touched: this doc only. No cargo, no git.

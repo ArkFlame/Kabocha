@@ -32,3 +32,6 @@ Checked, no change: `getDamageAfterMagicAbsorb` 0.15 multiplier (85% resistance)
 - No generated data, WIT, or cross-crate changes needed. Only witch.rs edited; rustfmt --edition 2024 applied. Cargo not run per worker rules.
 
 - Re-verified this pass against decompiled `Witch.java`: line 268 throw speed (0.45 <=2.0 / 0.75), lines 73-75 target priorities, lines 299-301 canBeLeader false. Code and unit test already present and correct; no source change. rustfmt --edition 2024 applied to witch.rs.
+
+## Result (batch r2_007, spot-check)
+- Items 1-3 and gap 5: VERIFIED present. witch.rs:47 `potion_throw_speed` (vanilla Witch.java:268); witch.rs:488 `can_be_leader` false (vanilla Witch.java:299-301); unit test witch.rs:513. Gaps 2 and 4 (no code change) not re-read this pass.

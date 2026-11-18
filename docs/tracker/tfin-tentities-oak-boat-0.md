@@ -2,10 +2,13 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: bubble_column.rs
 
-Verified each STILL OPEN row against `.vendor/vanilla-decompiled` (symlink -> Paper 1.21.x `AbstractBoat.java`, WORLD_VERSION 5023 / protocol 777). That decompile is OLDER than the tracker's target (Pumpkin `CURRENT_MC_VERSION` = V_26_3): its `floatBoat` uses `getGravity()` with a `noCollision`-guarded snap and its bubble push lives in `handleBubbleColumnEffect` at `0.6 / -0.7`, whereas the tracker and Pumpkin's own `block/blocks/bubble_column.rs` (`0.06 / 0.1`, caps `0.7 / 1.8`, `-0.03 / -0.3`) describe the newer vanilla. No source changes made: the rows below are either already correct, unverifiable without the 26.3 decompile, or out of this unit's scope.
-Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft` (Entity.java,
-Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft`
-Re-verified every STILL OPEN row against the current decompile at
-
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- All STILL OPEN rows re-verified against `.vendor/vanilla-decompiled` (symlink to a Paper 1.21.x tree, WORLD_VERSION 5023 / protocol 777). That tree is older than the target (`CURRENT_MC_VERSION` = V_26_3): its `floatBoat` uses `getGravity()` with a `noCollision` snap, and its bubble push lives in `handleBubbleColumnEffect` at `0.6 / -0.7`. Pumpkin's `block/blocks/bubble_column.rs` (`0.06 / 0.1`, caps `0.7 / 1.8`, `-0.03 / -0.3`) follows the newer vanilla.
+- Rows that compare against the 26.3 constants: BLOCKED (vanilla 26.3 decompile absent from `.vendor`; cannot be verified in-tree).
+- Rows that match the vendored tree: VERIFIED. No source change made.
+
+Status: fixed=0. Unverifiable rows recorded as BLOCKED (missing 26.3 decompile, not generated data). No compile run.
+
+## Result (batch x_13, CODER)
+- Bubble column push rows: VERIFIED, not BLOCKED. The earlier note said the vendored tree uses `0.6 / -0.7`; that is wrong. `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:4149-4160` (`handleOnAboveBubbleColumn`: `min(1.8, y+0.1)`, `max(-0.9, y-0.03)`) and `:4185-4196` (`handleOnInsideBubbleColumn`: `min(0.7, y+0.06)`, `max(-0.3, y-0.03)`) match `crates/pumpkin-core/src/block/blocks/bubble_column.rs:23-31` and `bubble_column_vertical_velocity` (`:163-182`) exactly.
+- Rows: fixed=0, verified=1 group, blocked=0, open=0. Files edited: this doc only. No cargo or git run.

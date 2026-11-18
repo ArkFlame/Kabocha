@@ -284,3 +284,6 @@ is needed and no unit test seam exists, so no generated data field or subsystem 
 - Row 3 (DolphinJumpGoal grouping, S): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java:56-59` is `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`, the OR grouping Pumpkin uses at `goals.rs:427-435`. Keep the current condition.
 - Row 4 (PlayWithItemsGoal split 7/8, S): VERIFIED. `Dolphin.java:176-177` registers `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals. Pumpkin matches (`goals.rs:69-70`). A merge would diverge from vanilla.
 - Files touched: doc only (Gap status finalized, Result appended). rustfmt not applicable. No unit test: no code seam; all four rows already match vanilla.
+
+## Result (x_00 batch)
+- Rows 1-4: VERIFIED, re-spot-checked: `Dolphin.java:74` (AgeableWaterCreature), `:323` (ItemTags.FISHES), `:176-177` (goals 7/8) vs `crates/pumpkin-core/src/entity/passive/dolphin.rs:148,414`. No edit.

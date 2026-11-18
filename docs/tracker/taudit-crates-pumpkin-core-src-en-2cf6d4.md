@@ -362,3 +362,17 @@ checks only `isTrading` in canUse (the 8.0F is the inherited lookDistance);
 All 6 rows are terminal: row 2 FIXED in an earlier pass, all 6 VERIFIED against
 vendored vanilla, 0 BLOCKED-DATA, 0 remaining open.
 fixed=0 open=0.
+
+## Result (batch r2x_004 re-verification)
+
+No row is STILL OPEN; the six `STILL OPEN` hits above are prose references, not row markers. Rechecked this pass:
+
+- Row 1 (3.0 vertical box): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java:67` vs `crates/pumpkin-core/src/entity/ai/goal/look_at_entity.rs:193`.
+- Row 2 (player reach): VERIFIED. `look_at_entity.rs:156` declares `players: range`; the `MAX_VISIBILITY` bound is gone.
+- Row 3 (look_forward): VERIFIED. `LookAtPlayerGoal.java:97` vs `look_at_entity.rs:242-246`; sole `true` caller `Shulker.java:101` matches `shulker.rs:94-100`.
+- Row 4 (rider filter): VERIFIED. `LookAtPlayerGoal.java:42-44` vs `look_at_entity.rs:137-143` (`EntityPredicate::Rides`).
+- Row 5 (slot target range): VERIFIED. `Panda.java:925-959` and `:930-932` vs `look_at_entity.rs:174-175` and `:217-219`; no clamp.
+- Row 6 (Controls::LOOK): VERIFIED. `LookAtPlayerGoal.java:41` vs `look_at_entity.rs:88`.
+- Visibility/distance scaling: VERIFIED. `LookAtPlayerGoal.java:44,46` (`TargetingConditions.forNonCombat()`) vs `look_at_entity.rs:135-136` (`create_non_attackable()`, `base_max_distance = range`).
+
+fixed=0 open=0 for this pass. No `.rs` file was edited, so rustfmt and tests were not run.

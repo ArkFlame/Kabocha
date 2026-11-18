@@ -347,3 +347,18 @@ needed a change: all four were already resolved in the tree by earlier passes.
 All four rows terminal: FIXED (1,2,4) and VERIFIED (3). No BLOCKED-DATA row;
 no generated pumpkin-data field or subsystem is missing. No source file or
 rustfmt needed; only this Result section was appended.
+## Result
+
+- Gap 2 (blocked-chest predicate): FIXED. `has_block_on_top` (`crates/pumpkin-core/src/block/blocks/chests.rs:1109`) now calls `is_redstone_conductor()` instead of `is_full_cube()`, matching `ChestBlock.isBlockedChestByBlock` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:368-371`). Glass and leaves are non-conductors in `block_state.rs` (`Blocks.java` `never`), so the glass case is covered. rustfmt --edition 2024 --check exit 0. Not compiled (no cargo per brief).
+- Gap 1 (neighbour half not detached on non-player removal): STILL OPEN. Needs `on_state_replaced` on chest blocks.
+- Gap 3 (lid event `u8` truncation): STILL OPEN. Needs the synced block event payload widened to `i32`.
+- Gap 4 (double-chest title): STILL OPEN. Needs a client check before changing.
+- Files edited: `crates/pumpkin-core/src/block/blocks/chests.rs`.
+
+## Result (r3_050 batch, 2026-11-18)
+
+- Gap 1 (neighbour half not detached on non-player removal): VERIFIED. The premise is pre-1.21.5. Target vanilla `ChestBlock.affectNeighborsAfterRemoval` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:265-267`) only calls `Containers.updateNeighboursAfterDestroy`, with no partner split. The partner turns single through `updateShape` (`ChestBlock.java:172-199`). Pumpkin mirrors that in `chest_state_for_neighbor_update` (`crates/pumpkin-core/src/block/blocks/chests.rs:623-659`, used by both chest impls at `chests.rs:666-668` and `chests.rs:917-925`). No `on_state_replaced` needed. Not runtime-checked.
+- Gap 2 (blocked-chest predicate): VERIFIED. Already fixed earlier: `has_block_on_top` uses `is_redstone_conductor()` (`crates/pumpkin-core/src/block/blocks/chests.rs:1104-1110`), matching `ChestBlock.java:368-371`.
+- Gap 3 (lid event `u8` truncation): VERIFIED. The wire is a byte. `ClientboundBlockEventPacket.java:30-31` reads and `:37-38` writes `readUnsignedByte`/`writeByte`, so the u8 cast matches vanilla. Pumpkin's `crates/pumpkin-core/src/block/entities/chest_like_block_entity.rs:346` already documents this. The widening fix is not applicable.
+- Gap 4 (double-chest title): VERIFIED. `ChestBlock.java:129-135` uses first half's custom name, else second's, else `container.chestDouble`. Pumpkin's `chest_display_name` (`crates/pumpkin-core/src/block/blocks/chests.rs:81-99`) and both-half resolution (`chests.rs:487-493`) match.
+- Files edited: none in this batch (docs/tracker/tblocks-chests.md only, result section appended). rustfmt not needed. Cargo not run per brief.

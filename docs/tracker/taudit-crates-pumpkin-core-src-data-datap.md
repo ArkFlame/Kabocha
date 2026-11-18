@@ -212,3 +212,8 @@ No source files were changed this pass: all eight FIXED rows and the verified
 rows were already present in the shared tree and were confirmed, not re-authored.
 The two BLOCKED-DATA rows are whole-missing-subsystem cases permitted by the unit
 contract. No cargo, git, or rustfmt run (shell denied to this worker).
+
+## Result (batch x_10, CODER)
+- function chain depth (`MAX_FUNCTION_CHAIN_DEPTH` = 256, `crates/pumpkin-core/src/data/datapack/mod.rs:269`): BLOCKED (whole subsystem). Vanilla imposes no depth cap (command budget only). Removing the cap needs an iterative dispatch refactor of the recursive `execute_input`; not a single-file fix.
+- zip packs: BLOCKED (whole subsystem), as recorded in the third-pass Result above; no `zip` consumer in `pumpkin-core`.
+- Files edited: none. No checks run.

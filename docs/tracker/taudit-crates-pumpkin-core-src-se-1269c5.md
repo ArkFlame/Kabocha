@@ -84,3 +84,25 @@ already matches vanilla.
 | 7 | FIXED (present) | The frozen branch calls `tick_players_and_network()` which flushes only `world.flush_synced_block_events()` (`server/mod.rs:1971`); full block updates are flushed once by the single `flush_pending_block_updates()` at `server/mod.rs:1953`. No duplicate flush remains. |
 
 All rows in the Remaining gaps table are now closed (1, 2, 5, 6, 8 FIXED; 3, 4, 7 VERIFIED/FIXED).
+
+## Result (r2_014 pass)
+- Row 1 (border lerp time, `mod.rs:980-992`): STILL OPEN - not reached.
+- Row 2 (level data load for runtime worlds, `mod.rs:590`): STILL OPEN - not reached.
+- Row 3 (frozen tick datapack/timer ordering, `mod.rs:1824`): STILL OPEN - not reached.
+- Row 4 (`/reload` load tag timing, `mod.rs:1019-1027`): STILL OPEN - not reached.
+- Row 5 (`process::exit` in `get_world_from_dimension`, `mod.rs:780`): STILL OPEN - not reached.
+- Row 6 (`save_all` early return, `mod.rs:1072-1106`): STILL OPEN - not reached.
+- Row 7 (redundant frozen flush, `mod.rs:1831-1840`): STILL OPEN - not reached.
+- Row 8 (debug sample cap, `mod.rs:1946-1985`): STILL OPEN - not reached.
+
+## Result (r3_040 pass, server/mod.rs re-read, no Rust edits)
+| # | Outcome |
+|---|---|
+| 2 | VERIFIED (already in tree). Runtime worlds restore forced chunks: `server/mod.rs:942-944` (`spawn_world` calls `restore_forced_chunks`, comment cites vanilla ServerLevel constructor). Scoreboard/command storage stay server-wide by design. |
+| 3 | VERIFIED. Plugin loader ticks run before the freeze gate (`server/mod.rs:1942`, `tick_loaders`); `#minecraft:tick`/`#minecraft:load` and `scheduled_functions` run inside `tick_worlds` (`server/mod.rs:1986-2004`), gated on `runs_normally()` (`server/mod.rs:1946`). Matches vanilla `MinecraftServer.tickChildren` and `ServerFunctionManager.tick` (`.vendor/vanilla-decompiled/net/minecraft/server/ServerFunctionManager.java`). |
+| 4 | VERIFIED. Deferred `#minecraft:load` after reload matches vanilla `ServerFunctionManager.java:41-44` (`postReload` flag consumed on the next `tick()`). Pumpkin `reload_datapacks` (`server/mod.rs:1082-1100`) marks pending and `tick_worlds` consumes it. No change needed. |
+| 5 | VERIFIED (already in tree). `get_world_from_dimension` returns `Option<Arc<World>>` (`server/mod.rs:816-823`); no `process::exit` remains in `server/mod.rs`. |
+| 7 | VERIFIED (already in tree). `tick_players_and_network` no longer flushes block updates (`server/mod.rs:1970`); the only block-update flush is `flush_pending_block_updates` at `server/mod.rs:1953`. |
+| 8 | STILL OPEN (premise not supported). Vanilla `RemoteSampleLogger.useSample` (`.vendor/vanilla-decompiled/net/minecraft/util/debugchart/RemoteSampleLogger.java:21-24`) also broadcasts every sample to subscribers with no cap, so the "vanilla caps sending" claim is wrong. Remaining difference is Pumpkin's `permission_lvl >= Two` recipient filter (`server/mod.rs:2145-2146`); vanilla subscription gating in `ServerDebugSubscribers` not yet read. |
+
+Files edited: none.

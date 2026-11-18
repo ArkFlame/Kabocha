@@ -27,3 +27,6 @@ All 15 STILL OPEN rows resolved. Each row is FIXED, VERIFIED against the cited .
 | co-20e7ce:24 (modify feedback) | VERIFIED | `BlockModifyExecutor` (`item.rs:1256-1266`) sends `commands.item.block.modify.success`; `EntityModifyExecutor` (:1293-1309) sends `.single`/`.multiple`. Vanilla `ItemCommands.java:259` (`accessor.getModifySuccess`). |
 
 Counts: FIXED 1, VERIFIED 13, BLOCKED-DATA 1 (co-20e7ce:21, missing LootContext subsystem), STILL OPEN 0. No cargo run per task; rustfmt to be run by orchestrator on touched item.rs.
+
+## Result (x_04 pass)
+- Not re-verified in this pass. The rows above are the prior pass's claims; no code or vanilla citations were re-checked here. No Rust edited; no checks run.

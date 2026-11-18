@@ -160,3 +160,9 @@ Final pass (unit scope widened to any source file). All six gaps are FIXED and V
 - Compile-pitfall re-read: no .rs file changed, so no imports, helpers, macro paths, struct initializers, clones, unwrap/expect/panic, println or em dashes to check.
 
 Status: PASS (verified completion, no source change needed). Commands: none (no .rs file changed); cargo/git/rustfmt intentionally not run per worker contract.
+
+## Result (batch r2_007, spot-check)
+- Row 18 (PathAwareEntity::can_spawn): VERIFIED. entity/mob/mod.rs:3531 `can_spawn(&self, world, _reason: spawn::EntitySpawnReason)`; vanilla PathfinderMob.checkSpawnRules.
+- check_despawn (peaceful): VERIFIED present, mob/mod.rs:1339.
+- check_spawn_obstruction (world.is_unobstructed): VERIFIED present, mob/mod.rs:2084 and world/mod.rs:3345.
+- Other rows: FIXED by prior passes, not re-read this pass.

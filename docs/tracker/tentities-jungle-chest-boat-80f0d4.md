@@ -442,3 +442,13 @@ test needed (all seams already covered). No `.rs` file touched, so rustfmt is no
 build run (worker rule: orchestrator compiles).
 
 Status: PASS fixed=4 open=0 files=docs/tracker/tentities-jungle-chest-boat-80f0d4.md (doc only; no .rs edit, owner.rs already matches vanilla)
+
+## Result (x_03 recheck)
+- Row 1 (chest boat interact ordering): VERIFIED. Vanilla AbstractChestBoat.java:80-97; Rust entity/vehicle/boat.rs (boat_interact_outcome / chest_opens_container).
+- Row 2 (failed boarding result): VERIFIED. Vanilla AbstractBoat.java:779-788 (PASS on failure); Rust boat.rs interact.
+- Row 3 (canPlayerUse / stillValid): FIXED (verified). Vanilla ContainerEntity.java:181-183 (!isRemoved and isWithinEntityInteractionRange 4.0); Rust entity/vehicle/minecart/container.rs:179-298 (EntityContainerScreenHandler, validity closure at 277-289 with can_interact_with_entity 4.0).
+- Row 4 (container-entity loot tables): FIXED (verified). Vanilla AbstractChestBoat.java:153-183; Rust minecart/container.rs loot_table field.
+- Row 5 (instabuild destroy skip): VERIFIED. Vanilla VehicleEntity.java:35-80; Rust boat.rs hurt path.
+- Row 6 (passenger damage to own boat): VERIFIED. Vanilla Projectile.java:551-567.
+- Row 7 (drop item resolution): FIXED (verified). Rust boat.rs:107-108 uses BoatItem::entity_to_item with registry fallback; vanilla AbstractBoat.java:862-864 (dropItem).
+- Files edited this pass: none. No cargo run (forbidden for this worker).

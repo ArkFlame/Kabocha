@@ -33,3 +33,14 @@ Pure-unit-test seam: none added. The recalculation gate already has pure tests (
 ## Result
 
 - Row 3 (S): RESOLVED - verified against vanilla .vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java:108. Vanilla uses this.mob.distanceToSqr(target) (centre-to-centre), exactly matching Pumpkin's mob_pos.squared_distance_to_vec(&current_target_pos) at melee_attack.rs:258. The getPerceivedTargetDistanceSquareForMeleeAttack function does not exist in the vendor tree; the original gap description was erroneous. No code change needed.
+
+## Result (CODER batch r2_011)
+- No row changed this pass: CODER did not reach these rows in the time budget (only entity/mod.rs row 2 was checked). All open rows remain STILL OPEN.
+
+## Result (CODER batch r3_029)
+- Row 1 (M, +15 on failed moveTo): VERIFIED. Vanilla `MeleeAttackGoal.java:115-116` adds 15 when `moveTo` fails. Rust `melee_attack.rs:276-284` consumes `take_last_path_search_failed()` (set at `pathfinder/mod.rs:896`) and adds 15. Difference: Rust applies the 15 one tick after the failed search (async navigator), not in the same tick.
+- Row 2 (S, stop() ForgotTarget): FIXED. Vanilla `MeleeAttackGoal.java:77-80` clears the stored target unless it is a creative or spectator player. `get_target` hides those players, so the old reading was wrong. `stop()` in `melee_attack.rs` now reads the raw stored target and calls `set_target(None)` when `EntityPredicate::ExceptCreativeOrSpectator` passes. Added import `crate::entity::predicate::EntityPredicate`.
+- Row 4 (S, arg naming/inverted meaning): VERIFIED. `MeleeAttackGoal.java:14,61-63` defines `followingTargetEvenIfNotSeen`. Rust `melee_attack.rs:34,52` uses `follow_even_if_unseen` with the same meaning. `creaking.rs:175` passes `false`.
+- Row 5 (S, attack_interval_ticks unused): VERIFIED, row premise corrected. Vanilla `resetAttackCooldown` hardcodes 20 (`MeleeAttackGoal.java:136`), but Creaking uses 40 (`CreakingAi.java:63`). Rust `melee_attack.rs:109` feeds `attack_interval_ticks` through `get_max_cooldown`, and `creaking.rs:177` passes `ATTACK_INTERVAL = 40`, so the field is live.
+- Row 3 (S, perceived distance): VERIFIED (already resolved). `MeleeAttackGoal.java:108` uses `mob.distanceToSqr(target)`, matching `melee_attack.rs:258`.
+- Compile not run (cargo forbidden in this brief). Files edited: `crates/pumpkin-core/src/entity/ai/goal/melee_attack.rs` (rustfmt --edition 2024 applied).

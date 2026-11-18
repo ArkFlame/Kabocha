@@ -2,9 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Both rows that were still STILL OPEN at the end of the previous Result are now
-No STILL OPEN rows remain in this unit. No source file was edited this pass,
-were needed: all fixes are present in code and match vanilla. No STILL OPEN rows remain.
+Both rows that were still resolved at the end of the previous Result are now
+No open rows remain in this unit. No source file was edited this pass,
+were needed: all fixes are present in code and match vanilla. No open rows remain.
 
 ## Result
 

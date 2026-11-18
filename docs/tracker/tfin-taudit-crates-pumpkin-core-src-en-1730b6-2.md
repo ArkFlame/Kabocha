@@ -2,11 +2,11 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-implemented. Gap status above is updated so no numbered row remains STILL OPEN.
-This is the terminal Result: no numbered row remains STILL OPEN and none is BLOCKED-DATA.
+implemented. Gap status above is updated so no numbered row remains open.
+This is the terminal Result: no numbered row remains open and none is BLOCKED-DATA.
 
 ## Result
-Terminal closure for `docs/tracker/taudit-crates-pumpkin-core-src-en-1730b6.md` (item_frame.rs). Source re-inspected in `crates/pumpkin-core/src/entity/decoration/item_frame.rs`; no additional code edit required this pass. No pure unit-test seam exists (affected behaviour requires a `World`/fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed). No numbered row remains STILL OPEN and none is BLOCKED-DATA.
+Terminal closure for `docs/tracker/taudit-crates-pumpkin-core-src-en-1730b6.md` (item_frame.rs). Source re-inspected in `crates/pumpkin-core/src/entity/decoration/item_frame.rs`; no additional code edit required this pass. No pure unit-test seam exists (affected behaviour requires a `World`/fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed). No numbered row remains open and none is BLOCKED-DATA.
 
 - Row 1 (support-check cadence) VERIFIED: `tick` uses `SUPPORT_CHECK_INTERVAL = 100` and `fetch_add(1, ..) + 1 < 100` so the support check runs on ticks 100, 200, ... matching vanilla `BlockAttachedEntity.CHECK_INTERVAL = 100` / `ticksSinceLastCheck++ >= hangingTickFrequency`. Cite: `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/BlockAttachedEntity.java`.
 - Row 2 (add-item sound) VERIFIED: `set_item` plays `get_add_item_sound()` only when `!item_stack.is_empty() && update_neighbours`, matching vanilla `if (!itemStack.isEmpty() && updateNeighbours && playSound(...))`. Cite: `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java`.
@@ -19,4 +19,4 @@ Terminal closure for `docs/tracker/taudit-crates-pumpkin-core-src-en-1730b6.md` 
 - Row 9 (single-slot Container) VERIFIED: `ItemFrameInventory` (size 1, max stack 1) is exposed via `has_container_inventory`/`get_container_inventory`, matching vanilla `slot == 0 ? SlotAccess.of(this::getItem, this::setItem) : SlotAccess.NULL`. Cite: `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java`.
 - Row 10 (DOWN drop offset) VERIFIED: `drop_item` applies a -0.6 y offset for Down-facing frames, matching the Paper MC-123848 override `this.getDirection() == Direction.DOWN ? -0.6F : 0.0F`. Cite: `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java`.
 
-Non-row note (not a numbered row): explosion handling differences outside these ten rows are not marked STILL OPEN in this unit.
+Non-row note (not a numbered row): explosion handling differences outside these ten rows are not marked open in this unit.

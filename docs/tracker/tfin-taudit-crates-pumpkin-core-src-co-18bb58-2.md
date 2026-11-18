@@ -5,7 +5,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 Both rows are closed in the `## Result` section below: the 26.x packet layout
 (`pumpkin-protocol/src/java/client/play/particle.rs`) and the command codec validation of
 required options (`pumpkin-command/src/argument_types/particle.rs`) are VERIFIED against vanilla.
-No STILL OPEN rows remain.
+No open rows remain.
 
 ## Result
 

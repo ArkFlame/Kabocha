@@ -240,3 +240,20 @@ Files changed this pass: none (all fixes already present and verified).
 Remaining terminal blocker: the one datapack-structure row, BLOCKED-DATA
 (dynamic worldgen structure/structure_set gameplay registry plus regenerated
 non-closed structure data).
+
+## Result (r2_004 pass)
+- POI argument type (`resource_or_tag.rs`): corrected. `crates/pumpkin-data/src/generated/poi_type.rs` exists, so the "needs generated POI registry" blocker is not valid. Still STILL OPEN; not reached.
+- Stronghold blocking search, all placements per structure set, random-spread ordering, stronghold distance ranking, structure arm placement candidates, datapack structures via registry: STILL OPEN, not reached in this pass.
+- No .rs edits this pass.
+
+## Result (r3_021 pass)
+Re-derived every row from the Gap table and spot-checked the cited code against vanilla. No `.rs` edits this pass (no compile or test run: forbidden by brief).
+- Stronghold blocking search (`locate.rs` Pending arm): VERIFIED. Rust sends `Searching for {}...` and returns 0 (`crates/pumpkin-core/src/command/commands/locate.rs:285-294`); vanilla sends the same feedback at `.vendor/vanilla-decompiled/net/minecraft/server/commands/LocateCommand.java:110`.
+- Datapack/modded structures (`wanted_structures`): BLOCKED-DATA. `locate.rs:123-134` resolves only through the closed generated `StructureKeys::from_name` and gates on `is_vanilla()`; the datapack loader keeps `worldgen/structure` NBT for client sync only (`crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs:101-108`), with no gameplay placement reader. Missing: a dynamic structure registry (generated `pumpkin-data` change).
+- POI argument type (`resource_or_tag.rs`): VERIFIED. `crates/pumpkin-command/src/argument_types/resource_or_tag.rs:164` validates via `PoiType::from_name`; vanilla `LocateCommand.java:83-85`. The file is in `pumpkin-command`, not `pumpkin-core`.
+- All placements per structure set: VERIFIED. `structure_sets_containing` returns every index (`locate.rs:147-154`); vanilla `ChunkGenerator.java:205` iterates `getPlacementsForStructure`.
+- Random-spread nearest ordering: VERIFIED. Ring evaluated fully, nearest kept, then `break 'radius` (`crates/pumpkin-world/src/generation/generator/structure_finder.rs:66-107`); vanilla `ChunkGenerator.java:242-271`.
+- Stronghold distance ranking (`find_nearest_concentric`): VERIFIED. Candidates ranked at y=32 (`structure_finder.rs:299-326`); vanilla `ChunkGenerator.java:296`.
+- Structure arm placement candidates (`locate.rs:273-279`): VERIFIED (premise invalid). Vanilla `getStructureGeneratingAt`/`checkStructurePresence` reports only real starts (`ChunkGenerator.java:349-362`), so the start-resolving code matches.
+- Bedrock success arguments (`locate.rs` `send_success`): VERIFIED by reading (`locate.rs:202`, `bedrock_success_args` at `:209`, arity test at `:515-518`). Test not run this pass; the earlier "UNVERIFIED test run" note still applies.
+Files edited: none.

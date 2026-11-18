@@ -7,4 +7,4 @@ Re-verified the two remaining STILL OPEN rows directly against `.vendor/vanilla-
 All other rows in the referenced audit (`docs/tracker/taudit-crates-pumpkin-core-src-co-9785ce.md`) were fixed and VERIFIED in earlier passes and remain correct; no STILL OPEN rows remain.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows. The two rows closed BLOCKED-DATA earlier name whole missing subsystems, not generated fields. Other rows are FIXED or VERIFIED.

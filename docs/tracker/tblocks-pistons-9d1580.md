@@ -168,3 +168,10 @@ intentional vanilla difference.
 
 No source files modified (all fixable rows already closed); no new test seam exists. rustfmt not
 needed.
+
+## Result (batch r2_019, CODER pass)
+- Row 1 (destroy via BlockBreakEvent): VERIFIED. `piston.rs:422-439` uses `break_block_naturally` plus `GameEvent::BlockDestroy`, matching vanilla `PistonBaseBlock.move` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/PistonBaseBlock.java`).
+- Row 2 (collision-shape entity sweep): VERIFIED. `entities/piston.rs:124-139` matches `PistonMovingBlockEntity.moveCollidedEntities`.
+- Row 3 (head slab anchoring): VERIFIED. Test `head_shape_slab_sits_on_facing_side`.
+- Row 4 (players excluded): BLOCKED, needs a movement-reconciliation subsystem (client-authoritative `apply_client_move`, `entity/player/client_move.rs:298-306`).
+- Files edited: none. Status: PASS for rows 1-3, BLOCKED for row 4.

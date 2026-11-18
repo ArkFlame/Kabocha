@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-`.../damagesource/DamageSources.java`. This tpar row is now terminal; no row remains STILL OPEN.
-No STILL OPEN row remains; terminal status per row:
+`.../damagesource/DamageSources.java`. This tpar row is now terminal; no row remains unresolved.
+No unresolved row remains; terminal status per row:
 
 ## Result
 
@@ -13,7 +13,7 @@ FINAL PASS, 2026-11-18. Re-verified every row against
 and current Pumpkin source (plugin/api/events/block/block_explode.rs:21-45,
 world/explosion.rs, world/mod.rs). No source fix was needed: the two gaps
 need missing subsystems (named below), not a change inside this unit file.
-Terminal status per row (no STILL OPEN remains):
+Terminal status per row (no unresolved remains):
 
 - Row 1 (block list + mutable yield): VERIFIED MATCHING. Vanilla
   interactWithBlocks (ServerExplosion.java:610-643) builds the non-air list

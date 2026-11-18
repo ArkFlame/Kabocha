@@ -242,3 +242,15 @@ dynamic_registry_manager.rs, known_packs.rs or packet.rs. No rustfmt run: no .rs
 
 ## Result (native-4 cross-file pass)
 - Gap 1 (codec validation of datapack entries): BLOCKED-DATA. Needs a generated per-element codec.
+
+## Result (r2_004 pass)
+- Gaps 1-4 (codec validation, override semantics, cross-entry validation, reload cost): STILL OPEN, not reached in this pass.
+- No .rs edits this pass.
+
+## Result (r3_023 pass)
+- Gap 2 (override semantics): VERIFIED. Premise corrected: vanilla never sees a duplicate key inside `RegistryDataLoader`. Each registry is loaded into a fresh `MappedRegistry` from `ResourceManagerRegistryLoadTask.load` (`.vendor/vanilla-decompiled/net/minecraft/resources/ResourceManagerRegistryLoadTask.java:41-76`), which lists one resource per id (the winning pack's file), so a datapack entry replaces the built-in one while keeping its id. `RegistryLoadTask.registerElements` (`RegistryLoadTask.java:59-68`) only records codec errors. Rust matches: custom data replaces the vanilla entry's data under the same id in `merge_dynamic_registry_entries` (`crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs:344-380`; the doc's `:434-459` reference is stale).
+- Gap 1 (codec validation): STILL OPEN, not reached. Size L (needs per-registry schema decode, `RegistryDataLoader.java:98-197`).
+- Gap 3 (cross-entry validation): STILL OPEN, not reached. Size L (`RegistryLoadTask.validateRegistry`, `RegistryLoadTask.java:86-95`, is the vanilla hook).
+- Gap 4 (reload cost): STILL OPEN, not reached. Size M, performance only.
+- Gap 5 (synced order): STILL OPEN, not reached. Size S, low priority; packets are key addressed.
+- No .rs edits this pass. Checks not run (workers do not compile).

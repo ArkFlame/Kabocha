@@ -351,3 +351,17 @@ missing subsystem is involved, so there are no BLOCKED-DATA rows.
 No `.rs` file changed, so no rustfmt was run and no unit test was added (no
 test seam exists in `place_on_water.rs` for any boat behaviour). Risk: none,
 verification/docs only. All rows are closed.
+
+## Result (r2y_010 batch, CODER 2026-11-18)
+
+Checked each row against `.vendor/vanilla-decompiled/net/minecraft` (MC 26.3) and the Rust in `crates/pumpkin-core/src/entity/vehicle/boat.rs` and `boat/physics.rs`. No `.rs` file changed, so no rustfmt and no test.
+
+- 1 VERIFIED - vanilla has no `Boat.updateBubbleTime`; `AbstractBoat.java:244-249` tracks `outOfControlTicks`, and `DATA_ID_BUBBLE_TIME` is written only via `setBubbleTime` (`AbstractBoat.java:824`). Pumpkin `boat.rs:397` gates the counter on `status.is_underwater()` and does not feed bubble time from `touching_water`. Cited method name in the Gap status was stale.
+- 2 VERIFIED - `VehicleEntity.java:94-101` sets only `CUSTOM_NAME` on the drop; `AbstractChestBoat.java:65-67` scatters 27 slots. No `minecraft:container` writer in `world/entity/vehicle` (grep empty). Pumpkin scatter path matches.
+- 3 VERIFIED - `BoatItem.java:93-104` applies only `createDefaultStackConfig`; no boat class reads `minecraft:container`. Pumpkin `item/items/boat.rs` places onto an empty inventory. `place_on_water.rs` is lily pad/frogspawn only.
+- 4 VERIFIED - `AbstractBoat.java:54` `implements Leashable`, `:443-445` `supportQuadLeash() == true`. Pumpkin `boat.rs:501-502,539,546` leash persistence, `:609` `tick_leash`, `:773-797` lead tie/untie, `:956` `support_quad_leash`.
+- 5 VERIFIED - `AbstractBoat.java:268-270` calls `controlBoat()` only when `isClientSide()`, sending `ServerboundPaddleBoatPacket`. No server paddle path. Pumpkin `boat/physics.rs:184` `float_boat`, `:241` `move_boat`, `:246` `VehicleMoveEvent`.
+- 6 VERIFIED - `VehicleEntity.java:35-42` checks `isRemoved()` (return true) before `isInvulnerableToBase` (return false). Pumpkin `boat.rs:718-722` mirrors both.
+- 7 VERIFIED - `interact` returns `has_passenger` after `add_passenger` (`boat.rs:850`).
+
+Files edited: none. Risk: docs only.

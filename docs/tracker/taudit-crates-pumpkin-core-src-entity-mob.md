@@ -151,3 +151,12 @@ Re-verified every row against .vendor/vanilla-decompiled/net/minecraft/. No in-s
 - **Row 1 (L) OPEN.** Removing the duplicate EQUIPMENT_REGISTRY dispatch or the per-species overrides spans skeleton/*, zombie/* and mod.rs:2570, outside this unit; behaviour-visible and needs a compile. Note: the registry has no zombie entries and piglin.rs has no populate_default_equipment_slots override, so no live double-application exists in this checkout.
 
 Files edited this pass: this doc only. equipment.rs, piglin.rs and spawn.rs need no change: no in-scope row remains unfixed. No new test seam (all fixes already covered by existing tests).
+
+## Result (CODER batch r2_011)
+- No row changed this pass: CODER did not reach these rows in the time budget (only entity/mod.rs row 2 was checked). All open rows remain STILL OPEN.
+
+## Result (CODER r3_033, source present)
+No Rust edited this pass. Rows 2-7 already fixed or verified in earlier sections; re-checked by grep.
+- Row 1 (L) STILL OPEN. Structural: the EQUIPMENT_REGISTRY dispatch (equipment.rs:215, spawn.rs:111) and the trait dispatch Mob::populate_default_equipment_slots (mob/mod.rs:2658, called from zombie/mod.rs:286) still coexist. The skeleton and piglin overrides named in the Gap text no longer exist (grep finds no populate_default_equipment in skeleton/ or piglin.rs), and the registry has no zombie-family entries, so no live double application. Removing the duplicate is a multi-file behaviour-visible refactor (zombie/*, mob/mod.rs, equipment.rs, spawn.rs) that needs a compile, which this role may not run. Left open.
+- Rows 2, 3, 4, 5, 6, 7: no change this pass (see earlier Result sections for citations).
+Files edited: this doc only.

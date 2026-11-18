@@ -98,3 +98,20 @@ Remaining gaps:
   `adventure_mode_fixes_height_on_the_suggestion_not_the_column` (spawn_tests.rs:404-419) present.
 - No source edits needed; both rows were already resolved and are now re-verified against the
   actual decompiled source. open=0, fixed=0.
+
+## Result (BRIEF2 pass)
+- Remaining-gap rows 99-109 (stored-Y), 110-117 (adventure gate): already CONFIRMED FIXED by prior passes above; not re-edited.
+- Row 119-130 (random inside radius before standable check): STILL OPEN in code terms, not reached this pass (S).
+- Row 241-253 (flat getSpawnHeight test coverage): STILL OPEN, not reached this pass (S/M, test-only).
+- Row 67 (isRemoved in CAN_BE_COLLIDED_WITH): STILL OPEN, not reached (S, leave unless reproduced).
+- Row 225-237 (loaded_chunks dedup test): STILL OPEN, not reached (S, test-only).
+- Files edited this pass: none.
+
+## Result (BRIEF2 r3_047)
+- `player_spawn_finder.rs:99-109` stored-Y path: VERIFIED. Vanilla `PlayerSpawnFinder.java:55-66` runs the radius search with no stored-Y path (`scheduleNext` :70-86). Rust `player_spawn_finder.rs:118-128` always runs the candidate loop; fixup at :140 only after it fails.
+- `player_spawn_finder.rs:119-130` random-inside-radius before standable check: VERIFIED. Vanilla `PlayerSpawnFinder.java:65-66` (`scheduleNext` from `findSpawn`). Rust `player_spawn_finder.rs:118-119` randomises the offset and iterates all candidates; the early return is gone.
+- `player_spawn_finder.rs:110-117` adventure gate: VERIFIED. Vanilla `PlayerSpawnFinder.java:51` reads `level.serverLevelData.getGameType()`. Rust `player_spawn_finder.rs:98` reads `self.level_info.load().game_type`. Covered by `spawn_tests.rs:405` `adventure_mode_fixes_height_on_the_suggestion_not_the_column`.
+- `player_spawn_finder.rs:241-253` flat `getSpawnHeight` test coverage: STILL OPEN. Code is already correct (`player_spawn_finder.rs:223-225` layer count). Missing flat-generator fixture test is test-only work not done in this pass.
+- `player_spawn_finder.rs:67` `isRemoved` in `can_be_collided_with`: STILL OPEN. Rust `player_spawn_finder.rs:68` excludes removed entities; vanilla has no such check. Doc says leave unless a spurious block is reproduced; not reproduced, not changed.
+- `player_spawn_finder.rs:225-237` `loaded_chunks` dedup test: STILL OPEN. Code inserts into the set at `player_spawn_finder.rs:210`; no dedup test exists in `spawn_tests.rs`. Test-only, not written this pass.
+- Files edited this pass: none. Checks: none run (cargo forbidden).

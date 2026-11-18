@@ -65,3 +65,18 @@
 - tentities-poplar-chest-boat.md: - Row "c:boats missing poplar_chest_boat" (doc line 16): STILL OPEN, needs codegen. The value lives in generated crates/pumpkin-data/src/generated/tag.rs, which must not be hand-edited; regenerate with cargo run --locked -p pumpkin-codegen. No functional gap remains because is_boat() already covers 
 - tentities-zombie-nautilus.md: - Row 3 (M) OPEN: `AbstractNautilus.registerGoals` + `NautilusAi`/`ZombieNautilusAi` brain island needs a new `passive/nautilus/goals.rs` and AI registration, outside this unit's files.
 - titems-goat-horn-5fa4ed.md: - 5 Datapack/custom instruments: OPEN, blocked. `pumpkin-data/src/generated/instrument.rs` is generated
+
+## Result (r2 batch, CODER pass)
+
+This index only points at rows in other units (e.g. `co-e958f4`, `en-*`, `net-*`, `world-*`, `tentities-*`). None of them were reached by this batch, so all stay STILL OPEN as listed. Several are cross-crate or generated-data blockers (BLOCKED-DATA). No source edits.
+
+## Result (r3 batch, CODER pass)
+- Gap 1 (Adult uses AgeableMob, en-37bcf6): VERIFIED semantics. Vanilla `AgeableMob.isBaby()` = `canBeABaby() && getAge() < 0` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/AgeableMob.java:282-283`) matches `crates/pumpkin-core/src/entity/ageable.rs:94-96` and `crates/pumpkin-core/src/entity/living.rs:419-421`. The unified `Mob::is_baby()` refactor is still STILL OPEN (cross-file).
+- Gap 3 polar-bear `mustReach` note (en-37bcf6): VERIFIED doc claim. Vanilla `PolarBear.java:256` calls `super(..., 20, true, true, null)`. The `can_navigate_to_entity` row itself stays STILL OPEN (needs path navigator, cross-crate).
+- All other rows listed in this index (furnace XP, bubble_column tag, block-registry shape fallback, brain sensor goal reuse, creeper on-death effects, goat memory init, oak boat physics/bubble/rider rotation, world spawn adventure gate, and the rest): NOT REACHED in this pass. They stay STILL OPEN, and the reasons above still apply (cross-crate, generated `pumpkin-data`, or multi-file refactors).
+- No source edits in this pass.
+
+## Result (r3_001 batch, CODER pass)
+- tentities-oak-boat.md `physics.rs:188-216` air->water snap: VERIFIED. Vanilla `AbstractBoat.floatBoat` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:607-620`) moves to `targetY` and zeroes Y velocity and `lastYd` only when `noCollision` holds, and sets `IN_WATER` unconditionally. Rust `float_boat` (`crates/pumpkin-core/src/entity/vehicle/boat/physics.rs:185-216`) matches all three branches. No edits.
+- bubble_column row in taudit-crates-pumpkin-core-src-bl-29396e.md: already FIXED by a prior pass (hole detection). Not re-touched.
+- All other rows listed in this index (co-e958f4, en-*, net-*, world-*, tentities-*, tblocks-*, titems-*, taudit-*): NOT REACHED in this pass, STILL OPEN. Most are BLOCKED-DATA or cross-crate (pumpkin-data/protocol/config/WIT changes) per their own notes.

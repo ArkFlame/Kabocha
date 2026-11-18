@@ -2,14 +2,14 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-tests cover all behavioural deltas). No row remains STILL OPEN.
-already matches vanilla. No row remains STILL OPEN.
+tests cover all behavioural deltas). No row is open.
+already matches vanilla. No row is open.
 
 ## Result
 All five rows from `docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md`
 fully closed this pass. Each was re-verified against decompiled vanilla and the
 current Pumpkin source. No source edits were needed: every row already matches
-vanilla. No row remains STILL OPEN.
+vanilla. No row is open.
 
 - 1. `get_updated_state` (row 1): FIXED (earlier pass), VERIFIED this pass.
   Vanilla `VineBlock.getUpdatedState`

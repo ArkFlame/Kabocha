@@ -275,3 +275,26 @@ per unit rules; orchestrator batch-checks. No em dashes, no println, no generate
 - 7. store score orphan objectives: FIXED. Identity model in world/scoreboard.rs (ScoreboardObjective.identity + is_same, orphan_scores, set_orphan_score/get_orphan_score) enables write_stored_score to write into the captured objective when it is no longer live, matching vanilla storeValue -> getOrCreatePlayerScore. Added self.orphan_scores.clear() fix in load_saved_nbt. Pure unit test loading_saved_nbt_discards_orphan_scores added in execute.rs.
 
 No source files needed editing this pass. rustfmt --edition 2024 was previously run on execute.rs and summon.rs. No compile run per unit rules; orchestrator batch-checks.
+## Result (coder pass 2, batch r2_003)
+- 1. if blocks block-entity comparison (`execute.rs:1139`): STILL OPEN, not reached.
+- 2. Predicate reference and inline shape (`execute.rs:242-260`): STILL OPEN, not reached.
+- 3. `if items` missing: STILL OPEN, not reached (needs slot-source argument type).
+- 4. `if function` missing: STILL OPEN, not reached (no datapack functions in command tree).
+- 5. `on origin` exact only for projectiles (`execute.rs:1508`): STILL OPEN, not reached.
+- 6. Positioned over ocean_floor fallback (`execute.rs:194`): STILL OPEN, not reached.
+- 7. store score orphan objectives: STILL OPEN, not reached.
+
+## Result (coder pass 3, batch r3_017)
+
+Re-derived rows 1-8 from the Gap table and Remaining gaps list. Each row was checked by identifier grep in the Rust and by vanilla anchor lines in `.vendor/vanilla-decompiled`. No Rust edits this pass.
+
+- 1. if blocks block-entity comparison: VERIFIED. `count_blocks_match` (crates/pumpkin-core/src/command/commands/execute.rs:1484, write_nbt at 1539-1540) vs vanilla ExecuteCommand.java:995,1000 (saveCustomOnly).
+- 2. Predicate reference and inline shape: VERIFIED. `test_predicate` (execute.rs:328) uses `datapack_manager.get_predicate` (execute.rs:342) and `argument.resource_or_id.no_such_element` (execute.rs:148) vs vanilla ExecuteCommand.java:869 checkCustomPredicate.
+- 3. if items: VERIFIED. `items_conditional_node` (execute.rs:595, registered at 2092 and 2335).
+- 4. if function: VERIFIED. `function_condition_value` (execute.rs:381) used at 421 and 431.
+- 5. on origin exact only for projectiles: VERIFIED. `traceable_owner` (execute.rs:1880) vs vanilla ExecuteCommand.java:1074 TraceableEntity.getOwner.
+- 6. Positioned over ocean_floor fallback: VERIFIED. `heightmap_kind` (execute.rs:248), `HeightmapKind::OceanFloor` -> `World::get_ocean_floor_height` (execute.rs:291; crates/pumpkin-core/src/world/mod.rs:3871).
+- 7. store score orphan objectives: VERIFIED. `write_stored_score` (execute.rs:938, set_orphan_score at 962), identity model in crates/pumpkin-core/src/world/scoreboard.rs:394,418,1010,1210 vs vanilla ExecuteCommand.java:432 getOrCreatePlayerScore.
+- 8. execute summon duplicate UUID: VERIFIED. `ERROR_DUPLICATE_UUID` refusal (execute.rs:1742; summon.rs:35) vs vanilla SummonCommand.java:34.
+
+Checks: grep and read only. No cargo run (forbidden by brief). Verification is by identifier presence and anchor lines, not a full semantic diff of each body. Rows 2 and 8 rest on the doc's own note about Paper vs vanilla UUID handling. I did not re-confirm that note.

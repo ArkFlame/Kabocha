@@ -9,7 +9,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 ## Result
 
-All four rows were implemented in earlier passes; this pass re-verified each against decompiled vanilla and confirmed no TODO/FIXME/STILL OPEN markers remain in living.rs.
+All four rows were implemented in earlier passes; this pass re-verified each against decompiled vanilla and confirmed no TODO/FIXME/open markers remain in living.rs.
 
 - 1. add_effect instance update: FIXED. add_effect now merges an existing stored instance via update_effect (mirrors MobEffectInstance.update, including stronger-amplifier takeover, equal-amplifier duration extension, infinite duration, ambient/particles/icon), resends the effect only when the stored instance actually changed, applies attribute modifiers with the merged amplifier, runs onEffectStarted-style logic (absorption/invisibility/glowing/sound) with the incoming amplifier, and never stores instant effects as active. Unit tests in effect_update_tests cover weaker/shorter never replacing, stronger takeover/equal extension, and infinite duration. Vanilla: .vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java addEffect (lines 1223-1274) and .vendor/vanilla-decompiled/net/minecraft/world/effect/MobEffectInstance.java update (lines 133-158).
 - 2. Negative heal without die: FIXED. heal returns early for dead entities or zero amount, fires the regain event, uses the event possibly-modified amount, and re-checks health before set_health, which clamps to [0, max_health] so a negative heal reduces health to 0 without ever calling die. Vanilla: .vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java heal (lines 1430-1455) and setHealth clamp (line 1467).

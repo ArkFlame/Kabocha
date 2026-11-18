@@ -404,3 +404,15 @@ mocked or formula-mirroring, which Kabocha rules forbid.
 
 Files changed this pass: this doc only (header resolved + this Result section). No `.rs` file
 was edited, so rustfmt was not required. No shell/cargo/git was run by this worker.
+
+## Result (batch r2_002)
+- Not reached in this pass: rows keep their existing status. Prose "STILL OPEN" mentions above are historical and were not re-verified against vanilla here.
+
+## Result (batch r3_011)
+- No genuinely open rows in the last Result section (r2_002 deferred everything; the earlier "final pass" closes all five table rows). Re-checked the Rust against vanilla this pass.
+- `buttons.rs:76-81` arrow detection bounds: VERIFIED. Rust `on_scheduled_tick` (`buttons.rs:146`) uses `state.get_block_outline_shapes_at(pos)`; vanilla `ButtonBlock.java:162-165` uses `state.getShape(level, pos).bounds().move(pos)`.
+- `buttons.rs:98-106`, `:203` game-event source: VERIFIED. Rust `press_with_source` (`buttons.rs:333-339`) passes `GameEventContext { source_entity }`; vanilla `ButtonBlock.java:107,186`.
+- `world/explosion.rs:805-837` onExplosionHit before removal: VERIFIED. Rust `explosion.rs:947-954` calls `explode` before block removal; vanilla `ButtonBlock.java:90-100`. Candle guards at `candles.rs:83` and `candle_cakes.rs:134` match `AbstractCandleBlock.java:104-113`.
+- `buttons.rs:52-67`, `:172-206` Paper `BlockRedstoneEvent` and `EntityInteractEvent`: VERIFIED. Rust `buttons.rs:119` (interact event), `:182` (release 15->0), `:301` (press 0->15); vanilla `ButtonBlock.java:80-84,94-96,168-182`.
+- `buttons.rs:185-192` press ordering: VERIFIED. Rust `press_with_source` (`buttons.rs:307-332`) runs `set_block_state`, `update_neighbors`, `schedule_block_tick`, sound, game event; vanilla `ButtonBlock.java:102-108`.
+- Files edited this pass: this doc only. No `.rs` edited, so rustfmt not required. No cargo, git or background jobs run.

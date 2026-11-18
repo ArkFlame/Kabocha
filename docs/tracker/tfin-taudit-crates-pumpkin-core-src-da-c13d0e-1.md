@@ -2,9 +2,6 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- VERIFIED, parse_result count 1..=99 (S, row was marked STILL OPEN): already implemented in the
-- parse_result count (row 44 still says STILL OPEN): source uses `1..=99` with default 1 and
-- parse_cooking checked int/float conversion (row 45 still says STILL OPEN):
 
 ## Result
 - VERIFIED, parse_result count 1..=99 (row 5 and row 6 / row 44, same issue): `parse_result` in `crates/pumpkin-core/src/data/datapack/recipe_loader.rs` defaults an absent count to 1 and rejects a present count that is not an integer in 1..=99 (non-u64, 0, or >99 returns `None`) instead of clamping or defaulting. Matches vanilla `.vendor/vanilla-decompiled/net/minecraft/world/item/ItemStackTemplate.java` (`ExtraCodecs.intRange(1, 99).optionalFieldOf("count", 1)` in `MAP_CODEC`). Covered by existing tests `result_count_must_be_within_one_to_ninety_nine` and `result_count_must_be_an_integer`; no source change needed.

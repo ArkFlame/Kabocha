@@ -207,3 +207,8 @@ Risk: a signed command whose signed arguments advance the client chain is still 
 through `handle_chat_command` without advancing `next_index`, so such clients can drift
 one index per signed argument while secure chat is on; chat-only clients are unaffected.
 Verification is gated on `allow_chat_reports` (off by default).
+
+## Result (coder pass 2026-11-18, batch r2_013)
+- No STILL OPEN rows in the latest pass result above. Every row is FIXED, VERIFIED or BLOCKED-DATA per that result.
+- This pass did not re-verify each row against vanilla (time budget); status carried from the latest prior pass, unchanged.
+- Files edited this pass: none. No rustfmt run. Cargo and git not run (forbidden).

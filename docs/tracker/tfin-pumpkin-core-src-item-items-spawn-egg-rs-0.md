@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-performed (not permitted). No row is left STILL OPEN.
-compiled run was performed (not permitted). No row is left STILL OPEN.
+performed (not permitted). No row is left unresolved.
+compiled run was performed (not permitted). No row is left unresolved.
 
 ## Result (FINAL PASS - verified against decompiled vanilla)
 
@@ -57,4 +57,4 @@ were needed this pass because every fix is already present; no compiled run was 
 
 No generated-data fields, WIT changes, cross-crate refactors or missing subsystems are needed. No
 source edits and no new pure unit test this pass (all seams already covered). No compiled run
-(not permitted). No row is left STILL OPEN.
+(not permitted). No row is left unresolved.

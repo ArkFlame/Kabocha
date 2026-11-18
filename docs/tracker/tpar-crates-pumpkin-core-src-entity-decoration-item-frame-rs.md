@@ -78,3 +78,10 @@ fixing needs ingestion of the generated `IS_EXPLOSION` damage-type tag plus the
 No pure unit-test seam exists (every affected behaviour needs a `World` plus fixture;
 `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed). Compile
 not run (worker restriction); every referenced API confirmed present by source inspection.
+
+## Result (batch x_12, CODER)
+- Explosion divergence (non-row, previously BLOCKED-DATA): VERIFIED FIXED in current source, not blocked. The cited `item_frame.rs:671-676` is stale; the explosion path now sits at `crates/pumpkin-core/src/entity/decoration/item_frame.rs:690-700` (`is_explosion` via generated `tag::DamageType::MINECRAFT_IS_EXPLOSION`, breaks the frame and drops it) and `ignore_explosion` at `:703-713`.
+- Vanilla: `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java:173-174, 187-212` (`shouldDamageDropItem` false for IS_EXPLOSION, falls to `super.hurtServer`) and `BlockAttachedEntity.java:129-169` (kill + drop), `:175-177` (`ignoreExplosion`).
+- Fixed-frame rule (`item_frame.rs:683-685` vs `ItemFrame.java:177-183`): VERIFIED.
+- Mob-griefing gate (`item_frame.rs:672-676` vs `BlockAttachedEntity.java:134-136`): VERIFIED.
+- No Rust edit this pass. rustfmt not run.

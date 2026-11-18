@@ -303,3 +303,38 @@ resolution (cross-crate/data), outside this unit; left untouched.
 No source files edited this pass; no new unit test (nothing behaviour-changing was added;
 existing tests cover palette bucketing, identifier validation, corner scan, yaw transform
 and entity `block_pos` shape). No cargo/git run per brief; orchestrator compiles.
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. No Rust edited this pass; rows above keep their prior dispositions (1-8 as recorded in the earlier notes).
+- Row 9 multiblock bucketing (`has_dynamic_shape`): STILL OPEN as recorded; needs regenerated pumpkin-data flag (BLOCKED-DATA candidate, not re-classified this pass).
+- Out-of-row `StructureTemplate::add_to_lists` substring heuristic (structure_template.rs:1222): STILL OPEN, cross-crate.
+
+## Result (CODER r3_008, 2026-11-18)
+
+Status PARTIAL. Source: `.vendor/vanilla-decompiled/net/minecraft/world/level/block/Blocks.java`
+(`.dynamicShape()` at 965, 4393, 4465, 5199, 5408, 5425, and in `shulkerBoxProperties` 5843),
+`Block.java:641`, `StructureTemplate.java:142-155`. No Rust behaviour edited this pass.
+
+- 1. Entity capture on save: VERIFIED (carried from the r2_001 pass, not re-read here).
+- 2. ignoreEntities / placement: VERIFIED (carried from the r2_001 pass, not re-read here).
+- 3. Wall-clock seed when seed == 0: VERIFIED as NOT A BUG (carried from the r2_001 pass).
+- 4. Name canonicalisation: VERIFIED as NOT A BUG (carried from the r2_001 pass).
+- 5. Offset clamp +-48: VERIFIED as NOT A BUG (carried from the r2_001 pass).
+- 6. detectSize enumerates block entities: FIXED (carried from the r2_001 pass).
+- 7. chunk_data_nbt drops payload: FIXED (carried from the r2_001 pass).
+- 8. Redstone SAVE writes disk: VERIFIED as NOT A BUG (carried from the r2_001 pass).
+- 9. Multiblock bucketing: STILL OPEN (narrowed). `has_dynamic_shape` (`block/entities/structure_block.rs:199`)
+  VERIFIED: its 23 names (moving_piston, bamboo, scaffolding, powder_snow, pointed_dripstone,
+  sulfur_spike, shulker_box and the 16 dyed shulker boxes) match the Blocks.java `.dynamicShape()`
+  set exactly. The remaining divergence is the solid test: Rust uses `state.is_full_cube()`
+  (`structure_block.rs:287`) for vanilla `isCollisionShapeFullBlock(EmptyBlockGetter, ZERO)`
+  (`StructureTemplate.java:150`). No codegen source for the `is_full_cube` flag exists under `tools/`,
+  so it cannot be checked here. The old "isMultiblock" premise is not in the decompiled
+  `addToLists`; it is not a vanilla check.
+- Out-of-row `StructureTemplate::add_to_lists` (`pumpkin-world/.../structure_template.rs:1222`,
+  `is_full_cube_block(name)` substring heuristic): STILL OPEN, cross-crate (needs name+properties to
+  BlockState resolution), not edited.
+
+Files edited: `crates/pumpkin-core/src/block/entities/structure_block.rs` (rustfmt --edition 2024 only,
+test `assert!` line wrapped; `has_dynamic_shape` list reverted to its original content after a wrong
+edit). No cargo or git run per brief; the change is formatting only.

@@ -244,3 +244,16 @@ Adjacent packet handler already fixed in source: `net/java/play/set_command_mine
 setCommand/setTrackOutput/lastOutput unconditional and gates `on_updated` behind the gamerule, matching
 `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:1092-1120`.
 `block/blocks/command.rs` uses `eq_ignore_ascii_case` for Searge before the guard. No source edit needed.
+
+## Result (2026-11-18 batch r2y_015, CODER)
+
+Re-checked all six rows against `.vendor/vanilla-decompiled/net/minecraft/` and the Rust sources. No `.rs` file changed, so rustfmt was not needed.
+
+- Gap 1 (lastExecution on Searge early return): VERIFIED. Vanilla `world/level/BaseCommandBlock.java:99-103` returns before the `lastExecution` update at lines 134-138. Rust `crates/pumpkin-core/src/entity/vehicle/minecart/command_block.rs:160-165` returns before the store at 217-222.
+- Gap 2 (successCount reset under gamerule off): VERIFIED. Vanilla `BaseCommandBlock.java:105` resets before the guard at line 106. Rust `command_block.rs:167-169` resets before `command_blocks_work` at 169.
+- Gap 3 (interact opens no editor): VERIFIED. Vanilla `world/entity/vehicle/minecart/MinecartCommandBlock.java:95-96` returns PASS for non-gamemasters and sends no GUI. Rust `command_block.rs:226-228` returns the creative+permission-2 boolean. Vanilla's `Canvas` `if (true) return FAIL` at lines 91-93 is a fork artifact and is not a parity target.
+- Gap 4 (entity display name): VERIFIED. `BaseCommandBlock.java:32,147-149,53,68` owns `customName`, and `MinecartCommandBlock.java:32` embeds it. Rust `command_block.rs:44,112-118,233-240` mirrors this. Premise of the row is false.
+- Gap 5 (NBT component version): BLOCKED-DATA. Missing subsystem: version-aware text-component NBT serialization. `crates/pumpkin-util/src/text/mod.rs:1697-1699` `to_nbt_tag()` hardcodes `JavaMinecraftVersion::V_26_3`. Threading a version through Entity NBT saving spans about 16 sites plus the util crate. Vanilla `BaseCommandBlock.java:53,56` uses `ComponentSerialization.CODEC` without a version argument. Output matches vanilla for the single served version.
+- Gap 6 (gamerule-off test): VERIFIED. `crates/pumpkin-core/src/entity/vehicle/minecart.rs:1350` `command_block_minecart_perform_command_gamerule` covers the gamerule-off path and the case-insensitive Searge path. Matches `BaseCommandBlock.java:95-105,134-138`.
+
+Commands run: none (compile and cargo were forbidden by the brief). Files edited: `docs/tracker/tentities-command-block-minecart.md` only.

@@ -51,3 +51,8 @@ Re-verified every row against decompiled vanilla (`net/minecraft/...`); no code 
 - Row 4 (power formula): `VibrationSystem.getRedstoneStrengthForDistance` (`VibrationSystem.java:118-121`) = `max(1, 15 - floor((15.0/R)*distance))`. Pumpkin `get_power` (`sculk_sensor.rs:83-86`) is equivalent, with a pure unit test at `sculk_sensor.rs:432-438`. FIXED, verified.
 
 No new pure unit-test seam exists for rows 1-3 (all require a live `World` or are constants); row 4 is already unit-tested. No source files edited this pass.
+
+## Result (batch r2_019, CODER pass)
+- Row 1 (only STILL OPEN row, vibration occlusion/raycast): VERIFIED. Matches vanilla `VibrationSystem.java:270-283` (floor+0.5 endpoints, 1e-5 direction nudge, occlusion per line).
+- Rows 2-4: already FIXED or CONFIRMED-INTENTIONAL in the table above; no change.
+- Files edited: none. Status: PASS.

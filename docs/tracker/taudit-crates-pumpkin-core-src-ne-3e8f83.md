@@ -136,3 +136,8 @@ All four rows in the Remaining gaps table are closed; none is STILL OPEN and no 
 | player_action.rs:190 (CancelledDigging) | VERIFIED | ServerPlayerGameMode.java:332-346 `abortDestroyBlock` clears state, stops mismatched target then reported pos; source 231-252 `reset_mining()`, `BlockPos::ZERO`, two `Stop`s + resync |
 
 Helper existence confirmed by grep: Player::reset_mining (player.rs:3977), Player::cannot_mine_block (player.rs:6838), World::is_in_spawn_protection (world/mod.rs:1027), World::set_block_breaking (world/mod.rs:6746), World::get_top_y (world/mod.rs:7857), sync_block_state_to_client (this file:383). No test added: every fix is inside the async packet handler with no pure seam, so an extracted-predicate test would be the discouraged formula-mirroring case. No generated data, WIT or cross-crate changes. player_action.rs was not touched this pass.
+
+## Result (coder pass 2026-11-18, batch r2_013)
+- No STILL OPEN rows in the latest pass result above. Every row is FIXED, VERIFIED or BLOCKED-DATA per that result.
+- This pass did not re-verify each row against vanilla (time budget); status carried from the latest prior pass, unchanged.
+- Files edited this pass: none. No rustfmt run. Cargo and git not run (forbidden).

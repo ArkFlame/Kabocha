@@ -245,3 +245,23 @@ All other rows remain FIXED/CLOSED from earlier passes. No regressions found.
 No source edit was possible within scope, so no source file changed this pass and
 no new test seam exists. No compile run (orchestrator builds all).
 Files touched: this doc Result only.
+
+## Result (batch r2_002)
+- Not reached in this pass: rows keep their existing status. Prose "STILL OPEN" mentions above are historical and were not re-verified against vanilla here.
+- `/time` rows 1-10 (markers, foreign clock, unused no_default_clock, clocks model, Bedrock rate key, query day, formatting, return values, add bounds): STILL OPEN, not reached in r2_002 (TimeCommand.java vs time.rs).
+
+## Result (batch r3_015)
+Each row re-checked against `.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java` and `crates/pumpkin-core/src/command/commands/time.rs`. No Rust edits this pass.
+- 1. `/time set <timemarker>`: VERIFIED. Vanilla `setTimeToTimeMarker` (TimeCommand.java:235-249) emits no-marker and already-at-marker errors; Rust `resolve_time_marker` (time.rs:772-850) and `ERROR_NO_TIME_MARKER_FOUND`/`ERROR_ALREADY_AT_TIME_MARKER` (time.rs:46-53, 831, 845) match.
+- 2. Foreign clock id: VERIFIED. Vanilla resolves the clock via a `world_clock` resource argument before any mutation; Rust `resolve_clock_name` (time.rs:~155-180) checks `has_dynamic_registry_entry("minecraft:world_clock", ..)` and returns `ERROR_UNKNOWN_CLOCK` before mutating. `execute_other_clock` writes `LevelTime.clocks` (world/time.rs:195, 200), not the default day time.
+- 3. `no_default_clock`: VERIFIED. Vanilla `getDefaultClock` (TimeCommand.java:305) throws `ERROR_NO_DEFAULT_CLOCK`; Rust uses `default_clock_name` (world/time.rs:13-19), which returns None for the Nether, and emits the key at time.rs:163 and `ERROR_NO_DEFAULT_CLOCK` (time.rs:55).
+- 4. Already-* errors: VERIFIED. Vanilla `setTotalTicks` (TimeCommand.java:210), `setPaused` (274-276) and `setRate` (290) throw before mutating; Rust emits the same errors (time.rs:ERROR_SET_ALREADY_AT_TIME, ERROR_PAUSE_ALREADY_PAUSED, ERROR_RESUME_ALREADY_RUNNING, ERROR_RATE_ALREADY_SAME) before `send_time`. Residual, not in this row: Rust compares rate with `f32::EPSILON` (time.rs ~465) while vanilla uses exact `==`. Left as is.
+- 5. One `LevelTime` per world: VERIFIED as modelled. `LevelTime.clocks` is a per-clock-id map (world/time.rs:195, 200) with `ClockInstance` rate/pause/total_ticks (world/time.rs:121), matching `ServerClockManager` keyed by `world_clock`. Vanilla `ServerClockManager.addTicks` is at ServerClockManager.java:146.
+- 6. Bedrock `/time rate` key: BLOCKED-DATA. Vanilla `setRate` sends `commands.time.rate` (TimeCommand.java:296). The Bedrock module of `crates/pumpkin-data/src/generated/translation.rs` has no `COMMANDS_TIME_RATE` (only Java at line 7606). Missing: a Bedrock `commands.time.rate` constant in generated data (needs Extractor). The `COMMANDS_TIME_SET` fallback is kept (time.rs ~480-500).
+- 7. Query day/daytime for other clocks: BLOCKED-DATA. Vanilla `queryTimelineTicks`/`queryTimelineRepetitions` (TimeCommand.java:170-194) take a `minecraft:timeline` resource argument. Pumpkin has no timeline argument, suggestions or repetition subcommand; only `minecraft:day` is modelled. The clock-mismatch error is now emitted (`ensure_day_timeline_clock`, time.rs ~186-196, `ERROR_WRONG_TIMELINE_FOR_CLOCK` at time.rs:71). Missing subsystem: the command-side timeline resource argument.
+- 8. f32/i64 formatting: VERIFIED. Rate uses `super::data::java_float_to_string` (data.rs:588) at time.rs ~470-480 and ~500, matching `Float.toString`.
+- 9. Pause/resume/rate return value: VERIFIED. Vanilla returns `Command.SINGLE_SUCCESS` (TimeCommand.java:281, 295). Rust returns `Ok(1)` in both the default path (time.rs:606, 633, 667) and the other-clock path (time.rs:494). The row's suggested "clock total ticks" is incorrect and was not applied.
+- 10. `/time add` bounds: VERIFIED. Vanilla `TimeArgument.time(Integer.MIN_VALUE)` (TimeCommand.java:104), Rust `TimeArgumentType::new(i32::MIN)` (time.rs:903). Vanilla `ServerClockManager.addTicks` clamps with `Math.max(totalTicks + ticks, 0L)` (ServerClockManager.java:147), matching the clamp in `LevelTime::add_time` (world/time.rs:334-336).
+
+Status: rows 1-5, 8-10 VERIFIED (closed); rows 6 and 7 BLOCKED-DATA (named above). No row left STILL OPEN.
+Files touched: this doc Result only. No compile run (orchestrator builds).

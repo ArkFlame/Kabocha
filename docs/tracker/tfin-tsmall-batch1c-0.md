@@ -6,4 +6,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 6. `taudit-crates-pumpkin-core-src-en-f50f1a.md:15` axolotl play-dead health before hit: STILL OPEN (divergence found). Vanilla reads `currentHealth` before `super.hurtServer`. Rust `on_damage_with_context` runs after damage is applied and reads `living.health`, so the health ratio and `damage < health` use post-hit health. Its doc comment claims the opposite. Fix needs a pre-damage health snapshot; left open.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Row 5: FIXED at HEAD. `try_play_dead` receives source and cause (`axolotl.rs:353-376`), so a direct entity counts (vanilla `Axolotl.java:397-405`). Row 6: FIXED at HEAD. `mob_hurt_server` snapshots pre-hit health (`axolotl.rs:625-629`), as vanilla reads health before `super.hurtServer`.

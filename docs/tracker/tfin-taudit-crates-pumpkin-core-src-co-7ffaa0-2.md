@@ -2,8 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-commands/arguments/ResourceKeyArgument.java. All five STILL OPEN rows were already resolved in
-Fourth verification pass (worker, direct). Re-checked rows still marked STILL OPEN in "## Gap
+Rows 1-5: FIXED and VERIFIED against vanilla (see Result).
 
 ## Result
 

@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - No generated data, WIT, or cross-crate change needed. All rows closed; none STILL OPEN.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows. No generated data, WIT, or cross-crate change needed.

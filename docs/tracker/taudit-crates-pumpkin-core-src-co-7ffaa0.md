@@ -216,3 +216,9 @@ Files touched:
 
 Checks: none run (worker rules forbid cargo/git; rustfmt deferred to orchestrator). Compilation and
 the three recipe unit tests are left to the orchestrator batch check.
+
+## Result (r2_004 pass)
+- 1. No server-side recipe book (M): BLOCKED-DATA. Missing subsystem: no per-player known-recipe set in pumpkin-core player state (grep `known_recipes|RecipeBook` finds only packet handlers and events). Vanilla ref: stats/ServerRecipeBook.java.
+- 2. take remove packet / wrong success count (M): BLOCKED-DATA. Depends on row 1 (same missing recipe book subsystem).
+- 3, 4, 5: already FIXED/VERIFIED in the Result above; the Gap status lines are stale. Not re-verified in this pass, so left as recorded.
+- No .rs edits this pass.

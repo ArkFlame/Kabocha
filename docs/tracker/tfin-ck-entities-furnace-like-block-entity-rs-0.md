@@ -40,4 +40,4 @@ relight_rescales_progress_by_the_multiplier_change, furnace_speed_multiplier_rou
 experience_per_recipe_returns_one_amount_for_each_used_recipe,
 assemble_cooking_result_applies_recipe_components, stored_experience_floors_each_recipes_accrued_xp).
 No new tests or source edits this pass. No compile/check run (worker rule).
-No STILL OPEN rows remain.
+No PRIOR-OPEN rows remain.

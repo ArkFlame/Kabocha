@@ -31,3 +31,7 @@ unit-test seam exists for any row (each depends on a live world/entity state or 
   `OffsetDateTime::now_local()` (UTC fallback) is the equivalent host-local clock. Cosmetic only.
 
 No row remains STILL OPEN.
+
+## Result (batch x_16, CODER pass)
+- own/taudit-crates-pumpkin-core-src-en-b134b2: CLOSED, VERIFIED. Each of the 4 rows is checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Zombie.java` (349-353 fire-on-hit, 293-301 reinforcement, 492-498 chicken jockey) and `util/SpecialDates.java:16-22`. Rust `crates/pumpkin-core/src/entity/mob/zombie/mod.rs` (fire-on-hit ~581, chicken filter 332-335, reinforcements 465-489) and `mob/spawn.rs:26`. No Rust edits needed.
+Status: PASS fixed=0 verified=4 open=0 blocked=0 files=none edited

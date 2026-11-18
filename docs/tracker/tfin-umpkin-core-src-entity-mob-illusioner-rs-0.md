@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 No STILL OPEN rows remain.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows remain.

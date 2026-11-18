@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - row 22 (S, STILL OPEN): verified against decompiled Entity.addMovementThisTick (Entity.java:1538-1547) and confirmed already FIXED by a prior pass in block_effects.rs (merge_oldest_movement at :136-144 plus test at :580), outside this unit. No change here.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Row 22 CLOSED: FIXED in a prior pass (merge_oldest_movement at block_effects.rs:136-144, test at :580), verified against Entity.java:1538-1547.

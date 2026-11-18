@@ -120,3 +120,28 @@ No source files changed this pass. No unit test added: no fixable seam remained 
 | 2 | VERIFIED (NOT A GAP) | The audit premise was wrong. In vanilla 1.21 map ids are global, not per-dimension: `ServerLevel.getFreeMapId()` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerLevel.java:4371-4373`) delegates to `getServer().getDataStorage().computeIfAbsent(MapIndex.TYPE).getNextMapId()`. `MapIndex` persists a single server-wide `lastMapId` under `maps/last_id` (`.vendor/vanilla-decompiled/net/minecraft/world/level/saveddata/maps/MapIndex.java:10-32`). Pumpkin's `Server.map_id: AtomicI32` (`server/mod.rs:142`), initialized from persisted level info (`server/mod.rs:404`) and saved back in `next_map_id` (`server/mod.rs:1842-1850`), is the same global, persisted counter. No per-`World` refactor needed and no code change. |
 
 Row 4 was already FIXED in a prior pass (`server/mod.rs:2078-2158`, four-value sample from the raw full-tick interval, permission level 2). All rows are now closed; no BLOCKED-DATA and no generated field or subsystem is missing.
+
+## Result (r2_014 pass)
+- Row 1 (gamemode from saved NBT, `server/mod.rs:876`): STILL OPEN - not reached.
+- Row 2 (per-dimension map ids, `server/mod.rs:1402`): STILL OPEN - not reached.
+- Row 3 (per-world time packet, `server/mod.rs:1578`): STILL OPEN - not reached.
+- Row 4 (debug sample layout, `server/mod.rs:1614`): STILL OPEN - not reached.
+- Row 5 (`get_tps` clamp, `server/mod.rs:1649`): STILL OPEN - not reached.
+- Row 6 (listing remove ticket, `server/mod.rs:1032`): STILL OPEN - not reached.
+- Row 7 (`HasPlayedBefore` tag, `server/mod.rs:894`): STILL OPEN - not reached.
+
+## Result (r3_042 pass, re-derived from Gap table)
+
+Last Result deferred all seven rows; each was re-checked against the Rust code and the vendored decompiled vanilla in this pass. No source file edited.
+
+| # | result | detail |
+|---|---|---|
+| 1 | VERIFIED | Join picks saved `playerGameType`, else forced/level default: `join_gamemode` at `server/mod.rs:2275-2285`, used at `server/mod.rs:1279`; forced mode overrides saved value at `server/mod.rs:1290-1294`. Unit test `join_gamemode_prefers_forced_then_saved_then_default`. |
+| 2 | VERIFIED (NOT A GAP) | Map ids are global in vanilla: `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerLevel.java:4371-4373` and `.../world/level/saveddata/maps/MapIndex.java:10-32`. Pumpkin's persisted global counter is `server/mod.rs:1842` (`next_map_id`). No change. |
+| 3 | VERIFIED | Per-world `CUpdateTime` every 20th tick, also while frozen: `server/mod.rs:2067-2077` triggers `overworld.force_game_time_synchronization`, which sends each world's `world_age` (`world/time.rs`). Vanilla: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1964-1975`. OPEN NOTE: vanilla (Folia-branded vendored copy) staggers sends per player with `(tick + playerId) % 20`; Pumpkin sends to all players on the same tick. Left as-is, not a per-world gap; a separate small row if wanted. |
+| 4 | VERIFIED (layout) | Four-value sample `[FULL_TICK, TICK_SERVER_METHOD, SCHEDULED_TASKS, IDLE]` matches `.vendor/vanilla-decompiled/net/minecraft/util/debugchart/TpsDebugDimensions.java:4-7`; Pumpkin `server/mod.rs:2315-2328`, fed from `server/mod.rs:2135`. OPEN NOTE: vanilla IDLE is accumulated waiting time (`MinecraftServer.java:1295,1457,1516`), Pumpkin uses the remainder of the full tick (scheduled-task time is always 0). Semantic approximation, not a layout gap. |
+| 5 | VERIFIED | `get_tps` clamps to tick-rate target `server/mod.rs:2175-2182` (`.min(target)`, `0.0` for non-positive mspt). |
+| 6 | FIXED (carried, UNVERIFIED) | Ticket recorded per connection: `server/mod.rs:1372` stores `listed_in_sample`; `remove_player` removes only when set (`server/mod.rs:1452`); field at `entity/player.rs:752,1197`. |
+| 7 | VERIFIED | `HasPlayedBefore` read from saved tag, Pos fallback only when tag absent: `server/mod.rs:1296-1299`, helper `infer_played_before` at `server/mod.rs:2287-2290`. Unit tests at `server/mod.rs:2438-2449`. |
+
+Status: all seven rows closed (none BLOCKED-DATA). Files edited: none. Checks: none run (cargo and git forbidden for this brief); Rust was read only.

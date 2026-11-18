@@ -116,3 +116,6 @@ not carry. Re-verified against the 26.3 decompiled tree at
   long_typed_seed_fields_encode_as_long_tags test remain as best-effort wire fidelity.
 
 Files touched: this doc only. No rustfmt (no .rs edits). No cargo/git run by worker.
+
+## Result (x_00 batch)
+- Rows: VERIFIED. Spot-checked `NbtOps.java:69-72`, `RegistryDataLoader.java:98-103`, and Rust `crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs:13,288,623,643`. No edit.

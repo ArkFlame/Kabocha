@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files).
 
-Rows from the parent tracker's "Remaining gaps" table, closed in table order. The shared checkout had already resolved every row in earlier passes; this pass re-verified each against current code and decompiled vanilla and made no new source edits. No STILL OPEN rows remain.
+Rows from the parent tracker's "Remaining gaps" table, closed in table order. The shared checkout had already resolved every row in earlier passes; this pass re-verified each against current code and decompiled vanilla and made no new source edits. No open rows remain.
 
 ## Result
 

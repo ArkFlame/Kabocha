@@ -122,3 +122,24 @@ THIRD PASS verification against `.vendor/vanilla-decompiled/net/minecraft/`. All
 No pure unit-test seam (all rows fire through World/entity/loot/effect state) and no `.rs` file was touched. Out-of-unit parity note, unchanged: vanilla's `reason == KILLED` guard on the three death effects (`.vendor/vanilla-decompiled/net/minecraft/world/effect/OozingMobEffect.java`, `WeavingMobEffect.java`, `WindChargedMobEffect.java`) is not observable here because Pumpkin fires `on_mob_removed` only on KILLED-equivalent paths; adding it would require a removal-reason parameter on `MobEffect::on_mob_removed` plus its callers, outside this unit and with no observable difference.
 
 Status: PASS fixed=0 open=0 files=tentities-creeper-0de8b3.md
+
+## Result
+Batch pass (BRIEF2). No row in this doc is STILL OPEN; the table rows and the latest Result blocks are all resolved. No `.rs` file edited this pass, so no rustfmt run.
+- Row 2 (charged-creeper heads): VERIFIED. Vanilla `Creeper.killedEntityPreEvent` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:172-182`) uses `BuiltInLootTables.CHARGED_CREEPER` with a `!droppedSkulls` guard set in `postDeathEventTasks`. Rust: `crates/pumpkin-core/src/entity/mob/creeper.rs:63` (`dropped_skulls`) and `:398-422` (`minecraft:charged_creeper/root` lookup at `:402`, `dropped_skulls` set at `:422`, behind the same guard).
+- Row 3 (explodeCreeper on-death effects): VERIFIED. Vanilla `Creeper.explodeCreeper` (`Creeper.java:245-264`) runs dead=true -> explode -> `spawnLingeringCloud` -> `triggerOnDeathMobEffects(KILLED)` -> discard. Rust `crates/pumpkin-core/src/entity/mob/creeper.rs:121-196` runs the same order. Cloud args (`creeper.rs:174-185`: duration 300, radius 2.5, reapplication 20, wait 10, radius-on-use -0.5, duration-on-use 0) match vanilla `spawnLingeringCloud` (`Creeper.java:266-284`, potion scale 0.25 set in `area_effect_cloud.rs:120`).
+- Row 4 (SwellGoal aliveness guard): VERIFIED, NO CHANGE. Vanilla `SwellGoal.canUse`/`tick` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/SwellGoal.java:18-21,42`) carry the `!isDeadOrDying()` guard; Rust `crates/pumpkin-core/src/entity/ai/goal/creeper_ignite.rs:46-47` matches.
+Status: PASS fixed=0 verified=3 blocked=0 open=0 files=none
+
+## Result (r3_061, BRIEF2)
+
+No `.rs` file edited; no rustfmt or cargo run (forbidden for this batch). Every row re-checked against the code and `.vendor/vanilla-decompiled/net/minecraft/world/entity/`.
+
+- Row 1 (Bedrock actor data on fuse speed): VERIFIED. `creeper.rs:117` pushes `meta.to_bedrock_actor_data()` via `send_bedrock_actor_data`. Vanilla basis: `monster/Creeper.java` swell state.
+- Row 2 (charged_creeper/root skull drop, one-shot guard): VERIFIED. `creeper.rs:395-425` (`killed_entity`, `dropped_skulls` guard, `get_loot_table("minecraft:charged_creeper/root")`). Vanilla: `Creeper.java:172-182`. Generated table `pumpkin-data/src/generated/loot_table.rs:43054`.
+- Row 3 (explodeCreeper on-death effect ordering): VERIFIED. `creeper.rs:191` calls `on_mob_removed` per effect; impls in `entity/effect/oozing.rs:14`, `weaving.rs:15`, `wind_charged.rs:13`. Vanilla: `Creeper.java:245-284`, `LivingEntity.java:826-833`.
+- Row 4a (lingering cloud duration 300, radius per tick -2.5/300): VERIFIED. Unchanged in `creeper.rs:153-163`. Matches the corrected note above.
+- Row 4b (SwellGoal aliveness guard): VERIFIED. `creeper_ignite.rs:47` and `:77` use `is_dead_or_dying`. Vanilla: `ai/goal/SwellGoal.java:18-21` and `:40-42`.
+- Row 5 (swell direction in Bedrock metadata): VERIFIED. Same push as row 1, `creeper.rs:117`.
+- Row 6 (`mob_read_nbt` atomics vs synced data): VERIFIED. Spawn metadata comes from `mob_metadata()` at `entity/mob/mod.rs:1921`. Stale citation `mob/mod.rs:1873` in the Gap status table is out of date.
+
+Status: PASS. Rows fixed 0, verified 7 (rows 1-6, incl. 4a and 4b), blocked 0, left open 0. The `STILL OPEN` text in the older Result blocks above is historical and was left unchanged.

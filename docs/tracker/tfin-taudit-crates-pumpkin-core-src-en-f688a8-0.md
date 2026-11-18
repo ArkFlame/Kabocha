@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - No STILL OPEN rows remain. Both in-scope files audited: entity_tracker.rs already broadcasts teleports to current viewers, set_actor_data.rs has no climate_variant property-id data to wire. No source file edited this pass, so no rustfmt run. Cargo/test execution forbidden by task scope.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED in a prior pass (entity_tracker.rs teleport broadcast; set_actor_data.rs has no climate_variant id to wire). No open row; no BLOCKED-DATA. Not re-run this pass.

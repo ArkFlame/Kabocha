@@ -2,9 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Every row is resolved; none remains STILL OPEN. Source was re-read against
-Re-read every STILL OPEN row from both referenced audit docs against the
-Both OWN-OPEN rows of this doc end as FIXED/VERIFIED (no row left STILL OPEN):
+Every row is resolved; none remains unresolved. Source was re-read against
+Re-read every unresolved row from both referenced audit docs against the
+Both OWN-OPEN rows of this doc end as FIXED/VERIFIED (no row left unresolved):
 
 ## Result
 FINAL PASS: every row from both referenced audit docs re-verified against the
@@ -12,7 +12,7 @@ actual source in `crates/pumpkin-core/src/` and against decompiled vanilla under
 `.vendor/vanilla-decompiled/net/minecraft/`. Every fix landed by earlier passes is
 present and type-correct; no new source edit was required this pass, so nothing
 new needed rustfmt and no new pure unit test seam was added (all existing seams
-are covered by tests). No row remains STILL OPEN. No BLOCKED-DATA row: every fix
+are covered by tests). No row remains unresolved. No BLOCKED-DATA row: every fix
 uses existing generated data and existing protocol APIs.
 
 own/taudit-crates-pumpkin-core-src-world-mod-.md (world/mod.rs), Remaining gaps 1-9:

@@ -125,3 +125,20 @@ with `canSetSpawn = NEVER`, so straw beds should never set a respawn point or fi
 `SLEPT_IN_BED` advancement; `straw_bed.rs:272-273` reads the regular dimension rule
 (ALWAYS in the overworld). Fixing this needs a distinct straw rule (codegen) and a
 behaviour test, so it belongs in a separate slice.
+
+## Result (BRIEF2 pass)
+- `bed.rs:263-264` / `straw_bed.rs:268-269` per-position BED_RULE: STILL OPEN, not reached (M, needs per-position environment attribute lookup).
+- `dimension.rs:13-18` BedRule destroy_on_leave / error_message: BLOCKED-DATA. Generated `BedRule` lacks `destroyOnLeave` and `errorMessage` (vanilla `BedRule.java`); needs `pumpkin-codegen` change and regeneration from `assets/`.
+- `bed.rs:352-361` per-dimension error message: BLOCKED-DATA, depends on the `error_message` field above.
+- `bed.rs` PlayerBedFailEnterEvent on failure paths: STILL OPEN, not reached (M, plugin API event).
+- `player.rs:2658` sleep height / straw head->foot resolution: row marked FIXED at 8c2003a3e; straw head->foot still UNVERIFIED, not reached this pass.
+- Files edited this pass: none.
+
+## Result (r3_049)
+- `bed.rs:263-264` / `straw_bed.rs:268-269` per-position BED_RULE: STILL OPEN, not reached this pass. Vanilla `AbstractBedBlock#getBedRule` reads `BED_RULE` at the position; `environment.rs:228` has the positional seam, but generated `Biome` stores only boolean attributes, so it needs pumpkin-codegen and regeneration.
+- `dimension.rs:13-18` BedRule `destroy_on_leave` / `error_message`: BLOCKED-DATA. Generated `BedRule` lacks `destroyOnLeave` and `errorMessage` (vanilla `BedRule.java`). Needs a pumpkin-codegen change and regeneration from `assets/`.
+- `bed.rs:352-361` per-dimension error message: BLOCKED-DATA, depends on the `error_message` field above.
+- `bed.rs` PlayerBedFailEnterEvent on failure paths: STILL OPEN in this table. `fire_bed_fail_event` (`bed.rs:216`) exists and the event is defined in `plugin/api/events/player/player_bed.rs:26`, but I did not re-verify it against `AbstractBedBlock.java:112-135` this pass.
+- `player.rs:2658` / straw head->foot resolution: FIXED. `villager/sleep.rs:32` now uses the shared `player_sleep_height(&world, bed_pos, state)` (head->foot for straw), matching vanilla `LivingEntity#setPosToBed` through `StrawBedBlock#getSleepHeight:63`. Player path was already covered by `straw_bed_sleep_shape_is_the_lower_foot_surface` (`bed.rs:678`). No new test: the change is glue around an already-tested helper.
+- Files edited: `crates/pumpkin-core/src/entity/passive/villager/sleep.rs` (rustfmt --edition 2024 run, exit 0).
+- Checks: none run (cargo forbidden in this brief).

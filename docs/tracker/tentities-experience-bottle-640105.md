@@ -292,3 +292,7 @@ required. Rows in order:
 
 No source file changed this pass (all fixes already present and verified); nothing to
 rustfmt. Build not run (orchestrator compiles once after all workers finish).
+
+## Result (x_01)
+- Doc state re-read only; its closing sections already record all rows closed. Per-row re-verification NOT done this pass (not reached).
+Files edited: none. Checks: none run.

@@ -2,13 +2,13 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: command.rs command_source.rs mod.rs
 
-FINAL terminal status. No STILL OPEN rows remain across either tracked audit.
-Final: 0 STILL OPEN rows across both tracked audits. One BLOCKED-DATA row (6, Bedrock runtime harness - no generated field missing). No source file edited this pass.
-FINAL PASS (2026-11-18). Every row in both tracked audits is terminal (FIXED / VERIFIED or BLOCKED-DATA); no STILL OPEN row remains. Re-read command.rs, command_source.rs, command/mod.rs and the cited decompiled vanilla files; every fix claimed in earlier passes is present and type-consistent. No production source edit was needed this pass (all fixes landed earlier), so no rustfmt or build run was required.
+FINAL terminal status. No unresolved rows remain across either tracked audit.
+Final: 0 unresolved rows across both tracked audits. One BLOCKED-DATA row (6, Bedrock runtime harness - no generated field missing). No source file edited this pass.
+FINAL PASS (2026-11-18). Every row in both tracked audits is terminal (FIXED / VERIFIED or BLOCKED-DATA); no unresolved row remains. Re-read command.rs, command_source.rs, command/mod.rs and the cited decompiled vanilla files; every fix claimed in earlier passes is present and type-consistent. No production source edit was needed this pass (all fixes landed earlier), so no rustfmt or build run was required.
 
 ## Result
 
-FINAL PASS (2026-11-18). Every row in both tracked audits ends terminal (FIXED / VERIFIED or BLOCKED-DATA); no STILL OPEN row remains. Re-read `command.rs`, `command_source.rs`, `command/mod.rs` and the cited decompiled vanilla files. No production `.rs` edit was needed this pass (all fixes landed earlier), so no rustfmt or build was run; the orchestrator compiles.
+FINAL PASS (2026-11-18). Every row in both tracked audits ends terminal (FIXED / VERIFIED or BLOCKED-DATA); no unresolved row remains. Re-read `command.rs`, `command_source.rs`, `command/mod.rs` and the cited decompiled vanilla files. No production `.rs` edit was needed this pass (all fixes landed earlier), so no rustfmt or build was run; the orchestrator compiles.
 
 Row group 1, `own/taudit-crates-pumpkin-core-src-bl-5eb6d8` (`block/blocks/command.rs`):
 - 1 `on_place` nearest-looking facing: FIXED / VERIFIED. `placement_facing()` uses `get_entity_facing_order()[0].opposite()`, matching `.vendor/vanilla-decompiled/net/minecraft/world/level/block/CommandBlock.java:185-187` (`getStateForPlacement` -> `getNearestLookingDirection().getOpposite()`). Pure test `test_placement_facing_mirrors_vanilla_nearest_looking_direction` present.
@@ -26,7 +26,7 @@ Row group 2, `own/taudit-crates-pumpkin-core-src-command-mo` (`command/mod.rs` /
 - 15 console feedback: FIXED / VERIFIED. `CommandSender::Console` routes through `tracing::info!`; no `println!`/`print!`/`eprintln!` under `command/`.
 - 16 `world_or_first`: VERIFIED, no change. Console/dummy sources anchor to the first (overworld) world, matching vanilla.
 
-Final: 0 STILL OPEN rows across both tracked audits; one BLOCKED-DATA row (6, Bedrock runtime harness, no generated field missing). No source file edited this pass (superseded by the third pass below, which edits command.rs row 3).
+Final: 0 unresolved rows across both tracked audits; one BLOCKED-DATA row (6, Bedrock runtime harness, no generated field missing). No source file edited this pass (superseded by the third pass below, which edits command.rs row 3).
 ## Result
 
 FINAL PASS (2026-11-18, third pass). All rows terminal; every row re-verified against decompiled vanilla. One production edit this pass: row 3.

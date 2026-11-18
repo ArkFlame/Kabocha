@@ -159,3 +159,27 @@ Files edited: `crates/pumpkin-core/src/block/blocks/vault.rs`,
 `crates/pumpkin-core/src/block/entities/vault.rs`. Not compiled (worker restriction); orchestrator batch-checks.
 
 Status: PASS fixed=1 open=0 files=crates/pumpkin-core/src/block/blocks/vault.rs,crates/pumpkin-core/src/block/entities/vault.rs
+
+## Result (batch r2_019, CODER pass)
+- Gap 1 (ejecting/display state machine, scheduled tick): STILL OPEN, size M, not reached this pass.
+- Gap 2 (loot not stored in server_data.itemsToEject): STILL OPEN, size M, tied to gap 1.
+- Gap 3 (display item / 20-tick ACTIVE cycle): display event path wired; periodic cycle client-only, left open per prior result.
+- Gap 4 (non-key item handling, TRY_WITH_EMPTY_HAND): STILL OPEN, verify-only, not reached this pass.
+- Gap 5 (check ordering): VERIFIED per prior result (vanilla `tryInsertKey` order matches).
+- Gap 6 (ominous activation): premise false per prior result, no change.
+- Gap 7 (eject shape): STILL OPEN as part of gap 1.
+- Gap 8: client-only, not blocking.
+- Files edited: none. Status: PARTIAL (open: 1, 2, 4, 7 plus client-only 3/8).
+
+## Result (batch r3_059, CODER pass)
+- Gap 1 (ejecting/display state machine): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/vault/VaultBlockEntity.java` Server.tick; Rust `crates/pumpkin-core/src/block/blocks/vault.rs:23,25,192-228` (UNLOCKING->EJECTING->ACTIVE via scheduled ticks).
+- Gap 2 (loot stored for reload, itemsToEject): VERIFIED. Vanilla `VaultServerData.java`; Rust `crates/pumpkin-core/src/block/entities/vault.rs:20,96-111,178-188,251-269`, `blocks/vault.rs:185-190`.
+- Gap 3 (display item, 20t ACTIVE cycle): VERIFIED. Vanilla `VaultBlockEntity.java:342-365,418-420`; Rust `blocks/vault.rs:320,368`.
+- Gap 4 (non-key items, fail sound, SuccessServer): VERIFIED. Vanilla `VaultBlock.java:44-61` (ACTIVE + non-empty -> SUCCESS_SERVER), `VaultBlockEntity.java:274-275,414-415`; Rust `blocks/vault.rs:79-94,205` and throttle `entities/vault.rs:34`. Doc's TRIAL_KEYS / TRY_WITH_EMPTY_HAND premise is outdated.
+- Gap 5 (check ordering): VERIFIED. Vanilla `VaultBlockEntity.java:272-276` (isValidToInsert before hasRewardedPlayer); Rust `blocks/vault.rs:79-94` before `:99`.
+- Gap 6 (ominous activation): VERIFIED per prior pass (premise false; only TrialSpawner.applyOminous writes OMINOUS). Not re-checked this pass.
+- Gap 7 (ejection shape): VERIFIED. Rust `blocks/vault.rs:377-383` (x+0.5, y+1.2, z+0.5), test `ejection_spawns_at_bottom_center_raised_to_vanilla_height`.
+- Gap 8 (client-only shutter/ambient/particles): STILL OPEN, client-only, no server parity blocker; noted, not blocked on.
+- Stale status line 41 and the r2_019 section above are superseded by the Gap 1/2/7 fixes; not reworded.
+
+Status: PARTIAL fixed=0 verified=7 open=1 (gap 8, client-only) blocked=0 files=none edited

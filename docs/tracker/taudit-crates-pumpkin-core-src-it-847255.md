@@ -78,3 +78,10 @@ decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/Liv
 No source file edited this pass; no rustfmt or compile run (orchestrator gate).
 
 Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-it-847255.md
+
+## Result (CODER batch r2_012)
+- Row (only STILL OPEN row): STILL OPEN. The row body is not recoverable from this file (the file holds only a tool-output placeholder), so there is nothing to check against vanilla. No edit.
+
+## Result (CODER batch r3_036)
+- Row 1 (M, systemic clear_active_hand/stop_using_item): STILL OPEN. Row body not in this file; per docs/investigations/work/native-4.md:26 the fix spans entity/living.rs death/respawn/item-break sites, entity/player.rs:8313 stop_using_item, and a registry/server handle threaded to every clear_active_hand caller. Multi-file, beyond one pass. No edit.
+- Row 2 (XS, bow.rs): already FIXED per docs/GAPS_FIXED.md:1461. Not re-checked here. No edit.

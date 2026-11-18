@@ -102,3 +102,12 @@ Independently re-read the current Pumpkin source and the decompiled vanilla clas
 - Row 4 (lava pathfinding malus) - VERIFIED, no gap. Premise false: `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:71-74` constructor calls only super() and reassessWeaponGoal(), with no setPathfindingMalus. The setPathfindingMalus(PathType.LAVA, 8.0F) call is in `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/WitherSkeleton.java`, a separate mob. Pumpkin already matches vanilla for AbstractSkeleton; no generated-data field or subsystem is missing.
 
 No pure unit-test seam exists for these goal/interval behaviours without a full Mob/world, so none added. No generated pumpkin-data fields are involved. Files changed: this tracker doc only. No rustfmt run (no .rs touched).
+
+## Result (batch r2s_000, brief2 pass)
+
+- Row 1 (FleeSunGoal registration): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java` registers FleeSunGoal at priority 3; Rust `crates/pumpkin-core/src/entity/mob/skeleton/mod.rs:73` `add_goal(3, FleeSunGoal::new(1.0))`.
+- Row 2 (RestrictSunGoal): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/RestrictSunGoal.java:16-32`; Rust `crates/pumpkin-core/src/entity/ai/goal/restrict_sun.rs:15` (can_start) and `:31`/`:37` (set_avoid_sun true/false), registered at `skeleton/mod.rs:72` priority 2.
+- Row 3 (Parched attack interval): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/Parched.java:57` (getHardAttackInterval) and `:62` (getAttackInterval); Rust `crates/pumpkin-core/src/entity/mob/skeleton/parched.rs:59-64` returns Some(50)/Some(70), consumed at `crates/pumpkin-core/src/entity/ai/goal/bow_attack.rs:298`.
+- Row 4 (lava pathfinding malus): VERIFIED, no gap. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:72-73` constructor calls only super() and reassessWeaponGoal(); the `setPathfindingMalus(PathType.LAVA, 8.0F)` is at `WitherSkeleton.java:34`, a separate mob.
+
+No .rs file edited this pass. No rustfmt run (no .rs touched). Files changed: this tracker doc only.

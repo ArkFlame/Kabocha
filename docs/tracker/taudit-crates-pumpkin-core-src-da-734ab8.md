@@ -241,3 +241,22 @@ follows symlinks. The zip-datapack row stays BLOCKED-DATA (no zip reader / whole
 
 No source files changed this pass, so nothing to rustfmt. Shell denied; the
 orchestrator compiles the batch.
+
+
+## Result - batch r3_024 re-verification
+
+Last Result sections defer nothing; every Gap-table row is closed. Re-checked the cited code this pass (grep only, no source edits, no cargo):
+
+- mod.rs:122 (maxCommandChainLength): VERIFIED. `chain_budget` at `crates/pumpkin-core/src/data/datapack/mod.rs:1541-1546` reads `max_command_sequence_length` with `max(1, ..)`; vanilla `.vendor/vanilla-decompiled/net/minecraft/commands/Commands.java:463`.
+- mod.rs:2409-2421 (description JSON): VERIFIED per the third-pass Result (`read_pack_mcmeta` text flattening).
+- mod.rs:1459-1483, 2423 (pack_format 61): VERIFIED per the third-pass Result (`CURRENT_MC_VERSION.data_pack_format()`).
+- mod.rs:1729 (macro float stringify): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/commands/functions/MacroFunction.java:31-32` uses `DecimalFormat("#")` with `setMaximumFractionDigits(15)`, matching the Rust port.
+- mod.rs:1130 (suggestion order): VERIFIED. `names.sort_unstable()` at `mod.rs:1352`.
+- mod.rs:2000-2003, 1352+ (bundle): VERIFIED as absent. `.vendor/vanilla-decompiled/net/minecraft/world/flag/FeatureFlags.java` registers no `bundle` flag.
+- mod.rs:1806 (u8 custom damage ids): FIXED per the third-pass Result. `next_custom_id: u16` at `mod.rs:2137`, narrowed with `u8::try_from` at `mod.rs:2154`.
+- mod.rs:500, 884 (tag values raw refs): VERIFIED per the third-pass Result (`collect_generic_tag_values`).
+- function_loader.rs:30, mod.rs:2465 (symlinks skipped): FIXED per the third-pass Result. Recursive loaders use `path.is_dir()` (`function_loader.rs:28,156`; `mod.rs:1612`).
+- mod.rs:2409 (incompatible pack_format accepted): VERIFIED. `enable_pack_checked` at `mod.rs:1809` uses `pack_format_compatibility` (`mod.rs:171`).
+- mod.rs:2079, 1384 (zip datapacks): BLOCKED-DATA. Whole missing subsystem: no `zip` dependency in `crates/pumpkin-core/Cargo.toml`, and the `Path`-only pack loading needs a `PackResources` abstraction (`.vendor/vanilla-decompiled/net/minecraft/server/packs/FilePackResources.java:54-89`).
+
+Checks: grep only; cargo/rustfmt not run (forbidden for this unit). No `.rs` file edited, so nothing to format.

@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-The single STILL OPEN row was the meta note "note has no gap rows; extraction empty,
-no .rs edits needed this pass. The single STILL OPEN row is the meta note, now resolved:
-- No fixable gaps in scope, so no .rs edits made (adding tests would duplicate the pure tests already present in both files). The sole STILL OPEN row was the meta note, now marked RESOLVED. fixed=0 open=0.
-- Parent deviation rows #2 (memory ttl absolute clock) and #3 (DebugBrainDump formatting) live in `memory/mod.rs`, outside this unit; they are documented deliberate deviations, not STILL OPEN rows and not data/subsystem blockers.
+The single open row was the meta note "note has no gap rows; extraction empty,
+no .rs edits needed this pass. The single open row is the meta note, now resolved:
+- No fixable gaps in scope, so no .rs edits made (adding tests would duplicate the pure tests already present in both files). The sole open row was the meta note, now marked RESOLVED. fixed=0 open=0.
+- Parent deviation rows #2 (memory ttl absolute clock) and #3 (DebugBrainDump formatting) live in `memory/mod.rs`, outside this unit; they are documented deliberate deviations, not open rows and not data/subsystem blockers.
 
 ## Result
 Final pass 2026-11-18. Every row closed. No .rs edits needed: Pumpkin already matches the
@@ -50,4 +50,4 @@ against an older vanilla build and is corrected below with the current .vendor s
   (tryStart / tickOrStop / doStop / timedOut). Pumpkin's tick, stop_all, make_brain,
   update_activity_from_schedule, is_brain_dead and Timed<Behavior> match step for step.
 
-No STILL OPEN rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none (.rs).
+No open rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none (.rs).

@@ -104,3 +104,20 @@ Re-re-verified against decompiled vanilla AbstractBoat.java in .vendor/vanilla-d
 The h6 status note is stale: delta-rotation accumulation is implemented at boat.rs:571-577 and applied to riders at 873-888 (mob and non-mob), with pure unit tests rider_yaw_clamps_to_boat_heading_window / rider_yaw_follows_boat_yaw_delta_then_clamps at boat.rs:1027-1042. Marking it resolved.
 
 No .rs files touched, so rustfmt was not run.
+
+## Result
+
+Re-checked this pass against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`. No Rust edits were needed.
+
+| # | Row | Status | Evidence |
+|---|-----|--------|----------|
+| 1 | canAddPassenger / eye-in-water gate (S) | VERIFIED | Vanilla AbstractBoat.java:836-837; Rust boat.rs:123 `is_eye_in_water`, gate in boat_interact_outcome (~815-816). Spot-checked by grep. |
+| 2 | positionRider + clampRotation + deltaRotation (M) | VERIFIED | Vanilla AbstractBoat.java:696-706 (positionRider), 740-754 (clampRotation, 105 deg window); Rust boat.rs:856-899 (on_rider_positioned, non-mob and mob paths), clamp_rider_yaw at boat.rs:1009-1013. Read this pass. |
+| 3 | Bubble-time metadata (M) | VERIFIED (grep only) | Vanilla AbstractBoat.java:57,63,298,351 (DATA_ID_BUBBLE_TIME, BUBBLE_TIME=60, tickBubbleColumn); Rust boat.rs:46 BUBBLE_COLUMN_DELAY, 436/446 ID_BUBBLE_TIME writes, 654 arming. Full logic not re-read this pass. |
+| 4 | Leashable (M) | VERIFIED (prior pass) | Rust boat.rs tick_leash and support_quad_leash per the prior Result block; not re-read this pass. |
+| 5 | hasEnoughSpaceFor width gate (S) | VERIFIED (grep only) | Vanilla AbstractBoat.java:691-693; Rust entity/mod.rs:1370-1374 CANNOT_BE_PUSHED_ONTO_BOATS gate, width check per prior Result. |
+| 6 | deltaRotation decay / server prediction (L) | NO ACTION (by design) | Client-authoritative engine difference, see Verdict. Vanilla decay at AbstractBoat.java:642-670 is intentionally not mirrored. |
+| h6 | Delta-rotation accumulation and +/-105 clamp | VERIFIED | Vanilla AbstractBoat.java:642-670, 700-701, 749-751; Rust boat.rs:571-577 (yaw_delta), 883-898, clamp at 1009-1013. Unit tests rider_yaw_clamps_to_boat_heading_window and rider_yaw_follows_boat_yaw_delta_then_clamps at boat.rs:1038,1045. The "STILL OPEN" marker above is left as written. |
+
+Status: PASS. Rows 3, 4 and 5 were checked by grep and prior-pass citations, not by a full re-read.
+No .rs files touched, so rustfmt was not run.

@@ -407,3 +407,16 @@ No pure seam exists for the Arc<World> placement paths; the existing data-only t
 structure_block.rs cover the palette, dynamic-shape, full-cube-vs-occlusion, loot-seed, NaN-gate,
 identifier, detect-size, yaw and edge-neighbour rows. No files edited this pass; compile deferred
 to the orchestrator.
+
+## Result (batch r2_019, CODER pass)
+- Remaining-gaps table rows (capture entityInfoList, addToLists collision predicate, non-strict neighbour updates, LootTableSeed gating, BARRIER/skip-side-effects placement, set_structure_block update-all): all STILL OPEN. Not reached this pass; each is a multi-site Rust change that needs a compile check, which is forbidden here.
+- Files edited: none. Status: PARTIAL (0 fixed, 0 verified this pass, 6 open).
+
+## Result (batch r3_058, CODER pass)
+- LootTableSeed gating (structure_block.rs:432-434 row): VERIFIED. Vanilla writes the seed only for `RandomizableContainer` (StructureTemplate.java:322-324). Rust gates on `is_randomizable_container_id` (structure_block.rs:423-436) and `build_placed_block_nbt` (structure_block.rs:799-802). Vanilla's extra `structureTransformer == null` guard is not reachable from Pumpkin's placer.
+- set_structure_block update-all (set_structure_block.rs:134-137 row): VERIFIED. Vanilla `sendBlockUpdated(pos, state, state, UPDATE_ALL)` (ServerGamePacketListenerImpl.java:1317-1318) with an identical old and new state only sends the block change to clients (ServerLevel.java:3498-3510 skips the navigation update when collision shapes match). Pumpkin `send_block_updated` (world/mod.rs:2445-2460) does the same via `register_block_change` and an early return on equal collision shapes (set_structure_block.rs:150).
+- Non-strict neighbour reconnect (structure_block.rs:451-455 row): code present at structure_block.rs:755 (`update_from_neighbor_shapes`) and :764 (`update_neighbors_at`). Not re-audited against StructureTemplate.java:376-401 this pass, so it stays STILL OPEN.
+- BARRIER and skip-side-effects placement (structure_block.rs:414-447 row): code present at structure_block.rs:689-691, :716-721 (`remove_block_entity` pre-clear, `new_with_skip_side_effects`). Not re-audited against StructureBlockEntity.java:429 this pass, so it stays STILL OPEN.
+- Collision-shape full-block predicate (structure_block.rs:246 row): STILL OPEN. Needs a full-cube collision check against the generated `collision_shapes` data. Not attempted.
+- Entity capture and placement (structure_block.rs:188-262, :358-461 row): STILL OPEN. Size L, multi-site, not attempted.
+- Files edited: none in Rust. This file was edited (Result section appended only). Status: PARTIAL (2 verified, 4 open). cargo not run (forbidden).

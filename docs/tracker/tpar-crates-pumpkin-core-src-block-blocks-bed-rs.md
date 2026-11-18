@@ -141,3 +141,6 @@ No STILL OPEN rows remain. Source edits: none (remaining rows are BLOCKED-DATA o
 pumpkin-data fields; all others already fixed/verified in the tree). No new pure unit test
 added because the blocked rows have no seam without a World instance and the fixed rows are
 already covered. Risk: none introduced.
+
+## Result (x_00 batch)
+- Rows: VERIFIED. Spot-checked `ServerPlayer.java:2458` and Rust `crates/pumpkin-core/src/block/blocks/bed.rs:324`. BLOCKED-DATA fields (`destroy_on_leave`, `error_message`) not present in `crates/pumpkin-data/src/generated/registry.rs`. No edit.

@@ -24,3 +24,9 @@ Third pass. Re-read the last Result in the audit doc (taudit-...eaae88.md); only
 Edits: trigger.rs (enum + 6 match arms), block/registry.rs, entity/living.rs, item/items/bucket.rs, item/items/crossbow.rs, entity/projectile/fishing_bobber.rs. All construct sites of the six changed variants were located by grep and updated. No cargo/git/shell run by this worker; rustfmt to be run by the orchestrator. No new unwrap/expect/panic, no new imports.
 
 Status: UNVERIFIED fixed=2 open=1 files=predicate.rs,trigger.rs,block/registry.rs,entity/living.rs,item/items/bucket.rs,item/items/crossbow.rs,entity/projectile/fishing_bobber.rs
+
+## Result (x_18)
+
+- Row 3 (remaining EntityPredicate fields): BLOCKED-DATA. Whole missing subsystem (vanilla dispatched-map EntitySubPredicate), not a generated field. Vanilla `advancements/predicates/entity/EntityPredicate.java:38-66`, `EntitySubPredicates.java:7-33`. Rust `entity/player/advancement/predicate.rs:1047-1319`.
+- Rows 7 and 8 (item count): VERIFIED per earlier pass. Test `item_count_bounds_use_actual_stack_count` at `predicate.rs:4027`; vanilla `ItemPredicate.java:28`.
+- No `.rs` edited this pass. Status: PARTIAL (row 3 blocked, rest closed).

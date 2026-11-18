@@ -272,3 +272,26 @@ required because the applicable fixes already landed and the two remaining gaps 
 No `.rs` source edited, so no rustfmt. No pure unit test added: the only logic in
 `block_explode.rs` is a world lookup in `get_block`, with no seam that is not a World-backed
 integration test (getter-style tests are excluded by the rules). No cargo/git run per task.
+
+## Result (BRIEF2 pass)
+- Row 3 (block resistance entity hook): VERIFIED. Vanilla `ServerExplosion.java:125` uses `this.damageCalculator`; the entity hook only runs in `EntityBasedExplosionDamageCalculator` (`makeDamageCalculator`, `ServerExplosion.java:323-325`, used only when no calculator is passed at :316). `WindCharge.java` passes its own `SimpleExplosionDamageCalculator`, so the hook is skipped there. Rust `explosion.rs:578-581` matches with `(Some(source), None)`, and `wind_charge.rs:116` / `wind_charged.rs:28` pass custom calculators.
+- Row 5 (isSmall): VERIFIED. Vanilla `ServerExplosion.java:770-772` `radius < 2.0 || !interactsWithBlocks()`; Rust `explosion.rs:403-405` `power < 2.0 || Keep`, same predicate.
+- Row 2 (unloaded chunk sampled as air): STILL OPEN, not changed this pass (needs async prefetch before sync tick, M).
+- Row 1 (BlockExplodeEvent block list / yield): STILL OPEN, not reached this pass (M).
+- Row 4 (seeded RNG for ray power / fire rolls): STILL OPEN, not reached this pass (S-M).
+- Files edited this pass: none.
+
+## Result (BRIEF2 batch r3_045, 2026-11-18)
+
+Re-checked every row against `.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java` and the Rust in `crates/pumpkin-core/src/world/explosion.rs`, `world/mod.rs`. No `.rs` edited this pass (no code diff needed; no cargo/git run).
+
+- Row 1 (block list + yield): VERIFIED. Vanilla `interactWithBlocks` (ServerExplosion.java:610-643) and yield default (:317-319); Rust `explosion.rs:914-932`, `BlockExplodeEvent` in `plugin/api/events/block/block_explode.rs`. Sub-gap (Paper BlockState snapshot): BLOCKED-DATA, missing causing-block field on `Explosion` (explosion.rs:227-243).
+- Row 2 (unloaded-chunk force-load): BLOCKED-DATA. `load_chunk_for_explosion` (explosion.rs:127-151) force-loads except on current-thread runtime, where a sync `block_on` would deadlock; fix needs an async chunk prefetch before the sync tick (Level-wide subsystem).
+- Row 3 (entity blast resistance with custom calculator): VERIFIED. ServerExplosion.java:316,323-325; Rust explosion.rs:568-572.
+- Row 4 (seeded level RNG): VERIFIED. `World::explosion_random` seeded from level seed (world/mod.rs:700), used at explosion.rs:497-501 and :824-830; vanilla ServerExplosion.java:410,612,674.
+- Row 5 (is_small Keep clause): VERIFIED. ServerExplosion.java:770-772 (`isSmall` checked this pass); Rust explosion.rs:395-397.
+- Row 6 (ClientboundExplodePacket blockCount): VERIFIED (Mojang vanilla pre-filter count, ServerExplosion.java:694,697,711); Rust explosion.rs:611,984, world/mod.rs:5140, test `incendiary_block_count_includes_air_positions`.
+- Row 7 (damage type): FIXED earlier; VERIFIED this pass against DamageSources.java:251-256 and explosion.rs:346-354.
+- Row 8 (finalizeExplosion particles/sound): VERIFIED. world/mod.rs:5122-5147; vanilla gameEvent(EXPLODE) at ServerExplosion.java:693.
+
+Status: PARTIAL (rows 1-sub-gap and 2 BLOCKED-DATA; all others terminal).

@@ -2,12 +2,12 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-exact vanilla match or already fixed elsewhere in the checkout, so no STILL OPEN rows remain.
+exact vanilla match or already fixed elsewhere in the checkout, so no open rows remain.
 
 ## Result
 Re-verified all five rows against the vendored decompiled vanilla under
 `.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed: every row is an exact
-vanilla match or already fixed elsewhere in the checkout, so no STILL OPEN rows remain.
+vanilla match or already fixed elsewhere in the checkout, so no open rows remain.
 
 - empty-collection set semantics (memory/mod.rs:255-258, 333-335 / value.rs:24,81,152,170):
   VERIFIED. Both `Brain.setMemoryInternal` overloads null any empty `Collection` then clear the

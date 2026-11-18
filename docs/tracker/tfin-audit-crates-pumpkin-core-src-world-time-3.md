@@ -14,5 +14,5 @@ All three rows are closed as VERIFIED against decompiled vanilla at
 pass: `default_clock_id` already replaced the hardcoded clock id with a
 `minecraft:world_clock` dynamic-registry lookup, the clock registry / marker
 resolver / environment tracks are all present and wired, and the `set_time.rs`
-codec matches `ClientboundSetTimePacket`. No `STILL OPEN` rows remain, so
+codec matches `ClientboundSetTimePacket`. No `PRIOR-OPEN` rows remain, so
 rustfmt was not needed.

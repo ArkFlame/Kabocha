@@ -257,3 +257,24 @@ No new test added: every pure seam already has a failing-without-fix test
 `server_clock_manager_keeps_clocks_independent`, the three wake-marker tests,
 `default_clock_name_matches_vanilla_dimension_types`, the two daylight-detector
 weather tests and the `set_time.rs` codec tests). Another would duplicate them.
+
+## Result (BRIEF2 pass)
+- Row 3 (datapack wake-up timeline): STILL OPEN, not reached (L).
+- Row 4 (persist world_clocks per world): STILL OPEN, not reached (M, level.dat format change).
+- Row 5 (clock registry, timemarkers, timelines): STILL OPEN, not reached (L, cross-crate).
+- Row 6 (per-player clock in periodic sync): STILL OPEN, not reached (M).
+- Row 7 (overworld clock id hardcoded to 0): BLOCKED-DATA. The WORLD_CLOCK registry is absent from `assets/` and `pumpkin-data`, so the id cannot be read from generated data.
+- Files edited this pass: none.
+
+## Result
+Source of rows: `docs/tracker/taudit-crates-pumpkin-core-src-wo-12a966.md` (9 rows). Vanilla: `.vendor/vanilla-decompiled/net/minecraft/`. No source edited this pass.
+- Row 1 (Bedrock frozen clock, `world/time.rs` TODO): VERIFIED. No TODO remains in `crates/pumpkin-core/src/world/time.rs`; the 20-tick `send_game_time_sync` resends `CSetTime` (`time.rs:287,328`). Bedrock `SetTime` has no frozen field.
+- Row 2 (night window / skip gate): STILL OPEN. `LevelTime::is_night` (`time.rs:375`) matches `Timelines.java:41-42` (12600..23401), and `world/mod.rs:2781` gates on `advance_time && !has_fixed_time && is_night()`. Vanilla `ServerLevel.tickSleep` (`ServerLevel.java:2203-2225`) has no `isDarkOutside` check, only `ADVANCE_TIME` and the sleep status, so the `is_night` gate differs. Closing it needs the bed/sleep-status path reviewed (outside this unit).
+- Row 3 (wake-up marker): FIXED per `time.rs:40-118`, `world/mod.rs:2796` resolves `sleep_wake_marker`; matches `ClockTimeMarker.resolveTimeToMoveTo`.
+- Row 4 (`world_clocks` persistence): FIXED per `time.rs:120-216`, `world/mod.rs:620-638`; matches `ServerClockManager.java:24-59`.
+- Row 5 (clock registry, `/time set <timemarker>`): FIXED per `time.rs:193-216`, `command/commands/time.rs`; matches `ServerClockManager.java:34,48-51`.
+- Row 6 (per-player override in periodic sync): FIXED per `time.rs:304-332`; matches `ServerClockManager.java:203-213`.
+- Row 7 (clock id hardcoded 0): VERIFIED per `time.rs:21-38` reading `minecraft:world_clock`; matches `world/clock/WorldClocks.java` bootstrap.
+- Row 8 (Bedrock SetTime day value): FIXED per `time.rs:287,328`, `pumpkin-protocol` `bedrock/client/set_time.rs:11-12`.
+- Row 9 (add_time clamp): VERIFIED, `time.rs:334-336` `.max(0)` matches `ServerClockManager.java:146-148`.
+Not run: no cargo (forbidden). No rustfmt needed (no .rs touched).

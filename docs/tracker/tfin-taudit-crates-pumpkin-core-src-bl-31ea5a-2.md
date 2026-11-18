@@ -47,3 +47,9 @@ Neither row needs a generated pumpkin-data field or a missing subsystem, so no B
 No .rs files touched, so no rustfmt run needed. Cannot compile in this CODER role.
 
 Status: PASS fixed=0 open=0 files=none
+
+## Result (x_18)
+
+- `entities/jukebox.rs` tick particle order/payload: VERIFIED. Vanilla `world/item/JukeboxSongPlayer.java:64-81`; Rust `block/entities/jukebox.rs:102-133`, `note_particle_hue` 474-476.
+- `entities/jukebox.rs` `write_nbt`/`chunk_data_nbt` ticks: VERIFIED (already matching). Vanilla `world/level/block/entity/JukeboxBlockEntity.java:129-138`; Rust `jukebox.rs:81-100`, `147-152`.
+- No `.rs` edited, no cargo. Status: PASS.

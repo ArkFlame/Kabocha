@@ -165,3 +165,14 @@ Went through every row in order against the live checkout and
 
 No STILL OPEN rows remain. Source files changed this pass: none (all fixes already present); tracker doc updated. Orchestrator action carried over: regenerate WIT bindings via cargo run --locked -p pumpkin-codegen -- wit once before the shared compile (WIT source is present; bindings are build-time generated artifacts, not a missing generated pumpkin-data field). Verify Worker compile pitfalls: no unwrap/expect/panic/println added, no import/helper/macro/struct-init changes, clippy-safe const fn and PoisonError::into_inner already used. No cargo/git/shell run by this worker.
 Status: PASS fixed=4 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md
+
+
+## Result (BRIEF2 batch pass, spot-checked)
+- Row 1 (explosion immunity, display.rs:816, 972, 1269): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/Display.java` has 0 `ignoreExplosion` matches; base `Entity.java:6469` is the default. Rust returns `false` on all three displays.
+- Row 2 (TextDisplay flags reset on load, display.rs:1176-1212): VERIFIED, no code change (matches prior pass citations).
+- Row 3 (`text` NBT key always written, display.rs:1155): VERIFIED against `Display.java:802` (`output.store("text", ...)` unconditional).
+- Row 4 (`set_brightness_override(block, sky)` WIT + hosts, display.rs:278-280): VERIFIED. `pumpkin-plugin-wit/v0.1/display.wit:99`, `v0.2/display.wit:103`; hosts `pumpkin-wasm-host-v0_1/src/display.rs:448`, `pumpkin-wasm-host-v0_2/src/display.rs:451`.
+- Brightness packing (display.rs:57-67): VERIFIED against `LightCoordsUtil.java:9,14,17-21` (FULL_BRIGHT 15728880, `block << 4 | sky << 20`).
+- Teleport/NBT defaults: VERIFIED against `Display.java:215, 224` (`getIntOr("teleport_duration", 0)`, `read("brightness", ...).orElse(null)`).
+Files edited this pass: none (doc only, no Rust touched; no cargo/git run). Checks not run: compile, clippy, tests (forbidden for this worker). Orchestrator still needs WIT regeneration via `cargo run --locked -p pumpkin-codegen -- wit` before compiling.
+Status: PASS fixed=0 verified=6 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md

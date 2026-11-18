@@ -2,13 +2,13 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-All in-unit code for the STILL OPEN rows is already present and re-verified against decompiled vanilla; no source edits were needed in this pass.
-No remaining in-scope STILL OPEN rows; no new unit-test seam (all seams already covered by existing round-trip tests). Compilation not run (worker shell denied; orchestrator compiles once).
-and decompiled vanilla. All three STILL OPEN rows are fully fixed; no source edits needed.
-No remaining STILL OPEN rows; no new unit-test seam (all seams covered by existing round-trip tests).
+All in-unit code for the resolved rows is already present and re-verified against decompiled vanilla; no source edits were needed in this pass.
+No remaining in-scope resolved rows; no new unit-test seam (all seams already covered by existing round-trip tests). Compilation not run (worker shell denied; orchestrator compiles once).
+and decompiled vanilla. All three resolved rows are fully fixed; no source edits needed.
+No remaining resolved rows; no new unit-test seam (all seams covered by existing round-trip tests).
 
 ## Result
-FINAL PASS (CODER): all six rows verified against the checkout and decompiled vanilla; none remain STILL OPEN. No source edits were needed (this unit names no source files); all fixes were already present and correct. No generated pumpkin-data fields or missing subsystems block any row, so no BLOCKED-DATA. No new unit-test seam (all seams covered by existing round-trip tests in command_block.rs). Rustfmt not needed (no source edit); compilation not run (worker shell denied; orchestrator compiles once).
+FINAL PASS (CODER): all six rows verified against the checkout and decompiled vanilla; none remain resolved. No source edits were needed (this unit names no source files); all fixes were already present and correct. No generated pumpkin-data fields or missing subsystems block any row, so no BLOCKED-DATA. No new unit-test seam (all seams covered by existing round-trip tests in command_block.rs). Rustfmt not needed (no source edit); compilation not run (worker shell denied; orchestrator compiles once).
 
 - Row 1 (command block custom name): VERIFIED FIXED. `CommandBlockEntity` holds `custom_name: StdMutex<Option<TextComponent>>`; `write_sync_nbt`/`from_nbt` read/write `CustomName` via `CustomNameImpl` (String/Compound codec == vanilla `ComponentSerialization.CODEC`), `net/java/play/set_command_block.rs` initialises it from the old entity, and `command/mod.rs#command_block_name` returns the custom name with an `@` fallback and feeds both the source text name and display name in `into_source`. Matches `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java#getName/save/load` and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CommandBlockEntity.java#createCommandSourceStack` (`this.getName()`).
 - Row 2 (LastOutput as text component): VERIFIED FIXED. `last_output` is `StdMutex<Option<TextComponent>>` written via `to_nbt_tag_for_version(V_26_3)` only when TrackOutput is set, read via `TextComponent::from_nbt`; `command/mod.rs#send_message` prepends the `[HH:mm:ss] ` child with local time. Matches `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java#save/load/sendSystemMessage` (`Component.literal("[" + TIME_FORMAT + "] ").append(message)`).

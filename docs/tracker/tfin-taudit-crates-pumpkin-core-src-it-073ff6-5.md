@@ -72,3 +72,7 @@ each fix is already present in the checkout, confirmed by direct source inspecti
 No source edits and no new pure unit test this pass: every fix is already present and every pure
 seam is covered by existing tests. No compiled run was performed (not permitted). No row is left
 STILL OPEN.
+
+## Result (x_03 recheck)
+- Gap 1/8, 2, 3, 4, 5, 6, 7, 9, 12: VERIFIED against the vanilla paths cited above. Spot-checked Gap 5 (crates/pumpkin-core/src/net/java/play/use_item.rs:80-87, swing only on Success/SuccessServer) and Gap 4 (crates/pumpkin-core/src/item/items/spawn_egg.rs:408,420 item.decrement(1) on spawner branches, matching SpawnEggItem.java:72-74).
+- No row left STILL OPEN. Files edited this pass: this doc only. No cargo run (forbidden).

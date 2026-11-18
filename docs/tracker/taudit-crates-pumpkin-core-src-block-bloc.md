@@ -293,3 +293,6 @@ No code changes were needed in this pass; the implementation already matches van
 No BLOCKED-DATA rows: every required value comes from existing generated data. No `.rs` files
 were edited this pass, so there is nothing to rustfmt. The "Gap status" table is all VERIFIED
 and no STILL OPEN row remains.
+
+## Result (batch r2_002)
+- Not reached in this pass: rows keep their existing status. Prose "STILL OPEN" mentions above are historical and were not re-verified against vanilla here.

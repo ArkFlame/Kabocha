@@ -308,3 +308,14 @@ missing subsystem. No unwrap/expect/panic added.
 Files changed this pass:
 - `crates/pumpkin-core/src/entity/ai/goal/pollinate_flower.rs`
 - `crates/pumpkin-core/src/entity/passive/bee.rs`
+
+## Result (batch r2y_008 recheck, 2026-11-18)
+
+- Gap 1 (hive behaviour): VERIFIED, no change. Vanilla `Bee.java:360-369, 499-513, 1050-1130`; Rust `bee.rs` (`hive_pos` at :227, goals at :293-295), `beehive.rs:190` `add_occupant`, `:312` `tick_occupants`.
+- Gap 2 (flower memory / pollination): VERIFIED, no change this pass. Vanilla `Bee.java:1129-1155, 1170-1188`; Rust `pollinate_flower.rs:118-149` (`is_raining` in `can_start` and `should_continue`).
+- Gap 3 (crop growth): VERIFIED. Vanilla `Bee.java:979-993` (GROW_CHANCE 30, `adjustedTickDelay(30)`, 30% reject); Rust `grow_crop.rs:111` roll; priority 7 at `bee.rs:310` matches `Bee.java:201`. Stale UNVERIFIED comment at `bee.rs` replaced with the citation.
+- Gap 4 (hive exit / TicksSincePollination): VERIFIED, no change (see FINAL PASS above).
+- Gap 5 (goal priorities): VERIFIED. Vanilla `Bee.java:192-213` (0 attack, 1 enter-hive, 2 breed, 3 tempt/validate, 4 pollinate, 5 follow/locate/go-hive, 6 go-to-flower, 7 grow-crop, 8 wander, 9 float) matches `bee.rs:288-326`.
+- Gap 6 (spawn cluster / rain): VERIFIED, no change. No per-species override in `Bee.java`.
+
+Files edited: `crates/pumpkin-core/src/entity/passive/bee.rs` (comment only). No cargo, git or worktree use.

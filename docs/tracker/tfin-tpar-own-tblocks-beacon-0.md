@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - Row 40: not STILL OPEN; documented upstream-vs-Paper difference (`Levels` set in the Paper-patched `loadAdditional`, BeaconBlockEntity.java:436, intentionally not loaded by Pumpkin), out of scope.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows. Row 40 is a documented Paper-vs-upstream difference (`Levels` in the Paper-patched `loadAdditional`, BeaconBlockEntity.java:436), out of scope.

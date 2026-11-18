@@ -213,3 +213,15 @@ already resolved in code; no source edits were needed this sweep.
 Status: PASS fixed=0 (all rows already resolved and re-verified) open=0
 files=crates/pumpkin-core/src/world/entity_tracker.rs (no code edits this sweep;
 doc only). No build run (CODER cannot compile); orchestrator to check.
+
+## Result (BRIEF2 pass)
+- CHeadRot cadence (STILL OPEN at line 63): not re-read this pass; left open.
+- Rows 3, 4, 5 were marked resolved by earlier passes; not re-verified this pass.
+- Files edited this pass: none.
+
+## Result (r3_044)
+- Row 2 (CHeadRot cadence) - VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerEntity.java:262-276` emits `ClientboundRotateHeadPacket` only inside the gating `if` and only when `Math.abs(yHeadRot - lastSentYHeadRot) >= 1`. Rust `crates/pumpkin-core/src/world/entity_tracker.rs:218-228` sends `CHeadRot` inside the `is_multiple_of(update_interval)` / needs_sync / dirty block, only when packed yaw differs. Packed-byte `!=` equals vanilla `>= 1` for u8 values.
+- Row 1 (velocity cadence), Row 3 (duplicate metadata), Row 4 (passenger range), Row 5 (removal as viewer) - not re-read this pass; prior results above stand, markers untouched.
+- Markers (pack_degrees) - not re-read this pass; prior result stands.
+
+Status: PARTIAL verified=1 (CHeadRot) not-reread=4 edits=none (doc only)

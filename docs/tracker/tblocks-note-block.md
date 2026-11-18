@@ -108,3 +108,13 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
 - Rows: fixed=2, open=0. Edits this pass: sound_effect.rs (new test) and this doc; note.rs fixes
   were already present and are verified above. Checks: no cargo run (worker restriction); rustfmt
   applied by the orchestrator.
+
+## Result (batch r2_018, CODER, partial)
+- 1 Custom head sound range (S): STILL OPEN. Rust note.rs ~182 has a comment saying vanilla wraps the id in SoundEvent.createVariableRangeEvent with no fixed range, which suggests the premise is already handled. Code body not read this pass, so not closed.
+- 2 NotePlayEvent serialized instrument id (S): STILL OPEN per this table, but the h6 gap status above marks it FIXED at note.rs:37 (to_value()). Not re-verified this pass.
+- Files edited: none. rustfmt: not run.
+
+## Result (batch r3_056, CODER)
+- Row 1 (custom head sound audible range): VERIFIED. Vanilla `NoteBlock.java:172` uses `SoundEvent.createVariableRangeEvent` (`SoundEvent.java:35-37`, no fixed range) and `getRange` = 16*volume for volume 3 (`SoundEvent.java:43-45`). Rust `note.rs:184-190` calls `World::play_custom_sound` at volume 3.0, broadcasting by `audible_chunks(3.0)` = 3 chunks (`world/mod.rs:9562`, `world/mod.rs:2009`). Encoded `range: None` regression test at `crates/pumpkin-protocol/src/java/client/play/sound_effect.rs:167`. No edit this pass.
+- Row 2 (NotePlayEvent serialized instrument id): VERIFIED. `note.rs:36` passes `props.instrument.to_value().to_owned()`, matching vanilla `NoteBlockInstrument#getSerializedName`. No edit this pass.
+- Rows: fixed=0, verified=2, blocked=0, open=0. Files edited: this doc only. No cargo or git run (worker restriction).

@@ -253,3 +253,18 @@ would break parity and was not applied. The `thunder_scares` fix (`panda.rs:185-
 matches vanilla `isScared`/`isThundering` (`Panda.java:393-394`).
 
 Status: PASS, fixed=0, open=0, all rows VERIFIED.
+
+## Result (CODER batch r2_012, rows re-checked against vanilla source)
+- Row 1 genes (`panda.rs:151-165`): VERIFIED. Vanilla `Panda.java:566-594` two-parent path: one `nextBoolean` for parent order, one `nextBoolean` per gene via `getOneOfGenesRandomly`, then two independent `nextInt(32)` mutation rolls. Rust matches; no edit.
+- Row 2 bamboo range (`panda/goals.rs:146-159`): VERIFIED. Vanilla `Panda.java:834-852` rings `r in 0..8`, `yOff in 0..3` cover `x,z in -7..=7`, `y in 0..=2`. Rust uses `BAMBOO_SEARCH_RADIUS=7`, `BAMBOO_SEARCH_HEIGHT=2`. No edit.
+- Row 3 mobInteract guard: STILL OPEN (not re-checked in this pass).
+- Row 4 playAttackSound: STILL OPEN (not re-checked in this pass).
+- Row 5 sneeze after-jump / tick_reach: STILL OPEN (not re-checked in this pass).
+
+## Result (CODER batch r3_035, rows 3-5 re-derived from the Gap table)
+- Row 1 genes (`panda.rs:122-171`): VERIFIED (r2_012 pass). Vanilla `Panda.java:566-594`, `755-770`. No edit.
+- Row 2 bamboo range (`panda/goals.rs:134-159`): VERIFIED (r2_012 pass). Vanilla `Panda.java:834-852`. No edit.
+- Row 3 mobInteract food guard (`panda.rs:624-638`, `883-899`): VERIFIED. Vanilla `Panda.java:635-657` returns PASS on `!(level instanceof ServerLevel) || isSitting() || isInWater()`; Rust `sit_and_eat` checks `is_baby() || is_sitting() || is_in_water()` and `mob_interact` routes food there only after the age-up and breeding checks, matching vanilla order. No edit.
+- Row 4 playAttackSound (`panda.rs:879-881`, `goals.rs:224-234`): VERIFIED. Vanilla `Mob.java:1604-1625` calls `playAttackSound()` only when `wasHurt`; Rust `try_attack` returns `damaged` and `on_attack` runs only on that path. Vanilla `Panda.java:324-334` sets `didBite` and plays PANDA_BITE. No edit.
+- Row 5 sneeze after-jump and reach (`sneeze.rs:96-121`, `186-188`): VERIFIED. Vanilla `Panda.java:506-531` inflates 10, filters non-baby, onGround, not in water, `canPerformAction`, calls `jumpFromGround()` (`LivingEntity.java:3081`, Panda has no `getJumpPower` override, Rust `jump_power_multiplier` default 1.0 at `mob/mod.rs:2169`), drops PANDA_SNEEZE gift. `SNEEZE_JUMP_RANGE=10` matches. No edit.
+Status: PASS, fixed=0, verified=5 (rows 1-5), open=0. Files edited: this doc only.

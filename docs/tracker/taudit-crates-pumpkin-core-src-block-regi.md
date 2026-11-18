@@ -153,3 +153,15 @@ Files: crates/pumpkin-core/src/block/blocks/torches.rs,
 redstone/redstone_torch.rs, abstract_wall_mounting.rs, lanterns.rs, ladder.rs,
 skull_block.rs, coral/coral_fan.rs, plant/cocoa.rs, plant/shelf_mushroom.rs.
 Status: UNVERIFIED (no cargo run allowed for workers; rustfmt left to the orchestrator).
+
+## Result (batch r2_002)
+- Not reached in this pass: rows keep their existing status. Prose "STILL OPEN" mentions above are historical and were not re-verified against vanilla here.
+- Row 1 (`get_inside_collision_shape` fallback): STILL OPEN, not reached in r2_002 (cross-file in `block/registry.rs`).
+
+## Result (batch r3_014)
+- 1. `get_inside_collision_shape` fallback: VERIFIED, no Rust change. Vanilla `BlockBehaviour.java:336-338` default `getEntityInsideCollisionShape` returns `Shapes.block()`, and `Entity.java:2037` treats that as full-block inside. Pumpkin `block/registry.rs:1627-1643` falls back to `BoundingBox::full_block()`, and the trait default is `block/mod.rs:305`. Overrides exist in `blocks/redstone/tripwire.rs:28`, `blocks/end_portal.rs:17`, `blocks/cauldron.rs:530`. The "Remaining gaps" premise (default should be `getCollisionShape`) does not hold for this decompiled version.
+- 2. `post_process_state`: VERIFIED resolved. `grep -rni post_process crates/pumpkin-core/src` finds no registry helper and no callers.
+- 3. relative-position replacement: FIXED earlier at consumer level (see "Result (consumer-side pass)"). Not re-changed this pass.
+- 4. `can_place_at` on default state: STILL OPEN (not reached). Fix is M and cross-cutting (item BlockItem placement path, `world/mod.rs:9645` `WorldPortal::can_place_at`, `block/registry.rs:1213`), touching every block's `can_place_at`.
+- 5. `blocks_building` entity filter: STILL OPEN (not reached). Fix is M and needs a per-type `blocks_building` flag on `EntityBase` plus vanilla `blocksBuilding = false` audit.
+Files edited: none. Status: PARTIAL (row 1 and row 2 closed by verification, row 3 earlier; rows 4 and 5 open). No cargo or rustfmt run (workers may not compile).

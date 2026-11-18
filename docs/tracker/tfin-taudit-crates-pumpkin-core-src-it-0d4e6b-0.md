@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: bucket.rs
 
-- 1 waterlogged pickup can_survive (bucket.rs:309-318): STILL OPEN, S.
-- 2 sneak waterlogging (bucket.rs:423): STILL OPEN, S, verify against decompiled BucketItem.use.
-- 3 ultrawarm mob bucket spawns mob (bucket.rs:540-577): STILL OPEN, S.
-- 4 no mayInteract / spawn protection (bucket.rs:291-338): STILL OPEN, S/M.
+- 1 waterlogged pickup can_survive (bucket.rs:309-318): CLOSED, see Result.
+- 2 sneak waterlogging (bucket.rs:423): CLOSED, see Result (proposed removal rejected).
+- 3 ultrawarm mob bucket spawns mob (bucket.rs:540-577): CLOSED, see Result.
+- 4 no mayInteract / spawn protection (bucket.rs:291-338): CLOSED, see Result.
 
 ## Result
 Final pass (2026-11-18). All four rows re-verified against the decompiled 1.21 source under .vendor/vanilla-decompiled/net/minecraft/ and the current Pumpkin code in crates/pumpkin-core/src/item/items/bucket.rs. Every row was already fixed by earlier passes; no new source edits were needed this pass. No cargo/git run (forbidden for this worker); rustfmt --edition 2024 on bucket.rs was run by the orchestrator in the prior pass. No generated pumpkin-data field or whole subsystem is missing, so no BLOCKED-DATA rows remain.

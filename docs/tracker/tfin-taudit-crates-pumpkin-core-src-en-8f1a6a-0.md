@@ -1,21 +1,16 @@
-# Final rows from docs/tracker/tpar-own-taudit-crates-pumpkin-core-src-en-8f1a6a.md
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-8f1a6a.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files).
 
-FINAL results for every originally STILL OPEN row, verified against decompiled vanilla in
-Re-verified every STILL OPEN row against decompiled vanilla
-whole missing engine subsystem. Every originally STILL OPEN row now has a final verdict.
+## Result (batch 09 pass, 2026-11-18)
 
-## Result
-Final pass (unit scope: doc only; all code fixes landed in prior passes). Every originally STILL OPEN row now ends as FIXED, VERIFIED or BLOCKED-DATA; no row remains STILL OPEN.
+- Row 29 (enchant ordering, M): VERIFIED. AbstractArrow.java:466-474 applies modifyDamage to baseDamage before pow * base and ceil; projectile_weapon.rs:67-70 folds the Power adjustment in at fire time; arrow.rs:746-748 computes the ceil.
+- Row 30 (pickup canHold, S): FIXED. AbstractArrow.java:703-720 gates PlayerPickupArrowEvent on canHold; arrow.rs:681-698 matches. PlayerInventory::can_hold in pumpkin-inventory/src/player/player_inventory.rs, pure test can_hold_reports_capacity.
+- Row 33 (tipped trail / potion puff, S): VERIFIED. Arrow.java:88-99 emits the trail only client-side; server branch matches decay_exposed_potion (arrow.rs:423-446).
+- Row 34 (crit particles, S): VERIFIED. AbstractArrow.java:246-259 Level.addParticle is a no-op on a dedicated server; crit flag synced via set_critical.
+- Row 35 (spectral trail, S): VERIFIED. SpectralArrow.java:36-41 emits only when isClientSide().
+- Row 36 (sound/weapon NBT, S): VERIFIED. Weapon NBT is persisted (arrow.rs:486-489,510-519); no arrow sets a non-default hit sound and there is no onItemBreak hook, so no observable gap.
+- Row 38 (no-physics owner pickup, S): VERIFIED. AbstractArrow.java:703-704,724-729 has no owner branch; arrow.rs:656-728 matches.
+- Row 39 (last_hurt_mob, M): FIXED. AbstractArrow.java:497-499 calls setLastHurtMob; arrow.rs:776-791 records it via last_attacking_id/last_attack_time (living.rs:133-136), read by OwnerHurtTargetGoal and Fox.
 
-- Row 29 (enchant ordering, M): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:466-474` applies `EnchantmentHelper.modifyDamage` to `baseDamage` before `pow * baseDamage` and `Mth.ceil`; `crates/pumpkin-core/src/item/items/projectile_weapon.rs:67-70` folds the same target-independent Power adjustment into `base_damage` at fire time, and `crates/pumpkin-core/src/entity/projectile/arrow.rs:746-748` computes `ceil(clamp(velocity * base_damage))`. Smite/Bane are target-dependent enchant-system concerns, not this ordering row.
-- Row 30 (pickup `canHold`, S): FIXED. `.vendor/.../AbstractArrow.java:703-720` (CraftBukkit `playerTouch`) gates `PlayerPickupArrowEvent` on `pickup == ALLOWED && !pickupItem.isEmpty() && player.getInventory().canHold(pickupItem) > 0`; `arrow.rs:681-698` gates the event on `!stack.is_empty() && player.inventory.can_hold(&stack) > 0` and reuses the stack for the insert. `can_hold` lives in `crates/pumpkin-inventory/src/player/player_inventory.rs` with pure test `can_hold_reports_capacity`.
-- Row 33 (tipped trail / potion puff, S): VERIFIED. `.vendor/.../Arrow.java:88-99` emits the trail only in the `isClientSide()` branch; the server branch only broadcasts entity event 0 and swaps to a plain arrow, both done in `decay_exposed_potion` (`arrow.rs:423-446`). Client renders the trail from synced ID_EFFECT_COLOR.
-- Row 34 (crit particles, S): VERIFIED. `.vendor/.../AbstractArrow.java:246-259` calls `Level.addParticle(ParticleTypes.CRIT, ...)`; `Level.addParticle` is a no-op on a dedicated server (no-op particle engine); the vanilla client renders the trail from the synced crit flag set by `set_critical`. No server behaviour to replicate.
-- Row 35 (spectral trail, S): VERIFIED. `.vendor/.../SpectralArrow.java:36-41` emits the EFFECT particle only when `level().isClientSide()`. Client render only; the vanilla server emits nothing.
-- Row 36 (sound/weapon NBT, S): VERIFIED. `.vendor/.../AbstractArrow.java:437-439,663,679` stores `SoundEvent` and clears `firedFromWeapon` in `onItemBreak`, but no Rust arrow sets a non-default hit sound (`Sound::EntityArrowHit` is hardcoded at `arrow.rs:803-807`) and there is no Rust `onItemBreak` hook, so persisting a sound is a no-op; weapon NBT is already persisted. No observable server-side gap.
-- Row 38 (no-physics owner pickup, S): VERIFIED. `.vendor/.../AbstractArrow.java:703-704` checks only `(isInGround() || isNoPhysics()) && shakeTime <= 0` and `tryPickup:724-729` has no owner branch; `arrow.rs:656-728` (`on_player_collision`) already matches.
-- Row 39 (`last_hurt_mob`, M): FIXED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`, the same victim-plus-timestamp pair as `Player.attack`/`Mob.doHurtTarget` (`Player.java:1378`, `Mob.java:1619`). Pumpkin already models it: `LivingEntity.last_attacking_id`/`last_attack_time` (`crates/pumpkin-core/src/entity/living.rs:133-136`) are documented as the entity last attacked and the tick, written on the arrow hit at `crates/pumpkin-core/src/entity/projectile/arrow.rs:776-791` and consumed by `OwnerHurtTargetGoal` (`owner_hurt_target.rs:44-49`) and Fox (`passive/fox/goals.rs:204-205`). Vanilla `OwnerHurtTargetGoal.java:28-29` reads `getLastHurtMob()`/`getLastHurtMobTimestamp()`, so observable behaviour matches; no new field or generated data is needed.
-
-No STILL OPEN rows remain. No .rs file was touched this pass (all fixes landed in prior passes), so rustfmt was not required. No cargo/git run, per instructions; verification is source-level only, compile UNVERIFIED. Pure test `can_hold_reports_capacity` already ships for row 30.
+No .rs file changed in this pass.

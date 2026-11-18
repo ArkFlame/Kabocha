@@ -193,3 +193,7 @@ Final-pass classification (2026-11-18). Every row is terminal; no STILL OPEN row
 7. ITEM_USED stat: VERIFIED (no regression). use_item.rs:39-42 has no central award, with a comment recording that vanilla handleUseItem never awards it centrally; items self-award (bow.rs:135, trident.rs:237 call increment_stat(StatisticCategory::Used, ...), matching vanilla item implementations). A generic consume-result award would need an API change across item behaviours and would double-count self-awarding items. No change.
 
 No rustfmt run (no .rs changed); no new pure test seam exists (row 6 needs generated per-element feature data).
+## Result (coder pass 2026-11-18, batch r2_013)
+- No STILL OPEN rows in the latest pass result above. Every row is FIXED, VERIFIED or BLOCKED-DATA per that result.
+- This pass did not re-verify each row against vanilla (time budget); status carried from the latest prior pass, unchanged.
+- Files edited this pass: none. No rustfmt run. Cargo and git not run (forbidden).

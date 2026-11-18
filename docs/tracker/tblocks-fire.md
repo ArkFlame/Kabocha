@@ -133,3 +133,16 @@ Fresh verification 2026-11-18 (third pass), Paper/CraftBukkit FireBlock.java + B
 - Sentinels: -1 unlimited, <=0 disabled now matches ServerLevel.canSpreadFireAround.
 - No new pure test: can_spread_fire_around needs World.players and get_placement_state needs a BlockAccessor; both are gametest-scale. Files touched: fire.rs, lightning.rs, small_fireball.rs, ignition.rs. No cargo/rustfmt/git run; compile UNVERIFIED.
 - Out of scope, left for a separate unit: `crates/pumpkin-core/src/world/explosion.rs:443-444` still calls `FireBlockBase::get_fire_type` plus `get_state_for_position`, so an explosion over a soul base builds `FireLikeProperties` for a soul fire state id. Route it through `FireBlock::get_placement_state(world, pos, 0)` in a later pass.
+
+## Result (batch r2_018, CODER, partial)
+- 1 Neighbour rain gate (S): STILL OPEN. Vanilla FireBlock.java:216 and :237-239 call isNearRain (5 columns) for neighbour checks, and :162 uses level.isRaining() with isNearRain for the own block. The doc's premise that vanilla uses isRainingAt(pos) only for neighbours is not confirmed. Needs a fire.rs re-read before any edit.
+- 2 Placed without can_place_at (S): STILL OPEN. Vanilla FireBlock.java:96-97 and :155 canSurvive gate. Rust fire.rs not located by this pass.
+- 3 TNT ordering (S): STILL OPEN, deliberate per doc.
+- 4 Waterlogged neighbour odds (S): STILL OPEN.
+- Files edited: none. rustfmt: not run.
+## Result (batch r3_054, CODER)
+- Gap 1 (rain gate, S): VERIFIED. Burn-out uses single-position `is_raining_at(pos)` (fire.rs:207) matching vanilla FireBlock.java:275. Spread gate uses `is_near_rain(offset_pos)` (fire.rs:467) matching vanilla :216 (`!isRaining || isNearRain(testPos)`; Rust `is_raining_at` returns false when not raining). Own-block check (fire.rs:357) matches :162. The doc's premise that spread should use the single position is not what vanilla does.
+- Gap 2 (placed without can_place_at, S): FIXED. Vanilla FireBlock.onPlace (FireBlock.java:333-336) schedules the tick unconditionally; the canSurvive gate is in tick (:155-157) and updateShape (:96-97). The earlier Rust `placed` removal diverged from vanilla, so it was removed (fire.rs `placed`). Rust `on_scheduled_tick` already performs the can_place_at gate (fire.rs ~329). Not compiled; no test added.
+- Gap 3 (TNT replaced before priming, S): STILL OPEN. Vanilla keeps TNT in place until prime (FireBlock.java ~:266-280, `if (!oldState.is(TNT)) removeBlock`). Rust still replaces first (fire.rs ~:211-224). Left open per doc note.
+- Gap 4 (waterlogged neighbour odds, S): VERIFIED. Vanilla getIgniteOdds returns 0 for waterlogged (FireBlock.java:251-255, :311-323); Rust `get_ignite_odds` returns 0 for waterlogged (fire.rs:40-49) and the fluid-neighbour skip in `get_burn_chance` (fire.rs ~121) only drops waterlogged neighbours, which already give 0.
+- Files edited: crates/pumpkin-core/src/block/blocks/fire/fire.rs. rustfmt --edition 2024 --check: pass. cargo: not run (forbidden).

@@ -196,3 +196,19 @@ decompiled sources and those fixes are present in the working tree.
 
 Gap status after this pass: 0 fixed, 1 open (isItemEnabled, needs generated per-item feature
 data outside this unit).
+
+## Result (r2_014 pass)
+- `mayInteract` (world border / spawn protection): VERIFIED - `crates/pumpkin-core/src/net/java/play/use_item_on.rs:305` `may_interact`, vanilla `ServerGamePacketListenerImpl.java:2322-2334`.
+- Max build height: FIXED - added `position.0.y < world.get_bottom_y()` to the reject branch in `use_item_on.rs` (top bound already present). Vanilla `ServerGamePacketListenerImpl.java:2322-2326` checks both `maxY` and `minY`. Build-limit message not sent; Pumpkin resyncs the block instead.
+- `isItemEnabled` feature check: STILL OPEN - no `Item::is_enabled` helper; not reached.
+- `awaitingPositionFromClient` guard: VERIFIED - `use_item_on.rs` `teleport_pending` via `player.awaiting_teleport`; vanilla `ServerGamePacketListenerImpl.java:2334`.
+- `PlayerInteractEvent` for spectators: STILL OPEN - policy decision (plugin compat), not reached.
+- Item fallback to `ItemRegistry::on_use`: STILL OPEN - not reached in this pass.
+- `increment_stat(Used)` unconditional: STILL OPEN - not reached in this pass.
+## Result (r3_038 pass)
+- VERIFIED **`PlayerInteractEvent` for spectators**: vanilla `ServerPlayerGameMode.useItemOn` calls `CraftEventFactory.callPlayerInteractEvent` unconditionally at `server/level/ServerPlayerGameMode.java:551`, before the `GameType.SPECTATOR` branch. Rust fires it for spectators at `crates/pumpkin-core/src/net/java/play/use_item_on.rs:71-75`. Matches.
+- VERIFIED **item `on_use` fallback**: vanilla `useItemOn` (`ServerPlayerGameMode.java:619-652`) calls only `state.useItemOn`, `state.useWithoutItem` and `itemStack.useOn`, never `Item#use`. Rust `use_on_block` path at `use_item_on.rs:157-200` has no `on_use` fallback; the only `on_use` at `use_item_on.rs:253` is the block registry. Matches.
+- OPEN **`increment_stat(Used)` gate**: vanilla awards `Stats.ITEM_USED` only on a `Success` result (`world/item/ItemStack.java:439`, `:508`, `:747`). Rust gates on `item_result.consumes_action() || should_try_decrement` (`use_item_on.rs:193-194`), and `consumes_action()` (`block/registry.rs:512`) also counts `Consume`. Left open: the item-level result type was not traced to confirm whether `Consume` can reach here. No change made.
+- BLOCKED-DATA **`isItemEnabled(level.enabledFeatures())`** (`ServerGamePacketListenerImpl.java:2307`, `:2397`; `ServerPlayerGameMode.java:537` for the block): needs per-item and per-block `requiredFeatures`. `crates/pumpkin-data/src/generated/item.rs` and `block.rs` have no feature field or `is_enabled` helper. Missing generated `pumpkin-data` field, so no Rust change.
+- Files edited: none in this pass.
+Gap status: 2 verified, 1 open (stat gate, traced to item result type), 1 blocked-data (isItemEnabled).

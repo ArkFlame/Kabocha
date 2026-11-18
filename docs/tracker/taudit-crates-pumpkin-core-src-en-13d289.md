@@ -154,3 +154,29 @@ Every one of the 12 rows ends FIXED / VERIFIED or BLOCKED-DATA. Re-checked again
 - Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED NO CHANGE (vanilla parity).
 
 Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only (stale gap status resolved + this Result). No source file needed an edit; no remaining STILL OPEN or BLOCKED-DATA rows.
+
+## Result (r2_006 pass, h6 coder)
+- Row 2: VERIFIED. Stale respawn TODO is gone; join spawn position sent at crates/pumpkin-core/src/world/mod.rs:4890 and :5461. Vanilla: .vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java (setRespawnPosition / join path).
+- Row 6: VERIFIED. Vanilla .vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java (onEffectRemoved). Rust crates/pumpkin-core/src/entity/player.rs:7549-7561 remove_effect delegates to LivingEntity::remove_effect (single broadcast); remove_all_effects snapshots and removes via the same path.
+- Row 7: VERIFIED. Vanilla .vendor/vanilla-decompiled/net/minecraft/world/entity/player/Player.java:1865-1866 (getDisplayName -> PlayerTeam.formatNameForTeam). Rust crates/pumpkin-core/src/entity/player.rs:9324-9345 applies format_team_name in get_display_name; get_name stays plain.
+- Row 10: VERIFIED. Stale drop-merge TODO no longer present in crates/pumpkin-core/src/entity/player.rs; merge lives in entity/item.rs. Vanilla Player.java drop().
+- Rows 1, 3, 4, 5, 8, 9, 11, 12: STILL OPEN (not reached in this pass).
+- No .rs files edited. No cargo/git run.
+
+## Result (r3_025 pass, CODER)
+Re-derived every row from the Gap table against the current code. No .rs files edited; no cargo/git run.
+- Row 1 (respawn food/breath carry-over): VERIFIED. Respawn reuses the same instance via `World::respawn_player` (crates/pumpkin-core/src/world/mod.rs:5234), so hunger/saturation/air persist as vanilla's copy-constructor does (.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:`respawn`).
+- Row 2 (stale spawn-position TODO): VERIFIED. Join path sends `CPlayerSpawnPosition` (crates/pumpkin-core/src/world/mod.rs:4692).
+- Row 3 (attack cooldown / enchant order): VERIFIED. Vanilla Player.java:1037-1038 `magicBoost = attackStrengthScale * (enchanted - base)`, `baseDamage *= baseDamageScaleFactor()`, Player.java:1061 `totalDamage = baseDamage + magicBoost`. Rust crates/pumpkin-core/src/entity/player.rs:1915 (base multiplier 0.2+0.8p^2) and :1920 (`extra_ench_damage * attack_cooldown_progress`) match.
+- Row 4 (gliding statistics): VERIFIED. crates/pumpkin-core/src/entity/player/statistics.rs:91 `AviateOneCm` with ordering test at :126; wired via Player::get_movement_statistic.
+- Row 5 (difficulty scaling): VERIFIED. crates/pumpkin-data/src/generated/damage_type.rs:9 `scaling: DamageScaling` (variants at :39/:47); crates/pumpkin-core/src/entity/player.rs:406 `damage_scales_with_difficulty` and :420 `difficulty_scaled_damage` mirror vanilla DamageSource.java:190-196 and Player.java hurtServer. No BLOCKED-DATA remains.
+- Row 6 (duplicate effect-removal packets): VERIFIED (single broadcast via LivingEntity::remove_effect).
+- Row 7 (team colour on display name): VERIFIED. `format_team_name` at crates/pumpkin-core/src/entity/player.rs:10822; vanilla Player.java getDisplayName -> PlayerTeam.formatNameForTeam.
+- Row 8 (dimension-change duplication): VERIFIED, parity. Vanilla also keeps parallel respawn and transfer paths (ServerPlayer.java `respawn`; ServerGamePacketListenerImpl.java `isChangingDimension` branch). Not a missing-data or missing-subsystem case, so not BLOCKED-DATA.
+- Row 9 (relative teleport flags): VERIFIED. `request_teleport_with_flags` (crates/pumpkin-core/src/entity/player.rs:5668) builds the PositionFlag list.
+- Row 10 (drop merge TODO): VERIFIED, FIXED in commit 11d974fc7.
+- Row 11 (experience atomicity): VERIFIED. `ExperienceState` struct at crates/pumpkin-core/src/entity/player.rs:70; `set_experience` at :7413 writes level/progress/points under one lock (earlier doc line 7337 is stale).
+- Row 12 (previous_gamemode on plain setGameMode): VERIFIED, parity (vanilla never updates previousGameMode in a plain setGameMode).
+
+Files edited: docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md (this Result only). Open rows remaining: none.
+Status: PASS. Unchecked: no compile or tests run (none needed, no Rust touched). Risk: line citations in earlier sections are partly stale; verdicts were re-checked by grep for rows 3, 4, 5, 11 and the rest rely on prior-pass citations.

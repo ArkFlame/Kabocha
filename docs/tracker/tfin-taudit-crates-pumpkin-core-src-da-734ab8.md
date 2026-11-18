@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files:
 
-Re-read the last Result and re-checked every STILL OPEN row against the current
+Re-read the last Result and re-checked every open row against the current
 
 ## Result
 
@@ -73,4 +73,4 @@ every row was already terminal from earlier passes. Per-row results:
   mirroring `PackCompatibility.forVersion`.
 
 No source files changed this pass, so nothing to rustfmt. Shell/cargo/git not run; the
-orchestrator compiles the batch. No STILL OPEN rows remain.
+orchestrator compiles the batch. No open rows remain.

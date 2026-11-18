@@ -79,3 +79,8 @@ missing generated pumpkin-data field or subsystem exists. No build/test run
 
 No source files changed this pass (all rows already fixed/verified in the tree
 against the decompiled class).
+
+## Result (x_04 pass)
+- Creative-mode removal: VERIFIED. No `is_creative` gate in `block/blocks/chiseled_bookshelf.rs` or `entity/*/chiseled_bookshelf.rs`; vanilla `ChiseledBookShelfBlock.java:148-150`.
+- Empty-slot Consume: VERIFIED. Rust `block/blocks/chiseled_bookshelf.rs:78`; vanilla `ChiseledBookShelfBlock.java:110-112`.
+- Scope: two rows re-checked; the rest of the doc was not re-read. No Rust edited; no checks run.

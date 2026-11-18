@@ -288,3 +288,16 @@ Every row ends FIXED, VERIFIED or NOT A GAP; none is STILL OPEN and none is BLOC
 generated pumpkin-data field or missing subsystem). No source file changed, so rustfmt/build were not
 required (cargo and shell are forbidden for this worker). Status: PASS (verified by vanilla/Pumpkin
 source comparison, not compiled).
+
+
+## Result (2026-11-18, batch r2y_013 worker, PASS)
+
+Re-verified against the decompiled vanilla tree (now present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`) and the current Rust. No source edited, so no rustfmt or cargo run (forbidden for this worker).
+
+1. Rider yaw clamp and deltaRotation: VERIFIED. Vanilla `AbstractBoat.java:696-706` (positionRider) and `:740-754` (clampRotation, +/-105) match Rust `boat.rs:1009-1013` (`clamp_rider_yaw`) and `boat.rs:1018-1020` (`rider_clamp_adjustment`), with the yaw delta applied in `on_rider_positioned` (boat.rs:856).
+2. Buoyancy/drag/friction (floatBoat): VERIFIED per the earlier passes. Rust `boat/physics.rs:184` (`float_boat`) runs for server-authoritative boats; player-controlled motion is client-authoritative by design.
+3. Boarding gate at ticks_underwater >= 60: NOT A GAP, VERIFIED. Vanilla `AbstractBoat.java:784` returns PASS on `!(outOfControlTicks < 60.0F)`; Rust `boat.rs:161-177` (`boat_interact_outcome`, `!out_of_control` term).
+4. Chest-boat passenger cap: NOT A GAP, VERIFIED. Vanilla `AbstractChestBoat.java:48-50` returns 1; Rust `boat.rs:95-101` (`max_passengers`) returns 1 for chest boats.
+5. Chest contents on destroy routes: VERIFIED. Vanilla `AbstractChestBoat.java:71-77` drops contents when `reason.shouldDestroy()`; Rust `boat.rs:488-506` (`on_removed`) scatters on the same condition, and the damage path also scatters, guarded by `claim_drops`.
+
+No STILL OPEN rows remain in this doc, so nothing was reworded or closed by a fix in this pass. Risk: verification is by source comparison, not compilation or runtime.

@@ -99,3 +99,15 @@ Files edited this pass: `crates/pumpkin-core/src/command/mod.rs` (one pure unit 
 - 6. Bedrock editor round-trip: BLOCKED-DATA. Missing subsystem: a live Bedrock client runtime harness (`scripts/boot.sh`) to observe the editor opening and the `SBlockActorData` round-trip; no generated `pumpkin-data` field is missing. The server-side static path is complete and unit-tested (`CommandBlockEntity::bedrock_block_actor_data` -> `CBlockActorData`, `BedrockClient::handle_command_block_actor_data`, plus tests `command_block_actor_builder`, `parse_command_block_edit_strips_slash_and_reads_flags`, `parse_command_block_edit_defaults_when_fields_absent`); Java screen-open replays vanilla's block-entity data packet (`ServerPlayer#openCommandBlock`) via `World::update_block_entity`. The residual observation is a client-only GUI effect that does not block landing per AGENTS.md.
 
 No source file changed this pass (all fixes landed earlier); only this tracker doc was finalized.
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. Earlier passes record FIXED / VERIFIED / BLOCKED-DATA for each row; this pass did not re-read command.rs or the vanilla sources, so the markers above are left as written.
+- Rows 1-6 (on_place facing, can_place_at gate, chain cap, last_output, block-entity dependency, Bedrock round-trip): STILL OPEN in this pass's record; see the earlier FINAL PASS Result for the claimed dispositions (command.rs:31,288-305; command/mod.rs:156-163; entities/command_block.rs:21-26).
+
+## Result (CODER r3_006, 2026-11-18)
+- 1. `on_place` facing: VERIFIED. Rust `command.rs:28-30` `placement_facing` uses `get_entity_facing_order()[0].opposite()`; vanilla `CommandBlock.java` `getStateForPlacement` uses `getNearestLookingDirection().getOpposite()`.
+- 2. `can_place_at` / `normal_use` GameMaster gate: VERIFIED. Rust `command.rs:300`, `command.rs:412` call `can_use_game_master_blocks()`.
+- 3. `chain_execute` cap: VERIFIED. Rust `command.rs:211` reads `max_command_sequence_length` game rule; vanilla `CommandBlock.java:192,221` reads `GameRules.MAX_COMMAND_SEQUENCE_LENGTH` (default 65536, `GameRules.java:53`). The `MAX_CHAIN_LENGTH` constant named in the earlier Gap status no longer exists; the game-rule read is the closer match.
+- 4. `last_output` TrackOutput gate: VERIFIED. Rust `command/mod.rs:159` `track_output` gate.
+- 5. Block entity `CustomName`/`LastExecution`: no open row in this doc's last Result; left as recorded above.
+- 6. Bedrock editor round-trip: STILL BLOCKED-DATA (no Bedrock client harness; needs `scripts/boot.sh` runtime observation, not a static vanilla comparison).

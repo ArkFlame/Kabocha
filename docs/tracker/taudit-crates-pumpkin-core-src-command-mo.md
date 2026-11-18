@@ -97,3 +97,7 @@ Definitive per-row closure. Re-read every relevant source file and re-checked ea
 - Row 16 (world_or_first): VERIFIED, no change. Console/dummy sources anchor to the first (overworld) world (command/mod.rs:299-303), matching vanilla `CommandSourceStack` level selection.
 
 Final row status: 11 FIXED, 12 FIXED, 13 FIXED, 14 FIXED, 15 FIXED, 16 VERIFIED. No BLOCKED-DATA rows (no missing generated fields or subsystems). No STILL OPEN rows.
+
+## Result (r2_004 pass)
+- Rows 11, 14, 15: left as recorded in the latest Result above. Not re-verified in this pass.
+- No .rs edits this pass.

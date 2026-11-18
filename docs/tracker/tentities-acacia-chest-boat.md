@@ -221,3 +221,13 @@ the checkout.
   `pumpkin-gametest/src/helper.rs`; no new seam was required.
 
 No `.rs` file touched this pass, so no rustfmt needed. Cargo/clippy not run (worker constraint).
+
+## Result (batch r2_019, CODER pass)
+- Rows 1-5: FIXED/VERIFIED per the prior Result sections; grep confirmed present, no edit.
+- Row 6 (pumpkin-gametest integration for spawn, fill, break, drops): STILL OPEN. Needs a new gametest file and a cargo run, both forbidden in this pass.
+- Files edited: none. Status: PARTIAL (row 6 open).
+
+## Result (batch r3_060, CODER pass)
+
+- Doc has no row text; only a stale batch r2_019 stub. Source row is docs/tracker/pass2/0295.md row 6 (acacia chest boat gametest): STILL OPEN. It needs a pumpkin-gametest run (cargo, forbidden in this batch). Rust remove path exists at crates/pumpkin-core/src/entity/vehicle/boat.rs:270-285 (scatter_chest_contents) but was not compared to vanilla.
+- Vanilla source BLOCKED: `.vendor/vanilla-decompiled` is a dangling symlink (to /home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup), so AbstractChestBoat.java cannot be cited.

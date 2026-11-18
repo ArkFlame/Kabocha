@@ -19,3 +19,10 @@ relative to `/run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/.vendor/vanilla-dec
 - `tblocks-beds.md` (carried STILL OPEN rows 39/40/41): BLOCKED-DATA. Missing generated fields: `crates/pumpkin-data/src/generated/dimension.rs:14-18` `BedRule` has only `can_sleep`, `can_set_spawn`, `explodes`; it lacks `destroy_on_leave` and `error_message` (vanilla `world/attribute/BedRule.java:12` record `BedRule(canSleep, canSetSpawn, destroyOnUse, destroyOnLeave, errorMessage)`). `crates/pumpkin-data/src/generated/environment_attribute.rs` has `GameplayBedRule` but no `GameplayStrawBedRule`/`STRAW_BED_RULE` (vanilla `world/attribute/EnvironmentAttributes.java:141-142`). Per-position lookup needs a bed-rule attribute value in `crates/pumpkin-data/src/generated/biome.rs`, which exposes only `boolean_attributes` (vanilla `AbstractBedBlock.java:63-65` + `world/attribute/EnvironmentAttributeSystem.java`). Generated files are off-limits and regeneration needs Extractor. Rows 42 (`getSleepHeight`) and 43 (sleeping/dead guard) were already FIXED/VERIFIED in that unit. No edit needed.
 
 No `STILL OPEN` rows remain. No `.rs` file was edited this pass, so rustfmt is not applicable; orchestrator compiles.
+
+## Result (batch x_10, CODER)
+- This doc contains no open row text; only a stub Result header. Nothing to close here. Files edited: none.
+
+## Result (batch x_11, CODER)
+- taudit-crates-pumpkin-core-src-world-spaw.md adventure gate (`player_spawn_finder.rs:110-117`): VERIFIED. The "no game-type field" premise is stale. `LevelData.game_type` exists (`crates/pumpkin-world/src/world_info/mod.rs:59`) and the gate reads it at `crates/pumpkin-core/src/world/player_spawn_finder.rs:98`, matching vanilla `server/level/PlayerSpawnFinder.java:51` (`serverLevelData.getGameType() == ADVENTURE`). Row stays for the orchestrator to reconcile with its source doc. No `.rs` edited this pass; rustfmt not run.
+- Malformed list entry `"[""- taudit-...` in the x_11 batch file: not a tracker doc, skipped; the real spawn doc was processed above.

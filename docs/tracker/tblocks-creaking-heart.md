@@ -104,3 +104,24 @@ Sources: .vendor/vanilla-decompiled/net/minecraft/world/level/block/CreakingHear
 Verification: rustfmt --edition 2024 ran with exit 0 on both touched .rs files. Cargo and git
 were deliberately not run under the worker contract, so compile/test result is UNVERIFIED.
 No generated data, WIT, cross-crate or out-of-unit files touched. open = 0.
+
+## Result (batch r2_018, CODER, partial)
+- Spawn branch (L, entities/creaking_heart.rs:62-69): still OPEN in this table. Partial look: try_spawn_creaking at block/entities/creaking_heart.rs:155, spawn at :185-199. Not compared step by step with CreakingHeartBlockEntity.java.
+- Spawn distance 32 (verify): VERIFIED premise. Vanilla CreakingHeartBlockEntity.java:46 PLAYER_DETECTION_RANGE = 32, :114 getNearestPlayerThatAffectsSpawning(..., 32.0). Rust CREAKING_SPAWN_DISTANCE = 32.0 at creaking_heart.rs:31.
+- set_creaking_uuid never called (M): code now calls it at creaking_heart.rs:199 and clears at :150, :225, :229, :245. STILL OPEN until teardown path is compared.
+- is_protector fallback (S): STILL OPEN. Current is_protector at creaking_heart.rs:129; not compared with vanilla this pass.
+- Teardown on update_state leaving AWAKE (M, blocks/creaking_heart.rs:59-88): STILL OPEN, not compared.
+- Idle heartbeat (S, verify): STILL OPEN, not checked against vanilla animateTick vs tick.
+- Broken sound override (S): STILL OPEN, not checked.
+- on_place axis (no change row): STILL OPEN, not re-read.
+- Files edited: none. rustfmt: not run (no .rs touched).
+## Result (batch r3_051, CODER, partial)
+- Spawn branch (L, entities/creaking_heart.rs:62-69): STILL OPEN. Checked against vanilla CreakingHeartBlockEntity.java:113-120 and 202-215 (spawn gate, 32 range, trySpawnMob args, sounds, ENTITY_PLACE). Matches in Rust creaking_heart.rs:155-215. FIXED here: missing POOF broadcast (vanilla java:213), now send_entity_status(Poof) at creaking_heart.rs:199-204. Still open: timer. Vanilla ticker is nextInt(5)+20 (java:101-102), Rust gates on world_age % 20 (creaking_heart.rs:96).
+- set_creaking_uuid call sites (M): VERIFIED. Bind at creaking_heart.rs:199, clear at :150, :225, :229, :245, matching vanilla setCreakingInfo/clearCreakingInfo (java:155-169) and removeProtector (java:317-331). New deviation (STILL OPEN): vanilla keeps a missing binding for 30 ticks (java:191-193) before clearing; Rust clears at once (creaking_heart.rs:224-226).
+- is_protector fallback (S): VERIFIED. Rust creaking_heart.rs entity:129-133 requires equality, matching vanilla isProtector (java:333-335).
+- Teardown when update_state leaves AWAKE (M, blocks/creaking_heart.rs:59-88): VERIFIED, no change. Vanilla updateCreakingState (java:140-149) never tears down, it only uproots when there are no logs and no creaking. Teardown is in the despawn branch (java:125-134). Rust should_uproot (blocks/creaking_heart.rs:97-100) and try_despawn_creaking (entities:220-247) match.
+- Idle heartbeat (S, verify): VERIFIED earlier, client-only (CreakingHeartBlock.java:64-73). No change.
+- Broken sound override (S): VERIFIED earlier. No break override in vanilla, and the double-play was removed in a prior pass.
+- on_place axis (no change row): STILL OPEN, not re-read against getStateForPlacement this pass.
+- Files edited: crates/pumpkin-core/src/block/entities/creaking_heart.rs (POOF broadcast, imports EntityStatus and ActorEventID).
+- Checks: rustfmt --edition 2024 on the touched file, exit 0. cargo not run (forbidden by brief), so compile and clippy are UNVERIFIED.

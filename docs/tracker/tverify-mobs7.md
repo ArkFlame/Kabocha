@@ -28,3 +28,8 @@ Audit against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster`.
   sounds match vanilla. No divergence found. Stare-sound interval 400 matches `playStareSound`.
 - Damage values: Enderman 7, Breeze 3, Creaking 3, Drowned via Zombie attributes. Not re-verified against
   pumpkin-data defaults.
+
+## Result (batch x_11, CODER)
+- Creaking hurt sound (STILL OPEN bullet): VERIFIED. Vanilla `world/entity/monster/creaking/Creaking.java:434-436` returns `CREAKING_SWAY` when heart-bound, else super. Rust `crates/pumpkin-core/src/entity/mob/creaking.rs:63-68` `hurt_sound()` implements the same branch. Equivalence to the Monster default is covered by the same override path.
+- Drowned/Enderman goal and target tables, Breeze and Creaking Brain audits, Bogged skeleton goals, damage values: STILL OPEN. Not reached this pass (Brain audits are multi-file).
+- Files edited: none. cargo, git: not run.

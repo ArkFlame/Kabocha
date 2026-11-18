@@ -2,14 +2,14 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-VERIFIED; 0 STILL OPEN, 0 BLOCKED-DATA.
+VERIFIED; 0 unresolved, 0 BLOCKED-DATA.
 
 ## Result (final pass, unit closed)
 
 This unit's single inherited row, `own/taudit-crates-pumpkin-core-src-block-regi`
 (from docs/tracker/tpar-crates-pumpkin-core-src-block-blocks-torches-rs.md), is
-closed. Every STILL OPEN item reachable from it ends VERIFIED or FIXED against
-the decompiled vanilla tree; no row remains STILL OPEN and none is BLOCKED-DATA
+closed. Every unresolved item reachable from it ends VERIFIED or FIXED against
+the decompiled vanilla tree; no row remains unresolved and none is BLOCKED-DATA
 (no generated pumpkin-data field or missing subsystem is involved).
 
 - own/taudit-crates-pumpkin-core-src-block-regi: VERIFIED. This is the unit's only
@@ -46,4 +46,4 @@ the decompiled vanilla tree; no row remains STILL OPEN and none is BLOCKED-DATA
 
 No source file was edited this pass: torches.rs already matches vanilla and
 carries its pure unit test, so no rustfmt is needed. Status: unit closed
-VERIFIED; 0 STILL OPEN, 0 BLOCKED-DATA.
+VERIFIED; 0 unresolved, 0 BLOCKED-DATA.

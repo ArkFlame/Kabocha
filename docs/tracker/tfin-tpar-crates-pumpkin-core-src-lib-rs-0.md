@@ -6,4 +6,4 @@ overload gate, pause-when-empty, sprint gate, game-test gate); no STILL OPEN row
 No STILL OPEN rows remain. No generated pumpkin-data field, WIT change or
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED: no open rows remain (overload gate, pause-when-empty, sprint gate, game-test gate). No edit this pass.

@@ -42,3 +42,8 @@ re-read this pass. No compile run (worker rule); no .rs file touched, so rustfmt
 
 Remaining runtime-only work (a gametest for the two-rider mount layout) needs a file
 outside this unit and is a test-coverage task, not a code gap. No BLOCKED-DATA condition.
+
+## Result (batch x_17, CODER pass)
+- Husk doHurtTarget hunger effect (140 * effective difficulty, only when main hand empty and hit succeeded): VERIFIED. Vanilla Husk.java:67-74 (`140 * (int)difficulty`); Rust crates/pumpkin-core/src/entity/mob/zombie/husk.rs:41 and :127-152.
+- Husk drowning conversion to Zombie (SOUND_HUSK_TO_ZOMBIE): VERIFIED. Vanilla Husk.java:76-86; Rust husk.rs:156-159.
+- Sun sensitivity (vanilla isSunSensitive false, Husk.java:42-44): PARTIAL. Rust uses the `burn_in_daylight` entity tag (mob/mod.rs:1758-1762); tag membership for husk not confirmed this pass. Left as STILL OPEN until the tag data is checked.

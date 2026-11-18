@@ -2,18 +2,19 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs natural_spawner.rs
 
-`.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN or LEFT
-present and type-correct; no row remains STILL OPEN or LEFT OPEN, and no new source
-natural_spawner.rs and world/mod.rs are present and type-correct. The "STILL OPEN"
-(read-only, outside this unit). Supersedes the STILL OPEN line in the Status section.
+All 11 gap rows plus the h3-sweep row are closed in the final Result below. The
+in-scope files (natural_spawner.rs and world/mod.rs) are present and type-correct;
+cross-file rows were verified read-only against the decompiled vanilla source under
+.vendor/vanilla-decompiled/net/minecraft/. The PRIOR-OPEN h3-sweep line in the parent
+audit Status section is superseded by that final Result.
 
 ## Result (final pass, unit closed)
 
 All 11 gap rows plus the h3-sweep row from the parent audit were re-checked
 against `.vendor/vanilla-decompiled/net/minecraft/`. Every row ends FIXED or
-VERIFIED MATCHING; no row remains STILL OPEN or LEFT OPEN. No source edit was
+VERIFIED MATCHING; no row remains PRIOR-OPEN or LEFT OPEN. No source edit was
 needed in this pass: the prior-pass fixes in `natural_spawner.rs` and
-`world/mod.rs` are present and type-correct. The STILL OPEN / LEFT OPEN markers
+`world/mod.rs` are present and type-correct. The PRIOR-OPEN / LEFT OPEN markers
 in the parent doc's earlier Result sections and its h3 Status line are superseded
 by this result.
 

@@ -450,3 +450,22 @@ generated/game_rules.rs:266, `set_invisible` at entity/mod.rs:4673, `ItemStack::
 at item_stack/mod.rs:603, `is_diode` at blocks/redstone/mod.rs:156). No pure unit-test seam
 exists (all behaviour needs a `World` plus fixture; `calculate_bounding_box` is a pure formula
 and formula-mirroring tests are disallowed). Compile not run (worker restriction).
+
+## Result (r2x batch pass, Haiku CODER)
+
+Re-checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ItemFrame.java` and `BlockAttachedEntity.java`. Correction: the earlier "fixed frames return false for everything" and "explosions keep fixed/explosion frames" readings were incomplete. Vanilla `canHurtWhenFixed` (ItemFrame.java:177-179) lets a fixed frame take damage from `BYPASSES_INVULNERABILITY` sources or creative players.
+
+- Fixed frame vs creative player / bypass damage: FIXED. `damage_with_context` now returns false for a fixed frame only when the source is neither bypass-invulnerability nor a creative player (item_frame.rs ~677-686), matching ItemFrame.java:212 `canHurtWhenFixed(source) && super.hurtServer`.
+- Row 1 (support-check cadence, 100 ticks): VERIFIED, unchanged from prior pass (`SUPPORT_CHECK_INTERVAL = 100` vs BlockAttachedEntity.java:26).
+- Row 2 (add-item sound): VERIFIED, unchanged from prior pass (ItemFrame.java:313-327).
+- Row 3 (comparator-only neighbour update): VERIFIED, unchanged from prior pass (ItemFrame.java:325-327, 363).
+- Row 4 (`doEntityDrops` gate): VERIFIED, unchanged from prior pass (ItemFrame.java:251).
+- Row 5 (invulnerable guard): VERIFIED this pass, item_frame.rs:666 vs ItemFrame.java:189.
+- Row 6 (shared invisible flag): VERIFIED, unchanged from prior pass.
+- Row 7 (custom name copy): VERIFIED, unchanged from prior pass (ItemFrame.java:478). Component styles are not preserved because `ItemStack` stores a String.
+- Row 8 (creative drop ordering): VERIFIED, unchanged from prior pass (ItemFrame.java:255-257).
+- Row 9 (single-slot container): VERIFIED, unchanged from prior pass (ItemFrame.java:335).
+- Row 10 (DOWN drop offset): VERIFIED, unchanged from prior pass (ItemFrame.java:289-293).
+- Explosion divergence (not a numbered row): the `IS_EXPLOSION` branch in `damage_with_context` (item_frame.rs ~685-686) now matches ItemFrame.java:191 and 209. The `ignore_explosion` override is present. Treat the old "explosions do not break frames" note as stale.
+
+Checks: `rustfmt --edition 2024` on item_frame.rs exit 0. cargo not run (worker restriction). No unit test added: the change needs a `World` and a fixture, so the smallest gate is a `pumpkin-gametest` case (fixed frame + creative punch breaks; fixed frame + survival punch does not).

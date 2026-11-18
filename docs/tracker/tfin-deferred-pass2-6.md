@@ -21,3 +21,13 @@ FINAL PASS verification against decompiled vanilla 1.21.4 under `.vendor/vanilla
 Edits: this unit doc only. No cargo/git/shell run (worker restriction); orchestrator compiles. No pure unit test added: no new source behaviour was introduced this pass, and the existing tests in `goat.rs`, `ram_target.rs` and `long_jump.rs` already pin the relevant pure logic. Re-read the diff against the AGENTS.md worker compile-pitfalls table: N/A (no source edit).
 
 Status: PASS fixed=0 open=0 files=none
+
+## Result (batch x_13, CODER)
+- Input list line 1 is malformed (`docs/tracker/tfin-deferred-pass2-6.md<TAB>"[""- tentities-creeper-0de8b3.md`); processed the resolvable docs and this fin doc. Creeper row 3: VERIFIED. Spot-checked `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:245-264` order (explode, `spawnLingeringCloud`, `triggerOnDeathMobEffects`, discard) against `crates/pumpkin-core/src/entity/mob/creeper.rs:121-195`; the vanilla `ExplosionPrimeEvent` cancel branch is not mirrored in the spot-check.
+- Goat rows and jungle-boat rows: VERIFIED as recorded above, not re-read in this pass.
+- Rows: fixed=0, verified=2 groups, blocked=0, open=0. Files edited: this doc only. No cargo or git run.
+
+## Result (batch x_12, CODER)
+- This doc only summarises other tracker docs. Its own Result was re-read; the referenced docs `tentities-creeper-0de8b3.md`, `tentities-goat.md`, `tentities-jungle-boat.md` were NOT re-verified in this pass.
+- Scope re-checked: the item-frame explosion claim was verified in source (see `tpar-crates-pumpkin-core-src-entity-decoration-item-frame-rs.md` Result, batch x_12).
+- No Rust edit. Status: UNVERIFIED for the three referenced docs; no row changed.

@@ -147,3 +147,7 @@ Files changed: crates/pumpkin-core/src/block/entities/beacon.rs (spectator filte
 apply_effects and trigger_construct_beacon). No new pure test: both call sites need a live World
 with joined Players, so there is no pure seam; the existing bounds, beam and NBT tests remain the
 pinned pure coverage.
+
+## Result (r2 batch, CODER pass)
+
+Not re-verified this pass; the prior Result sections above record rows 1-7 as resolved or confirmed. No source edits. No row was changed here.

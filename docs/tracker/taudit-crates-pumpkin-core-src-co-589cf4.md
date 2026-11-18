@@ -103,3 +103,5 @@ Re-read `scoreboard_slot.rs` end to end and independently checked every formerly
 - parse (scoreboard_slot.rs:68-72): VERIFIED = vanilla `readUnquotedString` + `DisplaySlot.CODEC.byName(name)` + `ERROR_INVALID_VALUE.createWithContext(reader, name)` (ScoreboardSlotArgument.java:36-43). Pumpkin uses `INVALID_DISPLAY_SLOT_ERROR.create(&*reader, ...)` with translation key `argument.scoreboardDisplaySlot.invalid`.
 - get (97-102) = `getDisplaySlot` (ScoreboardSlotArgument.java:31-33); suggestions (84-87) = vanilla stream over `DisplaySlot.values()` serialized names (ScoreboardSlotArgument.java:47-49).
 - No .rs file touched; rustfmt not applicable. No STILL OPEN rows remain; unit fully closed.
+## Result (coder pass 2, batch r2_003)
+- Not re-verified in this pass. Prior Result sections record every row closed; no new evidence gathered here, no source edited.

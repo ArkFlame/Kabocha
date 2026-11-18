@@ -139,3 +139,21 @@ Re-read the unit's last Result and re-verified the two remaining STILL OPEN rows
 - Block data live load (`data.rs:333-357`): BLOCKED-DATA. Vanilla `BlockDataAccessor.setData` (`.vendor/vanilla-decompiled/net/minecraft/server/commands/data/BlockDataAccessor.java:71-81`) calls `this.entity.loadWithComponents(TagValueInput.create(..., tag))` on the live block entity, then `setChanged()` and `sendBlockUpdated`. Pumpkin rebuilds a fresh block entity from NBT via `block_entity_from_nbt` and swaps it (`data.rs:346-352`), which is lossy for block entities whose NBT round trip is incomplete and closes open screens. Missing subsystem: a read-into-live-NBT method on the `BlockEntity` trait (`crates/pumpkin-core/src/block/entities/mod.rs:76-124`, currently only `from_nbt`/`write_internal`), implemented per block entity to reset all fields in place.
 
 All other rows were fixed and verified in earlier passes and remain correct.
+
+## Result (r2_004 pass)
+- Remaining STILL OPEN rows: not reached in this pass, left open as recorded above.
+- No .rs edits this pass.
+
+## Result (r3_020 pass, 2026-11-18)
+No .rs edits this pass; no rustfmt run. Checked each row against the Gap table and cited vanilla lines.
+- Entity data accessor (`data.rs:229-241,273-275`): VERIFIED. Vanilla `NbtPredicate.getEntityTagToCompare` adds synthetic `SelectedItem` (`.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/NbtPredicate.java:42-55`); Rust `entity_nbt_with_selected_item` matches.
+- `modify string` on non-string tags (`data.rs:481-495`): FIXED earlier, still present; numeric tags stringify with Java formatting.
+- Empty typed arrays (`data.rs:114-205`): FIXED earlier (`94ceb5731`), still present.
+- Compound key order (`data.rs:151-170`): VERIFIED cosmetic, left as is.
+- Substring error indices (`data.rs:497-521`): FIXED earlier, still present.
+- `remove entity` at depth (`data.rs:263-271`, `entity/mod.rs:306-326`, `entity/attributes.rs:225-246`): BLOCKED-DATA, unchanged. Vanilla `EntityDataAccessor.setData` (`.vendor/vanilla-decompiled/net/minecraft/server/commands/data/EntityDataAccessor.java:51-64`) does a full `entity.load(TagValueInput)`; Pumpkin's merge-only `read_nbt_non_mut` has no clear-and-reload path. Missing subsystem: full live-entity reload semantics.
+- Block data live load (`data.rs:333-357`, uses `block_entity_from_nbt` at `data.rs:346`): BLOCKED-DATA, unchanged. Vanilla `BlockDataAccessor.setData` (`.vendor/vanilla-decompiled/net/minecraft/server/commands/data/BlockDataAccessor.java:71-81`) calls `loadWithComponents` on the live entity. Missing subsystem: a read-into-live-NBT method on the `BlockEntity` trait (`crates/pumpkin-core/src/block/entities/mod.rs:76`, only `from_nbt`/`write_internal`).
+- Storage persistence (`data.rs:413-431`): RESOLVED earlier, unchanged.
+- Double formatting in translatable (`data.rs:300-309,386-399,453-464`): FIXED earlier, unchanged.
+- `SET` with empty source (`data.rs:767-770`): FIXED earlier, unchanged.
+- `expected_list` argument text (`nbt_path.rs:632-636`): FIXED earlier, unchanged.

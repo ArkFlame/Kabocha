@@ -241,3 +241,22 @@ instance, or an engine hook); row 30 already ships the `can_hold_reports_capacit
 the pickup-byte codec test is already present in `arrow.rs`. No cargo/git run (worker shell is
 denied); all remaining code edits were landed in prior passes and re-read here, so prior edits
 remain UNVERIFIED by compilation in this pass. No code changed in this pass.
+
+## Result (pass r3_026, Haiku coder)
+
+Re-checked the open rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/`
+and the Rust tree. Code change: none needed this pass. Cargo/git were not run (worker restriction), so no compile check.
+
+- Row 29 (enchant ordering, M): VERIFIED. `AbstractArrow.java:467-474` applies `modifyDamage` to `baseDamage` before `pow * arrowDamage` and `Mth.ceil`; Rust `item/items/projectile_weapon.rs:67` folds it in at fire time, `arrow.rs:748` ceils.
+- Row 30 (pickup canHold, S): FIXED (prior pass). `AbstractArrow.java:707` gates on `canHold > 0`; `arrow.rs:686` uses `player.inventory.can_hold`, `player_inventory.rs:362`, test at `player_inventory.rs:703`.
+- Row 31 (deflect Y offset, S): FIXED (prior commit). Left as is.
+- Row 32 (despawn rate by pickup state, S): FIXED (prior commit). Left as is.
+- Row 33 (tipped trail / potion puff, S): VERIFIED. `Arrow.java:88` emits the trail only under `isClientSide()`; server side is entity event 0 plus color reset in `decay_exposed_potion`.
+- Row 34 (crit particles, S): VERIFIED. `AbstractArrow.java:246-259` uses `Level.addParticle`, a server no-op; client renders from the synced crit flag.
+- Row 35 (spectral trail, S): VERIFIED. `SpectralArrow.java:38` emits the EFFECT particle only when `isClientSide() && !isInGround()`.
+- Row 36 (sound/weapon NBT, S): VERIFIED. Vanilla stores `SoundEvent` and clears weapon in `onItemBreak`; Rust hard-codes `Sound::EntityArrowHit` (`arrow.rs` on_hit_block), so the persistence is a no-op today.
+- Row 37 (deflect vs pierce, S): FIXED (commit 01781d1e4, UNVERIFIED by build). Vanilla deflect branch is an `else if` at `AbstractArrow.java:514-554` area; re-read not repeated.
+- Row 38 (no-physics owner pickup, S): VERIFIED. `AbstractArrow.java:704` checks only `(isInGround() || isNoPhysics()) && shakeTime <= 0`; no owner branch in `tryPickup`. `arrow.rs` `on_player_collision` matches.
+- Row 39 (last_hurt_mob, M): VERIFIED, supersedes the earlier BLOCKED-DATA verdict. Vanilla `AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`. Rust `arrow.rs:778-790` writes the owner's `last_attacking_id` and `last_attack_time` (the same fields Player.attack and Mob.attack write, `player.rs:2024`), which `goal/owner_hurt_target.rs` reads. Remaining difference: Rust has no separate `lastHurtMob` field for Fox (`Fox.java:129-130`), which is a Fox-doc concern, not this entity doc.
+
+Files edited: this tracker doc only. STILL OPEN markers in the Gap table are left unchanged, per the pass rules.

@@ -233,3 +233,19 @@ that exceeds a minimal edit.
 Files changed this pass: tracker doc only (no source edits). No new pure unit-test seam exists;
 existing seams (`is_valid_pack_name`, `pack_mcmeta_content`, `data_pack_format`,
 `valid_pack_name_check`, `compute_enabled_packs`) already cover the in-scope logic.
+
+## Result (r2_004 pass)
+- Rows 1-4, 6: STILL OPEN, not reached in this pass.
+- Row 5 (`pumpkin-unit-test` exposed, `data/datapack/mod.rs:1399`): STILL OPEN; `get_enabled_packs` in `data/datapack/mod.rs` was out of this pass's scope.
+- Row 8 (pack order / `before vanilla`): STILL OPEN; needs selection-order modeling in `LevelData`.
+- No .rs edits this pass.
+## Result (r3_022 pass)
+- 1. `pack_format` hardcode: VERIFIED. `datapack.rs:374` and `data/datapack/mod.rs:50,1724` use `CURRENT_MC_VERSION.data_pack_format()`; `pumpkin-util/src/version.rs:240`. No `61` left. Vanilla `DataPackCommand.java:173-180` path; format from `SharedConstants`.
+- 2. Duplicate enable/disable logic: VERIFIED. `datapack.rs:238,281,312` call `DatapackManager::enable_pack_checked` / `disable_pack_checked`; no command-side copy remains.
+- 3. Anchor known-but-not-enabled: VERIFIED. Vanilla `DataPackCommand.java:236-247` `getPack(..., enabling=false)`: unknown -> `commands.datapack.unknown`, not selected -> `commands.datapack.disable.failed`. Rust `data/datapack/mod.rs:1840-1849` and `datapack.rs:58-63` map the same. Note: `.vendor` `DataPackCommand.java` has no before/after registration, so the anchor branch is checked via the shared `getPack` helper only.
+- 4. `reload_datapacks` result discarded: VERIFIED. Rust surfaces failures via `send_reload_failure` (`datapack.rs:250-260`). Vanilla `DataPackCommand.java:173-180,182-187` calls `ReloadCommand.reloadPacks(...)` which returns void, so a `Result` would diverge. No change.
+- 5. `pumpkin-unit-test` exposed: VERIFIED FIXED earlier. `data/datapack/mod.rs:1577` `is_hidden_test_pack`, filtered in `compute_enabled_packs` (1652) and `get_all_known_packs` (1585). Not touched this pass.
+- 6. Suggestion ids: FIXED. `datapack.rs` `AvailablePackSuggestionProvider` now suggests ids verbatim (vanilla `UNSELECTED_PACKS`, no escape). `EnabledPackSuggestionProvider` uses new `escape_if_required` (vanilla `StringArgumentType.escapeIfRequired`, `DataPackCommand.java:81`). Test `escape_if_required_quotes_only_non_bare_ids` added.
+- 7. `is_valid_pack_name`: VERIFIED. `datapack.rs:338-360` matches `FileUtil.java:20-22` (`.*\.` trailing-dot and reserved names) and `FileUtil.java:159-160` (`[-._a-z0-9]+`, not `.`/`..`).
+- 8. Pack order / `before vanilla`: BLOCKED-DATA. Missing subsystem: an ordered `PackRepository`-style selected-order model in `LevelData` (bundled packs always load first in `load_bundled_datapacks`, so `before vanilla` cannot precede `vanilla` without it). Not built this pass.
+- Files edited: `crates/pumpkin-core/src/command/commands/datapack.rs` (suggestion escaping + unit test). rustfmt --edition 2024 ran clean. No cargo run (forbidden by brief).

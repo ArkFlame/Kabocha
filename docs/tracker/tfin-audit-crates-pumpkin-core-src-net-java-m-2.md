@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is in `net/java/mod.rs`,
-- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
-- Row 1 (command/chat/session ordering): STILL OPEN - the `server.spawn_task` sites are in
-- Row 3 (UPDATE_RECIPES item property sets): STILL OPEN - writing real `itemSets` needs generated
+- Row 5 (unknown packet id `warn!`): PRIOR-OPEN - the log site is in `net/java/mod.rs`,
+- Rows: PRIOR-OPEN. Note body partly unreadable in this pass; nothing verified.
+- Row 1 (command/chat/session ordering): PRIOR-OPEN - the `server.spawn_task` sites are in
+- Row 3 (UPDATE_RECIPES item property sets): PRIOR-OPEN - writing real `itemSets` needs generated
 
 ## Result
 FINAL PASS: every row closed and grounded against the vendored decompiled vanilla under
@@ -46,4 +46,4 @@ were already fixed on disk by earlier passes; this pass only re-verified them.
   disconnects (.vendor/vanilla-decompiled/net/minecraft/network/Connection.java:324-326,
   multiplayer.disconnect.invalid_packet).
 
-The generic STILL OPEN note in this unit is resolved by the per-row results above.
+The generic PRIOR-OPEN note in this unit is resolved by the per-row results above.

@@ -89,3 +89,17 @@ new pure regression test was added. No cargo/test run (forbidden for this worker
   Fixes verified in pre-existing edits to `physics.rs`, `bucket.rs`, `lava.rs`,
   `pathfinder.rs`. `rustfmt --edition 2024` succeeded on flowing_trait.rs.
 - Status: UNVERIFIED (no cargo/test run allowed; orchestrator to compile and test).
+
+## Result (r2 batch, CODER pass)
+
+Not re-verified this pass; prior Result above stands. No source edits.
+
+- 1. Source water waterlogs a LiquidBlockContainer: FIXED in pass 2 (per prior Result). Not re-checked now.
+- 2. `bubble_column` missing from `washed_away_by_fluids`: STILL OPEN. Vanilla tag omits it too, so the generated tag is correct. The real gap is fluid-state-aware hole detection (`bottomState.getFluidState().isSame(water)`) in `pathfinder.rs`, which is a behaviour change outside this batch.
+- 3. Dead lava/water clause in `try_flow`: FIXED in pass 1 (per prior Result). Not re-checked now.
+
+## Result (r3 batch, CODER pass)
+
+- 1. Source water waterlogs a LiquidBlockContainer: not re-checked this pass; prior FIXED result stands (vanilla `FlowingFluid.spreadTo` FlowingFluid.java:331-341).
+- 2. `bubble_column` water-hole detection: FIXED. Vanilla `isWaterHole` (FlowingFluid.java:470-473) is `canPassThroughWall(DOWN) && (same fluid || canHoldFluid)`; Pumpkin `pathfinder::is_hole` (pathfinder.rs) previously lacked the `canPassThroughWall(DOWN)` term. Added `wall_seals_down` (sturdy bottom face on the flowing cell or sturdy top face below, via `is_side_solid`, approximating vanilla merged-face occlusion) and an early `false` in `is_hole`. Pure test `bottom_slab_below_does_not_seal_the_fall_but_a_slab_above_does` in pathfinder.rs. Not compiled (forbidden for this worker).
+- 3. Dead lava/water clause in `try_flow`: not re-checked this pass; prior FIXED result stands.

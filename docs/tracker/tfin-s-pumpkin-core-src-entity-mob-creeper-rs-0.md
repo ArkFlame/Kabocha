@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-No row remains STILL OPEN.
+No row remains unresolved.
 
 ## Result
 FINAL PASS. The single row `entities/Creeper` is closed. Re-audited against decompiled vanilla
@@ -45,4 +45,4 @@ fall path in `.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity
 
 New pure unit test added in node_evaluator.rs (comfortable_fall_distance_matches_vanilla). The audited behaviours (goal registration, NBT, sound, explosion ordering,
 target rejection) have no pure seam in creeper.rs; existing inline tests cover the fuse/radius
-constants. rustfmt is left to the orchestrator. No row remains STILL OPEN.
+constants. rustfmt is left to the orchestrator. No row remains unresolved.

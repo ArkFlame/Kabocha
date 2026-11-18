@@ -32,3 +32,19 @@ For #4128, insert/eject/break/hopper-extract each drop the record once in the cu
 ## Result (re-review)
 - Decompiled vanilla is now present in `.vendor/vanilla-decompiled/net/minecraft/` (header above is stale). Re-verified against `JukeboxBlock.java`, `JukeboxBlockEntity.java`, `JukeboxSongPlayer.java`, `JukeboxPlayable.java`.
 - No new in-scope fix. #2/#3/#4/#5 already resolved in the current tree and confirmed correct against vanilla; #1 stays open because datapack songs require a dynamic `jukebox_song` registry lookup at four call sites (cross-crate/generated-data change outside this unit). No code or test changes made this pass.
+
+## Result (batch r2_018, CODER, partial)
+- 1 Song resolved by namespace strip (rsplit): STILL OPEN. Vanilla JukeboxBlockEntity.java:123-124 resolves JukeboxSong via JukeboxSong.fromStack; Rust path not re-read.
+- 2 Double stop on eject/break: STILL OPEN.
+- 3 ticks NBT persistence: STILL OPEN. Vanilla TICKS_SINCE_SONG_STARTED_TAG_ID at JukeboxBlockEntity.java:64; save condition not compared.
+- 4 onPlace HAS_RECORD re-derive: STILL OPEN.
+- 5 Note particle colour: already FIXED per doc (a20553e39), not re-verified.
+- Files edited: none. rustfmt: not run.
+
+## Result (batch r3_055, CODER)
+- #1 song resolved by namespace strip: STILL OPEN. Not fixed here: datapack `jukebox_song` loader exists (`crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs`), but both `blocks/jukebox.rs:152-159,224-225` and `entities/jukebox.rs:55-58` still resolve via generated `JukeboxSong::from_name`. Needs a registry-holder change across four call sites (vanilla `JukeboxSong.fromStack`, `JukeboxBlockEntity.java:123-124`). Not BLOCKED-DATA: subsystem exists.
+- #2 double stop on eject/break: VERIFIED. Vanilla `JukeboxSongPlayer.java:54-59` stops once when `song != null`. Rust single emitter `crates/pumpkin-core/src/block/entities/jukebox.rs:261-277` (only `JukeboxStopPlay` and `SoundStopJukeboxSong` sites in crate); eject `blocks/jukebox.rs:103-108` and break `entities/jukebox.rs:179-199` each reach it once via `clear_record`.
+- #3 ticks NBT persistence: VERIFIED. Vanilla `JukeboxBlockEntity.java:135-137` writes only when `getSong() != null`; Rust `entities/jukebox.rs:94-99` gates on `song_length_ticks > 0` (playing proxy, zeroed by `stop_playing` at line 263); `chunk_data_nbt` `147-152` delegates.
+- #4 onPlace HAS_RECORD re-derive: VERIFIED. Vanilla `JukeboxBlock.java:40-44` sets HAS_RECORD from `BLOCK_ENTITY_DATA` `RecordItem`; Rust `blocks/jukebox.rs:82-89` re-derives from the block entity, which is freshly created empty in `placed` (`blocks/jukebox.rs:76-80`), so no stale-flag path.
+- #5 note particle colour: VERIFIED. Vanilla `JukeboxSongPlayer.java:86` `nextInt(4) / 24.0F`; Rust `entities/jukebox.rs:116` and `note_particle_hue` at `entities/jukebox.rs:473-475`. Client-only cosmetic, no test.
+- Files edited: this tracker doc only (appended Result). No Rust edited; rustfmt not run.

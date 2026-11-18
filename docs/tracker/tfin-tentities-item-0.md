@@ -7,4 +7,4 @@ Re-checked all 5 STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecra
 Re-verified all 5 STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`. Every row's
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+BLOCKED: this doc has no enumerable rows. The item list is truncated (line 3 cut off, lines 5-7 are fragments), so there is no row to fix or verify against `.vendor/vanilla-decompiled/net/minecraft/`. The earlier notes in lines 5-7 claiming all 5 rows are already fixed are unverified and are not recorded here as VERIFIED. Next step: regenerate this doc from its source tracker with the full row list, then run the per-row pass.

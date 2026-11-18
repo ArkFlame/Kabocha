@@ -64,3 +64,7 @@ Re-read the current sources; every fix from earlier passes is present and matche
 | explosion fire placement via get_placement_state | VERIFIED | world/level/ServerExplosion.java:672-681 (BaseFireBlock.getState); world/explosion.rs:454 |
 
 Sources re-read this pass: fire.rs (whole file), world/explosion.rs:438-454, plus grep confirming lightning.rs:112/120, small_fireball.rs:118 and ignition.rs:47 route through the shared helpers. No unwrap/expect/panic, no println, no em dashes introduced; no source file touched so rustfmt is not required. Compile UNVERIFIED by worker (orchestrator runs scripts/integrate.sh).
+
+## Result (x_01)
+- Doc state re-read: all rows closed in earlier passes. Spot-checked `block/blocks/fire/fire.rs:203,247-248` (vanilla `FireBlock.checkBurnOut`/`onPlace`/`tick` comments) present. Full per-row re-verification NOT done this pass.
+Files edited: none. Checks: none run.

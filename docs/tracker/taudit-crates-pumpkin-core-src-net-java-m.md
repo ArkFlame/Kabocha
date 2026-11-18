@@ -340,3 +340,18 @@ Ground truth: `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerCom
 
 Edited file: `crates/pumpkin-core/src/net/java/play/keep_alive.rs`. No cargo run (workers may not
 build); orchestrator compiles once. `rustfmt` not run here.
+
+## Result (r2_014 pass)
+- Row 1 (command/chat/session ordering): STILL OPEN - needs per-connection ordered queue (M); not reached.
+- Row 2 (keep-alive single challenge): STILL OPEN - oldest-challenge check present (`play/keep_alive.rs`), but `net/java/mod.rs:281-302` still times out on any pending id and uses timestamp ids.
+- Row 3 (UPDATE_RECIPES property sets): VERIFIED - `crates/pumpkin-protocol/src/java/client/play/recipe_book_add.rs:1082,1183` writes the property-set map; vanilla `ClientboundUpdateRecipesPacket`.
+- Row 4 (per-tick packet cap): VERIFIED - `crates/pumpkin-core/src/entity/player.rs:912` uses `SegQueue` drained without a cap; `MAX_PACKETS_PER_TICK` absent.
+- Row 5 (unknown packet id warn): VERIFIED - `crates/pumpkin-core/src/net/java/mod.rs:1417-1424` kicks with `disconnect.packetError`; vanilla `.vendor/vanilla-decompiled/net/minecraft/network/codec/IdDispatchCodec.java:41` throws on unknown id.
+
+## Result (batch r3_037)
+
+- Row 1 (command/chat/session ordering): VERIFIED already fixed in this checkout. `net/java/mod.rs:404` `enqueue_ordered_packet` chains each handler after the previous `JoinHandle` (`chain_after`, `mod.rs:107-115`) for `SChatAck`, `SChatCommand`, `SChatCommandSigned`, `SChatMessage` and `SPlayerSession` (`mod.rs:946-1246`). Vanilla: `ServerGamePacketListenerImpl.java:531,579,858,897` `PacketUtils.ensureRunningOnSameThread` (FIFO on the server thread). No change.
+- Row 5 (unknown packet id `warn!`): VERIFIED, no `warn!` remains. `net/java/mod.rs:1417-1424` kicks with `DISCONNECT_PACKETERROR`. Vanilla disconnects too (`Connection.java:228,567` `disconnect.genericReason`); the translation key differs and is left as-is.
+- Rows 2-4: unchanged from the earlier Result sections above (VERIFIED or FIXED).
+
+Files edited: this tracker doc only. No Rust changed. No cargo or rustfmt run (Rust untouched).

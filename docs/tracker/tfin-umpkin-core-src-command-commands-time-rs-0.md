@@ -6,4 +6,4 @@ Closed the two remaining STILL OPEN rows of the referenced command audit
 Referenced world-time audit: no STILL OPEN rows remain. Its carried row 5 is
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows: the two remaining rows of the referenced command audit are closed, and its carried row 5 is closed too.

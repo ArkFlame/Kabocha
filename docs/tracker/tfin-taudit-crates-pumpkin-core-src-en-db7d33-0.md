@@ -8,4 +8,4 @@ Re-checked every STILL OPEN row against the decompiled `.vendor/vanilla-decompil
 Fresh verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` (Paper/CraftBukkit) and the live sources. No `.rs` file needed a change: each STILL OPEN row is a false positive, already fixed in current source, or outside this unit.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED (PrimedTnt/TntBlock vanilla paths above): each row is a false positive, already fixed, or out of unit. No BLOCKED-DATA. Flag for orchestrator: fuse_from_nbt in tnt.rs returns 0 for a missing tag, vanilla default is 80 (not fixed here).

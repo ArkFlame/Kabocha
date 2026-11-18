@@ -2,10 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: boat.rs
 
-Re-opened the single row marked STILL OPEN (boat.rs:276-301, bubble time / DATA_ID_BUBBLE_TIME)
-- STILL OPEN row (bubble time): out of this unit's editable basenames (it targets `boat.rs`,
-No source files changed (only editable file verified correct; the STILL OPEN row is out of scope
-The only STILL OPEN row (boat.rs:276-301, bubble time / DATA_ID_BUBBLE_TIME) was verified
+- Bubble time (boat.rs:276-301, DATA_ID_BUBBLE_TIME).
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- Bubble time: VERIFIED. Same code path as jungle-chest-boat-0: `boat.rs` `tick_bubble_column` (~:429-474) publishes `ID_BUBBLE_TIME` and matches `AbstractBoat.onAboveBubbleColumn` / `tickBubbleColumn` in `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`. No edit.
+
+Status: fixed=0 open=0. No compile run.

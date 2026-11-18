@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-All prior STILL OPEN rows were the single meta note "extraction empty, needs re-audit", now RESOLVED. No remaining STILL OPEN rows and no BLOCKED-DATA rows. fixed=0 open=0.
-No STILL OPEN rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none this pass (both `.rs` files already correct and tested).
+All prior open rows were the single meta note "extraction empty, needs re-audit", now RESOLVED. No remaining open rows and no BLOCKED-DATA rows. fixed=0 open=0.
+No open rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none this pass (both `.rs` files already correct and tested).
 
 ## Result
 All tracker rows closed. No `.rs` edits needed: both in-scope files already match decompiled vanilla step for step and already carry pure unit tests, so adding more would only duplicate existing coverage (forbidden by AGENTS.md).
@@ -15,4 +15,4 @@ All tracker rows closed. No `.rs` edits needed: both in-scope files already matc
 - Deviation #3 (DebugBrainDump formatting) - VERIFIED deliberate / out of scope: debug-subscription-only formatting in `memory/mod.rs`, outside this unit; no generated field or subsystem is missing.
 - Meta note "extraction empty, needs re-audit" - RESOLVED: full re-audit of both files completed in the parent tracker.
 
-No STILL OPEN rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none this pass (both `.rs` files already correct and tested).
+No open rows, no BLOCKED-DATA rows. fixed=0 open=0. Files edited: none this pass (both `.rs` files already correct and tested).

@@ -291,3 +291,8 @@ reading (worker cannot compile), so reported UNVERIFIED for build status.
 
 No new pure test seam exists (rows 1/2 are already covered by existing unit tests);
 no test added. Existing seams cover the animation and lid-sweep logic.
+
+## Result (batch r2_019, CODER pass)
+- h6 rows 1, 2, 4: already closed by the FINAL PASS above; no STILL OPEN rows remain, no BLOCKED-DATA rows.
+- Row 3 (useWithoutItem result): VERIFIED, Consume with a screen, Pass otherwise (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java`).
+- Files edited: none. Status: PASS.

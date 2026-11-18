@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-All rows end FIXED/VERIFIED; none BLOCKED-DATA, none STILL OPEN. No source edits this pass
-All rows end FIXED/VERIFIED; none BLOCKED-DATA, none STILL OPEN. No source edits this pass
+All rows end FIXED/VERIFIED; none BLOCKED-DATA, none open. No source edits this pass
+All rows end FIXED/VERIFIED; none BLOCKED-DATA, none open. No source edits this pass
 
 ## Result
 Final pass. Every row verified against decompiled vanilla at
@@ -38,5 +38,5 @@ fixes; no source edits this pass (this unit names no source file).
   by dedicated modules in `datapack/mod.rs`, mirroring vanilla's separate `RELOADABLE_REGISTRIES` set
   (`resources/RegistryDataLoader.java:154-163`).
 
-All rows end FIXED/VERIFIED; none BLOCKED-DATA, none STILL OPEN. No source edits this pass, so
+All rows end FIXED/VERIFIED; none BLOCKED-DATA, none open. No source edits this pass, so
 rustfmt is not needed. Checks not run by worker (orchestrator compiles/nextests the batch).

@@ -18,3 +18,9 @@ Audit pass 11 (2026-11-18, FINAL PASS). Re-read the current source of block/enti
 
 Out of scope (not a tracker STILL OPEN row): Bedrock block-actor data omitting item components in build_jukebox_actor needs Bedrock component-serialization format work (client-only). No row remains STILL OPEN.
 
+
+## Result (x_01)
+- Jukebox `write_nbt` / `tick` / `chunk_data_nbt` (`block/entities/jukebox.rs:81,102,147`): VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/JukeboxBlockEntity.java`; the tests at `jukebox.rs:504-534` cover the stopped/playing ticks.
+- `on_state_replaced` (`block/blocks/jukebox.rs:192-195`): VERIFIED, output-signal update only.
+- Bedrock block-actor item components: out of scope (client format work), not a STILL OPEN row.
+Files edited: none. Checks: none run (CODER cannot compile).

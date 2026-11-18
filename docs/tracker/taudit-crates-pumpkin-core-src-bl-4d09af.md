@@ -168,3 +168,17 @@ No source changes in `shelf.rs`.
   46 call sites is in `block/mod.rs` (not editable by this unit); shelf collision/occlusion shape
   needs generated `#minecraft:wooden_shelves` shape data (BLOCKED-DATA); piston push reaction needs
   engine-level moveability support. No small pure test seam added.
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. No Rust edited this pass; rows below were not re-verified beyond the notes above.
+- Flowing-water waterlogging (shelf.rs:325): STILL OPEN (not re-checked this pass; prior note says no change needed, vanilla ShelfBlock.getStateForPlacement).
+- BlockIsReplacing::water_source 46 call sites (block/mod.rs): STILL OPEN (cross-file refactor; is_water() helper exists at block/mod.rs:793).
+- Shelf shape/occlusion: BLOCKED-DATA (generated collision/occlusion shape for #minecraft:wooden_shelves is missing from pumpkin-data).
+- Piston push reaction: STILL OPEN (engine-level moveability concept, outside shelf.rs).
+
+## Result (CODER r3_004, 2026-11-18)
+Status PASS. No Rust edited this pass; every row below was checked against `.vendor/vanilla-decompiled`.
+- Flowing-water waterlogging (shelf.rs:325): VERIFIED. Vanilla `ShelfBlock.java:130` `replacedFluidState.is(Fluids.WATER)`; `FluidState.java:175` `fluidOwner == rawType`, so only level-0 source matches. Rust `shelf.rs:325` `args.replacing.is_water()` = `Water(0)` (`block/mod.rs:793`). Matches.
+- `BlockIsReplacing::water_source` / 46 call sites: VERIFIED, stale row. The `water_source` identifier no longer exists in `crates/pumpkin-core/src` (grep count 0). It was replaced by `is_water()` (`block/mod.rs:787-795`) with `.is_water()` used at 47 call sites. Nothing left to migrate.
+- Shelf shape/occlusion: VERIFIED, not BLOCKED-DATA. Per-state `collision_shapes` and `outline_shapes` exist in `assets/blocks.json` (acacia_shelf: e.g. `[77,78,79]`, `[80,81,82]`, ... over 64 states) and flow into `pumpkin-data` block states. Light occlusion uses `useShapeForLightOcclusion` via tag `MINECRAFT_WOODEN_SHELVES` at `crates/pumpkin-world/src/lighting/occlusion.rs:30`; vanilla `ShelfBlock.java:61-75` returns true. Caveat: per-facing shape values were not diffed one by one.
+- Piston push reaction: VERIFIED, stale row. Vanilla `BlockBehaviour.java:1239` defaults `pushReaction` to `PUSH_PULL`, and `ACACIA_SHELF` in `Blocks.java:1204-1212` sets none. Generated `piston_behavior` is `PUSH_PULL` in `assets/blocks.json` (acacia_shelf, first state checked), and `crates/pumpkin-core/src/block/blocks/piston/piston.rs:97-100` reads `state.piston_behavior`. The "no engine concept" claim is wrong.

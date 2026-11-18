@@ -2,10 +2,11 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: boat.rs
 
-The remaining table rows are marked "S (verify)", not STILL OPEN, and are outside this task's
-STILL OPEN scope; they are also already reworked on master with re-verification comments and
-All rows resolved; no STILL OPEN remains. The only such row (boat.rs:276-301, bubble time /
-All table rows are resolved; none remains STILL OPEN. Each was re-verified against
+- Bubble time (boat.rs:276-301, DATA_ID_BUBBLE_TIME): the only row that was open.
+- Other table rows: marked "S (verify)", already reworked with re-verification comments on master.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- Bubble time: VERIFIED (see jungle-chest-boat-0; `boat.rs` `tick_bubble_column` matches `AbstractBoat.tickBubbleColumn`).
+- Other "S (verify)" table rows: resolved in code on master (prior pass); not re-audited this pass.
+
+Status: fixed=0 open=0. No compile run.

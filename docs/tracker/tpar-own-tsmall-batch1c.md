@@ -61,3 +61,7 @@ fixes already present from earlier passes), BLOCKED-DATA 0, STILL OPEN 0.
 
 Pitfall re-check: no new Rust edits this pass, so no import/helper-placement/macro-path/
 struct-initializer/clone/pedantic risk was introduced.
+
+## Result (x_03 recheck)
+- Rows 1-11 and 15: VERIFIED against the vanilla paths cited above. Spot-checked by grep: combat.rs:244 non_living_knockback_impulse (row 3), living.rs:5652 climbing_descent_blocked (row 9), block_effects.rs:136 merge_oldest_movement (row 4), boat.rs:272 scatter_chest_contents (row 10), vehicle.rs:27 has_entity_loot_table (row 11). All exist.
+- BLOCKED-DATA 0, FIXED 0, STILL OPEN 0. Files edited this pass: this doc only. No cargo run (forbidden).

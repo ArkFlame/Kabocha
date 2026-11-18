@@ -148,3 +148,16 @@ Two unlisted parity gaps found while reading the same vanilla class and fixed in
 
 No pure seam exists for `is_scared_by`; the state-id test already covers the pure armadillo logic.
 No cargo/git run per unit rules; compilation and rustfmt are left to the orchestrator.
+
+## Result (re-audit 2026-11-18, batch r2y_000)
+
+Rows checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/armadillo/Armadillo.java` and `SensorType.java:26-28`.
+
+- Row 1 VERIFIED: `hurtServer` (Armadillo.java:280-286) `(damage - 1.0F) / 2.0F` when `isScared()`; Rust `modify_incoming_damage` (armadillo.rs `fn modify_incoming_damage`) matches.
+- Row 2 VERIFIED: `ARMADILLO_SCARE_DETECTED` MobSensor rate 5 (SensorType.java:27); Rust `SCARE_SCAN_INTERVAL = 5` at armadillo.rs:~34, scan in `custom_server_ai_step` (`age % SCARE_SCAN_INTERVAL`), runs also while already rolled up, refreshing the 80-tick memory on a hit.
+- Row 3 VERIFIED: `actuallyHurt` (Armadillo.java:290-305) matches `on_damage` (NoAI/dead guard, living attacker 80-tick write plus `canStayRolledUp` then `rollUp`, panic-environmental `rollOut`).
+- Row 4 FIXED: vanilla `isScaredBy` (Armadillo.java:238-245) tests `getBoundingBox().inflate(7, 2, 7).intersects(target.getBoundingBox())`, not centre-point distance. Rust `is_scared_by` (armadillo.rs `pub fn is_scared_by`) used centre-point deltas, which rejects targets whose box overlaps but whose centre is more than 7 blocks away. Replaced with an AABB `expand(7, 2, 7)` + `intersects` against `target.bounding_box`. Undead, last-hurt-by, and non-spectator sprinting/riding clauses were already correct. Not unit-tested: needs a live world (no pure seam).
+- Row 5 VERIFIED: `const _` assert at armadillo.rs `const _: () = assert!(... BABY_ID ... == ... DATA_BABY_ID ...)` ties both generated `TrackedId` values.
+- Row 6 VERIFIED: `fn state_ids_and_names_match_vanilla_order` (armadillo.rs test) binds ids 0..3 and names to `ArmadilloState` declaration order (Armadillo.java:383-407).
+
+Files edited: `crates/pumpkin-core/src/entity/passive/armadillo.rs` (row 4). `rustfmt --edition 2024` ran on it. No cargo/git run per brief.

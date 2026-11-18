@@ -180,3 +180,8 @@ The last two open gaps are now closed in `crates/pumpkin-core/src/entity/vehicle
 
 No gap remains open. No BLOCKED-DATA: the previously missing generated fields and block-state NBT
 serializer now exist. rustfmt is run by the orchestrator; no cargo or git run.
+
+## Result (batch r2_007, spot-check)
+- Gap 1 (display block): VERIFIED present. minecart.rs:197 `MinecartDisplay`, :203 impl, :252 field.
+- Gap 2 (portal): UNVERIFIED this pass. `tick_portal` call not located by grep in minecart.rs; prior pass claims tick at minecart.rs. Needs one grep to confirm.
+- Gaps 3-10: VERIFIED by prior pass; not re-read this pass.

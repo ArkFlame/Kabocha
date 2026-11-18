@@ -104,3 +104,11 @@ resolved. No ticker.rs source edit was needed this pass.
 Verification: source read-only this pass (no edits). Rustfmt/cargo/clippy/nextest were not run
 (forbidden for this worker); the orchestrator's batch check covers the sibling-worker
 server/mod.rs changes.
+
+## Result (CODER batch r2_015)
+Code re-read this pass. No source file changed. Gap rows 1-4 are already implemented in the tree; the STILL OPEN markers above are stale.
+- Row 1 (tick-count freeze): VERIFIED. Rust `tick_count` advances only via `advances_tick_count(runs_normally, is_sprinting)` at `crates/pumpkin-core/src/server/ticker.rs:140` (fn at `server/mod.rs:2332`), tick-times ring stays unconditional (`server/mod.rs:2083-2087`). Vanilla reference: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1705` (tickCount++ commented out in this Folia-modified decompile, so the gate is the Paper/Folia-tick path; no vanilla line proves the exact increment site here).
+- Row 2 (overload warning gate): VERIFIED. Warning and skip share `apply_overload_skip(..., runs_normally)` at `crates/pumpkin-core/src/server/ticker.rs:121` and `:232-258`. The decompile gate is `MinecraftServer.java:1862` (`runsNormally`).
+- Row 3 (event numbering): VERIFIED. `ServerTickStartEvent` receives post-increment `tick_count` (1-based) at `ticker.rs:214-219`; `ServerTickEndEvent` uses the same value (`ticker.rs:~160`), matching Paper's `this.tickCount`. Event doc `crates/pumpkin-core/src/plugin/api/events/server/server_tick_start.rs:6`.
+- Row 4 (1m/5m/15m rings): VERIFIED. Rings `TPS_SAMPLES_1M/5M/15M` at `crates/pumpkin-core/src/server/mod.rs:92-94`, fed at `:2101/2108/2115`, exposed by `get_tps_1m/5m/15m` at `:2190-2211`. Vanilla reference: `MinecraftServer.java:330` (`tickTimes5s`), `:365` (`addDataFrom`), `:403` (`getMSPTData`).
+- Gap status lines above stay as written (historical record). Files touched: none.

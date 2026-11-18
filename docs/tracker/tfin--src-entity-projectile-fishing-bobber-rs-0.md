@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files:
 
-`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java`. Every STILL OPEN row.
+`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java`. Every unresolved row.
 
 ## Result (FINAL PASS close-out)
 
@@ -11,7 +11,7 @@ parent doc (`fishing_bobber.rs`, `fishing_rod.rs`, `world/loot/predicates.rs`) a
 decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java` and
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java`.
-Worked through all three rows in order. No STILL OPEN row remains; no source change was
+Worked through all three rows in order. No unresolved row remains; no source change was
 needed because the current checkout already matches vanilla on every row. No BLOCKED-DATA
 condition applies (no missing generated pumpkin-data field and no missing subsystem).
 
@@ -43,5 +43,43 @@ Pure-seam unit tests already exist for `throw_setup`, `bob_velocity`,
 (including CAVE_AIR/VOID_AIR at predicates.rs:1103-1104); no duplicate was added. No .rs
 file changed, so rustfmt was not required. Diff re-checked against the worker
 compile-pitfalls table: no code changes, so no import/clone/clippy-pedantic issues apply.
+
+Status: PASS fixed=0 open=0 files=none
+
+
+## Result (FINAL PASS - genuine re-verification)
+
+Re-read the current checkout of the two editable source files against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java` and
+`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java`. All three tracker rows
+close as FIXED or VERIFIED; no BLOCKED-DATA condition applies (no missing generated pumpkin-data
+field, no missing subsystem). The open-water air-variant fix from the prior pass is present and
+correct in the checkout; no new source edit was needed this pass.
+
+- Row 1 (entities/Fishing Bobber [partial/AUDITED]): VERIFIED (matches vanilla). Audited
+  `fishing_bobber.rs` behaviours match FishingHook.java: throw origin and per-axis launch scaling
+  (FishingHook.java:100-124), fly/water/hook transitions (FishingHook.java:174-205), bobbing
+  damping and synced bite kick (FishingHook.java:225-244), the open-water latch
+  (FishingHook.java:233-237) and the 5x5 column scan (`predicates.rs:423-457 is_open_water` vs
+  FishingHook.java:442-466), the catch cycle, loot/XP/stat/durability return, owner-stop discard
+  (FishingHook.java:273-291) and metadata indices.
+- Row 2 (own audit, five rows): VERIFIED. Open-water flag via `predicates.rs:406-418
+  open_water_cell` maps AIR/CAVE_AIR/VOID_AIR/LILY_PAD to ABOVE_WATER, matching
+  getOpenWaterTypeForBlock's `state.isAir()` (FishingHook.java:475-485); cancelled PlayerFishEvent
+  keeps the hook and awards no stat (FishingRodItem.java:51-54); should_stop_fishing discards
+  (FishingHook.java:273-291); rod durability via `damage_item_in_slot` (fishing_rod.rs:145-147,
+  FishingRodItem.java:27); all random rolls f32 (FishingHook.java:153,232,348,403-405,417).
+- Row 3 (fishing rod item audit, four rows): VERIFIED. `fishing_rod.rs` matches
+  `FishingRodItem.use` (FishingRodItem.java:22-74): cast when no bobber, reel-in otherwise, pitch
+  `0.4 / (random * 0.4 + 0.8)` (`bobber_sound_pitch`, fishing_rod.rs:29-31), ITEM_USED awarded once
+  on the cast branch only (fishing_rod.rs:128; use_item.rs:39 confirms no generic award), no stale
+  durability TODO, and the throw-origin X/Z offset is vanilla's `getX() - ySin*0.3`,
+  `getZ() - yCos*0.3` (FishingHook.java:109-112).
+
+Pure-seam unit tests already cover `throw_setup`, `open_water_cell` (including CAVE_AIR/VOID_AIR at
+predicates.rs:1097-1105), `is_open_water` and the metadata serializers; no duplicate added. The
+generated constants `Block::AIR/WATER/CAVE_AIR/VOID_AIR/LILY_PAD` all exist (generated/block.rs,
+impl Block), so the prior fix type-checks. Diff re-checked against the worker compile-pitfalls
+table: no code changed this pass, so no import/clone/clippy-pedantic issues apply.
 
 Status: PASS fixed=0 open=0 files=none

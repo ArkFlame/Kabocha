@@ -82,3 +82,21 @@ Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/world/en
 Other unit files (`iron_golem.rs`, `piglin.rs`, `polar_bear.rs`, `ravager.rs`, `wolf.rs`) only register `MeleeAttackGoal::new(speed, true)`, which sets `followingTargetEvenIfNotSeen == true`, matching vanilla for these mobs. No call-site change needed.
 
 No pure seam was left untested: `should_recalculate_path` already has unit tests covering the timer, moved-block threshold, 5% roll, and the roll short-circuit; the `+15` penalty lives in `tick()` behind a `Mob`/`Navigator`, so no additional pure test applies.
+
+## Result (CODER batch r2_011)
+- No row changed this pass: CODER did not reach these rows in the time budget (only entity/mod.rs row 2 was checked). All open rows remain STILL OPEN.
+
+## Result (CODER batch r3_030)
+
+Vanilla: `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java` (canUse 33-51, canContinueToUse 53-65, start 68-73, tick 92-125). Rust: `crates/pumpkin-core/src/entity/ai/goal/melee_attack.rs`. No source edits this pass.
+
+| # | Result | Detail |
+|---|--------|--------|
+| 1 | VERIFIED | `should_continue` (melee_attack.rs:185-205): `!follow_even_if_unseen` branch is `!is_navigator_idle` (vanilla 61-62 `!navigation.isDone()`); the other branch is `is_in_position_target_range_pos` (vanilla 63 `isWithinHome`). |
+| 2 | VERIFIED | `can_start` (melee_attack.rs:172-182) calls `create_path(target, 0)` and returns `path.is_some() \|\| is_in_attack_range` (vanilla 49-50). |
+| 3 | VERIFIED (timing note) | Penalty present at melee_attack.rs:278-283 via `take_last_path_search_failed` (pathfinder/mod.rs:582, set at :896). Vanilla adds +15 synchronously inside the same `tick`; Pumpkin applies it on the first tick after the deferred search fails. Architectural, not changed. |
+| 4 | VERIFIED | `start` (melee_attack.rs:207-218) does not seed `last_target_position`; the constructor default `None` (line 63) forces the first recalc like vanilla's zeroed `pathedTarget*` (vanilla 68-73, 98-100). |
+| 5 | VERIFIED | `follow_even_if_unseen` (melee_attack.rs:34, 52, 198, 247) matches vanilla `followingTargetEvenIfNotSeen` (14, 61, 97). |
+| 6 | VERIFIED | `MAX_ATTACK_TIME = 20` (melee_attack.rs:11) matches vanilla `COOLDOWN_BETWEEN_CAN_USE_CHECKS = 20L` (23, 35). |
+
+Status: all six rows closed by verification. Gap status line 47 is stale; the 2026-11-18 re-audit section above already reflects this.

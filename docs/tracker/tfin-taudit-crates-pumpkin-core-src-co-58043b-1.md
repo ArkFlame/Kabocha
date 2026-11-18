@@ -45,6 +45,6 @@ against decompiled vanilla this final pass; no new source edits were needed.
 
 No generated `pumpkin-data` field or missing subsystem blocks any row (no BLOCKED-DATA).
 Unit-test seams are covered by the existing round-trip tests in `command_block.rs` and
-`command_block_name_matches_vanilla_get_name` in `command/mod.rs`. No STILL OPEN rows
+`command_block_name_matches_vanilla_get_name` in `command/mod.rs`. No resolved rows
 remain. No new source edits this final pass, so rustfmt was not needed; compilation was
 not run (worker shell denied; orchestrator compiles once).

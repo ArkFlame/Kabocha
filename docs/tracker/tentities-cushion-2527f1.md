@@ -270,3 +270,21 @@ No new panics; `assert!` only in existing tests. Files edited:
 `crates/pumpkin-core/src/entity/decoration/cushion.rs`,
 `crates/pumpkin-core/src/entity/decoration/painting.rs`, this doc.
 No build/tests run: CODER cannot compile; orchestrator verifies in the batch check.
+
+## Result (batch r2y_019, BRIEF2 pass)
+
+Re-checked each row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/` and `decoration/Cushion.java`. No Rust edits were needed in this pass.
+
+- Row 1 `entity/mod.rs` mount/dismount game events: VERIFIED, NOT A GAP. Vanilla `Entity.startRiding` emits `ENTITY_MOUNT` at `vehicle.position` (`Entity.java:3625`) and `stopRiding` emits `ENTITY_DISMOUNT` at `oldVehicle.position` (`Entity.java:3672`). Rust emits `GameEvent::EntityMount` in `add_passenger` at `crates/pumpkin-core/src/entity/mod.rs:6261` and `GameEvent::EntityDismount` in `remove_passenger_internal` at `crates/pumpkin-core/src/entity/mod.rs:6516`, both at the vehicle position. Row line refs are stale.
+- Row 2 `cushion.rs` `interact` seat: VERIFIED. Vanilla `Entity.positionRider` (`Entity.java:3540-3544`) subtracts the rider's `vehicle` attachment from the vehicle's `passenger` point. Rust calls `crate::entity::position_rider(vehicle.as_ref(), passenger.as_ref())` at `crates/pumpkin-core/src/entity/decoration/cushion.rs:411`, and the helper is at `crates/pumpkin-core/src/entity/mod.rs:1664`. Vanilla `Cushion.interact` calls `player.startRiding(this)` (`Cushion.java:93`).
+- Row 3 `cushion.rs` placement/support gametests: STILL OPEN. The 100-tick post-support-removal item drop and the slab/drop gametest cases need a `pumpkin-gametest` world harness (cross-crate). Not written in this pass because CODER cannot compile or run tests, so an unrun gametest would be unverified. Pure unit seams exist in `cushion.rs` for `canBePlacedAt`/`wouldSurviveAt`.
+- Row 4 `cushion.rs` `drop_and_remove` cancelled dismount: VERIFIED. Rust has no early return on `has_passengers()` (`cushion.rs:186-192`). Vanilla `BlockAttachedEntity.hurtServer` (`BlockAttachedEntity.java:166-168`) calls `kill()` then `dropItem()` unconditionally. Break sound before the `entity_drops` gate matches vanilla `Cushion.dropItem` (`Cushion.java:58-61`); Rust plays it at `cushion.rs:195`, gate at `cushion.rs:200`.
+
+Files edited this pass: this doc only. No build, tests, or cargo run (CODER cannot compile).
+
+## Result (batch r3_062, BRIEF2 pass)
+- Row 1 `entity/mod.rs` mount/dismount game events: VERIFIED. Vanilla `Entity.java:3625` (ENTITY_MOUNT at `vehicle.position`) and `Entity.java:3672` (ENTITY_DISMOUNT at `oldVehicle.position`). Rust `crates/pumpkin-core/src/entity/mod.rs:6261` and `:6516` emit both at `self.pos`.
+- Row 2 `cushion.rs` `interact` seat: VERIFIED. Vanilla `Entity.java:3540-3544` (`positionRider`). Rust `crates/pumpkin-core/src/entity/decoration/cushion.rs:411` calls `crate::entity::position_rider` (helper at `crates/pumpkin-core/src/entity/mod.rs:1664`).
+- Row 3 `cushion.rs` placement/support gametests: STILL OPEN. Unit tests exist for placement (`placement_needs_an_anchor_below`, `placement_accepts_a_slab_anchor`, `placement_rejects_a_suffocating_cover`, `anchor_is_buried_...`) at `cushion.rs:574-653`. Not covered: the 100-tick support-removal drop (Rust `tick` at `cushion.rs:313-325`, vanilla `BlockAttachedEntity.java:43-75`) and the `pumpkin-gametest` world cases. Needs a world harness; not run here (CODER cannot run cargo).
+- Row 4 `cushion.rs` `drop_and_remove` cancelled dismount: VERIFIED. No early return on `has_passengers()` in `drop_and_remove` (`cushion.rs:177`). Vanilla `BlockAttachedEntity.java:166-168` kills then drops unconditionally.
+- Files edited: this tracker doc only. No Rust changed.

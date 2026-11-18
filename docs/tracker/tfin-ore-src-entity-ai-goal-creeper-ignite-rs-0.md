@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-THIRD PASS: both formerly STILL OPEN aggregate rows are closed as VERIFIED against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/SwellGoal.java` (Paper 1.21.x). No source edit was required, so no rustfmt run. No row remains STILL OPEN.
+THIRD PASS: both formerly unresolved aggregate rows are closed as VERIFIED against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/SwellGoal.java` (Paper 1.21.x). No source edit was required, so no rustfmt run. No row remains unresolved.
 
 ## Result
-FINAL PASS. Re-verified every underlying row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN. No source edit was required this pass (the loot-gate fix is already present in the checkout at `creeper.rs:388`); rustfmt not needed for this doc-only change.
+FINAL PASS. Re-verified every underlying row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains unresolved. No source edit was required this pass (the loot-gate fix is already present in the checkout at `creeper.rs:388`); rustfmt not needed for this doc-only change.
 
 - **own/tentities-creeper-0de8b3**: VERIFIED. All underlying rows match vanilla:
   - Row 2 (charged-creeper heads): VERIFIED / FIXED in an earlier pass. Vanilla `Creeper.killedEntityPreEvent` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:173-181`) gates on `this.shouldDropLoot(level) && this.isPowered() && !this.droppedSkulls` and drops from `BuiltInLootTables.CHARGED_CREEPER`. `CreeperEntity::killed_entity` (`creeper.rs:383-416`) uses `self.charged && !self.dropped_skulls && Mob::should_drop_loot(self)` (the killer's gamerule check, matching vanilla `this.shouldDropLoot(level)`) with generated `CHARGED_CREEPER_ROOT` (`minecraft:charged_creeper/root`). Matches.

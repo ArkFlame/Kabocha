@@ -164,3 +164,30 @@ Re-verified all nine rows against `.vendor/vanilla-decompiled/net/minecraft` (Pa
 | 7 special prices computed once | CLOSED, no change | Vanilla `MerchantMenu.slotsChanged` only calls `updateSellItem` (MerchantMenu.java:67-70); no per-update recompute, specialPriceDiff is applied in `MerchantOffer.getPrice` (MerchantOffer.java:145). No port needed. |
 | 8 talked-to stat without trade | CLOSED, no change | Vanilla awards `TALKED_TO_VILLAGER` on MAIN_HAND before the noOffers check (Villager.java:299-309); Pumpkin matches. Tracker claim false. |
 | 9 regen effect placement | CLOSED, already fixed in mod.rs | Vanilla applies REGENERATION inside `rewardTradeXp` (Villager.java:618); Pumpkin now applies it inside `complete_trade` (mod.rs:866), matching vanilla. |
+
+## Result (CODER pass, batch r2_010)
+Vanilla source: `.vendor/vanilla-decompiled/net/minecraft/world/entity/npc/villager/Villager.java` (reached through the `rel-mc-backup` symlink; use `find -L`).
+- Row 1 (plugin events never fired): VERIFIED-STALE. Fire sites now exist: `add_trades` (mod.rs:717, `VillagerAcquireTradeEvent`, honours `cancelled`), `do_reset` in replenish (mod.rs:1009-1012), `increase_merchant_career` (mod.rs:1126-1129). Gossip reputation event not checked, left open for that sub-point.
+- Row 2 (level-up +5 XP): VERIFIED. Vanilla Villager.java:611-621 `popXp += 5` on level-up.
+- Row 3 (catch_up_demand resets uses): VERIFIED. Vanilla Villager.java:414-426 calls `resetUses()` per offer when `missedUpdates > 0` (event-gated); Rust mod.rs:1079-1089 `replenish_offers` on the same condition.
+- Row 4 (LastGossipShare write-only): VERIFIED. Vanilla persists only `LastGossipDecay` (Villager.java:501, 520); Rust writes and reads only `LastGossipDecay` (mod.rs ~1631, ~1737). No `LastGossipShare` key exists in Rust.
+- Row 5 (wants_to_pick_up): VERIFIED. Vanilla Villager.java:831-838 also accepts `DataComponents.VILLAGER_FOOD`; Rust mod.rs:1551-1561 matches.
+- Row 6 (should_restock day rollover moves last_restock_time): VERIFIED. Vanilla Villager.java:393-410 sets `lastRestockGameTime = gameTime` inside `isNewDay`; Rust mod.rs:980-988 matches.
+- Row 7 (special prices on screen open): STILL OPEN, not reached.
+- Row 8 (TalkedToVillager stat): claim corrected. Vanilla Villager.java:300-306 awards the stat on main hand regardless of offers, before the no-offers return. Rust mod.rs:2040 awards regardless of offers. Main-hand gating not verified in Rust, so left OPEN for that detail.
+- Row 9 (level-up regen placement): STILL OPEN. Vanilla Villager.java:618 adds REGENERATION inline in the trade path, Rust mod.rs:861-866 applies it from `villager_ai_step`, a deferred tick. Not fixed in this pass.
+Files edited this pass: none.
+
+## Result (CODER pass, batch r3_028)
+Vanilla: `.vendor/vanilla-decompiled/net/minecraft/world/entity/npc/villager/Villager.java`. Rust: `crates/pumpkin-core/src/entity/passive/villager/mod.rs` and `reputation.rs`.
+- Row 1 (plugin events never fired): VERIFIED. All four fire sites exist: `VillagerAcquireTradeEvent` mod.rs:719, `VillagerReplenishTradeEvent` mod.rs:1011, `VillagerCareerChangeEvent` mod.rs:1128, `VillagerReputationChangeEvent` reputation.rs:51 (vanilla `onReputationEventFrom`, Villager.java:951).
+- Row 2 (level-up +5 XP): VERIFIED. Villager.java:621 `popXp += 5`; mod.rs:874 `pop_xp += 5`.
+- Row 3 (catch_up_demand resets uses): VERIFIED. Villager.java:415-421 resets only when `missedUpdates > 0`; mod.rs:1079-1083 `replenish_offers` under the same condition.
+- Row 4 (LastGossipShare write-only): VERIFIED. Villager.java:501/520 persist only `LastGossipDecay`; no `LastGossipShare` key anywhere in `crates/`.
+- Row 5 (wants_to_pick_up VillagerFood): VERIFIED. Villager.java:835 `DataComponents.VILLAGER_FOOD`; mod.rs:1561 matches.
+- Row 6 (should_restock moves restock time): VERIFIED. Villager.java:406-407 sets `lastRestockGameTime` only in the new-day branch; mod.rs:980-988 matches.
+- Row 7 (special prices computed once): FIXED. Vanilla recomputes special prices in `restock` (Villager.java:373) and `catchUpDemand` (Villager.java:433). Rust `restock` (mod.rs ~1029) and `catch_up_demand` (mod.rs ~1087) now call `refresh_trading_player_prices(None)` (`update_special_prices` plus resend) instead of resend-only. The now-unused `notify_trading_player_offers_updated` helper is removed.
+- Row 8 (talked-to stat without trade): VERIFIED for reachable paths. Vanilla gates the stat and unhappy on `MAIN_HAND` (Villager.java:301-306). Rust `mob_interact` (mod.rs ~1994) has no hand parameter, but the Java interact path (`net/java/play/interact.rs:147`) calls `interact()` without a hand, and the vanilla off-hand packet only follows a PASS, which the villager returns only on early returns before the stat. Residual: Rust is not hand-aware.
+- Row 9 (level-up regen placement): VERIFIED. Vanilla adds REGENERATION inside `rewardTradeXp` (Villager.java:618); Rust applies it in `complete_trade` (mod.rs:865-873). Residual, not part of this row: vanilla runs `increaseMerchantCareer` immediately, while Rust defers it via `increase_profession_level_on_update` to `villager_ai_step` (mod.rs ~1446).
+
+Files edited: `crates/pumpkin-core/src/entity/passive/villager/mod.rs`. `rustfmt --edition 2024` on that file exited 0. Compile and tests not run (worker restriction); the regression check for row 7 (restock or catch-up refreshing special prices) is not written yet.

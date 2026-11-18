@@ -191,3 +191,18 @@ plugin API, all outside this unit's editable basenames; the in-scope halves
 (slabs.rs, sculk_vein.rs, torches.rs, ladder.rs, lanterns.rs, end_portal.rs,
 tripwire.rs, powder_snow.rs, core block_fertilize.rs) were verified correct and
 required no edit. No source files changed this pass; rustfmt not needed.
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. Checked this pass against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/state/BlockBehaviour.java`.
+- Row 31 inside-collision default: VERIFIED. BlockBehaviour.java:336-337 returns `Shapes.block()`; Rust default `BoundingBox::full_block()` at crates/pumpkin-core/src/block/mod.rs:305 matches. Overrides left as stated in the earlier Result.
+- Row 32 isPathfindable WATER: VERIFIED for the trait default. BlockBehaviour.java:130-137 returns `getFluidState().is(FluidTags.WATER)` for WATER; the registry.rs fallback was not re-read this pass.
+- Row 28, 29, 35, 75, 76: prior Result dispositions kept (FIXED / VERIFIED / OPEN as stated); not re-checked this pass.
+- Row 30 (post_process_state dead code), 33 (obstruction excludes placing entity), 34 (Bedrock-only place sound): STILL OPEN, not reached this pass.
+
+## Result (CODER r3_005, 2026-11-18)
+Status PARTIAL-VERIFIED. Rows 30, 33, 34 were the only rows still open in the last Result; each re-checked against vanilla and the Rust tree. No source edits this pass.
+- Row 30 (`post_process_state` dead code): VERIFIED, already removed. `grep -rn post_process_state crates/` returns no hits. Vanilla `BlockBehaviour.java:939-946` `updateNeighbourShapes` iterates `UPDATE_SHAPE_ORDER` and asks each neighbour; the live path is `World::set_block_state` -> `registry.update_neighbors`. No Rust change required.
+- Row 33 (obstruction excludes placing entity): VERIFIED. Vanilla `BlockItem.java:163-166` `canPlace` -> `world.checkEntityCollision(state, player, ...)` excludes the placer; `CollisionGetter.java:30-33` takes the collision context. Rust `registry.rs:627-645` `has_blocking_entity_in_box` skips `entity_id != placer_id` for players and entities; called at `registry.rs:855-870` with the placer's `entity.entity_id`. No change.
+- Row 34 (Java place sound): VERIFIED, already fixed. Vanilla `BlockItem.java:122` `level.playSound(player, pos, getPlaceSound(placedState), BLOCKS, (volume+1)/2, pitch*0.8)` with `BlockItem.java:128-129` `getSoundType().getPlaceSound()`. Rust `registry.rs:911-921` plays `sound_type.place_sound` on `SoundCategory::Blocks` with `f32::midpoint(volume, 1.0)` and `pitch * 0.8`, plus the Bedrock `place` event at `registry.rs:906-910`. Client-side audio only, no test added.
+- Rows 28, 29, 31, 32, 35, 75, 76: unchanged from the prior Result dispositions; not re-checked this pass.
+Files edited: none besides this tracker doc.

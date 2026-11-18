@@ -359,3 +359,14 @@ behaviour rows need runtime scenarios. No compile/test run (unit rules); the
 test-only `.expect` at ticker.rs:357 is allowed by `lib.rs:2`
 (`cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))`).
 
+
+## Result (r2_014 pass)
+- Row 1 (`tick_count` increment position, `ticker.rs:90,122`): STILL OPEN - not reached.
+- Row 2 (crash report on tick panic, `ticker.rs:97-118`): STILL OPEN - not reached.
+- Row 3 (pause-when-empty sleep, `ticker.rs:62-139`): STILL OPEN - not reached.
+
+## Result (r3_041 pass)
+- Row 1 (`tick_count` increment position, `ticker.rs:90,122`): VERIFIED. Rust already advances at the top of the loop (`crates/pumpkin-core/src/server/ticker.rs:136-142`), `sync_game_time` has no `+ 1` patch (`crates/pumpkin-core/src/server/mod.rs:2064-2076`), `update_tick_times` indexes `tick_count % 100` (`mod.rs:2083-2084`). Vanilla anchor is weak: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1705` has the increment commented out and `:344-350` documents the ordering. The `int i = this.tickCount++` quoted in the row is not present in either vendor or ref tree.
+- Row 2 (crash report on tick panic, `ticker.rs:97-118`): VERIFIED. No try/catch needed: the global panic hook `crates/pumpkin/src/main.rs:311-383` builds a `CrashReport`, saves it, and calls `stop_server()` for any non-main-thread panic. The stop path saves and logs it again at `crates/pumpkin-core/src/lib.rs:601-613`. Vanilla anchor: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1409-1430`.
+- Row 3 (pause-when-empty, `ticker.rs:62-139`): VERIFIED. Rust implements the empty-tick counter, paused branch, single autosave at the crossing, and connection ticking (`ticker.rs:45-66`, `:102-160`). Vanilla anchor: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1608-1636`, which this Canvas tree gates with `if (false && emptyTickThreshold > 0)` (region threading). The Rust follows the upstream logic, which the tracker targets.
+- No Rust edited in this pass. The earlier "STILL OPEN - not reached" lines above are superseded by this section; they were not edited.

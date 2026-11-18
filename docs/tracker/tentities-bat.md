@@ -97,3 +97,11 @@ superseded by this one.
   block, so the fallback already returns false. Test: `redstone_conductor_matches_vanilla_overrides`.
 - No generated data, WIT, cross-crate or out-of-unit changes were needed. The only code change in
   this pass was the added regression test in `bat.rs`; `rustfmt --edition 2024` was run on it.
+
+## Result (r2y_007 re-check)
+
+No STILL OPEN rows remain in the current state. The h3-sweep rows are already FIXED in the final `## Result` above.
+
+- Shadow `AtomicI8` flags (bat.rs:30): FIXED state confirmed in code. bat.rs:36,77,85,92,248,256 read and write `tracked_data::bat::DATA_ID_FLAGS` via `SynchedEntityData::get::<i8>`. Vanilla citation (Bat.java:103-114,212-220) NOT re-verified: `.vendor/vanilla-decompiled` is a dangling symlink in this run.
+- Wake check `is_solid_block()` (bat.rs:99,201) now `is_redstone_conductor()`: FIXED state confirmed in code (crates/pumpkin-data/src/block_state.rs:149). The `Blocks::never`/`always` lists were NOT re-checked against vanilla Blocks.java (same missing source). Status stays as recorded.
+- No Rust edited in this pass. Commands: none run (cargo and git forbidden by brief).

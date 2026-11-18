@@ -214,3 +214,14 @@ present and correct). No compile run (worker rule); no `.rs` file touched, so ru
 - Row 5 (jockey pairing): FIXED/VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Husk.java:103-130` initializes `HuskGroupData.triedToSpawnCamelHusk = spawnReason != NATURAL`, gates on `!triedToSpawnCamelHusk` plus a `noCollision` space check, sets the flag before the 10% roll (`:112`), then spawns and mounts camel husk + parched (`:113-126`). Pumpkin `husk.rs:43-55` `claim_camel_jockey_attempt` (skip if tried / non-natural / blocked, set tried, return true), `:77-106` spawn logic with `CAMEL_HUSK_JOCKEY_CHANCE = 0.1` (`:40`), and `spawn.rs:64-70` `SpawnGroupData::Zombie.tried_spawn_camel_husk` implement the same once-per-group rule. Pure-seam tests at `husk.rs:178-220` cover once-per-group and non-natural/blocked cases. Matches.
 
 Remaining runtime-only work (a gametest exercising the two-rider mount layout end to end) needs a file outside this unit and is a test-coverage task, not a code gap. No new test added because the pure seam is already covered. No code changes required for this unit; all edits from earlier passes stand.
+
+## Result (BRIEF2 batch r2y_011, spot-checked this pass)
+
+Cited lines re-checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/` and current source. No Rust edited.
+
+- Row 1 (husk love gate): VERIFIED. `animal/camel/CamelHusk.java:61` canMate false, `:71` canFallInLove false; `entity/passive/camel.rs:383,425,429` gate on `!is_husk()`.
+- Row 2 (love/tempt goals in husk brain): VERIFIED (inert). `CamelHusk.java` has no createBrain override; `entity/passive/camel/ai.rs:72,75` matches vanilla CamelAi.
+- Row 3 (is_preventing_player_rest): VERIFIED. Only `monster/Monster.java` returns true; `camel.rs:469` returns false.
+- Row 4 (step volume 0.4 / charge modifier 4.0): VERIFIED. `camel.rs:48,457-458` and `camel.rs:437-443`; vanilla `CamelHusk.java:90-97,129-132`.
+- Row 5 (jockey pairing, once-per-group gate): VERIFIED. `monster/zombie/Husk.java:105,108,111` triedToSpawnCamelHusk gate and 10% roll; `entity/mob/zombie/husk.rs:46,83,86` and `entity/mob/spawn.rs:69` match.
+- Open: none in code. Runtime gametest for the two-rider mount layout is not run (no cargo allowed in this batch).

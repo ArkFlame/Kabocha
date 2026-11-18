@@ -171,3 +171,17 @@ No `STILL OPEN` markers remain in this doc.
 No source file changed this pass (doc only). No `BLOCKED-DATA` rows: none of the gaps need
 generated `pumpkin-data` fields or a missing subsystem; the two event rows have no vanilla
 counterpart by design (Paper is the reference), which is recorded above rather than left open.
+
+## Result (r2_014 pass)
+- Command-tree cleanup on reload (`mod.rs:480-487`): STILL OPEN - not reached (M).
+- Blocking/non-blocking priority ordering (`mod.rs:2919-2935`): STILL OPEN - not reached.
+- Per-handler panic isolation (`mod.rs:2919-2978`): STILL OPEN - not reached.
+
+## Result (r3_039 pass)
+Re-derived the three Gap-table rows from the current source; no vanilla plugin system exists, so Paper `CommandMap`/`HandlerList` remain the reference.
+| Row | Result |
+|---|---|
+| `TODO` remove plugin command nodes after reload (`mod.rs:480-487`, `api/context.rs:327-350`) | VERIFIED. No `TODO` marker left in `plugin/mod.rs`; `release_library` (mod.rs:462-490) has no `commands` early return and `CommandsResident` is only referenced in the error mapping (mod.rs:655, :1580). `Context::unregister_command` (context.rs:327) and `unregister_commands` (context.rs:338) call `remove_command` / `remove_commands_from_source` (dispatcher.rs:189,197), which drive `Tree::remove_root_command` (tree.rs:430). |
+| Handler dispatch not in priority order across blocking/non-blocking split (`mod.rs:2900-2936`) | VERIFIED. `fire_dyn` (mod.rs:2927-2970) iterates the pre-sorted handler vector once, awaiting blocking and non-blocking handlers in that order, matching Paper `HandlerList.fire`. |
+| Panicking handler aborts the rest of dispatch (`mod.rs:2919-2978`) | VERIFIED. Each handler is wrapped in `AssertUnwindSafe(..).catch_unwind()` (mod.rs:2953-2962) and logged via `error!("Could not pass event ... to plugin ...")` (mod.rs:2964-2968), then dispatch continues. |
+No Rust edited in this pass; no automated test added (dispatch needs a live `Server`, per earlier passes).

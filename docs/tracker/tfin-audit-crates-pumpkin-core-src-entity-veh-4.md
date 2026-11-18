@@ -2,10 +2,11 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- block_effects 2 (endpoint double dispatch): STILL OPEN, M. Same root cause as row 1; needs
-- block_effects 6 (gametest): STILL OPEN, M. Needs a `pumpkin-gametest` scenario (boat over
-- minecart 7 (passenger repositioning): STILL OPEN, S, behavioural. Needs vanilla
-- minecart 8 (slope tests): STILL OPEN, S. Test-only, but expected positions must come from
+- block_effects 2 (endpoint double dispatch): FIXED. See Result below (standing-box guard in
+  `boat/block_effects.rs` dedupes against `tick_block_collisions`).
+- block_effects 6 (gametest): FIXED. See Result below (two `pumpkin-gametest` scenarios registered).
+- minecart 7 (passenger repositioning): VERIFIED. See Result below (`position_riders` after move).
+- minecart 8 (slope tests): FIXED. See Result below (three rail-snap tests pin the vanilla port).
 
 ## Result
 
@@ -47,5 +48,6 @@ verified against decompiled vanilla and the current source).
   including the `+0.0625` rail offset, `yD = (y1 - y0) * 2.0`, and the `yD < 0 -> y++`,
   `yD > 0 -> y += 0.5` slope correction the tests assert.
 
-No source file was edited this pass (all four rows already satisfied); only this Result section was
-updated, so there are no compile-pitfall or rustfmt concerns.
+No source file was edited this pass (all four rows already satisfied and re-verified against the
+cited vanilla sources); only the summary rows and this Result section in this doc were updated, so
+there are no compile-pitfall or rustfmt concerns.

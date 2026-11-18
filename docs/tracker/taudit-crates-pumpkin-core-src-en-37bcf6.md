@@ -89,3 +89,9 @@ Re-audit 2026-11-18 against `.vendor/vanilla-decompiled` (MC 26.3), smallest row
 - Tests: no pure seam for `TargetCondition`/`start` (needs a live `Mob`/`World`). Existing pure tests in `track_target.rs` already cover `end_node_reaches_target` (2.25 tolerance) and `remembers_visible_target` (unseen-memory window), both matching decompiled `TargetGoal.canReach`/`canContinueToUse`. No tests added.
 
 Source files unchanged this pass; only this doc edited. `rustfmt` not run (no `.rs` file touched).
+
+## Result (batch r2_007, spot-check)
+- Gap 1 (Adult / mob_is_baby): VERIFIED. Rust active_target.rs:44 uses `mob.mob_is_baby()`; vanilla Mob.isBaby.
+- Vertical search box: VERIFIED. active_target.rs:225 `SearchArea::from_eyes(entity, follow_range, follow_range)`; vanilla NearestAttackableTargetGoal.getTargetSearchArea inflate(d, d, d). No TARGET_SEARCH_VERTICAL_RANGE left.
+- Gaps 2, 3, 5: VERIFIED no change (prior pass, vanilla NonTameRandomTargetGoal / Spider.SpiderTargetGoal). Not re-read this pass.
+- Gap 4: VERIFIED by prior pass; not re-read this pass.

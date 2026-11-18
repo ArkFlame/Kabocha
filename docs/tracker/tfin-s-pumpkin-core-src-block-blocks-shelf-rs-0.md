@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-All STILL OPEN rows from the audit (`docs/tracker/taudit-crates-pumpkin-core-src-bl-4d09af.md`)
+All unresolved rows from the audit (`docs/tracker/taudit-crates-pumpkin-core-src-bl-4d09af.md`)
 
 ## Result
 

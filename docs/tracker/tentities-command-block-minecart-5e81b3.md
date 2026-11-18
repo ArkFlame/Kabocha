@@ -327,3 +327,11 @@ No BLOCKED-DATA (no missing generated field or subsystem). No .rs file touched t
 rustfmt needed; no compile/test run by this worker (orchestrator compiles once).
 
 Status: PASS.
+
+## Result (2026-11-18 batch r2y_014, CODER pass)
+- Row list: this file contains no row text; the open rows were only recoverable from sibling `tfin-tentities-command-block-minecart-5e81b3-0.md` (Row 4). Other rows were not reachable from this file, so they stay STILL OPEN.
+- Minecart NBT save/load: VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:50-80` (save/load, TrackOutput-gated LastOutput, UpdateLastExecution-gated LastExecution) matches `crates/pumpkin-core/src/entity/vehicle/minecart/command_block.rs:230-295`.
+- Synced data / `on_updated`: VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java:107-117,62` matches `command_block.rs:120-133`.
+- Row 4 (hardcoded `JavaMinecraftVersion::V_26_3`): STILL OPEN. Still present at `crates/pumpkin-core/src/block/entities/command_block.rs:88` (`to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3)`). The minecart file itself has no hardcoded version. Fixing it needs threading the target protocol version through the block-entity NBT writer (cross-crate), which is a refactor, not missing generated data, so it is not BLOCKED-DATA. Not edited in this pass.
+- Files edited: none (rust unchanged; rustfmt not needed). No cargo run (forbidden by brief).
+- Status: PARTIAL. Remaining: Row 4 and any rows not listed in this file.

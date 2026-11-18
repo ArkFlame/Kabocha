@@ -1,8 +1,7 @@
 # Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-8f1a6a.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files).
 
-Every originally STILL OPEN row now ends as FIXED, VERIFIED, or BLOCKED-DATA. All code fixes that
+## Result (batch 09 pass, 2026-11-18)
 
-## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Every originally open row of this unit ends FIXED or VERIFIED. The per-row verdicts are in 8f1a6a-4 (rows 28-39). No BLOCKED-DATA rows. No .rs file changed in this pass.

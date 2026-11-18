@@ -54,3 +54,19 @@ Decompiled vanilla is available: .vendor/vanilla-decompiled/net/minecraft/world/
   No generated data, WIT, or cross-crate changes needed.
 
 Status: PASS fixed=1 (ambient candidates include the happy ghast silent entry + unit test) verified-no-change=2 (imitate EMPTY, server-side flap/descent) open=0 files=crates/pumpkin-core/src/entity/passive/parrot.rs
+
+## Result (batch r2_008, code re-check)
+
+- Row 1 (`parrot.rs:452` HAPPY_GHAST `IntentionallyEmpty`): VERIFIED. Vanilla `Parrot.imitateNearbyMobs` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/parrot/Parrot.java:240-243`) plays `getImitatedSound(type)` and returns true; the happy ghast entry maps to `SoundEvents.EMPTY` (Parrot.java:99). Rust `crates/pumpkin-core/src/entity/passive/parrot.rs:472` maps it to `Sound::IntentionallyEmpty` and `imitate_nearby` returns true (parrot.rs:84-), same observable result (no audible sound, returns true). No filter added.
+- Row 2 (server-side flap/descent damping, `parrot.rs:343-363`): STILL OPEN. Needs runtime observation of parrot fall speed; not reached in this pass.
+- Note (not a row, not changed): Rust `imitate_nearby` (parrot.rs:61-72) restricts candidates to the `IMITATIONS` table, while vanilla picks from every non-parrot `Mob` in the box (Parrot.java:237) and only then resolves the sound. Candidate set and random index may differ; needs a separate row.
+- Commands: none run (workers do not build). Files edited: none.
+
+## Result (batch r3_027, re-derived from Gap table)
+
+- Row 1 (`parrot.rs:452` HAPPY_GHAST `IntentionallyEmpty`): VERIFIED. Vanilla `Parrot.imitateNearbyMobs` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/parrot/Parrot.java:234-243`) maps happy ghast to `SoundEvents.EMPTY` (Parrot.java:99), plays it and returns true with no filter. Rust `crates/pumpkin-core/src/entity/passive/parrot.rs:472` maps it to `Sound::IntentionallyEmpty` and `imitate_nearby` returns true. No change.
+- Row 2 (server-side flap/descent damping, `parrot.rs:343-363`, now `mob_ai_step` at `parrot.rs:361-378`): VERIFIED. Vanilla `calculateFlapping` (Parrot.java:216-232) is called from `aiStep` (Parrot.java:192-204) with no `isClientSide` guard, so it runs on the server. Flap change `(!onGround && !isPassenger ? 4 : -1) * 0.3`, clamp 0..1, and `!onGround && movement.y < 0 -> multiply(1.0, 0.6, 1.0)` match Rust `parrot.rs:366-377` (`on_ground || has_vehicle` is the same predicate as `!onGround && !isPassenger`). Only the flap-phase fields are render-only and are covered by `mob_is_flapping`/`mob_on_flap`. No change.
+- Not a row, not changed: the candidate-set difference in `imitate_nearby` (Rust restricts to `IMITATIONS`; vanilla picks any non-parrot `Mob` in the box, Parrot.java:237) is still open and needs its own row.
+- Commands: none run (workers do not build). Files edited: none.
+
+Status: PASS verified=2 (happy ghast EMPTY imitate, server-side flap/descent) fixed=0 blocked=0 open=0 files=none

@@ -1,11 +1,11 @@
 # Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-7bf7cf.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: goals.rs sneeze.rs
+Files: goals.rs sneeze.rs
 
-- STILL OPEN: panda rows (excluded from this sweep by scope).
-Verified all four STILL OPEN rows against decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (now present).
-- Row 4 `after_sneeze` island note (panda/sneeze.rs:81-109) - STILL OPEN. `after_sneeze` reads the world and jumps pandas within 10 blocks from the mob tick; pandas do not set `has_audited_tick`, so the conservative entity-island reach already covers it and there is no current bug. Left open: a full mob tick/AI/Brain reach audit across the panda goals plus setting `has_audited_tick` is a broad behavioural change beyond a smallest fix; defer to a dedicated pass.
-- Row 4 `after_sneeze` island note (panda/sneeze.rs:87-95, 96-121) - STILL OPEN. One-line reason: a full panda tick/AI/Brain reach audit plus setting `has_audited_tick` requires editing `panda/goals.rs` (PandaSitGoal/PandaBreedGoal `tick_reach`), a file outside this unit, and is a broad behavioural change rather than a smallest fix. No current bug: pandas keep `has_audited_tick` false, so the conservative `unaudited_reach` (at least 16 blocks) covers the 10-block jump, and `PandaSneezeGoal::tick_reach` already reports the jump reach.
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files).
 
-## Result
-- Row 4 `after_sneeze` AI-island note (`crates/pumpkin-core/src/entity/passive/panda/sneeze.rs:73-121,186-188`; `crates/pumpkin-core/src/entity/passive/panda.rs:840-876,905-909`; `crates/pumpkin-core/src/entity/passive/panda/goals.rs`, `lie_on_back.rs`, `roll.rs`) - VERIFIED. Behaviour matches vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java:338-375,506-531,1110-1133`: sneeze counter flow and pre-sneeze/sneeze sounds, `afterSneeze` at counter >20 jumps each non-baby grounded out-of-water `canPerformAction` panda in a 10-block inflated box, and drops the sneeze gift only when mob drops are enabled. Rust reports the delayed 10-block jump as `PandaSneezeGoal::tick_reach` entity reach and all panda-specific goals return reach; pandas keep `has_audited_tick` false so conservative `entity_islands.unaudited_reach` (>=16 blocks) covers the jump with no current island bug. Full audited-tick enablement is blocked by subsystem gaps (not missing generated `pumpkin-data`): `PandaBreedGoal` bamboo block scan is not expressible in `GoalReach`, and shared goals used by pandas (`MeleeAttackGoal` with custom perform hook, `RevengeGoal`) lack audited `tick_reach` required by `MobEntity::audited_reach`.
+## Result (batch 09 pass, 2026-11-18)
+
+- Row 4 `after_sneeze` AI-island note (panda/sneeze.rs:73-121,186-188; panda.rs:840-876,905-909): VERIFIED. Matches Panda.java:338-375,506-531,1110-1133 (sneeze counter, sounds, afterSneeze 10-block jump for grounded adult pandas, gift only under MOB_DROPS). Pandas keep has_audited_tick false, so entity_islands.unaudited_reach (>=16 blocks) covers the jump. Setting has_audited_tick is a species-level subsystem change, not a smallest fix, and is not a current bug.
+
+No .rs file changed in this pass.

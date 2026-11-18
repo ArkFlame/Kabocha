@@ -141,3 +141,8 @@ Skipped: no code changes (all rows already fixed); no build/test (orchestrator c
 Risk: Bedrock-only field semantics (`camera_orientation`/`raw_move` signs, sneak raw flags,
 0.1 analog deadzone) have no decompiled vanilla, Paper/Spigot, Geyser source or protocol fixture
 in `.vendor`; only the vanilla Java input mapping was verified here.
+
+## Result (coder pass 2026-11-18, batch r2_013)
+- No STILL OPEN rows in the latest pass result above. Every row is FIXED, VERIFIED or BLOCKED-DATA per that result.
+- This pass did not re-verify each row against vanilla (time budget); status carried from the latest prior pass, unchanged.
+- Files edited this pass: none. No rustfmt run. Cargo and git not run (forbidden).

@@ -201,3 +201,13 @@ in the files this pass may newly edit. No .rs file was edited, so rustfmt was no
 
 No pure unit-test seam exists for any row (wall-clock date or live world/entity state).
 This unit requires no further pass.
+
+## Result (r2s_001 pass, checked against .vendor vanilla)
+
+- Fire-on-hit main-hand guard (`do_hurt_target`, zombie/mod.rs:573-581): VERIFIED. Vanilla `Zombie.java:353` has `getMainHandItem().isEmpty() && isOnFire() && random.nextFloat() < difficulty * 0.3F`; Rust matches.
+- Chicken jockey candidate (`roll_chicken_jockey`, zombie/mod.rs:321-345): FIXED. Earlier notes claimed vanilla picks a random candidate; the decompiled `Zombie.java:492-496` actually uses `chickens.get(0)`, so the random index was removed and the first candidate is taken. The filter is now `isAlive && !isVehicle && !isPassenger` per `EntitySelector.java:12` (`!has_passengers && !has_vehicle`). The earlier "remove !has_vehicle" note was backwards.
+- Reinforcement condition/RNG order (`summon_reinforcements`, zombie/mod.rs:465-490): VERIFIED. `Zombie.java:298-301` is `target != null && difficulty == HARD && random.nextFloat() < chance && level.isSpawningMonsters()`; Rust order and RNG use match.
+- Halloween timezone (`is_halloween`, mob/spawn.rs:26-27): VERIFIED. `SpecialDates.java:16-17` uses `MonthDay.from(ZonedDateTime.now())` (host default zone); `OffsetDateTime::now_local()` with UTC fallback is the equivalent.
+- Killed-entity return (`killed_entity`) was not re-checked in this pass; prior note stands.
+
+Files edited: `crates/pumpkin-core/src/entity/mob/zombie/mod.rs`. rustfmt --edition 2024 exit 0. Not compiled (cargo forbidden in this brief).

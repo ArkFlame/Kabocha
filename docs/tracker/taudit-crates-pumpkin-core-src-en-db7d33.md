@@ -175,3 +175,16 @@ Every formerly STILL OPEN row was re-verified against decompiled vanilla at `.ve
 | 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock.prime()` gates only ignition (TntBlock.java:98); Pumpkin's tick-time re-check (tnt.rs:212) matches, so a TNT primed before the gamerule is disabled is cancelled in both. |
 
 Also re-confirmed row 4 is fixed: `fuse_from_nbt` returns `TNTEntity::DEFAULT_FUSE` (80) for a missing tag (tnt.rs:63-66), matching `getShortOr("fuse", (short)80)` (PrimedTnt.java:186), with unit tests at tnt.rs:288-301. No new unit test: every row already has correct behaviour and the only pure seams (`fuse_from_nbt`, `random_short_fuse`) are covered or would be formula-mirroring. No `.rs` file was touched, so no rustfmt was required. Compilation is deferred to the orchestrator batch check.
+
+## Result (r2s_005 batch, BRIEF2)
+
+Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `world/level/block/TntBlock.java`. No `.rs` edit made in this pass; each row is already in its final state.
+
+- Row 3: VERIFIED (implemented). Vanilla `postChangeDimension` sets `usedPortal` (PrimedTnt.java:239-242) and `explode()` picks `USED_PORTAL_DAMAGE_CALCULATOR` (PrimedTnt.java:162). Rust: `entity/tnt.rs:76,148-149` sets `used_portal`, `entity/tnt.rs:217` uses it in detonation. Vanilla has no `ignoreExplosion` override on `PrimedTnt`, so no such hook is ported.
+- Row 4: VERIFIED. Vanilla `getShortOr("fuse", (short)80)` (PrimedTnt.java:186). Rust: `entity/tnt.rs:63-65` falls back to `DEFAULT_FUSE` (80), test at `entity/tnt.rs:290`.
+- Row 5: VERIFIED (false positive). Vanilla `EntityReference.store/read(..., "owner")` (PrimedTnt.java:181, 189). Rust: `entity/tnt.rs:160, 171`.
+- Row 6: VERIFIED (false positive). Vanilla `Mth.clamp(getFloatOr("explosion_power", 4.0F), 0.0F, 128.0F)` (PrimedTnt.java:188). Rust: `entity/tnt.rs:166-169` `unwrap_or(DEFAULT_POWER).clamp(0.0, 128.0)`.
+- Row 7: VERIFIED (implemented, out of unit). Rust: `block/blocks/tnt.rs:98-116` fires `ExplosionPrimeEvent` with `tnt.power()` and applies `prime_event.radius` via `set_power`.
+- Row 8: VERIFIED (false positive). Vanilla `explode()` checks `GameRules.TNT_EXPLODES` (PrimedTnt.java:151). Rust: `entity/tnt.rs:212` re-checks at detonation, matching.
+
+Status: PASS. Rows open: none. Files edited: this doc only.

@@ -23,6 +23,6 @@ fixes in `crates/pumpkin-core/src/entity/vehicle/minecart.rs` are present and ve
   diagonal branch, `progress = (xx*xD + zz*zD)*2`, which yields `(0.75, ., 0.75)` for the
   south-east curve case asserted in the test.
 
-No row remains STILL OPEN. No BLOCKED-DATA: no generated `pumpkin-data` field or subsystem is
+No row remains open. No BLOCKED-DATA: no generated `pumpkin-data` field or subsystem is
 missing. No code change this pass; rustfmt, cargo and git were not run by this worker (orchestrator
 handles them).

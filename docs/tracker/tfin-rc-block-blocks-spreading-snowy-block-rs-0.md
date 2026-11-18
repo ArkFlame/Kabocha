@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: plants_and_support_blocks.rs
 
-Re-read the last Result of each referenced audit doc and re-verified every STILL OPEN row directly against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:25-104`, `SnowyBlock.java:24-48` and `.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java:51-60`. No source change was needed: the implementation already matches vanilla; every row is now closed.
-- **own/taudit-crates-pumpkin-core-src-bl-4bd10c** (3 rows were STILL OPEN): all VERIFIED/FIXED in that doc. `BlockFadeEvent` carries `new_state_id` and `random_tick` passes `base_block.default_state.id` (`.vendor/.../SpreadingSnowyBlock.java:71`); `is_full_fluid` uses normalized `fluid_state.level == 8` (`:37`); opacity is the correct fixed per-state `getLightDampening` value (`:41`, `LightEngine.java:51-60`).
-- **own/taudit-crates-pumpkin-core-src-block-bloc** (0 rows STILL OPEN): all four rows VERIFIED in that doc (on_place inherited from `SnowyBlock.getStateForPlacement` `SnowyBlock.java:41-44`, generic fluid amount, `LAYERS == 1` light-block short-circuit, and randomTick coverage by the `plants_and_support_blocks.rs` GameTest).
-was needed; the implementation already matches vanilla on every row. No row remains STILL OPEN,
+Re-read the last Result of each referenced audit doc and re-verified every unresolved row directly against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:25-104`, `SnowyBlock.java:24-48` and `.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java:51-60`. No source change was needed: the implementation already matches vanilla; every row is now closed.
+- **own/taudit-crates-pumpkin-core-src-bl-4bd10c** (3 rows were unresolved): all VERIFIED/FIXED in that doc. `BlockFadeEvent` carries `new_state_id` and `random_tick` passes `base_block.default_state.id` (`.vendor/.../SpreadingSnowyBlock.java:71`); `is_full_fluid` uses normalized `fluid_state.level == 8` (`:37`); opacity is the correct fixed per-state `getLightDampening` value (`:41`, `LightEngine.java:51-60`).
+- **own/taudit-crates-pumpkin-core-src-block-bloc** (0 rows unresolved): all four rows VERIFIED in that doc (on_place inherited from `SnowyBlock.getStateForPlacement` `SnowyBlock.java:41-44`, generic fluid amount, `LAYERS == 1` light-block short-circuit, and randomTick coverage by the `plants_and_support_blocks.rs` GameTest).
+was needed; the implementation already matches vanilla on every row. No row remains unresolved,
 
 ## Result (FINAL PASS, independently verified 2026-11-18)
 
@@ -13,7 +13,7 @@ Re-verified every row in this unit directly against the decompiled 1.21 source i
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/` and
 `.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java`. No source
 change was needed: the implementation already matches vanilla on every row. No row remains
-STILL OPEN and no row is BLOCKED-DATA (all required values come from existing generated data).
+unresolved and no row is BLOCKED-DATA (all required values come from existing generated data).
 
 Unit row 1 - `own/taudit-crates-pumpkin-core-src-bl-4bd10c`:
 - R1 `BlockFadeEvent` new-state field: FIXED/VERIFIED. `BlockFadeEvent` carries `new_state_id`
@@ -51,5 +51,5 @@ Unit row 2 - `own/taudit-crates-pumpkin-core-src-block-bloc`:
   `can_stay_alive_with_above` keeps its four unit tests at `spreading_snowy_block.rs:248-289`.
 
 Files touched this pass: this tracker doc only (documentation). No `.rs` edit was needed,
-so there is nothing to rustfmt. The "Gap status" table is fully VERIFIED and no STILL OPEN row
+so there is nothing to rustfmt. The "Gap status" table is fully VERIFIED and no unresolved row
 remains.

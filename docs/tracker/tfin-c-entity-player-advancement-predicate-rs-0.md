@@ -10,3 +10,6 @@ Third pass. Rows 3, 7 and 8 were open in the prior pass. Rows 1-2, 4-6, 9-13 sta
 - Row 8 (item condition count): VERIFIED. `matches_item_condition` takes `count` and all emitters (`consume_item`, `filled_bucket`, `fishing_rod_hooked`, `used_totem`, `shot_crossbow`) forward the real stack count in `crates/pumpkin-core/src/entity/player/advancement/trigger.rs` and `predicate.rs`. Vanilla reference: `.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/ItemPredicate.java`.
 
 Status: UNVERIFIED fixed=1 verified=1 blocked=1 files=predicate.rs|trigger.rs|registry.rs
+
+## Result (batch x_17, CODER pass)
+- Predicate row(s): STILL OPEN. Not compared to vanilla this pass (time spent on husk and batch tooling). No edit made.

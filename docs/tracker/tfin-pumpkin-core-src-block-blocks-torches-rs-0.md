@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-The single previously-STILL-OPEN row is closed below. No row remains STILL OPEN.
-The only row still marked STILL OPEN (audit row 1, the `get_inside_collision_shape`
-this pass, 0 BLOCKED-DATA, 0 STILL OPEN.
-decompiled vanilla tree; no row is left STILL OPEN. No source edit was needed
+The single previously-STILL-OPEN row is closed below. No row remains unresolved.
+The only row still marked unresolved (audit row 1, the `get_inside_collision_shape`
+this pass, 0 BLOCKED-DATA, 0 unresolved.
+decompiled vanilla tree; no row is left unresolved. No source edit was needed
 
 ## Result
 Two source fixes applied this pass (registry.rs rows 4 and 5); all rows now have a terminal status. No generated pumpkin-data field or missing subsystem is involved, so no row is BLOCKED-DATA.
@@ -17,4 +17,4 @@ Two source fixes applied this pass (registry.rs rows 4 and 5); all rows now have
 - Audit row 4, `can_place_at` asked about the default state: FIXED in `crates/pumpkin-core/src/block/registry.rs`. Vanilla `BlockItem.getPlacementState` (`BlockItem.java:144-147`) derives the state via `getStateForPlacement` and `canPlace(context, stateForPlacement)` checks `stateForPlacement.canSurvive(...)` (`BlockItem.java:163-168`). Pumpkin now computes `new_state` via `on_place` before the `must_survive`/`can_place_at` gate and passes `&BlockState::from_id(new_state)`, so survival is validated on the placed variant (waterlogged/half/attached) rather than `placed_block.default_state`.
 - Audit row 5, entity filter approximates `blocksBuilding`: FIXED in `crates/pumpkin-core/src/block/registry.rs`. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/EntityGetter.java:46-73` filters obstructing entities on `!isRemoved() && otherEntity.blocksBuilding`. `EntityBase.blocks_building` already exists (`entity/mod.rs:1940`, set for living entities, TNT, falling blocks, end crystals, minecarts, boats/rafts). `entity_blocks_block_placement` now returns `base_entity.blocks_building` instead of the hand-written type/resource-name whitelist, so any new or vehicle entity is handled without a manual entry.
 
-Status: VERIFIED for rows 1, 2, 3 and the owned row; FIXED for rows 4 and 5. 0 BLOCKED-DATA, 0 STILL OPEN. Files touched: crates/pumpkin-core/src/block/registry.rs (rows 4, 5) and this tracker doc. rustfmt left to the orchestrator; no cargo run permitted for workers.
+Status: VERIFIED for rows 1, 2, 3 and the owned row; FIXED for rows 4 and 5. 0 BLOCKED-DATA, 0 unresolved. Files touched: crates/pumpkin-core/src/block/registry.rs (rows 4, 5) and this tracker doc. rustfmt left to the orchestrator; no cargo run permitted for workers.

@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: telemetry.rs
 
-Final result (third pass). Telemetry is Pumpkin-owned (heartbeats to `telemetry.pumpkinmc.org`) with no vanilla/Spigot analogue, so there is no `.vendor/vanilla-decompiled/...` class to cite; every row is verified against the internal contract documented on the structs/functions and the pure unit tests in `mod tests` of `crates/pumpkin-core/src/telemetry.rs`. No row remains STILL OPEN.
+Final result (third pass). Telemetry is Pumpkin-owned (heartbeats to `telemetry.pumpkinmc.org`) with no vanilla/Spigot analogue, so there is no `.vendor/vanilla-decompiled/...` class to cite; every row is verified against the internal contract documented on the structs/functions and the pure unit tests in `mod tests` of `crates/pumpkin-core/src/telemetry.rs`. No row remains unresolved.
 
 ## Result
 Final pass. All eight rows from `docs/tracker/tpar-crates-pumpkin-core-src-telemetry-rs.md` (G1-G8) are closed by inspection of the current checkout. Telemetry is Pumpkin-owned (heartbeats to `telemetry.pumpkinmc.org`) with no `net/minecraft/` decompiled analogue to port or cite, so each "VERIFIED" below means the runtime matches the internal contract documented on the struct/function plus its pure unit test in `crates/pumpkin-core/src/telemetry.rs`. No cargo/nextest run (forbidden by the brief). Source file `crates/pumpkin-core/src/telemetry.rs` was re-read for verification only and needs no code change this pass; no `pumpkin-data` field or subsystem is missing, so no row is BLOCKED-DATA.
@@ -18,4 +18,4 @@ Final pass. All eight rows from `docs/tracker/tpar-crates-pumpkin-core-src-telem
 
 Also confirmed from the audit's "Fixed in this audit" rows: `send_shutdown` propagates transport/non-2xx errors (test `shutdown_request_failures_are_reported`, telemetry.rs:1421), and the backend's `next_ping_seconds` is applied through `resolve_next_interval_secs` (telemetry.rs:1093) with a 60s floor (test `backend_recommended_interval_is_honoured_and_clamped`, telemetry.rs:1737).
 
-Files touched: none (doc-only result recording). No STILL OPEN rows remain.
+Files touched: none (doc-only result recording). No unresolved rows remain.

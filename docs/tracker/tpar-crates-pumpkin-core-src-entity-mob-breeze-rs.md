@@ -11,3 +11,8 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tverify-mobs9** [partial/OWN-OPEN] -> closed. Head rot speed 25 FIXED (hook + test); pathfinding malus VERIFIED (`Breeze.java:73-78`); slide/jump particles, pose and animation VERIFIED client-only, non-blocking (`Breeze.java:120-179`); Brain AI behaviours and Shoot/charge cooldowns BLOCKED-DATA: whole missing subsystem, the Breeze AI behaviour tree (`Shoot`, `LongJump`, `Slide`, `ShootWhenStuck`) and Breeze memory types (`BREEZE_JUMP_TARGET`, `BREEZE_SHOOT_*`) are absent from `crates/pumpkin-core/src/entity/ai/brain/` (vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/BreezeAi.java`). All `STILL OPEN` rows in `docs/tracker/tverify-mobs9.md` were updated accordingly.
 
 Files edited: `crates/pumpkin-core/src/entity/mob/breeze.rs` (override + test), `docs/tracker/tverify-mobs9.md`, this unit doc. No cargo/git run (worker restriction); compile/format by orchestrator.
+
+## Result (x_14 re-check)
+- Head rot speed 25: present, `crates/pumpkin-core/src/entity/mob/breeze.rs:140` with test at `:224-232`; vanilla `Breeze.java:253-256`.
+- Brain AI and shoot/charge cooldowns: BLOCKED-DATA confirmed. `grep` finds no Breeze behaviours (`Shoot`, `LongJump`, `ShootWhenStuck`, `Slide`) in `crates/pumpkin-core/src/entity/ai/`; only the frog's own `LongJump` exists. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/breeze/BreezeAi.java`, `Shoot.java`, `LongJump.java`, `Slide.java`, `ShootWhenStuck.java`, `Breeze.java:258-260`.
+No source edited in this pass.

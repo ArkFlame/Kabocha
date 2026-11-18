@@ -127,3 +127,22 @@ Verified every row against decompiled vanilla 26.3 in `.vendor/vanilla-decompile
 - Row 7 (M) - FIXED/VERIFIED. `inventory.mark_dirty()` at `commands/item.rs:152` and `:834` mirrors vanilla `Container.setChanged()`.
 - Row 8 (S) - FIXED/VERIFIED. Modify executors send `commands.item.block.modify.success` / `commands.item.entity.modify.success.single/multiple` (`item.rs:1257`, `:1295`, `:1304`).
 - Row 9 (S) - VERIFIED (no gap). Maintenance dedup only; both executors now share `write_entity_slot` (`item.rs:246`, `:1283`), so the original double-maintenance concern is resolved behaviourally. No parity impact.
+## Result (coder pass, rows 8 only)
+- 8. VERIFIED: vanilla sends `commands.item.block.modify.success` (slot count, x, y, z) at `.vendor/vanilla-decompiled/net/minecraft/server/commands/item/BlockItemAccessor.java:36` and `commands.item.entity.modify.success.single/multiple` at `EntityItemAccessor.java:40-41`. Rust `BlockModifyExecutor` sends the block message and `EntityModifyExecutor` sends single/multiple via `send_feedback` in `crates/pumpkin-core/src/command/commands/item.rs` (block executor ~l.1348-1375, entity executor ~l.1379-1421). Row was stale; no code change.
+- Rows 1, 2, 3, 4, 5, 6, 7, 9: STILL OPEN, not reached in this pass (unchanged).
+
+## Result (r3_018 re-derive, Gap table rows 1-9)
+
+Re-derived from the Gap table against vanilla 26.3 in `.vendor/vanilla-decompiled`. No Rust edits this pass: every row checked already matches or is fixed in `crates/pumpkin-core/src/command/commands/item.rs`.
+
+- Row 1 (slot-source replace): VERIFIED. `SlotsArgumentType` for replace (`item.rs:89`, `:227`); failed-target reporting (`item.rs:137`, `:266`). Vanilla `ItemCommands` replace/`SlotArgument.parse` (`.vendor/vanilla-decompiled/net/minecraft/server/commands/item/ItemCommands.java`).
+- Row 2 (`item set` subcommand): VERIFIED. `SuccessFeedback::Set` (`item.rs:90`, `:228`, `:312`, `:317`).
+- Row 3 (entity/player/horse slots 300-307, 499, 500-514): VERIFIED for the mapped slots. Cursor 499 and crafting 500-503 in `read_player_menu_slot`/`write_player_menu_slot` (`item.rs:398-443`); horse in `read_horse_slot` (`item.rs:451-461`); mob inventories via `read_mob_slot`/`write_mob_slot`. Matches `Player.java:1893-1931` and `AbstractHorse.java:81-82,980-983`.
+- Row 4 (remaining loot functions): BLOCKED-DATA. `apply_item_modifier` (`item.rs:844-938`) now covers set_damage, set_count, set_name, set_lore, set_enchantments, set_components, enchant_randomly, set_custom_model_data, set_potion, sequence, limit_count. Still missing: the other loot function types need data-component and enchantment registry APIs that are not in pumpkin-core (missing subsystem). Unknown ids still hit `tracing::debug!` at `item.rs:928`.
+- Row 5 (number providers): VERIFIED. `number_provider`/`number_provider_with` handle uniform, binomial, sum (`item.rs:1268-1299`).
+- Row 6 (set_count clamp): VERIFIED. `set_count` assigns the raw value (`item.rs:855-863`), matching `SetItemCountFunction.java:45`. The post-modifier `min(max_stack)` at `item.rs:936` mirrors vanilla `ItemCommands.java:289` `limitSize`.
+- Row 7 (container dirty flag): VERIFIED. `inventory.mark_dirty()` at `item.rs:156` and `:838`.
+- Row 8 (modify feedback): VERIFIED. `COMMANDS_ITEM_BLOCK_MODIFY_SUCCESS` (`item.rs:1362`), `COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_SINGLE/MULTIPLE` (`item.rs:1404`, `:1413`).
+- Row 9 (entity slot dedup): VERIFIED. Replace executor uses the shared `write_entity_slot` (`item.rs:250`, `:1392`); no behavioural gap.
+
+Files edited: none. Checks: none run (cargo forbidden in this brief).

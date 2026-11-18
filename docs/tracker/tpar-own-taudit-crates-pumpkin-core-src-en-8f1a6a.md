@@ -45,3 +45,7 @@ No code changed in this pass (the only in-tree fixes were already landed; the si
 missing feature is a whole subsystem, reported BLOCKED-DATA). No new pure-test seam exists for
 these rows; row 30 already ships a pure test. No cargo/git run (worker shell is denied), so prior
 code edits remain UNVERIFIED by compilation in this pass.
+
+## Result (x_01)
+- Row 39 (`last_hurt_mob`): BLOCKED-DATA confirmed. Rust `LivingEntity` has no `last_hurt_mob` field or setter (grep `last_hurt_mob|LastHurtMob` over `crates/` is empty). Vanilla `world/entity/projectile/arrow/AbstractArrow.java:498` calls `livingOwner.setLastHurtMob(entity)`; `LivingEntity.java:268,742-746` holds the field. Note: `entity/projectile/arrow.rs:777-789` currently writes `last_attacking_id` / `last_attack_time` as a stand-in, which is not the same field as vanilla `lastHurtMob`.
+Files edited: none. Checks: none run.

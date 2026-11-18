@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- No BLOCKED-DATA rows, no remaining STILL OPEN rows.
-Full re-audit of this unit against `.vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java` and `.../levelgen/feature/EndSpikeFeature.java`. No STILL OPEN rows remain and no source edits were needed this pass. This doc has no "STILL OPEN until closed..." line to replace.
+- No BLOCKED-DATA rows, no remaining unresolved rows.
+Full re-audit of this unit against `.vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java` and `.../levelgen/feature/EndSpikeFeature.java`. No unresolved rows remain and no source edits were needed this pass. This doc has no "unresolved until closed..." line to replace.
 
 ## Result (Final Pass)
 
@@ -11,7 +11,7 @@ Every row re-verified against decompiled vanilla under
 `.vendor/vanilla-decompiled/net/minecraft/`. No source edits needed: all fixes from prior
 passes confirmed present on disk (seeded spikes/gateways, NBT persistence + save/load wiring,
 heightmap podium Y, portal-Y crystal AABB, origin+(0,128,0) sphere, and the three unit tests).
-No BLOCKED-DATA rows and no STILL OPEN rows remain.
+No BLOCKED-DATA rows and no unresolved rows remain.
 
 Row `own/taudit-crates-pumpkin-core-src-wo-ea95b7` (11 gaps) CLOSED:
 

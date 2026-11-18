@@ -2,7 +2,7 @@
 
 Close each item below: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+Per row, recorded below: VERIFIED with the vanilla path (single row closed, no BLOCKED-DATA).
 
 ## Result
 

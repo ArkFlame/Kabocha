@@ -92,3 +92,7 @@ Status: PASS fixed=0 open=1 files=none
 - Row 2 (canPerformAction ordering): Confirmed at parity with decompiled vanilla; `canPerformAction` included in `canUse` with matching check order; `can_perform_action` (`panda.rs:647-660`) equals `Panda.java:695-697`.
 - Row 3 (tick_count): Confirmed at parity; vanilla increments `tickCount` before goal selectors, already-incremented count is correct.
 - No `.rs` files edited; existing tests at `lie_on_back.rs:95-115` cover the 200/300/1000 bounds and short-circuit seam.
+
+## Result (batch r2_007, spot-check)
+- Row 1 (random source): VERIFIED. Mob::get_random returns EntityRng (entity/mob/mod.rs:1681), vanilla Panda.java:894,900-901 uses entity-owned random. Seed-source difference remains out of scope.
+- Rows 2 and 3: VERIFIED by prior pass; not re-read this pass.

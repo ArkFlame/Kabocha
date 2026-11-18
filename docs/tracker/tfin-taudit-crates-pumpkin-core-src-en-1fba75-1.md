@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Re-checked every STILL OPEN row against decompiled vanilla at
-Re-verified every STILL OPEN row against
+Re-checked every open row against decompiled vanilla at
+Re-verified every open row against
 
 ## Result
 - FIXED (projectile NBT persistence): ProjectileOwner::write_nbt/read_nbt/remove_nbt wired through EntityBase::write_nbt/read_nbt_non_mut/remove_nbt via get_projectile_owner(); keys Owner/LeftOwner/HasBeenShot match vanilla Projectile#addAdditionalSaveData / #readAdditionalSaveData (Projectile.java:154-175). Unit tests in owner.rs cover round trip, vanilla defaults, data-remove. Files: crates/pumpkin-core/src/entity/projectile/owner.rs, crates/pumpkin-core/src/entity/mod.rs.

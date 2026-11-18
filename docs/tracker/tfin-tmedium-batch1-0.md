@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 Scope: first 8 rows tagged `M, STILL OPEN` in `docs/tracker/*.md` by file name order, excluding `tverify-mobs*`, `tsmall-batch*`, `tdeferred*`. Checks were source reads against vanilla (`.vendor/vanilla-decompiled`). No cargo run.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No rows listed in this doc, so nothing to verify or edit.

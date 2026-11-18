@@ -18,3 +18,9 @@ Reference: `.vendor/vanilla-decompiled/net/minecraft/` (decompiled). Not compile
 Summary: verified 3, fixed 3, open 4 (piglin, sulfur cube, bat, lodestone). Open follow-ups inside fixed rows: fishing cast cancel, goat horn `get_use_duration`, bat conductor predicate.
 
 Unverified: no build or test run in this pass. Fix commits add no tests. The cheap pure-test path did not apply: each fix needs world or player state (gametest territory).
+
+## Result (batch x_10, CODER)
+- Bat roost conductor check (open follow-up): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/ambient/Bat.java:136,178` uses `isRedstoneConductor`; Rust `crates/pumpkin-core/src/entity/mob/bat.rs:99,201` uses `is_redstone_conductor()`. Row closed.
+- Lodestone POI (open): partly VERIFIED. Rust `crates/pumpkin-core/src/block/blocks/lodestone.rs:8-9` derives POI from block-state ids in `World::update_poi`, matching vanilla's `PoiTypes` mapping. Chunk-load POI rebuild not audited: STILL OPEN.
+- Piglin, sulfur cube: STILL OPEN, not audited this pass (scope).
+- Files edited: this doc only. No Rust edited; no checks run.

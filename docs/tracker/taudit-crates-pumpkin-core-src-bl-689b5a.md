@@ -220,3 +220,21 @@ No test was added: the only new seam is a wasm-host conversion that needs a live
 `relight_rescales_progress_by_the_multiplier_change`,
 `assemble_cooking_result_applies_recipe_components`,
 `furnace_speed_multiplier_round_trips_through_nbt`).
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. Checked against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/Block.java` and `state/BlockBehaviour.java`.
+- Row 1 get_inside_collision_shape default: VERIFIED. BlockBehaviour.java:336-337 returns `Shapes.block()`; block/mod.rs:305 `BoundingBox::full_block()` matches. The audit's empty-shape fallback premise does not hold for this vanilla version.
+- Row 2 comparator max stack divisor: STILL OPEN (vanilla min(container max, item max) not re-read this pass; prior note says no live difference).
+- Row 3 pushEntitiesUp: BLOCKED-DATA. Block.java:158-166 needs `Shapes.joinUnoptimized` / `BooleanOp.ONLY_SECOND` / `Shapes.collide` on VoxelShape; pumpkin-core has no VoxelShape boolean-op subsystem.
+- Rows 4, 5, 6, 7: STILL OPEN, not reached this pass (row 4 needs Option<&Player> threading through world/mod.rs; rows 5-7 per earlier pass).
+
+## Result (CODER r3_007, 2026-11-18)
+Status PASS. Checked against `.vendor/vanilla-decompiled/net/minecraft/world/inventory/AbstractContainerMenu.java`, `world/Container.java`, `util/Mth.java`, `world/level/block/Block.java`, `world/item/context/BlockPlaceContext.java`, `world/level/block/state/BlockBehaviour.java`. No Rust edits needed.
+- Row 2 comparator max stack divisor: VERIFIED. Container.java:36-38 is `min(container max, item max)`; Rust `calculate_comparator_output` (`block/mod.rs:900-902`) uses `get_max_count_per_stack().min(stack.get_max_stack_size())`. Final value `1 + p*14` floored equals `Mth.lerpDiscrete(p,0,15)` (Mth.java:545-548) for p>0. Test: `comparator_output_uses_smaller_container_or_item_max_stack`.
+- Row 3 pushEntitiesUp: VERIFIED, no longer BLOCKED-DATA. `push_entities_up` (`block/mod.rs:86-139`) reproduces `joinUnoptimized(ONLY_SECOND)` with box subtraction (`added_collision_boxes`), the `Shapes.collide(Y, ..., -1.0)` clamp (`collide_down_y`), and the empty early return of Block.java:158-170. Residual difference: `teleportRelative` is replaced by `set_pos`.
+- Row 4 BlockDropItemEvent player: VERIFIED. `drop_loot` takes `player: Option<&Arc<Player>>` and sets `player.cloned()` (`block/mod.rs:686-717`). `World::break_block` threads `cause` (`world/mod.rs:7083,7173`). Natural, explosion and leaf callers pass `None` (`world/mod.rs:7292`, `world/explosion.rs:975`, `blocks/leaves.rs:121`).
+- Row 5 `BlockPlaceContext::at` replaceClicked: VERIFIED for the live path. Vanilla BlockPlaceContext.java:30 sets `replaceClicked` from `canBeReplaced`. Rust `at` (`block/mod.rs:829-846`) gates on `can_replace_with_other_block`. Residual, no live effect: BlockBehaviour.java:269-271 also checks the item in hand and `isDestroyable`, which `at` does not take. The only caller, `item/items/scaffolding.rs:62`, has already excluded scaffolding targets.
+- Row 6 placement collision duplication: VERIFIED. `has_placement_collision` (`block/mod.rs:314-316`) is defined as `!can_place_inside_entities()`, so both paths share one signal. Vanilla `isEmpty()` check matches.
+- Row 7 silk touch lookup: VERIFIED. `block/mod.rs:739` uses the generated `pumpkin_data::Enchantment::SILK_TOUCH` constant (`pumpkin-data/src/generated/enchantment.rs:2295`), not a name lookup.
+
+No Rust file touched, so rustfmt and cargo were not run.

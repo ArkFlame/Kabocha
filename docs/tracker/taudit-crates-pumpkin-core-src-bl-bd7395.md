@@ -304,3 +304,15 @@ tests cover all behavioural deltas).
 
 Status: PASS fixed=0 open=0
 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md
+
+## Result (batch r2_002)
+- Not reached in this pass: rows keep their existing status. Prose "STILL OPEN" mentions above are historical and were not re-verified against vanilla here.
+
+## Result (batch r3_010)
+- Rows 1-5 (Gap status): all already VERIFIED; no genuinely open row in the last Result section (r2_002 says rows keep existing status). No source edits.
+- 1 get_updated_state UP uses Direction.DOWN: VERIFIED, spot-checked VineBlock.java:119-120 vs vine.rs:79.
+- 2 dead fallback: VERIFIED, kept (vanilla identical).
+- 3 is_air on fetched state: VERIFIED, no default_state.is_air() left in vine.rs (grep 0 hits).
+- 4 placement order: VERIFIED, get_entity_facing_order used via vine.rs:203.
+- 5 single get_state_for_placement helper: VERIFIED, vine.rs:231.
+Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md

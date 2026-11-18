@@ -2,13 +2,13 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: damage_type.rs move_vehicle.rs statistics.rs
 
-All 12 rows resolved; none remain STILL OPEN. Re-verified the current code against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file needed an edit this pass: the three unit files (`statistics.rs`, `move_vehicle.rs`, `damage_type.rs`) already carry the row 4 and row 5 fixes, and row 8 is upstream parity rather than a bug. `rustfmt` not rerun (no `.rs` touched); compilation intentionally left to the orchestrator.
-No `## Result` section left any row STILL OPEN, and re-reading the current source confirms every row is FIXED or VERIFIED against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file was changed this pass, so rustfmt was not needed; compilation is left to the orchestrator.
-Files edited this pass: none. No remaining STILL OPEN rows; no BLOCKED-DATA dependency outstanding.
-Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only (stale gap status resolved + this Result). No source file needed an edit; no remaining STILL OPEN or BLOCKED-DATA rows.
+All 12 rows resolved; none remain open. Re-verified the current code against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file needed an edit this pass: the three unit files (`statistics.rs`, `move_vehicle.rs`, `damage_type.rs`) already carry the row 4 and row 5 fixes, and row 8 is upstream parity rather than a bug. `rustfmt` not rerun (no `.rs` touched); compilation intentionally left to the orchestrator.
+No `## Result` section left any row open, and re-reading the current source confirms every row is FIXED or VERIFIED against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file was changed this pass, so rustfmt was not needed; compilation is left to the orchestrator.
+Files edited this pass: none. No remaining open rows; no BLOCKED-DATA dependency outstanding.
+Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only (stale gap status resolved + this Result). No source file needed an edit; no remaining open or BLOCKED-DATA rows.
 
 ## Result
-All 12 rows end FIXED / VERIFIED or NO CHANGE against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No row remains STILL OPEN; no BLOCKED-DATA dependency is outstanding (the row 5 generated field is present). No `.rs` file needed an edit this pass: this unit's two editable files already carry the row 4 and row 5 fixes plus their pure unit tests, so rustfmt was not rerun; compilation is left to the orchestrator.
+All 12 rows end FIXED / VERIFIED or NO CHANGE against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No row remains open; no BLOCKED-DATA dependency is outstanding (the row 5 generated field is present). No `.rs` file needed an edit this pass: this unit's two editable files already carry the row 4 and row 5 fixes plus their pure unit tests, so rustfmt was not rerun; compilation is left to the orchestrator.
 
 - Row 1 (respawn FoodData/breath carry-over): VERIFIED FIXED. Respawn reuses the same `Player` instance via `World::respawn_player`, so hunger/saturation/air persist; equivalent to the state vanilla's `ServerPlayer(Server, ..., ServerPlayer that)` copy constructor preserves (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:1020`).
 - Row 2 (stale spawn-position TODO): VERIFIED FIXED. TODO removed; the join path sends `CPlayerSpawnPosition`.

@@ -388,3 +388,14 @@ the current tree; no source change was needed.
 No STILL OPEN rows remain and no BLOCKED-DATA rows exist. No `.rs` file changed this pass, so
 rustfmt was not needed; not compiled here per worker rules, orchestrator batch-checks.
 Unit is complete.
+
+## Result
+
+2026-11-18 batch r2s_004 pass (CODER). Re-checked the open-row list against the current tree. No STILL OPEN markers remain in this doc, so no source change was made.
+
+- Row 1 (brain-sensor threats, villager hostile fleeing): VERIFIED. Vanilla `.../ai/behavior/SetWalkTargetAwayFrom.java:34-66` matches Rust `set_walk_target_away_from.rs:24-81`; prior citations hold.
+- Row 2 (confirm on ranked nearest only): VERIFIED. Vanilla `.../animal/wolf/Wolf.java:701,704-705` (`super.canUse() && ... avoidLlama`, `nextInt(5)`) matches Rust `avoid_entity.rs:184-195` and `llama.rs:61-63` (`random_range(0..5)`).
+- Row 3 (tick_reach range): VERIFIED. Vanilla `.../ai/goal/AvoidEntityGoal.java:72` (inflate by maxDist, 3.0 vertical) matches Rust `avoid_entity.rs:119,130` (`THREAT_SEARCH_HEIGHT = 3.0`, reach uses `flee_distance`).
+- Row 4 (drop_target per-tick clear): VERIFIED. Vanilla `Wolf.java:710,716` override `start()` and `tick()` with `setTarget(null)`; Rust `avoid_entity.rs:205-215` and `217-233` match.
+- Default targeting predicate: VERIFIED. Vanilla `AvoidEntityGoal.java:52-55` (`forCombat().range(maxDist)` only) matches Rust `avoid_entity.rs:66-67` (`create_attackable().set_base_max_distance`), which keeps line of sight and visibility scaling.
+- Files edited: this doc only. No `.rs` changed, so rustfmt was not needed. Not compiled, per worker rules.

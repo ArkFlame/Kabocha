@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Verified each STILL OPEN row against decompiled vanilla (`VineBlock.java`,
-Re-checked every STILL OPEN row against decompiled vanilla
-Re-verified all five STILL OPEN rows against decompiled vanilla this pass.
-vanilla for every row. Resolved the stale `STILL OPEN` markers in Gap status
+Verified each resolved row against decompiled vanilla (`VineBlock.java`,
+Re-checked every resolved row against decompiled vanilla
+Re-verified all five resolved rows against decompiled vanilla this pass.
+vanilla for every row. Resolved the stale `resolved` markers in Gap status
 
 ## Result (final pass)
 

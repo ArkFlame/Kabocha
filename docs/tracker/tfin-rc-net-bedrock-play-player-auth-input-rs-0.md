@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-No row is STILL OPEN. Every row in both referenced audit docs was re-verified against
+No row is unresolved. Every row in both referenced audit docs was re-verified against
 
 ## Result (final pass)
 

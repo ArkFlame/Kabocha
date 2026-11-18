@@ -169,3 +169,13 @@ by the brief is not present in this doc, so there was nothing to replace.
 
 `brightness.rs` and `block/entities/daylight_detector.rs` have no gaps and were left untouched.
 No generated `pumpkin-data` fields, WIT changes or cross-crate refactors remain outstanding.
+
+## Result (batch r2_018, CODER, partial)
+- Row (plugin same-state redundant update, S): STILL OPEN. Prior notes call it not a gap, but this pass did not re-read the Rust or vanilla lines, so it is not closed here.
+- Files edited: none. rustfmt: not run.
+
+## Result (batch r3_053, CODER)
+- Row (plugin same-state redundant update, S): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:59-61` wraps `callRedstoneChange` and `setBlockAndUpdate` in `if (state.getValue(POWER) != target)`; Rust `crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:112-131` has the same guard, fires `BlockRedstoneEvent`, clamps `new_current` to 0-15 and writes with `BlockFlags::NOTIFY_ALL` (no `FORCE_STATE`).
+- Row (effective sky brightness negative, S): not re-read this pass; prior Result sections record it FIXED and VERIFIED (`world/mod.rs` `effective_sky_brightness_from` `.max(0)`). Left as recorded.
+- Row (shape-based light occlusion, L): not re-read this pass; prior Result sections record it FIXED and VERIFIED (`crates/pumpkin-world/src/lighting/occlusion.rs`). Left as recorded.
+- Files edited: `docs/tracker/tblocks-daylight-detector.md` (appended this Result section only). No Rust edited; rustfmt not needed. Checks: none run (no code change).

@@ -55,3 +55,6 @@ existing NBT/comparator/can_transfer_to tests already cover the fixed branches. 
 this CODER role.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tpar-crates-pumpkin-core-src-block-entities-jukebox-rs.md
+
+## Result (x_04 pass)
+- `own/taudit-crates-pumpkin-core-src-bl-31ea5a`: VERIFIED (partial re-check). `block/entities/jukebox.rs:147-152` `chunk_data_nbt` shares `write_nbt`; test at `jukebox.rs:534`. Vanilla `world/level/block/entity/JukeboxBlockEntity.java:135`. Other sub-rows not re-read this pass. No Rust edited; no checks run.

@@ -491,3 +491,23 @@ Existing pure unit tests cover the seams: local_mob_cap_uses_128_block_horizonta
 after_spawn_updates_category_counts, adjust_spawn_position_down_follows_land_pathfindable,
 structure_spawn_entries_are_picked_by_weight, and initial_cluster_attempts_matches_vanilla_ceil.
 No new seam was added, so no new unit test. Files changed this pass: this doc only.
+
+## Result (BRIEF2 pass)
+- `world/mod.rs:3295` canSpawnEntitiesInChunk TODO: STILL OPEN, not reached (M).
+- Row 7 (chunk-gen vs live adjust_spawn_position): STILL OPEN per the Row 7 notes above, not reached this pass.
+- Other rows in this doc: not reached this pass; left as recorded above.
+- Files edited this pass: none.
+
+## Result (r3_046 recheck)
+- Row 1 (local mob-cap player window): VERIFIED. Vanilla ChunkMap.java:846,860-866; Rust natural_spawner.rs:38,181-186.
+- Row 2 (cached vs fallback player paths): VERIFIED. Rust natural_spawner.rs:221-246.
+- Row 3 (chunk-gen honours doMobSpawning): VERIFIED. Vanilla NaturalSpawner.java:599; Rust natural_spawner.rs:653.
+- Row 4 (level RandomSource threading): VERIFIED. Vanilla NaturalSpawner.java:577-584,236; Rust natural_spawner.rs:595-649.
+- Row 5 (initial cluster size): VERIFIED. Vanilla NaturalSpawner.java:354; Rust natural_spawner.rs:851-853.
+- Row 6 (ON_GROUND head-block check): VERIFIED. Vanilla SpawnPlacementTypes.java:26-41; Rust natural_spawner.rs:1298-1310,1336-1348.
+- Row 7 (chunk-gen vs live adjust_spawn_position): VERIFIED. Vanilla SpawnPlacementTypes.java:44-48 (isPathfindable LAND); Rust natural_spawner.rs:796-846 (adjust_spawn_position_cache and adjust_spawn_position both call world.block_registry.is_pathfindable(.., Land)).
+- Row 8 (shared-spawn bubble / ticking chunk): VERIFIED. Vanilla NaturalSpawner.java:453-463; Rust natural_spawner.rs:1007-1041.
+- Row 9 (canSpawnEntitiesInChunk gate / world/mod.rs:3295 TODO): VERIFIED. The TODO no longer exists in Rust (grep canSpawnEntitiesInChunk in crates/pumpkin-core/src/world/mod.rs: no hits). Vanilla ChunkMap.java:766-819 (anyPlayerCloseEnoughForSpawning); Rust world/mod.rs:3434-3459 (any_player_close_enough_for_spawning, used by tick_spawning_chunk).
+- Row 10 (structure spawn overrides): VERIFIED. Vanilla NaturalSpawner.java:558-574; Rust natural_spawner.rs:1060-1081.
+- Row 11 (unknown spawner aborts chunk-gen): VERIFIED. Vanilla NaturalSpawner.java:609-611; Rust natural_spawner.rs:669-678.
+- Files edited this pass: this doc only (no Rust edits; no code differed from vanilla).

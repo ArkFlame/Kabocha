@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-No `STILL OPEN` markers remain in this doc.
+No `PRIOR-OPEN` markers remain in this doc.
 
 ## Result
-All rows verified against the current source; no `STILL OPEN` markers remain. Vanilla has no
+All rows verified against the current source; no `PRIOR-OPEN` markers remain. Vanilla has no
 plugin system, so Paper `HandlerList`/`ComplexEventListener`/`CommandMap` are the behavioural
 reference; the one vanilla path cited below is `Commands.java` for command-label removal.
 

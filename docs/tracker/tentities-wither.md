@@ -185,3 +185,14 @@ Additional correction this pass (wither_skull.rs, outside the nine rows):
 
 Files touched this pass: crates/pumpkin-core/src/entity/projectile/wither_skull.rs and this doc.
 No build run (task rules); compile verification left to the orchestrator.
+
+## Result (x_14 re-verification)
+- Row 1 (lift clause `!isPowered && y < target.y + 5`): VERIFIED. Vanilla `WitherBoss.java:170` has the clause; Rust `wither.rs:354` matches.
+- Row 2 (no goals during spawn): VERIFIED. Vanilla `WitherBoss.java:102,613-620` (DoNothingGoal while invul > 0); Rust `wither.rs:638-641` gates LOOK, the only controls Pumpkin's wither registers.
+- Row 3 (gravity): VERIFIED. Vanilla `WitherBoss.java:87` uses FlyingMoveControl and never calls setNoGravity; Rust sets no no-gravity flag either (`wither.rs` has no NoGravity).
+- Row 5 (bossbar progress): VERIFIED. Vanilla `WitherBoss.java:273` (spawn `1 - n/220`) and `:391` (health/max); Rust `wither.rs:435-436` and `:594-600`.
+- Row 7 (idle head offsets): VERIFIED, premise wrong. Vanilla `WitherBoss.java:317-321` uses `Mth.nextDouble` (uniform) ±10/±5, not Gaussian; Rust `wither.rs:480-482` uniform `random_range` matches. Gaussian is only used for smoke particles (`:230-243`).
+- Row 8 (peaceful despawn): VERIFIED equivalent. Vanilla `WitherBoss.java:538-539` discards with DESPAWN cause; Rust `wither.rs:414` `entity.remove()` (no shared discard helper exists in `entity/mod.rs`), bossbar removed.
+- Row 9 (powered projectile immunity): VERIFIED. Vanilla `WitherBoss.java:504-510` (AbstractArrow, WindCharge); Rust `wither.rs:65-69` (arrows tag, trident, WIND_CHARGE; BreezeWindCharge excluded).
+- Row 4 and Row 6: unchanged (already FIXED per notes above).
+No Rust source edited in this pass.

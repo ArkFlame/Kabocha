@@ -44,3 +44,8 @@ generated pumpkin-data field or a missing subsystem. No pure unit-test seam: the
 cloud constants read by a live Entity tick and a nearest-entity scan needing a live World; a bare
 constant assertion would be a discouraged constant-mirroring test. rustfmt not run by worker (no
 shell); touched no source files this pass, so no formatting needed. Worker ran no cargo/git/shell.
+
+## Result (batch x_12, CODER)
+- Rows 1-6 re-checked against `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/hurtingprojectile/DragonFireball.java:35-46` (`setRadius(3.0F)`, `setDuration(600)`, `setRadiusPerTick((7-3)/600)`, `setPotionDurationScale(0.25F)`, `addEffect(INSTANT_DAMAGE, 1, 1)`, no `setWaitTime`/`setRadiusOnUse`, `getEntitiesOfClass` first-hit loop).
+- Rust: `crates/pumpkin-core/src/entity/area_effect_cloud.rs:130-159` (`create_dragon_breath`: radius 3.0, end 7.0, duration 600, per-tick radius, amplifier 1, scale 0.25, wait 20, radius_on_use 0.0), `crates/pumpkin-core/src/entity/projectile/dragon_fireball.rs:105-156` (`on_hit` first living candidate in range, cloud at target).
+- All six rows: VERIFIED. No Rust edit this pass. Nearest-target squared-range constant not separately re-read.

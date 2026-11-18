@@ -6,4 +6,4 @@ Counts: VERIFIED 12 (the 11 previously STILL OPEN rows plus row 8), FIXED 0 this
 fixes already present from earlier passes), BLOCKED-DATA 0, STILL OPEN 0.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED 12 (the 11 former open rows plus row 8). FIXED 0 this pass (fixes already present), BLOCKED-DATA 0, open 0.

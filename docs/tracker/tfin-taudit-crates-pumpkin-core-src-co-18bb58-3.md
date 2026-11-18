@@ -12,4 +12,4 @@ Final pass. Every row is closed: all fixes are present in code and verified agai
 - **Codec validation of required options** (`pumpkin-command/src/argument_types/particle.rs`): VERIFIED (vanilla `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ParticleArgument.java`, `core/particles/*`).
 - **26.x packet layout** (`pumpkin-protocol/src/java/client/play/particle.rs`): VERIFIED (vanilla `.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundLevelParticlesPacket.java`).
 
-No STILL OPEN rows remain. No source file was edited this pass; both fixes were already present in code and match vanilla.
+No open rows remain. No source file was edited this pass; both fixes were already present in code and match vanilla.

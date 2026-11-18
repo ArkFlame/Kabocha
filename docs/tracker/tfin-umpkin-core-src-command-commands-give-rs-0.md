@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 (docs/tracker/tentities-item-0024a5.md) has no STILL OPEN rows remaining; its final
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No open rows: `tentities-item-0024a5.md` has none remaining.

@@ -86,3 +86,8 @@ All six rows are closed. Each was re-verified this pass against the decompiled v
 - Row 6 (duplicated doc comment): VERIFIED. The apply_supporting_effects doc is a single line (axolotl.rs:183). No change.
 
 Outcome: 0 rows fixed this pass (all six already match vanilla); the stale open status line in the h2 parity sweep section was corrected to VERIFIED. No pure unit test added: existing tests already cover the hurt source/cause (axolotl.rs:1358-1359) and bucket round trip (axolotl.rs:1494-1545) seams, and travel/bucket have no smaller pure seam. No .rs file changed, so rustfmt was not applicable. No cargo/git command was run per task rules; compile and tests are UNVERIFIED.
+
+## Result
+- No STILL OPEN rows in this doc (it holds no row list; the only axolotl row source is docs/tracker/tentities-axolotl-4ff0f4.md, whose final pass records zero STILL OPEN rows).
+- Spot-checked: Axolotl.java:386-387 AmphibiousPathNavigation matches axolotl.rs:238 Navigator::amphibious(false); PlayDead.java:32 Regeneration 200 ticks amplifier 0 matches axolotl/ai.rs:40 and :358. VERIFIED.
+- Files edited: none. cargo, git and rustfmt not run (forbidden by brief).

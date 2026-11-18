@@ -89,3 +89,22 @@ Edited: crates/pumpkin-core/src/block/mod.rs (rustfmt --edition 2024 applied). N
 - Row 4: leaf decay is a natural (non-player) removal, so drop_loot's player=None in leaves.rs is correct. Threading Option<&Player> touches world/mod.rs and explosion.rs, outside this unit. Unchanged, still open.
 - Row 5-7: already fixed in block/mod.rs by the prior pass; verified, not re-edited (out of this unit's scope).
 - No edit to leaves.rs; no rustfmt needed; no compile/test run (worker constraint).
+
+## Result (CODER r2_001, 2026-11-18)
+Status PARTIAL. Re-read the existing Results; no Rust edited this pass.
+- Row 1 get_inside_collision_shape: VERIFIED as default (see taudit-...-bl-689b5a.md Result, BlockBehaviour.java:336-337); the leaves.rs tracker row is not a leaves.rs gap.
+- Rows 2-3 (comparator divisor, pushEntitiesUp): BLOCKED-DATA / STILL OPEN as in 689b5a.
+- Row 4 BlockDropItemEvent player: STILL OPEN; leaf decay is a natural removal so player=None is correct there (leaves.rs); threading player is cross-crate (world/mod.rs, explosion.rs).
+- Rows 5-7 (BlockPlaceContext::at, has_placement_collision, silk touch): FIXED per the block/mod.rs Result in this doc; not re-checked this pass.
+
+## Result (CODER r3_009, 2026-11-18)
+
+- Row 1 (get_inside_collision_shape): VERIFIED. Vanilla `BlockBehaviour.getEntityInsideCollisionShape` returns `Shapes.block()` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/state/BlockBehaviour.java:336-337`); Rust default `BoundingBox::full_block()` at `crates/pumpkin-core/src/block/mod.rs:305-307`. The empty-shape fallback premise does not apply.
+- Row 2 (comparator divisor): VERIFIED. Vanilla divides by `Container.getMaxStackSize(itemStack)` = `Math.min(container, item)` (`.vendor/vanilla-decompiled/net/minecraft/world/Container.java:36-38`, `.../world/inventory/AbstractContainerMenu.java:915`). Rust already uses `get_max_count_per_stack().min(stack.get_max_stack_size())` at `crates/pumpkin-core/src/block/mod.rs:900-902`.
+- Row 3 (pushEntitiesUp): VERIFIED. Vanilla `Block.pushEntitiesUp` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/Block.java:158-171`) uses the joined collision shape and `Shapes.collide(Y, aabb+1, shapes, -1)`. Rust `added_collision_boxes`, `collide_down_y` and `push_entities_up` at `crates/pumpkin-core/src/block/mod.rs:43-139` port it. Spectator skip matches vanilla `EntityGetter.getEntities(except, bb)` = `NO_SPECTATORS` (`.vendor/vanilla-decompiled/net/minecraft/world/level/EntityGetter.java:35-37`).
+- Row 4 (BlockDropItemEvent player): VERIFIED (already threaded; the old "no player parameter" note is stale). `drop_loot` takes `player: Option<&Arc<Player>>` (`crates/pumpkin-core/src/block/mod.rs:686-690`); `World::break_block` passes `cause` (`crates/pumpkin-core/src/world/mod.rs:7173`); `break_block_naturally` passes `None` (`world/mod.rs:7292`), matching a natural removal. Explosion (`world/explosion.rs:975`) and leaves (`block/blocks/leaves.rs:121`) pass `None`, which is correct for non-player causes.
+- Row 5 (BlockPlaceContext::at replaceability): VERIFIED. Vanilla constructor sets `replaceClicked` from `canBeReplaced` (`.vendor/vanilla-decompiled/net/minecraft/world/item/context/BlockPlaceContext.java:30-34`); Rust `BlockIsReplacing::None` gate at `crates/pumpkin-core/src/block/mod.rs:829-839`.
+- Row 6 (placement collision consolidation): VERIFIED. `has_placement_collision()` defaults to `!can_place_inside_entities()` at `crates/pumpkin-core/src/block/mod.rs:314-316`, so the two paths share one source; scaffolding overrides `can_place_inside_entities` at `mod.rs:926`.
+- Row 7 (silk touch lookup): VERIFIED. `drop_loot` uses `pumpkin_data::Enchantment::SILK_TOUCH` at `crates/pumpkin-core/src/block/mod.rs:739`.
+
+Edited: none this pass (no Rust change needed). Earlier `## Result (CODER r2_001)` section above is truncated tool output with no row lines; left as-is. The `## Gap status` STILL OPEN lines are historical and not reworded. No cargo, git or rustfmt run (worker constraint); no compile or test was run.

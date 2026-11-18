@@ -409,3 +409,10 @@ Remaining gaps (all FIXED in the checkout, re-traced end to end):
 
 No source files edited; only this doc. No rustfmt needed (no .rs touched). No tests run (worker rule:
 orchestrator compiles).
+
+## Result (x_04 pass)
+- Gap 1 (screen validity): VERIFIED. Rust `entity/vehicle/minecart/container.rs:288-289` checks `is_alive()` and `can_interact_with_entity(vehicle, 4.0)`; vanilla `world/entity/ContainerEntity.java:181-182`.
+- Gap 2 (chest open states): VERIFIED. Rust `entity/vehicle/boat.rs:135-141` opens only when `is_sneaking || !can_add_passenger`; vanilla `vehicle/boat/AbstractChestBoat.java:86`.
+- Gap 3 (spill position): VERIFIED. Rust `boat.rs:272-287` uses `scatter_inventory_at(entity.pos)`; `minecart.rs:1051` likewise.
+- Gap 4 (chest-boat test): VERIFIED. Tests `boat.rs:1174-1260` (container size, NBT round trip, interact outcomes).
+- Scope: the four Remaining-gap rows were re-checked. Earlier table rows were not re-read in this pass. No Rust edited; no checks run.

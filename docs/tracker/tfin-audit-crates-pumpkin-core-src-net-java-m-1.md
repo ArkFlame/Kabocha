@@ -2,12 +2,12 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-Re-verified every STILL OPEN row against the vendored decompiled vanilla under
-- Row 1 (command/chat/session ordering): STILL OPEN - fix requires `net/java/mod.rs`
-- Row 5 (unknown packet id warn!): STILL OPEN - the log site is `net/java/mod.rs`
-- Row 1 (command/chat/session ordering): STILL OPEN - the `spawn_task` sites are in
+Re-verified every PRIOR-OPEN row against the vendored decompiled vanilla under
+- Row 1 (command/chat/session ordering): PRIOR-OPEN - fix requires `net/java/mod.rs`
+- Row 5 (unknown packet id warn!): PRIOR-OPEN - the log site is `net/java/mod.rs`
+- Row 1 (command/chat/session ordering): PRIOR-OPEN - the `spawn_task` sites are in
 
-(The STILL OPEN markers above record the unit state at creation; both rows are now closed in the Result below.)
+(The PRIOR-OPEN markers above record the unit state at creation; both rows are now closed in the Result below.)
 
 ## Result
 Both rows are FIXED and VERIFIED against vendored decompiled vanilla. The fixes are already present on disk in `crates/pumpkin-core/src/net/java/mod.rs`; no further source change was needed.

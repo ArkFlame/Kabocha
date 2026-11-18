@@ -81,3 +81,13 @@ Vanilla reference: `net.minecraft.commands.arguments.ResourceKeyArgument`,
 - 1 (advancement): LEFT OPEN. `get_advancement` returns `&'static Advancement` from generated data only; datapack advancements need a dynamic advancement registry and cross-crate return/caller changes (outside this unit).
 - 2. LEFT OPEN. Dimension suggestions/resolution use instantiated `server.worlds`, matching `execute in`/`clone` behavior that can only target loaded worlds; advertising uninstantiated datapack dimensions would require level registration (cross-crate, outside this unit).
 - 4. Partially FIXED. Added pure unit tests `get_biome_rejects_unknown_vanilla_biome`, `get_advancement_rejects_unknown_vanilla_advancement`, and `dimension_suggestions_are_filtered_by_prefix` in `resource_key.rs` (dummy context, no server). Live-server/gametest coverage for dimension and advancement suggestion branches remains outside this unit.
+## Result (coder pass 2, batch r2_003)
+- 3. VERIFIED: `grep` finds no `ERROR_NOT_SUMMONABLE_ENTITY` or `ERROR_INVALID` in `crates/pumpkin-core/src/command/argument_types/resource_key.rs`; constants stay removed.
+- 1. STILL OPEN (advancement half): needs a dynamic advancement registry; `get_advancement` at `resource_key.rs` returns generated `&'static Advancement` only. Vanilla source: `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ResourceKeyArgument.java`. Missing subsystem, so BLOCKED-DATA candidate, not closed here.
+- 2. STILL OPEN: dimension suggestions need instantiated-level registration; missing subsystem (BLOCKED-DATA candidate), not closed here.
+- 4. STILL OPEN: needs a live-server `pumpkin-gametest` context; not closed here.
+
+## Result (coder pass 3, batch r3_019)
+- 1. STILL OPEN (advancement half): `get_advancement` (`crates/pumpkin-core/src/command/argument_types/resource_key.rs:158`) returns `&'static Advancement` from generated data via `Advancement::from_name`; vanilla `ResourceKeyArgument.java` resolves against the server's dynamic registry. `server.advancement_manager` (`crates/pumpkin-core/src/data/advancement_data.rs`) holds datapack ids, so the fix is an owned-return refactor across callers, not a single-file edit. Left open, no code change.
+- 2. STILL OPEN (dimension half): suggestions already prefer `dynamic_registry_manager` entries (`resource_key.rs:78-99`), but `execute in`/`clone` resolve only instantiated `server.worlds`; advertising uninstantiated datapack dimension types would give always-failing commands. Needs level registration for datapack dimension types (missing subsystem, BLOCKED-DATA candidate). No code change.
+- 4. STILL OPEN: live-server gametest for `execute in`/`fillbiome` suggestions not written; needs a running server context. Not reached this pass.

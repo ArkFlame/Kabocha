@@ -131,3 +131,18 @@ line exists in this doc; every row is resolved below.
 
 All 7 rows end FIXED or VERIFIED. No row remains STILL OPEN; BLOCKED-DATA does
 not apply.
+
+
+## Result
+
+Batch r2y_018 re-check. The doc had no STILL OPEN rows, so no source edit was made and no rustfmt or cargo run was needed. Spot-checked the cited lines against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` and `crates/pumpkin-core/src/entity/mob/creeper.rs`.
+
+- Row 1 (target-selector order): VERIFIED. Vanilla Creeper.java:74-75; Rust creeper.rs:42, 105-106.
+- Row 2 (charged victim heads): VERIFIED. Vanilla Creeper.java:174-177 (`!this.droppedSkulls`); Rust creeper.rs:398-422 (`dropped_skulls` gate). Line numbers in the body above are stale.
+- Row 3 (lightning sets charged): VERIFIED. Rust creeper.rs:307 `set_charged(true)`.
+- Row 4 (spawnLingeringCloud params): VERIFIED. Vanilla Creeper.java:266-276 (duration 300, radiusPerTick -radius/duration); Rust creeper.rs:174 `AreaEffectCloudEntity::create`.
+- Row 5 (swell direction Bedrock metadata): VERIFIED. Rust creeper.rs:112 `set_fuse_speed`.
+- Row 6 (readAdditionalSaveData sync): VERIFIED per the earlier passes above (Creeper.java:116-124, creeper.rs:227-253).
+- Row 7 (charged_creeper/root loot table): VERIFIED. Generated `CHARGED_CREEPER_ROOT` at crates/pumpkin-data/src/generated/loot_table.rs:43054, registered at 64739 and 68074; Rust creeper.rs:402 resolves `minecraft:charged_creeper/root`.
+
+No row remains STILL OPEN. Status PASS.

@@ -2,8 +2,8 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-All five STILL OPEN markers closed. fixed=0 open=0.
-No rows remain STILL OPEN. fixed=0 open=0 for this pass.
+All five open markers closed. fixed=0 open=0.
+No rows remain open. fixed=0 open=0 for this pass.
 
 ## Result (FINAL PASS - every row terminal, re-verified against vendored vanilla)
 

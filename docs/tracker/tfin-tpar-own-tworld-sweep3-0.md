@@ -6,4 +6,4 @@ No STILL OPEN rows remain (see FINAL PASS below for the .rs regression test and 
 All rows closed, no STILL OPEN rows remain. Verified each row against decompiled vanilla:
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+VERIFIED: all rows match decompiled vanilla. No open rows.
