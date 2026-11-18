@@ -262,8 +262,8 @@ def pct(a, b):
     return f'{100.0 * a / b:.0f}%' if b else '-'
 
 
-def fmt(x, nd=0):
-    return '-' if x is None else (f'{x:.{nd}f}')
+def fmt(x, decimals=0):
+    return '-' if x is None else (f'{x:.{decimals}f}')
 
 
 def p90(vals):

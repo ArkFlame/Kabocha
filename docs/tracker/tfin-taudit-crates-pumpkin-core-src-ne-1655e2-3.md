@@ -24,3 +24,24 @@ Final-pass classification (2026-11-18). Every row is terminal; no STILL OPEN row
 7. ITEM_USED stat: VERIFIED (no regression). use_item.rs:39-42 has no central award, with a comment recording that vanilla handleUseItem never awards it centrally; items self-award (bow.rs:135, trident.rs:237 call increment_stat(StatisticCategory::Used, ...), matching vanilla item implementations). A generic consume-result award would need an API change across item behaviours and would double-count self-awarding items. No change.
 
 No rustfmt run (no .rs changed); no new pure test seam exists (row 6 needs generated per-element feature data).
+
+
+## Result
+
+Final pass (2026-11-18). No STILL OPEN rows remain; every row is terminal. Re-verified against decompiled vanilla with paths:
+
+1. Reach log level: VERIFIED. .vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:2298-2324 (handleUseItemOn) has no out-of-reach failure branch; net/java/play/mod.rs:102 maps BlockOutOfReach to Level::TRACE. No change.
+
+2. Air check: VERIFIED. The same handleUseItemOn has no air early return; use_item_on.rs:66 is documented anti-cheat hardening (stricter than vanilla). No change.
+
+3. Hit-position window: VERIFIED. handleUseItemOn:2317-2319 requires abs(distance) < 1.0000001; use_item_on.rs:390-395 clips to -1e-3..=1+1e-3 and use_item_on.rs:417-429 covers the seam. No change.
+
+4. Default block use hand gate: VERIFIED. .vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java:626 calls useWithoutItem only for MAIN_HAND; use_item_on.rs:250 gates on EquipmentSlot::MAIN_HAND. No change.
+
+5. Advancement state: VERIFIED. .vendor/vanilla-decompiled/net/minecraft/advancements/predicates/StatePropertiesPredicate.java:34-46 matches arbitrary named properties; use_item_on.rs:326, entity/player/advancement/trigger.rs:86 and :601, entity/player/advancement/predicate.rs:661 implement the generic map. No change.
+
+6. Enabled-feature gate: BLOCKED-DATA. .vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java:539 (!state.getBlock().isEnabled(level.enabledFeatures())) and .vendor/vanilla-decompiled/net/minecraft/world/item/ItemStack.java (isItemEnabled) require a required_features (FeatureFlagSet) field on the generated Block and Item definitions. Exact missing generated data: required_features on the generated block/item entries plus Extractor output in assets/, then a use-time gate. Codegen into crates/pumpkin-data/src/generated is forbidden here; hardcoding experimental blocks would violate parity. Not fixable from this unit.
+
+7. ITEM_USED stat: VERIFIED. .vendor/vanilla-decompiled/net/minecraft/world/item/BowItem.java:54 and .vendor/vanilla-decompiled/net/minecraft/world/item/TridentItem.java:81 self-award; bow.rs:135 and trident.rs:237 match, and use_item.rs:39-42 has no central award. No change.
+
+No .rs file changed; no rustfmt needed; no new pure test seam (row 6 needs generated per-element feature data).

@@ -7,14 +7,10 @@ Workers only edit (no cargo, no git). State: /tmp/kabocha-runs/pool/<unit>.{log,
 import glob, os, re, signal, subprocess, sys, time
 ROOT = os.environ.get('KAB_ROOT', os.getcwd()); RUNS = '/tmp/kabocha-runs/pool'; os.makedirs(RUNS, exist_ok=True)
 TIMEOUT = int(os.environ.get('KAB_OC_TIMEOUT', '1200'))
-LANES = {'hy4': {'model': 'openrouter/tencent/hy4-flash', 'cap': int(sys.argv[1]) if len(sys.argv) > 1 else 40},
-         'ds': {'model': 'open-design/deepseek-v4.1-flash', 'cap': int(sys.argv[2]) if len(sys.argv) > 2 else 10},
-         'ic': {'model': 'opencode-go/iceman-contributor-free', 'cap': int(sys.argv[3]) if len(sys.argv) > 3 else 0},
-         'er': {'model': 'openrouter/baidu/ernie-5.5-flash-preview:free', 'cap': int(sys.argv[4]) if len(sys.argv) > 4 else 0},
-         'nm': {'model': 'opencode/nemotron-3.5-lightning-free', 'cap': int(sys.argv[5]) if len(sys.argv) > 5 else 0},
-         'dsf': {'model': 'opencode/deepseek-v4.1-flash-free', 'cap': int(sys.argv[6]) if len(sys.argv) > 6 else 0},
-         'fl': {'model': 'opencode/flint-40b-free', 'cap': int(sys.argv[7]) if len(sys.argv) > 7 else 0},
-         'pa': {'model': 'openrouter/particle-ai/particle-1:free', 'cap': int(sys.argv[8]) if len(sys.argv) > 8 else 0}}
+LANES = {}
+for _spec in os.environ.get('KAB_LANES', '').split(','):  # name=model:cap
+    if '=' in _spec: _n, _r = _spec.split('=', 1); _m, _c = _r.rsplit(':', 1); LANES[_n] = {'model': _m, 'cap': int(_c)}
+if not LANES: LANES = {'hy4': {'model': 'openrouter/tencent/hy4-flash', 'cap': int(sys.argv[1]) if len(sys.argv) > 1 else 40}}
 for L in LANES.values(): L.update(hits=0, cool=0, done=0, fail=0, secs=0.0, last=time.time(), max=L['cap'])
 HDR = open(f'{ROOT}/docs/POOL_BRIEF.md').read()
 units = []
@@ -33,7 +29,7 @@ done = {os.path.basename(p)[:-5] for p in glob.glob(f'{RUNS}/*.exit')}
 running = {}  # name -> dict(proc|pid, files, t0, lane)
 for line in subprocess.run(['ps', '-eo', 'pid,args'], capture_output=True, text=True).stdout.splitlines():  # adopt live workers
     m = re.search(r'^\s*(\d+) opencode run .*--title pool:(\S+)', line)
-    if m and m.group(2) in by: running[m.group(2)] = dict(pid=int(m.group(1)), files=by[m.group(2)][2], t0=time.time() - 300, lane='hy4')
+    if m and m.group(2) in by: running[m.group(2)] = dict(pid=int(m.group(1)), files=by[m.group(2)][2], t0=time.time() - 300, lane=next(iter(LANES)))
 queue = [u for u in units if u[0] not in done and u[0] not in running]
 print(f'{len(units)} units, {len(queue)} queued, {len(running)} adopted, lanes {[(k, v["cap"]) for k, v in LANES.items()]}', flush=True)
 def alive(r):
@@ -86,6 +82,6 @@ while queue or running:
     if time.time() - last > 300:
         last = time.time()
         print('STATS', {k: dict(cap=v['cap'], running=lane_n(k), done=v['done'], fail=v['fail'], hits=v['hits'], avg_s=round(v['secs'] / max(1, v['done']))) for k, v in LANES.items()}, flush=True)
-    if sum(v['hits'] for v in LANES.values()) >= 8 and LANES['hy4']['cap'] <= 2: print('QUOTA EXHAUSTED', flush=True); break
+    if sum(v['hits'] for v in LANES.values()) >= 8 and max(v['cap'] for v in LANES.values()) <= 2: print('QUOTA EXHAUSTED', flush=True); break
     time.sleep(5)
 print('POOL DONE', flush=True)

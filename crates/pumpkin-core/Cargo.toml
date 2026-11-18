@@ -95,6 +95,7 @@ tokio-util = { workspace = true, features = ["rt"] }
 sysinfo.workspace = true
 
 flate2.workspace = true
+zip.workspace = true
 
 axum = { workspace = true, features = ["ws"] }
 subtle.workspace = true

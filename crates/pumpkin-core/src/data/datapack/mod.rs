@@ -3390,24 +3390,30 @@ mod tests {
         let pack_path = temp_dir.path();
 
         // 1. Test root known_packs array
-        let mcmeta_content = r#"{
-            "pack": {
+        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let mcmeta_content = format!(
+            r#"{{
+            "pack": {{
                 "description": "Test Pack",
-                "pack_format": 61
-            },
+                "pack_format": {current_format}
+            }},
             "known_packs": [
-                {
+                {{
                     "namespace": "example",
                     "id": "content",
                     "version": "1.0.0"
-                }
+                }}
             ]
-        }"#;
+        }}"#
+        );
         std::fs::write(pack_path.join("pack.mcmeta"), mcmeta_content).unwrap();
 
         let metadata = super::read_pack_mcmeta(pack_path);
         assert_eq!(metadata.description, "Test Pack");
-        assert_eq!((metadata.format.min, metadata.format.max), (61, 61));
+        assert_eq!(
+            (metadata.format.min, metadata.format.max),
+            (current_format, current_format)
+        );
         let known_packs = &metadata.known_packs;
         assert_eq!(known_packs.len(), 1);
         assert_eq!(known_packs[0].namespace, "example");
@@ -3416,19 +3422,22 @@ mod tests {
         assert!(metadata.requested_features.is_empty());
 
         // 2. Test nested pack.known_packs
-        let mcmeta_content_nested = r#"{
-            "pack": {
+        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let mcmeta_content_nested = format!(
+            r#"{{
+            "pack": {{
                 "description": "Nested Pack",
-                "pack_format": 61,
+                "pack_format": {current_format},
                 "known_packs": [
-                    {
+                    {{
                         "namespace": "nested",
                         "id": "pack",
                         "version": "2.0.0"
-                    }
+                    }}
                 ]
-            }
-        }"#;
+            }}
+        }}"#
+        );
         std::fs::write(pack_path.join("pack.mcmeta"), mcmeta_content_nested).unwrap();
 
         let metadata = super::read_pack_mcmeta(pack_path);
@@ -3439,9 +3448,12 @@ mod tests {
         assert_eq!(known_packs[0].version, "2.0.0");
 
         // 3. Component descriptions are flattened instead of leaking raw JSON.
+        let current_format = CURRENT_MC_VERSION.data_pack_format();
         std::fs::write(
             pack_path.join("pack.mcmeta"),
-            r#"{"pack":{"description":{"text":"Hi ","extra":[{"text":"there"}]},"pack_format":61}}"#,
+            format!(
+                r#"{{"pack":{{"description":{{"text":"Hi ","extra":[{{"text":"there"}}]}},"pack_format":{current_format}}}}}"#
+            ),
         )
         .unwrap();
 
@@ -3474,13 +3486,19 @@ mod tests {
         );
 
         // Legacy single pack_format stays a one-format range.
+        let current_format = CURRENT_MC_VERSION.data_pack_format();
         std::fs::write(
             pack_path.join("pack.mcmeta"),
-            r#"{"pack": {"description": "Legacy", "pack_format": 61}}"#,
+            format!(
+                r#"{{"pack": {{"description": "Legacy", "pack_format": {current_format}}}}}"#
+            ),
         )
         .unwrap();
         let metadata = super::read_pack_mcmeta(pack_path);
-        assert_eq!((metadata.format.min, metadata.format.max), (61, 61));
+        assert_eq!(
+            (metadata.format.min, metadata.format.max),
+            (current_format, current_format)
+        );
     }
 
     #[test]
@@ -3896,9 +3914,12 @@ mod tests {
 
         let valid = temp.path().join("valid");
         std::fs::create_dir(&valid)?;
+        let current_format = CURRENT_MC_VERSION.data_pack_format();
         std::fs::write(
             valid.join("pack.mcmeta"),
-            r#"{"pack":{"description":"ok","pack_format":61}}"#,
+            format!(
+                r#"{{"pack":{{"description":"ok","pack_format":{current_format}}}}}"#
+            ),
         )?;
         assert!(super::pack_metadata_error(&valid).is_none());
 
