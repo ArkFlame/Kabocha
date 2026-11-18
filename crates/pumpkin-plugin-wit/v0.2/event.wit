@@ -166,6 +166,7 @@ interface event {
         failed-attempt,
         reel-in,
         bite,
+        lured,
     }
 
     record player-fish-event {
