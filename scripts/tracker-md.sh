@@ -13,7 +13,9 @@ def slug_of(cat, name):  # same slug as tracker-refill.sh so worker names map ba
     full = cat + '-' + name
     return 't' + re.sub(r'[^a-z0-9]+', '-', full.lower()).strip('-')[:32] + '-' + hashlib.md5(full.encode()).hexdigest()[:6]
 
-rows = list(csv.DictReader(open('docs/PARITY.tsv'), delimiter='\t'))
+allrows = list(csv.DictReader(open('docs/PARITY.tsv'), delimiter='\t'))
+rows = [r for r in allrows if r['category'] != 'own']
+own = [r for r in allrows if r['category'] == 'own']
 commits = [l.split('\t', 1) for l in sh('git', 'log', '--format=%h\t%s', 'upstream/master..master').splitlines() if '\t' in l]
 norm = lambda s: re.sub(r'[^a-z0-9]+', '_', s.lower()).strip('_')
 subj = [(h, s, '_' + norm(s) + '_') for h, s in commits if not re.match(r'^(docs|chore|perf)\((scripts|queue|sync|tracker|worker|orchestration)', s)]
@@ -49,16 +51,16 @@ lines = ['# Parity tracker', '',
          '- Updated: %s' % time.strftime('%Y-%m-%d %H:%M'),
          '- Matching is by name in commit subjects on master, so LANDED means "a fix naming it landed", not that the vanilla audit is complete.',
          '- States: **LANDED** a commit on master names it, **AUDITED** an audit worker note `docs/tracker/<slug>.md` is on master (vanilla review recorded), **DONE** tracker marks it covered, **IN-FLIGHT** audit worker running or branch awaiting integration, **OPEN** nothing yet', '',
-         '## Progress by category', '', '| Category | Rows | No gap | LANDED/DONE | IN-FLIGHT | OPEN | Gaps closed |', '|---|---|---|---|---|---|---|']
+         '## Totals', '', 'Single source of truth: `docs/PARITY.tsv`. Rows with category `own` are gaps our own vanilla audits found (`scripts/own-gaps.sh`); every other row is the upstream Pumpkin tracker.', '']
 tot = collections.Counter()
-for cat, c in out.items():
-    gaps = c['LANDED'] + c['DONE'] + c['AUDITED'] + c['IN-FLIGHT'] + c['OPEN']
-    closed = c['LANDED'] + c['DONE'] + c['AUDITED']
-    pct = ('%d%%' % round(100 * closed / gaps)) if gaps else '-'
-    lines.append('| %s | %d | %d | %d | %d | %d | %s |' % (cat, sum(c.values()), c['no gap'], closed, c['IN-FLIGHT'], c['OPEN'], pct))
-    tot.update(c)
+for cat, c in out.items(): tot.update(c)
 gaps = tot['LANDED'] + tot['DONE'] + tot['AUDITED'] + tot['IN-FLIGHT'] + tot['OPEN']; closed = tot['LANDED'] + tot['DONE'] + tot['AUDITED']
-lines.append('| **all** | %d | %d | %d | %d | %d | **%s** |' % (sum(tot.values()), tot['no gap'], closed, tot['IN-FLIGHT'], tot['OPEN'], ('%d%%' % round(100 * closed / gaps)) if gaps else '-'))
+oc = collections.Counter(r['covered'] for r in own)
+lines += ['| Source | Rows | No gap | Closed | In flight | Open |', '|---|---|---|---|---|---|',
+          '| Upstream tracker | %d | %d | %d | %d | %d |' % (sum(tot.values()), tot['no gap'], closed, tot['IN-FLIGHT'], tot['OPEN']),
+          '| Own audits (`own`) | %d | 0 | %d | 0 | %d |' % (len(own), oc['OWN-CLOSED'] + oc['OWN-BLOCKED-DATA'], oc['OWN-OPEN']),
+          '| **all** | %d | %d | %d | %d | %d |' % (sum(tot.values()) + len(own), tot['no gap'], closed + oc['OWN-CLOSED'] + oc['OWN-BLOCKED-DATA'], tot['IN-FLIGHT'], tot['OPEN'] + oc['OWN-OPEN']),
+          '', 'Upstream tracker gap rows closed: **%s**. Own-found audit notes closed: **%s**.' % (('%d%%' % round(100 * closed / gaps)) if gaps else '-', ('%d%%' % round(100 * (len(own) - oc['OWN-OPEN']) / len(own))) if own else '-')]
 lines += ['', '## Gap rows', '', '| State | Category | Name | Tracker | Issues | Commits | Note |', '|---|---|---|---|---|---|---|']
 order = {'IN-FLIGHT': 0, 'OPEN': 1, 'AUDITED': 2, 'LANDED': 3, 'DONE': 4}
 for cat, name, status, cov, state, issues, hits, note, live in sorted(detail, key=lambda d: (order[d[4]], d[0], d[1])):
