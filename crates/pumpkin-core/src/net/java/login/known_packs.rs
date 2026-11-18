@@ -8,8 +8,11 @@ impl PendingConnection {
         let version = CURRENT_MC_VERSION;
         let synced = server.datapack_manager.get_all_synced_registries();
         for reg in &synced {
-            self.send_packet_now(&CRegistryData::new(&reg.registry_id, &reg.registry_entries))
-                .await;
+            self.send_packet_now(&CRegistryData::new(
+                &reg.registry_id,
+                reg.entries.as_slice(),
+            ))
+            .await;
         }
         let mut tags = Vec::new();
         for &key in pumpkin_data::tag::RegistryKey::NETWORK_KEYS {

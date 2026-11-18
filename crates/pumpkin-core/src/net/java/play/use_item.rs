@@ -74,9 +74,17 @@ impl JavaClient {
             server;
             event;
             'after: {
-                server
+                let result = server
                     .item_registry
                     .on_use_with_rotation(&stack_for_use, player, use_yaw, use_pitch, hand);
+                // Vanilla `handleUseItem` swings only on `Success.shouldSwing()`: CONSUME
+                // has swing source NONE, and FAIL/PASS are not successes.
+                if matches!(
+                    result,
+                    BlockActionResult::Success | BlockActionResult::SuccessServer
+                ) {
+                    player.swing_hand(hand, true);
+                }
             }
         }}
     }
