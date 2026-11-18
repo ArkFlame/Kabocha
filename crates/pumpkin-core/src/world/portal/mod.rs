@@ -243,8 +243,12 @@ impl PortalType {
                         );
                         let target_pos =
                             exit_portal.calculate_exit_position(relative_offset, &dimensions);
-                        let collision_free_pos =
-                            exit_portal.find_open_position(&dest_world, target_pos, &dimensions);
+                        let collision_free_pos = exit_portal.find_open_position(
+                            &dest_world,
+                            caller,
+                            target_pos,
+                            &dimensions,
+                        );
                         let yaw = exit_portal
                             .calculate_teleport_yaw(current_yaw, source_portal.map(|p| p.axis));
                         (collision_free_pos, Some(yaw))

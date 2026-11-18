@@ -377,6 +377,10 @@ pub struct World {
     /// level.random; a dedicated seeded stream keeps those draws reproducible
     /// without shifting loot or explosion rolls.
     pub block_random: std::sync::Mutex<Xoroshiro>,
+    /// Vanilla draws natural-spawn positions, group sizes, rotations and weighted
+    /// spawner picks from level.random; a dedicated seeded stream keeps spawns
+    /// reproducible from the world seed and advances across calls.
+    pub spawn_random: std::sync::Mutex<Xoroshiro>,
     /// The weather cycle, shared with every other world
     pub weather_data: weather::SharedWeatherData,
     pub weather_cycle: WeatherCycle,
@@ -621,7 +625,7 @@ impl World {
         // loaded from LevelData above; every other clock gets its own instance.
         let default_clock = crate::world::time::default_clock_name(dimension.minecraft_name)
             .unwrap_or("minecraft:overworld");
-        for (name, saved) in read_world_clocks(&level.level_folder).clocks {
+        for (name, saved) in read_world_clocks(&level.level_folder.root_folder).clocks {
             if name == default_clock {
                 continue;
             }
@@ -694,6 +698,7 @@ impl World {
         let loot_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let explosion_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let block_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
+        let spawn_random = std::sync::Mutex::new(Xoroshiro::from_seed(level.seed.0));
         let weather_enabled = weather_setup
             .enabled
             .unwrap_or_else(|| weather::can_have_weather(&dimension));
@@ -727,6 +732,7 @@ impl World {
             loot_random,
             explosion_random,
             block_random,
+            spawn_random,
             block_registry,
             sea_level: generation_settings.sea_level,
             min_y: i32::from(generation_settings.shape.min_y),
@@ -2543,7 +2549,6 @@ impl World {
                 .push((position, block_state_id));
         }
 
-        // TODO: Send light updates to update the wire directly next to a broken block
         for (chunk_section, updates) in block_state_updates_by_chunk_section {
             if updates.is_empty() {
                 continue;

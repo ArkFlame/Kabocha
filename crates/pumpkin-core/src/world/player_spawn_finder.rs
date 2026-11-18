@@ -93,14 +93,9 @@ impl World {
         fallback_y: i32,
     ) -> Vector3<f64> {
         let suggestion = BlockPos::new(spawn_x, fallback_y, spawn_z);
-        let default_adventure = self.server.upgrade().is_some_and(|server| {
-            server
-                .defaultgamemode
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .gamemode
-                == GameMode::Adventure
-        });
+        // Vanilla PlayerSpawnFinder.findSpawn reads the level's own game type
+        // (serverLevelData.getGameType() from level.dat), not a transient server setting.
+        let default_adventure = self.level_info.load().game_type == GameMode::Adventure;
         let mut loaded_chunks = FxHashSet::default();
         if !default_adventure {
             let radius = {

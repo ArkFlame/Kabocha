@@ -717,14 +717,21 @@ pub fn spawn_mobs_for_chunk_generation(
                         entity
                             .get_entity()
                             .set_rotation(rng.next_f32() * 360.0, 0.0);
-                        group_data = finalize_spawn(
-                            &entity,
-                            world,
-                            crate::entity::mob::spawn::EntitySpawnReason::ChunkGeneration,
-                            group_data,
-                        );
-                        world.spawn_entity_non_save(entity);
-                        success = true;
+                        // Vanilla's chunk-generation spawn path gates the freshly created mob on
+                        // PathfinderMob.checkSpawnRules(level, CHUNK_GENERATION) before finalizeSpawn.
+                        let is_valid_for_mob = entity.get_mob().is_none_or(|mob| {
+                            mob.get_walk_target_value(&mob.get_entity().block_pos.load()) >= 0.0
+                        });
+                        if is_valid_for_mob {
+                            group_data = finalize_spawn(
+                                &entity,
+                                world,
+                                crate::entity::mob::spawn::EntitySpawnReason::ChunkGeneration,
+                                group_data,
+                            );
+                            world.spawn_entity_non_save(entity);
+                            success = true;
+                        }
                     }
                 }
 
@@ -1189,7 +1196,10 @@ where
     F: Fn(&T) -> i32,
     R: RandomImpl + ?Sized,
 {
-    let total: i32 = items.iter().map(|item| weight(item)).sum();
+    let mut total: i32 = 0;
+    for item in items {
+        total += weight(item);
+    }
     if total <= 0 {
         return None;
     }

@@ -6,17 +6,30 @@ use pumpkin_data::{
     tag::Taggable,
 };
 use pumpkin_util::math::{
-    boundingbox::EntityDimensions, position::BlockPos, vector2::Vector2, vector3::Vector3,
+    boundingbox::{BoundingBox, EntityDimensions},
+    position::BlockPos,
+    vector2::Vector2,
+    vector3::Vector3,
 };
 use pumpkin_world::{chunk::ChunkHeightmapType, world::BlockFlags};
 use std::sync::Arc;
 
+use crate::entity::EntityBase;
 use crate::world::World;
 
 const SEARCH_RADIUS_NETHER: i32 = 16;
 const SEARCH_RADIUS_OVERWORLD: i32 = 128;
 // PortalForcer.createPortal searches a 16 block radius around the target.
 const SEARCH_RADIUS_CREATE_PORTAL: i32 = 16;
+
+/// The allowed exit-centre box from vanilla `PortalShape.findCollisionFreePosition`.
+fn allowed_centers(center: Vector3<f64>, dimensions: &EntityDimensions) -> BoundingBox {
+    let width = f64::from(dimensions.width);
+    // AABB.ofSize(center, width, 0, width).expandTowards(0, 1, 0).inflate(1e-6)
+    BoundingBox::of_size(center, width, 0.0, width)
+        .expand_towards(0.0, 1.0, 0.0)
+        .expand_all(1.0e-6)
+}
 
 #[derive(Debug, Clone)]
 pub struct PortalSearchResult {
@@ -140,75 +153,30 @@ impl PortalSearchResult {
     pub fn find_open_position(
         &self,
         world: &Arc<World>,
-        fallback: Vector3<f64>,
+        source: &dyn EntityBase,
+        bottom_center: Vector3<f64>,
         dimensions: &EntityDimensions,
     ) -> Vector3<f64> {
+        // Vanilla PortalShape.findCollisionFreePosition leaves oversized
+        // entities at the raw exit position and otherwise returns the closest
+        // collision-free centre inside a small box above the feet.
         if dimensions.width > 4.0 || dimensions.height > 4.0 {
-            return fallback;
+            return bottom_center;
         }
 
-        let half_height = f64::from(dimensions.height) / 2.0;
-        let check_pos = Vector3::new(fallback.x, fallback.y + half_height, fallback.z);
-
-        if Self::is_position_clear(world, check_pos, dimensions) {
-            return fallback;
-        }
-
-        let search_radius = 1.0;
-        let step = 0.5;
-
-        let mut best_pos = fallback;
-        let mut best_dist = f64::MAX;
-
-        let mut dx = -search_radius;
-        while dx <= search_radius {
-            let mut dz = -search_radius;
-            while dz <= search_radius {
-                let test_pos = Vector3::new(check_pos.x + dx, check_pos.y, check_pos.z + dz);
-                if Self::is_position_clear(world, test_pos, dimensions) {
-                    let dist = dx * dx + dz * dz;
-                    if dist < best_dist {
-                        best_dist = dist;
-                        best_pos = Vector3::new(test_pos.x, fallback.y, test_pos.z);
-                    }
-                }
-                dz += step;
-            }
-            dx += step;
-        }
-
-        best_pos
-    }
-
-    fn is_position_clear(
-        world: &Arc<World>,
-        center: Vector3<f64>,
-        dimensions: &EntityDimensions,
-    ) -> bool {
-        let half_width = f64::from(dimensions.width) / 2.0;
+        let width = f64::from(dimensions.width);
         let height = f64::from(dimensions.height);
+        let half_height = height / 2.0;
+        let center = bottom_center.add_raw(0.0, half_height, 0.0);
 
-        // Calculate the bounding box in block coordinates
-        let min_x = (center.x - half_width).floor() as i32;
-        let max_x = (center.x + half_width).floor() as i32;
-        let min_y = (center.y - height / 2.0).floor() as i32;
-        let max_y = (center.y + height / 2.0).floor() as i32;
-        let min_z = (center.z - half_width).floor() as i32;
-        let max_z = (center.z + half_width).floor() as i32;
-
-        // Check ALL blocks that overlap with the entity bounding box
-        for x in min_x..=max_x {
-            for y in min_y..=max_y {
-                for z in min_z..=max_z {
-                    let block_pos = BlockPos(Vector3::new(x, y, z));
-                    let state = world.get_block_state(&block_pos);
-                    if state.is_solid_block() {
-                        return false;
-                    }
-                }
-            }
-        }
-        true
+        world
+            .find_free_position(
+                source,
+                &allowed_centers(center, dimensions),
+                center,
+                Vector3::new(width, height, width),
+            )
+            .map_or(bottom_center, |free| free.add_raw(0.0, -half_height, 0.0))
     }
 }
 
@@ -1033,5 +1001,23 @@ mod tests {
             state,
             HorizontalAxis::X,
         ));
+    }
+
+    #[test]
+    fn allowed_exit_centres_box_matches_vanilla() {
+        let dimensions = EntityDimensions {
+            width: 0.6,
+            height: 1.8,
+            eye_height: 1.62,
+        };
+        let center = Vector3::new(10.0, 64.9, 20.0);
+        let allowed = allowed_centers(center, &dimensions);
+        // Zero-height box expanded 1 block only towards +Y, then inflated by 1e-6.
+        assert!((allowed.min.x - (10.0 - 0.3 - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.x - (10.0 + 0.3 + 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.min.y - (64.9 - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.y - (64.9 + 1.0 + 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.min.z - (20.0 - 0.3 - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.z - (20.0 + 0.3 + 1.0e-6)).abs() < 1e-9);
     }
 }
