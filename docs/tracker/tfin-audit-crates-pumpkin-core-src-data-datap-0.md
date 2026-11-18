@@ -8,7 +8,7 @@ Verified remaining rows against decompiled vanilla at
 Sub-gap VERIFIED obsolete: DatapackInfo carries no incompatible marker as
 
 ## Result
-Terminal results (FINAL PASS). Every STILL OPEN row in this unit is now closed; none remain STILL OPEN.
+Terminal results (FINAL PASS). Every row in this unit is now closed with a terminal status; none remain open.
 
 | Row from this unit | Terminal status | Evidence |
 |---|---|---|
