@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: block_effects.rs minecart.rs
 
-- block_effects 5 (requested-movement axis split, block_effects.rs:118-152): STILL OPEN, S, verify.
-- block_effects 6 (no gametest): STILL OPEN, M.
-- minecart 3 (activator rail ejects riders, minecart.rs:330-352): STILL OPEN, S, verify then delete Rideable arm.
-- minecart 4 (push direction, minecart.rs:649-783): STILL OPEN, M.
+- block_effects 5 (requested-movement axis split, block_effects.rs:118-152): VERIFIED - matches vanilla Entity.checkInsideBlocks axis gating (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:1959-1970`); Rust for_each_block_along_movement (block_effects.rs:160-205) filters Some-movement by movement != default and walks axis_step_order, falling back to the unsplit path; pinned by test diagonal_movement_follows_requested_axes_after_collision_clipping (line 511). No change.
+- block_effects 6 (no gametest): FIXED - gametest seam present in `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` (test_boat_breaks_lily_pad_on_landing line 10, test_boat_sweep_ignites_on_fire line 341), registered in builtin_game_tests/mod.rs:1,1817,1824. No change.
+- minecart 3 (activator rail ejects riders, minecart.rs:330-352): VERIFIED - vanilla Minecart.activateMinecart (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/Minecart.java:44-58`) DOES call ejectPassengers() on isVehicle() then, gated on getHurtTime()==0, flips hurtDir, sets hurtTime(10)/damage(50) and markHurt(); Rust minecart.rs:500-525 matches. Rideable arm stays; tracker delete request rejected. No change.
+- minecart 4 (push direction, minecart.rs:649-783): VERIFIED - vanilla AbstractMinecart.push/pushOtherMinecart (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/AbstractMinecart.java:584-648`) non-experimental default uses cart-to-cart direction, yaw facing, dot>=0.8 gate and a 1.0E-4 lower bound with no upper bound; Rust minecart.rs:857-955 matches. The motion-based direction and <1.0 upper bound in the tracker belong to the experimental branch (off by default). No change.
 
 ## Result
 
