@@ -57,6 +57,22 @@ pub struct SPlayerAuthInput {
     pub camera_orientation: Vector3<f32>,
     /// Unclamped raw movement input vector.
     pub raw_move: Vector2<f32>,
+    /// Teleport acknowledgement echoed by the client, when present.
+    pub teleport: Option<PlayerAuthInputTeleportData>,
+}
+
+/// Teleport acknowledgement echoed by a Bedrock client in `PlayerAuthInput`.
+///
+/// Bedrock has no transaction id here: the client repeats the server position and tick it
+/// received in the teleport packet, which stands in for vanilla's id-based confirmation.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PlayerAuthInputTeleportData {
+    /// Server position the client was teleported to.
+    pub server_position: Vector3<f32>,
+    /// Tick the server stamped on the teleport packet.
+    pub tick: VarULong,
+    /// Why the teleport was issued.
+    pub reason: u8,
 }
 
 impl PacketRead for SPlayerAuthInput {
@@ -143,6 +159,19 @@ impl PacketRead for SPlayerAuthInput {
         let camera_orientation = Vector3::<f32>::read(reader)?;
         let raw_move = Vector2::<f32>::read(reader)?;
 
+        // Newer clients append an optional teleport acknowledgement. Older clients and
+        // translated streams omit it, so parse it best-effort and never fail the packet.
+        let teleport = (|| -> Option<PlayerAuthInputTeleportData> {
+            if !bool::read(reader).ok()? {
+                return None;
+            }
+            Some(PlayerAuthInputTeleportData {
+                server_position: Vector3::<f32>::read(reader).ok()?,
+                tick: VarULong::read(reader).ok()?,
+                reason: u8::read(reader).ok()?,
+            })
+        })();
+
         Ok(Self {
             pitch,
             yaw,
@@ -165,6 +194,7 @@ impl PacketRead for SPlayerAuthInput {
             analog_move,
             camera_orientation,
             raw_move,
+            teleport,
         })
     }
 }
@@ -384,8 +414,7 @@ mod tests {
         bytes
     }
 
-    #[test]
-    fn auth_input_reads_flag_list_and_signed_interaction_model() {
+    fn auth_input_full_bytes() -> Vec<u8> {
         let mut bytes = auth_input_prefix();
         VarUInt(2).write(&mut bytes).unwrap();
         VarInt(48).write(&mut bytes).unwrap();
@@ -405,13 +434,40 @@ mod tests {
         for _ in 0..7 {
             0.0f32.write(&mut bytes).unwrap();
         }
+        bytes
+    }
 
+    #[test]
+    fn auth_input_reads_flag_list_and_signed_interaction_model() {
+        let bytes = auth_input_full_bytes();
         let mut reader = bytes.as_slice();
         let packet = SPlayerAuthInput::read(&mut reader).unwrap();
         assert!(reader.is_empty());
         assert!(packet.input_data.get(48usize));
         assert!(packet.input_data.get(65usize));
         assert_eq!(packet.interaction_model, VarInt(-1));
+    }
+
+    #[test]
+    fn auth_input_reads_teleport_ack() {
+        let mut bytes = auth_input_full_bytes();
+        true.write(&mut bytes).unwrap();
+        Vector3::<f32>::new(1.0, 2.0, 3.0)
+            .write(&mut bytes)
+            .unwrap();
+        VarULong(7).write(&mut bytes).unwrap();
+        2u8.write(&mut bytes).unwrap();
+
+        let mut reader = bytes.as_slice();
+        let packet = SPlayerAuthInput::read(&mut reader).unwrap();
+        assert!(reader.is_empty());
+        let teleport = packet.teleport;
+        assert!(teleport.is_some());
+        if let Some(teleport) = teleport {
+            assert_eq!(teleport.server_position, Vector3::new(1.0, 2.0, 3.0));
+            assert_eq!(teleport.tick, VarULong(7));
+            assert_eq!(teleport.reason, 2);
+        }
     }
 
     #[test]
