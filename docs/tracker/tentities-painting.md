@@ -101,3 +101,26 @@ Re-review on 2026-11-17 against decompiled vanilla at
   `Entity.random` (`SHARED_RANDOM`) resolve to thread-local RNG in the bundled
   Paper/Folia source, so `rand::rng()` is functionally equivalent; there is no
   world-seeded RNG seam to adopt within this unit's files.
+
+## Result (2026-11-18, re-verified against vendored decompiled vanilla Painting.java / HangingEntity.java / Entity.java)
+
+- Row 1 (hit box variant sized): VERIFIED FIXED in this checkout. painting.rs painting_box_size()
+  matches vanilla Painting.calculateBoundingBoxStatic: width along the axis perpendicular to the
+  facing, height on Y, DEPTH (0.0625) along the facing axis. hanging_bounding_box()/recalculate_bounding_box()
+  store the variant-sized AABB on set_variant, set_facing and read_custom_nbt, and test
+  painting_box_size_matches_vanilla_axes covers it. Generated entity_type.rs [0.5, 0.5] left alone.
+- Row 2 (yaw from facing): VERIFIED FIXED. HangingEntity.setDirection confirmed (get2DDataValue()*90);
+  facing_to_yaw matches and set_facing applies rotation.
+- Row 3 (front-space check): remains OPEN by design. Vanilla HangingEntity.survives() uses
+  hasLevelCollision(getPopBox()) -> Level.noBlockCollision (collision shapes), a solid/diode support
+  check, and canCoexist; there is no is-air cell test. Torches/signs/water have no collision and are
+  allowed. Pumpkin already enforces the collision check in survives() via World::is_space_empty(), so
+  switching painting_fits front cells to is_air() would wrongly reject those blocks. Per-cell voxel
+  parity needs collision shape at filter time (cross-crate).
+- Row 4 (build-limit check): VERIFIED FIXED. hanging_entity.rs painting branch checks is_in_build_limit.
+- Row 5 (variant RNG): remains OPEN by design. Vanilla Painting.create uses candidate.random, and in
+  the bundled Paper/Folia source Entity.SHARED_RANDOM and Level.random both resolve to
+  ThreadLocalRandomSource.INSTANCE, so rand::rng() is functionally equivalent; no world-seeded seam.
+- Row 6 (support re-check): VERIFIED FIXED. First check at tick 100 (SUPPORT_CHECK_INTERVAL = 100).
+- No STILL OPEN row is actionable within this unit; no generated-data, WIT or cross-crate change made.
+
