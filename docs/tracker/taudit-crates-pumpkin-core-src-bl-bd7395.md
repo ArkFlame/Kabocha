@@ -37,11 +37,11 @@ The two "vanilla" mentions in the file are doc comments (lines 26, 167: `Multifa
    Refactor to one helper when touching this file again.
 
 ## Gap status
-- 1. `get_updated_state` recomputes all faces per neighbour update (`vine.rs:69-112`): STILL OPEN (S).
-- 2. Dead fallback branch (`vine.rs:80-106`): STILL OPEN (XS).
-- 3. `is_air()` on default state (`vine.rs:377,421,431,486,521-522`): STILL OPEN (XS).
-- 4. Placement direction order (`vine.rs:195-225,237-246`): STILL OPEN (S, unverified).
-- 5. `can_place_at` duplicates placement loop (`vine.rs:257-319`): STILL OPEN (M).
+- 1. `get_updated_state` recomputes all faces per neighbour update (`vine.rs:69-112`): VERIFIED (premise false; vanilla does the same, UP via DOWN at `vine.rs:79`).
+- 2. Dead fallback branch (`vine.rs:80-106`): VERIFIED (vanilla carries the identical fallback).
+- 3. `is_air()` on default state (`vine.rs:377,421,431,486,521-522`): VERIFIED (all checks use the fetched state's `is_air()`).
+- 4. Placement direction order (`vine.rs:195-225,237-246`): VERIFIED (premise false; `get_entity_facing_order` is a faithful port of vanilla `orderedByNearest`).
+- 5. `can_place_at` duplicates placement loop (`vine.rs:257-319`): VERIFIED (single `get_state_for_placement` helper used by both callers).
 
 
 ## Result

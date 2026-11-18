@@ -187,3 +187,42 @@ Re-verified every STILL OPEN row against the live tree; no code change was neede
 4. Per-world scoreboards vs server-wide vanilla (L): RESOLVED, no change. `server/mod.rs:211` owns one shared `pub scoreboard: Arc<Mutex<Scoreboard>>` cloned into every world at `:543`, matching vanilla `ObjectiveArgument.java:34` `source.getServer().getScoreboard()`.
 
 No code change and no new test: rows 1/2/4 are resolved in code with existing coverage, row 3 is exact vanilla parity for `ObjectiveArgument` with the sole residual an out-of-unit cross-crate refactor. No compile/test run (worker rule); orchestrator batch-checks.
+
+
+## Result (third pass, final resolution)
+
+Reference read directly this pass:
+`.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveArgument.java`
+and `ObjectiveCriteriaArgument.java`; current Pumpkin source re-grepped. All four
+rows are now closed; no row remains STILL OPEN.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): VERIFIED, no change.
+   `objective.rs:61` uses `filter_and_suggest_one`, matching vanilla
+   `ObjectiveArgument.listSuggestions` (`ObjectiveArgument.java:61`) ->
+   `SharedSuggestionProvider.suggest` (segment-aware `matchesSubStr`,
+   `MATCH_SPLITTER` = `._/`). Resource-id sites keep `filter_and_suggest_iter`.
+
+2. Criteria raw strings / no vanilla registry (M): VERIFIED, no change.
+   `world/scoreboard.rs:1155 resolve_criterion` is the `ObjectiveCriteria.byName`
+   equivalent; `commands/scoreboard.rs:72` resolves/validates on `objectives add`;
+   `objective.rs:24-25` derives read-only from the same table. Covered by
+   `world/scoreboard/tests.rs`.
+
+3. Argument errors without cursor context (M): VERIFIED (matches vanilla), no change.
+   The audit premise is false for this unit. Vanilla
+   `ObjectiveArgument.java:37` throws `ERROR_OBJECTIVE_NOT_FOUND.create(id)` and
+   `:46` throws `ERROR_OBJECTIVE_READ_ONLY.create(objective.getName())`, both
+   WITHOUT a reader. Pumpkin `objective.rs:85,99 create_without_context` is exact
+   parity. The only vanilla `createWithContext` case is
+   `ObjectiveCriteriaArgument.java:51`; Pumpkin has no `ObjectiveCriteriaArgument`
+   type (criteria resolve at execution time in `commands/scoreboard.rs:72`), so
+   there is no in-unit call site to change. This is not a missing generated field
+   or missing subsystem: it is a false positive, not a BLOCKED-DATA case.
+
+4. Per-world scoreboards vs server-wide vanilla (L): VERIFIED, no change.
+   `server/mod.rs:211` owns one shared `pub scoreboard: Arc<Mutex<Scoreboard>>`
+   cloned into every world, matching `ObjectiveArgument.java:34`
+   `source.getServer().getScoreboard()`.
+
+No `.rs` file changed this pass and no new test needed (rows 1/2/4 already have
+coverage, row 3 is exact vanilla parity). No rustfmt needed (no `.rs` touched).
