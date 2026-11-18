@@ -985,21 +985,23 @@ impl EntityState {
             .values()
             .cloned()
             .collect::<Vec<Effect>>();
-        let equipment_guard = living
-            .entity_equipment
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let equipment = equipment_guard
-            .equipment
-            .iter()
-            .filter(|(_, stack)| !stack.is_empty())
-            .map(|(slot, stack)| {
-                (
-                    slot.to_name().to_string(),
-                    stack.item.registry_key.to_string(),
-                )
-            })
-            .collect::<Vec<(String, String)>>();
+        let equipment = {
+            let guard = living
+                .entity_equipment
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard
+                .equipment
+                .iter()
+                .filter(|(_, stack)| !stack.is_empty())
+                .map(|(slot, stack)| {
+                    (
+                        slot.to_name().to_string(),
+                        stack.item.registry_key.to_string(),
+                    )
+                })
+                .collect::<Vec<(String, String)>>()
+        };
         let stepping_block = living
             .entity
             .on_ground
