@@ -123,6 +123,13 @@ impl BlockBehaviour for CreakingHeartBlock {
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        // Vanilla `CreakingHeartBlock#getAnalogOutputSignal`: an UPROOTED heart always reads 0,
+        // even if a stale binding survives (for example after loading from NBT).
+        if CreakingHeartLikeProperties::from_state_id(args.state.id).creaking_heart_state
+            == CreakingHeartState::Uprooted
+        {
+            return Some(0);
+        }
         // Vanilla `CreakingHeartBlockEntity#getAnalogOutputSignal`: signal strength falls off
         // with the distance between the heart and its bound creaking, 15 close to 0 at 32.
         // Vanilla `hasAnalogOutputSignal` is always true; no bound creaking reads 0.

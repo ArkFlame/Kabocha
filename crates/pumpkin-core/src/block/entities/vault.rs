@@ -3,7 +3,10 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
-use std::sync::Mutex;
+use std::sync::{
+    Mutex,
+    atomic::{AtomicI64, Ordering},
+};
 use uuid::Uuid;
 
 pub struct VaultBlockEntity {
@@ -15,11 +18,29 @@ pub struct VaultBlockEntity {
     pub rewarded_players: Mutex<Vec<Uuid>>,
     /// Loot awaiting ejection, popped from the back like vanilla [`VaultServerData#itemsToEject`].
     pub items_to_eject: Mutex<Vec<ItemStack>>,
+    /// Runtime-only tick of the last insert-fail sound (vanilla
+    /// `VaultServerData.lastInsertFailTimestamp`; not persisted to NBT).
+    pub last_insert_fail_timestamp: AtomicI64,
 }
 
 impl VaultBlockEntity {
     /// Vanilla `VaultServerData.MAX_REWARD_PLAYERS`.
     pub const MAX_REWARDED_PLAYERS: usize = 128;
+    /// Vanilla `VaultBlockEntity.Server.INSERT_FAIL_SOUND_BUFFER_TICKS`.
+    pub const INSERT_FAIL_SOUND_BUFFER_TICKS: i64 = 15;
+
+    /// Vanilla `VaultBlockEntity.Server.playInsertFailSound`: both fail reasons share one
+    /// timestamp and play at most once per 15 ticks. Runtime-only in vanilla (not in NBT).
+    pub fn should_play_insert_fail_sound(&self, game_time: i64) -> bool {
+        let last = self.last_insert_fail_timestamp.load(Ordering::Relaxed);
+        if game_time >= last.saturating_add(Self::INSERT_FAIL_SOUND_BUFFER_TICKS) {
+            self.last_insert_fail_timestamp
+                .store(game_time, Ordering::Release);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// Vanilla keeps rewarded players in [`server_data`] as a list of four-int UUID arrays.
@@ -133,6 +154,7 @@ impl BlockEntity for VaultBlockEntity {
             shared_data: Mutex::new(nbt.get_compound("shared_data").cloned()),
             rewarded_players,
             items_to_eject,
+            last_insert_fail_timestamp: AtomicI64::new(0),
         }
     }
 
@@ -204,6 +226,7 @@ impl VaultBlockEntity {
             shared_data: Mutex::new(None),
             rewarded_players: Mutex::new(Vec::new()),
             items_to_eject: Mutex::new(Vec::new()),
+            last_insert_fail_timestamp: AtomicI64::new(0),
         }
     }
 
@@ -270,5 +293,18 @@ impl VaultBlockEntity {
             rewarded.remove(0);
         }
         rewarded.push(player_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn insert_fail_sound_is_throttled_within_fifteen_ticks() {
+        let entity = VaultBlockEntity::new(BlockPos::new(0, 0, 0));
+        assert!(entity.should_play_insert_fail_sound(100));
+        assert!(!entity.should_play_insert_fail_sound(114));
+        assert!(entity.should_play_insert_fail_sound(115));
     }
 }

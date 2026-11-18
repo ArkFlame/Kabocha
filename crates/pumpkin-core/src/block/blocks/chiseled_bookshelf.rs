@@ -73,7 +73,9 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
         ) {
             return BlockActionResult::Success;
         }
-        BlockActionResult::Pass
+        // Vanilla useWithoutItem returns CONSUME for an empty slot, so the click
+        // is swallowed instead of falling through to item use / block placement.
+        BlockActionResult::Consume
     }
 
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
@@ -102,12 +104,15 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
         if block_entity.has_book(slot) {
             return BlockActionResult::PassToDefaultBlockAction;
         }
+        // Vanilla useItemOn returns TRY_WITH_EMPTY_HAND for any non-book item,
+        // which redispatches to useWithoutItem (CONSUME on an empty slot, book
+        // removal on an occupied one) before any block placement can happen.
         if !args
             .item_stack
             .get_item()
             .has_tag(&tag::Item::MINECRAFT_BOOKSHELF_BOOKS)
         {
-            return BlockActionResult::Pass;
+            return BlockActionResult::PassToDefaultBlockAction;
         }
 
         Self::try_add_book(
@@ -183,14 +188,13 @@ impl ChiseledBookshelfBlock {
             Sound::BlockChiseledBookshelfPickup
         };
 
-        // Vanilla: creative players do not collect the removed book.
-        if !player.is_creative() {
-            if player.get_inventory().insert_stack_anywhere(&mut stack) {
-                player.sync_inventory_to_client();
-            }
-            if !stack.is_empty() {
-                player.drop_item(stack);
-            }
+        // Vanilla removeBook calls Inventory.add for every player, including
+        // creative; only a stack the inventory cannot hold is dropped.
+        if player.get_inventory().insert_stack_anywhere(&mut stack) {
+            player.sync_inventory_to_client();
+        }
+        if !stack.is_empty() {
+            player.drop_item(stack);
         }
         entity.update_state(properties, world, slot);
 
