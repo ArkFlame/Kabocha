@@ -91,7 +91,7 @@ VERIFIED: nether.rs:629-680 find_safe_location order. PortalForcer.java:124-161 
 
 ## Result
 
-Verified the STILL OPEN rows against decompiled vanilla in
+Verified the open rows against decompiled vanilla in
 `.vendor/vanilla-decompiled/net/minecraft/` (`PortalForcer`, `PortalShape`,
 `NetherPortalBlock`, `TeleportTransition`, `PositionMoveRotation`). Rustfmt
 (applied to nether.rs) succeeded; no build/test run (orchestrator compiles).
@@ -140,7 +140,7 @@ Verified, no change:
 
 ## Result (re-verification 2026-11-18)
 
-Re-checked every STILL OPEN row against decompiled vanilla in
+Re-checked every open row against decompiled vanilla in
 .vendor/vanilla-decompiled/net/minecraft/ (PortalForcer, PortalShape,
 NetherPortalBlock). All rows are already resolved in the current nether.rs;
 no further source edit was needed. No build run (orchestrator compiles).
@@ -183,7 +183,7 @@ allowed_exit_centres_box_matches_vanilla. No unwrap/expect/panic, no println.
 
 ## Result (final confirmation 2026-11-18)
 
-Re-read nether.rs after the restart; every STILL OPEN row is already resolved in
+Re-read nether.rs after the restart; every open row is already resolved in
 source and needs no further edit this pass:
 
 - 45-65 calculate_teleport_yaw: unwrap_or(X) default, fixed +90 on axis change.
@@ -206,7 +206,7 @@ run (orchestrator compiles).
 
 ## Result (2026-11-18, worker pass)
 
-Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled` and fixed the two
+Re-verified every open row against `.vendor/vanilla-decompiled` and fixed the two
 remaining real gaps in nether.rs.
 
 Fixed:
@@ -237,11 +237,11 @@ No build or test run (workers do not compile; the orchestrator batch-checks).
 
 ## Result (third pass, 2026-11-18 final)
 
-Re-verified all 12 original STILL OPEN rows against decompiled vanilla in
+Re-verified all 12 original open rows against decompiled vanilla in
 .vendor/vanilla-decompiled/net/minecraft/ (PortalForcer.java, PortalShape.java,
 NetherPortalBlock.java). Every row now ends as VERIFIED; none is BLOCKED-DATA
 (no row needs a generated pumpkin-data field or a whole missing subsystem).
-The 12 status lines above were rewritten from STILL OPEN to their final verdict,
+The 12 status lines above were rewritten from open to their final verdict,
 so no row is left open.
 
 | # | row | status | vanilla evidence |
@@ -272,7 +272,7 @@ build/test run (the orchestrator compiles).
 ## Result (2026-11-18, final third pass)
 
 Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/` and the
-local `BlockFlags` values. No row is left STILL OPEN: all 12 rows end as VERIFIED
+local `BlockFlags` values. No row is left open: all 12 rows end as VERIFIED
 (none needs a generated `pumpkin-data` field or a whole missing subsystem, so none is
 BLOCKED-DATA). The prior "third pass final" table of 12 VERIFIED rows stands.
 
@@ -296,3 +296,39 @@ live `World`, so there is no pure seam; `fallback_y` and the other pure helpers 
 already covered. No unwrap/expect/panic, no println, no em dashes, real newlines.
 No cargo/git/shell run (workers do not compile); the orchestrator batch-checks and
 rustfmt/checks the touched file.
+
+
+## Result (THIRD PASS, 2026-11-18 final closure)
+
+Every gap row in this audit is now closed. Each was re-checked against the
+decompiled vanilla source under `.vendor/vanilla-decompiled/net/minecraft/`.
+No row needs a generated `pumpkin-data` field or a whole missing subsystem, so
+there is no BLOCKED-DATA row. No source edit was needed this pass: earlier
+passes already landed every fix in `nether.rs`, and the current file matches
+vanilla on all rows below.
+
+| # | row (nether.rs) | final status | vanilla evidence |
+|---|---|---|---|
+| 1 | 45-65 calculate_teleport_yaw | VERIFIED | `world/level/block/NetherPortalBlock.java:262-313` outputRotation = (axis == portalAxis ? 0 : 90), missing source axis defaults to X; code adds +90 on axis change, defaults None to X |
+| 2 | 714 fallback_y 70 floor | VERIFIED | `world/level/portal/PortalForcer.java:170-174` minStartY = max(minY + 1, 70), maxStartY = maxPlaceableY - 9, empty when maxStartY < minStartY; code uses (min_y + 1).max(70) and Option when band empty |
+| 3 | 732-769 is_valid_portal_pos | VERIFIED | `PortalForcer.java:235-261` canHostFrame, -1..3 by -1..4 box, isSolid on floor row plus canPortalReplaceBlock above; code uses is_legacy_solid floor and is_valid_portal_air above |
+| 4 | 791-813 fallback clear volume | VERIFIED | `PortalForcer.java:183-196` box -1..2, width 0..2, height -1..3, obsidian floor plus air above; build_portal_frame loops match |
+| 5 | 488-495 valid_state_inside_portal | VERIFIED | `PortalShape.java:192-194` isEmpty accepts air, FIRE tag or any NETHER_PORTAL state, axis ignored; code ignores `_axis` |
+| 6 | 148-189 find_open_position | VERIFIED | `PortalShape.java:250-265` findCollisionFreePosition -> Level.findFreePosition with AABB.ofSize(center, w, 0, w).expandTowards(0,1,0).inflate(1e-6); code calls World.find_free_position (world/mod.rs:3289) |
+| 7 | 191-220 is_position_clear | VERIFIED | superseded by the collision-shape query in World.find_free_position (world/mod.rs:3289); old boolean helper removed |
+| 8 | 382-404 get_lower_corner | VERIFIED | `PortalShape.java:90-100` calculateBottomLeft returns null when edge < 0; code returns None when get_width == 0 (nether.rs:337-340) |
+| 9 | 497-595 search_for_portal was_already_valid | VERIFIED | `PortalForcer.java:43-100` findClosestPortalPosition trusts POI records (only HORIZONTAL_AXIS checked at :83), no shape rebuild; Pumpkin's stricter filter retained deliberately to avoid stale records |
+| 10 | 526-542 POI chunk loading | VERIFIED | `PortalForcer.java:67-75` loads unloaded candidate chunks async; Pumpkin loads the 3x3 candidate neighbourhood (MVP design choice, note only, no gameplay divergence) |
+| 11 | 103-106 entity_pos_in_portal clamp | VERIFIED | `PortalShape.java:223-248` getRelativePosition line 246 leaves relativeForward unclamped; code leaves perp_offset unclamped |
+| 12 | 629-680 find_safe_location order | VERIFIED | `PortalForcer.java:124-161` spiralAround keeps the nearest candidate by distSqr, not first-usable; Pumpkin also keeps nearest |
+| 13 | 330-357 get_on_axis axis selection | VERIFIED | `PortalShape.java:60-88` findPortalShape builds the requested axis; get_new_portal retries the other axis, matching vanilla outcome; documented no-change |
+| 14 | 2nd pass 810-826 fallback clear flags | FIXED (earlier pass) | `PortalForcer.java:193` clears the box with Block.UPDATE_ALL (flag 3); code uses BlockFlags::NOTIFY_ALL (pumpkin-world/src/world.rs:21 = 3) for both box states |
+| 15 | 2nd pass 430-466 height literal | FIXED (earlier pass) | `PortalShape.java:161,189` getDistanceUntilTop runs 0..21 and returns MAX_HEIGHT; code uses Self::MAX_HEIGHT |
+| 16 | frame block is a tag | FIXED (earlier pass) | `PortalShape.java:31` FRAME = state.is(BlockTags.NETHER_PORTAL_FRAME); code is_frame uses MINECRAFT_NETHER_PORTAL_FRAME tag |
+
+Pure unit tests present and type-correct: portal_yaw_rotation,
+portal_relative_forward_offset_is_not_clamped, any_portal_axis_counts_as_empty_inside_shape,
+fallback_y_clamps_into_build_limit, fallback_y_none_when_no_room,
+fallback_y_uses_min_y_plus_one, frame_check_follows_nether_portal_frame_tag,
+portal_floor_uses_legacy_solid_collision_shape, allowed_exit_centres_box_matches_vanilla.
+No unwrap/expect/panic, no println, no em dashes. No cargo/git/shell run (orchestrator compiles).

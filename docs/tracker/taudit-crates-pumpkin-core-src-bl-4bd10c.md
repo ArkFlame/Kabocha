@@ -59,9 +59,9 @@ Still open (unchanged from the first pass): `BlockFadeEvent` has no `new_state_i
 ## Gap status
 - Grass/mycelium spread ignored plugins (`spreading_snowy_block.rs:160-163`): FIXED (`BlockSpreadEvent::new` fired before spread).
 - Fade ignored plugins (`spreading_snowy_block.rs:126-127`): FIXED (`BlockFadeEvent` fired, cancel returns).
-- `plugin/api/events/block/block_fade.rs:8-14` no new-state field: STILL OPEN (additive plugin API; M).
-- `spreading_snowy_block.rs:60-76` `is_full_fluid` hardcoded: STILL OPEN (S).
-- `spreading_snowy_block.rs:100-106` opacity not position-aware: STILL OPEN (S).
+- `plugin/api/events/block/block_fade.rs:8-14` no new-state field: VERIFIED in tree (M). `BlockFadeEvent` carries `new_state_id: BlockStateId` (block_fade.rs:15-16), its ctor takes it (`:21-25`) and `random_tick` passes `base_block.default_state.id` (`spreading_snowy_block.rs:127-131`), matching Paper's `callBlockFadeEvent(level, pos, baseBlock.defaultBlockState())` in `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:71`. WIT v0.1/v0.2 already declare `new-state-id: u16`; no cross-crate change remains.
+- `spreading_snowy_block.rs:60-76` `is_full_fluid` hardcoded: FIXED in tree (S). `is_full_fluid` calls `world.get_fluid_and_fluid_state(pos)` and checks `!fluid_state.is_empty && fluid_state.level == 8` (`:58-63`), matching vanilla `aboveState.getFluidState().isFull()` (`getAmount() == 8`) at `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:37`.
+- `spreading_snowy_block.rs:100-106` opacity not position-aware: VERIFIED, no known divergence (S). Vanilla `canStayAlive` passes `aboveState.getLightDampening()` (a fixed per-state value) into `getLightDampeningInto` (`SpreadingSnowyBlock.java:41`); generated `BlockState.opacity` is that value. Vanilla `getLightDampeningInto` uses merged face-shape occlusion (`LightEngine.java:51-60`); Pumpkin's solid-render heuristic (`engine.rs:1084-1099`) yields the same 16/0 result for every block that can sit above grass (cube, slab, glass, snow), covered by the `a_slab_above_does_not_add_occlusion` test.
 - `spreading_snowy_block.rs:123-141` invented brightness/opacity gate on fade: FIXED (fade branch at `:122-139` has no gate; gate remains only on the spread branch, which is vanilla's `>= 9` check).
 
 
@@ -123,3 +123,7 @@ Re-verified against current source in allowed files (`grass_block.rs`, `spreadin
 - `grass_block.rs`/`spreading_snowy_block.rs` registration and snowy/mycelium spread/fade behavior otherwise match existing verified rows; no further small in-scope fix identified.
 
 No source code edits made; no pure unit-test seam available in these files without a live `World`. Files touched: `docs/tracker/taudit-crates-pumpkin-core-src-bl-4bd10c.md` only.
+
+## Result (third pass close)
+
+Re-read the last Result and re-verified every previously STILL OPEN row against the real decompiled source now present in this checkout: `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:25-104`, `SnowyBlock.java:24-48` and `.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java:51-60`. No source change was needed; the code already matches vanilla. All three Gap-status rows are now VERIFIED/FIXED (new-state field present in tree, normalized fluid level==8, correct fixed per-state light dampening). Files touched this pass: documentation only; no `.rs` edit, so no rustfmt run.
