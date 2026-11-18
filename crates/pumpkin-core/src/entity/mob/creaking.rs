@@ -324,6 +324,10 @@ impl CreakingEntity {
         let mid_y = f64::midpoint(eye_y, creaking_pos.y);
 
         let player_entity = player.get_entity();
+        // Vanilla `LivingEntity.isLookingAtMe` never sees across levels.
+        if !Arc::ptr_eq(&player_entity.world.load_full(), &creaking_entity.world.load_full()) {
+            return false;
+        }
         let player_eye_pos = player_entity.get_eye_pos();
 
         let pitch = player_entity.pitch.load().to_radians();

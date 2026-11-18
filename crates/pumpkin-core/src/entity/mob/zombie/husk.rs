@@ -40,14 +40,19 @@ impl HuskEntity {
 const CAMEL_HUSK_JOCKEY_CHANCE: f32 = 0.1;
 const HUNGER_TICKS_PER_DIFFICULTY: i32 = 140;
 
-/// Vanilla `Husk.finalizeSpawn`: once empty space is found the group is marked as tried
-/// before the 10% roll, so a failed roll still stops later husks in the group from trying.
+/// Vanilla `Husk.finalizeSpawn`: a non-natural spawn marks the group as tried up front
+/// (`triedToSpawnCamelHusk = spawnReason != NATURAL`), and once empty space is found the
+/// group is marked as tried before the 10% roll, so a failed roll still stops later husks.
 fn claim_camel_jockey_attempt(
     tried: &mut bool,
     reason: EntitySpawnReason,
     has_space: bool,
 ) -> bool {
-    if *tried || reason != EntitySpawnReason::Natural || !has_space {
+    if reason != EntitySpawnReason::Natural {
+        *tried = true;
+        return false;
+    }
+    if *tried || !has_space {
         return false;
     }
     *tried = true;
