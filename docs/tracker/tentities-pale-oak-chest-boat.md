@@ -87,3 +87,37 @@ files whose basename is `minecart.rs`; neither `minecart.rs` file needs a change
   for chest-boat NBT in either `minecart.rs`.
 
 No .rs file edited, so no rustfmt run. No build/test run (worker constraint).
+
+
+## Result
+
+Rechecked on the current checkout. `.vendor/` still contains no decompiled tree, so vanilla
+claims below rest on the prior pass' quoted vanilla signatures plus the code's own
+vanilla-reference comments, not fresh decompiled source. This unit's basename list is empty,
+so no source file was edited; several rows were already fixed in the checkout by other
+workers and are recorded as fixed rather than re-fixed. This section supersedes the older
+"Gap status" and "Result" sections above.
+
+- Gap 1 (canPlayerUse / stillValid): ALREADY FIXED in checkout, no change. `minecart/container.rs:179-208,219-303`
+  now defines `EntityValidityCheck`, wraps `GenericContainerScreenHandler` so `can_use` calls the
+  closure, and builds it at `:281-290` as `vehicle.get_entity().is_alive() && can_interact_with_entity(vehicle, 4.0)`
+  (4-block interaction range), matching vanilla `ContainerEntity.stillValid`. The `open` helper is
+  shared by chest boats (`boat.rs:317`) and chest minecarts, so both are covered.
+- Gap 2 (BoatItem `minecraft:container` component): STILL OPEN, OUT OF UNIT. `item/items/boat.rs:173-184`
+  applies only spawn-egg variant NBT before `world.spawn_entity`; no container-contents copy.
+  Needs the target-version decompiled `BoatItem.getBoat` / `createDefaultStackConfig().apply`
+  verdict and an edit in `boat.rs` (basename `boat.rs`), which this unit cannot touch.
+- Gap 3 (hopper / worldly container): STILL OPEN, OUT OF UNIT. `boat.rs:548` still reports
+  `has_container_inventory() == inventory.is_some()` for chest boats. Confirming whether vanilla
+  chest boats accept hopper insertion needs decompiled `AbstractChestBoat` and a change in
+  `boat.rs` / the hopper path, both outside this unit.
+- Gap 4 (scatter source position): ALREADY FIXED on master, no change. `boat.rs:280-287` and
+  `minecart.rs:983-985` both pass `entity.pos.load()` to `World::scatter_inventory_at`
+  (`world/mod.rs:7696`), matching vanilla `Containers.dropContents(level, entity, container)`.
+- Gap 5 (save/load test coverage): ALREADY FIXED in checkout, no new test needed.
+  `boat.rs:1167-1184` `chest_boat_items_round_trip_through_last_slot` writes/reads an `Items` NBT
+  list through slot 26 of a 27-slot inventory, and `:1156 poplar_chest_boat_has_container_but_plain_boat_does_not`
+  asserts the 27-slot versus no-container split for `POPLAR_CHEST_BOAT` vs `POPLAR_BOAT`.
+
+Net code changes this pass: none (no source basenames assigned to this unit). No rustfmt (no
+.rs file touched). No build/test run (worker constraint); the orchestrator batch-compiles.
