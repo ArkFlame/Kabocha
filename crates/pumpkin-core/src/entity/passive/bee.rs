@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
 };
 
-use pumpkin_data::BlockState;
+use pumpkin_data::{Block, BlockState};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
@@ -84,6 +84,27 @@ pub const fn wants_to_enter_hive_gate(
     has_target: bool,
 ) -> bool {
     stay_out_of_hive_ticks <= 0 && !is_pollinating && !has_stung && !has_target
+}
+
+/// Vanilla `Bee.isHiveNearFire`: a fire block in the 3x3x3 around the hive keeps the bee out.
+/// The predicate keeps the neighbourhood check pure and unit-testable.
+#[must_use]
+fn hive_near_fire(hive_pos: BlockPos, is_fire: impl Fn(BlockPos) -> bool) -> bool {
+    for dx in -1..=1 {
+        for dy in -1..=1 {
+            for dz in -1..=1 {
+                let pos = BlockPos::new(
+                    hive_pos.0.x + dx,
+                    hive_pos.0.y + dy,
+                    hive_pos.0.z + dz,
+                );
+                if is_fire(pos) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Vanilla `BeePollinateGoal.canBeeUse`: no nectar and no flower-search cooldown.
@@ -404,7 +425,7 @@ impl BeeEntity {
         self.hive_search_cooldown.store(ticks, Ordering::Relaxed);
     }
 
-    /// Vanilla Bee.wantsToEnterHive. Fire-near-hive avoidance is not checked here.
+    /// Vanilla Bee.wantsToEnterHive.
     pub fn wants_to_enter_hive(&self, mob: &dyn Mob) -> bool {
         if !wants_to_enter_hive_gate(
             self.cannot_enter_hive_ticks.load(Ordering::Relaxed),
@@ -418,10 +439,15 @@ impl BeeEntity {
         let pos = mob.get_entity().block_pos.load();
         let time = world.get_time_of_day().rem_euclid(24000);
         let night = (13000..23000).contains(&time);
-        self.has_nectar()
+        let wants = self.has_nectar()
             || self.is_tired_of_looking_for_nectar()
             || night
-            || world.is_raining_at(&pos)
+            || world.is_raining_at(&pos);
+        // Vanilla returns `wants && !isHiveNearFire()`; a bee with no hive is never near fire.
+        wants
+            && !self.hive_pos().is_some_and(|hive| {
+                hive_near_fire(hive, |fire_pos| world.get_block(&fire_pos) == &Block::FIRE)
+            })
     }
 
     #[must_use]
@@ -734,8 +760,8 @@ mod tests {
     use pumpkin_util::math::position::BlockPos;
 
     use super::{
-        has_crop_growth_budget, read_block_pos, sting_poison_ticks, tired_of_looking_for_nectar,
-        wants_to_enter_hive_gate, write_block_pos,
+        has_crop_growth_budget, hive_near_fire, read_block_pos, sting_poison_ticks,
+        tired_of_looking_for_nectar, wants_to_enter_hive_gate, write_block_pos,
     };
 
     #[test]
@@ -792,5 +818,14 @@ mod tests {
         assert!(!wants_to_enter_hive_gate(0, true, false, false));
         assert!(!wants_to_enter_hive_gate(0, false, true, false));
         assert!(!wants_to_enter_hive_gate(0, false, false, true));
+    }
+
+    #[test]
+    fn hive_near_fire_checks_only_the_immediate_neighborhood() {
+        let hive = BlockPos::new(10, 64, -7);
+        assert!(hive_near_fire(hive, |pos| pos == hive));
+        assert!(hive_near_fire(hive, |pos| pos == BlockPos::new(11, 63, -6)));
+        assert!(!hive_near_fire(hive, |pos| pos == BlockPos::new(13, 64, -7)));
+        assert!(!hive_near_fire(hive, |_| false));
     }
 }

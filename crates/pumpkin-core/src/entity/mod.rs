@@ -3782,8 +3782,8 @@ impl Entity {
                 let to = from + final_move.normalize() * check_distance;
                 let world = self.world.load();
                 if world
-                    .raycast(from, to, |pos, world| {
-                        let block = world.get_block(pos);
+                    .raycast(from, to, |pos, w| {
+                        let block = w.get_block(pos);
                         block == &Block::WATER
                             || block.has_tag(&tag::Block::MINECRAFT_FALL_DAMAGE_RESETTING)
                     })

@@ -25,8 +25,8 @@ Scope: `crates/pumpkin-world/src` (excluding `generation/structure/placement.rs`
 ## Divergences logged, not fixed
 
 1. FIXED. `pumpkin-util/src/lib.rs` `encompassing_bits` now returns 0 for 0 and 1 (vanilla `Mth.ceillog2`), removing the `ilog2(0)` panic. Palette callers that divide by bits keep 1 bit via `.max(1)` in `chunk/palette.rs` (`bedrock_palette_bits`, heterogeneous `bits_per_entry`). Test: `encompassing_bits_tests::matches_vanilla_ceillog2`.
-2. BLOCKED (LastUpdate, re-checked by CODER). Fix needs game time at `internal_to_bytes`. Call-site edits exceed the ~6 budget: `ChunkIO::save_chunks` trait + Anvil/Linear/Pump impls + `FileManager` enum dispatch, `level.rs` `write_chunks`/`write_entity_chunks`, `chunk_system/worker_logic.rs` upgrade save, plus 12 `ChunkData {` literals (`chunk_state.rs` x2, `converter.rs`, tests) if a field is added. Left as is; a field defaulting to 0 would still write a wrong time. Needs a dedicated slice that threads `world time` through `ChunkIO`. Chunk save does not write `LastUpdate`. Vanilla writes the world game time on every save; this server only preserves an existing value through the passthrough of unmodelled root tags. Fixing needs the game time at serialization, which the writer does not receive. Low impact on load.
-3. OPEN, same root cause as item 2. `chunk/format/mod.rs` `MODELLED_ROOT_TAGS` does not list `LastUpdate`, so it rides through verbatim. Same root cause as item 2.
+2. FIXED (h8 pass, re-verified 2026-11-18). Game time is threaded to chunk save via a process-wide `last_update_clock` set each world tick; `chunk/format/mod.rs:763` writes `put_long("LastUpdate", last_update_clock())`. Round-trip test `last_update_round_trips_the_world_clock` (`:2206`). Matches vanilla writing game time every save.
+3. FIXED (h8 pass, re-verified 2026-11-18). `chunk/format/mod.rs:59` now lists `LastUpdate` in `MODELLED_ROOT_TAGS` and `:763` writes `put_long("LastUpdate", last_update_clock())`, with round-trip test `last_update_round_trips_the_world_clock` (`:2206`). Stale OPEN marker closed.
 
 ## Mob family sweep (CODER, goals and constants, vanilla 1.21.x recalled, UNVERIFIED)
 
