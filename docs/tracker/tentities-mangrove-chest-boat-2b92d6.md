@@ -15,7 +15,7 @@ Remaining gaps:
 Not compiled or tested (no cargo run per brief).
 
 ## Gap status
-- Remaining-gap table rows (docs and container size helpers): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- All remaining-gap table rows: FIXED (verified against .vendor/vanilla-decompiled; see Result below). This re-review made no further source edits.
 
 ## Result
 
