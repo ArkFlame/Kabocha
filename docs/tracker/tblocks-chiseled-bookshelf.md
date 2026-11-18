@@ -1,5 +1,7 @@
 # blocks / Chiseled Bookshelf — audit (RE-REVIEW)
 
+> Status: ALL rows are now closed. The final "## Result (re-review, 2026-11-18, final pass)" section is authoritative; every earlier "STILL OPEN" marker is a historical record from a prior pass and is superseded. Rows 2-5 VERIFIED FIXED, row 6 VERIFIED (covered).
+
 Target: MC 26.3 (`CURRENT_MC_VERSION`). Vanilla reference class:
 `net.minecraft.world.level.block.ChiseledBookshelfBlock` +
 `net.minecraft.world.level.block.entity.ChiseledBookshelfBlockEntity`

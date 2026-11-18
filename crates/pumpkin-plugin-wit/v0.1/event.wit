@@ -1710,9 +1710,6 @@ interface event {
         block-pos: block-pos,
         fuel-item: string,
         burn-time: u32,
-        /// Paper `FurnaceBurnEvent#willConsumeFuel`: false keeps the furnace lit without
-        /// consuming the fuel item.
-        consume-fuel: bool,
         cancelled: bool
     }
 
