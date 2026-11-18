@@ -46,10 +46,10 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
 | `mod.rs:571-590` (`create_block_entity_for_state`) | `PistonBlockEntity(BlockPos, BlockState)` takes the `FACING` property from the block state and starts a fresh extension (`extending = true`, progress 0) | Only hopper, structure block and command block build from the state; `moving_piston` falls through to `create_block_entity` -> `from_nbt(empty)`, so facing defaults to `Down`, `extending = false` and the pushed state is air | Add a `"piston"` arm reading the state facing (`PistonProps`/`PistonHeadLikeProperties`) and constructing the entity the way `piston.rs` does when it starts a move | S |
 | `net/java/chunk_data/v1_18.rs:166-175` | Chunk block entity entries carry the `BlockEntityType` registry id | The writer repeats the `BLOCK_ENTITY_TYPES` lookup and falls back to `0` (furnace), and `pending_block_entities` does contain `minecraft:bed`/`minecraft:map` (Pumpkin-only, not in that list), so a Java client is told a furnace block entity sits on every bed and map. `get_id` has the same fallback but is unreachable for those two because neither overrides `chunk_data_nbt` | Filter the entry list before the count is written, dropping ids that are not in `BLOCK_ENTITY_TYPES`, and have `get_id`/the writer share one `Option<u32>` helper | S |
 
-## Gap status
-- Piston block entity facing from state (`mod.rs:571-590`): STILL OPEN (S).
-- Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): FIXED (UNVERIFIED): ids not in `BLOCK_ENTITY_TYPES` are filtered before the count is written (`block_entity_type_id`, unit test).
-- Remaining rows in the note's table not re-read in this pass.
+## Gap status (final, pass 5)
+- Piston block entity facing from state (`mod.rs:571-590`): FIXED (verified). `create_block_entity_for_state` has the `"piston" if block == &Block::MOVING_PISTON` arm reading `MovingPistonLikeProperties::from_state_id(state_id).facing`.
+- Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): FIXED (verified). ids not in `BLOCK_ENTITY_TYPES` are filtered before the count is written (`block_entity_type_id`, unit test).
+- All rows in the note's table are resolved; no STILL OPEN row remains.
 
 ## Result
 
@@ -135,3 +135,41 @@ No STILL OPEN row remains in this unit, so no source file was edited.
   without a level); hoppers already call `take_loot_table`, so no observable gap. Left open with
   this reason; no edit.
 - No `.rs` file modified, so rustfmt was not run. Status: PASS.
+
+
+## Result (final pass 5)
+
+Verified every row against `.vendor/vanilla-decompiled`. All rows are FIXED/verified;
+no source file needed editing in this pass.
+
+- Row `mod.rs:571-590` (`create_block_entity_for_state`, moving-piston facing): FIXED, VERIFIED.
+  `block/entities/mod.rs:598-614` has the `"piston" if block == &Block::MOVING_PISTON` arm:
+  `MovingPistonLikeProperties::from_state_id(state_id).facing.to_block_direction()`, progress 0,
+  `extending: false`, `source: false`, pushed state `Block::AIR.default_state`. Matches vanilla
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/MovingPistonBlock.java:51-60`
+  (`newMovingBlockEntity` passes facing explicitly) and `PistonMovingBlockEntity.java:58-75`
+  (the 2-arg `PistonMovingBlockEntity(pos, state)` leaves progress 0, extending/source false,
+  movedState AIR, direction DOWN; the 6-arg ctor overwrites direction with the passed facing).
+  The state-derived facing is the correct load/restore fallback; live move-start passes facing
+  explicitly (`block/blocks/piston/piston.rs`). Unit test `moving_piston_state_supplies_the_facing`
+  (`mod.rs:867`) covers it.
+- Row `v1_18.rs:166-175` (chunk block entity registry id): FIXED, VERIFIED.
+  `block_entity_type_id` (`v1_18.rs:309-315`) resolves the unqualified NBT `id` against
+  `BLOCK_ENTITY_TYPES`; the writer filters unknown ids before writing the count (`v1_18.rs:154-171`)
+  and `unknown_block_entity_id_is_dropped` (`v1_18.rs:328-334`) covers Pumpkin-only `bed`/`map`.
+- `piston.rs` pass-3 parity fixes re-checked, no edit: `facing_from_data_value` (`piston.rs:57-66`)
+  matches vanilla `Direction.from3DDataValue` = `BY_3D_DATA[abs(data % 6)]`
+  (`.vendor/vanilla-decompiled/net/minecraft/core/Direction.java:341-342`, `LEGACY_ID_CODEC` at :45);
+  `get_numeric_float`/`get_numeric_short` exist on `NbtCompound` and match vanilla `getFloatOr`/
+  `getBooleanOr`; slime-block bounce in `push_entities` and `drag_stuck_entities` (honey) are
+  compile-safe. Tests `facing_id_wraps_like_vanilla`, `pushed_block_state_survives_nbt_round_trip`
+  and `head_shape_slab_sits_on_facing_side` are present.
+- `block_direction.rs`: `to_index`/`from_index` use the vanilla 0..=5 order DOWN, UP, NORTH,
+  SOUTH, WEST, EAST (`pumpkin-data/src/block_direction.rs:85-105`; `Direction.java:33-38`). No gap.
+  `block.rs` is generated (`pumpkin-data/src/generated/block.rs`), forbidden to edit; no change needed.
+- `chest_like_block_entity.rs`: no formal row names it. `is_empty` cannot unpack a pending loot
+  table without a world handle (vanilla `RandomizableContainerBlockEntity.isEmpty` calls
+  `unpackLootTable(null)`, which no-ops without a level); hoppers already call `take_loot_table`,
+  so no observable gap. VERIFIED not a gap; no edit.
+
+No STILL OPEN row remains. No `.rs` file modified, so rustfmt was not run. Status: PASS.

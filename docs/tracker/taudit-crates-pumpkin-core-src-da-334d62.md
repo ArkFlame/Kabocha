@@ -23,11 +23,11 @@ markers, only prose mentions of vanilla (`GameTestInstance.CODEC`, two test name
 ## Gap status
 - `RegistrySynchronization` `writeUnnamedTag` (`test_loader.rs:128`): FIXED per "Fixed" section.
 - `.json` suffix case-insensitive (`test_loader.rs:79`): FIXED per "Fixed" section.
-- `TestData`/`TestEnvironmentDefinition` codec (`test_loader.rs:93-98`, `model.rs:109`): STILL OPEN (S).
-- Catch-and-skip on bad ResourceLocation (`test_loader.rs:91`): STILL OPEN (S).
+- `TestData`/`TestEnvironmentDefinition` codec (`test_loader.rs:93-98`, `model.rs:109`): FIXED (see Result).
+- Catch-and-skip on bad ResourceLocation (`test_loader.rs:91`): FIXED (see Result).
 - Unused `get_test_instance_registry_entries` (`mod.rs:1100`): VERIFIED (typed encoder wired at mod.rs:541-544).
-- Lowercase `.json` only in dynamic loader (`dynamic_registry_loader.rs:92-95`): STILL OPEN (S).
-- Required `structure` field (`model.rs:85`): STILL OPEN (S).
+- Lowercase `.json` only in dynamic loader (`dynamic_registry_loader.rs:92-95`): VERIFIED (see Result).
+- Required `structure` field (`model.rs:85`): VERIFIED (see Result).
 
 
 ## Result

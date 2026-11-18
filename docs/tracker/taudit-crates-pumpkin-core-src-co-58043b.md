@@ -89,3 +89,31 @@ Re-verified all three rows against decompiled vanilla (`BaseCommandBlock.java#ge
 - Row 3 (player source text name): FIXED. `command/mod.rs#player_source` passes `player.get_name().get_text()` for textName and `get_display_name()` for the display name, matching vanilla `ServerPlayer#createCommandSourceStack`.
 
 No remaining in-scope STILL OPEN rows; no new unit-test seam (all seams already covered by existing round-trip tests). Compilation not run (worker shell denied; orchestrator compiles once).
+
+
+## Result (third pass VERIFIED, CODER)
+
+Re-read all four in-unit files plus `command/mod.rs`, `net/java/play/set_command_block.rs`,
+and decompiled vanilla. All three STILL OPEN rows are fully fixed; no source edits needed.
+
+- Row 1 (custom name): VERIFIED FIXED. `CommandBlockEntity` holds
+  `custom_name: StdMutex<Option<TextComponent>>`; `write_sync_nbt`/`from_nbt` read/write
+  `CustomName` via `CustomNameImpl` (String/Compound codec), and
+  `net/java/play/set_command_block.rs` initialises it from the old entity. `command/mod.rs#command_block_name`
+  returns the custom name with an `@` fallback and is used by both `into_source` (text name + display
+  name) and `Display`. Matches `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java`
+  (`getName`, `save`, `load`) and `.../world/level/block/entity/CommandBlockEntity.java`
+  (`createCommandSourceStack` uses `this.getName()`).
+- Row 2 (`LastOutput` text component): VERIFIED FIXED. `last_output` is
+  `StdMutex<Option<TextComponent>>`, written via `to_nbt_tag_for_version(V_26_3)` only when TrackOutput
+  is set, read via `TextComponent::from_nbt`; `command/mod.rs#send_message` appends the `[HH:mm:ss] `
+  child with local time (`now_local`, `now_utc` fallback). Matches
+  `.../world/level/BaseCommandBlock.java#save/load/sendSystemMessage` (`ComponentSerialization.CODEC`,
+  `Component.literal("[" + TIME_FORMAT + "] ").append(message)`). Round-trip unit tests exist in
+  `command_block.rs`.
+- Row 3 (player source text name): VERIFIED FIXED. `command/mod.rs#player_source` passes
+  `player.get_name().get_text()` as textName and `get_display_name()` as display name, matching
+  vanilla `ServerPlayer#createCommandSourceStack` (`.vendor/.../server/level/ServerPlayer.java`).
+
+No remaining STILL OPEN rows; no new unit-test seam (all seams covered by existing round-trip tests).
+No source edits this pass; rustfmt not needed. Compilation not run (worker shell denied; orchestrator compiles once).

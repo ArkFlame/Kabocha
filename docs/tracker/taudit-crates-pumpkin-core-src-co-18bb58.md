@@ -200,3 +200,50 @@ macro-path hazards, no moved-then-reused values, numeric casts use `as`, and cli
 pedantic constraints hold. No cargo run (forbidden for workers); compilation left to
 the orchestrator.
 
+
+
+## Result (third pass)
+
+Both rows that were still STILL OPEN at the end of the previous Result are now
+resolved. No source edits were needed this pass; both fixes are already present
+in code (added by other units) and were verified here against the decompiled
+vanilla at `.vendor/vanilla-decompiled/net/minecraft/`.
+
+- **Codec validation of required options
+  (`pumpkin-command/src/argument_types/particle.rs:33-67`): FIXED / VERIFIED.**
+  `missing_required_option` + `ERROR_INVALID_OPTIONS` (`translation::java::PARTICLE_INVALIDOPTIONS`)
+  are present and reject an options compound that is missing a mandatory field.
+  `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ParticleArgument.java`
+  (`readParticle`, lines 71-83) decodes options through `type.codec().codec().parse(...)`
+  and throws `particle.invalidOptions` on failure. Each required key was checked
+  against the matching vanilla `CODEC` under
+  `.vendor/vanilla-decompiled/net/minecraft/core/particles/`:
+  `DustParticleOptions` (color, scale), `DustColorTransitionOptions`
+  (from_color, to_color, scale), `ColorParticleOption` (color),
+  `SculkChargeParticleOptions` (roll), `ShriekParticleOption` (delay),
+  `ItemParticleOption` (item), `VibrationParticleOption`
+  (destination, arrival_in_ticks), `TrailParticleOption`
+  (target, color, duration), `GeyserParticleOptions` (water_blocks),
+  `GeyserBaseParticleOptions` (water_blocks, burst_impulse_base) and
+  `BlockParticleOption` (block_state). `SpellParticleOption`-based
+  `effect`/`instant_effect` keep their all-optional fields (`None` returned),
+  matching vanilla. Two pure tests (`required_option_missing_when_absent_or_incomplete`,
+  `required_options_satisfied_or_not_needed`) cover the seam.
+
+- **26.x `ClientboundLevelParticlesPacket` layout
+  (`pumpkin-protocol/src/java/client/play/particle.rs:264-285`): FIXED / VERIFIED.**
+  For `version >= V_26_1` `write_packet_data` writes, in order: particle id
+  VAR_INT, the option payload, `force_spawn` (overrideLimiter) bool, `important`
+  (alwaysShow) bool, three f64 position coords, three f32 offsets, three f32
+  speeds (max_speed repeated, matching the vanilla convenience constructor),
+  VAR_INT count and VAR_INT randomization type 0 (`RandomizationType.DEFAULT`).
+  This matches `.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundLevelParticlesPacket.java`:
+  `STREAM_CODEC` field order (lines 30-60) and the convenience constructor
+  passing `maxSpeed` three times and `RandomizationType.DEFAULT` (lines 62-91,
+  id 0 at line 104). Byte-exact test `level_particles_26_x_matches_vanilla_field_order`
+  asserts the exact bytes; `level_particles_encoding_matches_26_2_for_26_3`
+  covers 26.3.
+
+No STILL OPEN rows remain in this unit. No source file was edited this pass,
+so no rustfmt run was needed. No cargo run (forbidden for workers); compilation
+left to the orchestrator.
