@@ -30,6 +30,7 @@ use crate::entity::{
     living::LivingEntity,
     mob::{Mob, MobEntity},
 };
+use crate::plugin::api::events::entity::entity_target::TargetReason;
 use crate::world::World;
 
 /// Vanilla `HoglinAi.piglinsOutnumberHoglins`: piglins outnumber when there are strictly more
@@ -132,7 +133,7 @@ impl HoglinEntity {
                 2,
                 Box::new(
                     AvoidEntityGoal::new(TargetMatch::Type(&EntityType::PIGLIN), 8.0, 1.0, 1.2)
-                        .when(flee_from_piglins_when_outnumbered),
+                        .as_long_as(flee_from_piglins_when_outnumbered),
                 ),
             );
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
@@ -361,6 +362,14 @@ impl Mob for HoglinEntity {
             return;
         }
         throw_target(&self.mob_entity.living_entity, target);
+        // Vanilla `HoglinAi.onHitTarget`: hitting a piglin while piglins outnumber hoglins
+        // makes the hoglin flee instead of fighting.
+        if target.get_entity().entity_type.id == EntityType::PIGLIN.id
+            && piglins_outnumber_hoglins(self)
+        {
+            <Self as Mob>::set_mob_target(self, None, TargetReason::Fleeing);
+            self.mob_entity.steered().navigator().stop();
+        }
     }
 }
 

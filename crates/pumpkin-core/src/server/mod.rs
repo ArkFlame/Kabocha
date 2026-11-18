@@ -167,9 +167,10 @@ pub struct Server {
     /// Stores the duration of the last 100 ticks for performance analysis
     pub tick_times_nanos: std::sync::Mutex<[i64; 100]>,
     /// Tick durations over the last 1, 5 and 15 minutes, backing Paper-style rolling TPS.
-    pub tick_times_1m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_1M]>,
-    pub tick_times_5m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_5M]>,
-    pub tick_times_15m_nanos: std::sync::Mutex<[i64; TPS_SAMPLES_15M]>,
+    /// Boxed so the large rings do not bloat `Server`'s (and `new`'s) stack frame.
+    pub tick_times_1m_nanos: std::sync::Mutex<Box<[i64]>>,
+    pub tick_times_5m_nanos: std::sync::Mutex<Box<[i64]>>,
+    pub tick_times_15m_nanos: std::sync::Mutex<Box<[i64]>>,
     /// Aggregated tick times for efficient rolling average calculation
     pub aggregated_tick_times_nanos: AtomicI64,
     /// Wall-clock instant of the previous tick-time debug sample, used to
@@ -424,9 +425,11 @@ impl Server {
             white_list,
             tick_rate_manager,
             tick_times_nanos: std::sync::Mutex::new([0; 100]),
-            tick_times_1m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_1M]),
-            tick_times_5m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_5M]),
-            tick_times_15m_nanos: std::sync::Mutex::new([0; TPS_SAMPLES_15M]),
+            tick_times_1m_nanos: std::sync::Mutex::new(vec![0; TPS_SAMPLES_1M].into_boxed_slice()),
+            tick_times_5m_nanos: std::sync::Mutex::new(vec![0; TPS_SAMPLES_5M].into_boxed_slice()),
+            tick_times_15m_nanos: std::sync::Mutex::new(
+                vec![0; TPS_SAMPLES_15M].into_boxed_slice(),
+            ),
             aggregated_tick_times_nanos: AtomicI64::new(0),
             last_tick_sample_instant: std::sync::Mutex::new(None),
             tick_count: AtomicI32::new(0),
@@ -625,7 +628,7 @@ impl Server {
     /// Restores a world's forced chunks from its `<dim_folder>/data/minecraft/chunks.dat`.
     /// Vanilla restores these in every `ServerLevel` constructor, including levels created at
     /// runtime, so this cannot live only in the startup `load_persistent_data` pass.
-    fn restore_forced_chunks(&self, world: &Arc<World>) {
+    fn restore_forced_chunks(world: &Arc<World>) {
         use pumpkin_world::world_info::data_files::read_saved_data;
 
         let Some(data) = read_saved_data(&world.level.level_folder.dim_folder, FORCED_CHUNKS_FILE)
@@ -681,7 +684,7 @@ impl Server {
         }
 
         for world in self.worlds.load().iter() {
-            self.restore_forced_chunks(world);
+            Self::restore_forced_chunks(world);
         }
 
         let Ok(entries) = std::fs::read_dir(minecraft_data_dir(world_path)) else {
@@ -938,7 +941,7 @@ impl Server {
         });
         // Vanilla restores forced chunks in the ServerLevel constructor, so runtime worlds
         // need this too, not just the worlds present at startup.
-        self.restore_forced_chunks(&world);
+        Self::restore_forced_chunks(&world);
         let mut event =
             crate::plugin::api::events::world::world_init::WorldInitEvent::new(world.clone());
         self.plugin_manager.fire_blocking(self, &mut event);
@@ -2103,21 +2106,21 @@ impl Server {
                 .tick_times_1m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_1M] = tick_duration_nanos
+            ring[(tick_count as usize) % TPS_SAMPLES_1M] = tick_duration_nanos;
         };
         {
             let mut ring = self
                 .tick_times_5m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_5M] = tick_duration_nanos
+            ring[(tick_count as usize) % TPS_SAMPLES_5M] = tick_duration_nanos;
         };
         {
             let mut ring = self
                 .tick_times_15m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_15M] = tick_duration_nanos
+            ring[(tick_count as usize) % TPS_SAMPLES_15M] = tick_duration_nanos;
         };
 
         self.aggregated_tick_times_nanos
@@ -2297,19 +2300,15 @@ fn infer_played_before(nbt: &NbtCompound) -> bool {
 
 /// TPS from a rolling tick-time ring. Paper's `TickData.getTPSAverage` returns the
 /// ideal rate until the window has samples, then `1e9 / average tick time`.
-fn ring_tps<const N: usize>(
-    ring: &std::sync::Mutex<[i64; N]>,
-    tick_count: i32,
-    target_nanos: i64,
-) -> f64 {
+fn ring_tps(ring: &std::sync::Mutex<Box<[i64]>>, tick_count: i32, target_nanos: i64) -> f64 {
     let ideal = 1_000_000_000.0 / target_nanos.max(1) as f64;
-    let samples = (tick_count as usize).min(N);
-    if samples == 0 {
-        return ideal;
-    }
     let times = ring
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let samples = (tick_count as usize).min(times.len());
+    if samples == 0 {
+        return ideal;
+    }
     let total: i64 = times[..samples].iter().sum();
     if total <= 0 {
         return ideal;
@@ -2375,7 +2374,7 @@ mod tests {
     #[test]
     fn ring_tps_uses_filled_samples_and_caps_at_target() {
         const TARGET: i64 = 50_000_000; // 20 TPS
-        let ring = std::sync::Mutex::new([0i64; 4]);
+        let ring = std::sync::Mutex::new(vec![0i64; 4].into_boxed_slice());
         // No samples yet: like Paper, report the ideal rate.
         assert_eq!(ring_tps(&ring, 0, TARGET), 20.0);
         // Only filled samples count; trailing zero slots are ignored.
@@ -2386,7 +2385,7 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner)[1] = 100_000_000;
         assert!((ring_tps(&ring, 2, TARGET) - 13.333333333333334).abs() < 1e-9);
         // A ring faster than the target is capped, as Paper's getTPS() does.
-        let fast = std::sync::Mutex::new([10_000_000i64; 4]);
+        let fast = std::sync::Mutex::new(vec![10_000_000i64; 4].into_boxed_slice());
         assert_eq!(ring_tps(&fast, 4, TARGET), 20.0);
     }
 

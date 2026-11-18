@@ -126,7 +126,7 @@ impl RamTargetGoal {
     }
 
     /// Vanilla `RamTarget.hasRammedHornBreakingBlock`.
-    fn has_rammed_horn_breaking_block(&self, mob: &dyn Mob) -> bool {
+    fn has_rammed_horn_breaking_block(mob: &dyn Mob) -> bool {
         let entity = mob.get_entity();
         let velocity = entity.velocity.load();
         let flat = Vector3::new(velocity.x, 0.0, velocity.z);
@@ -238,7 +238,7 @@ impl Goal for RamTargetGoal {
             self.impact(mob, target.as_ref());
             return;
         }
-        if self.has_rammed_horn_breaking_block(mob) {
+        if Self::has_rammed_horn_breaking_block(mob) {
             self.ram_into_block(mob);
             return;
         }

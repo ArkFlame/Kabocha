@@ -300,7 +300,7 @@ macro_rules! fish_mob_hooks {
             $crate::entity::passive::abstract_fish::AbstractFish::fish_base_tick(self, caller);
         }
 
-        /// Vanilla WaterAnimal refills air to 300 ticks (Entity.TOTAL_AIR_SUPPLY).
+        /// Vanilla `WaterAnimal` refills air to 300 ticks (Entity.TOTAL_AIR_SUPPLY).
         fn mob_max_air_supply(&self) -> i32 {
             $crate::entity::passive::water_animal::WATER_ANIMAL_MAX_AIR_SUPPLY
         }

@@ -103,8 +103,7 @@ impl BlockBehaviour for CampfireBlock {
             // Vanilla/Paper fires CampfireStartEvent in placeFood at insertion so
             // plugins can adjust the cook time before the first tick.
             let mut cooking_time = recipe.cookingtime;
-            let mut cancelled = false;
-            if let Some(server) = args.world.server.upgrade() {
+            let cancelled = if let Some(server) = args.world.server.upgrade() {
                 let mut event = CampfireStartEvent::new(
                     *args.position,
                     args.world.clone(),
@@ -114,8 +113,10 @@ impl BlockBehaviour for CampfireBlock {
                 );
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 cooking_time = event.cooking_time;
-                cancelled = event.cancelled;
-            }
+                event.cancelled
+            } else {
+                false
+            };
 
             let mut stored = campfire.items[slot]
                 .lock()

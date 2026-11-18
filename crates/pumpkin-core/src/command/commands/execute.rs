@@ -1837,16 +1837,21 @@ fn traceable_owner(entity: &dyn EntityBase, world: &World) -> Option<Arc<dyn Ent
         return Some(owner);
     }
     let any = entity.cast_any();
-    let reference = if let Some(tnt) = any.downcast_ref::<crate::entity::tnt::TNTEntity>() {
-        Some(&tnt.owner)
-    } else if let Some(cloud) =
-        any.downcast_ref::<crate::entity::area_effect_cloud::AreaEffectCloudEntity>()
-    {
-        Some(&cloud.owner)
-    } else {
-        any.downcast_ref::<crate::entity::projectile::evoker_fangs::EvokerFangsEntity>()
-            .map(|fangs| &fangs.owner)
-    }?;
+    let reference = any
+        .downcast_ref::<crate::entity::tnt::TNTEntity>()
+        .map_or_else(
+            || {
+                any.downcast_ref::<crate::entity::area_effect_cloud::AreaEffectCloudEntity>()
+                    .map_or_else(
+                        || {
+                            any.downcast_ref::<crate::entity::projectile::evoker_fangs::EvokerFangsEntity>()
+                                .map(|fangs| &fangs.owner)
+                        },
+                        |cloud| Some(&cloud.owner),
+                    )
+            },
+            |tnt| Some(&tnt.owner),
+        )?;
     reference.get(world)
 }
 

@@ -326,7 +326,7 @@ mod tests {
         assert!(restored.update_last_execution.load(Ordering::Relaxed));
 
         // With UpdateLastExecution=false vanilla neither saves nor restores LastExecution.
-        let mut suppressed = CommandBlockEntity::new(pos, true, false);
+        let suppressed = CommandBlockEntity::new(pos, true, false);
         suppressed
             .update_last_execution
             .store(false, Ordering::Relaxed);

@@ -114,7 +114,11 @@ impl HappyGhastEntity {
 
     /// Vanilla HappyGhast.canAddPassenger caps riders at four; mobInteract also
     /// requires a harness and no sneak key before a player mounts.
-    const fn can_player_mount(wearing_harness: bool, sneaking: bool, passenger_count: usize) -> bool {
+    const fn can_player_mount(
+        wearing_harness: bool,
+        sneaking: bool,
+        passenger_count: usize,
+    ) -> bool {
         const MAX_PASSENGERS: usize = 4;
         wearing_harness && !sneaking && passenger_count < MAX_PASSENGERS
     }

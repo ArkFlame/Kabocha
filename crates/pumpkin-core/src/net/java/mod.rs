@@ -104,10 +104,7 @@ fn frame_packet(packet_id: i32, payload: &[u8]) -> Option<Bytes> {
 
 /// Awaits `previous` (when one is queued) before polling `task`, so a client's
 /// chat, command and session packets are handled in arrival order.
-async fn chain_after<F>(
-    previous: Option<JoinHandle<()>>,
-    task: F,
-)
+async fn chain_after<F>(previous: Option<JoinHandle<()>>, task: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {

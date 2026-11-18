@@ -219,9 +219,7 @@ impl GoatEntity {
         }
         if !has_left {
             self.set_has_right_horn(false);
-        } else if !has_right {
-            self.set_has_left_horn(false);
-        } else if self.get_random().random::<bool>() {
+        } else if !has_right || self.get_random().random::<bool>() {
             self.set_has_left_horn(false);
         } else {
             self.set_has_right_horn(false);

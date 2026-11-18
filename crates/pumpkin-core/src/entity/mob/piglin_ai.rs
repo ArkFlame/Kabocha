@@ -77,6 +77,17 @@ impl PiglinAi {
         hoglin_count > piglin_count
     }
 
+    /// Only an adult hurt by a hoglin while hoglins outnumber the piglin does vanilla
+    /// stop hunting hoglins: `PiglinAi.wasHurtBy` sets `AVOID_TARGET` and `HUNTED_RECENTLY`.
+    #[must_use]
+    pub const fn should_retreat_from_hoglin(
+        is_baby: bool,
+        attacker_type: &EntityType,
+        hoglins_outnumber: bool,
+    ) -> bool {
+        !is_baby && attacker_type.id == EntityType::HOGLIN.id && hoglins_outnumber
+    }
+
     #[must_use]
     pub fn wants_to_dance(killed_target_type: &EntityType) -> bool {
         if killed_target_type.id != EntityType::HOGLIN.id {
@@ -325,6 +336,30 @@ mod tests {
     use pumpkin_util::math::vector3::Vector3;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn retreat_from_hoglin_needs_adult_hoglin_attacker_and_outnumbering_hoglins() {
+        assert!(PiglinAi::should_retreat_from_hoglin(
+            false,
+            &EntityType::HOGLIN,
+            true
+        ));
+        assert!(!PiglinAi::should_retreat_from_hoglin(
+            false,
+            &EntityType::HOGLIN,
+            false
+        ));
+        assert!(!PiglinAi::should_retreat_from_hoglin(
+            false,
+            &EntityType::PLAYER,
+            true
+        ));
+        assert!(!PiglinAi::should_retreat_from_hoglin(
+            true,
+            &EntityType::HOGLIN,
+            true
+        ));
+    }
 
     #[tokio::test]
     async fn hoglins_outnumber_piglins_uses_both_visible_counts() -> TestResult {

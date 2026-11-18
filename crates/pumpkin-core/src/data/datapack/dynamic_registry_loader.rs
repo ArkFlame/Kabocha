@@ -646,8 +646,8 @@ mod tests {
         let plural = ns_dir.join("enchantments");
         fs::create_dir_all(&singular).unwrap();
         fs::create_dir_all(&plural).unwrap();
-        fs::write(singular.join("a.json"), r#"{}"#).unwrap();
-        fs::write(plural.join("b.json"), r#"{}"#).unwrap();
+        fs::write(singular.join("a.json"), r"{}").unwrap();
+        fs::write(plural.join("b.json"), r"{}").unwrap();
 
         let mut registries: HashMap<String, HashMap<String, RegistryEntryData>> = HashMap::new();
         load_dynamic_registries_from_ns("custom", &ns_dir, &mut registries);

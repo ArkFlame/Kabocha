@@ -58,26 +58,31 @@ impl ItemRegistry {
             return BlockActionResult::Pass;
         }
 
-        let result = if let Some(pumpkin_item) = self.get_pumpkin_item(item.id) {
-            pumpkin_item.normal_use_with_rotation(item, player, yaw, pitch, hand);
-            pumpkin_item.use_result(stack)
-        } else if stack
-            .get_data_component::<pumpkin_data::data_component_impl::KineticWeaponImpl>()
-            .is_some()
-        {
-            crate::item::items::spear::SpearItem
-                .normal_use_with_rotation(item, player, yaw, pitch, hand);
-            crate::item::items::spear::SpearItem.use_result(stack)
-        } else if stack
-            .get_data_component::<pumpkin_data::data_component_impl::RecipesImpl>()
-            .is_some()
-        {
-            crate::item::items::knowledge_book::KnowledgeBookItem
-                .normal_use_with_rotation(item, player, yaw, pitch, hand);
-            crate::item::items::knowledge_book::KnowledgeBookItem.use_result(stack)
-        } else {
-            BlockActionResult::Pass
-        };
+        let result = self.get_pumpkin_item(item.id).map_or_else(
+            || {
+                if stack
+                    .get_data_component::<pumpkin_data::data_component_impl::KineticWeaponImpl>()
+                    .is_some()
+                {
+                    crate::item::items::spear::SpearItem
+                        .normal_use_with_rotation(item, player, yaw, pitch, hand);
+                    crate::item::items::spear::SpearItem.use_result(stack)
+                } else if stack
+                    .get_data_component::<pumpkin_data::data_component_impl::RecipesImpl>()
+                    .is_some()
+                {
+                    crate::item::items::knowledge_book::KnowledgeBookItem
+                        .normal_use_with_rotation(item, player, yaw, pitch, hand);
+                    crate::item::items::knowledge_book::KnowledgeBookItem.use_result(stack)
+                } else {
+                    BlockActionResult::Pass
+                }
+            },
+            |pumpkin_item| {
+                pumpkin_item.normal_use_with_rotation(item, player, yaw, pitch, hand);
+                pumpkin_item.use_result(stack)
+            },
+        );
 
         // Vanilla `ItemStack.use` runs after-use side effects (including `use_cooldown`)
         // only for a `Success` result; a `FAIL` such as an instrument-less horn skips them.
@@ -197,12 +202,10 @@ impl ItemRegistry {
             return BlockActionResult::Success;
         }
 
-        let pumpkin_item = self.get_pumpkin_item(stack.item.id);
-        if let Some(pumpkin_item) = pumpkin_item {
-            pumpkin_item.use_on_entity(stack, player, entity)
-        } else {
-            BlockActionResult::Pass
-        }
+        self.get_pumpkin_item(stack.item.id)
+            .map_or(BlockActionResult::Pass, |pumpkin_item| {
+                pumpkin_item.use_on_entity(stack, player, entity)
+            })
     }
 
     pub fn can_mine(&self, item: &Item, player: &Player) -> bool {

@@ -184,6 +184,78 @@ impl LightningBoltEntity {
         }
         None
     }
+
+    fn strike_entities(&self, entity: &Entity) {
+        let current_life = self.life.load(Ordering::Relaxed);
+        if current_life < 0 || self.visual_only.load(Ordering::Relaxed) {
+            return;
+        }
+        let world = entity.world.load();
+        let pos = entity.pos.load();
+        let damage_box = BoundingBox::new(
+            Vector3::new(pos.x - 3.0, pos.y - 3.0, pos.z - 3.0),
+            Vector3::new(pos.x + 3.0, pos.y + 9.0, pos.z + 3.0),
+        );
+
+        let bolt_pos = self.entity.pos.load();
+        let entities = world.get_all_at_box(&damage_box);
+        if let Ok(mut hit_guard) = self.hit_entities.lock() {
+            let mut struck_entities = Vec::new();
+            for hit_entity in entities {
+                if hit_entity.get_entity().entity_id == entity.entity_id {
+                    continue;
+                }
+                let hit_id = hit_entity.get_entity().entity_id;
+                if hit_guard.insert(hit_id) {
+                    hit_entity.on_lightning_strike(hit_entity.as_ref(), self);
+                    if let Some(player) = self.get_cause() {
+                        let type_name = format!(
+                            "minecraft:{}",
+                            hit_entity.get_entity().entity_type.resource_name
+                        );
+                        player.trigger_advancement(
+                            crate::entity::player::advancement::trigger::AdvancementTrigger::ChanneledLightning {
+                                victim_type: type_name.clone(),
+                            },
+                        );
+                        let hit_pos = hit_entity.get_entity().pos.load();
+                        struck_entities.push(
+                            crate::entity::player::advancement::trigger::LightningStruckEntity {
+                                entity_type: type_name,
+                                distance: Some(
+                                    crate::entity::player::advancement::predicate::EntityDistance::from_delta(
+                                        hit_pos.x - bolt_pos.x,
+                                        hit_pos.y - bolt_pos.y,
+                                        hit_pos.z - bolt_pos.z,
+                                    ),
+                                ),
+                                is_baby: None,
+                            },
+                        );
+                    }
+                }
+            }
+            // Vanilla fires this once so bystander and entity_struck predicates
+            // are tested against the struck entities independently.
+            if let Some(player) = self.get_cause()
+                && !struck_entities.is_empty()
+            {
+                let distance = player.position().squared_distance_to_vec(&bolt_pos).sqrt();
+                let bystander_types = struck_entities
+                    .iter()
+                    .map(|e| e.entity_type.clone())
+                    .collect();
+                player.trigger_advancement(
+                    crate::entity::player::advancement::trigger::AdvancementTrigger::LightningStrike {
+                        bystander_types,
+                        struck_entities,
+                        blocks_set_on_fire: self.blocks_set_on_fire.load(Ordering::Relaxed),
+                        distance,
+                    },
+                );
+            }
+        }
+    }
 }
 
 impl EntityBase for LightningBoltEntity {
@@ -238,75 +310,7 @@ impl EntityBase for LightningBoltEntity {
             }
         }
 
-        let current_life = self.life.load(Ordering::Relaxed);
-        if current_life >= 0 && !self.visual_only.load(Ordering::Relaxed) {
-            let world = entity.world.load();
-            let pos = entity.pos.load();
-
-            let damage_box = BoundingBox::new(
-                Vector3::new(pos.x - 3.0, pos.y - 3.0, pos.z - 3.0),
-                Vector3::new(pos.x + 3.0, pos.y + 9.0, pos.z + 3.0),
-            );
-
-            let bolt_pos = self.entity.pos.load();
-            let entities = world.get_all_at_box(&damage_box);
-            if let Ok(mut hit_guard) = self.hit_entities.lock() {
-                let mut struck_entities = Vec::new();
-                for hit_entity in entities {
-                    if hit_entity.get_entity().entity_id == entity.entity_id {
-                        continue;
-                    }
-                    let hit_id = hit_entity.get_entity().entity_id;
-                    if hit_guard.insert(hit_id) {
-                        hit_entity.on_lightning_strike(hit_entity.as_ref(), self);
-                        if let Some(player) = self.get_cause() {
-                            let type_name = format!(
-                                "minecraft:{}",
-                                hit_entity.get_entity().entity_type.resource_name
-                            );
-                            player.trigger_advancement(
-                                crate::entity::player::advancement::trigger::AdvancementTrigger::ChanneledLightning {
-                                    victim_type: type_name.clone(),
-                                },
-                            );
-                            let hit_pos = hit_entity.get_entity().pos.load();
-                            struck_entities.push(
-                                crate::entity::player::advancement::trigger::LightningStruckEntity {
-                                    entity_type: type_name,
-                                    distance: Some(
-                                        crate::entity::player::advancement::predicate::EntityDistance::from_delta(
-                                            hit_pos.x - bolt_pos.x,
-                                            hit_pos.y - bolt_pos.y,
-                                            hit_pos.z - bolt_pos.z,
-                                        ),
-                                    ),
-                                    is_baby: None,
-                                },
-                            );
-                        }
-                    }
-                }
-                // Vanilla fires this once so bystander and entity_struck predicates
-                // are tested against the struck entities independently.
-                if let Some(player) = self.get_cause()
-                    && !struck_entities.is_empty()
-                {
-                    let distance = player.position().squared_distance_to_vec(&bolt_pos).sqrt();
-                    let bystander_types = struck_entities
-                        .iter()
-                        .map(|e| e.entity_type.clone())
-                        .collect();
-                    player.trigger_advancement(
-                        crate::entity::player::advancement::trigger::AdvancementTrigger::LightningStrike {
-                            bystander_types,
-                            struck_entities,
-                            blocks_set_on_fire: self.blocks_set_on_fire.load(Ordering::Relaxed),
-                            distance,
-                        },
-                    );
-                }
-            }
-        }
+        self.strike_entities(entity);
     }
 
     fn init_data_tracker(&self) {}

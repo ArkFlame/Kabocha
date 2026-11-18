@@ -322,7 +322,7 @@ impl CreakingHeartBlockEntity {
             };
 
             if let Some(mut props) = props
-                && !Self::has_face(&props, opposite)
+                && !Self::has_face(props, opposite)
             {
                 Self::set_face(&mut props, opposite);
                 world.set_block_state(
@@ -336,7 +336,7 @@ impl CreakingHeartBlockEntity {
         None
     }
 
-    const fn has_face(props: &GlowLichenLikeProperties, direction: BlockDirection) -> bool {
+    const fn has_face(props: GlowLichenLikeProperties, direction: BlockDirection) -> bool {
         match direction {
             BlockDirection::Down => props.down,
             BlockDirection::Up => props.up,
@@ -394,17 +394,17 @@ mod tests {
         for direction in BlockDirection::all() {
             let mut props = GlowLichenLikeProperties::default(block);
             CreakingHeartBlockEntity::set_face(&mut props, direction);
-            assert!(CreakingHeartBlockEntity::has_face(&props, direction));
+            assert!(CreakingHeartBlockEntity::has_face(props, direction));
         }
         let mut props = GlowLichenLikeProperties::default(block);
         CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Down);
         CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Up);
         assert!(CreakingHeartBlockEntity::has_face(
-            &props,
+            props,
             BlockDirection::Down
         ));
         assert!(CreakingHeartBlockEntity::has_face(
-            &props,
+            props,
             BlockDirection::Up
         ));
     }

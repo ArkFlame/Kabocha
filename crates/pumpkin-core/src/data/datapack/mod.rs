@@ -1956,15 +1956,16 @@ fn validate_macro_template(template: &str) -> Result<(), String> {
 fn validate_macro_functions(functions: &mut HashMap<String, Vec<String>>) {
     let mut invalid = Vec::new();
     for (id, lines) in functions.iter_mut() {
-        lines.retain(|line| match line.strip_prefix('$') {
-            Some(template) => match validate_macro_template(template) {
-                Ok(()) => true,
-                Err(reason) => {
-                    invalid.push((id.clone(), reason));
-                    false
+        lines.retain(|line| {
+            line.strip_prefix('$').map_or(true, |template| {
+                match validate_macro_template(template) {
+                    Ok(()) => true,
+                    Err(reason) => {
+                        invalid.push((id.clone(), reason));
+                        false
+                    }
                 }
-            },
-            None => true,
+            })
         });
     }
     for (id, reason) in invalid {
@@ -2359,10 +2360,7 @@ fn scan_datapacks_dir(
         });
     }
 
-    match first_failure {
-        Some(err) => Err(err),
-        None => Ok(()),
-    }
+    first_failure.map_or(Ok(()), Err)
 }
 
 /// Enabled world datapack directories, in the order recorded in the level.

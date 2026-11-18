@@ -2007,16 +2007,16 @@ impl Player {
             std::sync::atomic::Ordering::Relaxed,
         );
 
+        // Vanilla `Player.attack` adds `LivingEntity.getKnockback()` - ATTACK_KNOCKBACK
+        // plus the Knockback enchantment, halved - plus 0.5 for a sprint attack, on top
+        // of the base knockback the victim's damage handling applies. A plain hit adds
+        // nothing. `handle_knockback` halves `strength`, so these are twice the vanilla
+        // amount.
+        let mut knockback_strength = enchantment_knockback
+            + self
+                .living_entity
+                .get_attribute_value(&Attributes::ATTACK_KNOCKBACK);
         if victim.get_living_entity().is_some() {
-            // Vanilla `Player.attack` adds `LivingEntity.getKnockback()` - ATTACK_KNOCKBACK
-            // plus the Knockback enchantment, halved - plus 0.5 for a sprint attack, on top
-            // of the base knockback the victim's damage handling applies. A plain hit adds
-            // nothing. `handle_knockback` halves `strength`, so these are twice the vanilla
-            // amount.
-            let mut knockback_strength = enchantment_knockback
-                + self
-                    .living_entity
-                    .get_attribute_value(&Attributes::ATTACK_KNOCKBACK);
             match attack_type {
                 AttackType::Knockback => knockback_strength += 1.0,
                 AttackType::Sweeping => {
@@ -2106,10 +2106,6 @@ impl Player {
         } else {
             // Vanilla `Player.causeExtraKnockback` pushes non-living attackables too
             // (boats, minecarts, ...), using the raw push direction and a 0.1 lift.
-            let mut knockback_strength = enchantment_knockback
-                + self
-                    .living_entity
-                    .get_attribute_value(&Attributes::ATTACK_KNOCKBACK);
             if matches!(attack_type, AttackType::Knockback) {
                 knockback_strength += 1.0;
             }
@@ -7331,7 +7327,7 @@ impl Player {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             xp.level = level;
             xp.progress = progress.clamp(0.0, 1.0);
-            xp.points = points
+            xp.points = points;
         };
         self.last_sent_xp.store(-1, Ordering::Relaxed);
         self.tick_experience();

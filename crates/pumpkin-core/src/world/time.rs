@@ -62,12 +62,11 @@ pub(crate) struct SleepWakeMarker {
 impl SleepWakeMarker {
     /// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`.
     #[must_use]
-    pub(crate) fn resolve(self, total_ticks: i64) -> i64 {
-        match self.period {
-            Some(period) => resolve_time_to_move_to(total_ticks, self.ticks, period),
-            // Non-periodic markers move to their absolute tick, as vanilla does.
-            None => self.ticks,
-        }
+    pub(crate) const fn resolve(self, total_ticks: i64) -> i64 {
+        // Non-periodic markers move to their absolute tick, as vanilla does.
+        self.period.map_or(self.ticks, |period| {
+            resolve_time_to_move_to(total_ticks, self.ticks, period)
+        })
     }
 }
 
@@ -186,10 +185,11 @@ impl ClockInstance {
     }
 }
 
-/// Runtime model of vanilla `ServerClockManager`: one independent instance per
-/// `world_clock` registry id. The dimension's default clock is mirrored by
-/// `LevelTime`'s own fields; every other clock lives here so `/time of` no
-/// longer mutates the world's default clock.
+/// Runtime model of vanilla `ServerClockManager`.
+///
+/// One independent instance per `world_clock` registry id. The dimension's
+/// default clock is mirrored by `LevelTime`'s own fields; every other clock
+/// lives here so `/time of` no longer mutates the world's default clock.
 #[derive(Clone, Debug, Default)]
 pub struct ServerClockManager {
     clocks: HashMap<String, ClockInstance>,
@@ -198,9 +198,7 @@ pub struct ServerClockManager {
 impl ServerClockManager {
     /// Returns the instance for `name`, creating a fresh zeroed clock on first use.
     pub fn clock_mut(&mut self, name: &str) -> &mut ClockInstance {
-        self.clocks
-            .entry(name.to_owned())
-            .or_default()
+        self.clocks.entry(name.to_owned()).or_default()
     }
 
     #[must_use]

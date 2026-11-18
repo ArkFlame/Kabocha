@@ -119,7 +119,7 @@ fn block_position_source(tag: &NbtTag) -> Option<BlockPos> {
         return None;
     };
     let parts = match compound.get("pos")? {
-        NbtTag::IntArray(values) => values.to_vec(),
+        NbtTag::IntArray(values) => values.clone(),
         NbtTag::List(values) => values.iter().map(tag_as_i32).collect::<Option<Vec<_>>>()?,
         _ => return None,
     };

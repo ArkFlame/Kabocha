@@ -63,9 +63,11 @@ pub const fn should_stop_being_angry(still_angry: bool, keeps_valid_player_targe
     !still_angry && !keeps_valid_player_target
 }
 
-/// Vanilla `updatePersistentAnger`: the timer restarts for a new target, or on every
-/// tick while `stayAngryIfTargetPresent` is set and the target is still around. It is
-/// never counted down. Bees pass `false` and calm down once the target is gone.
+/// Whether vanilla `updatePersistentAnger` restarts the anger timer.
+///
+/// The timer restarts for a new target, or on every tick while `stayAngryIfTargetPresent`
+/// is set and the target is still around. It is never counted down. Bees pass `false`
+/// and calm down once the target is gone.
 #[must_use]
 pub const fn should_refresh_anger_timer(
     is_new_target: bool,

@@ -119,9 +119,11 @@ const fn should_create_fire(roll: u8, state: &BlockState, below: &BlockState) ->
     roll == 0 && state.is_air() && below.is_solid_render()
 }
 
-/// Vanilla `getChunk` force-loads chunks the explosion ray enters. Loaded chunks use the
-/// sync read; unloaded ones go through the async chunk system, blocking the caller. The
-/// tick thread is not a Tokio worker, and other callers move off their worker first.
+/// Vanilla `getChunk` force-loads chunks the explosion ray enters.
+///
+/// Loaded chunks use the sync read; unloaded ones go through the async chunk system,
+/// blocking the caller. The tick thread and the Wasm blocking pools run outside the
+/// runtime, and a runtime worker moves aside first.
 fn load_chunk_for_explosion(world: &World, chunk_pos: Vector2<i32>) -> Option<Arc<ChunkData>> {
     if let Some(chunk) = world
         .level
@@ -130,14 +132,22 @@ fn load_chunk_for_explosion(world: &World, chunk_pos: Vector2<i32>) -> Option<Ar
         return Some(chunk);
     }
     let handle = world.level.rt_handle.get()?;
-    let fetch = world
-        .level
-        .get_or_fetch_chunk(chunk_pos, std::clone::Clone::clone);
-    if tokio::runtime::Handle::try_current().is_ok() {
-        Some(tokio::task::block_in_place(|| handle.block_on(fetch)))
-    } else {
-        Some(handle.block_on(fetch))
+    let fetch = || {
+        world
+            .level
+            .get_or_fetch_chunk(chunk_pos, std::clone::Clone::clone)
+    };
+    let Ok(current) = tokio::runtime::Handle::try_current() else {
+        return Some(handle.block_on(fetch()));
+    };
+    // `block_in_place` and `Handle::block_on` both panic on a current-thread runtime, and
+    // the chunk system's IO tasks need that runtime to drive them, so a single-threaded
+    // caller keeps the sync read's air fallback instead of deadlocking.
+    if current.runtime_flavor() == tokio::runtime::RuntimeFlavor::CurrentThread {
+        tracing::debug!("Explosion chunk force-load skipped on a current-thread runtime");
+        return None;
     }
+    Some(tokio::task::block_in_place(|| handle.block_on(fetch())))
 }
 
 /// Default explosion damage calculator implementing vanilla standard explosion rules.
@@ -825,6 +835,41 @@ impl<'a> Explosion<'a> {
         }
     }
 
+    fn fire_explode_event(
+        &self,
+        world: &Arc<World>,
+        event_blocks: Vec<BlockPos>,
+        default_yield: f32,
+    ) -> (bool, f32, Vec<BlockPos>) {
+        if let Some(source) = self.source {
+            let mut event =
+                crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
+                    source.get_entity().entity_id,
+                    self.pos,
+                    event_blocks,
+                    default_yield,
+                    world.clone(),
+                );
+            if let Some(server) = world.server.upgrade() {
+                server.plugin_manager.fire_blocking(&server, &mut event);
+            }
+            (event.cancelled, event.yield_rate, event.blocks)
+        } else {
+            let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
+            let mut event =
+                crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
+                    center_pos,
+                    event_blocks,
+                    default_yield,
+                    world.clone(),
+                );
+            if let Some(server) = world.server.upgrade() {
+                server.plugin_manager.fire_blocking(&server, &mut event);
+            }
+            (event.cancelled, event.yield_rate, event.blocks)
+        }
+    }
+
     fn explode_with_fire_roll(&self, world: &Arc<World>, mut fire_roll: impl FnMut() -> u8) -> u32 {
         match self.block_interaction {
             BlockInteraction::Keep => {
@@ -868,33 +913,8 @@ impl<'a> Explosion<'a> {
                     0.0
                 };
                 let event_blocks: Vec<BlockPos> = blocks.keys().copied().collect();
-                let (cancelled, yield_rate, allowed) = if let Some(source) = self.source {
-                    let mut event =
-                        crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
-                            source.get_entity().entity_id,
-                            self.pos,
-                            event_blocks,
-                            default_yield,
-                            world.clone(),
-                        );
-                    if let Some(server) = world.server.upgrade() {
-                        server.plugin_manager.fire_blocking(&server, &mut event);
-                    }
-                    (event.cancelled, event.yield_rate, event.blocks)
-                } else {
-                    let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
-                    let mut event =
-                        crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
-                            center_pos,
-                            event_blocks,
-                            default_yield,
-                            world.clone(),
-                        );
-                    if let Some(server) = world.server.upgrade() {
-                        server.plugin_manager.fire_blocking(&server, &mut event);
-                    }
-                    (event.cancelled, event.yield_rate, event.blocks)
-                };
+                let (cancelled, yield_rate, allowed) =
+                    self.fire_explode_event(world, event_blocks, default_yield);
 
                 // Vanilla BlockBehaviour.dropResources feeds 1/yield into the explosion_radius
                 // loot parameter, and only when yield is below 1.
@@ -1226,7 +1246,7 @@ mod tests {
         let drop = BlockPos::new(4, 5, 6);
         let mut blocks = FxHashMap::default();
         blocks.insert(keep, (&Block::STONE, Block::STONE.default_state));
-        blocks.insert(drop, (Block::DIRT, Block::DIRT.default_state));
+        blocks.insert(drop, (&Block::DIRT, Block::DIRT.default_state));
         let allowed: FxHashSet<_> = [keep].into_iter().collect();
 
         let filtered = filter_destroyed_blocks(blocks, &allowed);

@@ -1175,6 +1175,20 @@ impl EntityPredicate {
     }
 
     #[must_use]
+    fn equipment_from_value(val: &Value) -> Vec<(String, ItemPredicate)> {
+        val.get("minecraft:equipment")
+            .or_else(|| val.get("equipment"))
+            .and_then(Value::as_object)
+            .map(|slots| {
+                slots
+                    .iter()
+                    .map(|(slot, pred)| (slot.clone(), ItemPredicate::from_value(pred)))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[must_use]
     pub fn from_value(val: &Value) -> Self {
         let pred_val = val.get("predicate").unwrap_or(val);
         let Value::Object(map) = pred_val else {
@@ -1261,17 +1275,7 @@ impl EntityPredicate {
             .or_else(|| map.get("effects"))
             .map(MobEffectsPredicate::from_value);
 
-        let equipment = map
-            .get("minecraft:equipment")
-            .or_else(|| map.get("equipment"))
-            .and_then(Value::as_object)
-            .map(|slots| {
-                slots
-                    .iter()
-                    .map(|(slot, pred)| (slot.clone(), ItemPredicate::from_value(pred)))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let equipment = Self::equipment_from_value(pred_val);
 
         // Vanilla expresses "not wearing piglin safe armor" as an inverted loot condition
         // over an equipment predicate; detect that shape instead of scanning the whole JSON.
@@ -1316,11 +1320,10 @@ impl DamageTypeTagPredicate {
 
     #[must_use]
     pub fn matches(&self, damage_type: &DamageType) -> bool {
-        let member = if let Some(name) = self.tag.strip_prefix('#') {
-            damage_type.is_tagged_with(name).unwrap_or(false)
-        } else {
-            matches_id(&self.tag, damage_type.message_id)
-        };
+        let member = self.tag.strip_prefix('#').map_or_else(
+            || matches_id(&self.tag, damage_type.message_id),
+            |name| damage_type.is_tagged_with(name).unwrap_or(false),
+        );
         member == self.expected
     }
 }
@@ -1725,10 +1728,8 @@ pub struct BredAnimalsPredicate {
 }
 
 impl BredAnimalsPredicate {
-    fn matches_role(predicate: &Option<EntityPredicate>, entity_type: &str) -> bool {
-        predicate
-            .as_ref()
-            .is_none_or(|p| p.matches(entity_type, None, None))
+    fn matches_role(predicate: Option<&EntityPredicate>, entity_type: &str) -> bool {
+        predicate.is_none_or(|p| p.matches(entity_type, None, None))
     }
 
     #[must_use]
@@ -1738,10 +1739,10 @@ impl BredAnimalsPredicate {
         let child_ok = self.child.as_ref().is_none_or(|c| {
             child_type.is_some_and(|entity_type| c.matches(entity_type, None, None))
         });
-        let parents_ok = (Self::matches_role(&self.parent, parent_type)
-            && Self::matches_role(&self.partner, partner_type))
-            || (Self::matches_role(&self.parent, partner_type)
-                && Self::matches_role(&self.partner, parent_type));
+        let parents_ok = (Self::matches_role(self.parent.as_ref(), parent_type)
+            && Self::matches_role(self.partner.as_ref(), partner_type))
+            || (Self::matches_role(self.parent.as_ref(), partner_type)
+                && Self::matches_role(self.partner.as_ref(), parent_type));
         child_ok && parents_ok
     }
 

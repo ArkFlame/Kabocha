@@ -339,6 +339,10 @@ pub fn capture_structure_template_from_world(
     template
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "vanilla structure save needs capture and storage parameters together"
+)]
 pub fn save_structure_from_world(
     world: &World,
     raw_identifier: &str,
@@ -1002,6 +1006,34 @@ impl BlockEntity for StructureBlockBlockEntity {
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         // Blocking lock like the getters: transient contention must not drop the whole payload.
         let mut nbt = NbtCompound::new();
+        self.write_string_fields(&mut nbt);
+        self.write_int_fields(&mut nbt);
+        self.write_bool_fields(&mut nbt);
+        self.write_number_fields(&mut nbt);
+        Some(nbt)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.dirty.load(Ordering::Relaxed)
+    }
+
+    fn clear_dirty(&self) {
+        self.dirty.store(false, Ordering::Relaxed);
+    }
+
+    fn on_nbt_loaded(&self, world: &Arc<World>, _previous: Option<&dyn BlockEntity>) {
+        self.sync_block_state_mode(world);
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl StructureBlockBlockEntity {
+    pub const ID: &'static str = "minecraft:structure_block";
+
+    fn write_string_fields(&self, nbt: &mut NbtCompound) {
         nbt.put_string(
             "name",
             self.name
@@ -1023,6 +1055,30 @@ impl BlockEntity for StructureBlockBlockEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone(),
         );
+        nbt.put_string(
+            "rotation",
+            self.rotation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "mirror",
+            self.mirror
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        nbt.put_string(
+            "mode",
+            self.mode
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+    }
+
+    fn write_int_fields(&self, nbt: &mut NbtCompound) {
         nbt.put_int(
             "posX",
             *self
@@ -1065,27 +1121,9 @@ impl BlockEntity for StructureBlockBlockEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        nbt.put_string(
-            "rotation",
-            self.rotation
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone(),
-        );
-        nbt.put_string(
-            "mirror",
-            self.mirror
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone(),
-        );
-        nbt.put_string(
-            "mode",
-            self.mode
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone(),
-        );
+    }
+
+    fn write_bool_fields(&self, nbt: &mut NbtCompound) {
         nbt.put_bool(
             "ignoreEntities",
             *self
@@ -1121,6 +1159,9 @@ impl BlockEntity for StructureBlockBlockEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
+    }
+
+    fn write_number_fields(&self, nbt: &mut NbtCompound) {
         nbt.put_float(
             "integrity",
             *self
@@ -1135,28 +1176,7 @@ impl BlockEntity for StructureBlockBlockEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        Some(nbt)
     }
-
-    fn is_dirty(&self) -> bool {
-        self.dirty.load(Ordering::Relaxed)
-    }
-
-    fn clear_dirty(&self) {
-        self.dirty.store(false, Ordering::Relaxed);
-    }
-
-    fn on_nbt_loaded(&self, world: &Arc<World>, _previous: Option<&dyn BlockEntity>) {
-        self.sync_block_state_mode(world);
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl StructureBlockBlockEntity {
-    pub const ID: &'static str = "minecraft:structure_block";
 
     #[must_use]
     pub fn new(position: BlockPos) -> Self {

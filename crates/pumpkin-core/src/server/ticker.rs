@@ -61,7 +61,7 @@ impl EmptyTickClock {
         self.ticks == threshold_ticks
     }
 
-    const fn paused(&self, threshold_ticks: i32) -> bool {
+    const fn paused(self, threshold_ticks: i32) -> bool {
         threshold_ticks > 0 && self.ticks >= threshold_ticks
     }
 }
@@ -135,13 +135,7 @@ impl Ticker {
             let profile_tick = pumpkin_profiler::cpu::tick(this_tick_nanos.max(0) as u64);
             manager.tick();
 
-            let tick_number = server.tick_count.load(Ordering::Relaxed);
-            if server.plugin_manager.has_handlers::<ServerTickStartEvent>() {
-                server.plugin_manager.fire_blocking(
-                    server,
-                    &mut ServerTickStartEvent::new(tick_event_number(tick_number)),
-                );
-            }
+            fire_tick_start_event(server);
 
             if paused {
                 if pause_crossing {
@@ -209,6 +203,17 @@ impl Ticker {
         }
 
         debug!("Ticker stopped");
+    }
+}
+
+/// Fires the start-of-tick plugin event when handlers are registered.
+fn fire_tick_start_event(server: &Server) {
+    if server.plugin_manager.has_handlers::<ServerTickStartEvent>() {
+        let tick_number = server.tick_count.load(Ordering::Relaxed);
+        server.plugin_manager.fire_blocking(
+            server,
+            &mut ServerTickStartEvent::new(tick_event_number(tick_number)),
+        );
     }
 }
 

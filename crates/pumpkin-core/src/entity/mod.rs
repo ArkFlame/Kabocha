@@ -5840,7 +5840,7 @@ impl Entity {
         let Some(holder_weak) = holder_weak else {
             return LeashTick::NotLeashed;
         };
-        let holder = if let Some(holder) = holder_weak.upgrade() { holder } else {
+        let Some(holder) = holder_weak.upgrade() else {
             // Vanilla `Leashable.tickLeash` drops the lead when the holder is gone. The
             // holder is a `Weak` here, so its Arc can be freed before this tick; clear the
             // leash and refund the lead so mobs are not left tied to a stale holder.

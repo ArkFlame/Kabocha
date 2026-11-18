@@ -42,14 +42,14 @@ impl ProjectileWeaponItem {
 
     /// Creates a projectile matching vanilla `ProjectileWeaponItem::createProjectile`.
     pub fn create_projectile(
-        world: Arc<World>,
+        world: &Arc<World>,
         shooter: &Entity,
         weapon: &ItemStack,
         projectile: &ItemStack,
         is_crit: bool,
     ) -> ArrowEntity {
         let arrow_entity = Entity::new(
-            world.clone(),
+            Arc::clone(world),
             shooter.pos.load(),
             ArrowEntity::entity_type_for_item(projectile.item),
         );
@@ -196,8 +196,7 @@ impl ProjectileWeaponItem {
                 let rocket_arc: Arc<dyn EntityBase> = Arc::new(rocket);
                 world.spawn_entity(rocket_arc);
             } else {
-                let arrow =
-                    Self::create_projectile(world.clone(), shooter, weapon, projectile, is_crit);
+                let arrow = Self::create_projectile(world, shooter, weapon, projectile, is_crit);
                 arrow.set_velocity_from_rotation(pitch, yaw + angle, 0.0, power, uncertainty);
                 let arrow_arc: Arc<dyn EntityBase> = Arc::new(arrow);
                 world.spawn_entity(arrow_arc);

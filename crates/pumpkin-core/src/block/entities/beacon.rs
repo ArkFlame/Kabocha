@@ -509,7 +509,7 @@ impl BlockEntity for BeaconBlockEntity {
             {
                 let mut beam = self.beam_state();
                 let checking = std::mem::take(&mut beam.checking);
-                beam.sections = checking
+                beam.sections = checking;
             };
             let was_active = previous_levels > 0;
             let levels = self.levels.load(Ordering::Relaxed);

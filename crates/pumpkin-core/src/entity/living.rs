@@ -1587,6 +1587,10 @@ impl LivingEntity {
         }
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers across crates pass an owned Effect"
+    )]
     pub fn add_effect(&self, effect: Effect) {
         if !self.can_be_affected(&effect) {
             return;
@@ -4199,6 +4203,10 @@ impl LivingEntity {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "mirrors the vanilla damage pipeline as one linear sequence"
+    )]
     pub fn damage_with_context(
         &self,
         caller: &dyn EntityBase,

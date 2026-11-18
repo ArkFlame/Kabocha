@@ -169,8 +169,9 @@ impl BowItem {
         projectile: &ItemStack,
         is_crit: bool,
     ) -> ArrowEntity {
+        let world = player.world();
         ProjectileWeaponItem::create_projectile(
-            player.world(),
+            &world,
             player.get_entity(),
             weapon,
             projectile,

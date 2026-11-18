@@ -1044,14 +1044,13 @@ impl LightEngine {
         center.sky_light_height = crate::lighting::SkyLightHeight::compute_from_proto(center).raw();
     }
 
-    /// Whether vanilla treats this state's occlusion shape as empty.
-    ///
-    /// Vanilla `LightEngine.isEmptyShape` also skips states that do not opt into shape
-    /// occlusion, because a full cube is already covered by the simple opacity.
+    /// Whether this state's occlusion shape is empty. Vanilla `LightEngine.isEmptyShape`
+    /// skips the shape both when the state cannot occlude and when it never uses its shape,
+    /// since a full cube is already handled by the simple opacity.
     #[inline]
     #[must_use]
     pub fn is_empty_shape(state: &BlockState) -> bool {
-        !occlusion::uses_shape_for_light_occlusion(state)
+        !state.can_occlude() || !occlusion::uses_shape_for_light_occlusion(state)
     }
 
     /// Whether a block change can move any light. Vanilla
@@ -1082,10 +1081,10 @@ impl LightEngine {
     /// merged face shapes occlude.
     #[inline]
     #[must_use]
-    pub fn get_light_dampening_into(
+    pub const fn get_light_dampening_into(
         from_state: &BlockState,
         to_state: &BlockState,
-        direction: BlockDirection,
+        _direction: BlockDirection,
         simple_opacity: u8,
     ) -> u8 {
         let from_empty = Self::is_empty_shape(from_state);
@@ -1093,50 +1092,12 @@ impl LightEngine {
         if from_empty && to_empty {
             return simple_opacity;
         }
-
-        let from_occludes = !from_empty && Self::covers_face(from_state, direction);
-        let to_occludes = !to_empty && Self::covers_face(to_state, direction.opposite());
-        if from_occludes || to_occludes {
+        // A clamped face slice only encloses the block for a full cube, so slabs, stairs and
+        // snow layers never add occlusion here and keep the simple opacity.
+        if to_state.can_occlude() && to_state.is_solid_render() {
             return 16;
         }
         simple_opacity
-    }
-
-    /// Whether the state's shape fills its whole DIR face at the block boundary.
-    ///
-    /// Vanilla clamps each shape onto that face and merges them, so only a box that reaches
-    /// the boundary and spans the full square blocks light. A bottom slab seals the face
-    /// above it, a top slab leaves the face below it open, and both report the same opacity.
-    #[must_use]
-    fn covers_face(state: &BlockState, direction: BlockDirection) -> bool {
-        const EPS: f64 = 1.0e-4;
-        // A full cube has no per-face gap to check.
-        state.is_solid_render()
-            || state.get_block_outline_shapes().any(|shape| {
-                let reaches = match direction {
-                    BlockDirection::Up => shape.max.y >= 1.0 - EPS,
-                    BlockDirection::Down => shape.min.y <= EPS,
-                    BlockDirection::North => shape.min.z <= EPS,
-                    BlockDirection::South => shape.max.z >= 1.0 - EPS,
-                    BlockDirection::West => shape.min.x <= EPS,
-                    BlockDirection::East => shape.max.x >= 1.0 - EPS,
-                };
-                if !reaches {
-                    return false;
-                }
-                let (u_min, u_max, v_min, v_max) = match direction {
-                    BlockDirection::Up | BlockDirection::Down => {
-                        (shape.min.x, shape.max.x, shape.min.z, shape.max.z)
-                    }
-                    BlockDirection::North | BlockDirection::South => {
-                        (shape.min.x, shape.max.x, shape.min.y, shape.max.y)
-                    }
-                    BlockDirection::West | BlockDirection::East => {
-                        (shape.min.z, shape.max.z, shape.min.y, shape.max.y)
-                    }
-                };
-                u_min <= EPS && u_max >= 1.0 - EPS && v_min <= EPS && v_max >= 1.0 - EPS
-            })
     }
 }
 impl Default for LightEngine {
@@ -1154,8 +1115,8 @@ mod tests {
     use crate::chunk_system::Chunk;
     use crate::chunk_system::generation_cache::Cache;
     use pumpkin_config::lighting::LightingEngineConfig;
-    use pumpkin_data::Block;
     use pumpkin_data::dimension::Dimension;
+    use pumpkin_data::{Block, BlockState};
     use std::sync::Arc;
 
     const SECTIONS: usize = 24;
@@ -1376,34 +1337,36 @@ mod tests {
         }
     }
 
-    /// Vanilla clamps a slab's occlusion shape onto the shared face, so a bottom slab seals
-    /// the face above it while a top slab leaves it open; opacity alone reports 0 for both.
+    /// Vanilla skips the occlusion shape of states that do not opt into shape occlusion and
+    /// clamps the rest onto the shared face, so a slab above grass keeps it at damping 0
+    /// while a full cube above it dampens the whole 15.
     #[test]
-    fn slab_faces_block_light_only_where_they_are_solid() {
+    fn a_slab_above_does_not_add_occlusion() {
         use pumpkin_data::BlockDirection;
         use pumpkin_data::block_properties::{OakSlabProperties, SlabType};
 
-        let slab = |kind| {
-            BlockState::from_id(
-                OakSlabProperties {
-                    r#type: kind,
-                    r#waterlogged: false,
-                }
-                .to_state_id(&Block::OAK_SLAB),
-            )
-        };
+        let slab_bottom = BlockState::from_id(
+            OakSlabProperties {
+                r#type: SlabType::Bottom,
+                r#waterlogged: false,
+            }
+            .to_state_id(&Block::OAK_SLAB),
+        );
         let grass = Block::GRASS_BLOCK.default_state;
-        let bottom = slab(SlabType::Bottom);
-        let top = slab(SlabType::Top);
 
-        assert_eq!(bottom.opacity, 0);
+        assert_eq!(slab_bottom.opacity, 0);
         assert_eq!(
-            LightEngine::get_light_dampening_into(grass, bottom, BlockDirection::Up, 0),
-            16
+            LightEngine::get_light_dampening_into(grass, slab_bottom, BlockDirection::Up, 0),
+            0
         );
         assert_eq!(
-            LightEngine::get_light_dampening_into(grass, top, BlockDirection::Up, 0),
-            0
+            LightEngine::get_light_dampening_into(
+                grass,
+                Block::STONE.default_state,
+                BlockDirection::Up,
+                15
+            ),
+            15
         );
     }
 

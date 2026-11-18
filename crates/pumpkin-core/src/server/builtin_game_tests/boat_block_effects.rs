@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use pumpkin_data::Block;
 use pumpkin_gametest::{GameTestHelper, GameTestResult};
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
@@ -171,6 +173,9 @@ pub(super) async fn test_boat_floats_up_after_fall(helper: GameTestHelper) -> Ga
 pub(super) async fn test_boat_ejects_passenger_after_60_underwater_ticks(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {
+    const RIDING: &str =
+        "execute as @e[type=minecraft:armor_stand,distance=..4] on vehicle if entity @s";
+
     // Floor one block below the structure so the boat rests in water even at the bottom,
     // keeping it submerged for the whole countdown instead of switching to ON_LAND.
     for x in 0..5 {
@@ -206,9 +211,6 @@ pub(super) async fn test_boat_ejects_passenger_after_60_underwater_ticks(
         )
         .await?;
 
-    const RIDING: &str =
-        "execute as @e[type=minecraft:armor_stand,distance=..4] on vehicle if entity @s";
-
     helper
         .start_sequence()
         .then_execute(move |helper| async move {
@@ -239,7 +241,7 @@ pub(super) async fn test_chest_boat_scatters_27_slots_on_break(
         if slot > 0 {
             items.push(',');
         }
-        items.push_str(&format!("{{Slot:{slot}b,id:\"minecraft:stone\"}}"));
+        let _ = write!(items, "{{Slot:{slot}b,id:\"minecraft:stone\"}}");
     }
     items.push(']');
     let summon = format!("summon minecraft:oak_chest_boat ~2 ~2 ~2 {{{items}}}");
@@ -290,7 +292,7 @@ pub(super) async fn test_acacia_chest_boat_contents_and_item_drop(
         if slot > 0 {
             items.push(',');
         }
-        items.push_str(&format!("{{Slot:{slot}b,id:\"minecraft:diamond\"}}"));
+        let _ = write!(items, "{{Slot:{slot}b,id:\"minecraft:diamond\"}}");
     }
     items.push(']');
     let summon = format!("summon minecraft:acacia_chest_boat ~2 ~2 ~2 {{{items}}}");

@@ -632,9 +632,10 @@ fn read_extended_entity_slot(
         return read_player_menu_slot(player, mojang_slot);
     }
     if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse())
-        && let Some(stack) = read_horse_slot(horse, mojang_slot) {
-            return Some(stack);
-        }
+        && let Some(stack) = read_horse_slot(horse, mojang_slot)
+    {
+        return Some(stack);
+    }
     if let Some(stack) = read_mob_slot(target, mojang_slot) {
         return Some(stack);
     }
@@ -650,9 +651,10 @@ fn write_extended_entity_slot(
         return write_player_menu_slot(player, mojang_slot, item_stack);
     }
     if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse())
-        && write_horse_slot(horse, mojang_slot, item_stack) {
-            return true;
-        }
+        && write_horse_slot(horse, mojang_slot, item_stack)
+    {
+        return true;
+    }
     if write_mob_slot(target, mojang_slot, item_stack) {
         return true;
     }
@@ -912,42 +914,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                         }
                     }
                 }
-                "enchant_randomly" => {
-                    let candidates: Vec<&'static Enchantment> = match function.get("options") {
-                        Some(tag) => tag
-                            .extract_list()
-                            .unwrap_or(&[])
-                            .iter()
-                            .filter_map(NbtTag::extract_string)
-                            .filter_map(|name| {
-                                Enchantment::from_name(
-                                    name.strip_prefix("minecraft:").unwrap_or(name),
-                                )
-                            })
-                            .collect(),
-                        None => Enchantment::ALL.to_vec(),
-                    };
-                    if candidates.is_empty() {
-                        return;
-                    }
-                    let only_compatible = function.get_bool("only_compatible").unwrap_or(true);
-                    let is_book = stack.item.id == Item::BOOK.id;
-                    let compatible: Vec<&'static Enchantment> = candidates
-                        .into_iter()
-                        .filter(|enc| is_book || !only_compatible || enc.can_enchant(stack.item))
-                        .collect();
-                    if compatible.is_empty() {
-                        return;
-                    }
-                    let picked = compatible[rand::rng().random_range(0..compatible.len())];
-                    let level = rand::rng().random_range(1..=picked.max_level.max(1));
-                    if is_book {
-                        stack.item = &Item::ENCHANTED_BOOK;
-                        set_stored_enchantment_level(stack, picked, level, true);
-                    } else {
-                        set_enchantment_level(stack, picked, level, true);
-                    }
-                }
+                "enchant_randomly" => enchant_randomly(stack, function),
                 "set_custom_model_data" => set_custom_model_data(stack, function),
                 "set_potion" => {
                     if let Some(id) = function.get_string("id") {
@@ -966,6 +933,43 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
             }
         }
         _ => {}
+    }
+}
+
+/// Applies the vanilla `EnchantRandomlyFunction`, picking one enchantment.
+fn enchant_randomly(stack: &mut ItemStack, function: &NbtCompound) {
+    let candidates: Vec<&'static Enchantment> = function.get("options").map_or_else(
+        || Enchantment::ALL.to_vec(),
+        |tag| {
+            tag.extract_list()
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(NbtTag::extract_string)
+                .filter_map(|name| {
+                    Enchantment::from_name(name.strip_prefix("minecraft:").unwrap_or(name))
+                })
+                .collect()
+        },
+    );
+    if candidates.is_empty() {
+        return;
+    }
+    let only_compatible = function.get_bool("only_compatible").unwrap_or(true);
+    let is_book = stack.item.id == Item::BOOK.id;
+    let compatible: Vec<&'static Enchantment> = candidates
+        .into_iter()
+        .filter(|enc| is_book || !only_compatible || enc.can_enchant(stack.item))
+        .collect();
+    if compatible.is_empty() {
+        return;
+    }
+    let picked = compatible[rand::rng().random_range(0..compatible.len())];
+    let level = rand::rng().random_range(1..=picked.max_level.max(1));
+    if is_book {
+        stack.item = &Item::ENCHANTED_BOOK;
+        set_stored_enchantment_level(stack, picked, level, true);
+    } else {
+        set_enchantment_level(stack, picked, level, true);
     }
 }
 

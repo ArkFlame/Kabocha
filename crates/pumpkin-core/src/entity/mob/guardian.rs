@@ -11,7 +11,7 @@ use pumpkin_util::{Difficulty, GameMode};
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::control::move_control::{MoveControl, Operation};
-use crate::entity::ai::control::{Control, LookControlTrait, MoveControlTrait};
+use crate::entity::ai::control::{Control, MoveControlTrait};
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::living::LivingEntity;
@@ -99,8 +99,8 @@ fn guardian_look_target(
     old: (f64, f64, f64),
     new: (f64, f64, f64),
 ) -> (f64, f64, f64) {
-    let (ox, oy, oz) = if looking_at_target { old } else { new };
     const LERP: f64 = 0.125;
+    let (ox, oy, oz) = if looking_at_target { old } else { new };
     (
         ox + LERP * (new.0 - ox),
         oy + LERP * (new.1 - oy),
@@ -196,7 +196,7 @@ impl Goal for GuardianAttackGoal {
 
         {
             let steered = mob.get_mob_entity().steered();
-            steered.navigator().stop()
+            steered.navigator().stop();
         };
         mob.get_mob_entity()
             .look_control
@@ -244,9 +244,10 @@ impl Goal for GuardianAttackGoal {
     }
 }
 
-/// Vanilla `Guardian.GuardianMoveControl`: swims toward the wanted position with a wave push,
-/// smoothly steers the head toward the travel direction, and marks the guardian as moving, which
-/// gates thorns reflection.
+/// Vanilla `Guardian.GuardianMoveControl` movement handling.
+///
+/// Swims toward the wanted position with a wave push, smoothly steers the head toward the travel
+/// direction, and marks the guardian as moving, which gates thorns reflection.
 pub struct GuardianMoveControl {
     inner: MoveControl,
     moving: Arc<AtomicBool>,

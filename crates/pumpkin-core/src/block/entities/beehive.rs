@@ -125,7 +125,6 @@ const fn front_offset(facing: Option<Property>) -> (f64, f64) {
     match facing {
         Some(Property::Facing(Facing::North)) => (0.0, -1.0),
         Some(Property::Facing(Facing::East)) => (1.0, 0.0),
-        Some(Property::Facing(Facing::South)) => (0.0, 1.0),
         Some(Property::Facing(Facing::West)) => (-1.0, 0.0),
         _ => (0.0, 1.0),
     }

@@ -120,9 +120,8 @@ impl BlockBehaviour for ButtonBlock {
                 let mut detection_box: Option<BoundingBox> = None;
                 for shape in state.get_block_outline_shapes_at(args.position) {
                     let shape = shape.at_pos(*args.position);
-                    detection_box = Some(match detection_box {
-                        None => shape,
-                        Some(current) => BoundingBox::new(
+                    detection_box = Some(detection_box.map_or(shape, |current| {
+                        BoundingBox::new(
                             Vector3::new(
                                 current.min.x.min(shape.min.x),
                                 current.min.y.min(shape.min.y),
@@ -133,8 +132,8 @@ impl BlockBehaviour for ButtonBlock {
                                 current.max.y.max(shape.max.y),
                                 current.max.z.max(shape.max.z),
                             ),
-                        ),
-                    });
+                        )
+                    }));
                 }
                 detection_box.is_some_and(|aabb| {
                     args.world

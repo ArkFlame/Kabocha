@@ -47,9 +47,10 @@ pub fn growable_positions(
         .collect()
 }
 
-/// Vanilla grows a crop by exactly one age (`CropBlock.getStateForAge(getAge + 1)`), also used
-/// for stems and sweet berry bush. Bone meal instead jumps several stages, so bees write the
-/// next age state directly.
+/// Grows a crop by exactly one age as vanilla does.
+///
+/// Vanilla uses `CropBlock.getStateForAge(getAge + 1)` for crops, stems and sweet berry bushes.
+/// Bone meal instead jumps several stages, so bees write the next age state directly.
 #[must_use]
 pub fn grown_state_id(block: &Block, state_id: BlockStateId) -> Option<BlockStateId> {
     // Cave vines have no age property: vanilla grows them through `performBonemeal` instead.

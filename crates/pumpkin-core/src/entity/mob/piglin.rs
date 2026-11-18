@@ -38,6 +38,7 @@ use crate::entity::{
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, crossbow_attack_mob::CrossbowAttackMob, piglin_ai::PiglinAi},
 };
+use crate::plugin::api::events::entity::entity_target::TargetReason;
 use crate::world::World;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,7 +137,7 @@ impl PiglinEntity {
                 2,
                 Box::new(
                     AvoidEntityGoal::new(TargetMatch::Type(&EntityType::HOGLIN), 8.0, 1.0, 1.2)
-                        .when(outnumbered_by_hoglins),
+                        .as_long_as(outnumbered_by_hoglins),
                 ),
             );
             goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.0, true)));
@@ -861,6 +862,22 @@ impl PiglinEntity {
         if attacker_entity.entity_type.id == EntityType::PLAYER.id {
             self.admiring_disabled_timer
                 .store(PiglinAi::ADMIRING_DISABLED_DURATION, Ordering::Relaxed);
+        }
+        // Vanilla `PiglinAi.wasHurtBy`: a grown piglin hit by a hoglin while hoglins
+        // outnumber piglins drops its target, stops walking and stops hunting hoglins.
+        if PiglinAi::should_retreat_from_hoglin(
+            self.is_baby(),
+            attacker_entity.entity_type,
+            PiglinAi::hoglins_outnumber_piglins(self),
+        ) {
+            <Self as Mob>::set_mob_target(self, None, TargetReason::Fleeing);
+            self.stop_walking();
+            self.hunt_cooldown_timer.store(
+                rand::random_range(
+                    PiglinAi::MIN_TIME_BETWEEN_HUNTS..=PiglinAi::MAX_TIME_BETWEEN_HUNTS,
+                ),
+                Ordering::Relaxed,
+            );
         }
     }
 

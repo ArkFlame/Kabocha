@@ -30,18 +30,14 @@ pub fn parse_recipe(namespace: &str, name: &str, json_str: &str) -> Option<Dynam
         // Vanilla registers exactly these crafting_special_* serializers; an unknown type
         // is rejected by RecipeSerializers. CustomRecipe.category() is always MISC and its
         // codec has no category field.
-        s if matches!(
-            s,
-            "crafting_special_bookcloning"
-                | "crafting_special_mapextending"
-                | "crafting_special_firework_rocket"
-                | "crafting_special_firework_star"
-                | "crafting_special_firework_star_fade"
-                | "crafting_special_bannerduplicate"
-                | "crafting_special_shielddecoration"
-                | "crafting_special_repairitem"
-        ) =>
-        {
+        "crafting_special_bookcloning"
+        | "crafting_special_mapextending"
+        | "crafting_special_firework_rocket"
+        | "crafting_special_firework_star"
+        | "crafting_special_firework_star_fade"
+        | "crafting_special_bannerduplicate"
+        | "crafting_special_shielddecoration"
+        | "crafting_special_repairitem" => {
             Some(DynamicRecipe::SpecialCrafting(OwnedSpecialCraftingRecipe {
                 recipe_id,
                 category: RecipeCategoryTypes::Misc,

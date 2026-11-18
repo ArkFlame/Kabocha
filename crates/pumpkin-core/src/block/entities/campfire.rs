@@ -93,10 +93,6 @@ impl BlockEntity for CampfireBlockEntity {
         Some(build_campfire_actor(self.position, &items))
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "campfire tick keeps vanilla ordering in one body"
-    )]
     fn tick(&self, world: &Arc<World>) {
         let block = world.get_block(&self.position);
         if block != &Block::CAMPFIRE && block != &Block::SOUL_CAMPFIRE {

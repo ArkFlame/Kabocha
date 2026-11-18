@@ -213,7 +213,7 @@ mod tests {
     // a dummy source suffices for these unit tests.
     fn dummy_context<R>(f: impl FnOnce(&CommandContext<'_>) -> R) -> R {
         let dispatcher = CommandDispatcher::new();
-        let mut builder = CommandContextBuilder::new(
+        let builder = CommandContextBuilder::new(
             &dispatcher,
             Arc::new(CommandSource::dummy()),
             ROOT_NODE_ID,

@@ -2501,14 +2501,14 @@ impl World {
         // that chunk needs a light packet too or clients keep stale light.
         let chunk_x = position.0.x >> 4;
         let chunk_z = position.0.z >> 4;
-        let x_chunks = if (position.0.x & 15) == 0 {
+        let x_chunks = if position.0.x.trailing_zeros() >= 4 {
             [chunk_x - 1, chunk_x]
         } else if (position.0.x & 15) == 15 {
             [chunk_x, chunk_x + 1]
         } else {
             [chunk_x, chunk_x]
         };
-        let z_chunks = if (position.0.z & 15) == 0 {
+        let z_chunks = if position.0.z.trailing_zeros() >= 4 {
             [chunk_z - 1, chunk_z]
         } else if (position.0.z & 15) == 15 {
             [chunk_z, chunk_z + 1]

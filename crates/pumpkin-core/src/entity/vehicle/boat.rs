@@ -67,6 +67,8 @@ const fn paddle_sound_for_status(status: BoatStatus) -> Option<Sound> {
     }
 }
 
+/// Checks whether an entity type is a chest boat.
+///
 /// Vanilla distinguishes `ChestBoat` from Boat by class. Generated entity resource names
 /// carry that distinction in the _`chest_boat` / `bamboo_chest_raft` suffix, so a new wood
 /// needs no extra allow-list entry here.
@@ -106,6 +108,8 @@ pub fn boat_drop_item(entity_type: &EntityType) -> Option<&'static Item> {
         .or_else(|| Item::from_registry_key(entity_type.resource_name))
 }
 
+/// Reports whether destroying a boat drops its item.
+///
 /// Vanilla `VehicleEntity.hurtServer`: an instabuild hit discards the boat without calling
 /// `destroy`, so no item drops even when it carries a custom name (a name is only copied in the
 /// non-creative `destroy` path).
@@ -150,6 +154,10 @@ enum BoatInteractOutcome {
 /// out-of-control counter and an existing vehicle gate `startRiding`, so neither may make a
 /// chest boat open its container on a plain use.
 #[must_use]
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "pure mirror of the vanilla interact chain; each bool is a distinct vanilla condition"
+)]
 const fn boat_interact_outcome(
     secondary_use: bool,
     out_of_control: bool,
@@ -908,22 +916,25 @@ impl EntityBase for BoatEntity {
             rider.entity_id,
         );
         rider.body_yaw.store(body_yaw);
-        let adjustment = if let Some(mob) = passenger.get_mob() {
-            // Vanilla sets the mob yaw to the hull heading and returns zero, then clamps its head.
-            rider.yaw.store(body_yaw);
-            rider.head_yaw.store(clamp_head_to_body(
-                rider.head_yaw.load(),
-                body_yaw,
-                mob.get_max_head_rotation(),
-            ));
-            0.0
-        } else {
-            let yaw = rider.yaw.load();
-            let clamped = clamp_rider_yaw(yaw, body_yaw);
-            rider.yaw.store(clamped);
-            rider.head_yaw.store(clamped);
-            rider_clamp_adjustment(yaw, body_yaw)
-        };
+        let adjustment = passenger.get_mob().map_or_else(
+            || {
+                let yaw = rider.yaw.load();
+                let clamped = clamp_rider_yaw(yaw, body_yaw);
+                rider.yaw.store(clamped);
+                rider.head_yaw.store(clamped);
+                rider_clamp_adjustment(yaw, body_yaw)
+            },
+            |mob| {
+                // Vanilla sets the mob yaw to the hull heading and returns zero, then clamps its head.
+                rider.yaw.store(body_yaw);
+                rider.head_yaw.store(clamp_head_to_body(
+                    rider.head_yaw.load(),
+                    body_yaw,
+                    mob.get_max_head_rotation(),
+                ));
+                0.0
+            },
+        );
         rider.y_rot_o.store(rider.y_rot_o.load() + adjustment);
     }
 
