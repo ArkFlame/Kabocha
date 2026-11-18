@@ -98,3 +98,23 @@ Helper paths, struct initializers and method references (`get_attribute_value`,
 `get_block_speed_factor`, `get_looking_vector`, `add_velocity`,
 `player_jump_pending_scale`) were re-checked against the Worker compile pitfalls
 table and all resolve in-tree. No unwrap/expect/panic or stdout added.
+
+## Result (third pass 2026-11-18, cross-file now permitted)
+
+| # | Result |
+|---...|
+| 6 | VERIFIED, no change needed. Whole-tree search finds `SoundEvents.NAUTILUS_RIDING` only registered (`SoundEvents.java:139`, `.vendor/vanilla-decompiled/net/minecraft/sounds/SoundEvents.java`), never played. `AbstractNautilus.tick()` (`.vendor/.../world/entity/animal/nautilus/AbstractNautilus.java:300-320`) calls only `applyEffects`, dash-stop, cooldown decrement and `spawnBubbles`; the riding loop that plays this sound is client code and is not vendored. Pumpkin correctly does not play it server-side, so there is no seam to fix. |
+| 2 | FIXED (was a VERIFIED row with an out-of-unit NOTE). Vanilla `AbstractNautilus.executeRidersJump` (`AbstractNautilus.java:348-356`) dashes along `controller.getLookAngle()` (the rider's look), but `handle_rider_start_jump` used the mount's `get_looking_vector()` (half the rider pitch after `getRiddenRotation`). Both `nautilus.rs` and `zombie_nautilus.rs` now derive the dash direction from the controlling passenger: `self.saddled_controlling_passenger(None).map_or_else(|| entity.get_looking_vector(), |rider| rider.get_looking_vector())`. No shared-file or trait-signature change was required, so `mob/mod.rs` and `player.rs` stay untouched. |
+
+Row 3's NOTE (the unused `NautilusInventoryScreenHandler`) is a client GUI effect: vanilla
+`AbstractNautilus.openCustomInventoryScreen` (`AbstractNautilus.java:508-513`) opens a
+zero-column mount screen on tame shift-right-click. Per AGENTS.md, GUI/screen wiring is
+non-blocking and is left as documented; the vanilla inventory size is 0
+(`AbstractNautilus.getInventoryColumns()` -> `AbstractMountInventoryMenu.getInventorySize(0)` =
+0), so there is no server state in that screen to persist.
+
+Rows 1, 3, 4, 5, 7, 8 and 9 remain as recorded in the previous Result sections (all
+VERIFIED/FIXED). Helper paths, closure param inference and the `map_or_else` call were
+re-checked against the Worker compile pitfalls table; no new imports, struct initializers,
+unwrap/expect/panic or em dashes were added. Not compiled here (worker shell denied);
+the orchestrator compiles once after all workers finish.
