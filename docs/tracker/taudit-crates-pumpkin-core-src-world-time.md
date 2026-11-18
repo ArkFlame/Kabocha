@@ -164,3 +164,46 @@ is_dark_outside()` with the `Timelines.java` window (12600..23401); row 3's
 `SleepWakeMarker` matches `ClockTimeMarker.resolveTimeToMoveTo`; row 4 persists
 `world_clocks` with a round-trip test; row 6 carries the per-player day time in
 `send_game_time_sync`; row 7's `default_clock_id` matches `WorldClocks.bootstrap`.
+
+
+## Result (third pass, final verification)
+
+The only row carried forward from the last pass was the residue of row 5: the
+environment-attribute timeline tracks. That subsystem is now present and wired,
+so no source edits were needed in this pass. Verified against decompiled vanilla
+under `.vendor/vanilla-decompiled/net/minecraft/`.
+
+| # | Verdict | Vanilla evidence / one-line reason |
+|---|---------|-------------------------------------|
+| 5 | FIXED / VERIFIED | Environment-attribute timeline tracks are implemented in `world/environment.rs` and wired through `World`; the clock-name registry, `/time set <timemarker>` and `of <clock>` already exist in `world/time.rs` and `command/commands/time.rs`. Matches `world/timeline/Timelines.java`, `util/KeyframeTrackSampler.java`, `world/attribute/EnvironmentAttributeSystem.java` and `world/attribute/WeatherAttributes.java`. |
+
+Verification detail:
+- The generated keyframe tables in `pumpkin-data/src/generated/environment_attribute.rs`
+  (`DayTimeline`, `MoonTimeline`, `VillagerScheduleTimeline`, `EarlyGameTimeline`)
+  match `world/timeline/Timelines.java` line for line: sky-light-level
+  133/1.0, 11867/1.0, 13670/0.26666668, 22330/0.26666668; monsters-burn
+  12542/false, 23460/true; bees-stay-in-hive 12542/true, 23460/false;
+  creaking-active and eyeblossom-open 12600/true, 23401/false; cat-gift
+  362/0.0, 23667/0.7; slime-spawn moon-brightness rules; moon phases and
+  villager activities.
+- `world/environment.rs` `sample_float_track` / `sample_bool_track` /
+  `sample_step_float_track` / `sample_moon_phase_track` /
+  `sample_activity_track` reproduce the cyclic wrap-around segments and step
+  semantics of `util/KeyframeTrackSampler.sample` and `KeyframeTrack.bakeSegments`.
+- `apply_weather_sky_light` matches `WeatherAttributes.addBuiltinLayers`
+  (`FloatWithAlpha(4.0, 0.3125)` rain, `(4.0, 0.52734375)` thunder, rain-scaled
+  thunder); bit-exact cases are covered by
+  `daylight_detector_sky_light_matches_vanilla_steady_weather` and
+  `daylight_detector_sky_light_matches_vanilla_thunder_transitions`.
+- `World::environment_attributes`, `get_sky_darken`, `is_bright_outside`,
+  `is_dark_outside`, `monsters_burn`, `bees_stay_in_hive`, `creaking_active`
+  and `eyeblossom_open` wire the attributes into daylight detectors, mob
+  burning, beehives, villager AI, moon phase and villager activities.
+- In-unit `ServerClockManager` keeps one `ClockInstance` per clock name;
+  `SleepWakeMarker`/`resolve_time_to_move_to` match
+  `ClockTimeMarker.resolveTimeToMoveTo`; `default_clock_id` reads the
+  `world_clock` registry raw id, matching `WorldClocks.bootstrap`
+  (overworld 0, the_end 1).
+
+No `STILL OPEN` rows remain. No new unit test added: every pure seam already has
+a failing-without-fix test, so another would duplicate them.

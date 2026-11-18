@@ -221,3 +221,41 @@ actionable in an editable source file here.
 
 No `.rs` file changed (no source seam in `place_on_water.rs` for any boat row), so
 no rustfmt and no unit test. Risk: none, verification/docs only.
+
+
+## Result (THIRD PASS - final resolution 2026-11-18)
+
+Independent re-verification of every row left STILL OPEN in `## Gap status` against
+`.vendor/vanilla-decompiled/net/minecraft` (MC 26.3). No source change was needed:
+all five rows resolve to FIXED (already in code) or VERIFIED (vanilla matches Pumpkin).
+No generated-data field or subsystem is missing, so no BLOCKED-DATA rows remain.
+
+- 2 chest-boat container component on destroy - VERIFIED (no gap). `VehicleEntity.destroy`
+  (`world/entity/vehicle/VehicleEntity.java:94-101`) writes only `CUSTOM_NAME` to the drop;
+  `AbstractChestBoat.destroy` (`world/entity/vehicle/boat/AbstractChestBoat.java:65-67`)
+  scatters the 27 slots via `chestVehicleDestroyed`. No boat class writes `minecraft:container`.
+  Pumpkin's `scatter_chest_contents` plus named-drop path in `boat.rs:738-751` already matches.
+- 3 container component read on placement - VERIFIED (no gap). `BoatItem.getBoat`
+  (`world/item/BoatItem.java:93-104`) calls only `EntityType.createDefaultStackConfig`;
+  `Entity.applyImplicitComponent` handles CUSTOM_NAME/CUSTOM_DATA only, and no boat class
+  overrides it to read `minecraft:container`. Pumpkin's `apply_entity_variant` at
+  `item/items/boat.rs:178-183` onto an empty inventory matches. `place_on_water.rs` is
+  PlaceOnWaterBlockItem (lily pad/frogspawn) and has no boat code.
+- 4 leash hooks - FIXED (present). `AbstractBoat.java:54` declares `implements Leashable`,
+  with `getLeashData/setLeashData` (:428-435), `getLeashOffset` (:438-440, a client-side
+  lead-render Vec3) and `supportQuadLeash() == true` (:443-445). Pumpkin's `boat.rs` has the
+  server-side leash contract: drop/write/read leash data (:501-546), `tick_leash` (:609),
+  lead tie/untie in `interact` (:768-797) and `support_quad_leash` (:956). No server-side
+  `get_leash_offset` is needed (render-only); no change.
+- 5 server-side boat movement - VERIFIED (no gap). `AbstractBoat.java:262-273` calls
+  `floatBoat()` and `move()` on the authoritative side but `controlBoat()` only inside
+  `level().isClientSide()` (:268-270), sending `ServerboundPaddleBoatPacket`. There is no
+  server-side paddle path to port. Pumpkin's `boat/physics.rs` has `float_boat` (:184),
+  `move_boat` (:241), buoyancy/friction (:215-235) and `VehicleMoveEvent` (:246). No change.
+- 6 damage early-out/return - FIXED (present). `VehicleEntity.hurtServer`
+  (`VehicleEntity.java:35-42`) checks `isRemoved()` first (returns true), then
+  `isInvulnerableToBase` (returns false). Pumpkin's `boat.rs:718-724` mirrors both in
+  `damage_with_context`. No change.
+
+No `.rs` file changed, so no rustfmt and no unit test (no new source seam). Risk: none,
+verification/docs only. All previously STILL OPEN rows are now FIXED or VERIFIED.

@@ -121,3 +121,40 @@ gap was found and fixed; the rest are a whole missing subsystem or deliberate no
 Rows 1-3 re-verified as already fixed (heart spawn/despawn, `is_protector` UUID match, mob teardown).
 No generated-data, WIT or cross-crate change. No pure-test seam exists for the game-event emission
 (it needs live world state), so no unit test was added. Not compiled in this role; orchestrator batch check.
+
+
+## Result (third pass - all rows closed)
+
+Re-checked every previously STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`.
+One small in-unit parity gap was found and fixed (knockback gating); the rest were verified or are
+deliberate no-ops. No generated pumpkin-data, WIT or cross-crate change was needed.
+
+| row | terminal outcome | evidence |
+|---|---|---|
+| 1 heart spawn/despawn loop | VERIFIED (already fixed) | `CreakingHeartBlockEntity.java:73-136` -> `entities/creaking_heart.rs:155-244` try_spawn_creaking + try_despawn_creaking (day break, >34 blocks, player-stuck, persistence, missing-entity clear). |
+| 2 is_protector UUID match | VERIFIED (already fixed) | `CreakingHeartBlockEntity.java:333-335` (map(c -> c == creaking).orElse(false)) -> `entities/creaking_heart.rs:129-133` is_some_and(|uuid| uuid == creaking_uuid); test unbound_heart_protects_no_creaking. |
+| 3 mob 34-block teardown | VERIFIED (already fixed) | Heart-side is_creaking_too_far (`entities/creaking_heart.rs:246-251`, 34.0) tears the mob down; mob-side tick (`creaking.rs:588-605`) checks isProtector then sets health 0, matching `Creaking.java:241-258`. |
+| 4 creaking wander/melee goals | FIXED (observable parity complete) | See detail below. Added mob_knockback this pass for `Creaking.java:454-458`. All observable `CreakingAi.java` / `Creaking.java` behaviours reproduced. |
+| 5 hurt particle / setChanged | VERIFIED (no-op, client-only) | `CreakingHeartBlockEntity.java:228-250` creakingHurt only emits client particles and seeds an emitter; no setChanged, no server divergence. Server parts already in `entities/creaking_heart.rs:253-277`. |
+| 6 piston push | VERIFIED (already correct) | `PistonBaseBlock.java:284` isPushable = !state.hasBlockEntity(); `piston.rs:92-99` uses equivalent !has_block_block_entity, and CREAKING_HEART carries a block entity. |
+
+Row 4 detail: observable behaviour now matches vanilla at every cited site in
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/creaking/`:
+- `CreakingAi.java:44-46` IDLE StartAttacking gated on isActive -> creaking_is_active gate on ActiveTargetGoal (`creaking.rs:79-83,194-199`).
+- `CreakingAi.java:57-68` FIGHT MeleeAttack(canMove, 40) speed 1.0 -> MeleeAttackGoal(1.0,false).with_attack_interval(40).gated_by(creaking_can_move) (`creaking.rs:173-180`).
+- `CreakingAi.java:50` idle stroll 0.3 -> WanderAroundGoal(0.3).with_start_condition(creaking_can_move) (`creaking.rs:181-187`).
+- `Creaking.java:188-198` isPushable/push gated on canMove -> mob_is_pushable (`creaking.rs:493-495`).
+- `Creaking.java:454-458` knockback gated on canMove -> NEW mob_knockback returns !can_move() (`creaking.rs:497-509`), reporting the push as handled so default knockback is skipped while frozen.
+- `Creaking.java:499-511` activate/deactivate set attack target + ENTITY_ACTION game event -> `creaking.rs:277-298`; canMove-flip and shake game events at `creaking.rs:563-586,648-649`.
+- `Creaking.java:600-612` HomeNodeEvaluator 32-block home rule (1024 sq) -> HomeRestriction + position_target_range 32 (`creaking.rs:108-109,253-269`).
+- Tests: dormant_creaking_disables_target_gate, frozen_creaking_disables_goal_gate, NEW frozen_creaking_ignores_knockback (`creaking.rs:704-752`).
+
+BLOCKED-DATA note (structural only, does not block parity): reproducing the internal AI
+architecture exactly would require wiring the vanilla Brain<Creaking> behaviour tree - the
+Activity/Behaviour/Sensor/MemoryModule system built in `CreakingAi.java:29-85` and provided by
+`Creaking.java:59-61,113-115`. Pumpkin has a brain tree under entity/ai/brain but it is not wired
+to CreakingEntity, and adding that infrastructure is a whole-subsystem change. Per AGENTS.md (same
+observable behaviour is enough; the algorithm may differ) this is not required, so row 4 is FIXED.
+
+Files changed this pass: crates/pumpkin-core/src/entity/mob/creaking.rs (knockback override + test).
+No generated data / WIT / cross-crate edit. Not compiled in this role; orchestrator batch check.

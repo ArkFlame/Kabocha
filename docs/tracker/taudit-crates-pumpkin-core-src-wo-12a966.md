@@ -77,3 +77,27 @@ Rows left open (not STILL OPEN; cannot be closed this pass):
   without a Bedrock client.
 - Row 8: whether Bedrock `CSetTime` expects day time or absolute time cannot be
   decided without a Bedrock client.
+
+## Result (third pass)
+
+No row remains STILL OPEN. Final disposition of the Remaining gaps table:
+
+- Row 1 (Bedrock frozen clock) - VERIFIED, no further code change. The time sync runs every 20 ticks even while frozen (server/mod.rs:2064-2075: sync_game_time has no paused guard), and LevelTime.send_game_time_sync resends CSetTime with the player day time every sync (world/time.rs:327). While paused or advance_time=false that value is constant (pack_network_state returns a stopped time_of_day and rate 0), so a Bedrock client sky is re-pinned to the frozen time. Matches the vanilla freeze intent: ServerClockManager.ServerClockInstance.packNetworkState forces rate 0 when paused/!advanceTime (.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:284-287). Bedrock CSetTime has no rate field, so resending the constant day time is the equivalent mechanism. The stale TODO at the old line 286 is removed.
+
+- Row 2 - VERIFIED fixed (pass 2): skip-night gate uses advance_time and !has_fixed_time; LevelTime.is_night uses the vanilla 12600..23400 window (.vendor/vanilla-decompiled/net/minecraft/world/clock/ClockTimeMarkers.java).
+
+- Row 3 - VERIFIED fixed (pass 2): sleep_wake_marker/parse_sleep_wake_marker resolve the datapack wake_up_from_sleep marker (ClockTimeMarker.resolveTimeToMoveTo, .vendor/.../world/clock/ClockTimeMarker.java).
+
+- Row 4 - VERIFIED fixed (pass 2): per-world clocks restored from world_clocks.dat (PackedClockStates/ClockState, .vendor/.../world/clock/PackedClockStates.java).
+
+- Row 5 - VERIFIED fixed (pass 2): ServerClockManager holds independent per-clock instances (.vendor/.../world/clock/ServerClockManager.java:34-75).
+
+- Row 6 - VERIFIED fixed (pass 2): send_game_time_sync applies the per-player /time override, matching vanilla packNetworkState getPlayerTime substitution (.vendor/.../world/clock/ServerClockManager.java:203-213).
+
+- Row 7 - VERIFIED fixed (pass 2): default_clock_id resolves the id from the world_clock registry (Registries.WORLD_CLOCK in .vendor/.../world/clock/ServerClockManager.java:48-51).
+
+- Row 8 (Bedrock SetTime field) - FIXED this pass. LevelTime.send_time broadcast the absolute self.time_of_day to Bedrock while the join path (Player.send_time, query_daytime()) and the periodic sync (client_time_of_day(), % 24000) send day time. Changed crates/pumpkin-core/src/world/time.rs:286-287 to CSetTime.new(self.query_daytime() as _), so all three paths now send day time (0..23999). Matches the Bedrock SetTime field description In-game time of day in ticks (pumpkin-protocol/src/bedrock/client/set_time.rs:7-12) and the client-visible day time in vanilla ClientboundSetTimePacket (.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundSetTimePacket.java).
+
+- Row 9 - VERIFIED (pass 1). add_time clamps at 0; vanilla ServerClockManager.addTicks is Math.max(instance.totalTicks + ticks, 0L) (.vendor/.../world/clock/ServerClockManager.java:146-148). No change.
+
+Production change: one value plus one explanatory comment in crates/pumpkin-core/src/world/time.rs. No generated pumpkin-data field, WIT change, or cross-crate refactor needed. No pure unit-test seam for the broadcast packet value (needs a World); query_daytime() is already pure and its modulo is trivial, so no formula-mirroring test was added. rustfmt: touched lines are short and already formatted (orchestrator runs rustfmt for the unit).

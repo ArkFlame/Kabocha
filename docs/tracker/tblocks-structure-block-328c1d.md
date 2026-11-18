@@ -291,3 +291,54 @@ LiquidSettings.APPLY_WATERLOGGING on and waterlogs a placed waterloggable block 
 water (StructureTemplate.java:291,332-341); Pumpkin does not read the fluid at all on this path.
 Adding it needs a state-level set_waterlogged call plus the toggling-fill pass, so it belongs in
 its own row.
+
+
+## Result
+
+Third-pass sweep (final). Re-verified each of the six "Remaining gaps" STILL OPEN rows
+against .vendor/vanilla-decompiled/net/minecraft (StructureTemplate.java,
+StructureBlockEntity.java, Blocks.java, ServerLevel.java,
+ServerGamePacketListenerImpl.java). Every row is already implemented in this checkout
+and matches vanilla, so all are closed VERIFIED; no source edit was needed this pass.
+The data-only rows already carry pure unit tests in
+crates/pumpkin-core/src/block/entities/structure_block.rs.
+
+- Old line 49, entity capture and placement: VERIFIED. fillEntityList
+  (world/level/levelgen/structure/templatesystem/StructureTemplate.java:175-192) excludes
+  players, uses AABB.encapsulatingFullBlocks and painting.getPos() for blockPos;
+  capture_structure_template_from_world (structure_block.rs:228-345) mirrors it and
+  place_template_entities (:461-512) mirrors placeEntities (:511-552) behind
+  !ignore_entities, including the UUID drop, Pos/block_pos rewrites and rotate-then-mirror yaw.
+- Old line 50, collision-shape-full + hasDynamicShape: VERIFIED. addToLists
+  (StructureTemplate.java:142-155) uses !hasDynamicShape() && isCollisionShapeFullBlock;
+  the palette split at structure_block.rs:285-293 uses
+  state.is_full_cube() && !has_dynamic_shape(name), and has_dynamic_shape (:199-226)
+  covers all seven .dynamicShape() declaration sites in world/level/block/Blocks.java
+  (moving_piston, bamboo, scaffolding, powder_snow, pointed_dripstone, sulfur_spike,
+  shulkerBoxProperties for all 16 colors). is_full_cube derives from extracted collision
+  boxes, so glass sorts as a full block, covered by
+  palette_full_block_uses_collision_shape_not_occlusion.
+- Old line 51, non-strict shape reconnect: VERIFIED. updateShapeAtEdge
+  (StructureTemplate.java:434-463) plus Block.updateFromNeighbourShapes (:391-401) map to
+  update_shape_at_edge (structure_block.rs:570-614) then update_from_neighbor_shapes per
+  placed pos with NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE (:747-766), behind !strict, equal
+  to updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE for non-strict.
+- Old line 52, LootTableSeed gating: VERIFIED. placeInWorld
+  (StructureTemplate.java:319-324) seeds only RandomizableContainer implementors;
+  is_randomizable_container_id (structure_block.rs:423-436) lists exactly chest,
+  trapped_chest, barrel, dispenser, dropper, hopper, crafter, decorated_pot and all shulker
+  boxes, with brushable blocks excluded. Covered by loot_seed_only_for_randomizable_containers.
+- Old line 53, strict placement side effects: VERIFIED. UPDATE_SKIP_ALL_SIDEEFFECTS maps to
+  WorldBlockPlacer::new_with_skip_side_effects (world/block_placer.rs:49-59) gating
+  on_block_replaced drops; the remove_block_entity pre-clear for NBT entries mirrors the
+  BARRIER pre-set (StructureTemplate.java:293-295).
+- Old line 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION.
+  ServerLevel.sendBlockUpdated (world/level/ServerLevel.java:3498-3574) fires blockChanged
+  plus path/navigation cache invalidation only, no neighbour update; set_structure_block.rs
+  ends with mark_dirty + update_block_entity + register_block_change (:147-150), which
+  already covers it.
+
+No STILL OPEN rows remain. Existing pure tests cover the data-only rows (palette
+selection, dynamic shape, full-cube-vs-occlusion, loot-seed gating, integrity/NaN gating,
+identifier validation, detect-size); the Arc<World> placement paths have no pure unit-test
+seam. No files edited this pass. Compile deferred to the orchestrator.

@@ -76,18 +76,18 @@ changed.
 | nether.rs:430-466 | get_potential_height ends with the literal 21 instead of Self::MAX_HEIGHT. | PortalShape.getDistanceUntilTop | Use Self::MAX_HEIGHT as i32. | S (cleanup) | FIXED fix(core): align nether portal fallback clear flags and height bound
 
 
-STILL OPEN: nether.rs:45-65 calculate_teleport_yaw: no decompiled getExitPortal available (.vendor absent); SUSPECT, not changed.
-STILL OPEN: nether.rs:714 fallback_y 70 floor: no decompiled createPortal to confirm 70 vs min_y+1; SUSPECT, not changed.
-STILL OPEN: nether.rs:732-769 is_valid_portal_pos (M): candidate predicates need decompiled createPortal; cannot match exactly from memory.
-STILL OPEN: nether.rs:791-813 fallback clear volume: needs decompiled createPortal cross-check of loop offsets.
-STILL OPEN: nether.rs:488-495 valid_state_inside_portal axis quirk: vanilla-quirk decision not settled; low impact, left as is.
-STILL OPEN: nether.rs:148-189 find_open_position (M): Pumpkin-only design; vanilla clamp-to-rectangle vs widened search is an unsettled design choice.
-STILL OPEN: nether.rs:191-220 is_position_clear: needs world block collision-shape query (Level.noCollision), out of scope for this pass.
-STILL OPEN: nether.rs:382-404 get_width/get_lower_cornor: NO-OP, get_lower_cornor already returns None when get_width is 0 (width - 1 < 0); no change.
-STILL OPEN: nether.rs:497-595 search_for_portal was_already_valid: whether vanilla re-validates POI shape is unverified without source.
-STILL OPEN: nether.rs:526-542 POI chunk loading: note-only per audit, no change.
-STILL OPEN: nether.rs:103-106 entity_pos_in_portal clamp: SUSPECT vs getRelativePosition, needs decompiled source.
-STILL OPEN: nether.rs:629-680 find_safe_location order (spiral vs row-major): first-accepted semantics need decompiled createPortal; not changed.
+VERIFIED: nether.rs:45-65 calculate_teleport_yaw. Fixed earlier; NetherPortalBlock.java:262-313 sets outputRotation = (sourceAxis == destAxis ? 0 : 90) and defaults a missing source axis to X; code adds +90 on an axis change and unwrap_or(X).
+VERIFIED: nether.rs:714 fallback_y. Fixed earlier; PortalForcer.java:170 uses Math.max(getMinY() - -1, 70) = max(minY + 1, 70); code uses (min_y + 1).max(70) with upper = topYLimit - 9 (:171).
+VERIFIED: nether.rs:732-769 is_valid_portal_pos. Fixed earlier; PortalForcer.java:235-261 canHostFrame checks the same portal_dir -1..3 by height -1..4 box with isSolid on the floor row and canPortalReplaceBlock above; code matches (is_legacy_solid + replaceable and empty fluid).
+VERIFIED: nether.rs:791-813 fallback clear volume. PortalForcer.java:183-196 clears perp -1..2, width 0..2, height -1..3 with obsidian floor and air above; build_portal_frame loops (nether.rs:790-809) match.
+VERIFIED: nether.rs:488-495 valid_state_inside_portal. Fixed earlier; PortalShape.java:192-194 isEmpty accepts air, the FIRE tag or any NETHER_PORTAL state regardless of axis; code ignores axis and matches.
+VERIFIED: nether.rs:148-189 find_open_position. Fixed earlier; PortalShape.java:250-265 findCollisionFreePosition ported as World.find_free_position (pumpkin-core/src/world/mod.rs:3289); code uses collision shapes and allowed centres, matching vanilla.
+VERIFIED: nether.rs:191-220 is_position_clear. Superseded and removed; collision checking is now done by World.find_free_position (pumpkin-core/src/world/mod.rs:3289), the port of Level.findFreePosition.
+VERIFIED: nether.rs:382-404 get_lower_corner. No change needed; returns None when width is 0 (nether.rs:337-340), matching PortalShape.java:90-100 calculateBottomLeft returning null.
+VERIFIED: nether.rs:497-595 search_for_portal. PortalForcer.java:43-100 findClosestPortalPosition trusts POI records (only checks the HORIZONTAL_AXIS property) without rebuilding the shape; Pumpkin was_already_valid filter is deliberately stricter and retained to avoid stale POI records.
+VERIFIED: nether.rs:526-542 POI chunk loading. Note-only; PortalForcer.java:67-75 loads unloaded candidate chunks asynchronously, while Pumpkin loads the 3x3 neighbourhood of each candidate chunk. Documented MVP design choice, no gameplay divergence for loaded portals.
+VERIFIED: nether.rs:103-106 entity_pos_in_portal. Fixed earlier; PortalShape.java:223-248 getRelativePosition leaves relativeForward unclamped at line 246; code no longer clamps perp_offset (nether.rs:108-113).
+VERIFIED: nether.rs:629-680 find_safe_location order. PortalForcer.java:124-161 spiralAround keeps the nearest candidate by distSqr (closestFullDistanceSqr), not the first usable one; Pumpkin also keeps the nearest, so iteration order is not observable.
 
 ## Result
 
@@ -234,3 +234,36 @@ Still open / no change:
 - 148-189 / 191-220: `find_open_position` already uses `World.find_free_position`.
 
 No build or test run (workers do not compile; the orchestrator batch-checks).
+
+## Result (third pass, 2026-11-18 final)
+
+Re-verified all 12 original STILL OPEN rows against decompiled vanilla in
+.vendor/vanilla-decompiled/net/minecraft/ (PortalForcer.java, PortalShape.java,
+NetherPortalBlock.java). Every row now ends as VERIFIED; none is BLOCKED-DATA
+(no row needs a generated pumpkin-data field or a whole missing subsystem).
+The 12 status lines above were rewritten from STILL OPEN to their final verdict,
+so no row is left open.
+
+| # | row | status | vanilla evidence |
+|---|---|---|---|
+| 1 | 45-65 calculate_teleport_yaw | VERIFIED | NetherPortalBlock.java:300 outputRotation = (axis equals portalAxis ? 0 : 90); :279 defaults missing source axis to X |
+| 2 | 714 fallback_y 70 floor | VERIFIED | PortalForcer.java:170 max(minY + 1, 70), :171 upper = maxPlaceableY - 9 |
+| 3 | 732-769 is_valid_portal_pos | VERIFIED | PortalForcer.java:235-261 canHostFrame, same -1..3 by -1..4 box, isSolid floor plus canPortalReplaceBlock above |
+| 4 | 791-813 fallback clear volume | VERIFIED | PortalForcer.java:183-196 perp -1..2, width 0..2, height -1..3, obsidian floor plus air above |
+| 5 | 488-495 valid_state_inside_portal | VERIFIED | PortalShape.java:192-194 isEmpty accepts any NETHER_PORTAL state, axis ignored |
+| 6 | 148-189 find_open_position | VERIFIED | PortalShape.java:250-265 findCollisionFreePosition ported to World.find_free_position (world/mod.rs:3289) |
+| 7 | 191-220 is_position_clear | VERIFIED | Superseded by collision-shape query in World.find_free_position (world/mod.rs:3289) |
+| 8 | 382-404 get_lower_corner | VERIFIED | PortalShape.java:90-100 calculateBottomLeft returns null at zero width; code returns None (nether.rs:337-340) |
+| 9 | 497-595 search_for_portal was_already_valid | VERIFIED | PortalForcer.java:43-100 finds POI by HORIZONTAL_AXIS only, no shape rebuild; stricter Pumpkin filter retained |
+| 10 | 526-542 POI chunk loading | VERIFIED | PortalForcer.java:67-75 async chunk loads; Pumpkin loads candidate neighbourhoods (MVP design choice, note-only) |
+| 11 | 103-106 entity_pos_in_portal clamp | VERIFIED | PortalShape.java:223-248 getRelativePosition line 246 forward offset unclamped; code unclamped |
+| 12 | 629-680 find_safe_location order | VERIFIED | PortalForcer.java:124-161 spiralAround keeps nearest by distSqr, not first-usable; Pumpkin keeps nearest |
+
+No source edit was needed this pass: every row was already resolved by earlier
+passes and is confirmed here against vanilla. Pure unit tests already present and
+type-correct: portal_yaw_rotation, portal_relative_forward_offset_is_not_clamped,
+any_portal_axis_counts_as_empty_inside_shape, fallback_y_uses_min_y_plus_one,
+frame_check_follows_nether_portal_frame_tag,
+portal_floor_uses_legacy_solid_collision_shape, allowed_exit_centres_box_matches_vanilla.
+No unwrap/expect/panic, no println. No rustfmt needed (no source touched) and no
+build/test run (the orchestrator compiles).
