@@ -617,22 +617,25 @@ impl Mob for CopperGolemEntity {
         caller: &dyn EntityBase,
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
-        self.set_weather_state(WeatherState::Unaffected);
-        // Vanilla invalidates the pending weathering tick so the golem does not
-        // re-oxidize on the next tick; a waxed golem (-2) keeps its sentinel.
-        if self.next_weathering_tick.load(Ordering::Relaxed) != -2 {
-            self.next_weathering_tick.store(-1, Ordering::Relaxed);
-        }
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);
         let uuid = lightning.get_entity().entity_uuid;
-        let mut previous = self
-            .last_lightning_bolt_uuid
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if *previous != Some(uuid) {
-            *previous = Some(uuid);
+        let is_new_bolt = {
+            let mut last_uuid = self
+                .last_lightning_bolt_uuid
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if *last_uuid == Some(uuid) {
+                false
+            } else {
+                *last_uuid = Some(uuid);
+                true
+            }
+        };
+        if is_new_bolt {
+            // Vanilla CopperGolem.thunderHit steps weathering back one stage
+            // and re-rolls the timer; an unaffected golem is left untouched.
             let weather = self.get_weather_state();
             if weather != WeatherState::Unaffected {
                 self.next_weathering_tick
