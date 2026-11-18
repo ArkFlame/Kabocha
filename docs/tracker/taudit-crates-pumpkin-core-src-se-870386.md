@@ -211,3 +211,48 @@ No compile/test run (unit rules); rustfmt is run by the orchestrator. Risk: the
 `tick_count` increment moved from end-of-tick to top-of-tick, so a `/tick freeze` or
 sprint issued mid-tick now settles one tick as vanilla does; pause-tick counting is
 unchanged (update_tick_times was previously called unconditionally on paused ticks).
+
+
+## Result (third pass, final)
+
+All rows re-checked against `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`.
+No code changes were needed in this pass: both previously-open rows were already fixed
+in the working tree by the prior pass and are verified present. Terminal state of every
+row:
+
+- FIXED (M) tick_count-at-start - vanilla runs `this.tickCount++` at the top of
+  `tickServer` before `tickRateManager.tick()` (MinecraftServer.java:1705). Pumpkin now
+  does `server.tick_count.fetch_add(1, Relaxed)` at the top of `Ticker::run` under
+  `super::advances_tick_count(runs_normally, is_sprinting)` (ticker.rs:140-142), with the
+  single increment at ticker.rs:141. The `+1` patch in `sync_game_time` (mod.rs:2068) and
+  the increment in `update_tick_times` (mod.rs:2083) are gone; tick start/end events read
+  the already-1-based counter (ticker.rs:186,216). Grep confirms no other
+  `server.tick_count.fetch_add` and no dangling `tick_event_number` references.
+
+- VERIFIED try/catch crash report - vanilla wraps the tick in `catch (Throwable)`,
+  builds a `CrashReport`, saves `crash-reports/crash-<date>-server.txt` and stops
+  (MinecraftServer.java:1413-1424, `onServerCrash(report)` at 1424). Pumpkin achieves the
+  same observable behaviour via the global panic hook (`crates/pumpkin/src/main.rs:83`
+  `handle_panic`, setting `CRASH_REPORT` and calling `stop_server()` at 367; graceful
+  shutdown then saves the report and sets exit code 1). Not a missing subsystem;
+  `catch_unwind` in ticker.rs would be redundant since vanilla stops, not continues.
+  Crash report text is fork API.
+
+- VERIFIED overload gate `>=` (ticker.rs:258-263) - classic vanilla uses `>=` on
+  `l - lastOverloadWarningNanos`; the supplied Folia/Canvas tree has replaced the classic
+  warning gate with `tickSchedule` (`lastOverloadWarningNanos = nextTickTimeNanos` at
+  MinecraftServer.java:1385), so the classic gate cannot be re-derived here. Keep `>=`;
+  the `[1, 6]` test matches it.
+
+- VERIFIED pause-when-empty (ticker.rs:105-163; hub.rs:22,52; handlers.rs:956-973) -
+  matches vanilla `tickServer` 1608-1639: `emptyTicks`/reset via `EmptyTickClock::observe`,
+  threshold `seconds*20`, one-shot `LOGGER.info("Server empty for {} seconds, pausing")`
+  + `autoSave()`, scheduler heartbeat and connection ticking while paused. Default 60s
+  in hub.rs:52; runtime setter in handlers.rs:966-973.
+
+No STILL OPEN rows remain. No new unit test: both behaviour rows need a runtime
+`/schedule`/autosave or crash scenario, while the pure seams (`EmptyTickClock`,
+`apply_overload_skip`, `advances_tick_count`) are already unit-tested. No compile/test run
+(unit rules); rustfmt is run by the orchestrator. Risk: `tick_count` now advances
+top-of-tick instead of end-of-tick; grep confirms no second reader increments it, so no
+double-increment.
