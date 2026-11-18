@@ -27,14 +27,14 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - Goal list: swim 1, `CreeperSwellGoal` 2, ocelot/cat `AvoidEntityGoal` 3 (6 blocks, 1.0/1.2), `MeleeAttackGoal` 4 with no-op `doHurtTarget`, stroll 5, look 6 / random look 6; `CreeperSwellGoal` 3-block start, 7-block stop, line-of-sight, `requiresUpdateEveryTick`.
 - Igniter interaction (tag `CREEPER_IGNITERS`, fire charge vs flint and steel sound, durability/stack decrement), explosion radius ×2 when charged, NBT keys (`powered`, `Fuse`, `ExplosionRadius`, `ignited`).
 
-## Gap status
-- 1 target-selector order: FIXED (creeper.rs:92-93, RevengeGoal at 1, CREEPER_HUNTS at 2)
-- 2 charged victim heads: FIXED (creeper.rs:328; dropped_skulls flag removed)
-- 3 lightning sets charged via set_charged: FIXED (creeper.rs:237)
-- 4 spawnEffectsCloud parameters: FIXED (no change needed; see creeper-0de8b3 row 4a)
-- 5 swell direction Bedrock metadata: FIXED (creeper.rs:99-106)
-- 6 readAdditionalSaveData sync: FIXED (no gap per creeper-0de8b3 row 6)
-- 7 charged_creeper/root loot table: VERIFIED third pass (generated CHARGED_CREEPER_ROOT field exists under both keys; not blocked)
+## Gap status (final)
+- 1 target-selector order: VERIFIED (creeper.rs:105-106; CREEPER_HUNTS/NearestAttackable at 1, RevengeGoal at 2; matches Creeper.java:74-75)
+- 2 charged victim heads: VERIFIED (creeper.rs:383-415; single head per explosion via the `dropped_skulls` gate; matches Creeper.java:173-182)
+- 3 lightning sets charged via set_charged: FIXED/VERIFIED (creeper.rs:296 calls set_charged(true); matches Creeper.java:213)
+- 4 spawnLingeringCloud parameters: VERIFIED (no change needed; matches Creeper.java:266-284)
+- 5 swell direction Bedrock metadata: FIXED/VERIFIED (creeper.rs:112-119 set_fuse_speed pushes Bedrock actor data)
+- 6 readAdditionalSaveData sync: VERIFIED (creeper.rs:227-253; matches Creeper.java:116-124)
+- 7 charged_creeper/root loot table: VERIFIED (generated CHARGED_CREEPER_ROOT field exists under both keys; not BLOCKED-DATA)
 
 ## Result
 
@@ -77,3 +77,57 @@ Third pass (expanded permissions). Re-verified each formerly STILL OPEN row agai
 - Row 7 (charged_creeper/root loot table): VERIFIED, resolved by data, not BLOCKED-DATA. Vanilla `killedEntityPreEvent` (Creeper.java:173-182) drops from `BuiltInLootTables.CHARGED_CREEPER`. The required generated pumpkin-data field exists: `pumpkin_data::loot_table::CHARGED_CREEPER_ROOT` (`crates/pumpkin-data/src/generated/loot_table.rs:43054`) is registered under both `charged_creeper/root` (line 64739) and `minecraft:charged_creeper/root` (line 68074). `killed_entity` (`creeper.rs:387`) calls `world.get_loot_table("minecraft:charged_creeper/root")`, which falls back to that static table (`world/mod.rs:9403-9416`, `datapack/mod.rs:816-833`). No missing generated field or subsystem, so BLOCKED-DATA does not apply.
 
 No new unit test: the inline cloud parameters have no pure seam, the metadata seam already has a test, and the loot table is generated data. No `.rs` file was touched, so no rustfmt run was needed.
+
+
+## Result
+
+Final pass. Re-verified every row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` and
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/AreaEffectCloud.java`
+(Paper 1.21.x) and the current Pumpkin sources. The current `creeper.rs` already
+matches vanilla on every row; only the tracker prose was stale. No `.rs` file was
+touched, so no rustfmt run was needed. No new unit test: the inline cloud
+parameters have no pure seam, and the creeper metadata seam is already covered by
+`creeper_metadata_generation` in `metadata.rs`. No `STILL OPEN until closed...`
+line exists in this doc; every row is resolved below.
+
+- Row 1 (target-selector order): VERIFIED. Vanilla Creeper.java:74-75 registers
+  `NearestAttackableTargetGoal<Player>` at 1 and `HurtByTargetGoal` at 2. Pumpkin
+  `creeper.rs:105-106` registers `RevengeGoal` (HurtBy) at 2 and `CREEPER_HUNTS`
+  (NearestAttackable, `Hunt::new(1, ...)` at line 42) at 1; `hunting::apply` uses
+  that priority (hunting.rs:121). Matches vanilla. The earlier "RevengeGoal at 1"
+  note was stale; the code was since corrected.
+- Row 2 (charged victim heads): VERIFIED. Vanilla Creeper.java:173-182 guards with
+  `!this.droppedSkulls` (one head per explosion) and sets the flag in the loot
+  callback. Pumpkin `creeper.rs:383-415` guards with `!self.dropped_skulls` and
+  sets it only when the loot table actually drops a stack. Matches vanilla. The
+  earlier "flag removed" note was stale; the gate is present in the current code.
+- Row 3 (lightning sets charged): FIXED (already on master). `creeper.rs:296`
+  calls `set_charged(true)`, which pushes Java synced data and Bedrock actor
+  data; matches vanilla Creeper.java:213 setting DATA_IS_POWERED.
+- Row 4 (spawnLingeringCloud parameters): VERIFIED. Vanilla Creeper.java:266-284
+  sets radius 2.5, radiusOnUse -0.5, waitTime 10, duration 300,
+  potionDurationScale 0.25, radiusPerTick -radius/duration (-2.5/300). Pumpkin
+  `creeper.rs:174-185` calls `AreaEffectCloudEntity::create(..., 300, 2.5, 20, 10,
+  -0.5, 0)`; `area_effect_cloud.rs:107-121` maps duration 300, radius 2.5,
+  reapplicationDelay 20, waitTime 10, radiusOnUse -0.5, durationOnUse 0, computes
+  radiusOnTick = -radius/max(duration,1) = -2.5/300, and hardcodes scale 0.25.
+  The tracker's original `setDuration(600)` claim is wrong; vanilla uses 300.
+- Row 5 (swell direction Bedrock metadata): FIXED (already on master).
+  `creeper.rs:112-119` `set_fuse_speed` pushes Java FUSE_ID synced data and
+  `send_bedrock_actor_data`, matching the set_charged/set_ignited pattern.
+- Row 6 (readAdditionalSaveData sync): VERIFIED. Vanilla Creeper.java:116-124 sets
+  DATA_IS_POWERED from "powered" and, when true, DATA_IS_IGNITED. Pumpkin
+  `creeper.rs:227-253` writes the atomics plus CHARGED/IS_IGNITED synced data;
+  `mob_metadata()` (line 263) feeds both Java and Bedrock spawn metadata. Same
+  observable behavior; seam covered by `creeper_metadata_generation`.
+- Row 7 (charged_creeper/root loot table): VERIFIED, resolved by data, not
+  BLOCKED-DATA. Generated field `pumpkin_data::loot_table::CHARGED_CREEPER_ROOT`
+  exists at `crates/pumpkin-data/src/generated/loot_table.rs:43054` and is
+  registered under both `charged_creeper/root` (line 64739) and
+  `minecraft:charged_creeper/root` (line 68074). `creeper.rs:390` calls
+  `world.get_loot_table("minecraft:charged_creeper/root")`, which falls back to
+  the static table. No missing generated field or subsystem.
+
+All 7 rows end FIXED or VERIFIED. No row remains STILL OPEN; BLOCKED-DATA does
+not apply.

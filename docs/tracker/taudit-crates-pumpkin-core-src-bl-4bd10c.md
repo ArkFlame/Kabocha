@@ -127,3 +127,60 @@ No source code edits made; no pure unit-test seam available in these files witho
 ## Result (third pass close)
 
 Re-read the last Result and re-verified every previously STILL OPEN row against the real decompiled source now present in this checkout: `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:25-104`, `SnowyBlock.java:24-48` and `.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java:51-60`. No source change was needed; the code already matches vanilla. All three Gap-status rows are now VERIFIED/FIXED (new-state field present in tree, normalized fluid level==8, correct fixed per-state light dampening). Files touched this pass: documentation only; no `.rs` edit, so no rustfmt run.
+
+
+## Result (final pass, all rows closed)
+
+Re-verified every row in this unit against the real decompiled tree now present in this
+checkout. No `.rs` edit was needed: the current source already matches vanilla on every
+actionable row. No row remains STILL OPEN.
+
+- R1 `plugin/api/events/block/block_fade.rs:8-14` (new-state field) -> FIXED. Core
+  `BlockFadeEvent` carries `new_state_id: BlockStateId` (`:15-16`) with a `const fn new`
+  taking it (`:21-25`); `SpreadingSnowyBlock::random_tick` passes
+  `base_block.default_state.id` (`spreading_snowy_block.rs:127-131`). Matches Paper's
+  `CraftEventFactory.callBlockFadeEvent(level, pos, baseBlock.get().defaultBlockState())`
+  in `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:71`.
+  WIT surface updated too: `pumpkin-plugin-wit/v0.2/event.wit:1409-1413` `block-fade-event`
+  and `v0.1/event.wit:1303-1307` `block-fade-event-data` both declare `new-state-id: u16`.
+  The plugin-api marker needs no edit (type marker over generated `BlockFadeEventData`).
+  No generated pumpkin-data field is missing.
+- R2 `spreading_snowy_block.rs:60-76` (`is_full_fluid` hardcoded) -> FIXED. `is_full_fluid`
+  (`:58-63`) calls `world.get_fluid_and_fluid_state(pos)` and returns
+  `!fluid_state.is_empty && fluid_state.level == 8`. This is exactly vanilla
+  `aboveState.getFluidState().isFull()` (`getAmount() == 8`) at
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:37`,
+  covering source/falling fluids plus waterlogged and fluid-container blocks.
+- R3 `spreading_snowy_block.rs:100-106` (opacity not position-aware) -> VERIFIED, no known
+  divergence. `can_stay_alive_with_above` passes `above_state.opacity` as `simple_opacity`
+  into `LightEngine::get_light_dampening_into` (`:87-92`), matching vanilla
+  `LightEngine.getLightDampeningInto(state, aboveState, UP, aboveState.getLightDampening())`
+  at `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:41`
+  (generated `BlockState.opacity` is vanilla's fixed per-state `getLightDampening()`).
+  The helper in `pumpkin-world/src/lighting/engine.rs:1084-1099` implements vanilla
+  `getLightDampeningInto`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/level/lighting/LightEngine.java:51-60`):
+  both return `simple_opacity` when both shapes are empty and force 16 on full-cube
+  occlusion. Vanilla `Shapes.mergedFaceOccludes`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/phys/shapes/Shapes.java:283-319`) reduces
+  to the clamped face fully occluding; Pumpkin's `can_occlude() && is_solid_render()`
+  heuristic yields the same 16/0 result for every block that can sit above grass (full
+  cube, slab, glass, snow), covered by `a_slab_above_does_not_add_occlusion` (engine.rs:1342).
+  A fully faithful face-occlusion port needs voxel-shape occlusion data across crates, but
+  no generated field is missing and no block-cover case diverges, so no change is made.
+- S2 `can_propagate` argument (line 57 prose) -> FIXED. `random_tick` passes
+  `default_block_state` (`:152`) instead of the target dirt state, matching vanilla
+  `SpreadingSnowyBlock.canPropagate(access, defaultBlockState, testPos)` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:95`.
+- Second-pass invented brightness/opacity gate on fade (line 55) -> FIXED. The fade branch
+  (`:123-138`) fires whenever `!can_stay_alive`, with no brightness/cover-opacity gate,
+  matching vanilla `if (!canStayAlive(...)) { fade; setBlockAndUpdate(...) }` at
+  `SpreadingSnowyBlock.java:68-75`. The `get_max_local_raw_brightness(...) >= 9` check stays
+  only on the spread branch, matching vanilla `getMaxLocalRawBrightness(pos.above()) >= 9`
+  at `SpreadingSnowyBlock.java:77`.
+- S3 `MyceliumBlock.animateTick` particles (line 57 prose) -> NOT A BLOCKER (client-only).
+  Purely visual; per project rules client-only effects are noted, not gated on.
+
+No pure unit-test seam exists beyond the already-present tests: the fluid/light rows need a
+live `World`, and further tests would only mirror their own logic. Files edited this pass:
+this doc only, so no rustfmt run.

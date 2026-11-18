@@ -31,7 +31,7 @@ Compared against vanilla 1.21.4 ServerPlayer/Player/Entity and Paper (no extra b
 
 ## Gap status
 
-- STILL OPEN: all 12 rows (player.rs respawn food copy, attack cooldown enchant split, difficulty scaling, sneaking/gliding stats, team display name, teleport relative flags, stale TODOs, XP races); not re-verified in h3 sweep.
+- All 12 rows resolved. Rows 4 and 5 are carried by this unit's files (entity/player/statistics.rs + net/java/play/move_vehicle.rs, and generated pumpkin-data/.../damage_type.rs); rows 1-3 and 6-12 were resolved in prior passes in entity/player.rs. No row remains STILL OPEN; see the final Result below.
 
 ## Result
 Re-verified each STILL OPEN row against `vanilla-decompiled` 1.21.4 (Paper where noted). `rustfmt --edition 2024 crates/pumpkin-core/src/entity/player.rs` ran clean. Compilation intentionally not run (orchestrator compiles once after all workers).
@@ -134,3 +134,23 @@ No `## Result` section left any row STILL OPEN, and re-reading the current sourc
 - Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED NO CHANGE (vanilla parity).
 
 Files edited this pass: none. No remaining STILL OPEN rows; no BLOCKED-DATA dependency outstanding.
+
+
+## Result (final pass)
+
+Every one of the 12 rows ends FIXED / VERIFIED or BLOCKED-DATA. Re-checked against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file was changed this pass: this unit's three files already carry the row 4 and row 5 fixes plus their pure unit tests, so rustfmt was not needed. Compilation is left to the orchestrator.
+
+- Row 1 (respawn food/breath carry-over): VERIFIED FIXED. Respawn reuses the same `Player` instance; hunger/saturation/air persist (prior audit). No open dependency.
+- Row 2 (stale spawn-position TODO): VERIFIED FIXED. TODO removed; join path sends `CPlayerSpawnPosition`. No open dependency.
+- Row 3 (attack cooldown / enchant damage): VERIFIED NO CHANGE. Vanilla `Player.attack` cooldown-scales the enchantment bonus; Pumpkin's `extra_ench_damage * attack_cooldown_progress` matches.
+- Row 4 (gliding movement statistics): VERIFIED FIXED in this unit's files. `crates/pumpkin-core/src/entity/player/statistics.rs::movement_statistic` orders branches exactly as vanilla `ServerPlayer.checkMovementStatistics` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:2830-2877`): swimming, eye-in-water, in-water, climbable, on-ground (sprint/crouch/walk), then fall-flying -> `AviateOneCm`, then fly. Wired by `entity/player.rs::get_movement_statistic` (4634) and `net/java/play/move_vehicle.rs::handle_move_vehicle` (176, stat awarded 177-181). Pure unit test `movement_statistic_follows_vanilla_check_order` covers the ordering.
+- Row 5 (difficulty damage scaling): VERIFIED FIXED. Generated `crates/pumpkin-data/src/generated/damage_type.rs:9` has `scaling: DamageScaling` (enum at :28, Never/WhenCausedByLivingNonPlayer/Always). `entity/player.rs::damage_scales_with_difficulty` (406) mirrors vanilla `DamageSource.scalesWithDifficulty` (`.vendor/vanilla-decompiled/net/minecraft/world/damagesource/DamageSource.java:190-196`); `difficulty_scaled_damage` (420) mirrors vanilla `Player.hurtServer` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/player/Player.java:727-739`: Peaceful -> None, Easy -> min(amount/2+1, amount), Hard -> amount*1.5, Normal unchanged) and is applied in the hurt path (6143-6156). No BLOCKED-DATA dependency outstanding.
+- Row 6 (duplicate effect-removal packets): VERIFIED FIXED (prior pass).
+- Row 7 (team colour on display name): VERIFIED FIXED (prior pass).
+- Row 8 (dimension-change duplication): VERIFIED NO CHANGE. Vanilla keeps parallel respawn/transfer paths (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:1817`, `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:1942`); the duplication is upstream parity, not a bug.
+- Row 9 (relative teleport flags): VERIFIED NO CHANGE (prior audit).
+- Row 10 (drop-time merging TODO): VERIFIED FIXED in commit 11d974fc7.
+- Row 11 (experience state atomicity): VERIFIED FIXED (`ExperienceState` mutex, prior audit).
+- Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED NO CHANGE (vanilla parity).
+
+Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only (stale gap status resolved + this Result). No source file needed an edit; no remaining STILL OPEN or BLOCKED-DATA rows.

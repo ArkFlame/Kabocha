@@ -131,3 +131,68 @@ All six rows end FIXED / VERIFIED / BLOCKED-DATA; none remain STILL OPEN. Source
 - Row 6 (command block minecart source): VERIFIED FIXED. The subsystem is implemented in `crates/pumpkin-core/src/entity/vehicle/minecart/command_block.rs` (and `minecart.rs`): `CommandBlockMinecart` has CustomName/LastOutput NBT, builds a `CommandSender::CommandBlock` via a proxy `CommandBlockEntity` (or `Dummy` when TrackOutput is off), and constructs a `CommandSource` with the minecart position, rotation, custom name, and the minecart entity as source. Matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java:127-137` (`createCommandSourceStack`: source, position, rotation, level, name via `BaseCommandBlock`). No source edit needed in this unit.
 
 No generated pumpkin-data fields or whole missing subsystems block any row. Rustfmt not needed (edits are a method body + doc comments); compilation not run (worker shell denied; orchestrator compiles once).
+
+
+## Result (final pass, all rows verified FIXED, CODER)
+
+Re-read all four in-unit files (`block/entities/command_block.rs`,
+`command/mod.rs`, `net/java/play/set_command_block.rs`,
+`block/blocks/command.rs`) plus decompiled vanilla. All six rows already end
+FIXED / VERIFIED / BLOCKED-DATA; none remain STILL OPEN. No source edits were
+needed this pass. `STILL OPEN until closed` does not appear in the doc.
+
+- Row 1 (custom name): VERIFIED FIXED. `CommandBlockEntity` holds
+  `custom_name: StdMutex<Option<TextComponent>>`; `write_sync_nbt`/`from_nbt`
+  read/write `CustomName` via `CustomNameImpl` (String/Compound codec),
+  `net/java/play/set_command_block.rs` initialises it from the old entity, and
+  `command/mod.rs#command_block_name` returns the custom name with an `@`
+  fallback and feeds both text name and display name. Matches
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java`
+  (`getName` L147-149, `save` L53, `load` L68) and
+  `.../world/level/block/entity/CommandBlockEntity.java#createCommandSourceStack`
+  L55-65 (`this.getName()`).
+- Row 2 (`LastOutput` text component): VERIFIED FIXED. `last_output` is
+  `StdMutex<Option<TextComponent>>` written via
+  `to_nbt_tag_for_version(V_26_3)` only when TrackOutput is set, read via
+  `TextComponent::from_nbt`; `command/mod.rs#send_message` prepends the
+  `[HH:mm:ss] ` child using local time. Matches
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java`
+  (`save` L50-63, `load` L65-82,
+  `sendSystemMessage` L215-221: `Component.literal("[" + TIME_FORMAT.format + "] ").append(message)`)
+  and `.../network/chat/ComponentSerialization.java#createCodec` L138-147
+  (`tryCollapseToString` yields a bare String NBT for collapsible text, else a
+  Compound). Round-trip unit tests exist in `command_block.rs`.
+- Row 3 (player source text name): VERIFIED FIXED. `command/mod.rs#player_source`
+  passes `player.get_name().get_text()` as textName and `get_display_name()`
+  as display name. Matches
+  `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java#createCommandSourceStack`
+  L3206-3208 and `.../commands/CommandSourceStack.java` (`NamesProvider.FOR_ENTITY`
+  L652-662: `textName` = `entity.getPlainTextName()`, `displayName` =
+  `entity.getDisplayName()`).
+- Row 4 (console source position): VERIFIED, no change needed. The doc premise
+  (`Vec3.ZERO`) does not hold in this vanilla version:
+  `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java#createCommandSourceStack`
+  L2595-2599 uses `Vec3.atLowerCornerOf(this.getRespawnData().pos())` (world
+  spawn) and `Vec2.ZERO`. Pumpkin's `get_world_and_spawn_point` already uses
+  the world spawn with `Vector2::new(0.0, 0.0)`, so it matches. Only nuance:
+  vanilla picks the respawn dimension via `findRespawnDimension()`; Pumpkin
+  uses the overworld. Low-impact edge case, left as-is.
+- Row 5 (`world_or_first`): VERIFIED FIXED. `command/mod.rs#world_or_first`
+  prefers `server.get_world_from_dimension(&Dimension::OVERWORLD)` before
+  `server.worlds.load().first()`. Helper currently has no live caller, so this
+  is a correctness improvement for when it is wired up; aligns with vanilla
+  console/dummy senders operating on the overworld
+  (`MinecraftServer.java#findRespawnDimension` L2602-2606).
+- Row 6 (command block minecart source): VERIFIED FIXED. Implemented in
+  `crates/pumpkin-core/src/entity/vehicle/minecart/command_block.rs` and
+  `minecart.rs`: `CommandBlockMinecart` holds CustomName/LastOutput NBT,
+  builds a `CommandSender::CommandBlock` via a proxy `CommandBlockEntity`
+  (or `Dummy` when TrackOutput off), and constructs a `CommandSource` with
+  minecart position/rotation/name and the minecart as source. Matches
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java#createCommandSourceStack`
+  L127-137. No source edit needed in this unit.
+
+No generated pumpkin-data fields or whole missing subsystems block any row
+(so no BLOCKED-DATA). No new unit-test seam (all seams covered by existing
+round-trip tests in `command_block.rs`). No source edits this pass; rustfmt not
+needed; compilation not run (worker shell denied; orchestrator compiles once).
