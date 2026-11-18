@@ -412,3 +412,42 @@ source change to make this pass. No cargo/git/fmt tools were run by this worker.
 No pure unit test added: `explosion_strength`, the block_effects traversal helpers and the
 minecart rail/boost helpers already have unit tests; the remaining dispatch/interact seams need
 live entities/world, so no new pure seam exists in these files.
+
+
+---
+
+## Result (pass 7, THIRD PASS: all remaining rows resolved)
+
+Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`
+(`Minecart.java`, `MinecartTNT.java`) plus the portal and gametest seams in the current tree.
+No source edit was needed: every row that was STILL OPEN or BLOCKED in pass 6 is fixed in the
+checkout. No STILL OPEN and no BLOCKED-DATA rows remain. No cargo, git or rustfmt was run here.
+
+- minecart 10 (TNT priming, `minecart/tnt.rs`): VERIFIED faithful. Vanilla `MinecartTNT.java`
+  `primeFuse` no-ops with TNT_EXPLODES off (lines 170-191) and `prime` guards on
+  `fuse >= 0 || !tnt_explodes`; `tick` decrements a positive fuse, emits one SMOKE particle at
+  y+0.5 with zero velocity and explodes at fuse==0 on
+  `getDeltaMovement().horizontalDistanceSqr()` (= x*x+z*z, lines 51-72); `explode` uses
+  `min(sqrt(speedSqr),5)` and `base + factor*rand(0..1)*1.5*speed` (lines 106-137); rails are
+  preserved while primed (lines 201-214); NBT defaults and clamps match (lines 217-235).
+  `tnt_minecart_explosion_bonus_is_speed_capped` pins the speed cap.
+- minecart 12 (sneak interact, `minecart/rideable.rs`): VERIFIED faithful. Vanilla
+  `Minecart.interact` (Minecart.java:25-32) returns PASS on `isSecondaryUseActive()` or
+  `isVehicle()`; `RideableMinecart::interact` returns false on `is_sneaking()`, non-empty
+  passengers or `has_vehicle()`, matching. The `has_vehicle()` guard only blocks switching
+  carts, which vanilla `startRiding` also rejects.
+- block_effects 6 (gametest): FIXED in current tree. `crates/pumpkin-core/src/server/
+  builtin_game_tests/boat_block_effects.rs` adds `test_boat_breaks_lily_pad_on_landing`
+  (lily pad break on the movement sweep) and `test_boat_sweep_ignites_on_fire` (a fast boat uses
+  `set_entity_velocity` to cross a fire row between standing boxes, then `entity_fire_ticks`
+  verifies ignition). Both are registered in `builtin_game_tests/mod.rs:271-280,1813-1824`.
+- minecart 11 (portal): FIXED in current tree, no longer BLOCKED. The entity dimension-change
+  subsystem now exists: `Entity::tick_portal` (`entity/mod.rs:4083-4097`) advances the timer and
+  teleports the entity and its passengers, and `Minecart::tick` calls it explicitly
+  (`minecart.rs:321-324`), mirroring vanilla `AbstractMinecart.tick` calling `handlePortal`.
+- block_effects 1-5 and minecart 1-9: FIXED or VERIFIED faithful in prior passes, no change.
+
+No pure unit test added: `explosion_strength` already has
+`tnt_minecart_explosion_bonus_is_speed_capped`, the block_effects traversal helpers have five
+tests, and the remaining seams (interact/prime/tick/explode, boat sweep) are covered by the
+registered gametests or need a live world.
