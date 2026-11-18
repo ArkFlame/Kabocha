@@ -66,3 +66,8 @@ Remaining gaps (not fixed here):
 - Row 3 stonecutter-only recipe packet (mod.rs:772-781): STILL OPEN, M - needs generated recipe property sets in pumpkin-data/codegen, outside this unit.
 - keep_alive.rs: re-verified against Paper decompiled ServerCommonPacketListenerImpl#handleKeepAlive (lines 103-144): accept only a reply matching an outstanding challenge (remove it + update ping), disconnect with timeout for unsolicited/stale/duplicate ids. The outstanding_keep_alive helper + only_an_outstanding_challenge_is_accepted test already match; no further change needed. FIXED.
 - Final pass (main checkout): re-read decompiled ServerCommonPacketListenerImpl#handleKeepAlive lines 103-144 and confirmed keep_alive.rs matches (accept matching id, drop pending, update latency; disconnect with timeout otherwise). No new edit required. Rows 1-3 remain STILL OPEN, all in files outside this unit (mod.rs, pumpkin-protocol, pumpkin-data).
+
+
+## Result (native-4 cross-file pass)
+- Row 3 (stonecutter-only recipe packet): BLOCKED-DATA. Needs generated recipe property sets in pumpkin-data/codegen; generated files must not be hand-edited.
+- Row 1 (chat/command off-thread ordering): BLOCKED-L. Needs a per-player ordered dispatch queue in `net/java/` session handling, multi-file.

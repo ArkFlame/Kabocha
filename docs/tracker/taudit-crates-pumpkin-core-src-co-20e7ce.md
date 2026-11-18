@@ -69,3 +69,15 @@ Pass 3 (verified against decompiled vanilla 26.3 in `.vendor/vanilla-decompiled`
 - Row 7 (M): OPEN - `BlockEntity::mark_dirty` lives in `block/entities/mod.rs` (outside this unit); `item.rs` cannot set the saved flag.
 - Row 8 (S): already FIXED in pass 1 (modify feedback); not re-audited this pass.
 - Row 9 (S): OPEN - maintenance dedup inside `commands/item.rs`, no behavioural difference; outside this unit.
+
+## Result (native-1)
+
+- Row 1 (replace slot-source one-to-many, failed counting): FIXED (block and entity paths) in `commands/item.rs` (`BlockReplaceExecutor` ~L79-190, `EntityReplaceExecutor` ~L213+). Emits `target.failed*` when no slot accepts the item.
+- Row 2 (`item set` subcommand and set feedback): FIXED. `SuccessFeedback::Set` in `commands/item.rs:69-72` drives `COMMANDS_ITEM_BLOCK_SET_SUCCESS` and single-slot executors.
+- Row 3 (entity slot 300-307 / 499 / 500-514): FIXED for mob and horse inventories (`read_mob_slot`, `write_mob_slot`, horse `500..=514` arm). Cursor and crafting-grid (499, 500-503 player) remain unmapped: NOT FIXED, BLOCKED-L (needs player menu/crafting-grid API).
+- Row 4 (remaining loot functions): BLOCKED-L. Needs component, enchantment and data-component APIs outside this unit.
+- Row 5 (number providers): FIXED. `number_provider` in `commands/item.rs` handles constant, uniform, binomial and sum (vanilla `NumberProvider`). Stale row.
+- Row 6 (`set_count` clamp): NOT A GAP. Vanilla `SetItemCountFunction.run` calls `ItemStack.setCount` with no clamp (`.vendor/vanilla-decompiled/net/minecraft/world/level/storage/loot/functions/SetItemCountFunction.java:45`, `world/item/ItemStack.java:1305`). Pumpkin clamps only to the u8 storage range (`item.rs` set_count arm). Representation limit, not a parity gap.
+- Row 7 (`mark_dirty` on container write): FIXED. `inventory.mark_dirty()` is called at `commands/item.rs:152` and `:834`. Stale row.
+- Row 8 (`item modify` feedback): FIXED. `BlockModifyExecutor` and `EntityModifyExecutor` send `COMMANDS_ITEM_BLOCK_MODIFY_SUCCESS` and `COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_*` (`commands/item.rs` ~L1212-1280). Stale row.
+- Row 9 (maintenance dedup of entity mapping): SKIPPED. Pure refactor with no behaviour difference; not a parity gap.

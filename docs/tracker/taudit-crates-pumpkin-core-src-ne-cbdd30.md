@@ -158,3 +158,9 @@ every in-scope row is already fixed. fixed=0 new this pass.
 - No pure unit test seam in either granted file (both need JavaClient + entity/network); none added.
 - No code changes, so no worker compile pitfalls to re-check. No cargo/git run (forbidden):
   UNVERIFIED.
+
+
+## Result (native-4 cross-file pass)
+- Row 4 (ban date tz name): BLOCKED-L. Needs a timezone-abbreviation source; no tz crate in the workspace (`grep chrono|time-tz Cargo.toml` empty). Cosmetic kick text only.
+- Row 5 (PlayerConfig defaults): FIXED (present). `net/mod.rs:131-145` matches vanilla `ClientInformation.createDefault()` (en_us, chat Enabled, colors on, skin_parts 0, Right hand, filtering off, listing off); `for_server` at `net/mod.rs:111` seeds view distance.
+- Row 6 (try_enqueue_spawn_packet not fallible): FIXED. The no-op `try_` alias was removed from `net/mod.rs`; caller `world/entity_tracker.rs:609` now calls `enqueue_spawn_packet`. Commit landed via a sweep commit (see native-4 summary).

@@ -161,3 +161,7 @@ Files changed: none (all fixes already present from earlier passes).
 Open rows:
 - Datapack/modded structures: needs a dynamic structure registry in generated `pumpkin-data` (generated-data / cross-crate change).
 - Bedrock success args for console/shared sources: needs separate Java/Bedrock `with` lists in `TextContent::Translate` (`pumpkin-util/src/text/mod.rs`).
+
+
+## Result (native-4 cross-file pass)
+- Datapack/modded structures (`wanted_structures`): BLOCKED-DATA. Needs a dynamic `worldgen/structure` registry in generated pumpkin-data.

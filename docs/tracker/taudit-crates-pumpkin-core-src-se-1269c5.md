@@ -63,3 +63,11 @@ Row 1 fix confirmed correct; no new code change needed this pass.
 - ClientboundInitializeBorderPacket and ClientboundSetBorderLerpSizePacket write border.getLerpTime() (remaining ticks) directly, so remaining_ticks() and speed / MILLIS_PER_TICK are the right packet units. Call site worldborder.rs:90 passes time_in_ticks * 50 as the ms duration, confirming the inverse.
 - sync_level_border (mod.rs:1043) writes remaining_ms() into the internal field; anvil.rs converts ticks to ms on read (saturating_mul(50), line 185) and ms to ticks on write (div_ceil equivalent, line 333). Round-trip test border_lerp_time_is_stored_in_game_ticks (200 ticks <-> 10,000 ms) is present.
 - Rows 2, 3, 4, 5, 7, 8 remain open: all live in server/mod.rs, outside this unit's editable files. ticker.rs re-read: no change needed.
+
+
+## Result (native-4 cross-file pass)
+- Row 2 (restore per-world forced chunks): FIXED (present). `server/mod.rs:628-665` `restore_forced_chunks`, called from `spawn_world` (`server/mod.rs:944`), matching vanilla ServerLevel constructor.
+- Row 4 (/reload load-tag timing): NOT A GAP. Vanilla `ServerFunctionManager.java:28-43` also defers `#minecraft:load` to the next `tick()` via `postReload`, gated on `runsNormally()`. Pumpkin matches: `server/mod.rs:1946-1947` gates `tick_worlds`, `server/mod.rs:1994-1999` consumes `take_load_pending`.
+- Row 5 (`process::exit` in lookup): FIXED (present). `get_world_from_dimension` at `server/mod.rs:816-823` returns `Option`; no `process::exit` remains in `server/mod.rs`.
+- Row 3 (freeze gate split): NOT A GAP for `#minecraft:tick`/`load` (gated at `server/mod.rs:1946`, matches `ServerFunctionManager.tick`).
+- Row 8 (debug sample gating): FIXED (present). Per-subscriber gating (`subscribed_debug_sample` and permission >= 2) at `server/mod.rs:2148-2157`.

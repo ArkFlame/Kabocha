@@ -107,3 +107,8 @@ No source files changed this pass. No unit test added: no fixable seam remained 
 (all clock/time behaviour already covered by the existing test module). No build or test run
 (shell/cargo blocked for workers); orchestrator verification required for the existing
 `time.rs` tests.
+
+
+## Result (native-4 cross-file pass)
+- Row 4 (TICK_TIME debug sample layout/ring): FIXED (present). `server/mod.rs:2078-2158` builds the 4-value sample via `tick_time_sample`, fed from the raw full-tick interval; layout doc at `server/mod.rs:2319`. Sent only to subscribers with permission level 2.
+- Row 2 (per-dimension map id counter + persistence): BLOCKED-L. Needs a map-id allocator in `world/` plus map-data persistence across `server/mod.rs` and the world save path; no pure seam and it spans crates.

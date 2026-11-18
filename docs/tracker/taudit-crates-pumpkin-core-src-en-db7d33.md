@@ -79,3 +79,8 @@ Fresh verification against `.vendor/vanilla-decompiled/net/minecraft/world/entit
 | 8 | LEFT OPEN (false positive) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (line 151) while `TntBlock.prime()` gates only ignition. Pumpkin's tick-time re-check (`entity/tnt.rs:166`) matches, so a TNT primed before the gamerule is disabled is cancelled in vanilla too. No change. |
 
 No new unit test: no behaviour change in this unit. The only pure seams (`fuse_from_nbt`, `random_short_fuse`) are already covered (`fuse_from_nbt`) or would be formula-mirroring (discouraged by the rules). No `.rs` file was touched, so no `rustfmt` was required.
+
+
+## Result (native-4 cross-file pass)
+- Row 7 (prime path drops modified radius): FIXED (present). `block/blocks/tnt.rs:98-116` fires `ExplosionPrimeEvent` with `tnt.power()` and feeds `prime_event.radius` back via `set_power`; `entity/tnt.rs:70-72`.
+- Row 3 (`ignoreExplosion` on PrimedTnt): NOT A GAP. Vanilla `PrimedTnt` has no `ignoreExplosion` override (only Entity, ItemEntity, VehicleEntity, Warden, ArmorStand, BlockAttachedEntity), so there is nothing to port.

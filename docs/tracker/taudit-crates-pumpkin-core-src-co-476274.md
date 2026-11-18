@@ -67,3 +67,8 @@ Vanilla reference: `net.minecraft.commands.arguments.ResourceKeyArgument`,
 - 1. Advancement half LEFT OPEN: vanilla resolves getAdvancement against the server's dynamic advancement registry; Pumpkin's AdvancementManager::get_advancements returns only generated Advancement data, so datapack advancements need a dynamic advancement registry (cross-crate, outside this unit).
 - 2. LEFT OPEN: vanilla suggests all dimension_type registry elements, but Pumpkin's execute in resolves against instantiated worlds only (execute.rs:190-193); advertising unloaded dimension types would yield always-failing commands. Needs a dimension registry / level registration (cross-crate, outside this unit).
 - 4. Partially FIXED: seven pure unit tests in resource_key.rs cover parse, client parser, biome suggestions (server-less fallback), get_registry_key, get_biome, get_advancement, and resolve_biome_id (vanilla + datapack). A live-server gametest for execute in / fillbiome remains LEFT OPEN (needs a running server, outside this unit).
+
+
+## Result (native-4 cross-file pass)
+- Rows 1, 2 (datapack advancement/biome resolution, dimension suggestions): BLOCKED-L. Needs a dynamic advancement registry and a dimension_type registry with level registration in pumpkin-core, not a single-file fix.
+- Row 4 (live-server gametest): BLOCKED-L, needs a `pumpkin-gametest` server context.

@@ -238,3 +238,7 @@ gap.
 
 No STILL OPEN row is fixable with a small change confined to dynamic_registry_loader.rs,
 dynamic_registry_manager.rs, known_packs.rs or packet.rs. No rustfmt run: no .rs file modified.
+
+
+## Result (native-4 cross-file pass)
+- Gap 1 (codec validation of datapack entries): BLOCKED-DATA. Needs a generated per-element codec.

@@ -135,3 +135,8 @@ cargo or git run per task.
 - Row 4 seeded RNG: NOT A GAP (observable). explosion_random seeded from level seed, world/mod.rs:700.
 - Row 8 particles/sound: FIXED (present), world/mod.rs:5124-5130.
 - Details: docs/investigations/native-2.md
+
+
+## Result (native-4 cross-file pass)
+- Row 6 (ClientboundExplodePacket blockCount): FIXED (present). `world/mod.rs:5140` sends `result.block_count`; `world/explosion.rs:822-833` counts air positions when fire is created, covered by test `incendiary_block_count_includes_air_positions` (explosion.rs:1114).
+- Row 8 (finalizeExplosion particles/sound): FIXED (present), see `world/mod.rs:5124-5130`.

@@ -142,3 +142,7 @@ needed: every in-scope STILL OPEN row is already resolved in the checkout and ma
 No code edits this pass (all in-scope rows already fixed/matching); existing tests cover the only pure
 unit-test seams (`is_valid_pack_name`, `pack_mcmeta_content`, `data_pack_format`); suggestion providers
 need a `CommandContext`, so no seam. Files changed this pass: none (unit doc only).
+
+
+## Result (native-4 cross-file pass)
+- Row 5 (`pumpkin-unit-test` exposed): BLOCKED-L, the expose point is `data/datapack/mod.rs` `get_enabled_packs`; not closed in this pass.

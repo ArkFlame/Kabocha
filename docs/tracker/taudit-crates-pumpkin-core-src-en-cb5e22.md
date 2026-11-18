@@ -96,3 +96,7 @@ Files changed: `crates/pumpkin-core/src/entity/decoration/display.rs`. `rustfmt 
 - NBT reset verified: `Brightness.CODEC` requires both fields 0..=15 (Brightness.java:6-11), so an incomplete/out-of-range compound clears the override (display.rs:661-671); `teleport_duration` uses `getIntOr(...,0)` + clamp 0..=59 (Display.java:215-216, display.rs:610-615).
 - Row 4 (`set_brightness` pre-packed int): OPEN, out of scope. Needs the plugin/WASM host API (`pumpkin-wasm-host-v0_1/-v0_2` display.rs) and likely WIT, outside this unit's files. Mitigated within display.rs: `set_brightness` re-packs a non -1 value from its own 4-bit fields (display.rs:261-274) and `set_brightness_override` exposes independent block/sky with clamping (display.rs:278-280); plugin API still takes one int.
 - No remaining in-scope STILL OPEN rows; no new unit-test seam. No shell/cargo/git run by this worker.
+
+
+## Result (native-4 cross-file pass)
+- Row 4 (`set_brightness` pre-packed int): BLOCKED-L. Correct fix needs an additive WIT change (`display.set-brightness` taking a plain level) applied to v0_1 and v0_2 host, SDK and runtime together, then `cargo run --locked -p pumpkin-codegen -- wit` (not run by the CODER; orchestrator must run it). Current `display.rs` already re-packs non -1 values, so behaviour is mitigated meanwhile.

@@ -99,3 +99,7 @@ Re-checked every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft
 - Row 6 (Halloween constants): VERIFIED NO ACTION. Zombie.java:520-521 and AbstractSkeleton.java:140-141 confirm 0.25 head roll and 0.1 jack-o'-lantern share; spawn.rs:20-22 constants match.
 
 No .rs files edited this pass (all actionable rows resolved earlier or verified NO ACTION). No pure test seam for the RNG swap, and no formula-mirroring test added. Checked row 4 against the Worker compile pitfalls table: f64 literal 0.114_85 and f64 RNG draw match Modifier.amount type, no unwrap/expect/panic, no import or macro-path changes.
+
+
+## Result (native-4 cross-file pass)
+- Row 5 (equipment roll ignores spawn reason): BLOCKED-L. Needs `EntitySpawnReason` threaded through `finalize_spawn_base`/`populate_spawn_equipment` and every `finalize_spawn` caller (cross-crate).

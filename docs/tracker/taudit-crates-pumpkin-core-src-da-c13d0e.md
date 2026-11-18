@@ -140,3 +140,8 @@ experience), `CraftingBookCategory.java`, `CookingBookCategory.java`,
   pumpkin-inventory brewing matching changed (cross-crate refactor).
 
 Status: UNVERIFIED (code written without compiling per worker rules; orchestrator compiles once).
+
+
+## Result (native-4 cross-file pass)
+- parse_ingredient mixed item/tag OneOf (M): FIXED. Vanilla `HolderSetCodec.java` list elements are `Item` ids only; `#tag` is accepted only at the top level, so a list with a tag entry fails the whole ingredient. `data/datapack/recipe_loader.rs` `parse_ingredient` now returns `None` for such lists instead of narrowing to item entries. Test: `ingredient_list_with_tag_entry_is_rejected`. The `OwnedRecipeIngredient::OneOf` tag representation is NOT needed, so the bedrock recipe.rs and plugin-encoder follow-up is moot.
+- Brewing/transmute/dye/decorated_pot/imbue shapes and crafting_special_* display fields: unchanged, still OPEN (protocol types, not in this slice).

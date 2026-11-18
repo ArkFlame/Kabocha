@@ -223,3 +223,8 @@ execute.rs; no compile run per unit rules, the orchestrator batch-checks.
 Added positioned_over_accepts_only_kept_heightmaps, a pure unit test over heightmap_kind, the
 one seam here that needs no live world. rustfmt --edition 2024 was run on execute.rs and
 summon.rs; no compile was run per unit rules, the orchestrator batch-checks.
+
+## Result (native-1)
+
+- Row 4 (`if function` gap) and row 3 are unchanged from the previous pass.
+- Row 7 (store score into orphan objective): BLOCKED-M. Vanilla `Scoreboard.removeObjective` removes the objective's scores (`.vendor/vanilla-decompiled/net/minecraft/world/scores/Scoreboard.java:302-314`) and a stored score can still target the orphan `Objective` instance. Pumpkin's `Scoreboard` keys scores by holder name and objective name, so an orphan score has no identity to live under. `write_stored_score` in `commands/execute.rs:938-968` therefore keeps skipping inactive objectives. Fix needs an objective-identity model in `world/scoreboard.rs`.

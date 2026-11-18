@@ -70,3 +70,8 @@ Re-verified every STILL OPEN row against vanilla 1.21.4 decompiled sources (`.ve
 - Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED, NO CHANGE. Vanilla never updates `previousGameMode` in a plain `setGameMode`; the commented segment at `player.rs:6665-6667` documents deliberate parity.
 
 Files edited this pass: none (documentation only). Rows 5 and 8 left open with the one-line reasons above; both are explicitly out of this unit's scope (generated data / cross-crate refactor).
+
+
+## Result (native-4 cross-file pass)
+- Row 8 (dimension-change duplication): BLOCKED-L. Cross-crate refactor of `entity/player.rs` and `world/mod.rs` change-dimension paths.
+- Row 5 (difficulty damage scaling): BLOCKED-DATA. Needs `DamageType.scaling` in generated pumpkin-data.
