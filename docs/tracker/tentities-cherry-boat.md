@@ -245,3 +245,46 @@ Decompiled vanilla is not present in this checkout (glob of .vendor/vanilla-deco
 and **/Boat.java found no files), so vanilla comparisons remain the line-anchored citations
 recorded in the earlier passes. All five rows end FIXED or NOT A GAP; none is BLOCKED-DATA.
 Status: PASS (verified against current Pumpkin source by comparison, not compiled).
+
+
+## Result (FINAL PASS)
+
+FINAL unit close-out. Worked all five rows in order against the current Pumpkin source. The decompiled
+vanilla tree is not present in this checkout (no .vendor/vanilla-decompiled net/minecraft tree), so
+vanilla parity is cited from the canonical path used in earlier passes:
+.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java and
+AbstractChestBoat.java (26.3), plus Mob.java / Entity.java where noted. No source file needed editing;
+every row was already FIXED or NOT A GAP in earlier passes and re-confirmed against the live source.
+
+1. Rider clamp + delta rotation: FIXED / VERIFIED. AbstractBoat.positionRider (vanilla:696-706) adds
+   deltaRotation then calls clampRotation (vanilla:740-754); onPassengerTurned (vanilla:762-766)
+   folds yDelta into yRotO. Pumpkin: yaw_delta from wrap_degrees(yaw - last_yaw) (boat.rs:591-593),
+   applied before the clamp in on_rider_positioned (856-899), re-clamped and folded into y_rot_o in
+   on_passenger_turned (901-949). Helpers clamp_rider_yaw (1009, +/-105), clamp_head_to_body (998,
+   max 75 / Mob.clampHeadRotationToBody), rider_body_yaw (982, full-boat animal +90/+270) and
+   rider_clamp_adjustment (1018) match. Tests at 1045/1055/1065 cover the seam.
+
+2. Buoyancy/drag/friction: FIXED / VERIFIED. AbstractBoat.floatBoat port lives in
+   entity/vehicle/boat/physics.rs:184 (get_water_level_above :113) and runs for every
+   server-authoritative boat from boat.rs:625; player-controlled boats keep client-authoritative motion
+   by design (AGENTS.md).
+
+3. Boarding gate (ticks_underwater >= 60): NOT A GAP / VERIFIED. Vanilla AbstractBoat.interact
+   (vanilla:784) returns PASS when outOfControlTicks >= 60.0F; the original row premise was wrong.
+   Pumpkin boat_interact_outcome (boat.rs:161-177) keeps the !out_of_control term and returns
+   Nothing when it fails, with a test at 1267.
+
+4. Chest-boat passenger cap: NOT A GAP / VERIFIED. AbstractChestBoat.getMaxPassengers() returns 1
+   (vanilla:48-50) vs 2 for AbstractBoat (vanilla:840-842); its interact falls back to the container
+   only when !canAddPassenger or isSecondaryUseActive. Pumpkin max_passengers (95-101) returns 1
+   for chest boats and chest_opens_container (135-141) gates the container on sneak/no-free-seat.
+
+5. Chest contents on every destroy route: FIXED / VERIFIED. AbstractChestBoat.remove drops slots when
+   reason.shouldDestroy() (vanilla:70-77). Pumpkin scatter_chest_contents (272) runs from on_removed
+   (504) when the removal reason should_destroy() and from the damage path (746), guarded by claim_drops.
+   is_collidable (643-645) returns true unconditionally, matching AbstractBoat.canBeCollidedWith.
+
+Every row ends FIXED, VERIFIED or NOT A GAP; none is STILL OPEN and none is BLOCKED-DATA (no missing
+generated pumpkin-data field or missing subsystem). No source file changed, so rustfmt/build were not
+required (cargo and shell are forbidden for this worker). Status: PASS (verified by vanilla/Pumpkin
+source comparison, not compiled).

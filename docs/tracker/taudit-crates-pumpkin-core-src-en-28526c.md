@@ -225,3 +225,41 @@ exact vanilla match or already fixed elsewhere in the checkout, so no STILL OPEN
 
 Compile-pitfall table re-read: no source code edited this pass, so no new imports, clones,
 struct initializers, macro paths or clippy-pedantic concerns.
+
+
+## Result (final pass)
+
+Independent re-verification of all five rows against `.vendor/vanilla-decompiled/net/minecraft/`
+and the current source. No new code edits were required: every row is FIXED or VERIFIED.
+
+- empty-collection set semantics (value.rs:24-26,81-83,152-154,170-172): VERIFIED. Both
+  `Brain.setMemoryInternal` overloads null any empty `Collection` then clear the slot
+  (`world/entity/ai/Brain.java:214-262`), `isEmptyCollection` is
+  `instanceof Collection && isEmpty()` (`Brain.java:573-575`), and the load path routes through
+  them (`Brain.java:205-212`). Pumpkin's `MemoryValue::is_empty_collection` matches; the
+  tracker's suggested deletion would have broken parity.
+- setMemoryInternal unregistered put (memory/mod.rs:240-242): VERIFIED (outside this unit).
+  `getMemorySlotIfPresent` returns null for unregistered types (`Brain.java:157-159`) and both
+  overloads guard with `if (slot != null)` (`Brain.java:215-216,240-241`). Match.
+- negative ttl (memory/mod.rs:124-131): VERIFIED (outside this unit). `MemorySlot.hasExpired()` is
+  `timeToLive <= 0L` and `tick()` clears on it
+  (`world/entity/ai/memory/MemorySlot.java:16-24,61-63`).
+- dump ttl wording (memory/mod.rs:136-141): VERIFIED (outside this unit). `DebugBrainDump.accept`
+  passes `timestamp` as the displayed ttl (`util/debug/DebugBrainDump.java:158-160`) while
+  `MemorySlot.toString` prints the real ttl; Pumpkin prints the real ttl and the comment documents
+  that vanilla quirk.
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (types.rs:122-123): FIXED and VERIFIED.
+  Declared as ids 79/80 (`world/entity/ai/memory/MemoryModuleType.java:116-117`). Hoglins:
+  `HoglinSpecificSensor` writes both counts filtering `!isBaby && (Piglin || Hoglin)`
+  (`hoglin_specific.rs:80-114`; vanilla `world/entity/ai/sensing/HoglinSpecificSensor.java:41-57`)
+  and `piglins_outnumber_hoglins` reads `piglin_count > hoglin_count + 1` (`hoglin.rs:38-62`;
+  vanilla `world/entity/monster/hoglin/HoglinAi.java:174-182`). Piglins:
+  `refresh_visible_adult_counts` stores both counts with brutes counted as piglins
+  (`piglin.rs:540-603`; vanilla `world/entity/ai/sensing/PiglinSpecificSensor.java:73-80,107-108`)
+  and `hoglins_outnumber_piglins` reads `hoglin_count > piglin_count + 1` (`piglin_ai.rs:71-78`;
+  vanilla `world/entity/monster/piglin/PiglinAi.java:779-783`). Existing tests
+  `hoglin_sensor_counts_only_visible_adults`, `hoglins_outnumber_piglins_uses_both_visible_counts`
+  and `retreat_broadcasts_to_visible_adult_piglins` cover the behavior; no duplicate test added.
+
+Compile-pitfall table re-read: no source code edited this pass, so no new imports, clones, struct
+initializers, macro paths or clippy-pedantic concerns. No source files touched, so no rustfmt needed.

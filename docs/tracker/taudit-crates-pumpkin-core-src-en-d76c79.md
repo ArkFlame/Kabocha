@@ -343,3 +343,48 @@ matching vanilla in the current tree and no STILL OPEN rows remain.
   No new test needed. No `.rs` file changed.
 - Compile/format: not run here per worker rules; orchestrator batch-checks.
 - Files touched: docs/tracker/taudit-crates-pumpkin-core-src-en-d76c79.md only.
+
+
+## Result
+
+2026-11-18 orchestrator FINAL PASS. Re-read all four unit source files and compared each
+row directly to `.vendor/vanilla-decompiled`. Every row is VERIFIED as matching vanilla in
+the current tree; no source change was needed.
+
+- Row 1 (brain-sensor threats / villager hostile fleeing): VERIFIED (matches vanilla).
+  `.../ai/sensing/VillagerHostilesSensor.java:11-42` distance table equals
+  `villager_hostiles.rs:12-24` and the inclusive `<= dist^2` check equals `is_matching_entity`
+  (lines 34-37); NEAREST_HOSTILE is set from the nearest visible candidate (lines 44-59).
+  `.../ai/behavior/SetWalkTargetAwayFrom.java:34-66` matches
+  `set_walk_target_away_from.rs:24-81`: WALK_TARGET registered + avoid memory present, skip
+  when a target exists and `!interrupt_current_walk`, return false when not closer than
+  desired_distance (Rust `>=` rejection lines 50-54), reject a same-speed walk whose dot with
+  the avoid direction is negative (`walk_is_away`, lines 16-22), then 10
+  `LandRandomPos.get_pos_away(16,7)` attempts set `WalkTarget(pos, speed, 0)`. Pure unit tests
+  exist in both files.
+- Row 2 (confirm on ranked nearest only): VERIFIED (matches vanilla).
+  `.../animal/wolf/Wolf.java:689-719`: `WolfAvoidEntityGoal.canUse` calls `super.canUse()` first
+  (nearest found with targeting selectors, escape path built), then `toAvoid instanceof Llama
+  && !isTame() && avoidLlama(llama)`; `avoidLlama = getStrength() >= random.nextInt(5)` (one
+  draw). The 5-arg super (`.../ai/goal/AvoidEntityGoal.java:28-32`) sets `avoidPredicate = t ->
+  true` and `predicateOnAvoidEntity = NO_CREATIVE_OR_SPECTATOR`. `can_start`
+  (avoid_entity.rs:184-195) applies `confirm` after `find_threat` + `create_path`, one draw;
+  `llama::scares_wolves` (llama.rs:60-63) draws `random_range(0..5)` once. Matches.
+- Row 3 (tick_reach range): VERIFIED (matches vanilla). `AvoidEntityGoal.java:70-78` inflates
+  the box by maxDist horizontal / 3.0 vertical and ranks from feet; `find_threat` uses
+  `SearchArea::from_feet(entity, flee_distance, THREAT_SEARCH_HEIGHT=3.0)` and `tick_reach`
+  reports `flee_distance` (avoid_entity.rs:119,130). Reach and search agree; no per_type split.
+- Row 4 (drop_target per-tick clear): VERIFIED (matches vanilla). `Wolf.java:708-718` overrides
+  both `start()` and `tick()`, each calling `setTarget(null)`. `start()` (avoid_entity.rs:205-215)
+  and `tick()` (avoid_entity.rs:217-233) both clear when `drop_target` is set. Matches.
+- Default targeting predicate: VERIFIED (matches vanilla). `AvoidEntityGoal.java:52-55` builds
+  `TargetingConditions.forCombat().range(maxDist).selector(...)` only;
+  `TargetingConditions.java:14-15,44-52` keeps `checkLineOfSight`/`testInvisible` true and has
+  no `allowUnseeable`. `create_attackable().set_base_max_distance(flee_distance)`
+  (avoid_entity.rs:64-67) keeps line of sight + visibility scaling (target_predicate.rs default
+  respects_visibility=true, use_distance_scaling_factor=true), covered by the tokio test
+  `creeper_does_not_flee_an_ocelot_it_cannot_see`.
+
+No STILL OPEN rows remain and no BLOCKED-DATA rows exist. No `.rs` file changed this pass, so
+rustfmt was not needed; not compiled here per worker rules, orchestrator batch-checks.
+Unit is complete.
