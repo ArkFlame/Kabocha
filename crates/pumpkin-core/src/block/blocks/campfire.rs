@@ -20,8 +20,8 @@ use crate::plugin::api::events::block::campfire_start::CampfireStartEvent;
 use crate::world::World;
 use crate::{
     block::{
-        BlockBehaviour, BlockIsReplacing, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
-        OnPlaceArgs, OnProjectileHitArgs, PathComputationType, PlacedArgs, UseWithItemArgs,
+        BlockBehaviour, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs, OnPlaceArgs,
+        OnProjectileHitArgs, PathComputationType, PlacedArgs, UseWithItemArgs,
         registry::BlockActionResult,
     },
     entity::EntityBase,
