@@ -297,10 +297,15 @@ impl BedrockClient {
             return false;
         }
         // Bedrock acknowledges a teleport with the `HandledTeleport` input flag (Java uses
-        // `ServerboundAcceptTeleportationPacket`); proximity is the fallback for clients
-        // that never set the flag.
+        // `ServerboundAcceptTeleportationPacket`). A `TeleportData` ack repeats the server
+        // position we sent, which correlates it to this pending teleport the way vanilla
+        // matches by id; reaching the target is the fallback for clients that send neither.
         let handled = packet.input_data.get(InputData::HandledTeleport as usize);
-        if teleport_confirmed(handled, packet.position, self.teleport_sent_pos.load()) {
+        let sent = self.teleport_sent_pos.load();
+        let echoed = packet
+            .teleport
+            .is_some_and(|data| position_within(data.server_position, sent));
+        if teleport_confirmed(handled, echoed, packet.position, sent) {
             *awaiting = None;
             drop(awaiting);
             player.is_changing_dimension.store(false, Ordering::Relaxed);
@@ -319,16 +324,25 @@ impl BedrockClient {
     }
 }
 
-/// A Bedrock client confirms a teleport by setting the `HandledTeleport` input flag, the
-/// equivalent of vanilla `handleAcceptTeleportPacket`. Clients that do not set it are accepted
-/// once their reported position reaches the sent target; an f32 position can sit either side
-/// of the stored target, hence the small tolerance.
-fn teleport_confirmed(handled: bool, position: Vector3<f32>, target: Vector3<f32>) -> bool {
+/// A Bedrock client confirms a teleport by setting the `HandledTeleport` input flag or by
+/// echoing the server position in `TeleportData`, the equivalent of vanilla
+/// `handleAcceptTeleportPacket`. Reaching the sent target is the fallback for clients that
+/// send neither.
+fn teleport_confirmed(
+    handled: bool,
+    echoed: bool,
+    position: Vector3<f32>,
+    target: Vector3<f32>,
+) -> bool {
+    handled || echoed || position_within(position, target)
+}
+
+/// f32 positions can sit either side of the stored target, hence the small tolerance.
+fn position_within(position: Vector3<f32>, target: Vector3<f32>) -> bool {
     const TELEPORT_ERROR: f32 = 0.1;
-    handled
-        || ((position.x - target.x).abs() < TELEPORT_ERROR
-            && (position.y - target.y).abs() < TELEPORT_ERROR
-            && (position.z - target.z).abs() < TELEPORT_ERROR)
+    (position.x - target.x).abs() < TELEPORT_ERROR
+        && (position.y - target.y).abs() < TELEPORT_ERROR
+        && (position.z - target.z).abs() < TELEPORT_ERROR
 }
 
 fn sneaking_from_auth(
@@ -575,7 +589,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn camera_relative_move_projects_world_move_onto_view_axes() {
         // Camera facing +Z (yaw 0): forward is +Z, right is +X.
@@ -663,6 +676,7 @@ mod tests {
     fn teleport_ack_flag_confirms_without_reaching_the_target() {
         assert!(teleport_confirmed(
             true,
+            false,
             Vector3::new(0.0, 0.0, 0.0),
             Vector3::new(100.0, 100.0, 100.0)
         ));
@@ -672,11 +686,23 @@ mod tests {
     fn teleport_confirms_by_proximity_without_the_ack_flag() {
         assert!(teleport_confirmed(
             false,
+            false,
             Vector3::new(10.0, 20.0, 30.0),
             Vector3::new(10.05, 19.95, 30.0)
         ));
         assert!(!teleport_confirmed(
             false,
+            false,
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(100.0, 100.0, 100.0)
+        ));
+    }
+
+    #[test]
+    fn teleport_echoed_server_position_confirms_a_stale_input_position() {
+        assert!(teleport_confirmed(
+            false,
+            true,
             Vector3::new(0.0, 0.0, 0.0),
             Vector3::new(100.0, 100.0, 100.0)
         ));
