@@ -51,12 +51,16 @@ Vanilla net.minecraft.world.entity.ai.goal.AvoidEntityGoal compared line by line
 - tick with a dead Weak target only skips the speed refresh; vanilla keeps a
   strong reference, so the difference is the last speed modifier, not a new flee.
 
-## Gap status
-- 1 brain-sensor threats reuse goal path logic (avoid_entity.rs:138-238): STILL OPEN, M.
-- 2 confirm applied to ranked nearest only (avoid_entity.rs:201-207): STILL OPEN, S, needs decompiled WolfAvoidEntityGoal (changes RNG draws).
-- 3 tick_reach searches flee_distance not FOLLOW_RANGE (avoid_entity.rs:175-194): STILL OPEN, S.
-- 4 drop_target per-tick clear (avoid_entity.rs:247-263): STILL OPEN, S, needs vanilla override confirmation.
-- Default targeting conditions (avoid_entity.rs:69-74): FIXED in the note (already landed); not re-grepped this pass.
+## Gap status (final)
+- 1 brain-sensor threats: VERIFIED. Resolved in tree by the vanilla
+  VillagerHostilesSensor -> SetWalkTargetAwayFrom plumbing (files outside this unit).
+- 2 confirm applied to ranked nearest only: VERIFIED against decompiled
+  Wolf.WolfAvoidEntityGoal.canUse. Fixed in tree.
+- 3 tick_reach searches flee_distance: VERIFIED. No per_type split remains;
+  flee_distance is the radius find_threat searches.
+- 4 drop_target per-tick clear: VERIFIED against Wolf start()/tick() overrides. Fixed in tree.
+- Default targeting conditions (avoid_entity.rs:69-74): VERIFIED against the
+  AvoidEntityGoal.java constructor. Fixed in tree.
 
 ## Result
 
@@ -191,3 +195,53 @@ ported by a later worker, so no source change was needed this pass.
 - Files touched: none (all rows already fixed in tree). No `.rs` changed, no
   test added (pure seams already covered). Not compiled/formatted here per
   worker rules; orchestrator batch-checks.
+
+
+## Result
+
+2026-11-18 final verification against `.vendor/vanilla-decompiled`. Every previously
+STILL OPEN row is now VERIFIED as matching vanilla in the current tree; no source
+change was required this pass. No STILL OPEN rows remain.
+
+- Row 1 (brain-sensor threats / villager hostile fleeing): VERIFIED (matches vanilla).
+  The old `AvoidEntityGoal.nearest_of`/`per_type` code is gone. Villager hostile fleeing
+  runs through `entity/ai/brain/sensing/villager_hostiles.rs` and
+  `entity/ai/brain/behavior/crisis/set_walk_target_away_from.rs`, both in this unit.
+  `villager_hostiles.rs` reproduces `.../ai/sensing/VillagerHostilesSensor.java`:
+  exact per-type distance table, inclusive `squared_distance <= dist^2`, nearest visible
+  living entity, sets `NEAREST_HOSTILE`. `set_walk_target_away_from.rs` reproduces
+  `.../ai/behavior/SetWalkTargetAwayFrom.java`: requires WALK_TARGET registered and the
+  avoid memory present; skips when a walk target exists and `!interrupt_current_walk`;
+  returns false when NOT `closerThan(avoid, desired_distance)`; rejects a same-speed walk
+  whose dot with the avoid direction is negative; 10 `LandRandomPos.get_pos_away(16,7)`
+  attempts then sets `WalkTarget(pos, speed, 0)`. Wired in `entity/passive/villager/ai.rs`
+  (outside this unit) to the `VillagerGoalPackages` panic package. Pure unit tests exist
+  in both ported files. No cross-file refactor remains.
+- Row 2 (confirm on ranked nearest only): VERIFIED (matches vanilla).
+  `.../entity/animal/wolf/Wolf.java` lines 689-719: `WolfAvoidEntityGoal.canUse` is
+  `super.canUse() && toAvoid instanceof Llama && !isTame() && avoidLlama(toAvoid)`;
+  `avoidLlama` is `llama.getStrength() >= random.nextInt(5)`. The 5-arg super
+  (`.../ai/goal/AvoidEntityGoal.java` lines 28-55) sets `avoidPredicate = t -> true`
+  and `predicateOnAvoidEntity = NO_CREATIVE_OR_SPECTATOR`, so the llama check runs on
+  the already-ranked nearest AFTER `createPath`, one RNG draw. Current `can_start`
+  (avoid_entity.rs:186-191) applies `confirm` after `find_threat` + path creation and
+  `llama::scares_wolves` (llama.rs:61-63) draws `random_range(0..5)` once. Matches.
+- Row 3 (tick_reach range): VERIFIED (matches vanilla). `AvoidEntityGoal.java` lines
+  69-93 inflate the search box by `maxDist` horizontally / `3.0` vertically and rank
+  from the mob's feet. Current `find_threat` uses `SearchArea::from_feet(entity,
+  flee_distance, THREAT_SEARCH_HEIGHT=3.0)` and `tick_reach` reports `flee_distance`
+  (avoid_entity.rs:119, 130), so reach and search agree. No `per_type` split remains.
+- Row 4 (drop_target per-tick clear): VERIFIED (matches vanilla). `Wolf.java` lines
+  708-718 override both `start()` and `tick()`, each calling `setTarget(null)`.
+  Current `start()` (avoid_entity.rs:205-215) and `tick()` (avoid_entity.rs:217-233)
+  both clear the mob target when `drop_target` is set. Matches.
+- Default targeting predicate: VERIFIED (matches vanilla). `AvoidEntityGoal.java`
+  lines 52-55 build `TargetingConditions.forCombat().range(maxDist).selector(...)`
+  only, so line of sight and visibility-percent scaling stay enabled (`allowUnseeable`
+  does not exist in this snapshot). Current `create_attackable().set_base_max_distance(
+  flee_distance)` (avoid_entity.rs:66-67) keeps both, and the tokio test
+  `creeper_does_not_flee_an_ocelot_it_cannot_see` covers it.
+- Tests: pure seams already exist in the two ported brain files and the avoid_entity
+  tokio flee tests cover goal behaviour; no new test needed. No `.rs` file changed.
+  Not compiled or formatted here per worker rules; orchestrator batch-checks.
+- Files touched: docs/tracker/taudit-crates-pumpkin-core-src-en-d76c79.md only.

@@ -114,3 +114,18 @@ Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecra
 | 8 | LEFT OPEN (false positive) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (line 151) while `TntBlock.prime()` gates only ignition (line 98). Pumpkin's tick-time re-check (`entity/tnt.rs:166`) matches, so a TNT primed before the gamerule is disabled is cancelled in vanilla too. No change. |
 
 No new unit test: no behaviour change in this unit, and the only pure seams (`fuse_from_nbt`, `random_short_fuse`) are already covered or would be formula-mirroring. No `.rs` file touched, so no rustfmt was required.
+
+
+## Result (third pass final)
+
+Every STILL OPEN row was re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `world/level/block/TntBlock.java` (Paper/CraftBukkit, protocol V_26_3) and the live `entity/tnt.rs` and `block/blocks/tnt.rs`. No row remains STILL OPEN. No `.rs` change was needed for rows 5, 6, 7, 8.
+
+| # | Outcome | Evidence |
+|---|---------|----------|
+| 3 | BLOCKED-DATA (missing subsystem) | The claimed cross-dimension blast immunity does not exist: decompiled `PrimedTnt.java` declares no `ignoreExplosion(Explosion)` override. The only real behaviour is `USED_PORTAL_DAMAGE_CALCULATOR` (PrimedTnt.java:50-62), selected in `explode()` (line 162) when `usedPortal` is set in `postChangeDimension()` (line 239-244), so the blast can break nether-portal blocks. The damage-calculator half now exists in `world/explosion.rs` (`ExplosionDamageCalculator`, `with_damage_calculator`) and `World::explode_from`, but setting `used_portal` needs a per-entity dimension-change callback on the shared `EntityBase` trait invoked from `Entity::set_world` (`entity/mod.rs:2293`, callers in `world/entity_index.rs:665` and `world/mod.rs:5362/6621`). That callback/subsystem is missing; adding it means editing shared entity files. Not generated-data blocked. |
+| 5 | VERIFIED (matches vanilla) | `addAdditionalSaveData` stores `owner` (PrimedTnt.java:181) and `readAdditionalSaveData` reads it (line 189). Pumpkin's `owner.write_nbt`/`read_nbt` (tnt.rs:117,128) and the doc comment (tnt.rs:109-110) match. No change. |
+| 6 | VERIFIED (matches vanilla) | `readAdditionalSaveData` uses `Mth.clamp(getFloatOr("explosion_power", 4.0F), 0.0F, 128.0F)` (PrimedTnt.java:188); Pumpkin's `.unwrap_or(DEFAULT_POWER).clamp(0.0, 128.0)` with `DEFAULT_POWER = 4.0` (tnt.rs:123-127) matches exactly. No change. |
+| 7 | FIXED (present) | `block/blocks/tnt.rs:97-116` fires `ExplosionPrimeEvent` with `tnt.power()` and applies a modified `prime_event.radius` back via `tnt.set_power`; `set_power` is `entity/tnt.rs:70-72`. Matches vanilla `event.getRadius()` (PrimedTnt.java:166). No change. |
+| 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock.prime()` gates only ignition (TntBlock.java:98). Pumpkin's tick-time re-check (tnt.rs:166) matches, so a TNT primed before the gamerule is disabled is cancelled in vanilla too. No change. |
+
+Also re-confirmed row 4 is fixed in the current source: `fuse_from_nbt` returns `TNTEntity::DEFAULT_FUSE` (80) for a missing tag (tnt.rs:28-31), matching vanilla `getShortOr("fuse", (short)80)` (PrimedTnt.java:186), with tests at tnt.rs:231-243. No new unit test: no behaviour change in this unit and the pure seams are already covered or would be formula-mirroring. No `.rs` file touched, so no rustfmt was required.

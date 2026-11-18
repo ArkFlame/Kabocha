@@ -209,3 +209,39 @@ and time.rs uses it at the six rate call sites (469/476/483/645/655/662).
 
 No pure seam for a new test; no source files edited this pass (doc Result only).
 No compile run (orchestrator builds all).
+
+
+## Result (pass 6, third pass, final)
+
+Final classification of the two unresolved rows (supersedes earlier open markers).
+Re-verified both against vanilla
+`.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java` (26.3,
+Paper/Canvas patched) and the generated Bedrock translation table in
+`crates/pumpkin-data/src/generated/translation.rs`. Both need a resource outside
+this unit, so neither can be fixed in data.rs/registry_id.rs/time.rs; both are
+BLOCKED-DATA. Smallest first:
+
+- 6. Bedrock `/time rate` message: BLOCKED-DATA. Vanilla `setRate` sends
+  `commands.time.rate` (TimeCommand.java:286-296). The Java key exists in the
+  generated table (`translation.rs:7606 COMMANDS_TIME_RATE`), but the Bedrock
+  module has no rate key (only CLOCK_SET/ADDED/PAUSED/RESUMED/QUERY_TIME/FAILED/
+  NUM_TOOSMALL/TIMEMARKER_* and QUERY_DAY/DAYTIME/GAMETIME, translation.rs:22467-22496).
+  Exact missing generated field: a Bedrock `commands.time.rate` translation
+  constant in `crates/pumpkin-data/src/generated/translation.rs` (generated data,
+  off-limits, needs the Extractor). The `COMMANDS_TIME_SET` fallback is kept.
+- 7. query day/daytime for arbitrary timelines: BLOCKED-DATA. Vanilla
+  `queryTimelineTicks`/`queryTimelineRepetitions` (TimeCommand.java:170-194)
+  resolve a `timeline` resource via `ResourceArgument.resource(context,
+  Registries.TIMELINE)`, suggest it via `suggestTimelines` (TimeCommand.java:118-131,
+  142-151) and read `getCurrentTicks`/`getPeriodCount` per clock. Exact missing
+  subsystem: a command-side `minecraft:timeline` resource argument with registry
+  holder lookup, suggestions, the `repetition` subcommand and per-timeline tick
+  computation. Pumpkin only models `minecraft:day` (time.rs
+  `ensure_day_timeline_clock`), so arbitrary timelines (moon, villager_schedule,
+  datapacks) are not queryable. The Java query translation keys already exist
+  (`translation.rs:7601/7603`), so the gap is the resolution subsystem only.
+
+All other rows remain FIXED/CLOSED from earlier passes. No regressions found.
+No source edit was possible within scope, so no source file changed this pass and
+no new test seam exists. No compile run (orchestrator builds all).
+Files touched: this doc Result only.
