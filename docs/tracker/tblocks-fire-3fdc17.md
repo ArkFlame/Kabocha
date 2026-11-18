@@ -87,7 +87,7 @@ Tracker note: the reviewed source changed after that audit. Two commits touched
 - `fire_spread_radius_around_player` sentinel handling (fire.rs:379-407: -1 unlimited, 0 disabled).
 
 ## Status (code-verified sweep)
-FIXED: fire tick delay is 30 + rand(0..10) (block/blocks/fire/fire.rs:33-34). STILL OPEN: getStateForPosition shape and canSurvive neighbour rule not re-read.
+FIXED: fire tick delay is 30 + rand(0..10) (block/blocks/fire/fire.rs:33-34). getStateForPosition shape and canSurvive neighbour rule subsequently VERIFIED matching in the final Result below.
 
 
 ## Result
@@ -238,4 +238,38 @@ No pure unit-test seam exists for these rows: all three paths need `World`,
 compile as a worker; orchestrator verifies with `scripts/integrate.sh`.
 
 
-WRITE_TEST_OK
+## Result (final, third pass)
+
+All tracker rows have a final disposition. No row remains STILL OPEN.
+Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java`
+(`getStateForPlacement`:126-143, `canSurvive`:146-149, `tick`:152-235,
+`checkBurnOut`:257-294, `getIgniteOdds`:251-255 and 311-324, `canBurn`:327-328),
+`.../BaseFireBlock.java`:142-166, `.../world/item/FlintAndSteelItem.java`:34,
+`.../world/item/FireChargeItem.java`:38 and
+`.../core/dispenser/FlintAndSteelDispenseItemBehavior.java`:36.
+
+| Row | Final disposition | Evidence |
+|---|---|---|
+| get_fire_tick_delay = 30 + rand(0..10) | VERIFIED | fire.rs:34-35; FireBlock.tick schedules 30 + random(10) |
+| "canSurvive neighbour rule" (was STILL OPEN) | VERIFIED | FireBlock.canBurn:327-328 + getIgniteOdds:251-255; fire.rs:39-52 reads spread/ignite odds and returns 0 for waterlogged |
+| "getStateForPosition shape" (was STILL OPEN) | VERIFIED | FireBlock.getStateForPlacement:129 uses canBurn(below) || isFaceSturdy(UP); fire.rs:74 uses is_flammable || is_side_solid(Up) (isFaceSturdy) |
+| Gap 1 age >= 15 gate | VERIFIED | FireBlock.tick:181 is only an age==15 extinguish roll, no blanket burn/spread gate; fire.rs:387-395 |
+| Gap 2 spread odds / rain | FIXED (earlier pass) | FireBlock.tick:216 gates the spread loop on isNearRain (5 columns); fire.rs:463-468 uses Self::is_near_rain |
+| Gap 3 getStateForPosition shape | VERIFIED | as above |
+| Gap 4 TNT replace ordering | FIXED (earlier pass) | FireBlock.checkBurnOut:275-292 removes TNT then primes in every branch; fire.rs:206-225 routes TNT to the air branch before spawn_primed |
+| Gap 5 fire tick timer (mod.rs) | VERIFIED | BaseFireBlock.java:142-166 fireIgnite; mod.rs:124-151 implements negative +1, player random(1..3), 8s ignition |
+| Gap 6 can_place_at portal variant | FIXED (earlier pass) | vanilla item/dispenser sites pass real facing; threaded through mod.rs:51-121, ignition.rs:29-54, flint_and_steel.rs:67-94, fire_charge.rs:68-95, dispenser.rs:976-985; lightning.rs:118 passes Up (never portals in vanilla) |
+| Suspicion isRaining in checkBurnOut | VERIFIED | FireBlock.checkBurnOut:275 uses isRainingAt(pos); Pumpkin is_raining_at short-circuits on !is_raining() |
+| Suspicion fire_spread_radius_around_player sentinel | VERIFIED | ServerLevel.java:4741-4744, ChunkMap.java:777-787/869-876; fire.rs:154-182 (-1 unlimited, <=0 disabled, spectator excluded, squared distance from block corner) |
+
+No new code edits were needed this pass: every fix from earlier passes is present in
+the current source and matches the decompiled vanilla cited above. No pure unit-test
+seam exists for the fire placement / collision rows (they need World, Arc, players or
+entity collision state); the existing `waterlogged_flammable_has_zero_ignite_odds`
+test (fire.rs:517-526) covers the ignite-odds seam. Cannot compile as a worker;
+orchestrator verifies with `scripts/integrate.sh`.
+
+Fixed across the unit (earlier passes): Gap 2, Gap 4, Gap 6. Verified matching:
+tick delay, canSurvive rule, getStateForPosition shape, Gap 1, Gap 3, Gap 5, both
+suspicions. Open: 0. BLOCKED-DATA: none (no generated pumpkin-data field or missing
+subsystem is required).
