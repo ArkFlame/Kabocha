@@ -67,3 +67,14 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/` this pass.
 - Row 3 STILL OPEN, out of scope: dead `compass_target` field and methods are in `entity/player.rs`.
 - Row 4 STILL OPEN, verified no change needed (in-scope `compass.rs`): `RECOVERY_COMPASS` shares `CompassItem`, but the only behaviour hook is `use_on_block`, guarded by `item.item.id == Item::COMPASS.id` (`compass.rs:35`), so a recovery compass can never acquire a `LODESTONE_TRACKER`. No observable difference from vanilla's plain `Item`; kept for shared hooks as the doc recommends.
 - Row 5 STILL OPEN, out of scope: a `pumpkin-gametest` needs a new test file, not an allowed file. No pure seam in either in-scope file for a unit test (`use_on_block` needs Player/Server/World, `execute` needs CommandContext).
+
+## Result
+
+Re-verified this pass against `.vendor/vanilla-decompiled/net/minecraft/` (`SetWorldSpawnCommand`, `CompassItem`). No in-scope source change was needed; the previously applied `setworldspawn.rs` `get_spawnable_pos` fix is present in the checkout and correct. No `.rs` file touched this pass, so no rustfmt run; no compile check (shell/cargo restricted for this unit).
+
+- Verified in scope `setworldspawn.rs` `execute`: matches `SetWorldSpawnCommand.register/setSpawn` (SetWorldSpawnCommand.java:20-54). Self path uses `BlockPos.containing(source.getPosition())` -> `floored_v`; both `pos` variants use `get_spawnable_pos` (vanilla `BlockPosArgument.getSpawnablePos`, lines 25/28) which bounds-checks via `is_valid_block_pos`; rotation uses `getRotation(source)`. No further gap.
+- Row 4 verified in scope `compass.rs`: `use_on_block` (compass.rs:25-76) matches vanilla `CompassItem.useOn` (CompassItem.java:46-69): lodestone check, `ItemLodestoneCompassLock` on `Players`, in-place set when count==1 and not creative, otherwise `transmute_copy`/consume/insert/drop, creative keeps original. The `item.item.id == Item::COMPASS.id` guard at :35 means RECOVERY_COMPASS cannot acquire a `LODESTONE_TRACKER`. Vanilla's extra `isFoil`/`inventoryTick`/`getName` overrides cannot be added from `compass.rs` without the out-of-scope trait/player changes below. No change needed.
+- Row 1 STILL OPEN, out of scope: lodestone tracker tick lives in `entity/player.rs`.
+- Row 2 STILL OPEN, out of scope: `isFoil` glint needs `ItemBehaviour::is_foil` (`item/mod.rs`) plus `ItemStack::has_foil` (cross-crate pumpkin-data).
+- Row 3 STILL OPEN, out of scope: dead `compass_target` field/methods live in `entity/player.rs`.
+- Row 5 STILL OPEN, out of scope: gametest needs a new test file; no pure unit-test seam in either in-scope file (`use_on_block` needs Player/Server/World, `execute` needs CommandContext).
