@@ -21,7 +21,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     block::{
         ExplodeArgs,
-        blocks::fire::{FireBlockBase, fire::FireBlock},
+        blocks::fire::fire::FireBlock,
         drop_loot,
     },
     entity::{Entity, EntityBase, projectile::is_redirectable, tnt::TNTEntity},
@@ -449,8 +449,9 @@ impl<'a> Explosion<'a> {
                 continue;
             }
 
-            let fire_block = FireBlockBase::get_fire_type(world, pos);
-            let fire_state_id = FireBlock.get_state_for_position(world, &fire_block, pos);
+            // Vanilla ServerExplosion.createFire uses BaseFireBlock.getState, which
+            // yields soul fire on a soul base and plain fire with age 0 otherwise.
+            let fire_state_id = FireBlock.get_placement_state(world, pos, 0);
             // Vanilla re-checks `BlockState.isAir()`, which also covers cave and void air.
             let _ =
                 world.set_block_state_if(pos, fire_state_id, BlockFlags::NOTIFY_ALL, |state_id| {

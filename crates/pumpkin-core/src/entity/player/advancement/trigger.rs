@@ -33,15 +33,18 @@ pub enum AdvancementTrigger {
     SleptInBed,
     ConsumeItem {
         item_id: String,
+        count: u32,
     },
     PlacedBlock {
         block_id: String,
+        item_id: Option<String>,
+        count: u32,
     },
     EnterBlock {
         block_id: String,
     },
     FishedItem {
-        items: Vec<String>,
+        items: Vec<(String, u32)>,
     },
     DeflectedDamage,
     PlayerKilled,
@@ -90,6 +93,7 @@ pub enum AdvancementTrigger {
     },
     FilledBucket {
         item_id: String,
+        count: u32,
     },
     UsingItem {
         item_id: String,
@@ -141,6 +145,7 @@ pub enum AdvancementTrigger {
     },
     ShotCrossbow {
         item_id: String,
+        count: u32,
     },
     AvoidVibration,
     BeeNestDestroyed {
@@ -199,6 +204,7 @@ pub enum AdvancementTrigger {
     },
     UsedTotem {
         item_id: String,
+        count: u32,
     },
     Tick,
 }
@@ -410,17 +416,23 @@ impl Player {
                 self.trigger_criterion_event("minecraft:slept_in_bed", |_cond| true);
             }
 
-            AdvancementTrigger::ConsumeItem { item_id } => {
+            AdvancementTrigger::ConsumeItem { item_id, count } => {
                 self.trigger_criterion_event("minecraft:consume_item", |cond| match cond {
-                    CriterionConditions::ConsumeItem(pred) => pred.matches(&item_id, 1, &[]),
+                    CriterionConditions::ConsumeItem(pred) => pred.matches(&item_id, count, &[]),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
             }
 
-            AdvancementTrigger::PlacedBlock { block_id } => {
+            AdvancementTrigger::PlacedBlock {
+                block_id,
+                item_id,
+                count,
+            } => {
                 self.trigger_criterion_event("minecraft:placed_block", |cond| match cond {
-                    CriterionConditions::PlacedBlock(pred) => pred.matches(&block_id, None, 1, &[]),
+                    CriterionConditions::PlacedBlock(pred) => {
+                        pred.matches(&block_id, item_id.as_deref(), count, &[])
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -439,7 +451,9 @@ impl Player {
             AdvancementTrigger::FishedItem { items } => {
                 self.trigger_criterion_event("minecraft:fishing_rod_hooked", |cond| match cond {
                     CriterionConditions::FishingRodHooked(pred) => {
-                        items.iter().any(|item_id| pred.matches(item_id, 1, &[]))
+                        items
+                            .iter()
+                            .any(|(item_id, count)| pred.matches(item_id, *count, &[]))
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
@@ -602,9 +616,9 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::FilledBucket { item_id } => {
+            AdvancementTrigger::FilledBucket { item_id, count } => {
                 self.trigger_criterion_event("minecraft:filled_bucket", |cond| match cond {
-                    CriterionConditions::FilledBucket(pred) => pred.matches(&item_id, 1, &[]),
+                    CriterionConditions::FilledBucket(pred) => pred.matches(&item_id, count, &[]),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -821,9 +835,9 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::ShotCrossbow { item_id } => {
+            AdvancementTrigger::ShotCrossbow { item_id, count } => {
                 self.trigger_criterion_event("minecraft:shot_crossbow", |cond| match cond {
-                    CriterionConditions::ShotCrossbow(pred) => pred.matches(&item_id, 1, &[]),
+                    CriterionConditions::ShotCrossbow(pred) => pred.matches(&item_id, count, &[]),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -1102,9 +1116,9 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::UsedTotem { item_id } => {
+            AdvancementTrigger::UsedTotem { item_id, count } => {
                 self.trigger_criterion_event("minecraft:used_totem", |cond| match cond {
-                    CriterionConditions::UsedTotem(pred) => pred.matches(&item_id, 1, &[]),
+                    CriterionConditions::UsedTotem(pred) => pred.matches(&item_id, count, &[]),
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
