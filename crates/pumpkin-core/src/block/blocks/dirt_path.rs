@@ -81,7 +81,6 @@ fn can_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {
             .has_tag(&tag::Block::MINECRAFT_FENCE_GATES)
 }
 
-
 #[cfg(test)]
 mod tests {
     use pumpkin_data::BlockState;
