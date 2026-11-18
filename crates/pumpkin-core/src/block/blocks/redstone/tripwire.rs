@@ -218,3 +218,34 @@ impl TripwireBlock {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_connect_to_matches_vanilla() {
+        // Vanilla TripWireBlock.shouldConnectTo: hook faces the neighbour, or any tripwire.
+        let tripwire = TripwireProperties::default(&Block::TRIPWIRE).to_state_id(&Block::TRIPWIRE);
+        assert!(TripwireBlock::should_connect_to(
+            tripwire,
+            BlockDirection::North
+        ));
+        assert!(!TripwireBlock::should_connect_to(
+            Block::AIR.default_state.id,
+            BlockDirection::North
+        ));
+
+        let mut hook = TripwireHookProperties::default(&Block::TRIPWIRE_HOOK);
+        hook.facing = HorizontalFacing::North;
+        let hook_state = hook.to_state_id(&Block::TRIPWIRE_HOOK);
+        assert!(TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::South
+        ));
+        assert!(!TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::North
+        ));
+    }
+}

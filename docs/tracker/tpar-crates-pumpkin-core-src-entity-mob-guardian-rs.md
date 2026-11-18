@@ -4,7 +4,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 - **entities/Guardian** [partial/RE-REVIEW] The reviewed source has changed. The previous assessment needs a new review. The reviewed source has changed.
 
-## Result
 ## Result (THIRD PASS, independent line-by-line review against vendored vanilla)
 
 Source of truth: `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Guardian.java`
