@@ -897,4 +897,14 @@ mod ingredient_codec_tests {
         );
         assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_some());
     }
+
+    #[test]
+    fn ingredient_list_with_tag_entry_is_rejected() {
+        // Vanilla HolderSetCodec list elements are Item ids only, so a mixed tag list fails as a whole.
+        assert!(
+            parse_ingredient(&json!(["minecraft:stick", {"tag": "minecraft:planks"}])).is_none()
+        );
+        assert!(parse_ingredient(&json!(["minecraft:stick", "#minecraft:planks"])).is_none());
+        assert!(parse_ingredient(&json!(["minecraft:stick", "minecraft:bowl"])).is_some());
+    }
 }
