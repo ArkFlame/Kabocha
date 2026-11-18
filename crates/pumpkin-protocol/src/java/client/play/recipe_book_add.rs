@@ -1074,12 +1074,6 @@ fn add_owned_ingredient_items(
     }
 }
 
-fn add_owned_item_id(set: &mut BTreeSet<i32>, id: &str) {
-    if let Some(item) = Item::from_registry_key(id.strip_prefix("minecraft:").unwrap_or(id)) {
-        set.insert(item.id as i32);
-    }
-}
-
 /// Builds the nine vanilla `RecipeManager#RECIPE_PROPERTY_SETS`.
 ///
 /// Each station's item set is derived from its recipe ingredients, as
@@ -1161,8 +1155,8 @@ fn recipe_property_sets(
                 add_owned_ingredient_items(&mut smithing_addition, &r.addition, version);
             }
             DynamicRecipe::Brewing(r) => {
-                add_owned_item_id(&mut brewing_input, &r.input_item);
-                add_owned_item_id(&mut brewing_reagent, &r.reagent);
+                add_owned_ingredient_items(&mut brewing_input, &r.input.ingredient, version);
+                add_owned_ingredient_items(&mut brewing_reagent, &r.reagent.ingredient, version);
             }
             DynamicRecipe::Crafting(_)
             | DynamicRecipe::Stonecutting(_)

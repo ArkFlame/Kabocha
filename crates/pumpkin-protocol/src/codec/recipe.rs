@@ -24,6 +24,33 @@ impl OwnedRecipeIngredient {
     }
 }
 
+/// A vanilla brewing recipe ingredient: an item ingredient plus an optional potion predicate.
+#[derive(Clone, Debug)]
+pub struct OwnedPotionIngredient {
+    pub ingredient: OwnedRecipeIngredient,
+    /// Potion ids from the potion predicate holder set; empty means unrestricted.
+    pub potions: Vec<String>,
+}
+
+impl OwnedPotionIngredient {
+    #[must_use]
+    pub fn match_item(&self, item: &Item) -> bool {
+        self.ingredient.match_item(item)
+    }
+
+    /// Returns whether the given potion id satisfies the stored potion predicate.
+    #[must_use]
+    pub fn matches_potion(&self, potion: Option<&str>) -> bool {
+        self.potions.is_empty()
+            || potion.is_some_and(|potion| {
+                let key = potion.strip_prefix("minecraft:").unwrap_or(potion);
+                self.potions
+                    .iter()
+                    .any(|id| id.strip_prefix("minecraft:").unwrap_or(id) == key)
+            })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct OwnedRecipeResult {
     pub item_id: String,
@@ -70,13 +97,14 @@ pub enum OwnedCookingRecipeType {
     CampfireCooking(OwnedCookingRecipe),
 }
 
+/// A vanilla brewing recipe: potion input, potion reagent and a templated output.
 #[derive(Clone, Debug)]
 pub struct OwnedBrewingRecipe {
     pub recipe_id: String,
-    pub input_item: String,
-    pub input_potion: Option<String>,
-    pub reagent: String,
-    pub output_item: String,
+    pub input: OwnedPotionIngredient,
+    pub reagent: OwnedPotionIngredient,
+    pub output: OwnedRecipeResult,
+    /// The potion id on the output stack, from its potion contents component.
     pub output_potion: Option<String>,
 }
 
@@ -157,5 +185,26 @@ mod tests {
             assert!(OwnedRecipeIngredient::OneOf(vec![id.to_string()]).match_item(&Item::STONE));
         }
         assert!(!OwnedRecipeIngredient::Simple("stone".to_string()).match_item(&Item::DIRT));
+    }
+
+    #[test]
+    fn potion_ingredient_matches_potion_holder_set() {
+        let ingredient = OwnedPotionIngredient {
+            ingredient: OwnedRecipeIngredient::Simple("minecraft:potion".to_string()),
+            potions: vec![
+                "minecraft:water".to_string(),
+                "minecraft:awkward".to_string(),
+            ],
+        };
+        assert!(ingredient.matches_potion(Some("water")));
+        assert!(ingredient.matches_potion(Some("minecraft:awkward")));
+        assert!(!ingredient.matches_potion(Some("minecraft:strength")));
+        assert!(!ingredient.matches_potion(None));
+
+        let unrestricted = OwnedPotionIngredient {
+            ingredient: OwnedRecipeIngredient::Simple("minecraft:potion".to_string()),
+            potions: Vec::new(),
+        };
+        assert!(unrestricted.matches_potion(None));
     }
 }
