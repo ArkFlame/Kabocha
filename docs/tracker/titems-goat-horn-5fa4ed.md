@@ -158,3 +158,39 @@ inline-instrument branch still uses `play_custom_sound`, which has no exclude-li
 
 Files edited: `crates/pumpkin-core/src/item/items/goat_horn.rs`. No unit test: the changed seam is
 `World` sound broadcast plus a `Player`, no pure seam exists in this crate for it.
+
+
+## Result
+Third pass. Only row 2 remained STILL OPEN; verified against decompiled vanilla and CLOSED as
+VERIFIED (matches vanilla). No source file needed editing and no pure test seam applies (no
+behaviour change), so no rustfmt run.
+
+- 2 TOOT_HORN use animation: VERIFIED (matches vanilla) - the earlier "needs a use-animation hook
+  on ItemBehaviour plus third-person pose plumbing" premise is wrong. Vanilla `getUseAnimation` is a
+  client-only rendering concept, never computed or sent by the server:
+  - `InstrumentItem.getUseAnimation` returns `ItemUseAnimation.TOOT_HORN`
+    (`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java:65-68`).
+  - Its sole caller is `ItemStack.getUseAnimation()`
+    (`.vendor/vanilla-decompiled/net/minecraft/world/item/ItemStack.java:941-942`), used by the
+    client arm renderer; no caller exists anywhere in `net/minecraft/server` or
+    `net/minecraft/network` (grep: 0 matches), and no use-animation packet is sent.
+  - Vanilla `Pose` has no TOOT_HORN variant
+    (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Pose.java:11-29`), so this is not a
+    synced server pose.
+  - The vanilla server's only action is `startUsingItem(hand)` (`InstrumentItem.java:35`), which
+    sets `DATA_LIVING_ENTITY_FLAGS` bits 0 (is-using-item) and 1 (used hand)
+    (`LivingEntity.java:190-193,4230,4234,4325-4332`). The client derives `useItem` from the held
+    stack on that flag update and computes its own `getUseAnimation` arm pose
+    (`LivingEntity.java:4368-4373`).
+  - Pumpkin already implements exactly this server contract: `LivingEntity::set_active_hand`
+    (`crates/pumpkin-core/src/entity/living.rs:1084-1108`) sets identical bit values
+    (`:263-264`, `USING_ITEM_FLAG=1`, `OFF_HAND_ACTIVE_FLAG=2`) and syncs
+    `DATA_LIVING_ENTITY_FLAGS` to clients (`:1151`). The horn path calls it at `goat_horn.rs:66`.
+  So no framework hook, generated field, or pose plumbing is required; the client already replays
+  TOOT_HORN from the horn stack in hand plus the synced flags.
+
+- 1, 3-7 remain CLOSED from the earlier passes in this doc (all fixes already present at HEAD and
+  re-verified above). No generated-data or whole-subsystem blocker remains.
+
+Final row state: 1 CLOSED, 2 VERIFIED (matches vanilla), 3 CLOSED, 4 CLOSED, 5 CLOSED, 6 CLOSED,
+7 CLOSED. No STILL OPEN rows.

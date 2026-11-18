@@ -212,50 +212,7 @@ impl JavaClient {
                 return Err(ChatError::ChatValidationFailed);
             }
 
-            // Vanilla SignedMessageChain.Decoder#unpack: a broken chain and a
-            // non-monotonic timestamp reject the message, a valid signature advances the link.
-            let mut session = player
-                .chat_session
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let Some(index) = session.next_index else {
-                return Err(ChatError::ChatValidationFailed);
-            };
-            let timestamp_secs = chat_message.timestamp / 1000;
-            if timestamp_secs < session.last_time_stamp {
-                session.next_index = None;
-                return Err(ChatError::OutOfOrderChat);
-            }
-            let payload = signed_message_payload(
-                player.gameprofile.id,
-                session.session_id,
-                index,
-                chat_message.message,
-                timestamp_secs,
-                chat_message.salt,
-                &acknowledged,
-            );
-            let signature_bytes = chat_message.signature.ok_or(ChatError::UnsignedChat)?;
-            let signature = RsaPkcs1v15Signature::try_from(signature_bytes)
-                .map_err(|_| ChatError::UnsignedChat)?;
-            let public_key = RsaPublicKey::from_public_key_der(&session.public_key)
-                .map_err(|_| ChatError::InvalidPublicKey)?;
-            if VerifyingKey::<Sha256>::new(public_key)
-                .verify(&payload, &signature)
-                .is_err()
-            {
-                session.next_index = None;
-                return Err(ChatError::ChatValidationFailed);
-            }
-            // hasExpiredServer only warns; an expired message is still accepted.
-            if now > chat_message.timestamp.saturating_add(EXPIRED_CHAT_MS) {
-                warn!(
-                    "Received expired chat: '{}'. Is the client/server system time unsynchronized?",
-                    chat_message.message
-                );
-            }
-            session.last_time_stamp = timestamp_secs;
-            session.next_index = index.checked_add(1);
+            verify_chat_signature(player, chat_message, &acknowledged, now)?;
         }
         Ok(())
     }
@@ -388,6 +345,59 @@ impl JavaClient {
 
         Ok(())
     }
+}
+
+/// Verifies an incoming chat signature against the player's chain session and advances it.
+/// Mirrors vanilla SignedMessageChain.Decoder#unpack.
+fn verify_chat_signature(
+    player: &Arc<Player>,
+    chat_message: &SChatMessage<'_>,
+    acknowledged: &[Box<[u8]>],
+    now: i64,
+) -> Result<(), ChatError> {
+    let mut session = player
+        .chat_session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(index) = session.next_index else {
+        return Err(ChatError::ChatValidationFailed);
+    };
+    let timestamp_secs = chat_message.timestamp / 1000;
+    if timestamp_secs < session.last_time_stamp {
+        session.next_index = None;
+        return Err(ChatError::OutOfOrderChat);
+    }
+    let payload = signed_message_payload(
+        player.gameprofile.id,
+        session.session_id,
+        index,
+        chat_message.message,
+        timestamp_secs,
+        chat_message.salt,
+        acknowledged,
+    );
+    let signature_bytes = chat_message.signature.ok_or(ChatError::UnsignedChat)?;
+    let signature = RsaPkcs1v15Signature::try_from(signature_bytes)
+        .map_err(|_| ChatError::UnsignedChat)?;
+    let public_key = RsaPublicKey::from_public_key_der(&session.public_key)
+        .map_err(|_| ChatError::InvalidPublicKey)?;
+    if VerifyingKey::<Sha256>::new(public_key)
+        .verify(&payload, &signature)
+        .is_err()
+    {
+        session.next_index = None;
+        return Err(ChatError::ChatValidationFailed);
+    }
+    // hasExpiredServer only warns; an expired message is still accepted.
+    if now > chat_message.timestamp.saturating_add(EXPIRED_CHAT_MS) {
+        warn!(
+            "Received expired chat: '{}'. Is the client/server system time unsynchronized?",
+            chat_message.message
+        );
+    }
+    session.last_time_stamp = timestamp_secs;
+    session.next_index = index.checked_add(1);
+    Ok(())
 }
 
 /// Vanilla `StringUtil#isAllowedChatCharacter` inverted: the section sign, control characters
