@@ -213,3 +213,35 @@ No row is marked STILL OPEN (the Gap status section lists 1-4 CLOSED/NO GAP), so
 - Row 1 (ageable, M): NO GAP. `Dolphin.java:74` is `public class Dolphin extends AgeableWaterCreature`, with `canAgeUp()`/`ageUp()` at `:328-330`. Pumpkin `impl AgeableMob` (`dolphin.rs:148`), `impl AgeableWaterCreature` (`:158`) and age-up branch (`:417-423`) match. Do NOT de-ageable or touch `entity/type.rs`.
 - Verification source: `Dolphin.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
 - Files touched: doc only. rustfmt not applicable. No unit test added: no code seam to guard.
+
+
+## Result (THIRD PASS - terminal VERIFIED)
+
+Independent verification of all four rows against the decompiled tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. No row is marked STILL OPEN (the Gap status
+section lists 1-4 CLOSED). Every row is VERIFIED: current Pumpkin source matches the
+decompiled vanilla source, so no source edit and no unit test seam exists. These statuses
+are terminal.
+
+- Row 1 (ageable, M): VERIFIED. `.vendor/.../animal/dolphin/Dolphin.java:74` is
+  `public class Dolphin extends AgeableWaterCreature`; `mobInteract` calls
+  `canAgeUp()`/`ageUp()` at `:328-330` and `finalizeSpawn` uses a 0.1F `AgeableMobGroupData`
+  at `:103`. Pumpkin matches: `impl AgeableMob` (`dolphin.rs:148`),
+  `impl AgeableWaterCreature` (`:158`), `finalize_ageable_spawn` (`:325`), ageable tracker
+  writes (`:331-334`), age-up branch (`:417-418`). Do NOT de-ageable or touch `entity/type.rs`.
+- Row 2 (FISHES vs dolphin_food, S): VERIFIED. `Dolphin.java:323` is
+  `itemStack.is(ItemTags.FISHES)`; there is no dolphin_food check. Pumpkin `dolphin.rs:414`
+  uses `item.has_tag(&tag::Item::MINECRAFT_FISHES)`. Matches; no generated field needed,
+  do not hardcode ids.
+- Row 3 (DolphinJumpGoal grouping, S): VERIFIED. `.vendor/.../ai/goal/DolphinJumpGoal.java:56-59`
+  is `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`,
+  the OR grouping Pumpkin uses at `goals.rs:427-435`. Keep the current condition.
+- Row 4 (PlayWithItemsGoal split 7/8, S): VERIFIED. `Dolphin.java:176-177` registers
+  `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals; cooldown only in
+  `MoveToItemGoal.stop()` (`:578-581`), `PlayWithItemsGoal` drops in `stop()` and `tick()`
+  (`:613-620`). Pumpkin matches (`goals.rs:69-70`, cooldown at `:576`/`:596`). A merge would
+  diverge from vanilla.
+- Verification source: `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java`
+  and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
+- Files touched: doc only (Result appended). rustfmt not applicable. No unit test: no code
+  seam, all four rows match vanilla.

@@ -38,7 +38,7 @@ FIXED (UNVERIFIED): writes `next_weathering_tick` (long) and reads it with fallb
 
 ## Result
 
-Verified all four STILL OPEN rows against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java (present this pass; the doc's "no decompiled copy" note is stale).
+Verified all four then-open rows against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java (present this pass; the doc's "no decompiled copy" note is stale).
 
 - Row 1 (oxidized golem to statue, M/L): ALREADY FIXED, no change. post_tick -> update_weathering plus turn_to_statue in copper_golem.rs implement vanilla canTurnToStatue/turnToStatue: oxidized + air + chance <= 0.0058, EntityChangeBlockEvent, oxidized statue block with random pose and facing, create_statue (custom name transfer in copper_golem_statue.rs), drop_preserved_equipment, entity remove, become-statue sound, leash drop. Matches vanilla lines 277-321.
 - Row 2 (item pickup / chest deposit, L): ALREADY FIXED, no change. TransportItemsBetweenContainers brain behavior (entity/ai/brain/behavior/transport_items_between_containers.rs), registered in copper_golem_ai.rs, drives all CopperGolemState variants through set_state. Those files are outside this unit's allowed set.
@@ -50,7 +50,7 @@ Test: no pure unit-test seam (NBT read/write require a live entity and world), s
 
 ## Result (re-review 2026-11-18)
 
-Re-verified all four STILL OPEN rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). No code changes needed; the prior pass's fixes are intact.
+Re-verified all four then-open rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). No code changes needed; the prior pass's fixes are intact.
 
 - Row 1 (statue conversion): ALREADY FIXED. `turn_to_statue` in copper_golem.rs matches vanilla `turnToStatue`/`canTurnToStatue` (lines 284-321): oxidized block + random pose/facing, EntityChangeBlockEvent, `create_statue` name transfer (copper_golem_statue.rs:121, covered by its own unit test), equipment drop, entity remove, become-statue sound, leash drop; constants TURN_TO_STATUE_CHANCE 0.0058 and weathering 504000..=552000 match vanilla lines 266/285.
 - Row 2 (item pickup / chest deposit): ALREADY FIXED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs) drives every CopperGolemState variant via set_state and is registered in copper_golem_ai.rs:49.
@@ -62,7 +62,7 @@ No pure unit-test seam for the verified behaviour (NBT and statue conversion nee
 
 ## Result (re-review 2026-11-18)
 
-Third pass. Re-verified all four STILL OPEN rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java`). No code changes: every row is already resolved by prior passes and confirmed correct.
+Third pass. Re-verified all four then-open rows against decompiled vanilla `net/minecraft/world/entity/animal/golem/CopperGolem.java` (present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java`). No code changes: every row is already resolved by prior passes and confirmed correct.
 
 - Row 1 (oxidized golem to statue, M/L): ALREADY FIXED. `update_weathering` (copper_golem.rs:261) gates statue conversion on Oxidized + air + `TURN_TO_STATUE_CHANCE` 0.0058 (line 292), matching vanilla `canTurnToStatue` (line 285). `turn_to_statue` (line 298) sets OXIDIZED_COPPER_GOLEM_STATUE with random pose and horizontal facing, fires EntityChangeBlockEvent, calls `create_statue` (custom name transfer in copper_golem_statue.rs:121-125, covered by its own unit test), drops preserved equipment, handles the leash, removes the entity, and plays EntityCopperGolemBecomeStatue. Matches vanilla lines 284-321.
 - Row 2 (item pickup / chest deposit, L): ALREADY FIXED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs) drives every CopperGolemState variant: `interaction_state` (lines 384-397) selects GettingNoItem/GettingItem/DroppingItem/DroppingNoItem, and `on_container_interaction` (copper_golem.rs:226) calls `set_state` plus the four interaction sounds. Registered as an Idle behavior at priority 0 in copper_golem_ai.rs:49. File carries its own unit tests (lines 720, 731).
