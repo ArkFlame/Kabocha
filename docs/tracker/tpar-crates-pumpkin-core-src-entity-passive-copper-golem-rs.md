@@ -6,4 +6,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-copper-golem** [partial/OWN-OPEN] own audit: 7 open, 10 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-copper-golem.md) docs/tracker/tentities-copper-golem.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

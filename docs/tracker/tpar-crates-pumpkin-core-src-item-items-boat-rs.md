@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-cherry-boat-ae864b** [partial/OWN-OPEN] own audit: 8 open, 6 fixed, 6 verified, 0 blocked-data (docs/tracker/tentities-cherry-boat-ae864b.md) docs/tracker/tentities-cherry-boat-ae864b.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

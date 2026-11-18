@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tsmall-batch1c** [partial/OWN-OPEN] own audit: 4 open, 1 fixed, 2 verified, 0 blocked-data (docs/tracker/tsmall-batch1c.md) docs/tracker/tsmall-batch1c.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

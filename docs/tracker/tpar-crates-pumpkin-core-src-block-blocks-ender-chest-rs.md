@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Ender Chest** [partial/UNCOVERED] Personal inventory works. The opening path lacks the guarded-block interaction that angers piglins. Sitting cats do not obstruct vanilla ender chests, so that is not a parity gap. Personal inventory works.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

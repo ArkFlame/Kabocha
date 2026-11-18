@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **entities/Parched** [partial/COVERED] The shared bow attack uses a plain ARROW rather than the variant-specific payload. This was previously only marked unverified. The shared bow attack uses a plain ARROW rather than the variant-specific payload.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

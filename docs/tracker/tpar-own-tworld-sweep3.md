@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tworld-sweep3** [partial/OWN-BLOCKED-DATA] own audit: 0 open, 4 fixed, 5 verified, 1 blocked-data (docs/tracker/tworld-sweep3.md) docs/tracker/tworld-sweep3.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

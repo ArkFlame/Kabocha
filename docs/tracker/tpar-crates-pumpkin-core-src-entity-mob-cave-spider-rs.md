@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **entities/Cave Spider** [partial/COVERED-SKIPPED] Difficulty-scaled poison, daylight-gated targeting, and armadillo avoidance are implemented. LeapAtTargetGoal and wall-climbing navigation remain missing. Difficulty-scaled poison, daylight-gated targeting, and armadillo avoidance are implemented.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

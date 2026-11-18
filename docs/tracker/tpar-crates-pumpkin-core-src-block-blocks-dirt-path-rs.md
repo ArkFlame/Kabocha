@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Dirt Path** [partial/FIXED-ON-MASTER] Obstructed scheduled conversion to dirt and the fence-gate exception are implemented. Entity upward displacement on dirt conversion remains a TODO. Obstructed scheduled conversion to dirt and the fence-gate exception are implemented.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

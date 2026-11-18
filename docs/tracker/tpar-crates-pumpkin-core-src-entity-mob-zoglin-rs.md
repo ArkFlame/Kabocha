@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **entities/Zoglin** [partial/COVERED-DONE] The active target constructor is scoped to PLAYER. Excluding creepers/zoglins in a predicate does not broaden that target type. The active target constructor is scoped to PLAYER.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

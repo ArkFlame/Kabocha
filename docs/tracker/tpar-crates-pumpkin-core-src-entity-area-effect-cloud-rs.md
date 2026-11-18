@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-dragon-fireball** [partial/OWN-OPEN] own audit: 3 open, 4 fixed, 0 verified, 0 blocked-data (docs/tracker/tentities-dragon-fireball.md) docs/tracker/tentities-dragon-fireball.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

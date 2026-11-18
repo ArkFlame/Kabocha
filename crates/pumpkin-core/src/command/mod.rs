@@ -289,8 +289,8 @@ impl CommandSender {
         }
     }
 
-    /// Returns the world this sender acts in, falling back to the server's
-    /// first world for senders that are not bound to one.
+    /// Returns the world this sender acts in, falling back to the overworld
+    /// (then the first loaded world) for senders not bound to one.
     ///
     /// Console and dummy senders have no world of their own, so like
     /// vanilla they operate on the overworld, falling back to the first

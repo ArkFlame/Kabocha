@@ -6,4 +6,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-guardian** [partial/OWN-OPEN] own audit: 8 open, 8 fixed, 10 verified, 0 blocked-data (docs/tracker/tentities-guardian.md) docs/tracker/tentities-guardian.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

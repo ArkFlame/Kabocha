@@ -9,4 +9,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-panda** [partial/OWN-OPEN] own audit: 5 open, 5 fixed, 0 verified, 0 blocked-data (docs/tracker/tentities-panda.md) docs/tracker/tentities-panda.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

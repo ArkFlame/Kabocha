@@ -7,4 +7,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tblocks-creaking-heart** [partial/OWN-OPEN] own audit: 2 open, 5 fixed, 5 verified, 0 blocked-data (docs/tracker/tblocks-creaking-heart.md) docs/tracker/tblocks-creaking-heart.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

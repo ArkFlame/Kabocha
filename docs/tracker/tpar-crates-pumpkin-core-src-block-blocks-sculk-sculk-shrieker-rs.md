@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Sculk Shrieker** [partial/AUDITED] Direct player stepping, warning levels, Darkness application, and Warden spawning are implemented, but world game events do not dispatch vibrations to shriekers. 
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

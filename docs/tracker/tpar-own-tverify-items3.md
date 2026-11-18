@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tverify-items3** [partial/OWN-BLOCKED-DATA] own audit: 0 open, 0 fixed, 0 verified, 1 blocked-data (docs/tracker/tverify-items3.md) docs/tracker/tverify-items3.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

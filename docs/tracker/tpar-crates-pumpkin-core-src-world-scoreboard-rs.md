@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-wo-f070f4** [partial/OWN-OPEN] own audit: 9 open, 15 fixed, 5 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-wo-f070f4.md) docs/tracker/taudit-crates-pumpkin-core-src-wo-f070f4.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

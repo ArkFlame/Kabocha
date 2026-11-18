@@ -6,4 +6,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/titems-name-tag-b9060c** [partial/OWN-OPEN] own audit: 2 open, 0 fixed, 0 verified, 0 blocked-data (docs/tracker/titems-name-tag-b9060c.md) docs/tracker/titems-name-tag-b9060c.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

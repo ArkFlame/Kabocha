@@ -167,3 +167,27 @@ no new seam for a pure unit test.
 | 75 BlockFertilizeEvent payload | VERIFIED, NO CHANGE (already fixed) | `BlockRegistry::bone_meal` (registry.rs:556-601) now grows first while capturing every written state via `World::capture_bonemeal_changes` (world/mod.rs:6808), then passes them as `changed_blocks` to `BlockFertilizeEvent::new`. The event struct carries `changed_blocks: Vec<(BlockPos, BlockStateId)>` (plugin/api/events/block/block_fertilize.rs:11-16) and cancellation reverts each changed state (registry.rs:592-597). This matches Bukkit's `BlockFertilizeEvent.getBlocks()` list and Paper region protection. |
 
 No STILL OPEN / OPEN rows remain. No source files changed this pass.
+
+
+## Result (third pass, final verification)
+
+Re-read every in-scope file and re-checked each originally-STILL-OPEN row against
+.vendor/vanilla-decompiled/net/minecraft/. All prior in-scope fixes are intact;
+no source edits were needed this pass. Every row now has a final disposition
+(FIXED / VERIFIED / BLOCKED-DATA); none remain STILL OPEN.
+
+| Row | Final disposition | Vanilla evidence (.vendor path) |
+|---|---|---|
+| 28 can_update_at face convention | FIXED | SlabBlock.java:77-91 keys on raw clicked face; slabs.rs:56-70 flips args.direction.opposite() (placement direction). MultifaceBlock.java:168-169 canBeReplaced = !is(this) || hasAnyVacantFace; sculk_vein.rs:76-82 can_update_at = active_directions < 6, with the vacant-face placement guard in get_attach_direction. registry.rs passes the placement direction in both branches. |
+| 29 BlockIsReplacing Other/None / rotation | VERIFIED, NO CHANGE | BlockPlaceContext.java:71-87 getNearestLookingDirections reorders by clickedFace.getOpposite() only when !replaceClicked. torches.rs:37-39, ladder.rs:34-42 and lanterns.rs:26-34 reorder by args.direction.to_facing() (= clickedFace.opposite()) only when position != use_item_on.position (= !replaceClicked). Matches LadderBlock.java:73-96, LanternBlock.java:35-48, WallTorchBlock.java:53-70. |
+| 31 inside-collision shape | VERIFIED, NO CHANGE | Premise was wrong: BlockBehaviour.java:336-337 getEntityInsideCollisionShape returns Shapes.block() (full cube) = Pumpkin default BoundingBox::full_block() (block/mod.rs:305). Vanilla overrides EndPortalBlock.java:49 (Block.column(16,6,12)), TripWireBlock.java:140 (state.getShape), PowderSnowBlock.java:128-131 are mirrored by end_portal.rs:17, tripwire.rs:28 and powder_snow.rs:76-81. No BoundingBox-union API change required. |
+| 32 isPathfindable Water default | VERIFIED, NO CHANGE | BlockBehaviour.java:130-134: WATER -> state.getFluidState().is(WATER), LAND/AIR -> !isCollisionShapeFullBlock. slabs.rs:72-76 returns is_waterlogged for Water and false for Land/Air, matching SlabBlock.java:127-134. |
+| 35 player_placed direction | VERIFIED, NO CHANGE | Block.java:543 setPlacedBy(Level, BlockPos, BlockState, LivingEntity, ItemStack) has no face parameter; PlayerPlacedArgs carries no direction field. No observable behaviour to fix. |
+| 75 BlockFertilizeEvent payload | VERIFIED, NO CHANGE (already fixed) | core block_fertilize.rs:11-16 carries changed_blocks: Vec<(BlockPos, BlockStateId)>; bone_meal grows via World::capture_bonemeal_changes and passes them into the event. Matches Bukkit BlockFertilizeEvent.getBlocks(). |
+| 76 TestBlock registered twice | VERIFIED, NO CHANGE (already removed) | Second registry.rs register(TestBlock) removed; behaviour indices are runtime-assigned. |
+
+Rows 28/31/32/35/75/76 also touch registry.rs, block/mod.rs, world/mod.rs or the
+plugin API, all outside this unit's editable basenames; the in-scope halves
+(slabs.rs, sculk_vein.rs, torches.rs, ladder.rs, lanterns.rs, end_portal.rs,
+tripwire.rs, powder_snow.rs, core block_fertilize.rs) were verified correct and
+required no edit. No source files changed this pass; rustfmt not needed.

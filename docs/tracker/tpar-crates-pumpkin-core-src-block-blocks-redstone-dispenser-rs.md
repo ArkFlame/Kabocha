@@ -9,4 +9,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-ominous-item-spawner** [partial/OWN-OPEN] own audit: 2 open, 4 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-ominous-item-spawner.md) docs/tracker/tentities-ominous-item-spawner.md
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

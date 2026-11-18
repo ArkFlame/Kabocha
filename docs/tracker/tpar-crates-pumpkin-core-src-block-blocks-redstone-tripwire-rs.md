@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Tripwire** [partial/COVERED-SKIPPED] Entity detection, hook updates, spectator filtering, and Shear game event emission are implemented. Shears durability deduction and trap-avoiding entity filtering remain TODOs. Entity detection, hook updates, spectator filtering, and Shear game event emission are implemented. Shears durability deduction and trap-avoiding entity filtering remain TODOs.
 
 ## Result
-(each row: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
