@@ -1,8 +1,12 @@
 # Final rows from docs/tracker/tblocks-fire.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: crates/pumpkin-core/src/block/blocks/fire/fire.rs (verified; no source edits required this pass)
 
-Fresh verification 2026-11-18 (second pass) against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java` (Paper/CraftBukkit build). Of the two STILL OPEN rows, Gap 4 was already resolved and Gap 3 had one genuine residual divergence, now fixed.
+Verified 2026-11-18 (final pass) against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java` (Paper/CraftBukkit decompile).
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+
+- Gap 3 (TNT replaced before priming / TNT burn-out re-age ordering): VERIFIED. Vanilla `checkBurnOut` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java:257-294`) consumes the burn roll, fires burn/TNT-prime checks, consumes the relight roll `nextInt(age + 10) < 5` and re-age roll `nextInt(5)` (`:275-276`), in the re-age branch writes aged fire then (for TNT) removes and primes (`:277,279,289-291`), and in the non-relight branch removes (skipping TNT) then removes/primes TNT (`:279,289-291`), so a TNT neighbour always ends as air plus a primed TNT entity. Rust `FireBlock::try_spreading_fire` (`crates/pumpkin-core/src/block/blocks/fire/fire.rs:184-227`) preserves the same burn/relight/re-age random consumption order (`:191,207,211`), replaces a TNT neighbour with air in the re-age branch so the net state matches while keeping the age roll (`:211-217`), and replaces/primes after the branch (`:219,223-225`).
+- Gap 4 (waterlogged neighbour ignite/spread odds): VERIFIED. Vanilla `getIgniteOdds(BlockState)` returns 0 for `WATERLOGGED` states, and `canBurn`/`isValidFireLocation`/`getIgniteOdds(LevelReader, BlockPos)`/spread use those odds (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/FireBlock.java:245-255,300-329,209-216`). Rust `FireBlock::get_ignite_odds` returns 0 for waterlogged blocks and otherwise uses flammable `spread_chance` (`crates/pumpkin-core/src/block/blocks/fire/fire.rs:40-49`), shared by `is_flammable`, `are_blocks_around_flammable`, and `get_burn_chance` (`:51-64,116-133`), while `try_spreading_fire` rejects waterlogged targets and uses burn odds from `burn_chance` (`:144-146,187-191`). Pure test `waterlogged_flammable_has_zero_ignite_odds` covers dry vs waterlogged flammable slab (`crates/pumpkin-core/src/block/blocks/fire/fire.rs:511-527`).
+
+No .rs files modified; rustfmt/cargo not run (orchestrator compiles). No STILL OPEN rows remain.

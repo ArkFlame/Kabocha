@@ -2,9 +2,11 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: living.rs
 
-- 5. Climbing sneak clamp (`living.rs:2546`, TODO): STILL OPEN (S).
-- 6. `MobEffectInstance` NBT fields (`living.rs:3962`): STILL OPEN (S).
-- 8. Looting from killing blow (`living.rs:3073`): STILL OPEN (S).
+- 5. Climbing sneak clamp (`living.rs:2546`, TODO): VERIFIED (.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:3413-3428,4589-4591). `handleOnClimbable` clamps x/z to +/-0.15, floors y at -0.15, resets fall distance, and when `yd < 0.0 && !getInBlockState().is(SCAFFOLDING) && isSuppressingSlidingDownLadder() && this instanceof Player` sets y to 0. Pumpkin `LivingEntity::apply_climbing_speed` (`crates/pumpkin-core/src/entity/living.rs:2568-2612`) applies the same clamp/reset and uses `climbing_descent_blocked(sneaking, in_scaffolding, is_player)` (`crates/pumpkin-core/src/entity/living.rs:5650-5652`, tests `:5706-5716`) to block descent only for sneaking players outside scaffolding; behavior matches vanilla.
+- 6. `MobEffectInstance` NBT fields (`living.rs:3962`): BLOCKED-DATA. Vanilla serializes active effects via `MobEffectInstance.CODEC` including the recursive `hidden_effect` downgrade chain (.vendor/vanilla-decompiled/net/minecraft/world/effect/MobEffectInstance.java:30-39,94-114,415-459; written by `LivingEntity.addAdditionalSaveData` :849-851). Pumpkin persists effects through `pumpkin_data::potion::Effect`/`NBTStorage` (`crates/pumpkin-core/src/entity/effect/mod.rs`) but generated `pumpkin_data::potion::Effect` (`crates/pumpkin-data/src/generated/potion.rs`) has no `hidden_effect` field, so the hidden-effect state cannot be stored/loaded without a generated data/model change.
+- 8. Looting from killing blow (`living.rs:3073`): FIXED (.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:2046-2078). `LivingEntity::on_death` now derives looting level/tool from `cause.or(source)` (killing blow attacking entity) instead of `cause` only (`crates/pumpkin-core/src/entity/living.rs:2968-2984`), so looting from the killing blow is credited when the attacker is provided as the direct/source entity.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- 5. VERIFIED (.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:3413-3428,4589-4591)
+- 6. BLOCKED-DATA (missing `hidden_effect` field/recursive downgrade chain in generated `pumpkin_data::potion::Effect`, `crates/pumpkin-data/src/generated/potion.rs`)
+- 8. FIXED (.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:2046-2078)
