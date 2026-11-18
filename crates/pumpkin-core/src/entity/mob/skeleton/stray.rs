@@ -22,6 +22,19 @@ impl StraySkeletonEntity {
         let stray = Self { entity };
         Arc::new(stray)
     }
+
+    /// A stray arrow applies slowness I for 600 ticks (vanilla Stray#getArrow).
+    const fn slowness_effect() -> Effect {
+        Effect {
+            effect_type: &StatusEffect::SLOWNESS,
+            duration: 600,
+            amplifier: 0,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+            blend: false,
+        }
+    }
 }
 
 impl Mob for StraySkeletonEntity {
@@ -34,16 +47,7 @@ impl Mob for StraySkeletonEntity {
     }
 
     fn get_arrow(&self, arrow: ArrowEntity) -> ArrowEntity {
-        // vanilla `Stray#getArrow`: arrows from a stray apply slowness for 600 ticks
-        arrow.add_effect(Effect {
-            effect_type: &StatusEffect::SLOWNESS,
-            duration: 600,
-            amplifier: 0,
-            ambient: false,
-            show_particles: true,
-            show_icon: true,
-            blend: false,
-        });
+        arrow.add_effect(Self::slowness_effect());
         arrow
     }
 
@@ -57,5 +61,21 @@ impl Mob for StraySkeletonEntity {
 
     fn get_ambient_sound(&self) -> Option<Sound> {
         Some(Sound::EntityStrayAmbient)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StraySkeletonEntity;
+
+    #[test]
+    fn stray_arrow_slowness_matches_vanilla() {
+        let effect = StraySkeletonEntity::slowness_effect();
+        assert_eq!(effect.effect_type, &pumpkin_data::effect::StatusEffect::SLOWNESS);
+        assert_eq!(effect.duration, 600);
+        assert_eq!(effect.amplifier, 0);
+        assert!(!effect.ambient);
+        assert!(effect.show_particles);
+        assert!(effect.show_icon);
     }
 }

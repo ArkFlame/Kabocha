@@ -16,3 +16,53 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 ## Result
 STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+
+
+## Result (third pass, final closure)
+
+Re-read this unit's last Result and re-verified every row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`. Every gap is already implemented in the current
+checkout or is an accepted, behaviourally-equivalent approximation; no source edit was needed.
+
+- **items/Elytra** [partial/AUDITED]: VERIFIED. The two elytra audits (`titems-elytra.md`,
+  `titems-elytra-08fcad.md`) were re-reviewed this date against vanilla: fall-distance clamp
+  matches `Entity.java:4215-4219`, gliding exhaustion matches `ServerPlayer.java:2830-2870`,
+  glide-start gate matches `Player.java:1605-1606`, Unbreaking matches `ItemStack.java:629-636`.
+  All rows closed there.
+- **own/taudit-crates-pumpkin-core-src-en-13d289**: VERIFIED. All 12 rows resolved across prior
+  Results (respawn hunger, attack cooldown enchant split, difficulty scaling, fall-flying stats,
+  team display name, teleport flags, stale TODOs, XP atomicity).
+- **own/taudit-crates-pumpkin-core-src-entity-pla**: VERIFIED. Dig-speed uses the single max
+  amplifier multiplier (`MobEffectUtil.java:29-41`); full `SUBMERGED_MINING_SPEED` attribute path
+  is BLOCKED-DATA only (needs equipment attribute-modifier subsystem; aqua-affinity `/5` yields
+  the vanilla default 0.2). All other rows fixed/verified.
+- **own/taudit-crates-pumpkin-core-src-it-847255** (bow): VERIFIED, including the last open Row 1.
+  `LivingEntity.stopUsingItem` (`.vendor/.../world/entity/LivingEntity.java:4498-4509`) only emits
+  `GameEvent.ITEM_INTERACT_FINISH` and sets `useItem = ItemStack.EMPTY`; it does NOT call
+  `ItemStack.releaseUsing`. Pumpkin `clear_active_hand` (living.rs:1182, called by
+  `player.rs::stop_using_item:8589` and death/respawn/item-break paths) matches this cancel
+  semantics, so not firing the bow / not charging durability there is correct parity. The release
+  path fires the bow via `item_registry.on_stopped_using` (`bow.rs::on_stopped_using:53`).
+  The Row 1 premise (that cancel paths should fire) was a misread of `releaseUsingItem`
+  (`LivingEntity.java:4484-4496`) versus `stopUsingItem`. Rows 2 (damage_slot_for) and 3
+  (spectator gate) already FIXED/VERIFIED.
+- **own/taudit-crates-pumpkin-core-src-net-java-m**: VERIFIED. All 5 rows resolved in the final
+  Result: ordering chain (`net/java/mod.rs::chain_after`), keep-alive oldest-challenge, recipes
+  property sets (`recipe_book_add.rs`), packet cap removed, unknown-id disconnect kick
+  (`mod.rs:1413-1420`).
+- **own/tentities-bamboo-raft-302792**: VERIFIED. All 6 rows fixed against `AbstractBoat.java`
+  (boarding gate, rider yaw/delta, bubble time, leash, width gate); rotation decay is a
+  client-authority by-design gap.
+- **own/tentities-jungle-boat**: VERIFIED. Delta-rotation and dismount pose fixed against
+  `AbstractBoat.java:700-765`; remaining rows are shared/client-only and closed in that doc.
+- **own/tentities-mangrove-boat-ad6fea**: VERIFIED. Dimensions/eye-height match
+  `EntityTypes.java:674-689`; no wood-specific sound/particle overrides exist.
+- **own/titems-compass-recovery-compass-3fb9d9**: VERIFIED. All rows closed; WIT-exposed
+  `compass_target` API is intentionally kept (breaking WIT change would be needed to remove).
+- **own/titems-elytra-08fcad**: VERIFIED. All rows resolved against vanilla (see Elytra above).
+- **own/titems-elytra**: VERIFIED. All four rows confirmed non-gaps / already covered by pure tests.
+
+No source file was changed this pass; all fixes were present from prior passes. rustfmt and
+compile left to the orchestrator. No unwrap/expect/panic, no generated/WIT edits introduced.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tpar-crates-pumpkin-core-src-entity-player-rs.md
