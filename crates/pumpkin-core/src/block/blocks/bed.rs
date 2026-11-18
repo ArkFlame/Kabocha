@@ -23,8 +23,12 @@ use crate::block::{
 use crate::entity::dismount_helper;
 use crate::entity::passive::villager::VillagerEntity;
 use crate::entity::{Entity, EntityBase, player::Player};
+use crate::plugin::api::events::player::player_bed::{
+    BedFailReason, PlayerBedFailEnterEvent, resolve_fail_message,
+};
 use crate::world::World;
 use pumpkin_data::HorizontalFacingExt;
+use pumpkin_util::text::TextComponent;
 
 type BedProperties = pumpkin_data::block_properties::WhiteBedLikeProperties;
 
@@ -207,6 +211,23 @@ impl BlockBehaviour for BedBlock {
     }
 }
 
+/// Fires the Paper-style bed fail event and returns the message to send.
+/// `None` means the event was cancelled and no failure handling should run.
+fn fire_bed_fail_event(
+    world: &Arc<World>,
+    player: &Arc<Player>,
+    bed_head_pos: BlockPos,
+    reason: BedFailReason,
+    default_message: TextComponent,
+) -> Option<TextComponent> {
+    let Some(server) = world.server.upgrade() else {
+        return Some(default_message);
+    };
+    let mut event = PlayerBedFailEnterEvent::new(player.clone(), bed_head_pos, reason);
+    server.plugin_manager.fire_blocking(&server, &mut event);
+    resolve_fail_message(event.cancelled, event.message, default_message)
+}
+
 impl BedBlock {
     #[expect(clippy::too_many_lines)]
     fn use_bed(
@@ -313,13 +334,18 @@ impl BedBlock {
                 .position()
                 .is_within_bounds(bed_foot_pos.to_f64(), 3.0, 2.0, 3.0)
         {
-            player.send_system_message_raw(
-                &pumpkin_macros::translate_cross!(
+            if let Some(message) = fire_bed_fail_event(
+                world,
+                player,
+                bed_head_pos,
+                BedFailReason::TooFarAway,
+                pumpkin_macros::translate_cross!(
                     translation::java::BLOCK_MINECRAFT_BED_TOO_FAR_AWAY,
                     translation::bedrock::TILE_BED_TOOFAR
                 ),
-                true,
-            );
+            ) {
+                player.send_system_message_raw(&message, true);
+            }
             return BlockActionResult::SuccessServer;
         }
 
@@ -328,13 +354,18 @@ impl BedBlock {
         if world.get_block_state(&bed_head_pos.up()).is_suffocating()
             || world.get_block_state(&bed_foot_pos.up()).is_suffocating()
         {
-            player.send_system_message_raw(
-                &pumpkin_macros::translate_cross!(
+            if let Some(message) = fire_bed_fail_event(
+                world,
+                player,
+                bed_head_pos,
+                BedFailReason::Obstructed,
+                pumpkin_macros::translate_cross!(
                     translation::java::BLOCK_MINECRAFT_BED_OBSTRUCTED,
                     translation::bedrock::TILE_BED_OBSTRUCTED
                 ),
-                true,
-            );
+            ) {
+                player.send_system_message_raw(&message, true);
+            }
             return BlockActionResult::SuccessServer;
         }
 
@@ -356,13 +387,18 @@ impl BedBlock {
 
         // Make sure the time and weather allows sleep
         if !can_sleep {
-            player.send_system_message_raw(
-                &pumpkin_macros::translate_cross!(
+            if let Some(message) = fire_bed_fail_event(
+                world,
+                player,
+                bed_head_pos,
+                BedFailReason::NoSleep,
+                pumpkin_macros::translate_cross!(
                     translation::java::BLOCK_MINECRAFT_BED_NO_SLEEP,
                     translation::bedrock::TILE_BED_NOSLEEP
                 ),
-                true,
-            );
+            ) {
+                player.send_system_message_raw(&message, true);
+            }
             return BlockActionResult::SuccessServer;
         }
 
@@ -380,13 +416,18 @@ impl BedBlock {
 
             let pos = entity.get_entity().pos.load();
             if pos.is_within_bounds(bed_head_pos.to_f64(), 8.0, 5.0, 8.0) {
-                player.send_system_message_raw(
-                    &pumpkin_macros::translate_cross!(
+                if let Some(message) = fire_bed_fail_event(
+                    world,
+                    player,
+                    bed_head_pos,
+                    BedFailReason::NotSafe,
+                    pumpkin_macros::translate_cross!(
                         translation::java::BLOCK_MINECRAFT_BED_NOT_SAFE,
                         translation::bedrock::TILE_BED_NOTSAFE
                     ),
-                    true,
-                );
+                ) {
+                    player.send_system_message_raw(&message, true);
+                }
                 return BlockActionResult::SuccessServer;
             }
         }
