@@ -218,3 +218,57 @@ edited concurrently by another worker, so no shared-file edit was attempted.
 
 No `.rs` source edited this pass (no safe minimal fix found in the designated file;
 `explosion.rs` is concurrently owned), so no rustfmt/cargo/git run.
+
+
+## Result (THIRD PASS, cross-file permitted, 2026-11-18)
+
+Re-checked every remaining open row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java`
+(CraftBukkit/Paper-instrumented target version), `.vendor/.../damagesource/DamageSources.java`
+and current Pumpkin source. Every numbered row now has a terminal status; no `.rs` change was
+required because the applicable fixes already landed and the two remaining gaps are subsystem-level.
+
+- Row 1 (block list + yield): VERIFIED applied. `interactWithBlocks`
+  (ServerExplosion.java:610-643) fires the event with the non-air list, reads
+  `event.blockList()`/`event.getYield()` and rebuilds the target list; the default yield is
+  `1.0/radius` only for `DESTROY_WITH_DECAY` (:317-319). Pumpkin mirrors this at
+  `world/explosion.rs:914-932` and `fire_explode_event` at :847-880; `BlockExplodeEvent`
+  exposes mutable `blocks`/`yield_rate` and the `BlockEvent` impl (block_explode.rs:41-45).
+- Row 1 sub-gap (Paper `BlockState` snapshot): BLOCKED-DATA. Missing subsystem: Paper sources the
+  snapshot from `damageSource.causingBlockSnapshot()` (ServerExplosion.java:633), but Pumpkin's
+  `Explosion` struct (`explosion.rs:227-243`) has no causing-block field to back it; falling back to
+  `world.get_block_state(center)` would report air for bed/respawn-anchor block explosions. No
+  Paper `BlockExplodeEvent`/`CraftEventFactory` source exists under `.vendor/` to pin the API type,
+  and adding the field changes `BlockExplodeEvent::new` arity at the concurrently-owned
+  `explosion.rs:869-874` call site.
+- Row 2 (unloaded-chunk force-load): BLOCKED-DATA. Missing subsystem: an async chunk prefetch
+  before the sync tick. `load_chunk_for_explosion` (`explosion.rs:127-151`) already force-loads via
+  `get_or_fetch_chunk`; the only gap is the current-thread-runtime fallback (:146-149) where
+  `Handle::block_on`/`block_in_place` would deadlock the chunk IO tasks. Fixing it needs a
+  Level-wide async prefetch (a whole subsystem), not a minimal edit.
+- Row 3 (entity blast resistance with custom calculator): VERIFIED MATCHING. Vanilla wraps the
+  source in `EntityBasedExplosionDamageCalculator` only when the calculator is null
+  (ServerExplosion.java:316,323-325); Pumpkin applies `get_block_explosion_resistance` only when
+  `damage_calculator.is_none()` (explosion.rs:568-572). Doc premise was inverted; no change.
+- Row 4 (seeded level RNG): VERIFIED FIXED. Vanilla draws from `level.getRandom()`
+  (ServerExplosion.java:410,612,674); `World::explosion_random` is seeded from the level seed
+  (world/mod.rs:700) and drives ray power and fire rolls (explosion.rs:497-501,824-830).
+- Row 5 (`is_small` Keep clause): VERIFIED MATCHING. Vanilla `radius < 2.0 || !interactsWithBlocks()`
+  (ServerExplosion.java:770-772) == Pumpkin `power < 2.0 || Keep` (explosion.rs:395-397).
+- Row 6 (`ClientboundExplodePacket.blockCount`): VERIFIED MATCHING (Mojang vanilla). Mojang
+  `explode()` returns `toBlow.size()` computed by `calculateExplodedPositions()` before the
+  CraftBukkit-only event filter (ServerExplosion.java:694,697,711). Pumpkin returns `to_blow_count`
+  from `get_blocks_to_destroy` before the filter (explosion.rs:611,910,984), sent at
+  world/mod.rs:5140, and `incendiary_block_count_includes_air_positions` (explosion.rs:1123) locks
+  the air-position count. Paper's post-filter count is a CraftBukkit divergence; adopting it would
+  regress that test and is client-visual only.
+- Row 7 (damage type): VERIFIED FIXED. `DamageSources.explosion` selects `PLAYER_EXPLOSION` when both
+  direct and indirect sources exist (DamageSources.java:251-256); `damage_type()` gates on exactly
+  that (explosion.rs:346-354).
+- Row 8 (`finalizeExplosion` particles/sound): VERIFIED FIXED. Vanilla emits `gameEvent(EXPLODE)`
+  (ServerExplosion.java:693); Pumpkin sends the particle/sound in the packet at
+  world/mod.rs:5122-5147.
+
+No `.rs` source edited, so no rustfmt. No pure unit test added: the only logic in
+`block_explode.rs` is a world lookup in `get_block`, with no seam that is not a World-backed
+integration test (getter-style tests are excluded by the rules). No cargo/git run per task.

@@ -74,3 +74,10 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
 - No unit test: the remaining code is a live `World` call inside `on_synced_block_event`, and the
   only pure helpers here are the instrument tables, which a test would merely mirror.
 - Rows: fixed=2, open=0. Files: note.rs (plus this doc).
+
+### Third-pass closeout 2026-11-18 (final)
+- Row 1 (custom head sound audible range): FIXED, VERIFIED. `note.rs` calls `World::play_custom_sound` with volume 3.0 (note.rs:184-190). That method broadcasts via `audible_chunks(volume)` = ceil(3) = 3 chunks = 48 blocks (crates/pumpkin-core/src/world/mod.rs:2007-2028, 9543-9545), matching vanilla `SoundEvent#getRange(volume)` = 16*volume = 48 for volume > 1 (.vendor/vanilla-decompiled/net/minecraft/sounds/SoundEvent.java:43-45) and the `ServerLevel#playSeededSound` broadcast radius (.vendor/vanilla-decompiled/net/minecraft/server/level/ServerLevel.java:3412). Encoded `range: None` matches `createVariableRangeEvent` = `Optional.empty()` (SoundEvent.java:35-37); sound_effect.rs:51-54 and codec/data_component.rs:34-55 copy range verbatim, so no protocol change is needed.
+- Row 2 (NotePlayEvent instrument serialized id): FIXED, VERIFIED. note.rs:36 passes `props.instrument.to_value().to_owned()`.
+- NOTE particle: correctly absent. `NoteBlock#triggerEvent` calls `level.addParticle`, which is an empty no-op on the server (.vendor/vanilla-decompiled/net/minecraft/world/level/Level.java:1712-1714; no `ServerLevel` override), so not broadcasting a particle is correct.
+- No BLOCKED-DATA rows: no generated pumpkin-data field or missing subsystem is involved.
+- Rows: fixed=2, open=0. No source edits this pass (all fixes already present); no new test seam. The only pure helpers are the instrument tables, which a test would merely mirror.

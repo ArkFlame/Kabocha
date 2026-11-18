@@ -71,27 +71,38 @@ check.
 ## Gap status
 - Rows: RESOLVED. All four behavioural rows re-verified against .vendor/vanilla-decompiled (1.21.x); applied fixes are present in source; see Result.
 
-## Result
+## Result (third pass, verified against `.vendor/vanilla-decompiled` 1.21.x/Paper)
 
-Verified each STILL OPEN row against `.vendor/vanilla-decompiled` (1.21.x).
+All four behavioural rows are resolved in source; no further code changes were needed.
+Each was re-verified against the decompiled vanilla sources this pass.
 
-- Row 1 `is_arrow` tag: FIXED. The generated `minecraft:arrows` tag now lists
-  `arrow`/`tipped_arrow`/`spectral_arrow`, so `is_arrow` switches to
-  `Taggable::has_tag`, which also honours datapack tags. Dropped `const`
-  because `has_tag` is not const.
-- Row 2 creative pickup: FIXED. Vanilla `AbstractArrow` derives pickup as
-  `INTANGIBLE_PROJECTILE -> CREATIVE_ONLY`, else player owner -> `ALLOWED`,
-  else `DISALLOWED`. `ProjectileWeaponItem::create_projectile` no longer takes
-  `is_creative`; it derives pickup from the intangible component and
-  `World::get_player_by_id`. Callers in bow.rs and crossbow.rs updated and pure
-  unit tests added for the mapping.
-- Row 3 crit with creative/Infinity: NO CHANGE. Decompiled `BowItem.releaseUsing`
-  uses plain `pow == 1.0F` for isCrit; the older `flag || f == 1.0F` behaviour is
-  absent in 1.21, and Pumpkin's EPSILON comparison is equivalent.
-- Row 4 ammo-use item filter: NO CHANGE. Vanilla `Enchantments.INFINITY` registers
-  its `AMMO_USE` effect with `MatchTool.toolMatches(... of(Items.ARROW))`, so
-  Infinity only applies to plain arrows. Pumpkin's `Item::ARROW` filter in
-  `process_ammo_use` and `bow.rs` `infinite_projectile` already match.
+- Row 1 `is_arrow` tag: FIXED. `ProjectileWeaponItem::is_arrow` uses
+  `Taggable::has_tag(&pumpkin_data::tag::Item::MINECRAFT_ARROWS)`, matching vanilla
+  `ProjectileWeaponItem.ARROW_ONLY = stack -> stack.is(ItemTags.ARROWS)`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/ProjectileWeaponItem.java:20`).
+  The generated `minecraft:arrows` item tag lists `arrow`, `tipped_arrow`, `spectral_arrow`
+  (`crates/pumpkin-data/src/generated/tag.rs:24871`), so no tipped-arrow regression.
+- Row 2 creative pickup: FIXED. `ProjectileWeaponItem::create_projectile` no longer takes
+  `is_creative`; it derives pickup from the `INTANGIBLE_PROJECTILE` component and whether the
+  shooter is a player via `World::get_player_by_id`, matching vanilla `AbstractArrow`:
+  intangible -> `CREATIVE_ONLY` (`.../world/entity/projectile/arrow/AbstractArrow.java:104-107`),
+  player owner -> `ALLOWED` (`AbstractArrow.java:695-699`), otherwise `DISALLOWED`
+  (`AbstractArrow.java:71`). `pickup_for` plus its three pure unit tests in
+  `projectile_weapon.rs` cover the mapping; callers in `bow.rs` and `crossbow.rs` pass no
+  creative flag.
+- Row 3 crit with creative/Infinity: VERIFIED (matches vanilla, no change needed). Decompiled
+  `BowItem.releaseUsing` passes `pow == 1.0F` as `isCrit`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/BowItem.java:41`); the older
+  `flag || f == 1.0F` behaviour is absent in 1.21. `bow.rs` uses
+  `(power - 1.0).abs() < f32::EPSILON` after `get_power_for_time` clamps to 1.0, equivalent to
+  `pow == 1.0F`.
+- Row 4 ammo-use item filter: VERIFIED (matches vanilla, no change needed). Vanilla
+  `Enchantments.INFINITY` registers its `AMMO_USE` effect with
+  `MatchTool.toolMatches(ItemPredicate.Builder.item().of(items, Items.ARROW))`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/enchantment/Enchantments.java:918-922`),
+  so Infinity only applies to plain arrows. `EnchantmentHelper::process_ammo_use`'s
+  `Item::ARROW` filter (`crates/pumpkin-core/src/enchantment/helper.rs:221`) and the `bow.rs`
+  `infinite_projectile` consumption check match this.
 - Row 5: unchanged, previously checked and left alone.
 
-No rows remain open.
+No rows remain open; no BLOCKED-DATA rows.
