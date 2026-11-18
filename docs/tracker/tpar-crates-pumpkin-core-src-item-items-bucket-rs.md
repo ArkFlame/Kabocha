@@ -5,7 +5,52 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-it-0d4e6b** [partial/OWN-OPEN] own audit: 13 open, 7 fixed, 15 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-it-0d4e6b.md) docs/tracker/taudit-crates-pumpkin-core-src-it-0d4e6b.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+All seven rows independently re-verified against decompiled 1.21 vanilla in
+.vendor/vanilla-decompiled/net/minecraft/ and the current bucket.rs. No source
+edits needed: every in-scope fix is already present and matches vanilla. No
+cargo/git run (forbidden for this worker); no Rust touched, so no rustfmt needed.
+
+- Row 1 (waterlogged pickup, bucket.rs:311-333): VERIFIED.
+  world/level/block/SimpleWaterloggedBlock.java:39-50 pickupBlock sets
+  WATERLOGGED=false, then destroyBlock(pos, true) when the dried state cannot
+  survive. Pumpkin's set_waterlogged(false) + block_registry.can_place_at on the
+  dried state + break_block with drops reproduces this.
+- Row 2 (sneak waterlogging, bucket.rs:443): VERIFIED, no change.
+  world/item/BucketItem.java:146 gates canPlaceFluidInsideBlock on
+  (!shiftKeyDown || hitResult == null), recursing to the adjacent pos at :190.
+  Pumpkin's !is_sneaking in clicked_is_liquid_container matches; removing it
+  would be WRONG.
+- Row 3 (ultrawarm mob bucket, bucket.rs:464-470/555-598): VERIFIED.
+  world/item/BucketItem.java:158-170 takes the fire-extinguish branch and returns
+  true WITHOUT playEmptySound; use():64 still runs checkExtraContent, and
+  world/item/MobBucketItem.java:34-39 spawns the mob. Pumpkin skips the empty
+  sound on evaporation and still spawns. Doc premise (no spawn) was wrong.
+- Row 4 (mayInteract / spawn protection, bucket.rs:661-663/750-753): VERIFIED.
+  world/item/BucketItem.java:60 gates use() on level.mayInteract(player, pos).
+  Pumpkin's world.is_in_spawn_protection gates match. mayUseItemAt is
+  region/spectator-only, covered upstream/by plugin events.
+- Row 5 (hardcoded Hand::Right, bucket.rs:834-840): VERIFIED.
+  Vanilla UseOnContext.getHand() is mirrored by hand_holding(player, stack.item)
+  (item/mod.rs:28), which derives Right/Left from the held item id; the used hand
+  now edits its own slot. No trait signature change needed.
+- Row 6 (event payload face/stack, bucket.rs:659/671-675/766-770): VERIFIED end
+  to end. plugin/api/events/player/player_bucket.rs carries bucket + block_face;
+  bucket.rs builds them with block_face_name(hit.direction/direction) and the
+  bucket registry key. Unit test block_face_names_match_bukkit (:920) covers all
+  six BlockDirection variants. Bukkit PlayerBucketEmptyEvent/FillEvent expose
+  getFace()/getItemStack(); the string forms are Pumpkin's equivalent.
+- Row 7 (dispenser break_block drops, redstone/dispenser.rs): VERIFIED, out of
+  scope (basename not permitted) and no fix needed. Vanilla filled-bucket
+  dispensing runs world/item/BucketItem.java:176-177 emptyContents ->
+  destroyBlock(pos, true) for replaceable blocks, so rolling loot is correct;
+  adding SKIP_DROPS would break parity. Doc premise was wrong.
+
+Compile-pitfall re-check: no Rust edited this pass. Existing code uses unwrap_or,
+hand_holding imported from crate::item, block_face_name is a const fn with an
+exhaustive six-variant match, and the test uses assert_eq! on &str (Debug ok).
+No new imports, helpers, structs, clones, or pedantic issues.
+
+All seven rows are FIXED/VERIFIED; no STILL OPEN or BLOCKED-DATA rows remain.
 
 ## Result (pass 3 verification, 2026-11-18)
 
