@@ -1,15 +1,23 @@
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crossbeam::atomic::AtomicCell;
-use pumpkin_data::block_properties::{CreakingHeartLikeProperties, CreakingHeartState};
+use pumpkin_data::block_properties::{
+    CreakingHeartLikeProperties, CreakingHeartState, GlowLichenLikeProperties,
+};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::{Block, BlockDirection};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::Difficulty;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_world::world::BlockFlags;
+use rand::{RngExt, seq::SliceRandom};
 use uuid::Uuid;
 
 use crate::block::blocks::creaking_heart::CreakingHeartBlock;
@@ -24,6 +32,10 @@ const CREAKING_SPAWN_DISTANCE: f64 = 32.0;
 
 /// Vanilla `CreakingHeartBlockEntity#DISTANCE_CREAKING_TOO_FAR`.
 const CREAKING_TOO_FAR_DISTANCE: f64 = 34.0;
+
+/// Vanilla `BlockPos.breadthFirstTraversal(origin, 2, 64, ...)` limits for resin spread.
+const RESIN_SPREAD_MAX_DEPTH: u32 = 2;
+const RESIN_SPREAD_MAX_NODES: u32 = 64;
 
 pub struct CreakingHeartBlockEntity {
     pub position: BlockPos,
@@ -217,11 +229,149 @@ impl CreakingHeartBlockEntity {
             SoundCategory::Blocks,
             &self.position.to_f64(),
         );
+
+        // Vanilla `creakingHurt` grows resin only while the heart is awake.
+        let state_id = world.get_block_state_id(&self.position);
+        if CreakingHeartLikeProperties::from_state_id(state_id).creaking_heart_state
+            != CreakingHeartState::Awake
+        {
+            return;
+        }
+
+        // Vanilla `nextIntBetweenInclusive(2, 3)` places that many resin clumps.
+        let count = rand::rng().random_range(2..4);
+        for _ in 0..count {
+            let Some(pos) = self.spread_resin(world) else {
+                continue;
+            };
+            world.play_sound(
+                Sound::BlockResinPlace,
+                SoundCategory::Blocks,
+                &pos.to_f64(),
+            );
+            world.emit_game_event(GameEvent::BlockPlace.name(), pos.to_f64());
+        }
+    }
+
+    /// Vanilla `spreadResin`: a breadth-first walk over nearby pale oak logs (depth 2, at most
+    /// 64 nodes) that places one multiface resin clump on the first free adjacent face.
+    fn spread_resin(&self, world: &Arc<World>) -> Option<BlockPos> {
+        let mut queue = VecDeque::from([(self.position, 0u32)]);
+        let mut visited = HashSet::new();
+        let mut count = 0u32;
+
+        while let Some((pos, depth)) = queue.pop_front() {
+            if !visited.insert(pos) {
+                continue;
+            }
+
+            let placed = if Self::is_pale_oak_log(world, &pos) {
+                Self::try_place_resin_on_log(world, &pos)
+            } else {
+                None
+            };
+            if let Some(placed) = placed {
+                return Some(placed);
+            }
+
+            count += 1;
+            if count >= RESIN_SPREAD_MAX_NODES {
+                return None;
+            }
+            if depth < RESIN_SPREAD_MAX_DEPTH {
+                Self::enqueue_log_neighbors(world, &pos, depth + 1, &mut queue);
+            }
+        }
+        None
+    }
+
+    fn enqueue_log_neighbors(
+        world: &Arc<World>,
+        pos: &BlockPos,
+        depth: u32,
+        queue: &mut VecDeque<(BlockPos, u32)>,
+    ) {
+        let mut dirs = BlockDirection::all();
+        dirs.shuffle(&mut rand::rng());
+        for dir in dirs {
+            let neighbor = pos.offset(dir.to_offset());
+            if Self::is_pale_oak_log(world, &neighbor) {
+                queue.push_back((neighbor, depth));
+            }
+        }
+    }
+
+    fn is_pale_oak_log(world: &Arc<World>, pos: &BlockPos) -> bool {
+        world
+            .get_block_state_id(pos)
+            .to_block()
+            .has_tag(&tag::Block::MINECRAFT_PALE_OAK_LOGS)
+    }
+
+    /// Adds one face of a resin clump next to a log, matching vanilla's shuffled multiface fill.
+    fn try_place_resin_on_log(world: &Arc<World>, pos: &BlockPos) -> Option<BlockPos> {
+        let mut dirs = BlockDirection::all();
+        dirs.shuffle(&mut rand::rng());
+        for dir in dirs {
+            let neighbor_pos = pos.offset(dir.to_offset());
+            let state_id = world.get_block_state_id(&neighbor_pos);
+            let block = state_id.to_block();
+            let opposite = dir.opposite();
+
+            let mut props = if block == &Block::AIR {
+                Some(GlowLichenLikeProperties::default(&Block::RESIN_CLUMP))
+            } else if block == &Block::WATER && world.is_water_source(&neighbor_pos) {
+                let mut props = GlowLichenLikeProperties::default(&Block::RESIN_CLUMP);
+                props.waterlogged = true;
+                Some(props)
+            } else if block == &Block::RESIN_CLUMP {
+                Some(GlowLichenLikeProperties::from_state_id(state_id))
+            } else {
+                None
+            };
+
+            if let Some(mut props) = props
+                && !Self::has_face(&props, opposite)
+            {
+                Self::set_face(&mut props, opposite);
+                world.set_block_state(
+                    &neighbor_pos,
+                    props.to_state_id(&Block::RESIN_CLUMP),
+                    BlockFlags::NOTIFY_ALL,
+                );
+                return Some(neighbor_pos);
+            }
+        }
+        None
+    }
+
+    const fn has_face(props: &GlowLichenLikeProperties, direction: BlockDirection) -> bool {
+        match direction {
+            BlockDirection::Down => props.down,
+            BlockDirection::Up => props.up,
+            BlockDirection::North => props.north,
+            BlockDirection::South => props.south,
+            BlockDirection::West => props.west,
+            BlockDirection::East => props.east,
+        }
+    }
+
+    const fn set_face(props: &mut GlowLichenLikeProperties, direction: BlockDirection) {
+        match direction {
+            BlockDirection::Down => props.down = true,
+            BlockDirection::Up => props.up = true,
+            BlockDirection::North => props.north = true,
+            BlockDirection::South => props.south = true,
+            BlockDirection::West => props.west = true,
+            BlockDirection::East => props.east = true,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use pumpkin_data::block_properties::GlowLichenLikeProperties;
+    use pumpkin_data::{Block, BlockDirection};
     use pumpkin_util::math::position::BlockPos;
     use pumpkin_util::math::vector3::Vector3;
     use uuid::Uuid;
@@ -245,5 +395,20 @@ mod tests {
         assert!(!CreakingHeartBlockEntity::is_creaking_too_far(&heart, near));
         let far = Vector3::new(35.5, 64.0, 0.5);
         assert!(CreakingHeartBlockEntity::is_creaking_too_far(&heart, far));
+    }
+
+    #[test]
+    fn resin_clump_face_helpers_roundtrip() {
+        let block = &Block::RESIN_CLUMP;
+        for direction in BlockDirection::all() {
+            let mut props = GlowLichenLikeProperties::default(block);
+            CreakingHeartBlockEntity::set_face(&mut props, direction);
+            assert!(CreakingHeartBlockEntity::has_face(&props, direction));
+        }
+        let mut props = GlowLichenLikeProperties::default(block);
+        CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Down);
+        CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Up);
+        assert!(CreakingHeartBlockEntity::has_face(&props, BlockDirection::Down));
+        assert!(CreakingHeartBlockEntity::has_face(&props, BlockDirection::Up));
     }
 }

@@ -189,6 +189,39 @@ pub fn generated_structure_file_path(
     Some(full_path)
 }
 
+// Vanilla marks these blocks dynamicShape() in Blocks (1.21.x): their collision
+// shape is state-dependent, so StructureTemplate.addToLists buckets them as other
+// even when one state's collision box is a full cube.
+#[must_use]
+fn has_dynamic_shape(name: &str) -> bool {
+    matches!(
+        name,
+        "moving_piston"
+            | "bamboo"
+            | "scaffolding"
+            | "powder_snow"
+            | "pointed_dripstone"
+            | "sulfur_spike"
+            | "shulker_box"
+            | "white_shulker_box"
+            | "orange_shulker_box"
+            | "magenta_shulker_box"
+            | "light_blue_shulker_box"
+            | "yellow_shulker_box"
+            | "lime_shulker_box"
+            | "pink_shulker_box"
+            | "gray_shulker_box"
+            | "light_gray_shulker_box"
+            | "cyan_shulker_box"
+            | "purple_shulker_box"
+            | "blue_shulker_box"
+            | "brown_shulker_box"
+            | "green_shulker_box"
+            | "red_shulker_box"
+            | "black_shulker_box"
+    )
+}
+
 pub fn capture_structure_template_from_world(
     world: &World,
     origin: BlockPos,
@@ -248,8 +281,9 @@ pub fn capture_structure_template_from_world(
                 let info = StructureBlockInfo::new(rel_pos, Arc::new(entry), nbt);
                 if info.nbt.is_some() {
                     block_entity_blocks.push(info);
-                } else if state.is_full_cube() {
-                    // Vanilla: `isCollisionShapeFullBlock`, not render occlusion (glass is full-collision).
+                } else if state.is_full_cube() && !has_dynamic_shape(&block.name) {
+                    // Vanilla: !hasDynamicShape() && isCollisionShapeFullBlock(...),
+                    // not render occlusion (glass is full-collision).
                     full_blocks.push(info);
                 } else {
                     other_blocks.push(info);
@@ -1480,6 +1514,17 @@ mod tests {
     };
     use pumpkin_data::{Block, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
+
+    #[test]
+    fn dynamic_shape_blocks_are_not_full_cube_bucketed() {
+        assert!(super::has_dynamic_shape("moving_piston"));
+        assert!(super::has_dynamic_shape("bamboo"));
+        assert!(super::has_dynamic_shape("shulker_box"));
+        assert!(super::has_dynamic_shape("red_shulker_box"));
+        assert!(!super::has_dynamic_shape("stone"));
+        assert!(!super::has_dynamic_shape("glass"));
+        assert!(!super::has_dynamic_shape("bamboo_sapling"));
+    }
 
     #[test]
     fn palette_full_block_uses_collision_shape_not_occlusion() {

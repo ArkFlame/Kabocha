@@ -151,7 +151,7 @@ pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &Block
                     world.schedule_block_tick(
                         current_block,
                         nearby_pos,
-                        delay.max(1),
+                        delay.max(1) as u32,
                         TickPriority::Normal,
                     );
                 }
@@ -261,5 +261,23 @@ mod tests {
         };
         assert_eq!(color, CLOSED_PARTICLE_COLOR);
         assert_ne!(CLOSED_PARTICLE_COLOR, OPEN_PARTICLE_COLOR);
+    }
+
+    /// A seeded world-level stream reproduces the same transform particle,
+    /// unlike a fresh OS-entropy generator drawn on every state change.
+    #[test]
+    fn transform_particle_is_reproducible_from_a_seed() {
+        let pos = BlockPos::new(7, 64, -9);
+        let first = transform_particle(
+            &Block::OPEN_EYEBLOSSOM,
+            &pos,
+            &mut Xoroshiro::from_seed(0x5EED_1234),
+        );
+        let second = transform_particle(
+            &Block::OPEN_EYEBLOSSOM,
+            &pos,
+            &mut Xoroshiro::from_seed(0x5EED_1234),
+        );
+        assert!(first == second);
     }
 }
