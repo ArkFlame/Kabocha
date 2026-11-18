@@ -391,8 +391,7 @@ impl CommandSender {
                 let command_block_props = CommandBlockLikeProperties::from_state_id(state_id);
                 let facing = command_block_props.facing;
 
-                // TODO: when command blocks get custom names, add a check for it
-                let name = TextComponent::text("@");
+                let name = command_block_name(&command_entity);
 
                 CommandSource::new(
                     Self::CommandBlock(command_entity, world.clone()),

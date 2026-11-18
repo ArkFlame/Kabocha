@@ -404,8 +404,7 @@ impl CommandSource {
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             for player in server.get_all_players() {
-                if output_player != Some(&player)
-                    && ops.get_entry(&player.gameprofile.id).is_some()
+                if output_player != Some(&player) && ops.get_entry(&player.gameprofile.id).is_some()
                 {
                     player.send_system_message(&text);
                 }
