@@ -10,7 +10,7 @@ use pumpkin_gametest::{
     TestType,
 };
 pub use pumpkin_gametest::{GameTestBatchReport, GameTestRetryOptions};
-use pumpkin_nbt::NbtCompound;
+use pumpkin_nbt::{NbtCompound, tag::NbtTag};
 use pumpkin_util::math::{position::BlockPos, vector2::Vector2};
 use pumpkin_util::text::TextComponent;
 use pumpkin_world::{chunk::ChunkHeightmapType, world::BlockFlags};
@@ -927,5 +927,32 @@ impl GameTestWorld for ServerGameTestWorld {
                     tick: 0,
                 })?;
         Ok(count.max(0).cast_unsigned())
+    }
+
+    async fn use_spawn_egg(
+        &self,
+        egg_name: &str,
+        entity_data: Option<&NbtCompound>,
+        position: pumpkin_util::math::vector3::Vector3<f64>,
+        yaw: f32,
+        peaceful: bool,
+    ) -> GameTestResult<bool> {
+        let normalized = egg_name.strip_prefix("minecraft:").unwrap_or(egg_name);
+        let item = pumpkin_data::item::Item::from_registry_key(normalized)
+            .ok_or_else(|| GameTestError::World(format!("Unknown spawn egg '{egg_name}'")))?;
+        self.ensure_chunk_loaded(&BlockPos::floored_v(position))
+            .await;
+        let mut stack = pumpkin_data::item_stack::ItemStack::new(1, item);
+        if let Some(nbt) = entity_data
+            && let Some(component) =
+                pumpkin_data::data_component_impl::EntityDataImpl::read_data(&NbtTag::Compound(
+                    nbt.clone(),
+                ))
+        {
+            stack.set_data_component(component);
+        }
+        Ok(crate::item::items::spawn_egg::spawn_from_spawn_egg_stack(
+            &stack, &self.world, position, yaw, None, peaceful,
+        ))
     }
 }

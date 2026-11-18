@@ -92,6 +92,8 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:sniffers_breed_into_an_egg",
     "pumpkin:sniffer_sniffs_walks_and_digs",
     "pumpkin:minecart_drops_item_when_destroyed",
+    "pumpkin:spawn_egg_entity_data_type_override",
+    "pumpkin:spawn_egg_peaceful_blocks_monsters",
     // redstone_wire_and_power (14)
     "pumpkin:redstone_wire_attenuation_1_to_4",
     "pumpkin:redstone_wire_attenuation_5_to_8",
@@ -636,6 +638,21 @@ pub fn ensure_builtin_game_tests_registered() {
             3,
             1,
             entities_and_ai::test_sniffer_sniffs_walks_and_digs,
+        );
+
+        register_function_test(
+            "pumpkin:spawn_egg_entity_data_type_override",
+            "pumpkin:empty_5x4x5",
+            80,
+            0,
+            entities_and_ai::test_spawn_egg_entity_data_type_override,
+        );
+        register_function_test(
+            "pumpkin:spawn_egg_peaceful_blocks_monsters",
+            "pumpkin:empty_5x4x5",
+            80,
+            0,
+            entities_and_ai::test_spawn_egg_peaceful_blocks_monsters,
         );
 
         // redstone_wire_and_power (14)

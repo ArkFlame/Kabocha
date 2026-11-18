@@ -1,5 +1,6 @@
 use pumpkin_data::Block;
 use pumpkin_gametest::{GameTestHelper, GameTestResult};
+use pumpkin_nbt::NbtCompound;
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 
 use super::build_stone_floor;
@@ -151,5 +152,51 @@ pub(super) async fn test_minecart_drops_item_when_destroyed(
                 .await
         })
         .then_succeed();
+    Ok(())
+}
+
+/// A cow egg carrying wolf `entity_data` must spawn a wolf: vanilla `SpawnEggItem.getType`
+/// reads the ENTITY_DATA component, so the authored type wins over the egg's own mapping.
+pub(super) async fn test_spawn_egg_entity_data_type_override(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 3, 3).await?;
+    let mut data = NbtCompound::new();
+    data.put_string("id", "minecraft:wolf".to_string());
+    let spawned = helper
+        .use_spawn_egg(
+            "minecraft:cow_spawn_egg",
+            Some(&data),
+            Vector3::new(1.5, 1.0, 1.5),
+            0.0,
+            false,
+        )
+        .await?;
+    if !spawned {
+        return Err(helper.fail("cow egg with wolf entity_data did not spawn a mob"));
+    }
+    helper
+        .succeed_when(|helper| async move { helper.assert_entity_present("minecraft:wolf").await })
+}
+
+/// Vanilla `SpawnEggItem.useOn` blocks monster eggs in Peaceful. The guard is passed in
+/// explicitly so the test stays deterministic without changing global world difficulty.
+pub(super) async fn test_spawn_egg_peaceful_blocks_monsters(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 3, 3).await?;
+    let spawned = helper
+        .use_spawn_egg(
+            "minecraft:zombie_spawn_egg",
+            None,
+            Vector3::new(1.5, 1.0, 1.5),
+            0.0,
+            true,
+        )
+        .await?;
+    if spawned {
+        return Err(helper.fail("zombie spawn egg spawned a monster in Peaceful"));
+    }
+    helper.succeed();
     Ok(())
 }
