@@ -1,0 +1,31 @@
+# Native agent 3 (28 open lines)
+Each line is `[unit-note] text` from the latest Result of docs/tracker/<unit>.md (the note has the full table and context).
+
+- [taudit-crates-pumpkin-core-src-bl-058f4c] - Row 1 (comparator analog flag): still BLOCKED-DATA. `assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector/tripwire_hook/target, so `get_comparator_output` stays unreachable and comparator.rs:224 takes the conductor branch. Needs Extractor; generated data must not be hand-edited
+- [taudit-crates-pumpkin-core-src-bl-4d09af] - `BlockIsReplacing::water_source` / 46 call sites (`mod.rs`): LEFT OPEN. Cross-file
+- [taudit-crates-pumpkin-core-src-bl-4d09af] - Shelf collision/occlusion shape: LEFT OPEN. Needs generated shape data for
+- [taudit-crates-pumpkin-core-src-bl-4d09af] - Piston push reaction for shelves: LEFT OPEN. Pumpkin has no engine-level piston
+- [taudit-crates-pumpkin-core-src-bl-4f710e] - 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): CLOSED. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the type's own open value.
+- [taudit-crates-pumpkin-core-src-bl-6f9a28] - 9. Multiblock bucketing: OPEN (needs generated data). Vanilla `addToLists` uses
+- [taudit-crates-pumpkin-core-src-block-bloc] rng), which lives outside this unit: left OPEN (out of unit, no pure seam remains).
+- [taudit-crates-pumpkin-core-src-block-regi] - No source files in the unit were edited; no rustfmt or unit test needed. Status: BLOCKED for the one STILL OPEN row (out-of-scope files + non-gap per vanilla default), zero fixed.
+- [taudit-crates-pumpkin-core-src-en-06afb0] - 7. `bypasses_armor` data tag: BLOCKED-DATA, unchanged, needs the generated damage-type tag.
+- [taudit-crates-pumpkin-core-src-en-f12c04] - row 21 swept `entityInside` for every visited block type: LEFT OPEN, outside this unit. One-line reason: needs `OnEntityCollisionArgs` extended (block/mod.rs:419) and dedupe against `Entity::tick_block_collisions` (entity/mod.rs), both outside lily_pad.rs.
+- [taudit-crates-pumpkin-core-src-en-f12c04] - row 22 (`record_movement` merge test, block_effects.rs): LEFT OPEN in this unit. One-line reason: already fixed in block_effects.rs by a prior pass (`merge_oldest_movement` + test), outside lily_pad.rs scope.
+- [taudit-crates-pumpkin-core-src-entity-veh] - block_effects 1,2,3,4,5,6: STILL OPEN, out of scope (block_effects.rs / gametest harness).
+- [tblocks-beacon] `BeaconBeamOwner.Section` (color final, height starting at 1). LEFT OPEN, one reason:
+- [tblocks-beds-c611b1] - Row 1 (`bed.rs:267,284-285` / `straw_bed.rs:272-273` / `environment.rs:228`): OPEN -
+- [tblocks-beds-c611b1] - Row 3 (`bed.rs:389-402`): OPEN - vanilla sends `BedRule.errorMessage`, which in vanilla data
+- [tblocks-campfire] - Row 12 (the only row explicitly marked STILL OPEN, h6 status line 57):
+- [tblocks-campfire] - Row 3 (cooked result count split): LEFT OPEN, latent, same call as prior
+- [tblocks-chests] - **Row 3 (lid event viewer count truncated to u8): STILL OPEN, out of unit.**
+- [tblocks-daylight-detector] - Shape-based light occlusion / 6px column (L) - left OPEN, out of scope. Requires a generated
+- [tblocks-pistons-9d1580] - Row 4 (players excluded): LEFT OPEN. One-line reason: intentional divergence because player
+- [tentities-bee-8270b4] - **Gap 3 (pitcher crop / two-block plants): LEFT OPEN.** Keeping the pitcher crop upper half in
+- [tentities-tadpole-3cdaf7] does (`frog.rs:146-148`). Left open: depends on BLOCKED-DATA gap 1, whose tracked data does not
+- [titems-mace] - Row 16 STILL OPEN (pumpkin-gametest: drop a player ~6 blocks onto a cow, assert base+bonus damage, knockback and no fall damage afterwards): the gametest fixture lives outside this unit's editable files, so it cannot be added here. The pure-unit seam mace_smash_damage_curve_matches_vanilla_branche
+- [tmedium-batch1] - 1 (058f4c:41) BLOCKED: shape-driven light occlusion needs `useShapeForLightOcclusion` in the
+- [tmedium-batch1] - 2 (29396e:48) BLOCKED: source-water to LiquidBlockContainer conversion is in fluid spreading,
+- [tmedium-batch1] - 4 (4d09af:79) BLOCKED: `BlockIsReplacing::water_source` fix touches ~46 call sites,
+- [tmedium-batch1] - 6 (6f9a28:106) BLOCKED: entity capture on save needs entity-NBT capture in the template path,
+- [tmedium-batch1] - 8 (f6470f:50) BLOCKED: `onExplosionHit` ordering needs an explosion world test, no pure seam;

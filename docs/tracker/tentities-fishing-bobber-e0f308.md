@@ -119,3 +119,43 @@ in .../mc-proof/ref/net/minecraft.
 Files touched: crates/pumpkin-core/src/item/items/fishing_rod.rs,
 crates/pumpkin-core/src/world/loot/predicates.rs. Both rustfmt-clean. No tests added: both
 changes need a live World/stat harness that does not exist in these modules; no pure seam.
+
+
+## Result (final verification pass)
+
+Re-verified every STILL OPEN row against decompiled vanilla
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java`,
+`.../world/item/FishingRodItem.java`, `.../world/entity/Entity.java`). All in-scope rows are
+already implemented in this unit's files; no new code change was required.
+
+- predicates.rs open water (row 1): verified matching vanilla `calculateOpenWater:442-485` and
+  `getOpenWaterTypeForBlock:475-485`: uniform 5x5 layers (dy -1..=2), air only above water, bottom
+  layer water, source-only water via `World::is_water_source`, lily pad counted as air. Pure tests
+  `full_water_column_is_open_water`, `air_above_the_surface_is_open_water`,
+  `water_above_air_is_not_open_water` already cover the layer rule. No change needed.
+- entity/type.rs:143 bobber arm (row 2): STILL OPEN, needs `entity/type.rs` (outside this unit's
+  files). `FishingBobberEntity::from_loaded` already exists in fishing_bobber.rs; only the
+  `from_type` wiring is missing.
+- fishing_bobber.rs Lured event (row 3): verified fixed - `PlayerFishState::Lured` fires when
+  `wait_countdown` reaches 0 and closes the bite window on cancel; enum present in native and
+  pumpkin-wasm-host-v0_2. No change needed.
+- fishing_rod.rs / use_item.rs cast Fishing event (row 4): verified fixed - FISHING event fires
+  with the real hook UUID before the throw sound and bails on cancel; ITEM_USED is awarded once in
+  fishing_rod.rs and not at all generically in use_item.rs. No change needed.
+- fishing_bobber.rs rotation + block effects (row 5): verified fixed - `Entity::check_block_collision`
+  (the applyEffectsFromBlocks equivalent) and `update_rotation` run after `move_entity`, matching
+  vanilla tick:260-269. No change needed.
+- fishing_bobber.rs removal clears owner (row 6): verified fixed - `on_removed()` clears
+  `player.fishing_bobber` for every removal path, plus `discard()` for the tick/reel-in paths.
+  No change needed.
+- fishing_bobber.rs reel_in re-check (row 7): verified fixed - the hooked entity is re-read after
+  the CaughtEntity event and `is_removed()` gates the pull. The vanilla `canSimulateMovement` gate
+  is a no-op on a dedicated server (Entity.java:6633 returns true for SERVER_AND_CLIENT / server
+  authority) and has no Pumpkin equivalent, so no change needed.
+- fishing_bobber.rs FISHING_ROD_HOOKED trigger (row 8): STILL OPEN - the entity path fires the
+  empty-list trigger and the item path fires per-item; collapsing to one full-list trigger needs an
+  `AdvancementTrigger::FishedItem` API change outside this unit. Firing once per item is equivalent
+  for the `fishing_rod_hooked` predicate.
+
+No source files changed this pass. The two remaining open rows require files/APIs outside this
+unit; all pure seams for the in-scope fixes already have unit tests.

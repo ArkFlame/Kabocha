@@ -1,0 +1,894 @@
+use crate::{
+    entity::player::{ChatMode, Player},
+    net::{bedrock::BedrockClient, java::JavaClient},
+    server::Server,
+};
+use arc_swap::ArcSwap;
+use bytes::Bytes;
+use pumpkin_world::level::SyncChunk;
+use std::{
+    net::SocketAddr,
+    num::NonZero,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
+
+use pumpkin_data::translation;
+use pumpkin_protocol::{BClientPacket, ClientPacket, Property};
+use pumpkin_util::{
+    Hand, ProfileAction,
+    text::TextComponent,
+    version::{BedrockMinecraftVersion, JavaMinecraftVersion},
+};
+use serde::{Deserialize, Deserializer};
+use tokio::task::JoinHandle;
+
+use thiserror::Error;
+use uuid::Uuid;
+pub mod authentication;
+pub mod bedrock;
+pub mod chat;
+pub mod chunk_sender;
+pub use chunk_sender::{ChunkSendOutcome, ChunkSender};
+pub mod java;
+pub mod lan_broadcast;
+pub mod packet_limiter;
+pub use packet_limiter::PacketRateLimiter;
+pub mod management;
+mod proxy;
+pub mod query;
+
+#[derive(Deserialize, Debug)]
+pub struct GameProfile {
+    pub id: Uuid,
+    pub name: String,
+    #[serde(deserialize_with = "from_vec")]
+    pub properties: ArcSwap<Vec<Property>>,
+    #[serde(rename = "profileActions")]
+    pub profile_actions: Option<Vec<ProfileAction>>,
+}
+
+impl Clone for GameProfile {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            name: self.name.clone(),
+            properties: ArcSwap::new(self.properties.load().clone()),
+            profile_actions: self.profile_actions.clone(),
+        }
+    }
+}
+
+fn from_vec<'de, D>(deserializer: D) -> Result<ArcSwap<Vec<Property>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = Vec::<Property>::deserialize(deserializer)?;
+    Ok(ArcSwap::new(Arc::new(v)))
+}
+
+/// Mirrors vanilla `UUIDUtil.createOfflinePlayerUUID`: `UUID.nameUUIDFromBytes` (MD5, version 3) of `"OfflinePlayer:" + name`.
+#[must_use]
+pub fn offline_uuid(username: &str) -> Uuid {
+    uuid::Builder::from_md5_bytes(md5::compute(format!("OfflinePlayer:{username}")).0).into_uuid()
+}
+
+/// Represents a player's configuration settings.
+///
+/// This struct contains various options that can be customized by the player, affecting their gameplay experience.
+///
+/// **Usage:**
+///
+/// This struct is typically used to store and manage a player's preferences. It can be sent to the server when a player joins or when they change their settings.
+#[derive(Clone)]
+pub struct PlayerConfig {
+    /// The player's preferred language.
+    pub locale: String, // 16
+    /// The maximum distance at which chunks are rendered.
+    pub view_distance: NonZero<u8>,
+    /// The player's chat mode settings
+    pub chat_mode: ChatMode,
+    /// Whether chat colors are enabled.
+    pub chat_colors: bool,
+    /// The player's skin configuration options.
+    pub skin_parts: u8,
+    /// The player's dominant hand (left or right).
+    pub main_hand: Hand,
+    /// Whether text filtering is enabled.
+    pub text_filtering: bool,
+    /// Whether the player wants to appear in the server list.
+    pub server_listing: bool,
+}
+
+impl PlayerConfig {
+    /// The transient configuration used before the client reports its own settings.
+    ///
+    /// Vanilla starts with `modelCustomisation = 0` (`ClientInformation.createDefault()`) and
+    /// the server's configured view distance, so seed both instead of hardcoded placeholders.
+    #[must_use]
+    pub fn for_server(server: &Server) -> Self {
+        Self {
+            view_distance: server.advanced_config.networking.java.view_distance,
+            ..Self::default()
+        }
+    }
+}
+
+/// Smallest view distance vanilla's chunk map uses for a player.
+pub const MIN_CLIENT_VIEW_DISTANCE: i8 = 2;
+
+/// Converts the signed byte a client sends in `ClientInformation` into a view distance.
+///
+/// Vanilla keeps the raw signed byte and clamps the effective distance to at least 2.
+/// Casting the raw value straight to `u8` would wrap negative values into large distances.
+#[must_use]
+pub fn client_view_distance(raw: i8) -> NonZero<u8> {
+    NonZero::new(raw.max(MIN_CLIENT_VIEW_DISTANCE) as u8).unwrap_or(NonZero::<u8>::MIN)
+}
+
+impl Default for PlayerConfig {
+    fn default() -> Self {
+        Self {
+            locale: "en_us".to_string(),
+            view_distance: NonZero::new(8).unwrap_or(NonZero::<u8>::MIN),
+            chat_mode: ChatMode::Enabled,
+            chat_colors: true,
+            // Vanilla ClientInformation.createDefault() uses modelCustomisation = 0.
+            skin_parts: 0,
+            main_hand: Hand::Right,
+            text_filtering: false,
+            server_listing: false,
+        }
+    }
+}
+
+pub enum PacketHandlerResult {
+    Stop,
+    ReadyToPlay(GameProfile, PlayerConfig),
+}
+
+/// Maximum payload bytes that may be queued for a client before it is considered stalled/overflowing and disconnected.
+pub const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024; // 64 MB
+
+/// Vanilla clamps a client supplied position to these bounds in its movement
+/// handlers before using it, so every handler that accepts one does the same.
+pub(crate) const fn clamp_horizontal_position(pos: f64) -> f64 {
+    pos.clamp(-3.0E7, 3.0E7)
+}
+
+/// See [`clamp_horizontal_position`].
+pub(crate) const fn clamp_vertical_position(pos: f64) -> f64 {
+    pos.clamp(-2.0E7, 2.0E7)
+}
+
+/// Defensively decrement an atomic pending byte counter without underflowing.
+#[inline]
+pub fn decrement_pending_bytes(pending_bytes: &AtomicUsize, bytes: usize) {
+    let _ = pending_bytes.fetch_update(Ordering::Release, Ordering::Relaxed, |val| {
+        Some(val.saturating_sub(bytes))
+    });
+}
+
+/// This is just a Wrapper for both Java & Bedrock connections
+#[expect(clippy::large_enum_variant)]
+#[repr(C)]
+pub enum ClientPlatform {
+    Java(JavaClient),
+    Bedrock(Arc<BedrockClient>),
+}
+
+impl ClientPlatform {
+    pub fn address(&self) -> SocketAddr {
+        match self {
+            Self::Java(java) => java.address,
+            Self::Bedrock(bedrock) => bedrock.address,
+        }
+    }
+
+    /// This function should only be used where you know that the client is bedrock!
+    #[inline]
+    #[must_use]
+    pub const fn bedrock(&self) -> Option<&Arc<BedrockClient>> {
+        if let Self::Bedrock(client) = self {
+            return Some(client);
+        }
+        None
+    }
+
+    /// This function should only be used where you know that the client is java!
+    #[inline]
+    #[must_use]
+    pub const fn java(&self) -> Option<&JavaClient> {
+        if let Self::Java(client) = self {
+            return Some(client);
+        }
+        None
+    }
+
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        match self {
+            Self::Java(java) => java.is_closed(),
+            Self::Bedrock(bedrock) => bedrock.is_closed(),
+        }
+    }
+
+    pub fn java_version(&self) -> JavaMinecraftVersion {
+        match self {
+            Self::Java(java) => java.version.load(),
+            Self::Bedrock(_) => JavaMinecraftVersion::Unknown,
+        }
+    }
+
+    pub fn bedrock_version(&self) -> BedrockMinecraftVersion {
+        match self {
+            Self::Java(_) => BedrockMinecraftVersion::Unknown,
+            Self::Bedrock(bedrock) => bedrock.version.load(),
+        }
+    }
+
+    pub fn set_player(&self, player: &Arc<Player>) {
+        match self {
+            Self::Java(java) => java.set_player(player),
+            Self::Bedrock(bedrock) => bedrock.set_player(player),
+        }
+    }
+
+    pub fn clear_player(&self) {
+        match self {
+            Self::Java(java) => java.clear_player(),
+            Self::Bedrock(bedrock) => bedrock.clear_player(),
+        }
+    }
+
+    #[must_use]
+    pub fn pending_bytes(&self) -> usize {
+        match self {
+            Self::Java(java) => java.pending_bytes.load(Ordering::Relaxed),
+            Self::Bedrock(bedrock) => bedrock.pending_bytes.load(Ordering::Relaxed),
+        }
+    }
+
+    pub fn try_enqueue_packet_data(&self, packet_data: Bytes) {
+        match self {
+            Self::Java(java) => {
+                java.try_enqueue_packet_data(packet_data);
+            }
+            Self::Bedrock(bedrock) => {
+                bedrock.try_enqueue_packet_data(packet_data);
+            }
+        }
+    }
+
+    /// Like [`Self::try_enqueue_packet_data`] without firing `PacketSentEvent` on current-version
+    /// clients, for packets a plugin injected itself.
+    pub fn try_enqueue_packet_data_unobserved(&self, packet_data: Bytes) {
+        match self {
+            Self::Java(java) => {
+                java.try_enqueue_packet_data_unobserved(packet_data);
+            }
+            Self::Bedrock(bedrock) => {
+                bedrock.try_enqueue_packet_data_unobserved(packet_data);
+            }
+        }
+    }
+
+    pub async fn await_close_interrupt(&self) {
+        match self {
+            Self::Java(java) => java.await_close_interrupt().await,
+            Self::Bedrock(bedrock) => bedrock.await_close_interrupt().await,
+        }
+    }
+
+    pub fn spawn_task<F>(&self, task: F) -> Option<JoinHandle<F::Output>>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        match self {
+            Self::Java(java) => java.spawn_task(task),
+            Self::Bedrock(bedrock) => bedrock.spawn_task(task),
+        }
+    }
+
+    pub async fn enqueue_packet_editioned<J: ClientPacket, B: BClientPacket>(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) {
+        match self {
+            Self::Java(java) => {
+                if let Ok(data) = java.serialize_packet(je_packet) {
+                    java.enqueue_packet(data).await;
+                }
+            }
+            Self::Bedrock(bedrock) => {
+                if let Ok(data) = bedrock.serialize_packet(be_packet) {
+                    bedrock.enqueue_packet(data).await;
+                }
+            }
+        }
+    }
+
+    pub fn try_enqueue_packet_editioned<J: ClientPacket, B: BClientPacket>(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) {
+        let _ = self.try_enqueue_packet_editioned_result(je_packet, be_packet);
+    }
+    /// Queues one packet per client edition. `Err(())` when encoding fails for the client's
+    /// edition, `Ok(false)` when the outgoing queue rejected the packet.
+    #[expect(
+        clippy::result_unit_err,
+        reason = "Err(()) only signals a failed encode; callers ignore the payload"
+    )]
+    pub fn try_enqueue_packet_editioned_result<J: ClientPacket, B: BClientPacket>(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) -> Result<bool, ()> {
+        match self {
+            Self::Java(java) => {
+                let data = java.serialize_packet(je_packet).map_err(|_| ())?;
+                Ok(java.try_enqueue_packet_data(data))
+            }
+            Self::Bedrock(bedrock) => {
+                let data = bedrock.serialize_packet(be_packet).map_err(|_| ())?;
+                Ok(bedrock.try_enqueue_packet_data(data))
+            }
+        }
+    }
+
+    pub async fn enqueue_packet(&self, packet_data: Bytes) {
+        match self {
+            Self::Java(java) => java.enqueue_packet(packet_data).await,
+            Self::Bedrock(bedrock) => bedrock.enqueue_packet(packet_data).await,
+        }
+    }
+
+    pub fn try_enqueue_packet(&self, packet_data: Bytes) {
+        match self {
+            Self::Java(java) => java.try_enqueue_packet(packet_data),
+            Self::Bedrock(bedrock) => bedrock.try_enqueue_packet(packet_data),
+        }
+    }
+
+    pub fn enqueue_spawn_packet(&self, entity: &Arc<dyn crate::entity::EntityBase>) {
+        match self {
+            Self::Java(java) => entity.send_java_spawn_packet(java),
+            Self::Bedrock(bedrock) => entity.send_bedrock_spawn_packet(bedrock),
+        }
+    }
+
+    /// Reports the positions queued and why the others were not.
+    pub async fn send_chunks(&self, chunks: &[SyncChunk]) -> ChunkSendOutcome {
+        match self {
+            Self::Java(java) => java.send_chunks(chunks).await,
+            Self::Bedrock(bedrock) => bedrock.send_chunks(chunks, None).await,
+        }
+    }
+
+    pub async fn send_packet_now(&self, packet_data: Bytes) {
+        match self {
+            Self::Java(java) => java.send_packet_now(packet_data).await,
+            Self::Bedrock(bedrock) => bedrock.send_game_packet(packet_data).await,
+        }
+    }
+
+    pub async fn send_packet_now_editioned<J: ClientPacket, B: BClientPacket>(
+        &self,
+        je_packet: &J,
+        be_packet: &B,
+    ) {
+        match self {
+            Self::Java(java) => {
+                if let Ok(data) = java.serialize_packet(je_packet) {
+                    java.send_packet_now(data).await;
+                }
+            }
+            Self::Bedrock(bedrock) => {
+                if let Ok(data) = bedrock.serialize_packet(be_packet) {
+                    bedrock.send_game_packet(data).await;
+                }
+            }
+        }
+    }
+
+    pub async fn send_packet_now_data(&self, data: Bytes) {
+        self.send_packet_now(data).await;
+    }
+
+    pub fn try_kick(&self, reason: DisconnectReason, message: &TextComponent) {
+        match self {
+            Self::Java(java) => java.try_kick(message),
+            Self::Bedrock(bedrock) => bedrock.try_kick(reason, message.clone().get_text()),
+        }
+    }
+
+    pub async fn kick(&self, reason: DisconnectReason, message: TextComponent) {
+        match self {
+            Self::Java(java) => java.kick(message).await,
+            Self::Bedrock(bedrock) => bedrock.kick(reason, message.get_text()).await,
+        }
+    }
+}
+
+/// Vanilla uses SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z") in the system zone;
+/// the time crate has no named zones, so a zero offset renders as UTC and other offsets stay numeric.
+fn format_ban_expiration(expires: time::OffsetDateTime, local_offset: time::UtcOffset) -> String {
+    const FORMAT_DATE_TIME: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[year]-[month]-[day] at [hour]:[minute]:[second]");
+    const FORMAT_OFFSET: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[offset_hour sign:mandatory]:[offset_minute]");
+
+    let local = expires.to_offset(local_offset);
+    let date_time = local.format(FORMAT_DATE_TIME).unwrap_or_default();
+    let zone = if local_offset == time::UtcOffset::UTC {
+        "UTC".to_string()
+    } else {
+        local.format(FORMAT_OFFSET).unwrap_or_default()
+    };
+    format!("{date_time} {zone}")
+}
+
+pub async fn can_not_join(
+    profile: &GameProfile,
+    address: &SocketAddr,
+    server: &Arc<Server>,
+) -> Option<TextComponent> {
+    let local_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+
+    let ban_entry = server
+        .data
+        .banned_player_list
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get_entry(profile)
+        .map(|entry| (entry.reason.clone(), entry.expires));
+    if let Some((reason, expires)) = ban_entry {
+        let text = TextComponent::translate_cross(
+            translation::java::MULTIPLAYER_DISCONNECT_BANNED_REASON,
+            translation::java::MULTIPLAYER_DISCONNECT_BANNED_REASON,
+            [TextComponent::text(reason)],
+        );
+        let kick_message = match expires {
+            Some(expires) => text.add_child(TextComponent::translate_cross(
+                translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
+                translation::java::MULTIPLAYER_DISCONNECT_BANNED_EXPIRATION,
+                [TextComponent::text(format_ban_expiration(
+                    expires,
+                    local_offset,
+                ))],
+            )),
+            None => text,
+        };
+        let mut event =
+            crate::plugin::api::events::player::banned_player_join::BannedPlayerJoinEvent {
+                player_name: profile.name.clone(),
+                player_uuid: profile.id,
+                ip_address: *address,
+                kick_message,
+                cancelled: false,
+            };
+        server.plugin_manager.fire(server, &mut event).await;
+        if event.cancelled {
+            // The plugin ignored the ban (e.g. unbanned the player), allow the join.
+            return None;
+        }
+        return Some(event.kick_message);
+    }
+
+    if server.white_list.load(Ordering::Relaxed) {
+        let ops = server
+            .data
+            .operator_config
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let whitelist = server
+            .data
+            .whitelist_config
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        if ops.get_entry(&profile.id).is_none() && !whitelist.is_whitelisted(profile) {
+            return Some(TextComponent::translate_cross(
+                translation::java::MULTIPLAYER_DISCONNECT_NOT_WHITELISTED,
+                translation::java::MULTIPLAYER_DISCONNECT_NOT_WHITELISTED,
+                &[],
+            ));
+        }
+    }
+
+    if let Some(entry) = server
+        .data
+        .banned_ip_list
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get_entry(&address.ip())
+    {
+        let text = TextComponent::translate_cross(
+            translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_REASON,
+            translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_REASON,
+            [TextComponent::text(entry.reason.clone())],
+        );
+        return Some(match entry.expires {
+            Some(expires) => text.add_child(TextComponent::translate_cross(
+                translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_EXPIRATION,
+                translation::java::MULTIPLAYER_DISCONNECT_BANNED_IP_EXPIRATION,
+                [TextComponent::text(format_ban_expiration(
+                    expires,
+                    local_offset,
+                ))],
+            )),
+            None => text,
+        });
+    }
+
+    None
+}
+
+#[derive(Error, Debug)]
+pub enum EncryptionError {
+    #[error("failed to decrypt shared secret")]
+    FailedDecrypt,
+    #[error("shared secret has the wrong length")]
+    SharedWrongLength,
+    #[error("encryption is already enabled")]
+    AlreadyEncrypted,
+    #[error("failed to flush plaintext before enabling encryption: {0}")]
+    UnencryptedFlushFailed(String),
+    #[error("no encryption request is pending")]
+    NoPendingVerifyToken,
+    #[error("verify token does not match")]
+    VerifyTokenMismatch,
+}
+
+/// Vanilla's `StringUtil.isValidPlayerName`: at most 16 characters, each from `!` to `~`.
+/// Non-ASCII names pass a length check but vanilla rejects them, so the byte scan doubles as
+/// the length and charset check (a valid name is ASCII, so bytes equal characters).
+fn is_valid_player_name(name: &str) -> bool {
+    // Vanilla treats an absent or empty name as invalid (StringUtil.isNullOrEmpty), and so does
+    // Paper's PlayerProfile#isValidName; only then is the length/character check applied.
+    !name.is_empty() && name.len() <= 16 && name.as_bytes().iter().all(u8::is_ascii_graphic)
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DisconnectReason {
+    Unknown = 0,
+    CantConnectNoInternet = 1,
+    NoPermissions = 2,
+    UnrecoverableError = 3,
+    ThirdPartyBlocked = 4,
+    ThirdPartyNoInternet = 5,
+    ThirdPartyBadIP = 6,
+    ThirdPartyNoServerOrServerLocked = 7,
+    VersionMismatch = 8,
+    SkinIssue = 9,
+    InviteSessionNotFound = 10,
+    EduLevelSettingsMissing = 11,
+    LocalServerNotFound = 12,
+    LegacyDisconnect = 13,
+    UserLeaveGameAttempted = 14,
+    PlatformLockedSkinsError = 15,
+    RealmsWorldUnassigned = 16,
+    RealmsServerCantConnect = 17,
+    RealmsServerHidden = 18,
+    RealmsServerDisabledBeta = 19,
+    RealmsServerDisabled = 20,
+    CrossPlatformDisabled = 21,
+    CantConnect = 22,
+    SessionNotFound = 23,
+    ClientSettingsIncompatibleWithServer = 24,
+    ServerFull = 25,
+    InvalidPlatformSkin = 26,
+    EditionVersionMismatch = 27,
+    EditionMismatch = 28,
+    LevelNewerThanExeVersion = 29,
+    NoFailOccurred = 30,
+    BannedSkin = 31,
+    Timeout = 32,
+    ServerNotFound = 33,
+    OutdatedServer = 34,
+    OutdatedClient = 35,
+    NoPremiumPlatform = 36,
+    MultiplayerDisabled = 37,
+    NoWiFi = 38,
+    WorldCorruption = 39,
+    NoReason = 40,
+    Disconnected = 41,
+    InvalidPlayer = 42,
+    LoggedInOtherLocation = 43,
+    ServerIdConflict = 44,
+    NotAllowed = 45,
+    NotAuthenticated = 46,
+    InvalidTenant = 47,
+    UnknownPacket = 48,
+    UnexpectedPacket = 49,
+    InvalidCommandRequestPacket = 50,
+    HostSuspended = 51,
+    LoginPacketNoRequest = 52,
+    LoginPacketNoCert = 53,
+    MissingClient = 54,
+    Kicked = 55,
+    KickedForExploit = 56,
+    KickedForIdle = 57,
+    ResourcePackProblem = 58,
+    IncompatiblePack = 59,
+    OutOfStorage = 60,
+    InvalidLevel = 61,
+    DisconnectPacket = 62,
+    BlockMismatch = 63,
+    InvalidHeights = 64,
+    InvalidWidths = 65,
+    ConnectionLost = 66,
+    ZombieConnection = 67,
+    Shutdown = 68,
+    ReasonNotSet = 69,
+    LoadingStateTimeout = 70,
+    ResourcePackLoadingFailed = 71,
+    SearchingForSessionLoadingScreenFailed = 72,
+    NetherNetProtocolVersion = 73,
+    SubsystemStatusError = 74,
+    EmptyAuthFromDiscovery = 75,
+    EmptyUrlFromDiscovery = 76,
+    ExpiredAuthFromDiscovery = 77,
+    UnknownSignalServiceSignInFailure = 78,
+    XBLJoinLobbyFailure = 79,
+    UnspecifiedClientInstanceDisconnection = 80,
+    NetherNetSessionNotFound = 81,
+    NetherNetCreatePeerConnection = 82,
+    NetherNetICE = 83,
+    NetherNetConnectRequest = 84,
+    NetherNetConnectResponse = 85,
+    NetherNetNegotiationTimeout = 86,
+    NetherNetInactivityTimeout = 87,
+    StaleConnectionBeingReplaced = 88,
+    RealmsSessionNotFound = 89,
+    BadPacket = 90,
+    NetherNetFailedToCreateOffer = 91,
+    NetherNetFailedToCreateAnswer = 92,
+    NetherNetFailedToSetLocalDescription = 93,
+    NetherNetFailedToSetRemoteDescription = 94,
+    NetherNetNegotiationTimeoutWaitingForResponse = 95,
+    NetherNetNegotiationTimeoutWaitingForAccept = 96,
+    NetherNetIncomingConnectionIgnored = 97,
+    NetherNetSignalingParsingFailure = 98,
+    NetherNetSignalingUnknownError = 99,
+    NetherNetSignalingUnicastDeliveryFailed = 100,
+    NetherNetSignalingBroadcastDeliveryFailed = 101,
+    NetherNetSignalingGenericDeliveryFailed = 102,
+    EditorMismatchEditorWorld = 103,
+    EditorMismatchVanillaWorld = 104,
+    WorldTransferNotPrimaryClient = 105,
+    RequestServerShutdown = 106,
+    ClientGameSetupCancelled = 107,
+    ClientGameSetupFailed = 108,
+    NoVenue = 109,
+    NetherNetSignalingSigninFailed = 110,
+    SessionAccessDenied = 111,
+    ServiceSigninIssue = 112,
+    NetherNetNoSignalingChannel = 113,
+    NetherNetNotLoggedIn = 114,
+    NetherNetClientSignalingError = 115,
+    SubClientLoginDisabled = 116,
+    DeepLinkTryingToOpenDemoWorldWhileSignedIn = 117,
+    AsyncJoinTaskDenied = 118,
+    RealmsTimelineRequired = 119,
+    GuestWithoutHost = 120,
+    FailedToJoinExperience = 121,
+    NetherNetDataChannelClosed = 122,
+    DiscoveryEnvironmentMismatch = 123,
+    HostWithoutKeys = 124,
+    HostSignedOut = 125,
+    ScriptWatchdogException = 126,
+    ScriptMemoryLimitExceeded = 127,
+    StorageLowDuringGameplay = 128,
+    StorageFullDuringGameplay = 129,
+    LevelStorageCorruption = 130,
+    EditionMismatchVanillaToEdu = 131,
+    EditionMismatchEduToVanilla = 132,
+    EditorMismatchEditorToVanilla = 133,
+    EditorMismatchVanillaToEditor = 134,
+    DenyListed = 135,
+    NonceMissing = 136,
+    NonceNotFound = 137,
+    NonceExpired = 138,
+    NonceNotValid = 139,
+    HostDisconnected = 140,
+    EditorJoinIntentPolicyFailure = 141,
+    NetherNetIdentityNotAllowed = 142,
+    InvalidName = 143,
+    ExpiredToken = 144,
+    HostAcceptsNoTypeOfAuth = 145,
+    NotAuthenticatedFastFail = 146,
+    EditorNotAllowed = 147,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::net::{client_view_distance, is_valid_player_name, offline_uuid};
+
+    /// Boundary values for the client view distance byte. Negative and zero values
+    /// must clamp to vanilla's minimum of 2 instead of wrapping through `as u8`.
+    #[test]
+    fn client_view_distance_clamps_signed_byte() {
+        for (raw, expected) in [
+            (i8::MIN, 2),
+            (-1, 2),
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (8, 8),
+            (i8::MAX, 127),
+        ] {
+            assert_eq!(client_view_distance(raw).get(), expected, "raw {raw}");
+        }
+    }
+
+    /// Vanilla ban-expiration z field renders UTC for a zero offset and the date/time in the
+    /// system zone; named zones beyond UTC need tz data that the time crate does not carry.
+    #[test]
+    fn ban_expiration_renders_utc_name_and_local_time() {
+        let expires = time::macros::datetime!(2027-01-15 05:20:00 UTC);
+        assert_eq!(
+            super::format_ban_expiration(expires, time::UtcOffset::UTC),
+            "2027-01-15 at 05:20:00 UTC"
+        );
+        let plus_one = time::UtcOffset::from_hms(1, 0, 0).unwrap_or(time::UtcOffset::UTC);
+        assert_eq!(
+            super::format_ban_expiration(expires, plus_one),
+            "2027-01-15 at 06:20:00 +01:00"
+        );
+    }
+
+    /// Expected values come from vanilla `UUIDUtil.createOfflinePlayerUUID`.
+    #[test]
+    fn offline_uuid_matches_vanilla() {
+        for (name, expected) in [
+            ("Notch", "b50ad385-829d-3141-a216-7e7d7539ba7f"),
+            ("jeb_", "a762f560-4fce-3236-812a-b80efff0b62b"),
+            ("Zażółć", "80cedc37-455d-33fc-8fdd-d2ccdb657fc2"),
+        ] {
+            assert_eq!(
+                offline_uuid(name).to_string(),
+                expected,
+                "offline UUID of {name}"
+            );
+        }
+    }
+
+    /// Test case for a standard, valid English name at max length.
+    #[test]
+    fn valid_max_length_ascii() {
+        let name = "player_name_1234"; // 16 characters (16 bytes)
+        assert!(
+            is_valid_player_name(name),
+            "Max length ASCII name should be valid"
+        );
+    }
+
+    /// Test case for a short, valid ASCII name.
+    #[test]
+    fn valid_short_ascii() {
+        let name = "GamerX";
+        assert!(
+            is_valid_player_name(name),
+            "Short ASCII name should be valid"
+        );
+    }
+
+    /// Test case for a name containing allowed punctuation (codepoints 33-126).
+    #[test]
+    fn valid_with_punctuation() {
+        let name = "!-@#$%.^&*_+-=";
+        assert!(
+            is_valid_player_name(name),
+            "Name with valid punctuation should be valid"
+        );
+    }
+
+    /// Vanilla's `StringUtil.isValidPlayerName` only accepts `!` to `~`, so CJK is rejected.
+    #[test]
+    fn invalid_unicode_chinese() {
+        let name = "玩家一号"; // 4 characters, 12 bytes
+        assert!(
+            !is_valid_player_name(name),
+            "Chinese characters should be invalid"
+        );
+    }
+
+    /// A mix of ASCII and non-ASCII is rejected too.
+    #[test]
+    fn invalid_mixed_chars() {
+        let name = "Player_玩家"; // 9 characters
+        assert!(
+            !is_valid_player_name(name),
+            "Mixed ASCII and Unicode should be invalid"
+        );
+    }
+
+    /// Test case for a name that exceeds the 16-byte limit (ASCII).
+    #[test]
+    fn invalid_length_ascii_over() {
+        let name = "this_name_is_too_long"; // 21 characters (21 bytes)
+        assert!(
+            !is_valid_player_name(name),
+            "Name over 16 bytes (ASCII) should be invalid"
+        );
+    }
+
+    /// Test case for a name that exceeds the 16-byte limit (Unicode).
+    #[test]
+    fn invalid_length_unicode_over() {
+        let name = "超长玩家名称哈哈"; // 8 Chinese characters * 3 bytes/char = 24 bytes
+        assert!(
+            !is_valid_player_name(name),
+            "Name over 16 bytes (Unicode) should be invalid by byte count"
+        );
+    }
+
+    /// Test case for a name containing a standard space (codepoint 32).
+    #[test]
+    fn invalid_contains_space() {
+        let name = "Player Name";
+        assert!(
+            !is_valid_player_name(name),
+            "Name containing a space should be invalid"
+        );
+    }
+
+    /// Vanilla rejects a null or empty name (StringUtil.isNullOrEmpty) before any length or
+    /// character check, so an empty login name must never produce a profile.
+    #[test]
+    fn invalid_empty_string() {
+        assert!(!is_valid_player_name(""), "Empty string should be invalid");
+    }
+
+    /// Test case for a name containing a control character (e.g., Null, codepoint 0).
+    #[test]
+    fn invalid_contains_null() {
+        let name = "Player\0Name";
+        assert!(
+            !is_valid_player_name(name),
+            "Name containing a null character should be invalid"
+        );
+    }
+
+    /// Test case for a name containing a newline character (codepoint 10).
+    #[test]
+    fn invalid_contains_newline() {
+        let name = "Player\nName";
+        assert!(
+            !is_valid_player_name(name),
+            "Name containing a newline should be invalid"
+        );
+    }
+
+    /// Test case for a name containing the DEL control character (codepoint 127).
+    #[test]
+    fn invalid_contains_del() {
+        // DEL character is char::from_u32(127).unwrap()
+        let name = format!("Player{}Name", 127u8 as char);
+        assert!(
+            !is_valid_player_name(&name),
+            "Name containing DEL (127) should be invalid"
+        );
+    }
+
+    #[test]
+    fn decrement_pending_bytes_saturating() {
+        use super::decrement_pending_bytes;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let counter = AtomicUsize::new(100);
+        decrement_pending_bytes(&counter, 40);
+        assert_eq!(counter.load(Ordering::Relaxed), 60);
+
+        // Underflow protection: decrementing more than current value should clamp to 0
+        decrement_pending_bytes(&counter, 100);
+        assert_eq!(counter.load(Ordering::Relaxed), 0);
+    }
+}

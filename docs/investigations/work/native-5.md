@@ -1,0 +1,36 @@
+# Native agent 5 (33 open lines)
+Each line is `[unit-note] text` from the latest Result of docs/tracker/<unit>.md (the note has the full table and context).
+
+- [taudit-crates-pumpkin-core-src-en-3b1660] - Row 1 (random source) LEFT OPEN, reason: vanilla draws from the entity-owned `panda.random`
+- [taudit-crates-pumpkin-core-src-en-7bf7cf] - Row 4 `after_sneeze` AI-island note (panda/sneeze.rs:87-121) - STILL OPEN, no code change. One-line reason: the remaining work is the species-level panda tick/AI/Brain reach audit and flipping `has_audited_tick`, which needs `panda/goals.rs` (outside this unit) and would still fall back to the con
+- [taudit-crates-pumpkin-core-src-en-a97307] - Row 5 (equipment roll ignores spawn reason): LEFT OPEN, one-line reason. Needs EntitySpawnReason threaded through finalize_spawn_base / populate_spawn_equipment and every finalize_spawn caller outside this unit (cross-crate refactor). AbstractSkeleton.java:134-137 rolls equipment for all reasons; 
+- [taudit-crates-pumpkin-core-src-en-aadca5] - Row 4 (lava pathfinding malus) - LEFT OPEN, out of scope and premise false. Decompiled AbstractSkeleton.java:71-74 constructor only calls super() and reassessWeaponGoal(), with no setPathfindingMalus; the LAVA 8.0F malus is in WitherSkeleton.java, not AbstractSkeleton. A per-mob path-type malus AP
+- [taudit-crates-pumpkin-core-src-en-d76c79] - Row 1 (brain-sensor threats reuse goal path logic): LEFT OPEN, out of scope. The current
+- [taudit-crates-pumpkin-core-src-entity-pas] - Row 5 (sneeze reach / tick_reach, `sneeze.rs:96-121,186-188`): LEFT OPEN, out of scope. `after_sneeze`
+- [tblocks-creaking-heart-0a1e6a] | 4 creaking wander/melee goals | STILL OPEN (out of unit) | Vanilla `CreakingAi.java:30-85` uses a Brain/Activity/Behaviour system plus a 32-block-to-home path constraint (`Creaking.java:601-611`, `MAX_DISTANCE_TO_HOME_SQ=1024`). `creaking.rs:162-189` already registers Swim, canMove-gated Melee (in
+- [tentities-bamboo-chest-raft] - #6 fluid current push: LEFT OPEN. Needs `base_tick_without_fluid_push` in `entity/mod.rs`,
+- [tentities-creaking] - unused eye-glow fields (was STILL OPEN): LEFT OPEN. `setupAnimationStates`/`checkEyeBlink` run only when
+- [tentities-creaking] - creaking loot (row 32): LEFT OPEN. Loot tables are generated/data-driven outside `creaking.rs`/`creaking_heart.rs`;
+- [tentities-strider] - STILL OPEN (row strider.rs:35 navigation): strider.rs already overrides `is_stable_destination` (lava stable) and `get_walk_target_value` (seek lava), but vanilla `createNavigation` returning `StriderPathNavigation`/`AmphibiousNodeEvaluator` requires a `Mob::create_navigation` hook plus pathfinder
+- [taudit-crates-pumpkin-core-src-ne-cbdd30] - Row 4 (ban date tz name) - OPEN, outside unit (net/mod.rs FORMAT_DESCRIPTION).
+- [taudit-crates-pumpkin-core-src-ne-cbdd30] - Row 5 (PlayerConfig defaults) - OPEN, outside unit (net/mod.rs).
+- [taudit-crates-pumpkin-core-src-ne-cbdd30] - Row 6 (try_enqueue_spawn_packet not fallible) - OPEN, outside unit (net/mod.rs).
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 2 | OPEN: restore of per-world forced chunks belongs in `crates/pumpkin-core/src/server/mod.rs` `spawn_world`, outside this unit. |
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 3 | OPEN: freeze gate split lives in `server/mod.rs` `tick` / `tick_worlds`, outside this unit. Verified against Paper 1.21 `MinecraftServer.tickChildren`: `getFunctions().tick()` is called before the `runsNormally()` gate, and that method itself gates `#minecraft:tick` / `#minecraft:load` on `run
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 4 | OPEN: `/reload` load-tag timing is `server/mod.rs` + datapack manager, outside this unit. |
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 5 | OPEN: `get_world_from_dimension` `process::exit` is `server/mod.rs`, outside this unit. |
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 7 | OPEN: double flush is `server/mod.rs`, outside this unit (behaviourally harmless). |
+- [taudit-crates-pumpkin-core-src-se-1269c5] | 8 | OPEN: debug sample gating is `server/mod.rs` `update_tick_times`, outside this unit. |
+- [taudit-crates-pumpkin-core-src-server-mod] | 2 | OPEN (out of scope) | Per-dimension map-id counter + persistence needs a cross-crate refactor in `world/` and edits `server/mod.rs`, outside this unit (`time.rs` only). |
+- [taudit-crates-pumpkin-core-src-server-mod] | 4 | OPEN (out of scope) | `update_tick_times` debug-sample ring and `DebugSampleType.TICK_TIME` layout live in `server/mod.rs` (no `DebugSampleType.java` vendored); outside this unit (`time.rs` only). |
+- [taudit-crates-pumpkin-core-src-wo-ea95b7] - gap 3 (S): LEFT OPEN. Early return when no player/arena unloaded is a deliberate server-cost tradeoff; pausing the respawn stage machine needs a design decision.
+- [taudit-crates-pumpkin-core-src-world-expl] - Row 6 (ClientboundExplodePacket blockCount): LEFT OPEN. Packet construction is in
+- [taudit-crates-pumpkin-core-src-world-time] | 5 | STILL OPEN (outside unit) | Clock registry, `/time set <timemarker>` and `of <clock>` already live in `command/commands/time.rs`; the in-unit `ServerClockManager` keeps one `ClockInstance` per clock name and `SleepWakeMarker` resolves the marker, so the residue needs command + full timeline-at
+- [tblocks-beds-c611b1] - Row 2 (`pumpkin-data/src/generated/dimension.rs:14-18`): OPEN - generated file is off-limits;
+- [tblocks-vault-226f3e] `VaultDisplayItemEvent`. LEFT OPEN: purely client visual (the floating item) with no
+- [tentities-nautilus] | 6 | LEFT OPEN, confirmed client-only. Full decompiled-tree search finds `SoundEvents.NAUTILUS_RIDING` only registered (`SoundEvents.java:139`) and never played; the nautilus riding loop is client-side and not vendored. The dash sound IS played server-side in `handle_rider_start_jump`, matching van
+- [tentities-oak-boat] - Air->water snap (S): LEFT OPEN. Vanilla guards the surface snap with `level().noCollision(...)`;
+- [tentities-oak-boat] - Boat gametest (S): LEFT OPEN. `server/builtin_game_tests/` is not a source file named in this unit.
+- [titems-compass-recovery-compass-3fb9d9] - Row 1 STILL OPEN, out of scope: lodestone `inventoryTick`/`tick` lives in `entity/player.rs`. Verified vanilla `LodestoneTracker.tick` (LodestoneTracker.java:26-42): returns `this` on dimension mismatch, `new LodestoneTracker(Optional.empty(), true)` when the lodestone is gone (tracked stays true)
+- [titems-compass-recovery-compass-3fb9d9] - Row 5 STILL OPEN, out of scope: a gametest needs a new test file, not an allowed file. No pure unit-test seam in either in-scope file (`use_on_block` needs Player/Server/World; `execute` needs CommandContext), so no smallest pure unit test could be added.
+- [tmedium-batch1] - 3 (4bd10c:62) BLOCKED: `BlockFadeEvent` new-state field is an additive plugin API change,

@@ -135,3 +135,30 @@ Re-checked every STILL OPEN row against .vendor/vanilla-decompiled (Paper/Canvas
   pure seam; formula-mirroring tests discouraged by test rules.
 
 Status: UNVERIFIED fixed=0 open=5 files=docs/tracker/titems-elytra-08fcad.md
+
+
+## Result (re-verify 2026-11-18, decompiled vanilla available)
+
+Re-checked the STILL OPEN row and every in-scope file against .vendor/vanilla-decompiled/net/minecraft.
+
+- firework_rocket.rs boost (lines 271-283): vanilla FireworkRocketEntity.java:167-179 =
+  movement + look*0.1 + (look*1.5 - movement)*0.5. Entity::rotation() (entity/mod.rs:2695)
+  returns the look-angle direction vector, matching vanilla getLookAngle(); no Euler-angle bug.
+  Plugin ElytraBoost veto honoured. Verified, no change.
+- firework_rocket.rs acceleration (lines 287-296): vanilla line 192-193 =
+  horizontalCollision ? 1.0 : 1.15 with x/z multiplied and y += 0.04. Prior fix present. Verified, no change.
+- firework_rocket.rs lifetime / damage: vanilla line 70 (10*(1+flight) + rand(6) + rand(7)) and
+  lines 275-304 (5.0 + 2*explosions, radius 5, dist<=5) match Pumpkin. Verified, no change.
+- player_command.rs StartFlyingElytra (lines 31-40): try_to_start_fall_flying else stop behind
+  glide_stop_allowed() veto, matching vanilla START_FALL_FLYING + CraftBukkit toggle-glide veto. Verified, no change.
+- utility.rs elytra profile field (lines 1035-1158): read/write/hash present, matches
+  PlayerSkin.Patch texture/cape/elytra/model. Verified, no change.
+- Row ee43e7835 stays STILL OPEN: its sole source change is crates/pumpkin-wasm-host-v0_2/src/player.rs
+  (basename player.rs), outside this unit; subject already present in code but not editable here.
+- Gaps 1-4 stay STILL OPEN: each targets entity/player.rs (basename not in this unit).
+  1. checkFallDistanceAccumulation clamp; 2. gliding-exhaustion TODO; 3. glide-stop/start gametest;
+  4. Unbreaking/durability in damage_item_stack.
+- No pure unit test added: boost/accel/stop live in tick()/network handlers with no pure seam;
+  a compute_lifetime test would be formula-mirroring, discouraged by the test rules.
+
+Status: BLOCKED fixed=0 open=5 files=docs/tracker/titems-elytra-08fcad.md

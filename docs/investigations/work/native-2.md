@@ -1,0 +1,35 @@
+# Native agent 2 (32 open lines)
+Each line is `[unit-note] text` from the latest Result of docs/tracker/<unit>.md (the note has the full table and context).
+
+- [taudit-crates-pumpkin-core-src-bl-556f10] Rows 31, 35, 75 remain OPEN (outside this unit: entity/mod.rs BoundingBox union,
+- [taudit-crates-pumpkin-core-src-co-122988] - 7. query day/daytime for arbitrary timelines: LEFT OPEN. Vanilla resolves a `timeline`
+- [taudit-crates-pumpkin-core-src-co-122988] - 8. rate float formatting: LEFT OPEN. Java `Float.toString` differs from Rust `{rate:?}` only
+- [taudit-crates-pumpkin-core-src-co-ee4197] - 8. Pack order model - LEFT OPEN. Truly preceding `vanilla` requires modeling selection order in
+- [taudit-crates-pumpkin-core-src-da-2842f9] - Gap 3 (cross-entry validation): LEFT OPEN, needs generated reference/validator schema.
+- [taudit-crates-pumpkin-core-src-da-734ab8] Out of scope (left STILL OPEN, one-line reasons):
+- [taudit-crates-pumpkin-core-src-da-c13d0e] - LEFT OPEN, crafting_special_* type-specific display fields (M): needs
+- [taudit-crates-pumpkin-core-src-da-c13d0e] - LEFT OPEN, brewing/transmute/dye/decorated_pot/imbue shapes (M): needs pumpkin-protocol types and
+- [taudit-crates-pumpkin-core-src-en-dae447] - **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by
+- [taudit-crates-pumpkin-core-src-en-db7d33] | 5 | LEFT OPEN (false positive) | Vanilla `addAdditionalSaveData` calls `EntityReference.store(this.owner, output, "owner")` (line 181) and `readAdditionalSaveData` reads it back (line 189). Pumpkin's `owner.write_nbt` / `read_nbt` pair matches, and the `addAdditionalSaveData` doc comment is accura
+- [taudit-crates-pumpkin-core-src-en-e4505c] (lines 208-228) covers the seam. Earlier Result claiming "STILL OPEN, no gaussian helper" is stale.
+- [taudit-crates-pumpkin-core-src-en-e4505c] - Row 3 (cancellable dismount events, S): STILL OPEN, intentional, no change. Vanilla uses
+- [taudit-crates-pumpkin-core-src-en-f688a8] - Row 7 (kill fallback for non-living entities): STILL OPEN, non-bug cleanup only. Pumpkin `kill` (entity/mod.rs:1485-1507) matches vanilla `Entity.kill` (Entity.java:765-768): non-living entities remove then emit `ENTITY_DIE`, living entities take `GENERIC_KILL` damage. No behaviour fix to make.
+- [taudit-crates-pumpkin-core-src-entity-dec] STILL OPEN (out of this unit, one-line reasons):
+- [taudit-crates-pumpkin-core-src-li-03c9dd] - Row 1 early reject at accept loop: OPEN. Verified in
+- [taudit-crates-pumpkin-core-src-li-03c9dd] - Row 4 player stats persistence (lib.rs `shutdown`): OPEN. Vanilla `PlayerList#saveAll`
+- [taudit-crates-pumpkin-core-src-ne-254fb9] - Row 2 (config disconnect loses Component, mod.rs 651-670): STILL OPEN, M, protocol change in `pumpkin-protocol`, outside this unit.
+- [taudit-crates-pumpkin-core-src-ne-254fb9] - Row 2 config disconnect loses Component (mod.rs:651-670): STILL OPEN, M - needs a CConfigDisconnect protocol change in pumpkin-protocol, outside this unit.
+- [taudit-crates-pumpkin-core-src-ne-61496d] - Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN.
+- [taudit-crates-pumpkin-core-src-se-870386] Rows left OPEN (files outside this unit):
+- [taudit-crates-pumpkin-core-src-wo-ea95b7] - gap 1 (M): LEFT OPEN. Requires threading the world seed into pumpkin-world feature generation: `GenerationCache` has no seed accessor and the generated config supplies `spikes: vec![]`, so `EndSpikeFeature::generate` can only fall back to seed 0. Fixing `get_spikes()` in the fight alone would desy
+- [taudit-crates-pumpkin-core-src-wo-ea95b7] - gap 2 (M): LEFT OPEN. Needs `SavedData` NBT (de)serialisation for the whole fight wired into the save path; cross-cutting, out of scope.
+- [taudit-crates-pumpkin-core-src-world-expl] - Row 2 (unloaded-chunk force-load): LEFT OPEN. Vanilla samples via `level.getChunk`
+- [taudit-crates-pumpkin-core-src-world-expl] - Row 4 (seeded level RNG): LEFT OPEN. Vanilla draws from `level.getRandom()`
+- [taudit-crates-pumpkin-core-src-world-expl] - Row 8 (finalizeExplosion particles/sound): LEFT OPEN. Vanilla emits
+- [taudit-crates-pumpkin-core-src-world-natu] - Row 7 (chunk-gen vs live adjust_spawn_position, narrow case): STILL OPEN, out
+- [tentities-birch-boat] - 2 LEFT OPEN (outside unit) - `entity/vehicle/boat.rs` chest-boat destroy;
+- [tentities-birch-boat] - 3 LEFT OPEN (outside unit) - row names `place_on_water.rs`, but boat placement
+- [tentities-birch-boat] - 4 LEFT OPEN (outside unit) - `entity/vehicle/boat.rs` leash hooks;
+- [tentities-birch-boat] - 5 LEFT OPEN (outside unit) - `boat.rs` / `boat/physics.rs` movement; not this
+- [tentities-birch-boat] - 6 LEFT OPEN (outside unit) - `boat.rs` damage early-out/return; not this
+- [tentities-cushion-2527f1] - `entity/mod.rs:6217/5883` (mount/dismount game events): LEFT OPEN - needs

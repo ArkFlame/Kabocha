@@ -212,7 +212,7 @@ gap.
 
 - Gap 2 (override semantics): RESOLVED, no code change (verified in source this pass).
   `FileToIdConverter.listMatchingResources` (FileToIdConverter.java:44-46) delegates to
-  `ResourceManager.listResources` and returns `Map<Identifier, Resource>` — one resource per id,
+  `ResourceManager.listResources` and returns `Map<Identifier, Resource>`, one resource per id,
   highest-priority pack winning (contrast `listMatchingResourceStacks`, :48-50). Entries are
   registered in sorted-key order (ResourceManagerRegistryLoadTask.java:63-65). A datapack file
   sharing a vanilla id therefore replaces it outright while keeping its resource key and raw
