@@ -36,15 +36,23 @@ impl ItemBehaviour for GoatHornItem {
         hand: Hand,
     ) {
         let stack = player.inventory().get_stack_in_hand(hand);
-        let Some(instrument) = stack
-            .get_data_component::<InstrumentImpl>()
-            .and_then(|inst| Instrument::from_name(&inst.instrument))
-        else {
+        let Some(instrument) = stack.get_data_component::<InstrumentImpl>() else {
             return;
         };
+        let Some(ticks) = instrument.use_duration_ticks() else {
+            return;
+        };
+        let duration = i32::try_from(ticks).unwrap_or(i32::MAX);
 
-        let duration = i32::try_from(instrument.use_duration_ticks()).unwrap_or(i32::MAX);
-        let volume = instrument.range() / 16.0;
+        let custom = instrument.custom_definition();
+        let range = custom.as_ref().map_or_else(
+            || {
+                Instrument::from_name(&instrument.instrument)
+                    .map_or(0.0, |builtin| builtin.range())
+            },
+            |custom| custom.range,
+        );
+        let volume = range / 16.0;
         let world = player.world();
         let pos = player.position();
 
@@ -57,13 +65,17 @@ impl ItemBehaviour for GoatHornItem {
         }
 
         player.living_entity.set_active_hand(hand, stack, duration);
-        world.play_sound_raw(
-            instrument.sound() as u16,
-            SoundCategory::Records,
-            &pos,
-            volume,
-            1.0,
-        );
+        if let Some(custom) = custom {
+            world.play_custom_sound(&custom.sound_name, SoundCategory::Records, &pos, volume, 1.0);
+        } else if let Some(builtin) = Instrument::from_name(&instrument.instrument) {
+            world.play_sound_raw(
+                builtin.sound() as u16,
+                SoundCategory::Records,
+                &pos,
+                volume,
+                1.0,
+            );
+        }
         // Vanilla passes `GameEvent.Context.of(player)`, so listeners attribute the
         // vibration to the horn player (e.g. sculk sensor / warden anger).
         world.emit_game_event_with_context(
@@ -84,17 +96,14 @@ impl ItemBehaviour for GoatHornItem {
     fn get_use_duration(&self, stack: &ItemStack) -> i32 {
         stack
             .get_data_component::<InstrumentImpl>()
-            .and_then(|inst| Instrument::from_name(&inst.instrument))
-            .map_or(0, |inst| {
-                i32::try_from(inst.use_duration_ticks()).unwrap_or(i32::MAX)
-            })
+            .and_then(|inst| inst.use_duration_ticks())
+            .map_or(0, |ticks| i32::try_from(ticks).unwrap_or(i32::MAX))
     }
 
     fn use_result(&self, stack: &ItemStack) -> BlockActionResult {
         if stack
             .get_data_component::<InstrumentImpl>()
-            .and_then(|inst| Instrument::from_name(&inst.instrument))
-            .is_some()
+            .is_some_and(|inst| inst.use_duration_ticks().is_some())
         {
             BlockActionResult::Consume
         } else {
@@ -133,6 +142,19 @@ mod tests {
             GoatHornItem.get_use_duration(&stack),
             i32::try_from(Instrument::PonderGoatHorn.use_duration_ticks()).unwrap_or(i32::MAX)
         );
+    }
+
+    #[test]
+    fn custom_instrument_uses_its_own_duration_and_is_accepted() {
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        stack.set_data_component(InstrumentImpl::from_custom(
+            "minecraft:test_horn",
+            2.5,
+            128.0,
+            1,
+        ));
+        assert_eq!(GoatHornItem.get_use_duration(&stack), 50);
+        assert!(GoatHornItem.use_result(&stack) == BlockActionResult::Consume);
     }
 
     #[test]
