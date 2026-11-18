@@ -574,9 +574,9 @@ impl ItemStack {
             return 72000;
         }
         if let Some(inst) = self.get_data_component::<crate::data_component_impl::InstrumentImpl>()
-            && let Some(instrument) = crate::instrument::Instrument::from_name(&inst.instrument)
+            && let Some(ticks) = inst.use_duration_ticks()
         {
-            return i32::try_from(instrument.use_duration_ticks()).unwrap_or(i32::MAX);
+            return i32::try_from(ticks).unwrap_or(i32::MAX);
         }
         0
     }

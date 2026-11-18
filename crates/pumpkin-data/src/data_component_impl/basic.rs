@@ -555,6 +555,18 @@ impl DataComponentImpl for BaseColorImpl {
 pub struct InstrumentImpl {
     pub instrument: Cow<'static, str>,
 }
+/// Inline definition of a datapack-provided instrument read from the network holder codec.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CustomInstrument {
+    pub sound_name: String,
+    pub use_duration: f32,
+    pub range: f32,
+    pub durability_damage: i32,
+}
+
+const CUSTOM_INSTRUMENT_PREFIX: &str = "\u{1}custom";
+const CUSTOM_INSTRUMENT_SEPARATOR: char = '\u{1f}';
+
 impl InstrumentImpl {
     pub fn read_data(data: &NbtTag) -> Option<Self> {
         let instrument = match data {
@@ -566,6 +578,55 @@ impl InstrumentImpl {
             instrument: Cow::Owned(instrument),
         })
     }
+
+    /// Builds the component from an inline datapack instrument definition.
+    #[must_use]
+    pub fn from_custom(
+        sound_name: &str,
+        use_duration: f32,
+        range: f32,
+        durability_damage: i32,
+    ) -> Self {
+        let separator = CUSTOM_INSTRUMENT_SEPARATOR;
+        let encoded = format!(
+            "{CUSTOM_INSTRUMENT_PREFIX}{separator}{sound_name}{separator}{}{separator}{}{separator}{durability_damage}",
+            use_duration.to_bits(),
+            range.to_bits()
+        );
+        Self {
+            instrument: Cow::Owned(encoded),
+        }
+    }
+
+    /// Returns the inline definition when this component holds a datapack instrument.
+    #[must_use]
+    pub fn custom_definition(&self) -> Option<CustomInstrument> {
+        let body = self.instrument.strip_prefix(CUSTOM_INSTRUMENT_PREFIX)?;
+        let mut fields = body.split(CUSTOM_INSTRUMENT_SEPARATOR);
+        let sound_name = fields.next()?;
+        let use_duration = f32::from_bits(fields.next()?.parse().ok()?);
+        let range = f32::from_bits(fields.next()?.parse().ok()?);
+        let durability_damage = fields.next()?.parse().ok()?;
+        if sound_name.is_empty() || fields.next().is_some() {
+            return None;
+        }
+        Some(CustomInstrument {
+            sound_name: sound_name.to_owned(),
+            use_duration,
+            range,
+            durability_damage,
+        })
+    }
+
+    /// Resolves the use duration in ticks for a built-in or a datapack instrument.
+    #[must_use]
+    pub fn use_duration_ticks(&self) -> Option<u32> {
+        if let Some(custom) = self.custom_definition() {
+            return Some((custom.use_duration * 20.0).max(0.0) as u32);
+        }
+        crate::instrument::Instrument::from_name(&self.instrument)
+            .map(|instrument| instrument.use_duration_ticks())
+    }
 }
 impl DataComponentImpl for InstrumentImpl {
     fn write_data(&self) -> NbtTag {
@@ -575,6 +636,35 @@ impl DataComponentImpl for InstrumentImpl {
         get_str_hash(&self.instrument) as i32
     }
     default_impl!(Instrument);
+}
+
+#[cfg(test)]
+mod instrument_impl_tests {
+    use std::borrow::Cow;
+
+    use super::InstrumentImpl;
+
+    #[test]
+    fn custom_instrument_round_trip() {
+        let instrument = InstrumentImpl::from_custom("minecraft:test_horn", 2.5, 128.0, 3);
+        assert!(instrument.custom_definition().is_some());
+        if let Some(custom) = instrument.custom_definition() {
+            assert_eq!(custom.sound_name, "minecraft:test_horn");
+            assert!((custom.use_duration - 2.5).abs() < f32::EPSILON);
+            assert!((custom.range - 128.0).abs() < f32::EPSILON);
+            assert_eq!(custom.durability_damage, 3);
+        }
+        assert_eq!(instrument.use_duration_ticks(), Some(50));
+    }
+
+    #[test]
+    fn builtin_instrument_has_no_custom_definition() {
+        let instrument = InstrumentImpl {
+            instrument: Cow::Borrowed("minecraft:ponder_goat_horn"),
+        };
+        assert!(instrument.custom_definition().is_none());
+        assert_eq!(instrument.use_duration_ticks(), Some(140));
+    }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
