@@ -98,9 +98,8 @@ impl BlockBehaviour for ChiseledBookshelfBlock {
             return BlockActionResult::Pass;
         };
 
-        // Vanilla resolves the hit slot before checking the held item and returns
-        // TRY_WITH_EMPTY_HAND for an occupied slot regardless of the item, which
-        // Pumpkin models as falling through to `normal_use`.
+        // An occupied slot is TRY_WITH_EMPTY_HAND in vanilla, which redispatches
+        // to `normal_use` and removes the book there.
         if block_entity.has_book(slot) {
             return BlockActionResult::PassToDefaultBlockAction;
         }
