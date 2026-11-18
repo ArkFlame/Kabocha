@@ -41,3 +41,15 @@ Re-verified both rows against decompiled vanilla; both remain CLOSED / VERIFIED,
 No source fix required; no source file changed this pass.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-mangrove-boat-ad6fea.md
+
+
+## Result (final pass, 2026-11-18)
+
+Both original unverified rows end VERIFIED; no STILL OPEN rows remain. No source fix was required.
+
+- **Mangrove boat entity dimensions and eye height** (unverified row): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/EntityTypes.java:674-689` declares `MANGROVE_BOAT` and `MANGROVE_CHEST_BOAT` as `.sized(1.375F, 0.5625F).eyeHeight(0.5625F).clientTrackingRange(10)`. Generated `crates/pumpkin-data/src/generated/entity_type.rs` matches exactly: `MANGROVE_BOAT` client_tracking_range 10 (line 6915), dimension [1.375, 0.5625] (line 6918), eye_height 0.5625 (line 6919); `MANGROVE_CHEST_BOAT` client_tracking_range 10 (line 6972), dimension [1.375, 0.5625] (line 6975), eye_height 0.5625 (line 6976). Generated data is correct and must not be hand-edited. Drift-guard test `mangrove_boat_dimensions_match_vanilla` present at `crates/pumpkin-core/src/item/items/boat.rs:246-254`.
+- **Mangrove-specific sounds / particles** (unverified row): VERIFIED. Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:410-416` `getPaddleSound()` returns only shared `SoundEvents.BOAT_PADDLE_WATER` / `BOAT_PADDLE_LAND`; splash uses shared `ParticleTypes.SPLASH` (`AbstractBoat.java:181`). Neither `Boat`, `AbstractChestBoat` nor `ChestBoat` adds a wood-specific sound or particle override, so no mangrove-specific behaviour exists to port.
+
+Re-checked chest/passenger classification: `is_chest_boat` (`_chest_boat` / bamboo chest raft suffix) and `max_passengers` (2 plain, 1 chest) at `crates/pumpkin-core/src/entity/vehicle/boat.rs:76-101` still match vanilla `AbstractBoat` / `AbstractChestBoat`.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-mangrove-boat-ad6fea.md

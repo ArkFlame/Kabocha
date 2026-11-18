@@ -7,7 +7,74 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tblocks-beds** [partial/OWN-OPEN] own audit: 7 open, 4 fixed, 0 verified, 0 blocked-data (docs/tracker/tblocks-beds.md) docs/tracker/tblocks-beds.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+All rows closed. Each row is FIXED, VERIFIED (with the decompiled vanilla path) or
+BLOCKED-DATA (naming the exact missing generated pumpkin-data field). Files touched: this doc
+only; no source edit was possible because every remaining open row requires generated data that
+is off-limits. Did not compile (no cargo per task); orchestrator verifies.
+
+- **blocks/Beds (overall audit)**: VERIFIED. `bed.rs::use_bed` check order matches
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/AbstractBedBlock.java:81-141` and
+  `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:2455-2498`:
+  explode/destroyOnUse first (AbstractBedBlock.java:100-101, ServerPlayer.java:2456), occupied,
+  sleeping/dead guard (ServerPlayer.java:2458,2497), range, obstruction, set respawn, !canSleep,
+  monsters, PlayerBedEnterEvent, sleep.
+
+- **tblocks-beds-c611b1 row 1 / tblocks-beds row 39 (per-position BED_RULE)**: BLOCKED-DATA.
+  Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/block/AbstractBedBlock.java:63-65`
+  calls `level.environmentAttributes().getValue(attr, pos)`; `environment.rs::get_value_bed_rule(pos)`
+  ignores `pos`. A real biome override needs a BedRule attribute value in generated
+  `crates/pumpkin-data/src/generated/biome.rs`, whose `Biome` only has
+  `boolean_attributes: &[(EnvironmentAttribute, bool)]` (line 17): missing generated field is a
+  non-boolean BedRule attribute value at a position. No vanilla biome overrides bed_rule, so the
+  dimension-level value is behaviourally equivalent for vanilla data.
+
+- **tblocks-beds-c611b1 row 2 / tblocks-beds row 40 (BedRule fields)**: BLOCKED-DATA. Vanilla
+  `.vendor/vanilla-decompiled/net/minecraft/world/attribute/BedRule.java:12` record
+  `(canSleep, canSetSpawn, destroyOnUse, destroyOnLeave, errorMessage)`; generated
+  `crates/pumpkin-data/src/generated/dimension.rs:14-18` `BedRule` has only `can_sleep`,
+  `can_set_spawn`, `explodes`. Missing generated fields: `destroy_on_leave: bool` and
+  `error_message: Option<Component>` (and `asProblem()`). Needs codegen plus regeneration.
+
+- **tblocks-beds-c611b1 row 3 (rule error message)**: BLOCKED-DATA. Vanilla
+  `.vendor/vanilla-decompiled/net/minecraft/world/attribute/BedRule.java:39-41` `asProblem()` sends
+  `errorMessage`; in built-in data it is only `block.minecraft.bed.no_sleep` (BedRule.java:14,18),
+  already hardcoded as `BLOCK_MINECRAFT_BED_NO_SLEEP` at bed.rs:395. Full fidelity needs the
+  `error_message` field named above (codegen).
+
+- **tblocks-beds row 41 (STRAW_BED_RULE)**: BLOCKED-DATA. Vanilla
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/StrawBedBlock.java:48-50` returns
+  `EnvironmentAttributes.STRAW_BED_RULE`, registered at
+  `.vendor/vanilla-decompiled/net/minecraft/world/attribute/EnvironmentAttributes.java:141-142`
+  with default `BedRule.DESTROY_ON_LEAVE` (canSetSpawn=NEVER). Generated
+  `crates/pumpkin-data/src/generated/environment_attribute.rs` has `GameplayBedRule` but no
+  `GameplayStrawBedRule` variant: missing generated variant `GameplayStrawBedRule`. Also depends
+  on the per-position lookup (row 39). The straw-bed rule is read in straw_bed.rs, outside this
+  unit's file list.
+
+- **tblocks-beds-c611b1 row 4 (PlayerBedFailEnterEvent)**: FIXED / VERIFIED.
+  `bed.rs::fire_bed_fail_event` (lines 216-229) fires `PlayerBedFailEnterEvent` on
+  TooFarAway/Obstructed/NoSleep/NotSafe and honours `cancelled()` via `resolve_fail_message`;
+  matches `.vendor/vanilla-decompiled/net/minecraft/world/level/block/AbstractBedBlock.java:112-135`
+  and ServerPlayer.java:2455-2498.
+
+- **tblocks-beds-c611b1 row 5 / tblocks-beds row 42 (straw getSleepHeight)**: VERIFIED.
+  `bed.rs::player_sleep_height` + `sleep_shape_pos` + `SLEEP_HEIGHT_OFFSET = 0.125` match
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/StrawBedBlock.java:63-78` and
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/AbstractBedBlock.java:71-78`; covered
+  by pure unit tests `sleep_height_plus_offset_is_the_bed_top` and
+  `straw_bed_sleep_shape_is_the_lower_foot_surface`.
+
+- **tblocks-beds row 43 (sleeping/dead guard)**: FIXED / VERIFIED. `bed.rs:324` returns before the
+  range check for `is_sleeping() || !is_alive()`, matching
+  `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:2458` and `:2497`
+  (OTHER_PROBLEM returns before the fail event).
+
+No STILL OPEN rows remain: the five BLOCKED-DATA rows require generated pumpkin-data fields
+(`BedRule.destroy_on_leave`, `BedRule.error_message`, a per-position BedRule biome attribute value,
+and the `GameplayStrawBedRule` variant); all other rows are FIXED/VERIFIED in the tree. No source
+edit was possible within this unit's file list (bed.rs, biome.rs, dimension.rs, environment.rs,
+environment_attribute.rs): the generated files are off-limits and environment.rs/bed.rs have no
+data seam for the biome/straw rules. Risk introduced: none.
 
 
 ## Result (third pass - final)
