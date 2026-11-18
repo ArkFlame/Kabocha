@@ -5,4 +5,4 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 No STILL OPEN rows remain. No code changes this pass; no compile/test run (unit rules).
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+No rows listed in this unit (source states "No STILL OPEN rows remain"). No items to fix, verify, or mark BLOCKED-DATA. No code changes.
