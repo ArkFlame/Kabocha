@@ -2967,7 +2967,8 @@ impl LivingEntity {
             world.send_entity_status(&self.entity, EntityStatus::Death, ActorEventID::Death);
             // Vanilla EnchantmentHelper.processEquipmentDropChance and LootContext take the
             // killing blow's attacker, which is any living entity, not only a player.
-            let (looting_level, tool) = match cause.and_then(|cause_ent| {
+            let attacking_entity = cause.or(source);
+            let (looting_level, tool) = match attacking_entity.and_then(|cause_ent| {
                 cause_ent
                     .get_living_entity()
                     .map(|living| (cause_ent, living))
