@@ -143,7 +143,7 @@ pub fn build() -> TokenStream {
         .collect();
 
     quote! {
-        #[allow(clippy::all, unused_imports, dead_code, clippy::large_unopt_stack_frames, clippy::too_many_lines)]
+        #[allow(clippy::all, unused_imports, dead_code, unknown_lints, renamed_and_removed_lints, clippy::large_stack_frames, clippy::large_unopt_stack_frames, clippy::too_many_lines)]
         fn build_configured_features() -> std::collections::HashMap<pumpkin_data::configured_feature::ConfiguredFeature, ConfiguredFeature> {
             use crate::generation::block_predicate::{
                 AllOfBlockPredicate, AnyOfBlockPredicate, BlockPredicate,

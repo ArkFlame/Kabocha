@@ -3,6 +3,9 @@
     clippy::all,
     unused_imports,
     dead_code,
+    unknown_lints,
+    renamed_and_removed_lints,
+    clippy::large_stack_frames,
     clippy::large_unopt_stack_frames,
     clippy::too_many_lines
 )]
