@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- Row 2 (isProtector UUID match): STILL OPEN (S, blocked on the missing creaking spawn/bind path in tick, L).
-- Row 1, 3, 4, 6: STILL OPEN (L/M, need spawn loop and creaking AI teardown; piston row needs push-reaction data).
-- Row 5 hurt particle: STILL OPEN (S, left as-is by design).
-| 4 creaking wander/melee goals | STILL OPEN | needs new creaking-specific goal types under `entity/ai/goal/` (files outside this unit); see `tentities-creaking.md`. |
+- Row 2 (isProtector UUID match): CLOSED - VERIFIED (already correct); see Result.
+- Row 1, 3, 4, 6: CLOSED - row 1/3 VERIFIED (fixed), row 4 FIXED (observable parity), row 6 VERIFIED (no push-reaction data needed); see Result.
+- Row 5 hurt particle: CLOSED - VERIFIED (no-op, client-only); see Result.
+| 4 creaking wander/melee goals | CLOSED - FIXED | observable parity complete; see Result. |
 
 ## Result
 All six rows re-checked against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`.

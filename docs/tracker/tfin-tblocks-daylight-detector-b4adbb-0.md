@@ -7,7 +7,6 @@ Independently re-checked both STILL OPEN rows against the decompiled tree at
 Re-read the decompiled `DaylightDetectorBlock.java` directly; both STILL OPEN premises are false,
 Both STILL OPEN rows verified CLOSED against the decompiled tree; the write-up premises are false,
 
-## Result
 ## Result (FINAL PASS 2026-11-18, CODER)
 
 Both historically STILL OPEN rows are now terminal VERIFIED against the decompiled tree at
