@@ -382,6 +382,7 @@ impl ToFromWasmEvent for BlockFadeEvent {
     fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
         Self::Wit {
             block_pos: to_wasm_block_position(self.block_pos),
+            new_state_id: self.new_state_id.as_u16(),
             cancelled: self.cancelled,
         }
     }
@@ -390,6 +391,7 @@ impl ToFromWasmEvent for BlockFadeEvent {
         Self {
             block_pos: from_wasm_block_position(data.block_pos),
             block: &pumpkin_data::Block::ICE,
+            new_state_id: BlockStateId::new_or_air(data.new_state_id),
             cancelled: data.cancelled,
         }
     }
@@ -432,10 +434,19 @@ impl ToFromWasmEvent for BlockExplodeEvent {
     fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
         Self {
             block_pos: from_wasm_block_position(data.block_pos),
+            blocks: Vec::new(),
             yield_rate: data.yield_rate,
             world: consume_world(state, &data.world),
             cancelled: data.cancelled,
         }
+    }
+
+    // WIT has no block list; keep the native list so guest handling cannot drop every block.
+    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
+        self.block_pos = from_wasm_block_position(data.block_pos);
+        self.yield_rate = data.yield_rate;
+        self.world = consume_world(state, &data.world);
+        self.cancelled = data.cancelled;
     }
 }
 

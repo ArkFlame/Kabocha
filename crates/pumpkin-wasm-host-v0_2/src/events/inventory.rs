@@ -184,6 +184,7 @@ impl ToFromWasmEvent for FurnaceBurnEvent {
             block_pos: from_wasm_block_position(data.block_pos),
             fuel_item: data.fuel_item,
             burn_time: data.burn_time,
+            consume_fuel: true,
             cancelled: data.cancelled,
         }
     }

@@ -141,6 +141,90 @@ impl BlockState {
         self.state_flags & IS_SOLID_BLOCK != 0
     }
 
+    /// Returns whether this block state conducts redstone (`isRedstoneConductor()` in Java).
+    ///
+    /// Vanilla defaults this to a full collision shape, but a fixed set of blocks
+    /// override the predicate in `Blocks.java` with `never` or `always`.
+    #[must_use]
+    pub fn is_redstone_conductor(&self) -> bool {
+        match self.id.to_block_id() {
+            // isRedstoneConductor(Blocks::always)
+            BlockId::SOUL_SAND | BlockId::MUD => true,
+            // isRedstoneConductor(Blocks::never): leaves
+            BlockId::OAK_LEAVES
+            | BlockId::SPRUCE_LEAVES
+            | BlockId::BIRCH_LEAVES
+            | BlockId::JUNGLE_LEAVES
+            | BlockId::ACACIA_LEAVES
+            | BlockId::CHERRY_LEAVES
+            | BlockId::DARK_OAK_LEAVES
+            | BlockId::PALE_OAK_LEAVES
+            | BlockId::MANGROVE_LEAVES
+            | BlockId::RED_POPLAR_LEAVES
+            | BlockId::ORANGE_POPLAR_LEAVES
+            | BlockId::YELLOW_POPLAR_LEAVES
+            | BlockId::AZALEA_LEAVES
+            | BlockId::FLOWERING_AZALEA_LEAVES
+            // stained glass
+            | BlockId::WHITE_STAINED_GLASS
+            | BlockId::ORANGE_STAINED_GLASS
+            | BlockId::MAGENTA_STAINED_GLASS
+            | BlockId::LIGHT_BLUE_STAINED_GLASS
+            | BlockId::YELLOW_STAINED_GLASS
+            | BlockId::LIME_STAINED_GLASS
+            | BlockId::PINK_STAINED_GLASS
+            | BlockId::GRAY_STAINED_GLASS
+            | BlockId::LIGHT_GRAY_STAINED_GLASS
+            | BlockId::CYAN_STAINED_GLASS
+            | BlockId::PURPLE_STAINED_GLASS
+            | BlockId::BLUE_STAINED_GLASS
+            | BlockId::BROWN_STAINED_GLASS
+            | BlockId::GREEN_STAINED_GLASS
+            | BlockId::RED_STAINED_GLASS
+            | BlockId::BLACK_STAINED_GLASS
+            // copper grates
+            | BlockId::COPPER_GRATE
+            | BlockId::EXPOSED_COPPER_GRATE
+            | BlockId::WEATHERED_COPPER_GRATE
+            | BlockId::OXIDIZED_COPPER_GRATE
+            | BlockId::WAXED_COPPER_GRATE
+            | BlockId::WAXED_EXPOSED_COPPER_GRATE
+            | BlockId::WAXED_WEATHERED_COPPER_GRATE
+            | BlockId::WAXED_OXIDIZED_COPPER_GRATE
+            // copper bulbs
+            | BlockId::COPPER_BULB
+            | BlockId::EXPOSED_COPPER_BULB
+            | BlockId::WEATHERED_COPPER_BULB
+            | BlockId::OXIDIZED_COPPER_BULB
+            | BlockId::WAXED_COPPER_BULB
+            | BlockId::WAXED_EXPOSED_COPPER_BULB
+            | BlockId::WAXED_WEATHERED_COPPER_BULB
+            | BlockId::WAXED_OXIDIZED_COPPER_BULB
+            // pistons
+            | BlockId::PISTON
+            | BlockId::STICKY_PISTON
+            | BlockId::MOVING_PISTON
+            // other never conductors
+            | BlockId::GLASS
+            | BlockId::TINTED_GLASS
+            | BlockId::TNT
+            | BlockId::ICE
+            | BlockId::FROSTED_ICE
+            | BlockId::GLOWSTONE
+            | BlockId::BEACON
+            | BlockId::REDSTONE_BLOCK
+            | BlockId::SEA_LANTERN
+            | BlockId::CHORUS_FLOWER
+            | BlockId::OBSERVER
+            | BlockId::BAMBOO
+            | BlockId::SCAFFOLDING
+            | BlockId::POINTED_DRIPSTONE
+            | BlockId::SULFUR_SPIKE
+            | BlockId::POWDER_SNOW => false,
+            _ => self.is_solid_block(),
+        }
+    }
+
     #[must_use]
     pub const fn has_random_ticks(&self) -> bool {
         self.state_flags & HAS_RANDOM_TICKS != 0
@@ -465,6 +549,22 @@ mod tests {
 
     fn assert_close(actual: f64, expected: f64) {
         assert!((actual - expected).abs() < 1.0e-6, "{actual} != {expected}");
+    }
+
+    #[test]
+    fn redstone_conductor_matches_vanilla_overrides() {
+        assert!(!Block::GLASS.default_state.is_redstone_conductor());
+        assert!(!Block::GLOWSTONE.default_state.is_redstone_conductor());
+        assert!(!Block::OAK_LEAVES.default_state.is_redstone_conductor());
+        assert!(
+            !Block::WHITE_STAINED_GLASS
+                .default_state
+                .is_redstone_conductor()
+        );
+        assert!(!Block::COPPER_GRATE.default_state.is_redstone_conductor());
+        assert!(Block::STONE.default_state.is_redstone_conductor());
+        assert!(Block::SOUL_SAND.default_state.is_redstone_conductor());
+        assert!(Block::MUD.default_state.is_redstone_conductor());
     }
 
     #[test]

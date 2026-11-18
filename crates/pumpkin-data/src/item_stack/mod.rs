@@ -466,7 +466,10 @@ impl ItemStack {
         damage > 0.0
     }
 
-    fn compute_durability_damage_applied(&self, amount: i32) -> Option<(i32, i32)> {
+    /// Rolls Unbreaking once per damage point and returns the durability actually applied.
+    /// Exposed so vanilla `PlayerItemDamageEvent` can fire with the post-Unbreaking amount
+    /// before the wear is committed (`ItemStack.hurtAndBreak` -> `processDurabilityChange`).
+    pub fn compute_durability_damage_applied(&self, amount: i32) -> Option<(i32, i32)> {
         if amount <= 0 || !self.is_damageable() || self.is_unbreakable() {
             return None;
         }
@@ -491,16 +494,30 @@ impl ItemStack {
         (applied > 0).then_some((applied, max_damage))
     }
 
-    /// Apply durability damage to this item and return the outcome.
-    /// Callers must check the return value to handle break broadcasts and item stack updates.
-    /// TODO: Restore `#[must_use]` once all callsites (esp. tool/mob block-hit/damage sites)
-    /// implement proper `DamageResult::Broken` handling instead of suppressing with `let _ =`.
-    /// Without this enforcement, the fix is incomplete vs vanilla break behavior.
+    /// Commits an already-rolled durability amount with vanilla break handling.
+    /// Unbreaking must already have been applied by the caller via
+    /// [`Self::compute_durability_damage_applied`]; it is deliberately not re-rolled here.
     #[must_use]
-    pub fn damage_item(&mut self, amount: i32) -> DamageResult {
-        let Some((applied, max_damage)) = self.compute_durability_damage_applied(amount) else {
+    pub fn apply_durability_damage(&mut self, applied: i32, allow_break: bool) -> DamageResult {
+        if applied <= 0 {
             return DamageResult::Untouched;
-        };
+        }
+        let max_damage = self.get_max_damage().unwrap_or(0);
+        if max_damage <= 0 {
+            return DamageResult::Untouched;
+        }
+
+        if !allow_break {
+            let old_damage = self.get_damage();
+            let new_damage = old_damage
+                .saturating_add(applied)
+                .min((max_damage - 1).max(0));
+            if new_damage == old_damage {
+                return DamageResult::Untouched;
+            }
+            self.set_damage(new_damage);
+            return DamageResult::Damaged;
+        }
 
         let new_damage = self.get_damage().saturating_add(applied);
         if new_damage >= max_damage {
@@ -520,23 +537,27 @@ impl ItemStack {
         DamageResult::Damaged
     }
 
+    /// Apply durability damage to this item and return the outcome.
+    /// Callers must check the return value to handle break broadcasts and item stack updates.
+    /// TODO: Restore `#[must_use]` once all callsites (esp. tool/mob block-hit/damage sites)
+    /// implement proper `DamageResult::Broken` handling instead of suppressing with `let _ =`.
+    /// Without this enforcement, the fix is incomplete vs vanilla break behavior.
+    #[must_use]
+    pub fn damage_item(&mut self, amount: i32) -> DamageResult {
+        let Some((applied, _)) = self.compute_durability_damage_applied(amount) else {
+            return DamageResult::Untouched;
+        };
+        self.apply_durability_damage(applied, true)
+    }
+
     /// Vanilla `ItemStack.hurtWithoutBreaking`: applies durability damage after Unbreaking,
     /// clamping at `max_damage - 1` so the item never breaks from this call.
     #[must_use]
     pub fn damage_item_without_breaking(&mut self, amount: i32) -> DamageResult {
-        let Some((applied, max_damage)) = self.compute_durability_damage_applied(amount) else {
+        let Some((applied, _)) = self.compute_durability_damage_applied(amount) else {
             return DamageResult::Untouched;
         };
-
-        let old_damage = self.get_damage();
-        let new_damage = old_damage
-            .saturating_add(applied)
-            .min((max_damage - 1).max(0));
-        if new_damage == old_damage {
-            return DamageResult::Untouched;
-        }
-        self.set_damage(new_damage);
-        DamageResult::Damaged
+        self.apply_durability_damage(applied, false)
     }
 
     #[must_use]
@@ -1878,6 +1899,20 @@ mod tests {
             (300..=400).contains(&applied),
             "Unbreaking III armor: expected ~350 applications in 500 trials, got {applied}"
         );
+    }
+
+    /// A rolled durability amount must be committed verbatim, without a second Unbreaking roll.
+    #[test]
+    fn apply_durability_damage_does_not_reapply_unbreaking() {
+        let mut stack = with_unbreaking(&Item::NETHERITE_PICKAXE, 3);
+        let before = stack.get_damage();
+        for _ in 0..100 {
+            assert_eq!(
+                stack.apply_durability_damage(1, true),
+                DamageResult::Damaged
+            );
+        }
+        assert_eq!(stack.get_damage(), before + 100);
     }
 
     // ── enchant ──────────────────────────────────────────────────────

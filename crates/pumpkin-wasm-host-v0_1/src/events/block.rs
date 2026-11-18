@@ -375,6 +375,7 @@ impl ToFromWasmEvent for BlockFadeEvent {
     fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
         Event::BlockFadeEvent(BlockFadeEventData {
             block_pos: to_wasm_block_position(self.block_pos),
+            new_state_id: self.new_state_id.as_u16(),
             cancelled: self.cancelled,
         })
     }
@@ -384,6 +385,7 @@ impl ToFromWasmEvent for BlockFadeEvent {
             Event::BlockFadeEvent(data) => Self {
                 block_pos: from_wasm_block_position(data.block_pos),
                 block: &pumpkin_data::Block::ICE,
+                new_state_id: BlockStateId::new_or_air(data.new_state_id),
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),

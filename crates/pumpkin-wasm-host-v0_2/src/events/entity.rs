@@ -424,10 +424,24 @@ impl ToFromWasmEvent
                 data.position.1,
                 data.position.2,
             ),
+            blocks: Vec::new(),
             yield_rate: data.yield_rate,
             world: consume_world(state, &data.world),
             cancelled: data.cancelled,
         }
+    }
+
+    // WIT has no block list; keep the native list so guest handling cannot drop every block.
+    fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
+        self.entity_id = data.entity_id;
+        self.position = pumpkin_util::math::vector3::Vector3::new(
+            data.position.0,
+            data.position.1,
+            data.position.2,
+        );
+        self.yield_rate = data.yield_rate;
+        self.world = consume_world(state, &data.world);
+        self.cancelled = data.cancelled;
     }
 }
 

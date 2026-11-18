@@ -681,7 +681,7 @@ mod tests {
         }"#;
 
         let parsed = parse_recipe("minecraft", "brewing/potion_water_nether_wart", json);
-        assert!(matches!(parsed, Some(DynamicRecipe::Brewing(_))));
+        assert!(matches!(&parsed, Some(DynamicRecipe::Brewing(_))));
         if let Some(DynamicRecipe::Brewing(brewing)) = parsed {
             assert_eq!(
                 brewing.recipe_id,
@@ -717,7 +717,7 @@ mod tests {
             }
         }"#;
         let parsed = parse_recipe("minecraft", "brewing/multi", json);
-        assert!(matches!(parsed, Some(DynamicRecipe::Brewing(_))));
+        assert!(matches!(&parsed, Some(DynamicRecipe::Brewing(_))));
         if let Some(DynamicRecipe::Brewing(brewing)) = parsed {
             assert_eq!(
                 brewing.input.potions,

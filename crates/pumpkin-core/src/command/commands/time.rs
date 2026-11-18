@@ -199,11 +199,93 @@ struct QueryExecutor {
     has_clock: bool,
 }
 
+impl QueryExecutor {
+    /// Reads a non-default clock from `LevelTime.clocks` instead of the world's
+    /// own day time, matching vanilla `TimeCommand.query` with `of <clock>`.
+    fn execute_other_clock(
+        &self,
+        context: &CommandContext,
+        world: &crate::world::World,
+        clock_name: &str,
+    ) -> CommandExecutorResult {
+        let guard = world
+            .level_time
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let total_ticks = guard
+            .clocks
+            .clock(clock_name)
+            .map_or(0, |clock| clock.total_ticks);
+        let game_time = guard.world_age;
+        drop(guard);
+
+        match self.mode {
+            QueryMode::GameTime => {
+                context.source.send_feedback(
+                    pumpkin_macros::translate_cross!(
+                        translation::java::COMMANDS_TIME_QUERY_GAMETIME,
+                        translation::bedrock::COMMANDS_TIME_QUERY_GAMETIME,
+                        TextComponent::text(game_time.to_string())
+                    ),
+                    false,
+                );
+                Ok(wrap_time(game_time))
+            }
+            QueryMode::Time => {
+                context.source.send_feedback(
+                    pumpkin_macros::translate_cross!(
+                        translation::java::COMMANDS_TIME_QUERY_ABSOLUTE,
+                        translation::bedrock::COMMANDS_TIME_CLOCK_QUERY_TIME,
+                        TextComponent::text(clock_name.to_string()),
+                        TextComponent::text(total_ticks.to_string())
+                    ),
+                    false,
+                );
+                Ok(wrap_time(total_ticks))
+            }
+            QueryMode::DayTime => {
+                ensure_day_timeline_clock(clock_name)?;
+                let curr_time = total_ticks % 24000;
+                context.source.send_feedback(
+                    day_timeline_feedback(
+                        context,
+                        translation::java::COMMANDS_TIME_QUERY_TIMELINE,
+                        translation::bedrock::COMMANDS_TIME_QUERY_DAYTIME,
+                        curr_time,
+                    ),
+                    false,
+                );
+                Ok(wrap_time(curr_time))
+            }
+            QueryMode::Day => {
+                ensure_day_timeline_clock(clock_name)?;
+                let curr_time = total_ticks / 24000;
+                context.source.send_feedback(
+                    day_timeline_feedback(
+                        context,
+                        translation::java::COMMANDS_TIME_QUERY_TIMELINE_REPETITIONS,
+                        translation::bedrock::COMMANDS_TIME_QUERY_DAY,
+                        curr_time,
+                    ),
+                    false,
+                );
+                Ok(curr_time as i32)
+            }
+        }
+    }
+}
+
 impl CommandExecutor for QueryExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let clock_name = resolve_clock_name(context, self.has_clock)?;
 
         let world = context.source.world();
+        if self.has_clock
+            && clock_name
+                != default_clock_name(world.dimension.minecraft_name).unwrap_or(DEFAULT_CLOCK)
+        {
+            return self.execute_other_clock(context, world, &clock_name);
+        }
         let level_time = world
             .level_time
             .lock()
@@ -273,12 +355,155 @@ struct ActionExecutor {
     has_clock: bool,
 }
 
+impl ActionExecutor {
+    /// Applies an `/time of <clock>` action to a non-default clock instance,
+    /// leaving the world's own day time untouched.
+    fn execute_other_clock(
+        &self,
+        context: &CommandContext,
+        world: &crate::world::World,
+        clock_name: &str,
+    ) -> CommandExecutorResult {
+        let (total_ticks, feedback) = {
+            let mut guard = world
+                .level_time
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let clock = guard.clocks.clock_mut(clock_name);
+            match self.action {
+                Action::Set(preset) => {
+                    let time = i64::from(match preset {
+                        Some(p) => p.to_ticks(),
+                        None => TimeArgumentType::get(context, "time")?,
+                    });
+                    if clock.total_ticks == time {
+                        return Err(ERROR_SET_ALREADY_AT_TIME.create_without_context_args_slice(
+                            &[
+                                TextComponent::text(clock_name.to_string()),
+                                TextComponent::text(time.to_string()),
+                            ],
+                        ));
+                    }
+                    clock.set_total_ticks(time);
+                    (
+                        time,
+                        pumpkin_macros::translate_cross!(
+                            translation::java::COMMANDS_TIME_SET_ABSOLUTE,
+                            translation::bedrock::COMMANDS_TIME_CLOCK_SET,
+                            TextComponent::text(clock_name.to_string()),
+                            TextComponent::text(time.to_string())
+                        ),
+                    )
+                }
+                Action::Add => {
+                    let amount = i64::from(TimeArgumentType::get(context, "time")?);
+                    clock.total_ticks = (clock.total_ticks + amount).max(0);
+                    let total = clock.total_ticks;
+                    let feedback = if is_bedrock(context) {
+                        TextComponent::translate(
+                            translation::bedrock::COMMANDS_TIME_CLOCK_ADDED,
+                            [
+                                TextComponent::text(amount.to_string()),
+                                TextComponent::text(clock_name.to_string()),
+                                TextComponent::text(total.to_string()),
+                            ],
+                        )
+                    } else {
+                        TextComponent::translate(
+                            translation::java::COMMANDS_TIME_SET_ABSOLUTE,
+                            [
+                                TextComponent::text(clock_name.to_string()),
+                                TextComponent::text(total.to_string()),
+                            ],
+                        )
+                    };
+                    (total, feedback)
+                }
+                Action::Pause => {
+                    if clock.paused {
+                        return Err(ERROR_PAUSE_ALREADY_PAUSED
+                            .create_without_context_args_slice(&[TextComponent::text(
+                                clock_name.to_string(),
+                            )]));
+                    }
+                    clock.set_paused(true);
+                    let total = clock.total_ticks;
+                    (
+                        total,
+                        pumpkin_macros::translate_cross!(
+                            translation::java::COMMANDS_TIME_PAUSE,
+                            translation::bedrock::COMMANDS_TIME_CLOCK_PAUSED,
+                            TextComponent::text(clock_name.to_string()),
+                            TextComponent::text(total.to_string())
+                        ),
+                    )
+                }
+                Action::Resume => {
+                    if !clock.paused {
+                        return Err(ERROR_RESUME_ALREADY_RUNNING
+                            .create_without_context_args_slice(&[TextComponent::text(
+                                clock_name.to_string(),
+                            )]));
+                    }
+                    clock.set_paused(false);
+                    let total = clock.total_ticks;
+                    (
+                        total,
+                        pumpkin_macros::translate_cross!(
+                            translation::java::COMMANDS_TIME_RESUME,
+                            translation::bedrock::COMMANDS_TIME_CLOCK_RESUMED,
+                            TextComponent::text(clock_name.to_string()),
+                            TextComponent::text(total.to_string())
+                        ),
+                    )
+                }
+                Action::Rate => {
+                    let rate = FloatArgumentType::get(context, "rate")?;
+                    if (clock.rate - rate).abs() < f32::EPSILON {
+                        return Err(ERROR_RATE_ALREADY_SAME.create_without_context_args_slice(&[
+                            TextComponent::text(clock_name.to_string()),
+                            TextComponent::text(format!("{rate:?}")),
+                        ]));
+                    }
+                    clock.set_rate(rate);
+                    let feedback = if is_bedrock(context) {
+                        TextComponent::translate(
+                            translation::bedrock::COMMANDS_TIME_SET,
+                            [TextComponent::text(format!("{rate:?}"))],
+                        )
+                    } else {
+                        TextComponent::translate(
+                            translation::java::COMMANDS_TIME_RATE,
+                            [
+                                TextComponent::text(clock_name.to_string()),
+                                TextComponent::text(format!("{rate:?}")),
+                            ],
+                        )
+                    };
+                    (clock.total_ticks, feedback)
+                }
+            }
+        };
+        context.source.send_feedback(feedback, true);
+        match self.action {
+            Action::Set(_) | Action::Add => Ok(wrap_time(total_ticks)),
+            Action::Pause | Action::Resume | Action::Rate => Ok(1),
+        }
+    }
+}
+
 impl CommandExecutor for ActionExecutor {
     #[allow(clippy::too_many_lines)]
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let clock_name = resolve_clock_name(context, self.has_clock)?;
 
         let world = context.source.world();
+        if self.has_clock
+            && clock_name
+                != default_clock_name(world.dimension.minecraft_name).unwrap_or(DEFAULT_CLOCK)
+        {
+            return self.execute_other_clock(context, world, &clock_name);
+        }
 
         match self.action {
             Action::Set(preset) => {
