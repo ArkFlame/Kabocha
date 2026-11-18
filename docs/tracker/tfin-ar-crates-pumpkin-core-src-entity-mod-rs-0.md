@@ -6,7 +6,6 @@ No STILL OPEN rows remain. Per-row terminal disposition (full detail in the chil
 Re-verified every row still marked STILL OPEN across the five child trackers against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and the live checkout. No `.rs` source needed an edit this pass: every fixable row was resolved in earlier passes. Compilation and rustfmt remain the orchestrator gate (workers cannot run cargo or rustfmt).
 No STILL OPEN rows remain. Compile-pit replay: no source code added this pass, so no import/helper/macro/struct-initializer/clone/clippy-pedantic issues introduced; no unwrap/expect/panic; no em dashes; no generated-data edits.
 
-## Result
 ## Result (FINAL PASS, 2026-11-18)
 
 Terminal disposition for the five child trackers of `tpar-crates-pumpkin-core-src-entity-mod-rs.md`. Independently re-read the relevant Pumpkin source (`entity/mod.rs`, `entity/projectile/owner.rs`, `entity/projectile/ender_pearl.rs`, `entity/vehicle/boat.rs`) and re-checked every row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. Every fixable row was already applied in earlier passes and is present in the current checkout; the only non-FIXED rows are two BLOCKED-DATA subsystems. No new code was needed this pass, so no rustfmt was required.
