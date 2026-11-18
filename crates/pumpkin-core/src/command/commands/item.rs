@@ -847,21 +847,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
         NbtTag::Compound(function) => {
             let name = function.get_string("function").unwrap_or_default();
             match name.strip_prefix("minecraft:").unwrap_or(name) {
-                "set_damage" => {
-                    let Some(max) = stack.get_max_damage() else {
-                        return;
-                    };
-                    let amount = number_provider(function.get("damage")).unwrap_or(1.0);
-                    let add = function.get_bool("add").unwrap_or(false);
-                    let base = if add {
-                        (max - stack.get_damage()) as f32 / max as f32
-                    } else {
-                        0.0
-                    };
-                    let durability = (base + amount).clamp(0.0, 1.0);
-                    let damage = max - (durability * max as f32).floor() as i32;
-                    stack.set_damage(damage.clamp(0, max));
-                }
+                "set_damage" => apply_set_damage(stack, function),
                 "set_count" => {
                     let amount = number_provider(function.get("count")).unwrap_or(1.0) as i32;
                     let add = function.get_bool("add").unwrap_or(false);
@@ -936,29 +922,50 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                     }
                 }
                 // vanilla LimitCount/IntLimit: clamp the count to optional min and max providers
-                "limit_count" => {
-                    if let Some(NbtTag::Compound(limit)) = function.get("limit") {
-                        let min = number_provider(limit.get("min")).map(|v| v as i32);
-                        let max = number_provider(limit.get("max")).map(|v| v as i32);
-                        let mut count = i32::from(stack.item_count);
-                        if let Some(min) = min
-                            && count < min
-                        {
-                            count = min;
-                        }
-                        if let Some(max) = max
-                            && count > max
-                        {
-                            count = max;
-                        }
-                        stack.item_count = count.clamp(0, i32::from(u8::MAX)) as u8;
-                    }
-                }
+                "limit_count" => apply_limit_count(stack, function),
                 other => tracing::debug!("Unsupported item modifier function {other}"),
             }
         }
         _ => {}
     }
+}
+
+/// Applies the vanilla `SetItemDamageFunction` to a stack.
+fn apply_set_damage(stack: &mut ItemStack, function: &NbtCompound) {
+    let Some(max) = stack.get_max_damage() else {
+        return;
+    };
+    let amount = number_provider(function.get("damage")).unwrap_or(1.0);
+    let add = function.get_bool("add").unwrap_or(false);
+    let base = if add {
+        (max - stack.get_damage()) as f32 / max as f32
+    } else {
+        0.0
+    };
+    let durability = (base + amount).clamp(0.0, 1.0);
+    let damage = max - (durability * max as f32).floor() as i32;
+    stack.set_damage(damage.clamp(0, max));
+}
+
+/// Applies the vanilla `LimitCount` function, clamping the count to optional min and max providers.
+fn apply_limit_count(stack: &mut ItemStack, function: &NbtCompound) {
+    let Some(NbtTag::Compound(limit)) = function.get("limit") else {
+        return;
+    };
+    let min = number_provider(limit.get("min")).map(|v| v as i32);
+    let max = number_provider(limit.get("max")).map(|v| v as i32);
+    let mut count = i32::from(stack.item_count);
+    if let Some(min) = min
+        && count < min
+    {
+        count = min;
+    }
+    if let Some(max) = max
+        && count > max
+    {
+        count = max;
+    }
+    stack.item_count = count.clamp(0, i32::from(u8::MAX)) as u8;
 }
 
 /// Applies the vanilla `EnchantRandomlyFunction`, picking one enchantment.

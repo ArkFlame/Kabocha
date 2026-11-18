@@ -443,10 +443,7 @@ fn dig_speed_effect_multiplier(haste_amp: Option<u32>, conduit_amp: Option<u32>)
         (Some(a), None) | (None, Some(a)) => Some(a),
         (None, None) => None,
     };
-    match amp {
-        Some(amp) => (amp as f32 + 1.0).mul_add(0.2, 1.0),
-        None => 1.0,
-    }
+    amp.map_or(1.0, |amp| (amp as f32 + 1.0).mul_add(0.2, 1.0))
 }
 
 /// `EntityToggleGlideEvent` outcome: cancelling keeps the entity's current glide state,
@@ -10813,8 +10810,8 @@ mod tests {
     use super::{
         Player, bedrock_container_open_target, bedrock_container_slot, bedrock_container_type,
         compute_sweep_damage, damage_scales_with_difficulty, difficulty_scaled_damage,
-        format_team_name, newly_learned_recipes, read_last_death_location, read_root_vehicle,
-        write_last_death_location, write_root_vehicle,
+        dig_speed_effect_multiplier, format_team_name, newly_learned_recipes,
+        read_last_death_location, read_root_vehicle, write_last_death_location, write_root_vehicle,
     };
     use base64::prelude::*;
     use pumpkin_config::AuthenticationConfig;

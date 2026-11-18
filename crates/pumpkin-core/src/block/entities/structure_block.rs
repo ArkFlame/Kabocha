@@ -724,24 +724,12 @@ pub fn place_structure_template_in_world(
 
         if let Some(template_nbt) = &block_info.nbt {
             let final_block = Block::from_id(resolved_state.id.to_block_id());
-            let mut placed_nbt = NbtCompound::new();
-            let id = template_nbt
-                .get_string("id")
-                .map_or_else(|| format!("minecraft:{}", final_block.name), str::to_string);
-            placed_nbt.put_string("id", id.clone());
-            placed_nbt.put_int("x", world_vec.x);
-            placed_nbt.put_int("y", world_vec.y);
-            placed_nbt.put_int("z", world_vec.z);
-            for (key, value) in &template_nbt.child_tags {
-                if key.as_ref() != "x" && key.as_ref() != "y" && key.as_ref() != "z" {
-                    placed_nbt.child_tags.insert(key.clone(), value.clone());
-                }
-            }
-            // Vanilla `StructureTemplate.placeInWorld` seeds every RandomizableContainer it
-            // places, advancing the placement RNG even when the block has no LootTable tag.
-            if is_randomizable_container_id(&id) {
-                placed_nbt.put_long("LootTableSeed", loot_rng.next_i64());
-            }
+            let placed_nbt = build_placed_block_nbt(
+                template_nbt,
+                final_block.name,
+                (world_vec.x, world_vec.y, world_vec.z),
+                &mut loot_rng,
+            );
             placer.add_block_entity(placed_nbt);
         }
     }
@@ -784,6 +772,35 @@ pub fn place_structure_template_in_world(
     }
 
     true
+}
+
+/// Builds the block entity NBT for a template entry placed at `pos`, seeding containers' loot.
+fn build_placed_block_nbt(
+    template_nbt: &NbtCompound,
+    block_name: &str,
+    pos: (i32, i32, i32),
+    loot_rng: &mut LegacyRand,
+) -> NbtCompound {
+    let (x, y, z) = pos;
+    let mut placed_nbt = NbtCompound::new();
+    let id = template_nbt
+        .get_string("id")
+        .map_or_else(|| format!("minecraft:{block_name}"), str::to_string);
+    placed_nbt.put_string("id", id.clone());
+    placed_nbt.put_int("x", x);
+    placed_nbt.put_int("y", y);
+    placed_nbt.put_int("z", z);
+    for (key, value) in &template_nbt.child_tags {
+        if key.as_ref() != "x" && key.as_ref() != "y" && key.as_ref() != "z" {
+            placed_nbt.child_tags.insert(key.clone(), value.clone());
+        }
+    }
+    // Vanilla `StructureTemplate.placeInWorld` seeds every RandomizableContainer it
+    // places, advancing the placement RNG even when the block has no LootTable tag.
+    if is_randomizable_container_id(&id) {
+        placed_nbt.put_long("LootTableSeed", loot_rng.next_i64());
+    }
+    placed_nbt
 }
 
 /// Computes `(offset, size)` from matching corner positions using vanilla `StructureBlockEntity.detectSize` rules.

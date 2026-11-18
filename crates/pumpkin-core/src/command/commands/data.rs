@@ -585,7 +585,7 @@ fn java_double_to_string(value: f64) -> String {
 }
 
 /// Java `Float.toString` for NBT float SNBT, same notation rules at f32 precision.
-pub(crate) fn java_float_to_string(value: f32) -> String {
+pub fn java_float_to_string(value: f32) -> String {
     if value.is_nan() {
         return "NaN".to_string();
     }

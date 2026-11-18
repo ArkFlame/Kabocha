@@ -890,7 +890,7 @@ impl PiglinEntity {
                 let Some(ally) = weak.upgrade() else {
                     continue;
                 };
-                let Some(piglin) = ally.cast_any().downcast_ref::<PiglinEntity>() else {
+                let Some(piglin) = ally.cast_any().downcast_ref::<Self>() else {
                     continue;
                 };
                 piglin.start_retreat_from_hoglin();

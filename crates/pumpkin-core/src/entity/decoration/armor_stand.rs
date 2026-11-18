@@ -279,16 +279,14 @@ impl ArmorStandEntity {
 
         // Paper's brokenByAnything fires EntityDeathEvent before equipment is
         // cleared, so plugins still observe the stand's items.
-        let cancelled = if let Some(server) = world.server.upgrade() {
+        let cancelled = world.server.upgrade().is_some_and(|server| {
             let mut event = crate::plugin::api::events::entity::entity_death::EntityDeathEvent::new(
                 entity.entity_id,
                 0,
             );
             server.plugin_manager.fire_blocking(&server, &mut event);
             event.cancelled
-        } else {
-            false
-        };
+        });
         // Paper moves equipment removal past the (cancellable) death event.
         if cancelled {
             return;

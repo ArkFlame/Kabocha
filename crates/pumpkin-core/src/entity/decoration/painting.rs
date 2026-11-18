@@ -11,6 +11,7 @@ use crate::server::Server;
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase, living::LivingEntity};
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::painting_variant::PaintingVariant;
@@ -301,7 +302,13 @@ impl PaintingEntity {
             });
 
             if !is_creative {
-                world.drop_stack(&entity.block_pos.load(), ItemStack::new(1, &Item::PAINTING));
+                // Vanilla `Painting.dropItem` copies the painting's custom name
+                // onto the dropped item.
+                let mut stack = ItemStack::new(1, &Item::PAINTING);
+                if let Some(name) = &**entity.custom_name.load() {
+                    stack.set_data_component(CustomNameImpl { name: name.clone() });
+                }
+                world.drop_stack(&entity.block_pos.load(), stack);
             }
         }
 
@@ -415,15 +422,32 @@ impl EntityBase for PaintingEntity {
         &self,
         _caller: &dyn EntityBase,
         _amount: f32,
-        _damage_type: DamageType,
+        damage_type: DamageType,
         _position: Option<Vector3<f64>>,
         source: Option<&dyn EntityBase>,
-        _cause: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
     ) -> bool {
         // Vanilla `HangingEntity#hurt` ignores a hit on an entity that is already
         // removed, so one painting cannot drop twice in the same tick.
         if !self.entity.is_alive() {
             return true;
+        }
+        // Vanilla `BlockAttachedEntity.hurtServer`: invulnerability first, then
+        // mob-caused damage while `mobGriefing` is off. Both use the causing entity.
+        if self.entity.is_invulnerable_to(&damage_type, cause) {
+            return false;
+        }
+        if !self
+            .entity
+            .world
+            .load()
+            .level_info
+            .load()
+            .game_rules
+            .mob_griefing
+            && cause.is_some_and(|attacker| attacker.get_mob().is_some())
+        {
+            return false;
         }
         // Vanilla `dropItem(source.getEntity())`: the direct source entity is the
         // attacker, not the damaged entity passed as `caller`.

@@ -234,3 +234,39 @@ Files edited this pass: this doc only. `painting.rs` unchanged. No code edits,
 no build/tests run: CODER cannot compile; orchestrator verifies in the batch
 check. Re-read against the worker compile-pitfall table: no new imports,
 helpers, fields, or `unwrap`/`expect`/`panic` introduced.
+
+## Result (re-review pass 5, second pass)
+
+Rows re-checked against decompiled vanilla in `.vendor/vanilla-decompiled/`.
+Two real code gaps found beyond the earlier notes and fixed in the two unit files.
+
+- Row 1 `entity/mod.rs` mount/dismount game events: NOT A GAP (confirmed again):
+  `GameEvent::EntityMount` is emitted at `crates/pumpkin-core/src/entity/mod.rs:6215`
+  and `GameEvent::EntityDismount` at `:6470`, at the vehicle position, matching
+  `Entity.startRiding` (`Entity.java:3625`) / `stopRiding` (`:3672`).
+- NEW (was not in the table) `cushion.rs` `damage_with_context`: FIXED.
+  Vanilla `BlockAttachedEntity.hurtServer` (`BlockAttachedEntity.java:129-171`)
+  checks `isInvulnerableToBase` first, then refuses mob-caused damage while
+  `mobGriefing` is off, and `Cushion.hurtServer` (`Cushion.java:79-82`) refuses a
+  player that fails `mayBuild()` or `ServerLevel.mayInteract`
+  (`ServerLevel.java:3058-3060`: spawn protection / world border). Pumpkin broke
+  the cushion unconditionally. Added the three guards; `is_invulnerable_to`,
+  `get_mob` and a new file-local `may_interact_with` (mirrors the existing helper
+  in `net/java/play/use_item_on.rs`) implement them.
+- NEW (was not in the table) `cushion.rs` + `painting.rs` drop: FIXED. Vanilla
+  `Cushion.getCushionItemStackWithData` (`Cushion.java:264-268`) and
+  `Painting.dropItem` (`painting/Painting.java:186-188`) copy the entity custom
+  name onto the dropped item via `DataComponents.CUSTOM_NAME`. Both drops now set
+  `CustomNameImpl` from `entity.custom_name` when present.
+- Row 2 `interact` seat: CONFIRMED FIXED (uses `crate::entity::position_rider`,
+  vanilla `Entity.positionRider` / `getPassengerRidingPosition`).
+- Row 4 `drop_and_remove` cancelled dismount and break sound ordering:
+  CONFIRMED FIXED (sound before the `entity_drops` check, matching
+  `Cushion.dropItem` `Cushion.java:58-61`; contents survive a cancelled dismount).
+- Row 3 placement/support gametests: LEFT OPEN, needs `pumpkin-gametest` world
+  item-drop observation (cross-crate). Pure unit seams already present.
+
+No new panics; `assert!` only in existing tests. Files edited:
+`crates/pumpkin-core/src/entity/decoration/cushion.rs`,
+`crates/pumpkin-core/src/entity/decoration/painting.rs`, this doc.
+No build/tests run: CODER cannot compile; orchestrator verifies in the batch check.

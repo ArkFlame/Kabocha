@@ -168,7 +168,7 @@ fn can_grow_crop(mob: &dyn Mob) -> bool {
 
 /// Counts a fertilized crop.
 ///
-/// Vanilla keeps HasNectar after the cap so the bee can deliver it to its hive;
+/// Vanilla keeps `HasNectar` after the cap so the bee can deliver it to its hive;
 /// `canBeeUse` alone stops further growth at ten crops.
 fn record_crop_grown(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {

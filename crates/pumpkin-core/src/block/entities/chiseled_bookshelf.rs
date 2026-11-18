@@ -429,7 +429,7 @@ mod tests {
         assert!(!shelf.is_valid_slot_for(0, &book));
 
         // setStack(EMPTY) clears the slot, matching vanilla's empty-stack removal.
-        shelf.set_stack(0, ItemStack::EMPTY);
+        shelf.set_stack(0, ItemStack::EMPTY.clone());
         assert!(!shelf.has_book(0));
         assert!(shelf.is_valid_slot_for(0, &book));
     }

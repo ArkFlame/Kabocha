@@ -181,7 +181,7 @@ impl RamTargetGoal {
         self.finish_ram(mob);
     }
 
-    /// Vanilla `RamTarget.finishRam`: broadcast END_RAM, then seed the next cooldown.
+    /// Vanilla `RamTarget.finishRam`: broadcast `END_RAM`, then seed the next cooldown.
     fn finish_ram(&mut self, mob: &dyn Mob) {
         let cooldown = roll_cooldown(is_screaming(mob));
         let entity = mob.get_entity();

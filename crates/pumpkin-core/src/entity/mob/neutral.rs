@@ -517,6 +517,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(7);
         assert_eq!(draw_anger_duration(&mut rng, 5..=5), 5);
         // An inverted range must not panic on a cold, empty `random_range`.
-        assert_eq!(draw_anger_duration(&mut rng, 9..=1), 9);
+        let (start, end) = (9, 1);
+        assert_eq!(draw_anger_duration(&mut rng, start..=end), 9);
     }
 }

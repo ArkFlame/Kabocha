@@ -410,16 +410,7 @@ impl Raid {
                 world.spawn_entity_non_save(entity_base.clone());
 
                 if *raider_type.entity_type() == EntityType::RAVAGER {
-                    let mut riding_type: Option<&'static EntityType> = None;
-                    if group_number == Self::get_num_groups(Difficulty::Normal) {
-                        riding_type = Some(&EntityType::PILLAGER);
-                    } else if group_number >= Self::get_num_groups(Difficulty::Hard) {
-                        if ravagers_spawned == 0 {
-                            riding_type = Some(&EntityType::EVOKER);
-                        } else {
-                            riding_type = Some(&EntityType::VINDICATOR);
-                        }
-                    }
+                    let riding_type = Self::ravager_riding_type(group_number, ravagers_spawned);
                     ravagers_spawned += 1;
 
                     if let Some(riding_type) = riding_type {
@@ -454,6 +445,24 @@ impl Raid {
         self.wave_spawn_pos = None;
         self.groups_spawned += 1;
         self.update_bossbar(world);
+    }
+
+    /// Picks the mount for a ravager of this wave, if any.
+    const fn ravager_riding_type(
+        group_number: i32,
+        ravagers_spawned: u32,
+    ) -> Option<&'static EntityType> {
+        if group_number == Self::get_num_groups(Difficulty::Normal) {
+            Some(&EntityType::PILLAGER)
+        } else if group_number >= Self::get_num_groups(Difficulty::Hard) {
+            if ravagers_spawned == 0 {
+                Some(&EntityType::EVOKER)
+            } else {
+                Some(&EntityType::VINDICATOR)
+            }
+        } else {
+            None
+        }
     }
 
     pub fn join_raid(&mut self, wave: i32, uuid: Uuid, entity_base: &Arc<dyn EntityBase>) {

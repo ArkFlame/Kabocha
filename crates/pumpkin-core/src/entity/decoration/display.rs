@@ -657,11 +657,8 @@ impl DisplayEntity {
         let brightness = nbt.get_compound("brightness").and_then(|b| {
             let block = b.get_int("block")?;
             let sky = b.get_int("sky")?;
-            if (0..=15).contains(&block) && (0..=15).contains(&sky) {
-                Some(pack_brightness(block, sky))
-            } else {
-                None
-            }
+            ((0..=15).contains(&block) && (0..=15).contains(&sky))
+                .then(|| pack_brightness(block, sky))
         });
         self.brightness
             .store(brightness.unwrap_or(-1), Ordering::Relaxed);

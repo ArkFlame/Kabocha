@@ -18,7 +18,7 @@ pub struct VaultBlockEntity {
 }
 
 impl VaultBlockEntity {
-    /// [`VaultServerData`MAX_REWARD_PLAYERS`].
+    /// Vanilla `VaultServerData.MAX_REWARD_PLAYERS`.
     pub const MAX_REWARDED_PLAYERS: usize = 128;
 }
 
@@ -224,7 +224,7 @@ impl VaultBlockEntity {
         }
     }
 
-    /// Replaces the loot awaiting ejection (vanilla [`VaultServerData`#setItemsToEject`]).
+    /// Replaces the loot awaiting ejection (vanilla `VaultServerData#setItemsToEject`).
     pub fn set_items_to_eject(&self, items: Vec<ItemStack>) {
         let mut stored = self
             .items_to_eject
@@ -242,31 +242,29 @@ impl VaultBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let data = shared.get_or_insert_with(NbtCompound::new);
 
-        let config_guard = self.config.lock();
-        let config = config_guard.as_ref().map(|c| c.as_ref());
-        let config = match config {
-            Some(c) => c,
-            None => {
-                // No config; set empty display item and return.
-                data.child_tags.remove("display_item");
-                return;
-            }
+        let config_guard = self
+            .config
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(config) = config_guard.as_ref() else {
+            // No config; set empty display item and return.
+            data.child_tags.remove("display_item");
+            return;
         };
-        let loot_table = config.get_string("loot_table").unwrap_or_else(|| {
-            if config.ominous {
-                "minecraft:chests/trial_chambers/reward_ominous"
-            } else {
-                "minecraft:chests/trial_chambers/reward"
-            }
+        let ominous = config.get_bool("ominous").unwrap_or(false);
+        let loot_table = config.get_string("loot_table").unwrap_or(if ominous {
+            "minecraft:chests/trial_chambers/reward_ominous"
+        } else {
+            "minecraft:chests/trial_chambers/reward"
         });
         // Generate loot and set display item
-        let stacks = self.resolve_loot_table(loot_table);
+        let stacks = Self::resolve_loot_table(loot_table);
         if let Some(stack) = stacks.last() {
             self.set_display_item(stack);
         }
     }
 
-    fn resolve_loot_table(&self, loot_table: &str) -> Vec<ItemStack> {
+    const fn resolve_loot_table(_loot_table: &str) -> Vec<ItemStack> {
         // TODO: implement proper loot table resolution using world
         Vec::new()
     }

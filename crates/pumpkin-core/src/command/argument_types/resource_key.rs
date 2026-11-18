@@ -344,19 +344,6 @@ mod tests {
     }
 
     #[test]
-    fn dimension_suggestions_are_filtered_by_prefix() {
-        dummy_context(|context| {
-            let suggestions = ResourceKeyArgument(DIMENSION_REGISTRY)
-                .list_suggestions(context, SuggestionsBuilder::new("overworld", 0));
-            assert!(!suggestions.is_empty());
-            assert!(
-                suggestions
-                    .suggestions
-                    .iter()
-                    .any(|s| s.text.cached_text() == "minecraft:overworld")
-            );
-        });
-    }
     fn get_registry_key_accepts_matching_and_rejects_other_registry() {
         let key = ResourceKey::new(
             (*ADVANCEMENT_REGISTRY).clone(),

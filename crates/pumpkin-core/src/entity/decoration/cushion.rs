@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -204,14 +205,30 @@ impl CushionEntity {
             });
 
             if !is_creative {
-                world.drop_stack(
-                    &entity.block_pos.load(),
-                    ItemStack::new(1, Self::item_for_color(self.color())),
-                );
+                // Vanilla `Cushion.getCushionItemStackWithData` copies the
+                // cushion's custom name onto the dropped item.
+                let mut stack = ItemStack::new(1, Self::item_for_color(self.color()));
+                if let Some(name) = &**entity.custom_name.load() {
+                    stack.set_data_component(CustomNameImpl { name: name.clone() });
+                }
+                world.drop_stack(&entity.block_pos.load(), stack);
             }
         }
         entity.remove();
     }
+}
+
+/// Vanilla `ServerLevel.mayInteract`: usable when inside the world border and
+/// outside spawn protection.
+fn may_interact_with(world: &World, player: &Player, position: &BlockPos) -> bool {
+    let x = f64::from(position.0.x);
+    let z = f64::from(position.0.z);
+    // A poisoned border lock must not block play, so fall back to "inside".
+    let inside_border = world
+        .worldborder
+        .lock()
+        .is_ok_and(|border| border.is_within_bounds(x, z, 0.0));
+    inside_border && !world.is_in_spawn_protection(player, position)
 }
 
 /// The parts of `part` that `other` doesn't cover.
@@ -416,15 +433,39 @@ impl EntityBase for CushionEntity {
         &self,
         _caller: &dyn EntityBase,
         _amount: f32,
-        _damage_type: DamageType,
+        damage_type: DamageType,
         _position: Option<Vector3<f64>>,
         source: Option<&dyn EntityBase>,
-        _cause: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
     ) -> bool {
         // Vanilla `HangingEntity#hurt` ignores a hit on an entity that is already
         // removed, so one cushion cannot drop twice in the same tick.
         if !self.entity.is_alive() {
             return true;
+        }
+        let world = self.entity.world.load();
+        // Vanilla `BlockAttachedEntity.hurtServer`: invulnerability is checked first,
+        // then mob-caused damage is refused while `mobGriefing` is off. Both use the
+        // causing entity (`DamageSource.getEntity`), not the direct one.
+        if self.entity.is_invulnerable_to(&damage_type, cause) {
+            return false;
+        }
+        if !world.level_info.load().game_rules.mob_griefing
+            && cause.is_some_and(|attacker| attacker.get_mob().is_some())
+        {
+            return false;
+        }
+        // Vanilla `Cushion.hurtServer` also refuses a player that may not build and
+        // hits the player may not perform at the cushion position (spawn protection,
+        // world border) before the attached-entity break path runs.
+        if cause
+            .and_then(EntityBase::get_player)
+            .is_some_and(|player| {
+                !player.may_build()
+                    || !may_interact_with(&world, player, &self.entity.block_pos.load())
+            })
+        {
+            return false;
         }
         self.drop_and_remove(source);
         true

@@ -1112,6 +1112,24 @@ pub fn start_telemetry(server: Arc<Server>) {
 
 /// Starts the background telemetry reporting task with a specific configuration.
 #[allow(clippy::needless_pass_by_value)]
+/// Applies the backend's recommended heartbeat interval, resetting the timer when it changes.
+fn apply_heartbeat_interval(
+    current_interval_secs: &mut u64,
+    interval: &mut tokio::time::Interval,
+    recommended_secs: u32,
+) {
+    let next_interval_secs = resolve_next_interval_secs(*current_interval_secs, recommended_secs);
+    if next_interval_secs != *current_interval_secs {
+        *current_interval_secs = next_interval_secs;
+        interval.reset_after(Duration::from_secs(next_interval_secs));
+        tracing::debug!("Telemetry backend requested a {next_interval_secs}s heartbeat interval");
+    }
+}
+
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "public API takes the shared server handle by value"
+)]
 pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig) {
     if !config.enabled {
         tracing::trace!("Telemetry is disabled in configuration.");
@@ -1180,8 +1198,20 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
 
             match telemetry_client.send_heartbeat(&payload).await {
                 Ok(resp) => {
-                    if !backend_accepted_heartbeat(&resp.status) {
+                    if backend_accepted_heartbeat(&resp.status) {
+                        tracing::trace!(
+                            "Telemetry heartbeat successfully transmitted (status: {}, public_key: {})",
+                            resp.status,
+                            resp.server_public_key
+                        );
+                        apply_heartbeat_interval(
+                            &mut current_interval_secs,
+                            &mut interval,
+                            resp.next_ping_seconds,
+                        );
+                    } else {
                         // The backend did not accept the sessions, so keep them for the next heartbeat.
+                        // A rejected heartbeat's suggested interval is not authoritative.
                         server_task
                             .telemetry_sessions
                             .restore_completed(raw_completed);
@@ -1189,24 +1219,6 @@ pub fn start_telemetry_with_config(server: Arc<Server>, config: &TelemetryConfig
                             "Telemetry backend did not accept heartbeat (status: {}), keeping sessions for the next one",
                             resp.status
                         );
-                    } else {
-                        tracing::trace!(
-                            "Telemetry heartbeat successfully transmitted (status: {}, public_key: {})",
-                            resp.status,
-                            resp.server_public_key
-                        );
-                        // A rejected heartbeat's suggested interval is not authoritative.
-                        let next_interval_secs = resolve_next_interval_secs(
-                            current_interval_secs,
-                            resp.next_ping_seconds,
-                        );
-                        if next_interval_secs != current_interval_secs {
-                            current_interval_secs = next_interval_secs;
-                            interval.reset_after(Duration::from_secs(next_interval_secs));
-                            tracing::debug!(
-                                "Telemetry backend requested a {next_interval_secs}s heartbeat interval"
-                            );
-                        }
                     }
                 }
                 Err(err) => {

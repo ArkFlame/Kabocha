@@ -61,7 +61,7 @@ impl StriderEntity {
             navigator.set_pathfinding_malus(PathType::DangerFire, 0.0);
             navigator.set_pathfinding_malus(PathType::DamageFire, 0.0);
             navigator.set_pathfinding_malus(PathType::Water, -1.0);
-        }
+        };
         let strider = Self {
             mob_entity,
             ageable_data: AgeableData::default(),

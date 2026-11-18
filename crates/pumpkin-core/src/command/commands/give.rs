@@ -1,3 +1,4 @@
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::translation;
 use pumpkin_util::PermissionLvl;
@@ -25,6 +26,16 @@ const ERROR_TOO_MANY_ITEMS: CommandErrorType<2> = CommandErrorType::new(
 
 /// `GiveCommand.MAX_ALLOWED_ITEMSTACKS`
 const MAX_ALLOWED_ITEMSTACKS: i32 = 100;
+
+/// Item component with a hover tooltip, as vanilla `ItemStack.getDisplayName`.
+fn item_display(stack: &ItemStack) -> TextComponent {
+    let id = stack.item.registry_key.to_string();
+    TextComponent::text(id.clone()).hover_event(HoverEvent::ShowItem {
+        id: id.into(),
+        count: Some(i32::from(stack.item_count)),
+        components: None,
+    })
+}
 
 struct GiveExecutor {
     has_count: bool,

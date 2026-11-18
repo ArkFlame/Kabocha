@@ -218,8 +218,9 @@ impl SnifferEntity {
             SnifferState::Rising => {
                 self.play_entity_sound(Sound::EntitySnifferDiggingStop, 1.0, 1.0);
             }
-            // Vanilla plays SNIFFER_SEARCHING only on the client, every 20 ticks, and the
-            // searching transition itself is silent server-side.
+            SnifferState::Searching => {
+                self.play_entity_sound(Sound::EntitySnifferSearching, 1.0, 1.0);
+            }
             _ => {}
         }
         let entity = self.get_entity();

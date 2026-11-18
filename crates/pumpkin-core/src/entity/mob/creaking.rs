@@ -477,7 +477,7 @@ impl Mob for CreakingEntity {
                 entity.chunk_pos.load(),
                 &CEntityStatus::new(entity.entity_id, 4),
             );
-        }
+        };
         let damaged = self.get_mob_entity().try_attack(entity, target);
         if damaged {
             self.play_attack_sound();

@@ -12,12 +12,13 @@ pub struct OozingMobEffect;
 
 impl MobEffect for OozingMobEffect {
     fn on_mob_removed(&self, living: &LivingEntity, _amplifier: u8) {
+        // Vanilla OOZING requests 2 slimes, capped by max_entity_cramming less nearby slimes.
+        const REQUESTED_SLIMES: i64 = 2;
+
         let world = living.entity.world.load();
         let pos = living.entity.pos.load();
         let spawn_pos = Vector3::new(pos.x, pos.y + 0.5, pos.z);
 
-        // Vanilla OOZING requests 2 slimes, capped by max_entity_cramming less nearby slimes.
-        const REQUESTED_SLIMES: i64 = 2;
         let max_cramming = world.level_info.load().game_rules.max_entity_cramming;
         let spawn_count = if max_cramming < 1 {
             REQUESTED_SLIMES

@@ -241,3 +241,53 @@ match vanilla; no source behaviour change was required.
   permitted; compile and test are deferred to the orchestrator.
 
 File changed: crates/pumpkin-core/src/block/entities/structure_block.rs (test expectation only).
+
+## Result
+
+Fifth pass. Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft
+(StructureTemplate.java, StructureBlockEntity.java, ServerLevel.java,
+ServerGamePacketListenerImpl.java, Block.java, BlockRotProcessor.java, SimpleWaterloggedBlock.java).
+
+- Old line 49, entity capture and placement: VERIFIED ALREADY FIXED. capture_structure_template_from_world
+  fills entity_info_list (players excluded, AABB.encapsulatingFullBlocks box, painting block_pos from the
+  stored int array, BlockPos.containing fallback), and place_structure_template_in_world calls
+  place_template_entities behind !ignore_entities; that pass transforms block and exact positions,
+  rewrites Pos, drops UUID, applies rotate-then-mirror to Rotation and spawns passengers.
+  Matches fillEntityList (StructureTemplate.java:175-193) and placeEntities (:511-547).
+- Old line 50, palette split: VERIFIED ALREADY FIXED. structure_block.rs buckets on
+  state.is_full_cube() && !has_dynamic_shape(block.name); is_full_cube comes from the extracted
+  collision boxes (block_registry derive_state_data), and has_dynamic_shape lists exactly the seven
+  .dynamicShape() property sites in Blocks.java (moving_piston, bamboo, scaffolding, powder_snow,
+  pointed_dripstone, sulfur_spike, shulkerBoxProperties for all 16 colors). Matches
+  StructureTemplate.java:150.
+- Old line 51, non-strict shape reconnect: VERIFIED ALREADY FIXED. The !strict pass runs
+  update_shape_at_edge, then update_from_neighbor_shapes per placed pos, writes
+  NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE, then update_neighbors_at with the shaped block, matching
+  updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE and getKnownShape() for non-strict
+  (StructureTemplate.java:377-401, StructureBlockEntity.java:417,429).
+- Old line 52, LootTableSeed gating: VERIFIED ALREADY FIXED. is_randomizable_container_id covers
+  chest/trapped_chest/barrel/dispenser/dropper/hopper/crafter/decorated_pot plus every shulker box,
+  matching the RandomizableContainer implementors (ChestBlockEntity, DispenserBlockEntity,
+  BarrelBlockEntity, HopperBlockEntity, ShulkerBoxBlockEntity, CrafterBlockEntity,
+  DecoratedPotBlockEntity); suspicious sand and gravel stay excluded.
+- Old line 53, strict placement side effects: VERIFIED ALREADY FIXED.
+  WorldBlockPlacer::new_with_skip_side_effects(world, strict) gates the on_block_replaced drop
+  callback, and remove_block_entity runs before every NBT-bearing write, mirroring the BARRIER
+  pre-set (StructureTemplate.java:293-295) and UPDATE_SKIP_ALL_SIDEEFFECTS
+  (StructureBlockEntity.java:429). The placer writes straight into the chunk, so no on_place or
+  on_added callback fires in either mode.
+- Old line 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION.
+  ServerLevel.sendBlockUpdated (ServerLevel.java:3498-3574) only calls blockChanged(pos),
+  invalidates the path cache and recomputes navigation when collision shapes differ; it sends no
+  neighbour update. register_block_change already invalidates both caches and queues the client
+  block update, so the current code matches vanilla.
+
+No pure unit-test seam exists for the Arc<World> placement paths, so no new test was added; the
+existing palette, dynamic-shape, loot-seed, integrity and transform tests in the same file still
+cover the data-only rows.
+
+Out-of-scope observation for the queue (not changed here): vanilla placeInWorld keeps
+LiquidSettings.APPLY_WATERLOGGING on and waterlogs a placed waterloggable block that sits in source
+water (StructureTemplate.java:291,332-341); Pumpkin does not read the fluid at all on this path.
+Adding it needs a state-level set_waterlogged call plus the toggling-fill pass, so it belongs in
+its own row.
