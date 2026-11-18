@@ -75,7 +75,7 @@ impl BoatEntity {
         let standing = entity.bounding_box.load().expand(-1.0e-7, -1.0e-7, -1.0e-7);
         let standing_min = standing.min_block_pos();
         let standing_max = standing.max_block_pos();
-        let mut visit = |pos: pumpkin_util::math::position::BlockPos| {
+        let mut visit = |pos: BlockPos, bounds_at_from: BoundingBox, segment: Vector3<f64>| {
             if !entity.is_alive() {
                 return;
             }
@@ -88,7 +88,19 @@ impl BoatEntity {
                 return;
             }
             let (block, state) = world.get_block_and_state(&pos);
-            if state.is_air() || !visited.insert(pos) {
+            if state.is_air() {
+                return;
+            }
+            // Vanilla gates `entityInside` on the inside collision shape: a block whose
+            // shape the entity never enters must not fire even when the sweep visits it.
+            let shape = world
+                .block_registry
+                .get_inside_collision_shape(block, &world, state, &pos)
+                .at_pos(pos);
+            if !collided_along_vector(&bounds_at_from, segment, &shape) {
+                return;
+            }
+            if !visited.insert(pos) {
                 return;
             }
             if pos.0.x >= standing_min.0.x
@@ -131,17 +143,26 @@ fn merge_oldest_movement(movements: &mut VecDeque<BoatMovement>) {
     }
 }
 
+/// Mirrors `AABB.collidedAlongVector`: a shape counts as entered when the entity's
+/// centre segment clips the shape inflated by half the entity's dimensions.
+fn collided_along_vector(bounds: &BoundingBox, movement: Vector3<f64>, shape: &BoundingBox) -> bool {
+    let from = bounds.get_center();
+    let to = from + movement;
+    let half = (bounds.max - bounds.min) * 0.5;
+    let inflated = shape.expand(half.x - 1.0e-7, half.y - 1.0e-7, half.z - 1.0e-7);
+    inflated.contains(from) || inflated.contains(to) || inflated.clip(from, to).is_some()
+}
+
 fn for_each_block_along_movement(
     bounds: BoundingBox,
     movement: Vector3<f64>,
     requested_movement: Option<Vector3<f64>>,
-    mut visit: impl FnMut(BlockPos),
+    mut visit: impl FnMut(BlockPos, BoundingBox, Vector3<f64>),
 ) {
     // Entity.checkInsideBlocks follows the collision axes, with 16 steps per movement.
+    let final_bounds = bounds.shift(movement);
     let mut bounds = bounds;
-    let destination = bounds
-        .shift(movement)
-        .expand_all(-f64::from(BLOCK_INTERSECTION_EPSILON));
+    let destination = final_bounds.expand_all(-f64::from(BLOCK_INTERSECTION_EPSILON));
     let mut remaining_steps = MAX_BLOCK_ITERATIONS_ALONG_TRAVEL_PER_TICK;
     let Some(requested_movement) = requested_movement.filter(|_| movement != Vector3::default())
     else {
@@ -151,7 +172,7 @@ fn for_each_block_along_movement(
                 destination.min_block_pos(),
                 BlockPos::floored_v(destination.max),
             ) {
-                visit(pos);
+                visit(pos, final_bounds, Vector3::default());
             }
         }
         return;
@@ -174,7 +195,7 @@ fn for_each_block_along_movement(
             destination.min_block_pos(),
             BlockPos::floored_v(destination.max),
         ) {
-            visit(pos);
+            visit(pos, final_bounds, Vector3::default());
         }
     }
 }
@@ -183,7 +204,7 @@ fn visit_movement_blocks(
     bounds: BoundingBox,
     movement: Vector3<f64>,
     remaining_steps: usize,
-    visit: &mut impl FnMut(BlockPos),
+    visit: &mut impl FnMut(BlockPos, BoundingBox, Vector3<f64>),
 ) -> usize {
     let destination = bounds
         .shift(movement)
@@ -195,7 +216,7 @@ fn visit_movement_blocks(
             destination.min_block_pos(),
             BlockPos::floored_v(destination.max),
         ) {
-            visit(pos);
+            visit(pos, bounds, movement);
         }
         return remaining_steps - 1;
     }
@@ -209,7 +230,7 @@ fn visit_movement_blocks(
             return false;
         }
         last_step = iteration;
-        visit(pos);
+        visit(pos, bounds, movement);
         true
     };
     let start = destination.shift(movement * -1.0);
@@ -425,7 +446,7 @@ mod tests {
             Vector3::new(1.000_009_999_999_747_4, 0.75, 0.75),
         );
         let mut visited = HashSet::new();
-        for_each_block_along_movement(bounds, Vector3::default(), None, |pos| {
+        for_each_block_along_movement(bounds, Vector3::default(), None, |pos, _, _| {
             visited.insert(pos);
         });
         // Recorded from 26.3 BlockGetter with a deflated maximum X of exactly 1.0.
@@ -443,7 +464,7 @@ mod tests {
         );
         let movement = Vector3::new(4.0, 0.0, 0.0);
         let mut visited = HashSet::new();
-        for_each_block_along_movement(bounds, movement, Some(movement), |pos| {
+        for_each_block_along_movement(bounds, movement, Some(movement), |pos, _, _| {
             visited.insert(pos);
         });
         assert_eq!(
@@ -469,7 +490,7 @@ mod tests {
             bounds,
             Vector3::new(2.0, 0.0, 4.0),
             Some(Vector3::new(8.0, 0.0, 4.0)),
-            |pos| {
+            |pos, _, _| {
                 visited.insert(pos);
             },
         );
@@ -495,7 +516,7 @@ mod tests {
         );
         let movement = Vector3::new(1000.0, 0.0, 0.0);
         let mut visited = HashSet::new();
-        for_each_block_along_movement(bounds, movement, Some(movement), |pos| {
+        for_each_block_along_movement(bounds, movement, Some(movement), |pos, _, _| {
             visited.insert(pos);
         });
         assert_eq!(visited.len(), 17);
@@ -511,7 +532,7 @@ mod tests {
             Vector3::new(0.6875, 0.8125, 0.6875),
         );
         let mut visited = HashSet::new();
-        for_each_block_along_movement(bounds, Vector3::new(1000.0, 0.0, 500.0), None, |pos| {
+        for_each_block_along_movement(bounds, Vector3::new(1000.0, 0.0, 500.0), None, |pos, _, _| {
             visited.insert(pos);
         });
         // Recorded from 26.3: the last new cell is at step 14, so no final-box fallback runs.

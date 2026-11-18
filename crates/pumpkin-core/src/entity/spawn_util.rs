@@ -190,3 +190,20 @@ fn move_to_possible_spawn_position(
 
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::Block;
+
+    use super::SpawnStrategy;
+
+    #[test]
+    fn no_leaves_strategy_rejects_leaves_support() {
+        let air = Block::AIR.default_state;
+        let stone = Block::STONE.default_state;
+        let leaves = Block::OAK_LEAVES.default_state;
+        assert!(SpawnStrategy::OnTopOfColliderNoLeaves.can_spawn_on(stone, air));
+        assert!(!SpawnStrategy::OnTopOfColliderNoLeaves.can_spawn_on(leaves, air));
+        assert!(SpawnStrategy::OnTopOfCollider.can_spawn_on(leaves, air));
+    }
+}

@@ -1359,10 +1359,7 @@ impl StructureBlockBlockEntity {
                 });
                 if let Some(found) = found {
                     candidate_positions.extend(found.into_iter().filter(|pos| {
-                        pos.0.x >= min_x
-                            && pos.0.x <= max_x
-                            && pos.0.z >= min_z
-                            && pos.0.z <= max_z
+                        pos.0.x >= min_x && pos.0.x <= max_x && pos.0.z >= min_z && pos.0.z <= max_z
                     }));
                 }
             }
@@ -1535,8 +1532,8 @@ impl StructureBlockBlockEntity {
 mod tests {
     use super::{
         NbtCompound, NbtTag, collect_structure_block_positions, compute_detected_bounds,
-        is_randomizable_container_id, is_safe_generated_structure_path,
-        parse_structure_identifier, put_transformed_block_pos, transform_entity_yaw,
+        is_randomizable_container_id, is_safe_generated_structure_path, parse_structure_identifier,
+        put_transformed_block_pos, transform_entity_yaw,
     };
     use pumpkin_data::{Block, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
@@ -1633,10 +1630,7 @@ mod tests {
 
         let sections = std::slice::from_ref(&palette);
         let found = collect_structure_block_positions(sections, 2, -1, -64, -64, 319);
-        assert_eq!(
-            found,
-            vec![BlockPos(Vector3::new(2 * 16 + 1, -62, -1 * 16 + 3))]
-        );
+        assert_eq!(found, vec![BlockPos(Vector3::new(33, -62, -13))]);
 
         // Vanilla clamps the scan box to the build height, so a corner above it is skipped.
         assert!(collect_structure_block_positions(sections, 2, -1, -64, -60, 319).is_empty());

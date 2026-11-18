@@ -1053,7 +1053,7 @@ fn apply_list_operation<T: Clone>(
     let Some(values) = operation.get("values").and_then(NbtTag::extract_list) else {
         return current;
     };
-    let replacement: Vec<T> = values.iter().filter_map(&parse).collect();
+    let replacement: Vec<T> = values.iter().filter_map(parse).collect();
     match operation.get_string("mode").unwrap_or("replace_all") {
         "append" => {
             let mut result = current;

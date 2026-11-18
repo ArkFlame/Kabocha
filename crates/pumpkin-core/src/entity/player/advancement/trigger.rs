@@ -3,6 +3,14 @@ use crate::entity::player::advancement::PlayerAdvancement;
 use crate::entity::player::advancement::predicate::{self, CriterionConditions, EntityDistance};
 use pumpkin_util::math::position::BlockPos;
 
+/// One entity hit by the bolt, used to test the lightning sub-predicate.
+#[derive(Debug, Clone)]
+pub struct LightningStruckEntity {
+    pub entity_type: String,
+    pub distance: Option<EntityDistance>,
+    pub is_baby: Option<bool>,
+}
+
 #[derive(Debug, Clone)]
 pub enum AdvancementTrigger {
     InventoryChanged,
@@ -134,7 +142,8 @@ pub enum AdvancementTrigger {
         victim_type: String,
     },
     LightningStrike {
-        bystander_type: Option<String>,
+        bystander_types: Vec<String>,
+        struck_entities: Vec<LightningStruckEntity>,
         blocks_set_on_fire: i32,
         distance: f64,
     },
@@ -831,7 +840,8 @@ impl Player {
             }
 
             AdvancementTrigger::LightningStrike {
-                bystander_type,
+                bystander_types,
+                struck_entities,
                 blocks_set_on_fire,
                 distance,
             } => {
@@ -839,18 +849,23 @@ impl Player {
                     CriterionConditions::LightningStrike {
                         bystander_type: req_b,
                         blocks_set_on_fire: req_fire,
+                        entity_struck: req_struck,
                         distance_max,
                     } => {
-                        if let Some(r) = req_b {
-                            let Some(b) = bystander_type.as_deref() else {
-                                return false;
-                            };
-                            if !predicate::matches_id(r, b) {
-                                return false;
-                            }
+                        if let Some(r) = req_b
+                            && !bystander_types.iter().any(|b| predicate::matches_id(r, b.as_str()))
+                        {
+                            return false;
                         }
                         if let Some(f) = req_fire
                             && !f.matches(i64::from(blocks_set_on_fire))
+                        {
+                            return false;
+                        }
+                        if let Some(struck) = req_struck
+                            && !struck_entities
+                                .iter()
+                                .any(|e| struck.matches(&e.entity_type, e.distance, e.is_baby))
                         {
                             return false;
                         }

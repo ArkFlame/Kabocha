@@ -16,7 +16,10 @@ use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::command::suggestion::provider::{SuggestionProvider, SuggestionProviderResult};
 use crate::command::suggestion::suggestions::SuggestionsBuilder;
-use crate::world::time::default_clock_name;
+use crate::world::time::{ClockInstance, LevelTime, default_clock_name};
+use pumpkin_protocol::{
+    bedrock::client::set_time::CSetTime, java::client::play::CUpdateTime,
+};
 use pumpkin_util::identifier::Identifier;
 
 const DESCRIPTION: &str = "Query or modify the world time and clocks.";
@@ -113,6 +116,124 @@ const fn wrap_time(ticks: i64) -> i32 {
     (ticks % 2_147_483_647) as i32
 }
 
+
+/// Broadcasts one clock's state. Vanilla keeps a `ClockInstance` per
+/// `world_clock`; the packet carries that clock's registry id so clients
+/// advance the right clock instead of the world's default one.
+fn send_clock_time(
+    world: &crate::world::World,
+    clock_name: &str,
+    instance: &ClockInstance,
+    world_age: i64,
+) {
+    let advance_time = {
+        let lock = world.level_info.load();
+        lock.game_rules.advance_time
+    };
+    let (total_ticks, partial_tick, rate) = instance.pack_network_state(advance_time);
+    let clock_id = world
+        .server
+        .upgrade()
+        .and_then(|server| {
+            server
+                .datapack_manager
+                .get_dynamic_registry_raw_id("minecraft:world_clock", clock_name)
+        })
+        .and_then(|raw_id| i32::try_from(raw_id).ok())
+        .unwrap_or(0);
+    world.broadcast_editioned(
+        &CUpdateTime::new_clock(world_age, clock_id, total_ticks, partial_tick, rate),
+        &CSetTime::new(total_ticks as _),
+    );
+}
+
+/// A mutable view of the clock a `/time` command addresses. Without `of`,
+/// vanilla resolves the dimension's default clock, stored in `LevelTime`'s own
+/// fields; `of <clock>` selects an independent `ClockInstance` instead.
+enum ClockState<'a> {
+    Default(&'a mut LevelTime),
+    Named(i64, &'a str, &'a mut ClockInstance),
+}
+
+impl ClockState<'_> {
+    fn world_age(&self) -> i64 {
+        match self {
+            Self::Default(time) => time.world_age,
+            Self::Named(age, _, _) => *age,
+        }
+    }
+
+    fn total_ticks(&self) -> i64 {
+        match self {
+            Self::Default(time) => time.time_of_day,
+            Self::Named(_, _, clock) => clock.total_ticks,
+        }
+    }
+
+    fn set_total_ticks(&mut self, ticks: i64) {
+        match self {
+            Self::Default(time) => time.set_time(ticks),
+            Self::Named(_, _, clock) => clock.set_total_ticks(ticks),
+        }
+    }
+
+    fn add_ticks(&mut self, ticks: i64) {
+        match self {
+            Self::Default(time) => time.add_time(ticks),
+            Self::Named(_, _, clock) => clock.total_ticks = (clock.total_ticks + ticks).max(0),
+        }
+    }
+
+    fn paused(&self) -> bool {
+        match self {
+            Self::Default(time) => time.paused,
+            Self::Named(_, _, clock) => clock.paused,
+        }
+    }
+
+    fn set_paused(&mut self, paused: bool) {
+        match self {
+            Self::Default(time) => time.set_paused(paused),
+            Self::Named(_, _, clock) => clock.set_paused(paused),
+        }
+    }
+
+    fn rate(&self) -> f32 {
+        match self {
+            Self::Default(time) => time.rate,
+            Self::Named(_, _, clock) => clock.rate,
+        }
+    }
+
+    fn set_rate(&mut self, rate: f32) {
+        match self {
+            Self::Default(time) => time.set_rate(rate),
+            Self::Named(_, _, clock) => clock.set_rate(rate),
+        }
+    }
+
+    fn send(&self, world: &crate::world::World) {
+        match self {
+            Self::Default(time) => time.send_time(world),
+            Self::Named(age, name, clock) => send_clock_time(world, *name, &**clock, *age),
+        }
+    }
+}
+
+/// Binds `clock_name` to the world's own time or a named clock instance.
+fn select_clock<'a>(
+    level_time: &'a mut LevelTime,
+    clock_name: &'a str,
+    has_clock: bool,
+) -> ClockState<'a> {
+    if has_clock {
+        let age = level_time.world_age;
+        ClockState::Named(age, clock_name, level_time.clocks.clock_mut(clock_name))
+    } else {
+        ClockState::Default(level_time)
+    }
+}
+
 /// True when the source is a Bedrock client, which translates its own time messages.
 fn is_bedrock(context: &CommandContext) -> bool {
     context.source.output.as_player().is_some_and(|player| {
@@ -155,13 +276,15 @@ fn resolve_clock_name(
             .map_or_else(|_| DEFAULT_CLOCK.to_string(), |id| id.to_string())
     } else {
         let world = context.source.world();
-        // Vanilla getDefaultClock fails when the dimension type has no default_clock.
-        if default_clock_name(world.dimension.minecraft_name).is_none() {
-            return Err(ERROR_NO_DEFAULT_CLOCK.create_without_context_args_slice(&[
-                TextComponent::text(world.dimension.minecraft_name),
-            ]));
-        }
-        DEFAULT_CLOCK.to_string()
+        // Vanilla getDefaultClock uses the dimension type's own default_clock:
+        // the End clock in the End, and an error in the Nether.
+        default_clock_name(world.dimension.minecraft_name)
+            .map(|name| name.to_string())
+            .ok_or_else(|| {
+                ERROR_NO_DEFAULT_CLOCK.create_without_context_args_slice(&[
+                    TextComponent::text(world.dimension.minecraft_name),
+                ])
+            })?
     };
     if has_clock
         && !context

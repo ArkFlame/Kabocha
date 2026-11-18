@@ -2552,22 +2552,22 @@ impl pumpkin::plugin::player::HostPlayer for PluginHostState {
 
     fn get_experience_level(&mut self, player: Resource<Player>) -> wasmtime::Result<i32> {
         let player = self.get(&player)?;
-        Ok(player.experience_level.load(Ordering::Relaxed))
+        Ok(player.get_experience_level())
     }
 
     fn get_experience_progress(&mut self, player: Resource<Player>) -> wasmtime::Result<f32> {
         let player = self.get(&player)?;
-        Ok(player.experience_progress.load())
+        Ok(player.get_experience_progress())
     }
 
     fn get_experience_points(&mut self, player: Resource<Player>) -> wasmtime::Result<i32> {
         let player = self.get(&player)?;
-        Ok(player.experience_points.load(Ordering::Relaxed))
+        Ok(player.get_total_experience())
     }
 
     fn get_exp_to_level(&mut self, player: Resource<Player>) -> wasmtime::Result<i32> {
         let player = self.get(&player)?;
-        let level = player.experience_level.load(Ordering::Relaxed);
+        let level = player.get_experience_level();
         Ok(pumpkin_util::math::experience::points_in_level(level))
     }
 
@@ -3663,9 +3663,9 @@ impl pumpkin::plugin::player::HostPlayerWithStore<PluginHostState> for HasSelf<P
 
         run_blocking(accessor, move || {
             player.set_experience(
-                player.experience_level.load(Ordering::Relaxed),
+                player.get_experience_level(),
                 progress,
-                player.experience_points.load(Ordering::Relaxed),
+                player.get_total_experience(),
             );
         })
         .await
@@ -3680,8 +3680,8 @@ impl pumpkin::plugin::player::HostPlayerWithStore<PluginHostState> for HasSelf<P
 
         run_blocking(accessor, move || {
             player.set_experience(
-                player.experience_level.load(Ordering::Relaxed),
-                player.experience_progress.load(),
+                player.get_experience_level(),
+                player.get_experience_progress(),
                 points,
             );
         })

@@ -248,8 +248,10 @@ impl EntityBase for LightningBoltEntity {
                 Vector3::new(pos.x + 3.0, pos.y + 9.0, pos.z + 3.0),
             );
 
+            let bolt_pos = self.entity.pos.load();
             let entities = world.get_all_at_box(&damage_box);
             if let Ok(mut hit_guard) = self.hit_entities.lock() {
+                let mut struck_entities = Vec::new();
                 for hit_entity in entities {
                     if hit_entity.get_entity().entity_id == entity.entity_id {
                         continue;
@@ -267,19 +269,39 @@ impl EntityBase for LightningBoltEntity {
                                     victim_type: type_name.clone(),
                                 },
                             );
-                            let distance = (player
-                                .position()
-                                .squared_distance_to_vec(&self.entity.pos.load()))
-                            .sqrt();
-                            player.trigger_advancement(
-                                crate::entity::player::advancement::trigger::AdvancementTrigger::LightningStrike {
-                                    bystander_type: Some(type_name),
-                                    blocks_set_on_fire: self.blocks_set_on_fire.load(Ordering::Relaxed),
-                                    distance,
+                            let hit_pos = hit_entity.get_entity().pos.load();
+                            struck_entities.push(
+                                crate::entity::player::advancement::trigger::LightningStruckEntity {
+                                    entity_type: type_name,
+                                    distance: Some(
+                                        crate::entity::player::advancement::predicate::EntityDistance::from_delta(
+                                            hit_pos.x - bolt_pos.x,
+                                            hit_pos.y - bolt_pos.y,
+                                            hit_pos.z - bolt_pos.z,
+                                        ),
+                                    ),
+                                    is_baby: None,
                                 },
                             );
                         }
                     }
+                }
+                // Vanilla fires this once so bystander and entity_struck predicates
+                // are tested against the struck entities independently.
+                if let Some(player) = self.get_cause()
+                    && !struck_entities.is_empty()
+                {
+                    let distance = player.position().squared_distance_to_vec(&bolt_pos).sqrt();
+                    let bystander_types =
+                        struck_entities.iter().map(|e| e.entity_type.clone()).collect();
+                    player.trigger_advancement(
+                        crate::entity::player::advancement::trigger::AdvancementTrigger::LightningStrike {
+                            bystander_types,
+                            struck_entities,
+                            blocks_set_on_fire: self.blocks_set_on_fire.load(Ordering::Relaxed),
+                            distance,
+                        },
+                    );
                 }
             }
         }

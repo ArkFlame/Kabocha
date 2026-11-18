@@ -148,12 +148,10 @@ impl Slot for FurnaceOutputSlot {
             stack.item.id as i32,
             stack.item_count as i32,
         );
-        // Vanilla `FurnaceResultSlot.checkTakeAchievements` unlocks the used cooking recipes
-        // (`awardRecipes`) and fires the recipe crafted trigger when items are taken. Use the
-        // same result-slot hook the crafting, smithing and stonecutter result slots use.
-        player.on_recipe_crafted(stack);
-        // Extract the used recipes once: their ids unlock the recipe book and their accrued xp
-        // is credited to the player (vanilla spawns one orb per recipe).
+        // Vanilla `FurnaceResultSlot.checkTakeAchievements` runs
+        // `awardUsedRecipesAndPopExperience`: the used cooking recipes are unlocked in the recipe
+        // book and trigger `recipe_crafted`. The output item is not a recipe id, so the item-based
+        // `on_recipe_crafted` hook the crafting result slots use is wrong here.
         let extracted = self.experience_container.extract_recipes();
         let recipe_ids: Vec<String> = extracted
             .iter()
