@@ -147,7 +147,7 @@ impl JavaClient {
         structure_block.mark_dirty();
         world.update_block_entity(&block_entity);
         let state_id = world.get_block_state_id(&pos);
-        world.register_block_change(pos, state_id);
+        world.send_block_updated(&pos, state_id, state_id);
     }
 }
 
