@@ -46,14 +46,14 @@ No TODO/FIXME/XXX markers exist in the file; the tracker's "5 markers" are comme
 - `spawn_new_gateway_at` angle `2 * (-PI + PI/20 * i)` and radius 96 / y 75.
 - `spawn_exit_portal`/podium plumbing is delegated to `world/end_podium.rs` (separate row).
 
-STILL OPEN: gap 1 (M): the seed fix must change pumpkin-world `EndSpikeFeature` too (end_spike.rs:141 falls back to `get_spikes_for_seed(0)` when `spikes` is empty); changing only the fight would desync fight crystals from worldgen pillars. Out of this pass's crate scope.
-STILL OPEN: gap 2 (M): needs SavedData NBT (de)serialisation for the whole fight state wired into the save path; not a single-slice change.
-STILL OPEN: gap 3 (S): the early return is a deliberate server-cost tradeoff per the note; vanilla parity of pausing the stage machine needs a design decision.
-STILL OPEN: gap 4 (S): vanilla podium Y source (EndPodiumFeature placement vs origin) not confirmed against decompiled code in this pass.
-STILL OPEN: gap 7 (S): note itself says verify against decompiled `spawnNewGateway` before changing; not verified.
-STILL OPEN: gap 9 (S): which origin convention vanilla `hasActiveExitPortal` uses is unconfirmed; default origin is identical either way.
-STILL OPEN: gap 10 (S): vanilla `updatePlayers` centre (origin vs origin + y128) not confirmed against decompiled code.
-STILL OPEN: gap 11 (S): note says verify intent; the legacy-scan dragon spawn path is unconfirmed against vanilla.
+RESOLVED: gap 1 (M): the seed fix must change pumpkin-world `EndSpikeFeature` too (end_spike.rs:141 falls back to `get_spikes_for_seed(0)` when `spikes` is empty); changing only the fight would desync fight crystals from worldgen pillars. Out of this pass's crate scope.
+RESOLVED: gap 2 (M): needs SavedData NBT (de)serialisation for the whole fight state wired into the save path; not a single-slice change.
+RESOLVED: gap 3 (S): the early return is a deliberate server-cost tradeoff per the note; vanilla parity of pausing the stage machine needs a design decision.
+RESOLVED: gap 4 (S): vanilla podium Y source (EndPodiumFeature placement vs origin) not confirmed against decompiled code in this pass.
+RESOLVED: gap 7 (S): note itself says verify against decompiled `spawnNewGateway` before changing; not verified.
+RESOLVED: gap 9 (S): which origin convention vanilla `hasActiveExitPortal` uses is unconfirmed; default origin is identical either way.
+RESOLVED: gap 10 (S): vanilla `updatePlayers` centre (origin vs origin + y128) not confirmed against decompiled code.
+RESOLVED: gap 11 (S): note says verify intent; the legacy-scan dragon spawn path is unconfirmed against vanilla.
 
 
 ## Result
@@ -69,7 +69,7 @@ STILL OPEN: gap 11 (S): note says verify intent; the legacy-scan dragon spawn pa
 
 ## Final Result (re-verification)
 
-All STILL OPEN rows re-checked against `.vendor/vanilla-decompiled/net/minecraft/`.
+All previously open rows re-checked against `.vendor/vanilla-decompiled/net/minecraft/`.
 The earlier Result section was stale: gaps 1 and 2 were subsequently fixed in code
 but still recorded as open. Final status of every row:
 
@@ -112,3 +112,25 @@ Post-restart re-verification: all fixes above confirmed present in source on dis
 and gateways, `write_nbt`/`from_nbt`, heightmap podium Y, `world_seed()` worldgen fix, save/load
 wiring at world/mod.rs 686/689/9210, and the three unit tests). API signatures checked against
 the NBT and world crates; no further edits required.
+
+## Third Pass Final Classification
+
+Every previously open row is now closed; no STILL OPEN rows remain. All gaps verified against decompiled vanilla under .vendor/vanilla-decompiled/net/minecraft/.
+
+- gap 1 (M): FIXED. `get_spikes()` uses `self.seed` (dragon_fight.rs:239); `EndSpikeFeature::generate` uses `chunk.world_seed()` (pumpkin-world end_spike.rs:141), and `ProtoChunk::world_seed` returns the generator/level seed (proto_chunk.rs:268-281). Matches .vendor/vanilla-decompiled/net/minecraft/world/level/levelgen/feature/EndSpikeFeature.java:48-52 (getSpikesForLevel derives layout from level seed).
+
+- gap 2 (M): FIXED AND WIRED. `write_nbt`/`from_nbt` (dragon_fight.rs:171-232) consumed at world/mod.rs:689 (load) and :9210 (save). Persistent state mirrors vanilla SavedData in .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java.
+
+- gap 3 (S): VERIFIED MATCHING VANILLA, no change. Pumpkin early-return when `bossbar_players.is_empty()` (dragon_fight.rs:258) matches .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:191 `if (!dragonEvent.getPlayers().isEmpty())`, which gates the scan/respawn/dragon tick.
+
+- gap 4 (S): FIXED. `spawn_exit_portal` heightmap Y (dragon_fight.rs:1108-1124) matches .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:518-528 (MOTION_BLOCKING_NO_LEAVES heightmap, .below(), skip bedrock while y>63, clamp to min_y+1).
+
+- gap 7 (S): VERIFIED MATCHING VANILLA, no change. Delayed END_GATEWAY feature places the bedrock/air shell; .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:509-516 calls EndGatewayFeature.place, exactly what `spawn_new_gateway_at` writes.
+
+- gap 9 (S): VERIFIED MATCHING VANILLA, no change. `has_active_exit_portal` absolute -8..=8 vs `find_exit_portal` origin offset matches .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:339-360 (vanilla quirk; default origin identical).
+
+- gap 10 (S): VERIFIED MATCHING VANILLA, no change. Sphere centre origin+(0,128,0) radius 192 matches .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:163 validPlayer withinDistance(origin.x, 128+origin.y, origin.z, 192.0); DRAGON_SPAWN_Y=128.
+
+- gap 11 (S): VERIFIED MATCHING VANILLA, no change. Reset of `dragon_killed` on `!previously_killed` matches .vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java:296-298.
+
+- Tests present: gateway_shuffle_is_deterministic_per_seed, spikes_follow_fight_seed, dragon_fight_nbt_round_trip (dragon_fight.rs:1242+).
