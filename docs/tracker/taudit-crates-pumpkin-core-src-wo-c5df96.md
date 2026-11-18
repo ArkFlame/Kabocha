@@ -267,3 +267,32 @@ frame_check_follows_nether_portal_frame_tag,
 portal_floor_uses_legacy_solid_collision_shape, allowed_exit_centres_box_matches_vanilla.
 No unwrap/expect/panic, no println. No rustfmt needed (no source touched) and no
 build/test run (the orchestrator compiles).
+
+
+## Result (2026-11-18, final third pass)
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/` and the
+local `BlockFlags` values. No row is left STILL OPEN: all 12 rows end as VERIFIED
+(none needs a generated `pumpkin-data` field or a whole missing subsystem, so none is
+BLOCKED-DATA). The prior "third pass final" table of 12 VERIFIED rows stands.
+
+One real mismatch was found and fixed this pass:
+
+- FIXED nether.rs:798-804 fallback clear box flags. The decompiled
+  `PortalForcer.createPortal` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/portal/PortalForcer.java:193`
+  clears the fallback box with `Block.UPDATE_ALL` (Block.java:105 => flag 3 =
+  NEIGHBORS | CLIENTS). Pumpkin instead used client-only `NOTIFY_LISTENERS |
+  UPDATE_KNOWN_SHAPE` (258) for the obsidian floor and `NOTIFY_LISTENERS` (2) for
+  air, so neighbours were never updated. An earlier audit had misread the portal
+  interior placement (PortalForcer.java:213, `UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE`
+  = 18) as the box flag. Both box states now use `BlockFlags::NOTIFY_ALL` (3),
+  matching vanilla. The frame loop (nether.rs:810-822, `setBlockAndUpdate` =>
+  UPDATE_ALL) and the portal interior (nether.rs:828-837, flag 18) were already
+  correct and were left unchanged.
+
+No new pure unit test: the flag choice lives in `build_portal_frame`, which needs a
+live `World`, so there is no pure seam; `fallback_y` and the other pure helpers are
+already covered. No unwrap/expect/panic, no println, no em dashes, real newlines.
+No cargo/git/shell run (workers do not compile); the orchestrator batch-checks and
+rustfmt/checks the touched file.
