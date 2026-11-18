@@ -56,6 +56,7 @@ pub struct JavaConfig {
     #[toml(default = Self::default().connection_throttle, alias = "connection-throttle")]
     pub connection_throttle: u64,
     /// Byte limits for books edited by clients.
+    #[toml(default = Self::default().book_size)]
     pub book_size: BookSizeConfig,
 }
 

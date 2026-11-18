@@ -9863,6 +9863,11 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         use crate::entity::ai::test_support::world;
 
+        // World::load spawns chunk-system tasks via TaskTracker, which needs a runtime context.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let _guard = runtime.enter();
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let dirty = || {

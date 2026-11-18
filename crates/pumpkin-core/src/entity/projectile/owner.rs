@@ -363,6 +363,11 @@ mod tests {
     #[test]
     fn reference_resolves_owner_before_world_registration() -> Result<(), Box<dyn std::error::Error>>
     {
+        // World::load spawns chunk-system tasks via TaskTracker, which needs a runtime context.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let _guard = runtime.enter();
         let folder = tempfile::tempdir()?;
         let world = crate::entity::ai::test_support::world(&folder);
         let shooter: Arc<dyn EntityBase> = Arc::new(Entity::new(

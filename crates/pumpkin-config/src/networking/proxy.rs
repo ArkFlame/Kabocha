@@ -31,6 +31,7 @@ pub struct ProxyConfig {
     #[toml(default = Self::default().enabled)]
     pub enabled: bool,
     /// Configuration for `HAProxy` PROXY protocol integration.
+    #[toml(default = Self::default().haproxy)]
     pub haproxy: HAProxyConfig,
     /// Configuration for Velocity proxy integration.
     #[toml(default = Self::default().velocity)]

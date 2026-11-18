@@ -526,15 +526,15 @@ mod tests {
         ));
         goat.set_screaming(true);
         let stack = goat.create_horn();
-        assert!(
-            stack
-                .get_data_component::<InstrumentImpl>()
-                .is_some_and(|inst| {
-                    tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
-                        .0
-                        .contains(&inst.instrument.as_ref())
-                })
-        );
+        // The tag lists bare instrument names, while the component stores the namespaced asset id.
+        let instrument = stack
+            .get_data_component::<InstrumentImpl>()
+            .and_then(|inst| Instrument::from_name(&inst.instrument));
+        assert!(instrument.is_some_and(|inst| {
+            tag::Instrument::MINECRAFT_SCREAMING_GOAT_HORNS
+                .0
+                .contains(&inst.to_name())
+        }));
         world.level.shutdown().await;
         Ok(())
     }

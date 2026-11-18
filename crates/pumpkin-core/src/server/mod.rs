@@ -2322,9 +2322,10 @@ fn ring_tps(ring: &std::sync::Mutex<Box<[i64]>>, tick_count: i32, target_nanos: 
 /// and IDLE is the remainder of the raw full tick after the tick work.
 const fn tick_time_sample(full_tick_nanos: i64, tick_method_nanos: i64) -> [i64; 4] {
     let scheduled_tasks_nanos: i64 = 0;
-    let idle_nanos = full_tick_nanos
+    let remainder = full_tick_nanos
         .saturating_sub(tick_method_nanos)
         .saturating_sub(scheduled_tasks_nanos);
+    let idle_nanos = if remainder < 0 { 0 } else { remainder };
     [
         full_tick_nanos,
         tick_method_nanos,

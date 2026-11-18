@@ -243,7 +243,8 @@ pub fn knockback_after_resistance(strength: f64, resistance: f64) -> f64 {
 pub fn non_living_knockback_impulse(yaw_radians: f64, strength: f64) -> Vector3<f64> {
     Vector3::new(
         -yaw_radians.sin() * strength,
-        f64::from(0.1f32),
+        // Vanilla writes 0.1 as a double literal in push(double,double,double,..), not 0.1F.
+        0.1,
         yaw_radians.cos() * strength,
     )
 }

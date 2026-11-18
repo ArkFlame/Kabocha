@@ -149,10 +149,11 @@ mod tests {
 
     #[test]
     fn grow_gate_mirrors_vanilla_thirty_percent_rejection() {
-        assert!(passes_grow_gate(0.0));
-        assert!(passes_grow_gate(0.299_999));
-        assert!(!passes_grow_gate(0.3));
-        assert!(!passes_grow_gate(1.0));
+        // Vanilla rejects when nextFloat() < 0.3, so exactly 0.3 is accepted.
+        assert!(!passes_grow_gate(0.0));
+        assert!(!passes_grow_gate(0.299_999));
+        assert!(passes_grow_gate(0.3));
+        assert!(passes_grow_gate(1.0));
     }
 
     #[test]

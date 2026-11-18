@@ -364,6 +364,16 @@ mod tests {
         let bear = spawn(0.5);
         let target = spawn(2.0);
         let goal = MeleeAttackGoal::new(1.25, true);
+        // Vanilla clears the per-tick sensing cache in serverAiStep before goals run. This test
+        // calls the goal directly, so refresh it between states to force a fresh sight raycast.
+        let refresh_sight = || {
+            let mut sensing = bear
+                .get_mob_entity()
+                .sensing
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            sensing.tick();
+        };
         assert!(goal.can_perform_attack(bear.as_ref(), target.as_ref()));
 
         for y in 64..=66 {
@@ -373,11 +383,13 @@ mod tests {
                 flags,
             );
         }
+        refresh_sight();
         assert!(!goal.can_perform_attack(bear.as_ref(), target.as_ref()));
 
         for y in 64..=66 {
             world.set_block_state(&BlockPos::new(0, y, 1), Block::AIR.default_state.id, flags);
         }
+        refresh_sight();
         assert!(goal.can_perform_attack(bear.as_ref(), target.as_ref()));
         world.level.shutdown().await;
         Ok(())

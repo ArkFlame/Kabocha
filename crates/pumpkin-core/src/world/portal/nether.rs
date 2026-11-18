@@ -1012,12 +1012,14 @@ mod tests {
         };
         let center = Vector3::new(10.0, 64.9, 20.0);
         let allowed = allowed_centers(center, &dimensions);
+        // Vanilla promotes the float width to f64 in AABB.ofSize, so keep that precision.
+        let half_width = f64::from(dimensions.width) / 2.0;
         // Zero-height box expanded 1 block only towards +Y, then inflated by 1e-6.
-        assert!((allowed.min.x - (10.0 - 0.3 - 1.0e-6)).abs() < 1e-9);
-        assert!((allowed.max.x - (10.0 + 0.3 + 1.0e-6)).abs() < 1e-9);
-        assert!((allowed.min.y - (64.9 - 1.0e-6)).abs() < 1e-9);
-        assert!((allowed.max.y - (64.9 + 1.0 + 1.0e-6)).abs() < 1e-9);
-        assert!((allowed.min.z - (20.0 - 0.3 - 1.0e-6)).abs() < 1e-9);
-        assert!((allowed.max.z - (20.0 + 0.3 + 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.min.x - (center.x - half_width - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.x - (center.x + half_width + 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.min.y - (center.y - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.y - (center.y + 1.0 + 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.min.z - (center.z - half_width - 1.0e-6)).abs() < 1e-9);
+        assert!((allowed.max.z - (center.z + half_width + 1.0e-6)).abs() < 1e-9);
     }
 }

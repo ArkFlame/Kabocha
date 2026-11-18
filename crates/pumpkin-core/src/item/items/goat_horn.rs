@@ -141,16 +141,33 @@ mod tests {
 
     #[test]
     fn use_duration_is_read_from_the_stack_instrument() {
-        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
-        assert_eq!(GoatHornItem.get_use_duration(&stack), 0);
+        use pumpkin_data::data_component::DataComponent;
 
-        stack.set_data_component(InstrumentImpl {
-            instrument: Cow::Borrowed("minecraft:ponder_goat_horn"),
-        });
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        // Vanilla goat horns carry a default ponder instrument component (assets/items.json).
         assert_eq!(
             GoatHornItem.get_use_duration(&stack),
             i32::try_from(Instrument::PonderGoatHorn.use_duration_ticks()).unwrap_or(i32::MAX)
         );
+
+        // Without an instrument vanilla `getUseDuration` falls back to zero.
+        stack.remove_data_component(DataComponent::Instrument);
+        assert_eq!(GoatHornItem.get_use_duration(&stack), 0);
+
+        // An unknown builtin name has no duration entry.
+        stack.set_data_component(InstrumentImpl {
+            instrument: Cow::Borrowed("minecraft:not_an_instrument"),
+        });
+        assert_eq!(GoatHornItem.get_use_duration(&stack), 0);
+
+        // A stack-provided custom instrument overrides the item default duration.
+        stack.set_data_component(InstrumentImpl::from_custom(
+            "minecraft:test_horn",
+            2.5,
+            128.0,
+            1,
+        ));
+        assert_eq!(GoatHornItem.get_use_duration(&stack), 50);
     }
 
     #[test]
@@ -168,7 +185,11 @@ mod tests {
 
     #[test]
     fn use_result_fails_without_an_instrument() {
-        let stack = ItemStack::new(1, &Item::GOAT_HORN);
+        use pumpkin_data::data_component::DataComponent;
+
+        // Vanilla goat horns carry a default ponder instrument; FAIL needs it removed.
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        stack.remove_data_component(DataComponent::Instrument);
         assert!(GoatHornItem.use_result(&stack) == BlockActionResult::Fail);
 
         let mut stack = ItemStack::new(1, &Item::GOAT_HORN);

@@ -233,6 +233,7 @@ pub struct AdvancedConfiguration {
     #[toml(default = Self::default().advancement)]
     pub advancement: AdvancementConfig,
     /// Update checker configuration.
+    #[toml(default = Self::default().update_checker)]
     pub update_checker: UpdateCheckerConfig,
 }
 
@@ -592,14 +593,14 @@ mod tests {
         let path = std::path::Path::new("pumpkin.toml");
         for (source, diagnostic, expected_mode, field) in [
             (
-                "default_gamemode = Creative\n",
-                "default_gamemode = Creative",
+                "default_gamemode = \"creative\"\n",
+                "default_gamemode = \"creative\"",
                 GameMode::Survival,
                 "default_gamemode",
             ),
             (
-                "default_gamemode =\n",
-                "default_gamemode =",
+                "default_gamemode = \"\"\n",
+                "default_gamemode = \"\"",
                 GameMode::Survival,
                 "default_gamemode",
             ),
@@ -622,8 +623,8 @@ mod tests {
                 "telemetry.enabled",
             ),
             (
-                "default_gamemode = \"Creative\"\n[logging]\nfile = latest.log\n",
-                "file = latest.log",
+                "default_gamemode = \"Creative\"\n[logging]\nfile = 42\n",
+                "file = 42",
                 GameMode::Creative,
                 "logging.file",
             ),
@@ -668,6 +669,17 @@ mod tests {
         assert!(changed);
         assert_eq!(config.basic.default_gamemode, GameMode::Creative);
         assert!(config.basic.force_gamemode);
+    }
+
+    #[test]
+    fn missing_update_checker_section_uses_defaults() {
+        let source = "default_gamemode = \"Creative\"\n";
+        let (config, _, diagnostics) =
+            parse_configuration::<PumpkinConfig>(source, std::path::Path::new("pumpkin.toml"));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(config.basic.default_gamemode, GameMode::Creative);
+        assert!(config.advanced.update_checker.enabled);
+        assert_eq!(config.advanced.update_checker.connect_timeout, 5000);
     }
 
     #[test]

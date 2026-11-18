@@ -1064,8 +1064,8 @@ mod tests {
 
     #[test]
     fn scrub_address_keeps_separators() {
-        assert_eq!(scrub_address("192.168.0.1:25565"), "#.#.#.#:#####");
-        assert_eq!(scrub_address("[::1]:25565"), "[::#]:#####");
+        assert_eq!(scrub_address("192.168.0.1:25565"), "###.###.#.#:#####");
+        assert_eq!(scrub_address("[::1]:25565"), "#::##:#####");
     }
 
     #[test]

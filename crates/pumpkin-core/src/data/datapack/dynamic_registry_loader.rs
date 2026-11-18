@@ -286,11 +286,13 @@ pub fn load_dynamic_registries_from_ns<
     let mut visited_paths = HashSet::new();
 
     for &(registry_id, dir_names) in DYNAMIC_REGISTRIES {
-        let registry_map = registries.entry(registry_id.to_string()).or_default();
         for &dir_name in dir_names {
             let reg_dir = ns_path.join(dir_name);
             if reg_dir.is_dir() {
                 visited_paths.insert(reg_dir.clone());
+                // Vanilla always has every registry, but this map holds only datapack
+                // overrides: create a registry key only when its folder actually has data.
+                let registry_map = registries.entry(registry_id.to_string()).or_default();
                 let before = registry_map.len();
                 load_registry_dir_recursive(namespace, &reg_dir, &reg_dir, registry_map);
                 total_loaded += registry_map.len() - before;

@@ -1125,10 +1125,13 @@ mod tests {
 
     #[test]
     fn named_boat_keeps_its_drop_when_creative() {
+        // Vanilla VehicleEntity.hurtServer discards the vehicle on an instabuild hit without
+        // calling destroy, so a creative hit never drops the item even when named; the custom
+        // name is only copied onto the drop in the non-creative destroy path.
         assert!(drops_item_when_destroyed(false, false));
         assert!(drops_item_when_destroyed(false, true));
         assert!(!drops_item_when_destroyed(true, false));
-        assert!(drops_item_when_destroyed(true, true));
+        assert!(!drops_item_when_destroyed(true, true));
     }
 
     #[test]

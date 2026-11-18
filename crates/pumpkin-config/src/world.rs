@@ -34,20 +34,28 @@ pub struct LevelConfig {
 /// `spawn-limits`): raise them for a livelier world, lower them to save resources.
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, toml_spanner::Toml)]
 #[serde(default)]
+#[toml(ignore_unknown_fields, recoverable)]
 pub struct SpawnLimits {
     /// Hostile mobs (zombies, skeletons, spiders, ...).
+    #[toml(default = Self::default().monsters)]
     pub monsters: i32,
     /// Passive animals (cows, pigs, sheep, ...).
+    #[toml(default = Self::default().animals)]
     pub animals: i32,
     /// Bats.
+    #[toml(default = Self::default().ambient)]
     pub ambient: i32,
     /// Axolotls.
+    #[toml(default = Self::default().axolotls)]
     pub axolotls: i32,
     /// Glow squid and other underground water creatures.
+    #[toml(default = Self::default().water_underground_creature)]
     pub water_underground_creature: i32,
     /// Squid, dolphins and other water animals.
+    #[toml(default = Self::default().water_animals)]
     pub water_animals: i32,
     /// Tropical fish and other water ambient mobs.
+    #[toml(default = Self::default().water_ambient)]
     pub water_ambient: i32,
 }
 
@@ -194,6 +202,21 @@ mod tests {
         let partial: SpawnLimits = toml::from_str("monsters = 20\n").unwrap();
         assert_eq!(partial.monsters, 20);
         assert_eq!(partial.water_ambient, 20);
+    }
+
+    #[test]
+    fn spanner_keeps_a_default_cap_for_an_invalid_spawn_limit() {
+        let arena = toml_spanner::Arena::new();
+        let mut document = toml_spanner::parse_recoverable("monsters = \"many\"\n", &arena);
+        let result = document.to_allowing_errors::<SpawnLimits>();
+        assert!(result.is_ok());
+        let Ok((limits, errors)) = result else {
+            return;
+        };
+        // A bad value must not take the whole section down with it.
+        assert!(!errors.errors.is_empty());
+        assert_eq!(limits.monsters, 70);
+        assert_eq!(limits.water_ambient, 20);
     }
 }
 

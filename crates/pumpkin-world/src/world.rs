@@ -158,7 +158,11 @@ pub fn fluid_state_from_block_state(id: BlockStateId) -> (&'static Fluid, FluidS
     let source = source_variant(fluid);
     let mut state = source.states[source.default_state_index as usize].clone();
 
-    if let Some((level, block_state_id)) = liquid_level(id) {
+    // Only LiquidBlock overrides getFluidState to read LEVEL; blocks like cauldrons
+    // and composters expose a LEVEL property of their own and keep the empty state.
+    if fluid.id != Fluid::EMPTY.id
+        && let Some((level, block_state_id)) = liquid_level(id)
+    {
         // LiquidBlock#getFluidState: source, amounts 7..1, then falling amount 8.
         let amount = if level == 0 || level >= 8 {
             8
@@ -225,6 +229,17 @@ mod tests {
                 assert_eq!(state.is_source, level == 0);
                 assert_eq!(state.falling, level >= 8);
             }
+        }
+    }
+
+    #[test]
+    fn non_liquid_blocks_keep_empty_fluid_state() {
+        // Cauldrons expose LEVEL for their fill amount but are not LiquidBlock.
+        for block in [&Block::WATER_CAULDRON, &Block::LAVA_CAULDRON] {
+            let (fluid, state) = fluid_state_from_block_state(block.default_state.id);
+            assert_eq!(fluid.id, Fluid::EMPTY.id);
+            assert!(state.is_empty);
+            assert_eq!(state.height, 0.0);
         }
     }
 }

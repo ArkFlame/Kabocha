@@ -589,7 +589,7 @@ impl InstrumentImpl {
     ) -> Self {
         let separator = CUSTOM_INSTRUMENT_SEPARATOR;
         let encoded = format!(
-            "{CUSTOM_INSTRUMENT_PREFIX}{separator}{sound_name}{separator}{}{separator}{}{separator}{durability_damage}",
+            "{CUSTOM_INSTRUMENT_PREFIX}{sound_name}{separator}{}{separator}{}{separator}{durability_damage}",
             use_duration.to_bits(),
             range.to_bits()
         );

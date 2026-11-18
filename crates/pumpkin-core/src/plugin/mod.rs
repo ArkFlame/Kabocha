@@ -3619,7 +3619,7 @@ mod tests {
         });
         started.notified().await;
 
-        // The child's commands pin p, so p's library must stay
+        // p owns child_loader, so its unload must wait for the child's cleanup
         let unloading = Arc::clone(&server);
         let unload = tokio::spawn(async move { unloading.plugin_manager.unload_plugin("p").await });
         // Lets p's unload reach the child before its cleanup goes on
@@ -3631,11 +3631,10 @@ mod tests {
 
         finish.notify_one();
         let unload = unload.await;
-        assert!(
-            matches!(&unload, Ok(Err(e)) if e.is_library_in_use()),
-            "{unload:?}"
-        );
-        assert_eq!(loader.unloaded(), 0);
+        // Commands are removed from the tree before release (Paper's CommandMap removal),
+        // so p's library is free once the failed child's cleanup has finished.
+        assert!(matches!(&unload, Ok(Ok(()))), "{unload:?}");
+        assert_eq!(loader.unloaded(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]

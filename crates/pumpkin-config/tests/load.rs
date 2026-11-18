@@ -38,7 +38,7 @@ fn invalid_values_do_not_reset_other_fields_in_the_same_table()
 default_gamemode = "Creative"
 force_gamemode = true
 default_difficulty = "Invalid"
-difficulty = peaceful
+difficulty = "peaceful"
 
 [networking.java]
 max_players = "six"

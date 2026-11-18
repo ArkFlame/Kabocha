@@ -1957,15 +1957,14 @@ fn validate_macro_functions(functions: &mut HashMap<String, Vec<String>>) {
     let mut invalid = Vec::new();
     for (id, lines) in functions.iter_mut() {
         lines.retain(|line| {
-            line.strip_prefix('$').is_none_or(|template| {
-                match validate_macro_template(template) {
+            line.strip_prefix('$')
+                .is_none_or(|template| match validate_macro_template(template) {
                     Ok(()) => true,
                     Err(reason) => {
                         invalid.push((id.clone(), reason));
                         false
                     }
-                }
-            })
+                })
         });
     }
     for (id, reason) in invalid {
@@ -3744,6 +3743,9 @@ mod tests {
         assert!(packs.iter().any(|pack| pack == "vanilla"));
         assert!(packs.iter().any(|pack| pack == "file/custom"));
         assert!(!packs.iter().any(|pack| pack == "optional_embedded"));
-        assert_eq!(packs.iter().any(|pack| pack == "pumpkin-unit-test"), cfg!(debug_assertions));
+        assert_eq!(
+            packs.iter().any(|pack| pack == "pumpkin-unit-test"),
+            cfg!(debug_assertions)
+        );
     }
 }
