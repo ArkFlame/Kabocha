@@ -928,6 +928,8 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
         }
         _ => {}
     }
+    // Vanilla `ItemCommands#applyModifier` calls `newItem.limitSize(newItem.getMaxStackSize())`.
+    stack.item_count = stack.item_count.min(stack.get_max_stack_size());
 }
 
 /// Applies the vanilla `SetItemDamageFunction` to a stack.
@@ -1639,5 +1641,17 @@ mod tests {
         let mut stack = ItemStack::new(1, &Item::STONE);
         apply_item_modifier(&mut stack, &NbtTag::Compound(sequence));
         assert_eq!(stack.item_count, 5);
+    }
+
+    #[test]
+    fn set_count_clamps_to_max_stack_size_like_vanilla_limit_size() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:set_count".to_string());
+        function.put("count", NbtTag::Int(100));
+
+        let mut stack = ItemStack::new(1, &Item::STONE);
+        let max = stack.get_max_stack_size();
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        assert_eq!(stack.item_count, max);
     }
 }
