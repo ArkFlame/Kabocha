@@ -2830,6 +2830,27 @@ impl DataComponentCodec<Self> for BlockEntityDataImpl {
 
 impl DataComponentCodec<Self> for InstrumentImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
+        if let Some(custom) = self.custom_definition() {
+            crate::IdOr::<crate::SoundEvent>::write(
+                &crate::IdOr::Value(crate::SoundEvent {
+                    sound_name: custom.sound_name.clone(),
+                    range: None,
+                }),
+                seq,
+                |w, e| {
+                    w.write_string(&e.sound_name)?;
+                    w.write_option(&e.range, |w2, r| w2.write_f32(*r))
+                },
+            )?;
+            seq.write_f32(custom.use_duration)?;
+            seq.write_f32(custom.range)?;
+            seq.write_var_int(&VarInt(custom.durability_damage))?;
+            seq.write_nbt_with_version(
+                Some(&NbtTag::String(custom.sound_name.clone().into())),
+                &JavaMinecraftVersion::V_26_2,
+            )?;
+            return Ok(());
+        }
         let id = pumpkin_data::instrument::Instrument::from_name(&self.instrument)
             .map_or(1, |inst| inst.id() as i32 + 1);
         seq.write_var_int(&VarInt(id))
@@ -2837,26 +2858,43 @@ impl DataComponentCodec<Self> for InstrumentImpl {
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
         let raw_id = seq.get_var_int()?.0;
-        let instrument = if raw_id <= 0 {
-            let _sound = crate::IdOr::<crate::SoundEvent>::read(seq, |r| {
+        if raw_id <= 0 {
+            // A non-positive id means the holder carries an inline, datapack-defined instrument.
+            let sound = crate::IdOr::<crate::SoundEvent>::read(seq, |r| {
                 let sound_name = r.get_str()?.to_string();
                 let range = r.get_option(NetworkReadExt::get_f32)?;
                 Ok(crate::SoundEvent { sound_name, range })
             })
             .map_err(|e| ReadingError::Message(format!("No sound: {e}")))?;
-            let _use_duration = seq.get_f32()?;
-            let _range = seq.get_f32()?;
+            let sound_name = proto_to_data_sound(&sound).map_or_else(
+                || "minecraft:item.goat_horn.sound.0".to_owned(),
+                |resolved| match resolved {
+                    IdOr::Id(id) => Sound::NAMES.get(id as usize).map_or_else(
+                        || "minecraft:item.goat_horn.sound.0".to_owned(),
+                        |name| format!("minecraft:{name}"),
+                    ),
+                    IdOr::Value(event) => event.sound_name,
+                },
+            );
+            let use_duration = seq.get_f32()?;
+            let range = seq.get_f32()?;
+            let durability_damage = seq.get_var_int()?.0;
             let _description = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            Cow::Borrowed("minecraft:ponder_goat_horn")
+            Ok(InstrumentImpl::from_custom(
+                &sound_name,
+                use_duration,
+                range,
+                durability_damage,
+            ))
         } else {
             let idx = (raw_id - 1) as usize;
-            pumpkin_data::instrument::Instrument::all()
+            let instrument = pumpkin_data::instrument::Instrument::all()
                 .get(idx)
                 .map_or(Cow::Borrowed("minecraft:ponder_goat_horn"), |inst| {
                     Cow::Borrowed(inst.asset_id())
-                })
-        };
-        Ok(Self { instrument })
+                });
+            Ok(Self { instrument })
+        }
     }
 }
 
