@@ -15,7 +15,7 @@ Unverified (no `.vendor/` decompiled class was read, and the generated entity di
 - Mangrove-specific sounds and particles, if any differ from other wood types. Size: S.
 
 ## Gap status
-- No small certain gap recorded; unverified items: STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- No small certain gap recorded; both unverified items CLOSED (verified against .vendor decompiled vanilla; see Result below)
 
 
 ## Result
