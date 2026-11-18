@@ -179,3 +179,44 @@ this pass.
 No new source file was touched, so `rustfmt` was not needed. No seam for a new pure unit
 test: every in-scope fix is already covered by the pure-function tests listed above, and
 the remaining row's only gap is plugin API plumbing.
+
+
+## Result (pass 3, 2026-11-18)
+
+Every row verified once more against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java`
+(Minecraft 26.3, Paper/Canvas). All previously open rows are now closed.
+
+- First table row 44 / re-audit row 90 (data-driven speed multiplier, M): FIXED in tree.
+  `tick` reads `CookingFuelImpl::get_speed_multiplier(is_fast)` (default 1.0 when the fuel
+  has no `cooking_fuel` component) at ignition, `cooking_total_time` divides the recipe time
+  by it with vanilla's `speedMultiplier > 0.0F` guard, and both NBT paths persist/restore the
+  float. Matches `getSpeedMultiplier` + `getTotalCookTimeVanilla`
+  (`AbstractFurnaceBlockEntity.java:420-432`).
+- First table row 45 (FurnaceStartSmeltEvent total, S): FIXED in tree. The event total is
+  recomputed from the current recipe and the persisted multiplier with a 200 default, matching
+  `getTotalCookTime(level, entity)` (`:434-440`) used at `:295-305`.
+- First table row 46 (result count, S): FIXED in tree. `craft_recipe` increments the output by
+  `recipe.result.count` and `can_accept_recipe_output` requires room for the whole count,
+  matching `canBurn`/`burn` (`:358-404`).
+- First table row 47 / re-audit row 91 (relight rescale, S): FIXED in tree.
+  `rescale_cooking_after_relight` mirrors `:278-282` (`completionRatio * newTotal`, ceil, only
+  while `cookingTimer < cookingTotalTime`).
+- Re-audit row 92 (recipe result components, S): FIXED in tree. `assemble_cooking_result` applies
+  `recipe.result.components` to the output stack, matching `recipe.assemble(input)` (`:256-257`).
+- Re-audit row 93 (FurnaceBurnEvent `consume_fuel`, M): FIXED this pass. The core event already
+  carried `consume_fuel` and `tick` skips `consumeFuel` when it is false, matching
+  `:284-287` (`if (burnEvent.willConsumeFuel()) consumeFuel(...)`). The plugin gap is closed:
+  `consume-fuel: bool` was added to the v0.2 `furnace-burn-event` record
+  (`crates/pumpkin-plugin-wit/v0.2/event.wit`) and the wasm host v0.2 conversion now maps it in
+  both directions instead of hardcoding `true`
+  (`crates/pumpkin-wasm-host-v0_2/src/events/inventory.rs`). v0.1 is deprecated and frozen for
+  compatibility, so its record shape was left unchanged (a record-shape edit would break the
+  existing v0.1 ABI).
+
+No test was added: the only new seam is a wasm-host conversion that needs a live
+`PluginHostState`, and the shared cooking helpers keep their existing pure-function tests
+(`cooking_time_divides_by_the_persisted_multiplier`,
+`relight_rescales_progress_by_the_multiplier_change`,
+`assemble_cooking_result_applies_recipe_components`,
+`furnace_speed_multiplier_round_trips_through_nbt`).
