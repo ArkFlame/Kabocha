@@ -39,10 +39,10 @@ None. No gap below is both small and certain; details and sizes are recorded ins
   are covered by the module's own async tests.
 
 ## Gapwave2-2 status (h3)
-- TODO remove plugin command nodes on reload: STILL OPEN (L, dispatcher node removal not started)
+- TODO remove plugin command nodes on reload: FIXED (re-verified pass 5; `Tree::remove_root_command` + `CommandDispatcher::remove_commands_from_source` + `Context::unregister_commands`, no `commands` early return in `release_library`)
 - blocking/non-blocking dispatch order: FIXED b9ab007b1 (handlers now run sequentially in the pre-sorted priority order, Paper/Bukkit style; non-blocking handlers lose concurrency by design; UNVERIFIED, no unit test since fire_dyn needs a live Server)
 - handler panic isolation: FIXED b9ab007b1 (each handler wrapped in AssertUnwindSafe.catch_unwind, logs `Could not pass event ... to plugin ...`; UNVERIFIED, no test)
-- TODO remove plugin command nodes on reload: STILL OPEN (L, the dispatcher node removal is not started)
+- TODO remove plugin command nodes on reload: FIXED (verified in Result passes 2-4 and re-verified pass 5; subtree removal, alias handling and library release all in place)
 
 ## Result
 
@@ -139,3 +139,18 @@ Tests added: `removing_root_command_detaches_alias_and_descendants` (tree.rs),
 Files touched this pass: `crates/pumpkin-command/src/node/tree.rs`,
 `crates/pumpkin-command/src/node/dispatcher.rs`,
 `crates/pumpkin-core/src/plugin/api/context.rs` (code, doc, tests), and this doc.
+
+## Result (verification pass 5 - dispatcher unit THIRD PASS)
+
+Re-verified all three rows against the current source; no STILL OPEN markers remain.
+Paper `CommandMap.unregister` / `HandlerList` / `ComplexEventListener` remain the reference
+(vanilla has no plugin system).
+
+| Row | Result |
+|---|---|
+| Remove plugin command nodes from the tree after reload | FIXED. Verified in tree.rs:430 (`remove_root_command` detaches primary + redirecting aliases + subtrees, clears names/global ids, replaces slots with inert literals), dispatcher.rs:189-201 (`remove_command`, `remove_commands_from_source`), context.rs:118/327-350 (`has_commands` consults live tree, `unregister_command(s)` remove nodes) and mod.rs:462 (`release_library` has no `commands` early return). Four unit tests pin it. |
+| Blocking/non-blocking dispatch order | FIXED in b9ab007b1, unchanged. mod.rs:2949-2970 runs handlers sequentially in pre-sorted priority order. |
+| Per-handler panic isolation | FIXED in b9ab007b1, unchanged. mod.rs:2955-2969 wraps each handler in `AssertUnwindSafe(..).catch_unwind()` and logs via `tracing`. |
+
+No source edit needed this pass (all fixes and tests present); only stale STILL OPEN
+markers in the h3 status section were corrected and this Result recorded.

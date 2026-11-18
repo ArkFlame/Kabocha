@@ -487,7 +487,9 @@ impl WitherEntity {
                             wither_pos.y + rand::random_range(-5.0..5.0),
                             wither_pos.z + rand::random_range(-10.0..10.0),
                         );
-                        self.perform_ranged_attack(i, xt, yt, zt, true);
+                        // Vanilla fires side heads as performRangedAttack(i + 1, ...).
+                        // head 3 wraps to the head-1 angle via 180 * (index - 1).
+                        self.perform_ranged_attack(i + 1, xt, yt, zt, true);
                         self.idle_head_updates[i - 1].store(0, Ordering::Relaxed);
                     }
 
@@ -503,7 +505,7 @@ impl WitherEntity {
                                 let bb = target.get_entity().bounding_box.load();
                                 let half_height = (bb.max.y - bb.min.y) * 0.5;
                                 self.perform_ranged_attack(
-                                    i,
+                                    i + 1,
                                     t_pos.x,
                                     t_pos.y + half_height,
                                     t_pos.z,
