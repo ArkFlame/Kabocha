@@ -1707,10 +1707,38 @@ mod tests {
 
     #[test]
     fn dynamic_shape_blocks_are_not_full_cube_bucketed() {
-        assert!(super::has_dynamic_shape("moving_piston"));
-        assert!(super::has_dynamic_shape("bamboo"));
-        assert!(super::has_dynamic_shape("shulker_box"));
-        assert!(super::has_dynamic_shape("red_shulker_box"));
+        // Every `.dynamicShape()` registration in vanilla Blocks.java: moving piston,
+        // bamboo, scaffolding, powder snow, pointed dripstone, sulfur spike, plus the
+        // shulker-box family (base + 16 dyed colours via shulkerBoxProperties). No block
+        // overrides Block.hasDynamicShape(), so this list is the complete set.
+        const DYNAMIC_SHAPE_NAMES: &[&str] = &[
+            "moving_piston",
+            "bamboo",
+            "scaffolding",
+            "powder_snow",
+            "pointed_dripstone",
+            "sulfur_spike",
+            "shulker_box",
+            "white_shulker_box",
+            "orange_shulker_box",
+            "magenta_shulker_box",
+            "light_blue_shulker_box",
+            "yellow_shulker_box",
+            "lime_shulker_box",
+            "pink_shulker_box",
+            "gray_shulker_box",
+            "light_gray_shulker_box",
+            "cyan_shulker_box",
+            "purple_shulker_box",
+            "blue_shulker_box",
+            "brown_shulker_box",
+            "green_shulker_box",
+            "red_shulker_box",
+            "black_shulker_box",
+        ];
+        for name in DYNAMIC_SHAPE_NAMES {
+            assert!(super::has_dynamic_shape(name), "unhandled dynamic shape: {name}");
+        }
         assert!(!super::has_dynamic_shape("stone"));
         assert!(!super::has_dynamic_shape("glass"));
         assert!(!super::has_dynamic_shape("bamboo_sapling"));
