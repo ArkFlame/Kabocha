@@ -53,15 +53,15 @@ No code change: every candidate fix above is either M-sized or needs the decompi
 `AbstractBoat` (`floatBoat` ordering/gravity, `handleMoveVehicle` wrapping) to satisfy WORKER.md
 rule 12; the worktree has no `.vendor/` reference to check against.
 
-## Gap status
-- 1 bubble time publish (boat.rs:286, physics.rs:185): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 rider position clamp (passengers.rs:34): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 float_boat air-to-water transition (physics.rs:185-243): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 floatBoat gravity constant (physics.rs:218): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 5 MoveVehicle rotation (move_vehicle.rs:73): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 6 paddle boat handler (paddle_boat.rs:6-10): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 7 dead move_from_client path (physics.rs:267): STILL OPEN (dead-code cleanup, size S, physics excluded)
-- 8 no boat gametest coverage: STILL OPEN (needs gametest, not in scope)
+## Gap status (final 2026-11-18)
+- 1 bubble time publish (boat.rs): VERIFIED FIXED
+- 2 rider position clamp (boat.rs): VERIFIED FIXED
+- 3 float_boat air-to-water transition (physics.rs): VERIFIED CORRECT
+- 4 floatBoat gravity constant (physics.rs): VERIFIED CORRECT
+- 5 MoveVehicle rotation (move_vehicle.rs): VERIFIED FIXED
+- 6 paddle boat handler (paddle_boat.rs): VERIFIED FIXED
+- 7 dead move_from_client path (physics.rs): VERIFIED FIXED
+- 8 boat gametest coverage (boat_block_effects.rs): VERIFIED FIXED
 
 
 ## Result
@@ -331,5 +331,49 @@ present and match the cited vanilla paths.
 No code changes this pass: all rows were already fixed and re-verified above. No pure unit-test
 seam exists for the packet handlers (they need a live Player/world/vehicle graph), so none added.
 No rustfmt run (no .rs file touched). No cargo or git command run (shell denied to workers).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
+
+
+## Result (final verify 2026-11-18, main checkout)
+
+Verified every row against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/ (task-given path, present in this checkout).
+No source file was edited: every fix is already present in the code and matches the
+cited vanilla member. No STILL OPEN rows remain.
+
+- Row 1 (bubble time publish, boat.rs): VERIFIED FIXED. Generated field ID_BUBBLE_TIME
+  exists and boat.rs arms the 60-tick countdown in on_above_bubble_column (:647), writes
+  ID_BUBBLE_TIME (:656), decrements/republishes it in tick_bubble_column (:434-446) and
+  applies the capped vertical impulse via bubble_column_vertical_velocity (:472, :976).
+  Matches vanilla AbstractBoat.java onAboveBubbleColumn/tickBubbleColumn/
+  handleBubbleColumnEffect. Not BLOCKED-DATA.
+- Row 2 (rider rotation clamp, boat.rs): VERIFIED FIXED. on_rider_positioned (:856) and
+  on_passenger_turned (:901) clamp non-player riders to +/-105 deg via clamp_rider_yaw
+  (:1009) with pure unit tests (:1039-1078); players stay client authoritative. Matches
+  vanilla AbstractBoat.java positionRider :696-706 / clampRotation :740-754.
+- Row 3 (float_boat air-to-water snap, physics.rs): VERIFIED CORRECT. The noCollision test
+  runs first (:201) and the surface snap offset is returned only when the target box is
+  clear, matching vanilla floatBoat :611-618. The doc premise was inverted; no change.
+- Row 4 (floatBoat gravity, physics.rs): VERIFIED CORRECT. -get_gravity() (:214) and
+  DEFAULT_GRAVITY/0.65 (:235) match vanilla floatBoat :608 / :645.
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED. Vanilla
+  ServerGamePacketListenerImpl.java :606-607 wraps with Mth.wrapDegrees; Pumpkin wraps
+  yaw/pitch at move_vehicle.rs:49-50 and applies via set_rotation at :91. client_move.rs
+  also wraps (:392-428). No change.
+- Row 6 (paddle boat handler, paddle_boat.rs): VERIFIED FIXED. Vanilla handlePaddleBoat
+  :2466 uses getControlledVehicle() instanceof AbstractBoat and Entity.java
+  getControlledVehicle :6661-6662 is an immediate-vehicle, controlling-passenger check.
+  Pumpkin paddle_boat.rs:10-22 checks the immediate vehicle's controlling passenger,
+  downcasts to BoatEntity and sets paddle state. No change.
+- Row 7 (dead move_from_client path, physics.rs): VERIFIED FIXED. No move_from_client
+  definition remains; the generic move_vehicle.rs handler supersedes it.
+- Row 8 (boat gametest coverage, boat_block_effects.rs): VERIFIED FIXED. Tests
+  test_boat_floats_up_after_fall, test_boat_ejects_passenger_after_60_underwater_ticks
+  and test_chest_boat_scatters_27_slots_on_break cover the requested scenarios.
+
+Compile-pitfall re-check: no .rs file was edited this pass, so no new import paths, helper
+placement, struct initializers, clones or clippy-pedantic issues were introduced. No
+rustfmt run (no .rs file touched). No cargo or git command run (worker shell denied).
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
