@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-- Gap 1: STILL OPEN: needs the 26.3 `spawnOffspringFromSpawnEgg` age guard; no decompiled vanilla in .vendor to confirm.
-- Gap 2: STILL OPEN: needs vanilla `Entity.load` handling of `Pos`/`UUID` to decide if stripping is deliberate.
-- Gap 3: STILL OPEN: needs vanilla `TrialSpawner.setEntityId` supported-type check and config regeneration source.
-- Gap 4: STILL OPEN: needs vanilla SpawnEggItem spawner branch (shrink vs consume, sendBlockUpdated flags) to confirm.
+- Gap 1: VERIFIED (matches vanilla). `SpawnEggItem.spawnOffspringFromSpawnEgg` (`.vendor/vanilla-decompiled/net/minecraft/world/item/SpawnEggItem.java:157-185`) has no adult gate on the parent: `parent instanceof AgeableMob` -> `getBreedOffspring`, else `type.create(...)` + `setBaby(true)`, then `snapTo(pos, 0.0F, 0.0F)`. Pumpkin's `use_on_entity` (`spawn_egg.rs:460-508`) `Some`/`None` arms + `spawn_as_baby` + `set_rotation(0.0, 0.0)` match. No code change.
+- Gap 2: VERIFIED (matches vanilla). `TypedEntityData.loadInto` (`.vendor/.../world/item/component/TypedEntityData.java:152-162`) does `saveWithoutId` + `merge(getUnsafe())` + `entity.load` + `setUUID(uuid)`; the component strips only `id`, so an authored `Pos` moves the mob and `UUID` is restored. Pumpkin's `apply_entity_data` (`spawn_egg.rs:111-143`) strips only `id`/`UUID` and merges over `write_nbt`, matching. No code change.
+- Gap 3: VERIFIED (matches vanilla). `TrialSpawner.overrideEntityToSpawn` (`.vendor/.../world/level/block/entity/trialspawner/TrialSpawner.java:358-362`) is `data.reset()` + `config.overrideEntity(type)` + `setState(INACTIVE)`; `FullConfig.overrideEntity` (lines 420-427) uses `withSpawning(type)` for normal and ominous; there is no supported-type check. Pumpkin's `override_entity_to_spawn` (`trial_spawner.rs:1570-1579`) and `TrialSpawnerFullConfig::override_entity` (`trial_spawner.rs:525-528`) match, covered by `trial_spawner_override_entity_regenerates_potentials`. No code change.
+- Gap 4: VERIFIED (matches vanilla). `SpawnEggItem.useOn` spawner branch uses `itemStack.shrink(1)` (SpawnEggItem.java:74) and `sendBlockUpdated(pos, state, state, Block.UPDATE_ALL)` (line 72); `spawnMob` uses `consume(1, user)` (line 102). Pumpkin uses `item.decrement(1)` for spawner/trial-spawner (`spawn_egg.rs:408,420`) and `decrement_unless_creative` for spawn paths; `update_block_entity` + `BLOCK_CHANGE` covers the block update. No code change.
 
 ## Result
 STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
