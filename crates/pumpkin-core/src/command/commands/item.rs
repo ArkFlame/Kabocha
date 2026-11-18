@@ -371,6 +371,19 @@ const fn mob_inventory_index(mojang_slot: usize) -> Option<usize> {
     }
 }
 
+/// Vanilla mobs back `mob.inventory.*` with a fixed-size `SimpleContainer`:
+/// villagers and piglins have 8 slots, pillagers 5 (`Pillager.getSlot` uses
+/// `inventory.getContainerSize()`). Pumpkin stores these as growable `Vec`s that
+/// start empty, so unallocated slots must read as air and writes must grow them.
+const MOB_INVENTORY_SIZE: usize = 8;
+const PILLAGER_INVENTORY_SIZE: usize = 5;
+
+fn pad_inventory_to(inventory: &mut Vec<ItemStack>, index: usize) {
+    if inventory.len() <= index {
+        inventory.resize(index + 1, ItemStack::EMPTY.clone());
+    }
+}
+
 /// Reads the player's cursor (499) and 2x2 crafting grid (500..=503). Vanilla
 /// `Player.getSlot` resolves these through the player's own menu.
 fn read_player_menu_slot(
@@ -482,37 +495,46 @@ fn write_horse_slot(
     }
 }
 
-/// Villagers, pillagers and piglins expose their personal inventory at 300..=307.
+/// Villagers, piglins and pillagers expose their personal inventory at 300..=307.
 fn read_mob_slot(target: &Arc<dyn EntityBase>, mojang_slot: usize) -> Option<ItemStack> {
     let index = mob_inventory_index(mojang_slot)?;
     let any = target.cast_any();
     if let Some(villager) = any.downcast_ref::<VillagerEntity>() {
-        return villager
-            .inventory
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(index)
-            .cloned();
+        return (index < MOB_INVENTORY_SIZE).then(|| {
+            villager
+                .inventory
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| ItemStack::EMPTY.clone())
+        });
     }
     if let Some(trader) = any.downcast_ref::<WanderingTraderEntity>() {
         let inventory = &trader.merchant_inventory;
         return (index < inventory.size()).then(|| inventory.get_stack(index));
     }
     if let Some(piglin) = any.downcast_ref::<PiglinEntity>() {
-        return piglin
-            .inventory
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(index)
-            .cloned();
+        return (index < MOB_INVENTORY_SIZE).then(|| {
+            piglin
+                .inventory
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| ItemStack::EMPTY.clone())
+        });
     }
     if let Some(pillager) = any.downcast_ref::<PillagerEntity>() {
-        return pillager
-            .inventory
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(index)
-            .cloned();
+        return (index < PILLAGER_INVENTORY_SIZE).then(|| {
+            pillager
+                .inventory
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| ItemStack::EMPTY.clone())
+        });
     }
     None
 }
@@ -527,16 +549,16 @@ fn write_mob_slot(
     };
     let any = target.cast_any();
     if let Some(villager) = any.downcast_ref::<VillagerEntity>() {
+        if index >= MOB_INVENTORY_SIZE {
+            return false;
+        }
         let mut inventory = villager
             .inventory
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        return if index < inventory.len() {
-            inventory[index] = item_stack.clone();
-            true
-        } else {
-            false
-        };
+        pad_inventory_to(&mut inventory, index);
+        inventory[index] = item_stack.clone();
+        return true;
     }
     if let Some(trader) = any.downcast_ref::<WanderingTraderEntity>() {
         let inventory = &trader.merchant_inventory;
@@ -548,28 +570,28 @@ fn write_mob_slot(
         };
     }
     if let Some(piglin) = any.downcast_ref::<PiglinEntity>() {
+        if index >= MOB_INVENTORY_SIZE {
+            return false;
+        }
         let mut inventory = piglin
             .inventory
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        return if index < inventory.len() {
-            inventory[index] = item_stack.clone();
-            true
-        } else {
-            false
-        };
+        pad_inventory_to(&mut inventory, index);
+        inventory[index] = item_stack.clone();
+        return true;
     }
     if let Some(pillager) = any.downcast_ref::<PillagerEntity>() {
+        if index >= PILLAGER_INVENTORY_SIZE {
+            return false;
+        }
         let mut inventory = pillager
             .inventory
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        return if index < inventory.len() {
-            inventory[index] = item_stack.clone();
-            true
-        } else {
-            false
-        };
+        pad_inventory_to(&mut inventory, index);
+        inventory[index] = item_stack.clone();
+        return true;
     }
     false
 }
@@ -1149,6 +1171,20 @@ mod tests {
         assert_eq!(mob_inventory_index(307), Some(7));
         assert_eq!(mob_inventory_index(299), None);
         assert_eq!(mob_inventory_index(308), None);
+    }
+
+    #[test]
+    fn pad_inventory_to_fills_unallocated_slots_with_air() {
+        let mut inventory = Vec::new();
+        pad_inventory_to(&mut inventory, 4);
+        assert_eq!(inventory.len(), 5);
+        assert!(inventory.iter().all(ItemStack::is_empty));
+
+        let diamond = ItemStack::new(1, &Item::DIAMOND);
+        inventory[2] = diamond.clone();
+        pad_inventory_to(&mut inventory, 1);
+        assert_eq!(inventory.len(), 5);
+        assert!(inventory[2].are_items_and_components_equal(&diamond));
     }
 
     #[test]

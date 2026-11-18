@@ -189,32 +189,18 @@ fn send_success(
     absolute_y: bool,
     distance: i32,
 ) {
-    let is_bedrock = context.source.player_or_none().is_some_and(|player| {
-        matches!(
-            player.client.as_ref(),
-            crate::net::ClientPlatform::Bedrock(_)
-        )
-    });
     // Bedrock's success lines take different positional arguments (structure: name, x, z,
-    // distance; biome: name, x, y, z, distance), which a shared Java-shaped list cannot
-    // satisfy, so Bedrock sources get their own argument list. Non-player sources keep the
-    // shared translate.
-    let message = if is_bedrock {
-        TextComponent::translate(
-            bedrock_key,
-            bedrock_success_args(name, target, absolute_y, distance),
-        )
-    } else {
-        TextComponent::translate_cross(
-            java_key,
-            bedrock_key,
-            [
-                TextComponent::text(name),
-                coordinates_text(target, absolute_y),
-                TextComponent::text(distance.to_string()),
-            ],
-        )
-    };
+    // distance; biome: name, x, y, z, distance), so the two editions need their own lists.
+    let message = TextComponent::translate_cross_with(
+        java_key,
+        bedrock_key,
+        [
+            TextComponent::text(name.clone()),
+            coordinates_text(target, absolute_y),
+            TextComponent::text(distance.to_string()),
+        ],
+        bedrock_success_args(name, target, absolute_y, distance),
+    );
     context.source.send_feedback(message, false);
 }
 

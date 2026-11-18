@@ -58,7 +58,7 @@ static ERROR_CREATE_IO_FAILURE: CommandErrorType<1> = CommandErrorType::new(
 const fn error_type_for(error: &DatapackError) -> &'static CommandErrorType<1> {
     match error {
         DatapackError::Unknown(_) | DatapackError::UnknownAnchor(_) => &ERROR_UNKNOWN_DATAPACK,
-        DatapackError::AlreadyEnabled(_) => &ERROR_ENABLE_FAILED,
+        DatapackError::AlreadyEnabled(_) | DatapackError::Incompatible(_) => &ERROR_ENABLE_FAILED,
         DatapackError::NotEnabled(_) | DatapackError::Embedded(_) => &ERROR_DISABLE_FAILED,
     }
 }

@@ -27,7 +27,14 @@ impl CommandExecutor for ReloadExecutor {
         );
 
         let server = context.server().clone();
-        server.reload_datapacks();
+        if server.reload_datapacks().is_err() {
+            // Vanilla's reloadPacks sends commands.reload.failure when reloadResources fails.
+            context.source.send_error(TextComponent::translate_cross(
+                translation::java::COMMANDS_RELOAD_FAILURE,
+                translation::java::COMMANDS_RELOAD_FAILURE,
+                [],
+            ));
+        }
 
         Ok(0)
     }
