@@ -268,8 +268,9 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:iron_golem_pattern_clears_all_four_blocks",
     "pumpkin:different_item_entities_do_not_merge",
     "pumpkin:item_entities_stack_up_to_combined_count",
-    // boat_block_effects (6)
+    // boat_block_effects (7)
     "pumpkin:boat_breaks_lily_pad_on_landing",
+    "pumpkin:boat_sweep_ignites_on_fire",
     "pumpkin:birch_boat_floats_then_drops_on_break",
     "pumpkin:chest_boat_drops_item_on_break",
     "pumpkin:boat_floats_up_after_fall",
@@ -1813,6 +1814,13 @@ pub fn ensure_builtin_game_tests_registered() {
             60,
             0,
             boat_block_effects::test_boat_breaks_lily_pad_on_landing,
+        );
+        register_function_test(
+            "pumpkin:boat_sweep_ignites_on_fire",
+            "pumpkin:empty_5x5x5",
+            80,
+            0,
+            boat_block_effects::test_boat_sweep_ignites_on_fire,
         );
         register_function_test(
             "pumpkin:birch_boat_floats_then_drops_on_break",

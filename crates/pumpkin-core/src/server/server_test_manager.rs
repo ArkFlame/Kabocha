@@ -297,6 +297,26 @@ impl ServerGameTestWorld {
         self.world.update_block_entity(&entity);
     }
 
+    fn first_entity_in_box(
+        &self,
+        entity_name: &str,
+        min: pumpkin_util::math::vector3::Vector3<f64>,
+        max: pumpkin_util::math::vector3::Vector3<f64>,
+    ) -> Option<Arc<dyn crate::entity::EntityBase>> {
+        let normalized = entity_name.strip_prefix("minecraft:").unwrap_or(entity_name);
+        let bounds = pumpkin_util::math::boundingbox::BoundingBox::new(min, max);
+        let entities = self.world.entities.load_full();
+        entities
+            .iter()
+            .find(|entity| {
+                let base = entity.get_entity();
+                !base.is_removed()
+                    && base.entity_type.resource_name == normalized
+                    && base.bounding_box.load().intersects(&bounds)
+            })
+            .cloned()
+    }
+
     async fn ensure_chunk_loaded(&self, position: &BlockPos) {
         let chunk = position.chunk_position();
         let chunk_key = (chunk.x, chunk.y);
@@ -720,6 +740,32 @@ impl GameTestWorld for ServerGameTestWorld {
         Ok(count)
     }
 
+    async fn set_entity_velocity(
+        &self,
+        entity_name: &str,
+        min: pumpkin_util::math::vector3::Vector3<f64>,
+        max: pumpkin_util::math::vector3::Vector3<f64>,
+        velocity: pumpkin_util::math::vector3::Vector3<f64>,
+    ) -> GameTestResult<()> {
+        let entity = self.first_entity_in_box(entity_name, min, max).ok_or_else(|| {
+            GameTestError::World(format!("No {entity_name} in the test box"))
+        })?;
+        entity.get_entity().set_velocity(velocity);
+        Ok(())
+    }
+
+    async fn entity_fire_ticks(
+        &self,
+        entity_name: &str,
+        min: pumpkin_util::math::vector3::Vector3<f64>,
+        max: pumpkin_util::math::vector3::Vector3<f64>,
+    ) -> GameTestResult<Option<i32>> {
+        let Some(entity) = self.first_entity_in_box(entity_name, min, max) else {
+            return Ok(None);
+        };
+        Ok(Some(entity.get_entity().fire_ticks.load(Ordering::Relaxed)))
+    }
+
     async fn item_count_in_box(
         &self,
         item_name: &str,
@@ -944,15 +990,19 @@ impl GameTestWorld for ServerGameTestWorld {
             .await;
         let mut stack = pumpkin_data::item_stack::ItemStack::new(1, item);
         if let Some(nbt) = entity_data
-            && let Some(component) =
-                pumpkin_data::data_component_impl::EntityDataImpl::read_data(&NbtTag::Compound(
-                    nbt.clone(),
-                ))
+            && let Some(component) = pumpkin_data::data_component_impl::EntityDataImpl::read_data(
+                &NbtTag::Compound(nbt.clone()),
+            )
         {
             stack.set_data_component(component);
         }
         Ok(crate::item::items::spawn_egg::spawn_from_spawn_egg_stack(
-            &stack, &self.world, position, yaw, None, peaceful,
+            &stack,
+            &self.world,
+            position,
+            yaw,
+            None,
+            peaceful,
         ))
     }
 }

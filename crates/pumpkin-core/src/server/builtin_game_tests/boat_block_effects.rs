@@ -331,3 +331,50 @@ pub(super) async fn test_acacia_chest_boat_contents_and_item_drop(
         .then_succeed();
     Ok(())
 }
+
+/// A fast boat crosses fire blocks between its old and new standing boxes, so only the
+/// per-tick movement sweep (not the endpoint pass) can ignite it. Vanilla
+/// BaseFireBlock.entityInside ignites any non-fire-immune entity, while a lit campfire only
+/// damages living entities (a boat is not living), so fire gives a boat an observable effect.
+pub(super) async fn test_boat_sweep_ignites_on_fire(helper: GameTestHelper) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 5).await?;
+
+    // Fire row the boat flies over. It spawns left of x=2 so its spawn box does not
+    // overlap the fire, and is given enough speed to clear the row in a single tick.
+    for x in 2..=3 {
+        helper
+            .set_block_default(&BlockPos::new(x, 1, 2), &Block::FIRE)
+            .await?;
+    }
+
+    helper
+        .spawn_entity("minecraft:oak_boat", &BlockPos::new(0, 1, 2))
+        .await?;
+
+    let search_min = BlockPos::new(0, 0, 0);
+    let search_max = BlockPos::new(16, 6, 5);
+
+    helper
+        .start_sequence()
+        .then_execute(move |helper| async move {
+            helper
+                .set_entity_velocity(
+                    "minecraft:oak_boat",
+                    &search_min,
+                    &search_max,
+                    Vector3::new(7.0, 0.0, 0.0),
+                )
+                .await
+        })
+        .then_wait_until(move |helper| async move {
+            let fire = helper
+                .entity_fire_ticks("minecraft:oak_boat", &search_min, &search_max)
+                .await?;
+            helper.assert_true(
+                fire.is_some_and(|ticks| ticks > 0),
+                "expected the boat to ignite while sweeping across the fire row",
+            )
+        })
+        .then_succeed();
+    Ok(())
+}
