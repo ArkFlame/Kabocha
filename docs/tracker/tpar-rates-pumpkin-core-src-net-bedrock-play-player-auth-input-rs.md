@@ -49,3 +49,53 @@ Skipped: no source edits (all rows already fixed), no build/test (orchestrator c
 Risk: Bedrock-only field conventions (`camera_orientation`/`raw_move` signs, sneak raw
 flags, 0.1 analog deadzone) have no Geyser/protocol fixture or live client in `.vendor`;
 only the vanilla Java input mapping was verified mechanically.
+
+
+## Result (final pass verification)
+
+Every row re-verified this pass against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`. No source file needed an edit: all fixes are
+already present in the four named files with pure unit tests, and every protocol/client field
+they use exists (`SPlayerAuthInput.teleport`, `InputData::HandledTeleport`,
+`vehicle_rotation`, `vehicle_unique_id`, `camera_orientation`, `raw_move`,
+`BedrockClient.teleport_sent_pos`, `Player.bedrock_jump_charge_ticks`,
+`Player.awaiting_teleport`). No generated pumpkin-data field, WIT change or missing subsystem
+is required, so no row is BLOCKED-DATA. No cargo/git run (forbidden by the unit); rustfmt not
+applicable (no .rs touched this pass).
+
+Vanilla files checked this pass (line numbers confirmed):
+- `world/entity/player/Player.java:382-390` `getDesiredPose` returns SPIN_ATTACK only from
+  `isAutoSpinAttack` (389-390).
+- `server/level/ServerPlayer.java:3777-3781` `getLastClientMoveIntent` builds
+  `(leftIntent, 0, forwardIntent)`; `world/entity/Entity.java:2471-2481` `getInputVector`
+  maps that to world `(x*cos - z*sin, z*cos + x*sin)`, so LEFT -> +X and FORWARD -> +Z at
+  yaw 0. `camera_relative_move` sets LEFT for +X and is sign-correct.
+- `server/network/ServerGamePacketListenerImpl.java:2947-2953` `START_RIDING_JUMP` gates on
+  a controlled `PlayerRideableJumping`, `canJump()` and `data > 0`.
+- `server/network/ServerGamePacketListenerImpl.java:591,606-607,704-710` `handleMoveVehicle`
+  gates on `getControllingPassenger() == player` and snaps the mount to `targetYRot`/
+  `targetXRot`, matching `vehicle_id_matches` + `mount_rotation`.
+- `server/network/ServerGamePacketListenerImpl.java:857` `handleAcceptTeleportPacket` correlates
+  the ack by id; Bedrock's `HandledTeleport` flag / echoed `server_position` substitute, with
+  proximity + 20-input resend as fallback.
+
+| row | outcome | evidence |
+|---|---|---|
+| spin attack flags (S) | VERIFIED FIXED | Both Bedrock handlers call `update_player_pose()`, never `set_pose(SpinAttack)` from a client flag (Player.java:382-390). |
+| camera-relative movement (S) | VERIFIED FIXED | `camera_relative_move` projects `raw_move`; LEFT set for +X (ServerPlayer.java:3777-3781, Entity.java:2471-2481). |
+| sneak raw flags (S) | VERIFIED FIXED (Bedrock-only) | `sneaking_from_flags` toggle edge + raw fallbacks, edges win; four tests. No vanilla/Geyser source for the flags; only precedence verified. |
+| analog deadzone (S) | VERIFIED FIXED (Bedrock-only) | `ANALOG_DEADZONE` 0.1 in `analog_move`; threshold not from a decompiled source. |
+| `await_teleport` (M) | VERIFIED FIXED | `SPlayerAuthInput.teleport` echo + `HandledTeleport` flag + `player_action.rs` clearing on ack; proximity/20-input resend fallback (ServerGamePacketListenerImpl.java:857). |
+| `InputData::StartJumping` (M) | VERIFIED FIXED | Held `JumpDown` charge capped at `MAX_JUMP_CHARGE_TICKS` (90) swapped into `start_riding_jump` (ServerGamePacketListenerImpl.java:2947-2953). |
+| `apply_mount_move` (M) | VERIFIED FIXED | `get_controlling_passenger` check, `vehicle_id_matches`, `mount_rotation` from `vehicle_rotation` (x=pitch, y=yaw); tests present (handleMoveVehicle 591,606-607). |
+| vehicle branch boats/minecarts (L) | VERIFIED FIXED (MVP) | `apply_mount_move` takes `&Arc<dyn EntityBase>` and moves any controlled vehicle; paddle flags applied. |
+| `inventory_action.rs` `ReleaseItem` (adjacent, S) | VERIFIED FIXED | `player.stop_using_item()` at line 552 clears active hand and using-item, matching the Java path. |
+| `player_action.rs` `// TODO` catch-all (adjacent, M) | VERIFIED FIXED | Teleport acks clear pending state; remaining sneak/item-use/swing actions are documented intentional no-ops (auth-input applies effects each tick; `animate.rs` broadcasts swings at 31-35). |
+| on_ground from zero delta (S) | VERIFIED FIXED (Bedrock-only) | `is_on_ground` keeps stored ground state on zero delta, lands on downward delta; tests present. |
+| sprint `SprintDown` fallback (S) | VERIFIED FIXED | Edges win, then held `SprintDown` state (START/STOP_SPRINTING 2935-2940). |
+| unclamped stored delta (S) | VERIFIED FIXED | `store_input_state` zeroes non-finite/over-budget deltas via `MAX_CLIENT_STEP_SQUARED`. |
+
+Skipped: no source edits (all rows already fixed), no build/test (orchestrator compiles).
+Risk: Bedrock-only field conventions (`camera_orientation`/`raw_move` signs, sneak raw
+flags, 0.1 analog deadzone) have no Geyser/protocol fixture or live client in `.vendor`;
+only the vanilla Java input mapping was verified mechanically.

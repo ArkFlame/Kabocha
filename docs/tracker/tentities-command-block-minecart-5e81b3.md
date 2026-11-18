@@ -305,7 +305,7 @@ needed this pass; the second-pass Row 4 fix is present and type-correct in the c
   branch at `BaseCommandBlock.java:99-102` before the `lastExecution` write at 134-138; Pumpkin
   returns at `command_block.rs:160-164` before the write at 217-222.
 - Row 3 (command-block custom_name): VERIFIED, matches vanilla. Vanilla `BaseCommandBlock` owns its
-  own `customName` (line 32) and `getName()` defaults to @ (147-149), independent of the entity
+  own `customName` (line 32) and `getName()` defaults to "@" (147-149), independent of the entity
   name; Pumpkin keeps its own `custom_name` at `command_block.rs:44`.
 - Row 4 (hardcoded protocol version in entity NBT): FIXED. Vanilla `save()`
   (`BaseCommandBlock.java:50-63`) writes CustomName/LastOutput with the version-agnostic
