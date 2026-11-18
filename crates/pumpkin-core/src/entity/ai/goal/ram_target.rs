@@ -195,16 +195,10 @@ impl Goal for RamTargetGoal {
                 .is_some_and(|target| target.get_entity().is_alive())
     }
 
-    fn start(&mut self, mob: &dyn Mob) {
+    fn start(&mut self, _mob: &dyn Mob) {
         self.preparing = true;
         self.prepare_ticks = 0;
         self.repath_ticks = 0;
-        let prepare_sound = if is_screaming(mob) {
-            Sound::EntityGoatScreamingPrepareRam
-        } else {
-            Sound::EntityGoatPrepareRam
-        };
-        mob.play_entity_sound(prepare_sound, 1.0, 1.0);
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
@@ -232,6 +226,13 @@ impl Goal for RamTargetGoal {
         if self.preparing {
             self.preparing = false;
             self.charging = true;
+            // Vanilla PrepareRamNearestTarget plays the prepare sound when the 20-tick stand ends.
+            let prepare_sound = if is_screaming(mob) {
+                Sound::EntityGoatScreamingPrepareRam
+            } else {
+                Sound::EntityGoatPrepareRam
+            };
+            mob.play_entity_sound(prepare_sound, 1.0, 1.0);
         }
         if mob.is_in_attack_range(target.as_ref()) {
             self.impact(mob, target.as_ref());

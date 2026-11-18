@@ -162,7 +162,7 @@ impl Goal for BlazeShootFireballGoal {
 /// One fireball, aimed with a triangular spread that widens with the distance.
 fn shoot_fireball(
     blaze: &Entity,
-    rng: &mut rand::rngs::ThreadRng,
+    rng: &mut impl rand::RngExt,
     dx: f64,
     yd: f64,
     dz: f64,

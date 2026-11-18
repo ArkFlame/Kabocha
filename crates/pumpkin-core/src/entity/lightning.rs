@@ -292,8 +292,10 @@ impl EntityBase for LightningBoltEntity {
                     && !struck_entities.is_empty()
                 {
                     let distance = player.position().squared_distance_to_vec(&bolt_pos).sqrt();
-                    let bystander_types =
-                        struck_entities.iter().map(|e| e.entity_type.clone()).collect();
+                    let bystander_types = struck_entities
+                        .iter()
+                        .map(|e| e.entity_type.clone())
+                        .collect();
                     player.trigger_advancement(
                         crate::entity::player::advancement::trigger::AdvancementTrigger::LightningStrike {
                             bystander_types,

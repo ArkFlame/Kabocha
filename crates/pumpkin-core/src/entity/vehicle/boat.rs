@@ -50,13 +50,13 @@ const PADDLE_CUE: f32 = std::f32::consts::FRAC_PI_4;
 
 /// Vanilla AbstractBoat.tick plays a stroke as the paddle position crosses PI/4 inside a
 /// single PI/8 step, so a continuously paddling boat strokes twice per revolution.
-fn paddle_sound_cue(position: f32) -> bool {
+const fn paddle_sound_cue(position: f32) -> bool {
     position % std::f32::consts::TAU <= PADDLE_CUE
         && (position + PADDLE_STEP) % std::f32::consts::TAU >= PADDLE_CUE
 }
 
 /// Vanilla AbstractBoat.getPaddleSound: water in fluid, land beached, silent in the air.
-fn paddle_sound_for_status(status: BoatStatus) -> Option<Sound> {
+const fn paddle_sound_for_status(status: BoatStatus) -> Option<Sound> {
     match status {
         BoatStatus::InWater | BoatStatus::UnderWater | BoatStatus::UnderFlowingWater => {
             Some(Sound::EntityBoatPaddleWater)

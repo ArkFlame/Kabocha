@@ -145,7 +145,11 @@ fn merge_oldest_movement(movements: &mut VecDeque<BoatMovement>) {
 
 /// Mirrors `AABB.collidedAlongVector`: a shape counts as entered when the entity's
 /// centre segment clips the shape inflated by half the entity's dimensions.
-fn collided_along_vector(bounds: &BoundingBox, movement: Vector3<f64>, shape: &BoundingBox) -> bool {
+fn collided_along_vector(
+    bounds: &BoundingBox,
+    movement: Vector3<f64>,
+    shape: &BoundingBox,
+) -> bool {
     let from = bounds.get_center();
     let to = from + movement;
     let half = (bounds.max - bounds.min) * 0.5;
@@ -440,6 +444,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn inside_shape_gate_rejects_shape_outside_the_entity_path() {
+        let bounds = BoundingBox::new(
+            Vector3::new(0.25, 0.25, 0.25),
+            Vector3::new(0.75, 0.75, 0.75),
+        );
+        // A tripwire-like thin shape near the bottom of the block is not entered.
+        let thin = BoundingBox::new(
+            Vector3::new(0.0, 0.0625, 0.0),
+            Vector3::new(1.0, 0.15625, 1.0),
+        )
+        .at_pos(BlockPos::ZERO);
+        assert!(!collided_along_vector(&bounds, Vector3::default(), &thin));
+
+        let full = BoundingBox::full_block().at_pos(BlockPos::ZERO);
+        assert!(collided_along_vector(&bounds, Vector3::default(), &full));
+
+        // Moving along X enters a full block two cells away, but not one stacked above it.
+        let ahead = BoundingBox::full_block().at_pos(BlockPos::new(2, 0, 0));
+        let above = BoundingBox::full_block().at_pos(BlockPos::new(2, 2, 0));
+        let movement = Vector3::new(2.0, 0.0, 0.0);
+        assert!(collided_along_vector(&bounds, movement, &ahead));
+        assert!(!collided_along_vector(&bounds, movement, &above));
+    }
+
+    #[test]
     fn deflated_max_on_grid_boundary_keeps_vanilla_boundary_cell() {
         let bounds = BoundingBox::new(
             Vector3::new(0.25, 0.25, 0.25),
@@ -532,9 +561,14 @@ mod tests {
             Vector3::new(0.6875, 0.8125, 0.6875),
         );
         let mut visited = HashSet::new();
-        for_each_block_along_movement(bounds, Vector3::new(1000.0, 0.0, 500.0), None, |pos, _, _| {
-            visited.insert(pos);
-        });
+        for_each_block_along_movement(
+            bounds,
+            Vector3::new(1000.0, 0.0, 500.0),
+            None,
+            |pos, _, _| {
+                visited.insert(pos);
+            },
+        );
         // Recorded from 26.3: the last new cell is at step 14, so no final-box fallback runs.
         assert_eq!(visited.len(), 39);
         assert!(visited.contains(&BlockPos::new(10, 0, 5)));

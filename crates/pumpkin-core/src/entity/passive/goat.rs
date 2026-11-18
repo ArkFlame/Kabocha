@@ -270,17 +270,15 @@ impl AgeableMob for GoatEntity {
     }
 
     fn age_boundary_reached(&self) {
-        // Vanilla `Goat.ageBoundaryReached`: babies lose their horns, adults grow them back.
-        let (damage, has_horns) = if self.is_baby() {
-            (BABY_ATTACK_DAMAGE, false)
+        // Vanilla Goat.ageBoundaryReached only updates attack damage; horns never change with age.
+        let damage = if self.is_baby() {
+            BABY_ATTACK_DAMAGE
         } else {
-            (ADULT_ATTACK_DAMAGE, true)
+            ADULT_ATTACK_DAMAGE
         };
         self.mob_entity
             .living_entity
             .set_attribute_base(&Attributes::ATTACK_DAMAGE, damage);
-        self.set_has_left_horn(has_horns);
-        self.set_has_right_horn(has_horns);
     }
 }
 
@@ -381,9 +379,9 @@ impl Mob for GoatEntity {
         if let Some(screaming) = nbt.get_bool("IsScreamingGoat") {
             self.set_screaming(screaming);
         }
-        // Vanilla reads these with `CompoundTag.getBoolean`, so a missing key means "no horn".
-        self.set_has_left_horn(nbt.get_bool("HasLeftHorn").unwrap_or(false));
-        self.set_has_right_horn(nbt.get_bool("HasRightHorn").unwrap_or(false));
+        // Vanilla Goat.readAdditionalSaveData uses getBooleanOr(key, true): a missing key means horns are present.
+        self.set_has_left_horn(nbt.get_bool("HasLeftHorn").unwrap_or(true));
+        self.set_has_right_horn(nbt.get_bool("HasRightHorn").unwrap_or(true));
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
@@ -455,7 +453,7 @@ mod tests {
         };
         goat.set_baby(true);
         assert_eq!(attack_damage(), BABY_ATTACK_DAMAGE);
-        assert!(!goat.has_left_horn() && !goat.has_right_horn());
+        assert!(goat.has_left_horn() && goat.has_right_horn());
         goat.set_baby(false);
         assert_eq!(attack_damage(), ADULT_ATTACK_DAMAGE);
         assert!(goat.has_left_horn() && goat.has_right_horn());
@@ -464,7 +462,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn missing_horn_keys_load_as_no_horns() -> Result<(), Box<dyn std::error::Error>> {
+    async fn missing_horn_keys_load_as_present_horns() -> Result<(), Box<dyn std::error::Error>> {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let goat = GoatEntity::new(Entity::new(
@@ -473,7 +471,7 @@ mod tests {
             &EntityType::GOAT,
         ));
         goat.mob_read_nbt(&NbtCompound::new());
-        assert!(!goat.has_left_horn() && !goat.has_right_horn());
+        assert!(goat.has_left_horn() && goat.has_right_horn());
         assert_eq!(goat.get_max_head_rotation(), MAX_HEAD_Y_ROT);
         world.level.shutdown().await;
         Ok(())

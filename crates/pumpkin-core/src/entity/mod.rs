@@ -67,6 +67,7 @@ use pumpkin_util::math::{
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
 use pumpkin_util::version::JavaMinecraftVersion;
+use rand::{SeedableRng, TryRng};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{
     Arc, Weak,
@@ -1751,11 +1752,51 @@ pub enum LeashTick {
     CloseRange(Arc<dyn EntityBase>),
 }
 
+/// A handle to one entity's random generator, shared by all its goals in vanilla tick order.
+#[derive(Clone)]
+pub struct EntityRng {
+    state: Arc<std::sync::Mutex<rand::rngs::StdRng>>,
+}
+
+impl EntityRng {
+    /// Wraps the entity's shared random state.
+    pub(crate) const fn new(state: Arc<std::sync::Mutex<rand::rngs::StdRng>>) -> Self {
+        Self { state }
+    }
+}
+
+impl TryRng for EntityRng {
+    type Error = std::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .try_next_u32()
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .try_next_u64()
+    }
+
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .try_fill_bytes(dst)
+    }
+}
+
 /// Represents a non-living Entity (e.g. Item, Egg, Snowball...)
 #[repr(C)]
 pub struct Entity {
     /// A unique identifier for the entity
     pub entity_id: i32,
+    /// Per-entity random generator, matching vanilla's `Entity.random`.
+    pub(crate) rng: Arc<std::sync::Mutex<rand::rngs::StdRng>>,
     /// A persistent, unique identifier for the entity
     pub entity_uuid: uuid::Uuid,
     /// The type of entity (e.g., player, zombie, item)
@@ -2002,6 +2043,12 @@ impl Collision {
 }
 
 impl Entity {
+    /// A handle to this entity's own random generator.
+    #[must_use]
+    pub fn get_rng(&self) -> EntityRng {
+        EntityRng::new(Arc::clone(&self.rng))
+    }
+
     #[must_use]
     pub fn get_server(&self) -> Option<std::sync::Arc<Server>> {
         self.world.load().server.upgrade()
@@ -2114,6 +2161,9 @@ impl Entity {
         Self {
             entity_id,
             entity_uuid,
+            rng: Arc::new(std::sync::Mutex::new(rand::rngs::StdRng::from_rng(
+                &mut rand::rng(),
+            ))),
             entity_type,
             on_ground: AtomicBool::new(false),
             touching_water: AtomicBool::new(false),

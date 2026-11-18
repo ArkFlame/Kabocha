@@ -1,5 +1,5 @@
 use super::{
-    Entity, EntityBase, GearDamage, LeashTick,
+    Entity, EntityBase, EntityRng, GearDamage, LeashTick,
     ai::pathfinder::{Navigator, NavigatorGoal},
     living::LivingEntity,
 };
@@ -1669,8 +1669,8 @@ pub trait Mob: EntityBase + Send + Sync {
         false
     }
 
-    fn get_random(&self) -> rand::rngs::ThreadRng {
-        rand::rng()
+    fn get_random(&self) -> EntityRng {
+        self.get_entity().get_rng()
     }
 
     /// Vanilla `LivingEntity.onClimbable`. Override for spiders (always their climb

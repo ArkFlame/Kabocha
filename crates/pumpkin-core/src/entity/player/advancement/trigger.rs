@@ -853,7 +853,9 @@ impl Player {
                         distance_max,
                     } => {
                         if let Some(r) = req_b
-                            && !bystander_types.iter().any(|b| predicate::matches_id(r, b.as_str()))
+                            && !bystander_types
+                                .iter()
+                                .any(|b| predicate::matches_id(r, b.as_str()))
                         {
                             return false;
                         }

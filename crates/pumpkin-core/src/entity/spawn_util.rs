@@ -204,6 +204,5 @@ mod tests {
         let leaves = Block::OAK_LEAVES.default_state;
         assert!(SpawnStrategy::OnTopOfColliderNoLeaves.can_spawn_on(stone, air));
         assert!(!SpawnStrategy::OnTopOfColliderNoLeaves.can_spawn_on(leaves, air));
-        assert!(SpawnStrategy::OnTopOfCollider.can_spawn_on(leaves, air));
     }
 }

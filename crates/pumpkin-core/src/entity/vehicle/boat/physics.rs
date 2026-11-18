@@ -262,7 +262,7 @@ impl BoatEntity {
 }
 
 /// Vanilla `Boat#getGroundFriction`: no supporting block yields 0.0 instead of a NaN average.
-fn average_ground_friction(total: f32, count: u32) -> f32 {
+const fn average_ground_friction(total: f32, count: u32) -> f32 {
     if count == 0 {
         0.0
     } else {

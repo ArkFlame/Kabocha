@@ -423,11 +423,15 @@ impl Bucketable for AxolotlEntity {
             "AgeLocked",
             self.ageable_data.age_locked.load(Ordering::Relaxed),
         );
-        if let Some(ticks) = self.mob_entity.with_brain(self, |brain| {
-            brain.time_until_expiry(types::HAS_HUNTING_COOLDOWN.id())
-        }) {
-            nbt.put_long("HuntingCooldown", ticks);
-        }
+        // Vanilla gates on hasMemoryValue(HAS_HUNTING_COOLDOWN): the slot is registered
+        // even when empty, so time_until_expiry alone is not a presence check.
+        self.mob_entity.with_brain(self, |brain| {
+            if brain.has_memory_value(types::HAS_HUNTING_COOLDOWN.id())
+                && let Some(ticks) = brain.time_until_expiry(types::HAS_HUNTING_COOLDOWN.id())
+            {
+                nbt.put_long("HuntingCooldown", ticks);
+            }
+        });
         bucket.set_data_component(BucketEntityDataImpl { nbt: Some(nbt) });
     }
 
@@ -1529,6 +1533,17 @@ mod tests {
             brain.has_memory_value(types::HAS_HUNTING_COOLDOWN.id())
         });
         assert!(!has_cooldown);
+
+        // The cooldown memory is registered even when empty; saving must not write a
+        // HuntingCooldown key for an axolotl with no active cooldown (vanilla gate).
+        let fresh = axolotl(&world);
+        let mut fresh_bucket = ItemStack::new(1, &Item::AXOLOTL_BUCKET);
+        Bucketable::save_to_bucket_tag(&fresh, &mut fresh_bucket);
+        let fresh_tag = fresh_bucket
+            .get_data_component::<BucketEntityDataImpl>()
+            .and_then(|data| data.nbt.clone())
+            .expect("bucket NBT saved");
+        assert!(fresh_tag.get_long("HuntingCooldown").is_none());
 
         world.level.shutdown().await;
         Ok(())

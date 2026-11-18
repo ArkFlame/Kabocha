@@ -157,14 +157,14 @@ impl EntityBase for LeashKnotEntity {
         _amount: f32,
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
-        source: Option<&dyn EntityBase>,
+        _source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
         if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
         // Vanilla `BlockAttachedEntity.hurtServer` rejects mob-caused damage while `mob_griefing`
-        // is off; the causing entity (not the direct projectile) is what counts.
+        // is off; `cause` is the causing entity (`DamageSource.getEntity()`), not the projectile.
         if !self
             .entity
             .world
@@ -173,9 +173,7 @@ impl EntityBase for LeashKnotEntity {
             .load()
             .game_rules
             .mob_griefing
-            && cause
-                .or(source)
-                .is_some_and(|attacker| attacker.get_mob().is_some())
+            && cause.is_some_and(|attacker| attacker.get_mob().is_some())
         {
             return false;
         }
