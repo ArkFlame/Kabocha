@@ -2880,7 +2880,7 @@ impl DataComponentCodec<Self> for InstrumentImpl {
             let range = seq.get_f32()?;
             let durability_damage = seq.get_var_int()?.0;
             let _description = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            Ok(InstrumentImpl::from_custom(
+            Ok(Self::from_custom(
                 &sound_name,
                 use_duration,
                 range,
