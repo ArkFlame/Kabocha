@@ -981,6 +981,7 @@ impl DispenserBlock {
                 front,
                 front,
                 front_block,
+                ctx.facing.to_block_direction(),
             )
         };
 

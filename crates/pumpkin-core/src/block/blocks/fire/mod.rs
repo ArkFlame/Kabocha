@@ -48,7 +48,7 @@ impl FireBlockBase {
         block.has_tag(&tag::Block::MINECRAFT_SOUL_FIRE_BASE_BLOCKS)
     }
 
-    pub fn can_place_at(world: &Arc<World>, block_pos: &BlockPos) -> bool {
+    pub fn can_place_at(world: &Arc<World>, block_pos: &BlockPos, direction: BlockDirection) -> bool {
         let block_state = world.get_block_state(block_pos);
         if !block_state.is_air() {
             return false;
@@ -76,7 +76,7 @@ impl FireBlockBase {
                 direction: None,
                 player: None,
                 use_item_on: None,
-            }) || Self::should_light_portal_at(world, block_pos, BlockDirection::Up)
+            }) || Self::should_light_portal_at(world, block_pos, direction)
         }
     }
 

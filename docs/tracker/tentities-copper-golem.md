@@ -31,10 +31,10 @@ FIXED (UNVERIFIED): writes `next_weathering_tick` (long) and reads it with fallb
 - Fix: compare with `<=`. Cosmetic one-tick drift, nothing else depends on it.
 
 ## Gap status
-- 1 oxidized golem statue conversion (copper_golem.rs:266-273): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 item pickup / chest deposit (L): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 weathering NBT keys (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 weathering boundary one tick early (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 1 oxidized golem statue conversion (copper_golem.rs): VERIFIED - `update_weathering`/`turn_to_statue` match vanilla `CopperGolem.java:263-321`
+- 2 item pickup / chest deposit (L): VERIFIED - `TransportItemsBetweenContainers` (transport_items_between_containers.rs), registered copper_golem_ai.rs:49, drives all states
+- 3 weathering NBT keys (S): VERIFIED - `mob_write_nbt`/`mob_read_nbt` write `next_weather_age` long + `weather_state` string, match vanilla `CopperGolem.java:166-177`
+- 4 weathering boundary one tick early (S): VERIFIED (NO BUG) - `update_weathering` uses `>=`, matches vanilla `CopperGolem.java:270`
 
 ## Result
 
@@ -70,3 +70,15 @@ Third pass. Re-verified all four STILL OPEN rows against decompiled vanilla `net
 - Row 4 (weathering boundary, S): NO BUG. Traced both paths across a full cycle: `tick_weathering` (line 464, strict `game_time > next`) and `update_weathering` (line 261, `game_time >= next`) never double-advance because whichever advances first pushes `next` to a future tick (or 0 when Oxidized, where the `state != Oxidized` guard blocks further advancement). Combined effect is advancement at `game_time >= next`, matching vanilla line 270; `tick_weathering` only seeds the -1 timer.
 
 No pure unit-test seam (NBT/statue conversion need a live entity and world; enum tests would only mirror constants/derives). Skipped: no code changed, so no rustfmt/compile run by this worker.
+
+
+## Result (third pass 2026-11-18)
+
+Re-verified all four rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). All prior fixes are intact; no code changes were needed. Updated "Gap status" so no row remains STILL OPEN.
+
+- Row 1 (statue conversion): VERIFIED. `update_weathering` (copper_golem.rs:261) gates on Oxidized + air + TURN_TO_STATUE_CHANCE 0.0058 (matches vanilla `canTurnToStatue`, CopperGolem.java:284-286). `turn_to_statue` (copper_golem.rs:298) sets OXIDIZED_COPPER_GOLEM_STATUE with a random pose/facing, fires EntityChangeBlockEvent, transfers the custom name via `create_statue` (copper_golem_statue.rs:121), drops preserved equipment, handles the leash, removes the entity, and plays the become-statue sound. Matches vanilla CopperGolem.java:288-321.
+- Row 2 (pickup/deposit): VERIFIED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs), registered as an Idle priority-0 behavior (copper_golem_ai.rs:49), drives all CopperGolemState variants via `set_state`. Matches vanilla `CopperGolemAi`/`TransportItemsBetweenContainers`.
+- Row 3 (NBT keys): VERIFIED. `mob_write_nbt` writes `next_weather_age` (long) and `weather_state` as a lowercase string via constants (copper_golem.rs:582), matching vanilla `addAdditionalSaveData` CopperGolem.java:166-170. `mob_read_nbt` (copper_golem.rs:594) reads both with a legacy fallback, matching vanilla `readAdditionalSaveData` CopperGolem.java:172-177.
+- Row 4 (boundary): VERIFIED NO BUG. Vanilla uses `gameTime >= nextWeatheringTick` (CopperGolem.java:270). `update_weathering` uses `>=`, and `tick_weathering`'s `<=` guard cannot double-advance because next is pushed to a future tick. Effective advancement is at `game_time >= next`, matching vanilla.
+
+No pure unit-test seam exists (NBT and statue conversion need a live entity and world; enum conversion tests would only mirror constants/derives, excluded by the test policy). No code changed this pass, so no rustfmt or compile was run by this worker.

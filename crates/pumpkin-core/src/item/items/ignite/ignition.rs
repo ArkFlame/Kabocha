@@ -2,7 +2,7 @@ use crate::block::blocks::fire::FireBlockBase;
 use crate::block::blocks::fire::fire::FireBlock;
 use crate::world::World;
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{Block, BlockStateId, tag};
+use pumpkin_data::{Block, BlockDirection, BlockStateId, tag};
 use pumpkin_util::math::position::BlockPos;
 use std::sync::Arc;
 
@@ -32,6 +32,7 @@ impl Ignition {
         location: BlockPos,
         fire_pos: BlockPos,
         block: &Block,
+        direction: BlockDirection,
     ) -> bool
     where
         F: FnOnce(Arc<World>, BlockPos, BlockStateId),
@@ -44,7 +45,7 @@ impl Ignition {
         }
 
         let state_id = FireBlock.get_placement_state(world, &fire_pos, 0);
-        if FireBlockBase::can_place_at(world, &fire_pos) {
+        if FireBlockBase::can_place_at(world, &fire_pos, direction) {
             ignite_logic(world.clone(), fire_pos, state_id);
             return true;
         }

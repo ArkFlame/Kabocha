@@ -1,4 +1,4 @@
-use pumpkin_data::BlockDirection;
+use pumpkin_data::{BlockDirection, HorizontalFacingExt};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -87,6 +87,7 @@ impl ItemBehaviour for FireChargeItem {
             location,
             fire_pos,
             block,
+            player.get_entity().get_horizontal_facing().to_block_direction(),
         );
 
         if ignited {
