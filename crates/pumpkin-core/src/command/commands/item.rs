@@ -28,15 +28,18 @@ use rand::RngExt;
 use crate::command::argument_builder::{
     ArgumentBuilder, RequiredArgumentBuilder, argument, command, literal,
 };
-use crate::command::argument_types::argument_type::JavaClientArgumentType;
+use crate::command::argument_types::argument_type::{ArgumentType, JavaClientArgumentType};
 use crate::command::argument_types::client_parsed::ClientParsed;
 use crate::command::argument_types::coordinates::block_pos::BlockPosArgumentType;
+use crate::command::argument_types::nbt_path::NbtPathArgumentType;
 use crate::command::argument_types::core::integer::IntegerArgumentType;
 use crate::command::argument_types::entity::EntityArgumentType;
 use crate::command::argument_types::item::ItemStackArgumentType;
 use crate::command::argument_types::item_modifier::{ItemModifier, ItemModifierArgumentType};
 use crate::command::argument_types::slot::{SlotArgumentType, SlotsArgumentType};
 use crate::command::context::command_context::CommandContext;
+use crate::command::source::DummySource;
+use crate::command::string_reader::StringReader;
 use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
@@ -46,6 +49,7 @@ use crate::entity::mob::piglin::PiglinEntity;
 use crate::entity::mob::pillager::PillagerEntity;
 use crate::entity::passive::villager::VillagerEntity;
 use crate::entity::passive::wandering_trader::WanderingTraderEntity;
+use crate::server::Server;
 
 const DESCRIPTION: &str = "Modifies items in block or entity inventories.";
 const PERMISSION: &str = "minecraft:command.item";
@@ -837,19 +841,19 @@ fn set_block_slot(
 
 /// Applies an inline item modifier (a single function or a list of them). Only the
 /// functions datapacks commonly use are implemented; others leave the stack as is.
-fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
+fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag, ctx: &ProviderContext) {
     match modifier {
         NbtTag::List(list) => {
             for function in list {
-                apply_item_modifier(stack, function);
+                apply_item_modifier(stack, function, ctx);
             }
         }
         NbtTag::Compound(function) => {
             let name = function.get_string("function").unwrap_or_default();
             match name.strip_prefix("minecraft:").unwrap_or(name) {
-                "set_damage" => apply_set_damage(stack, function),
+                "set_damage" => apply_set_damage(stack, function, ctx),
                 "set_count" => {
-                    let amount = number_provider(function.get("count")).unwrap_or(1.0) as i32;
+                    let amount = number_provider_with(function.get("count"), ctx).unwrap_or(1.0) as i32;
                     let add = function.get_bool("add").unwrap_or(false);
                     let count = if add {
                         i32::from(stack.item_count) + amount
@@ -881,7 +885,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                             let Some(enchantment) = Enchantment::from_name(name) else {
                                 continue;
                             };
-                            let level = number_provider(Some(level_tag)).unwrap_or(1.0) as i32;
+                            let level = number_provider_with(Some(level_tag), ctx).unwrap_or(1.0) as i32;
                             set_enchantment_level(stack, enchantment, level, add);
                         }
                     }
@@ -918,11 +922,11 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                 // vanilla SequenceFunction: run each child function in order
                 "sequence" => {
                     if let Some(functions) = function.get("functions") {
-                        apply_item_modifier(stack, functions);
+                        apply_item_modifier(stack, functions, ctx);
                     }
                 }
                 // vanilla LimitCount/IntLimit: clamp the count to optional min and max providers
-                "limit_count" => apply_limit_count(stack, function),
+                "limit_count" => apply_limit_count(stack, function, ctx),
                 other => tracing::debug!("Unsupported item modifier function {other}"),
             }
         }
@@ -933,11 +937,11 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
 }
 
 /// Applies the vanilla `SetItemDamageFunction` to a stack.
-fn apply_set_damage(stack: &mut ItemStack, function: &NbtCompound) {
+fn apply_set_damage(stack: &mut ItemStack, function: &NbtCompound, ctx: &ProviderContext) {
     let Some(max) = stack.get_max_damage() else {
         return;
     };
-    let amount = number_provider(function.get("damage")).unwrap_or(1.0);
+    let amount = number_provider_with(function.get("damage"), ctx).unwrap_or(1.0);
     let add = function.get_bool("add").unwrap_or(false);
     let base = if add {
         (max - stack.get_damage()) as f32 / max as f32
@@ -950,12 +954,12 @@ fn apply_set_damage(stack: &mut ItemStack, function: &NbtCompound) {
 }
 
 /// Applies the vanilla `LimitCount` function, clamping the count to optional min and max providers.
-fn apply_limit_count(stack: &mut ItemStack, function: &NbtCompound) {
+fn apply_limit_count(stack: &mut ItemStack, function: &NbtCompound, ctx: &ProviderContext) {
     let Some(NbtTag::Compound(limit)) = function.get("limit") else {
         return;
     };
-    let min = number_provider(limit.get("min")).map(|v| v as i32);
-    let max = number_provider(limit.get("max")).map(|v| v as i32);
+    let min = number_provider_with(limit.get("min"), ctx).map(|v| v as i32);
+    let max = number_provider_with(limit.get("max"), ctx).map(|v| v as i32);
     let mut count = i32::from(stack.item_count);
     if let Some(min) = min
         && count < min
@@ -1171,9 +1175,102 @@ fn set_stored_enchantment_level(
     });
 }
 
+/// Scoreboard and command-storage access that vanilla exposes through a
+/// `LootContext`. Item modifiers supply these; tests use the empty default.
+#[derive(Default)]
+struct ProviderContext<'a> {
+    server: Option<&'a Arc<Server>>,
+    entity: Option<&'a Arc<dyn EntityBase>>,
+}
+
+impl ProviderContext<'_> {
+    /// Resolves a vanilla `score` provider, or its fallback when no score exists.
+    fn resolve_score(&self, c: &NbtCompound) -> Option<f32> {
+        let fallback = number_provider(c.get("fallback")).unwrap_or(0.0);
+        let objective = c.get_string("score").unwrap_or("");
+        let value = self
+            .server
+            .and_then(|server| {
+                self.scoreboard_name(c.get("target"))
+                    .map(|name| (server, name))
+            })
+            .and_then(|(server, name)| {
+                server
+                    .scoreboard
+                    .lock()
+                    .ok()
+                    .and_then(|guard| guard.get_score_value(&name, objective))
+            })
+            .unwrap_or(fallback as i32);
+        Some(value as f32)
+    }
+
+    /// Resolves a vanilla `storage` provider, or its fallback when no numeric tag exists.
+    fn resolve_storage(&self, c: &NbtCompound) -> Option<f32> {
+        let fallback = number_provider(c.get("fallback")).unwrap_or(0.0);
+        let value = self
+            .server
+            .and_then(|server| {
+                let storage = c.get_string("storage")?;
+                let path = c.get_string("path")?;
+                Some((server, storage, path))
+            })
+            .and_then(|(server, storage, path)| {
+                let guard = server.command_storage.lock().ok()?;
+                let root = guard.get(storage)?;
+                let mut reader = StringReader::new(path.to_string());
+                let parsed = <NbtPathArgumentType as ArgumentType<DummySource>>::parse(
+                    &NbtPathArgumentType,
+                    &mut reader,
+                )
+                .ok()?;
+                let matches = parsed.get(&NbtTag::Compound(root.clone())).ok()?;
+                matches.first().and_then(number_as_f32)
+            })
+            .unwrap_or(fallback);
+        Some(value)
+    }
+
+    /// Resolves the scoreboard holder name a vanilla `target` refers to.
+    fn scoreboard_name(&self, target: Option<&NbtTag>) -> Option<String> {
+        match target? {
+            NbtTag::String(target) => {
+                let target: &str = target;
+                if target == "this" || target == "minecraft:this" {
+                    self.entity.map(|e| e.get_scoreboard_name())
+                } else {
+                    None
+                }
+            }
+            NbtTag::Compound(c) => {
+                let kind = c.get_string("type")?;
+                let kind = kind.strip_prefix("minecraft:").unwrap_or(kind);
+                match kind {
+                    "fixed" => c.get_string("name").map(str::to_string),
+                    "context" => {
+                        let target = c.get_string("target")?;
+                        if target == "this" || target == "minecraft:this" {
+                            self.entity.map(|e| e.get_scoreboard_name())
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Reads a numeric provider: a plain number, or a typed provider such as
-/// constant, uniform, binomial or sum (vanilla `NumberProvider`).
+/// constant, uniform, binomial, sum, score or storage (vanilla `NumberProvider`).
 fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
+    number_provider_with(tag, &ProviderContext::default())
+}
+
+/// Context-aware numeric provider used by item modifiers.
+fn number_provider_with(tag: Option<&NbtTag>, ctx: &ProviderContext) -> Option<f32> {
     match tag? {
         NbtTag::Compound(c) => {
             let kind = c
@@ -1184,13 +1281,13 @@ fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
             match kind {
                 // vanilla UniformGenerator: a uniform sample in [min, max)
                 "uniform" => {
-                    let min = number_provider(c.get("min"))?;
-                    let max = number_provider(c.get("max"))?;
+                    let min = number_provider_with(c.get("min"), ctx)?;
+                    let max = number_provider_with(c.get("max"), ctx)?;
                     Some(min + rand::random::<f32>() * (max - min))
                 }
                 "binomial" => {
-                    let n = number_provider(c.get("n"))? as i32;
-                    let p = number_provider(c.get("p"))?;
+                    let n = number_provider_with(c.get("n"), ctx)? as i32;
+                    let p = number_provider_with(c.get("p"), ctx)?;
                     let mut result: i32 = 0;
                     for _ in 0..n {
                         if rand::random::<f32>() < p {
@@ -1202,9 +1299,11 @@ fn number_provider(tag: Option<&NbtTag>) -> Option<f32> {
                 "sum" => {
                     let inputs = c.get("inputs")?.extract_list()?;
                     inputs.iter().try_fold(0.0f32, |total, input| {
-                        Some(total + number_provider(Some(input))?)
+                        Some(total + number_provider_with(Some(input), ctx)?)
                     })
                 }
+                "score" => ctx.resolve_score(c),
+                "storage" => ctx.resolve_storage(c),
                 _ => c.get("value").and_then(number_as_f32),
             }
         }
@@ -1251,8 +1350,12 @@ impl CommandExecutor for BlockModifyExecutor {
         let pos = BlockPosArgumentType::get_loaded_block_pos(context, "pos")?;
         let slot = SlotArgumentType::get(context, "slot")?;
         let modifier = resolve_item_modifier(context)?;
+        let provider_ctx = ProviderContext {
+            server: Some(context.source.server()),
+            entity: context.source.entity.as_ref(),
+        };
         let modified = set_block_slot(context, &pos, slot, |mut stack| {
-            apply_item_modifier(&mut stack, &modifier);
+            apply_item_modifier(&mut stack, &modifier, &provider_ctx);
             stack
         })?;
         let msg = TextComponent::translate_cross(
@@ -1278,10 +1381,14 @@ impl CommandExecutor for EntityModifyExecutor {
         let targets = EntityArgumentType::get_entities(context, "targets")?;
         let slot = SlotArgumentType::get(context, "slot")?;
         let modifier = resolve_item_modifier(context)?;
+        let provider_ctx = ProviderContext {
+            server: Some(context.source.server()),
+            entity: context.source.entity.as_ref(),
+        };
         let mut count = 0;
         for target in &targets {
             if let Some(mut stack) = read_entity_slot(target, slot) {
-                apply_item_modifier(&mut stack, &modifier);
+                apply_item_modifier(&mut stack, &modifier, &provider_ctx);
                 if write_entity_slot(target, slot, &stack) {
                     count += 1;
                 }
@@ -1460,7 +1567,7 @@ mod tests {
         function.put_string("function", "minecraft:set_name".to_string());
         function.put("name", name_tag.clone());
         let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert_eq!(
             stack.get_custom_name().map(|name| name.clone().get_text()),
             Some("Hello".to_string())
@@ -1471,7 +1578,7 @@ mod tests {
         item_name_function.put("name", name_tag);
         item_name_function.put_string("target", "item_name".to_string());
         let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(item_name_function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(item_name_function), &ProviderContext::default());
         assert!(
             stack
                 .patch
@@ -1489,11 +1596,11 @@ mod tests {
         function.put("enchantments", NbtTag::Compound(enchantments));
 
         let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function.clone()));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function.clone()), &ProviderContext::default());
         assert_eq!(stack.get_enchantment_level(&Enchantment::SHARPNESS), 2);
 
         function.put_bool("add", true);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert_eq!(stack.get_enchantment_level(&Enchantment::SHARPNESS), 4);
     }
 
@@ -1507,7 +1614,7 @@ mod tests {
         function.put("components", NbtTag::Compound(components));
 
         let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert_eq!(stack.get_max_stack_size(), 8);
         assert!(
             stack
@@ -1537,7 +1644,7 @@ mod tests {
             ]),
         );
         let mut stack = ItemStack::new(1, &Item::DIAMOND_SWORD);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert!(stack.get_enchantment_level(&Enchantment::SHARPNESS) >= 1);
         assert_eq!(stack.get_enchantment_level(&Enchantment::AQUA_AFFINITY), 0);
     }
@@ -1553,7 +1660,7 @@ mod tests {
             )]),
         );
         let mut stack = ItemStack::new(1, &Item::BOOK);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert_eq!(stack.item.id, Item::ENCHANTED_BOOK.id);
         let stored = stack.get_data_component::<StoredEnchantmentsImpl>();
         assert!(stored.is_some());
@@ -1577,7 +1684,7 @@ mod tests {
         function.put("floats", NbtTag::Compound(append));
 
         let mut stack = ItemStack::new(1, &Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function.clone()));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function.clone()), &ProviderContext::default());
         let data = stack.get_data_component::<CustomModelDataImpl>();
         assert!(data.is_some());
         if let Some(data) = data {
@@ -1591,7 +1698,7 @@ mod tests {
             NbtTag::List(vec![NbtTag::Float(1.0), NbtTag::Float(2.0)]),
         );
         function.put("floats", NbtTag::Compound(replace));
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         let data = stack.get_data_component::<CustomModelDataImpl>();
         assert!(data.is_some());
         if let Some(data) = data {
@@ -1605,7 +1712,7 @@ mod tests {
         function.put_string("function", "minecraft:set_potion".to_string());
         function.put_string("id", "minecraft:swiftness".to_string());
         let mut stack = ItemStack::new(1, &Item::POTION);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         let contents = stack.get_data_component::<PotionContentsImpl>();
         assert!(contents.is_some());
         if let Some(contents) = contents {
@@ -1639,7 +1746,7 @@ mod tests {
         );
 
         let mut stack = ItemStack::new(1, &Item::STONE);
-        apply_item_modifier(&mut stack, &NbtTag::Compound(sequence));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(sequence), &ProviderContext::default());
         assert_eq!(stack.item_count, 5);
     }
 
@@ -1651,7 +1758,24 @@ mod tests {
 
         let mut stack = ItemStack::new(1, &Item::STONE);
         let max = stack.get_max_stack_size();
-        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function), &ProviderContext::default());
         assert_eq!(stack.item_count, max);
+    }
+
+    #[test]
+    fn score_and_storage_providers_fall_back_without_context() {
+        let mut score = NbtCompound::new();
+        score.put_string("type", "score");
+        score.put_string("score", "objective");
+        score.put("target", NbtTag::String("this".into()));
+        score.put("fallback", NbtTag::Int(7));
+        assert_eq!(number_provider(Some(&NbtTag::Compound(score))), Some(7.0));
+
+        let mut storage = NbtCompound::new();
+        storage.put_string("type", "storage");
+        storage.put_string("storage", "minecraft:test");
+        storage.put_string("path", "value");
+        storage.put("fallback", NbtTag::Int(3));
+        assert_eq!(number_provider(Some(&NbtTag::Compound(storage))), Some(3.0));
     }
 }
