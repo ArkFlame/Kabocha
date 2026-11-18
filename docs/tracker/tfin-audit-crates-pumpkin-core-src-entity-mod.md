@@ -1,0 +1,18 @@
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-entity-mod.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
+
+- 5 dead tick_block_underneath stub (entity/mod.rs:3078): VERIFIED (no stub remains; stepOn parity live).
+- 1 TemperatureVariantAnimal Bedrock `climate_variant` (entity/mod.rs:972): BLOCKED-DATA.
+- 1 TemperatureVariantAnimal Bedrock `climate_variant` (entity/mod.rs:997): BLOCKED-DATA.
+- 1 TemperatureVariantAnimal Bedrock `climate_variant` (entity/mod.rs:997): BLOCKED-DATA.
+
+## Result
+
+Final-pass re-audit 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/`. No source edits needed this pass: the only fixable row was already satisfied, and the remaining rows require generated data that does not exist. Files touched: this doc only.
+
+- Row 5 (dead `tick_block_underneath` stub, entity/mod.rs:3078): VERIFIED. No `tick_block_underneath` stub or TODO remains anywhere under `crates/` (grep returns no matches). Vanilla `Entity#checkBlockCollision` dispatches block step effects through `effectState.getBlock().stepOn(...)` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:1572`). Pumpkin implements this path live: `on_entity_step` for magma (`block/blocks/magma.rs:43`), slime (`slime.rs:18`), turtle egg (`turtle_egg.rs:120`) and redstone ore (`redstone_ore.rs:76`), plus campfire `entityInside` via `on_entity_collision` (`campfire.rs:178`). No change.
+
+- Rows 1, duplicate x3 (TemperatureVariantAnimal Bedrock `climate_variant`, entity/mod.rs:972/997/997, TODO now at 1013-1014): BLOCKED-DATA. Java-side variant parity is already satisfied: `PigEntity::finalize_spawn` calls `PigVariant::select_for_biome(biome.registry_id)` (`entity/passive/pig.rs:178`) and `ChickenEntity` calls `ChickenVariant::select_for_biome` (`entity/passive/chicken.rs:252`), matching the data-driven vanilla variants in `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/pig/PigVariants.java:18-20` and `.../animal/chicken/ChickenVariants.java:18-20`, which are built from `TemperatureVariants.TEMPERATE/WARM/COLD` (`.../animal/TemperatureVariants.java:5`). Java has no `climate_variant` property and no `TemperatureVariantAnimal` class: a grep across `.vendor/vanilla-decompiled/net/minecraft/` finds only `TemperatureVariants` (data-driven variant identifiers), so this row has no Java vanilla source to port; `climate_variant` is a Bedrock-only Molang entity property. Filling `synced_properties.int_entries_list` (a `HashMap<u32, i32>` at `crates/pumpkin-protocol/src/bedrock/client/set_actor_data.rs:161-163`) needs the numeric `u32` wire id for `minecraft:climate_variant`, which is absent from `crates/pumpkin-protocol/src/bedrock/` (keys are raw `u32` literals) and from `crates/pumpkin-data/src/generated/` (no property registry; only unrelated translation strings). Exact missing generated subsystem: a generated Bedrock entity-property registry mapping `minecraft:climate_variant` to its `u32` id, plus a spawn-biome-temperature hook returning 0 (temperate), 1 (warm) or 2 (cold). The TODO and empty `synced_properties` at entity/mod.rs:1013-1018 are kept.
+
+Summary: fixed=0 new this pass; verified=1 (row 5, cite Entity.java:1572); blocked-data=3 duplicate rows for one underlying `climate_variant` gap (missing generated Bedrock entity-property-ID registry for `minecraft:climate_variant`). Compile-pit replay: no source code added, no unwrap/expect/panic, no em dashes, no generated-data edits, no rustfmt needed.
