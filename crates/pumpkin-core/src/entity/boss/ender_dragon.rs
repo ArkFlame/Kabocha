@@ -651,52 +651,112 @@ impl EnderDragonEntity {
             .cloned()
     }
 
-    fn handle_player_collisions(&self) {
-        let world = self.mob_entity.living_entity.entity.world.load();
+    // Vanilla wing knockback and head/neck contact damage. The query boxes come from
+    // the dragon parts, never the main hitbox.
+    fn handle_part_contacts(&self) {
+        let entity = &self.mob_entity.living_entity.entity;
+        let world = entity.world.load();
 
-        let dragon_bbox = self.mob_entity.living_entity.entity.bounding_box.load();
-        let xm = f64::midpoint(dragon_bbox.min.x, dragon_bbox.max.x);
-        let zm = f64::midpoint(dragon_bbox.min.z, dragon_bbox.max.z);
+        // Vanilla gates the whole contact block on not being recently hurt.
+        if self.mob_entity.living_entity.was_hurt_recently() {
+            return;
+        }
 
-        for player in world.players.load().iter() {
-            // Vanilla selects colliding players with `EntitySelector.NO_CREATIVE_OR_SPECTATOR`,
-            // so invulnerable players are never pushed by the dragon.
-            if player.is_creative() || player.is_spectator() {
-                continue;
-            }
+        // The 5.0 wing damage is gated on sitting, the push and the 10.0
+        // head/neck damage are not.
+        let sitting = self
+            .phase
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_sitting();
+        let body_bbox = self.parts[PART_BODY].entity.bounding_box.load();
+        let dragon_uuid = entity.entity_uuid;
 
-            if player
-                .living_entity
-                .entity
-                .bounding_box
-                .load()
-                .intersects(&dragon_bbox)
-            {
-                let player_pos = player.get_entity().pos.load();
-                let xd = player_pos.x - xm;
-                let zd = player_pos.z - zm;
-                let dd = (xd * xd + zd * zd).max(0.1);
-
-                player.living_entity.entity.apply_knockback(
-                    4.0,
-                    xd / dd,
-                    zd / dd,
-                    Some(&self.mob_entity.living_entity.entity),
-                );
-                player.get_entity().send_velocity();
-
-                if !self
-                    .phase
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_sitting()
+        // Vanilla queries the wings with inflate(4, 2, 4).move(0, -2, 0).
+        let wing_boxes = [6, 7]
+            .map(|i| Self::wing_contact_box(&self.parts[i].entity.bounding_box.load()));
+        for aabb in wing_boxes {
+            for target in world.get_entities_at_box(&aabb) {
+                if target.get_living_entity().is_none()
+                    || target.get_entity().entity_uuid == dragon_uuid
+                    // Vanilla uses NO_CREATIVE_OR_SPECTATOR.
+                    || target.get_player().is_some_and(Player::is_creative)
+                    || target.is_spectator()
                 {
-                    player.damage(self, 5.0, DamageType::MOB_ATTACK);
+                    continue;
                 }
+
+                let target_pos = target.get_entity().pos.load();
+                let target_entity = target.get_entity();
+                target
+                    .get_entity()
+                    .push_by(Self::knockback_impulse(&body_bbox, target_pos));
+
+                let recently_hit = target.get_living_entity().is_some_and(|living| {
+                    living.get_last_hurt_by_mob_timestamp()
+                        < target_entity.tick_count.load(Ordering::Relaxed) - 2
+                });
+                if !sitting && recently_hit && entity.do_teams_allow_damage(target.as_ref()) {
+                    target.damage_with_context(
+                        target.as_ref(),
+                        5.0,
+                        DamageType::MOB_ATTACK,
+                        None,
+                        Some(entity),
+                        Some(entity),
+                    );
+                }
+                if let Some(player) = target.get_player() {
+                    player.get_entity().send_velocity();
+                }
+            }
+        }
+
+        // Vanilla queries the head and neck with inflate(1.0) and deals 10.0 flat.
+        let contact_boxes = [PART_HEAD, 1]
+            .map(|i| Self::head_contact_box(&self.parts[i].entity.bounding_box.load()));
+        for aabb in contact_boxes {
+            for target in world.get_entities_at_box(&aabb) {
+                if target.get_living_entity().is_none()
+                    || target.get_entity().entity_uuid == dragon_uuid
+                    || target.get_player().is_some_and(Player::is_creative)
+                    || target.is_spectator()
+                    || !entity.do_teams_allow_damage(target.as_ref())
+                {
+                    continue;
+                }
+                target.damage_with_context(
+                    target.as_ref(),
+                    10.0,
+                    DamageType::MOB_ATTACK,
+                    None,
+                    Some(entity),
+                    Some(entity),
+                );
             }
         }
     }
 
+    // Vanilla wing contact box: inflate(4, 2, 4).move(0, -2, 0).
+    fn wing_contact_box(part: &BoundingBox) -> BoundingBox {
+        part.expand(4.0, 2.0, 4.0)
+            .shift(Vector3::new(0.0, -2.0, 0.0))
+    }
+
+    // Vanilla head/neck contact box: inflate(1.0).
+    fn head_contact_box(part: &BoundingBox) -> BoundingBox {
+        part.expand(1.0, 1.0, 1.0)
+    }
+
+    // Vanilla Entity.push(xd / dd * 4, 0.2, zd / dd * 4, this) for wing knockback.
+    const fn knockback_impulse(body_bbox: &BoundingBox, target_pos: Vector3<f64>) -> Vector3<f64> {
+        let xm = (body_bbox.min.x + body_bbox.max.x) * 0.5;
+        let zm = (body_bbox.min.z + body_bbox.max.z) * 0.5;
+        let xd = target_pos.x - xm;
+        let zd = target_pos.z - zm;
+        let dd = (xd * xd + zd * zd).max(0.1);
+        Vector3::new(xd / dd * 4.0, 0.2, zd / dd * 4.0)
+    }
     fn tick_crystal_healing(&self) {
         let world = self.mob_entity.living_entity.entity.world.load();
         let pos = self.mob_entity.living_entity.entity.pos.load();
@@ -886,7 +946,9 @@ impl EnderDragonEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) += 1;
         } else {
-            self.handle_player_collisions();
+        // Vanilla runs the per-part contact checks in every phase; only
+        // the wing damage is gated on sitting inside the handler.
+        self.handle_part_contacts();
             self.tick_block_breaking();
         }
 
@@ -1030,5 +1092,47 @@ impl Vector3Ext for Vector3<f64> {
     fn distance_squared(self, other: Self) -> f64 {
         let (dx, dy, dz) = (self.x - other.x, self.y - other.y, self.z - other.z);
         dx * dx + dy * dy + dz * dz
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wing_knockback_uses_the_body_center_and_a_minimum_distance() {
+        let body = BoundingBox::new(
+            Vector3::new(-2.0, 60.0, -2.0),
+            Vector3::new(2.0, 62.0, 2.0),
+        );
+        // Two blocks east of the centre: dd = 4, so x = 2/4*4 = 2 and y = 0.2.
+        let push = EnderDragonEntity::knockback_impulse(&body, Vector3::new(2.0, 61.0, 0.0));
+        assert!(push.x == 2.0);
+        assert!(push.y == 0.2);
+        assert!(push.z == 0.0);
+
+        // At the exact centre dd is clamped to 0.1, leaving no horizontal push.
+        let centred = EnderDragonEntity::knockback_impulse(&body, Vector3::new(0.0, 61.0, 0.0));
+        assert!(centred.x == 0.0);
+        assert!(centred.y == 0.2);
+        assert!(centred.z == 0.0);
+    }
+
+    #[test]
+    fn contact_boxes_match_vanilla_inflation() {
+        let part = BoundingBox::new(
+            Vector3::new(0.0, 60.0, 0.0),
+            Vector3::new(2.0, 62.0, 2.0),
+        );
+        let wing = EnderDragonEntity::wing_contact_box(&part);
+        assert!(wing.min.x == -4.0);
+        assert!(wing.min.y == 56.0);
+        assert!(wing.max.y == 62.0);
+        assert!(wing.max.z == 6.0);
+
+        let head = EnderDragonEntity::head_contact_box(&part);
+        assert!(head.min.x == -1.0);
+        assert!(head.max.y == 63.0);
+        assert!(head.max.z == 3.0);
     }
 }
