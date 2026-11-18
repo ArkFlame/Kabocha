@@ -4,7 +4,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 Re-checked every STILL OPEN row against .vendor/vanilla-decompiled (SnowyBlock.java,
 Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SnowyBlock.java`, `SpreadingSnowyBlock.java`, `GrassBlock.java`, `MyceliumBlock.java`, and `Blocks.java` (Podzol registration).
-- `:121-150` (randomTick coverage): STILL OPEN, out of unit. Existing pure tests cover `can_stay_alive_with_above` (snow layer 1, full fluid, clear air, opaque cover). Full `random_tick` fade/spread behavior requires a `pumpkin-gametest` scenario with live world light/fluid/rng; no safe pure seam remains in these files.
+- `:121-150` (randomTick coverage): CLOSED and VERIFIED in the final Result below. Live-world GameTest `test_spreading_snowy_grass_random_tick` (plants_and_support_blocks.rs:316-361) plus four pure unit tests at :248-289.
 Re-verified all four STILL OPEN rows against .vendor/vanilla-decompiled 1.21
 
 ## Result
