@@ -3,10 +3,12 @@ use super::{Controls, Goal};
 use crate::entity::ai::goal::revenge::MobFilter;
 use crate::entity::mob::Mob;
 use crate::world::World;
-use pumpkin_data::Block;
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::world::WorldEvent;
+use pumpkin_data::{Block, BlockStateId, Property};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_world::world::BlockFlags;
 use rand::RngExt;
 use std::sync::Arc;
 
@@ -27,13 +29,10 @@ pub const fn should_grow_this_tick(roll: i32) -> bool {
     roll == 0
 }
 
-/// Crops a bee can fertilize, mirroring vanilla `CropBlock` (stems and pitcher crops excluded).
+/// Vanilla checks `belowState.is(BlockTags.BEE_GROWABLES)`. Pitcher crop is excluded because
+/// its upper half has to be kept in sync with the lower age, which needs block-specific handling.
 fn is_growable_block(block: &Block) -> bool {
-    block == &Block::SWEET_BERRY_BUSH
-        || (block.has_tag(&tag::Block::MINECRAFT_CROPS)
-            && block != &Block::PITCHER_CROP
-            && block != &Block::MELON_STEM
-            && block != &Block::PUMPKIN_STEM)
+    block.has_tag(&tag::Block::MINECRAFT_BEE_GROWABLES) && block != &Block::PITCHER_CROP
 }
 
 /// Positions `1..=GROW_DEPTH` blocks below `origin` that `is_growable` accepts, nearest first.
@@ -46,6 +45,28 @@ pub fn growable_positions(
         .map(|depth| origin.offset(Vector3::new(0, -depth, 0)))
         .filter(|pos| is_growable(pos))
         .collect()
+}
+
+/// Vanilla grows a crop by exactly one age (`CropBlock.getStateForAge(getAge + 1)`), also used
+/// for stems and sweet berry bush. Bone meal instead jumps several stages, so bees write the
+/// next age state directly.
+#[must_use]
+pub fn grown_state_id(block: &Block, state_id: BlockStateId) -> Option<BlockStateId> {
+    // Cave vines have no age property: vanilla grows them through `performBonemeal` instead.
+    if block == &Block::CAVE_VINES || block == &Block::CAVE_VINES_PLANT {
+        return None;
+    }
+    let max_age = u8::try_from(block.states.len()).ok()?.checked_sub(1)?;
+    let mut props = block.properties(state_id)?.to_props();
+    let age = props.iter_mut().find_map(|prop| match prop {
+        Property::Age(age) => Some(age),
+        _ => None,
+    })?;
+    if *age >= max_age {
+        return None;
+    }
+    *age += 1;
+    Some(block.from_properties(&props).to_state_id(block))
 }
 
 /// Vanilla bee crop growth: occasionally fertilizes the crop under the bee, counting each success.
@@ -88,13 +109,21 @@ impl Goal for GrowCropGoal {
         let origin = mob.get_entity().block_pos.load();
         for pos in growable_positions(origin, |pos| Self::is_growable_at(&world, pos)) {
             let (block, state) = world.get_block_and_state(&pos);
-            // `bone_meal` checks the crop is not already mature and applies the growth.
-            if world
-                .block_registry
-                .bone_meal(block, &world, &pos, state.id)
+            let grown = grown_state_id(block, state.id);
+            // Mature crops and cave vines fall through to `bone_meal`, which rejects the
+            // former and applies the vanilla bonemeal growth to the latter.
+            if grown.is_none()
+                && !world
+                    .block_registry
+                    .bone_meal(block, &world, &pos, state.id)
             {
-                (self.on_crop_grown)(mob);
+                continue;
             }
+            if let Some(grown) = grown {
+                world.set_block_state(&pos, grown, BlockFlags::NOTIFY_LISTENERS);
+            }
+            world.sync_world_event(WorldEvent::ParticlesBeeGrowth, pos, 15);
+            (self.on_crop_grown)(mob);
         }
     }
 
@@ -137,5 +166,39 @@ mod tests {
         let origin = BlockPos::new(0, 64, 0);
         let far = [BlockPos::new(0, 61, 0), BlockPos::new(0, 64, 0)];
         assert!(growable_positions(origin, |pos| far.contains(pos)).is_empty());
+    }
+
+    #[test]
+    fn grown_state_id_increments_age_by_one() {
+        let wheat = &Block::WHEAT;
+        assert!(grown_state_id(wheat, wheat.default_state.id).is_some());
+        let Some(next) = grown_state_id(wheat, wheat.default_state.id) else {
+            return;
+        };
+        let age = wheat.properties(next).and_then(|props| {
+            props.to_props().into_iter().find_map(|prop| match prop {
+                Property::Age(age) => Some(age),
+                _ => None,
+            })
+        });
+        assert_eq!(age, Some(1));
+    }
+
+    #[test]
+    fn grown_state_id_stops_at_max_age() {
+        let wheat = &Block::WHEAT;
+        let mature = wheat
+            .from_properties(&[Property::Age(7)])
+            .to_state_id(wheat);
+        assert!(grown_state_id(wheat, mature).is_none());
+        let bush = &Block::SWEET_BERRY_BUSH;
+        let mature = bush.from_properties(&[Property::Age(3)]).to_state_id(bush);
+        assert!(grown_state_id(bush, mature).is_none());
+    }
+
+    #[test]
+    fn grown_state_id_ignores_blocks_without_age() {
+        let dirt = &Block::DIRT;
+        assert!(grown_state_id(dirt, dirt.default_state.id).is_none());
     }
 }

@@ -1538,7 +1538,7 @@ mod tests {
         // HuntingCooldown key for an axolotl with no active cooldown (vanilla gate).
         let fresh = axolotl(&world);
         let mut fresh_bucket = ItemStack::new(1, &Item::AXOLOTL_BUCKET);
-        Bucketable::save_to_bucket_tag(&fresh, &mut fresh_bucket);
+        fresh.save_to_bucket_tag(&mut fresh_bucket);
         let fresh_tag = fresh_bucket
             .get_data_component::<BucketEntityDataImpl>()
             .and_then(|data| data.nbt.clone());

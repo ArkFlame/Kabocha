@@ -796,6 +796,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn on_rider_positioned(&self, _passenger: &dyn EntityBase) {}
 
+    /// Vanilla `Entity.onPassengerTurned`: a vehicle re-clamps a turning passenger and keeps its
+    /// previous-yaw interpolation baseline consistent (see `AbstractBoat.onPassengerTurned`).
+    fn on_passenger_turned(&self, _passenger: &dyn EntityBase) {}
+
     fn hurt_gear_slots(&self, _gear: GearDamage) -> &'static [EquipmentSlot] {
         &[]
     }
@@ -1853,6 +1857,9 @@ pub struct Entity {
     pub body_yaw: AtomicCell<f32>,
     /// The entity's pitch rotation (vertical rotation) ↑ ↓
     pub pitch: AtomicCell<f32>,
+    /// The entity's yaw from the previous tick, vanilla `Entity.yRotO`. A vehicle folds its
+    /// clamp adjustment into this so a clamped passenger's interpolation baseline stays smooth.
+    pub y_rot_o: AtomicCell<f32>,
     /// The entity's current pose (e.g., standing, sitting, swimming).
     pub pose: AtomicCell<EntityPose>,
     /// The bounding box of an entity (hitbox)
@@ -2194,6 +2201,7 @@ impl Entity {
             head_yaw: AtomicCell::new(0.0),
             body_yaw: AtomicCell::new(0.0),
             pitch: AtomicCell::new(0.0),
+            y_rot_o: AtomicCell::new(0.0),
             velocity: AtomicCell::new(Vector3::new(0.0, 0.0, 0.0)),
             pose: AtomicCell::new(EntityPose::Standing),
             bounding_box,
@@ -3338,6 +3346,9 @@ impl Entity {
     pub fn update_last_pos(&self) -> Vector3<f64> {
         let pos = self.pos.load();
         let old = self.last_pos.load();
+        // Vanilla `Entity.setOldRot`: snapshot the previous yaw before this tick's rotation
+        // changes, so a vehicle clamp can fold its adjustment into `y_rot_o` afterwards.
+        self.y_rot_o.store(self.yaw.load());
         // A player's movement is its last client move, set by the move handlers
         if self.entity_type != &EntityType::PLAYER {
             self.movement.store(pos - old);
@@ -4450,6 +4461,19 @@ impl Entity {
         // Bedrock `MovePlayer` / `MoveActorDelta` need this field, not only `yaw`.
         self.head_yaw.store(yaw);
         self.set_pitch(pitch);
+    }
+
+    /// Vanilla `Entity.turn`: rotate by already-scaled `x_delta`/`y_delta` degrees and fold the
+    /// yaw change into the previous-yaw baseline, then let the vehicle re-clamp the passenger.
+    pub fn turn(&self, x_delta: f32, y_delta: f32) {
+        // Vanilla `Entity.turn`: only yRot/xRot change here; head yaw is driven by look control.
+        self.yaw.store(self.yaw.load() + y_delta);
+        self.pitch
+            .store((self.pitch.load() + x_delta).clamp(-90.0, 90.0));
+        self.y_rot_o.store(self.y_rot_o.load() + y_delta);
+        if let Some(vehicle) = self.get_vehicle() {
+            vehicle.on_passenger_turned(self);
+        }
     }
 
     pub fn set_pitch(&self, pitch: f32) {
@@ -7238,6 +7262,29 @@ fn interact_with_shears(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn entity_rng_state_is_shared_per_entity_and_seeded_independently() {
+        use rand::RngExt;
+
+        let shared = Arc::new(std::sync::Mutex::new(rand::rngs::StdRng::seed_from_u64(42)));
+        let mut a = EntityRng::new(Arc::clone(&shared));
+        let mut b = EntityRng::new(Arc::clone(&shared));
+        let mut reference = rand::rngs::StdRng::seed_from_u64(42);
+        let expected_first: u64 = reference.random();
+        let expected_second: u64 = reference.random();
+
+        let first: u64 = a.random();
+        let second: u64 = b.random();
+        assert_eq!(first, expected_first);
+        assert_eq!(second, expected_second);
+
+        let mut other = EntityRng::new(Arc::new(std::sync::Mutex::new(
+            rand::rngs::StdRng::seed_from_u64(42),
+        )));
+        let other_first: u64 = other.random();
+        assert_eq!(other_first, expected_first);
+    }
 
     #[test]
     fn team_formatting_adds_prefix_suffix_and_colour() {

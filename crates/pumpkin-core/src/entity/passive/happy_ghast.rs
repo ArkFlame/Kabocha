@@ -1,6 +1,6 @@
 use std::sync::{
     Arc, Weak,
-    atomic::{AtomicBool, AtomicI32, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
 };
 
 use pumpkin_data::BlockState;
@@ -43,6 +43,8 @@ pub struct HappyGhastEntity {
     pub leash_holder_time: AtomicI32,
     pub is_leash_holder: AtomicBool,
     pub stays_still: AtomicBool,
+    /// Last observed passenger count, used to replay vanilla `addPassenger`/`removePassenger` side effects.
+    pub observed_passenger_count: AtomicUsize,
 }
 
 impl HappyGhastEntity {
@@ -55,6 +57,7 @@ impl HappyGhastEntity {
             leash_holder_time: AtomicI32::new(0),
             is_leash_holder: AtomicBool::new(false),
             stays_still: AtomicBool::new(false),
+            observed_passenger_count: AtomicUsize::new(0),
         };
         let mob_arc = Arc::new(happy_ghast);
         let mob_weak: Weak<dyn Mob> = {
@@ -114,6 +117,18 @@ impl HappyGhastEntity {
     fn can_player_mount(wearing_harness: bool, sneaking: bool, passenger_count: usize) -> bool {
         const MAX_PASSENGERS: usize = 4;
         wearing_harness && !sneaking && passenger_count < MAX_PASSENGERS
+    }
+
+    /// Vanilla `HappyGhast.addPassenger`/`removePassenger` play the goggles sound only
+    /// when the ghast becomes or stops being a vehicle.
+    fn goggles_sound_on_change(previous: usize, current: usize) -> Option<Sound> {
+        if previous == 0 && current > 0 {
+            Some(Sound::EntityHappyGhastHarnessGogglesDown)
+        } else if previous > 0 && current == 0 {
+            Some(Sound::EntityHappyGhastHarnessGogglesUp)
+        } else {
+            None
+        }
     }
 
     fn set_leash_holder(&self, is_leash_holder: bool) {
@@ -331,6 +346,38 @@ impl Mob for HappyGhastEntity {
             self.set_server_still_timeout(MAX_STILL_TIMEOUT);
         }
 
+        // Vanilla `HappyGhast.addPassenger`/`removePassenger`: mounting clears the still
+        // timeout unless another player stands above; dismounting resets it to 10 and
+        // toggles the goggles sound and home when the last rider leaves.
+        let ghast_entity = self.get_entity();
+        let current_passengers = ghast_entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len();
+        let previous_passengers = self
+            .observed_passenger_count
+            .swap(current_passengers, Ordering::Relaxed);
+        if current_passengers != previous_passengers {
+            if let Some(sound) =
+                Self::goggles_sound_on_change(previous_passengers, current_passengers)
+            {
+                ghast_entity.play_sound(sound);
+            }
+            if current_passengers > previous_passengers {
+                if !self.scan_player_above_ghast() {
+                    self.set_server_still_timeout(0);
+                } else if self.server_still_timeout.load(Ordering::Relaxed) > MAX_STILL_TIMEOUT {
+                    self.set_server_still_timeout(MAX_STILL_TIMEOUT);
+                }
+            } else {
+                self.set_server_still_timeout(MAX_STILL_TIMEOUT);
+                if current_passengers == 0 {
+                    self.mob_entity.clear_home();
+                }
+            }
+        }
+
         // Vanilla heals one health every 600 ticks, keyed on the entity's own age.
         let entity = self.get_entity();
         let living = &self.mob_entity.living_entity;
@@ -515,5 +562,14 @@ mod tests {
         assert!(!HappyGhastEntity::can_player_mount(true, false, 4));
         assert!(!HappyGhastEntity::can_player_mount(false, false, 0));
         assert!(!HappyGhastEntity::can_player_mount(true, true, 0));
+    }
+
+    #[test]
+    fn goggles_sound_only_on_vehicle_transition() {
+        assert!(HappyGhastEntity::goggles_sound_on_change(0, 1).is_some());
+        assert!(HappyGhastEntity::goggles_sound_on_change(1, 2).is_none());
+        assert!(HappyGhastEntity::goggles_sound_on_change(2, 1).is_none());
+        assert!(HappyGhastEntity::goggles_sound_on_change(1, 0).is_some());
+        assert!(HappyGhastEntity::goggles_sound_on_change(0, 0).is_none());
     }
 }

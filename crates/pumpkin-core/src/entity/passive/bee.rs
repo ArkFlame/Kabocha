@@ -15,6 +15,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
 
+use crate::block::entities::beehive::BeehiveBlockEntity;
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
@@ -127,14 +128,23 @@ fn read_block_pos(nbt: &NbtCompound, key: &str) -> Option<BlockPos> {
 /// Vanilla `Bee.MAX_CROPS_GROWN` per pollination cycle.
 const MAX_CROPS_GROWN_SINCE_POLLINATION: i32 = 10;
 
-/// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar and has growth budget left.
+/// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar, has growth budget left,
+/// and remembers a live hive (`Bee.isHiveValid`).
 fn can_grow_crop(mob: &dyn Mob) -> bool {
-    mob.cast_any()
-        .downcast_ref::<BeeEntity>()
-        .is_some_and(|bee| {
-            bee.has_nectar()
-                && bee.crops_grown_since_pollination() < MAX_CROPS_GROWN_SINCE_POLLINATION
-        })
+    let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() else {
+        return false;
+    };
+    if !bee.has_nectar() || bee.crops_grown_since_pollination() >= MAX_CROPS_GROWN_SINCE_POLLINATION
+    {
+        return false;
+    }
+    bee.hive_pos().is_some_and(|pos| {
+        mob.get_entity()
+            .world
+            .load()
+            .get_block_entity(&pos)
+            .is_some_and(|entity| entity.as_any().is::<BeehiveBlockEntity>())
+    })
 }
 
 /// Counts a fertilized crop; the bee loses its nectar once it has grown the maximum.

@@ -636,6 +636,20 @@ impl EntityBase for BoatEntity {
             .entity
             .velocity_dirty
             .store(true, Ordering::SeqCst);
+
+        // Vanilla `AbstractBoat.onAboveBubbleColumn` also emits GameEvent.SPLASH at a 1% roll
+        // while the boat is not fully submerged, using the controlling passenger as the
+        // vibration source. The accompanying splash sound and particle are client effects.
+        if !self.status.load().is_some_and(BoatStatus::is_underwater)
+            && rand::random::<u32>() % 100 == 0
+        {
+            let entity = &self.vehicle.entity;
+            entity.world.load_full().emit_game_event_with_source(
+                pumpkin_data::game_event::GameEvent::Splash.name(),
+                entity.pos.load(),
+                self.get_controlling_passenger(),
+            );
+        }
     }
 
     fn on_inside_bubble_column(&self, drag_down: bool) {
@@ -844,6 +858,54 @@ impl EntityBase for BoatEntity {
             mob.get_max_head_rotation(),
         ));
     }
+
+    fn on_passenger_turned(&self, passenger: &dyn EntityBase) {
+        // Vanilla `AbstractBoat.onPassengerTurned`: re-apply `clampRotation` when a passenger
+        // turns and fold the clamp adjustment into its previous-yaw so interpolation stays smooth.
+        let rider = passenger.get_entity();
+        if passenger.get_player().is_some()
+            || rider
+                .entity_type
+                .has_tag(&tag::EntityType::MINECRAFT_CAN_TURN_IN_BOATS)
+        {
+            return;
+        }
+        let boat_yaw = self.get_entity().yaw.load();
+        let passenger_count = self
+            .get_entity()
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len();
+        let body_yaw = rider_body_yaw(
+            boat_yaw,
+            passenger_count,
+            max_passengers(self.get_entity().entity_type),
+            passenger
+                .get_mob()
+                .is_some_and(|mob| mob.as_animal().is_some()),
+            rider.entity_id,
+        );
+        rider.body_yaw.store(body_yaw);
+        let adjustment = if let Some(mob) = passenger.get_mob() {
+            // Vanilla sets the mob yaw to the hull heading and returns zero, then clamps its head.
+            rider.yaw.store(body_yaw);
+            rider.head_yaw.store(clamp_head_to_body(
+                rider.head_yaw.load(),
+                body_yaw,
+                mob.get_max_head_rotation(),
+            ));
+            0.0
+        } else {
+            let yaw = rider.yaw.load();
+            let clamped = clamp_rider_yaw(yaw, body_yaw);
+            rider.yaw.store(clamped);
+            rider.head_yaw.store(clamped);
+            rider_clamp_adjustment(yaw, body_yaw)
+        };
+        rider.y_rot_o.store(rider.y_rot_o.load() + adjustment);
+    }
+
     fn cast_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -908,12 +970,20 @@ pub fn clamp_rider_yaw(rider_yaw: f32, boat_yaw: f32) -> f32 {
     rider_yaw + clamped - offset
 }
 
+/// Vanilla `AbstractBoat.clampRotation`'s return value (`yDelta`): how far a rider's yaw was
+/// pulled back toward the hull heading. `onPassengerTurned` folds this into the rider's `yRotO`.
+#[must_use]
+pub fn rider_clamp_adjustment(rider_yaw: f32, boat_yaw: f32) -> f32 {
+    clamp_rider_yaw(rider_yaw, boat_yaw) - rider_yaw
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         CHEST_BOAT_CONTAINER_SIZE, MinecartInventory, PADDLE_CUE, PADDLE_STEP, boat_container_size,
         boat_drop_item, clamp_head_to_body, clamp_rider_yaw, drops_item_when_destroyed,
         is_chest_boat, max_passengers, paddle_sound_cue, paddle_sound_for_status, rider_body_yaw,
+        rider_clamp_adjustment,
     };
     use pumpkin_data::entity::EntityType;
     use pumpkin_data::item::Item;
@@ -937,6 +1007,14 @@ mod tests {
         assert!((clamp_rider_yaw(100.0 + 20.0, 100.0) - 120.0).abs() < 1e-4);
         // The delta is applied before the +/-105 clamp keeps the rider within the hull window.
         assert!((clamp_rider_yaw(250.0 + 5.0, 105.0) - 210.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn rider_clamp_adjustment_feeds_previous_yaw() {
+        // A rider 200 degrees off the hull wraps to -160 and is pulled to -105, a +55 nudge.
+        assert!((rider_clamp_adjustment(200.0, 0.0) - 55.0).abs() < 1e-4);
+        // Inside the +/-105 window the clamp does nothing, so the previous yaw is unchanged.
+        assert!(rider_clamp_adjustment(10.0, 0.0).abs() < 1e-4);
     }
 
     #[test]
