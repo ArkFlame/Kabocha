@@ -2,6 +2,38 @@ use pumpkin_protocol::{bedrock::client::set_time::CSetTime, java::client::play::
 
 use super::World;
 
+/// Vanilla `DimensionType.defaultClock()`: the world clock a dimension's day
+/// time follows. The ids come from the generated `world_clock` registry, which
+/// lists `overworld` first and `the_end` second; dimensions without a default
+/// clock (the Nether) keep the overworld id.
+#[must_use]
+fn default_clock_name(dimension_name: &str) -> Option<&'static str> {
+    match dimension_name {
+        "minecraft:overworld" | "minecraft:overworld_caves" => Some("minecraft:overworld"),
+        "minecraft:the_end" => Some("minecraft:the_end"),
+        _ => None,
+    }
+}
+
+/// Network id of the clock this world's day time belongs to, resolved from the
+/// `world_clock` dynamic registry so a datapack can reorder it.
+#[must_use]
+pub fn default_clock_id(world: &World) -> i32 {
+    let Some(name) = default_clock_name(world.dimension.minecraft_name) else {
+        return 0;
+    };
+    world
+        .server
+        .upgrade()
+        .and_then(|server| {
+            server
+                .datapack_manager
+                .get_dynamic_registry_raw_id("minecraft:world_clock", name)
+        })
+        .and_then(|raw_id| i32::try_from(raw_id).ok())
+        .unwrap_or(0)
+}
+
 /// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`: advance to the next marker
 /// occurrence without rewinding. Drives the sleep skip toward the
 /// `wake_up_from_sleep` marker on the day timeline.
@@ -137,7 +169,13 @@ impl LevelTime {
         let (total_ticks, partial_tick, rate) = self.pack_network_state(advance_time);
 
         world.broadcast_editioned(
-            &CUpdateTime::new_clock(self.world_age, 0, total_ticks, partial_tick, rate),
+            &CUpdateTime::new_clock(
+                self.world_age,
+                default_clock_id(world),
+                total_ticks,
+                partial_tick,
+                rate,
+            ),
             &CSetTime::new(self.time_of_day as _), // TODO do we need to tell bedrock that time is frozen?
         );
     }
@@ -293,5 +331,23 @@ mod tests {
         // so a negative /time add never leaves the day time below zero.
         time.add_time(-2000);
         assert_eq!(time.time_of_day, 0);
+    }
+
+    #[test]
+    fn default_clock_name_matches_vanilla_dimension_types() {
+        assert_eq!(
+            default_clock_name("minecraft:overworld"),
+            Some("minecraft:overworld")
+        );
+        assert_eq!(
+            default_clock_name("minecraft:overworld_caves"),
+            Some("minecraft:overworld")
+        );
+        assert_eq!(
+            default_clock_name("minecraft:the_end"),
+            Some("minecraft:the_end")
+        );
+        // The nether dimension type has no default_clock.
+        assert_eq!(default_clock_name("minecraft:the_nether"), None);
     }
 }
