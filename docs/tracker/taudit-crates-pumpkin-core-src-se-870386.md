@@ -256,3 +256,42 @@ No STILL OPEN rows remain. No new unit test: both behaviour rows need a runtime
 (unit rules); rustfmt is run by the orchestrator. Risk: `tick_count` now advances
 top-of-tick instead of end-of-tick; grep confirms no second reader increments it, so no
 double-increment.
+
+## Result (verification pass)
+
+Re-verified the working-tree code for every row against
+`.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`.
+No source files changed this pass: all rows were already resolved by prior passes.
+
+- VERIFIED (M) tick_count-at-start - vanilla runs `// this.tickCount++;` at the
+  top of `tickServer` before `// this.tickRateManager.tick();`
+  (MinecraftServer.java:1705-1706). `ticker.rs:140-142` increments
+  `server.tick_count` under `advances_tick_count` at the top of `Ticker::run`;
+  `server/mod.rs:2068` (`sync_game_time`) has no `+ 1` patch, and
+  `server/mod.rs:2083-2084` (`update_tick_times`) reads the already-current
+  counter with `% 100`. Tick start/end events read it directly
+  (`ticker.rs:186,216`). Grep confirms a single `server.tick_count.fetch_add`.
+
+- VERIFIED try/catch crash report - vanilla wraps `tickChildren` in
+  `catch (Throwable)` and builds a `CrashReport`
+  (MinecraftServer.java:1707-1713). Pumpkin's global panic hook
+  (`crates/pumpkin/src/main.rs`) already sets `CRASH_REPORT`, stops the server,
+  saves `crash-reports/crash-*.txt` and sets exit code 1, the same observable
+  behaviour; `catch_unwind` would be redundant since vanilla stops. Crash text
+  is fork API.
+
+- VERIFIED overload gate `>=` (`ticker.rs:258-263`) - classic vanilla uses `>=`
+  on `l - lastOverloadWarningNanos`; the supplied Folia/Canvas tree replaced it
+  with `tickSchedule`, so the classic gate cannot be re-derived here. Keep `>=`
+  with the `[1, 6]` test (`ticker.rs:386-402`).
+
+- VERIFIED pause-when-empty (`ticker.rs:105-163`; hub.rs; handlers.rs) - matches
+  vanilla `tickServer`: `emptyTicks`/reset (`EmptyTickClock::observe`), threshold
+  `seconds*20`, one-shot `LOGGER.info("Server empty for {} seconds, pausing")`
+  + `autoSave()` (MinecraftServer.java:1608-1639, info at 1620), scheduler
+  heartbeat and connection ticking while paused.
+
+No STILL OPEN rows remain. No new unit test: the pure seams (`EmptyTickClock`,
+`apply_overload_skip`, `advances_tick_count`) are already unit-tested; the two
+behaviour rows need runtime scenarios. No compile/test run (unit rules); rustfmt
+is run by the orchestrator. No source files changed this pass.

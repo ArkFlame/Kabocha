@@ -216,3 +216,32 @@ recorded in the passes above):
 
 No source file edited, so no rustfmt or build was required (cargo and shell are forbidden for
 this worker; no edit needed). Status: PASS (source comparison only, not compiled).
+
+
+## Result (2026-11-18, third pass / orchestrator re-queue)
+
+Fresh audit of the current Pumpkin source. No row is marked STILL OPEN (the only textual
+"STILL OPEN" hits are historical mentions inside earlier Result sections; the h6 note on
+line 69 was closed by the 11-17/11-18 passes). Every prior conclusion re-confirms against
+the live source, so no source edit and no rustfmt were needed:
+
+1. Rider clamp + delta rotation: CLOSED. boat.rs:591-593 derives yaw_delta via
+   wrap_degrees(yaw - last_yaw); on_rider_positioned (856-899) applies it before
+   clamp_rider_yaw / clamp_head_to_body; on_passenger_turned (901+) re-clamps and folds
+   rider_clamp_adjustment into the previous yaw. Helpers at 982-1019 (rider_body_yaw full-boat
+   animal +90/+270, clamp_head_to_body max 75, clamp_rider_yaw +/-105) match the vanilla
+   line-anchored findings recorded in the 11-18 passes. Tests at 1045/1055 cover the seam.
+2. Buoyancy/drag/friction: CLOSED. float_boat is called from the tick for server-authoritative
+   boats at boat.rs:625; player-controlled boats keep client-authoritative motion by design.
+3. Boarding gate: NOT A GAP. boat_interact_outcome (161-177) keeps the !out_of_control term,
+   matching vanilla AbstractBoat.interact's !(outOfControlTicks < 60.0F) gate.
+4. Chest-boat cap: NOT A GAP. max_passengers (95-100) returns 1 for chest boats / 2 for plain;
+   chest_opens_container (135-141) offers the container on secondary use or when no seat is free.
+5. Chest contents on destroy: CLOSED. on_removed (488-506) scatters contents when the removal
+   reason should_destroy(), guarded by claim_drops; is_collidable (643-645) returns true
+   unconditionally, matching AbstractBoat.canBeCollidedWith.
+
+Decompiled vanilla is not present in this checkout (glob of .vendor/vanilla-decompiled/**/*.java
+and **/Boat.java found no files), so vanilla comparisons remain the line-anchored citations
+recorded in the earlier passes. All five rows end FIXED or NOT A GAP; none is BLOCKED-DATA.
+Status: PASS (verified against current Pumpkin source by comparison, not compiled).

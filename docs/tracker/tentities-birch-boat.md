@@ -70,11 +70,11 @@ Reviewed: 2026-11-16, MC 26.3 (`CURRENT_MC_VERSION`), vanilla classes
 
 ## Gap status
 - 1 FIXED: `boat.rs:179-194` `tick_underwater` increments only on `BoatStatus::is_underwater()` (from `physics.rs:23`), not `touching_water`.
-- 2 STILL OPEN: chest-boat container component on destroy, M.
-- 3 STILL OPEN: placement reads no container component, M.
-- 4 STILL OPEN: no leash hooks in `entity/vehicle/` (grep empty). Vanilla `Boat implements Leashable` UNVERIFIED without decompiled source.
-- 5 STILL OPEN: no server-side boat movement, L.
-- 6 STILL OPEN (partial): invulnerable early-out present at `boat.rs:372`; `isRemoved` early-out and return value at `boat.rs:381` not changed.
+- 2 VERIFIED: no container component on destroy; `VehicleEntity.destroy` (VehicleEntity.java:94-101) writes CUSTOM_NAME only, slots scattered by `AbstractChestBoat.destroy` (AbstractChestBoat.java:65-67).
+- 3 VERIFIED: no container component read on placement; `BoatItem.getBoat` (BoatItem.java:93-104) applies only implicit CUSTOM_NAME/CUSTOM_DATA.
+- 4 FIXED: leash hooks present in `boat.rs` (drop_leash:502, tick_leash:609, get_leash_holder:773, support_quad_leash:956); vanilla `AbstractBoat implements Leashable` (AbstractBoat.java:54,428-449).
+- 5 VERIFIED: no server-side paddle path in vanilla; controlBoat() is client-only (AbstractBoat.java:268-270), buoyancy/movement already in boat/physics.rs.
+- 6 FIXED: damage_with_context checks is_removed() then is_invulnerable_to() at boat.rs:718-724 (VehicleEntity.java:35-42).
 - 7 FIXED: `boat.rs:459` returns `has_passenger` after `add_passenger`.
 
 ## Result
@@ -259,3 +259,44 @@ No generated-data field or subsystem is missing, so no BLOCKED-DATA rows remain.
 
 No `.rs` file changed, so no rustfmt and no unit test (no new source seam). Risk: none,
 verification/docs only. All previously STILL OPEN rows are now FIXED or VERIFIED.
+
+## Result (THIRD PASS final disposition 2026-11-18)
+
+Independent verification of every row previously STILL OPEN against decompiled
+vanilla at `.vendor/vanilla-decompiled/net/minecraft` (MC 26.3). No source change
+was needed: each row resolves to FIXED (already in code) or VERIFIED (vanilla
+matches Pumpkin). No generated-data field or subsystem is missing, so there are
+no BLOCKED-DATA rows. This unit may edit only `item/items/place_on_water.rs`,
+which implements PlaceOnWaterBlockItem for LILY_PAD/FROGSPAWN (ids(), line 25)
+and contains no boat code, so no source edit was applicable here.
+
+- 2 chest-boat container component on destroy - VERIFIED (no gap).
+  `VehicleEntity.destroy` (`world/entity/vehicle/VehicleEntity.java:94-101`)
+  creates a drop stack and sets only `CUSTOM_NAME`; `AbstractChestBoat.destroy`
+  (`world/entity/vehicle/boat/AbstractChestBoat.java:65-67`) scatters the 27
+  slots via `chestVehicleDestroyed`. No boat class writes `minecraft:container`.
+  Pumpkin's `scatter_chest_contents` plus named-drop path already matches.
+- 3 container component read on placement - VERIFIED (no gap). `BoatItem.getBoat`
+  (`world/item/BoatItem.java:93-104`) calls only
+  `EntityType.createDefaultStackConfig`; `Entity.applyImplicitComponent` handles
+  CUSTOM_NAME/CUSTOM_DATA only and no boat class overrides it to read
+  `minecraft:container`. Boat placement lives in `item/items/boat.rs`, not in
+  this unit's `place_on_water.rs`. No edit needed.
+- 4 leash hooks - FIXED (present). `AbstractBoat.java:54` declares
+  `implements Leashable` with `getLeashData/setLeashData` (:428-435) and
+  `supportQuadLeash() == true` (:443-445). Pumpkin's `boat.rs` has drop_leash
+  (:502), tick_leash (:609), get_leash_holder (:773) and support_quad_leash
+  (:956). `get_leash_offset` is render-only; no server-side hook needed.
+- 5 server-side boat movement - VERIFIED (no gap). `AbstractBoat.java:262-273`
+  runs floatBoat()/move() on the authoritative side but controlBoat() only under
+  `level().isClientSide()` (:268-270). There is no server-side paddle path to
+  port; buoyancy, friction, move_boat and VehicleMoveEvent already live in
+  `boat/physics.rs`. No edit needed.
+- 6 damage early-out/return - FIXED (present). `VehicleEntity.hurtServer`
+  (`VehicleEntity.java:35-42`) checks isRemoved() first (returns true) then
+  isInvulnerableToBase (returns false). Pumpkin's `boat.rs:718-724` mirrors both
+  in `damage_with_context`. No edit needed.
+
+No `.rs` file changed, so no rustfmt and no unit test (no source seam in
+`place_on_water.rs` for any boat row). Risk: none, verification/docs only.
+All previously STILL OPEN rows now have a terminal status in `## Gap status`.

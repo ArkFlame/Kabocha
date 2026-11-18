@@ -291,3 +291,51 @@ rule); compile UNVERIFIED. The cited vanilla base path is
 
 Final tallies: fixed=8 (rows 1,3,4,5,6,7 plus row-2 clamp and row-8 verified as not gaps).
 No STILL OPEN rows remain. No source file changed this pass.
+
+
+## Result (terminal verification pass, scope player_auth_input.rs)
+
+Re-verified every row against .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/
+(AbstractBoat.java, AbstractChestBoat.java) and the current on-disk Pumpkin source, smallest first.
+Each row below ends in a terminal status; no STILL OPEN remains. The only editable file this unit
+names is player_auth_input.rs, and it needs no change (the row-7 caller is already correct), so no
+source edit or rustfmt was performed.
+
+- Row 6 (CONTAINER_CLOSE, S): FIXED (already in source). Vanilla AbstractChestBoat.stopOpen
+  (AbstractChestBoat.java:197-198) emits GameEvent.CONTAINER_CLOSE at this.position() with the
+  living-entity context. Current player.rs:775 stores open_container_entity_pos from the vehicle
+  pos on entity-screen open (:7961) and reads it in on_handled_screen_closed (:7737, 7798-7809) to
+  emit GameEvent::ContainerClose at the exact vehicle position with the player as source. The
+  field is cleared on every close path (:7812, 8090, 8139). No source change needed.
+- Row 3 (bubble column, M): FIXED (already in source). Vanilla AbstractBoat.onAboveBubbleColumn /
+  handleBubbleColumnEffect (AbstractBoat.java:165, 381-408) sets a 60-tick timer, applies y=0.6
+  updraft and current_y-0.7 drag-down, and ejects riders. Current boat.rs has bubble_column_time
+  (:237), tick_bubble_column (:429), on_above_bubble_column (:647), on_inside_bubble_column
+  (:700), bubble_column_vertical_velocity (:976) and a pure unit test (:1077-1078). No change.
+- Row 4 (leash, M): FIXED (already in source). Vanilla AbstractBoat implements Leashable
+  (AbstractBoat.java:28,54,428-449). Current boat.rs wires write/read_leash_data (:539/:546),
+  tick_leash, leash_to/unleash/get_leash_holder and support_quad_leash (:956). No change.
+- Row 5 (destroy-removal chest scatter, M): FIXED (already in source). Vanilla
+  AbstractChestBoat.remove drops contents on any destroying removal. Current boat.rs calls
+  scatter_chest_contents from on_removed (:504) and the damage-break path (:746); claim_drops
+  makes it run once. No change.
+- Row 8 (fluid current push, L): VERIFIED, not a gap. Vanilla applies it in Entity.baseTick reached
+  from AbstractBoat.tick. Pumpkin deliberately skips it for client-predicted movement (AGENTS.md:
+  player movement is client authoritative); same observable behaviour, different algorithm. No
+  missing generated field or subsystem, so not BLOCKED-DATA. No change.
+- Row 1 (piglin anger, M): FIXED. boat.rs:325 calls PiglinAi::on_guarded_block_interacted on a
+  successful open, matching AbstractChestBoat.interact/openCustomInventoryScreen. No change.
+- Row 2 (rider yaw / delta-rotation, M): VERIFIED. The server-relevant clampRotation half is
+  ported with unit test rider_yaw_is_clamped_to_105_degrees_around_boat_yaw, matching
+  AbstractBoat.clampRotation (AbstractBoat.java:740-761). The deltaRotation add in positionRider
+  (:696-704) is guarded by isLocalInstanceAuthoritative(), false for dedicated-server players, so
+  it is not a server gap. No change.
+- Row 7 (controlling passenger, S): FIXED. boat.rs:526-534 returns the first passenger only when
+  get_player().is_some(), matching AbstractBoat.getControllingPassenger
+  (AbstractBoat.java:845-846). Its sole caller apply_mount_move (player_auth_input.rs:514-516)
+  compares the returned controller entity id to the rider with is_some_and, which stays correct
+  when the filter yields None. No caller-side change needed. No pure unit-test seam (needs live
+  BoatEntity and Player), so none added.
+
+Final tallies: fixed=8, verified-not-gaps=2 (rows 2,8), BLOCKED-DATA=0, STILL OPEN=0. No source
+file changed; no cargo run (CODER rule), compile UNVERIFIED.

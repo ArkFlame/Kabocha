@@ -256,3 +256,47 @@ worker. Every row now has a terminal status; none remain STILL OPEN.
 All four rows resolved; no row remains STILL OPEN. Only documenting comments were
 added to chest_like_block_entity.rs and ender_chest.rs; no functional code change
 was needed.
+
+
+## Result (third pass re-verify, 2026-11-18)
+
+Re-verified all four rows against decompiled vanilla present this pass under
+.vendor/vanilla-decompiled/net/minecraft/. No cargo/git/shell build command was
+run (per unit rules). Every row has a terminal status; no row remains STILL OPEN.
+No source file needed a change.
+
+- Row 1 (partner half detached on non-player removal): FIXED, in tree.
+  Vanilla ChestBlock.updateShape
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:172-200)
+  flips a lone half back to ChestType.SINGLE via the else-if at :195-197, while
+  affectNeighborsAfterRemoval (:265-267) only calls
+  Containers.updateNeighboursAfterDestroy (comparator updates). Pumpkin's
+  chest_state_for_neighbor_update (chests.rs:623-656, wired at 670/854/926) is a
+  faithful port of that hook and runs on every state change, covering
+  break/explosion/setblock. No on_state_replaced needed. No change.
+- Row 2 (blocked-chest predicate): FIXED, in tree.
+  Vanilla ChestBlock.isBlockedChestByBlock
+  (ChestBlock.java:368-370) tests the block above with isRedstoneConductor (a
+  collision-full block). Pumpkin's has_block_on_top uses state.is_full_cube()
+  (chests.rs:1104-1109), matching it. No change.
+- Row 3 (lid event viewer count truncated to u8): VERIFIED (matches vanilla).
+  Vanilla ChestBlockEntity.signalOpenCount passes the int current, but
+  ClientboundBlockEventPacket.write
+  (.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java:35-39)
+  emits it with output.writeByte(this.b1) (and readUnsignedByte on decode,
+  :28-33), so only the low 8 bits reach the wire. Pumpkin's `new as u8`
+  (chest_like_block_entity.rs:346, ender_chest.rs:86) plus the protocol's u8
+  action_parameter writes byte-identical output; widening to i32 would change
+  nothing on the wire and would need a protocol change outside this unit. The
+  documenting comments at both cast sites are present. No change.
+- Row 4 (double-chest menu title): FIXED, in tree.
+  Vanilla MENU_PROVIDER_COMBINER.getDisplayName
+  (ChestBlock.java:129-136) uses the first (RIGHT) half custom name, else the
+  second (LEFT) half, else container.chestDouble. Pumpkin's chest_display_name
+  (chests.rs:81) resolves both halves and picks the default key by double_chest;
+  pure unit test chest_menu_title_matches_vanilla (chests.rs:1143-1166) present
+  and well-formed. No change.
+
+All four rows closed; none STILL OPEN. No generated pumpkin-data field or
+missing subsystem blocks any row. Only this doc section was appended; no
+source file touched and no rustfmt needed.
