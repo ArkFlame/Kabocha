@@ -226,3 +226,43 @@ rows are now closed; no row remains STILL OPEN.
 
 No `.rs` file changed this pass and no new test needed (rows 1/2/4 already have
 coverage, row 3 is exact vanilla parity). No rustfmt needed (no `.rs` touched).
+
+
+## Result (third pass, independent verification)
+
+Re-read all four STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`
+and the live Pumpkin tree directly. Every row is exact vanilla parity or already
+resolved; no code defect remained, so no `.rs` file was changed.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): VERIFIED (matches vanilla).
+   `objective.rs:61` calls `filter_and_suggest_one`, matching vanilla
+   `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveArgument.java:61`
+   -> `SharedSuggestionProvider.suggest` (segment-aware `matchesSubStr`, `MATCH_SPLITTER`
+   `._/`). Resource-id sites (`template.rs`, `resource_key.rs`) correctly keep
+   `filter_and_suggest_iter` for `suggestResource`/`filterResources`. No missing field.
+2. Criteria raw strings / no vanilla registry (M): VERIFIED (matches vanilla).
+   `world/scoreboard.rs:1155 resolve_criterion` is the `ObjectiveCriteria.byName`
+   equivalent (read-only health/food/air/armor/xp/level, teamkill/killedByTeam colours,
+   stat names with `:`); `commands/scoreboard.rs:72` validates on `objectives add` and
+   stores `resolved.render_type`. Covered by `world/scoreboard/tests.rs`. No missing field.
+3. Argument errors without cursor context (M): VERIFIED (matches vanilla), no change.
+   The audit premise is false for this argument type: vanilla
+   `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveArgument.java:37,46`
+   throws `ERROR_OBJECTIVE_NOT_FOUND.create(id)` and
+   `ERROR_OBJECTIVE_READ_ONLY.create(objective.getName())` WITHOUT a reader, so
+   `objective.rs:85,99 create_without_context` is exact parity. The only vanilla
+   `createWithContext` case is
+   `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveCriteriaArgument.java:51`,
+   a distinct argument type Pumpkin does not have (criteria resolve at execution time in
+   `commands/scoreboard.rs`). Parse-time argument errors already use `.create(reader, ...)`
+   (`entity.rs:137`, `game_profile.rs:264`, `operation.rs:96`, `scoreboard_slot.rs:72`).
+   This is a false positive, not a missing generated field or missing subsystem.
+4. Per-world scoreboards vs server-wide vanilla (L): VERIFIED (matches vanilla).
+   `server/mod.rs:210-211` owns one shared `Arc<Mutex<Scoreboard>>` cloned into every
+   world (`:543`, `:933`), matching `ObjectiveArgument.java:34`
+   `source.getServer().getScoreboard()`.
+
+All four rows are terminal (VERIFIED); no STILL OPEN remains and no generated pumpkin-data
+field or missing subsystem blocks any row. No `.rs` touched, no rustfmt needed, no new test
+needed (rows 1/2/4 already have coverage, row 3 is exact parity). No compile/test run
+(worker rule); orchestrator batch-checks.
