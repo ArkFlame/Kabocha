@@ -71,3 +71,16 @@ Row 1 fix confirmed correct; no new code change needed this pass.
 - Row 5 (`process::exit` in lookup): FIXED (present). `get_world_from_dimension` at `server/mod.rs:816-823` returns `Option`; no `process::exit` remains in `server/mod.rs`.
 - Row 3 (freeze gate split): NOT A GAP for `#minecraft:tick`/`load` (gated at `server/mod.rs:1946`, matches `ServerFunctionManager.tick`).
 - Row 8 (debug sample gating): FIXED (present). Per-subscriber gating (`subscribed_debug_sample` and permission >= 2) at `server/mod.rs:2148-2157`.
+
+## Result (third pass, close remaining rows)
+
+Re-read the current `server/mod.rs` and the vendored decompiled vanilla. The last two
+rows previously left open are resolved; no source change was needed because the code
+already matches vanilla.
+
+| # | final status | detail |
+|---|---|---|
+| 3 | VERIFIED | `server/mod.rs:1942` calls `plugin_manager.tick_loaders(self)` every tick outside the `runs_normally()` gate at line 1946, so loader `on_tick` keeps running while `/tick freeze` is active (Paper plugin heartbeat). Datapack `#minecraft:tick` / `#minecraft:load` and `/schedule` stay gated, matching `ServerFunctionManager.tick` and the per-level `TimerQueue` under `ServerLevel.tick`'s `runs` flag. Vanilla gate: `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java:1862` (`tickRateManager.runsNormally()`) and `:1875` (`forceGameTimeSynchronization()` inside that gate). |
+| 7 | FIXED (present) | The frozen branch calls `tick_players_and_network()` which flushes only `world.flush_synced_block_events()` (`server/mod.rs:1971`); full block updates are flushed once by the single `flush_pending_block_updates()` at `server/mod.rs:1953`. No duplicate flush remains. |
+
+All rows in the Remaining gaps table are now closed (1, 2, 5, 6, 8 FIXED; 3, 4, 7 VERIFIED/FIXED).

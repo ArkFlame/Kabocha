@@ -112,3 +112,11 @@ No source files changed this pass. No unit test added: no fixable seam remained 
 ## Result (native-4 cross-file pass)
 - Row 4 (TICK_TIME debug sample layout/ring): FIXED (present). `server/mod.rs:2078-2158` builds the 4-value sample via `tick_time_sample`, fed from the raw full-tick interval; layout doc at `server/mod.rs:2319`. Sent only to subscribers with permission level 2.
 - Row 2 (per-dimension map id counter + persistence): BLOCKED-L. Needs a map-id allocator in `world/` plus map-data persistence across `server/mod.rs` and the world save path; no pure seam and it spans crates.
+
+## Result (third pass, close remaining row)
+
+| # | final status | detail |
+|---|---|---|
+| 2 | VERIFIED (NOT A GAP) | The audit premise was wrong. In vanilla 1.21 map ids are global, not per-dimension: `ServerLevel.getFreeMapId()` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerLevel.java:4371-4373`) delegates to `getServer().getDataStorage().computeIfAbsent(MapIndex.TYPE).getNextMapId()`. `MapIndex` persists a single server-wide `lastMapId` under `maps/last_id` (`.vendor/vanilla-decompiled/net/minecraft/world/level/saveddata/maps/MapIndex.java:10-32`). Pumpkin's `Server.map_id: AtomicI32` (`server/mod.rs:142`), initialized from persisted level info (`server/mod.rs:404`) and saved back in `next_map_id` (`server/mod.rs:1842-1850`), is the same global, persisted counter. No per-`World` refactor needed and no code change. |
+
+Row 4 was already FIXED in a prior pass (`server/mod.rs:2078-2158`, four-value sample from the raw full-tick interval, permission level 2). All rows are now closed; no BLOCKED-DATA and no generated field or subsystem is missing.

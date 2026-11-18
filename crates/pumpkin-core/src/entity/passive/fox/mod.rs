@@ -85,6 +85,12 @@ fn as_fox(mob: &dyn Mob) -> Option<&FoxEntity> {
     mob.cast_any().downcast_ref::<FoxEntity>()
 }
 
+/// Vanilla `Fox.isConsumableFood`: both `FOOD` and `CONSUMABLE` are required.
+fn is_consumable_food(item: &ItemStack) -> bool {
+    item.has_data_component(pumpkin_data::data_component::DataComponent::Food)
+        && item.has_data_component(pumpkin_data::data_component::DataComponent::Consumable)
+}
+
 fn is_not_defending(mob: &dyn Mob) -> bool {
     as_fox(mob).is_some_and(|fox| !fox.is_defending())
 }
@@ -340,10 +346,10 @@ impl FoxEntity {
         self.set_flag(128, val);
     }
 
-    /// Vanilla drops the oldest entry once both slots are taken.
+    /// Vanilla keeps the first trusted entity and overwrites the second slot.
     pub fn add_trusted(&self, uuid: Uuid) {
         let trusted = match self.trusted.load() {
-            [Some(_), Some(second)] => [Some(second), Some(uuid)],
+            [Some(first), Some(_)] => [Some(first), Some(uuid)],
             [Some(first), None] => [Some(first), Some(uuid)],
             [None, _] => [Some(uuid), None],
         };
@@ -376,7 +382,7 @@ impl FoxEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
         if !self.mob_entity.is_no_ai() {
-            let wet = entity.is_in_water_or_rain();
+            let wet = entity.is_in_water();
             if self.is_sleeping()
                 && (wet || self.mob_entity.get_target().is_some() || world.is_thundering())
             {
@@ -385,17 +391,14 @@ impl FoxEntity {
             if self.is_sitting() && (wet || self.is_sleeping()) {
                 self.set_sitting(false);
             }
-            // Vanilla only bursts the block when it is not air.
             if self.is_faceplanted() && rand::random::<f32>() < 0.2 {
                 let pos = entity.block_pos.load();
                 let state = world.get_block_state(&pos);
-                if !state.is_air() {
-                    world.sync_world_event(
-                        WorldEvent::ParticlesAndSoundDestroyBlock,
-                        pos,
-                        i32::from(state.id.as_u16()),
-                    );
-                }
+                world.sync_world_event(
+                    WorldEvent::ParticlesAndSoundDestroyBlock,
+                    pos,
+                    i32::from(state.id.as_u16()),
+                );
             }
         }
         let crouch = if self.is_crouching() {
@@ -452,8 +455,7 @@ impl FoxEntity {
     }
 
     fn can_eat(&self, item: &ItemStack) -> bool {
-        !item.is_empty()
-            && item.has_data_component(pumpkin_data::data_component::DataComponent::Food)
+        is_consumable_food(item)
             && self.mob_entity.get_target().is_none()
             && self.get_entity().on_ground.load(Ordering::Relaxed)
             && !self.is_sleeping()
@@ -467,10 +469,8 @@ impl FoxEntity {
         if held.is_empty() {
             return true;
         }
-        let is_new_food =
-            new_item.has_data_component(pumpkin_data::data_component::DataComponent::Food);
-        let is_held_food =
-            held.has_data_component(pumpkin_data::data_component::DataComponent::Food);
+        let is_new_food = is_consumable_food(new_item);
+        let is_held_food = is_consumable_food(&held);
         self.ticks_since_eaten.load(Ordering::Relaxed) > 0 && is_new_food && !is_held_food
     }
 

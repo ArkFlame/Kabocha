@@ -15,7 +15,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/titems-elytra** [partial/OWN-OPEN] own audit: 8 open, 1 fixed, 1 verified, 0 blocked-data (docs/tracker/titems-elytra.md) docs/tracker/titems-elytra.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+All rows closed as of the third pass (final closure Result below). No row remains STILL OPEN.
 
 
 ## Result (third pass, final closure)
