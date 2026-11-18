@@ -55,7 +55,9 @@ impl JavaClient {
             if vehicle_entity.is_removed() {
                 return;
             }
-            // Only the controlling passenger (the first one) steers.
+            // Only the controlling passenger (the first one) steers. Vanilla still resyncs
+            // the vehicle for a non-controlling passenger after 20 ticks or more than one
+            // block of drift (`ServerGamePacketListenerImpl#handleMoveVehicle`).
             let is_controlling = vehicle_entity
                 .passengers
                 .lock()
@@ -63,6 +65,24 @@ impl JavaClient {
                 .first()
                 .is_some_and(|passenger| passenger.get_entity().entity_id == entity.entity_id);
             if !is_controlling {
+                let vehicle_pos = vehicle_entity.pos.load();
+                let tick = player.tick_counter.load(Ordering::Relaxed);
+                let last_reset = self.vehicle_position_last_reset_at.load(Ordering::Relaxed);
+                if tick - last_reset > 20 || vehicle_pos.squared_distance_to_vec(&pos) > 1.0 {
+                    warn!(
+                        "{} was expected to be controlling vehicle {} but was not. Resetting vehicle position.",
+                        player.gameprofile.name, vehicle_entity.entity_type.resource_name
+                    );
+                    self.try_send_packet(&CMoveVehicle::new(
+                        vehicle_pos.x,
+                        vehicle_pos.y,
+                        vehicle_pos.z,
+                        vehicle_entity.yaw.load(),
+                        vehicle_entity.pitch.load(),
+                    ));
+                    self.vehicle_position_last_reset_at
+                        .store(tick, Ordering::Relaxed);
+                }
                 return;
             }
 

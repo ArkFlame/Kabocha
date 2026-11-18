@@ -164,6 +164,9 @@ pub struct JavaClient {
     /// On `SClientTickEnd` (≥1.21.4), if still `false`, the player's known
     /// movement is zeroed (they stood still). Matches vanilla's `receivedMovementThisTick`.
     pub received_movement_this_tick: AtomicBool,
+    /// Vanilla `ServerGamePacketListenerImpl.vehiclePositionLastResetAt`: the tick of the last
+    /// vehicle-position resync sent to a passenger that is not controlling the vehicle.
+    pub vehicle_position_last_reset_at: AtomicI32,
     /// The keep alive packet payload we send. The client should respond with the same id.
     pub keep_alive_id: AtomicCell<i64>,
     /// The last time we sent a keep alive packet.
@@ -216,6 +219,7 @@ impl JavaClient {
             player: ArcSwap::from_pointee(std::sync::Weak::new()),
             wait_for_keep_alive: AtomicBool::new(false),
             received_movement_this_tick: AtomicBool::new(false),
+            vehicle_position_last_reset_at: AtomicI32::new(0),
             keep_alive_id: AtomicCell::new(0),
             last_keep_alive_time: AtomicCell::new(Instant::now()),
             last_packet_time: AtomicCell::new(Instant::now()),
