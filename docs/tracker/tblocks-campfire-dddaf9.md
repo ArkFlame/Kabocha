@@ -218,3 +218,46 @@ Re-read the diff against the "Worker compile pitfalls" table: no diff, so
 nothing to correct. No generated data, WIT or cross-crate refactor was touched.
 
 Status: PASS fixed=0 open=1 files=none
+
+
+## Result
+
+Third pass (2026-11-18). Re-read the last Result: the only remaining open row
+was Row 7 (crackle / smoke / flame particles), previously marked BLOCKED on the
+claim that Pumpkin has no particle subsystem callable from a server block-entity
+tick. That claim is stale: `World::spawn_particle` exists
+(`crates/pumpkin-core/src/world/mod.rs:1819`) and is already used from block
+entity ticks (e.g. `block/entities/sculk_catalyst.rs:135`), and the generated
+`Particle` enum has `CampfireCosySmoke`, `CampfireSignalSmoke` and `Smoke`
+(`crates/pumpkin-data/src/generated/particle.rs`). No generated field or whole
+subsystem is missing, so the row is fixable in this unit.
+
+Row 7 (campfire particles): FIXED. Verified against vendored decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CampfireBlockEntity.java`
+(lines 165-188 `particleTick`) and
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/CampfireBlock.java`
+(lines 242-266 `makeParticles`, 316-330 `getTicker`). Added
+`CampfireBlockEntity::particle_tick`, called from the lit branch of `tick`:
+- 11% chance per tick of `nextInt(2) + 2` (2-3) puffs, each
+  `CAMPFIRE_SIGNAL_SMOKE` when `SIGNAL_FIRE` else `CAMPFIRE_COSY_SMOKE`, with
+  vanilla's +/- one-third x/z jitter, y = `random + random`, upward velocity
+  0.07 (`CampfireBlockEntity.java:166-171`, `CampfireBlock.java:244-254`).
+- For each non-empty slot, 20% chance of 4 `SMOKE` particles at the vanilla
+  0.3125 facing/clockwise slot offsets with velocity 5e-4
+  (`CampfireBlockEntity.java:173-187`).
+
+Pure seams `facing_2d_data_value` (`Direction.get2DDataValue`: SOUTH=0, WEST=1,
+NORTH=2, EAST=3) and `item_particle_offset` (slot/clockwise step table) were
+added with unit tests `facing_2d_data_value_matches_vanilla_order` and
+`item_particle_offset_follows_slot_and_facing`. No unwrap/expect/panic, no em
+dashes, no generated-data edits, no cross-crate or WIT changes. Flame rendering
+and crackle audio remain client-side block-model/sound effects with no server
+seam; they are cosmetic and were already noted as non-blocking. Touched files:
+`crates/pumpkin-core/src/block/entities/campfire.rs`. Re-read the diff against
+the Worker compile pitfalls table: import paths use the same
+`pumpkin_data::block_properties` / `pumpkin_data::particle` paths as nearby
+code; helpers are `const fn` and placed in `impl CampfireBlockEntity` (not in a
+trait impl); no struct initializers or clones were changed; `rand::random_range`
+/`rand::random` match the calls already in this file.
+
+Status: PASS fixed=1 open=0 files=crates/pumpkin-core/src/block/entities/campfire.rs

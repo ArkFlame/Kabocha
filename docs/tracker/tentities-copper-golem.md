@@ -74,7 +74,7 @@ No pure unit-test seam (NBT/statue conversion need a live entity and world; enum
 
 ## Result (third pass 2026-11-18)
 
-Re-verified all four rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). All prior fixes are intact; no code changes were needed. Updated "Gap status" so no row remains STILL OPEN.
+Re-verified all four rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java` (present this pass). All prior fixes are intact; no code changes were needed. Updated "Gap status" so no row remains open.
 
 - Row 1 (statue conversion): VERIFIED. `update_weathering` (copper_golem.rs:261) gates on Oxidized + air + TURN_TO_STATUE_CHANCE 0.0058 (matches vanilla `canTurnToStatue`, CopperGolem.java:284-286). `turn_to_statue` (copper_golem.rs:298) sets OXIDIZED_COPPER_GOLEM_STATUE with a random pose/facing, fires EntityChangeBlockEvent, transfers the custom name via `create_statue` (copper_golem_statue.rs:121), drops preserved equipment, handles the leash, removes the entity, and plays the become-statue sound. Matches vanilla CopperGolem.java:288-321.
 - Row 2 (pickup/deposit): VERIFIED. `TransportItemsBetweenContainers` (transport_items_between_containers.rs), registered as an Idle priority-0 behavior (copper_golem_ai.rs:49), drives all CopperGolemState variants via `set_state`. Matches vanilla `CopperGolemAi`/`TransportItemsBetweenContainers`.
