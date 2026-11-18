@@ -80,3 +80,56 @@ fn can_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {
             .get_block(&above_pos)
             .has_tag(&tag::Block::MINECRAFT_FENCE_GATES)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::BlockState;
+    use rustc_hash::FxHashMap;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct TestBlocks(FxHashMap<BlockPos, BlockStateId>);
+
+    impl BlockAccessor for TestBlocks {
+        fn get_block(&self, position: &BlockPos) -> &'static Block {
+            self.get_block_state_id(position).to_block()
+        }
+
+        fn get_block_state(&self, position: &BlockPos) -> &'static BlockState {
+            BlockState::from_id(self.get_block_state_id(position))
+        }
+
+        fn get_block_state_id(&self, position: &BlockPos) -> BlockStateId {
+            self.0
+                .get(position)
+                .copied()
+                .unwrap_or(Block::AIR.default_state.id)
+        }
+
+        fn get_block_and_state(
+            &self,
+            position: &BlockPos,
+        ) -> (&'static Block, &'static BlockState) {
+            BlockState::from_id_with_block(self.get_block_state_id(position))
+        }
+    }
+
+    #[test]
+    fn can_place_respects_obstruction_and_fence_gate() {
+        let position = BlockPos::new(0, 64, 0);
+        let above = position.up();
+
+        let open = TestBlocks::default();
+        assert!(can_place_at(&open, &position));
+
+        let mut solid = TestBlocks::default();
+        solid.0.insert(above, Block::STONE.default_state.id);
+        assert!(!can_place_at(&solid, &position));
+
+        let mut gate = TestBlocks::default();
+        gate.0.insert(above, Block::OAK_FENCE_GATE.default_state.id);
+        assert!(can_place_at(&gate, &position));
+    }
+}

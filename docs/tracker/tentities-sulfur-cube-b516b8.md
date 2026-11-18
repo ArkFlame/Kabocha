@@ -1,4 +1,4 @@
-**STILL OPEN** `9728ac352` (fix(entity): apply sulfur cube body state on item pickup). Reverted from FIXED: pickup path sulfur_cube.rs:896-901 calls on_item_pickup but the body-state update was not traced in this pass.
+**VERIFIED** `9728ac352` (fix(entity): apply sulfur cube body state on item pickup). Pickup path sulfur_cube.rs:922-924 sets the BODY slot then calls detect_body_item_change(), which applies the archetype/attribute/goal state (sulfur_cube.rs:402-474), matching vanilla SulfurCube.pickUpItem -> collectEquipmentChanges (.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:720-729, 405-457).
 
 # Tracker: entities / Sulfur Cube (RE-REVIEW)
 
@@ -139,3 +139,16 @@ Gaps 3-8 re-verified against decompiled vanilla, no code change:
 Worker compile-pitfall recheck: the only source edit is a return-value literal plus a comment; no imports, helpers, macro paths, struct initializers, clones, unwrap/expect/panic or new fns; no em dashes. No cargo run (worker restriction).
 
 Status: PASS fixed=1 open=0 files=sulfur_cube.rs
+
+
+## Result (worker pass 4, 2026-11-18)
+
+STILL OPEN row `9728ac352` (apply sulfur cube body state on item pickup): VERIFIED against decompiled vanilla. No source change required: the fix is already present in the current tree.
+
+- Vanilla `SulfurCube.pickUpItem` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:720-729`) calls `onItemPickup` then `setItemSlot(BODY, split)`; the body state (goal clear/register, speed reset, old/new archetype attribute modifiers, floats-in-liquids/explosion/contact/sound state) is applied by `SulfurCube.collectEquipmentChanges` (same file `:405-457`), the base entity's equipment-change hook.
+- Pumpkin `pick_up_item` (`sulfur_cube.rs:903-937`) writes the BODY slot via `set_item_slot_and_drop_when_killed` (`:922-923`) then calls `detect_body_item_change()` immediately (`:924`), before the absorb sound. That routes to `on_body_item_changed` (`:402-474`), which applies the same state set as `collectEquipmentChanges`. `detect_body_item_change` is also called from `equip_item` (`:590`), `shear` (`:604`) and the per-tick `mob_tick` (`:839`), matching the vanilla collection point. The immediate pickup call only removes a one-tick lag; end state and observable behaviour match vanilla.
+- The earlier "body-state update was not traced" revert pointed at the pre-fix line range (`:896-901`); the current range (`:903-937`) contains the call at `:924`.
+- No pure unit-test seam exists: the path needs a live MobEntity/world; `detect_body_item_change` is covered by the pickup/equip/shear integration paths.
+- Compile-pitfall recheck: no source edits this pass (doc only); no imports, helpers, macro paths, struct initializers, clones or unwrap/expect/panic introduced; no em dashes.
+
+Status: PASS fixed=0 open=0 files=none

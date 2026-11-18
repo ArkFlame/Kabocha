@@ -270,3 +270,62 @@ Out of scope (not a tracker STILL OPEN row): Bedrock block-actor data dropping i
 No `.rs` files touched, so no rustfmt run. Cannot compile in this CODER role.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-31ea5a.md
+
+
+## Result
+
+Audit pass 9 (2026-11-18, THIRD PASS). Re-read the current source of
+`block/entities/jukebox.rs` (write_nbt 81-100, tick 102-133, chunk_data_nbt 147-152,
+bedrock_block_actor_data 154-165, on_block_replaced 179-199, set_record 229-237,
+stop_playing 261-277, set_stack 356-404, can_transfer_to 418-428, Clearable::clear
+440-446, build_jukebox_actor 450-471, note_particle_hue 474-476) and
+`block/blocks/jukebox.rs` (normal_use 93-118, use_with_item 122-189, on_state_replaced
+192-195, get_weak_redstone_power 203-213, get_comparator_output 216-231), plus the Bedrock
+helper `bedrock.rs:118-136`. Re-checked every row directly against the decompiled vanilla
+sources in `.vendor/vanilla-decompiled/net/minecraft/`. No `.rs` file needed a change; all
+behaviour matches vanilla. No row remains STILL OPEN.
+
+- Tick particle order/payload (was STILL OPEN): VERIFIED. `JukeboxSongPlayer.tick`
+  (`world/item/JukeboxSongPlayer.java:64-77`) emits JUKEBOX_PLAY plus particles while
+  `ticksSinceSongStarted % 20 == 0` BEFORE the increment; `spawnMusicParticles` (83-89)
+  sends count 0, offset `(nextInt(4)/24.0, 0, 0)`, speed 1.0 at `pos+(0.5, 1.2, 0.5)`.
+  Pumpkin's `tick` emits before `fetch_add` (129-130) with `note_particle_hue` (474-476)
+  = step/24.0; `World::spawn_particle` order is (position, offset, max_speed, count, particle).
+  `JukeboxSong.hasFinished` uses `length + 20` (`world/item/JukeboxSong.java:50-52`),
+  matching `song_length_ticks`.
+- `chunk_data_nbt`/`write_nbt` ticks (was STILL OPEN): FIXED on master, VERIFIED.
+  `JukeboxBlockEntity.saveAdditional`
+  (`world/level/block/entity/JukeboxBlockEntity.java:129-138`) writes
+  `ticks_since_song_started` only while `getSong() != null`; Pumpkin gates it on
+  `song_length_ticks > 0` (94) and `chunk_data_nbt` reuses `write_nbt` (147-152). Tests
+  `write_nbt_omits_ticks_since_song_started_when_stopped`,
+  `write_nbt_keeps_zero_ticks_while_song_is_loaded`, `chunk_data_nbt_omits_ticks_when_stopped`.
+- `on_state_replaced` delegation (was STILL OPEN): VERIFIED.
+  `JukeboxBlock.affectNeighborsAfterRemoval`
+  (`world/level/block/JukeboxBlock.java:79-82`) only calls
+  `Containers.updateNeighboursAfterDestroy`, mapped to `update_neighbour_for_output_signal`
+  (blocks/jukebox.rs:192-195). The record drop is `preRemoveSideEffects -> popOutTheItem`
+  (`JukeboxBlockEntity.java:193-196`, 88-102), mapped to `JukeboxBlockEntity::on_block_replaced`
+  (179-199). No double drop.
+- `set_record` (was ALREADY FIXED UNVERIFIED): VERIFIED. Calls `stop_playing` (231); its only
+  caller `use_with_item` sets HAS_RECORD (blocks/jukebox.rs:166-172). Matches
+  `JukeboxBlockEntity.setTheItem` (`JukeboxBlockEntity.java:153-164`).
+- `can_transfer_to` (was ALREADY FIXED UNVERIFIED): VERIFIED. Checks any empty target slot
+  (418-428), matching `JukeboxBlockEntity.canTakeItem` (`JukeboxBlockEntity.java:188-191`);
+  `hopper.rs:386` simply delegates to the source's `can_transfer_to`.
+- `normal_use`/`use_with_item`/`set_stack`/`Clearable::clear`: VERIFIED against
+  `JukeboxBlock.useWithoutItem`/`useItemOn` (`JukeboxBlock.java:48-77`),
+  `JukeboxPlayable.tryInsertIntoJukebox` (`world/item/JukeboxPlayable.java:39-61`) and
+  `JukeboxBlockEntity.setTheItem` (`JukeboxBlockEntity.java:153-164`). Disc consumption,
+  stat awarding, HAS_RECORD update and the single stop event all match.
+
+BLOCKED-DATA (not a tracker STILL OPEN row, one-line reason): Bedrock block-actor data
+omits item components in `RecordItem` (`build_jukebox_actor` 450-471). The whole Bedrock
+item-stack component-NBT serialization subsystem is missing: `bedrock.rs:118-136`
+`build_bedrock_slot_items` writes only Name/Count/Damage/Slot for every container block
+entity, so no block entity persists item components to Bedrock NBT. Out of scope for a
+single block-entity unit.
+
+No `.rs` files touched, so no rustfmt run. Cannot compile in this CODER role.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-31ea5a.md
