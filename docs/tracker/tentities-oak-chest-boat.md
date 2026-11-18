@@ -75,7 +75,7 @@ constructing `BoatEntity` for `OAK_CHEST_BOAT` vs `OAK_BOAT` and asserting
 - Client-only effects (chest-boat open animation, prediction) were not assessed.
 
 ## Gap status
-- Table rows (27-slot inventory, single seat, seat offset): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- Table rows (27-slot inventory, single seat, seat offset): RESOLVED - re-verified against decompiled vanilla; all three already match, no edit needed.
 
 
 ## Result
@@ -97,3 +97,30 @@ Remaining gaps:
 No new pure unit test: this fix is a one-line call to the already-shared `scatter_inventory_at` helper (covered by its other callers); no new pure seam exists in minecart.rs for it.
 
 Files edited: `crates/pumpkin-core/src/entity/vehicle/minecart.rs` (rustfmt --edition 2024 rc 0), this doc.
+
+
+## Result (re-verification)
+
+Re-checked the three STILL OPEN table rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`.
+All three already match vanilla; no source edit was needed.
+
+- 27-slot inventory: VERIFIED. Vanilla `CONTAINER_SIZE = 27`, `getContainerSize() = 27`,
+  `NonNullList.withSize(27, ...)`; Pumpkin `CHEST_BOAT_CONTAINER_SIZE = 27` (boat.rs:44) is
+  returned only for chest boats by `boat_container_size()` (boat.rs:84-86).
+- Single passenger seat: VERIFIED. Vanilla `getMaxPassengers() = 1` (AbstractBoat uses 2);
+  Pumpkin `max_passengers()` returns `CHEST_BOAT_MAX_PASSENGERS = 1` for chest boats and
+  `BOAT_MAX_PASSENGERS = 2` otherwise (boat.rs:47-48, 95-101).
+- Seat offset 0.15: VERIFIED. Vanilla `getSinglePassengerXOffset() = 0.15F`; generated
+  `single_passenger_x_offset` is `0.15f32` for all 11 chest boats/rafts and `0f32` for the
+  11 plain boats, consumed via `passenger_attachment` / `passenger_seat_offset` (boat.rs:181-218).
+  Generated data already correct; not edited (generated files are off-limits).
+
+Observed since the prior Result: `boat.rs` was refactored by other workers with pure seams
+(`chest_opens_container`, `boat_interact_outcome`, `passenger_seat_offset`) and a
+`seat_and_container_tests` module, so gap 2 and gap 4 are now covered elsewhere. Gap 1
+still needs `minecart/container.rs` (outside this unit). Uncommitted `minecart.rs` changes
+in the checkout were not made by this worker and were left untouched.
+
+No source file edited; only this doc (stale Gap status updated and Result appended).
+No rustfmt needed (no .rs file touched). No tests run (worker rule: orchestrator compiles).
