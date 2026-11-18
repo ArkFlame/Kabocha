@@ -32,3 +32,12 @@ Source: `crates/pumpkin-core/src/entity/passive/strider.rs` (registered at `crat
 - STILL OPEN `strider.rs:178` passenger attachment: vanilla applies the rider offset only when `level().isClientSide()`, i.e. client-only visual effect; no server behaviour to port here.
 - No pure unit-test seam exists (environment/RNG/plugin-driven); skipped per MVP test rules.
 - rustfmt --edition 2024 applied to both touched .rs files (rc 0).
+
+## Result (re-verification)
+- FIXED in tree (row strider.rs:109 retreat sound): `mob_tick` plays `Sound::EntityStriderRetreat` when `is_panicking()` and `random_range(0..60) == 0`, matching vanilla `Strider.tick` `isPanicking() && random.nextInt(60) == 0` (commit cdb0045a3). Happy sound still played from `use_player_item` (earlier decision).
+- FIXED in tree (row strider.rs:81 shivering sync): `mob_tick` ports the vanilla temperature update (warm block at/below, lava height > 0, riding a non-shivering strider), fires `StriderTemperatureChangeEvent` via `fire_blocking` only on a flip, and calls `set_suffocating` only when not cancelled (cdb0045a3). `new` constructor present in the event file.
+- FIXED in tree (row strider.rs:96 jockey spawn): `finalize_spawn` ports vanilla selection, 1/30 zombified piglin when monsters can spawn (0.05 baby odds, warped fungus on a stick + saddle + drop on death), 1/10 baby strider jockey (age -24000), else 0.5 baby chance; every jockey branch zeroes the group's baby chance (d188984b3).
+- STILL OPEN (row strider.rs:35 navigation): strider.rs already overrides `is_stable_destination` (lava stable) and `get_walk_target_value` (seek lava), but vanilla `createNavigation` returning `StriderPathNavigation`/`AmphibiousNodeEvaluator` requires a `Mob::create_navigation` hook plus pathfinder wiring, both outside this unit's files.
+- Verified no server change (row strider.rs:178 passenger attachment): vanilla `getPassengerAttachmentPoint` applies the rider offset only when `level().isClientSide()`; the server path returns `super`, so there is no server behaviour to port.
+- No pure unit-test seam (world/RNG/plugin/event driven); skipped per MVP test rules.
+- No .rs source edits this pass (all fixable rows already present in tree); no rustfmt run needed.
