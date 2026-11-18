@@ -7,3 +7,25 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 ## Result
 STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+
+
+## Result (THIRD PASS: all rows resolved, no source edit needed)
+
+Re-verified the current checkout against `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java`, `.../world/level/BlockGetter.java` and `.../world/level/block/LilyPadBlock.java`. Every STILL OPEN / BLOCKED row in both referenced audit docs is already fixed or verified faithful in the tree; no source change was needed this pass. No generated pumpkin-data field or subsystem is missing.
+
+own/taudit-crates-pumpkin-core-src-en-f12c04 (boat block effects audit):
+- record_movement merge (row 22, S): FIXED. `block_effects.rs:34,136-144` calls `merge_oldest_movement`, folding the oldest pair into one straight unrequested movement at the 100 cap; test `record_movement_merges_oldest_pair_at_cap`. Matches `Entity.addMovementThisTick` (`Entity.java:1538-1547`, removeFirst x2 + new Movement(first.from, second.to)).
+- furthest_corner sign (row 23, S verify): VERIFIED, no change. Pumpkin `sign` (`block_effects.rs:247`) maps 0.0 to +1, matching `BlockGetter.getFurthestCorner` (`BlockGetter.java:324-336`, `dir >= 0.0 ? 1 : -1`).
+- zero-movement fallback (row 24, S verify): VERIFIED, no change. `block_effects.rs:54-66` sweeps `last_pos`->`pos` with a 1e-5-squared threshold; matches `Entity.applyEffectsFromBlocks` (`Entity.java:1521-1529`, `oldPosition()`->`position()` and `9.9999994E-11F`).
+- all-block entityInside / lily-pad consumer (row 21, M): FIXED. `block_effects.rs:78-118` dispatches `on_entity_collision` for every visited non-air block whose inside shape the path enters (shape gate + per-tick dedupe), matching `Entity.checkInsideBlocks` (`Entity.java:2037-2047`). `lily_pad.rs:16-23` breaks for `is_boat(...)`, modelling vanilla `instanceof AbstractBoat` (`LilyPadBlock.java:37-43`) including chest boats.
+
+own/taudit-crates-pumpkin-core-src-entity-veh (entity vehicle audit), block_effects rows:
+- block_effects 1 (non-lily-pad dispatch, M): FIXED in `block_effects.rs:78-118` (`Entity.java:2037-2047`).
+- block_effects 2 (endpoint double dispatch, M): FIXED. The sweep skips positions inside the final standing box (`block_effects.rs:72-77,106-114`), leaving them to `tick_block_collisions`; vanilla dedupes via `visitedBlocks` (`Entity.java:1953,1977,2041`).
+- block_effects 3 (chunk loaded guard, S): FIXED in `block_effects.rs:84-89`; matches `getChunkIfLoaded` treating unloaded chunks as air (`Entity.java:2015-2027`).
+- block_effects 4 (take before early return, S): VERIFIED, no change. Vanilla clears the queue before the `isAffectedByBlocks` early return (`Entity.java:1521-1529`).
+- block_effects 5 (requested-movement axis split, S verify): VERIFIED, no change. Matches `Entity.java:1959-1970` gating the per-axis split on present axis-dependent movement plus delta > 0.
+- block_effects 6 (gametest, M): FIXED. `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` adds `test_boat_breaks_lily_pad_on_landing` and `test_boat_sweep_ignites_on_fire`.
+- Remaining minecart rows (1-12 incl. portal 11): FIXED or VERIFIED faithful in the current tree per the entity-veh audit final pass; no BLOCKED-DATA rows remain.
+
+Tests: pure unit tests pin the shape gate, sweep traversal/boundaries and the 100-entry merge cap; the live dispatch seams are covered by the registered boat gametests. No new pure seam exists. Pitfall re-check: no new Rust edits this pass, so no import/helper-placement/macro-path/struct-initializer/clone/clippy-pedantic issues.

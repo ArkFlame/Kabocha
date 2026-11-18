@@ -15,7 +15,7 @@ Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the 
 Re-audited armor_stand.rs directly against decompiled
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`
 (Paper 1.21). No .rs file changed this pass: every source fix is already present and
-matches vanilla. No STILL OPEN rows remain.
+matches vanilla. All rows are closed.
 
 Unit rows:
 - **entities/Armor Stand** [partial/AUDITED]: VERIFIED. Full re-audit against the

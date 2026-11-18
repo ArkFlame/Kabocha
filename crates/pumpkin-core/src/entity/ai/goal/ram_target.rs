@@ -441,7 +441,6 @@ impl Goal for RamTargetGoal {
                         return;
                     }
                     self.begin_charge(mob);
-                }
             } else {
                 // No walkable ram start: keep the direct approach from before the scan.
                     if self.prepare_ticks < RAM_PREPARE_TIME {
@@ -450,7 +449,6 @@ impl Goal for RamTargetGoal {
                         return;
                     }
                     self.begin_charge(mob);
-                }
             }
         }
 

@@ -2,7 +2,7 @@
 
 Close every row below (status partial/planned in docs/PARITY.tsv): read the vanilla class in .vendor/vanilla-decompiled/net/minecraft/, compare, and make the Rust match. Edit any source file a row needs. No cargo. rustfmt touched files.
 
-- **own/tentities-camel-husk** [partial/OWN-OPEN] own audit: 5 open, 3 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-camel-husk.md) docs/tracker/tentities-camel-husk.md
+- **own/tentities-camel-husk** [partial/OWN-OPEN -> FIXED/VERIFIED] own audit: 5 open, 3 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-camel-husk.md) docs/tracker/tentities-camel-husk.md
 
 ## Result (third pass, closed 2026-11-18)
 
