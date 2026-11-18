@@ -246,6 +246,53 @@ pub(crate) fn prepare_egg_mob(
     apply_entity_variant(item, mob.as_ref(), user);
 }
 
+/// Creates and spawns the mob for a spawn egg, applying the egg's components (vanilla order).
+/// Shared by `useOn` and the GameTest helper so both drive the same spawn path. `user` is the
+/// causing player, or `None` for a non-player source such as a dispenser or a GameTest.
+pub(crate) fn spawn_from_egg_stack(
+    item: &ItemStack,
+    world: &Arc<World>,
+    entity_type: &'static EntityType,
+    pos: Vector3<f64>,
+    yaw: f32,
+    user: Option<&Player>,
+) -> bool {
+    let mob = from_type(entity_type, pos, world, Uuid::new_v4());
+    mob.get_entity().set_rotation(yaw, 0.0);
+    prepare_egg_mob(
+        item,
+        &mob,
+        world,
+        crate::entity::mob::spawn::EntitySpawnReason::SpawnItemUse,
+        user,
+    );
+    world.spawn_creature(
+        mob,
+        CreatureSpawnReason::SpawnerEgg,
+        user.and_then(|player| world.get_player_by_uuid(player.gameprofile.id)),
+    )
+}
+
+/// Resolves the egg's entity type, honours the Peaceful monster guard, and spawns the mob.
+/// `peaceful` is passed explicitly so the GameTest helper can exercise the guard without
+/// mutating the world's global difficulty. Returns whether a mob was actually spawned.
+pub(crate) fn spawn_from_spawn_egg_stack(
+    item: &ItemStack,
+    world: &Arc<World>,
+    pos: Vector3<f64>,
+    yaw: f32,
+    user: Option<&Player>,
+    peaceful: bool,
+) -> bool {
+    let Some(entity_type) = entity_type_from_spawn_egg_stack(item) else {
+        return false;
+    };
+    if is_monster_blocked_in_peaceful(entity_type) && peaceful {
+        return false;
+    }
+    spawn_from_egg_stack(item, world, entity_type, pos, yaw, user)
+}
+
 impl ItemBehaviour for SpawnEggItem {
     fn normal_use(&self, item: &Item, player: &Player, hand: pumpkin_util::Hand) {
         let (yaw, pitch) = player.rotation();
@@ -392,26 +439,11 @@ impl ItemBehaviour for SpawnEggItem {
             );
             let yaw = wrap_degrees(rand::random::<f32>() * 360.0) % 360.0;
 
-            let mob = from_type(entity_type, pos, &world, Uuid::new_v4());
-
-            mob.get_entity().set_rotation(yaw, 0.0);
-
-            prepare_egg_mob(
-                item,
-                &mob,
-                &world,
-                crate::entity::mob::spawn::EntitySpawnReason::SpawnItemUse,
-                Some(player),
-            );
-
-            if world.spawn_creature(
-                mob,
-                CreatureSpawnReason::SpawnerEgg,
-                world.get_player_by_uuid(player.gameprofile.id),
-            ) {
-                item.decrement_unless_creative(player.gamemode.load(), 1);
-                world.emit_game_event(GameEvent::EntityPlace.name(), spawn_block_pos.to_f64());
+            if !spawn_from_egg_stack(item, &world, entity_type, pos, yaw, Some(player)) {
+                return BlockActionResult::Success;
             }
+            item.decrement_unless_creative(player.gamemode.load(), 1);
+            world.emit_game_event(GameEvent::EntityPlace.name(), spawn_block_pos.to_f64());
             BlockActionResult::Success
         } else {
             BlockActionResult::Pass
@@ -511,6 +543,25 @@ mod tests {
             entity_type_from_spawn_egg_stack(&cow).map(|entity| entity.id),
             Some(EntityType::COW.id)
         );
+    }
+
+    #[test]
+    fn nbt_authored_entity_data_resolves_spawn_egg_type() {
+        // The GameTest helper supplies entity_data as NBT (the item component's wire form).
+        // EntityDataImpl::read_data must turn that into the component getType reads.
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", "minecraft:wolf".to_string());
+        let tag = pumpkin_nbt::tag::NbtTag::Compound(nbt);
+        let component = EntityDataImpl::read_data(&tag);
+        assert!(component.is_some());
+        if let Some(component) = component {
+            let mut egg = ItemStack::new(1, &Item::COW_SPAWN_EGG);
+            egg.set_data_component(component);
+            assert_eq!(
+                entity_type_from_spawn_egg_stack(&egg).map(|entity| entity.id),
+                Some(EntityType::WOLF.id)
+            );
+        }
     }
 
     #[test]
