@@ -10,9 +10,9 @@ use pumpkin_protocol::java::client::play::ParticleOptions;
 use pumpkin_util::{
     Difficulty,
     math::{position::BlockPos, vector3::Vector3},
+    random::RandomImpl,
 };
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
-use rand::RngExt;
 
 use crate::{
     block::{
@@ -128,8 +128,11 @@ pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &Block
 
     world.set_block_state(pos, new_block.default_state.id, BlockFlags::NOTIFY_ALL);
 
-    let mut rng = rand::rng();
-    spawn_transform_particle(world, new_block, pos, &mut rng);
+    let mut rng = world
+        .block_random
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    spawn_transform_particle(world, new_block, pos, &mut *rng);
 
     for dx in -EYEBLOSSOM_XZ_RANGE..=EYEBLOSSOM_XZ_RANGE {
         for dy in -EYEBLOSSOM_Y_RANGE..=EYEBLOSSOM_Y_RANGE {
@@ -142,13 +145,9 @@ pub fn try_changing_state(world: &Arc<World>, current_block: &Block, pos: &Block
                 if nearby_block == current_block {
                     let dist_sqr = (dx * dx + dy * dy + dz * dz) as f64;
                     let distance = dist_sqr.sqrt();
-                    let min_delay = (distance * 5.0) as u32;
-                    let max_delay = (distance * 10.0) as u32;
-                    let delay = if min_delay >= max_delay {
-                        min_delay
-                    } else {
-                        rng.random_range(min_delay..=max_delay)
-                    };
+                    let min_delay = (distance * 5.0) as i32;
+                    let max_delay = (distance * 10.0) as i32;
+                    let delay = rng.next_inbetween_i32(min_delay, max_delay);
                     world.schedule_block_tick(
                         current_block,
                         nearby_pos,
@@ -170,7 +169,7 @@ pub(crate) fn spawn_transform_particle(
     world: &Arc<World>,
     new_block: &Block,
     pos: &BlockPos,
-    rng: &mut impl RngExt,
+    rng: &mut impl RandomImpl,
 ) {
     world.spawn_particle_with_options(
         pos.to_centered_f64(),
@@ -183,7 +182,11 @@ pub(crate) fn spawn_transform_particle(
 
 /// Builds that particle. Vanilla runs this on the type the flower turned *into*,
 /// so `new_block` is the new state and the color comes from it.
-fn transform_particle(new_block: &Block, pos: &BlockPos, rng: &mut impl RngExt) -> ParticleOptions {
+fn transform_particle(
+    new_block: &Block,
+    pos: &BlockPos,
+    rng: &mut impl RandomImpl,
+) -> ParticleOptions {
     let color = if new_block == &Block::OPEN_EYEBLOSSOM {
         OPEN_PARTICLE_COLOR
     } else {
@@ -191,11 +194,11 @@ fn transform_particle(new_block: &Block, pos: &BlockPos, rng: &mut impl RngExt) 
     };
 
     let start = pos.to_centered_f64();
-    let lifetime = 0.5 + rng.random::<f64>();
+    let lifetime = 0.5 + rng.next_f64();
     let velocity = Vector3::new(
-        rng.random::<f64>() - 0.5,
-        rng.random::<f64>() + 1.0,
-        rng.random::<f64>() - 0.5,
+        rng.next_f64() - 0.5,
+        rng.next_f64() + 1.0,
+        rng.next_f64() - 0.5,
     );
 
     ParticleOptions::Trail {
@@ -208,7 +211,7 @@ fn transform_particle(new_block: &Block, pos: &BlockPos, rng: &mut impl RngExt) 
 #[cfg(test)]
 mod tests {
     use pumpkin_protocol::java::client::play::ParticleOptions;
-    use rand::{SeedableRng, rngs::StdRng};
+    use pumpkin_util::random::xoroshiro128::Xoroshiro;
 
     use super::{Block, BlockPos, CLOSED_PARTICLE_COLOR, OPEN_PARTICLE_COLOR, transform_particle};
 
@@ -216,7 +219,7 @@ mod tests {
     /// and the velocity components in `[-0.5, 0.5)` and `[1.0, 2.0)`.
     #[test]
     fn transform_particle_stays_within_the_vanilla_envelope() {
-        let mut rng = StdRng::seed_from_u64(0x376C_0554);
+        let mut rng = Xoroshiro::from_seed(0x376C_0554);
         let pos = BlockPos::new(12, 70, -34);
         let center = pos.to_centered_f64();
 
@@ -248,7 +251,7 @@ mod tests {
     /// The color identifies the state the flower turned into, not the one it left.
     #[test]
     fn transform_particle_takes_the_color_of_the_new_state() {
-        let mut rng = StdRng::seed_from_u64(0x0EFE_B105);
+        let mut rng = Xoroshiro::from_seed(0x0EFE_B105);
         let pos = BlockPos::new(0, 64, 0);
 
         let closed = transform_particle(&Block::CLOSED_EYEBLOSSOM, &pos, &mut rng);

@@ -118,8 +118,8 @@ impl SculkCatalystBlockEntity {
         let mut props = SculkCatalystLikeProperties::from_state_id(state_id);
         props.bloom = true;
         world.set_block_state(&pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
-        // Vanilla `CatalystListener.bloom` spawns two SCULK_SOUL particles just
-        // above the block; this is the client-visible bloom burst.
+        // Vanilla `SculkCatalystBlockEntity.bloom` spawns two SCULK_SOUL
+        // particles just above the block; this is the client-visible bloom burst.
         world.spawn_particle(
             Vector3::new(
                 f64::from(pos.0.x) + 0.5,

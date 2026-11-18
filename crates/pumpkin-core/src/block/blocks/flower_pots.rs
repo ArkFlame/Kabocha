@@ -116,8 +116,12 @@ impl BlockBehaviour for FlowerPotBlock {
             } else {
                 &Block::CLOSED_EYEBLOSSOM
             };
-            let mut rng = rand::rng();
-            spawn_transform_particle(args.world, particle_block, args.position, &mut rng);
+            let mut rng = args
+                .world
+                .block_random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            spawn_transform_particle(args.world, particle_block, args.position, &mut *rng);
             args.world.play_sound_fine(
                 sound,
                 SoundCategory::Blocks,
