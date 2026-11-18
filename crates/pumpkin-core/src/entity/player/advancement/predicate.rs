@@ -1,5 +1,4 @@
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::tag::{RegistryKey, Taggable, get_tag_values};
@@ -963,7 +962,8 @@ pub struct EntityState {
     pub distance: Option<EntityDistance>,
     pub is_baby: Option<bool>,
     pub effects: Option<Vec<Effect>>,
-    pub equipment: Option<Vec<(EquipmentSlot, String)>>,
+    /// Slot name to item id, as vanilla equipment predicate reads them.
+    pub equipment: Option<Vec<(String, String)>>,
 }
 
 impl EntityState {
@@ -977,13 +977,18 @@ impl EntityState {
             .active_effects
             .try_lock()
             .ok()
-            .map(|map| map.values().cloned().collect());
+            .map(|map| map.values().cloned().collect::<Vec<Effect>>());
         let equipment = living.entity_equipment.try_lock().ok().map(|eq| {
             eq.equipment
                 .iter()
                 .filter(|(_, stack)| !stack.is_empty())
-                .map(|(slot, stack)| (slot.clone(), stack.item.registry_key.to_string()))
-                .collect()
+                .map(|(slot, stack)| {
+                    (
+                        slot.to_name().to_string(),
+                        stack.item.registry_key.to_string(),
+                    )
+                })
+                .collect::<Vec<(String, String)>>()
         });
         Self {
             distance,
@@ -1021,7 +1026,7 @@ pub struct EntityPredicate {
     /// Vanilla `EntityEffectsPredicate`.
     pub effects: Option<MobEffectsPredicate>,
     /// Vanilla `EntityEquipmentPredicate`, one entry per checked slot.
-    pub equipment: Vec<(EquipmentSlot, ItemPredicate)>,
+    pub equipment: Vec<(String, ItemPredicate)>,
 }
 
 /// True when a sub-tree of loot conditions requires an item from the `piglin_safe_armor` tag.
@@ -1234,10 +1239,7 @@ impl EntityPredicate {
             .map(|slots| {
                 slots
                     .iter()
-                    .filter_map(|(slot, pred)| {
-                        let slot = EquipmentSlot::get_from_name(slot)?.clone();
-                        Some((slot, ItemPredicate::from_value(pred)))
-                    })
+                    .map(|(slot, pred)| (slot.clone(), ItemPredicate::from_value(pred)))
                     .collect()
             })
             .unwrap_or_default();
@@ -3970,5 +3972,36 @@ mod tests {
             Some(true)
         ));
         assert!(!cause.matches("minecraft:creeper", Some(delta), Some(true)));
+    }
+
+    #[test]
+    fn entity_effects_and_equipment_are_enforced() {
+        let pred = EntityPredicate::from_value(&json!({
+            "effects": {"minecraft:speed": {"amplifier": {"min": 1}}},
+            "equipment": {"head": {"items": "minecraft:leather_helmet"}}
+        }));
+        let state = EntityState {
+            distance: None,
+            is_baby: None,
+            effects: Some(vec![active(&StatusEffect::SPEED)]),
+            equipment: Some(vec![(
+                "head".to_string(),
+                "minecraft:leather_helmet".to_string(),
+            )]),
+        };
+        assert!(!pred.matches_entity("minecraft:cow", &state));
+        let mut amplified = state.clone();
+        if let Some(effects) = &mut amplified.effects
+            && let Some(effect) = effects.first_mut()
+        {
+            effect.amplifier = 1;
+        }
+        assert!(pred.matches_entity("minecraft:cow", &amplified));
+        let mut wrong_head = amplified.clone();
+        wrong_head.equipment = Some(vec![(
+            "head".to_string(),
+            "minecraft:diamond_helmet".to_string(),
+        )]);
+        assert!(!pred.matches_entity("minecraft:cow", &wrong_head));
     }
 }

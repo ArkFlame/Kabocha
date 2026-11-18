@@ -1,7 +1,7 @@
 use crate::entity::player::Player;
 use crate::entity::player::advancement::PlayerAdvancement;
 use crate::entity::player::advancement::predicate::{
-    self, CriterionConditions, DamageEntities, DamagePair, EntityDistance,
+    self, CriterionConditions, DamageEntities, DamagePair, EntityDistance, EntityState,
 };
 use pumpkin_util::math::position::BlockPos;
 
@@ -18,8 +18,8 @@ pub enum AdvancementTrigger {
     InventoryChanged,
     PlayerKilledEntity {
         entity_type_resource: String,
-        /// Player-to-victim distance, checked against the entity's `distance` predicate.
-        distance: Option<EntityDistance>,
+        /// Victim snapshot: distance to the player, effects, equipment and baby flag.
+        state: EntityState,
     },
     SniperDuel,
     TwoBirdsOneArrow,
@@ -368,11 +368,11 @@ impl Player {
 
             AdvancementTrigger::PlayerKilledEntity {
                 entity_type_resource,
-                distance,
+                state,
             } => {
                 self.trigger_criterion_event("minecraft:player_killed_entity", |cond| match cond {
                     CriterionConditions::PlayerKilledEntity(pred) => {
-                        pred.matches(&entity_type_resource, distance, None)
+                        pred.matches_entity(&entity_type_resource, &state)
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,

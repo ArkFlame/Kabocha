@@ -3214,10 +3214,13 @@ impl LivingEntity {
                 killer_player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::PlayerKilledEntity {
                         entity_type_resource: criterion_key,
-                        distance: Some(crate::entity::player::advancement::predicate::EntityDistance::between(
-                            killer_player.position(),
-                            self.entity.pos.load(),
-                        )),
+                        state: crate::entity::player::advancement::predicate::EntityState::from_living(
+                            self,
+                            Some(crate::entity::player::advancement::predicate::EntityDistance::between(
+                                killer_player.position(),
+                                self.entity.pos.load(),
+                            )),
+                        ),
                     },
                 );
 
