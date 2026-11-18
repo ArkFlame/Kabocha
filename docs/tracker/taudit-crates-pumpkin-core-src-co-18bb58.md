@@ -312,3 +312,33 @@ are free functions, no struct-initializer or macro-path hazards, no moved-then-r
 numeric casts use `as`, no unwrap/expect/panic in new code. No source file was edited this pass,
 so rustfmt was not needed. No cargo run (forbidden for workers); compilation left to the
 orchestrator.
+
+
+## Result (spell colour stream codec fix)
+
+The one unresolved correctness flag from earlier passes was fixed this pass.
+It lives in a `particle.rs` file (`crates/pumpkin-protocol/src/java/client/play/particle.rs`),
+which is in this unit's editable basename set.
+
+- **`ParticleOptions::Spell` colour encoding: FIXED / VERIFIED.**
+  `SpellParticleOption.write` wrote the colour as a VAR_INT (5 bytes for `-1`),
+  but vanilla `SpellParticleOption.streamCodec` uses `ByteBufCodecs.INT`, a
+  4-byte big-endian int (`.vendor/vanilla-decompiled/net/minecraft/core/particles/SpellParticleOption.java`
+  line 29), exactly like `ColorParticleOption.streamCodec`
+  (`.vendor/vanilla-decompiled/net/minecraft/core/particles/ColorParticleOption.java`
+  line 19). Changed the write to `write_i32_be(color)` and the stale comment.
+  The payload is gated to clients >= 1.21.4 (`is_supported_by`), which is the
+  version where vanilla introduced this `INT`-colour `SpellParticleOption`, so
+  the encoding is correct for every version that receives it. Updated the
+  byte-exact test `spell_options_match_vanilla_stream_codec` to expect the
+  four INT bytes `(-1i32).to_be_bytes()` followed by the FLOAT power. The core
+  command's `effect`/`instant_effect` path calls `ParticleOptions::Spell::write`
+  (`crates/pumpkin-core/src/command/commands/particle.rs:217-220`), so it now
+  emits the vanilla byte layout.
+
+All unit rows remain closed. No cargo run (forbidden for workers); compilation
+and rustfmt of the touched file are left to the orchestrator. Re-checked the
+diff against the Worker compile pitfalls table: no guessed import paths (the
+`VarInt`/`NetworkWriteExt` imports remain used elsewhere in the file), no helper
+or struct-initializer or macro-path hazards, no moved-then-reused values, no
+unwrap/expect/panic added.

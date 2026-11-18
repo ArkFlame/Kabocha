@@ -342,3 +342,68 @@ No STILL OPEN rows remain. Existing pure tests cover the data-only rows (palette
 selection, dynamic shape, full-cube-vs-occlusion, loot-seed gating, integrity/NaN gating,
 identifier validation, detect-size); the Arc<World> placement paths have no pure unit-test
 seam. No files edited this pass. Compile deferred to the orchestrator.
+## Result
+
+Third-pass re-verification. Every "Remaining gaps" row was checked directly against the
+decompiled vanilla tree at /run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/.vendor/vanilla-decompiled/net/minecraft/
+(StructureTemplate.java, StructureBlockEntity.java, StructurePlaceSettings.java,
+BlockRotProcessor.java, ServerLevel.java, Entity.java, Blocks.java). All rows are already
+implemented and match vanilla; no source edits were needed this pass.
+
+- Row 49, entity capture and placement: VERIFIED. fillFromWorld calls fillEntityList
+  (StructureTemplate.java:101-140, :175-192) excluding players, using AABB.encapsulatingFullBlocks
+  and painting.getPos() for blockPos; capture_structure_template_from_world
+  (structure_block.rs:228-345) mirrors it, and place_structure_template_in_world calls
+  place_template_entities behind !ignore_entities (structure_block.rs:770-772). The spawn pass
+  (structure_block.rs:461-512) mirrors placeEntities (StructureTemplate.java:511-552): Pos and
+  block_pos transforms, UUID removal, and rotate-then-mirror yaw. The yaw helper was re-derived
+  from Entity.rotate/mirror (Entity.java:6497-6516); its unit test
+  transform_entity_yaw_matches_vanilla_rotate_then_mirror (structure_block.rs:1822-1848) passes
+  by inspection.
+- Row 50, collision-shape-full + hasDynamicShape: VERIFIED. addToLists
+  (StructureTemplate.java:142-155) uses !hasDynamicShape() && isCollisionShapeFullBlock; the split
+  at structure_block.rs:285-293 uses state.is_full_cube() && !has_dynamic_shape(name). The seven
+  .dynamicShape() sites in Blocks.java (moving_piston :965, bamboo :4393, scaffolding :4465,
+  powder_snow :5199, pointed_dripstone :5408, sulfur_spike :5425, shulkerBoxProperties :5843)
+  are all covered by has_dynamic_shape (structure_block.rs:199-226). is_full_cube derives from
+  extracted collision boxes, so glass sorts as a full block, covered by
+  palette_full_block_uses_collision_shape_not_occlusion.
+- Row 51, non-strict shape reconnect: VERIFIED. Vanilla runs updateShapeAtEdge
+  (StructureTemplate.java:388, :438-463) then Block.updateFromNeighbourShapes (:395) with
+  updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE (:397) behind !getKnownShape (:377, :393).
+  Pumpkin runs update_shape_at_edge (structure_block.rs:752), a per-position
+  update_from_neighbor_shapes writing NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE (:755-762), then
+  update_neighbors_at (:764), all behind !strict (:747). setKnownShape(strict) is
+  StructureBlockEntity.java:417.
+- Row 52, LootTableSeed gating: VERIFIED. placeInWorld seeds the placement random only for
+  RandomizableContainer block entities (StructureTemplate.java:319-324);
+  is_randomizable_container_id (structure_block.rs:423-436) lists exactly those implementors
+  and excludes the brushable block entities, covered by
+  loot_seed_only_for_randomizable_containers.
+- Row 53, strict placement side effects: VERIFIED. Vanilla maps strict to both setKnownShape
+  (StructureBlockEntity.java:417) and UPDATE_SKIP_ALL_SIDEEFFECTS (:429). The known-shape half is
+  the row-51 pass; the drop-suppression half is WorldBlockPlacer::new_with_skip_side_effects
+  (block_placer.rs:49-59) gating on_block_replaced, plus the remove_block_entity pre-clear for NBT
+  entries (structure_block.rs:720-722) mirroring the BARRIER pre-set (StructureTemplate.java:293-295).
+- Row 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION. ServerLevel.sendBlockUpdated
+  (ServerLevel.java:3498-3527) only calls blockChanged plus path/navigation cache invalidation; it
+  sends no neighbour update. set_structure_block.rs ends with mark_dirty + update_block_entity +
+  register_block_change (:147-150); register_block_change (world/mod.rs:2477-2483) already
+  invalidates path caches and queues the client block update.
+
+Also re-checked the palette and integrity stream behaviour added in earlier passes against
+StructurePlaceSettings.getRandomPalette (:138-151) and BlockRotProcessor.processBlock (:41-53):
+the palette draw precedes the rot draws on the same settings stream, and a block is dropped when
+nextFloat() > clamped integrity, both matching Pumpkin (structure_block.rs:672-700). Both streams
+are seeded from the same create_structure_seed value, matching the two createRandom(this.seed)
+calls at StructureBlockEntity.java:419 and :429.
+
+Out-of-scope queue observation (not a row, not changed): vanilla keeps
+LiquidSettings.APPLY_WATERLOGGING on and waterlogs a placed waterloggable block sitting in source
+water (StructureTemplate.java:276, :291, :332-341); Pumpkin does not read the fluid on this path.
+That needs a state-level set_waterlogged call plus the toggling fill pass and belongs in its own row.
+
+No pure seam exists for the Arc<World> placement paths; the existing data-only tests in
+structure_block.rs cover the palette, dynamic-shape, full-cube-vs-occlusion, loot-seed, NaN-gate,
+identifier, detect-size, yaw and edge-neighbour rows. No files edited this pass; compile deferred
+to the orchestrator.

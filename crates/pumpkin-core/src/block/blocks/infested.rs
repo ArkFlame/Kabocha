@@ -86,9 +86,11 @@ impl InfestedBlock {
             Uuid::new_v4(),
         );
         world.spawn_entity(silverfish.clone());
+        // Vanilla `Silverfish.spawnAnim` broadcasts SILVERFISH_MERGE_ANIM (20), which
+        // makes the client show the poof particles; POOF (60) is a different event.
         world.send_entity_status(
             silverfish.get_entity(),
-            EntityStatus::Poof,
+            EntityStatus::SilverfishMergeAnim,
             ActorEventID::None,
         );
     }

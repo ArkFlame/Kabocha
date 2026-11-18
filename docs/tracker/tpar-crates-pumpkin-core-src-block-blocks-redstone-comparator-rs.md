@@ -5,7 +5,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-bl-058f4c** [partial/OWN-OPEN] own audit: 8 open, 3 fixed, 0 verified, 4 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-bl-058f4c.md) docs/tracker/taudit-crates-pumpkin-core-src-bl-058f4c.md
 
 ## Result
-## Result
 
 Third pass. Re-read this unit's last Result and the referenced deep audit
 (docs/tracker/taudit-crates-pumpkin-core-src-bl-058f4c.md), then verified every
@@ -62,4 +61,3 @@ Unit-test note: no new test. The only pure seam, `calculate_signal_strength`,
 already has two vanilla-derived tests in daylight_detector.rs, and occlusion.rs
 has a bottom-face occlusion test. Rows 1 and 5 are registry/API coupled with no
 pure seam. No source files were changed this pass, so rustfmt was not needed.
- Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)

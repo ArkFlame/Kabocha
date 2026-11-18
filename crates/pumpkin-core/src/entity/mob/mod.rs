@@ -1153,9 +1153,18 @@ impl MobEntity {
         let is_mace_smash = crate::entity::combat::is_mace_weapon(&world, &weapon)
             && crate::entity::combat::can_smash_attack(&self.living_entity);
         if is_mace_smash {
-            attack_damage += crate::entity::combat::mace_smash_damage_bonus(f64::from(
-                self.living_entity.fall_distance.load(),
-            )) as f32;
+            let fall_distance = f64::from(self.living_entity.fall_distance.load());
+            // Vanilla `MaceItem.getAttackDamageBonus` adds the fall-based enchantment
+            // bonus (Density) on top of the base curve, scaled by fall distance. The
+            // bonus lives on the weapon, so it applies to a mace-wielding mob too.
+            let per_block =
+                crate::enchantment::EnchantmentHelper::modify_fall_based_damage(&weapon, 0.0);
+            attack_damage += per_block
+                .mul_add(
+                    fall_distance,
+                    crate::entity::combat::mace_smash_damage_bonus(fall_distance),
+                )
+                as f32;
         }
         let damage_type = if is_mace_smash {
             DamageType::MACE_SMASH
