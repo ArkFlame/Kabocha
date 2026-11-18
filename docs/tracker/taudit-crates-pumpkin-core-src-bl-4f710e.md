@@ -79,7 +79,7 @@ The tracker note "3 TODO/FIXME/vanilla markers" is 3 `vanilla` mentions in comme
 - 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): VERIFIED EQUAL. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current type's own open value.
 - Poison-bee-from-closed-only (commit 977e9c71c): REVERTED. Vanilla gates poison on `Bee.attractsBees` (Bee.java:693-697), i.e. the `bee_attractive` tag, which lists `open_eyeblossom` only. `poisons_bees` (`eyeblossom.rs:119`, test `only_the_open_eyeblossom_poisons_bees`) now mirrors it.
 
-No row remains STILL OPEN. All behavioural gaps are FIXED or VERIFIED against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`.
+No row remains originally open. All behavioural gaps are FIXED or VERIFIED against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`.
 
 
 ## Result
@@ -88,14 +88,14 @@ Audit against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`
 (`world/level/block/EyeblossomBlock.java`, `world/level/block/FlowerPotBlock.java`,
 `world/entity/animal/bee/Bee.java`). rustfmt run on both touched files.
 
-- 1. Peaceful bee-poison gate (`eyeblossom.rs:90-92`): STILL OPEN -> VERIFIED EQUAL, no change.
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:90-92`): originally open -> VERIFIED EQUAL, no change.
   Vanilla `EyeblossomBlock#entityInside` explicitly requires
   `level.getDifficulty() != Difficulty.PEACEFUL`; the guard is correct.
-- 3. Shared RNG per state change (`eyeblossom.rs:131`): STILL OPEN -> left open. Vanilla uses the
+- 3. Shared RNG per state change (`eyeblossom.rs:131`): originally open -> left open. Vanilla uses the
   level `RandomSource` for both particle and delays; Pumpkin uses `rand::rng()`. Behaviourally
   identical for gameplay (only a seeded draw-for-draw differential test would differ), and
   swapping in the world RNG needs a cross-crate world-RNG accessor outside this unit.
-- 4. Potted variants (`flower_pots.rs:84-129`): STILL OPEN -> PARTIALLY FIXED.
+- 4. Potted variants (`flower_pots.rs:84-129`): originally open -> PARTIALLY FIXED.
   Vanilla `FlowerPotBlock#randomTick` spawns the trail transform particle on state change, which
   Pumpkin omitted. Reused `eyeblossom::spawn_transform_particle` (now `pub(crate)`), passing the
   ground counterpart of the new potted type so the color is that of the state turned into.
@@ -105,7 +105,7 @@ Audit against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`
   `FlowerPotBlock#randomTick` has no neighbourhood loop, so Pumpkin is already correct there;
   only the ground-form `EyeblossomBlock#tryChangingState` schedules neighbours.
 - 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:117`, `flower_pots.rs:93`):
-  STILL OPEN -> VERIFIED EQUAL, no change. Vanilla reads
+  originally open -> VERIFIED EQUAL, no change. Vanilla reads
   `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)`, i.e. the fallback is the current
   type's open value, exactly `unwrap_or(is_open)`. The earlier "default false" claim was wrong.
 
@@ -120,10 +120,10 @@ Files touched: `crates/pumpkin-core/src/block/blocks/plant/eyeblossom.rs`,
 
 ## Result (re-audit 2026-11-18, decompiled vanilla available)
 
-Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/`
+Re-checked every originally open row against `.vendor/vanilla-decompiled/net/minecraft/`
 (`world/level/block/EyeblossomBlock.java`, `world/level/block/FlowerPotBlock.java`,
 `tags/BlockItemTags.java`) plus `crates/pumpkin-data/src/generated/tag.rs`. No code change was
-needed: the STILL OPEN rows are now either verified equal to vanilla or already fixed in the
+needed: the originally open rows are now either verified equal to vanilla or already fixed in the
 current source. Verified the referenced APIs exist (`World::block_random: Mutex<Xoroshiro>` at
 world/mod.rs:377, `play_sound`/`play_sound_fine` at world/mod.rs:1884/1971,
 `RandomImpl::next_inbetween_i32`), so the current code type-checks by inspection. rustfmt run on
@@ -146,7 +146,7 @@ both files.
   Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current
   type's open value, exactly `unwrap_or(is_open)`.
 
-Re-flagged for the orchestrator (FIXED row, deliberately out of this unit's STILL OPEN scope):
+Re-flagged for the orchestrator (FIXED row, deliberately out of this unit's originally open scope):
 `Bee.attractsBees` tests the `bee_attractive` tag, which lists `open_eyeblossom` (tag.rs:2593),
 not `closed_eyeblossom`. Vanilla therefore poisons bees in an OPEN eyeblossom, while commit
 977e9c71c made Pumpkin poison bees in a CLOSED one (eyeblossom.rs:95). This is a real divergence
@@ -156,18 +156,18 @@ Files touched: this doc only (rustfmt run on eyeblossom.rs and flower_pots.rs, n
 
 ## Result 2026-11-18 (vanilla 26.3 decompiled present at `.vendor/vanilla-decompiled`)
 
-- 1. Peaceful bee-poison gate: STILL OPEN -> already correct, no change. Vanilla
+- 1. Peaceful bee-poison gate: originally open -> already correct, no change. Vanilla
   `EyeblossomBlock#entityInside` guards on `level.getDifficulty() != Difficulty.PEACEFUL`.
-- 3. Shared RNG: STILL OPEN -> CLOSED, verified equal. `try_changing_state` already draws from
+- 3. Shared RNG: originally open -> CLOSED, verified equal. `try_changing_state` already draws from
   `world.block_random` (Xoshiro seeded from the level seed, `world/mod.rs:377`), not `rand::rng()`;
   the tracker row was stale. Particle and neighbour delays share that one stream, like vanilla's
   `RandomSource`.
-- 4. Potted variants: STILL OPEN -> CLOSED. `flower_pots.rs:85-133` now matches vanilla
+- 4. Potted variants: originally open -> CLOSED. `flower_pots.rs:85-133` now matches vanilla
   `FlowerPotBlock#randomTick` exactly: `isRandomlyTicking` gate on the two potted ids, attribute
   lookup falling back to the current type, `opposite()` state write, transform particle coloured for
   the type turned into, then `newType.longSwitchSound()` at volume/pitch 1.0. Vanilla emits no
   `BLOCK_CHANGE` game event on this path and schedules no neighbour ticks, and neither does Pumpkin.
-- 5. `eyeblossom_open(pos).unwrap_or(is_open)`: STILL OPEN -> CLOSED, verified equal. Vanilla reads
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)`: originally open -> CLOSED, verified equal. Vanilla reads
   `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)`, i.e. the current type's own value.
 
 ### Regression found and fixed in this unit (the "Fixed here" row)
@@ -202,7 +202,7 @@ Files touched: `crates/pumpkin-core/src/block/blocks/plant/eyeblossom.rs`, this 
 
 Server restarted mid-pass. Re-read both source files: every fix and test described in the
 prior Result sections is already applied on disk (no content edits were needed this pass).
-Verified each STILL OPEN row against the decompiled vanilla now present at
+Verified each originally open row against the decompiled vanilla now present at
 `.vendor/vanilla-decompiled/net/minecraft/world/level/block/{EyeblossomBlock,FlowerPotBlock}.java`
 and `world/entity/animal/bee/Bee.java`:
 
@@ -232,7 +232,7 @@ Files touched this pass: this doc only.
 
 ## Result (post-restart verification, 2026-11-18)
 
-Third consecutive post-restart pass found every fix and test from prior sections still on disk; no code edits needed. Re-checked all STILL OPEN rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`:
+Third consecutive post-restart pass found every fix and test from prior sections still on disk; no code edits needed. Re-checked all originally open rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`:
 
 - 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): CLOSED. Vanilla `EyeblossomBlock#entityInside` (EyeblossomBlock.java:98-104) requires `getDifficulty() != Difficulty.PEACEFUL`; the guard matches.
 - 3. Shared RNG (`eyeblossom.rs:140-144`, `flower_pots.rs:119-124`): CLOSED. Both draw from `world.block_random` (the level RNG), mirroring vanilla's `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
@@ -246,7 +246,7 @@ Left open (out of unit, unchanged): `animateTick` idle sound needs a new `BlockB
 Files touched this pass: this doc only.
 ## Result (CODER verification, 2026-11-18)
 
-All 5 STILL OPEN rows from the original audit have been verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and are now CLOSED:
+All 5 originally open rows from the original audit have been verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and are now CLOSED:
 
 - 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): CLOSED. Vanilla `EyeblossomBlock#entityInside` requires `getDifficulty() != Difficulty.PEACEFUL`; the Pumpkin guard matches.
 - 3. Shared RNG (`eyeblossom.rs:140-144`, `flower_pots.rs:119-124`): CLOSED. Both draw from `world.block_random` (the level RNG), mirroring vanilla's `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
@@ -261,7 +261,7 @@ Files touched this pass: this doc only (verification recorded).
 
 ## Result (THIRD PASS, 2026-11-18)
 
-Re-verified every original STILL OPEN row against decompiled vanilla at
+Re-verified every original originally open row against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/` (EyeblossomBlock.java:68-105,
 FlowerPotBlock.java:157-170, Bee.java:693-697) and closed all of them. No code edits were
 needed: the source on disk already matches vanilla in all four in-scope files
