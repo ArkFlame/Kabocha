@@ -63,25 +63,37 @@ impl PistonBlockEntity {
 
         let motion_dir = self.movement_direction();
         let amount = f64::from(self.amount_extended(last));
-
-        // Block AABB at the current visual position (start of this tick).
-        // For source=true (the piston head BE), vanilla uses the piston-head
-        // collision shape — a 4-pixel-thick slab at the front face — rather than
-        // the full cube. Without this, the head "sweeps" too much volume and
-        // drags entities (e.g. end crystals) back with it during retraction.
-        let raw_block_aabb = BoundingBox::from_block(&self.position);
-        let block_aabb = if self.source {
-            Self::head_shape_aabb(raw_block_aabb, self.facing)
-        } else {
-            raw_block_aabb
-        }
-        .shift(Self::dir_vec(self.facing, amount));
-
-        // Stretch by motion to get the swept volume (one tick of animation).
+        let shift = Self::dir_vec(self.facing, amount);
         let motion = Self::dir_vec(motion_dir, delta);
-        let swept = block_aabb.stretch(motion);
 
-        for entity in world.get_entities_at_box(&swept) {
+        // Vanilla sweeps the moved block's collision shape, not a full cube.
+        // The head BE uses the 4-pixel piston-head slab; a pushed block uses its
+        // own collision shapes (stairs, slabs and fences then push less volume).
+        let shifted: Vec<BoundingBox> = if self.source {
+            vec![
+                Self::head_shape_aabb(BoundingBox::from_block(&self.position), self.facing)
+                    .shift(shift),
+            ]
+        } else {
+            let shapes: Vec<BoundingBox> = self
+                .pushed_block_state
+                .get_block_collision_shapes_at(&self.position)
+                .map(|shape| shape.at_pos(self.position).shift(shift))
+                .collect();
+            if shapes.is_empty() {
+                return;
+            }
+            shapes
+        };
+
+        // Query against the union of all swept shapes (vanilla uses shape.bounds()).
+        let bounds = shifted
+            .iter()
+            .skip(1)
+            .fold(shifted[0], |acc, shape| acc.minmax(shape));
+        let swept_bounds = bounds.stretch(motion);
+
+        for entity in world.get_entities_at_box(&swept_bounds) {
             let e = entity.get_entity();
             if e.no_physics.load(Ordering::Relaxed) {
                 continue;
@@ -93,7 +105,18 @@ impl PistonBlockEntity {
             }
 
             let entity_aabb = e.bounding_box.load();
-            let intersection = Self::intersection_size(swept, motion_dir, entity_aabb);
+            let mut intersection = 0.0;
+            for shape in &shifted {
+                let swept = shape.stretch(motion);
+                if !swept.intersects(&entity_aabb) {
+                    continue;
+                }
+                intersection =
+                    intersection.max(Self::intersection_size(swept, motion_dir, entity_aabb));
+                if intersection >= delta {
+                    break;
+                }
+            }
             if intersection <= 0.0 {
                 continue;
             }
@@ -102,8 +125,8 @@ impl PistonBlockEntity {
 
             // For a retracting head, vanilla also shoves the entity OUT of the
             // piston body cube. Without this, entities get pulled into the
-            // piston and "stick" to it (looks like a sticky-piston drag).
-            // For a retract-head BE, `self.position` already IS the piston
+            // piston and stick to it (looks like a sticky-piston drag).
+            // For a retract-head BE, self.position already IS the piston
             // block position (it replaces the piston during animation).
             if !self.extending && self.source {
                 Self::push_out_of_piston_body(e, &self.position, motion_dir, delta);

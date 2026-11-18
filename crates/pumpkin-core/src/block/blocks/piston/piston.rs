@@ -419,19 +419,17 @@ fn move_piston(
         Vec::with_capacity(moved_blocks.len() + broken_blocks.len());
     let move_direction = if extend { dir } else { dir.opposite() };
 
-    // TODO: vanilla destroys unconditionally, don't fire a cancellable BlockBreakEvent here,
-    // a rejected break leaves the move partially applied and the moving piston overwrites it
-    // (cancel only through the piston extend/retract event)
+    // Vanilla's PistonBaseBlock.move destroys blocks unconditionally with
+    // level.setBlock(pos, AIR, ...); a cancellable break would leave the move
+    // half-applied, so use the non-cancellable natural break (which still drops).
     for &broken_block_pos in broken_blocks.iter().rev() {
         let block_state = world.get_block_state(&broken_block_pos);
-        if world
-            .break_block(
-                &broken_block_pos,
-                None,
-                BlockFlags::NOTIFY_LISTENERS | BlockFlags::UPDATE_KNOWN_SHAPE,
-            )
-            .is_some()
-        {
+        if world.break_block_naturally(
+            &broken_block_pos,
+            None,
+            false,
+            BlockFlags::NOTIFY_LISTENERS | BlockFlags::UPDATE_KNOWN_SHAPE,
+        ) {
             world.emit_game_event(
                 GameEvent::BlockDestroy.name(),
                 broken_block_pos.to_centered_f64(),

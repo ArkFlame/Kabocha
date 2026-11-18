@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pumpkin_data::block_properties::{StructureBlockLikeProperties, StructureblockMode};
-use pumpkin_data::{Block, BlockStateId, Mirror, Rotation};
+use pumpkin_data::{Block, BlockDirection, BlockStateId, Mirror, Rotation};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::nbt_compress::write_gzip_compound_tag_to_bytes;
 use pumpkin_nbt::tag::NbtTag;
@@ -545,6 +546,66 @@ impl Default for StructurePlacementSettings {
     }
 }
 
+/// Returns the cell just outside the placed shape in `direction`, or `None` when the neighbour
+/// is also part of the shape (an interior face that vanilla `forAllFaces` does not visit).
+fn edge_neighbor(
+    placed: &HashSet<BlockPos>,
+    pos: &BlockPos,
+    direction: BlockDirection,
+) -> Option<BlockPos> {
+    let neighbor = pos.offset(direction.to_offset());
+    (!placed.contains(&neighbor)).then_some(neighbor)
+}
+
+/// Mirrors vanilla `StructureTemplate.updateShapeAtEdge`: for every face on the boundary of the
+/// placed voxel shape, reshape both the placed block and the block just outside the structure so
+/// fences, walls, stairs and attached blocks reconnect to their new neighbours.
+fn update_shape_at_edge(world: &Arc<World>, placed: &[(BlockPos, BlockStateId)]) {
+    let placed_positions: HashSet<BlockPos> = placed.iter().map(|(pos, _)| *pos).collect();
+    for (pos, _) in placed {
+        for direction in BlockDirection::all() {
+            let Some(neighbor_pos) = edge_neighbor(&placed_positions, pos, direction) else {
+                continue;
+            };
+
+            let state_id = world.get_block_state_id(pos);
+            let neighbor_state_id = world.get_block_state_id(&neighbor_pos);
+
+            let state = Block::from_state_id(state_id);
+            let new_state_id = world.block_registry.get_state_for_neighbor_update(
+                world,
+                &state,
+                state_id,
+                pos,
+                direction,
+                &neighbor_pos,
+                neighbor_state_id,
+            );
+            if new_state_id != state_id {
+                world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_LISTENERS);
+            }
+
+            let neighbor_state = Block::from_state_id(neighbor_state_id);
+            let new_neighbor_state_id = world.block_registry.get_state_for_neighbor_update(
+                world,
+                &neighbor_state,
+                neighbor_state_id,
+                &neighbor_pos,
+                direction.opposite(),
+                pos,
+                new_state_id,
+            );
+            if new_neighbor_state_id != neighbor_state_id {
+                world.set_block_state(
+                    &neighbor_pos,
+                    new_neighbor_state_id,
+                    BlockFlags::NOTIFY_LISTENERS,
+                );
+            }
+        }
+    }
+}
+
 pub fn place_structure_template_in_world(
     world: &Arc<World>,
     template: &StructureTemplate,
@@ -645,6 +706,8 @@ pub fn place_structure_template_in_world(
         // Vanilla reconnects multi-block states (fences, stairs, walls, ...) once the whole
         // template is written, via Block.updateFromNeighbourShapes, then notifies neighbours.
         // Strict placement sets UPDATE_KNOWN_SHAPE and skips both passes.
+        // updateShapeAtEdge runs first, covering blocks just outside the placed box.
+        update_shape_at_edge(world, &placer.changed_positions);
         for (changed_pos, _placed_state_id) in &placer.changed_positions {
             let current_state_id = world.get_block_state_id(changed_pos);
             let shaped_state_id = world.update_from_neighbor_shapes(current_state_id, changed_pos);
@@ -720,7 +783,7 @@ fn is_structure_block_state(state: BlockStateId) -> bool {
     Block::from_state_id(state) == &Block::STRUCTURE_BLOCK
 }
 
-/// Vanilla StructureBlockEntity.getEnclosingBoundingBox walks block states, not block
+/// Vanilla `StructureBlockEntity#getEnclosingBoundingBox` walks block states, not block
 /// entities, so a position only counts when its state is a structure block.
 fn collect_structure_block_positions(
     sections: &[BlockPalette],
@@ -1532,11 +1595,12 @@ impl StructureBlockBlockEntity {
 mod tests {
     use super::{
         NbtCompound, NbtTag, collect_structure_block_positions, compute_detected_bounds,
-        is_randomizable_container_id, is_safe_generated_structure_path, parse_structure_identifier,
-        put_transformed_block_pos, transform_entity_yaw,
+        edge_neighbor, is_randomizable_container_id, is_safe_generated_structure_path,
+        parse_structure_identifier, put_transformed_block_pos, transform_entity_yaw,
     };
-    use pumpkin_data::{Block, Mirror, Rotation};
+    use pumpkin_data::{Block, BlockDirection, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
+    use std::collections::HashSet;
 
     #[test]
     fn dynamic_shape_blocks_are_not_full_cube_bucketed() {
@@ -1633,7 +1697,7 @@ mod tests {
         assert_eq!(found, vec![BlockPos(Vector3::new(33, -62, -13))]);
 
         // Vanilla clamps the scan box to the build height, so a corner above it is skipped.
-        assert!(collect_structure_block_positions(sections, 2, -1, -64, -60, 319).is_empty());
+        assert!(collect_structure_block_positions(sections, 2, -1, -64, -56, 319).is_empty());
     }
 
     #[test]
@@ -1670,5 +1734,24 @@ mod tests {
         nbt.put("block_pos", NbtTag::IntArray(vec![0, 0, 0]));
         put_transformed_block_pos(&mut nbt, Vector3::new(3, -4, 5));
         assert_eq!(nbt.get_int_array("block_pos"), Some(&[3, -4, 5][..]));
+    }
+
+    #[test]
+    fn edge_neighbor_is_only_outside_the_placed_shape() {
+        let a = BlockPos::new(0, 0, 0);
+        let b = BlockPos::new(1, 0, 0);
+        let placed: HashSet<BlockPos> = [a, b].into_iter().collect();
+
+        // b is placed, so a's +X face is interior and vanilla skips it.
+        assert_eq!(edge_neighbor(&placed, &a, BlockDirection::East), None);
+        // -X of a and +X of b are outside the shape: both are boundary faces.
+        assert_eq!(
+            edge_neighbor(&placed, &a, BlockDirection::West),
+            Some(BlockPos::new(-1, 0, 0))
+        );
+        assert_eq!(
+            edge_neighbor(&placed, &b, BlockDirection::East),
+            Some(BlockPos::new(2, 0, 0))
+        );
     }
 }
