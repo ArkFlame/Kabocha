@@ -834,36 +834,65 @@ impl<'a> Explosion<'a> {
                 0
             }
             BlockInteraction::Destroy | BlockInteraction::DestroyWithDecay => {
-                // Entity explosions already fired `entity-explode`, matching vanilla; only
-                // source-less (block) explosions fire `block-explode`.
-                if self.source.is_none() {
-                    let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
+                let (mut blocks, affected_positions, to_blow_count) = self.get_blocks_to_destroy(world);
+                let decay_drops = self.block_interaction == BlockInteraction::DestroyWithDecay;
+
+                // Paper ServerExplosion.interactWithBlocks fires the event after the destroyed
+                // list is known and replaces it with the plugin-filtered event list. The default
+                // yield is 1/radius when drops decay, otherwise 1.
+                let default_yield = if !decay_drops {
+                    1.0
+                } else if self.power > 0.0 && self.power.is_finite() {
+                    1.0 / self.power
+                } else {
+                    0.0
+                };
+                let event_blocks: Vec<BlockPos> = blocks.keys().copied().collect();
+                let (cancelled, yield_rate, allowed) = if let Some(source) = self.source {
                     let mut event =
-                        crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
-                            center_pos,
-                            if self.power > 0.0 {
-                                1.0 / self.power
-                            } else {
-                                1.0
-                            },
+                        crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
+                            source.get_entity().entity_id,
+                            self.pos,
+                            event_blocks,
+                            default_yield,
                             world.clone(),
                         );
                     if let Some(server) = world.server.upgrade() {
                         server.plugin_manager.fire_blocking(&server, &mut event);
                     }
-                    if event.cancelled {
-                        return 0;
+                    (event.cancelled, event.yield_rate, event.blocks)
+                } else {
+                    let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
+                    let mut event =
+                        crate::plugin::api::events::block::block_explode::BlockExplodeEvent::new(
+                            center_pos,
+                            event_blocks,
+                            default_yield,
+                            world.clone(),
+                        );
+                    if let Some(server) = world.server.upgrade() {
+                        server.plugin_manager.fire_blocking(&server, &mut event);
                     }
-                }
+                    (event.cancelled, event.yield_rate, event.blocks)
+                };
 
-                let (blocks, affected_positions, to_blow_count) = self.get_blocks_to_destroy(world);
-                let decay_drops = self.block_interaction == BlockInteraction::DestroyWithDecay;
-                let explosion_radius = decay_drops.then_some(self.power);
+                // Vanilla BlockBehaviour.dropResources feeds 1/yield into the explosion_radius
+                // loot parameter, and only when yield is below 1.
+                let explosion_radius = explosion_radius_from_yield(yield_rate);
+                let allowed: FxHashSet<BlockPos> = allowed.into_iter().collect();
+                blocks = filter_destroyed_blocks(blocks, &allowed);
+
+                if cancelled {
+                    if self.create_fire {
+                        Self::place_fire(world, &affected_positions, &mut fire_roll);
+                    }
+                    return 0;
+                }
 
                 for (pos, (block, state)) in &blocks {
                     let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
 
-                    // Vanilla `onExplosionHit` runs before the block is removed, so wind-charge
+                    // Vanilla onExplosionHit runs before the block is removed, so wind-charge
                     // reactions (button press, lever pull, candle extinguish) still see it placed.
                     if let Some(pumpkin_block) = pumpkin_block {
                         pumpkin_block.explode(ExplodeArgs {
@@ -886,8 +915,8 @@ impl<'a> Explosion<'a> {
                                 pos.0.z as f64,
                             )),
                             world_time: world.level_info.load().day_time as u64,
-                            // Vanilla `Explosion.finalizeExplosion` passes `getIndirectSourceEntity()`
-                            // to `Block.dropResources`, so loot tables see `this_entity`.
+                            // Vanilla Explosion.finalizeExplosion passes getIndirectSourceEntity()
+                            // to Block.dropResources, so loot tables see this_entity.
                             this_entity: self.indirect_source(),
                             is_raining: Some(is_raining),
                             is_thundering: Some(is_thundering),
@@ -905,8 +934,23 @@ impl<'a> Explosion<'a> {
 
                 to_blow_count
             }
+            }
         }
     }
+}
+
+fn explosion_radius_from_yield(yield_rate: f32) -> Option<f32> {
+    (yield_rate < 1.0).then_some(1.0 / yield_rate)
+}
+
+fn filter_destroyed_blocks(
+    blocks: FxHashMap<BlockPos, (&'static Block, &'static BlockState)>,
+    allowed: &FxHashSet<BlockPos>,
+) -> FxHashMap<BlockPos, (&'static Block, &'static BlockState)> {
+    blocks
+        .into_iter()
+        .filter(|(pos, _)| allowed.contains(pos))
+        .collect()
 }
 
 #[cfg(test)]
@@ -1152,5 +1196,30 @@ mod tests {
 
         level.shutdown().await;
         Ok(())
+    }
+
+    use rustc_hash::{FxHashMap, FxHashSet};
+
+    #[test]
+    fn explode_event_filters_destroyed_blocks() {
+        let keep = BlockPos::new(1, 2, 3);
+        let drop = BlockPos::new(4, 5, 6);
+        let mut blocks = FxHashMap::default();
+        blocks.insert(keep, (Block::STONE, Block::STONE.default_state));
+        blocks.insert(drop, (Block::DIRT, Block::DIRT.default_state));
+        let allowed = FxHashSet::from([keep]);
+
+        let filtered = filter_destroyed_blocks(blocks, &allowed);
+
+        assert!(filtered.contains_key(&keep));
+        assert!(!filtered.contains_key(&drop));
+        assert_eq!(filtered.len(), 1);
+    }
+
+    #[test]
+    fn explosion_radius_uses_inverse_yield_only_for_decay() {
+        assert!(explosion_radius_from_yield(0.25).is_some_and(|r| (r - 4.0).abs() < 1e-6));
+        assert!(explosion_radius_from_yield(1.0).is_none());
+        assert!(explosion_radius_from_yield(2.0).is_none());
     }
 }

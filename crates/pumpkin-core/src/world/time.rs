@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use pumpkin_protocol::{bedrock::client::set_time::CSetTime, java::client::play::CUpdateTime};
 
 use super::World;
@@ -116,6 +118,37 @@ impl ClockInstance {
     }
 }
 
+/// Runtime model of vanilla `ServerClockManager`: one independent instance per
+/// `world_clock` registry id. The dimension's default clock is mirrored by
+/// `LevelTime`'s own fields; every other clock lives here so `/time of` no
+/// longer mutates the world's default clock.
+#[derive(Clone, Debug, Default)]
+pub struct ServerClockManager {
+    clocks: HashMap<String, ClockInstance>,
+}
+
+impl ServerClockManager {
+    /// Returns the instance for `name`, creating a fresh zeroed clock on first use.
+    pub fn clock_mut(&mut self, name: &str) -> &mut ClockInstance {
+        self.clocks
+            .entry(name.to_owned())
+            .or_insert_with(ClockInstance::new)
+    }
+
+    #[must_use]
+    pub fn clock(&self, name: &str) -> Option<&ClockInstance> {
+        self.clocks.get(name)
+    }
+
+    /// Vanilla `ServerClockManager.tick`: each clock advances by its own rate
+    /// unless paused; the `advance_time` game rule gates every clock.
+    pub fn tick_all(&mut self) {
+        for clock in self.clocks.values_mut() {
+            clock.tick();
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct LevelTime {
     pub time_of_day: i64,
@@ -123,6 +156,8 @@ pub struct LevelTime {
     pub partial_tick: f32,
     pub rate: f32,
     pub paused: bool,
+    /// Independent instances for every non-default `world_clock`.
+    pub clocks: ServerClockManager,
 }
 
 impl Default for LevelTime {
@@ -133,13 +168,14 @@ impl Default for LevelTime {
 
 impl LevelTime {
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             time_of_day: 0,
             world_age: 0,
             partial_tick: 0.0,
             rate: 1.0,
             paused: false,
+            clocks: ServerClockManager::default(),
         }
     }
 
@@ -157,6 +193,11 @@ impl LevelTime {
             let full_ticks = self.partial_tick.floor() as i32;
             self.partial_tick -= full_ticks as f32;
             self.time_of_day += full_ticks as i64;
+        }
+        // Non-default clocks advance on their own rate/pause, gated by the
+        // same `advance_time` game rule as the world's default clock.
+        if advance_time {
+            self.clocks.tick_all();
         }
     }
 

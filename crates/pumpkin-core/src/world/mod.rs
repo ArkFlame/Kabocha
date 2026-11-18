@@ -176,6 +176,7 @@ use pumpkin_util::{
     random::{RandomImpl, xoroshiro128::Xoroshiro},
 };
 use pumpkin_world::world::{GetBlockError, WorldPortalExt};
+use pumpkin_world::world_info::data_files::read_world_clocks;
 use pumpkin_world::{
     CURRENT_BEDROCK_MC_VERSION, biome,
     chunk::{io::Dirtiable, palette::bedrock_water_state},
@@ -309,7 +310,6 @@ impl PumpkinError for GetBlockError {
 /// - Manages the `Level` instance for handling chunk-related operations.
 /// - Stores and tracks active `Player` entities within the world.
 /// - Provides a central hub for interacting with the world's entities and environment.
-#[repr(C)]
 // Accumulates the block states changed while a bonemeal growth runs so the
 // BlockFertilizeEvent payload can list them and a cancellation can revert them.
 #[derive(Default)]
@@ -353,8 +353,8 @@ pub struct World {
     pub dragon_parts: DashMap<i32, Arc<EnderDragonPart>>,
     pub(crate) entity_index: Arc<EntityIndex>,
     island_schedule: std::sync::Mutex<entity_islands::Schedule>,
-    /// The server-wide scoreboard. Vanilla `ServerLevel.getScoreboard()` delegates to
-    /// `MinecraftServer.getScoreboard()`, so every world shares one instance.
+    /// The server-wide scoreboard shared by all worlds, as vanilla's `ServerLevel.getScoreboard()`
+    /// delegates to `MinecraftServer.getScoreboard()`.
     pub scoreboard: Arc<std::sync::Mutex<Scoreboard>>,
     /// The world's worldborder, defining the playable area and controlling its expansion or contraction.
     pub worldborder: std::sync::Mutex<Worldborder>,
@@ -616,6 +616,22 @@ impl World {
         level_time.partial_tick = info.clock_partial_tick;
         level_time.rate = info.clock_rate;
         level_time.paused = info.clock_paused;
+        // Vanilla ServerClockManager restores one instance per world_clock from
+        // data/minecraft/world_clocks.dat. This world's default clock is already
+        // loaded from LevelData above; every other clock gets its own instance.
+        let default_clock =
+            crate::world::time::default_clock_name(dimension.minecraft_name).unwrap_or("minecraft:overworld");
+        for (name, saved) in read_world_clocks(&level.level_folder).clocks {
+            if name == default_clock {
+                continue;
+            }
+            level_time.clocks.clock_mut(&name).load_from(
+                saved.total_ticks,
+                saved.partial_tick,
+                saved.rate,
+                saved.paused,
+            );
+        }
         let mut worldborder = Worldborder::new(
             info.border_center_x,
             info.border_center_z,
@@ -1547,9 +1563,11 @@ impl World {
                 translate,
                 bedrock_translate,
                 with,
+                bedrock_with,
             } => {
                 let key = bedrock_translate.as_deref().unwrap_or(translate.as_ref());
-                let parameters = with
+                let args = bedrock_with.as_ref().unwrap_or(with);
+                let parameters = args
                     .iter()
                     .map(pumpkin_util::text::TextComponentBase::to_bedrock_string)
                     .collect();
@@ -5069,24 +5087,6 @@ impl World {
     pub fn run_explosion(self: &Arc<Self>, explosion: &Explosion<'_>) {
         let position = explosion.center();
         let power = explosion.power();
-        // Vanilla fires the entity event only for entity sources; block sources (beds, respawn
-        // anchors) fire `block-explode` from the block interaction below instead.
-        if let Some(source) = explosion.source() {
-            let mut event =
-                crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
-                    source.get_entity().entity_id,
-                    position,
-                    power,
-                    self.clone(),
-                );
-            if let Some(server) = self.server.upgrade() {
-                server.plugin_manager.fire_blocking(&server, &mut event);
-            }
-            if event.cancelled {
-                return;
-            }
-        }
-
         let result = explosion.explode(self);
         let particle = explosion.particle();
         let sound = IdOr::<SoundEvent>::Id(explosion.sound() as u16);
@@ -6733,6 +6733,49 @@ impl World {
         }
     }
 
+    fn record_bonemeal_change(
+        &self,
+        position: BlockPos,
+        old_state: BlockStateId,
+        new_state: BlockStateId,
+    ) {
+        if !self.bonemeal_recording.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+        let mut recorder = self
+            .bonemeal_changes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        accumulate_bonemeal_change(&mut recorder.changes, position, old_state, new_state);
+    }
+
+    /// Runs `grow` while recording every block state it writes, returning the
+    /// original and final state of each changed position. Nested calls return an
+    /// empty list; the outermost call owns all recorded changes.
+    pub fn capture_bonemeal_changes<F: FnOnce()>(
+        &self,
+        grow: F,
+    ) -> Vec<(BlockPos, BlockStateId, BlockStateId)> {
+        let nested = self
+            .bonemeal_recording
+            .swap(true, std::sync::atomic::Ordering::SeqCst);
+        grow();
+        self.bonemeal_recording
+            .store(nested, std::sync::atomic::Ordering::SeqCst);
+        if nested {
+            return Vec::new();
+        }
+        let mut recorder = self
+            .bonemeal_changes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        std::mem::take(&mut recorder.changes)
+            .into_iter()
+            .filter(|(_, (old, new))| old != new)
+            .map(|(position, (old, new))| (position, old, new))
+            .collect()
+    }
+
     pub fn set_block_state(
         self: &Arc<Self>,
         position: &BlockPos,
@@ -6745,6 +6788,7 @@ impl World {
         let replaced_block_state_id = self
             .write_block_state_if(position, block_state_id, |_| true)
             .unwrap_or(Block::AIR.default_state.id);
+        self.record_bonemeal_change(*position, replaced_block_state_id, block_state_id);
         self.on_block_state_set(position, replaced_block_state_id, block_state_id, flags)
     }
 
@@ -6763,6 +6807,7 @@ impl World {
         }
         let replaced_block_state_id =
             self.write_block_state_if(position, block_state_id, condition)?;
+        self.record_bonemeal_change(*position, replaced_block_state_id, block_state_id);
         Some(self.on_block_state_set(position, replaced_block_state_id, block_state_id, flags))
     }
 
@@ -9799,10 +9844,30 @@ mod tests {
     use uuid::Uuid;
 
     use super::{
-        NaturalSpawnChunkCache, World, bedrock_block_breaking_rate, bedrock_chest_block_actor,
-        merge_entity_records, natural_spawn_chunk_count, remove_invalid_pending_block_entities,
-        sound_event_audible_chunks, spawn_list_for_tick,
+        NaturalSpawnChunkCache, World, accumulate_bonemeal_change, bedrock_block_breaking_rate,
+        bedrock_chest_block_actor, merge_entity_records, natural_spawn_chunk_count,
+        remove_invalid_pending_block_entities, sound_event_audible_chunks, spawn_list_for_tick,
     };
+
+    #[test]
+    fn bonemeal_change_accumulation_keeps_first_old_and_last_new() {
+        use pumpkin_data::BlockStateId;
+        use std::collections::HashMap;
+
+        let air = Block::AIR.default_state.id;
+        let stone = Block::STONE.default_state.id;
+        let dirt = Block::DIRT.default_state.id;
+        let pos = BlockPos::new(1, 2, 3);
+        let mut changes: HashMap<BlockPos, (BlockStateId, BlockStateId)> = HashMap::new();
+
+        accumulate_bonemeal_change(&mut changes, pos, air, stone);
+        accumulate_bonemeal_change(&mut changes, pos, stone, dirt);
+        assert_eq!(changes.get(&pos), Some(&(air, dirt)));
+
+        let unchanged = BlockPos::new(4, 5, 6);
+        accumulate_bonemeal_change(&mut changes, unchanged, stone, stone);
+        assert!(!changes.contains_key(&unchanged));
+    }
 
     #[test]
     fn sound_events_reach_their_fixed_range() {

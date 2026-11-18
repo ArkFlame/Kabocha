@@ -482,3 +482,61 @@ fn resolve_criterion_matches_vanilla_custom_and_stat_names() {
         assert_eq!(resolve_criterion(unknown), None, "{unknown}");
     }
 }
+
+#[tokio::test]
+async fn every_world_shares_the_server_scoreboard() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let basic = BasicConfiguration {
+        default_level_name: directory
+            .path()
+            .join("world")
+            .to_string_lossy()
+            .into_owned(),
+        allow_nether: true,
+        allow_end: true,
+        ..Default::default()
+    };
+    let mut advanced = AdvancedConfiguration::default();
+    advanced.networking.bedrock.online_mode = false;
+    let server = Server::new(
+        basic,
+        advanced,
+        TelemetryConfig::default(),
+        VanillaData::default(),
+        vec![],
+    )
+    .await?;
+
+    let worlds = server.worlds.load();
+    assert!(worlds.len() > 1, "expected one world per enabled dimension");
+    for world in worlds.iter() {
+        assert!(Arc::ptr_eq(&world.scoreboard, &server.scoreboard));
+    }
+
+    // A scoreboard change through one world is visible through every other world.
+    let first = worlds.first().ok_or("No world")?;
+    first
+        .scoreboard
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .add_objective(
+            &NoTarget,
+            ScoreboardObjective::new(
+                "shared",
+                TextComponent::text("Shared"),
+                RenderType::Integer,
+                None,
+                "dummy",
+            ),
+        );
+    let second = worlds.get(1).ok_or("No second world")?;
+    assert!(
+        second
+            .scoreboard
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_objective("shared")
+            .is_some()
+    );
+    Ok(())
+}
