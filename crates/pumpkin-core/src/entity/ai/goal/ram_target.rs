@@ -140,8 +140,6 @@ const fn fail_cooldown(screaming: bool) -> i64 {
     }
 }
 
-/// Vanilla goat ram activity: `PrepareRamNearestTarget` (walk in and prepare) then `RamTarget`
-/// (charge, hit, knock back, cool down). Pumpkin folds the two brain behaviours into one goal.
 /// Vanilla `PrepareRamNearestTarget.RamCandidate`: a validated ram start plus the target block it
 /// was computed from, so a moved target re-runs the scan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -213,6 +211,8 @@ fn calculate_ram_start_position(mob: &dyn Mob, target_pos: BlockPos) -> Option<B
     })
 }
 
+/// Vanilla goat ram activity: `PrepareRamNearestTarget` (walk in and prepare) then `RamTarget`
+/// (charge, hit, knock back, cool down). Pumpkin folds the two brain behaviours into one goal.
 #[derive(Default)]
 pub struct RamTargetGoal {
     timer: RamTimer,
