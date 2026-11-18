@@ -69,14 +69,13 @@ fn load_test_instances_recursive(
     };
 
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
         let path = entry.path();
 
-        if file_type.is_dir() {
+        // Vanilla walks the pack with Files.find, which follows symlinks; testing the
+        // path (not the directory entry type) reproduces that.
+        if path.is_dir() {
             load_test_instances_recursive(namespace, base_dir, &path, registry);
-        } else if file_type.is_file()
+        } else if path.is_file()
             // Vanilla matches the lowercase .json suffix only, so Foo.JSON is ignored
             // rather than registered as ns:Foo.JSON.
             && path.extension().is_some_and(|ext| ext.to_str() == Some("json"))
@@ -455,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn load_test_instances_ignores_symlinks_and_loads_regular_files() {
+    fn load_test_instances_follows_symlinks_and_loads_regular_files() {
         let temp = tempfile::tempdir().expect("temp dir");
         let root = temp.path();
         let test_dir = root.join("test_instance");
@@ -496,15 +495,15 @@ mod tests {
         let mut registry = TestInstanceRegistry::new();
         let count = load_test_instances_from_dir("pumpkin", &test_dir, &mut registry);
 
-        assert_eq!(count, 1);
         assert!(registry.contains_key("pumpkin:sub/valid"));
 
         if sym_dir_created {
-            assert!(!registry.contains_key("pumpkin:sym_dir/sym"));
+            assert!(registry.contains_key("pumpkin:sym_dir/sym"));
         }
         if sym_file_created {
-            assert!(!registry.contains_key("pumpkin:sym_file"));
+            assert!(registry.contains_key("pumpkin:sym_file"));
         }
+        assert_eq!(count, registry.len());
     }
 
     #[test]

@@ -89,10 +89,10 @@ impl PandaEntity {
     ///
     /// This reads and changes other entities up to 10 blocks away from the panda's tick. The
     /// conservative island reach covers that because pandas keep `has_audited_tick` false:
-    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks. Every panda
-    /// goal now reports its reach, including this jump through `PandaSneezeGoal::tick_reach`, but the
-    /// shared melee and revenge goals stay unaudited and the bamboo search exceeds `GoalReach`'s
-    /// block-read bound, so an audited panda reach would fall back to this conservative bound anyway.
+    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks.
+    /// `PandaSneezeGoal::tick_reach` reports this jump, but the shared melee and revenge goals stay
+    /// unaudited and the bamboo search exceeds `GoalReach`'s block-read bound, so an audited panda
+    /// would fall back to this conservative bound anyway.
     fn after_sneeze(&self) {
         self.play_entity_sound(Sound::EntityPandaSneeze, 1.0, 1.0);
 

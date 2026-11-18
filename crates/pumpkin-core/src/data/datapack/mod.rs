@@ -2123,7 +2123,10 @@ fn build_damage_type_registry(
     mut all_damage_type_defs: HashMap<String, DamageTypeDefinition>,
 ) -> DamageTypeRegistry {
     let mut damage_type_registry: DamageTypeRegistry = HashMap::new();
-    let mut next_custom_id = 51u8;
+    // Vanilla assigns int registry ids; Pumpkin's generated DamageType id is a u8, so a pack
+    // adding more custom types than the id space holds gets an explicit skip instead of a
+    // silent id collision.
+    let mut next_custom_id: u16 = 51;
     let mut static_map: HashMap<String, &'static DamageType> = HashMap::new();
     let mut names = Vec::new();
 
@@ -2135,16 +2138,18 @@ fn build_damage_type_registry(
             continue;
         };
         let path = id.split_once(':').map_or(id.as_str(), |(_, p)| p);
-        let numeric_id = pumpkin_data::damage::DamageType::from_name(path)
+        let numeric_id = if let Some(vanilla_dt) = pumpkin_data::damage::DamageType::from_name(path)
             .or_else(|| pumpkin_data::damage::DamageType::from_name(&id))
-            .map_or_else(
-                || {
-                    let nid = next_custom_id;
-                    next_custom_id = next_custom_id.saturating_add(1);
-                    nid
-                },
-                |vanilla_dt| vanilla_dt.id,
-            );
+        {
+            vanilla_dt.id
+        } else {
+            let Ok(numeric_id) = u8::try_from(next_custom_id) else {
+                tracing::error!("Skipping datapack damage type '{id}': no registry id left");
+                continue;
+            };
+            next_custom_id += 1;
+            numeric_id
+        };
 
         let dt = damage_type_loader::to_damage_type(numeric_id, &def);
         let nbt_data = damage_type_loader::to_registry_nbt_bytes(&def);
@@ -2934,13 +2939,12 @@ fn load_recipes_recursive(
         return;
     };
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
         let path = entry.path();
-        if file_type.is_dir() {
+        // Vanilla walks the pack with Files.find, which follows symlinks; testing the
+        // path (not the directory entry type) reproduces that.
+        if path.is_dir() {
             load_recipes_recursive(namespace, base_dir, &path, all_recipes, count);
-        } else if file_type.is_file()
+        } else if path.is_file()
             && path
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
@@ -3693,7 +3697,7 @@ mod tests {
     }
 
     #[test]
-    fn load_recipes_ignores_symlinks_and_loads_regular_files() {
+    fn load_recipes_follows_symlinks_and_loads_regular_files() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path();
         let recipes_dir = root.join("recipes");
@@ -3715,22 +3719,30 @@ mod tests {
         std::fs::create_dir_all(&external_dir).expect("create external dir");
         std::fs::write(external_dir.join("sym.json"), valid_recipe_json).expect("write sym recipe");
 
-        // Symlinks are best-effort: on platforms without them the loader guard is still exercised by the regular file.
+        // Symlinks are best-effort: on platforms without them the loader guard is still
+        // exercised by the regular file.
         #[cfg(unix)]
-        {
-            let _ = std::os::unix::fs::symlink(&external_dir, recipes_dir.join("sym_dir"));
-            let _ = std::os::unix::fs::symlink(
-                external_dir.join("sym.json"),
-                recipes_dir.join("sym_file.json"),
-            );
-        }
+        let symlinks_created =
+            std::os::unix::fs::symlink(&external_dir, recipes_dir.join("sym_dir")).is_ok()
+                && std::os::unix::fs::symlink(
+                    external_dir.join("sym.json"),
+                    recipes_dir.join("sym_file.json"),
+                )
+                .is_ok();
+        #[cfg(not(unix))]
+        let symlinks_created = false;
 
         let mut all_recipes = Vec::new();
         let mut count = 0;
         super::load_recipes_from_dir("test", &recipes_dir, &mut all_recipes, &mut count);
 
-        assert_eq!(count, 1);
-        assert_eq!(all_recipes.len(), 1);
+        if symlinks_created {
+            // Both the symlinked directory and the symlinked file are followed.
+            assert_eq!(count, 3);
+        } else {
+            assert_eq!(count, 1);
+        }
+        assert_eq!(count, all_recipes.len());
     }
 
     fn block_tag(replace: bool, values: &[&str]) -> super::function_loader::BlockTagEntry {

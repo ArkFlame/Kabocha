@@ -131,3 +131,52 @@ steps and the hop velocity match Panda.java. Covered by existing sneeze/roll tes
 No `.rs` source changed: every in-scope row is at vanilla parity with a covering test, and the only
 open row needs a whole subsystem with no smallest fix. No rustfmt run and no new pure test needed
 (gene mutation, bamboo box, sneeze jump range, roll velocity and sit-and-eat seams are already covered).
+
+## Result
+
+Third pass: every row now ends FIXED, VERIFIED or BLOCKED, none left STILL OPEN. Vanilla read at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (plus `Mob.java`,
+`LivingEntity.java`, `Level.java`) in this checkout.
+
+- Row 1 `genes_from_parents` (panda.rs:151-171) - VERIFIED, no change. `Panda.setGeneFromParents`
+  (Panda.java:583, 587) is two independent `if (this.random.nextInt(32) == 0)` blocks, both always
+  evaluated, so both genes can mutate and both draws are taken. Pumpkin's two independent
+  `if next_int(MUTATION_CHANCE) == 0` blocks match; `foal_genes_come_from_the_parents_and_mutate_independently` pins it.
+- Row 2 `sit_and_eat` (panda.rs:622-638) - VERIFIED, no change. `Panda.mobInteract` returns PASS for
+  a baby at Panda.java:635-637 and then gates the sit-and-eat branch on `isSitting() || isInWater()`
+  (Panda.java:644). Pumpkin's `is_baby() || is_sitting() || is_in_water()` gate is the same
+  predicate (the baby test just happens first), and the held-item drop at 630-632 mirrors 650-653.
+  Covered by `feeding_a_panda_that_cannot_breed_swaps_its_item_for_the_food`, which also pins the
+  deliberate "a rolling panda still takes food" case.
+- Row 3 `can_find_bamboo` (panda/goals.rs:146-159) - VERIFIED, no change. `PandaBreedGoal.canFindBamboo`
+  (Panda.java:834-852) loops yOff 0..3 and square rings r 0..8, i.e. exactly x,z in [-7,7] and
+  y in [0,2]. Pumpkin's `BAMBOO_SEARCH_RADIUS = 7` / `BAMBOO_SEARCH_HEIGHT = 2` box is the same set;
+  only the read order differs, and block reads have no side effect, so the ring walk needs no
+  port. `breeding_needs_bamboo_nearby_and_sulks_once_per_cooldown` pins the boundaries.
+- Row 4 `after_sneeze` AI-island note (panda/sneeze.rs:87-95, 96-121) - VERIFIED, comment tightened,
+  no behaviour change. `Panda.afterSneeze` (Panda.java:506-531): `addParticle(SNEEZE, ...)` is a
+  server no-op (`Level.addParticle` has an empty body, Level.java:1713, and `ServerLevel` does not
+  override it), so the particle really is client-only; then `PANDA_SNEEZE` at 1.0/1.0, then a jump
+  for every non-baby, grounded, out-of-water, `canPerformAction` panda inside `inflate(10.0)`
+  (Panda.java:520-526), then the `PANDA_SNEEZE` gift only under `MOB_DROPS` (528-530). `after_sneeze`
+  matches each step. Its doc block now states the reach situation in one sentence (pandas keep
+  `has_audited_tick` false, so `entity_islands.unaudited_reach` at least 16 blocks covers the
+  10-block jump, and an audited reach would still fall back to it because the shared melee and
+  revenge goals are unaudited and the bamboo box exceeds `GoalReach`'s block-read bound). Flipping
+  `has_audited_tick` needs `panda/goals.rs` and the shared melee/revenge goals, i.e. a whole
+  subsystem, and there is no behavioural difference to fix, so the row closes as verified rather
+  than blocking. Covered by
+  `a_sneeze_lasts_21_ticks_and_only_grounded_adults_that_can_act_within_ten_blocks_jump` and
+  `sneeze_gift_drops_at_the_panda_only_with_mob_drops_on`.
+
+Also re-checked at parity while here: `melee_attack.rs:129-148` swings, then `do_hurt_target`, then
+`on_attack` only on a landing hit, matching `MeleeAttackGoal.checkAndPerformAttack`
+(MeleeAttackGoal.java:127-133) plus `Mob.doHurtTarget` -> `playAttackSound` only inside
+`if (wasHurt)` (Mob.java:1611-1621); `Panda.handleRoll` steps 1/7/15/23 and the 32-step end
+(Panda.java:485-504) match `roll_velocity` / `tick_roll`; `PandaSneezeGoal.canUse` bounds and
+`reducedTickDelay` (Panda.java:1118-1122) match `rolls_sneeze`.
+
+Files changed: `crates/pumpkin-core/src/entity/passive/panda/sneeze.rs` (doc block only, no logic).
+No new test: the sneeze jump range, gift, gene mutation, bamboo box, roll velocity and sit-and-eat
+seams already have pure/world tests, and the only unverified step (the client sneeze particle) has
+no server seam.
