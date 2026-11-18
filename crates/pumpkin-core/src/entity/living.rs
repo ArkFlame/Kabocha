@@ -1275,10 +1275,11 @@ impl LivingEntity {
                 return;
             }
         }
-        // A handler may have changed health, or killed the entity.
+        // A handler may have changed health, or killed the entity. Vanilla applies the
+        // event's (possibly modified) amount, not the original argument.
         let health = self.health.load();
         if health > 0.0 {
-            self.set_health(health + additional_health);
+            self.set_health(health + event.amount);
         }
     }
 
