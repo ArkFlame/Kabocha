@@ -126,7 +126,10 @@ impl BlockBehaviour for SmallDripleafBlock {
 
         let up_pos = args.position.up();
         upper_small_dripleaf_props.facing = lower_small_dripleaf_props.facing;
-        upper_small_dripleaf_props.waterlogged = is_water_source(args.world.as_ref(), &up_pos);
+        // Vanilla copies LevelReader#isWaterAt, which accepts flowing water as well.
+        upper_small_dripleaf_props.waterlogged = args
+            .world
+            .fluid_state_has_tag(&up_pos, &tag::Fluid::MINECRAFT_WATER);
         upper_small_dripleaf_props.half = DoubleBlockHalf::Upper;
 
         args.world.set_block_state(
@@ -169,7 +172,11 @@ impl BlockBehaviour for SmallDripleafBlock {
         let props = SmallDripleafLikeProperties::from_state_id(args.state_id);
         if props.half == DoubleBlockHalf::Lower {
             let above = args.position.up();
-            let above_state = if is_water_source(args.world.as_ref(), &above) {
+            // Vanilla restores getFluidState(above).createLegacyBlock(), i.e. any water.
+            let above_state = if args
+                .world
+                .fluid_state_has_tag(&above, &tag::Fluid::MINECRAFT_WATER)
+            {
                 Block::WATER.default_state.id
             } else {
                 Block::AIR.default_state.id
