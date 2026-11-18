@@ -312,7 +312,7 @@ Files changed this pass: this doc only. No .rs file was edited, so rustfmt was n
 Checks: not run (worker rule; orchestrator batch-compiles). Verified by source and API review only.
 ## Result (third pass, final resolution)
 
-All five STILL OPEN rows in the the Gap status table are now resolved against the decompiled
+All five STILL OPEN rows in the Gap status table are now resolved against the decompiled
 vanilla source under .vendor/vanilla-decompiled/net/minecraft/world/level/block/ButtonBlock.java.
 No source edits were required: every fix from earlier passes is present in the current
 checkout and each API call was checked against its definition.
