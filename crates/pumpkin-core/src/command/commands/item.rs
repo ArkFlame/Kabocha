@@ -4,12 +4,16 @@ use std::sync::Arc;
 use pumpkin_data::Enchantment;
 use pumpkin_data::data_component::DataComponent;
 use pumpkin_data::data_component_impl::EquipmentSlot;
-use pumpkin_data::data_component_impl::{EnchantmentsImpl, read_data};
+use pumpkin_data::data_component_impl::{
+    CustomModelDataImpl, EnchantmentsImpl, PotionContentsImpl, StoredEnchantmentsImpl, read_data,
+};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Potion;
 use pumpkin_data::translation;
 use pumpkin_inventory::Inventory;
 use pumpkin_inventory::screen_handler::{InventoryPlayer, ScreenHandler};
+use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::java::client::play::CSetContainerSlot;
@@ -19,6 +23,7 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
+use rand::RngExt;
 
 use crate::command::argument_builder::{
     ArgumentBuilder, RequiredArgumentBuilder, argument, command, literal,
@@ -909,6 +914,56 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                         }
                     }
                 }
+                "enchant_randomly" => {
+                    let candidates: Vec<&'static Enchantment> = match function.get("options") {
+                        Some(tag) => tag
+                            .extract_list()
+                            .unwrap_or_default()
+                            .iter()
+                            .filter_map(NbtTag::extract_string)
+                            .filter_map(|name| {
+                                Enchantment::from_name(
+                                    name.strip_prefix("minecraft:").unwrap_or(name),
+                                )
+                            })
+                            .collect(),
+                        None => Enchantment::ALL.to_vec(),
+                    };
+                    if candidates.is_empty() {
+                        return;
+                    }
+                    let only_compatible = function.get_bool("only_compatible").unwrap_or(true);
+                    let is_book = stack.item.id == Item::BOOK.id;
+                    let compatible: Vec<&'static Enchantment> = candidates
+                        .into_iter()
+                        .filter(|enc| is_book || !only_compatible || enc.can_enchant(stack.item))
+                        .collect();
+                    if compatible.is_empty() {
+                        return;
+                    }
+                    let picked = compatible[rand::rng().random_range(0..compatible.len())];
+                    let level = rand::rng().random_range(1..=picked.max_level.max(1));
+                    if is_book {
+                        stack.item = &Item::ENCHANTED_BOOK;
+                        set_stored_enchantment_level(stack, picked, level, true);
+                    } else {
+                        set_enchantment_level(stack, picked, level, true);
+                    }
+                }
+                "set_custom_model_data" => set_custom_model_data(stack, function),
+                "set_potion" => {
+                    if let Some(id) = function.get_string("id") {
+                        let id = id.strip_prefix("minecraft:").unwrap_or(id);
+                        if let Some(potion) = Potion::from_name(id) {
+                            stack.set_data_component(PotionContentsImpl {
+                                potion_id: Some(potion.id as i32),
+                                custom_color: None,
+                                custom_effects: Vec::new(),
+                                custom_name: None,
+                            });
+                        }
+                    }
+                }
                 other => tracing::debug!("Unsupported item modifier function {other}"),
             }
         }
@@ -956,6 +1011,130 @@ fn set_enchantment_level(
             enchantment: Cow::Owned(vec![(enchantment, combined)]),
         });
     }
+}
+
+/// Vanilla SetCustomModelDataFunction applies a list operation to each of the four
+/// component lists instead of overwriting the whole component.
+fn set_custom_model_data(stack: &mut ItemStack, function: &NbtCompound) {
+    let current = stack
+        .get_data_component::<CustomModelDataImpl>()
+        .cloned()
+        .unwrap_or_else(|| CustomModelDataImpl {
+            floats: Vec::new(),
+            flags: Vec::new(),
+            strings: Vec::new(),
+            colors: Vec::new(),
+        });
+    stack.set_data_component(CustomModelDataImpl {
+        floats: apply_list_operation(
+            current.floats,
+            function.get("floats"),
+            NbtTag::as_numeric_float,
+        ),
+        flags: apply_list_operation(current.flags, function.get("flags"), NbtTag::extract_bool),
+        strings: apply_list_operation(current.strings, function.get("strings"), |tag| {
+            tag.extract_string().map(str::to_string)
+        }),
+        colors: apply_list_operation(current.colors, function.get("colors"), read_color),
+    });
+}
+
+/// Applies a vanilla list operation (values plus a mode) to a component list.
+fn apply_list_operation<T>(
+    current: Vec<T>,
+    field: Option<&NbtTag>,
+    parse: impl Fn(&NbtTag) -> Option<T>,
+) -> Vec<T> {
+    let Some(field) = field else {
+        return current;
+    };
+    let Some(operation) = field.extract_compound() else {
+        return current;
+    };
+    let Some(values) = operation.get("values").and_then(NbtTag::extract_list) else {
+        return current;
+    };
+    let replacement: Vec<T> = values.iter().filter_map(&parse).collect();
+    match operation.get_string("mode").unwrap_or("replace_all") {
+        "append" => {
+            let mut result = current;
+            result.extend(replacement);
+            result
+        }
+        "insert" => {
+            let offset = operation
+                .get_int("offset")
+                .unwrap_or(0)
+                .clamp(0, current.len() as i32) as usize;
+            let mut result = Vec::with_capacity(current.len() + replacement.len());
+            result.extend_from_slice(&current[..offset]);
+            result.extend(replacement);
+            result.extend_from_slice(&current[offset..]);
+            result
+        }
+        "replace_section" => {
+            let offset = operation
+                .get_int("offset")
+                .unwrap_or(0)
+                .clamp(0, current.len() as i32) as usize;
+            let size = operation
+                .get_int("size")
+                .unwrap_or(replacement.len() as i32)
+                .max(0) as usize;
+            let mut result = Vec::with_capacity(current.len() + replacement.len());
+            result.extend_from_slice(&current[..offset]);
+            result.extend(replacement);
+            let resume = offset.saturating_add(size).min(current.len());
+            result.extend_from_slice(&current[resume..]);
+            result
+        }
+        _ => replacement,
+    }
+}
+
+/// An int color is already ARGB; a three-element float list is converted like vanilla.
+fn read_color(tag: &NbtTag) -> Option<i32> {
+    if let Some(rgb) = tag.as_numeric_int() {
+        return Some(rgb);
+    }
+    let channels = tag.extract_list()?;
+    if channels.len() != 3 {
+        return None;
+    }
+    let r = channels[0].as_numeric_float()?;
+    let g = channels[1].as_numeric_float()?;
+    let b = channels[2].as_numeric_float()?;
+    Some(pumpkin_util::text::color::ARGBColor::from_float(1.0, r, g, b).to_argb_int())
+}
+
+/// Sets or adds a stored (enchanted-book) enchantment level like vanilla ItemStack.enchant.
+fn set_stored_enchantment_level(
+    stack: &mut ItemStack,
+    enchantment: &'static Enchantment,
+    level: i32,
+    add: bool,
+) {
+    let level = level.clamp(0, 255);
+    let mut entries: Vec<(&'static Enchantment, i32)> = stack
+        .get_data_component::<StoredEnchantmentsImpl>()
+        .map(|data| data.enchantment.to_vec())
+        .unwrap_or_default();
+    let combined = if add {
+        entries
+            .iter()
+            .find(|(enc, _)| *enc == enchantment)
+            .map_or(level, |(_, old)| (*old + level).clamp(0, 255))
+    } else {
+        level
+    };
+    if let Some((_, old)) = entries.iter_mut().find(|(enc, _)| *enc == enchantment) {
+        *old = combined;
+    } else {
+        entries.push((enchantment, combined));
+    }
+    stack.set_data_component(StoredEnchantmentsImpl {
+        enchantment: Cow::Owned(entries),
+    });
 }
 
 /// Reads a numeric provider: a plain number, or a typed provider such as
@@ -1163,7 +1342,6 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pumpkin_nbt::compound::NbtCompound;
 
     #[test]
     fn mob_inventory_slots_map_to_zero_based_index() {
@@ -1311,5 +1489,94 @@ mod tests {
         assert_eq!(response_counts(&[3, 0, 2]), (5, 2, None));
         assert_eq!(response_counts(&[0, 4, 0]), (4, 1, Some(1)));
         assert_eq!(response_counts(&[7]), (7, 1, Some(0)));
+    }
+
+    #[test]
+    fn enchant_randomly_uses_options_and_respects_compatibility() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:enchant_randomly".to_string());
+        function.put(
+            "options",
+            NbtTag::List(vec![
+                NbtTag::String("minecraft:sharpness".to_string()),
+                NbtTag::String("minecraft:aqua_affinity".to_string()),
+            ]),
+        );
+        let mut stack = ItemStack::new(1, &Item::DIAMOND_SWORD);
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        assert!(stack.get_enchantment_level(&Enchantment::SHARPNESS) >= 1);
+        assert_eq!(stack.get_enchantment_level(&Enchantment::AQUA_AFFINITY), 0);
+    }
+
+    #[test]
+    fn enchant_randomly_converts_book_to_stored_enchantments() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:enchant_randomly".to_string());
+        function.put(
+            "options",
+            NbtTag::List(vec![NbtTag::String("minecraft:sharpness".to_string())]),
+        );
+        let mut stack = ItemStack::new(1, &Item::BOOK);
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        assert_eq!(stack.item.id, Item::ENCHANTED_BOOK.id);
+        let stored = stack.get_data_component::<StoredEnchantmentsImpl>();
+        assert!(stored.is_some());
+        if let Some(stored) = stored {
+            assert!(
+                stored
+                    .enchantment
+                    .iter()
+                    .any(|(enc, level)| { *enc == Enchantment::SHARPNESS && *level >= 1 })
+            );
+        }
+    }
+
+    #[test]
+    fn set_custom_model_data_applies_list_operations() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:set_custom_model_data".to_string());
+        let mut append = NbtCompound::new();
+        append.put_string("mode", "append".to_string());
+        append.put("values", NbtTag::List(vec![NbtTag::Float(0.5)]));
+        function.put("floats", NbtTag::Compound(append));
+
+        let mut stack = ItemStack::new(1, &Item::STONE);
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function.clone()));
+        let data = stack.get_data_component::<CustomModelDataImpl>();
+        assert!(data.is_some());
+        if let Some(data) = data {
+            assert_eq!(data.floats, vec![0.5]);
+        }
+
+        let mut replace = NbtCompound::new();
+        replace.put_string("mode", "replace_all".to_string());
+        replace.put(
+            "values",
+            NbtTag::List(vec![NbtTag::Float(1.0), NbtTag::Float(2.0)]),
+        );
+        function.put("floats", NbtTag::Compound(replace));
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        let data = stack.get_data_component::<CustomModelDataImpl>();
+        assert!(data.is_some());
+        if let Some(data) = data {
+            assert_eq!(data.floats, vec![1.0, 2.0]);
+        }
+    }
+
+    #[test]
+    fn set_potion_sets_potion_contents() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:set_potion".to_string());
+        function.put_string("id", "minecraft:swiftness".to_string());
+        let mut stack = ItemStack::new(1, &Item::POTION);
+        apply_item_modifier(&mut stack, &NbtTag::Compound(function));
+        let contents = stack.get_data_component::<PotionContentsImpl>();
+        assert!(contents.is_some());
+        if let Some(contents) = contents {
+            assert_eq!(
+                contents.potion_id,
+                Some(pumpkin_data::potion::Potion::SWIFTNESS.id as i32)
+            );
+        }
     }
 }

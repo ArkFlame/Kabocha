@@ -65,7 +65,7 @@ impl CommandExecutor for FillBiomeExecutor {
             ]));
         }
 
-        let target_biome = ResourceKeyArgument::get_biome(context, "biome")?;
+        let target_biome_id = ResourceKeyArgument::get_biome_id(context, "biome")?;
 
         let replace_biomes = if self.has_replace {
             Some(context.get_argument::<ResourceOrTag>("filter")?.biome_ids())
@@ -90,7 +90,6 @@ impl CommandExecutor for FillBiomeExecutor {
             }
         }
 
-        let target_biome_id = target_biome.id;
         let world = context.world().clone();
 
         let mut changed_count = 0;

@@ -6,6 +6,7 @@ use crate::command::errors::command_syntax_error::CommandSyntaxError;
 use crate::command::errors::error_types::CommandErrorType;
 use crate::command::string_reader::StringReader;
 use crate::command::suggestion::suggestions::{Suggestions, SuggestionsBuilder};
+use crate::data::datapack::dynamic_registry_manager::DynamicRegistryManager;
 use pumpkin_data::{Advancement, translation};
 use pumpkin_util::identifier::Identifier;
 use pumpkin_util::resource::ResourceKey;
@@ -89,6 +90,22 @@ impl ArgumentType<CommandSource> for ResourceKeyArgument {
     }
 }
 
+/// Resolves a biome identifier to the u8 id used by chunk biome storage.
+///
+/// Vanilla biomes come from generated data; datapack biomes come from the dynamic
+/// registry, whose ids share the same u8 space as the chunk biome palette.
+fn resolve_biome_id(manager: &DynamicRegistryManager, identifier: &Identifier) -> Option<u8> {
+    identifier
+        .is_vanilla_then()
+        .and_then(pumpkin_data::biome::Biome::from_name)
+        .map(|biome| biome.id)
+        .or_else(|| {
+            manager
+                .get_raw_id(BIOME_REGISTRY, &identifier.to_string())
+                .and_then(|raw| u8::try_from(raw).ok())
+        })
+}
+
 impl ResourceKeyArgument {
     /// Returns a [`CommandContext`]'s parsed resource key argument as an [`Advancement`].
     ///
@@ -139,6 +156,24 @@ impl ResourceKeyArgument {
             .is_vanilla_then()
             .and_then(pumpkin_data::biome::Biome::from_name)
             .ok_or_else(invalid)
+    }
+
+    /// Resolves a biome resource key to the id used by chunk biome storage,
+    /// including biomes added by datapacks.
+    pub fn get_biome_id(context: &CommandContext, name: &str) -> Result<u8, CommandSyntaxError> {
+        let argument = context.get_argument::<ResourceKey>(name)?;
+        let invalid = || {
+            ERROR_INVALID_BIOME.create_without_context_args_slice(&[
+                TextComponent::text(argument.identifier.to_string()),
+                TextComponent::text(BIOME_REGISTRY.to_string()),
+            ])
+        };
+        let resource_key = argument.cast(BIOME_REGISTRY).ok_or_else(invalid)?;
+        resolve_biome_id(
+            &context.server().datapack_manager.dynamic_registry_manager,
+            &resource_key.identifier,
+        )
+        .ok_or_else(invalid)
     }
 
     /// Returns a [`CommandContext`]'s parsed resource key argument in the form of a [`ResourceKey`].
@@ -317,5 +352,42 @@ mod tests {
                 Ok(a) if a == pumpkin_data::Advancement::ADVENTURE_ROOT
             ));
         });
+    }
+
+    #[test]
+    fn resolve_biome_id_accepts_vanilla_and_datapack() {
+        use pumpkin_data::packet::CURRENT_MC_VERSION;
+        use pumpkin_data::registry::RegistryEntryData;
+        use std::collections::HashMap;
+
+        let manager = DynamicRegistryManager::new(CURRENT_MC_VERSION);
+        assert_eq!(
+            resolve_biome_id(&manager, &Identifier::vanilla_static("badlands")),
+            Some(pumpkin_data::biome::Biome::BADLANDS.id)
+        );
+        assert_eq!(
+            resolve_biome_id(&manager, &Identifier::from_static("custom", "unknown")),
+            None
+        );
+
+        let base_count = manager
+            .get_registry_entries(&BIOME_REGISTRY.to_string())
+            .len();
+        let mut custom_biomes = HashMap::new();
+        custom_biomes.insert(
+            "custom:crystal".to_string(),
+            RegistryEntryData {
+                entry_id: "custom:crystal".to_string(),
+                data: None,
+            },
+        );
+        let mut custom = HashMap::new();
+        custom.insert(BIOME_REGISTRY.to_string(), custom_biomes);
+        manager.apply_custom_registries(&custom);
+
+        assert_eq!(
+            resolve_biome_id(&manager, &Identifier::from_static("custom", "crystal")),
+            u8::try_from(base_count).ok()
+        );
     }
 }

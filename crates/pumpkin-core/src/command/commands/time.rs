@@ -358,6 +358,7 @@ struct ActionExecutor {
 impl ActionExecutor {
     /// Applies an `/time of <clock>` action to a non-default clock instance,
     /// leaving the world's own day time untouched.
+    #[allow(clippy::too_many_lines)]
     fn execute_other_clock(
         &self,
         context: &CommandContext,
@@ -421,10 +422,11 @@ impl ActionExecutor {
                 }
                 Action::Pause => {
                     if clock.paused {
-                        return Err(ERROR_PAUSE_ALREADY_PAUSED
-                            .create_without_context_args_slice(&[TextComponent::text(
-                                clock_name.to_string(),
-                            )]));
+                        return Err(
+                            ERROR_PAUSE_ALREADY_PAUSED.create_without_context_args_slice(&[
+                                TextComponent::text(clock_name.to_string()),
+                            ]),
+                        );
                     }
                     clock.set_paused(true);
                     let total = clock.total_ticks;

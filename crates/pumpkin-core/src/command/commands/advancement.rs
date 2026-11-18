@@ -610,6 +610,36 @@ fn perform_datapack(
     Some(Ok(changed))
 }
 
+/// Criteria names of the `ARG_ADVANCEMENT` advancement, including datapack
+/// advancements which live outside the generated advancement tree.
+fn advancement_criteria(context: &CommandContext) -> Vec<String> {
+    if let Ok(advancement) = ResourceKeyArgument::get_advancement(context, ARG_ADVANCEMENT) {
+        return advancement
+            .criteria
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+    }
+    let Ok(key) = context.get_argument::<ResourceKey>(ARG_ADVANCEMENT) else {
+        return Vec::new();
+    };
+    let Some(key) = key.cast(ADVANCEMENT_REGISTRY) else {
+        return Vec::new();
+    };
+    context
+        .server()
+        .datapack_manager
+        .advancements
+        .get(&key.identifier.to_string())
+        .map_or_else(Vec::new, |advancement| {
+            advancement
+                .criteria
+                .iter()
+                .map(|criterion| criterion.name.clone())
+                .collect()
+        })
+}
+
 /// use to grant/revoke advancement depending on the selected `mode`
 struct AdvancementExecutor {
     action: Action,
@@ -644,12 +674,7 @@ impl SuggestionProvider for CriterionSuggestionProvider {
         context: &CommandContext,
         builder: SuggestionsBuilder,
     ) -> SuggestionProviderResult {
-        let suggestion = ResourceKeyArgument::get_advancement(context, ARG_ADVANCEMENT)
-            .ok()
-            .map(|adv| adv.criteria)
-            .into_iter()
-            .flatten()
-            .map(ToString::to_string);
+        let suggestion = advancement_criteria(context);
         builder.filter_and_suggest_iter(suggestion).build()
     }
 }
