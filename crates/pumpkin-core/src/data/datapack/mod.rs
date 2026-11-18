@@ -46,6 +46,9 @@ use self::test_loader::{
 };
 use self::trade_loader::{DynamicVillagerTradeSet, TradeRegistry};
 
+/// Data pack format for the current protocol version.
+const CURRENT_DATA_PACK_FORMAT: u32 = CURRENT_DATA_PACK_FORMAT;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnownPackData {
     pub namespace: String,
@@ -189,7 +192,7 @@ fn pack_format_value(value: &serde_json::Value) -> Option<u32> {
 
 /// Declared format range of a `pack.mcmeta` `pack` section, defaulting to the game's format.
 fn pack_format_range(pack: Option<&serde_json::Value>) -> PackFormatRange {
-    let current = PackFormatRange::single(CURRENT_MC_VERSION.data_pack_format());
+    let current = PackFormatRange::single(CURRENT_DATA_PACK_FORMAT);
     let Some(pack) = pack else {
         return current;
     };
@@ -1718,14 +1721,14 @@ impl DatapackManager {
                 "vanilla".to_string(),
                 "vanilla".to_string(),
                 "The default data pack".to_string(),
-                CURRENT_MC_VERSION.data_pack_format(),
+                CURRENT_DATA_PACK_FORMAT,
             )
         } else if Self::is_embedded_pack(&resolved_name) {
             (
                 resolved_name.clone(),
                 resolved_name.clone(),
                 format!("Embedded datapack: {resolved_name}"),
-                CURRENT_MC_VERSION.data_pack_format(),
+                CURRENT_DATA_PACK_FORMAT,
             )
         } else if let Some(stripped) = resolved_name.strip_prefix("file/") {
             let pack_path = server
@@ -1745,7 +1748,7 @@ impl DatapackManager {
                 resolved_name.clone(),
                 resolved_name.clone(),
                 format!("Bundled datapack: {resolved_name}"),
-                CURRENT_MC_VERSION.data_pack_format(),
+                CURRENT_DATA_PACK_FORMAT,
             )
         };
 
@@ -1821,7 +1824,7 @@ impl DatapackManager {
         // not match the game's (PackCompatibility.forVersion). Embedded packs
         // have no on-disk mcmeta and are always treated as current.
         if let Some(pack_format) = Self::pack_file_format(server, &resolved_name) {
-            let current = CURRENT_MC_VERSION.data_pack_format();
+            let current = CURRENT_DATA_PACK_FORMAT;
             if pack_format_compatibility(pack_format, current) != PackCompatibility::Compatible {
                 tracing::warn!(
                     "Refusing to enable datapack '{resolved_name}': formats {}-{} are incompatible with the game's format {current}",
@@ -2934,7 +2937,7 @@ fn read_pack_mcmeta(pack_path: &Path) -> PackMetadata {
     }
     PackMetadata {
         description: String::new(),
-        format: PackFormatRange::single(CURRENT_MC_VERSION.data_pack_format()),
+        format: PackFormatRange::single(CURRENT_DATA_PACK_FORMAT),
         known_packs: Vec::new(),
         requested_features: Vec::new(),
     }
@@ -3011,7 +3014,7 @@ mod tests {
 
     #[test]
     fn pack_format_compatibility_matches_vanilla() {
-        let current = CURRENT_MC_VERSION.data_pack_format();
+        let current = CURRENT_DATA_PACK_FORMAT;
         let single = super::PackFormatRange::single;
         assert_eq!(
             super::pack_format_compatibility(single(current), current),
@@ -3402,7 +3405,7 @@ mod tests {
         let pack_path = temp_dir.path();
 
         // 1. Test root known_packs array
-        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let current_format = CURRENT_DATA_PACK_FORMAT;
         let mcmeta_content = format!(
             r#"{{
             "pack": {{
@@ -3434,7 +3437,7 @@ mod tests {
         assert!(metadata.requested_features.is_empty());
 
         // 2. Test nested pack.known_packs
-        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let current_format = CURRENT_DATA_PACK_FORMAT;
         let mcmeta_content_nested = format!(
             r#"{{
             "pack": {{
@@ -3460,7 +3463,7 @@ mod tests {
         assert_eq!(known_packs[0].version, "2.0.0");
 
         // 3. Component descriptions are flattened instead of leaking raw JSON.
-        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let current_format = CURRENT_DATA_PACK_FORMAT;
         std::fs::write(
             pack_path.join("pack.mcmeta"),
             format!(
@@ -3498,7 +3501,7 @@ mod tests {
         );
 
         // Legacy single pack_format stays a one-format range.
-        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let current_format = CURRENT_DATA_PACK_FORMAT;
         std::fs::write(
             pack_path.join("pack.mcmeta"),
             format!(
@@ -3926,7 +3929,7 @@ mod tests {
 
         let valid = temp.path().join("valid");
         std::fs::create_dir(&valid)?;
-        let current_format = CURRENT_MC_VERSION.data_pack_format();
+        let current_format = CURRENT_DATA_PACK_FORMAT;
         std::fs::write(
             valid.join("pack.mcmeta"),
             format!(
