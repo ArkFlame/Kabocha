@@ -32,3 +32,8 @@ Scope: `crates/pumpkin-core/src/world/` (time, weather, sleeping, random tick, s
 - World difficulty accessor: FIXED (56f2e2e1d). Added `World::difficulty()` (vanilla `Level.getDifficulty()`), raid callers switched. No unit test: a test would need a live `World` or would only mirror the getter. UNVERIFIED test coverage.
 - Difficulty effects in entity code: STILL OPEN, out of scope for `crates/pumpkin-core/src/world`.
 - Clear weather durations: not a gap, `set_durations` command value.
+
+## Result
+
+- Difficulty effects in entity code (STILL OPEN): left open, because hunger, regeneration and per-difficulty damage live in `crates/pumpkin-core/src/entity/` (vanilla `Player`/`FoodData`/`DamageSource`), files outside this unit (`border.rs`, `time.rs`, `weather.rs`, `weather_profile.rs`).
+- Verified every other row stays resolved: `time.rs` `is_night` uses the overworld night window 12600..23401 with its test; `border.rs` `new` defaults damage 0.2 / safe zone 5.0; `weather_profile.rs` rain and thunder timings match vanilla. No in-scope source change needed, no `.rs` file touched, so rustfmt is not applicable.
