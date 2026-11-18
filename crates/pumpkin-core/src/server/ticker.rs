@@ -207,7 +207,7 @@ impl Ticker {
 }
 
 /// Fires the start-of-tick plugin event when handlers are registered.
-fn fire_tick_start_event(server: &Server) {
+fn fire_tick_start_event(server: &Arc<Server>) {
     if server.plugin_manager.has_handlers::<ServerTickStartEvent>() {
         let tick_number = server.tick_count.load(Ordering::Relaxed);
         server.plugin_manager.fire_blocking(

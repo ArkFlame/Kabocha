@@ -62,7 +62,7 @@ pub(crate) struct SleepWakeMarker {
 impl SleepWakeMarker {
     /// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`.
     #[must_use]
-    pub(crate) const fn resolve(self, total_ticks: i64) -> i64 {
+    pub(crate) fn resolve(self, total_ticks: i64) -> i64 {
         // Non-periodic markers move to their absolute tick, as vanilla does.
         self.period.map_or(self.ticks, |period| {
             resolve_time_to_move_to(total_ticks, self.ticks, period)

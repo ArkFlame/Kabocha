@@ -1081,7 +1081,7 @@ impl LightEngine {
     /// merged face shapes occlude.
     #[inline]
     #[must_use]
-    pub const fn get_light_dampening_into(
+    pub fn get_light_dampening_into(
         from_state: &BlockState,
         to_state: &BlockState,
         _direction: BlockDirection,
@@ -1092,8 +1092,6 @@ impl LightEngine {
         if from_empty && to_empty {
             return simple_opacity;
         }
-        // A clamped face slice only encloses the block for a full cube, so slabs, stairs and
-        // snow layers never add occlusion here and keep the simple opacity.
         if to_state.can_occlude() && to_state.is_solid_render() {
             return 16;
         }
