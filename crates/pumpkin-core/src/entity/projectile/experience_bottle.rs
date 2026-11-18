@@ -101,9 +101,9 @@ impl EntityBase for ExperienceBottleEntity {
             .item_stack
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut item = NbtCompound::new();
-        stack.write_item_stack(&mut item);
-        nbt.put_compound("Item", item);
+        if let Some(item) = stack.to_nbt() {
+            nbt.put_compound("Item", item);
+        }
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {

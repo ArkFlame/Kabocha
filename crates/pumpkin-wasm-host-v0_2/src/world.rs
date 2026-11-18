@@ -1718,11 +1718,15 @@ impl pumpkin::plugin::world::HostWorldWithStore<PluginHostState> for HasSelf<Plu
             pos,
             &pumpkin_data::entity::EntityType::FALLING_BLOCK,
         );
+        // The spawn packet carries the block state through `Entity.data`, set before spawning.
+        base.data.store(
+            i32::from(block_state.as_u16()),
+            std::sync::atomic::Ordering::Relaxed,
+        );
         let falling = Arc::new(pumpkin_core::entity::falling::FallingEntity::new(
             base,
             block_state,
         ));
-        falling.set_block_state(block_state);
         let entity: Arc<dyn pumpkin_core::entity::EntityBase> = falling;
         let spawned_entity = Arc::clone(&entity);
         let spawned = run_blocking(accessor, move || world.spawn_entity(spawned_entity)).await?;

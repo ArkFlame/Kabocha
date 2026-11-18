@@ -606,8 +606,7 @@ mod tests {
         stack.set_data_component(RarityImpl {
             rarity: Rarity::Epic,
         });
-        let mut compound = pumpkin_nbt::compound::NbtCompound::new();
-        stack.write_item_stack(&mut compound);
+        let compound = stack.to_nbt().expect("dynamic stack saves");
         assert_eq!(compound.get_string("id"), Some("test_global:gem"));
         let decoded = ItemStack::read_item_stack(&compound).expect("dynamic stack should decode");
         assert_eq!(decoded.item, item);

@@ -1,20 +1,64 @@
 use super::BlockEntity;
-use crate::entity::EntityBase;
-use crate::entity::r#type::load_entity_from_nbt;
-use crate::plugin::api::events::entity::entity_target::TargetReason;
+use crate::block::blocks::campfire::CampfireBlock;
+use crate::entity::ageable::AgeableMob;
+use crate::entity::passive::bee::BeeEntity;
+use crate::entity::{Entity, EntityBase};
 use crate::world::World;
-use pumpkin_data::block_properties::Facing;
-use pumpkin_data::{Property, PropertyKey};
+use pumpkin_data::block_properties::BeeNestLikeProperties;
+use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
+use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::{Block, BlockStateId};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::math::vector3::Vector3;
-use std::sync::{Arc, Mutex, PoisonError};
+use pumpkin_world::{chunk::io::Dirtiable, world::BlockFlags};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering::Relaxed},
+};
+
+const MAX_OCCUPANTS: usize = 3;
+const MIN_TICKS_IN_HIVE: i32 = 600;
+const MIN_TICKS_IN_HIVE_WITH_NECTAR: i32 = 2400;
+const MAX_HONEY_LEVEL: u8 = 5;
+/// Vanilla `BeehiveBlockEntity.MIN_TICKS_BEFORE_REENTERING_HIVE`.
+const SEDATED_STAY_OUT_TICKS: i32 = 400;
+const IGNORED_BEE_TAGS: &[&str] = &[
+    "Air",
+    "drop_chances",
+    "equipment",
+    "Brain",
+    "CanPickUpLoot",
+    "DeathTime",
+    "fall_distance",
+    "FallFlying",
+    "Fire",
+    "HurtTime",
+    "LeftHanded",
+    "Motion",
+    "NoGravity",
+    "OnGround",
+    "PortalCooldown",
+    "Pos",
+    "Rotation",
+    "sleeping_pos",
+    "CannotEnterHiveTicks",
+    "TicksSincePollination",
+    "CropsGrownSincePollination",
+    "hive_pos",
+    "Passengers",
+    "leash",
+    "UUID",
+];
 
 pub struct BeehiveBlockEntity {
     pub position: BlockPos,
     pub bees: Mutex<Option<Vec<NbtTag>>>,
     pub flower_pos: Mutex<Option<BlockPos>>,
+    /// Set by fire next to the hive; the next tick empties it, the neighbour update has no `Arc<World>`.
+    fire_release_pending: AtomicBool,
 }
 
 impl BlockEntity for BeehiveBlockEntity {
@@ -52,6 +96,7 @@ impl BlockEntity for BeehiveBlockEntity {
             position,
             bees: Mutex::new(bees),
             flower_pos: Mutex::new(flower_pos),
+            fire_release_pending: AtomicBool::new(false),
         }
     }
 
@@ -71,10 +116,6 @@ impl BlockEntity for BeehiveBlockEntity {
         }
     }
 
-    fn tick(&self, world: &Arc<World>) {
-        self.tick_occupants(world);
-    }
-
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         let mut nbt = NbtCompound::new();
         if let Ok(bees) = self.bees.try_lock()
@@ -91,6 +132,23 @@ impl BlockEntity for BeehiveBlockEntity {
             );
         }
         Some(nbt)
+    }
+
+    fn tick(&self, world: &Arc<World>) {
+        let emergency = self.fire_release_pending.swap(false, Relaxed);
+        if self.is_empty() {
+            return;
+        }
+        let (block, state) = world.get_block_and_state_id(&self.position);
+        if !block.has_tag(&tag::Block::MINECRAFT_BEEHIVES) {
+            return;
+        }
+        let has_bees = self.release_occupants(world, state, emergency, None);
+        if has_bees && rand::random::<f64>() < 0.005 {
+            let mut center = self.position.to_centered_f64();
+            center.y -= 0.5;
+            world.play_sound(Sound::BlockBeehiveWork, SoundCategory::Blocks, &center);
+        }
     }
 
     fn collect_item_components(&self, stack: &mut pumpkin_data::item_stack::ItemStack) {
@@ -119,53 +177,25 @@ impl BlockEntity for BeehiveBlockEntity {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-}
 
-/// Vanilla `BeehiveBlockEntity` front-face offset from its facing block property.
-const fn front_offset(facing: Option<Property>) -> (f64, f64) {
-    match facing {
-        Some(Property::Facing(Facing::North)) => (0.0, -1.0),
-        Some(Property::Facing(Facing::East)) => (1.0, 0.0),
-        Some(Property::Facing(Facing::West)) => (-1.0, 0.0),
-        _ => (0.0, 1.0),
+    fn on_player_destroyed(
+        &self,
+        world: &Arc<World>,
+        state: BlockStateId,
+        player: &Arc<crate::entity::player::Player>,
+        tool: &pumpkin_data::item_stack::ItemStack,
+    ) {
+        if !tool.has_enchantment_tag(&tag::Enchantment::MINECRAFT_PREVENTS_BEE_SPAWNS_WHEN_MINING) {
+            self.release_occupants(world, state, true, Some(player));
+            crate::block::blocks::beehive::BeehiveBlock::anger_nearby_bees(world, &self.position);
+        }
     }
-}
-
-/// Reads a vanilla `BlockPos.CODEC` compound (`X`/`Y`/`Z`, or the legacy lowercase form).
-fn position_from_compound(compound: &NbtCompound) -> Option<BlockPos> {
-    let x = compound.get_int("X").or_else(|| compound.get_int("x"))?;
-    let y = compound.get_int("Y").or_else(|| compound.get_int("y"))?;
-    let z = compound.get_int("Z").or_else(|| compound.get_int("z"))?;
-    Some(BlockPos::new(x, y, z))
-}
-
-/// Vanilla `BeehiveBlockEntity.addOccupant`: a hive with no remembered flower adopts the
-/// bee's, otherwise a coin flip decides.
-const fn adopts_flower(hive_has_flower: bool, coin_flip: bool) -> bool {
-    !hive_has_flower || coin_flip
-}
-
-/// Vanilla `Bee.dropOffNectar`: a released forager loses its nectar and pollination timers.
-fn clear_carried_nectar(entity_data: &mut NbtCompound) {
-    if entity_data.get_bool("HasNectar").unwrap_or(false) {
-        entity_data.put_bool("HasNectar", false);
-        entity_data.put_int("TicksSincePollination", 0);
-        entity_data.put_int("CropsGrownSincePollination", 0);
-    }
-}
-
-/// Vanilla `BeehiveBlockEntity.releaseOccupant`: a released bee inherits the hive's flower
-/// only when it has none and the 90% roll passed (`roll_passed`).
-const fn inherits_flower(bee_has_flower: bool, hive_has_flower: bool, roll_passed: bool) -> bool {
-    hive_has_flower && !bee_has_flower && roll_passed
 }
 
 impl BeehiveBlockEntity {
     pub const ID: &'static str = "minecraft:beehive";
     /// Vanilla `BeehiveBlockEntity.MAX_OCCUPANTS`.
     pub const MAX_OCCUPANTS: usize = 3;
-    const MIN_TICKS_IN_HIVE: i32 = 600;
-    const NECTAR_TICKS_IN_HIVE: i32 = 2400;
 
     #[must_use]
     pub const fn new(position: BlockPos) -> Self {
@@ -173,194 +203,285 @@ impl BeehiveBlockEntity {
             position,
             bees: Mutex::new(None),
             flower_pos: Mutex::new(None),
+            fire_release_pending: AtomicBool::new(false),
         }
     }
 
-    #[must_use]
+    /// Vanilla `BeehiveBlock.updateShape`: fire next to the hive drives every bee out.
+    pub fn release_for_fire(&self) {
+        self.fire_release_pending.store(true, Relaxed);
+    }
+
     pub fn is_full(&self) -> bool {
         self.bees
             .lock()
-            .unwrap_or_else(PoisonError::into_inner)
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
-            .is_some_and(|bees| bees.len() >= Self::MAX_OCCUPANTS)
+            .is_some_and(|bees| bees.len() >= MAX_OCCUPANTS)
     }
 
-    /// Vanilla BeehiveBlockEntity.addOccupant: persist the bee's entity data and remove the
-    /// live entity. Returns whether an occupant slot was available.
-    pub fn add_occupant(&self, bee: &dyn EntityBase) -> bool {
-        let mut entity_data = NbtCompound::new();
-        EntityBase::write_nbt(bee, &mut entity_data);
-        let has_nectar = entity_data.get_bool("HasNectar").unwrap_or(false);
-        let bee_flower = entity_data
-            .get_compound("flower_pos")
-            .and_then(position_from_compound);
-        let mut guard = self.bees.lock().unwrap_or_else(PoisonError::into_inner);
-        let bees = guard.get_or_insert_with(Vec::new);
-        if bees.len() >= Self::MAX_OCCUPANTS {
-            return false;
+    pub fn is_empty(&self) -> bool {
+        self.bees
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .is_none_or(Vec::is_empty)
+    }
+
+    pub fn is_fire_nearby(&self, world: &World) -> bool {
+        BlockPos::iterate_outwards(self.position, 1, 1, 1)
+            .any(|pos| world.get_block(&pos) == &Block::FIRE)
+    }
+
+    pub fn add_occupant(&self, world: &World, bee: &BeeEntity) {
+        if self.is_full() || bee.get_entity().removed.load(Relaxed) {
+            return;
         }
+        let entity = bee.get_entity();
+        if let Some(vehicle) = entity.get_vehicle() {
+            vehicle.get_entity().remove_passenger_sync(entity.entity_id);
+        }
+        let passengers = entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        for passenger in passengers {
+            entity.remove_passenger_sync(passenger.get_entity().entity_id);
+        }
+        entity.drop_leash();
+        let mut data = NbtCompound::new();
+        bee.write_nbt(&mut data);
+        data.child_tags
+            .retain(|key, _| !IGNORED_BEE_TAGS.contains(&key.as_ref()));
+        data.put_string("id", "minecraft:bee".to_string());
         let mut occupant = NbtCompound::new();
-        occupant.put_compound("entity_data", entity_data);
+        occupant.put_compound("entity_data", data);
         occupant.put_int("ticks_in_hive", 0);
-        // Vanilla Occupant.of: nectar-carrying bees stay inside for 2400 ticks, others 600.
         occupant.put_int(
             "min_ticks_in_hive",
-            if has_nectar {
-                Self::NECTAR_TICKS_IN_HIVE
+            if bee.has_nectar() {
+                MIN_TICKS_IN_HIVE_WITH_NECTAR
             } else {
-                Self::MIN_TICKS_IN_HIVE
+                MIN_TICKS_IN_HIVE
             },
         );
-        bees.push(NbtTag::Compound(occupant));
-        // Vanilla BeehiveBlockEntity.addOccupant stores the bee's remembered flower on the hive.
-        if let Some(flower) = bee_flower {
-            let mut hive_flower = self
-                .flower_pos
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            if adopts_flower(hive_flower.is_some(), rand::random::<bool>()) {
-                *hive_flower = Some(flower);
-            }
-        }
-        true
-    }
-
-    /// Spawn one released bee in front of the hive, applying the vanilla release
-    /// transformations: `Bee.dropOffNectar`, flower inheritance and `Occupant.createEntity`.
-    fn release_occupant(
-        world: &Arc<World>,
-        pos: BlockPos,
-        hive_flower: Option<BlockPos>,
-        player: Option<Arc<dyn EntityBase>>,
-        entity_data: &mut NbtCompound,
-    ) {
-        // Without dropOffNectar a released forager would re-enter the hive immediately.
-        clear_carried_nectar(entity_data);
-        // Vanilla BeehiveBlockEntity.releaseOccupant gives a bee with no remembered
-        // flower the hive's flower with 90% chance.
-        let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
-            || entity_data.get_int_array("flower_pos").is_some();
-        if inherits_flower(
-            bee_has_flower,
-            hive_flower.is_some(),
-            rand::random::<f32>() < 0.9f32,
-        ) && let Some(flower) = hive_flower
-        {
-            let mut tag = NbtCompound::new();
-            tag.put_int("X", flower.0.x);
-            tag.put_int("Y", flower.0.y);
-            tag.put_int("Z", flower.0.z);
-            entity_data.put_compound("flower_pos", tag);
-        }
-        let state_id = world.get_block_state_id(&pos);
-        let facing = world
-            .get_block(&pos)
-            .get_property(state_id, PropertyKey::Facing);
-        let (dx, dz) = front_offset(facing);
-        let spawn = Vector3::new(
-            f64::from(pos.0.x) + 0.5 + 0.6 * dx,
-            f64::from(pos.0.y) + 0.5 - 0.4,
-            f64::from(pos.0.z) + 0.5 + 0.6 * dz,
-        );
-        let Some(entity) = load_entity_from_nbt(entity_data, spawn, world) else {
-            return;
-        };
-        // Entity.read_placement_nbt restores the saved Pos, so override it with the
-        // front-face spawn, like vanilla Occupant.createEntity.
-        entity.get_entity().set_pos(spawn);
-        entity.get_entity().set_has_no_gravity(true);
-        if let Some(player) = player
-            && player
-                .get_entity()
-                .pos
-                .load()
-                .squared_distance_to_vec(&spawn)
-                <= 16.0
-            && let Some(mob) = entity.get_mob()
-        {
-            mob.set_mob_target(Some(player), TargetReason::ClosestPlayer);
-        }
-        world.spawn_entity(entity);
-    }
-
-    /// Vanilla `BeehiveBlockEntity.emptyAllLivingFromHive` with `EMERGENCY` status: force
-    /// every stored bee out of the hive regardless of time or weather.
-    pub fn empty_all_living_from_hive(
-        &self,
-        world: &Arc<World>,
-        player: Option<&Arc<dyn EntityBase>>,
-    ) {
-        let taken = self
+        let mut stored = self
             .bees
             .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take();
-        let Some(bees) = taken else {
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let bees = stored.get_or_insert_with(Vec::new);
+        if bees.len() >= MAX_OCCUPANTS {
             return;
-        };
-        let hive_flower = *self
-            .flower_pos
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        for bee in bees {
-            if let NbtTag::Compound(compound) = bee
-                && let Some(mut entity_data) = compound.get_compound("entity_data").cloned()
-            {
-                Self::release_occupant(
-                    world,
-                    self.position,
-                    hive_flower,
-                    player.map(Arc::clone),
-                    &mut entity_data,
-                );
+        }
+        bees.push(NbtTag::Compound(occupant));
+        drop(stored);
+        if let Some(pos) = bee.saved_flower_pos() {
+            let mut flower = self
+                .flower_pos
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if flower.is_none() || rand::random::<bool>() {
+                *flower = Some(pos);
             }
         }
+        world.play_sound(
+            Sound::BlockBeehiveEnter,
+            SoundCategory::Blocks,
+            &self.position.to_f64(),
+        );
+        world.emit_game_event(GameEvent::BlockChange.name(), self.position.to_f64());
+        world.remove_entity(bee);
+        self.mark_chunk_dirty(world);
     }
 
-    /// Vanilla BeehiveBlockEntity.tickOccupants: age stored bees and respawn the finished ones
-    /// in front of the hive. Hiving without this release would permanently delete the bee.
-    pub fn tick_occupants(&self, world: &Arc<World>) {
-        let ready: Vec<NbtCompound> = {
-            let mut guard = self.bees.lock().unwrap_or_else(PoisonError::into_inner);
-            let Some(bees) = guard.as_mut() else {
-                return;
-            };
-            let mut ready = Vec::new();
-            for bee in bees.iter_mut() {
-                let NbtTag::Compound(compound) = bee else {
-                    continue;
-                };
-                let ticks = compound.get_int("ticks_in_hive").unwrap_or(0) + 1;
-                compound.put_int("ticks_in_hive", ticks);
-                let min = compound
-                    .get_int("min_ticks_in_hive")
-                    .unwrap_or(Self::MIN_TICKS_IN_HIVE);
-                if ticks >= min
-                    && let Some(entity_data) = compound.get_compound("entity_data").cloned()
-                {
-                    ready.push(entity_data);
-                }
-            }
-            bees.retain(|bee| match bee {
-                NbtTag::Compound(c) => {
-                    c.get_int("ticks_in_hive").unwrap_or(0)
-                        < c.get_int("min_ticks_in_hive")
-                            .unwrap_or(Self::MIN_TICKS_IN_HIVE)
-                }
-                _ => true,
-            });
-            ready
+    pub fn release_occupants(
+        &self,
+        world: &Arc<World>,
+        state: BlockStateId,
+        emergency: bool,
+        player: Option<&Arc<crate::entity::player::Player>>,
+    ) -> bool {
+        let block = Block::from_state_id(state);
+        let mut props = BeeNestLikeProperties::from_state_id(state);
+        let facing = props.facing.to_offset();
+        let entrance = self.position.offset(facing);
+        let front_blocked = !world.get_block_state(&entrance).collision_shapes.is_empty();
+        let can_release = emergency || !front_blocked && !world.bees_stay_in_hive(&self.position);
+        let Some(candidates) = self.take_ready_occupants(can_release, emergency) else {
+            return false;
         };
-        if ready.is_empty() {
-            return;
-        }
-        let hive_flower = *self
+        let flower = *self
             .flower_pos
             .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        for mut entity_data in ready {
-            Self::release_occupant(world, self.position, hive_flower, None, &mut entity_data);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut failed = Vec::new();
+        let honey_before = props.honey_level;
+        let sedated = player.is_some() && CampfireBlock::is_smokey_pos(world, &self.position);
+        for occupant in candidates {
+            let Some(bee) = occupant
+                .extract_compound()
+                .and_then(|data| self.restore_occupant(world, data, flower))
+            else {
+                failed.push(occupant);
+                continue;
+            };
+            let entity = bee.get_entity();
+            let exit_distance = if front_blocked {
+                0.0
+            } else {
+                0.55 + f64::from(entity.width() / 2.0)
+            };
+            let pos = self.position.to_centered_f64().add_raw(
+                f64::from(facing.x) * exit_distance,
+                -f64::from(entity.height() / 2.0),
+                f64::from(facing.z) * exit_distance,
+            );
+            entity.set_pos(pos);
+            if !emergency && bee.has_nectar() {
+                bee.drop_off_nectar();
+                // Every bee reads the hive state from before this tick, so the last one sets the level.
+                if honey_before < MAX_HONEY_LEVEL {
+                    let increase = if rand::random_range(0..100) == 0 {
+                        2
+                    } else {
+                        1
+                    };
+                    props.honey_level = (honey_before + increase).min(MAX_HONEY_LEVEL);
+                }
+            }
+            world.play_sound(
+                Sound::BlockBeehiveExit,
+                SoundCategory::Blocks,
+                &self.position.to_f64(),
+            );
+            world.emit_game_event(GameEvent::BlockChange.name(), self.position.to_f64());
+            if !world.spawn_entity(bee.clone()) {
+                failed.push(occupant);
+                continue;
+            }
+            if let Some(player) = player
+                && pos.squared_distance_to_vec(&player.get_entity().pos.load()) <= 16.0
+            {
+                if sedated {
+                    bee.cannot_enter_hive_ticks
+                        .store(SEDATED_STAY_OUT_TICKS, Relaxed);
+                } else {
+                    use crate::entity::mob::Mob;
+                    bee.set_mob_target(
+                        Some(player.clone()),
+                        crate::plugin::api::events::entity::entity_target::TargetReason::Angry,
+                    );
+                }
+            }
         }
+
+        if props.honey_level != honey_before {
+            world.set_block_state_if(
+                &self.position,
+                props.to_state_id(block),
+                BlockFlags::NOTIFY_ALL,
+                |current| current == state,
+            );
+        }
+        self.mark_chunk_dirty(world);
+
+        let mut bees = self
+            .bees
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let bees = bees.get_or_insert_with(Vec::new);
+        bees.extend(failed);
+        !bees.is_empty()
+    }
+
+    fn take_ready_occupants(&self, can_release: bool, emergency: bool) -> Option<Vec<NbtTag>> {
+        let mut bees = self
+            .bees
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let bees = bees.as_mut().filter(|bees| !bees.is_empty())?;
+        Some(
+            bees.extract_if(.., |entry| {
+                let NbtTag::Compound(occupant) = entry else {
+                    return false;
+                };
+                let old_ticks = occupant
+                    .get_int("ticks_in_hive")
+                    .or_else(|| occupant.get_int("TicksInHive"))
+                    .unwrap_or_default();
+                let minimum = occupant
+                    .get_int("min_ticks_in_hive")
+                    .or_else(|| occupant.get_int("MinOccupationTicks"))
+                    .unwrap_or(MIN_TICKS_IN_HIVE);
+                if !emergency {
+                    occupant.put_int("ticks_in_hive", old_ticks.saturating_add(1));
+                }
+                can_release && (emergency || old_ticks > minimum)
+            })
+            .collect(),
+        )
+    }
+
+    fn restore_occupant(
+        &self,
+        world: &Arc<World>,
+        occupant: &NbtCompound,
+        flower: Option<BlockPos>,
+    ) -> Option<Arc<BeeEntity>> {
+        let mut data = occupant
+            .get_compound("entity_data")
+            .or_else(|| occupant.get_compound("EntityData"))?
+            .clone();
+        if data
+            .get_string("id")
+            .is_some_and(|id| id != "minecraft:bee" && id != "bee")
+        {
+            return None;
+        }
+        data.child_tags
+            .retain(|key, _| !IGNORED_BEE_TAGS.contains(&key.as_ref()));
+        let ticks = occupant
+            .get_int("ticks_in_hive")
+            .or_else(|| occupant.get_int("TicksInHive"))
+            .unwrap_or_default()
+            .max(0);
+        let bee = BeeEntity::new(Entity::new(
+            world.clone(),
+            self.position.to_centered_f64(),
+            &EntityType::BEE,
+        ));
+        bee.read_nbt_non_mut(&data);
+        bee.set_hive_pos(self.position);
+        bee.get_entity().set_has_no_gravity(true);
+        if !bee.is_age_locked() {
+            let age = bee.get_entity().age.load(Relaxed);
+            bee.set_age(if age < 0 {
+                age.saturating_add(ticks).min(0)
+            } else {
+                age.saturating_sub(ticks).max(0)
+            });
+        }
+        let mob = &bee.mob_entity;
+        mob.love_ticks.store(
+            mob.love_ticks.load(Relaxed).saturating_sub(ticks).max(0),
+            Relaxed,
+        );
+        if let Some(flower) = flower
+            && bee.saved_flower_pos().is_none()
+            && rand::random::<f32>() < 0.9
+        {
+            bee.set_saved_flower_pos(flower);
+        }
+        Some(bee)
+    }
+
+    fn mark_chunk_dirty(&self, world: &World) {
+        world
+            .level
+            .read_chunk_sync(&self.position.chunk_position(), |chunk| {
+                chunk.mark_dirty(true);
+            });
     }
 }
 
@@ -368,69 +489,74 @@ impl BeehiveBlockEntity {
 mod tests {
     use super::*;
 
-    #[test]
-    fn releases_from_the_front_face() {
-        assert_eq!(
-            front_offset(Some(Property::Facing(Facing::North))),
-            (0.0, -1.0)
+    #[tokio::test]
+    async fn nectar_occupant_waits_for_an_open_exit() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let pos = BlockPos::new(8, 64, 8);
+        let flower = pos.up();
+        world.level.loaded_chunks.insert(
+            pos.chunk_position(),
+            pumpkin_world::chunk::ChunkData::empty_sync(0, 0),
         );
+        world.set_time_of_day(6000);
+        let mut props = BeeNestLikeProperties::default(&Block::BEEHIVE);
+        props.honey_level = MAX_HONEY_LEVEL - 1;
+        let state = props.to_state_id(&Block::BEEHIVE);
+        world.set_block_state(&pos, state, BlockFlags::NOTIFY_ALL);
+        let exit = pos.offset(props.facing.to_offset());
+        world.set_block_state(&exit, Block::STONE.default_state.id, BlockFlags::NOTIFY_ALL);
+        let hive = BeehiveBlockEntity::new(pos);
+        let bee = BeeEntity::new(Entity::new(
+            world.clone(),
+            pos.to_centered_f64(),
+            &EntityType::BEE,
+        ));
+        bee.set_has_nectar(true);
+        bee.set_saved_flower_pos(flower);
+        world.spawn_entity(bee.clone());
+        hive.add_occupant(&world, &bee);
+
+        assert!(world.get_entity_by_id(bee.get_entity().entity_id).is_none());
+        let mut saved = NbtCompound::new();
+        hive.write_nbt(&mut saved);
+        let Some(NbtTag::Compound(mut occupant)) = saved
+            .get_list("bees")
+            .and_then(|bees| bees.first())
+            .cloned()
+        else {
+            return Err("hive did not save the bee".into());
+        };
+        assert_eq!(occupant.get_int("min_ticks_in_hive"), Some(2400));
+        occupant.put_int("ticks_in_hive", 2401);
+        saved.put_list("bees", vec![NbtTag::Compound(occupant)]);
+        let hive = BeehiveBlockEntity::from_nbt(&saved, pos);
+        hive.tick(&world);
+        assert!(!hive.is_empty());
+        assert_eq!(world.get_block_state_id(&pos), state);
+
+        world.set_block_state(&exit, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
+        hive.tick(&world);
+        assert!(hive.is_empty());
         assert_eq!(
-            front_offset(Some(Property::Facing(Facing::East))),
-            (1.0, 0.0)
+            BeeNestLikeProperties::from_state_id(world.get_block_state_id(&pos)).honey_level,
+            5
         );
-        assert_eq!(
-            front_offset(Some(Property::Facing(Facing::South))),
-            (0.0, 1.0)
+        let bounds = pumpkin_util::math::boundingbox::BoundingBox::new(
+            pos.to_f64().add_raw(-2.0, -2.0, -2.0),
+            pos.to_f64().add_raw(3.0, 3.0, 3.0),
         );
-        assert_eq!(
-            front_offset(Some(Property::Facing(Facing::West))),
-            (-1.0, 0.0)
-        );
-        assert_eq!(front_offset(None), (0.0, 1.0));
-    }
-
-    #[test]
-    fn hive_adopts_flower_with_coin_flip_rules() {
-        assert!(adopts_flower(false, false));
-        assert!(adopts_flower(false, true));
-        assert!(adopts_flower(true, true));
-        assert!(!adopts_flower(true, false));
-    }
-
-    #[test]
-    fn released_forager_loses_nectar_and_pollination_timers() {
-        let mut carrying = NbtCompound::new();
-        carrying.put_bool("HasNectar", true);
-        carrying.put_int("TicksSincePollination", 2400);
-        carrying.put_int("CropsGrownSincePollination", 4);
-        clear_carried_nectar(&mut carrying);
-        assert_eq!(carrying.get_bool("HasNectar"), Some(false));
-        assert_eq!(carrying.get_int("TicksSincePollination"), Some(0));
-        assert_eq!(carrying.get_int("CropsGrownSincePollination"), Some(0));
-
-        let mut empty = NbtCompound::new();
-        empty.put_int("TicksSincePollination", 120);
-        clear_carried_nectar(&mut empty);
-        assert_eq!(empty.get_int("TicksSincePollination"), Some(120));
-    }
-
-    #[test]
-    fn released_bee_inherits_flower_only_when_eligible() {
-        assert!(inherits_flower(false, true, true));
-        assert!(!inherits_flower(true, true, true));
-        assert!(!inherits_flower(false, false, true));
-        assert!(!inherits_flower(false, true, false));
-    }
-
-    #[test]
-    fn reads_flower_position_compound() {
-        let mut tag = NbtCompound::new();
-        tag.put_int("X", 1);
-        tag.put_int("Y", 2);
-        tag.put_int("Z", 3);
-        assert_eq!(position_from_compound(&tag), Some(BlockPos::new(1, 2, 3)));
-        let mut partial = NbtCompound::new();
-        partial.put_int("X", 1);
-        assert_eq!(position_from_compound(&partial), None);
+        let released = world.get_entities_at_box(&bounds);
+        let [released] = released.as_slice() else {
+            return Err("expected one released bee".into());
+        };
+        let released = released
+            .cast_any()
+            .downcast_ref::<BeeEntity>()
+            .ok_or("expected a bee")?;
+        assert_eq!(released.saved_flower_pos(), Some(flower));
+        assert!(!released.has_nectar());
+        world.level.shutdown().await;
+        Ok(())
     }
 }

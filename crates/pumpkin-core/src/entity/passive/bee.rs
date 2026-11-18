@@ -1,23 +1,30 @@
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
 };
 
+use crossbeam::atomic::AtomicCell;
+use pumpkin_data::BlockState;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
-use pumpkin_data::{Block, BlockState};
+use pumpkin_data::{effect::StatusEffect, tracked_data};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_util::Difficulty;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
-use crate::block::entities::beehive::BeehiveBlockEntity;
+use crate::block::entities::{BlockEntity, beehive::BeehiveBlockEntity};
 use crate::entity::ai::behavior::hunting::{self, Hunt};
+use crate::entity::ai::brain::memory::codec::{block_pos_from_tag, block_pos_to_tag};
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::custom_sound::CustomSound;
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
@@ -26,11 +33,8 @@ use crate::entity::{
         look_control::LookControl,
     },
     ai::goal::{
-        active_target::TargetCondition, breed::BreedGoal, follow_parent::FollowParentGoal,
-        go_to_known_flower::GoToKnownFlowerGoal, grow_crop::GrowCropGoal,
-        melee_attack::MeleeAttackGoal, pollinate_flower::PollinateFlowerGoal,
-        reset_universal_anger::ResetUniversalAngerGoal, revenge::RevengeGoal, swim::SwimGoal,
-        tempt::TemptGoal,
+        active_target::TargetCondition, reset_universal_anger::ResetUniversalAngerGoal,
+        revenge::RevengeGoal,
     },
     ai::pathfinder::{Navigator, node::PathType},
     mob::{
@@ -40,9 +44,9 @@ use crate::entity::{
     passive::animal::Animal,
     player::Player,
 };
+use crate::world::World;
 
-use crate::entity::ai::goal::bee_wander::BeeWanderGoal;
-use crate::entity::ai::goal::hive::{EnterHiveGoal, GoToHiveGoal, LocateHiveGoal};
+mod goals;
 
 pub const FLAG_ROLL: u8 = 2;
 pub const FLAG_HAS_STUNG: u8 = 4;
@@ -50,151 +54,21 @@ pub const FLAG_HAS_NECTAR: u8 = 8;
 
 /// Vanilla `Bee.TICKS_PER_FLAP`, `Mth.ceil(1.4959966F)`.
 const TICKS_PER_FLAP: i32 = 2;
+const STING_DEATH_COUNTDOWN: i32 = 1200;
+const MIN_ATTACK_DIST: f64 = 4.0;
+const POISON_SECONDS_NORMAL: i32 = 10;
+const POISON_SECONDS_HARD: i32 = 18;
+const TOO_FAR_DISTANCE: i32 = 48;
+const MIN_FIND_FLOWER_RETRY_COOLDOWN: i32 = 20;
+const MAX_FIND_FLOWER_RETRY_COOLDOWN: i32 = 60;
+const COOLDOWN_BEFORE_LOCATING_NEW_HIVE: i32 = 200;
+const MAX_CROPS_GROWABLE: i32 = 10;
 
 /// Vanilla `Bee.TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME`.
 pub const TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME: i32 = 3600;
 
-/// Vanilla `Bee.isTiredOfLookingForNectar`. Strict `>`, matching the decompiled check:
-/// a bee is only tired once the counter exceeds 3600, not when it equals it.
-#[must_use]
-pub const fn tired_of_looking_for_nectar(ticks_without_nectar: i32) -> bool {
-    ticks_without_nectar > TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME
-}
-
-/// Vanilla `Bee.doHurtTarget` sting poison in ticks: 10 s on Normal, 18 s on Hard, none otherwise.
-const fn sting_poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
-    match difficulty {
-        pumpkin_util::Difficulty::Normal => 10 * 20,
-        pumpkin_util::Difficulty::Hard => 18 * 20,
-        _ => 0,
-    }
-}
-
 fn is_angry(mob: &dyn Mob) -> bool {
     mob.as_neutral().is_some_and(NeutralMob::is_angry)
-}
-
-/// Vanilla `Bee.wantsToEnterHive` early-outs: while still staying out, pollinating, having
-/// stung or holding a target, a bee never returns to its hive.
-#[must_use]
-pub const fn wants_to_enter_hive_gate(
-    stay_out_of_hive_ticks: i32,
-    is_pollinating: bool,
-    has_stung: bool,
-    has_target: bool,
-) -> bool {
-    stay_out_of_hive_ticks <= 0 && !is_pollinating && !has_stung && !has_target
-}
-
-/// Vanilla `Bee.isHiveNearFire`: a fire block in the 3x3x3 around the hive keeps the bee out.
-/// The predicate keeps the neighbourhood check pure and unit-testable.
-#[must_use]
-fn hive_near_fire(hive_pos: BlockPos, is_fire: impl Fn(BlockPos) -> bool) -> bool {
-    for dx in -1..=1 {
-        for dy in -1..=1 {
-            for dz in -1..=1 {
-                let pos = BlockPos::new(hive_pos.0.x + dx, hive_pos.0.y + dy, hive_pos.0.z + dz);
-                if is_fire(pos) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
-/// Vanilla `BeePollinateGoal.canBeeUse`: no nectar and no flower-search cooldown.
-fn can_pollinate(mob: &dyn Mob) -> bool {
-    mob.cast_any()
-        .downcast_ref::<BeeEntity>()
-        .is_some_and(|bee| !bee.has_nectar() && bee.flower_search_cooldown() == 0)
-}
-
-/// Vanilla `BeePollinateGoal.canBeeUse` when no flower is reachable: retry in 20-60 ticks.
-fn no_flower_found(mob: &dyn Mob) {
-    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        bee.reset_flower_search_cooldown();
-    }
-}
-
-/// Vanilla `BeePollinateGoal.start` sets the `pollinating` flag and resets the no-nectar timer.
-fn pollination_started(mob: &dyn Mob, flower: BlockPos) {
-    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        bee.set_pollinating(true);
-        // Vanilla `BeePollinateGoal.canBeeUse` saves the found flower block on the bee.
-        bee.set_flower_pos(Some(flower));
-        // Vanilla `Bee.resetTicksWithoutNectarSinceExitingHive` at pollination start
-        // (`Bee.java:1176`); matters for a bee loaded from NBT with a stale timer.
-        bee.ticks_without_nectar.store(0, Ordering::Relaxed);
-    }
-}
-
-/// Vanilla `BeePollinateGoal.stop`: clear `pollinating` and wait 200 ticks before another flower.
-fn pollination_stopped(mob: &dyn Mob) {
-    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        bee.set_pollinating(false);
-        bee.set_flower_search_cooldown(200);
-    }
-}
-
-fn record_nectar(mob: &dyn Mob) {
-    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        // Vanilla `Bee.setHasNectar(true)` resets the no-nectar timer. The flower was
-        // already remembered at pollination start, matching vanilla `savedFlowerPos`.
-        bee.set_has_nectar(true);
-    }
-}
-
-/// Vanilla `BlockPos.CODEC` stores a hive or flower position as an `X`/`Y`/`Z` compound.
-fn write_block_pos(nbt: &mut NbtCompound, key: &str, pos: BlockPos) {
-    let mut tag = NbtCompound::new();
-    tag.put_int("X", pos.0.x);
-    tag.put_int("Y", pos.0.y);
-    tag.put_int("Z", pos.0.z);
-    nbt.put_compound(key, tag);
-}
-
-/// Reads the vanilla compound or the legacy int-array form of a saved position.
-fn read_block_pos(nbt: &NbtCompound, key: &str) -> Option<BlockPos> {
-    if let Some(tag) = nbt.get_compound(key) {
-        let x = tag.get_int("X").or_else(|| tag.get_int("x"))?;
-        let y = tag.get_int("Y").or_else(|| tag.get_int("y"))?;
-        let z = tag.get_int("Z").or_else(|| tag.get_int("z"))?;
-        return Some(BlockPos::new(x, y, z));
-    }
-    let arr = nbt.get_int_array(key)?;
-    (arr.len() == 3).then(|| BlockPos::new(arr[0], arr[1], arr[2]))
-}
-
-/// Vanilla `Bee.MAX_CROPS_GROWN` per pollination cycle.
-const MAX_CROPS_GROWN_SINCE_POLLINATION: i32 = 10;
-
-/// Vanilla `BeeGrowCropGoal.canBeeUse` stops growing once the cap is reached.
-#[must_use]
-pub const fn has_crop_growth_budget(crops_grown: i32) -> bool {
-    crops_grown < MAX_CROPS_GROWN_SINCE_POLLINATION
-}
-
-/// Vanilla `BeeGrowCropGoal` only runs while the bee carries nectar, has growth budget left,
-/// and remembers a live hive (`Bee.isHiveValid`).
-fn can_grow_crop(mob: &dyn Mob) -> bool {
-    let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() else {
-        return false;
-    };
-    if !bee.has_nectar() || !has_crop_growth_budget(bee.crops_grown_since_pollination()) {
-        return false;
-    }
-    bee.is_hive_valid(&mob.get_entity().world.load())
-}
-
-/// Counts a fertilized crop.
-///
-/// Vanilla keeps `HasNectar` after the cap so the bee can deliver it to its hive;
-/// `canBeeUse` alone stops further growth at ten crops.
-fn record_crop_grown(mob: &dyn Mob) {
-    if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        bee.record_crop_grown();
-    }
 }
 
 /// Angry and still holding its stinger.
@@ -220,10 +94,12 @@ pub struct BeeEntity {
     pub hive_search_cooldown: AtomicI32,
     pub crops_grown_since_pollination: AtomicI32,
     pub time_since_sting: AtomicI32,
-    pub hive_pos: Mutex<Option<BlockPos>>,
-    pub flower_pos: Mutex<Option<BlockPos>>,
-    pub flower_search_cooldown: AtomicI32,
-    pub is_pollinating: AtomicBool,
+    underwater_ticks: AtomicI32,
+    hive_pos: AtomicCell<Option<BlockPos>>,
+    flower_pos: AtomicCell<Option<BlockPos>>,
+    pollinating: AtomicBool,
+    flower_cooldown: AtomicI32,
+    hive_cooldown: AtomicI32,
 }
 
 impl BeeEntity {
@@ -245,14 +121,16 @@ impl BeeEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         *navigator = Navigator::flying();
         navigator.set_can_open_doors(false);
-        navigator.set_can_float(false);
-        navigator.set_required_path_length(48.0);
-        // Vanilla `Bee` constructor maluses. Java FIRE maps to DamageFire, as in blaze.rs.
+        // FloatGoal enables floating after the navigation is created.
+        navigator.set_can_float(true);
+        navigator.set_required_path_length(TOO_FAR_DISTANCE as f32);
         navigator.set_pathfinding_malus(PathType::DamageFire, -1.0);
         navigator.set_pathfinding_malus(PathType::Water, -1.0);
         navigator.set_pathfinding_malus(PathType::WaterBorder, 16.0);
         navigator.set_pathfinding_malus(PathType::Cocoa, -1.0);
         navigator.set_pathfinding_malus(PathType::Fence, -1.0);
+        let flower_cooldown =
+            rand::random_range(MIN_FIND_FLOWER_RETRY_COOLDOWN..=MAX_FIND_FLOWER_RETRY_COOLDOWN);
         let bee = Self {
             mob_entity,
             ageable_data: AgeableData::default(),
@@ -263,64 +141,15 @@ impl BeeEntity {
             hive_search_cooldown: AtomicI32::new(0),
             crops_grown_since_pollination: AtomicI32::new(0),
             time_since_sting: AtomicI32::new(0),
-            hive_pos: Mutex::new(None),
-            flower_pos: Mutex::new(None),
-            flower_search_cooldown: AtomicI32::new(rand::rng().random_range(20..=60)),
-            is_pollinating: AtomicBool::new(false),
+            underwater_ticks: AtomicI32::new(0),
+            hive_pos: AtomicCell::new(None),
+            flower_pos: AtomicCell::new(None),
+            pollinating: AtomicBool::new(false),
+            flower_cooldown: AtomicI32::new(flower_cooldown),
+            hive_cooldown: AtomicI32::new(0),
         };
         let mob_arc = Arc::new(bee);
-
-        // Vanilla `Bee.defineSynchedData` registers the anger end time with the
-        // -1 default the client assumes. Define at construction, before NBT read,
-        // so a loaded angry value set later becomes non-default and is spawned.
-        mob_arc
-            .get_entity()
-            .synched_data
-            .define(pumpkin_data::tracked_data::bee::DATA_ANGER_END_TIME, -1i64);
-
-        {
-            let goal_selector = &mob_arc.mob_entity.goals_selector;
-
-            goal_selector.add_goal(
-                0,
-                Box::new(MeleeAttackGoal::new(1.4, true).gated_by(can_sting)),
-            );
-            // Vanilla Bee.registerGoals: enter hive 1, locate hive / go to hive 5.
-            goal_selector.add_goal(1, Box::new(EnterHiveGoal));
-            goal_selector.add_goal(5, Box::new(LocateHiveGoal));
-            goal_selector.add_goal(5, Box::new(GoToHiveGoal::default()));
-            // Vanilla `BeePollinateGoal` priority 4.
-            goal_selector.add_goal(
-                4,
-                Box::new(PollinateFlowerGoal::new(
-                    can_pollinate,
-                    record_nectar,
-                    no_flower_found,
-                    pollination_stopped,
-                    pollination_started,
-                )),
-            );
-            // Vanilla `BeeGoToKnownFlowerGoal` priority 6.
-            goal_selector.add_goal(6, Box::new(GoToKnownFlowerGoal::new()));
-            // Vanilla `BeeGrowCropGoal` priority 7 (`Bee.java:201`).
-            goal_selector.add_goal(
-                7,
-                Box::new(GrowCropGoal::new(can_grow_crop, record_crop_grown)),
-            );
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(
-                3,
-                Box::new(TemptGoal::with_tag(
-                    1.25,
-                    &tag::Item::MINECRAFT_BEE_FOOD,
-                    false,
-                )),
-            );
-            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.25)));
-            // Vanilla BeeWanderGoal at priority 8: water-avoiding hover flight toward hive.
-            goal_selector.add_goal(8, Box::new(BeeWanderGoal::default()));
-            goal_selector.add_goal(9, Box::new(SwimGoal::default()));
-        };
+        goals::register(&mob_arc);
 
         {
             let target_selector = &mob_arc.mob_entity.target_selector;
@@ -364,7 +193,6 @@ impl BeeEntity {
     }
 
     pub fn set_has_nectar(&self, val: bool) {
-        // Vanilla `Bee.setHasNectar` resets the no-nectar timer on gain.
         if val {
             self.ticks_without_nectar.store(0, Ordering::Relaxed);
         }
@@ -401,116 +229,74 @@ impl BeeEntity {
         self.set_flag(FLAG_ROLL, val);
     }
 
-    #[must_use]
-    pub fn hive_pos(&self) -> Option<BlockPos> {
-        *self
-            .hive_pos
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    fn drop_flower(&self) {
+        self.flower_pos.store(None);
+        self.flower_cooldown.store(
+            self.get_random()
+                .random_range(MIN_FIND_FLOWER_RETRY_COOLDOWN..=MAX_FIND_FLOWER_RETRY_COOLDOWN),
+            Ordering::Relaxed,
+        );
     }
 
-    pub fn set_hive_pos(&self, pos: Option<BlockPos>) {
-        *self
-            .hive_pos
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
+    pub fn saved_flower_pos(&self) -> Option<BlockPos> {
+        self.flower_pos.load()
     }
 
-    #[must_use]
-    pub fn hive_search_cooldown(&self) -> i32 {
-        self.hive_search_cooldown.load(Ordering::Relaxed)
+    pub fn set_saved_flower_pos(&self, pos: BlockPos) {
+        self.flower_pos.store(Some(pos));
     }
 
-    pub fn set_hive_search_cooldown(&self, ticks: i32) {
-        self.hive_search_cooldown.store(ticks, Ordering::Relaxed);
+    pub fn set_hive_pos(&self, pos: BlockPos) {
+        self.hive_pos.store(Some(pos));
     }
 
-    /// Vanilla Bee.wantsToEnterHive.
-    pub fn wants_to_enter_hive(&self, mob: &dyn Mob) -> bool {
-        if !wants_to_enter_hive_gate(
-            self.cannot_enter_hive_ticks.load(Ordering::Relaxed),
-            self.is_pollinating(),
-            self.has_stung(),
-            mob.get_mob_entity().get_target().is_some(),
-        ) {
+    pub fn drop_off_nectar(&self) {
+        self.set_has_nectar(false);
+        self.crops_grown_since_pollination
+            .store(0, Ordering::Relaxed);
+    }
+
+    fn closer_than(&self, pos: BlockPos, distance: i32) -> bool {
+        pos.to_f64()
+            .squared_distance_to_vec(&self.get_entity().block_pos.load().to_f64())
+            < f64::from(distance * distance)
+    }
+
+    fn hive(&self) -> Option<Arc<dyn BlockEntity>> {
+        let pos = self.hive_pos.load()?;
+        self.closer_than(pos, TOO_FAR_DISTANCE).then_some(())?;
+        self.get_entity()
+            .world
+            .load()
+            .get_block_entity(&pos)
+            .filter(|entity| entity.as_any().is::<BeehiveBlockEntity>())
+    }
+
+    fn drop_hive(&self) {
+        self.hive_pos.store(None);
+        self.hive_cooldown
+            .store(COOLDOWN_BEFORE_LOCATING_NEW_HIVE, Ordering::Relaxed);
+    }
+
+    fn wants_to_enter_hive(&self) -> bool {
+        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0
+            || self.pollinating.load(Ordering::Relaxed)
+            || self.has_stung()
+            || self.mob_entity.get_target().is_some()
+        {
             return false;
         }
-        let world = mob.get_entity().world.load();
-        let pos = mob.get_entity().block_pos.load();
-        // Vanilla reads the data-driven BEES_STAY_IN_HIVE attribute (keyframed night plus rain).
-        let wants = self.has_nectar()
-            || self.is_tired_of_looking_for_nectar()
-            || world.bees_stay_in_hive(&pos);
-        // Vanilla returns `wants && !isHiveNearFire()`; a bee with no hive is never near fire.
-        wants
-            && !self.hive_pos().is_some_and(|hive| {
-                hive_near_fire(hive, |fire_pos| world.get_block(&fire_pos) == &Block::FIRE)
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        (self.has_nectar()
+            || self.ticks_without_nectar.load(Ordering::Relaxed)
+                > TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME
+            || world.bees_stay_in_hive(&entity.block_pos.load()))
+            && self.hive().is_none_or(|hive| {
+                hive.as_any()
+                    .downcast_ref::<BeehiveBlockEntity>()
+                    .is_none_or(|hive| !hive.is_fire_nearby(&world))
             })
-    }
-
-    #[must_use]
-    pub fn flower_pos(&self) -> Option<BlockPos> {
-        *self
-            .flower_pos
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    pub fn set_flower_pos(&self, pos: Option<BlockPos>) {
-        *self
-            .flower_pos
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = pos;
-    }
-
-    #[must_use]
-    pub fn ticks_without_nectar(&self) -> i32 {
-        self.ticks_without_nectar.load(Ordering::Relaxed)
-    }
-
-    #[must_use]
-    pub fn flower_search_cooldown(&self) -> i32 {
-        self.flower_search_cooldown.load(Ordering::Relaxed)
-    }
-
-    pub fn set_flower_search_cooldown(&self, ticks: i32) {
-        self.flower_search_cooldown.store(ticks, Ordering::Relaxed);
-    }
-
-    /// Vanilla `Bee.remainingCooldownBeforeLocatingNewFlower = random(20, 60)`.
-    pub fn reset_flower_search_cooldown(&self) {
-        self.set_flower_search_cooldown(rand::rng().random_range(20..=60));
-    }
-
-    /// Vanilla `Bee.dropFlower`: forget the flower and retry a search shortly.
-    pub fn drop_flower(&self) {
-        self.set_flower_pos(None);
-        self.reset_flower_search_cooldown();
-    }
-
-    /// Vanilla `Bee.isTiredOfLookingForNectar`, read by the hive goals to trigger the return home.
-    #[must_use]
-    pub fn is_tired_of_looking_for_nectar(&self) -> bool {
-        tired_of_looking_for_nectar(self.ticks_without_nectar.load(Ordering::Relaxed))
-    }
-
-    /// Vanilla `BeePollinateGoal.pollinating`, which blocks a return to the hive.
-    #[must_use]
-    pub fn is_pollinating(&self) -> bool {
-        self.is_pollinating.load(Ordering::Relaxed)
-    }
-
-    pub fn set_pollinating(&self, val: bool) {
-        self.is_pollinating.store(val, Ordering::Relaxed);
-    }
-
-    /// Vanilla `Bee.isHiveValid`: the remembered hive must still have a block entity.
-    fn is_hive_valid(&self, world: &Arc<crate::world::World>) -> bool {
-        self.hive_pos().is_some_and(|pos| {
-            world
-                .get_block_entity(&pos)
-                .is_some_and(|entity| entity.as_any().is::<BeehiveBlockEntity>())
-        })
     }
 }
 
@@ -522,8 +308,7 @@ impl AgeableMob for BeeEntity {
 
 impl Animal for BeeEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
-        item_stack.item.has_tag(&tag::Item::MINECRAFT_FLOWERS)
-            || item_stack.item.has_tag(&tag::Item::MINECRAFT_BEE_FOOD)
+        item_stack.item.has_tag(&tag::Item::MINECRAFT_BEE_FOOD)
     }
 }
 
@@ -536,6 +321,14 @@ impl NeutralMob for BeeEntity {
         &self.neutral_data
     }
 
+    fn set_anger_end_time(&self, end_time: i64) {
+        self.neutral_data
+            .anger_end_time
+            .store(end_time, Ordering::Relaxed);
+        self.get_entity()
+            .set_synced_data(tracked_data::bee::DATA_ANGER_END_TIME, end_time);
+    }
+
     /// Bees calm down once the target is gone, unlike the other neutral mobs.
     fn stays_angry_with_target(&self) -> bool {
         false
@@ -544,6 +337,20 @@ impl NeutralMob for BeeEntity {
     /// The client picks the angry eyes from this value.
     fn anger_end_time_data(&self) -> Option<pumpkin_data::tracked_data::TrackedData> {
         Some(pumpkin_data::tracked_data::bee::DATA_ANGER_END_TIME)
+    }
+}
+
+impl CustomSound for BeeEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityBeeDeath)
+    }
+
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityBeeHurt)
+    }
+
+    fn sound_volume(&self) -> f32 {
+        0.4
     }
 }
 
@@ -586,6 +393,57 @@ impl Mob for BeeEntity {
         true
     }
 
+    fn should_check_fall_damage(&self) -> bool {
+        false
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
+        Some(self)
+    }
+
+    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
+        if self.get_entity().world.load().get_block_state(pos).is_air() {
+            10.0
+        } else {
+            0.0
+        }
+    }
+
+    fn is_stable_destination(&self, world: &World, pos: &BlockPos) -> bool {
+        !world.get_block_state(&pos.down()).is_air()
+    }
+
+    fn look_resets_pitch(&self) -> bool {
+        !self.pollinating.load(Ordering::Relaxed)
+    }
+
+    fn ticks_navigation(&self) -> bool {
+        !self.pollinating.load(Ordering::Relaxed)
+    }
+
+    fn conservative_block_read_radius(&self) -> f64 {
+        f64::from(TOO_FAR_DISTANCE + 2)
+    }
+
+    fn fluid_jump_velocity(&self) -> f64 {
+        0.01
+    }
+
+    fn mob_hurt_server(
+        &self,
+        _amount: f32,
+        damage_type: DamageType,
+        _position: Option<Vector3<f64>>,
+        _source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> Option<bool> {
+        if self.get_entity().is_invulnerable_to(&damage_type, cause) {
+            return Some(false);
+        }
+        self.pollinating.store(false, Ordering::Relaxed);
+        None
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }
@@ -599,11 +457,11 @@ impl Mob for BeeEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        if let Some(pos) = self.hive_pos() {
-            write_block_pos(nbt, "hive_pos", pos);
+        if let Some(pos) = self.hive_pos.load() {
+            nbt.put("hive_pos", block_pos_to_tag(pos));
         }
-        if let Some(pos) = self.flower_pos() {
-            write_block_pos(nbt, "flower_pos", pos);
+        if let Some(pos) = self.flower_pos.load() {
+            nbt.put("flower_pos", block_pos_to_tag(pos));
         }
         nbt.put_bool("HasNectar", self.has_nectar());
         nbt.put_bool("HasStung", self.has_stung());
@@ -622,29 +480,25 @@ impl Mob for BeeEntity {
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
-        if let Some(pos) = read_block_pos(nbt, "hive_pos") {
-            self.set_hive_pos(Some(pos));
-        }
-        if let Some(pos) = read_block_pos(nbt, "flower_pos") {
-            self.set_flower_pos(Some(pos));
-        }
-        if let Some(nectar) = nbt.get_bool("HasNectar") {
-            self.set_has_nectar(nectar);
-        }
-        if let Some(stung) = nbt.get_bool("HasStung") {
-            self.set_has_stung(stung);
-        }
-        if let Some(ticks) = nbt.get_int("TicksSincePollination") {
-            self.ticks_without_nectar.store(ticks, Ordering::Relaxed);
-        }
-        if let Some(cannot) = nbt.get_int("CannotEnterHiveTicks") {
-            self.cannot_enter_hive_ticks
-                .store(cannot, Ordering::Relaxed);
-        }
-        if let Some(crops) = nbt.get_int("CropsGrownSincePollination") {
-            self.crops_grown_since_pollination
-                .store(crops, Ordering::Relaxed);
-        }
+        self.set_has_nectar(nbt.get_bool("HasNectar").unwrap_or_default());
+        self.set_has_stung(nbt.get_bool("HasStung").unwrap_or_default());
+        self.ticks_without_nectar.store(
+            nbt.get_int("TicksSincePollination").unwrap_or_default(),
+            Ordering::Relaxed,
+        );
+        self.cannot_enter_hive_ticks.store(
+            nbt.get_int("CannotEnterHiveTicks").unwrap_or_default(),
+            Ordering::Relaxed,
+        );
+        self.crops_grown_since_pollination.store(
+            nbt.get_int("CropsGrownSincePollination")
+                .unwrap_or_default(),
+            Ordering::Relaxed,
+        );
+        self.hive_pos
+            .store(nbt.get("hive_pos").and_then(block_pos_from_tag));
+        self.flower_pos
+            .store(nbt.get("flower_pos").and_then(block_pos_from_tag));
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
@@ -652,71 +506,87 @@ impl Mob for BeeEntity {
     }
 
     fn custom_server_ai_step(&self, caller: &dyn EntityBase) {
-        // Vanilla `Bee.customServerAiStep`: a bee that has stung keeps counting and
-        // may die from its own sting once the countdown nears 1200 ticks.
+        if !self.get_entity().is_in_water() {
+            self.underwater_ticks.store(0, Ordering::Relaxed);
+        } else if self.underwater_ticks.fetch_add(1, Ordering::Relaxed) >= 20 {
+            caller.damage(caller, 1.0, DamageType::DROWN);
+        }
         if self.has_stung() {
-            // Vanilla increments first, then rolls on multiples of 5.
-            let time = self.time_since_sting.load(Ordering::Relaxed) + 1;
-            self.time_since_sting.store(time, Ordering::Relaxed);
-            if time % 5 == 0 {
-                let bound = (1200 - time).clamp(1, 1200);
-                if self.get_random().random_range(0..bound) == 0 {
-                    let living = &self.mob_entity.living_entity;
-                    living.damage(caller, living.health.load(), DamageType::GENERIC);
-                }
+            let time = self.time_since_sting.fetch_add(1, Ordering::Relaxed) + 1;
+            if time % 5 == 0
+                && self
+                    .get_random()
+                    .random_range(0..(STING_DEATH_COUNTDOWN - time).clamp(1, STING_DEATH_COUNTDOWN))
+                    == 0
+            {
+                caller.damage(
+                    caller,
+                    self.mob_entity.living_entity.health.load(),
+                    DamageType::GENERIC,
+                );
             }
         }
-        // Vanilla `Bee.customServerAiStep`: count ticks spent without nectar. The hive
-        // return reads this at 3600; pollination resets it when nectar is gathered.
         if !self.has_nectar() {
             self.ticks_without_nectar.fetch_add(1, Ordering::Relaxed);
-        }
-        // Vanilla `Bee.aiStep` decrements `stayOutOfHiveCountdown` every server tick.
-        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
-            self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
-        }
-        // Vanilla Bee.aiStep decrements remainingCooldownBeforeLocatingNewHive.
-        if self.hive_search_cooldown.load(Ordering::Relaxed) > 0 {
-            self.hive_search_cooldown.fetch_sub(1, Ordering::Relaxed);
-        }
-        // Vanilla `Bee.aiStep` decrements the flower-search cooldown every server tick.
-        if self.flower_search_cooldown() > 0 {
-            self.flower_search_cooldown.fetch_sub(1, Ordering::Relaxed);
-        }
-        // Vanilla `Bee.aiStep` rolls when angry and close to the current target.
-        let should_roll = is_angry(self)
-            && !self.has_stung()
-            && self.mob_entity.get_target().is_some_and(|target| {
-                target
-                    .get_entity()
-                    .pos
-                    .load()
-                    .squared_distance_to_vec(&self.get_entity().pos.load())
-                    < 4.0
-            });
-        self.set_rolling(should_roll);
-        // Vanilla `Bee.aiStep` forgets an invalid hive every 20 ticks.
-        let world = self.get_entity().world.load();
-        if self.get_entity().tick_count.load(Ordering::Relaxed) % 20 == 0
-            && !self.is_hive_valid(&world)
-        {
-            self.set_hive_pos(None);
         }
         self.update_persistent_anger();
     }
 
-    /// Vanilla `Bee.doHurtTarget`: a successful sting uses up the stinger and drops the target.
-    fn on_attack(&self, target: &dyn EntityBase) {
-        if self.has_stung() {
-            return;
+    fn mob_ai_step(&self) {
+        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
+            self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
         }
-        if let Some(living) = target.get_living_entity() {
-            let world = self.mob_entity.living_entity.entity.world.load();
-            let duration = sting_poison_ticks(world.level_info.load().difficulty);
-            if duration > 0 {
-                living.add_effect(Effect {
+        if self.flower_cooldown.load(Ordering::Relaxed) > 0 {
+            self.flower_cooldown.fetch_sub(1, Ordering::Relaxed);
+        }
+        if self.hive_cooldown.load(Ordering::Relaxed) > 0 {
+            self.hive_cooldown.fetch_sub(1, Ordering::Relaxed);
+        }
+        if self.get_entity().tick_count.load(Ordering::Relaxed) % 20 == 0 && self.hive().is_none() {
+            self.hive_pos.store(None);
+        }
+        self.set_rolling(
+            can_sting(self)
+                && self.mob_entity.get_target().is_some_and(|target| {
+                    target
+                        .get_entity()
+                        .pos
+                        .load()
+                        .squared_distance_to_vec(&self.get_entity().pos.load())
+                        < MIN_ATTACK_DIST
+                }),
+        );
+    }
+
+    fn do_hurt_target(&self, target: &dyn EntityBase) -> bool {
+        let living = &self.mob_entity.living_entity;
+        let damage = living.get_attribute_value(&Attributes::ATTACK_DAMAGE) as i32;
+        if !target.damage_with_context(
+            target,
+            damage as f32,
+            DamageType::STING,
+            None,
+            Some(self),
+            Some(self),
+        ) {
+            return false;
+        }
+        crate::enchantment::EnchantmentHelper::on_post_attack(
+            self,
+            target.get_entity(),
+            &living.held_item(self),
+        );
+        if let Some(target) = target.get_living_entity() {
+            target.set_stinger_count(target.get_stinger_count() + 1);
+            let seconds = match self.get_entity().world.load().level_info.load().difficulty {
+                Difficulty::Normal => POISON_SECONDS_NORMAL,
+                Difficulty::Hard => POISON_SECONDS_HARD,
+                _ => 0,
+            };
+            if seconds > 0 {
+                target.add_effect(Effect {
                     effect_type: &StatusEffect::POISON,
-                    duration,
+                    duration: seconds * 20,
                     amplifier: 0,
                     ambient: false,
                     show_particles: true,
@@ -726,11 +596,9 @@ impl Mob for BeeEntity {
             }
         }
         self.set_has_stung(true);
-        self.mob_entity.set_target(None);
-        self.mob_entity
-            .living_entity
-            .entity
-            .play_sound(Sound::EntityBeeSting);
+        self.stop_being_angry();
+        self.play_entity_sound(Sound::EntityBeeSting, 1.0, 1.0);
+        true
     }
 
     fn mob_init_data_tracker(&self) {
@@ -743,87 +611,28 @@ impl Mob for BeeEntity {
             pumpkin_data::tracked_data::bee::DATA_FLAGS_ID,
             self.flags.load(Ordering::Relaxed) as i8,
         );
-    }
-
-    fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        self.animal_interact(player, item_stack)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use pumpkin_nbt::compound::NbtCompound;
-    use pumpkin_nbt::tag::NbtTag;
-    use pumpkin_util::Difficulty;
-    use pumpkin_util::math::position::BlockPos;
-
-    use super::{
-        has_crop_growth_budget, hive_near_fire, read_block_pos, sting_poison_ticks,
-        tired_of_looking_for_nectar, wants_to_enter_hive_gate, write_block_pos,
-    };
-
-    #[test]
-    fn sting_poison_scales_with_difficulty() {
-        assert_eq!(sting_poison_ticks(Difficulty::Peaceful), 0);
-        assert_eq!(sting_poison_ticks(Difficulty::Easy), 0);
-        assert_eq!(sting_poison_ticks(Difficulty::Normal), 200);
-        assert_eq!(sting_poison_ticks(Difficulty::Hard), 360);
-    }
-
-    #[test]
-    fn saved_positions_round_trip_as_vanilla_compounds() {
-        let mut nbt = NbtCompound::new();
-        let hive = BlockPos::new(12, 64, -7);
-        let flower = BlockPos::new(-3, 70, 22);
-        write_block_pos(&mut nbt, "hive_pos", hive);
-        write_block_pos(&mut nbt, "flower_pos", flower);
-        assert_eq!(read_block_pos(&nbt, "hive_pos"), Some(hive));
-        assert_eq!(read_block_pos(&nbt, "flower_pos"), Some(flower));
-        assert_eq!(read_block_pos(&nbt, "unset"), None);
-    }
-
-    #[test]
-    fn saved_positions_accept_legacy_int_arrays() {
-        let mut nbt = NbtCompound::new();
-        nbt.put("hive_pos", NbtTag::IntArray(vec![1, 2, 3]));
-        assert_eq!(
-            read_block_pos(&nbt, "hive_pos"),
-            Some(BlockPos::new(1, 2, 3))
+        entity.set_synced_data(
+            tracked_data::bee::DATA_ANGER_END_TIME,
+            self.get_anger_end_time(),
         );
     }
 
-    #[test]
-    fn tired_of_looking_for_nectar_boundary() {
-        assert!(!tired_of_looking_for_nectar(0));
-        assert!(!tired_of_looking_for_nectar(3599));
-        assert!(!tired_of_looking_for_nectar(3600));
-        assert!(tired_of_looking_for_nectar(3601));
-        assert!(tired_of_looking_for_nectar(7200));
-    }
-
-    #[test]
-    fn crop_growth_budget_stops_at_ten() {
-        assert!(has_crop_growth_budget(0));
-        assert!(has_crop_growth_budget(9));
-        assert!(!has_crop_growth_budget(10));
-        assert!(!has_crop_growth_budget(11));
-    }
-
-    #[test]
-    fn pollinating_bee_does_not_want_to_enter_hive() {
-        assert!(wants_to_enter_hive_gate(0, false, false, false));
-        assert!(!wants_to_enter_hive_gate(1, false, false, false));
-        assert!(!wants_to_enter_hive_gate(0, true, false, false));
-        assert!(!wants_to_enter_hive_gate(0, false, true, false));
-        assert!(!wants_to_enter_hive_gate(0, false, false, true));
-    }
-
-    #[test]
-    fn hive_near_fire_checks_only_the_immediate_neighborhood() {
-        let hive = BlockPos::new(10, 64, -7);
-        assert!(hive_near_fire(hive, |pos| pos == hive));
-        assert!(hive_near_fire(hive, |pos| pos == BlockPos::new(11, 63, -6)));
-        assert!(!hive_near_fire(hive, |pos| pos == BlockPos::new(13, 64, -7)));
-        assert!(!hive_near_fire(hive, |_| false));
+    fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+        use crate::block::blocks::plant::{
+            eyeblossom::EyeblossomBlock, wither_rose::WitherRoseBlock,
+        };
+        let effect = match item_stack.item.id {
+            id if id == Item::OPEN_EYEBLOSSOM.id => Some(EyeblossomBlock::bee_interaction_effect()),
+            id if id == Item::WITHER_ROSE.id => Some(WitherRoseBlock::bee_interaction_effect()),
+            _ => None,
+        };
+        if self.is_food(item_stack)
+            && let Some(effect) = effect
+        {
+            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+            self.mob_entity.living_entity.add_effect(effect);
+            return true;
+        }
+        self.animal_interact(player, item_stack)
     }
 }

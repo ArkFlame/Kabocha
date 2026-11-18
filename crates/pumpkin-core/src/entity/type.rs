@@ -279,9 +279,12 @@ pub fn from_type(
             Arc::new(ShulkerBulletEntity::orphan(entity))
         }
         id if id == EntityType::FALLING_BLOCK.id => {
-            let falling = FallingEntity::new(entity, Block::SAND.default_state.id);
-            falling.set_block_state(Block::SAND.default_state.id);
-            Arc::new(falling)
+            let sand = Block::SAND.default_state.id;
+            entity.data.store(
+                i32::from(sand.as_u16()),
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            Arc::new(FallingEntity::new(entity, sand))
         }
         id if id == EntityType::EXPERIENCE_ORB.id => Arc::new(ExperienceOrbEntity::new(entity, 1)),
         id if id == EntityType::TNT.id => Arc::new(TNTEntity::new(

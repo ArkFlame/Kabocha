@@ -280,9 +280,7 @@ fn run_rewards(server: &Arc<Server>, player: &Arc<Player>, advancement: &Datapac
 }
 
 fn write_item(stack: &ItemStack) -> NbtCompound {
-    let mut nbt = NbtCompound::new();
-    stack.write_item_stack(&mut nbt);
-    nbt
+    stack.to_nbt().unwrap_or_default()
 }
 
 /// Tests a `ContextAwarePredicate`: a list of loot conditions, or the legacy

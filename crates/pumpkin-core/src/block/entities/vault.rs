@@ -112,11 +112,7 @@ fn items_to_eject_tag(items: &[ItemStack]) -> NbtTag {
     NbtTag::List(
         items
             .iter()
-            .map(|stack| {
-                let mut compound = NbtCompound::new();
-                stack.write_item_stack(&mut compound);
-                NbtTag::Compound(compound)
-            })
+            .map(|stack| NbtTag::Compound(stack.to_nbt().unwrap_or_else(NbtCompound::new)))
             .collect(),
     )
 }
@@ -241,9 +237,9 @@ impl VaultBlockEntity {
         if stack.is_empty() {
             data.child_tags.remove("display_item");
         } else {
-            let mut item_compound = NbtCompound::new();
-            stack.write_item_stack(&mut item_compound);
-            data.put_compound("display_item", item_compound);
+            if let Some(item_compound) = stack.to_nbt() {
+                data.put_compound("display_item", item_compound);
+            }
         }
     }
 

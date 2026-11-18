@@ -584,7 +584,7 @@ impl FoxEntity {
         if !living.pickup(item_ent.get_entity(), 1) {
             return false;
         }
-        living.on_item_pickup(item_ent);
+        living.on_item_pickup(item_ent, &stack);
         let live_stack = item_ent
             .get_item_stack()
             .lock()

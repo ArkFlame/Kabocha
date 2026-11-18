@@ -121,6 +121,7 @@ impl TNTEntity {
             f64::from(position.0.z) + 0.5,
         );
         let entity = Entity::new(world.clone(), pos, &EntityType::TNT);
+        // TODO: vanilla rolls from `level.random`; same odds, not seed-reproducible.
         let rot = rand::random::<f64>() * TAU;
         entity
             .velocity
@@ -176,10 +177,10 @@ impl EntityBase for TNTEntity {
         entity.tick_portal(caller);
 
         let mut velo = entity.velocity.load();
-        // Vanilla `PrimedTnt.tick`: `if (!this.isNoGravity())`.
         if !entity.has_no_gravity() {
             velo.y -= self.get_gravity();
         }
+        entity.velocity.store(velo);
 
         entity.move_entity(caller, velo);
         entity.tick_block_collisions(caller);

@@ -213,6 +213,7 @@ pub mod weather_profile;
 pub use environment::EnvironmentAttributes;
 pub use pumpkin_data::environment_attribute::{Activity, MoonPhase};
 
+use crate::plugin::api::events::{Cancellable, Payload};
 use crate::world::natural_spawner::{SpawnState, spawn_for_chunk};
 use crate::world::player_touch::{pickup_body, touch_entities};
 use pumpkin_config::lighting::LightingEngineConfig;
@@ -5489,7 +5490,6 @@ impl World {
         player.get_entity().last_pos.store(position);
         // Restore health last so pickups only resume at the respawn position.
         player.living_entity.reset_state();
-
         player.send_permission_lvl_update();
 
         // Vanilla carries FoodData (level/saturation/exhaustion/tickTimer) over on
@@ -5817,6 +5817,26 @@ impl World {
         self.entity_index
             .player_by_id(&self.players.load_full(), id)
             .inspect(|_| entity_islands::check_reached(id))
+    }
+
+    /// Fires the event built by `event`, or returns `None` without building it when no plugin listens.
+    pub fn plugin_event<E: Payload + 'static>(&self, event: impl FnOnce() -> E) -> Option<E> {
+        let server = self.server.upgrade()?;
+        if !server.plugin_manager.has_handlers::<E>() {
+            return None;
+        }
+        let mut event = event();
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        Some(event)
+    }
+
+    /// Whether a plugin cancelled the event, see [`Self::plugin_event`].
+    pub fn cancelled_by_plugin<E: Payload + Cancellable + 'static>(
+        &self,
+        event: impl FnOnce() -> E,
+    ) -> bool {
+        self.plugin_event(event)
+            .is_some_and(|event| event.cancelled())
     }
 
     /// Gets an entity by an entity id
@@ -7153,17 +7173,18 @@ impl World {
         // Vanilla `ServerPlayerGameMode::destroyBlock` removes the block before calling
         // `playerDestroy`, so loot conditions and neighbour updates see it already gone.
         // The block entity it hands to `playerDestroy` was read before the removal.
+        let tool = cause.map(|player| player.inventory().held_item());
         let broken_block_entity = self.get_block_entity(position);
         let broken_state_id = self.set_block_state(position, new_state_id, flags);
+        let block_entity = cause
+            .filter(|player| player.gamemode.load() != pumpkin_util::GameMode::Creative)
+            .filter(|_| broken_block_state.block_entity_type != u16::MAX)
+            .and_then(|player| broken_block_entity.clone().map(|entity| (player, entity)));
 
         if !flags.contains(BlockFlags::SKIP_DROPS) {
-            let tool = cause.as_ref().and_then(|p| {
-                let item = p.inventory().held_item();
-                if item.is_empty() { None } else { Some(item) }
-            });
             let params = crate::world::loot::LootContextParameters {
                 world: Some(self),
-                tool,
+                tool: tool.clone().filter(|item| !item.is_empty()),
                 block_state: Some(broken_block_state),
                 position: Some(position.to_f64()),
                 killed_by_player: Some(cause.is_some()),
@@ -7173,6 +7194,11 @@ impl World {
             crate::block::drop_loot(self, broken_block, position, cause, true, &params);
         }
 
+        if let Some((player, entity)) = block_entity
+            && let Some(tool) = tool
+        {
+            entity.on_player_destroyed(self, broken_state_id, player, &tool);
+        }
         self.broadcast_destroy_block_particles(position, broken_state_id, new_state_id, cause);
 
         Some(broken_state_id)
@@ -7582,6 +7608,7 @@ impl World {
         }
 
         let half_height = f64::from(EntityType::ITEM.dimension[1]) / 2.0;
+        // TODO: vanilla `popResource` rolls from `level.random`; not seed-reproducible.
         let spawn_pos = {
             let mut r = rand::rng();
             Vector3::new(

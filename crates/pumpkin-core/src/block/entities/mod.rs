@@ -108,10 +108,22 @@ pub trait BlockEntity: Any + Send + Sync {
         None
     }
 
+    /// Clears the pending loot-table key and runs `generate` with it and the seed.
+    /// Implementations reserve the one-time unpack under the loot lock, release both chest locks
+    /// before generation, then place into still-empty slots.
+    // TODO vanilla `RandomizableContainerBlockEntity`: barrels, shulker boxes, dispensers, droppers, hoppers,
+    // crafters and decorated pots hold loot tables too. Only chests implement this.
+    fn unpack_loot_table_with(&self, _generate: &mut dyn FnMut(String, i64) -> Vec<ItemStack>) {}
+
     /// Returns `true` if this block entity has a pending deferred loot table that has
     /// not yet been unpacked. Does not consume the loot table.
     fn has_loot_table(&self) -> bool {
         false
+    }
+
+    /// Vanilla `getLootTable`: the pending loot table key, without consuming it.
+    fn loot_table_key(&self) -> Option<String> {
+        None
     }
 
     fn write_internal(&self, nbt: &mut NbtCompound) {
@@ -162,6 +174,14 @@ pub trait BlockEntity: Any + Send + Sync {
         None
     }
 
+    /// Vanilla `Container`: the inventory hoppers, droppers and crafters move items through.
+    ///
+    /// Hoppers on parallel threads write through `Inventory::update_stack`, so the returned
+    /// inventory must override it with one lock for read and write (`update_locked_stack`).
+    fn get_container(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
+        self.get_inventory()
+    }
+
     /// Copies the block entity's state on the item stack dropped for it.
     fn collect_item_components(&self, _stack: &mut ItemStack) {}
 
@@ -207,6 +227,15 @@ pub trait BlockEntity: Any + Send + Sync {
         if let Some(inventory) = self.get_inventory() {
             world.scatter_inventory(position, &inventory);
         }
+    }
+
+    fn on_player_destroyed(
+        &self,
+        _world: &Arc<World>,
+        _state: BlockStateId,
+        _player: &Arc<crate::entity::player::Player>,
+        _tool: &ItemStack,
+    ) {
     }
     fn is_dirty(&self) -> bool {
         false
@@ -580,9 +609,6 @@ pub fn create_block_entity_for_state(
     let block = Block::from_state_id(state_id);
     let name = BLOCK_ENTITY_TYPES.get(state.block_entity_type as usize)?;
     match *name {
-        "hopper" if block == &Block::HOPPER => {
-            Some(Arc::new(hopper::HopperBlockEntity::new(position)))
-        }
         "structure_block" => {
             let mode = structure_block::StructureBlockBlockEntity::mode_from_block_state(state_id)
                 .unwrap_or(StructureblockMode::Load);

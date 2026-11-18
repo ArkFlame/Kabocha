@@ -2600,9 +2600,9 @@ impl DataComponentCodec<Self> for ChargedProjectilesImpl {
         let mut projectiles = Vec::with_capacity(len);
         for _ in 0..len {
             let stack = deserialize_item_stack_template(seq)?;
-            let mut compound = pumpkin_nbt::compound::NbtCompound::new();
-            stack.write_item_stack(&mut compound);
-            projectiles.push(compound);
+            if let Some(compound) = stack.to_nbt() {
+                projectiles.push(compound);
+            }
         }
         Ok(Self { projectiles })
     }
@@ -3867,8 +3867,7 @@ mod tests {
 
         let mut arrow = ItemStack::new(1, &Item::ARROW);
         arrow.set_data_component(IntangibleProjectileImpl);
-        let mut projectile = pumpkin_nbt::compound::NbtCompound::new();
-        arrow.write_item_stack(&mut projectile);
+        let projectile = arrow.to_nbt().unwrap();
 
         let charged = ChargedProjectilesImpl {
             projectiles: vec![projectile],
