@@ -23,7 +23,7 @@ Verified present (vanilla `ChestBoat` / `AbstractChestBoat`):
 | boat.rs:332-358 | `Boat.hurt` calls `destroy(source)` for a creative (instabuild) break when `DOENTITYDROPS` is on, and `AbstractChestBoat.destroy` spills the container; Pumpkin skips the container drop whenever `creative` is true | confirm vanilla creative chest-boat spill; if contents do drop, remove `!creative` from the container-drop gate only (keep it for the boat item) | S (verify) |
 | boat.rs:351-355 | `AbstractBoat.destroy` is `spawnAtLocation(this.getDropItem())`, which does not copy the entity custom name onto the dropped item; Pumpkin sets `CustomNameImpl` on the drop | confirm in decompiled `Boat`/`AbstractBoat`; if no name transfer exists, drop the `CustomNameImpl` block | S (verify) |
 | boat.rs:335 vs 356 | vanilla `chestVehicleDestroyed` scatters the container at the entity position (`getX/Y/Z`); Pumpkin passes `block_pos` to `world.scatter_inventory` | pass the entity position to `scatter_inventory` and keep `block_pos` only for `drop_stack` | S, FIXED ff30569c9 (already on master) |
-| boat.rs:276-301 | `AbstractBoat` also maintains bubble/air state while a player rides underwater; no `DATA_ID_BUBBLE_TIME` (tracked_data id 13) is ever sent for any boat | set/publish bubble-time metadata from the underwater tick, shared by all boat types | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| boat.rs:276-301 | `AbstractBoat` also maintains bubble/air state while a player rides underwater; no `DATA_ID_BUBBLE_TIME` (tracked_data id 13) is ever sent for any boat | set/publish bubble-time metadata from the underwater tick, shared by all boat types | M, FIXED on master (verified third pass; see Result) |
 
 ## Result
 
@@ -163,3 +163,31 @@ STILL OPEN scope; they are also already reworked on master with re-verification 
 tests. No source file needed a change, so no rustfmt was required.
 
 fixed=0 open=0 files=dismount.rs (verified only, no source change).
+
+
+## Result (third pass)
+
+All rows resolved; no STILL OPEN remains. The only such row (boat.rs:276-301, bubble time /
+DATA_ID_BUBBLE_TIME) is FIXED on master and VERIFIED against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`:
+`onAboveBubbleColumn` (165-184) arms DATA_ID_BUBBLE_TIME to BUBBLE_TIME=60 (line 63) and publishes
+it; `tickBubbleColumn` (351-386) decrements it, clears it when not above the column, ejects riders
+and broadcasts BOAT_SINK / BOAT_LAUNCH at zero, then `handleBubbleColumnEffect` (399-408) adds -0.7
+to y on drag-down or sets y=0.6 on updraft. Pumpkin `boat.rs` mirrors this with
+`bubble_column_time` / `bubble_column_drag_down` / `bubble_column_above`, BUBBLE_COLUMN_DELAY=60,
+`on_above_bubble_column` (647) publishing `ID_BUBBLE_TIME`, `tick_bubble_column` (429) decrementing
+and publishing it and applying the impulse through `bubble_column_vertical_velocity` (976:
+`current_y - 0.7` or `0.6`), covered by `bubble_column_impulse_matches_vanilla_boat_effect` (1076).
+`tick_underwater` deliberately does not write `ID_BUBBLE_TIME` (comment 394-395), matching vanilla
+where the 60-tick underwater ejection is the plain `outOfControlTicks` field (tracked in Pumpkin as
+`ticks_underwater`). The row's literal suggestion (publish bubble time from the underwater tick)
+rests on a misreading of vanilla; the feature is correctly implemented on the bubble-column path.
+
+Editable file `boat/dismount.rs` re-verified against decompiled vanilla:
+`Entity.getCollisionHorizontalEscapeVector` (Entity.java:6645-6651: `(cw+cw+1.0e-5F)/2`, -sin/cos
+with DEG_TO_RAD, max-abs scale, divided unit vector) and `Entity.getDismountLocationForPassenger`
+(Entity.java:6653-6655: `(x, bbox.maxY, z)` fallback). Exact match, including the f32-as-f64
+epsilon (`DISMOUNT_EPSILON = 1.0e-5f32 as f64`) and the two pure unit tests. No divergence, so no
+source change was needed and no rustfmt is required.
+
+Status: PASS fixed=1 open=0 files=none (doc updated; the fix is already on master)

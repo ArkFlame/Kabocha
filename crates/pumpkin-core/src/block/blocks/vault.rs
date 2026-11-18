@@ -232,7 +232,7 @@ impl BlockBehaviour for VaultBlock {
                     return;
                 };
                 let Some(stack) = vault_entity.pop_next_item_to_eject() else {
-                    finish_ejection(args, &mut props);
+                    finish_ejection(&args, &mut props);
                     return;
                 };
 
@@ -275,7 +275,7 @@ impl BlockBehaviour for VaultBlock {
                 );
             }
             VaultState::Active => {
-                cycle_active_display_item(args, props.ominous);
+                cycle_active_display_item(&args, props.ominous);
                 args.world.schedule_block_tick(
                     args.block,
                     *args.position,

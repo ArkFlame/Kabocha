@@ -29,9 +29,11 @@ pub const fn should_grow_this_tick(roll: i32) -> bool {
     roll == 0
 }
 
-/// Vanilla checks `belowState.is(BlockTags.BEE_GROWABLES)`.
+/// Vanilla checks `belowState.is(BlockTags.BEE_GROWABLES)`, but `BeeGrowCropGoal.tick`
+/// only grows `CropBlock`, `StemBlock`, `SweetBerryBushBlock` and cave vines. Pitcher
+/// crop is a `DoublePlantBlock` with no branch, so tag membership alone never grows it.
 fn is_growable_block(block: &Block) -> bool {
-    block.has_tag(&tag::Block::MINECRAFT_BEE_GROWABLES)
+    block != &Block::PITCHER_CROP && block.has_tag(&tag::Block::MINECRAFT_BEE_GROWABLES)
 }
 
 /// Positions `1..=GROW_DEPTH` blocks below `origin` that `is_growable` accepts, nearest first.
@@ -206,6 +208,14 @@ mod tests {
     fn grown_state_id_ignores_blocks_without_age() {
         let dirt = &Block::DIRT;
         assert!(grown_state_id(dirt, dirt.default_state.id).is_none());
+    }
+
+    #[test]
+    fn bee_growables_excludes_pitcher_crop_without_a_vanilla_branch() {
+        // Vanilla BeeGrowCropGoal.tick has no PitcherCropBlock branch (it is a DoublePlantBlock),
+        // so tag membership alone must not fertilize it.
+        assert!(!is_growable_block(&Block::PITCHER_CROP));
+        assert!(is_growable_block(&Block::WHEAT));
     }
 
     #[test]
