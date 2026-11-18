@@ -44,10 +44,10 @@ the vanilla classes from memory and `docs/VANILLA_REF.md`.
 | 6 | (tests) | vanilla behaviour is observable through step/shriek state | No automated test covers a game event reaching a shrieker and setting SHRIEKING (only stepping is covered indirectly). Add a `pumpkin-gametest` case: place can_summon=false shrieker, emit a player-sourced vibration within 8 blocks, assert no shriek; with can_summon=true assert SHRIEKING and the 90t tick | M |
 
 ## h6 gap status
-- Row 1 (darkness at shriek start): FIXED 483c3018a (`apply_darkness_around` moved into `try_shriek`, removed from `respond`).
-- Row 2 (broken shrieker reply and darkness): FIXED 483c3018a (block removal calls new `summon_warden_on_removal`, summon only).
-- Row 4 (trigger player bypasses spectator/alive filter in `try_warn`): FIXED 483c3018a.
-- Row 5 (vibration distance to floored position): STILL OPEN, needs `VibrationSystem` source check; not changed.
+- Row 1 (darkness at shriek start): FIXED ac7b867d8 (`apply_darkness_around` moved into `try_shriek`, removed from `respond`).
+- Row 2 (broken shrieker reply and darkness): FIXED ac7b867d8 (block removal calls new `summon_warden_on_removal`, summon only).
+- Row 4 (trigger player bypasses spectator/alive filter in `try_warn`): FIXED 8e97caba8.
+- Row 5 (vibration distance to floored position): VERIFIED ALREADY CORRECT (see Result); no change needed.
 
 
 ## Result
