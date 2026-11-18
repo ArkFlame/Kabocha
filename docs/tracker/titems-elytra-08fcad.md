@@ -80,3 +80,58 @@ Re-review against .vendor/vanilla-decompiled (Paper/Canvas), now available in th
   2. stale gliding-exhaustion TODO: needs entity/player.rs (outside unit).
   3. glide-stop/start gametest: needs entity/player.rs / pumpkin-gametest harness (outside unit).
   4. Unbreaking/durability in damage_item_stack: needs entity/player.rs (outside unit).
+
+## Result (re-verify 2026-11-18)
+
+Re-checked every STILL OPEN row against .vendor/vanilla-decompiled (Paper/Canvas), now present.
+
+- `ee43e7835` subject "vanilla-parity fixes for gliding and flight state": VERIFIED against code.
+  The only source change is crates/pumpkin-wasm-host-v0_2/src/player.rs (outside this unit): both
+  set_flying sites (lines 2581, 4296) now call player.set_flying(flying), and Player::set_flying
+  (entity/player.rs:6350) resets fall_distance, calls stop_glide_for_flight, sets abilities.flying,
+  and sends the abilities update. Subject matches code; no edit possible here (wasm-host +
+  player.rs are outside this unit).
+- firework_rocket.rs boost: vanilla FireworkRocketEntity.java:167-177 =
+  movement + look*0.1 + (look*1.5 - movement)*0.5; Pumpkin line 277 matches. Verified, no change.
+- firework_rocket.rs acceleration: vanilla line 192 = horizontalCollision ? 1.0 : 1.15 with x/z
+  multiplied and y += 0.04; Pumpkin lines 287-295 match (previous pass's fix still present).
+  Verified against vanilla, no new change.
+- player_command.rs StartFlyingElytra: vanilla Player.java:1605-1611 tryToStartFallFlying gate
+  (!isFallFlying && canGlide && !isInLiquid) plus CraftBukkit toggle-glide veto; Pumpkin's
+  try_to_start_fall_flying + glide_stop_allowed() gate matches. Verified, no change.
+- utility.rs elytra profile field read/write/hash present (lines 1035-1158); matches
+  PlayerSkin.Patch. Verified, no change.
+- No code edits this pass: the only in-unit fix (acceleration) was already applied and is present;
+  no pure seam exists for a formula-mirroring unit test (discouraged by the test rules).
+- Gaps 1-4 remain STILL OPEN, each needs a file outside this unit:
+  1. checkFallDistanceAccumulation clamp -> entity/player.rs.
+  2. stale gliding-exhaustion TODO -> entity/player.rs.
+  3. glide-stop/start gametest -> entity/player.rs / pumpkin-gametest harness.
+  4. Unbreaking in damage_item_stack -> entity/player.rs.
+
+
+## Result (re-review pass 2, decompiled vanilla available)
+
+- Row ee43e7835 subject 'vanilla-parity fixes for gliding and flight state (#3459)': git show
+  confirms the commit's ONLY change is crates/pumpkin-wasm-host-v0_2/src/player.rs
+  (set_flying now delegates to player.set_flying(flying)); verified present in current code.
+  That file is outside this unit (basename player.rs), so no in-scope fix exists for this row.
+- firework_rocket.rs: verified against vanilla FireworkRocketEntity#tick
+  (decompiled lines 148-201). Boost formula movement + look*0.1 + (look*1.5 - movement)*0.5
+  and horizontal accel 'horizontalCollision ? 1.0 : 1.15' both match; launch sound on
+  life==0 matches. The accel fix from the prior pass is present and correct. No change.
+- player_command.rs: verified against vanilla ServerGamePacketListenerImpl:2965-2969
+  (START_FALL_FLYING -> tryToStartFallFlying else stopFallFlying) and
+  LivingEntity#stopFallFlying:3305-3310 (CraftEventFactory#callToggleGlideEvent(false)
+  veto). Pumpkin's try_to_start_fall_flying + glide_stop_allowed() gate matches. No change.
+- utility.rs: PlayerSkin.Patch texture/cape/elytra/model fields all present with NBT
+  read/write/hash (lines 1033-1162). Verified, no change.
+- Gaps 1-4 remain STILL OPEN: all target entity/player.rs (basename not in this unit).
+  1. fall-distance clamp confirm checkFallDistanceAccumulation.
+  2. stale gliding-exhaustion TODO removal.
+  3. glide-stop/start pumpkin-gametest (needs entity/player.rs + harness).
+  4. Unbreaking/durability in damage_item_stack vs ItemStack#hurtAndBreak.
+- No pure unit test added: boost/stop/accel logic lives in tick()/network handlers with no
+  pure seam; formula-mirroring tests discouraged by test rules.
+
+Status: UNVERIFIED fixed=0 open=5 files=docs/tracker/titems-elytra-08fcad.md
