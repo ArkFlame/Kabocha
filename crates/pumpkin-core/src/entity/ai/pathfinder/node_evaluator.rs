@@ -1,4 +1,5 @@
 use pumpkin_data::attributes::Attributes;
+use pumpkin_data::entity::EntityType;
 use rustc_hash::FxHashMap;
 use std::sync::atomic::Ordering;
 
@@ -9,6 +10,7 @@ use crate::entity::ai::pathfinder::{
     pathfinding_context::PathfindingContext,
 };
 use crate::entity::living::LivingEntity;
+use crate::entity::mob::Mob;
 use crate::world::World;
 
 pub trait NodeEvaluator {
@@ -53,6 +55,9 @@ pub struct MobData {
 }
 
 impl MobData {
+    pub fn comfortable_fall_distance(allowed_damage: f32) -> f32 {
+        (allowed_damage + 3.0).floor()
+    }
     #[must_use]
     pub fn from_entity(entity: &LivingEntity, world: &World) -> Self {
         let dimensions = entity.entity.entity_dimension.load();
@@ -66,8 +71,25 @@ impl MobData {
         data.is_in_water = entity.is_in_water();
         data.min_y = world.get_bottom_y();
         data.sea_level = world.sea_level;
+        if entity.entity.entity_type.id == EntityType::CREEPER.id {
+            if let Some(mob) = world.get_entity_by_uuid(entity.entity.uuid) {
+                if let Some(creeper) =
+                    mob.cast_any().downcast_ref::<crate::entity::mob::creeper::CreeperEntity>()
+                {
+                    let mob_entity = crate::entity::mob::Mob::get_mob_entity(creeper);
+                    let max_fall = if mob_entity.get_target().is_none() {
+                        Self::comfortable_fall_distance(0.0)
+                    } else {
+                        Self::comfortable_fall_distance(mob_entity.living_entity.health.load() - 1.0)
+                    };
+                    data.max_fall_distance = max_fall;
+                }
+            }
+        }
+
         data
     }
+}
 
     #[must_use]
     pub const fn new_zombie(position: Vector3<f64>, on_ground: bool) -> Self {
@@ -227,9 +249,14 @@ mod tests {
 
     #[test]
     fn mob_bb_dimensions_use_vanilla_floor() {
-        // Vanilla NodeEvaluator.prepare: Mth.floor(getBbWidth() + 1.0F), Mth.floor(getBbHeight() + 1.0F).
         let zombie = MobData::new_zombie(Vector3::new(0.5, 64.0, 0.5), true);
         assert_eq!(zombie.get_bb_width(), 1);
         assert_eq!(zombie.get_bb_height(), 2);
+    }
+
+    #[test]
+    fn comfortable_fall_distance_matches_vanilla() {
+        assert_eq!(MobData::comfortable_fall_distance(0.0), 3.0);
+        assert_eq!(MobData::comfortable_fall_distance(19.0), 22.0);
     }
 }

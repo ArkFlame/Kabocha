@@ -5471,6 +5471,40 @@ impl Player {
 
                 self.send_permission_lvl_update();
 
+                // Vanilla `ServerPlayer.changeDimension` resends the default spawn position,
+                // difficulty and active effects after the respawn packet, like
+                // `PlayerList.respawn`; the client drops them when it recreates the entity.
+                let (spawn_pos, spawn_yaw, spawn_pitch) = {
+                    let info = new_world.level_info.load();
+                    (
+                        BlockPos(Vector3::new(info.spawn_x, info.spawn_y, info.spawn_z)),
+                        info.spawn_yaw,
+                        info.spawn_pitch,
+                    )
+                };
+                let bedrock_dimension = match new_world.dimension.minecraft_name {
+                    "minecraft:the_nether" => 1,
+                    "minecraft:the_end" => 2,
+                    _ => 0,
+                };
+                self.client.try_enqueue_packet_editioned(
+                    &CPlayerSpawnPosition::new(
+                        spawn_pos,
+                        spawn_yaw,
+                        spawn_pitch,
+                        new_world.dimension.minecraft_name.to_string(),
+                    ),
+                    &pumpkin_protocol::bedrock::client::CSetSpawnPosition {
+                        spawn_position_type:
+                            pumpkin_protocol::bedrock::client::SpawnPositionType::WorldRespawn,
+                        block_position: spawn_pos,
+                        dimension_type: bedrock_dimension.into(),
+                        spawn_block_pos: spawn_pos,
+                    },
+                );
+                self.send_difficulty_update();
+                self.send_active_effects();
+
                 player.get_entity().set_pos(position);
                 player.get_entity().set_rotation(yaw, pitch);
                 player.get_entity().last_pos.store(position);

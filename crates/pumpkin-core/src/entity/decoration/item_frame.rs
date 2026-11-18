@@ -15,6 +15,7 @@ use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection};
 use pumpkin_inventory::{Clearable, Inventory};
 use pumpkin_nbt::compound::NbtCompound;
@@ -665,17 +666,24 @@ impl EntityBase for ItemFrameEntity {
         if self.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
-        // Vanilla ItemFrame.hurtServer: fixed frames are indestructible and
-        // explosions never damage frames. Only losing the support block takes a
-        // frame down, through the periodic survives check.
-        if self.is_fixed()
-            || damage_type == DamageType::EXPLOSION
-            || damage_type == DamageType::PLAYER_EXPLOSION
+        // Vanilla BlockAttachedEntity.hurtServer skips mob-caused damage while
+        // mob_griefing is off. The check uses the causing entity.
+        let world = self.entity.world.load();
+        if !world.level_info.load().game_rules.mob_griefing
+            && cause.is_some_and(|attacker| attacker.get_mob().is_some())
         {
             return false;
         }
+        // Fixed frames are indestructible except through support loss.
+        if self.is_fixed() {
+            return false;
+        }
 
-        if self.get_item().is_empty() {
+        // Vanilla: explosion damage (and any damage to an empty frame) breaks the
+        // whole frame via BlockAttachedEntity.hurtServer; non-explosion damage to a
+        // frame that holds an item only removes the item.
+        let is_explosion = damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_EXPLOSION);
+        if is_explosion || self.get_item().is_empty() {
             self.drop_item(source, true);
             self.entity.play_sound(self.get_break_sound());
             self.entity.remove();
@@ -685,6 +693,18 @@ impl EntityBase for ItemFrameEntity {
             self.entity.play_sound(self.get_remove_item_sound());
         }
         true
+    }
+
+    fn ignore_explosion(&self, explosion: &crate::world::explosion::Explosion<'_>) -> bool {
+        // Vanilla BlockAttachedEntity.ignoreExplosion: a frame in water or one
+        // hit by an explosion that does not affect block-like entities is ignored.
+        let direct_in_water = explosion
+            .source()
+            .map(|s| s.get_entity().is_in_water())
+            .unwrap_or(false);
+        direct_in_water
+            || !explosion.should_affect_blocklike_entities()
+            || self.is_immune_to_explosion()
     }
 
     fn cast_any(&self) -> &dyn std::any::Any {

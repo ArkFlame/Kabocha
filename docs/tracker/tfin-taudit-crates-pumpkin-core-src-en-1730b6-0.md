@@ -8,4 +8,4 @@ Resumed session re-read `item_frame.rs` in full: every formerly STILL OPEN row i
 marked STILL OPEN in `## Gap status` against decompiled
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+FIXED/VERIFIED: all ten numbered rows already implemented (see audit doc). Non-row explosion divergence now FIXED: damage_with_context no longer ignores explosion damage; explosions break the frame. Added mob_griefing guard and ignore_explosion override. IS_EXPLOSION tag exists in pumpkin-data.

@@ -974,6 +974,8 @@ pub struct EntityState {
     /// Types of this entity's passengers, read by vanilla `PassengerPredicate.matches`
     /// via `entity.getPassengers()`.
     pub passenger_types: Vec<String>,
+    /// Entity type the player is looking at, used by vanilla `type_specific/player.looking_at`.
+    pub looking_at_type: Option<String>,
 }
 
 impl EntityState {
@@ -1037,6 +1039,7 @@ impl EntityState {
             stepping_block,
             vehicle_type,
             passenger_types,
+            looking_at_type: None,
         }
     }
 }
@@ -1207,6 +1210,30 @@ impl EntityPredicate {
                 .any(|actual| passenger.matches(RegistryKey::EntityType, actual))
         {
             return false;
+        }
+        // Vanilla `EntityEquipmentPredicate` feet slot, exposed as `looking_at`'s sibling
+        // `feet_item` shorthand parsed from `minecraft:equipment.feet.items`.
+        if let Some(feet) = &self.feet_item {
+            let actual = state
+                .equipment
+                .iter()
+                .find(|(slot, _)| slot == "feet")
+                .map(|(_, item)| item.as_str());
+            let Some(actual) = actual else {
+                return false;
+            };
+            if !feet.matches(RegistryKey::Item, actual) {
+                return false;
+            }
+        }
+        // Vanilla `type_specific/player.looking_at` checks the entity the player is looking at.
+        if let Some(looking) = &self.looking_at {
+            let Some(actual) = state.looking_at_type.as_deref() else {
+                return false;
+            };
+            if !looking.matches(RegistryKey::EntityType, actual) {
+                return false;
+            }
         }
         self.equipment.iter().all(|(slot, predicate)| {
             state.equipment.iter().any(|(equipped_slot, item)| {
@@ -4091,6 +4118,7 @@ mod tests {
             stepping_block: None,
             vehicle_type: None,
             passenger_types: Vec::new(),
+            looking_at_type: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state;
@@ -4129,5 +4157,25 @@ mod tests {
         assert!(!pred.matches_entity("minecraft:boat", &state));
         state.passenger_types.push("minecraft:goat".to_string());
         assert!(pred.matches_entity("minecraft:boat", &state));
+    }
+
+    #[test]
+    fn entity_feet_item_predicate_is_enforced() {
+        let pred = EntityPredicate::from_value(&json!({
+            "equipment": {"feet": {"items": "minecraft:diamond_boots"}}
+        }));
+        // equipment predicate already covers feet via the `equipment` list; the
+        // `feet_item` shorthand is parsed from the same field.
+        let state = EntityState {
+            distance: None,
+            is_baby: None,
+            effects: Vec::new(),
+            equipment: vec![("feet".to_string(), "minecraft:diamond_boots".to_string())],
+            stepping_block: None,
+            vehicle_type: None,
+            passenger_types: Vec::new(),
+            looking_at_type: None,
+        };
+        assert!(pred.matches_entity("minecraft:player", &state));
     }
 }

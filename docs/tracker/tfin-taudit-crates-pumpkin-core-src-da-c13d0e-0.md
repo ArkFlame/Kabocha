@@ -2,10 +2,9 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-| parse_result 99-103 | ItemStackTemplate count is validated 1..=99; out of range is a recipe error | Count is silently clamped with min(99) and 0 is accepted | Return None when count is 0 or > 99 | S | STILL OPEN (count range check; S, not attempted) |
-| parse_cooking 255-262 | cookingtime/experience are parsed as int/float with codec range checks | t as i32 and e as f32 truncate or wrap a large JSON number | Use i32::try_from(t).ok() and reject non-finite experience | S | STILL OPEN (checked int/float conversion; S, not attempted) |
-- STILL OPEN: parse_ingredient tag/item mixing and both-keys rule, parse_category strict enums, crafting_special_* suffix, brewing/transmute/dye/decorated_pot/imbue shapes (structural, not done in this pass).
-- FIXED, parse_cooking checked int/float conversion (S, row was marked STILL OPEN): the prior
+| parse_result 99-103 | ItemStackTemplate count is validated 1..=99; out of range is a recipe error | Count is silently clamped with min(99) and 0 is accepted | Return None when count is 0 or > 99 | S | FIXED (recipe_loader.rs parse_result; test result_count_must_be_within_one_to_ninety_nine) |
+| parse_cooking 255-262 | cookingtime/experience are parsed as int/float with codec range checks | t as i32 and e as f32 truncate or wrap a large JSON number | Use i32::try_from(t).ok() and reject non-finite experience | S | FIXED (recipe_loader.rs parse_cooking; test cooking_time_and_experience_use_checked_conversion) |
+- VERIFIED: parse_ingredient tag/item mixing and both-keys rule (recipe_loader.rs; object both keys rejected, list rejects tags, string #tag now Tagged; vanilla Ingredient/HolderSetCodec). VERIFIED: parse_category strict enums (parse_crafting_category/parse_cooking_category; tests). VERIFIED: crafting_special_* suffix (only registered suffixes; test). VERIFIED: brewing/transmute/dye/decorated_pot/imbue field shapes match vanilla (input/material/result etc.); BLOCKED-DATA: transmute material_count/add_material_count_to_result and result components/keep-input (OwnedRecipeResult lacks components + keep-input flag; protocol struct change) and imbue/show_notification not carried by Shapeless variant.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+FIXED: parse_result count range. FIXED: parse_cooking checked conversion. VERIFIED: parse_ingredient (vanilla Ingredient/HolderSetCodec). VERIFIED: parse_category strict enums. VERIFIED: crafting_special_* suffix. VERIFIED: brewing/transmute/dye/decorated_pot/imbue shapes. BLOCKED-DATA: transmute material_count/add_material_count_to_result + result components/keep-input (OwnedRecipeResult missing components/keep-input).

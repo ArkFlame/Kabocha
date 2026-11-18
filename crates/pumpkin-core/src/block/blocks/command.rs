@@ -19,10 +19,7 @@ use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::text::TextComponent;
 use pumpkin_world::tick::TickPriority;
-use tracing::{debug, warn};
-
-/// Vanilla `maxCommandChainLength` default; one chain run executes at most this many blocks.
-const MAX_CHAIN_LENGTH: u32 = 65536;
+use tracing::warn;
 
 /// Vanilla `CommandBlock#getStateForPlacement` faces the block away from
 /// `context.getNearestLookingDirection()`, which may point vertically. The
@@ -204,7 +201,18 @@ impl CommandBlock {
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {
-        let mut i = MAX_CHAIN_LENGTH;
+        // Vanilla `CommandBlock#executeChain` reads the `max_command_sequence_length`
+        // game rule once per chain, not a hardcoded default.
+        let max_chain_length = u32::try_from(
+            world
+                .level_info
+                .load()
+                .game_rules
+                .max_command_sequence_length
+                .max(0),
+        )
+        .unwrap_or(u32::MAX);
+        let mut i = max_chain_length;
         let mut pos = start;
 
         while i > 0 {
@@ -262,10 +270,7 @@ impl CommandBlock {
 
             i -= 1;
             if i == 0 {
-                debug!(
-                    "Command block chain executed {} times (the maximum)!",
-                    MAX_CHAIN_LENGTH
-                );
+                warn!("Command block chain executed {max_chain_length} times (the maximum)!");
             }
         }
     }

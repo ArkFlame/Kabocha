@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-- 8. Pack order model / `before vanilla`: STILL OPEN. Requires selection-order modeling in `LevelData` / `data/datapack/mod.rs`, outside allowed files.
+- 8. Pack order model / `before vanilla`: BLOCKED-DATA. Missing subsystem: a vanilla `PackRepository`-style ordered selection model stored in `LevelData` (built-in packs included in `DataPacks.enabled`), plus a rewrite of `load_all`/`load_bundled_datapacks` in `data/datapack/mod.rs` so a world pack can precede `vanilla`. Verified against `.vendor/vanilla-decompiled/net/minecraft/server/packs/repository/PackRepository.java` and `DataPackCommand.java`.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- 8. Pack order model / `before vanilla`: BLOCKED-DATA. Missing subsystem: a vanilla `PackRepository`-style ordered selection model stored in `LevelData` (built-in packs included in `DataPacks.enabled`), plus a rewrite of `load_all`/`load_bundled_datapacks` in `data/datapack/mod.rs` so a world pack can precede `vanilla`. Verified against `.vendor/vanilla-decompiled/net/minecraft/server/packs/repository/PackRepository.java` and `DataPackCommand.java`.

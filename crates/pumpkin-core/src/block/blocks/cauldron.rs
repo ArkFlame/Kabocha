@@ -4,8 +4,8 @@ use std::sync::atomic::Ordering;
 use crate::block::blocks::dripstone::{CauldronDripFluid, cauldron_drip_fluid};
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, OnEntityCollisionArgs,
-    OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
+    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, GetInsideCollisionShapeArgs,
+    OnEntityCollisionArgs, OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
 };
 use crate::entity::EntityBase;
 use crate::entity::player::Player;
@@ -527,6 +527,14 @@ impl CauldronBlock {
 }
 
 impl BlockBehaviour for CauldronBlock {
+    fn get_inside_collision_shape(&self, args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
+        // Vanilla `AbstractCauldronBlock`/`LayeredCauldronBlock`/
+        // `LavaCauldronBlock.getEntityInsideCollisionShape` return the cauldron's
+        // filled content shape (outer shell OR content column); Pumpkin approximates
+        // it with the content column, which is the part that drives suffocation.
+        content_collision_box(args.block.id, args.state.id)
+    }
+
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
         let item_id = args.item_stack.item.id;
         let block_id = args.block.id;

@@ -39,6 +39,7 @@ pub enum AdvancementTrigger {
         block_id: String,
         item_id: Option<String>,
         count: u32,
+        enchantments: Vec<(String, u32)>,
     },
     EnterBlock {
         block_id: String,
@@ -428,10 +429,13 @@ impl Player {
                 block_id,
                 item_id,
                 count,
+                enchantments,
             } => {
+                let ench_refs: Vec<(&str, u32)> =
+                    enchantments.iter().map(|(name, level)| (name.as_str(), *level)).collect();
                 self.trigger_criterion_event("minecraft:placed_block", |cond| match cond {
                     CriterionConditions::PlacedBlock(pred) => {
-                        pred.matches(&block_id, item_id.as_deref(), count, &[])
+                        pred.matches(&block_id, item_id.as_deref(), count, &ench_refs)
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,

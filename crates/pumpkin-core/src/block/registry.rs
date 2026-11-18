@@ -612,6 +612,15 @@ impl BlockRegistry {
         }
 
         // Vanilla EntityGetter.isUnobstructed filters on Entity.blocksBuilding.
+        // Marker armor stands have blocksBuilding = false in vanilla, but Pumpkin
+        // keeps the field set at spawn; treat them as non-blocking here.
+        if entity
+            .cast_any()
+            .downcast_ref::<crate::entity::decoration::armor_stand::ArmorStandEntity>()
+            .is_some_and(crate::entity::decoration::armor_stand::ArmorStandEntity::is_marker)
+        {
+            return false;
+        }
         base_entity.blocks_building
     }
 
@@ -952,11 +961,21 @@ impl BlockRegistry {
 
         self.player_placed(&world, placed_block, new_state, &final_block_pos, player);
 
+        let enchantments: Vec<(String, u32)> = stack
+            .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+            .map(|data| {
+                data.enchantment
+                    .iter()
+                    .map(|(enchantment, level)| (enchantment.registry_key.to_string(), *level as u32))
+                    .collect()
+            })
+            .unwrap_or_default();
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
                 block_id: format!("minecraft:{}", placed_block.name),
                 item_id: Some(stack.item.registry_key.to_string()),
                 count: u32::from(stack.item_count),
+                enchantments,
             },
         );
 
