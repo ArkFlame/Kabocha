@@ -48,7 +48,7 @@ Remaining gaps:
 
 ## h6 gap status
 
-- Row 47 (useOn creative branch): STILL OPEN (spectators cannot reach useOn, so no observable delta).
+- Row 47 (useOn creative branch): FIXED (see Result below; committed bfac13ead).
 - Lodestone bounds row: FIXED on master (0717776e9).
 - World spawn tracker row: FIXED on master (49c988f7c).
 
