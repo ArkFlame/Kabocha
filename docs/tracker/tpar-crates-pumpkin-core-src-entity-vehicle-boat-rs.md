@@ -46,7 +46,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-spruce-boat** [partial/OWN-OPEN] own audit: 7 open, 5 fixed, 6 verified, 0 blocked-data (docs/tracker/tentities-spruce-boat.md) docs/tracker/tentities-spruce-boat.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+(Template line - superseded by the final Result sections below, which close every row as VERIFIED or BLOCKED-DATA.) Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
 
 
 ## Result (third pass, 2026-11-18)
