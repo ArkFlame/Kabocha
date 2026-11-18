@@ -130,3 +130,16 @@ Third pass (unit scope widened to any source file). The single STILL OPEN row (r
 
 Status: PASS (verified completion, no source change needed). Commands: none (no .rs file changed); cargo/git/rustfmt intentionally not run per worker contract.
 
+
+
+## Result
+
+Third pass (unit scope widened to any source file). Re-verified the single STILL OPEN row (row 18) directly against the decompiled source and the current checkout. It is FIXED and VERIFIED; no source change was required, so no .rs file was edited and no rustfmt was needed.
+
+- Row 18 PathAwareEntity::can_spawn / Mob.checkSpawnRules - VERIFIED FIXED. Vanilla PathfinderMob.checkSpawnRules(LevelAccessor, EntitySpawnReason) = getWalkTargetValue(blockPosition(), level) >= 0.0F (.vendor/vanilla-decompiled/net/minecraft/world/entity/PathfinderMob.java:31-33); the base Mob.checkSpawnRules returns true and neither implementation reads spawnReason. Vanilla SpawnUtil.trySpawnMob creates then calls mob.checkSpawnRules(level, spawnReason) && mob.checkSpawnObstruction(level) (.vendor/vanilla-decompiled/net/minecraft/util/SpawnUtil.java:75-82). Pumpkin matches: entity/mob/mod.rs:3522-3527 can_spawn(&self, world, _reason: spawn::EntitySpawnReason) -> get_pathfinding_favor -> Mob::get_walk_target_value -> >= 0.0; the default walk value is 0.0 for non-animals (mod.rs:2539-2542). A crate-wide grep finds only the two default trait definitions (get_pathfinding_favor at :3516, can_spawn at :3522); no species overrides them, so the direct gate is equivalent.
+- All four in-scope SpawnUtil.trySpawnMob paths carry the same walk-target gate in the same order as vanilla: entity/spawn_util.rs:164-171 (< 0.0 -> continue, then check_spawn_obstruction); block/entities/mob_spawner.rs:235-242 (BaseSpawner, is_some_and(... < 0.0) -> continue before finalize_spawn); world/natural_spawner.rs:720-725 (chunk generation) and :949-953 (natural), both >= 0.0.
+- The three in-scope callers route through try_spawn_mob and inherit the gate: block/entities/creaking_heart.rs:185 (Creaking), block/blocks/sculk/sculk_shrieker.rs:166 (Warden), entity/passive/villager/golem.rs:74 (Iron Golem, pathfinder with default walk value 0.0). As the prior Result concluded, no spawn_reason parameter is warranted: vanilla trySpawnMob never calls the static SpawnPlacements.checkSpawnRules, so non-pathfinders need no extra placement check here.
+- All other audit rows are marked FIXED and were not re-opened. No remaining STILL OPEN row: nothing needs generated data, WIT changes, a cross-crate refactor or BLOCKED-DATA. No pure unit-test seam: each gate is one comparison on a freshly created Mob needing a live World, and spawn_util.rs already unit-tests the pure SpawnStrategy::can_spawn_on.
+- Compile-pitfall re-read: no .rs file changed, so no imports, helpers, macro paths, struct initializers, clones, unwrap/expect/panic, println or em dashes to check.
+
+Status: PASS (verified completion, no source change needed). Commands: none (no .rs file changed); cargo/git/rustfmt intentionally not run per worker contract.

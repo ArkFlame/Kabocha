@@ -154,7 +154,7 @@ and the current shared macro in
 `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`.
 Every row premise that predicted a Pumpkin divergence is false for this decompile; the already-applied
 fixes match vanilla. No further source edit or new test was required. Terminal labels now use
-FIXED / VERIFIED as required; no originally open remains.
+FIXED / VERIFIED as required; no open row remains.
 
 - NBT keys (row 1): FIXED. Vanilla `loadAdditional`/`saveAdditional` (:205-208, :223-226) use
   `cooking_time_spent` / `cooking_total_time` / `lit_time_remaining` / `lit_total_time`. Pumpkin reads

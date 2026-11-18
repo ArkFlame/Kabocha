@@ -37,12 +37,12 @@ block entity NBT is empty in vanilla and here; generated properties (inverted, p
 for this assets version.
 
 ## Gap status
-- Row 1 comparator/analog flag: BLOCKED-DATA (`assets/blocks.json` lacks HAS_ANALOG_OUTPUT_SIGNAL for daylight_detector; needs Extractor).
-- Row 2 shape-driven light occlusion: STILL OPEN (engine has no `useShapeForLightOcclusion`; M).
-- Row 3 tickEntity re-reads world block: STILL OPEN (`block/entities/daylight_detector.rs:96-125`; safe today, S).
-- Row 4 Paper redstone-change ordering: STILL OPEN (`blocks/redstone/daylight_detector.rs:115-123`; S, needs plugin test).
-- Row 5 BLOCK_CHANGE game-event context: STILL OPEN (no listener; S).
-- Row 6 unused `update_power` wrapper: STILL OPEN (`block/entities/daylight_detector.rs:57`, no caller; XS, not removed this pass).
+- Row 1 comparator/analog flag: FIXED (comparator.rs reads detector POWER directly; vanilla ComparatorBlock.java:96-97).
+- Row 2 shape-driven light occlusion: VERIFIED (occlusion.rs lists DAYLIGHT_DETECTOR in SINGLETONS; vanilla DaylightDetectorBlock.java:30,38-45).
+- Row 3 tickEntity re-reads world block: FIXED (daylight_detector.rs:98-103 early return unless DAYLIGHT_DETECTOR; vanilla DaylightDetectorBlock.java:106-110).
+- Row 4 Paper redstone-change ordering: FIXED (daylight_detector.rs:131 plain NOTIFY_ALL; vanilla DaylightDetectorBlock.java:60-63).
+- Row 5 BLOCK_CHANGE game-event context: VERIFIED for this block (player forwarded as vibration source; affectedState produces no delta; vanilla VibrationSystem.java:445).
+- Row 6 unused `update_power` wrapper: FIXED (removed).
 
 
 ## Result
@@ -153,3 +153,44 @@ needed. This section supersedes the earlier Result sections.
 Unit-test note: no new test. The only pure seam, calculate_signal_strength, already has two
 vanilla-derived tests in blocks/redstone/daylight_detector.rs. Rows 2 and 5 are engine/API
 coupled with no pure seam, so no unit test was added.
+
+
+## Result
+
+Final pass (cross-file edits permitted). Read the unit's last Result, then re-verified every row
+against .vendor/vanilla-decompiled and the current sources. Every row is already at a terminal
+status in the code; no source edits were needed this pass. This section supersedes the earlier
+Result sections.
+
+- Row 1 (comparator analog flag): FIXED. comparator.rs:227 reads the daylight detector's POWER
+  directly (`target_state.has_analog_output_signal() || target_block == &Block::DAYLIGHT_DETECTOR`)
+  because the generated HAS_ANALOG_OUTPUT_SIGNAL flag is absent. Matches vanilla
+  ComparatorBlock#getInputSignal (ComparatorBlock.java:96-97) reading getAnalogOutputSignal.
+- Row 2 (shape-driven light occlusion): VERIFIED. crates/pumpkin-world/src/lighting/occlusion.rs
+  lists Block::DAYLIGHT_DETECTOR in SINGLETONS (line 14) and uses_shape_for_light_occlusion
+  (lines 25-39) feeds OCCLUDING_FACES from per-face solid flags (lines 42-59); the light engine
+  consumes it, and a unit test (lines 105-119) asserts only the bottom face occludes. Matches
+  vanilla DaylightDetectorBlock.SHAPE = Block.column(16,0,6) and useShapeForLightOcclusion = true
+  (DaylightDetectorBlock.java:30,38-45). Subsystem present and wired, so not BLOCKED-DATA.
+- Row 3 (tickEntity re-reads world block): FIXED. update_signal_strength
+  (daylight_detector.rs:98-103) re-reads (block,state) and returns early unless
+  block == Block::DAYLIGHT_DETECTOR before decoding props. Equivalent to vanilla tickEntity
+  passing its own state (DaylightDetectorBlock.java:106-110).
+- Row 4 (Paper redstone-change ordering): FIXED. daylight_detector.rs:131 uses plain NOTIFY_ALL;
+  on_block_state_set returns early on unchanged state, reproducing vanilla
+  LevelChunk.setBlockState null / Level.setBlockAndUpdate no-op (DaylightDetectorBlock.java:60-63).
+  Cancellation still returns early, consistent with other redstone components.
+- Row 5 (BLOCK_CHANGE game-event context): VERIFIED for this block. The player half of
+  GameEvent.Context.of(player, newState) is forwarded as the vibration source via
+  emit_game_event_with_source(..., Some(player)) (daylight_detector.rs:47-51) and consumed by
+  Pumpkin's listener (vibration.rs:226-234). The affectedState half is read in vanilla only by
+  VibrationSystem.Listener#isVibrationSourceValid, to suppress the vibration when affectedState is
+  in #minecraft:dampens_vibrations (VibrationSystem.java:445); a daylight detector state is never
+  in that tag, so carrying it is a behavioural no-op. Adding an affected_state field to
+  GameEventContext would touch ~35 struct literals plus the plugin payload, none in this unit.
+- Row 6 (unused update_power wrapper): FIXED. No update_power method remains in
+  block/entities/daylight_detector.rs; the impl block holds only ID and new.
+
+Unit-test note: no new test. The only pure seam, calculate_signal_strength, already has two
+vanilla-derived tests in blocks/redstone/daylight_detector.rs, and occlusion.rs has a bottom-face
+occlusion test. Rows 1 and 5 are registry/API coupled with no pure seam.
