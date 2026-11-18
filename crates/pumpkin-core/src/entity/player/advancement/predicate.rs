@@ -961,9 +961,9 @@ impl EntityDistance {
 pub struct EntityState {
     pub distance: Option<EntityDistance>,
     pub is_baby: Option<bool>,
-    pub effects: Option<Vec<Effect>>,
-    /// Slot name to item id, as vanilla equipment predicate reads them.
-    pub equipment: Option<Vec<(String, String)>>,
+    pub effects: Vec<Effect>,
+    /// Slot name to item id, as the equipment predicate reads them.
+    pub equipment: Vec<(String, String)>,
     /// Block under the entity, set only when it is on the ground;
     /// vanilla skips `SteppingOnPredicate` otherwise.
     pub stepping_block: Option<String>,
@@ -978,21 +978,26 @@ impl EntityState {
     ) -> Self {
         let effects = living
             .active_effects
-            .try_lock()
-            .ok()
-            .map(|map| map.values().cloned().collect::<Vec<Effect>>());
-        let equipment = living.entity_equipment.try_lock().ok().map(|eq| {
-            eq.equipment
-                .iter()
-                .filter(|(_, stack)| !stack.is_empty())
-                .map(|(slot, stack)| {
-                    (
-                        slot.to_name().to_string(),
-                        stack.item.registry_key.to_string(),
-                    )
-                })
-                .collect::<Vec<(String, String)>>()
-        });
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .values()
+            .cloned()
+            .collect::<Vec<Effect>>();
+        let equipment_guard = living
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let equipment = equipment_guard
+            .equipment
+            .iter()
+            .filter(|(_, stack)| !stack.is_empty())
+            .map(|(slot, stack)| {
+                (
+                    slot.to_name().to_string(),
+                    stack.item.registry_key.to_string(),
+                )
+            })
+            .collect::<Vec<(String, String)>>();
         let stepping_block = living
             .entity
             .on_ground
@@ -1016,7 +1021,7 @@ impl std::fmt::Debug for EntityState {
         f.debug_struct("EntityState")
             .field("distance", &self.distance)
             .field("is_baby", &self.is_baby)
-            .field("effects", &self.effects.as_ref().map(Vec::len))
+            .field("effects", &self.effects.len())
             .field("equipment", &self.equipment)
             .field("stepping_block", &self.stepping_block)
             .finish()
@@ -1146,8 +1151,7 @@ impl EntityPredicate {
             return false;
         }
         if let Some(effects) = &self.effects
-            && let Some(active) = state.effects.as_ref()
-            && !effects.matches(active)
+            && !effects.matches(&state.effects)
         {
             return false;
         }
@@ -1160,11 +1164,12 @@ impl EntityPredicate {
             }
         }
         self.equipment.iter().all(|(slot, predicate)| {
-            state.equipment.as_ref().is_none_or(|equipped| {
-                equipped.iter().any(|(equipped_slot, item)| {
+            state
+                .equipment
+                .iter()
+                .any(|(equipped_slot, item)| {
                     equipped_slot == slot && predicate.matches(item, 1, &[])
                 })
-            })
         })
     }
 
@@ -1263,6 +1268,7 @@ impl EntityPredicate {
                 slots
                     .iter()
                     .map(|(slot, pred)| (slot.clone(), ItemPredicate::from_value(pred)))
+                    .collect::<Vec<(String, ItemPredicate)>>()
                     .collect()
             })
             .unwrap_or_default();
@@ -4008,8 +4014,8 @@ mod tests {
         let state = EntityState {
             distance: None,
             is_baby: None,
-            effects: Some(vec![active(&StatusEffect::SPEED)]),
-            equipment: Some(vec![(
+            effects: vec![active(&StatusEffect::SPEED)],
+            equipment: vec![(
                 "head".to_string(),
                 "minecraft:leather_helmet".to_string(),
             )]),
@@ -4017,14 +4023,13 @@ mod tests {
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state.clone();
-        if let Some(effects) = &mut amplified.effects
-            && let Some(effect) = effects.first_mut()
+        if let Some(effect) = amplified.effects.first_mut()
         {
             effect.amplifier = 1;
         }
         assert!(pred.matches_entity("minecraft:cow", &amplified));
         let mut wrong_head = amplified.clone();
-        wrong_head.equipment = Some(vec![(
+        wrong_head.equipment = vec![(
             "head".to_string(),
             "minecraft:diamond_helmet".to_string(),
         )]);
