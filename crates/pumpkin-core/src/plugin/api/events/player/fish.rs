@@ -29,6 +29,9 @@ pub enum PlayerFishState {
 
     /// A fish bit the hook.
     Bite,
+
+    /// The hook was lured toward the fish.
+    Lured,
 }
 
 /// An event that occurs when a player fishes.
