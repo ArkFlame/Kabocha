@@ -971,6 +971,9 @@ pub struct EntityState {
     pub stepping_block: Option<String>,
     /// Vehicle entity type, matching vanilla `VehiclePredicate` (`entity.getVehicle()`).
     pub vehicle_type: Option<String>,
+    /// Types of this entity's passengers, read by vanilla `PassengerPredicate.matches`
+    /// via `entity.getPassengers()`.
+    pub passenger_types: Vec<String>,
 }
 
 impl EntityState {
@@ -1018,6 +1021,14 @@ impl EntityState {
                 vehicle.get_entity().entity_type.resource_name
             )
         });
+        let passenger_types = living
+            .entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|p| format!("minecraft:{}", p.get_entity().entity_type.resource_name))
+            .collect::<Vec<String>>();
         Self {
             distance,
             is_baby: Some(living.is_baby()),
@@ -1025,6 +1036,7 @@ impl EntityState {
             equipment,
             stepping_block,
             vehicle_type,
+            passenger_types,
         }
     }
 }
@@ -1038,6 +1050,7 @@ impl std::fmt::Debug for EntityState {
             .field("equipment", &self.equipment)
             .field("stepping_block", &self.stepping_block)
             .field("vehicle_type", &self.vehicle_type)
+            .field("passenger_types", &self.passenger_types)
             .finish()
     }
 }
@@ -1185,6 +1198,15 @@ impl EntityPredicate {
             if !vehicle.matches(RegistryKey::EntityType, actual) {
                 return false;
             }
+        }
+        // Vanilla PassengerPredicate.matches succeeds when any passenger matches.
+        if let Some(passenger) = &self.passenger_type
+            && !state
+                .passenger_types
+                .iter()
+                .any(|actual| passenger.matches(RegistryKey::EntityType, actual))
+        {
+            return false;
         }
         self.equipment.iter().all(|(slot, predicate)| {
             state.equipment.iter().any(|(equipped_slot, item)| {
@@ -4068,6 +4090,7 @@ mod tests {
             equipment: vec![("head".to_string(), "minecraft:leather_helmet".to_string())],
             stepping_block: None,
             vehicle_type: None,
+            passenger_types: Vec::new(),
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state;
@@ -4092,5 +4115,19 @@ mod tests {
         assert!(pred.matches_entity("minecraft:player", &state));
         state.vehicle_type = Some("minecraft:minecart".to_string());
         assert!(!pred.matches_entity("minecraft:player", &state));
+    }
+
+    #[test]
+    fn entity_passenger_predicate_is_enforced() {
+        let pred = EntityPredicate::from_value(&json!({
+            "passenger": {"type": "minecraft:goat"}
+        }));
+        let mut state = EntityState::default();
+        // Vanilla PassengerPredicate.matches fails when there is no passenger.
+        assert!(!pred.matches_entity("minecraft:boat", &state));
+        state.passenger_types.push("minecraft:pig".to_string());
+        assert!(!pred.matches_entity("minecraft:boat", &state));
+        state.passenger_types.push("minecraft:goat".to_string());
+        assert!(pred.matches_entity("minecraft:boat", &state));
     }
 }
