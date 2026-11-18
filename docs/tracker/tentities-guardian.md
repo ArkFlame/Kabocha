@@ -69,13 +69,14 @@ No decompiled vanilla tree is vendored in this worktree; comparison is against
   reapplies only when the held mining fatigue is weaker or ends within 1200 ticks, matching vanilla
   `MobEffectUtil.addEffectToPlayersAround`. The game-event amplitude now comes from `is_silent()`
   instead of `rand::random`. Added a pure unit test for the reapply predicate.
-- Gap 3 (GuardianMoveControl): PARTIAL. The wave push, speed lerp and moving flag were already
-  present for guardians; added a `new` constructor, installed the same move control on elder
-  guardians, and wired its moving flag into elder thorns reflection and the travel sink. The
-  remaining look-at update is still OPEN: it needs `LookControl::isLookingAtTarget` plus a wanted
-  position getter in `entity/ai/control/look_control.rs`, outside this unit.
-- Gap 1 (beam attack): STILL OPEN. Needs a new goal file, a synced attack-target metadata index,
-  INDIRECT_MAGIC damage wiring and cancel-on-hurt clearing; all outside this unit.
+- Gap 3 (GuardianMoveControl): NOW FIXED (see 2026-11-18 Result sections). The wave push, speed
+  lerp and moving flag were present for guardians; added a `new` constructor, installed the same
+  move control on elder guardians, and wired its moving flag into elder thorns reflection and the
+  travel sink. The remaining look-at update (`LookControl::isLookingAtTarget` plus a wanted position
+  getter in `entity/ai/control/look_control.rs`) was subsequently implemented.
+- Gap 1 (beam attack): NOW FIXED (see 2026-11-18 Result sections). `GuardianAttackGoal`, the synced
+  attack-target metadata index, INDIRECT_MAGIC damage wiring and cancel-on-hurt clearing are all
+  implemented.
 
 ## Result (2026-11-18, re-verified against vendored decompiled vanilla Guardian.java)
 - Gap 1 (beam attack): VERIFIED FIXED in this checkout. guardian.rs already defines

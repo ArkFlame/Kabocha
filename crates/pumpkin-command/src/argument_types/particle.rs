@@ -111,7 +111,7 @@ impl<S: crate::source::CommandSource> ArgumentType<S> for ParticleArgumentType {
         vec![
             "foo".to_string(),
             "foo:bar".to_string(),
-            "particle".to_string(),
+            "particle{foo:bar}".to_string(),
         ]
     }
 

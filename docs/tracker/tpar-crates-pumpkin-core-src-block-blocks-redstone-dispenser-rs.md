@@ -8,5 +8,18 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-experience-bottle** [partial/OWN-OPEN] own audit: 2 open, 2 fixed, 3 verified, 0 blocked-data (docs/tracker/tentities-experience-bottle.md) docs/tracker/tentities-experience-bottle.md
 - **own/tentities-ominous-item-spawner** [partial/OWN-OPEN] own audit: 2 open, 4 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-ominous-item-spawner.md) docs/tracker/tentities-ominous-item-spawner.md
 
-## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+## Result (third pass, final)
+
+Every row in this unit is now closed: FIXED, VERIFIED against the vendored decompiled
+vanilla at .vendor/vanilla-decompiled/net/minecraft/, or a confirmed false positive.
+No row is left STILL OPEN, and no generated pumpkin-data field, WIT change or whole
+missing subsystem is required, so there is no BLOCKED-DATA row. No .rs file was changed
+this pass (the implementation already matches vanilla), so rustfmt was not needed.
+
+| Row | Status | Evidence |
+|---|---|---|
+| blocks/Dispenser | VERIFIED, no change | Redstone trigger/tick and random-slot dispatch match .vendor/vanilla-decompiled/net/minecraft/world/level/block/DispenserBlock.java (neighborChanged 128-140: signal on self or above, 4-tick schedule, TRIGGERED; tick 142-145; dispenseFrom 80-101: random slot then fail sound + GameEvent.BLOCK_ACTIVATE when empty). dispenser.rs on_neighbor_update (232-256) and on_scheduled_tick (258-284) mirror this. Projectile spawn offset (0.7 out + 0.1 up, projectile_spawn_position 439-449) matches DispenserBlock.getDispensePosition (162-170, scale 0.7) plus the position function offset; power/uncertainty constants (293-301: 1.1/6.0 default, 1.375/3.0 potion) match .vendor/vanilla-decompiled/net/minecraft/core/dispenser/ProjectileDispenseBehavior.java (56) and .vendor/vanilla-decompiled/net/minecraft/world/item/ExperienceBottleItem.java:64-67; projectile-launch sound 1002 matches ProjectileDispenseBehavior.playSound (65-68). |
+| own/tentities-dark-oak-boat-8ee305 | VERIFIED (sub-doc final) | Both rows fixed and re-verified against .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java (tick 300-328 / getPaddleSound 410-416 and getGroundFriction 506-540). Fixes live in boat.rs (play_paddle_sounds) and boat/physics.rs (average_ground_friction count==0 guard + tests), outside this unit originally named files; see docs/tracker/tentities-dark-oak-boat-8ee305.md final Result. |
+| own/tentities-experience-bottle-640105 | VERIFIED (sub-doc final) | All five rows closed against decompiled vanilla: dispense power 1.375/3.0 (ExperienceBottleItem.java:64-67), throw spawn at eye Y - 0.1 (throwableitemprojectile/ThrowableItemProjectile.java:32-35), splash particles+sound 2002/2007 + 1053/1054 (AbstractThrownPotion.java:87-97), XP orb split/merge (ExperienceOrb.java:274-316), and pure unit tests, plus silent gate. See docs/tracker/tentities-experience-bottle-640105.md third-pass Result. |
+| own/tentities-experience-bottle | VERIFIED (sub-doc final) | All rows resolved against ThrownExperienceBottle.onHit, ExperienceBottleItem.createDispenseConfig and ThrowableItemProjectile.setItem (copyWithCount(1), ThrowableItemProjectile.java:39-41); stack-count row confirmed false positive. See docs/tracker/tentities-experience-bottle.md final Result. |
+| own/tentities-ominous-item-spawner | VERIFIED (sub-doc final) | All five rows checked against .vendor/vanilla-decompiled/net/minecraft/world/entity/OminousItemSpawner.java and ProjectileItem.DispenseConfig: launch sound only for firework/fire-charge/wind-charge (spurious 1002 emission removed), particle data flag 1 confirmed, spawn origin = entity position not bbox centre, experience-bottle config 1.375/3.0 correct, explosion immunity via hurtServer returning false. See docs/tracker/tentities-ominous-item-spawner.md final Result. |
