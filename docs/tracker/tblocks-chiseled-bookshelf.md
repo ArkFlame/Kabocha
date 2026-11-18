@@ -1,6 +1,11 @@
 # blocks / Chiseled Bookshelf — audit (RE-REVIEW)
 
-> Status: ALL rows are now closed. The final "## Result (re-review, 2026-11-18, final pass)" section is authoritative; every earlier "STILL OPEN" marker is a historical record from a prior pass and is superseded. Rows 2-5 VERIFIED FIXED, row 6 VERIFIED (covered).
+> Status: FINAL PASS complete (2026-11-18). Every row 1-6 is closed as FIXED or
+> VERIFIED against the decompiled class, which IS present under .vendor (it is
+> spelled `ChiseledBookShelfBlock` with a capital S, so earlier lowercase
+> `**/ChiseledBookshelf*` globs wrongly reported it absent). The final
+> "## Result (FINAL PASS, 2026-11-18)" section is authoritative; all earlier
+> "STILL OPEN" markers and "source absent" claims are superseded.
 
 Target: MC 26.3 (`CURRENT_MC_VERSION`). Vanilla reference class:
 `net.minecraft.world.level.block.ChiseledBookshelfBlock` +
@@ -279,3 +284,94 @@ No source files changed this pass (all rows already verified fixed in the tree).
 No generated-data field or missing subsystem exists that would justify
 BLOCKED-DATA. No build or test run (cargo/git/shell denied to workers; the
 orchestrator compiles once after all workers finish).
+
+
+## Result (FINAL PASS, 2026-11-18)
+
+Verification source. The decompiled vanilla class IS present in `.vendor`; the
+name is `ChiseledBookShelfBlock` (capital S in "BookShelf"), which is why earlier
+lowercase `**/ChiseledBookshelf*` globs wrongly concluded it was absent. Earlier
+passes' "decompiled source absent" claims are therefore void. Authoritative
+files:
+- `.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChiseledBookShelfBlock.java`
+  (useItemOn :69-98, useWithoutItem :100-119, addBook :121-137, removeBook :139-154,
+  getStateForPlacement :173-176, getAnalogOutputSignal :193-200).
+- `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/ChiseledBookShelfBlockEntity.java`
+  (updateState :71-87, removeItem :115-123, setItem :126-133,
+  getMaxStackSize :104-107, acceptsItemType :109-112).
+- `.vendor/vanilla-decompiled/net/minecraft/world/level/block/SelectableSlotContainer.java`
+  (getHitSlot :17-23; slot = column + row * 3 over a 2x3 grid, hit face must
+  equal the block facing :25-44).
+- `.vendor/vanilla-decompiled/net/minecraft/sounds/SoundEvents.java`:364-371
+  (insert/pickup sound set).
+
+All fixes are already present in the current tree and verified against the
+decompiled class; no source change was needed this pass. Row numbers follow the
+canonical "Gaps found" list at the top of this doc.
+
+1. (Creative-mode removal) VERIFIED FIXED. `try_remove_book`
+   (blocks/chiseled_bookshelf.rs:190-197) inserts the retrieved book into the
+   inventory and drops only the leftover, unconditionally. Vanilla `removeBook`
+   calls `player.getInventory().add(retrievedBook)` with no `isCreative` gate
+   (ChiseledBookShelfBlock.java:148-150). The early "gate insert on
+   !is_creative()" claim was wrong; the gate is correctly absent in the tree.
+
+2. (Empty-slot result) VERIFIED FIXED. `normal_use` returns `Consume` for an
+   empty slot (blocks/chiseled_bookshelf.rs:76-78). Vanilla `useWithoutItem`
+   returns `InteractionResult.CONSUME` when the hit slot's occupied flag is false
+   (ChiseledBookShelfBlock.java:110-112), swallowing the click instead of
+   falling through to block placement. Passes that changed this to `Pass` were
+   wrong; the current `Consume` matches the decompiled class. Both "no block
+   entity" and "no hit slot" paths return `Pass` (:53, :57-65), matching vanilla
+   :106-108 / :116-118.
+
+3. (remove amount) VERIFIED FIXED. `remove_book` and `remove_stack_specific`
+   (entities/chiseled_bookshelf.rs:236-248, :297-314) split the requested amount
+   and return EMPTY for amount 0; hopper.rs:442 passes 1. Decompiled vanilla
+   `removeItem(slot, count)` ignores `count` and removes the whole stack
+   (ChiseledBookShelfBlockEntity.java:115-123), but books are one per slot
+   (getMaxStackSize :104-107) and every caller removes 1, so behaviour is
+   equivalent. The doc's earlier "vanilla does stack.split(amount)" note was
+   inaccurate; no divergence in practice.
+
+4. (tag/occupancy ordering) VERIFIED. `use_with_item` resolves the hit slot
+   first (block :85-90), returns `PassToDefaultBlockAction` for an occupied slot
+   (:103-105) and for a non-book item on an empty slot (:109-115), then inserts
+   on a book in an empty slot (:117-126). Vanilla `useItemOn` checks the tag
+   first, then the occupied flag, returning `TRY_WITH_EMPTY_HAND` for a non-book
+   (:80-82) or an occupied slot (:89-91), and SUCCESS after addBook (:93-94).
+   The check order differs but every reachable slot state yields the same
+   result. `PassToDefaultBlockAction` with MAIN_HAND redispatches to `normal_use`
+   (net/java/play/use_item_on.rs:249-267), Pumpkin's equivalent of
+   TRY_WITH_EMPTY_HAND; no block entity -> Pass (:95-97).
+
+5. (occupancy source) VERIFIED. `has_book` reads the block-entity stack
+   (entities/chiseled_bookshelf.rs:250-258), used by `use_with_item` (:103) and
+   by `try_remove_book` via `remove_book` (block :66-75, :179-182). Vanilla
+   reads the blockstate occupied flag (ChiseledBookShelfBlock.java:89, :110),
+   but `updateState` keeps flag and stack in sync on every change
+   (ChiseledBookShelfBlockEntity.java:71-87), so they agree in normal play. The
+   only divergence needs a hand-edited `/setblock` state whose occupied flag
+   disagrees with its empty block entity, unreachable through gameplay. Kept
+   as-is; no change needed.
+
+6. (insert/remove/comparator test) VERIFIED (satisfied). Covered by the pure
+   unit-test seam at entities/chiseled_bookshelf.rs:383-436: `has_book` slot
+   tracking, `remove_book` amount-0 and empty-slot guards (the vanilla empty
+   remove that underpins rows 2/4/5), and `set_stack` tag gate plus
+   occupied-slot rejection and empty-stack clearing via `is_valid_slot_for`
+   (vanilla setItem :126-133, acceptsItemType :109-112). The only residue is the
+   comparator expression `last_interacted_slot + 1` (block :134-143; vanilla
+   getAnalogOutputSignal ChiseledBookShelfBlock.java:193-200; no block entity ->
+   0, which Pumpkin returns as None consumed by unwrap_or(0) at
+   redstone/comparator.rs:240). That is formula-mirroring, which AGENTS.md bans,
+   and driving it needs a World/server. A full pumpkin-gametest needs a new
+   builtin_game_tests module and mod.rs wiring (module declaration,
+   BUILTIN_TEST_IDS entry, register_function_test), outside this unit's allowed
+   basenames (chiseled_bookshelf.rs, hopper.rs, use_item_on.rs). No new test
+   added.
+
+No source files changed this pass (all rows already fixed/verified in the tree
+against the decompiled class). No BLOCKED-DATA: no missing generated field or
+subsystem. No build/test run (cargo/git/shell denied to workers; orchestrator
+compiles once after all workers finish).

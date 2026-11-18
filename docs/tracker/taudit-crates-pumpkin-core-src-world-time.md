@@ -227,3 +227,33 @@ Verification detail:
 - `java/client/play/set_time.rs` `CUpdateTime` codec (VarLong total ticks, f32 partial tick, f32 rate, VarInt clock id for 26.1+; legacy day time + doDaylightCycle for older clients) matches vanilla `ClientboundSetTimePacket`; round-trip tests exist. `send_game_time_sync` carries the per-player day-time override and the frozen flag, and `world_clocks` persistence has a round-trip test.
 
 No new unit test: every pure seam in `time.rs`, `environment.rs` and `set_time.rs` already has a failing-without-fix test, so another would duplicate them. No source edits made, so rustfmt was not needed.
+
+
+## Result (final pass)
+
+Re-verified every gap row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` and against the in-unit source
+(`time.rs`, `environment.rs`, `environment_attribute.rs`,
+`java/client/play/set_time.rs`, `data/datapack/dynamic_registry_loader.rs`).
+No `STILL OPEN` rows and no "STILL OPEN until closed..." line remain; no source
+edits were needed. All paths below are under
+`/run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/.vendor/vanilla-decompiled/net/minecraft/`.
+
+| # | Verdict | Vanilla evidence |
+|---|---------|------------------|
+| 1 | VERIFIED | Bedrock `SetTime` has no frozen field; `send_game_time_sync` (`world/time.rs`) resends `CSetTime` each 20-tick sync. `java/client/play/set_time.rs` `CUpdateTime` matches `ClientboundSetTimePacket` (VarLong ticks, f32 partial tick/rate, VarInt clock id; legacy day time + doDaylightCycle for older clients). |
+| 2 | VERIFIED | `is_night()` 12600..23401 window matches `world/timeline/Timelines.java`; night skip gated by `advance_time && is_dark_outside()` in `world/mod.rs` (outside unit). |
+| 3 | VERIFIED | `SleepWakeMarker` / `resolve_time_to_move_to` / `parse_sleep_wake_marker` in `world/time.rs` match `world/clock/ClockTimeMarker.java` `resolveTimeToMoveTo` and the `Timeline.TimeMarkerInfo` codec. |
+| 4 | VERIFIED | `world_clocks` persistence (`world_clocks.dat`, `load_from`) matches the `ServerClockManager` SavedData; `world_clocks_round_trip_keeps_rate_state` test present. |
+| 5 | VERIFIED | Environment-attribute timeline tracks (`environment.rs` + generated `environment_attribute.rs`) match `world/timeline/Timelines.java`, `util/KeyframeTrackSampler.java`, `world/attribute/EnvironmentAttributeSystem.java` and `world/attribute/WeatherAttributes.java`; clock-name registry, `/time set <timemarker>` and `of <clock>` are wired. |
+| 6 | VERIFIED | `send_game_time_sync` carries the per-player day-time override and frozen flag, matching `ServerClockManager.packNetworkState`. |
+| 7 | VERIFIED | `default_clock_id` reads the `minecraft:world_clock` raw id (both `world_clock` and `timeline` loaded in `dynamic_registry_loader.rs`), matching `world/clock/WorldClocks.java` `bootstrap` (OVERWORLD registered first = 0, THE_END = 1). |
+
+No source edits: all keyframe tables, samplers, weather layering, marker resolution,
+clock registry, per-player sync and clock-id mapping are present and match vanilla.
+No new test added: every pure seam already has a failing-without-fix test
+(`clock_instance_ticking`, `level_time_set_and_add`,
+`level_time_pack_network_state_marks_frozen_clock`,
+`server_clock_manager_keeps_clocks_independent`, the three wake-marker tests,
+`default_clock_name_matches_vanilla_dimension_types`, the two daylight-detector
+weather tests and the `set_time.rs` codec tests). Another would duplicate them.
