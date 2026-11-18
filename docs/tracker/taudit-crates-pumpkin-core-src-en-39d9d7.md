@@ -91,7 +91,7 @@ Remaining gaps:
 
 Re-read the prior Result and re-checked all five rows against the decompiled vanilla in
 .vendor/vanilla-decompiled/net/minecraft/ and the live source. All rows are terminal; the
-stale STILL OPEN markers in the Remaining gaps table and Gap status were corrected.
+stale open markers in the Remaining gaps table and Gap status were corrected.
 
 - mace_smash_knockback (S): FIXED. mace_smash_knockback routes the impulse through Entity::push_by
   and still sends a motion packet to pushed players, matching MaceItem.knockback

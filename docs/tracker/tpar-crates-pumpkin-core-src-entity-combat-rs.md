@@ -14,7 +14,7 @@ STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, 
 
 Re-read the last Result of each referenced tracker and re-checked every row against the
 decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/ plus the live source. Every
-STILL OPEN row now ends FIXED, VERIFIED or BLOCKED-DATA; no parity fix was needed because all
+open row now ends FIXED, VERIFIED or BLOCKED-DATA; no parity fix was needed because all
 second-pass changes are already present in combat.rs and their call sites.
 
 - taudit-crates-pumpkin-core-src-en-39d9d7, mace_smash_knockback (S): FIXED. push_by marks the
