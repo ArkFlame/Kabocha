@@ -82,16 +82,19 @@ pub struct ButtonBlock;
 
 impl BlockBehaviour for ButtonBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        if Self::press_with_source(
+        // Vanilla `useWithoutItem` returns CONSUME only for an already-powered button; a
+        // press cancelled by `BlockRedstoneEvent` still returns SUCCESS (ButtonBlock.java:76-87).
+        let (_, state) = args.world.get_block_and_state_id(args.position);
+        if ButtonLikeProperties::from_state_id(state).powered {
+            return BlockActionResult::Consume;
+        }
+        Self::press_with_source(
             Some(args.player),
             Some(args.player.as_ref() as &dyn EntityBase),
             args.world,
             args.position,
-        ) {
-            BlockActionResult::Success
-        } else {
-            BlockActionResult::Consume
-        }
+        );
+        BlockActionResult::Success
     }
 
     fn explode(&self, args: ExplodeArgs<'_>) {

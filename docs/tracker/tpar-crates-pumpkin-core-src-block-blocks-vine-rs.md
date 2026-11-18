@@ -8,7 +8,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 Row `own/taudit-crates-pumpkin-core-src-bl-bd7395` (the five audit gaps in
 `docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md`) verified against
-decomputed vanilla this third pass. No source edits were required: `vine.rs`
+decompiled vanilla this third pass. No source edits were required: `vine.rs`
 already matches vanilla for every row. open=0.
 
 - Row 1 (`get_updated_state` recompute scope): VERIFIED, premise false.

@@ -253,3 +253,39 @@ Final status: all six rows VERIFIED/FIXED/n-a. No BLOCKED-DATA (no missing gener
 subsystem). No compile/test run by this worker (orchestrator compiles once).
 
 Status: PASS.
+
+
+## Result (final verification pass)
+
+All rows re-verified against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java` and
+`.../world/entity/vehicle/minecart/MinecartCommandBlock.java`. No STILL OPEN rows remain and no new
+source edit was needed: the second-pass Row 4 fix is present in the checkout and type-correct. The
+Folia stub `if (true) return false;` at `BaseCommandBlock.java:94` does not change the analysis of the
+reachable `performCommand` body (lines 95-140), which matches Pumpkin.
+
+- Row 1 (SuccessCount reset vs gamerule guard): VERIFIED. Vanilla clears `successCount` at line 105
+  before the `isCommandBlockEnabled()` guard at 106; Pumpkin resets at `command_block.rs:168` before
+  its guard at 169.
+- Row 2 (Searge skips lastExecution): VERIFIED. Vanilla Searge branch returns at lines 99-102 before
+  the `lastExecution` write at 134-138; Pumpkin returns at `command_block.rs:160-164` before the write
+  at 217-222.
+- Row 3 (custom_name on command-block state): VERIFIED. Vanilla `BaseCommandBlock` owns its own
+  `customName` field (line 32) and `getName()` defaults to "@" (147-149), independent of the entity
+  name; Pumpkin keeps its own `custom_name` at `command_block.rs:44`.
+- Row 4 (hardcoded protocol version in NBT): FIXED. `command_block.rs:239,250` use the version-free
+  `TextComponent::to_nbt_tag()` (`pumpkin-util/src/text/mod.rs:1697-1699`, delegating to latest
+  V_26_3 like `encode()`), matching vanilla `save()`'s version-agnostic `ComponentSerialization.CODEC`
+  (lines 53, 56). No hardcoded `CURRENT_MC_VERSION` import remains in `command_block.rs`.
+- Row 5 (gamerule-off test): FIXED. `command_block_minecart_perform_command_gamerule` lives in
+  `minecart.rs` (outside this unit's edit scope).
+- Row 6 (no server GUI fallback): n/a, risk only; vanilla opens the edit screen client-side.
+
+`set_command_minecart.rs` re-verified against vanilla `handleSetCommandMinecart`
+(`ServerGamePacketListenerImpl.java:1100-1123`): permission check, unconditional
+setCommand/setTrackOutput, gamerule-gated onUpdated, success/disabled message all match. No change.
+
+No BLOCKED-DATA (no missing generated field or subsystem). No .rs file touched this pass, so no
+rustfmt was required; no compile/test run by this worker (orchestrator compiles once).
+
+Status: PASS.
