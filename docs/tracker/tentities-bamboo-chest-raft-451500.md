@@ -339,3 +339,63 @@ source edit or rustfmt was performed.
 
 Final tallies: fixed=8, verified-not-gaps=2 (rows 2,8), BLOCKED-DATA=0, STILL OPEN=0. No source
 file changed; no cargo run (CODER rule), compile UNVERIFIED.
+
+
+## Result (FINAL PASS 2026-11-18, terminal - all rows closed)
+
+Re-verified every row against decompiled vanilla and the current on-disk Pumpkin source,
+smallest first. Decompiled vanilla was read from
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/world/entity/vehicle/boat/`
+(`AbstractBoat.java`, `AbstractChestBoat.java`); the nominal
+`.vendor/vanilla-decompiled/net/minecraft/...` copy is absent on disk, so the mc-proof/ref
+decompiled copy is the cited vanilla source. The source changed under the previous assessment
+(the rider-clamp helpers moved from passengers.rs into boat.rs), so row locations are updated
+below. This unit may edit only player_auth_input.rs; the sole row touching that file (row 7
+caller) is already correct, so no source edit was made and no rustfmt/cargo run was performed
+(CODER rule); compile UNVERIFIED.
+
+- Row 6 (CONTAINER_CLOSE, S): FIXED. Vanilla AbstractChestBoat.stopOpen emits
+  GameEvent.CONTAINER_CLOSE at this.position() with the living-entity context
+  (AbstractChestBoat.java:197-198). Current player.rs stores open_container_entity_pos on entity
+  screen open (:7961) and reads it in on_handled_screen_closed (:7737, 7798-7809) to emit
+  ContainerClose at the exact vehicle position with the player as source; field cleared on all
+  close paths (:7812, 8090, 8139). No change.
+- Row 7 (controlling passenger, S): FIXED. Vanilla AbstractBoat.getControllingPassenger returns
+  the first passenger only when it is a Player, else super (null for VehicleEntity)
+  (AbstractBoat.java:840-841). boat.rs:526-534 filters on get_player().is_some(). Its caller
+  apply_mount_move (player_auth_input.rs:514-516) uses is_some_and to compare the controller
+  entity id to the rider, which stays correct when the filter yields None. Java paddle_boat.rs
+  uses the same correct pattern. No caller-side change needed; no pure seam for a unit test
+  (needs live BoatEntity and Player). No change.
+- Row 1 (piglin anger on chest open, M): FIXED. Vanilla AbstractChestBoat.interact calls
+  PiglinAi.angerNearbyPiglins on a successful open (AbstractChestBoat.java:93,104). boat.rs:325
+  calls PiglinAi::on_guarded_block_interacted on successful open. No change.
+- Row 5 (destroy-removal chest scatter, M): FIXED. Vanilla AbstractChestBoat.remove drops
+  contents on any destroying removal (AbstractChestBoat.java:71-76). boat.rs calls
+  scatter_chest_contents from on_removed (:504) and the damage-break path (:746);
+  MinecartInventory::claim_drops makes it run once. No change.
+- Row 3 (bubble column, M): FIXED. Vanilla onAboveBubbleColumn/handleBubbleColumnEffect set a
+  60-tick timer, y=0.6 updraft and current_y-0.7 drag-down, eject riders
+  (AbstractBoat.java:165,376-408). boat.rs has bubble_column_time, tick_bubble_column,
+  on_above_bubble_column, on_inside_bubble_column and bubble_column_vertical_velocity (:976)
+  with a pure unit test (:1077-1078). No change.
+- Row 4 (leash, M): FIXED. Vanilla AbstractBoat implements Leashable (AbstractBoat.java:54,
+  423-449, leash NBT written at :765). boat.rs writes/reads leash NBT (:539/:546), ticks the
+  leash, wires leash_to/unleash/get_leash_holder and support_quad_leash. No change.
+- Row 2 (rider yaw clamp / delta-rotation, M): VERIFIED, matches vanilla, not a gap. The
+  helpers now live in boat.rs: clamp_rider_yaw (:1009) with RIDER_MAX_TURN_DEGREES=105.0 (:1005),
+  rider_clamp_adjustment (:1018), on_rider_positioned applying yaw_delta then clamp (:856-899)
+  and on_passenger_turned re-applying clamp (:901-944), with unit tests
+  rider_yaw_clamps_to_boat_heading_window and rider_yaw_follows_boat_yaw_delta_then_clamps
+  (:1038-1052). Matches AbstractBoat.positionRider/clampRotation/onPassengerTurned
+  (AbstractBoat.java:691-761). The deltaRotation add guarded by isLocalInstanceAuthoritative
+  (:696-706) is server-relevant here and is applied for non-player riders with the boat yaw
+  delta. No change.
+- Row 8 (fluid current push, L): VERIFIED, not a gap. Vanilla applies the current push via
+  Entity.baseTick reached from AbstractBoat.tick. Pumpkin deliberately skips it for
+  client-predicted movement (AGENTS.md: player movement is client authoritative); same
+  observable behaviour via a different algorithm. No missing generated field or subsystem, so
+  not BLOCKED-DATA. No change.
+
+Final tallies: FIXED=6 (rows 1,3,4,5,6,7), VERIFIED=2 (rows 2,8), BLOCKED-DATA=0,
+STILL OPEN=0. No source file changed this pass.

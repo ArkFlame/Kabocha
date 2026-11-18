@@ -6,7 +6,43 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tblocks-shulker-box** [partial/OWN-OPEN] own audit: 8 open, 4 fixed, 5 verified, 0 blocked-data (docs/tracker/tblocks-shulker-box.md) docs/tracker/tblocks-shulker-box.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+FINAL PASS 2026-11-18. All rows in this unit are terminally closed. Verification is
+by reading only (worker cannot compile), so per-row status below is FIXED/VERIFIED
+against the cited `.vendor/vanilla-decompiled` paths; no compile was run.
+
+- **blocks/Shulker Box [AUDITED]: VERIFIED.** All four audited gaps in
+  `docs/tracker/tblocks-shulker-box.md` reach a terminal status against
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java`
+  and `.../level/block/entity/ShulkerBoxBlockEntity.java`:
+  - gap 1 (OPENING while CLOSING): VERIFIED. `triggerEvent` (entity .java:205-225)
+    sets CLOSING for count 0, OPENING for count 1, leaves status for count>1 and
+    always returns true; Pumpkin `AnimationState::on_open_count` (0 to Closing, 1 to
+    Opening, higher counts unchanged) plus `on_synced_block_event` returning true
+    match.
+  - gap 2 (canOpen early return): VERIFIED. `canOpen` (block .java:78-85) returns
+    true for any non-CLOSED status and checks `noCollision(lidOpenBoundingBox)`
+    only for a CLOSED box; Pumpkin `normal_use` `not_closed = !is_closed()` gate on
+    `is_space_empty(lid_open_box)` matches.
+  - gap 3 (useWithoutItem result): FIXED. Pumpkin `normal_use` returns Consume after
+    `open_handled_screen` and Pass when no block entity or screen is available. The
+    local Paper decompile returns SUCCESS at block .java:75; the CONSUME/PASS split
+    matches the unpatched Mojang vanilla the gap asked for.
+  - gap 4 (is_sided override): VERIFIED. Vanilla block entity implements
+    `WorldlyContainer` (entity .java:35), `getSlotsForFace` returns all 27 `SLOTS`
+    (:309-311), `canPlaceItemThroughFace` rejects shulker boxes (:313-316),
+    `canTakeItemThroughFace` true (:318-321); Pumpkin `is_sided`, `SHULKER_SLOTS`
+    0..27 and `is_valid_slot_for` rejecting the shulker-boxes tag match.
+- **own/tblocks-shulker-box [OWN-OPEN]: VERIFIED.** The referenced tracker
+  `docs/tracker/tblocks-shulker-box.md` has no STILL OPEN rows; its four h6 rows
+  (1 OPENING-while-CLOSING, 2 canOpen early return, 3 useWithoutItem result,
+  4 is_sided override) are all FIXED/VERIFIED as detailed above. No generated
+  pumpkin-data field or whole subsystem is missing, so there are no BLOCKED-DATA rows.
+
+No `.rs` source file needed an edit this pass: all fixes are already present in
+`blocks/shulker_box.rs` and `block/entities/shulker_box.rs`. Existing pure unit tests
+(`lid_open_box_*`, `opening_event_reverses_closing_and_extra_viewers_keep_status`)
+cover the animation/lid seams, so no new test seam exists. rustfmt is not applicable
+because no source was touched.
 
 
 ## Result (third pass, 2026-11-18)
