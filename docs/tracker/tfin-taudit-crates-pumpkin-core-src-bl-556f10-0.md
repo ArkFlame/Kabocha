@@ -11,7 +11,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 - Row 1 (can_update_at convention): VERIFIED. `placement_target` already passes `face.opposite()` (support direction) to `can_update_at` in both branches; `slabs.rs` converts back via `args.direction.opposite()` to the raw clicked face (`SlabBlock.java:77-91`), and `sculk/sculk_vein.rs` uses the support direction (`MultifaceBlock.java:168-170`, `getStateForPlacement` placementDirection points at the support). Convention is consistent; no change.
 - Row 2 (Other vs None): VERIFIED. `BlockPlaceContext.java:15,59-61` exposes only `replaceClicked` plus fluid state; Pumpkin encodes replaceClicked via `Other` (clicked branch, replaceClicked true) vs `None` (destination branch, replaceClicked false). No block branches on the variant beyond `Itself`/water, so behaviour matches. Cite `BlockPlaceContext.java:15,59-61`.
-- Row 3 (inside-collision default): VERIFIED. Vanilla `BlockBehaviour.java:336-338` returns `Shapes.block()` (full block) by default; Pumpkin `registry.rs:1624` returns `BoundingBox::full_block()`. Matches. Cite `BlockBehaviour.java:336-338`.
+- Row 3 (inside-collision default): VERIFIED. Vanilla `BlockBehaviour.java:336-338` returns `Shapes.block()` (full block) by default; Pumpkin `registry.rs:1643` returns `BoundingBox::full_block()`. Matches. Cite `BlockBehaviour.java:336-338`.
 - Row 4 (isPathfindable Water default): VERIFIED. Vanilla `BlockBehaviour.java:130-135` returns `state.getFluidState().is(FluidTags.WATER)` for `WATER`; Pumpkin `mod.rs:333-335` checks the water fluid tag. Matches. Cite `BlockBehaviour.java:130-135`.
 
 No source edits required; all rows already match decompiled vanilla.
