@@ -597,6 +597,7 @@ macro_rules! impl_block_entity_for_cooking {
                         // Vanilla only ignites, and Paper only fires `FurnaceBurnEvent`, when the
                         // fuel reports a non-zero burn duration.
                         let mut burn_cancelled = adjusted_fuel_ticks == 0;
+                        let mut consume_fuel = true;
                         if !burn_cancelled && let Some(server) = world.server.upgrade() {
                             let mut burn_event = $crate::plugin::api::events::inventory::furnace_burn::FurnaceBurnEvent::new(
                                 self.position,
@@ -604,6 +605,7 @@ macro_rules! impl_block_entity_for_cooking {
                                 adjusted_fuel_ticks as u32,
                             );
                             server.plugin_manager.fire_blocking(&server, &mut burn_event);
+                            consume_fuel = burn_event.consume_fuel;
                             if burn_event.cancelled {
                                 burn_cancelled = true;
                             } else {
@@ -629,7 +631,9 @@ macro_rules! impl_block_entity_for_cooking {
 
                             if self.is_burning() {
                                 is_dirty = true;
-                                if let Ok(mut items_guard) = self.items.try_write() {
+                                // Paper: setConsumeFuel(false) keeps the furnace lit but skips
+                                // consumeFuel, leaving the fuel slot untouched.
+                                if consume_fuel && let Ok(mut items_guard) = self.items.try_write() {
                                     if !items_guard[1].is_empty() {
                                         let remainder = items_guard[1].item.crafting_remainder;
                                         items_guard[1].decrement(1);

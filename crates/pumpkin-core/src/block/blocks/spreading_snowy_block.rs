@@ -127,6 +127,7 @@ impl SpreadingSnowyBlock {
             let mut event = crate::plugin::api::events::block::block_fade::BlockFadeEvent::new(
                 *pos,
                 state.id.to_block(),
+                base_block.default_state.id,
             );
             if let Some(server) = world.server.upgrade() {
                 server.plugin_manager.fire_blocking(&server, &mut event);

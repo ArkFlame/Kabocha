@@ -573,20 +573,29 @@ impl BlockRegistry {
             return false;
         }
         if behaviour.is_bonemeal_success(args) {
+            // Grow first so the event can list every state the growth wrote, then
+            // revert on cancellation because perform_bonemeal returns no old states.
+            let changes = world.capture_bonemeal_changes(|| behaviour.perform_bonemeal(args));
             if let Some(server) = world.server.upgrade() {
+                let changed_blocks: Vec<_> = changes
+                    .iter()
+                    .map(|(changed_pos, _, new_state)| (*changed_pos, *new_state))
+                    .collect();
                 let mut event =
                     crate::plugin::api::events::block::block_fertilize::BlockFertilizeEvent::new(
                         *position,
                         world.clone(),
                         None,
-                        vec![],
+                        changed_blocks,
                     );
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 if event.cancelled {
+                    for (changed_pos, old_state, _) in &changes {
+                        world.set_block_state(changed_pos, *old_state, BlockFlags::NOTIFY_ALL);
+                    }
                     return false;
                 }
             }
-            behaviour.perform_bonemeal(args);
         }
         true
     }

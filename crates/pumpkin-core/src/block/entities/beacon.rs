@@ -1,8 +1,9 @@
 use std::any::Any;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 
 use pumpkin_data::Block;
+use pumpkin_data::dye_color::DyeColor;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::potion::Effect;
@@ -24,6 +25,119 @@ use crate::world::World;
 const MAX_LEVELS: i32 = 4;
 const BLOCKS_CHECK_PER_TICK: i32 = 10;
 
+/// One `BeaconBeamOwner.Section`: a run of beam blocks sharing the (possibly averaged) colour.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BeamSection {
+    color: u32,
+    height: i32,
+}
+
+impl BeamSection {
+    const fn new(color: u32) -> Self {
+        Self { color, height: 1 }
+    }
+
+    const fn increase_height(&mut self) {
+        self.height += 1;
+    }
+
+    #[must_use]
+    pub const fn color(&self) -> u32 {
+        self.color
+    }
+
+    #[must_use]
+    pub const fn height(&self) -> i32 {
+        self.height
+    }
+}
+
+#[derive(Default)]
+struct BeamState {
+    /// Sections built by the scan in progress (`checkingBeamSections`).
+    checking: Vec<BeamSection>,
+    /// Last completed scan's sections (`beamSections`).
+    sections: Vec<BeamSection>,
+}
+
+/// One scanned column block, as seen by `BeaconBlockEntity.tick`.
+#[derive(Clone, Copy)]
+enum BeamObservation {
+    /// A `BeaconBeamBlock` with its diffuse colour.
+    Beam(u32),
+    /// A transparent block the beam passes through, growing the current section.
+    Pass,
+    /// An opaque block, bedrock excepted, that cuts the beam.
+    Blocked,
+}
+
+/// `ARGB.average`: per-channel integer average of two packed ARGB colours.
+const fn argb_average(lhs: u32, rhs: u32) -> u32 {
+    let alpha = ((lhs >> 24) + (rhs >> 24)) / 2;
+    let red = (((lhs >> 16) & 0xFF) + ((rhs >> 16) & 0xFF)) / 2;
+    let green = (((lhs >> 8) & 0xFF) + ((rhs >> 8) & 0xFF)) / 2;
+    let blue = ((lhs & 0xFF) + (rhs & 0xFF)) / 2;
+    (alpha << 24) | (red << 16) | (green << 8) | blue
+}
+
+/// The `BeaconBeamBlock.getColor().getTextureDiffuseColor()` for a beam block.
+fn beam_color(block: &Block) -> u32 {
+    if block == &Block::BEACON {
+        return DyeColor::White.texture_diffuse_color();
+    }
+    block
+        .name
+        .strip_suffix("_stained_glass")
+        .or_else(|| block.name.strip_suffix("_stained_glass_pane"))
+        .and_then(DyeColor::by_name)
+        .unwrap_or(DyeColor::White)
+        .texture_diffuse_color()
+}
+
+/// Applies one scanned block to `sections`, mirroring vanilla's per-block branch.
+/// Returns `false` when the beam is cut and `sections` has been cleared.
+fn append_beam_block(sections: &mut Vec<BeamSection>, observation: BeamObservation) -> bool {
+    match observation {
+        BeamObservation::Beam(color) => {
+            if sections.len() <= 1 {
+                sections.push(BeamSection::new(color));
+            } else if let Some(last) = sections.last_mut() {
+                if last.color == color {
+                    last.increase_height();
+                } else {
+                    let averaged = argb_average(last.color, color);
+                    sections.push(BeamSection::new(averaged));
+                }
+            }
+            true
+        }
+        BeamObservation::Pass => {
+            if sections.is_empty() {
+                return false;
+            }
+            if let Some(last) = sections.last_mut() {
+                last.increase_height();
+            }
+            true
+        }
+        BeamObservation::Blocked => {
+            sections.clear();
+            false
+        }
+    }
+}
+
+#[cfg(test)]
+fn build_beam_sections(observations: &[BeamObservation]) -> Vec<BeamSection> {
+    let mut sections = Vec::new();
+    for observation in observations {
+        if !append_beam_block(&mut sections, *observation) {
+            break;
+        }
+    }
+    sections
+}
+
 pub struct BeaconBlockEntity {
     pub position: BlockPos,
     /// Encoded via [`encode_effect`]: `0` = none, otherwise `effect id + 1`.
@@ -36,6 +150,9 @@ pub struct BeaconBlockEntity {
     /// Whether the scan in progress has no beam yet: set on reset, cleared once the scan
     /// passes the beacon itself, set again by an opaque block.
     checking_beam_blocked: AtomicBool,
+    /// Beam colour/height sections tracked by the same scan as vanilla's
+    /// `checkingBeamSections`/`beamSections`.
+    beam: Mutex<BeamState>,
     last_check_y: AtomicI32,
     /// Set by `BlockEntity::set_world`; lets `set_property` play the select sound from the
     /// world handle instead of deferring it to the next tick.
@@ -63,6 +180,7 @@ impl BeaconBlockEntity {
             dirty: AtomicBool::new(false),
             beam_active: AtomicBool::new(false),
             checking_beam_blocked: AtomicBool::new(false),
+            beam: Mutex::new(BeamState::default()),
             last_check_y: AtomicI32::new(position.0.y - 1),
             world: OnceLock::new(),
             metadata: super::ContainerMetadata::default(),
@@ -72,6 +190,23 @@ impl BeaconBlockEntity {
     #[must_use]
     pub fn levels(&self) -> i32 {
         self.levels.load(Ordering::Relaxed)
+    }
+
+    /// Mirrors `BeaconBeamOwner.getBeamSections`: empty until the beacon has levels.
+    #[must_use]
+    pub fn get_beam_sections(&self) -> Vec<BeamSection> {
+        if self.levels.load(Ordering::Relaxed) == 0 {
+            return Vec::new();
+        }
+        self.beam
+            .lock()
+            .map_or_else(|_| Vec::new(), |state| state.sections.clone())
+    }
+
+    fn beam_state(&self) -> MutexGuard<'_, BeamState> {
+        self.beam
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     #[must_use]
@@ -310,32 +445,40 @@ impl BlockEntity for BeaconBlockEntity {
         if last_check_y < pos.y {
             self.checking_beam_blocked.store(true, Ordering::Relaxed);
             last_check_y = pos.y - 1;
+            self.beam_state().checking.clear();
         }
         // `get_heightmap_height` is the top block; vanilla's `getHeight` is the block above it.
         let last_set_block =
             world.get_heightmap_height(ChunkHeightmapType::WorldSurface, pos.x, pos.z) + 1;
 
+        let mut beam = self.beam_state();
         let mut checked = 0;
         while checked < BLOCKS_CHECK_PER_TICK && last_check_y < last_set_block {
             let check_pos = BlockPos::new(pos.x, last_check_y + 1, pos.z);
             let block = world.get_block(&check_pos);
-            if is_beam_block(block) {
-                if check_pos.0.y == pos.y {
-                    self.checking_beam_blocked.store(false, Ordering::Relaxed);
-                }
+            let observation = if is_beam_block(block) {
+                BeamObservation::Beam(beam_color(block))
             } else {
                 let opaque = world.get_block_state(&check_pos).opacity >= 15;
-                // Anything opaque above the beacon (bedrock excepted) cuts the beam. The beacon
-                // itself is a beam block, so the scan never reaches this branch at `pos.y`.
+                // Anything opaque above the beacon (bedrock excepted) cuts the beam.
                 if opaque && block != &Block::BEDROCK {
-                    self.checking_beam_blocked.store(true, Ordering::Relaxed);
-                    last_check_y = last_set_block;
-                    break;
+                    BeamObservation::Blocked
+                } else {
+                    BeamObservation::Pass
                 }
+            };
+            if check_pos.0.y == pos.y && matches!(observation, BeamObservation::Beam(_)) {
+                self.checking_beam_blocked.store(false, Ordering::Relaxed);
+            }
+            if !append_beam_block(&mut beam.checking, observation) {
+                self.checking_beam_blocked.store(true, Ordering::Relaxed);
+                last_check_y = last_set_block;
+                break;
             }
             last_check_y += 1;
             checked += 1;
         }
+        drop(beam);
 
         let previous_levels = self.levels.load(Ordering::Relaxed);
         let beam_active = self.beam_active.load(Ordering::Relaxed);
@@ -362,6 +505,12 @@ impl BlockEntity for BeaconBlockEntity {
                 !self.checking_beam_blocked.load(Ordering::Relaxed),
                 Ordering::Relaxed,
             );
+            // Vanilla commits `checkingBeamSections` to `beamSections` when a scan completes.
+            {
+                let mut beam = self.beam_state();
+                let checking = std::mem::take(&mut beam.checking);
+                beam.sections = checking;
+            }
             let was_active = previous_levels > 0;
             let levels = self.levels.load(Ordering::Relaxed);
             let is_active = levels > 0;
@@ -537,5 +686,63 @@ mod tests {
         assert_eq!(bounds.max.x, 15.0);
         assert_eq!(bounds.max.y, 69.0);
         assert_eq!(bounds.max.z, 15.0);
+    }
+
+    #[test]
+    fn beam_sections_merge_colour_and_height() {
+        let sections = build_beam_sections(&[
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Pass,
+            BeamObservation::Pass,
+        ]);
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].color(), 0x00FFFFFF);
+        assert_eq!(sections[0].height(), 1);
+        assert_eq!(sections[1].color(), 0x00FFFFFF);
+        assert_eq!(sections[1].height(), 4);
+    }
+
+    #[test]
+    fn beam_sections_average_on_colour_change() {
+        let sections = build_beam_sections(&[
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Beam(0x00000000),
+            BeamObservation::Pass,
+        ]);
+        assert_eq!(sections.len(), 3);
+        assert_eq!(sections[0].color(), 0x00FFFFFF);
+        assert_eq!(sections[1].color(), 0x00FFFFFF);
+        assert_eq!(sections[2].color(), 0x007F7F7F);
+        assert_eq!(sections[2].height(), 2);
+    }
+
+    #[test]
+    fn beam_sections_cut_on_opaque_block() {
+        let sections = build_beam_sections(&[
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Beam(0x00FFFFFF),
+            BeamObservation::Blocked,
+        ]);
+        assert!(sections.is_empty());
+    }
+
+    #[test]
+    fn argb_average_halves_each_channel() {
+        assert_eq!(argb_average(0x00FF0000, 0x000000FF), 0x007F007F);
+    }
+
+    #[test]
+    fn beam_color_uses_dye_diffuse_color() {
+        assert_eq!(
+            beam_color(&Block::BEACON),
+            DyeColor::White.texture_diffuse_color()
+        );
+        assert_eq!(
+            beam_color(&Block::RED_STAINED_GLASS),
+            DyeColor::Red.texture_diffuse_color()
+        );
     }
 }

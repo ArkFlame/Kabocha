@@ -73,12 +73,16 @@ impl BrewingStandBlockEntity {
         let Some(server) = world.server.upgrade() else {
             return false;
         };
-        let key = format!("minecraft:{}", stack.get_item().registry_key);
         server
             .recipe_manager
             .get_dynamic_recipes_internal()
             .iter()
-            .any(|recipe| matches!(recipe, DynamicRecipe::Brewing(r) if r.reagent == key))
+            .any(|recipe| {
+                matches!(
+                    recipe,
+                    DynamicRecipe::Brewing(r) if r.reagent.match_item(stack.get_item())
+                )
+            })
     }
 
     fn is_dynamic_potion_input(&self, stack: &ItemStack) -> bool {
@@ -88,12 +92,16 @@ impl BrewingStandBlockEntity {
         let Some(server) = world.server.upgrade() else {
             return false;
         };
-        let key = format!("minecraft:{}", stack.get_item().registry_key);
         server
             .recipe_manager
             .get_dynamic_recipes_internal()
             .iter()
-            .any(|recipe| matches!(recipe, DynamicRecipe::Brewing(r) if r.input_item == key))
+            .any(|recipe| {
+                matches!(
+                    recipe,
+                    DynamicRecipe::Brewing(r) if r.input.match_item(stack.get_item())
+                )
+            })
     }
 
     /// Vanilla `setChanged` only persists the entity, comparators react to slot changes instead.
@@ -145,21 +153,15 @@ impl BrewingStandBlockEntity {
             // 2. Check dynamic brewing recipes from loaded datapacks
             if let Some(server) = world.server.upgrade() {
                 let dynamic_recipes = server.recipe_manager.get_dynamic_recipes_internal();
-                let slot_key = format!("minecraft:{}", slot.get_item().registry_key);
-                let ing_key = format!("minecraft:{}", ingredient.get_item().registry_key);
+                let current_pot = potion_id
+                    .and_then(|id| Potion::from_id(id as u8))
+                    .map(|p| format!("minecraft:{}", p.name));
                 for dyn_recipe in &dynamic_recipes {
                     if let DynamicRecipe::Brewing(r) = dyn_recipe
-                        && r.input_item == slot_key
-                        && r.reagent == ing_key
+                        && r.input.match_item(slot.get_item())
+                        && r.reagent.match_item(ingredient.get_item())
+                        && r.input.matches_potion(current_pot.as_deref())
                     {
-                        if let Some(req_pot) = &r.input_potion {
-                            let current_pot = potion_id
-                                .and_then(|id| Potion::from_id(id as u8))
-                                .map(|p| format!("minecraft:{}", p.name));
-                            if current_pot.as_deref() != Some(req_pot.as_str()) {
-                                continue;
-                            }
-                        }
                         return true;
                     }
                 }
@@ -244,50 +246,44 @@ impl BrewingStandBlockEntity {
                 // 2. Try dynamic brewing recipes from loaded datapacks
                 if let Some(server) = world.server.upgrade() {
                     let dynamic_recipes = server.recipe_manager.get_dynamic_recipes_internal();
-                    let slot_key = format!("minecraft:{}", slot.get_item().registry_key);
-                    let ing_key = format!("minecraft:{}", ingredient.get_item().registry_key);
+                    let current_pot = potion_id
+                        .and_then(|id| Potion::from_id(id as u8))
+                        .map(|p| format!("minecraft:{}", p.name));
                     for dyn_recipe in &dynamic_recipes {
                         if let DynamicRecipe::Brewing(r) = dyn_recipe
-                            && r.input_item == slot_key
-                            && r.reagent == ing_key
-                        {
-                            if let Some(req_pot) = &r.input_potion {
-                                let current_pot = potion_id
-                                    .and_then(|id| Potion::from_id(id as u8))
-                                    .map(|p| format!("minecraft:{}", p.name));
-                                if current_pot.as_deref() != Some(req_pot.as_str()) {
-                                    continue;
-                                }
-                            }
-                            if let Some(target_item) = Item::from_registry_key(
-                                r.output_item
+                            && r.input.match_item(slot.get_item())
+                            && r.reagent.match_item(ingredient.get_item())
+                            && r.input.matches_potion(current_pot.as_deref())
+                            && let Some(target_item) = Item::from_registry_key(
+                                r.output
+                                    .item_id
                                     .strip_prefix("minecraft:")
-                                    .unwrap_or(&r.output_item),
-                            ) {
-                                let mut new_slot = ItemStack::new(1, target_item);
-                                let mut pc = slot
-                                    .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
-                                    .cloned()
-                                    .unwrap_or_else(|| pumpkin_data::data_component_impl::PotionContentsImpl {
-                                        potion_id: None,
-                                        custom_color: None,
-                                        custom_effects: Vec::new(),
-                                        custom_name: None,
-                                    });
-                                if let Some(out_pot_name) = &r.output_potion
-                                    && let Some(out_pot) = Potion::from_name(
-                                        out_pot_name
-                                            .strip_prefix("minecraft:")
-                                            .unwrap_or(out_pot_name),
-                                    )
-                                {
-                                    pc.potion_id = Some(out_pot.id as i32);
-                                }
-                                new_slot.set_data_component(pc);
-                                *slot = new_slot;
-                                ingredient_used = true;
-                                break;
+                                    .unwrap_or(&r.output.item_id),
+                            )
+                        {
+                            let mut new_slot = ItemStack::new(1, target_item);
+                            let mut pc = slot
+                                .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
+                                .cloned()
+                                .unwrap_or_else(|| pumpkin_data::data_component_impl::PotionContentsImpl {
+                                    potion_id: None,
+                                    custom_color: None,
+                                    custom_effects: Vec::new(),
+                                    custom_name: None,
+                                });
+                            if let Some(out_pot_name) = &r.output_potion
+                                && let Some(out_pot) = Potion::from_name(
+                                    out_pot_name
+                                        .strip_prefix("minecraft:")
+                                        .unwrap_or(out_pot_name),
+                                )
+                            {
+                                pc.potion_id = Some(out_pot.id as i32);
                             }
+                            new_slot.set_data_component(pc);
+                            *slot = new_slot;
+                            ingredient_used = true;
+                            break;
                         }
                     }
                 }

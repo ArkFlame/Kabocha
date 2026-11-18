@@ -244,11 +244,7 @@ impl CreakingHeartBlockEntity {
             let Some(pos) = self.spread_resin(world) else {
                 continue;
             };
-            world.play_sound(
-                Sound::BlockResinPlace,
-                SoundCategory::Blocks,
-                &pos.to_f64(),
-            );
+            world.play_sound(Sound::BlockResinPlace, SoundCategory::Blocks, &pos.to_f64());
             world.emit_game_event(GameEvent::BlockPlace.name(), pos.to_f64());
         }
     }
@@ -318,7 +314,7 @@ impl CreakingHeartBlockEntity {
             let block = state_id.to_block();
             let opposite = dir.opposite();
 
-            let mut props = if block == &Block::AIR {
+            let props = if block == &Block::AIR {
                 Some(GlowLichenLikeProperties::default(&Block::RESIN_CLUMP))
             } else if block == &Block::WATER && world.is_water_source(&neighbor_pos) {
                 let mut props = GlowLichenLikeProperties::default(&Block::RESIN_CLUMP);
@@ -408,7 +404,13 @@ mod tests {
         let mut props = GlowLichenLikeProperties::default(block);
         CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Down);
         CreakingHeartBlockEntity::set_face(&mut props, BlockDirection::Up);
-        assert!(CreakingHeartBlockEntity::has_face(&props, BlockDirection::Down));
-        assert!(CreakingHeartBlockEntity::has_face(&props, BlockDirection::Up));
+        assert!(CreakingHeartBlockEntity::has_face(
+            &props,
+            BlockDirection::Down
+        ));
+        assert!(CreakingHeartBlockEntity::has_face(
+            &props,
+            BlockDirection::Up
+        ));
     }
 }
