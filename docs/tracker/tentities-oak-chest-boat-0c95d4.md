@@ -60,30 +60,38 @@ vanilla source exists under `.vendor/`, so each row names the vanilla member it 
 
 ## Result
 
-No decompiled vanilla source exists under `.vendor/vanilla-decompiled/`, so rows were checked
-against the vanilla members named in the table and the current source, not against a decompile.
+Decompiled vanilla is available at `.vendor/vanilla-decompiled/net/minecraft/` (Paper + CraftBukkit
+patches, target 26.3). Every row was re-checked against it on this pass.
 
-- 1 canPlayerUse (minecart/container.rs): OPEN - the generic 9x3 handler has no validity hook; adding
-  an alive + 8-block check needs a `can_use`/`validity_check` field on `GenericContainerScreenHandler`
-  in pumpkin-inventory (cross-crate, outside this unit).
-- 2 instabuild with custom name (boat.rs): FIXED - destruction now uses
-  `drops_item_when_destroyed(creative, named)`, so a named boat keeps its item drop in creative.
-  Added pure test `named_boat_keeps_its_drop_when_creative`.
-- 3 hurt passenger branch (boat.rs): FIXED (already present, verified) - `damage_with_context`
-  returns false when the damage source is a passenger of the same vehicle.
-- 4 destroying removal spills container (boat.rs): FIXED (already present, verified) - `on_removed`
-  calls `scatter_chest_contents`, whose `claim_drops` guard makes the spill run once for every
-  removal reason.
-- 5 interact open condition (boat.rs): OPEN - no decompiled or Paper/Spigot source to confirm the
-  `AbstractChestBoat.interact` ordering; the current code already opens on sneak and lets boarding
-  fail in the other gated states, but the "occupied opens the chest" branch is unverified.
-- 6 bubble time publish (boat.rs): FIXED (already present, verified) - `tick_underwater` syncs
-  `ID_BUBBLE_TIME` whenever the underwater counter changes.
-- 7 container entity line (boat.rs): FIXED (already present, verified) - `without_loot_table`
-  strips `LootTable`/`LootTableSeed` before chest-boat NBT is read.
-- 8 pick result and drop item (boat.rs): FIXED - the drop now resolves via
-  `BoatItem::entity_to_item` with the registry-key lookup as fallback, matching the pickup path.
-  Added pure test `every_boat_entity_type_resolves_a_drop_item`.
+- 1 canPlayerUse (minecart/container.rs): FIXED (verified) - `open` installs an
+  `EntityContainerScreenHandler` whose validity closure checks `is_alive()` and
+  `can_interact_with_entity(vehicle, 4.0)`, matching vanilla `ContainerEntity.isChestVehicleStillValid`
+  (`!isRemoved() && isWithinEntityInteractionRange(bb, 4.0)`).
+- 2 instabuild with custom name (boat.rs): FIXED (verified) - `drops_item_when_destroyed(creative, named)`
+  returns `!creative`; vanilla `VehicleEntity.hurtServer` calls `discard` on an instabuild hit without
+  `destroy`, so no item drops even when named. Renamed the misleading test to
+  `creative_boat_drops_no_item_even_when_named`; its assertions already matched vanilla.
+- 3 hurt passenger branch (boat.rs): CHANGED this pass - removed the extra passenger-immunity
+  early-return in `damage_with_context`. Decompiled `VehicleEntity.hurtServer` has no such branch,
+  `AbstractBoat` has no `hurt` override, and `Projectile.canHitEntity` does not exempt the boat, so a
+  rider's own projectile can damage the boat in vanilla.
+- 4 destroying removal spills container (boat.rs): FIXED (verified, partial) - `on_removed` calls
+  `scatter_chest_contents` on every removal with a `claim_drops` guard. Vanilla scatters only when
+  `reason.shouldDestroy()`; `EntityBase::on_removed(&self)` has no removal-reason parameter, so exact
+  gating needs an engine API change (outside this unit). Left open for that reason.
+- 5 interact open condition (boat.rs): FIXED (verified) - `boat_interact_outcome` mirrors the vanilla
+  chain; `AbstractChestBoat.interact` opens on sneak or `!canAddPassenger` (seat full / eye in water)
+  and `AbstractChestBoat.getMaxPassengers` = 1 makes an occupied chest boat open its chest.
+- 6 bubble time publish (boat.rs): FIXED (verified) - `tick_bubble_column` syncs `ID_BUBBLE_TIME`,
+  `tick_underwater` deliberately does not; vanilla `AbstractBoat.tickBubbleColumn` writes
+  `setBubbleTime` only in the bubble-column path, not from `outOfControlTicks`.
+- 7 container entity line (boat.rs): FIXED (verified) - chest boats keep `LootTable`/`LootTableSeed`
+  via `MinecartInventory::read_nbt` and unpack on open/scatter, matching vanilla `AbstractChestBoat`
+  (`ContainerEntity` with `unpackChestVehicleLootTable`). The earlier `without_loot_table` stripping is
+  no longer in the source.
+- 8 pick result and drop item (boat.rs): FIXED (verified) - `boat_drop_item` uses
+  `BoatItem::entity_to_item` with the registry-key fallback, equivalent to vanilla's per-entity
+  `dropItem` supplier.
 
 `rustfmt --edition 2024` was run on `crates/pumpkin-core/src/entity/vehicle/boat.rs`. Cargo was not
-run (worker rule: orchestrator batch-compiles), so the added tests are unexecuted here.
+run (worker rule: orchestrator batch-compiles), so tests remain unexecuted here.

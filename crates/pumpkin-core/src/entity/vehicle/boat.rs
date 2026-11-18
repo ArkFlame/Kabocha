@@ -706,14 +706,8 @@ impl EntityBase for BoatEntity {
         if self.vehicle.entity.is_invulnerable_to(&damage_type, cause) {
             return false;
         }
-        // Vanilla `AbstractBoat#hurt`: a passenger of a boat it rides cannot damage that boat
-        // (e.g. its own arrow).
-        if let Some(source) = source
-            && self.vehicle.entity.has_passengers()
-            && source.is_passenger_of_same_vehicle(self)
-        {
-            return false;
-        }
+        // Vanilla `VehicleEntity.hurtServer` has no passenger-immunity branch: a rider's own
+        // projectile can damage the boat it rides, so no such early return is added here.
         let creative = source
             .and_then(EntityBase::get_player)
             .is_some_and(|player| player.gamemode.load() == GameMode::Creative);
@@ -1124,7 +1118,7 @@ mod tests {
     }
 
     #[test]
-    fn named_boat_keeps_its_drop_when_creative() {
+    fn creative_boat_drops_no_item_even_when_named() {
         // Vanilla VehicleEntity.hurtServer discards the vehicle on an instabuild hit without
         // calling destroy, so a creative hit never drops the item even when named; the custom
         // name is only copied onto the drop in the non-creative destroy path.
