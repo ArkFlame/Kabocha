@@ -81,3 +81,30 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
 - NOTE particle: correctly absent. `NoteBlock#triggerEvent` calls `level.addParticle`, which is an empty no-op on the server (.vendor/vanilla-decompiled/net/minecraft/world/level/Level.java:1712-1714; no `ServerLevel` override), so not broadcasting a particle is correct.
 - No BLOCKED-DATA rows: no generated pumpkin-data field or missing subsystem is involved.
 - Rows: fixed=2, open=0. No source edits this pass (all fixes already present); no new test seam. The only pure helpers are the instrument tables, which a test would merely mirror.
+
+
+### Final pass 2026-11-18 (unit closeout)
+- Re-verified every row against `.vendor/vanilla-decompiled`:
+  - Custom head sound audible range: `NoteBlock.java:150-180` (triggerEvent: tunable pitch via
+    getPitchFromNote at :159, `addParticle` at :160, custom head via
+    `Holder.direct(SoundEvent.createVariableRangeEvent(soundId))` at :172, volume 3.0F at :178).
+    `SoundEvent.java:35-37` = `Optional.empty()` (no fixed range, no registry lookup);
+    `SoundEvent.java:43-45` getRange = 16*volume = 48 for volume 3. `ServerLevel.java:3405-3415`
+    broadcasts to `sound.value().getRange(volume)`. Pumpkin `note.rs:184-190` uses
+    `World::play_custom_sound` at volume 3.0 -> `audible_chunks(3.0)` = 3 chunks = 48 blocks
+    (`crates/pumpkin-core/src/world/mod.rs:9560-9562`), matching vanilla. FIXED, VERIFIED.
+  - NotePlayEvent instrument serialized id: `note.rs:36` passes
+    `props.instrument.to_value().to_owned()` (serialized id), matching vanilla
+    `NoteBlockInstrument#getSerializedName`. FIXED, VERIFIED.
+  - NOTE particle: correctly absent; `NoteBlock.java:160` calls `level.addParticle`, which is a
+    server-side no-op (`Level.java:1712-1714`, no `ServerLevel` override), so not broadcasting it
+    is correct.
+- Added the smallest pure byte-level regression test for Row 1's protocol invariant in
+  `sound_effect.rs`: `variable_range_sound_event_omits_fixed_range` asserts the encoded
+  `range: None` writes an absent fixed-range flag, matching vanilla
+  `createVariableRangeEvent` = `Optional.empty()` (`SoundEvent.java:35-37`). No write path exists
+  for a fixed range here, so this locks the quirk against a future wrong "fix".
+- No BLOCKED-DATA rows: no generated pumpkin-data field or missing subsystem is involved.
+- Rows: fixed=2, open=0. Edits this pass: sound_effect.rs (new test) and this doc; note.rs fixes
+  were already present and are verified above. Checks: no cargo run (worker restriction); rustfmt
+  applied by the orchestrator.
