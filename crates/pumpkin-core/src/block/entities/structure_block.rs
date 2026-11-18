@@ -641,7 +641,8 @@ pub fn place_structure_template_in_world(
     let mut integrity_rng = LegacyRand::from_seed(create_structure_seed(seed));
     let mut loot_rng = LegacyRand::from_seed(create_structure_seed(seed));
     // Strict placement maps to vanilla UPDATE_SKIP_ALL_SIDEEFFECTS: the known-shape half is
-    // handled by the !strict reconnect pass below, the drop-callback half by the placer flag.
+    // handled by the !strict reconnect pass below, the drop-callback half by the placer flag
+    // (the block entity pre-clear above matches the flag vanilla also adds in non-strict mode).
     let mut placer = WorldBlockPlacer::new_with_skip_side_effects(world, strict);
     let pivot = Vector3::new(0, 0, 0);
 
@@ -665,7 +666,13 @@ pub fn place_structure_template_in_world(
         }
         let state = resolved_state;
 
-        world.remove_block_entity(&world_pos);
+        // Vanilla pre-sets a BARRIER with UPDATE_SKIP_ALL_SIDEEFFECTS before placing an entry
+        // that carries block entity NBT: that clears the block entity at the position silently.
+        // Entries without NBT use a plain replacement, so a non-strict placement still drops
+        // the replaced container's contents.
+        if block_info.nbt.is_some() {
+            world.remove_block_entity(&world_pos);
+        }
         placer.set_block_state(&world_vec, state);
 
         if let Some(template_nbt) = &block_info.nbt {
