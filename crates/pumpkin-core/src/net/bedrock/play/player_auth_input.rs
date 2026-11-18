@@ -371,10 +371,16 @@ fn java_input_from_auth(packet: &SPlayerAuthInput, sneaking: bool) -> i8 {
     let mouse = packet.input_mode.0 == InputMode::Mouse as u32;
     let classic_touch = packet.input_mode.0 == InputMode::Touch as u32
         && packet.interaction_model.0 == InteractionModel::Classic as i32;
-    let (up, down, left, right) = if mouse || classic_touch {
-        digital_move(flags, classic_touch)
-    } else {
-        analog_move(packet.analog_move)
+    // Camera-relative movement reports the stick as a world-space raw_move plus the camera
+    // look direction; project it back onto the view axes for the Java (view-relative) bits.
+    let camera_relative = flags
+        .get(InputData::CameraRelativeMovementEnabled as usize)
+        .then(|| camera_relative_move(packet.camera_orientation, packet.raw_move))
+        .filter(|move_bits| *move_bits != (false, false, false, false));
+    let (up, down, left, right) = match camera_relative {
+        Some(move_bits) => move_bits,
+        None if mouse || classic_touch => digital_move(flags, classic_touch),
+        None => analog_move(packet.analog_move),
     };
 
     let mut input = 0i8;
@@ -444,6 +450,33 @@ fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
         analog.y < -ANALOG_DEADZONE,
         analog.x > ANALOG_DEADZONE,
         analog.x < -ANALOG_DEADZONE,
+    )
+}
+
+/// Projects Bedrock's camera-relative raw_move onto the camera horizontal view axes.
+///
+/// A level camera facing yaw 0 looks down +Z (getViewVector) and its right axis is +X, so
+/// for a look vector (x, _, z) the horizontal forward is (x, z) and right is (z, -x).
+/// A zero look vector yields no movement bits.
+fn camera_relative_move(
+    camera_orientation: Vector3<f32>,
+    raw_move: Vector2<f32>,
+) -> (bool, bool, bool, bool) {
+    let look_length = camera_orientation.x.hypot(camera_orientation.z);
+    if look_length <= f32::EPSILON {
+        return (false, false, false, false);
+    }
+    let (forward_x, forward_z) = (
+        camera_orientation.x / look_length,
+        camera_orientation.z / look_length,
+    );
+    let forward = raw_move.x.mul_add(forward_x, raw_move.y * forward_z);
+    let right = raw_move.y.mul_add(-forward_x, raw_move.x * forward_z);
+    (
+        forward > ANALOG_DEADZONE,
+        forward < -ANALOG_DEADZONE,
+        right < -ANALOG_DEADZONE,
+        right > ANALOG_DEADZONE,
     )
 }
 
@@ -523,8 +556,8 @@ const fn mount_rotation(
 #[cfg(test)]
 mod tests {
     use super::{
-        Vector2, Vector3, analog_move, is_on_ground, mount_rotation, sneaking_from_flags,
-        teleport_confirmed, vehicle_id_matches,
+        Vector2, Vector3, analog_move, camera_relative_move, is_on_ground, mount_rotation,
+        sneaking_from_flags, teleport_confirmed, vehicle_id_matches,
     };
     use pumpkin_protocol::bedrock::server::player_auth_input::InputData;
     use pumpkin_protocol::codec::bitset::Bitset;
@@ -542,6 +575,46 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn camera_relative_move_projects_world_move_onto_view_axes() {
+        // Camera facing +Z (yaw 0): forward is +Z, right is +X.
+        let facing_z = Vector3::new(0.0, 0.0, 1.0);
+        assert_eq!(
+            camera_relative_move(facing_z, Vector2::new(0.0, 1.0)),
+            (true, false, false, false)
+        );
+        assert_eq!(
+            camera_relative_move(facing_z, Vector2::new(1.0, 0.0)),
+            (false, false, false, true)
+        );
+        assert_eq!(
+            camera_relative_move(facing_z, Vector2::new(0.0, -1.0)),
+            (false, true, false, false)
+        );
+        assert_eq!(
+            camera_relative_move(facing_z, Vector2::new(-1.0, 0.0)),
+            (false, false, true, false)
+        );
+        // Camera facing -X (yaw 90): forward is -X, right is +Z.
+        let facing_neg_x = Vector3::new(-1.0, 0.0, 0.0);
+        assert_eq!(
+            camera_relative_move(facing_neg_x, Vector2::new(-1.0, 0.0)),
+            (true, false, false, false)
+        );
+        assert_eq!(
+            camera_relative_move(facing_neg_x, Vector2::new(0.0, 1.0)),
+            (false, false, false, true)
+        );
+    }
+
+    #[test]
+    fn camera_relative_move_needs_a_look_direction() {
+        assert_eq!(
+            camera_relative_move(Vector3::new(0.0, 1.0, 0.0), Vector2::new(1.0, 1.0)),
+            (false, false, false, false)
+        );
+    }
     #[test]
     fn landing_tick_uses_the_downward_delta() {
         assert!(is_on_ground(true, -0.5, false, false));
