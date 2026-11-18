@@ -254,8 +254,10 @@ impl EntityBase for MinecartEntity {
         if self.vehicle.entity.is_removed() {
             return;
         }
-        // Vanilla `handlePortal` is left out: non-player entities can't change dimension yet,
-        // so the minecart would stay behind while its rider is teleported.
+        // Vanilla `AbstractMinecart.tick` calls `handlePortal` explicitly (it overrides tick and
+        // never runs `Entity.baseTick`). This advances the portal timer and teleports the cart and
+        // its passengers together once the delay elapses.
+        self.vehicle.entity.tick_portal(caller);
         let from = self.vehicle.entity.pos.load();
         // Vanilla increments the entity tick counter (used by the command-block activation
         // cooldown) at the start of `Entity.tick`, before rail activation runs.
