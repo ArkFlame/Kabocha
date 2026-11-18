@@ -310,3 +310,62 @@ and exercising the cache path needs a live World plus GenerationCache.
 Rows 1-6, 8-11 and the h3-sweep row remain resolved/matching as recorded in the
 earlier Result sections (row 9 and the h3 gate were resolved in world/mod.rs by
 another worker). Files changed this pass: natural_spawner.rs and this doc.
+
+
+## Result (third pass, final verification)
+
+All 11 gap rows plus the h3-sweep row were re-checked against
+`.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN or LEFT
+OPEN: each ends FIXED or VERIFIED MATCHING. No source file needed a new edit this
+pass; the row 7 fix from the prior pass was confirmed present and type-correct.
+
+- Row 1 (local mob-cap player window): VERIFIED MATCHING. Vanilla
+  ChunkMap.playerIsCloseEnoughForSpawning uses a 128-block horizontal radius.
+  Pumpkin's LocalMobCapCalculator::is_near uses LOCAL_MOB_CAP_RANGE_SQ = 128*128
+  with no chunk-window gate (natural_spawner.rs:38,184).
+- Row 2 (cached vs fallback player paths): VERIFIED MATCHING. Both
+  get_players_near branches call the same is_near predicate (lines 221-242).
+- Row 3 (chunk-gen honours doMobSpawning): VERIFIED MATCHING. Vanilla
+  NaturalSpawner.spawnMobsForChunkGeneration gates on GameRules.SPAWN_MOBS
+  (NaturalSpawner.java:599); Pumpkin checks game_rules.spawn_mobs (line 653).
+- Row 4 (level RandomSource threading): VERIFIED MATCHING. world.spawn_random is
+  threaded through spawn_for_chunk (595), get_random_pos_within (618) and
+  spawn_mobs_for_chunk_generation (645); the per-call reseed is gone.
+- Row 5 (initial cluster size): VERIFIED MATCHING. Vanilla
+  Mth.ceil(fastRandom.nextFloat() * 4.0F) (NaturalSpawner.java:354) equals
+  Pumpkin's initial_cluster_attempts (line 851), which has a unit test.
+- Row 6 (ON_GROUND head-block check): VERIFIED MATCHING. Vanilla validates the
+  floor and feet+head emptiness (SpawnPlacementTypes.java:26-33); Pumpkin's live
+  and cache paths both call is_valid_empty_spawn_block on cur/state and up
+  (lines 1307-1309, 1345-1347).
+- Row 7 (chunk-gen vs live adjust_spawn_position): FIXED (prior pass) and
+  RE-VERIFIED. Both paths now share adjust_spawn_position_down and the
+  registry-backed is_pathfindable(Land) predicate: cache uses
+  GenerationCache::get_block_state -> to_block()/to_state() (lines 815-824),
+  live uses get_block_and_state (lines 829-845). Vanilla
+  SpawnPlacementTypes.ON_GROUND.adjustSpawnPosition calls
+  state.isPathfindable(PathComputationType.LAND) (SpawnPlacementTypes.java:45-47).
+  BlockStateId::to_block/to_state exist (pumpkin-data/src/block_state.rs:433,445),
+  so the cache fix type-checks and drops the old !is_full_cube() approximation
+  that ignored isPathfindable overrides.
+- Row 8 (shared-spawn bubble / ticking-chunk): VERIFIED MATCHING. Vanilla applies
+  the respawn check only when respawnData.dimension() == level.dimension()
+  (NaturalSpawner.java:453-457) and Canvas returns true for the trailing chunk
+  check (459-463); Pumpkin's OVERWORLD gate + active-chunks check is conservative.
+- Row 9 (canSpawnEntitiesInChunk gate): RESOLVED outside this unit (read-only
+  verified). world/mod.rs:3458 calls any_player_close_enough_for_spawning in
+  tick_spawning_chunk, matching vanilla ChunkMap.anyPlayerCloseEnoughForSpawning.
+- Row 10 (structure spawn overrides): VERIFIED MATCHING. Vanilla mobsAt consults
+  structure spawn overrides and nether-fortress bounds before the biome list
+  (NaturalSpawner.java:558-574); Pumpkin's structure_spawn_entries checks
+  world_gen.structure_spawn_override_at first (line 1060).
+- Row 11 (unknown spawner aborts chunk-gen): FIXED (prior pass) and RE-VERIFIED.
+  EntityType::from_name failure logs via tracing::warn and continues the loop
+  (lines 673-678), matching vanilla skipping an unresolvable spawner entry.
+- h3-sweep row (canSpawnEntitiesInChunk TODO, world/mod.rs): RESOLVED by the same
+  world/mod.rs gate at line 3458 (read-only verified). File not in this unit.
+
+No new pure unit test: no new seam was added this pass; existing seams are covered
+by after_spawn_updates_category_counts, adjust_spawn_position_down_follows_land_pathfindable,
+structure_spawn_entries_are_picked_by_weight and initial_cluster_attempts_matches_vanilla_ceil.
+Files changed this pass: this doc only (no source edit was required).
