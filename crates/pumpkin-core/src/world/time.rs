@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_protocol::{bedrock::client::set_time::CSetTime, java::client::play::CUpdateTime};
 
 use super::World;
@@ -48,6 +49,73 @@ pub(crate) fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64)
     } else {
         total_ticks + period + duration
     }
+}
+
+/// The `wake_up_from_sleep` marker on the `minecraft:day` timeline, as vanilla
+/// `ClockTimeMarker` stores it. A missing `period` makes the marker non-periodic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SleepWakeMarker {
+    pub ticks: i64,
+    pub period: Option<i64>,
+}
+
+impl SleepWakeMarker {
+    /// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`.
+    #[must_use]
+    pub(crate) fn resolve(self, total_ticks: i64) -> i64 {
+        match self.period {
+            Some(period) => resolve_time_to_move_to(total_ticks, self.ticks, period),
+            // Non-periodic markers move to their absolute tick, as vanilla does.
+            None => self.ticks,
+        }
+    }
+}
+
+/// Resolve the sleep-wake marker from the `minecraft:day` timeline registry entry
+/// so a datapack that moves it is honoured. Falls back to the generated builtin
+/// when the entry is missing or its payload cannot be read.
+#[must_use]
+pub(crate) fn sleep_wake_marker(world: &World) -> SleepWakeMarker {
+    let builtin = SleepWakeMarker {
+        ticks: i64::from(DayTimeline::WAKE_UP_FROM_SLEEP_TIME_MARKER),
+        period: Some(i64::from(DayTimeline::PERIOD_TICKS)),
+    };
+    let Some(server) = world.server.upgrade() else {
+        return builtin;
+    };
+    let Some(bytes) = server
+        .datapack_manager
+        .get_dynamic_registry_entry_data("minecraft:timeline", "minecraft:day")
+    else {
+        return builtin;
+    };
+    parse_sleep_wake_marker(&bytes).unwrap_or(builtin)
+}
+
+/// Reads `time_markers.minecraft:wake_up_from_sleep` and `period_ticks` from an
+/// unnamed timeline NBT payload. The marker value is either a plain int or a
+/// compound with `ticks`, matching vanilla's `TimeMarkerInfo` codec.
+fn parse_sleep_wake_marker(bytes: &[u8]) -> Option<SleepWakeMarker> {
+    use std::io::Cursor;
+
+    use pumpkin_nbt::Nbt;
+
+    let mut cursor = Cursor::new(bytes);
+    let mut reader = pumpkin_nbt::deserializer::NbtReadHelperJava::new(
+        pumpkin_nbt::deserializer::NbtStreamReader(&mut cursor),
+    );
+    let root = Nbt::read_unnamed(&mut reader).ok()?.root_tag;
+    let markers = root.get_compound("time_markers")?;
+    let ticks = match markers.get_int("minecraft:wake_up_from_sleep") {
+        Some(ticks) => i64::from(ticks),
+        None => i64::from(
+            markers
+                .get_compound("minecraft:wake_up_from_sleep")?
+                .get_int("ticks")?,
+        ),
+    };
+    let period = root.get_int("period_ticks").map(i64::from);
+    Some(SleepWakeMarker { ticks, period })
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -313,7 +381,6 @@ impl LevelTime {
 mod tests {
     use super::*;
     use crate::world::time::ClockInstance;
-    use pumpkin_data::environment_attribute::DayTimeline;
 
     #[test]
     fn wake_up_marker_resolves_forward_to_next_day() {
@@ -419,6 +486,50 @@ mod tests {
         assert_eq!(
             manager.clock("minecraft:overworld").map(|c| c.total_ticks),
             Some(0)
+        );
+    }
+
+    #[test]
+    fn datapack_day_timeline_moves_wake_up_marker() {
+        let value = serde_json::json!({
+            "period_ticks": 24000,
+            "time_markers": {
+                "minecraft:wake_up_from_sleep": 6000
+            }
+        });
+        let bytes =
+            crate::data::datapack::dynamic_registry_loader::json_to_registry_nbt_bytes(&value);
+        let marker = parse_sleep_wake_marker(&bytes);
+        assert_eq!(
+            marker,
+            Some(SleepWakeMarker {
+                ticks: 6000,
+                period: Some(24000)
+            })
+        );
+        // A build ignoring datapack data would still resolve to 24000.
+        assert_eq!(marker.map_or(0, |m| m.resolve(18_000)), 30_000);
+    }
+
+    #[test]
+    fn wake_up_marker_compound_form_parses() {
+        let value = serde_json::json!({
+            "period_ticks": 24000,
+            "time_markers": {
+                "minecraft:wake_up_from_sleep": {
+                    "ticks": 6000,
+                    "show_in_commands": true
+                }
+            }
+        });
+        let bytes =
+            crate::data::datapack::dynamic_registry_loader::json_to_registry_nbt_bytes(&value);
+        assert_eq!(
+            parse_sleep_wake_marker(&bytes),
+            Some(SleepWakeMarker {
+                ticks: 6000,
+                period: Some(24000)
+            })
         );
     }
 }

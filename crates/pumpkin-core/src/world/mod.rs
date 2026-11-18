@@ -4,7 +4,6 @@ use crate::block::entities::{
 use crossbeam::channel::Receiver;
 use dashmap::DashMap;
 use pumpkin_data::chunk::Biome;
-use pumpkin_data::environment_attribute::DayTimeline;
 use pumpkin_data::item::{BedrockItem, BedrockItemVersion};
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::poi_type::PoiType;
@@ -2765,13 +2764,8 @@ impl World {
 
         if self.should_skip_night() && is_night {
             // Vanilla resolves the `wake_up_from_sleep` marker on the day timeline
-            // (ServerClockManager.resolveTimerMove), rather than hardcoding the next
-            // day boundary. Datapack timeline overrides are not loaded yet.
-            let skip_to = crate::world::time::resolve_time_to_move_to(
-                time_of_day,
-                i64::from(DayTimeline::WAKE_UP_FROM_SLEEP_TIME_MARKER),
-                i64::from(DayTimeline::PERIOD_TICKS),
-            );
+            // (ServerClockManager.resolveTimerMove), honouring datapack overrides.
+            let skip_to = crate::world::time::sleep_wake_marker(self).resolve(time_of_day);
             // A cancelled skip keeps the night and the sleepers where they are.
             if self.skip_time(skip_to - time_of_day) {
                 let level_time = {
