@@ -9,6 +9,7 @@ use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::control::flying_move_control::FlyingMoveControl;
 use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::mob::raider;
+use crate::entity::projectile::owner::EntityReference;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{Controls, Goal, look_at_entity::LookAtEntityGoal, to_goal_ticks},
@@ -45,6 +46,8 @@ pub struct VexEntity {
     pub mob_entity: MobEntity,
     /// Vanilla `Vex.limitedLifeTicks`, `None` when the vex has no limited life.
     limited_life_ticks: Mutex<Option<i32>>,
+    /// Vanilla `Vex.owner`: the summoner whose target this vex copies.
+    owner: Mutex<EntityReference>,
 }
 
 impl VexEntity {
@@ -58,8 +61,10 @@ impl VexEntity {
         let vex = Self {
             mob_entity,
             limited_life_ticks: Mutex::new(None),
+            owner: Mutex::new(EntityReference::none()),
         };
         let mob_arc = Arc::new(vex);
+        let vex_weak = Arc::downgrade(&mob_arc);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
@@ -102,7 +107,8 @@ impl VexEntity {
 
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(1, raider::revenge_goal());
-            // TODO: VexCopyOwnerTargetGoal at 2 needs owner tracking from the evoker summon.
+            // Vanilla `VexCopyOwnerTargetGoal(this)` at 2.
+            target_selector.add_goal(2, Box::new(VexCopyOwnerTargetGoal { vex: vex_weak }));
             hunting::apply(target_selector, &mob_arc.mob_entity, VEX_HUNTS);
         };
 
@@ -115,6 +121,21 @@ impl VexEntity {
             .limited_life_ticks
             .lock()
             .unwrap_or_else(PoisonError::into_inner) = Some(ticks);
+    }
+
+    /// Vanilla `Vex.setOwner`: the summoner whose target this vex copies.
+    pub fn set_owner(&self, owner: &Entity) {
+        *self.owner.lock().unwrap_or_else(PoisonError::into_inner) =
+            EntityReference::new(Some(owner));
+    }
+
+    /// Resolve the owner through its UUID, like vanilla `EntityReference.get`.
+    fn owner(&self) -> Option<Arc<dyn EntityBase>> {
+        let world = self.mob_entity.living_entity.entity.world.load();
+        self.owner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&world)
     }
 }
 
@@ -219,6 +240,15 @@ impl Goal for VexChargeAttackGoal {
         }
     }
 
+    fn stop(&mut self, _mob: &dyn Mob) {
+        // Vanilla `VexChargeAttackGoal.stop` clears the synced charging flag.
+        self.charging = false;
+    }
+
+    fn should_run_every_tick(&self) -> bool {
+        true
+    }
+
     fn controls(&self) -> Controls {
         Controls::MOVE
     }
@@ -276,6 +306,32 @@ impl Goal for VexRandomMoveGoal {
 
     fn controls(&self) -> Controls {
         Controls::MOVE
+    }
+}
+
+/// Vanilla `Vex.VexCopyOwnerTargetGoal`: adopt the owner's current target. Vanilla uses
+/// `forNonCombat().ignoreLineOfSight().ignoreInvisibilityTesting()`; the owner's own
+/// `get_target` already applied its targeting conditions.
+struct VexCopyOwnerTargetGoal {
+    vex: Weak<VexEntity>,
+}
+
+impl VexCopyOwnerTargetGoal {
+    fn owner_target(&self) -> Option<Arc<dyn EntityBase>> {
+        let vex = self.vex.upgrade()?;
+        vex.owner()?.get_mob()?.get_mob_entity().get_target()
+    }
+}
+
+impl Goal for VexCopyOwnerTargetGoal {
+    fn can_start(&mut self, _mob: &dyn Mob) -> bool {
+        self.owner_target().is_some()
+    }
+
+    fn start(&mut self, mob: &dyn Mob) {
+        if let Some(target) = self.owner_target() {
+            mob.get_mob_entity().set_target(Some(target));
+        }
     }
 }
 

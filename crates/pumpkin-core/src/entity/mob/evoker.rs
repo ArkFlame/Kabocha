@@ -486,7 +486,8 @@ impl Goal for EvokerSummonSpellGoal {
                 let entity =
                     Entity::from_uuid(Uuid::new_v4(), world.clone(), spawn_pos, &EntityType::VEX);
                 let vex = VexEntity::new(entity);
-                // Vanilla `Evoker.SummonVex` sets `setLimitedLife(20 * (30 + nextInt(90)))`.
+                // Vanilla `Evoker.SummonVex` sets `setOwner(this)` and a limited life.
+                vex.set_owner(evoker_ent);
                 vex.set_limited_life(summoned_vex_life_ticks(rand::random_range(
                     0..VEX_SUMMON_LIFE_JITTER_SECONDS,
                 )));
