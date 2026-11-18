@@ -199,6 +199,9 @@ impl CreakingHeartBlockEntity {
         self.set_creaking_uuid(Some(creaking.mob_entity.living_entity.entity.entity_uuid));
         // Vanilla serverTick plays both spawn sounds only after a protector actually spawns.
         let creaking_pos = creaking.mob_entity.living_entity.entity.pos.load();
+        // Vanilla CreakingHeartBlockEntity#spawnProtector emits ENTITY_PLACE at the
+        // spawned creaking so sculk sensors react to the spawn.
+        world.emit_game_event(GameEvent::EntityPlace.name(), creaking_pos);
         world.play_sound(
             Sound::EntityCreakingSpawn,
             SoundCategory::Hostile,

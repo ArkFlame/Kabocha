@@ -25,7 +25,7 @@ The parent doc's single row, `own/tentities-cherry-boat-ae864b`, expands (via
   (:1037-1060). Matches `.vendor/.../AbstractBoat.java:696-705` (positionRider adds `deltaRotation`
   to YRot/YHeadRot, then clampRotation), `:740-754` (clampRotation: body yaw = hull, non-mob head
   clamped to +-105 deg), `:756-759` (full-boat animal +/-90 deg body shift) and `:762-766`
-  (onPassengerTurned folds yDelta into yRotO). The "STILL OPEN" h6 note was stale.
+  (onPassengerTurned folds yDelta into yRotO). The h6 note claiming the gap was open was stale.
 - Row 2 "drop ticks_underwater / is_eye_in_water from mounting gate": VERIFIED, no change. The doc
   claim is contradicted by vanilla. `.vendor/.../AbstractBoat.java:784` keeps
   `!(outOfControlTicks < 60.0F)` in `interact` and `:836-837` keeps

@@ -148,7 +148,9 @@ impl BlockBehaviour for CreakingHeartBlock {
         };
         let pos = creaking.get_entity().pos.load();
         let dx = pos.x - (f64::from(args.position.0.x) + 0.5);
-        let dy = pos.y - (f64::from(args.position.0.y) + 0.5);
+        // Vanilla CreakingHeartBlockEntity#distanceToCreaking measures from Vec3.atBottomCenterOf
+        // (x + 0.5, y, z + 0.5), the block bottom face, not its center.
+        let dy = pos.y - f64::from(args.position.0.y);
         let dz = pos.z - (f64::from(args.position.0.z) + 0.5);
         let distance = (dx * dx + dy * dy + dz * dz).sqrt();
         let signal = 15.0 - (distance * 15.0 / 32.0).floor();
