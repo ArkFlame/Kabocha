@@ -8,7 +8,6 @@ Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraf
 Re-verified all four STILL OPEN rows against .vendor/vanilla-decompiled 1.21
 
 ## Result
-## Result
 
 FINAL PASS (2026-11-18). Re-read the previous Result and re-verified every row directly against the decompiled 1.21 source in `.vendor/vanilla-decompiled/net/minecraft/world/level/block/` and against Pumpkin's implementation and tests. No source changes were needed: the code already matches vanilla. Every required value comes from existing generated data, so there is no BLOCKED-DATA row. No `.rs` files were edited, so nothing to rustfmt.
 
