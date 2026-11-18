@@ -334,7 +334,7 @@ pub(super) async fn test_acacia_chest_boat_contents_and_item_drop(
 
 /// A fast boat crosses fire blocks between its old and new standing boxes, so only the
 /// per-tick movement sweep (not the endpoint pass) can ignite it. Vanilla
-/// BaseFireBlock.entityInside ignites any non-fire-immune entity, while a lit campfire only
+/// `BaseFireBlock.entityInside` ignites any non-fire-immune entity, while a lit campfire only
 /// damages living entities (a boat is not living), so fire gives a boat an observable effect.
 pub(super) async fn test_boat_sweep_ignites_on_fire(helper: GameTestHelper) -> GameTestResult<()> {
     build_stone_floor(&helper, 5, 5).await?;

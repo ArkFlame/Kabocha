@@ -303,7 +303,9 @@ impl ServerGameTestWorld {
         min: pumpkin_util::math::vector3::Vector3<f64>,
         max: pumpkin_util::math::vector3::Vector3<f64>,
     ) -> Option<Arc<dyn crate::entity::EntityBase>> {
-        let normalized = entity_name.strip_prefix("minecraft:").unwrap_or(entity_name);
+        let normalized = entity_name
+            .strip_prefix("minecraft:")
+            .unwrap_or(entity_name);
         let bounds = pumpkin_util::math::boundingbox::BoundingBox::new(min, max);
         let entities = self.world.entities.load_full();
         entities
@@ -747,9 +749,9 @@ impl GameTestWorld for ServerGameTestWorld {
         max: pumpkin_util::math::vector3::Vector3<f64>,
         velocity: pumpkin_util::math::vector3::Vector3<f64>,
     ) -> GameTestResult<()> {
-        let entity = self.first_entity_in_box(entity_name, min, max).ok_or_else(|| {
-            GameTestError::World(format!("No {entity_name} in the test box"))
-        })?;
+        let entity = self
+            .first_entity_in_box(entity_name, min, max)
+            .ok_or_else(|| GameTestError::World(format!("No {entity_name} in the test box")))?;
         entity.get_entity().set_velocity(velocity);
         Ok(())
     }
