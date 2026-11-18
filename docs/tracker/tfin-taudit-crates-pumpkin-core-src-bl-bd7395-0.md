@@ -7,7 +7,6 @@ Re-checked every STILL OPEN row against decompiled vanilla
 Re-verified all five STILL OPEN rows against decompiled vanilla this pass.
 vanilla for every row. Resolved the stale `STILL OPEN` markers in Gap status
 
-## Result
 ## Result (final pass)
 
 All five rows from `docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md`
