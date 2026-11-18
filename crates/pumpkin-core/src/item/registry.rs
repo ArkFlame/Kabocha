@@ -79,7 +79,10 @@ impl ItemRegistry {
             BlockActionResult::Pass
         };
 
+        // Vanilla `ItemStack.use` runs after-use side effects (including `use_cooldown`)
+        // only for a `Success` result; a `FAIL` such as an instrument-less horn skips them.
         if let Some(cooldown) = cooldown
+            && result != BlockActionResult::Fail
             && self.get_use_duration(stack).is_none()
             && stack.get_max_use_time() == 0
         {
