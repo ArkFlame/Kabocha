@@ -78,9 +78,10 @@ impl PandaEntity {
     /// Vanilla `Panda.afterSneeze`. The client adds the sneeze particle from the synched counter, so no
     /// particle packet is sent.
     ///
-    /// This reads and changes other entities up to 10 blocks away from the panda's tick, which
-    /// the conservative entity island reach covers only because `has_audited_tick` is false for
-    /// pandas; audit it before ever setting that.
+    /// This reads and changes other entities up to 10 blocks away from the panda's tick. The
+    /// conservative island reach covers that because `has_audited_tick` is false for pandas:
+    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks. A species that
+    /// sets `has_audited_tick` must report this reach from its own goal and tick audit.
     fn after_sneeze(&self) {
         self.play_entity_sound(Sound::EntityPandaSneeze, 1.0, 1.0);
 
