@@ -103,3 +103,10 @@ No .rs files edited this pass (all actionable rows resolved earlier or verified 
 
 ## Result (native-4 cross-file pass)
 - Row 5 (equipment roll ignores spawn reason): BLOCKED-L. Needs `EntitySpawnReason` threaded through `finalize_spawn_base`/`populate_spawn_equipment` and every `finalize_spawn` caller (cross-crate).
+
+
+## Result (third pass, final)
+
+- Row 5 (equipment roll ignores spawn reason): VERIFIED NO ACTION (supersedes prior BLOCKED-L status). The EQUIPMENT_REGISTRY path applies only to skeleton / stray / bogged / wither_skeleton / piglin / pillager / vindicator, all of which roll equipment for every spawn reason in vanilla: AbstractSkeleton.java:134-137, WitherSkeleton.java:86, Pillager.java:161-162, Vindicator.java:132-133, Piglin.java:201-202. Only Zombie.java:514-517 gates equipment on CONVERSION, and zombies are not in the registry: Pumpkin finalize_zombie_spawn (zombie/mod.rs:285-288) already gates on reason != Conversion. No observable difference, no cross-crate refactor needed.
+- Rows 1, 2, 3, 6: VERIFIED NO ACTION and row 4: FIXED, all as recorded in the Result sections above; nothing remains STILL OPEN.
+- No .rs files edited this pass.

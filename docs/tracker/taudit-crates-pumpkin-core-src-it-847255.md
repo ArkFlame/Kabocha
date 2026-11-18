@@ -55,3 +55,26 @@ No `TODO`/`FIXME` markers remain; the two "Vanilla" mentions are explanatory com
 - Row 1 (M) - LEFT OPEN. Systemic fix needs files outside this unit (`entity/living.rs` death/respawn/item-break sites, `entity/player.rs:8313 stop_using_item`) plus a registry/server handle threaded to every `clear_active_hand` caller. The only in-unit site, `net/bedrock/play/inventory_action.rs:27 correct_rejected_food_use`, is a food-rejection correction where `on_stopped_using` is a no-op, so fixing it alone cannot close the row.
 - Row 2 (XS) - FIXED in `bow.rs`. Verified vanilla: `BowItem.releaseUsing` passes `player.getUsedItemHand()` to `ProjectileWeaponItem.shoot`, which applies `weapon.hurtAndBreak(1, shooter, hand.asEquipmentSlot())` to the exact used stack. Replaced the `active_hand` mutex read and `unwrap_or(MAIN_HAND)` fallback (silently damaged the wrong hand if the shared flag was cleared first) with a match on the released stack's network id against the off-hand stack, via the pure helper `damage_slot_for`. Added unit test `bow_damage_slot_matches_used_hand`.
 - Row 3 (S) - VERIFIED, no code change. Vanilla `ServerPlayerGameMode.useItem` (line 474) rejects spectators before item use; `bow.rs:36-39` already carries the equivalent `GameMode::Spectator` guard, so a spectator holding arrows cannot start a draw.
+
+
+## Result (third pass, closes the last open row)
+
+Re-verified the last open row (Row 1, `clear_active_hand` cancel paths) directly against
+decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java`.
+
+- Row 1 (M): VERIFIED, no gap. Vanilla `LivingEntity.stopUsingItem` (LivingEntity.java:4498-4509)
+  only emits `GameEvent.ITEM_INTERACT_FINISH` (when `wasUsingItem`) and then sets
+  `useItem = ItemStack.EMPTY`; it deliberately does NOT call `ItemStack.releaseUsing`. Only the
+  separate `releaseUsingItem` (LivingEntity.java:4484-4496) calls `useItem.releaseUsing(...)` before
+  `stopUsingItem()`. Pumpkin `clear_active_hand` (living.rs:1182, reached from
+  `player.rs::stop_using_item:8589` and the death/respawn/item-break cancel paths) faithfully
+  mirrors `stopUsingItem`: it emits `ItemInteractFinish` vibration and clears `item_in_use` without
+  firing the bow or charging durability. That is correct vanilla parity for a cancelled draw; the
+  release packet path already fires the bow via `item_registry.on_stopped_using`
+  (`bow.rs::on_stopped_using:53`). The original Row 1 premise (that cancel paths must fire) was a
+  misread of `releaseUsingItem` versus `stopUsingItem`. No source change warranted.
+- Rows 2 and 3 remain FIXED / VERIFIED as recorded above.
+
+No source file edited this pass; no rustfmt or compile run (orchestrator gate).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-it-847255.md

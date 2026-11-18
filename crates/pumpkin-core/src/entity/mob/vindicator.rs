@@ -43,16 +43,12 @@ fn is_johnny(mob: &dyn Mob) -> bool {
         .is_some_and(|name| name.clone().get_text() == "Johnny")
 }
 
-/// Vanilla `VindicatorJohnnyAttackGoal.canAttack`: every mob but a creeper or ghast.
-fn johnny_can_attack(target: &dyn Mob) -> bool {
-    let entity_type = target.get_entity().entity_type;
-    entity_type != &EntityType::CREEPER && entity_type != &EntityType::GHAST
-}
-
+/// Vanilla `VindicatorJohnnyAttackGoal`: any attackable living entity. Vanilla's extra
+/// `attackable()` predicate is false only for armor stands, which `TargetMatch::Mob` already
+/// excludes, so the goal needs no additional candidate filter.
 const VINDICATOR_JOHNNY_HUNTS: &[Hunt] = &[Hunt::new(4, TargetMatch::Mob, true)
     .every(0)
-    .gated_by(is_johnny)
-    .only_mobs(johnny_can_attack)];
+    .gated_by(is_johnny)];
 
 pub struct VindicatorEntity {
     pub mob_entity: MobEntity,

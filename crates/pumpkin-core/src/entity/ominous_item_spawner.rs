@@ -107,6 +107,9 @@ impl OminousItemSpawnerEntity {
 
     fn spawn_item(&self) {
         let item = self.get_item();
+        if item.is_empty() {
+            return;
+        }
         let world = self.entity.world.load();
         // Vanilla spawns at `this.position()` (entity origin), not the bounding-box
         // centre; using the centre would raise the projectile by half the hitbox height.
@@ -355,13 +358,6 @@ impl EntityBase for OminousItemSpawnerEntity {
         if self.entity.is_removed() {
             return;
         }
-        // Vanilla `OminousItemSpawner.tick` discards the entity as soon as it has no item
-        // (for example a saved spawner whose item failed to load).
-        if self.get_item().is_empty() {
-            self.entity.remove();
-            return;
-        }
-
         let tick_count = i64::from(self.entity.tick_count.load(Ordering::Relaxed));
         let spawn_after = self.spawn_item_after_ticks.load(Ordering::Relaxed);
         if tick_count == spawn_after - TICKS_BEFORE_ABOUT_TO_SPAWN_SOUND {

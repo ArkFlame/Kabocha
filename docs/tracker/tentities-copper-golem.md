@@ -82,3 +82,8 @@ Re-verified all four rows against `.vendor/vanilla-decompiled/net/minecraft/worl
 - Row 4 (boundary): VERIFIED NO BUG. Vanilla uses `gameTime >= nextWeatheringTick` (CopperGolem.java:270). `update_weathering` uses `>=`, and `tick_weathering`'s `<=` guard cannot double-advance because next is pushed to a future tick. Effective advancement is at `game_time >= next`, matching vanilla.
 
 No pure unit-test seam exists (NBT and statue conversion need a live entity and world; enum conversion tests would only mirror constants/derives, excluded by the test policy). No code changed this pass, so no rustfmt or compile was run by this worker.
+
+
+## Result (fourth pass 2026-11-18)
+
+All four rows remain VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/golem/CopperGolem.java`. Additionally found and FIXED a discrepancy outside these four rows: `mob_on_lightning_strike` (copper_golem.rs:615) previously reset the golem to Unaffected before the bolt-UUID dedup, making the vanilla `thunderHit` step-back dead code. It now dedups by bolt UUID and calls `weatherState.previous()` + `nextWeatheringTick = -1` on a new bolt when not already Unaffected (CopperGolem.java:488-499). Recorded on the owning tpar doc.

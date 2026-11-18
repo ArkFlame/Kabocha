@@ -214,14 +214,14 @@ impl ArmadilloEntity {
 
     pub fn roll_up(&self) {
         if !self.is_scared() {
+            // Vanilla Armadillo.rollUp stops in place and emits ENTITY_ACTION.
             self.mob_entity.reset_love_ticks();
+            self.mob_entity.stop_navigation();
             let entity = self.get_entity();
             let world = entity.world.load();
-            world.play_sound(
-                Sound::EntityArmadilloRoll,
-                SoundCategory::Neutral,
-                &entity.pos.load(),
-            );
+            let pos = entity.pos.load();
+            world.play_sound(Sound::EntityArmadilloRoll, SoundCategory::Neutral, &pos);
+            world.emit_game_event(pumpkin_data::game_event::GameEvent::EntityAction.name(), pos);
             self.switch_to_state(ArmadilloState::Rolling);
         }
     }
@@ -230,11 +230,9 @@ impl ArmadilloEntity {
         if self.is_scared() {
             let entity = self.get_entity();
             let world = entity.world.load();
-            world.play_sound(
-                Sound::EntityArmadilloUnrollFinish,
-                SoundCategory::Neutral,
-                &entity.pos.load(),
-            );
+            let pos = entity.pos.load();
+            world.play_sound(Sound::EntityArmadilloUnrollFinish, SoundCategory::Neutral, &pos);
+            world.emit_game_event(pumpkin_data::game_event::GameEvent::EntityAction.name(), pos);
             self.switch_to_state(ArmadilloState::Idle);
         }
     }
