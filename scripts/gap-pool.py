@@ -36,7 +36,7 @@ def alive(r):
     except OSError: return False
 def launch(u, lane):
     name, path, files = u
-    if MARK == 'PASS2-OPEN':
+    if MARK.startswith('PASS'):
         brief = HDR + f'\n\nYOUR UNIT: {path} (ONE row). Read the row and its source doc, find the Pumpkin code it concerns (grep), verify vs vanilla, fix. You may edit any .rs file this row needs, keep it minimal. Other workers edit other files at the same time: re-read a file right before each edit. If the row is already fixed or is only a note, mark VERIFIED. Append "## Result" to your unit doc.\n'
     else: brief = HDR + f'\n\nYOUR UNIT: {path}\nFiles this unit may edit: only the source files named in it (basenames: {", ".join(sorted(files)) or "none"}). Record each row result by appending a section "## Result" to that doc.\n'
     log = open(f'{RUNS}/{name}.log', 'w')
