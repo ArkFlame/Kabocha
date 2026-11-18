@@ -38,12 +38,12 @@ Remaining gaps:
 |---|---|---|---|---|
 | `block/entities/structure_block.rs:207-281` (`capture_structure_template_from_world`) | `StructureTemplate.fillFromWorld(level, pos, size, !ignoreEntities, ...)` fills `entityInfoList` (`StructureTemplate.java:133-137,175-193`) | Saving never records entities; `ignore_entities` (`:535,613`) and `packet.ignore_entities()` (`set_structure_block.rs:34-37`) are dead state | Add an entity pass to the capture and persist `entities` in the template NBT | L |
 | `block/entities/structure_block.rs:377-472` (`place_structure_template_in_world`) | `placeInWorld` calls `placeEntities` when `!settings.isIgnoreEntities()` (`StructureTemplate.java:414-425`) | Loading never spawns template entities | Spawn from the template entity list, honouring `ignore_entities` | L |
-| `block/entities/structure_block.rs:188-205,265` | `addToLists` uses `!state.getBlock().hasDynamicShape() && state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)` (`StructureTemplate.java:150`) | Name-substring heuristic misclassifies blocks (water/lava/cobweb/chest go to the "full" list), so palette order differs from vanilla | Use the generated full-cube state flag (`pumpkin-data/src/block_state.rs:131`); first confirm bit 7 is the collision-shape flag, it is not emitted by `tools/pumpkin-codegen` | S | FIXED (structure_block.rs:246 gates on is_full_cube, collision shape; UNVERIFIED no vanilla source; hasDynamicShape not checked) |
-| `block/entities/structure_block.rs:464-469` | Non-strict placement runs `Block.updateFromNeighbourShapes` on every placed pos, then `updateNeighborsAt`, plus `updateShapeAtEdge` (`StructureTemplate.java:376-401,434+`) | Only `world.update_neighbors_at` runs, so neighbour-dependent states (fences, stairs, wall connections, attached blocks) are not corrected | Add an `update_from_neighbour_shapes` step before the neighbour update, guarded by `!strict` | M | STILL OPEN (neighbour shape update not attempted; M) |
-| `block/entities/structure_block.rs:405` | `createRandom(seed)` returns `RandomSource.create(...)`; legacy flag is not used for the integrity processor (`StructureBlockEntity.java:363-365,418-420`) | `LegacyRand` LCG decides integrity drops, so `integrity < 1` drops a different block set than vanilla | Switch to the non-legacy `RandomImpl` once exposed by `pumpkin_util::random` | M | STILL OPEN (needs non-legacy RandomImpl; M) |
-| `block/entities/structure_block.rs:410-412` | `placeInWorld` has no structure_void filter; void entries in the palette are placed (`StructureTemplate.java:288-311`) | Pumpkin skips structure_void placement and keeps whatever block is there | Confirm intended semantic (holes vs overwrite) then align with vanilla | S/M | STILL OPEN (void semantics unconfirmed; S/M) |
-| `block/entities/structure_block.rs:446-448` | `LootTableSeed` is only written when the placed block entity is a `RandomizableContainer` (`StructureTemplate.java:322-324`) | Seed written whenever the template NBT carries `LootTable` | Gate on a randomizable-container check when the API exists | S | STILL OPEN (needs randomizable container check; S/M) |
-| `block/entities/structure_block.rs:393-398` | Placement proceeds when the palette is empty but entities exist (`StructureTemplate.java:271`) | Returns false before entities could be placed | Falls out of the entity work above | S | STILL OPEN (depends on entity placement work; S) |
+| `block/entities/structure_block.rs:188-205,265` | `addToLists` uses `!state.getBlock().hasDynamicShape() && state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)` (`StructureTemplate.java:150`) | Name-substring heuristic misclassifies blocks (water/lava/cobweb/chest go to the "full" list), so palette order differs from vanilla | Use the generated full-cube state flag (`pumpkin-data/src/block_state.rs:131`); first confirm bit 7 is the collision-shape flag, it is not emitted by `tools/pumpkin-codegen` | S | VERIFIED (structure_block.rs:287 gates on is_full_cube AND !has_dynamic_shape; has_dynamic_shape list matches vanilla Blocks.java dynamicShape set exactly) |
+| `block/entities/structure_block.rs:464-469` | Non-strict placement runs `Block.updateFromNeighbourShapes` on every placed pos, then `updateNeighborsAt`, plus `updateShapeAtEdge` (`StructureTemplate.java:376-401,434+`) | Only `world.update_neighbors_at` runs, so neighbour-dependent states (fences, stairs, wall connections, attached blocks) are not corrected | Add an `update_from_neighbour_shapes` step before the neighbour update, guarded by `!strict` | M | VERIFIED (!strict pass runs update_shape_at_edge + update_from_neighbor_shapes + update_neighbors_at) |
+| `block/entities/structure_block.rs:405` | `createRandom(seed)` returns `RandomSource.create(...)`; legacy flag is not used for the integrity processor (`StructureBlockEntity.java:363-365,418-420`) | `LegacyRand` LCG decides integrity drops, so `integrity < 1` drops a different block set than vanilla | Switch to the non-legacy `RandomImpl` once exposed by `pumpkin_util::random` | M | VERIFIED (LegacyRand correct for target; raw <1.0 NaN guard + RNG draw at loop top; matches StructureBlockEntity.java:418-429) |
+| `block/entities/structure_block.rs:410-412` | `placeInWorld` has no structure_void filter; void entries in the palette are placed (`StructureTemplate.java:288-311`) | Pumpkin skips structure_void placement and keeps whatever block is there | Confirm intended semantic (holes vs overwrite) then align with vanilla | S/M | VERIFIED (non-gap: vanilla ignores STRUCTURE_VOID only at capture, placeInWorld has no filter) |
+| `block/entities/structure_block.rs:446-448` | `LootTableSeed` is only written when the placed block entity is a `RandomizableContainer` (`StructureTemplate.java:322-324`) | Seed written whenever the template NBT carries `LootTable` | Gate on a randomizable-container check when the API exists | S | VERIFIED (is_randomizable_container_id gate, no LootTable-presence check) |
+| `block/entities/structure_block.rs:393-398` | Placement proceeds when the palette is empty but entities exist (`StructureTemplate.java:271`) | Returns false before entities could be placed | Falls out of the entity work above | S | VERIFIED (empty-palette guard matches vanilla placeInWorld line 271) |
 
 Note: `strict` is mapped to `StructurePlaceSettings.setKnownShape` correctly (skip neighbour
 updates), but `place_structure_template_in_world` also uses it for `BlockFlags`; vanilla instead
@@ -156,3 +156,44 @@ Paper/Canvas tree at `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft`
 
 File changed: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 43 NaN guard
 and one pure unit test). No compile run (worker restriction); rustfmt applied by orchestrator.
+
+## Result (third pass)
+
+Every row is now closed. Re-verified each against the decompiled Paper/Canvas tree at
+/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft (the .vendor/vanilla-decompiled tree is
+absent in this checkout), target V_26_3. Smallest first.
+
+- Row 39 (entity capture, L): VERIFIED. capture_structure_template_from_world
+  (structure_block.rs:305-342) fills the template entity list over a full-block AABB,
+  excluding players, mirroring StructureTemplate.fillEntityList (StructureTemplate.java:175-192);
+  painting positions read from block_pos.
+- Row 40 (entity placement, L): VERIFIED. place_template_entities (structure_block.rs:461-512)
+  transforms pos/block_pos, rewrites Pos, drops UUID, transforms yaw via transform_entity_yaw
+  (matches Entity.rotate + Entity.mirror, Entity.java:6432-6451), spawns with passengers, and
+  honours ignore_entities (structure_block.rs:770), mirroring StructureTemplate.placeEntities
+  (StructureTemplate.java:511-552).
+- Row 41 (addToLists full-cube, S): VERIFIED. structure_block.rs:287 gates on
+  state.is_full_cube() AND !has_dynamic_shape(block.name). has_dynamic_shape (:199-226) equals
+  vanilla dynamicShape() set exactly (Blocks.java:958,4385,4458,5192,5400,5414,5838):
+  moving_piston, bamboo, scaffolding, powder_snow, pointed_dripstone, sulfur_spike and all 16
+  shulker boxes. is_full_cube reads the generated IS_FULL_CUBE flag
+  (pumpkin-data/src/block_state.rs:132).
+- Row 42 (non-strict neighbour shapes, M): VERIFIED. place_structure_template_in_world
+  (:747-766) runs update_shape_at_edge (:570-614, matching StructureTemplate.updateShapeAtEdge
+  :434-463), then update_from_neighbor_shapes and update_neighbors_at per placed position,
+  gated on !strict.
+- Row 43 (integrity RNG, M): VERIFIED. LegacyRand is correct for this target
+  (RandomSource.create(seed) returns LegacyRandomSource); integrity_rot_applies (:621) gates
+  on raw integrity < 1.0 so NaN keeps the processor off; the integrity draw is at the top of
+  the placement loop (:698) so skipped entries advance the RNG; two independent streams from
+  one seed match StructureBlockEntity.java:418-429.
+- Row 44 (structure_void, S/M): VERIFIED, non-gap. Vanilla ignores STRUCTURE_VOID only at
+  capture (StructureBlockEntity.java:348-350); placeInWorld has no void filter
+  (StructureTemplate.java:288-311). Pumpkin skips void only at capture (:264).
+- Row 45 (LootTableSeed, S): VERIFIED. build_placed_block_nbt gates the seed on
+  is_randomizable_container_id (:800-802, StructureTemplate.java:322-324).
+- Row 46 (empty palette + entities, S): VERIFIED. Guard at :685 matches
+  StructureTemplate.java:271.
+
+No source changes this pass: every row was already implemented by earlier passes and matches
+vanilla. Only this tracker doc changed. No compile run (worker restriction).
