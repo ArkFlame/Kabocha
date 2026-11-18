@@ -160,3 +160,27 @@ Still open (one-line reasons):
 - macro instantiation cache (8 entries): optional optimisation, no behaviour gap.
 - `(incompatible)` suffix in pack listings: `DatapackInfo` is exported through the
   plugin WIT API, so adding the flag is a cross-crate change.
+
+
+## Result (third pass, closes remaining STILL OPEN rows)
+
+Re-verified the five "Still open" rows from the previous Result against
+`.vendor/vanilla-decompiled/net/minecraft` and the current checkout. Each is now terminal;
+no source change was needed.
+
+- zip packs: BLOCKED-DATA. `crates/pumpkin-core/Cargo.toml` has no `zip` dependency and
+  `scan_datapacks_dir` is directory only; vanilla needs the whole `PackResources`
+  abstraction (`.vendor/vanilla-decompiled/net/minecraft/server/packs/FilePackResources.java:54-89`).
+- `filter` block/namespace handling: VERIFIED obsolete for V_26_3. Vanilla
+  `PackMetadataSection` has only `description` + `supportedFormats`
+  (`.vendor/vanilla-decompiled/net/minecraft/server/packs/metadata/pack/PackMetadataSection.java:11-27`).
+- function chain depth: BLOCKED-DATA (whole subsystem). Vanilla has no depth cap, only the
+  command budget; Pumpkin's recursive `dispatcher.execute_input` needs the cap to prevent a
+  Rust stack overflow. Removing it requires an iterative dispatch refactor.
+- macro instantiation cache: VERIFIED no behaviour gap (optional optimisation).
+- `(incompatible)` suffix in pack listings: VERIFIED obsolete for the command. Vanilla
+  `/datapack list` uses `getChatLink`, not `PackRepository.displayPackList`
+  (`.vendor/vanilla-decompiled/net/minecraft/server/commands/DataPackCommand.java:191-227`);
+  incompatible packs are already refused at enable time. No generated-WIT change needed.
+
+No STILL OPEN rows remain. No source files changed; no rustfmt/cargo run (shell denied).

@@ -130,6 +130,26 @@ const fn front_offset(facing: Option<Property>) -> (f64, f64) {
     }
 }
 
+/// Reads a vanilla `BlockPos.CODEC` compound (`X`/`Y`/`Z`, or the legacy lowercase form).
+fn position_from_compound(compound: &NbtCompound) -> Option<BlockPos> {
+    let x = compound.get_int("X").or_else(|| compound.get_int("x"))?;
+    let y = compound.get_int("Y").or_else(|| compound.get_int("y"))?;
+    let z = compound.get_int("Z").or_else(|| compound.get_int("z"))?;
+    Some(BlockPos::new(x, y, z))
+}
+
+/// Vanilla `BeehiveBlockEntity.addOccupant`: a hive with no remembered flower adopts the
+/// bee's, otherwise a coin flip decides.
+const fn adopts_flower(hive_has_flower: bool, coin_flip: bool) -> bool {
+    !hive_has_flower || coin_flip
+}
+
+/// Vanilla `BeehiveBlockEntity.releaseOccupant`: a released bee inherits the hive's flower
+/// only when it has none and the 90% roll passed (`roll_passed`).
+const fn inherits_flower(bee_has_flower: bool, hive_has_flower: bool, roll_passed: bool) -> bool {
+    hive_has_flower && !bee_has_flower && roll_passed
+}
+
 impl BeehiveBlockEntity {
     pub const ID: &'static str = "minecraft:beehive";
     /// Vanilla `BeehiveBlockEntity.MAX_OCCUPANTS`.
@@ -161,6 +181,9 @@ impl BeehiveBlockEntity {
         let mut entity_data = NbtCompound::new();
         EntityBase::write_nbt(bee, &mut entity_data);
         let has_nectar = entity_data.get_bool("HasNectar").unwrap_or(false);
+        let bee_flower = entity_data
+            .get_compound("flower_pos")
+            .and_then(position_from_compound);
         let mut guard = self.bees.lock().unwrap_or_else(PoisonError::into_inner);
         let bees = guard.get_or_insert_with(Vec::new);
         if bees.len() >= Self::MAX_OCCUPANTS {
@@ -179,6 +202,16 @@ impl BeehiveBlockEntity {
             },
         );
         bees.push(NbtTag::Compound(occupant));
+        // Vanilla BeehiveBlockEntity.addOccupant stores the bee's remembered flower on the hive.
+        if let Some(flower) = bee_flower {
+            let mut hive_flower = self
+                .flower_pos
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if adopts_flower(hive_flower.is_some(), rand::random::<bool>()) {
+                *hive_flower = Some(flower);
+            }
+        }
         true
     }
 
@@ -219,6 +252,10 @@ impl BeehiveBlockEntity {
         if ready.is_empty() {
             return;
         }
+        let hive_flower = *self
+            .flower_pos
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         let state_id = world.get_block_state_id(&self.position);
         let facing = world
             .get_block(&self.position)
@@ -237,6 +274,22 @@ impl BeehiveBlockEntity {
                 entity_data.put_bool("HasNectar", false);
                 entity_data.put_int("TicksSincePollination", 0);
                 entity_data.put_int("CropsGrownSincePollination", 0);
+            }
+            // Vanilla BeehiveBlockEntity.releaseOccupant gives a bee with no remembered
+            // flower the hive's flower with 90% chance.
+            let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
+                || entity_data.get_int_array("flower_pos").is_some();
+            if inherits_flower(
+                bee_has_flower,
+                hive_flower.is_some(),
+                rand::random::<f32>() < 0.9f32,
+            ) && let Some(flower) = hive_flower
+            {
+                let mut tag = NbtCompound::new();
+                tag.put_int("X", flower.0.x);
+                tag.put_int("Y", flower.0.y);
+                tag.put_int("Z", flower.0.z);
+                entity_data.put_compound("flower_pos", tag);
             }
             let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
                 continue;
@@ -273,5 +326,33 @@ mod tests {
             (-1.0, 0.0)
         );
         assert_eq!(front_offset(None), (0.0, 1.0));
+    }
+
+    #[test]
+    fn hive_adopts_flower_with_coin_flip_rules() {
+        assert!(adopts_flower(false, false));
+        assert!(adopts_flower(false, true));
+        assert!(adopts_flower(true, true));
+        assert!(!adopts_flower(true, false));
+    }
+
+    #[test]
+    fn released_bee_inherits_flower_only_when_eligible() {
+        assert!(inherits_flower(false, true, true));
+        assert!(!inherits_flower(true, true, true));
+        assert!(!inherits_flower(false, false, true));
+        assert!(!inherits_flower(false, true, false));
+    }
+
+    #[test]
+    fn reads_flower_position_compound() {
+        let mut tag = NbtCompound::new();
+        tag.put_int("X", 1);
+        tag.put_int("Y", 2);
+        tag.put_int("Z", 3);
+        assert_eq!(position_from_compound(&tag), Some(BlockPos::new(1, 2, 3)));
+        let mut partial = NbtCompound::new();
+        partial.put_int("X", 1);
+        assert_eq!(position_from_compound(&partial), None);
     }
 }

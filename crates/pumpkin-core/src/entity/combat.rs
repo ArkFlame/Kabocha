@@ -219,9 +219,6 @@ fn mace_smash_can_knockback(
     })
 }
 
-/// Scales a knockback `strength` by a living entity's knockback resistance,
-/// mirroring vanilla `LivingEntity.knockback`: `strength *= 1.0 - resistance`.
-/// A resistance of 1.0 (iron golem, warden, ...) cancels the knockback entirely.
 /// Vanilla `Player.doSweepAttack` reach: `distanceToSqr(target) < 9.0`, measured from the
 /// attacker's feet to the target's feet.
 #[must_use]
@@ -233,6 +230,10 @@ pub fn sweep_in_reach(attacker: Vector3<f64>, target: Vector3<f64>) -> bool {
     dx * dx + dy * dy + dz * dz < SWEEP_REACH_SQUARED
 }
 
+/// Scales a knockback `strength` by a living entity's knockback resistance,
+/// mirroring vanilla `LivingEntity.knockback`: `strength *= 1.0 - resistance`.
+/// A resistance of 1.0 (iron golem, warden, ...) cancels the knockback entirely.
+#[must_use]
 pub fn knockback_after_resistance(strength: f64, resistance: f64) -> f64 {
     strength * (1.0 - resistance)
 }

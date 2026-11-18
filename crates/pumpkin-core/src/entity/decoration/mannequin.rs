@@ -247,21 +247,22 @@ impl EntityBase for MannequinEntity {
         );
         nbt.put_bool("immovable", self.get_immovable());
 
-        // description and hide_description are independent tags: hiding a custom
-        // description must not drop it from the saved data.
-        let description = self
-            .description
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        if description != default_description() {
-            nbt.put(
-                "description",
-                description.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
-            );
-        }
+        // Vanilla stores only `hide_description` when hidden and drops the custom
+        // text; on reload the description resets to the default label while hidden.
         if self.hide_description.load(Ordering::Relaxed) {
             nbt.put_bool("hide_description", true);
+        } else {
+            let description = self
+                .description
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            if description != default_description() {
+                nbt.put(
+                    "description",
+                    description.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+                );
+            }
         }
     }
 
@@ -415,13 +416,14 @@ mod tests {
             Some(&[NbtTag::String("cape".into()), NbtTag::String("hat".into()),][..])
         );
 
-        // A hidden custom description is still saved, and survives a round trip.
+        // Vanilla drops the custom description text when hidden: save writes only
+        // `hide_description`, and a reload restores the default label while hidden.
         mannequin.set_description_state(TextComponent::text("Hidden NPC"), true);
         assert_eq!(mannequin.get_description(), None);
         let mut hidden = NbtCompound::new();
         EntityBase::write_nbt(mannequin.as_ref(), &mut hidden);
         assert_eq!(hidden.get_bool("hide_description"), Some(true));
-        assert!(hidden.get("description").is_some());
+        assert!(hidden.get("description").is_none());
 
         let copy = MannequinEntity::new(Entity::new(
             world.clone(),
@@ -432,7 +434,7 @@ mod tests {
         assert_eq!(copy.get_description(), None);
         let mut resaved = NbtCompound::new();
         EntityBase::write_nbt(copy.as_ref(), &mut resaved);
-        assert!(resaved.get("description").is_some());
+        assert!(resaved.get("description").is_none());
         assert_eq!(resaved.get_bool("hide_description"), Some(true));
 
         world.level.shutdown().await;
