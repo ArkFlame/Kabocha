@@ -2,10 +2,10 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: area_effect_cloud.rs armor_stand.rs splash_potion.rs
 
-3. Paper events: STILL OPEN (out of unit). `PlayerArmorStandManipulateEvent` already fires cancellably in
-Re-checked both STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java` and the current Pumpkin sources (armor_stand.rs, area_effect_cloud.rs, splash_potion.rs). No source file changed: every in-scope row is already fixed and matches the decompiled call chain (marker gravity 0.0, spawn-protection/mayInteract guard, potion immunity honoured by cloud/potion consumers, can-tick override, read_flags, main-hand drop, wobble/death game events, interaction slot fallbacks, is_ignoring_block_triggers). No new pure seam, so no unit test added.
-STILL OPEN (out of unit, one-line reasons):
-STILL OPEN (one-line reason): the WIT records `entity-death-event` (v0.1 event.wit:414,
+All rows below are now closed in the Final Result section at the end of this file.
+Editable basenames for this unit: armor_stand.rs, splash_potion.rs. No source edit was
+needed in the final pass; the only non-fixable remainder is Row 3's WASM surface, which
+is BLOCKED-DATA (WIT cancelled:bool + drops fields require codegen regeneration).
 
 ## Result
 FINAL PASS per-row results (2026-11-18). Reference:
