@@ -536,3 +536,14 @@ Tech-debt pass (Phase 3, `docs/GOAL_FINAL.md`). Each entry is a `TODO`/`FIXME`/`
 - **World generation and chunk system** (`pumpkin-world/**`): height provider min>max investigation, surface caching, noise router test coverage, heightmap tracking, palette serialization decision, and the chunk-system ticket lifetime. These are performance or correctness investigations.
 - **Test TODOs** (`pumpkin-util/src/random/mod.rs`, `pumpkin-world/.../density_function/test.rs`, `pumpkin-world/src/lib.rs`): missing unit tests and extracted noise values. Owned by the test workstream.
 - **Util and misc** (`pumpkin-util/src/noise/simplex.rs`, `text/color.rs`, `translation.rs`): simplex duplication extraction, terminal true-colour detection, and empty or missing translation file handling. Low risk but no-op for the goal; deferred.
+
+## Deferred worker commits (not ported)
+
+Old `kab/*` worker branches were triaged and removed. These commits were judged too large or contradicting vanilla; fetch by hash if still reachable (`git show <hash>`):
+
+- `c9c056d52` nautilus goal sets (new 264-line `nautilus_goals.rs`, tempt stop distance): L, needs its own pass.
+- `eaa5a3001` guardian goal refactor: would duplicate master's fuller `GuardianAttackGoal`; port only the missing parts.
+- `35302769c` piglin baby roll and baby-gated weapon: needs `equipment.rs` `equip_mob_on_spawn` gating.
+- `2de14f0a1` uniform bonus level-0 guard: rejected, contradicts vanilla `ApplyBonusCount`.
+- `fdc682aaa` compass lodestone unlink: rejected, contradicts vanilla `LodestoneTracker.tick`.
+- `d456eb83c` generated configured features lint change: superseded by the codegen allow list fix.
