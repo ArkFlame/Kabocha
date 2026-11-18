@@ -8,4 +8,4 @@ Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraf
 Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft (1.21.x Paper/Canvas tree).
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- FIXED: set_structure_block.rs:147-151 now calls `world.send_block_updated(&pos, state_id, state_id)` instead of `world.register_block_change(pos, state_id)`, mirroring vanilla `structure.setChanged(); level.sendBlockUpdated(pos, state, state, Block.UPDATE_ALL)` (ServerGamePacketListenerImpl.java:1317-1318). `send_block_updated` exposed as `pub` in world/mod.rs. VERIFIED against .vendor vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:1317-1318.
