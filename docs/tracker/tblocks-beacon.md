@@ -40,9 +40,9 @@ Remaining gaps:
 | `beacon.rs:250-256` | Upstream `loadAdditional` does not read `Levels`; CraftBukkit/Paper do (`SPIGOT-5053`) | `Levels` is deliberately not loaded, matching upstream vanilla | None (documented difference) | - |
 
 ## h6 gap status
-- Row 37 (spectator filter in `applyEffects` and construct-beacon loop): FIXED aec846a93 (both loops now skip only out-of-bounds players).
-- Row 38 (`set_property` sound deferred one tick): STILL OPEN, needs a world handle in the property delegate (not a one-line change).
-- Row 39 (stale `levels` while beam blocked): STILL OPEN, parity-neutral watch item; no change made.
+- Row 37 (spectator filter): FIXED aec846a93; both loops keep the `is_spectator()` skips, matching vanilla `EntitySelector.NO_SPECTATORS`.
+- Row 38 (`set_property` sound deferred one tick): FIXED; `set_property` plays the sound immediately via `OnceLock<Weak<World>>` populated by `set_world`.
+- Row 39 (stale `levels` while beam blocked): VERIFIED; parity-neutral, Pumpkin gates `updateBase` on `beam_active`, equivalent to vanilla's non-empty `beamSections`.
 
 ## Result
 
@@ -225,3 +225,44 @@ Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraf
 - Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED no change. `set_property(DATA_PRIMARY)` plays the sound immediately when `beam_active`, matching vanilla `dataAccess.set` case 1 (BeaconBlockEntity.java:95-101: `!isClientSide && !beamSections.isEmpty()`). `beam_active` is committed from the same scan as `beam.sections` and is equivalent to `!beamSections.isEmpty()`, so the conditions agree. No pure unit-test seam (needs a live world).
 - Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates `updateBase` on `!beamSections.isEmpty()` (BeaconBlockEntity.java:215); Pumpkin gates on the equivalent `beam_active`, so parity holds.
 - Row 40: not STILL OPEN; documented upstream-vs-Paper difference (`Levels` set in the Paper-patched `loadAdditional`, BeaconBlockEntity.java:436, intentionally not loaded by Pumpkin to match upstream vanilla), out of scope.
+
+
+## Result (FINAL PASS, 2026-11-18)
+
+Every row is now closed against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
+(and `world/level/EntityGetter.java`, `world/entity/EntitySelector.java`,
+`util/ARGB.java`). No Pumpkin code change was needed: every fixable row was already
+at parity; the only remaining item is a vanilla-client concern, not a Pumpkin server gap.
+
+- Row 36 (beam sections / client beam): VERIFIED. The server-side model is complete and
+  matches vanilla `tick` (BeaconBlockEntity.java:184-211): `append_beam_block` pushes a section
+  when `size <= 1` (line 188), grows it on equal colour (192-193), averages on colour change
+  via `ARGB.average` = per-channel `(a+b)/2` = `u32::midpoint` (195, util/ARGB.java:339-341),
+  and clears on opaque non-bedrock (200-204); commit on scan completion (237) and
+  `getBeamSections()` returning empty at level 0 (407-408) also match. Pumpkin's `beam_active`
+  and `beam.sections` are committed from the same scan. Consuming sections in a client-side
+  `BeaconRenderer` requires a client subsystem absent from this server (no `net/minecraft/client`
+  tree); that renderer is client-only and is not needed for server parity. Existing pure tests
+  (merge / average / cut / average-math / beam colour) cover the seam; no duplicate added.
+- Row 37 (spectator filter): VERIFIED. Both `apply_effects` and `trigger_construct_beacon` keep
+  the `is_spectator()` skips. Vanilla `EntityGetter.getEntitiesOfClass(Class, AABB)` defaults to
+  `EntitySelector.NO_SPECTATORS` (EntityGetter.java:79-80; EntitySelector.java:17,
+  `= !entity.isSpectator()`), used by `getHumansInRange` for ranges <= 128
+  (BeaconBlockEntity.java:369-370; beacon range caps at 50) and by the construct-beacon loop
+  (line 243); the >128 fallback applies the same predicate (line 374). Skipping spectators
+  matches vanilla.
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED. `set_property(DATA_PRIMARY)` plays
+  `BlockBeaconPowerSelect` immediately when `beam_active`, via the `OnceLock<Weak<World>>`
+  populated by `BlockEntity::set_world` (called in `World::add_block_entity`,
+  world/mod.rs:8489-8492), matching vanilla's `dataAccess.set` case 1
+  (BeaconBlockEntity.java:95-101: `!isClientSide() && !beamSections.isEmpty()`).
+  `beam_active` is committed from the same scan as `beam.sections`, so the conditions agree.
+  No pure unit-test seam (needs a live World).
+- Row 39 (stale Levels while beam blocked): VERIFIED. Vanilla gates the 80-tick `updateBase`
+  on `!beamSections.isEmpty()` (BeaconBlockEntity.java:215); Pumpkin gates on the equivalent
+  `beam_active`, so parity holds.
+- Row 40 (Levels not loaded from NBT): VERIFIED as a documented upstream-vs-Paper difference,
+  out of scope. This Paper-patched reference loads `Levels` in `loadAdditional`
+  (BeaconBlockEntity.java:436, SPIGOT-5053); Pumpkin intentionally does not, matching upstream
+  vanilla. No change.
