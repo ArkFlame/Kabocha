@@ -59,3 +59,31 @@ tadpole now stores `from_bucket`, which differs from vanilla for that mob.
 
 Verification: decompiled vanilla + assets read directly; `rustfmt --edition 2024`
 run on `water_animal.rs` (exit 0). No cargo/git run per task rules.
+
+## Result
+
+Re-verified all three STILL OPEN rows against vendored decompiled vanilla (Java
+26.3) and the current Pumpkin source. No code changes were needed: the source
+already matches vanilla on every row.
+
+- Gap 1 (tadpole variant): CLOSED, false premise. `Tadpole.java` defines only
+  `AGE_LOCKED` synched data (line 45); there is no `DATA_VARIANT` /
+  `TadpoleVariant`, and `assets/` has no tadpole variant registry. `tadpole.rs`
+  correctly has none. A fix would need generated data/Extractor outside this unit.
+- Gap 2 (age-up variant mapping): CLOSED, false premise. `Tadpole#ageUp`
+  (Tadpole.java:236-250) only calls `convertTo(FROG, ...)` plus `finalizeSpawn`;
+  no variant is carried over (the frog variant is biome-selected). Pumpkin
+  `tadpole.rs:120-146` matches. Also needs generated data outside this unit.
+- Gap 3 (water animal max air): CLOSED, already correct. `WaterAnimal.java:39-49`
+  hardcodes `setAirSupply(300)` and has no `getMaxAirSupply` override (only
+  Dolphin overrides to 4800, dolphin.rs:39). `water_animal.rs:10` already sets
+  `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`; `bucketable.rs:192` comment now reads
+  (300), with no stale 4800 anywhere in these files; `breath.rs MAX_AIR = 300` is
+  player-only (`BreathManager::tick(&Player)`). No code change.
+
+The earlier "Fixed in this pass" from_bucket change flagged in the prior Result
+is already corrected in source: `tadpole.rs:260-267` overrides `is_from_bucket()`
+to true and makes `set_from_bucket()` a no-op, matching Tadpole.java:172-179.
+
+Verification: decompiled vanilla + assets read directly; no cargo/git per task
+rules. No rustfmt run because no .rs file was edited.
