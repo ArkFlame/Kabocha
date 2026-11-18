@@ -104,3 +104,27 @@ handlePaddleBoat :2464) and net/minecraft/world/entity/Entity.java (getControlle
 No pure unit-test seam exists for these packet handlers (they require a live Player,
 world and vehicle graph), so none was added. rustfmt --edition 2024 run on the one
 touched Rust file (paddle_boat.rs).
+
+
+## Result (re-review 2026-11-18)
+
+Re-verified in the main checkout against decompiled vanilla at
+/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup (ServerGamePacketListenerImpl.java
+handleMoveVehicle :578 / handlePaddleBoat :2464, Entity.getControlledVehicle :6661).
+
+- Row 1 (bubble time publish): STILL OPEN - needs boat.rs, physics.rs and generated tracked_data
+  edits, all outside this unit.
+- Row 2 (rider position clamp): STILL OPEN - needs passengers.rs/boat.rs edits, outside this unit.
+- Row 3 (float_boat air-to-water snapping): STILL OPEN - physics.rs outside this unit.
+- Row 4 (floatBoat gravity constant): STILL OPEN - physics.rs outside this unit.
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): ALREADY FIXED / VERIFIED - vanilla wraps with
+  Mth.wrapDegrees (:606-607); Pumpkin wraps at move_vehicle.rs:43-44 and applies at :81. No change.
+- Row 6 (paddle boat handler, paddle_boat.rs): ALREADY FIXED / VERIFIED - vanilla uses
+  getControlledVehicle() instanceof AbstractBoat (:2466); Pumpkin checks the immediate vehicle's
+  controlling passenger, downcasts to BoatEntity and sets paddle state; matches vanilla. No change.
+- Row 7 (dead move_from_client path): STILL OPEN - physics.rs outside this unit.
+- Row 8 (boat gametest coverage): STILL OPEN - gametest files outside this unit.
+
+No code changes this pass: the two in-scope rows were already fixed by a prior pass and verified
+here. No pure unit-test seam exists for these packet handlers (they need a live Player/world/vehicle
+graph), so none was added. No rustfmt run (no .rs file touched).
