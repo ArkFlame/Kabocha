@@ -145,3 +145,11 @@ the 1.21 `Enderman` / `EndermanLookForPlayerGoal` / `EndermanFreezeWhenLookedAt`
   `should_continue` (`:71-84`) re-checks `is_player_staring` on the same target identity. Matches
   vanilla `EndermanFreezeWhenLookedAt` canStart/tick/shouldContinue semantics.
 - No .rs file modified, so rustfmt was not run (nothing to format).
+
+## Result (CODER third-pass re-verify 2026-11-18, decompiled source present)
+
+- All three rows are already CLOSED as FIXED, VERIFIED; no source change was needed this pass.
+- Gap 1 (projectile immunity): FIXED, VERIFIED. Decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Enderman.java:396` reads `if (source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger())` - a damage-type tag check, NOT a direct-entity `instanceof Projectile` as the tracker row claimed, so the premise was wrong. `enderman.rs:70-72` `is_projectile_damage` uses `damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)` (numeric-id tag lookup, includes dynamic tags, covers all translation-key mismatches); `pre_damage_with_context:600` pairs it with `!entity.has_vehicle()` (vanilla `!this.isPassenger()`). Bug-repro test `projectile_damage_uses_damage_type_tag` present (lines 654-663). No change.
+- Gap 2 (double splash-potion teleport): FIXED, VERIFIED. Vanilla `Enderman.java:395-412` teleports once per thrown-potion hit. Pumpkin `pre_damage_with_context:604-609` teleports for non-hurting potions and returns false; `mob/mod.rs:3267-3269` returns early so `post_damage_with_context` is skipped for those hits; post (lines 622-627) teleports only for water-sensitive potions. One teleport per hit. No change.
+- Gap 3 (freeze look limits / re-check): FIXED, VERIFIED. `chase_player.rs:67` uses `look_at_with_range(.., 30.0, 30.0)`; `can_start:24-49` has no 256-block gate; `should_continue:71-84` re-checks `is_player_staring` on the same target identity and alive state. Matches vanilla `EndermanFreezeWhenLookedAt` canStart/tick/shouldContinue. No change.
+- No .rs file modified, so rustfmt was not run (nothing to format).

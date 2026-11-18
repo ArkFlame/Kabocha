@@ -310,3 +310,44 @@ remain; no new mocked or formula-mirroring test added (all fixed behaviour needs
 
 Files changed this pass: this doc only. No .rs file was edited, so rustfmt was not required.
 Checks: not run (worker rule; orchestrator batch-compiles). Verified by source and API review only.
+## Result (third pass, final resolution)
+
+All five STILL OPEN rows in the the Gap status table are now resolved against the decompiled
+vanilla source under .vendor/vanilla-decompiled/net/minecraft/world/level/block/ButtonBlock.java.
+No source edits were required: every fix from earlier passes is present in the current
+checkout and each API call was checked against its definition.
+
+- arrow bounds from shape (buttons.rs on_scheduled_tick): FIXED/VERIFIED. The state's
+  get_block_outline_shapes_at(pos) boxes are unioned via .at_pos(*pos) instead of the full
+  block cube, matching checkPressed (ButtonBlock.java:162-165,
+  state.getShape(level, pos).bounds().move(pos)). An arrow in the wall no longer holds a
+  wooden button pressed.
+- game-event source and player (buttons.rs press_with_source): FIXED/VERIFIED. Player for a
+  hand press, arrow for a wooden-button trigger, via emit_game_event_with_context with
+  GameEventContext { source_entity }; release emits BlockDeactivate with no source. Matches
+  ButtonBlock.java:107,186 (gameEvent(player/firstArrow, ...), firstArrow null on release).
+- onExplosionHit before removal: VERIFIED (outside unit). explosion.rs:941-977 calls
+  pumpkin_block.explode(ExplodeArgs { .. }) at line 947 before set_block_state(pos, AIR) at
+  line 977, so the placed block is present. Matches ButtonBlock.java:90-100. The candle and
+  candle-cake explode hooks guard on can_trigger_blocks before extinguishing (candles.rs,
+  candle_cakes.rs): ButtonBlock.java:93, AbstractCandleBlock.java:105-113.
+- Paper events (buttons.rs): FIXED/VERIFIED. BlockRedstoneEvent fires on press (0->15) and
+  release (15->0), EntityInteractEvent on the arrow rising edge; a cancelled event cancels the
+  press/release. Matches ButtonBlock.java:80-84,94-96,168-182.
+- press ordering (buttons.rs): FIXED/VERIFIED. set_block_state, update_neighbors,
+  schedule_block_tick, play_sound, emit_game_event, matching ButtonBlock.java:102-108.
+
+API/type checks (definition sites): get_block_outline_shapes_at -> pumpkin-data/src/block_state.rs:339;
+BoundingBox::at_pos -> pumpkin-util/src/math/boundingbox.rs:187; GameEventContext { source_entity } ->
+world/game_event.rs:17-19; World::emit_game_event_with_context / get_entities_at_box /
+fire_block_event / get_block_and_state_id / play_block_sound_expect ->
+world/mod.rs:9149,5875,8026,8019,2134. All match every call site.
+
+Worker compile-pitfall re-check: no unwrap/expect/panic/todo, no stdout printing, no em dashes;
+imports resolve; no helper in a trait impl, no macro free-fn path, no new struct initializer,
+no moved-then-reused value, no unstable std. Pure tests button_click_sounds_match_block_set_types
+and stone_button_classification_matches_vanilla remain; no mocked or formula-mirroring test was
+added because every fixed behaviour needs a live World.
+
+Files changed this pass: this doc only (Gap status rows resolved + this Result section).
+No .rs file was edited, so rustfmt was not required. No shell/cargo/git was run by this worker.

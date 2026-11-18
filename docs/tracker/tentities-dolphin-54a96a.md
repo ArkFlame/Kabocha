@@ -245,3 +245,28 @@ are terminal.
   and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
 - Files touched: doc only (Result appended). rustfmt not applicable. No unit test: no code
   seam, all four rows match vanilla.
+
+
+## Result (CODER third pass terminal)
+
+Independent verification of all four rows against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft/`. No row is marked STILL OPEN; the Gap status
+section lists 1-4 as CLOSED. Every row is VERIFIED and current Pumpkin source has not
+drifted. No source edit (dolphin.rs / squid.rs) is needed and no unit test seam exists.
+
+- Row 1 (ageable, M): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java:74`
+  is `public class Dolphin extends AgeableWaterCreature`, with `canAgeUp()`/`ageUp()` at
+  `:328-330` and a 0.1F `AgeableMobGroupData` at `:103`. Pumpkin keeps `impl AgeableMob`
+  (dolphin.rs:148), `impl AgeableWaterCreature` (`:158`), `finalize_ageable_spawn` (`:325`),
+  the ageable tracker write (`:331`) and the age-up branch (`:417-418`). Do NOT de-ageable or
+  touch `entity/type.rs` or `squid.rs`.
+- Row 2 (FISHES vs dolphin_food, S): VERIFIED. `Dolphin.java:323` is
+  `itemStack.is(ItemTags.FISHES)`; there is no dolphin_food check. Pumpkin dolphin.rs:414 uses
+  `item.has_tag(&tag::Item::MINECRAFT_FISHES)`. No generated field needed; do not hardcode ids.
+- Row 3 (DolphinJumpGoal grouping, S): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java:56-59`
+  is `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`,
+  the OR grouping Pumpkin uses at goals.rs:427-435. Keep the current condition.
+- Row 4 (PlayWithItemsGoal split 7/8, S): VERIFIED. `Dolphin.java:176-177` registers
+  `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals. Pumpkin matches
+  (goals.rs:69-70). A merge would diverge from vanilla.
+- Files touched: doc only (Result appended). rustfmt not applicable. No unit test: no code seam.

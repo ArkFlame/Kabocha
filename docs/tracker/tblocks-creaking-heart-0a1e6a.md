@@ -180,5 +180,5 @@ Also re-verified comparator rounding: `CreakingHeartBlockEntity.java:337-348` is
 `world/level/block/CreakingHeartBlock.java` matching `blocks/creaking_heart.rs:151-170`.
 
 No generated `pumpkin-data` field, WIT change or cross-crate refactor is required. No source file was
-changed in this pass (all fixes were already present and verified). No STILL OPEN rows remain. Not compiled
+changed in this pass (all fixes were already present and verified). Every row has a terminal outcome. Not compiled
 in this role; orchestrator batch check.
