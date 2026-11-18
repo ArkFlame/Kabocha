@@ -48,15 +48,15 @@ vanilla source exists under `.vendor/`, so each row names the vanilla member it 
 - No cargo run (worker rule: orchestrator batch-compiles); the added test is unexecuted here.
 - Client-only effects (chest-boat animation, prediction) not assessed.
 
-## Gap status
-- 1 canPlayerUse (minecart/container.rs:172-200): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 instabuild with custom name (boat.rs:319-353): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 3 hurt passenger branch (boat.rs:307-320): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 destroying removal spills container (entity/mod.rs:4281-4283): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 5 interact open condition (boat.rs:360-375): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 6 bubble time publish (boat.rs:268-293): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 7 container entity line (boat.rs:227-266): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 8 pick result and drop item (boat.rs:341-344): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+## Gap status (final, third pass - no row left open)
+- 1 canPlayerUse: VERIFIED - `container.rs` `EntityContainerScreenHandler.can_use` runs the validity closure installed in `open` (`is_alive() && can_interact_with_entity(vehicle, 4.0)`); matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/ContainerEntity.java:181-183` (`!isRemoved() && isWithinEntityInteractionRange(bb, 4.0)`).
+- 2 instabuild with custom name: VERIFIED - `drops_item_when_destroyed(creative, _named) -> !creative`; `.vendor/.../VehicleEntity.java:59-80` discards on an instabuild hit without `destroy`, so no named item drops even when named.
+- 3 hurt passenger branch: VERIFIED - no `isPassengerOfSameVehicle` early-return in `damage_with_context`; `.vendor/.../VehicleEntity.java` `hurtServer` has no such branch and `AbstractBoat` does not override `hurt`, so a rider's own projectile can damage the boat.
+- 4 destroying removal spills container: VERIFIED - `BoatEntity::on_removed` gates `scatter_chest_contents` on `removal_reason.load().is_some_and(|reason| reason.should_destroy())`; `World::remove_entity` (world/mod.rs:6630-6649) sets the reason via compare_exchange before the sole `on_removed` call. Matches `.vendor/.../boat/AbstractChestBoat.java:71-77` (`reason.shouldDestroy()`).
+- 5 interact open condition: VERIFIED - `boat_interact_outcome` mirrors `.vendor/.../boat/AbstractBoat.java:779-787,836-838` then `.vendor/.../boat/AbstractChestBoat.java:79-97` (`canAddPassenger` = seat count + eye-in-water only).
+- 6 bubble time publish: VERIFIED - `tick_bubble_column` writes `ID_BUBBLE_TIME`, `tick_underwater` does not; vanilla `setBubbleTime` calls only in `.vendor/.../boat/AbstractBoat.java:170,365,370,373`.
+- 7 container entity line: VERIFIED - chest boats keep `LootTable`/`LootTableSeed` via `MinecartInventory`, matching `.vendor/.../ContainerEntity.java` (`unpackChestVehicleLootTable`, `addChestVehicleSaveData`).
+- 8 pick result and drop item: VERIFIED - `boat_drop_item` uses `BoatItem::entity_to_item` with a registry-key fallback, matching `.vendor/.../boat/AbstractBoat.java:861-869` (`getDropItem`/`getPickResult` `dropItem.get()`).
 
 ## Result
 
@@ -161,3 +161,18 @@ All eight STILL OPEN rows re-verified against `.vendor/vanilla-decompiled/net/mi
 - 4 destroying removal spills container: FIXED (in scope) - `BoatEntity::on_removed` now gates `scatter_chest_contents` on `removal_reason.load().is_some_and(|reason| reason.should_destroy())`. `World::remove_entity` (world/mod.rs:6630-6649) sets `removal_reason = Some(RemovalReason::Discarded)` via compare_exchange BEFORE invoking `on_removed`, so the field is always present at the hook; `RemovalReason::should_destroy()` already distinguishes KILLED/DISCARDED from unload/dimension-change. This matches vanilla `AbstractChestBoat.remove` (`reason.shouldDestroy()`) and clears the earlier blocker without any cross-crate or engine-signature change.
 
 Files edited: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (on_removed gate). No new imports, no unwrap/expect/panic, no em dashes. No new pure test: the gate delegates to the already-existing `RemovalReason::should_destroy()`, so a test here would only mirror that function. Cargo/rustfmt not run (worker rule; orchestrator batch-compiles).
+
+## Result (final third pass)
+
+All eight rows previously marked STILL OPEN were re-checked directly against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/` (Paper/CraftBukkit target 26.3). Every fix from earlier passes is present in the current source; no source edits were needed this pass. The stale "Gap status" labels were the only open markers and are now set to VERIFIED above with .vendor citations.
+
+- 1 canPlayerUse: VERIFIED - `EntityContainerScreenHandler.can_use` evaluates the `open` validity closure (`is_alive() && can_interact_with_entity(vehicle, 4.0)`); `ContainerEntity.java:181-183`.
+- 2 instabuild named: VERIFIED - `drops_item_when_destroyed(creative, _named) -> !creative`; `VehicleEntity.java:59-80` discards on instabuild without `destroy`; covered by existing test `creative_boat_drops_no_item_even_when_named`.
+- 3 passenger immunity: VERIFIED - no `isPassengerOfSameVehicle` branch in `damage_with_context`; `VehicleEntity.hurtServer` has none and `AbstractBoat` does not override `hurt`.
+- 4 destroying removal spills container: VERIFIED - `on_removed` gates scatter on `should_destroy()`; `World::remove_entity` records the reason before the hook; `AbstractChestBoat.java:71-77`.
+- 5 interact open condition: VERIFIED - `boat_interact_outcome` mirrors the vanilla interact chain; `AbstractBoat.java:779-787,836-838`, `AbstractChestBoat.java:79-97`.
+- 6 bubble time publish: VERIFIED - bubble time written only in `tick_bubble_column`; `AbstractBoat.java:170,365,370,373`.
+- 7 container entity line: VERIFIED - loot-table fields retained via `MinecartInventory`; `ContainerEntity.java` loot-table hooks.
+- 8 pick result / drop item: VERIFIED - `boat_drop_item` uses `BoatItem::entity_to_item` with registry fallback; `AbstractBoat.java:861-869`.
+
+Status: PASS - all 8 rows VERIFIED against decompiled vanilla, zero open. No cargo/rustfmt run (worker rule: orchestrator batch-compiles). No new pure test added: each row is already covered by pure functions in `boat.rs`/`container.rs` (`boat_interact_outcome`, `drops_item_when_destroyed`, `boat_drop_item`, validity closure) plus existing tests; a new test would only mirror vanilla constants.

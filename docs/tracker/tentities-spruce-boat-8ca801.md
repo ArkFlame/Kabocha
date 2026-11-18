@@ -168,3 +168,32 @@ no printf, no em dashes; new test copies the existing in-file pattern. rustfmt r
 Not compiled by this worker (per task).
 
 Fixed: 1 (Row 3 /kill guard gametest). Open: 0.
+
+
+## Result (2026-11-18, third pass, final verification)
+
+Re-verified every remaining row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`. The prior pass left Open: 0; this pass confirms each
+row's final disposition and changes no source file (all rows already resolved in this checkout).
+
+- Row 1 / h6 rider rotation: VERIFIED. `entity/vehicle/boat.rs` stores `yaw_delta` (:232/:593),
+  applies the delta before the +/-105 clamp in `on_rider_positioned` (:883-898), and
+  `on_passenger_turned` folds the clamp adjustment into `rider.y_rot_o` (:948), matching
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`
+  `clampRotation` :740-750 (`Mth.clamp(delta, -105.0F, 105.0F)`) and `onPassengerTurned` :763-765
+  (`passenger.yRotO += yDelta`). Three pure unit tests cover the clamp/delta math. No action.
+- Row 2 (dead `move_from_client` / `correct_client_position`): VERIFIED removed. `grep` for
+  `move_from_client|correct_client_position|CMoveVehicle` in `boat/physics.rs` returns no matches;
+  the generic MoveVehicle packet supersedes the boat path. No action.
+- Row 3 (boat gametest): FIXED and present. `test_chest_boat_scatters_slots_on_kill` exists in
+  `boat_block_effects.rs:386` and is registered in `builtin_game_tests/mod.rs` (:280 id list,
+  :1869/:1873 `register_function_test`). Vanilla `AbstractChestBoat.remove` :71-76 calls
+  `Containers.dropContents` on `RemovalReason.KILLED`; the test guards that scatter. No action.
+- In-scope files match vanilla: `bubble_column.rs` constants (up 0.06/0.7, surface up 0.1/1.8,
+  down -0.03/-0.3, surface down -0.9) match `Entity.handleOnAboveBubbleColumn` :4149-4163 and
+  `handleOnInsideBubbleColumn` :4185-4198 in
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java`, with nine pure unit tests.
+  `move_vehicle.rs` is the generic MoveVehicle handler; no boat-specific gap. No action.
+
+Fixed: 0 (nothing new; all rows already fixed/verified). Open: 0. Files changed: this doc only.
+No .rs file touched, so rustfmt not run.
