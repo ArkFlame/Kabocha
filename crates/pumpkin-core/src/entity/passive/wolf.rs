@@ -105,13 +105,14 @@ impl WolfEntity {
 
         {
             // Vanilla `Wolf` constructor: powder snow is impassable for wolves.
-            // ON_TOP_OF_POWDER_SNOW has no PathType yet, so only POWDER_SNOW is set.
-            mob_arc
+            // ON_TOP_OF_POWDER_SNOW maps to PathType::DangerPowderSnow.
+            let mut navigator = mob_arc
                 .mob_entity
                 .navigator
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .set_pathfinding_malus(PathType::PowderSnow, -1.0);
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            navigator.set_pathfinding_malus(PathType::PowderSnow, -1.0);
+            navigator.set_pathfinding_malus(PathType::DangerPowderSnow, -1.0);
         };
 
         {

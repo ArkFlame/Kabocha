@@ -1,4 +1,5 @@
 use crate::entity::EntityBase;
+use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::sound::Sound;
@@ -66,6 +67,16 @@ impl BreezeEntity {
             // Vanilla `Breeze.registerGoals`: `new HurtByTargetGoal(this)`, no alerting.
             target_selector.add_goal(2, Box::new(RevengeGoal::new(true)));
         };
+        // Vanilla `Breeze` ctor: trapdoor tops (`ON_TOP_OF_TRAPDOOR`, Pumpkin's
+        // `DangerTrapdoor`) and fire are walkable at -1 malus.
+        let mut navigator = mob_arc
+            .mob_entity
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        navigator.set_pathfinding_malus(PathType::DangerTrapdoor, -1.0);
+        navigator.set_pathfinding_malus(PathType::DamageFire, -1.0);
+        drop(navigator);
 
         mob_arc
     }

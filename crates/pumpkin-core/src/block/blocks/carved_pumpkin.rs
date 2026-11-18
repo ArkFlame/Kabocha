@@ -241,11 +241,12 @@ fn spawn_golem_in_world(
     }
 
     let entity = golem.get_entity();
-    entity.set_pos(Vector3::new(
+    let spawn_center = Vector3::new(
         f64::from(spawn_pos.0.x) + 0.5,
         f64::from(spawn_pos.0.y) + 0.05,
         f64::from(spawn_pos.0.z) + 0.5,
-    ));
+    );
+    entity.set_pos(spawn_center);
     world.spawn_entity(golem.clone());
 
     let entity_type = format!("minecraft:{}", pattern.entity_type.resource_name);
@@ -253,6 +254,12 @@ fn spawn_golem_in_world(
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::SummonedEntity {
                 entity_type: entity_type.clone(),
+                distance: Some(
+                    crate::entity::player::advancement::predicate::EntityDistance::between(
+                        player.position(),
+                        spawn_center,
+                    ),
+                ),
             },
         );
     }

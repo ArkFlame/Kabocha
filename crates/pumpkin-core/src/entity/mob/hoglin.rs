@@ -1,13 +1,13 @@
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
-use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::Taggable;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -292,17 +292,6 @@ impl Mob for HoglinEntity {
         Some(self)
     }
 
-    /// Vanilla `Hoglin.getWalkTargetValue`: crimson nylium is preferred. The
-    /// repellent-first check needs the brain's `NEAREST_REPELLENT` memory, not ported yet.
-    fn get_walk_target_value(&self, pos: &BlockPos) -> f32 {
-        let world = self.mob_entity.living_entity.entity.world.load();
-        if world.get_block(&pos.down()).id == Block::CRIMSON_NYLIUM.id {
-            10.0
-        } else {
-            0.0
-        }
-    }
-
     fn finalize_spawn(
         &self,
         world: &Arc<World>,
@@ -438,6 +427,33 @@ fn is_near_repellent(repellent: BlockPos, pos: BlockPos) -> bool {
     dx * dx + dy * dy + dz * dz < radius * radius
 }
 
+pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
+    // Vanilla: strength = attacker ATTACK_KNOCKBACK - target KNOCKBACK_RESISTANCE.
+    let resistance = target.get_living_entity().map_or(0.0, |living| {
+        living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
+    });
+    let strength = attacker.get_attribute_value(&Attributes::ATTACK_KNOCKBACK) - resistance;
+    if strength <= 0.0 {
+        return;
+    }
+    let my_pos = attacker.entity.pos.load();
+    let target_entity = target.get_entity();
+    let target_pos = target_entity.pos.load();
+    let dx = target_pos.x - my_pos.x;
+    let dz = target_pos.z - my_pos.z;
+    let dist = dx.hypot(dz).max(0.001);
+    // Impulse adds to existing motion (keeps upward velocity).
+    let vel = target_entity.velocity.load();
+    target_entity.velocity.store(Vector3::new(
+        vel.x + (dx / dist) * strength * 0.5,
+        vel.y + 0.5,
+        vel.z + (dz / dist) * strength * 0.5,
+    ));
+    target_entity
+        .velocity_dirty
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -479,38 +495,6 @@ mod tests {
         assert!(!is_near_repellent(repellent, at(8, 64, 0)));
         assert!(!is_near_repellent(repellent, at(6, 64, 6)));
     }
-}
-
-pub fn throw_target(attacker: &LivingEntity, target: &dyn EntityBase) {
-    // Vanilla: strength = attacker ATTACK_KNOCKBACK - target KNOCKBACK_RESISTANCE.
-    let resistance = target.get_living_entity().map_or(0.0, |living| {
-        living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
-    });
-    let strength = attacker.get_attribute_value(&Attributes::ATTACK_KNOCKBACK) - resistance;
-    if strength <= 0.0 {
-        return;
-    }
-    let my_pos = attacker.entity.pos.load();
-    let target_entity = target.get_entity();
-    let target_pos = target_entity.pos.load();
-    let dx = target_pos.x - my_pos.x;
-    let dz = target_pos.z - my_pos.z;
-    let dist = dx.hypot(dz).max(0.001);
-    // Impulse adds to existing motion (keeps upward velocity).
-    let vel = target_entity.velocity.load();
-    target_entity.velocity.store(Vector3::new(
-        vel.x + (dx / dist) * strength * 0.5,
-        vel.y + 0.5,
-        vel.z + (dz / dist) * strength * 0.5,
-    ));
-    target_entity
-        .velocity_dirty
-        .store(true, std::sync::atomic::Ordering::SeqCst);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 
     #[test]
     fn conversion_time_matches_vanilla() {

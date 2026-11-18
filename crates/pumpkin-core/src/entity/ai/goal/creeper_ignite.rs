@@ -7,6 +7,13 @@ use crate::entity::EntityBase;
 use crate::entity::mob::Mob;
 use crate::entity::mob::creeper::CreeperEntity;
 
+/// Vanilla `Entity.isDeadOrDying` (`health <= 0 || dead`), as `SwellGoal` checks its target.
+fn is_dead_or_dying(target: &dyn EntityBase) -> bool {
+    target
+        .get_living_entity()
+        .is_some_and(crate::entity::living::LivingEntity::is_dead_or_dying)
+}
+
 pub struct CreeperIgniteGoal {
     goal_control: Controls,
     creeper: Weak<CreeperEntity>,
@@ -37,6 +44,7 @@ impl Goal for CreeperIgniteGoal {
             return false;
         };
         target.get_entity().is_alive()
+            && !is_dead_or_dying(target.as_ref())
             && mob
                 .get_entity()
                 .pos
@@ -66,7 +74,7 @@ impl Goal for CreeperIgniteGoal {
             .target
             .as_ref()
             .and_then(Weak::upgrade)
-            .filter(|t| t.get_entity().is_alive())
+            .filter(|t| t.get_entity().is_alive() && !is_dead_or_dying(t.as_ref()))
         else {
             creeper.set_fuse_speed(-1);
             return;

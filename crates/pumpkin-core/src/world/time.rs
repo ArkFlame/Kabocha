@@ -369,9 +369,13 @@ impl LevelTime {
         self.time_of_day / 24000
     }
 
+    /// Vanilla overworld night window (`Timelines.OVERWORLD_DAY` `nightStart`..`nightEnd`).
     #[must_use]
     pub const fn is_night(&self) -> bool {
-        (self.time_of_day % 24000) >= 12000 && (self.time_of_day % 24000) <= 23999
+        const NIGHT_START: i64 = 12600;
+        const NIGHT_END_EXCLUSIVE: i64 = 23401;
+        let daytime = self.time_of_day % 24000;
+        daytime >= NIGHT_START && daytime < NIGHT_END_EXCLUSIVE
     }
 }
 
@@ -529,5 +533,20 @@ mod tests {
                 period: Some(24000)
             })
         );
+    }
+
+    #[test]
+    fn overworld_night_window_matches_vanilla_timeline() {
+        let mut time = LevelTime::new();
+        for (daytime, night) in [
+            (12599, false),
+            (12600, true),
+            (23400, true),
+            (23401, false),
+            (24000 + 12600, true),
+        ] {
+            time.set_time(daytime);
+            assert_eq!(time.is_night(), night, "daytime {daytime}");
+        }
     }
 }

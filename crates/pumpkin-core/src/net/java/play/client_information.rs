@@ -27,9 +27,8 @@ impl JavaClient {
                     main_hand_changed || current_config.skin_parts != client_information.skin_parts;
 
                 let old_view_distance = current_config.view_distance;
-                let new_view_distance_raw = client_information.view_distance as u8;
                 let new_view_distance =
-                    NonZero::new(new_view_distance_raw).unwrap_or(NonZero::<u8>::MIN);
+                    crate::net::client_view_distance(client_information.view_distance);
 
                 let update_watched = if old_view_distance == new_view_distance {
                     false

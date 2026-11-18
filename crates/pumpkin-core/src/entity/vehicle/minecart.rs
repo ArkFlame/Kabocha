@@ -19,7 +19,10 @@ use crate::{
     server::Server,
 };
 use pumpkin_data::Block;
-use pumpkin_data::block_properties::PoweredRailLikeProperties;
+use pumpkin_data::BlockStateId;
+use pumpkin_data::block_properties::{
+    PoweredRailLikeProperties, RailLikeProperties, RailShape, RailShapeStraight,
+};
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
@@ -66,6 +69,21 @@ const fn rail_slowdown_factor(has_passengers: bool) -> f64 {
     if has_passengers { 0.997 } else { 0.96 }
 }
 
+/// Vanilla `OldMinecartBehavior.moveAlongTrack` move: scale by 0.75 with a rider, then clamp each
+/// horizontal axis to `max_speed` (already halved in water). y is cleared.
+fn on_rail_move_velocity(
+    velocity: Vector3<f64>,
+    max_speed: f64,
+    has_passengers: bool,
+) -> Vector3<f64> {
+    let scale = if has_passengers { 0.75 } else { 1.0 };
+    Vector3::new(
+        (velocity.x * scale).clamp(-max_speed, max_speed),
+        0.0,
+        (velocity.z * scale).clamp(-max_speed, max_speed),
+    )
+}
+
 /// Vanilla `OldMinecartBehavior.moveAlongTrack` unpowered-rail halt: horizontal speed
 /// under 0.03 stops the cart, otherwise horizontal speed is halved and y is cleared.
 fn unpowered_rail_halt(velocity: Vector3<f64>) -> Vector3<f64> {
@@ -74,6 +92,51 @@ fn unpowered_rail_halt(velocity: Vector3<f64>) -> Vector3<f64> {
     } else {
         Vector3::new(velocity.x * 0.5, 0.0, velocity.z * 0.5)
     }
+}
+
+/// Vanilla `OldMinecartBehavior` rail shape: plain rails read `RailLikeProperties`, powered and
+/// activator rails the straight subset.
+fn rail_shape_of(state_id: BlockStateId, plain_rail: bool) -> RailShape {
+    if plain_rail {
+        return RailLikeProperties::from_state_id(state_id).shape;
+    }
+    match PoweredRailLikeProperties::from_state_id(state_id).shape {
+        RailShapeStraight::NorthSouth => RailShape::NorthSouth,
+        RailShapeStraight::EastWest => RailShape::EastWest,
+        RailShapeStraight::AscendingEast => RailShape::AscendingEast,
+        RailShapeStraight::AscendingWest => RailShape::AscendingWest,
+        RailShapeStraight::AscendingNorth => RailShape::AscendingNorth,
+        RailShapeStraight::AscendingSouth => RailShape::AscendingSouth,
+    }
+}
+
+/// Vanilla `OldMinecartBehavior` powered rail at rest: a flat rail nudges 0.02 toward a redstone
+/// conductor on its axis (west before east, north before south). Other shapes return `None`.
+fn stopped_powered_rail_velocity(
+    velocity: Vector3<f64>,
+    shape: RailShape,
+    rail_pos: &BlockPos,
+    is_conductor: impl Fn(&BlockPos) -> bool,
+) -> Option<Vector3<f64>> {
+    let (mut dx, mut dz) = (velocity.x, velocity.z);
+    match shape {
+        RailShape::EastWest => {
+            if is_conductor(&rail_pos.west()) {
+                dx = STOPPED_RAIL_NUDGE;
+            } else if is_conductor(&rail_pos.east()) {
+                dx = -STOPPED_RAIL_NUDGE;
+            }
+        }
+        RailShape::NorthSouth => {
+            if is_conductor(&rail_pos.north()) {
+                dz = STOPPED_RAIL_NUDGE;
+            } else if is_conductor(&rail_pos.south()) {
+                dz = -STOPPED_RAIL_NUDGE;
+            }
+        }
+        _ => return None,
+    }
+    Some(Vector3::new(dx, velocity.y, dz))
 }
 
 /// Vanilla `OldMinecartBehavior.getPos`: snap a position onto the rail surface,
@@ -121,6 +184,7 @@ fn get_pos_on_rail(
 
 const GRAVITY: f64 = 0.04;
 const RAIL_HEIGHT_OFFSET: f64 = 0.0625;
+const STOPPED_RAIL_NUDGE: f64 = 0.02;
 
 pub struct MinecartEntity {
     pub vehicle: VehicleEntity,
@@ -350,15 +414,14 @@ impl EntityBase for MinecartEntity {
                     let velocity = if horizontal_speed > 0.01 {
                         powered_rail_boost(current, max_speed)
                     } else {
-                        // Vanilla derives the standing-cart direction from the rail shape;
-                        // Pumpkin keeps the entity-yaw fallback until that path is ported.
-                        let yaw = self.vehicle.entity.yaw.load();
-                        let push_dir = Vector3::new(
-                            -f64::from((yaw.to_radians()).sin()),
-                            0.0,
-                            f64::from((yaw.to_radians()).cos()),
-                        );
-                        push_dir.multiply(0.1, 0.1, 0.1)
+                        // Vanilla `OldMinecartBehavior`: a stopped cart nudges toward a conductor.
+                        stopped_powered_rail_velocity(
+                            current,
+                            rail_shape_of(state_id, false),
+                            &block_pos,
+                            |pos| world.get_block_state(pos).is_full_cube(),
+                        )
+                        .unwrap_or(current)
                     };
                     self.vehicle.entity.velocity.store(velocity);
                     self.vehicle.entity.send_velocity();
@@ -462,23 +525,7 @@ impl EntityBase for MinecartEntity {
         let mut velocity = self.vehicle.entity.velocity.load();
 
         if is_on_rails {
-            use pumpkin_data::block_properties::RailLikeProperties;
-            use pumpkin_data::block_properties::{RailShape, RailShapeStraight};
-
-            let shape = if block.id == Block::RAIL.id {
-                let props = RailLikeProperties::from_state_id(state_id);
-                props.shape
-            } else {
-                let props = PoweredRailLikeProperties::from_state_id(state_id);
-                match props.shape {
-                    RailShapeStraight::NorthSouth => RailShape::NorthSouth,
-                    RailShapeStraight::EastWest => RailShape::EastWest,
-                    RailShapeStraight::AscendingEast => RailShape::AscendingEast,
-                    RailShapeStraight::AscendingWest => RailShape::AscendingWest,
-                    RailShapeStraight::AscendingNorth => RailShape::AscendingNorth,
-                    RailShapeStraight::AscendingSouth => RailShape::AscendingSouth,
-                }
-            };
+            let shape = rail_shape_of(state_id, block.id == Block::RAIL.id);
 
             // Vanilla `OldMinecartBehavior.moveAlongTrack`: gravity along the slope.
             let slope_gravity = if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {
@@ -538,7 +585,18 @@ impl EntityBase for MinecartEntity {
         }
 
         if velocity.length() > 0.001 {
-            self.move_entity(caller, velocity);
+            let move_velocity = if is_on_rails {
+                let has_passengers = self
+                    .vehicle
+                    .entity
+                    .passengers
+                    .try_lock()
+                    .is_ok_and(|p| !p.is_empty());
+                on_rail_move_velocity(velocity, max_speed, has_passengers)
+            } else {
+                velocity
+            };
+            self.move_entity(caller, move_velocity);
 
             if let MinecartKind::Tnt(minecart) = &self.kind
                 && self
@@ -1016,6 +1074,30 @@ mod tests {
         assert_eq!((fast.x, fast.y, fast.z), (0.15, 0.0, 0.2));
         assert!((rail_slowdown_factor(true) - 0.997).abs() < f64::EPSILON);
         assert!((rail_slowdown_factor(false) - 0.96).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn on_rail_move_clamps_to_cap_and_scales_with_rider() {
+        let v = on_rail_move_velocity(Vector3::new(1.0, 0.5, -1.0), 0.4, false);
+        assert_eq!((v.x, v.y, v.z), (0.4, 0.0, -0.4));
+        let ridden = on_rail_move_velocity(Vector3::new(0.4, 0.0, 0.0), 0.4, true);
+        assert!((ridden.x - 0.3).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn stopped_powered_rail_nudges_toward_redstone_conductor_on_its_axis() {
+        let rail = BlockPos(Vector3::new(0, 64, 0));
+        let v = Vector3::new(0.0, 0.1, 0.0);
+        let west = stopped_powered_rail_velocity(v, RailShape::EastWest, &rail, |p| p.0.x == -1);
+        assert_eq!(west.map(|v| (v.x, v.y, v.z)), Some((0.02, 0.1, 0.0)));
+        let east = stopped_powered_rail_velocity(v, RailShape::EastWest, &rail, |p| p.0.x == 1);
+        assert_eq!(east.map(|v| (v.x, v.y, v.z)), Some((-0.02, 0.1, 0.0)));
+        let north = stopped_powered_rail_velocity(v, RailShape::NorthSouth, &rail, |p| p.0.z == -1);
+        assert_eq!(north.map(|v| (v.x, v.y, v.z)), Some((0.0, 0.1, 0.02)));
+        let none = stopped_powered_rail_velocity(v, RailShape::EastWest, &rail, |_| false);
+        assert_eq!(none.map(|v| (v.x, v.y, v.z)), Some((0.0, 0.1, 0.0)));
+        let ascending = stopped_powered_rail_velocity(v, RailShape::AscendingEast, &rail, |_| true);
+        assert!(ascending.is_none());
     }
 
     #[test]

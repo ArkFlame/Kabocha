@@ -121,17 +121,33 @@ impl EntityBase for ExperienceBottleEntity {
         let hit_pos = hit.hit_pos();
         let block_pos = BlockPos::floored(hit_pos.x, hit_pos.y, hit_pos.z);
 
-        world.sync_world_event(
-            WorldEvent::ParticlesSpellPotionSplash,
-            block_pos,
-            WATER_COLOR,
-        );
-        world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
-
         let direction = orb_award_direction(&hit, entity.velocity.load());
         let mut rng = rand::rng();
-        let xp_count = 3 + rng.random_range(0..5) + rng.random_range(0..5);
-        ExperienceOrbEntity::spawn_with_direction(&world, hit_pos, direction, xp_count);
+        let xp_count: i32 = 3 + rng.random_range(0..5) + rng.random_range(0..5);
+        let mut event = crate::plugin::api::events::entity::exp_bottle::ExpBottleEvent::new(
+            entity.entity_id,
+            xp_count,
+            block_pos,
+            true,
+        );
+        if let Some(server) = world.server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if event.show_effect {
+            world.sync_world_event(
+                WorldEvent::ParticlesSpellPotionSplash,
+                block_pos,
+                WATER_COLOR,
+            );
+            world.sync_world_event(WorldEvent::SoundSpellPotionSplash, block_pos, 0);
+        }
+        if event.cancelled {
+            return;
+        }
+        let amount = u32::try_from(event.experience).unwrap_or(0);
+        if amount > 0 {
+            ExperienceOrbEntity::spawn_with_direction(&world, hit_pos, direction, amount);
+        }
     }
 
     fn cast_any(&self) -> &dyn std::any::Any {

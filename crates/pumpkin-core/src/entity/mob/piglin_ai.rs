@@ -96,6 +96,13 @@ impl PiglinAi {
         rand::random::<f32>() < Self::PROBABILITY_OF_CELEBRATION_DANCE
     }
 
+    /// Vanilla `PiglinAi.isWearingSafeArmor` checks only the `piglin_safe_armor` tag;
+    /// `piglin_loved` items (e.g. golden horse armor) do not count.
+    #[must_use]
+    pub fn is_safe_armor_stack(stack: &ItemStack) -> bool {
+        !stack.is_empty() && stack.item.has_tag(&tag::Item::MINECRAFT_PIGLIN_SAFE_ARMOR)
+    }
+
     #[must_use]
     pub fn is_wearing_safe_armor(entity: &LivingEntity) -> bool {
         let Ok(guard) = entity.entity_equipment.try_lock() else {
@@ -108,10 +115,10 @@ impl PiglinAi {
             EquipmentSlot::LEGS,
             EquipmentSlot::FEET,
         ] {
-            if let Some(stack) = guard.equipment.get(&slot)
-                && !stack.is_empty()
-                && (stack.item.has_tag(&tag::Item::MINECRAFT_PIGLIN_SAFE_ARMOR)
-                    || stack.item.has_tag(&tag::Item::MINECRAFT_PIGLIN_LOVED))
+            if guard
+                .equipment
+                .get(&slot)
+                .is_some_and(Self::is_safe_armor_stack)
             {
                 return true;
             }
@@ -336,6 +343,19 @@ mod tests {
     use pumpkin_util::math::vector3::Vector3;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn safe_armor_excludes_loved_non_armor_items() {
+        assert!(PiglinAi::is_safe_armor_stack(&ItemStack::new(
+            1,
+            &Item::GOLDEN_HELMET
+        )));
+        assert!(!PiglinAi::is_safe_armor_stack(&ItemStack::new(
+            1,
+            &Item::GOLDEN_HORSE_ARMOR
+        )));
+        assert!(!PiglinAi::is_safe_armor_stack(ItemStack::EMPTY));
+    }
 
     #[test]
     fn retreat_from_hoglin_needs_adult_hoglin_attacker_and_outnumbering_hoglins() {

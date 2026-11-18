@@ -1848,6 +1848,21 @@ mod tests {
     }
 
     #[test]
+    fn light_nibbles_follow_vanilla_datalayer_index_order() {
+        // Vanilla DataLayer: index = y << 8 | z << 4 | x, byte = index >> 1, low nibble when even.
+        let mut light = LightContainer::Full(vec![0; LightContainer::ARRAY_SIZE].into());
+        light.set(3, 4, 5, 7);
+        assert_eq!(light.get(3, 4, 5), 7);
+        // index 1107 is odd, so the value lands in the high nibble of byte 553.
+        assert_eq!(light.nibbles().unwrap()[553], 0x70);
+
+        light.set_column_y_range(2, 0, 0, 2, 9);
+        // index 2 (y=0) is even, index 258 (y=1) is byte 129 low nibble.
+        assert_eq!(light.nibbles().unwrap()[1] & 0x0F, 9);
+        assert_eq!(light.nibbles().unwrap()[129] & 0x0F, 9);
+    }
+
+    #[test]
     fn chunk_without_y_pos_uses_the_lowest_biome_section() {
         use crate::chunk::ChunkData;
         use pumpkin_util::math::vector2::Vector2;

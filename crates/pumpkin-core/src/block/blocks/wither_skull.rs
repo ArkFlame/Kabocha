@@ -142,9 +142,21 @@ impl BlockBehaviour for WitherSkeletonSkullBlock {
 
     fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
         if find_wither_pattern(args.world, args.position).is_some() {
+            // Approximates the wither's spawn point with the placed skull's block centre.
+            let skull_center = pumpkin_util::math::vector3::Vector3::new(
+                f64::from(args.position.0.x) + 0.5,
+                f64::from(args.position.0.y) + 0.5,
+                f64::from(args.position.0.z) + 0.5,
+            );
             args.player.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::SummonedEntity {
                     entity_type: "minecraft:wither".to_string(),
+                    distance: Some(
+                        crate::entity::player::advancement::predicate::EntityDistance::between(
+                            args.player.position(),
+                            skull_center,
+                        ),
+                    ),
                 },
             );
         }

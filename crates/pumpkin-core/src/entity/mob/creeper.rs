@@ -38,7 +38,18 @@ const CREEPER_FLEES: &[Flee] = &[
     Flee::new(3, TargetMatch::Type(&EntityType::CAT), 6.0, 1.0, 1.2),
 ];
 
-const CREEPER_HUNTS: &[Hunt] = &[Hunt::new(2, TargetMatch::Type(&EntityType::PLAYER), true)];
+// Vanilla `Creeper`: NearestAttackableTargetGoal(Player) at priority 1, HurtByTargetGoal at 2.
+const CREEPER_HUNTS: &[Hunt] = &[Hunt::new(1, TargetMatch::Type(&EntityType::PLAYER), true)];
+
+impl crate::entity::custom_sound::CustomSound for CreeperEntity {
+    fn hurt_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityCreeperHurt)
+    }
+
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityCreeperDeath)
+    }
+}
 
 pub struct CreeperEntity {
     pub mob_entity: MobEntity,
@@ -91,7 +102,7 @@ impl CreeperEntity {
             );
             goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
 
-            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            target_selector.add_goal(2, Box::new(RevengeGoal::new(true)));
             hunting::apply(target_selector, &mob_arc.mob_entity, CREEPER_HUNTS);
         };
 
@@ -226,11 +237,22 @@ impl Mob for CreeperEntity {
         }
         if let Some(ignited) = nbt.get_bool("ignited") {
             self.ignited.store(ignited, Ordering::Relaxed);
+            // Vanilla `Creeper.readAdditionalSaveData` sets the synced IS_IGNITED data directly.
+            if ignited {
+                self.mob_entity
+                    .living_entity
+                    .entity
+                    .set_synced_data(pumpkin_data::tracked_data::creeper::IS_IGNITED, true);
+            }
         }
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
+        Some(self)
     }
 
     fn mob_metadata(&self) -> Option<crate::entity::mob::MobMetadata> {
@@ -250,7 +272,18 @@ impl Mob for CreeperEntity {
         caller: &dyn EntityBase,
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
-        self.set_charged(true);
+        let entity = &self.mob_entity.living_entity.entity;
+        let mut event = crate::plugin::api::events::entity::creeper_power::CreeperPowerEvent::new(
+            entity.entity_id,
+            Some(lightning.get_entity().entity_id),
+            "LIGHTNING".to_string(),
+        );
+        if let Some(server) = entity.world.load().server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if !event.cancelled {
+            self.set_charged(true);
+        }
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);

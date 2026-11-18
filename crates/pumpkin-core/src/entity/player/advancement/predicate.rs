@@ -3926,6 +3926,25 @@ mod tests {
     }
 
     #[test]
+    fn sniper_duel_absolute_min_50_boundary() {
+        let pred = EntityPredicate::from_value(&serde_json::json!({
+            "distance": {"absolute": {"min": 50.0}}
+        }));
+        // Exactly 50 blocks straight up passes; 49 blocks horizontally fails the absolute bound.
+        assert!(pred.matches(
+            "minecraft:skeleton",
+            Some(EntityDistance::from_delta(0.0, 50.0, 0.0)),
+            None
+        ));
+        assert!(!pred.matches(
+            "minecraft:skeleton",
+            Some(EntityDistance::from_delta(49.0, 0.0, 0.0)),
+            None
+        ));
+        assert!(!pred.matches("minecraft:skeleton", None, None));
+    }
+
+    #[test]
     fn item_count_bounds_use_actual_stack_count() {
         let cond = json!({"item": {"items": "minecraft:stone", "count": {"min": 2}}});
         assert!(!matches_placed_block_condition(

@@ -512,6 +512,16 @@ pub const DATA_VERSION: i32 = 5023; // 26.3
 /// must apply the same gating.
 pub const MINE_BLOCK_EXHAUSTION: f32 = 0.005; // Vanilla: 0.005F
 
+/// Vanilla `AbstractContainerMenu.isValidSlotIndex`: -1 and -999 (outside) are
+/// accepted, other negatives are rejected, and real slots are `0..slot_count`.
+const fn is_vanilla_slot_index(slot: i16, slot_count: usize) -> bool {
+    match slot {
+        -1 | -999 => true,
+        s if s < 0 => false,
+        s => (s as usize) < slot_count,
+    }
+}
+
 const fn bedrock_container_slot(
     window_type: Option<WindowType>,
     slot_idx: usize,
@@ -879,6 +889,8 @@ pub struct Player {
     pub fishing_bobber: AtomicI32,
     pub bedrock_skin: arc_swap::ArcSwap<pumpkin_protocol::bedrock::client::Skin>,
     pub seen_credits: AtomicBool,
+    /// Vanilla `wonGame`: set once the player has won, exempts them from idle kicks.
+    pub won_game: AtomicBool,
     pub warden_spawn_tracker: std::sync::Mutex<WardenSpawnTracker>,
     pub score: AtomicI32,
     pub spawn_extra_particles_on_fall: AtomicBool,
@@ -1260,6 +1272,7 @@ impl Player {
             fishing_bobber: AtomicI32::new(-1),
             bedrock_skin: ArcSwap::new(Arc::new(bedrock_skin)),
             seen_credits: AtomicBool::new(false),
+            won_game: AtomicBool::new(false),
             warden_spawn_tracker: std::sync::Mutex::new(WardenSpawnTracker::default()),
             score: AtomicI32::new(0),
             spawn_extra_particles_on_fall: AtomicBool::new(false),
@@ -3821,18 +3834,19 @@ impl Player {
         // Idle timeout handling
         let now = Instant::now();
         let idle_timeout_minutes = server.player_idle_timeout.load(Ordering::Relaxed);
-        if idle_timeout_minutes > 0 {
-            let idle_duration = now.duration_since(self.last_action_time.load());
-            if idle_duration > Duration::from_secs(idle_timeout_minutes as u64 * 60) {
-                self.kick(
-                    DisconnectReason::KickedForIdle,
-                    &TextComponent::translate_cross(
-                        translation::java::MULTIPLAYER_DISCONNECT_IDLING,
-                        translation::java::MULTIPLAYER_DISCONNECT_IDLING,
-                        [],
-                    ),
-                );
-            }
+        if idle_timeout_exceeded(
+            idle_timeout_minutes,
+            now.duration_since(self.last_action_time.load()),
+            self.won_game.load(Ordering::Relaxed),
+        ) {
+            self.kick(
+                DisconnectReason::KickedForIdle,
+                &TextComponent::translate_cross(
+                    translation::java::MULTIPLAYER_DISCONNECT_IDLING,
+                    translation::java::MULTIPLAYER_DISCONNECT_IDLING,
+                    [],
+                ),
+            );
         }
     }
 
@@ -8100,7 +8114,8 @@ impl Player {
             let sync_id = b.sync_id;
             let can_use =
                 screen_handler.can_use(self.as_ref()) && self.is_open_container_in_reach();
-            let is_slot_valid = screen_handler.is_slot_valid(i32::from(packet.slot));
+            let is_slot_valid = is_vanilla_slot_index(packet.slot, b.slots.len())
+                && screen_handler.is_slot_valid(i32::from(packet.slot));
             let available_slots = b.slots.len();
 
             let clicked_item = (packet.slot >= 0 && (packet.slot as usize) < b.slots.len())
@@ -10709,6 +10724,14 @@ fn format_team_name(
     formatted
 }
 
+/// Vanilla `ServerGamePacketListenerImpl` idle kick: a timeout of 0 disables it,
+/// and a player who has won the game is never kicked for idling.
+fn idle_timeout_exceeded(timeout_minutes: i32, idle: Duration, won_game: bool) -> bool {
+    timeout_minutes > 0
+        && !won_game
+        && idle >= Duration::from_secs(u64::from(timeout_minutes.unsigned_abs()) * 60)
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, Instant};
@@ -10914,6 +10937,18 @@ mod tests {
             bedrock_container_open_target(None, None),
             (BlockPos::ZERO, VarLong(-1))
         );
+    }
+
+    #[test]
+    fn slot_index_matches_vanilla_is_valid_slot_index() {
+        use super::is_vanilla_slot_index;
+        assert!(is_vanilla_slot_index(-1, 4));
+        assert!(is_vanilla_slot_index(-999, 4));
+        assert!(is_vanilla_slot_index(0, 4));
+        assert!(is_vanilla_slot_index(3, 4));
+        assert!(!is_vanilla_slot_index(4, 4));
+        assert!(!is_vanilla_slot_index(-2, 4));
+        assert!(!is_vanilla_slot_index(-998, 4));
     }
 
     #[test]
@@ -11193,5 +11228,24 @@ mod tests {
         write_last_death_location(&mut nbt, &"Not A Valid Dimension!".to_string(), &pos);
 
         assert_eq!(read_last_death_location(&nbt), None);
+    }
+
+    /// Idle kick follows the vanilla rules: disabled at 0, skipped for winners, and
+    /// only once the idle duration reaches the configured minutes.
+    #[test]
+    fn idle_timeout_respects_disable_and_won_game() {
+        let one_minute = Duration::from_secs(60);
+        assert!(!super::idle_timeout_exceeded(
+            0,
+            Duration::from_secs(3600),
+            false
+        ));
+        assert!(!super::idle_timeout_exceeded(
+            1,
+            Duration::from_secs(59),
+            false
+        ));
+        assert!(super::idle_timeout_exceeded(1, one_minute, false));
+        assert!(!super::idle_timeout_exceeded(1, one_minute * 5, true));
     }
 }

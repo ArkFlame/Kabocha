@@ -339,7 +339,7 @@ impl Raid {
         self.total_health = 0.0;
         let is_bonus_group = self.should_spawn_bonus_group();
 
-        let difficulty = world.level_info.load().difficulty;
+        let difficulty = world.difficulty();
 
         for raider_type in RaiderType::VALUES {
             let num_spawns = self.get_default_num_spawns(raider_type, group_number, is_bonus_group)
@@ -576,7 +576,7 @@ impl Raid {
         }
 
         if self.status == RaidStatus::Ongoing {
-            if world.level_info.load().difficulty == Difficulty::Peaceful {
+            if world.difficulty() == Difficulty::Peaceful {
                 self.stop(world, "peaceful");
                 return;
             }
@@ -585,7 +585,7 @@ impl Raid {
                 if self.center_lost_to_loss() {
                     world.finish_raid(false);
                 } else {
-                    self.stop(world);
+                    self.stop(world, "not_village");
                 }
             }
 
@@ -777,7 +777,7 @@ impl Raids {
             }
             self.next_id += 1;
             let id = self.next_id;
-            let mut raid = Raid::new(id, raid_center_pos, world.level_info.load().difficulty);
+            let mut raid = Raid::new(id, raid_center_pos, world.difficulty());
             raid.absorb_raid_omen();
             self.raid_map.insert(id, raid);
             Some(id)

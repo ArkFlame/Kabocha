@@ -3233,7 +3233,12 @@ impl LivingEntity {
                         .position()
                         .squared_distance_to_vec(&self.entity.pos.load());
                     if distance_sq >= 2500.0 {
-                        killer_player.trigger_advancement(crate::entity::player::advancement::trigger::AdvancementTrigger::SniperDuel);
+                        killer_player.trigger_advancement(crate::entity::player::advancement::trigger::AdvancementTrigger::SniperDuel {
+                            distance: crate::entity::player::advancement::predicate::EntityDistance::between(
+                                killer_player.position(),
+                                self.entity.pos.load(),
+                            ),
+                        });
                     }
                 }
 

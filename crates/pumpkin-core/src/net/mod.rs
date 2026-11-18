@@ -116,6 +116,18 @@ impl PlayerConfig {
     }
 }
 
+/// Smallest view distance vanilla's chunk map uses for a player.
+pub const MIN_CLIENT_VIEW_DISTANCE: i8 = 2;
+
+/// Converts the signed byte a client sends in `ClientInformation` into a view distance.
+///
+/// Vanilla keeps the raw signed byte and clamps the effective distance to at least 2.
+/// Casting the raw value straight to `u8` would wrap negative values into large distances.
+#[must_use]
+pub fn client_view_distance(raw: i8) -> NonZero<u8> {
+    NonZero::new(raw.max(MIN_CLIENT_VIEW_DISTANCE) as u8).unwrap_or(NonZero::<u8>::MIN)
+}
+
 impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
@@ -701,7 +713,24 @@ pub enum DisconnectReason {
 
 #[cfg(test)]
 mod tests {
-    use crate::net::{is_valid_player_name, offline_uuid};
+    use crate::net::{client_view_distance, is_valid_player_name, offline_uuid};
+
+    /// Boundary values for the client view distance byte. Negative and zero values
+    /// must clamp to vanilla's minimum of 2 instead of wrapping through `as u8`.
+    #[test]
+    fn client_view_distance_clamps_signed_byte() {
+        for (raw, expected) in [
+            (i8::MIN, 2),
+            (-1, 2),
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (8, 8),
+            (i8::MAX, 127),
+        ] {
+            assert_eq!(client_view_distance(raw).get(), expected, "raw {raw}");
+        }
+    }
 
     /// Vanilla ban-expiration z field renders UTC for a zero offset and the date/time in the
     /// system zone; named zones beyond UTC need tz data that the time crate does not carry.

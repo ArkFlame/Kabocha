@@ -21,7 +21,10 @@ pub enum AdvancementTrigger {
         /// Victim snapshot: distance to the player, effects, equipment and baby flag.
         state: EntityState,
     },
-    SniperDuel,
+    SniperDuel {
+        /// Killer-to-skeleton distance, checked against the skeleton's `distance` predicate.
+        distance: EntityDistance,
+    },
     TwoBirdsOneArrow,
     Arbalistic,
     EnterDimension {
@@ -179,6 +182,8 @@ pub enum AdvancementTrigger {
     },
     SummonedEntity {
         entity_type: String,
+        /// Player-to-summoned-entity distance, checked against the entity's `distance` predicate.
+        distance: Option<EntityDistance>,
     },
     CrafterRecipeCrafted {
         recipe_id: String,
@@ -379,13 +384,11 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::SniperDuel => {
+            AdvancementTrigger::SniperDuel { distance } => {
                 self.trigger_criterion_event("minecraft:player_killed_entity", |cond| match cond {
-                    CriterionConditions::PlayerKilledEntity(pred) => pred.matches(
-                        "minecraft:skeleton",
-                        Some(EntityDistance::from_delta(50.0, 0.0, 0.0)),
-                        None,
-                    ),
+                    CriterionConditions::PlayerKilledEntity(pred) => {
+                        pred.matches("minecraft:skeleton", Some(distance), None)
+                    }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,
                 });
@@ -1048,10 +1051,13 @@ impl Player {
                 });
             }
 
-            AdvancementTrigger::SummonedEntity { entity_type } => {
+            AdvancementTrigger::SummonedEntity {
+                entity_type,
+                distance,
+            } => {
                 self.trigger_criterion_event("minecraft:summoned_entity", |cond| match cond {
                     CriterionConditions::SummonedEntity(pred) => {
-                        pred.matches(&entity_type, None, None)
+                        pred.matches(&entity_type, distance, None)
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,

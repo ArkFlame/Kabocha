@@ -1,6 +1,5 @@
 use std::{
     net::SocketAddr,
-    num::NonZero,
     sync::{Arc, Weak},
 };
 
@@ -684,8 +683,7 @@ impl PendingConnection {
         ) {
             self.config = Some(PlayerConfig {
                 locale: client_information.locale.to_string(),
-                view_distance: NonZero::new(client_information.view_distance as u8)
-                    .unwrap_or(NonZero::<u8>::MIN),
+                view_distance: crate::net::client_view_distance(client_information.view_distance),
                 chat_mode,
                 chat_colors: client_information.chat_colors,
                 skin_parts: client_information.skin_parts,

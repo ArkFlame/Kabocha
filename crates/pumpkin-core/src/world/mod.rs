@@ -1366,6 +1366,12 @@ impl World {
             .is_tracked_by_any_player(entity.entity_id)
     }
 
+    /// Vanilla `Level.getDifficulty()`.
+    #[must_use]
+    pub fn difficulty(&self) -> Difficulty {
+        self.level_info.load().difficulty
+    }
+
     pub fn set_difficulty(&self, difficulty: Difficulty) {
         let current_info = self.level_info.load();
         let mut new_info = (**current_info).clone();
@@ -6595,6 +6601,17 @@ impl World {
             return;
         }
         base_entity.removed.store(true, Ordering::Release);
+        // Notification only: the entity is already marked removed, so a plugin cannot veto it.
+        let mut remove_event =
+            crate::plugin::api::events::entity::entity_remove::EntityRemoveEvent::new(
+                base_entity.entity_id,
+                "DISCARDED".to_string(),
+            );
+        if let Some(server) = self.server.upgrade() {
+            server
+                .plugin_manager
+                .fire_blocking(&server, &mut remove_event);
+        }
         entity.on_removed();
 
         if let Some(vehicle) = base_entity.get_vehicle() {

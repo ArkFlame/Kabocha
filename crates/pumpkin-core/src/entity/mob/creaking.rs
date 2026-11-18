@@ -9,6 +9,7 @@ use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockState};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::java::client::play::CEntityStatus;
@@ -45,6 +46,24 @@ pub const CREAKING_GRAY: i32 = 6250335;
 pub const INVULNERABILITY_ANIMATION_DURATION: i32 = 8;
 pub const TWITCH_DEATH_DURATION: i32 = 45;
 pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
+
+/// Vanilla `Creaking.hurtServer`: a heart-bound creaking only starts its shake for a
+/// living or projectile attacker, or for a player who is responsible for the damage.
+#[must_use]
+pub const fn heart_shake_allowed(has_direct_attacker: bool, has_responsible_player: bool) -> bool {
+    has_direct_attacker || has_responsible_player
+}
+
+impl crate::entity::custom_sound::CustomSound for CreakingEntity {
+    fn death_sound(&self) -> Option<Sound> {
+        Some(Sound::EntityCreakingDeath)
+    }
+
+    /// Vanilla `Creaking.getHurtSound`: heart-bound hurt is the sway, otherwise the default.
+    fn hurt_sound(&self) -> Option<Sound> {
+        self.is_heart_bound().then_some(Sound::EntityCreakingSway)
+    }
+}
 
 // Vanilla gates every Creaking activity (wander, melee, look, navigation) on canMove.
 fn creaking_can_move(mob: &dyn Mob) -> bool {
@@ -434,6 +453,10 @@ impl Mob for CreakingEntity {
         }
     }
 
+    fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
+        Some(self)
+    }
+
     fn mob_is_pushable(&self) -> bool {
         self.mob_entity.living_entity.is_pushable() && self.can_move()
     }
@@ -557,10 +580,27 @@ impl Mob for CreakingEntity {
         self.is_heart_bound() && self.is_tearing_down()
     }
 
-    fn pre_damage(&self, damage_type: DamageType, _source: Option<&dyn EntityBase>) -> bool {
+    fn pre_damage_with_context(
+        &self,
+        damage_type: DamageType,
+        source: Option<&dyn EntityBase>,
+        cause: Option<&dyn EntityBase>,
+    ) -> bool {
         let entity = &self.mob_entity.living_entity.entity;
 
-        if self.is_heart_bound() && damage_type != DamageType::OUT_OF_WORLD {
+        if self.is_heart_bound()
+            && damage_type != DamageType::OUT_OF_WORLD
+            && !damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY)
+        {
+            let has_direct_attacker = source.is_some_and(|entity| {
+                entity.get_living_entity().is_some() || entity.get_projectile_owner().is_some()
+            });
+            let has_responsible_player = source.is_some_and(|entity| entity.get_player().is_some())
+                || cause.is_some_and(|entity| entity.get_player().is_some());
+            if !heart_shake_allowed(has_direct_attacker, has_responsible_player) {
+                // Environmental damage is ignored without starting the shake.
+                return false;
+            }
             if self
                 .invulnerability_animation_remaining_ticks
                 .load(Ordering::Relaxed)
@@ -581,7 +621,10 @@ impl Mob for CreakingEntity {
                     && let Some(heart_be) = be.as_any().downcast_ref::<CreakingHeartBlockEntity>()
                     && heart_be.is_protector(entity.entity_uuid)
                 {
-                    heart_be.creaking_hurt(&world);
+                    // Vanilla: only a player-responsible hit counts toward the heart.
+                    if has_responsible_player {
+                        heart_be.creaking_hurt(&world);
+                    }
                     self.play_sound(Sound::EntityCreakingSway);
                 }
             }
@@ -596,6 +639,13 @@ impl Mob for CreakingEntity {
 mod tests {
     use super::*;
     use crate::entity::ai::test_support::world;
+
+    #[test]
+    fn environmental_damage_does_not_start_heart_shake() {
+        assert!(!heart_shake_allowed(false, false));
+        assert!(heart_shake_allowed(true, false));
+        assert!(heart_shake_allowed(false, true));
+    }
 
     #[tokio::test]
     async fn frozen_creaking_disables_goal_gate() -> Result<(), Box<dyn std::error::Error>> {
