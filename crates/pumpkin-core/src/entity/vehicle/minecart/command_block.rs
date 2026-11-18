@@ -4,11 +4,10 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
 };
 
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::tracked_data;
 use pumpkin_nbt::compound::NbtCompound;
-use pumpkin_util::{
-    PermissionLvl, math::vector2::Vector2, text::TextComponent, version::JavaMinecraftVersion,
-};
+use pumpkin_util::{PermissionLvl, math::vector2::Vector2, text::TextComponent};
 
 use crate::{
     block::entities::command_block::CommandBlockEntity,
@@ -240,7 +239,7 @@ impl CommandBlockMinecart {
         {
             nbt.put(
                 "CustomName",
-                custom_name.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+                custom_name.to_nbt_tag_for_version(&CURRENT_MC_VERSION),
             );
         }
         let track_output = self.is_track_output();
@@ -254,7 +253,7 @@ impl CommandBlockMinecart {
         {
             nbt.put(
                 "LastOutput",
-                last_output.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+                last_output.to_nbt_tag_for_version(&CURRENT_MC_VERSION),
             );
         }
         let update_last = self.update_last_execution.load(Ordering::Relaxed);

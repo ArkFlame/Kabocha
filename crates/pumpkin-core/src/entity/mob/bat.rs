@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicI8, Ordering::Relaxed};
+use std::sync::atomic::Ordering::Relaxed;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
@@ -27,18 +27,18 @@ const CLOSE_PLAYER_DISTANCE: f64 = 4.0;
 pub struct BatEntity {
     pub mob_entity: MobEntity,
     hanging_position: Mutex<Option<BlockPos>>,
-    flags: AtomicI8,
 }
 
 impl BatEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
+        // Vanilla sets resting in the constructor via `entityData`; keep the synced byte
+        // authoritative so reads cannot diverge from what is sent to clients.
+        entity.set_synced_data(tracked_data::bat::DATA_ID_FLAGS, ROOSTING_FLAG);
         let mob_entity = MobEntity::new(entity);
-        let bat = Self {
+        Arc::new(Self {
             mob_entity,
             hanging_position: Mutex::new(None),
-            flags: AtomicI8::new(ROOSTING_FLAG),
-        };
-        Arc::new(bat)
+        })
     }
 
     #[must_use]
@@ -70,26 +70,33 @@ impl BatEntity {
 
     #[must_use]
     pub fn is_roosting(&self) -> bool {
-        self.flags.load(Relaxed) & ROOSTING_FLAG != 0
-    }
-
-    pub fn set_roosting(&self, roosting: bool) {
-        let flags = if roosting {
-            self.flags.fetch_or(ROOSTING_FLAG, Relaxed) | ROOSTING_FLAG
-        } else {
-            self.flags.fetch_and(!ROOSTING_FLAG, Relaxed) & !ROOSTING_FLAG
-        };
         self.mob_entity
             .living_entity
             .entity
-            .set_synced_data(tracked_data::bat::DATA_ID_FLAGS, flags);
+            .synched_data
+            .get::<i8>(tracked_data::bat::DATA_ID_FLAGS)
+            .is_some_and(|flags| flags & ROOSTING_FLAG != 0)
+    }
+
+    pub fn set_roosting(&self, roosting: bool) {
+        let entity = &self.mob_entity.living_entity.entity;
+        let current = entity
+            .synched_data
+            .get::<i8>(tracked_data::bat::DATA_ID_FLAGS)
+            .unwrap_or(0);
+        let flags = if roosting {
+            current | ROOSTING_FLAG
+        } else {
+            current & !ROOSTING_FLAG
+        };
+        entity.set_synced_data(tracked_data::bat::DATA_ID_FLAGS, flags);
     }
 
     fn tick_roosting(&self, world: &World, above_pos: &BlockPos, pos: &Vector3<f64>) {
         let entity = &self.mob_entity.living_entity.entity;
         let is_silent = entity.is_silent();
         let above_state = world.get_block_state(above_pos);
-        if above_state.is_solid_block() {
+        if above_state.is_redstone_conductor() {
             let rotate_head = {
                 let mut rng = rand::rng();
                 (rng.random_range(0u32..200) == 0).then(|| rng.random_range(0i32..360) as f32)
@@ -190,7 +197,9 @@ impl BatEntity {
 
         entity.yaw.store(old_yaw + yaw_diff);
 
-        if rng.random_range(0u32..100) == 0 && world.get_block_state(above_pos).is_solid_block() {
+        if rng.random_range(0u32..100) == 0
+            && world.get_block_state(above_pos).is_redstone_conductor()
+        {
             self.set_roosting(true);
         }
     }
@@ -229,25 +238,32 @@ impl Mob for BatEntity {
         !self.is_roosting() && self.get_entity().tick_count.load(Relaxed) % 10 == 0
     }
 
-    fn mob_init_data_tracker(&self) {
-        let entity = self.get_entity();
-        let flags = self.flags.load(Relaxed);
-        entity.set_synced_data(tracked_data::bat::DATA_ID_FLAGS, flags);
-    }
-
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        nbt.put_byte("BatFlags", self.flags.load(Relaxed));
+        let flags = self
+            .mob_entity
+            .living_entity
+            .entity
+            .synched_data
+            .get::<i8>(tracked_data::bat::DATA_ID_FLAGS)
+            .unwrap_or(0);
+        nbt.put_byte("BatFlags", flags);
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         let flags = nbt.get_byte("BatFlags").unwrap_or(0);
-        self.flags.store(flags, Relaxed);
         self.get_entity()
             .set_synced_data(tracked_data::bat::DATA_ID_FLAGS, flags);
     }
 
     fn mob_metadata(&self) -> Option<crate::entity::mob::MobMetadata> {
-        Some(crate::entity::mob::MobMetadata::new().bat_flags(self.flags.load(Relaxed)))
+        let flags = self
+            .mob_entity
+            .living_entity
+            .entity
+            .synched_data
+            .get::<i8>(tracked_data::bat::DATA_ID_FLAGS)
+            .unwrap_or(0);
+        Some(crate::entity::mob::MobMetadata::new().bat_flags(flags))
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

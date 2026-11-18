@@ -376,8 +376,9 @@ impl PiglinEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         inv.len() < Self::INVENTORY_SIZE
             || inv.iter().any(|slot| {
-                slot.are_items_and_components_equal(item)
-                    && slot.item_count < slot.get_max_stack_size()
+                slot.is_empty()
+                    || (slot.are_items_and_components_equal(item)
+                        && slot.item_count < slot.get_max_stack_size())
             })
     }
 
@@ -399,6 +400,12 @@ impl PiglinEntity {
             slot.increment(moved);
             remaining.decrement(moved);
             if remaining.is_empty() {
+                return None;
+            }
+        }
+        for slot in inv.iter_mut() {
+            if slot.is_empty() {
+                *slot = std::mem::replace(&mut remaining, ItemStack::EMPTY.clone());
                 return None;
             }
         }

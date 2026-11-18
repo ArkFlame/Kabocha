@@ -146,6 +146,19 @@ impl SynchedEntityData {
         true
     }
 
+    /// Returns the stored value of the requested type, or `None` when it is not
+    /// registered or was written with a different type.
+    pub fn get<T: Clone + 'static>(&self, tracked: TrackedData) -> Option<T> {
+        let items = self
+            .items
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        items
+            .get(&tracked)
+            .and_then(|item| item.serializer.as_any().downcast_ref::<T>())
+            .cloned()
+    }
+
     /// Whether any value changed since the last [`Self::clear_dirty`].
     #[must_use]
     pub fn is_dirty(&self) -> bool {
@@ -247,6 +260,17 @@ mod test {
     use pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION;
 
     use super::*;
+
+    /// Typed reads mirror vanilla `SynchedEntityData.get`: the stored value comes back
+    /// unchanged and a different Rust type does not match even with the same wire bytes.
+    #[test]
+    fn typed_get_returns_stored_value() {
+        let data = SynchedEntityData::new();
+        assert_eq!(data.get::<u8>(PLAYER_MODE_CUSTOMISATION), None);
+        data.set(PLAYER_MODE_CUSTOMISATION, 0x7Fu8);
+        assert_eq!(data.get::<u8>(PLAYER_MODE_CUSTOMISATION), Some(0x7F));
+        assert_eq!(data.get::<i8>(PLAYER_MODE_CUSTOMISATION), None);
+    }
 
     /// Metadata ids no longer vary per version: core serializes the current format for
     /// every client and `pumpkin-java-multiversion` translates. So the senders need no

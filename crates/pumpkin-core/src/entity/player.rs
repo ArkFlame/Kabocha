@@ -429,6 +429,13 @@ const fn toggle_glide_applies(cancelled: bool, is_gliding: bool, current: bool) 
     if cancelled { current } else { is_gliding }
 }
 
+/// Whether the vanilla `tryToStartFallFlying` gate lets a glide begin.
+///
+/// A player needs a usable glider, must not already be flying, and must not be in water.
+const fn fall_flying_start_allowed(is_fall_flying: bool, can_glide: bool, in_water: bool) -> bool {
+    !is_fall_flying && can_glide && !in_water
+}
+
 /// Decides the vanilla `LodestoneTracker.tick` outcome for a compass in its target dimension.
 ///
 /// A tracker stays linked while the target is in world bounds and its chunk is either unloaded
@@ -2264,18 +2271,23 @@ impl Player {
             return DamageResult::Untouched;
         }
 
+        // Vanilla processDurabilityChange rolls Unbreaking before PlayerItemDamageEvent fires,
+        // so the event must observe the post-Unbreaking amount (ItemStack.hurtAndBreak).
+        let Some((applied, _)) = stack.compute_durability_damage_applied(amount) else {
+            return DamageResult::Untouched;
+        };
         let original_item = stack.item;
         let world = self.world();
         let player_context = world
             .server
             .upgrade()
             .zip(world.get_player_by_uuid(self.gameprofile.id));
-        let amount = if let Some((server, player)) = &player_context {
+        let applied = if let Some((server, player)) = &player_context {
             let mut event =
                 crate::plugin::api::events::player::player_item_damage::PlayerItemDamageEvent::new(
                     player.clone(),
                     original_item.registry_key.to_string(),
-                    amount,
+                    applied,
                 );
             server.plugin_manager.fire_blocking(server, &mut event);
             if event.cancelled {
@@ -2283,14 +2295,11 @@ impl Player {
             }
             event.damage
         } else {
-            amount
+            applied
         };
 
-        let result = if allow_break {
-            stack.damage_item(amount)
-        } else {
-            stack.damage_item_without_breaking(amount)
-        };
+        // Vanilla only calls applyDamage when the final amount is nonzero.
+        let result = stack.apply_durability_damage(applied, allow_break);
         if result != DamageResult::Untouched {
             let vehicle_type = self
                 .living_entity
@@ -3991,7 +4000,11 @@ impl Player {
     pub fn try_to_start_fall_flying(&self, server: &Arc<Server>) -> bool {
         let entity = &self.living_entity.entity;
         // Vanilla `tryToStartFallFlying` only checks water, lava does not block the start
-        if entity.is_fall_flying() || !self.can_glide() || entity.is_in_water() {
+        if !fall_flying_start_allowed(
+            entity.is_fall_flying(),
+            self.can_glide(),
+            entity.is_in_water(),
+        ) {
             return false;
         }
         let mut event =
@@ -7037,9 +7050,11 @@ impl Player {
                 translate,
                 bedrock_translate,
                 with,
+                bedrock_with,
             } => {
                 let key = bedrock_translate.as_deref().unwrap_or(translate.as_ref());
-                let parameters = with
+                let args = bedrock_with.as_ref().unwrap_or(with);
+                let parameters = args
                     .iter()
                     .map(pumpkin_util::text::TextComponentBase::to_bedrock_string)
                     .collect();
@@ -10704,6 +10719,18 @@ mod tests {
         assert!(super::toggle_glide_applies(true, false, true));
         // A plugin can also veto the stop by keeping the flag set.
         assert!(super::toggle_glide_applies(false, true, true));
+    }
+
+    #[test]
+    fn fall_flying_start_gate_checks_glider_flight_and_water() {
+        // A glider, airborne and out of water is the only case that starts a glide.
+        assert!(super::fall_flying_start_allowed(false, true, false));
+        // Already gliding (or flying) cannot start again.
+        assert!(!super::fall_flying_start_allowed(true, true, false));
+        // No usable glider means no glide, whatever the fluid.
+        assert!(!super::fall_flying_start_allowed(false, false, false));
+        // Water blocks the start at the gate.
+        assert!(!super::fall_flying_start_allowed(false, true, true));
     }
 
     #[test]

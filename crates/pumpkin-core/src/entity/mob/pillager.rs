@@ -124,6 +124,12 @@ impl PillagerEntity {
             .inventory
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for slot in inv.iter_mut() {
+            if slot.is_empty() {
+                *slot = item;
+                return None;
+            }
+        }
         if inv.len() < Self::INVENTORY_SIZE {
             inv.push(item);
             None

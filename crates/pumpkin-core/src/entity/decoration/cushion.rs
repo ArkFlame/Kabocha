@@ -442,6 +442,9 @@ mod tests {
     use pumpkin_config::world::LevelConfig;
     use pumpkin_data::dimension::Dimension;
     use pumpkin_data::entity::EntityType;
+    use pumpkin_data::{Block, BlockStateId};
+    use pumpkin_util::math::vector2::Vector2;
+    use pumpkin_world::chunk::ChunkData;
     use pumpkin_world::level::Level;
     use pumpkin_world::world_info::LevelData;
     use std::sync::Weak;
@@ -461,6 +464,127 @@ mod tests {
             subtract_box(part, &covering).is_empty(),
             "a fully covered resting slice counts as buried"
         );
+    }
+
+    /// A `World` with one loaded, empty chunk so placement rules can be exercised
+    /// synchronously without force-loading or ticking a full server.
+    struct PlacementWorld {
+        world: Arc<World>,
+        level: Arc<Level>,
+        _directory: tempfile::TempDir,
+    }
+
+    impl PlacementWorld {
+        fn new() -> Self {
+            let directory = tempfile::tempdir().unwrap();
+            let level = Level::from_root_folder(
+                &LevelConfig::default(),
+                directory.path().to_path_buf(),
+                0,
+                Dimension::OVERWORLD,
+            );
+            level
+                .loaded_chunks
+                .insert(Vector2::new(0, 0), ChunkData::empty_sync(0, 0));
+            let world = Arc::new(World::load(
+                level.clone(),
+                Arc::new(ArcSwap::from_pointee(LevelData::default(
+                    pumpkin_util::world_seed::Seed(0),
+                ))),
+                Dimension::OVERWORLD,
+                crate::block::registry::default_registry(),
+                crate::world::weather::WeatherSetup::default(),
+                Weak::new(),
+            ));
+            Self {
+                world,
+                level,
+                _directory: directory,
+            }
+        }
+
+        fn set_block(&self, position: BlockPos, state: BlockStateId) {
+            let _ = self
+                .level
+                .read_chunk_sync(&position.chunk_position(), |chunk| {
+                    chunk.set_blocks_batch([(
+                        (position.0.x & 15) as usize,
+                        position.0.y,
+                        (position.0.z & 15) as usize,
+                        state,
+                    )]);
+                });
+        }
+
+        async fn shutdown(self) {
+            self.level.shutdown().await;
+        }
+    }
+
+    /// Bounding box of a cushion resting on top of the block at (0, 64, 0).
+    const fn resting_cushion_box() -> BoundingBox {
+        BoundingBox::new(Vector3::new(0.0, 65.0, 0.0), Vector3::new(1.0, 65.25, 1.0))
+    }
+
+    #[tokio::test]
+    async fn placement_needs_an_anchor_below() {
+        let fixture = PlacementWorld::new();
+        let bb = resting_cushion_box();
+
+        assert!(
+            !CushionEntity::can_be_placed_at(&fixture.world, &bb),
+            "air cannot anchor a cushion"
+        );
+
+        fixture.set_block(BlockPos::new(0, 64, 0), Block::STONE.default_state.id);
+        assert!(
+            CushionEntity::would_survive_at(&fixture.world, &bb),
+            "a full stone block supports the cushion"
+        );
+        assert!(
+            CushionEntity::can_be_placed_at(&fixture.world, &bb),
+            "a full stone block is a valid placement"
+        );
+
+        fixture.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn placement_rejects_a_suffocating_cover() {
+        let fixture = PlacementWorld::new();
+        let bb = resting_cushion_box();
+        fixture.set_block(BlockPos::new(0, 64, 0), Block::STONE.default_state.id);
+        fixture.set_block(BlockPos::new(0, 65, 0), Block::STONE.default_state.id);
+
+        assert!(
+            CushionEntity::is_covered_by_suffocating_blocks(&fixture.world, &bb),
+            "stone occupying the cushion volume is suffocating"
+        );
+        assert!(
+            !CushionEntity::would_survive_at(&fixture.world, &bb),
+            "a suffocating cover prevents the cushion from surviving"
+        );
+
+        fixture.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn anchor_is_buried_when_a_block_fills_the_resting_slice() {
+        let fixture = PlacementWorld::new();
+        let bb = resting_cushion_box();
+
+        assert!(
+            !CushionEntity::is_anchor_buried(&fixture.world, &bb),
+            "an empty resting slice is not buried"
+        );
+
+        fixture.set_block(BlockPos::new(0, 65, 0), Block::STONE.default_state.id);
+        assert!(
+            CushionEntity::is_anchor_buried(&fixture.world, &bb),
+            "a block filling the resting slice buries the anchor"
+        );
+
+        fixture.shutdown().await;
     }
 
     #[tokio::test]
