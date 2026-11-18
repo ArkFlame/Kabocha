@@ -1178,7 +1178,9 @@ mod test {
     fn removing_plugin_commands_drops_their_executors() {
         use std::sync::Arc;
 
-        struct Droppable(Arc<()>);
+        struct Droppable(
+            #[expect(dead_code, reason = "held only so its drop is observable")] Arc<()>,
+        );
         impl CommandExecutor for Droppable {
             fn execute(&self, _context: &CommandContext) -> CommandExecutorResult {
                 Ok(1)

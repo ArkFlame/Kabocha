@@ -884,7 +884,7 @@ impl PathNavigation {
                     Some(path) if path.same_as(self.path.as_ref()) => {}
                     path => self.path = path,
                 }
-                self.last_path_search_failed = self.path.as_ref().is_none_or(|path| path.is_done());
+                self.last_path_search_failed = self.path.as_ref().is_none_or(path::Path::is_done);
                 if self.path.as_ref().is_some_and(|path| !path.is_done()) {
                     self.trim_path(entity);
                 }

@@ -76,8 +76,8 @@ pub fn is_chest_boat(entity_type: &EntityType) -> bool {
         || entity_type.resource_name == "bamboo_chest_raft"
 }
 
-/// Vanilla AbstractChestBoat always allocates a 27-slot container while a plain AbstractBoat
-/// has none; this is the sole input to has_container_inventory for boats.
+/// Vanilla `AbstractChestBoat` always allocates a 27-slot container while a plain `AbstractBoat`
+/// has none; this is the sole input to `has_container_inventory` for boats.
 #[must_use]
 pub fn boat_container_size(entity_type: &EntityType) -> Option<usize> {
     is_chest_boat(entity_type).then_some(CHEST_BOAT_CONTAINER_SIZE)

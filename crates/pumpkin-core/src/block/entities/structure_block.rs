@@ -439,7 +439,7 @@ fn create_structure_seed(seed: i64) -> u64 {
 }
 
 /// Rewrites a template entity's `block_pos` to its transformed world position.
-/// Vanilla stores this through `BlockPos.CODEC` (three ints); Pumpkin's IntArray matches that shape.
+/// Vanilla stores this through `BlockPos.CODEC` (three ints); Pumpkin's `IntArray` matches that shape.
 fn put_transformed_block_pos(nbt: &mut NbtCompound, pos: Vector3<i32>) {
     if nbt.child_tags.contains_key("block_pos") {
         nbt.put("block_pos", NbtTag::IntArray(vec![pos.x, pos.y, pos.z]));
@@ -449,7 +449,7 @@ fn put_transformed_block_pos(nbt: &mut NbtCompound, pos: Vector3<i32>) {
 /// Spawns every entity stored in a template after its blocks are placed.
 ///
 /// Vanilla StructureTemplate#placeEntities transforms each entry's block and
-/// exact positions, rewrites Pos and block_pos, drops the old UUID, applies
+/// exact positions, rewrites Pos and `block_pos`, drops the old UUID, applies
 /// the mirror and rotation to the stored yaw and creates the entity from NBT.
 fn place_template_entities(
     world: &Arc<World>,
@@ -574,7 +574,7 @@ fn update_shape_at_edge(world: &Arc<World>, placed: &[(BlockPos, BlockStateId)])
             let state = Block::from_state_id(state_id);
             let new_state_id = world.block_registry.get_state_for_neighbor_update(
                 world,
-                &state,
+                state,
                 state_id,
                 pos,
                 direction,
@@ -588,7 +588,7 @@ fn update_shape_at_edge(world: &Arc<World>, placed: &[(BlockPos, BlockStateId)])
             let neighbor_state = Block::from_state_id(neighbor_state_id);
             let new_neighbor_state_id = world.block_registry.get_state_for_neighbor_update(
                 world,
-                &neighbor_state,
+                neighbor_state,
                 neighbor_state_id,
                 &neighbor_pos,
                 direction.opposite(),

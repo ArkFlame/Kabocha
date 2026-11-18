@@ -104,19 +104,17 @@ fn frame_packet(packet_id: i32, payload: &[u8]) -> Option<Bytes> {
 
 /// Awaits `previous` (when one is queued) before polling `task`, so a client's
 /// chat, command and session packets are handled in arrival order.
-fn chain_after<F>(
+async fn chain_after<F>(
     previous: Option<JoinHandle<()>>,
     task: F,
-) -> impl Future<Output = ()> + Send + 'static
+)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    async move {
-        if let Some(previous) = previous {
-            let _ = previous.await;
-        }
-        task.await;
+    if let Some(previous) = previous {
+        let _ = previous.await;
     }
+    task.await;
 }
 
 /// Vanilla/Paper `settings.timeout-time`: how long a sent keep-alive may stay

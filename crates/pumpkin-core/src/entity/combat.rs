@@ -467,7 +467,7 @@ pub struct CombatEntry {
     pub attacker_is_player: bool,
 }
 
-/// Vanilla CombatTracker combat-state transitions produced by one damage record. The
+/// Vanilla `CombatTracker` combat-state transitions produced by one damage record. The
 /// owning entity fires onEnterCombat/onLeaveCombat from these at the damage call site.
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CombatStateChange {
@@ -475,7 +475,7 @@ pub struct CombatStateChange {
     pub entered: bool,
     /// Vanilla LivingEntity.onLeaveCombat, fired when combat state resets.
     pub left: bool,
-    /// Vanilla CombatTracker.getCombatDuration() at the moment of leaving.
+    /// Vanilla `CombatTracker.getCombatDuration()` at the moment of leaving.
     pub end_duration: i64,
 }
 
@@ -884,7 +884,7 @@ fn main_hand_custom_name(entity: &dyn EntityBase) -> Option<pumpkin_util::text::
     None
 }
 
-/// Reads the live main-hand custom name of entity_id from world at message time.
+/// Reads the live main-hand custom name of `entity_id` from world at message time.
 fn live_main_hand_item_name(
     world: &World,
     entity_id: i32,

@@ -403,7 +403,7 @@ fn read_root_vehicle(nbt: &NbtCompound) -> Option<Uuid> {
 
 /// Vanilla `DamageSource.scalesWithDifficulty`. `cause_is_living_non_player` is
 /// vanilla's `causingEntity instanceof LivingEntity && !(instanceof Player)`.
-fn damage_scales_with_difficulty(
+const fn damage_scales_with_difficulty(
     scaling: pumpkin_data::damage::DamageScaling,
     cause_is_living_non_player: bool,
 ) -> bool {
@@ -426,7 +426,7 @@ fn difficulty_scaled_damage(amount: f32, difficulty: Difficulty) -> Option<f32> 
     }
 }
 
-/// Vanilla `Player.doSweepAttack` (V_26_3): a swept victim takes
+/// Vanilla `Player.doSweepAttack` (`V_26_3)`: a swept victim takes
 /// `(1 + SWEEPING_DAMAGE_RATIO * baseDamage) * attackStrengthScale`. `sweeping_ratio`
 /// is the attribute value including the Sweeping Edge enchantment's `level / (level + 1)`
 /// contribution (Pumpkin does not apply enchantment attribute effects automatically).
@@ -748,7 +748,7 @@ pub struct Player {
     /// The block position of the currently open container screen (if any).
     pub open_container_pos: AtomicCell<Option<BlockPos>>,
     /// Exact position of the entity-backed container (chest boat/minecart) whose screen is open,
-    /// used to emit CONTAINER_CLOSE at the vehicle location like vanilla `stopOpen`.
+    /// used to emit `CONTAINER_CLOSE` at the vehicle location like vanilla `stopOpen`.
     pub open_container_entity_pos: AtomicCell<Option<Vector3<f64>>>,
     /// Sync id and Bedrock equipment slot of an open mount screen.
     bedrock_mount_screen: AtomicCell<Option<(u8, usize)>>,
@@ -7331,8 +7331,8 @@ impl Player {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             xp.level = level;
             xp.progress = progress.clamp(0.0, 1.0);
-            xp.points = points;
-        }
+            xp.points = points
+        };
         self.last_sent_xp.store(-1, Ordering::Relaxed);
         self.tick_experience();
     }

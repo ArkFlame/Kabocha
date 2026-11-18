@@ -332,10 +332,9 @@ fn parse_potion_ingredient(value: &Value) -> Option<OwnedPotionIngredient> {
                 for id in arr {
                     if let Some(s) = id.as_str() {
                         potions.push(normalize_potion_id(s));
-                    } else if let Some(tag) = id.get("tag").and_then(Value::as_str) {
-                        potions.push(normalize_potion_tag(tag));
                     } else {
-                        return None;
+                        let tag = id.get("tag").and_then(Value::as_str)?;
+                        potions.push(normalize_potion_tag(tag));
                     }
                 }
             }

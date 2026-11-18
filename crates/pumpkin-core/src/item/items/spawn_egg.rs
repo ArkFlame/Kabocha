@@ -247,8 +247,8 @@ pub(crate) fn prepare_egg_mob(
 }
 
 /// Creates and spawns the mob for a spawn egg, applying the egg's components (vanilla order).
-/// Shared by `useOn` and the GameTest helper so both drive the same spawn path. `user` is the
-/// causing player, or `None` for a non-player source such as a dispenser or a GameTest.
+/// Shared by `useOn` and the `GameTest` helper so both drive the same spawn path. `user` is the
+/// causing player, or `None` for a non-player source such as a dispenser or a `GameTest`.
 #[must_use]
 pub(crate) fn spawn_from_egg_stack(
     item: &ItemStack,
@@ -275,7 +275,7 @@ pub(crate) fn spawn_from_egg_stack(
 }
 
 /// Resolves the egg's entity type, honours the Peaceful monster guard, and spawns the mob.
-/// `peaceful` is passed explicitly so the GameTest helper can exercise the guard without
+/// `peaceful` is passed explicitly so the `GameTest` helper can exercise the guard without
 /// mutating the world's global difficulty. Returns whether a mob was actually spawned.
 #[must_use]
 pub(crate) fn spawn_from_spawn_egg_stack(

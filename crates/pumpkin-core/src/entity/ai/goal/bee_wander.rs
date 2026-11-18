@@ -50,14 +50,12 @@ fn find_pos(mob: &dyn Mob) -> Option<Vector3<f64>> {
             let threshold =
                 wander_threshold(true, bee.is_some_and(|bee| bee.flower_pos().is_some()));
             mob_pos.squared_distance_to_vec(&pos.to_centered_f64()) >= threshold * threshold
-        })
-        .map(|pos| {
-            let toward_hive = pos.to_centered_f64().sub(&mob_pos).normalize();
-            (toward_hive.x, toward_hive.z)
-        })
-        .unwrap_or_else(|| {
+        }).map_or_else(|| {
             let view = mob.get_looking_vector();
             (view.x, view.z)
+        }, |pos| {
+            let toward_hive = pos.to_centered_f64().sub(&mob_pos).normalize();
+            (toward_hive.x, toward_hive.z)
         });
 
     hover_random_pos::get_pos(

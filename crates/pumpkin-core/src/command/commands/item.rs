@@ -631,11 +631,10 @@ fn read_extended_entity_slot(
     if let Some(player) = target.get_player() {
         return read_player_menu_slot(player, mojang_slot);
     }
-    if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse()) {
-        if let Some(stack) = read_horse_slot(horse, mojang_slot) {
+    if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse())
+        && let Some(stack) = read_horse_slot(horse, mojang_slot) {
             return Some(stack);
         }
-    }
     if let Some(stack) = read_mob_slot(target, mojang_slot) {
         return Some(stack);
     }
@@ -650,11 +649,10 @@ fn write_extended_entity_slot(
     if let Some(player) = target.get_player() {
         return write_player_menu_slot(player, mojang_slot, item_stack);
     }
-    if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse()) {
-        if write_horse_slot(horse, mojang_slot, item_stack) {
+    if let Some(horse) = target.get_mob().and_then(|mob| mob.as_abstract_horse())
+        && write_horse_slot(horse, mojang_slot, item_stack) {
             return true;
         }
-    }
     if write_mob_slot(target, mojang_slot, item_stack) {
         return true;
     }
@@ -892,7 +890,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                     let add = function.get_bool("add").unwrap_or(false);
                     if let Some(NbtTag::Compound(enchantments)) = function.get("enchantments") {
                         for (name, level_tag) in &enchantments.child_tags {
-                            let Some(enchantment) = Enchantment::from_name(&**name) else {
+                            let Some(enchantment) = Enchantment::from_name(name) else {
                                 continue;
                             };
                             let level = number_provider(Some(level_tag)).unwrap_or(1.0) as i32;
@@ -908,7 +906,7 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag) {
                                     stack.patch.retain(|(existing, _)| *existing != id);
                                     stack.patch.push((id, None));
                                 }
-                            } else if let Some(id) = DataComponent::try_from_name(&**name) {
+                            } else if let Some(id) = DataComponent::try_from_name(name) {
                                 set_component(stack, id, value);
                             }
                         }

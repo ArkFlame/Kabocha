@@ -145,7 +145,7 @@ pub fn to_registry_entry(entry_id: String, instance: &TestInstance) -> RegistryE
     }
 }
 
-/// Builds the codec-canonical test_instance registry sent during registry sync.
+/// Builds the codec-canonical `test_instance` registry sent during registry sync.
 ///
 /// Vanilla's `RegistrySynchronization.packRegistry` encodes every entry with
 /// `registryData.elementCodec()` (`GameTestInstance.CODEC`), filling in defaults. The generic

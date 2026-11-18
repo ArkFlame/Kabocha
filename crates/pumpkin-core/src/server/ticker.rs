@@ -52,7 +52,7 @@ struct EmptyTickClock {
 
 impl EmptyTickClock {
     /// Advances the counter, returning true on the tick that reaches `threshold_ticks`.
-    fn observe(&mut self, is_empty: bool, threshold_ticks: i32) -> bool {
+    const fn observe(&mut self, is_empty: bool, threshold_ticks: i32) -> bool {
         if threshold_ticks <= 0 || !is_empty {
             self.ticks = 0;
             return false;

@@ -929,7 +929,7 @@ impl EntityBase for FishingBobberEntity {
 /// Vanilla `FishingHook.tick` open-water latch: a quiet hook resets the flag, while a
 /// fish nearby keeps it only if the hook has not been out of water too long and the
 /// surrounding 5x5 area is open water.
-fn latched_open_water(
+const fn latched_open_water(
     current: bool,
     nibble: i32,
     hooked: i32,

@@ -467,7 +467,7 @@ fn analog_move(analog: Vector2<f32>) -> (bool, bool, bool, bool) {
     )
 }
 
-/// Projects Bedrock's camera-relative raw_move onto the camera horizontal view axes.
+/// Projects Bedrock's camera-relative `raw_move` onto the camera horizontal view axes.
 ///
 /// A level camera facing yaw 0 looks down +Z (getViewVector) and its right axis is +X, so
 /// for a look vector (x, _, z) the horizontal forward is (x, z) and right is (z, -x).

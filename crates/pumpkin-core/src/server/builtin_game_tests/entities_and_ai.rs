@@ -156,7 +156,7 @@ pub(super) async fn test_minecart_drops_item_when_destroyed(
 }
 
 /// A cow egg carrying wolf `entity_data` must spawn a wolf: vanilla `SpawnEggItem.getType`
-/// reads the ENTITY_DATA component, so the authored type wins over the egg's own mapping.
+/// reads the `ENTITY_DATA` component, so the authored type wins over the egg's own mapping.
 pub(super) async fn test_spawn_egg_entity_data_type_override(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {

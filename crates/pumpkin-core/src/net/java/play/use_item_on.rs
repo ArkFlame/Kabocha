@@ -1,7 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::item::registry::should_try_block_placement;
-use pumpkin_data::block_properties::BlockProperties;
 
 impl JavaClient {
     #[allow(clippy::too_many_lines)]

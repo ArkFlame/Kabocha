@@ -362,7 +362,7 @@ fn get_raider_has_raid(entity: &dyn EntityBase) -> Option<bool> {
 }
 
 /// Vanilla `FishingHook.calculateOpenWater` for a hook sitting at `pos`.
-pub(crate) fn is_open_water_at(world: &World, pos: &BlockPos) -> bool {
+pub fn is_open_water_at(world: &World, pos: &BlockPos) -> bool {
     is_open_water(|dx, dy, dz| {
         let cell = pos.offset(Vector3::new(dx, dy, dz));
         open_water_cell(world.get_block_state(&cell).id.to_block())

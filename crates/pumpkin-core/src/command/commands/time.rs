@@ -158,7 +158,7 @@ fn resolve_clock_name(
         // Vanilla getDefaultClock uses the dimension type's own default_clock:
         // the End clock in the End, and an error in the Nether.
         default_clock_name(world.dimension.minecraft_name)
-            .map(|name| name.to_string())
+            .map(std::string::ToString::to_string)
             .ok_or_else(|| {
                 ERROR_NO_DEFAULT_CLOCK.create_without_context_args_slice(&[TextComponent::text(
                     world.dimension.minecraft_name,
@@ -672,13 +672,13 @@ impl CommandExecutor for ActionExecutor {
 
 /// Vanilla `ClockTimeMarker.occursAt`. The day timeline markers repeat every
 /// `period` ticks, so a marker matches at the same offset in any day.
-fn marker_occurs_at(total_ticks: i64, ticks: i64, period: i64) -> bool {
+const fn marker_occurs_at(total_ticks: i64, ticks: i64, period: i64) -> bool {
     ticks == total_ticks.rem_euclid(period)
 }
 
 /// Vanilla `ClockTimeMarker.resolveTimeToMoveTo`: advance forward to the next
 /// occurrence without rewinding the clock.
-fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
+const fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
     let from = total_ticks.rem_euclid(period);
     let duration = ticks - from;
     if duration > 0 {
@@ -750,8 +750,8 @@ impl CommandExecutor for SetTimeMarkerExecutor {
             if marker_occurs_at(guard.time_of_day, ticks, period) {
                 return Err(
                     ERROR_ALREADY_AT_TIME_MARKER.create_without_context_args_slice(&[
-                        TextComponent::text(clock_name.clone()),
-                        TextComponent::text(marker_name.clone()),
+                        TextComponent::text(clock_name),
+                        TextComponent::text(marker_name),
                     ]),
                 );
             }

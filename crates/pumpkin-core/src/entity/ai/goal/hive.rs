@@ -11,9 +11,9 @@ use crate::entity::mob::neutral::NeutralMob;
 use crate::entity::passive::bee::BeeEntity;
 use crate::world::World;
 
-/// Vanilla Bee.HIVE_SEARCH_DISTANCE.
+/// Vanilla `Bee.HIVE_SEARCH_DISTANCE`.
 const HIVE_SEARCH_DISTANCE: i32 = 20;
-/// Vanilla BeeGoToHiveGoal.MAX_TRAVELLING_TICKS.
+/// Vanilla `BeeGoToHiveGoal.MAX_TRAVELLING_TICKS`.
 const MAX_TRAVELLING_TICKS: i32 = 2400;
 const REPATH_TICKS: i32 = 20;
 const TOO_FAR: f64 = 48.0;

@@ -48,7 +48,7 @@ fn get_recipe_id(recipe: &DynamicRecipe) -> String {
     )
 }
 
-/// A recipe manager key when it is learnable (vanilla LEARNABLE_RECIPE = !isSpecial).
+/// A recipe manager key when it is learnable (vanilla `LEARNABLE_RECIPE` = !isSpecial).
 fn learnable_recipe_id(recipe: &DynamicRecipe) -> Option<&str> {
     if matches!(recipe, DynamicRecipe::SpecialCrafting(_)) {
         return None;
@@ -267,7 +267,7 @@ impl CommandExecutor for RecipeTakeExecutor {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let ids_to_remove =
-                take_display_ids(&mut *known, &all_recipes, &display_ids, is_all, &matches);
+                take_display_ids(&mut known, &all_recipes, &display_ids, is_all, &matches);
             drop(known);
             total += ids_to_remove.len() as i32;
             if !ids_to_remove.is_empty() {

@@ -109,7 +109,7 @@ impl EntityReference {
 
     /// Vanilla `Projectile.restoreFrom` copies the owner reference itself, not just the
     /// persisted id, so a replacement keeps an owner still live in another dimension.
-    pub fn restore_from(&self, other: &EntityReference) {
+    pub fn restore_from(&self, other: &Self) {
         let resolved = other
             .resolved
             .lock()
@@ -154,7 +154,7 @@ impl ProjectileOwner {
 
     /// Vanilla `Entity.restoreFrom` carries over the saved projectile flags and
     /// `Projectile.restoreFrom` also carries over the live owner reference.
-    pub fn restore_from(&self, other: &ProjectileOwner) {
+    pub fn restore_from(&self, other: &Self) {
         self.owner.restore_from(&other.owner);
         self.left_owner
             .store(other.left_owner.load(Relaxed), Relaxed);

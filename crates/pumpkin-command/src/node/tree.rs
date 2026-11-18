@@ -434,13 +434,10 @@ impl<S: CommandSource> Tree<S> {
         let primary: NodeId = primary.into();
 
         // Root children that are the command itself or aliases redirecting to it.
-        let root_children: Vec<(String, NodeId)> = self[ROOT_NODE_ID]
+        let roots: Vec<(String, NodeId)> = self[ROOT_NODE_ID]
             .children_ref()
             .iter()
             .map(|(name, id)| (name.clone(), *id))
-            .collect();
-        let roots: Vec<(String, NodeId)> = root_children
-            .into_iter()
             .filter(|(_, id)| {
                 *id == primary
                     || self[*id]

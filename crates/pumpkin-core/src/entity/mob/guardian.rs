@@ -83,7 +83,7 @@ const THORNS_DAMAGE: f32 = 2.0;
 
 /// Vanilla `Guardian.ATTACK_TIME`: beam charge ticks before the beam hurts.
 const GUARDIAN_ATTACK_TIME: i32 = 80;
-/// Vanilla ElderGuardian.getAttackDuration(): the elder charges a shorter beam.
+/// Vanilla `ElderGuardian.getAttackDuration()`: the elder charges a shorter beam.
 const ELDER_GUARDIAN_ATTACK_TIME: i32 = 60;
 
 const GUARDIAN_SPEED_LERP: f32 = 0.125;
@@ -138,7 +138,7 @@ impl GuardianAttackGoal {
         }
     }
 
-    /// Vanilla Guardian/ElderGuardian.getAttackDuration().
+    /// Vanilla `Guardian/ElderGuardian.getAttackDuration()`.
     const fn attack_duration(&self) -> i32 {
         if self.elder {
             ELDER_GUARDIAN_ATTACK_TIME
@@ -196,8 +196,8 @@ impl Goal for GuardianAttackGoal {
 
         {
             let steered = mob.get_mob_entity().steered();
-            steered.navigator().stop();
-        }
+            steered.navigator().stop()
+        };
         mob.get_mob_entity()
             .look_control
             .lock()

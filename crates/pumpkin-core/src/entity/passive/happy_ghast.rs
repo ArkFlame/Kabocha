@@ -114,14 +114,14 @@ impl HappyGhastEntity {
 
     /// Vanilla HappyGhast.canAddPassenger caps riders at four; mobInteract also
     /// requires a harness and no sneak key before a player mounts.
-    fn can_player_mount(wearing_harness: bool, sneaking: bool, passenger_count: usize) -> bool {
+    const fn can_player_mount(wearing_harness: bool, sneaking: bool, passenger_count: usize) -> bool {
         const MAX_PASSENGERS: usize = 4;
         wearing_harness && !sneaking && passenger_count < MAX_PASSENGERS
     }
 
     /// Vanilla `HappyGhast.addPassenger`/`removePassenger` play the goggles sound only
     /// when the ghast becomes or stops being a vehicle.
-    fn goggles_sound_on_change(previous: usize, current: usize) -> Option<Sound> {
+    const fn goggles_sound_on_change(previous: usize, current: usize) -> Option<Sound> {
         if previous == 0 && current > 0 {
             Some(Sound::EntityHappyGhastHarnessGogglesDown)
         } else if previous > 0 && current == 0 {

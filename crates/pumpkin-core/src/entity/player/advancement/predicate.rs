@@ -751,9 +751,9 @@ impl ItemUsedOnBlockCheck {
 /// One node of the loot-condition tree behind location.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ItemUsedOnBlockTerm {
-    AllOf(Vec<ItemUsedOnBlockTerm>),
-    AnyOf(Vec<ItemUsedOnBlockTerm>),
-    Inverted(Box<ItemUsedOnBlockTerm>),
+    AllOf(Vec<Self>),
+    AnyOf(Vec<Self>),
+    Inverted(Box<Self>),
     Check(ItemUsedOnBlockCheck),
 }
 
@@ -1297,7 +1297,7 @@ impl EntityPredicate {
 }
 
 /// Vanilla `TagPredicate<DamageType>` used by `DamageSourcePredicate.tags`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DamageTypeTagPredicate {
     pub tag: String,
     pub expected: bool,

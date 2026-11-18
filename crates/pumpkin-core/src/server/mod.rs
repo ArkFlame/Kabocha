@@ -173,7 +173,7 @@ pub struct Server {
     /// Aggregated tick times for efficient rolling average calculation
     pub aggregated_tick_times_nanos: AtomicI64,
     /// Wall-clock instant of the previous tick-time debug sample, used to
-    /// measure the raw full tick interval for the client's TICK_TIME chart.
+    /// measure the raw full tick interval for the client's `TICK_TIME` chart.
     last_tick_sample_instant: std::sync::Mutex<Option<std::time::Instant>>,
     /// Total number of ticks processed by the server
     pub tick_count: AtomicI32,
@@ -2103,22 +2103,22 @@ impl Server {
                 .tick_times_1m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_1M] = tick_duration_nanos;
-        }
+            ring[(tick_count as usize) % TPS_SAMPLES_1M] = tick_duration_nanos
+        };
         {
             let mut ring = self
                 .tick_times_5m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_5M] = tick_duration_nanos;
-        }
+            ring[(tick_count as usize) % TPS_SAMPLES_5M] = tick_duration_nanos
+        };
         {
             let mut ring = self
                 .tick_times_15m_nanos
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            ring[(tick_count as usize) % TPS_SAMPLES_15M] = tick_duration_nanos;
-        }
+            ring[(tick_count as usize) % TPS_SAMPLES_15M] = tick_duration_nanos
+        };
 
         self.aggregated_tick_times_nanos
             .fetch_add(tick_duration_nanos - old_time, Ordering::Relaxed);
@@ -2321,7 +2321,7 @@ fn ring_tps<const N: usize>(
 /// `[FULL_TICK, TICK_SERVER_METHOD, SCHEDULED_TASKS, IDLE]`.
 /// Pumpkin does not track scheduled-task time separately, so it is always zero
 /// and IDLE is the remainder of the raw full tick after the tick work.
-fn tick_time_sample(full_tick_nanos: i64, tick_method_nanos: i64) -> [i64; 4] {
+const fn tick_time_sample(full_tick_nanos: i64, tick_method_nanos: i64) -> [i64; 4] {
     let scheduled_tasks_nanos: i64 = 0;
     let idle_nanos = full_tick_nanos
         .saturating_sub(tick_method_nanos)
@@ -2335,7 +2335,7 @@ fn tick_time_sample(full_tick_nanos: i64, tick_method_nanos: i64) -> [i64; 4] {
 }
 
 /// Whether MinecraftServer.tickCount advances for a tick. Vanilla increments it
-/// inside the runsNormally() branch of tickServer; a sprint clears the freeze
+/// inside the `runsNormally()` branch of tickServer; a sprint clears the freeze
 /// so sprint ticks advance it too, while frozen (non-stepping) ticks do not.
 const fn advances_tick_count(runs_normally: bool, is_sprinting: bool) -> bool {
     runs_normally || is_sprinting

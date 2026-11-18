@@ -68,7 +68,7 @@ impl MeleeAttackGoal {
         }
     }
 
-    /// Vanilla MeleeAttackGoal attack interval (attackInterval).
+    /// Vanilla `MeleeAttackGoal` attack interval (attackInterval).
     #[must_use]
     pub const fn with_attack_interval(mut self, ticks: i32) -> Self {
         self.attack_interval_ticks = ticks;

@@ -264,7 +264,7 @@ impl ItemEntity {
     }
 
     /// Pure form of vanilla `ItemEntity.isMergable` for unit testing.
-    fn can_merge(
+    const fn can_merge(
         removed: bool,
         never_despawn: bool,
         never_pickup: bool,

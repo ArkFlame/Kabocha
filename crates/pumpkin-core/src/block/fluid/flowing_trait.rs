@@ -468,14 +468,12 @@ pub trait FlowingFluid: Send + Sync {
         if (fluid.id == Fluid::FLOWING_WATER.id || fluid.id == Fluid::WATER.id)
             && block.is_waterloggable()
             && !block.is_waterlogged(current_state_id)
-        {
-            if let Some(waterlogged_state_id) = block.set_waterlogged(current_state_id, true) {
+            && let Some(waterlogged_state_id) = block.set_waterlogged(current_state_id, true) {
                 world.set_block_state(pos, waterlogged_state_id, BlockFlags::NOTIFY_ALL);
                 let tick_delay = self.get_flow_speed(world);
                 world.schedule_fluid_tick(fluid, *pos, tick_delay, TickPriority::Normal);
                 return;
             }
-        }
 
         let new_props = FlowingFluidProperties::from_state_id(state_id, fluid);
         self.apply_spread(world, fluid, from_pos, pos, state_id, new_props);

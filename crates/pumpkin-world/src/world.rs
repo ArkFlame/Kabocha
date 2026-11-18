@@ -1,6 +1,5 @@
 use crate::generation::proto_chunk::{GenerationCache, StructureEntity};
 use bitflags::bitflags;
-use pumpkin_data::block_properties::BlockProperties;
 use pumpkin_data::fluid::{Fluid, FluidState};
 use pumpkin_data::{Block, BlockState, BlockStateId, Mirror, Property, Rotation, chunk::Biome};
 use pumpkin_util::math::position::BlockPos;

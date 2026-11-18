@@ -41,7 +41,7 @@ pub const ARENA_RADIUS: f64 = 192.0;
 pub const EVENT_DISPLAY_NAME: &str = "entity.minecraft.ender_dragon";
 
 /// Top-level key for the End dragon fight state in `pumpkin_custom_data.nbt`
-/// (vanilla stores an `EnderDragonFight` SavedData).
+/// (vanilla stores an `EnderDragonFight` `SavedData`).
 pub const DRAGON_FIGHT_SAVE_KEY: &str = "PumpkinDragonFight";
 
 // ── End Spike definition ─────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ fn shuffled_gateways(seed: u64) -> Vec<i32> {
     gateways
 }
 
-fn stage_name(stage: DragonRespawnStage) -> &'static str {
+const fn stage_name(stage: DragonRespawnStage) -> &'static str {
     match stage {
         DragonRespawnStage::Start => "start",
         DragonRespawnStage::PreparingToSummonPillars => "preparing_to_summon_pillars",
@@ -166,7 +166,7 @@ impl DragonFight {
     }
 
     /// Serialises the persistent fight state using the vanilla
-    /// `EnderDragonFight` SavedData field names.
+    /// `EnderDragonFight` `SavedData` field names.
     #[must_use]
     pub fn write_nbt(&self) -> NbtCompound {
         let mut nbt = NbtCompound::new();

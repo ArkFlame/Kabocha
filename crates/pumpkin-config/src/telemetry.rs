@@ -102,8 +102,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "Telemetry endpoint must be an http(s) URL")]
     fn telemetry_rejects_non_http_endpoint() {
-        let mut config = TelemetryConfig::default();
-        config.endpoint = "ftp://example.com/heartbeat".to_string();
+        let config = TelemetryConfig {
+            endpoint: "ftp://example.com/heartbeat".to_string(),
+            ..TelemetryConfig::default()
+        };
         config.validate();
     }
 }

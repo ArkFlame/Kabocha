@@ -604,8 +604,8 @@ impl ArmorStandEntity {
 
 impl EntityBase for ArmorStandEntity {
     /// Paper ArmorStand.tick: a stand with canTick false skips the whole
-    /// LivingEntity tick. Pumpkin applies equipment changes eagerly in
-    /// set_item_slot, so no deferred equipment sync is required here.
+    /// `LivingEntity` tick. Pumpkin applies equipment changes eagerly in
+    /// `set_item_slot`, so no deferred equipment sync is required here.
     fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         if self.can_tick.load(Ordering::Relaxed) {
             self.living_entity.tick(caller, server);

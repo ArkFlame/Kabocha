@@ -120,8 +120,8 @@ impl BlockEntity for BeehiveBlockEntity {
     }
 }
 
-/// Vanilla BeehiveBlockEntity front-face offset from its facing block property.
-fn front_offset(facing: Option<Property>) -> (f64, f64) {
+/// Vanilla `BeehiveBlockEntity` front-face offset from its facing block property.
+const fn front_offset(facing: Option<Property>) -> (f64, f64) {
     match facing {
         Some(Property::Facing(Facing::North)) => (0.0, -1.0),
         Some(Property::Facing(Facing::East)) => (1.0, 0.0),
@@ -133,7 +133,7 @@ fn front_offset(facing: Option<Property>) -> (f64, f64) {
 
 impl BeehiveBlockEntity {
     pub const ID: &'static str = "minecraft:beehive";
-    /// Vanilla BeehiveBlockEntity.MAX_OCCUPANTS.
+    /// Vanilla `BeehiveBlockEntity.MAX_OCCUPANTS`.
     pub const MAX_OCCUPANTS: usize = 3;
     const MIN_TICKS_IN_HIVE: i32 = 600;
     const NECTAR_TICKS_IN_HIVE: i32 = 2400;

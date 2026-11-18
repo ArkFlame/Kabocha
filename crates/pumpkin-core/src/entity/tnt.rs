@@ -67,7 +67,7 @@ impl TNTEntity {
         self.power.load()
     }
 
-    /// Override the power, e.g. from a plugin-modified \`ExplosionPrimeEvent\` radius.
+    /// Override the power, e.g. from a plugin-modified \``ExplosionPrimeEvent`\` radius.
     pub fn set_power(&self, power: f32) {
         self.power.store(power);
     }

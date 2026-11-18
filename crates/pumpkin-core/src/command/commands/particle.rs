@@ -111,7 +111,7 @@ fn tag_as_vec3(tag: &NbtTag) -> Option<Vector3<f64>> {
     }
 }
 
-/// Reads a vanilla block PositionSource ({type, pos:[x,y,z]}) used as the
+/// Reads a vanilla block `PositionSource` ({type, pos:[x,y,z]}) used as the
 /// vibration particle destination. The option codec rejects entity sources,
 /// so a block source is the only one the /particle command can produce.
 fn block_position_source(tag: &NbtTag) -> Option<BlockPos> {
@@ -119,7 +119,7 @@ fn block_position_source(tag: &NbtTag) -> Option<BlockPos> {
         return None;
     };
     let parts = match compound.get("pos")? {
-        NbtTag::IntArray(values) => values.iter().copied().collect::<Vec<_>>(),
+        NbtTag::IntArray(values) => values.to_vec(),
         NbtTag::List(values) => values.iter().map(tag_as_i32).collect::<Option<Vec<_>>>()?,
         _ => return None,
     };
@@ -295,11 +295,11 @@ fn is_particle_viewer_in_range(player_pos: Vector3<f64>, pos: Vector3<f64>, forc
 /// `ColorParticleOption` (a single INT colour) in 1.21.4. Older clients still
 /// render these particles as `SimpleParticleType` and read no payload, so the
 /// colour bytes must be omitted for those viewers.
-fn color_particle_payload<'a>(
+fn color_particle_payload(
     particle: Particle,
     version: pumpkin_util::version::JavaMinecraftVersion,
-    data: &'a [u8],
-) -> &'a [u8] {
+    data: &[u8],
+) -> &[u8] {
     if matches!(
         particle,
         Particle::EntityEffect | Particle::TintedLeaves | Particle::Flash

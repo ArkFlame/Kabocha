@@ -41,7 +41,7 @@ pub fn default_clock_id(world: &World) -> i32 {
 /// occurrence without rewinding. Drives the sleep skip toward the
 /// `wake_up_from_sleep` marker on the day timeline.
 #[must_use]
-pub(crate) fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
+pub(crate) const fn resolve_time_to_move_to(total_ticks: i64, ticks: i64, period: i64) -> i64 {
     let from = total_ticks.rem_euclid(period);
     let duration = ticks - from;
     if duration > 0 {
@@ -200,7 +200,7 @@ impl ServerClockManager {
     pub fn clock_mut(&mut self, name: &str) -> &mut ClockInstance {
         self.clocks
             .entry(name.to_owned())
-            .or_insert_with(ClockInstance::new)
+            .or_default()
     }
 
     #[must_use]

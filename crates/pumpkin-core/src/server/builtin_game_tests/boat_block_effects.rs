@@ -167,7 +167,7 @@ pub(super) async fn test_boat_floats_up_after_fall(helper: GameTestHelper) -> Ga
 }
 
 /// A submerged boat with a rider ejects that rider after vanilla's 60 underwater ticks.
-/// AbstractBoat.tick only advances outOfControlTicks while UNDER_WATER/UNDER_FLOWING_WATER.
+/// AbstractBoat.tick only advances outOfControlTicks while `UNDER_WATER/UNDER_FLOWING_WATER`.
 pub(super) async fn test_boat_ejects_passenger_after_60_underwater_ticks(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {

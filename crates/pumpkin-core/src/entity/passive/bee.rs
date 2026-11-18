@@ -56,6 +56,7 @@ pub const TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME: i32 = 3600;
 
 /// Vanilla `Bee.isTiredOfLookingForNectar`. Strict `>`, matching the decompiled check:
 /// a bee is only tired once the counter exceeds 3600, not when it equals it.
+#[must_use]
 pub const fn tired_of_looking_for_nectar(ticks_without_nectar: i32) -> bool {
     ticks_without_nectar > TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME
 }

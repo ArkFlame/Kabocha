@@ -530,20 +530,20 @@ impl EnchantmentHelper {
     }
 }
 
-/// Vanilla bane_of_arthropods.json post_attack requirement: the victim is an arthropod.
+/// Vanilla `bane_of_arthropods.json` `post_attack` requirement: the victim is an arthropod.
 ///
 /// The other `all_of` term, `is_direct`, holds for every melee `on_post_attack` caller.
 const fn meets_bane_of_arthropods_requirements(victim_is_arthropod: bool) -> bool {
     victim_is_arthropod
 }
 
-/// Vanilla wind_burst.json requirements: direct attacker is not flying and fell at least 1.5 blocks.
+/// Vanilla `wind_burst.json` requirements: direct attacker is not flying and fell at least 1.5 blocks.
 const fn meets_wind_burst_requirements(is_flying: bool, fall_distance: f32) -> bool {
     !is_flying && fall_distance >= 1.5
 }
 
-/// Vanilla frost_walker.json requirements: is_on_ground and no vehicle.
-fn meets_frost_walker_requirements(on_ground: bool, riding: bool) -> bool {
+/// Vanilla `frost_walker.json` requirements: `is_on_ground` and no vehicle.
+const fn meets_frost_walker_requirements(on_ground: bool, riding: bool) -> bool {
     on_ground && !riding
 }
 

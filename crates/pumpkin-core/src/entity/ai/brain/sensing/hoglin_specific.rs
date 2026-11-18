@@ -28,8 +28,8 @@ impl Sensor for HoglinSpecificSensor {
     fn do_tick(&mut self, tick: &mut BrainTick) {
         let mut adult_piglin: Option<Arc<dyn crate::entity::EntityBase>> = None;
         let mut adult_hoglins: Vec<Arc<dyn crate::entity::EntityBase>> = Vec::new();
-        let mut piglin_count = 0_i32;
-        let mut hoglin_count = 0_i32;
+        let mut piglin_count = 0i32;
+        let mut hoglin_count = 0i32;
 
         if let Some(visible) = tick.state.get(types::NEAREST_VISIBLE_LIVING_ENTITIES) {
             for entity in visible.find_all(&tick.visibility(), |_| true) {

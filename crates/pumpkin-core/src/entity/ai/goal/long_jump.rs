@@ -148,22 +148,19 @@ impl LongJumpGoal {
                 break;
             }
         }
-        match chosen {
-            Some(chosen) => {
-                self.phase = Phase::Preparing {
-                    chosen,
-                    start_tick: now,
-                };
-                true
-            }
-            None => {
-                self.phase = Phase::Finding {
-                    candidates,
-                    initial_pos,
-                    tries,
-                };
-                false
-            }
+        if let Some(chosen) = chosen {
+            self.phase = Phase::Preparing {
+                chosen,
+                start_tick: now,
+            };
+            true
+        } else {
+            self.phase = Phase::Finding {
+                candidates,
+                initial_pos,
+                tries,
+            };
+            false
         }
     }
 }
@@ -245,7 +242,7 @@ impl Goal for LongJumpGoal {
         let now = mob.get_entity().world.load().get_world_age();
         match std::mem::replace(&mut self.phase, Phase::Idle) {
             Phase::Finding {
-                mut candidates,
+                candidates,
                 initial_pos,
                 tries,
             } => {

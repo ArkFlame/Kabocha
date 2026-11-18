@@ -165,7 +165,7 @@ impl CommandSender {
                     .format(&format)
                     .unwrap_or_else(|_| "00:00:00".to_string());
 
-                let output = TextComponent::text(format!("[{}] ", timestamp)).add_child(text);
+                let output = TextComponent::text(format!("[{timestamp}] ")).add_child(text);
                 let mut last_output = block_entity
                     .last_output
                     .lock()

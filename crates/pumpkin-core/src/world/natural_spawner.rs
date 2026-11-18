@@ -10,7 +10,7 @@ use pumpkin_data::biome::Spawner;
 use pumpkin_data::chunk::Biome;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_data::entity::{EntityType, MobCategory, SpawnLocation};
-use pumpkin_data::structures::{SpawnEntry, Structure, StructureKeys};
+use pumpkin_data::structures::{SpawnEntry, Structure};
 use pumpkin_data::tag::Block::MINECRAFT_PREVENT_MOB_SPAWNING_INSIDE;
 use pumpkin_data::tag::Fluid::{MINECRAFT_LAVA, MINECRAFT_WATER};
 use pumpkin_data::tag::Taggable;
@@ -1027,7 +1027,7 @@ pub fn is_right_distance_to_player_and_spawn_point(
 }
 
 /// Category key used by vanilla `StructureSpawnOverride` and generated structure data.
-fn mob_category_name(category: &MobCategory) -> &'static str {
+const fn mob_category_name(category: &MobCategory) -> &'static str {
     match category.id {
         id if id == MobCategory::MONSTER.id => "monster",
         id if id == MobCategory::CREATURE.id => "creature",
@@ -1075,21 +1075,21 @@ enum SpawnerRef<'a> {
 }
 
 impl SpawnerRef<'_> {
-    fn r#type(self) -> &'static str {
+    const fn r#type(self) -> &'static str {
         match self {
             Self::Biome(s) => s.r#type,
             Self::Structure(s) => s.entity_type,
         }
     }
 
-    fn min_count(self) -> i32 {
+    const fn min_count(self) -> i32 {
         match self {
             Self::Biome(s) => s.min_count,
             Self::Structure(s) => s.min_count as i32,
         }
     }
 
-    fn max_count(self) -> i32 {
+    const fn max_count(self) -> i32 {
         match self {
             Self::Biome(s) => s.max_count,
             Self::Structure(s) => s.max_count as i32,

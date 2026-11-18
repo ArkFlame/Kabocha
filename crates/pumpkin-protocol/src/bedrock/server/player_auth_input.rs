@@ -76,6 +76,7 @@ pub struct PlayerAuthInputTeleportData {
 }
 
 impl PacketRead for SPlayerAuthInput {
+    #[expect(clippy::too_many_lines, reason = "flat wire-format field sequence")]
     fn read<R: Read>(reader: &mut R) -> Result<Self, Error> {
         let pitch = f32::read(reader)?;
         let yaw = f32::read(reader)?;

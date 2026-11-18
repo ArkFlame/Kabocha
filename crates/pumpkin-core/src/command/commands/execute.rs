@@ -344,7 +344,7 @@ fn execute_unless_predicate_modifier(
 }
 
 /// Runs a datapack function as an execute if|unless function condition and returns the
-/// function's result value, like vanilla ExecuteIfFunctionCustomModifier.
+/// function's result value, like vanilla `ExecuteIfFunctionCustomModifier`.
 fn function_condition_value(context: &CommandContext) -> Result<i32, CommandSyntaxError> {
     let name = FunctionArgumentType::get(context, "name")?;
     let server = context.server();

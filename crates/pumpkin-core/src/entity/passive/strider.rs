@@ -351,7 +351,7 @@ impl Mob for StriderEntity {
                 Uuid::new_v4(),
             );
             jockey.get_entity().set_rotation(entity.yaw.load(), 0.0);
-            if let Some(strider) = jockey.cast_any().downcast_ref::<StriderEntity>() {
+            if let Some(strider) = jockey.cast_any().downcast_ref::<Self>() {
                 strider.set_baby(true);
             }
             finalize_spawn(&jockey, world, EntitySpawnReason::Jockey, None);

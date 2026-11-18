@@ -22,8 +22,8 @@ const GRAVITY: f64 = 0.03;
 const PARTICLE_COUNT: i32 = 32;
 const ENDERMITE_SPAWN_CHANCE: f32 = 0.05;
 
-/// Standard normal sample matching vanilla RandomSource nextGaussian via Box-Muller.
-/// rand 0.10 core has no gaussian distribution, so avoid a rand_distr dependency.
+/// Standard normal sample matching vanilla `RandomSource` nextGaussian via Box-Muller.
+/// rand 0.10 core has no gaussian distribution, so avoid a `rand_distr` dependency.
 fn next_gaussian() -> f64 {
     // rand::random::<f64>() is in [0, 1), so 1.0 - it is in (0, 1] and ln stays finite.
     let u1 = 1.0 - rand::random::<f64>();

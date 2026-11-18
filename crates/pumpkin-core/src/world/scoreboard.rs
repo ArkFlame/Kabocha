@@ -926,6 +926,7 @@ const TEAM_COLORS: &[&str] = &[
 ];
 
 /// Resolves a criterion name the way vanilla `ObjectiveCriteria.byName` does.
+///
 /// Unknown names return `None`, which vanilla reports as `argument.criteria.invalid`.
 /// Pumpkin has no stat registry, so colon-qualified stat names are accepted as
 /// writable integer criteria.

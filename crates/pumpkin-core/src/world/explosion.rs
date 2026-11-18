@@ -1225,7 +1225,7 @@ mod tests {
         let keep = BlockPos::new(1, 2, 3);
         let drop = BlockPos::new(4, 5, 6);
         let mut blocks = FxHashMap::default();
-        blocks.insert(keep, (Block::STONE, Block::STONE.default_state));
+        blocks.insert(keep, (&Block::STONE, Block::STONE.default_state));
         blocks.insert(drop, (Block::DIRT, Block::DIRT.default_state));
         let allowed: FxHashSet<_> = [keep].into_iter().collect();
 

@@ -139,8 +139,8 @@ impl ZombieNautilusEntity {
                 5,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
             );
-            goals.add_goal(6, Box::new(MeleeAttackGoal::new(0.5, true)));
-        }
+            goals.add_goal(6, Box::new(MeleeAttackGoal::new(0.5, true)))
+        };
         nautilus
             .mob_entity
             .target_selector

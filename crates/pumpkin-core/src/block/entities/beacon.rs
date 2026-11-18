@@ -73,10 +73,10 @@ enum BeamObservation {
 
 /// `ARGB.average`: per-channel integer average of two packed ARGB colours.
 const fn argb_average(lhs: u32, rhs: u32) -> u32 {
-    let alpha = ((lhs >> 24) + (rhs >> 24)) / 2;
-    let red = (((lhs >> 16) & 0xFF) + ((rhs >> 16) & 0xFF)) / 2;
-    let green = (((lhs >> 8) & 0xFF) + ((rhs >> 8) & 0xFF)) / 2;
-    let blue = ((lhs & 0xFF) + (rhs & 0xFF)) / 2;
+    let alpha = u32::midpoint(lhs >> 24, rhs >> 24);
+    let red = u32::midpoint((lhs >> 16) & 0xFF, (rhs >> 16) & 0xFF);
+    let green = u32::midpoint((lhs >> 8) & 0xFF, (rhs >> 8) & 0xFF);
+    let blue = u32::midpoint(lhs & 0xFF, rhs & 0xFF);
     (alpha << 24) | (red << 16) | (green << 8) | blue
 }
 
@@ -509,8 +509,8 @@ impl BlockEntity for BeaconBlockEntity {
             {
                 let mut beam = self.beam_state();
                 let checking = std::mem::take(&mut beam.checking);
-                beam.sections = checking;
-            }
+                beam.sections = checking
+            };
             let was_active = previous_levels > 0;
             let levels = self.levels.load(Ordering::Relaxed);
             let is_active = levels > 0;

@@ -11,20 +11,20 @@ use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
 // Values checked against decompiled vanilla 1.21.4 GoatAi.java.
-/// Vanilla GoatAi.TIME_BETWEEN_RAMS / TIME_BETWEEN_RAMS_SCREAMER.
+/// Vanilla `GoatAi.TIME_BETWEEN_RAMS` / `TIME_BETWEEN_RAMS_SCREAMER`.
 const RAM_COOLDOWN_MIN_TICKS: i64 = 600;
 const RAM_COOLDOWN_MAX_TICKS: i64 = 6000;
 const SCREAMER_RAM_COOLDOWN_MIN_TICKS: i64 = 100;
 const SCREAMER_RAM_COOLDOWN_MAX_TICKS: i64 = 300;
-/// Vanilla GoatAi.RAM_MAX_DISTANCE: PrepareRamNearestTarget picks a target 4..7 blocks away.
+/// Vanilla `GoatAi.RAM_MAX_DISTANCE`: `PrepareRamNearestTarget` picks a target 4..7 blocks away.
 const RAM_TRIGGER_DISTANCE: f64 = 7.0;
-/// Vanilla GoatAi.SPEED_MULTIPLIER_WHEN_RAMMING.
+/// Vanilla `GoatAi.SPEED_MULTIPLIER_WHEN_RAMMING`.
 const RAM_SPEED: f64 = 3.0;
-/// Vanilla GoatAi.SPEED_MULTIPLIER_WHEN_PREPARING_TO_RAM.
+/// Vanilla `GoatAi.SPEED_MULTIPLIER_WHEN_PREPARING_TO_RAM`.
 const PREPARE_SPEED: f64 = 1.25;
-/// Vanilla GoatAi.RAM_PREPARE_TIME.
+/// Vanilla `GoatAi.RAM_PREPARE_TIME`.
 const RAM_PREPARE_TIME: i32 = 20;
-/// Vanilla GoatAi.ADULT_RAM_KNOCKBACK_FORCE / BABY_RAM_KNOCKBACK_FORCE.
+/// Vanilla `GoatAi.ADULT_RAM_KNOCKBACK_FORCE` / `BABY_RAM_KNOCKBACK_FORCE`.
 const ADULT_RAM_KNOCKBACK_FORCE: f64 = 2.5;
 const BABY_RAM_KNOCKBACK_FORCE: f64 = 1.0;
 /// Goat stays put after a ram.
@@ -84,7 +84,7 @@ fn initial_ram_cooldown() -> i64 {
     roll_cooldown(false)
 }
 
-/// Vanilla goat ram activity: PrepareRamNearestTarget (walk in and prepare) then RamTarget
+/// Vanilla goat ram activity: `PrepareRamNearestTarget` (walk in and prepare) then `RamTarget`
 /// (charge, hit, knock back, cool down). Pumpkin folds the two brain behaviours into one goal.
 #[derive(Default)]
 pub struct RamTargetGoal {

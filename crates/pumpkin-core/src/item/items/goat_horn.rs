@@ -105,7 +105,7 @@ impl ItemBehaviour for GoatHornItem {
     fn get_use_duration(&self, stack: &ItemStack) -> i32 {
         stack
             .get_data_component::<InstrumentImpl>()
-            .and_then(|inst| inst.use_duration_ticks())
+            .and_then(pumpkin_data::data_component_impl::InstrumentImpl::use_duration_ticks)
             .map_or(0, |ticks| i32::try_from(ticks).unwrap_or(i32::MAX))
     }
 
