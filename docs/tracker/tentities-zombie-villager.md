@@ -114,3 +114,18 @@ claiming an exclusive upper bound was wrong for this target.
 
 Files touched: `crates/pumpkin-core/src/entity/mob/zombie/zombie_villager.rs`
 (rustfmt --edition 2024 applied, exit 0). No build run per worker rules.
+
+
+## Re-verification against decompiled vanilla (this pass)
+
+Re-checked all five rows against `.vendor/vanilla-decompiled/net/minecraft/` now present in this checkout. All rows are already resolved in the current code, so no new source changes were needed.
+
+1. Strength amplifier: matches. `cure_strength_amplifier` maps Peaceful to None (vanilla `min(id-1,0)` = -1, no bonus) and the other levels to Some(0); covered by `cure_strength_skipped_only_on_peaceful`. No change.
+2. Special-block scan: already fixed. `>= MAX_SPECIAL_BLOCKS_COUNT` (14) matches vanilla's `< 14` guard, so at most 14 blocks count. No change.
+3. Equipment on cure: matches. Vanilla `dropPreservedEquipment` uses predicate `!has(PREVENT_ARMOR_CHANGE)` and `DropChances.isPreserved` is `byEquipment(slot) > 1.0F`; Pumpkin uses `prevents_armor_change` and `drop_chance(slot) > 1.0`. No change.
+4. Cured villager effects: already fixed. Vanilla `ConversionType.convertCommon` copies every active effect (ZombieVillager.java conversion lines 98-100) and Pumpkin `convert_common` does the same; the effect-stripping block is gone. No change.
+5. `set_villager_data` offers: matches. Vanilla clears `tradeOffers` on a profession change (lines 373-380); Pumpkin removes the stored `Offers`. No change.
+
+Also confirmed the cure duration `VILLAGER_CONVERSION_WAIT_MIN..=MAX` = 3600..=6000 inclusive matches vanilla `nextInt(2401) + 3600` (line 171).
+
+No .rs files touched this pass; no build run per worker rules.
