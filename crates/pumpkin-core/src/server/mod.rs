@@ -302,6 +302,10 @@ impl Server {
             }
         }
 
+        // Vanilla applies the default-game-mode property to the level's own game type
+        // when the world loads (MinecraftServer.loadLevel -> worldData.setGameType).
+        level_info.game_type = basic_config.default_gamemode;
+
         let seed = level_info.world_gen_settings.seed;
         let weather_profiles = WeatherProfiles::default();
         weather_profiles.load_folder(&basic_config.get_world_path().join("weather_profiles"));
