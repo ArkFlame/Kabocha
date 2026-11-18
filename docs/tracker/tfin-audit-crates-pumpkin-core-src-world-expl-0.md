@@ -8,4 +8,15 @@ STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/world/level/Se
 Checked the STILL OPEN rows of this unit against
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Row 2 (explosion.rs block-destruction sampler): FIXED / VERIFIED.
+Vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java`
+method `getOrCacheExplosionBlock` (lines 100-137) calls `level.getChunk(x >> 4, z >> 4)`
+at line 119, force-loading a chunk the explosion ray enters before reading the block
+state at line 122; `calculateExplodedPositions` (line 371) uses that cache for block
+destruction. Pumpkin now mirrors this in `get_blocks_to_destroy`: each ray block
+position resolves its chunk through the `load_chunk_for_explosion` helper, which calls
+`Level::get_or_fetch_chunk` (the force-loading path) via the runtime handle using
+`block_in_place` + `block_on`, cached per chunk in `chunk_cache`. `read_chunk_sync`
+returning `None` is no longer accepted as air for destruction sampling. Added unit test
+`explosion_force_loads_unloaded_chunks`. No generated pumpkin-data fields, WIT changes or
+cross-crate refactors required; no rows remain open.
