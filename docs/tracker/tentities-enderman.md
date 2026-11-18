@@ -118,3 +118,30 @@ the 1.21 `Enderman` / `EndermanLookForPlayerGoal` / `EndermanFreezeWhenLookedAt`
   per water-sensitive potion (pre-damage handles the rest), and `chase_player.rs` uses `look_at_with_range(.., 30.0, 30.0)`
   with no 256-gate and `is_player_staring` re-check. Both correct, no change.
 - No .rs file modified, so rustfmt was not run.
+
+
+## Result (CODER third pass 2026-11-18, decompiled vanilla available)
+
+- Decompiled source is now present, so all rows were re-verified mechanically against it. No .rs source changes were needed.
+- Gap 1 (projectile immunity, the only previously STILL OPEN row): FIXED, VERIFIED. Decompiled
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Enderman.java:396` reads
+  `if (source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger())` - a damage-type tag check,
+  NOT a direct-entity `instanceof Projectile` check. The tracker premise was wrong; Pumpkin already
+  matches vanilla. `enderman.rs:70-72` `is_projectile_damage` uses
+  `damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)`; `has_tag`
+  (`crates/pumpkin-data/src/generated/tag.rs:32508-32512`) checks the static registry-id list plus
+  dynamic tags, so the tag lookup is by numeric id and needs no live registry. The constant
+  `MINECRAFT_IS_PROJECTILE` exists at `tag.rs:20226`; imports `tag`, `tag::Taggable`, `DamageType`
+  are present at `enderman.rs:21-24`. `pre_damage_with_context:600` pairs the check with
+  `!entity.has_vehicle()`, the analogue of vanilla `!this.isPassenger()`. Bug-repro unit test
+  `projectile_damage_uses_damage_type_tag` (`enderman.rs:654-663`) covers the translation-key
+  mismatches (mob_projectile, unattributed_fireball, wither_skull, wind_charge).
+- Gap 2 (double splash-potion teleport): FIXED, VERIFIED. `crates/pumpkin-core/src/entity/mob/mod.rs:3267-3269`
+  returns early when `pre_damage_with_context` is false, so `post_damage_with_context` is skipped for
+  any pre-teleported hit (projectiles and non-hurting potions). Water-sensitive potions teleport once
+  in post-damage (`enderman.rs:622-627`). Matches vanilla `hurtServer` branches at `Enderman.java:396-405`.
+- Gap 3 (freeze look limits / re-check): FIXED, VERIFIED. `chase_player.rs:67` uses
+  `look_at_with_range(.., 30.0, 30.0)`, `can_start` (`:24-49`) has no 256-block gate, and
+  `should_continue` (`:71-84`) re-checks `is_player_staring` on the same target identity. Matches
+  vanilla `EndermanFreezeWhenLookedAt` canStart/tick/shouldContinue semantics.
+- No .rs file modified, so rustfmt was not run (nothing to format).

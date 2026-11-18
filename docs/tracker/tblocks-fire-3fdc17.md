@@ -193,3 +193,46 @@ Files touched: crates/pumpkin-core/src/block/blocks/fire/fire.rs. No pure unit
 test seam exists for the TNT branch (it needs `World`, `Arc` and plugin events);
 the existing `waterlogged_flammable_has_zero_ignite_odds` test still covers the
 ignite-odds seam. Cannot compile as a worker; orchestrator verifies.
+
+
+## Result (third pass)
+
+All remaining STILL OPEN rows resolved against decompiled vanilla.
+
+- Gap 5 (fire tick timer, mod.rs:120-147): VERIFIED matches vanilla, no change.
+  `.vendor/vanilla-decompiled/net/minecraft/world/level/block/BaseFireBlock.java:142-166`
+  (`fireIgnite`): negative ticks `+1`, otherwise `ServerPlayer` adds
+  `random.nextInt(1, 3)` (= 1 or 2, Rust `random_range(1..3)`), then `>= 0`
+  ignites for 8 seconds. `apply_fire_collision` implements this exactly.
+
+- Suspicion (`fire_spread_radius_around_player` sentinel, fire.rs:154-182):
+  VERIFIED matches vanilla, no change.
+  `.vendor/vanilla-decompiled/net/minecraft/server/level/ServerLevel.java:4741-4744`
+  is `spreadRadius == -1 || anyPlayerCloseEnoughTo(pos, spreadRadius)`.
+  `ChunkMap.java:777-787,869-876` excludes spectators and uses
+  `player.position().distanceTo(pos) < maxDistance` from the block corner
+  (`new Vec3(pos)`); Pumpkin's `!is_spectator()` and squared-distance `< r^2`
+  from the integer position are equivalent. `radius == -1` unlimited and
+  `radius <= 0` disabled match.
+
+- Gap 6 (can_place_at portal variant, mod.rs:51-81): FIXED. The doc's concern
+  was real: this vanilla version passes the player's horizontal facing / the
+  dispenser facing into `canBePlacedAt`, not `Up`:
+  `.vendor/.../world/item/FlintAndSteelItem.java:34` and
+  `FireChargeItem.java:38` pass `context.getHorizontalDirection()`;
+  `.vendor/.../core/dispenser/FlintAndSteelDispenseItemBehavior.java:36`
+  passes the dispenser `facing`. `BaseFireBlock.java:202-225` (`canBePlacedAt`
+  -> `isPortal`) uses that direction to pick the preferred portal axis
+  (horizontal -> counter-clockwise axis, else random horizontal). Hardcoded
+  `Up` made Pumpkin pick a random axis for item-use, so side-facing portal
+  lighting could fail ~50% of the time. Threaded the real direction through:
+  `FireBlockBase::can_place_at` now takes `direction`, `Ignition::ignite_block`
+  takes `direction` and forwards it, flint & steel and fire charge pass
+  `player.get_entity().get_horizontal_facing().to_block_direction()`, the
+  dispenser passes `ctx.facing.to_block_direction()`, and lightning (which has
+  no facing and never tries portals in vanilla) passes `Up` to keep prior
+  behaviour.
+
+No pure unit-test seam exists for these rows: all three paths need `World`,
+`Arc`, player lists or entity collision state, so none was added. Cannot
+compile as a worker; orchestrator verifies with `scripts/integrate.sh`.

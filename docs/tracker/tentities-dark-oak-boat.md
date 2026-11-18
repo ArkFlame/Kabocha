@@ -104,3 +104,18 @@ Third re-review pass against the decompiled tree at `.vendor/vanilla-decompiled`
 - Row 8 (boat gametest): left open. Requires a new file under `crates/pumpkin-gametest`, which is outside this unit (basenames: none). Reason: new gametest file outside this unit.
 
 Spot-check of the other rows confirmed they remain fixed in the current source (e.g. `is_chest_boat`/`max_passengers` helpers at boat.rs:76/95, `drop_stack_at(self.vehicle.entity.pos.load())` at boat.rs:743, dispenser water predicate `has_tag(MINECRAFT_WATER)` at dispenser.rs:532, BoatItem eye-block sweep with the post-clip pass removed at item/items/boat.rs:138-168). No source files edited this pass (unit grants no source basenames); rustfmt not run.
+
+## Result
+
+Third-pass final review against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java` (plus BoatItem / EntitySelector / Player / BoatDispenseItemBehavior). Every row is now terminal; no STILL OPEN rows remain.
+
+- Row 1 (interact / eye in water): VERIFIED. Vanilla `AbstractBoat.interact` (AbstractBoat.java:779-788) rejects on `isSecondaryUseActive`, `outOfControlTicks >= 60`, or `!player.startRiding(this)`; `canAddPassenger` (836-837) = `size < max && !isEyeInFluid(WATER)`. Rust `interact` (boat.rs:767-836) computes the same via `boat_interact_outcome` using sneaking, `ticks_underwater >= TIME_TO_EJECT` and `is_eye_in_water` (826). No change.
+- Row 2 (destroy drop position): VERIFIED. `drop_stack_at(self.vehicle.entity.pos.load(), stack)` (boat.rs:759) matches vanilla `spawnAtLocation`/`Containers.dropContents`. No change.
+- Row 3 (BUBBLE_TIME): VERIFIED. `ID_BUBBLE_TIME` writes are confined to `tick_bubble_column` (436, 446) and `on_above_bubble_column` (656); `tick_underwater` (392-394) deliberately does not touch it, matching `AbstractBoat.onAboveBubbleColumn`/`tickBubbleColumn` (bubble columns only). No change.
+- Row 4 / h6 (clampRotation + delta rotation): VERIFIED. `clamp_rider_yaw` (1009), `rider_yaw_with_delta` (1019) applied at 886/932; players excluded. No change.
+- Row 5 (BoatItem.use sweep): FIXED in an earlier pass; post-clip world query removed at `item/items/boat.rs`. No change this pass.
+- Row 6 (dispenser water): VERIFIED. `fluid.has_tag(&tag::Fluid::MINECRAFT_WATER)` at `dispenser.rs:532` matches vanilla `getFluidState(pos).is(FluidTags.WATER)` (flowing included). No change.
+- Row 7 (is_chest_boat): VERIFIED. `is_chest_boat` (76) / `max_passengers` (95) shared helpers; no hardcoded 11-type list. No change.
+- Row 8 (boat gametest): FIXED / VERIFIED. The three scenarios requested are already implemented in `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` and registered in that module's `mod.rs`: boat floats up after a fall (`test_boat_floats_up_after_fall`), ejects a rider after 60 underwater ticks (`test_boat_ejects_passenger_after_60_underwater_ticks`), and chest boat scatters its 27 slots and drops the matching item on break (`test_chest_boat_scatters_27_slots_on_break`, `test_chest_boat_drops_item_on_break`). All nine boat tests appear in `BUILTIN_TEST_IDS` (mod.rs:272-280) and are wired with `register_function_test` (mod.rs:1812-1874). The prior "needs a new file under crates/pumpkin-gametest, outside this unit" reason was based on looking in the wrong crate: built-in gametests live under `pumpkin-core/src/server/builtin_game_tests/`, which already contains this file. No new code needed.
+
+No .rs files edited this pass, so rustfmt was not run. Spot-checked the shipped code and helper API; all rows verified against the decompiled vanilla path cited above.
