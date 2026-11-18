@@ -6,7 +6,42 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-world-natu** [partial/OWN-OPEN] own audit: 4 open, 8 fixed, 5 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-world-natu.md) docs/tracker/taudit-crates-pumpkin-core-src-world-natu.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+## Result (final)
+
+Every row is resolved; none remains STILL OPEN. Source was re-read against
+`.vendor/vanilla-decompiled/net/minecraft/` this pass and every fix from earlier
+passes is present and type-correct, so no new source edit or rustfmt was needed.
+No BLOCKED-DATA row: all fixes use existing generated data and existing APIs.
+
+own/taudit-crates-pumpkin-core-src-wo-3e55a4 (world/mod.rs):
+
+| # | Size | Result |
+|---|------|--------|
+| 1 | M | VERIFIED - `mark_unsent_light` dirties adjacent-chunk light masks on x/z borders (`trailing_zeros >= 4` / `& 15 == 15`); pure test `border_block_dirties_light_sections_in_adjacent_chunks`. Vanilla `LevelChunk.setBlockState` -> `LightEngine.checkBlock` / `SectionPos.aroundAndAtBlockPos` (`.vendor/vanilla-decompiled/net/minecraft/world/level/chunk/LevelChunk.java`). |
+| 2 | M | VERIFIED - `any_player_close_enough_for_spawning` (128-block squared) gates `tick_chunk` before `spawn_for_chunk`. Vanilla `ChunkMap.anyPlayerCloseEnoughForSpawning` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ChunkMap.java:766`). |
+| 3 | S | VERIFIED - respawn calls `send_difficulty_update()` / `send_active_effects()` after `send_world_info`. Vanilla `ServerPlayer.restoreFrom` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java`). |
+| 4 | S | VERIFIED - `spawn_bedrock_player` sends `CSetSpawnPosition` after `CStartGame` (BDS StartGame sequence; no Java source). |
+| 5 | L | VERIFIED - `dragon_parts: DashMap` populated by `add_dragon_parts` and merged into entity queries/hit tests (`dragon_part_by_id`). Vanilla `Level.getEntities` (`.vendor/vanilla-decompiled/net/minecraft/world/level/Level.java`). |
+| 6 | XS | VERIFIED - no behaviour gap; stale broadcast comment removed (broadcast methods already filter on `watched_section.is_within_distance`). |
+| 7 | XS | VERIFIED - no behaviour gap; only comment-only TODOs remain. |
+| h3 | M | VERIFIED - `DragonFight::tick` wired; `Implement ender dragon handling` TODO absent. |
+
+own/taudit-crates-pumpkin-core-src-world-natu (natural_spawner.rs):
+
+| # | Size | Result |
+|---|------|--------|
+| 1 | S | VERIFIED - `is_near` uses `LOCAL_MOB_CAP_RANGE_SQ = 128*128` with no chunk-window gate. Vanilla `ChunkMap.playerIsCloseEnoughForSpawning` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ChunkMap.java:860-866`, 16384.0). |
+| 2 | S | VERIFIED - both `get_players_near` branches call the same `is_near` predicate. |
+| 3 | XS | VERIFIED - `game_rules.spawn_mobs` gate in `spawn_mobs_for_chunk_generation`. Vanilla `NaturalSpawner.spawnMobsForChunkGeneration` (`.vendor/vanilla-decompiled/net/minecraft/world/level/NaturalSpawner.java:599`). |
+| 4 | L | VERIFIED - `world.spawn_random` threaded through `spawn_for_chunk`, `get_random_pos_within` and `spawn_mobs_for_chunk_generation`; per-call reseed gone. Vanilla one-level-random threading. |
+| 5 | XS | VERIFIED - `initial_cluster_attempts(roll) = (roll * 4.0).ceil()`, unit-tested. Vanilla `Mth.ceil(fastRandom.nextFloat() * 4.0F)` (`.vendor/vanilla-decompiled/net/minecraft/world/level/NaturalSpawner.java:354`). |
+| 6 | S | VERIFIED - `is_spawn_position_ok` / `_cache` check feet (`cur`/`state`) and head (`up`) with `is_valid_empty_spawn_block`. Vanilla `SpawnPlacementTypes.ON_GROUND` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/SpawnPlacementTypes.java:26-33`). |
+| 7 | S | FIXED - `adjust_spawn_position_cache` and `adjust_spawn_position` share `adjust_spawn_position_down` with the registry-backed `is_pathfindable(Land)` predicate (cache uses `BlockStateId::to_block`/`to_state`); old `!is_full_cube()` approximation dropped. Vanilla `SpawnPlacementTypes.ON_GROUND.adjustSpawnPosition` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/SpawnPlacementTypes.java:45-47`); test `adjust_spawn_position_down_follows_land_pathfindable`. |
+| 8 | S | VERIFIED - OVERWORLD gate plus active-chunks check. Vanilla dimension check (`.vendor/vanilla-decompiled/net/minecraft/world/level/NaturalSpawner.java:453-457`). |
+| 9 | S | VERIFIED - `world/mod.rs:3458` calls `any_player_close_enough_for_spawning` in `tick_spawning_chunk`. Vanilla `ChunkMap.anyPlayerCloseEnoughForSpawning` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ChunkMap.java:766`). |
+| 10 | M | VERIFIED - `structure_spawn_entries` queries `structure_spawn_override_at` before the biome list; weighted pick unit-tested. Vanilla `NaturalSpawner.mobsAt` (`.vendor/vanilla-decompiled/net/minecraft/world/level/NaturalSpawner.java:558-574`). |
+| 11 | XS | FIXED - `EntityType::from_name` failure logs via `tracing::warn` and continues the probability loop. Vanilla skips an unresolvable data-pack entry. |
+| h3-sweep | M | VERIFIED - resolved by the same `world/mod.rs:3458` spawn gate as row 9. |
 
 
 ## Result (third pass, final verification)

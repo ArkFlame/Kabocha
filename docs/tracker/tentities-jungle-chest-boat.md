@@ -19,9 +19,9 @@ Verified present (vanilla `ChestBoat` / `AbstractChestBoat`):
 
 | file:line | vanilla | suggested fix | size |
 |---|---|---|---|
-| boat.rs:364-380 | `ContainerEntity.interactWithChestVehicle` does not open a container for a spectator; Pumpkin's `container::open` only skips loot unpacking for spectators (`minecart/container.rs:209`) and still builds the screen | verify against decompiled `AbstractChestBoat`/`ContainerEntity`, then early-return `false` in `interact` for `player.is_spectator()` before `open_custom_inventory_screen` | S (verify) |
-| boat.rs:332-358 | `Boat.hurt` calls `destroy(source)` for a creative (instabuild) break when `DOENTITYDROPS` is on, and `AbstractChestBoat.destroy` spills the container; Pumpkin skips the container drop whenever `creative` is true | confirm vanilla creative chest-boat spill; if contents do drop, remove `!creative` from the container-drop gate only (keep it for the boat item) | S (verify) |
-| boat.rs:351-355 | `AbstractBoat.destroy` is `spawnAtLocation(this.getDropItem())`, which does not copy the entity custom name onto the dropped item; Pumpkin sets `CustomNameImpl` on the drop | confirm in decompiled `Boat`/`AbstractBoat`; if no name transfer exists, drop the `CustomNameImpl` block | S (verify) |
+| boat.rs:364-380 | `ContainerEntity.interactWithChestVehicle` does not open a container for a spectator; Pumpkin's `container::open` only skips loot unpacking for spectators (`minecart/container.rs:209`) and still builds the screen | verify against decompiled `AbstractChestBoat`/`ContainerEntity`, then early-return `false` in `interact` for `player.is_spectator()` before `open_custom_inventory_screen` | S - VERIFIED (no change) |
+| boat.rs:332-358 | `Boat.hurt` calls `destroy(source)` for a creative (instabuild) break when `DOENTITYDROPS` is on, and `AbstractChestBoat.destroy` spills the container; Pumpkin skips the container drop whenever `creative` is true | confirm vanilla creative chest-boat spill; if contents do drop, remove `!creative` from the container-drop gate only (keep it for the boat item) | S - VERIFIED (no change) |
+| boat.rs:351-355 | `AbstractBoat.destroy` is `spawnAtLocation(this.getDropItem())`, which does not copy the entity custom name onto the dropped item; Pumpkin sets `CustomNameImpl` on the drop | confirm in decompiled `Boat`/`AbstractBoat`; if no name transfer exists, drop the `CustomNameImpl` block | S - VERIFIED (no change) |
 | boat.rs:335 vs 356 | vanilla `chestVehicleDestroyed` scatters the container at the entity position (`getX/Y/Z`); Pumpkin passes `block_pos` to `world.scatter_inventory` | pass the entity position to `scatter_inventory` and keep `block_pos` only for `drop_stack` | S, FIXED ff30569c9 (already on master) |
 | boat.rs:276-301 | `AbstractBoat` also maintains bubble/air state while a player rides underwater; no `DATA_ID_BUBBLE_TIME` (tracked_data id 13) is ever sent for any boat | set/publish bubble-time metadata from the underwater tick, shared by all boat types | M, FIXED on master (verified third pass; see Result) |
 
@@ -228,3 +228,58 @@ vector and pose selection. No divergence found.
 No source change was required, so no rustfmt was needed.
 
 Status: PASS fixed=0 open=0 files=none (all rows VERIFIED/FIXED on master; doc updated)
+
+
+## Result (final pass)
+
+Every row resolved against decompiled vanilla under
+.vendor/vanilla-decompiled/net/minecraft/. No source file needed a change: the three
+"S (verify)" rows are confirmed to already match vanilla, and the two FIXED rows are
+confirmed present on master. The three S (verify) cells in the table above are annotated
+with their final VERIFIED status.
+
+- Row 22 (spectator interact) VERIFIED. AbstractChestBoat.interact
+  (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java:80-97)
+  has no spectator gate; its only restriction is in createMenu (153-160), which returns null for a
+  spectator when a loot table is present. Pumpkin mirrors this: boat.rs:290-297 deliberately does
+  not gate spectators in open_custom_inventory_screen, and the screen handler
+  (minecart/container.rs:233-235) returns None for spectators with a loot table while open
+  (263) skips loot unpacking for spectators. The literal suggestion (early-return false for
+  spectators in interact) would be wrong, so no change.
+- Row 23 (creative spill) VERIFIED. Vanilla VehicleEntity.hurtServer
+  (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/VehicleEntity.java:59-80)
+  discards on an instabuild hit; AbstractChestBoat.remove (71-77) then spills the 27 slots on any
+  destroying removal. Pumpkin damage_with_context (vehicle.rs:275-279) calls remove() for a
+  creative break, which sets RemovalReason::Discarded (world/mod.rs:6647-6649) and fires
+  on_removed; on_removed (boat.rs:488-505) scatters the container via scatter_chest_contents.
+  Only the boat ITEM is gated by drops_item_when_destroyed = !creative (boat.rs:117-119),
+  matching vanilla where the item drop only happens in the non-creative destroy path. Contents
+  always spill and claim_drops() prevents a double scatter. No change.
+- Row 24 (custom name on drop) VERIFIED. VehicleEntity.destroy
+  (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/VehicleEntity.java:94-100) copies
+  DataComponents.CUSTOM_NAME onto the dropped item, so Pumpkin CustomNameImpl block
+  (boat.rs:754-758) is correct. The literal suggestion (remove the name transfer) rests on a
+  misreading of vanilla. No change.
+- Row 25 (scatter position) FIXED on master (ff30569c9) and VERIFIED. scatter_chest_contents
+  uses the entity position via world.scatter_inventory_at (boat.rs:279-287), matching vanilla
+  ContainerEntity.chestVehicleDestroyed -> Containers.dropContents(level, entity, this)
+  (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/ContainerEntity.java:84-91).
+- Row 26 (bubble time) FIXED on master and VERIFIED. AbstractBoat.onAboveBubbleColumn
+  (.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:164-185)
+  arms DATA_ID_BUBBLE_TIME to BUBBLE_TIME=60 (line 63); tickBubbleColumn (351-386) decrements
+  and clears it, ejects riders and broadcasts BOAT_SINK/BOAT_LAUNCH at zero;
+  handleBubbleColumnEffect (399-408) adds -0.7 to y on drag-down or sets y=0.6 on updraft. Pumpkin
+  boat.rs mirrors this with BUBBLE_COLUMN_DELAY=60 (line 46), on_above_bubble_column (647)
+  publishing ID_BUBBLE_TIME, tick_bubble_column (429) and bubble_column_vertical_velocity
+  (976), covered by bubble_column_impulse_matches_vanilla_boat_effect (1076). tick_underwater
+  deliberately does not write ID_BUBBLE_TIME (comment 394-395), matching vanilla separate
+  outOfControlTicks (244-249).
+
+Editable file boat/dismount.rs re-checked against vanilla
+AbstractBoat.getDismountLocationForPassenger
+(.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:709-738):
+the escape-vector math, the f32-as-f64 DISMOUNT_EPSILON, the water early return, the per-pose
+dimensions and setPose for every living passenger, and the fallback position all match; two pure
+tests cover the escape vector and pose selection. No divergence, no change.
+
+Status: PASS fixed=0 open=0 files=none (all rows FIXED/VERIFIED on master; doc annotated; no rustfmt needed)

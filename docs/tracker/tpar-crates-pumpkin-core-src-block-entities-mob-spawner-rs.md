@@ -5,7 +5,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-en-6f030b** [partial/OWN-OPEN] own audit: 7 open, 14 fixed, 3 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-en-6f030b.md) docs/tracker/taudit-crates-pumpkin-core-src-en-6f030b.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+Row own/taudit-crates-pumpkin-core-src-en-6f030b - FIXED, VERIFIED. All rows are closed below; no STILL OPEN row remains and no BLOCKED-DATA is needed.
 
 ## Result
 
@@ -17,3 +17,15 @@ Third pass. The single row in this unit (`own/taudit-crates-pumpkin-core-src-en-
 - Compile-pitfall re-read: no `.rs` file changed, so no imports, helpers, macro paths, struct initializers, clones, `unwrap`/`expect`/`panic`, println or em dashes to check.
 
 Status: PASS (verified completion, no source change needed). Commands: none (no `.rs` file changed); cargo/git/rustfmt intentionally not run per worker contract.
+
+
+## Result
+
+Final pass (unit scope: basename mob_spawner.rs; doc-only update, no source change). The single row in this unit, own/taudit-crates-pumpkin-core-src-en-6f030b, is FIXED and VERIFIED directly against decompiled vanilla; no STILL OPEN row remains and no BLOCKED-DATA is needed.
+
+- Row own/taudit-crates-pumpkin-core-src-en-6f030b (own audit, snapshot 7 open): VERIFIED FIXED. The referenced audit doc's final pass closes all six of its gaps as FIXED/VERIFIED. This unit's file, block/entities/mob_spawner.rs, is the BaseSpawner spawn path for row 18 (PathAwareEntity::can_spawn / Mob.checkSpawnRules). Vanilla BaseSpawner.serverTick gates the freshly created mob on mob.checkSpawnRules(level, EntitySpawnReason.SPAWNER) before finalizeSpawn (.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java:246-251); the only checkSpawnRules override is PathfinderMob.checkSpawnRules = getWalkTargetValue(blockPosition(), level) >= 0.0F (.vendor/vanilla-decompiled/net/minecraft/world/entity/PathfinderMob.java:30-33), and the base Mob.checkSpawnRules returns true (.vendor/vanilla-decompiled/net/minecraft/world/entity/Mob.java:915-917). Pumpkin's tick_spawner applies the same per-mob gate: block/entities/mob_spawner.rs:237-242 is_some_and(|mob| get_walk_target_value(&mob.get_entity().block_pos.load()) < 0.0) -> continue before finalize_spawn (:245). Species overrides of get_walk_target_value (Turtle, Strider, Hoglin, Silverfish, Axolotl) are honoured because the gate calls that method directly, matching vanilla dynamic dispatch.
+- The rest of tick_spawner matches vanilla serverTick (.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java:160-299): player-proximity gate (:167 -> :145-152), negative-delay reset (:168-170 -> :154-157), positive-delay decrement (:172-173 -> :158-161), spawn-position formula (:190-194 -> :196-204), noCollision(getSpawnAABB) -> is_space_empty(get_spawn_bounding_box) (:196 -> :205), SpawnPlacements.checkSpawnRules(..., SPAWNER, ...) -> check_spawn_rules(..., Spawner) (:207 -> :209), per-attempt nearby recount using AABB inflate(spawnRange) -> search_radius = spawn_range + 0.5 (:235-244 -> :165-182), rotation (:246 -> :220-221), finalizeSpawn (:256 -> :245), entity event 20 on spawnAnim (:284 -> :252-257), and PARTICLES_MOBBLOCK_SPAWN level event (:281 -> :258). NBT defaults match (:43-49 -> :280-286).
+- No row needs generated data, a WIT change or a cross-crate refactor; no BLOCKED-DATA. No pure unit-test seam: the gate is one comparison on a freshly created Mob requiring a live World; parse_spawner_nbt/write_spawner_params_nbt are already exercised through their block-entity callers and a formula-mirroring test would not test the parity row.
+- Compile-pitfall re-read: no .rs file changed, so no imports, helper placement, macro paths, struct initializers, clones, unwrap/expect/panic, println or em dashes to check. No rustfmt needed.
+
+Status: PASS (verified completion, doc-only update). Commands: none (no .rs file changed); cargo/git/rustfmt intentionally not run per worker contract.
