@@ -1,11 +1,24 @@
 # Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-8f1a6a.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
-
-Re-read every STILL OPEN row against
-Re-verified every STILL OPEN row against
-Re-verified every STILL OPEN row against decompiled vanilla
-whole missing engine subsystem. Every originally STILL OPEN row now has a final verdict.
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Every row below has a final verdict; all Rust fixes were landed in earlier passes and re-verified present in this pass against decompiled vanilla.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+
+All originally STILL OPEN rows end FIXED or VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/{AbstractArrow,Arrow,SpectralArrow}.java` and the vanilla goal classes. No generated `pumpkin-data` field or missing subsystem remains, so there is no BLOCKED-DATA row.
+
+| Row | Final verdict | Evidence (vanilla path / Rust) |
+|---|---|---|
+| 28 (arrow effects side list, M) | FIXED | Vanilla `Arrow#addEffect` writes potion contents; `arrow.rs:363-381` appends the effect to `PotionContentsImpl.custom_effects` and writes it back; the `extra_effects` side list is gone. |
+| 29 (enchant ordering, M) | VERIFIED | `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java:467-474` calls `EnchantmentHelper.modifyDamage` on `baseDamage` before `pow * arrowDamage` / `Mth.ceil`; `item/items/projectile_weapon.rs:67-70` folds the same target-independent Power adjustment into `base_damage` at fire time, and `arrow.rs:746-748` computes `ceil(clamp(velocity * base_damage))`. |
+| 30 (pickup `canHold`, S) | FIXED | `.vendor/.../AbstractArrow.java:704-716` gates the pickup event on `pickup == ALLOWED && !pickupItem.isEmpty() && canHold(pickupItem) > 0`; `arrow.rs:681-698` gates `PlayerPickupArrowEvent` on `pickup == Allowed && !stack.is_empty() && player.inventory.can_hold(&stack) > 0`, reusing the same stack for the insert. `can_hold` lives in `pumpkin-inventory/src/player/player_inventory.rs` with pure test `can_hold_reports_capacity`. |
+| 31 (deflect drop offset, S) | FIXED | `.vendor/.../AbstractArrow.java:559` uses `spawnAtLocation(level, getPickupItem(), 0.1F)`; `arrow.rs:847-851` uses `spawn_at_location_with_offset(..., Vector3::new(0.0, 0.1, 0.0))` under the `Allowed` pickup check. |
+| 32 (despawn rate, S) | FIXED | `arrow.rs:402-404` selects `CREATIVE_DESPAWN_TIME` for `ArrowPickup::CreativeOnly` and `DESPAWN_TIME` for Allowed/Disallowed, matching the per-pickup Paper rates. |
+| 33 (tipped trail / potion puff, S) | VERIFIED | `.vendor/.../Arrow.java:88-99` emits the trail only inside the `isClientSide()` branch; the server branch only broadcasts entity event 0 and swaps to a plain arrow, both done in `decay_exposed_potion` (`arrow.rs:423-446`). Client renders the trail from the synced effect color. |
+| 34 (crit particles, S) | VERIFIED | `.vendor/.../AbstractArrow.java:246-259` calls `Level.addParticle(ParticleTypes.CRIT, ...)`, a no-op on a dedicated server; the client renders the trail from the synced critical flag set by `set_critical`. No server behaviour to replicate. |
+| 35 (spectral trail, S) | VERIFIED | `.vendor/.../SpectralArrow.java:36-41` emits the EFFECT particle only when `level().isClientSide()`. Client render only; the vanilla server emits nothing. |
+| 36 (sound/weapon NBT, S) | VERIFIED | `.vendor/.../AbstractArrow.java:437-439,663,679` stores a `SoundEvent` and clears `firedFromWeapon` in `onItemBreak`, but no Rust arrow sets a non-default hit sound (`Sound::EntityArrowHit` hardcoded at `arrow.rs:818-822`) and there is no Rust `onItemBreak` hook, so persisting a sound is a no-op; weapon NBT is already persisted. |
+| 37 (pierce deflect branch, S) | VERIFIED | `.vendor/.../AbstractArrow.java:554` has the deflect as the `else if` of `hurtOrSimulate` with no pierce guard; `arrow.rs:826-855` matches. The two `pierce == 0` checks at `arrow.rs:804,823` are the arrow-count increment (vanilla line 514) and discard (vanilla line 551), correctly guarded. |
+| 38 (no-physics owner pickup, S) | VERIFIED | `.vendor/.../AbstractArrow.java:703-704` checks only `(isInGround() || isNoPhysics()) && shakeTime <= 0` and `tryPickup:724-729` has no owner branch; `arrow.rs:656-728` (`on_player_collision`) matches. |
+| 39 (`last_hurt_mob`, M) | FIXED | `.vendor/.../AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`. Implemented via the `last_attacking_id` / `last_attack_time` fields (`entity/living.rs:134-136`), written by `arrow.rs:784-790`, `Player.attack` (`player.rs:2024`) and `Mob.attack` (`mob/mod.rs:1226`), and read by `OwnerHurtTargetGoal` (`ai/goal/owner_hurt_target.rs:44-49,84`) and Fox (`passive/fox/goals.rs:203-207`). This matches vanilla `world/entity/ai/goal/target/OwnerHurtTargetGoal.java:28-43` and `world/entity/animal/fox/Fox.java:128-130`, with `Mob.java:1619` (`setLastHurtMob` after a melee hit) covered by the Mob/Player writers. |
+
+All code edits were landed by earlier passes and re-read here; this pass changed documentation only. No cargo or git was run (worker shell is denied); prior code edits remain UNVERIFIED by compilation in this unit. Touched Rust files (from earlier passes) were already rustfmt-formatted; no Rust file was modified in this pass.
