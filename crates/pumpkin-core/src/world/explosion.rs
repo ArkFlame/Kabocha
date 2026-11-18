@@ -11,7 +11,9 @@ use pumpkin_data::{
     sound::Sound,
     tag::{Tag, Taggable},
 };
-use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
+use pumpkin_util::math::{
+    boundingbox::BoundingBox, position::BlockPos, vector2::Vector2, vector3::Vector3,
+};
 use pumpkin_util::random::RandomImpl;
 use pumpkin_world::chunk::ChunkData;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -115,6 +117,27 @@ pub trait ExplosionDamageCalculator: Send + Sync {
 
 const fn should_create_fire(roll: u8, state: &BlockState, below: &BlockState) -> bool {
     roll == 0 && state.is_air() && below.is_solid_render()
+}
+
+/// Vanilla `getChunk` force-loads chunks the explosion ray enters. Loaded chunks use the
+/// sync read; unloaded ones go through the async chunk system, blocking the caller. The
+/// tick thread is not a Tokio worker, and other callers move off their worker first.
+fn load_chunk_for_explosion(world: &World, chunk_pos: Vector2<i32>) -> Option<Arc<ChunkData>> {
+    if let Some(chunk) = world
+        .level
+        .read_chunk_sync(&chunk_pos, std::clone::Clone::clone)
+    {
+        return Some(chunk);
+    }
+    let handle = world.level.rt_handle.get()?;
+    let fetch = world
+        .level
+        .get_or_fetch_chunk(chunk_pos, std::clone::Clone::clone);
+    if tokio::runtime::Handle::try_current().is_ok() {
+        tokio::task::block_in_place(|| handle.block_on(fetch))
+    } else {
+        handle.block_on(fetch)
+    }
 }
 
 /// Default explosion damage calculator implementing vanilla standard explosion rules.
@@ -477,15 +500,11 @@ impl<'a> Explosion<'a> {
 
                         let (chunk_pos, relative) = block_pos.chunk_and_chunk_relative_position();
 
-                        // Vanilla `getBlockState` force-loads unloaded chunks. The tick is
-                        // sync and must not block Tokio, so unloaded chunks use the sync
-                        // loaded-chunk read and count as air here (blocks there are not
-                        // destroyed). Forced loading needs an async prefetch before `explode`.
-                        let chunk_opt = chunk_cache.entry(chunk_pos).or_insert_with(|| {
-                            world
-                                .level
-                                .read_chunk_sync(&chunk_pos, std::clone::Clone::clone)
-                        });
+                        // Vanilla `getBlockState` force-loads unloaded chunks. Mirror that so
+                        // rays entering a neighbouring unloaded chunk still destroy its blocks.
+                        let chunk_opt = chunk_cache
+                            .entry(chunk_pos)
+                            .or_insert_with(|| load_chunk_for_explosion(world, chunk_pos));
 
                         let state_id = if let Some(chunk) = chunk_opt {
                             chunk
@@ -1221,5 +1240,31 @@ mod tests {
         assert!(explosion_radius_from_yield(0.25).is_some_and(|r| (r - 4.0).abs() < 1e-6));
         assert!(explosion_radius_from_yield(1.0).is_none());
         assert!(explosion_radius_from_yield(2.0).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn explosion_force_loads_unloaded_chunks() -> Result<(), Box<dyn std::error::Error>> {
+        let (world, level, _folder) = test_world()?;
+        // Only chunk (0,0) is loaded by test_world; an explosion ray reaching (1,0)
+        // must force-load it instead of reading the old code's `None` as air.
+        let target = Vector2::new(1, 0);
+        let injected = ChunkData::empty_sync(target.x, target.y);
+        let producer_level = level.clone();
+        tokio::spawn(async move {
+            for _ in 0..200 {
+                producer_level
+                    .chunk_listener
+                    .process_new_chunk(target, &injected);
+                if producer_level.loaded_chunks.contains_key(&target) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        });
+
+        let loaded = super::load_chunk_for_explosion(&world, target);
+        level.shutdown().await;
+        assert!(loaded.is_some());
+        Ok(())
     }
 }
