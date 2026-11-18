@@ -48,13 +48,13 @@ Checked and matching: sound id + `SoundCategory::Records`, volume `range / 16.0`
 sound/event played on use start after `startUsingItem`, `Stats.ITEM_USED` increment, cooldown ticks
 = instrument use duration, registry cooldown group from the `use_cooldown` component.
 
-## h6 gap status
+## Final gap status (supersedes the historical STILL OPEN notes below)
 
-- Row 1 TOOT_HORN use animation: STILL OPEN (item framework has no use-animation hook, M).
-- Row 2 per-stack use duration: STILL OPEN (needs stack-aware get_use_duration in ItemBehaviour, S but framework-wide).
-- Row 3 datapack instruments: STILL OPEN (needs runtime instrument registry, M).
-- Row 4 cooldown always applied: STILL OPEN (no observable difference with vanilla data).
-- Row 5 fail interaction result: STILL OPEN (no interaction-result model, M).
+- Row 1 TOOT_HORN use animation: VERIFIED - no server-side gap; client-only animation.
+- Row 2 per-stack use duration: FIXED - stack-aware get_use_duration in ItemBehaviour.
+- Row 3 datapack instruments: BLOCKED-DATA - runtime registry-backed Holder<Instrument> resolution subsystem missing (see final Result).
+- Row 4 cooldown: FIXED - cooldown added only when duration > 0.
+- Row 5 fail interaction result: FIXED - use_result returns Fail for an instrument-less horn.
 
 
 ## Result
@@ -382,3 +382,58 @@ rows are terminal and no STILL OPEN row remains.
 Rows 2, 4, 5 fixed in code; Row 1 VERIFIED; Row 3 BLOCKED-DATA. No STILL OPEN
 remains. The pure seams already carry unit tests in `goat_horn.rs` and `basic.rs`.
 Worker shell/cargo/git are denied; the orchestrator compiles once after all workers.
+
+
+## Result (FINAL PASS - terminal classification, all rows closed)
+
+Re-verified every row against the decompiled vanilla sources in .vendor/:
+.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java and
+.vendor/vanilla-decompiled/net/minecraft/world/item/Instrument.java.
+No .rs source edit was needed this pass: the in-unit fixes are already present in
+goat_horn.rs, basic.rs and the protocol codec, and the two previously open rows
+are terminal. No STILL OPEN row remains. No shell/cargo/git was run; the orchestrator
+compiles once after all workers finish.
+
+- Row 1 (TOOT_HORN use animation): VERIFIED, matches vanilla; no server-side gap.
+  Vanilla InstrumentItem.getUseAnimation returns ItemUseAnimation.TOOT_HORN
+  (InstrumentItem.java:65-68), but it is reached only through
+  ItemStack.getUseAnimation() and has no server call site. The third-person
+  TOOT_HORN animation is a client rendering decision derived from the USING_ITEM
+  living-entity flag, which Pumpkin sets and syncs in LivingEntity::set_active_hand
+  (called by goat_horn.rs:66). No use-animation field or packet exists on the
+  server, so an ItemBehaviour hook would be dead code. No change.
+- Row 2 (per-stack use duration): FIXED. GoatHornItem::get_use_duration(&ItemStack)
+  returns the instrument duration in ticks (140 for builtins, 0 without, own value
+  for an inline custom instrument) at goat_horn.rs:109-114, matching vanilla
+  InstrumentItem.getUseDuration (InstrumentItem.java:54-58).
+- Row 3 (registry-referenced datapack instruments): BLOCKED-DATA. Missing subsystem:
+  runtime resolution of a registry-backed Holder<Instrument> at use time. Vanilla
+  Instrument.CODEC / STREAM_CODEC are holders over Registries.INSTRUMENT
+  (.vendor/vanilla-decompiled/net/minecraft/world/item/Instrument.java:40-41) and
+  the record carries sound_event/use_duration/range/durability_damage
+  (Instrument.java:16-26). Four links are absent in Pumpkin: (1) InstrumentImpl
+  stores only a name string and discards the positive holder raw id
+  (pumpkin-data/.../data_component_impl/basic.rs:555-557); (2) the codec falls back
+  to the ponder horn for ids above the 8 generated builtins
+  (pumpkin-protocol/src/codec/data_component.rs:2889-2897); (3) no Instrument NBT
+  decoder exists in pumpkin-core (grep for sound_event/use_duration/
+  durability_damage returns no match; dynamic_registry_loader.rs:17 only lists
+  the minecraft:instrument registry key) and the manager exposes raw-id lookup on
+  DynamicRegistry (dynamic_registry_manager.rs:63-68) but not a decoded instrument;
+  (4) goat_horn.rs is a sync ItemBehaviour with no reachability to
+  DynamicRegistryManager. Preserving the raw id, decoding the instrument NBT,
+  exposing manager-level raw-id data lookup and wiring the use path is a cross-crate
+  subsystem (protocol + data + core), far beyond a minimal in-unit edit. No single
+  generated pumpkin-data field is missing; the whole resolution subsystem is.
+- Row 4 (cooldown): FIXED. Cooldown added only when duration > 0
+  (goat_horn.rs:101-105), matching vanilla InstrumentItem.use
+  (InstrumentItem.java:42-45).
+- Row 5 (fail interaction result): FIXED. use_result returns Fail for an
+  instrument-less horn (goat_horn.rs:116-126), matching vanilla
+  InteractionResult.FAIL (InstrumentItem.java:49-50).
+
+Pure unit tests cover every fixable seam: three in goat_horn.rs (stack-aware
+duration, custom instrument acceptance, instrument-less FAIL) and two in
+basic.rs (inline instrument round trip, builtin duration). Worker shell is
+denied so the tests were not run here; the orchestrator compiles once after all
+workers finish. No .rs file was touched this pass, so rustfmt was not applicable.
