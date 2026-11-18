@@ -35,13 +35,13 @@ Remaining gaps:
 
 | Location | Vanilla | Gap | Fix | Size |
 |---|---|---|---|---|
-| `combat.rs:102-146` (`mace_smash_knockback`) | `MaceItem.knockback` pushes each victim with `Entity.push(x, 0.7, z, attacker)` | Uses `set_velocity`/`add_velocity`, which skip `push`'s `hurt_marked`/`has_impulse` bookkeeping, and only nearby players get an explicit motion packet | Route through the same push path as `Entity::push` once it takes an attacker, keep the manual player packet | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `combat.rs:102-146` (`mace_smash_knockback`) | `MaceItem.knockback` pushes each victim with `Entity.push(x, 0.7, z, attacker)` | Uses `set_velocity`/`add_velocity`, which skip `push`'s `hurt_marked`/`has_impulse` bookkeeping, and only nearby players get an explicit motion packet | Route through the same push path as `Entity::push` once it takes an attacker, keep the manual player packet | S, S, FIXED (push_by; test smash_knockback_power_uses_full_3d_distance) |
 | `combat.rs:84-88` (`can_smash_attack`) | `MaceItem.canSmashAttack` is `fallDistance > 1.5 && !isFallFlying()` | Adds `!on_ground` | Intentional: Pumpkin's fall distance is client-driven, so a ground-only movement packet would otherwise keep a stale smash; document, do not change | - |
-| `combat.rs:437-497` (`record_damage`) | `CombatTracker.recordDamage` uses `source.getEntity()` and fires `mob.onEnterCombat()`; `resetCombatState` fires `onLeaveCombat()` | Uses `cause.or(source)`, and the tracker has no mob handle so no combat enter/leave hooks | Pass the owning entity into `CombatTracker` (or return a transition flag) and fire the hooks at the existing call sites | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `combat.rs:437-497` (`record_damage`) | `CombatTracker.recordDamage` uses `source.getEntity()` and fires `mob.onEnterCombat()`; `resetCombatState` fires `onLeaveCombat()` | Uses `cause.or(source)`, and the tracker has no mob handle so no combat enter/leave hooks | Pass the owning entity into `CombatTracker` (or return a transition flag) and fire the hooks at the existing call sites | M, M, FIXED (CombatStateChange hooks consumed in living.rs; test combat_reset_clears_state_and_reports_duration) |
 | `combat.rs:548-566` (`get_killer_entry`) | No vanilla method; Paper's combat tracker API exposes entries | Custom heuristic (`player damage >= living damage / 3`) used only as kill-credit fallback | No parity requirement; leave unless a bug is reported | - |
-| `combat.rs:731-745` (`get_message_for_assisted_fall`) | `CombatTracker.getMessageForAssistedFall` reads the entity's main hand at death | Uses the custom item name snapshotted when the damage was recorded, so an item swap before death shows a stale name | Read the attacker's current main hand at message time | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| `crates/pumpkin-core/src/entity/player.rs:1903-1936` (sweep damage) | `Player.doSweepAttack` uses `1 + SWEEPING_DAMAGE_RATIO * damage`, multiplies by attack strength, scans `victim.getBoundingBox().inflate(1.0, 0.25, 1.0)`, skips allies/marker armor stands/anything past 3 blocks, then knocks back and runs post-attack enchantment effects per victim | Uses the pre-1.21.2 `SWEEPING_EDGE` enchantment ratio, no attack-strength factor, no ally/marker/distance checks, no knockback or post-attack effects, and a pos-built box | Port `doSweepAttack` wholesale once the sweep damage source model is confirmed for V_26_3 | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| `crates/pumpkin-core/src/entity/player.rs:1891-1950` | `Player.causeExtraKnockback` also pushes non-living targets (`push(-sin * strength, 0.1, cos * strength)`) and always decays the attacker's velocity | Knockback/causeExtraKnockback runs only for living victims | Apply the non-living push branch for boats/minecarts and other non-living attackables | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| `combat.rs:731-745` (`get_message_for_assisted_fall`) | `CombatTracker.getMessageForAssistedFall` reads the entity's main hand at death | Uses the custom item name snapshotted when the damage was recorded, so an item swap before death shows a stale name | Read the attacker's current main hand at message time | S, S, FIXED (live_main_hand_item_name; test assisted_fall_uses_live_item_name_and_falls_back_without_it) |
+| `crates/pumpkin-core/src/entity/player.rs:1903-1936` (sweep damage) | `Player.doSweepAttack` uses `1 + SWEEPING_DAMAGE_RATIO * damage`, multiplies by attack strength, scans `victim.getBoundingBox().inflate(1.0, 0.25, 1.0)`, skips allies/marker armor stands/anything past 3 blocks, then knocks back and runs post-attack enchantment effects per victim | Uses the pre-1.21.2 `SWEEPING_EDGE` enchantment ratio, no attack-strength factor, no ally/marker/distance checks, no knockback or post-attack effects, and a pos-built box | Port `doSweepAttack` wholesale once the sweep damage source model is confirmed for V_26_3 | M, M, VERIFIED (compute_sweep_damage matches Player.java:1280-1303; no generated data needed) |
+| `crates/pumpkin-core/src/entity/player.rs:1891-1950` | `Player.causeExtraKnockback` also pushes non-living targets (`push(-sin * strength, 0.1, cos * strength)`) and always decays the attacker's velocity | Knockback/causeExtraKnockback runs only for living victims | Apply the non-living push branch for boats/minecarts and other non-living attackables | S, S, FIXED (non_living_knockback_impulse used at player.rs:2140; test non_living_knockback_uses_opposite_horizontal_sign_and_small_lift) |
 | `combat.rs:42` (`AttackType::new`) | Vanilla has no platform condition | `is_bedrock` skips sweeping | Kept: Bedrock clients cannot sweep; revisit only if the Bedrock attack path changes | - |
 
 ## Gap status
@@ -49,8 +49,9 @@ Remaining gaps:
 - FIXED in combat.rs (and its existing call site): mace push, combat enter/leave hooks,
   live assisted-fall item, non-living knockback helper. Verified against decompiled vanilla
   now present in the .vendor/vanilla-decompiled tree (MaceItem, CombatTracker, CombatRules, Player).
-- OPEN, outside this unit: player.rs sweep damage (needs a sweep damage type in generated
-  data); player.rs sweep knockback and post-attack effects (separate worker).
+- CLOSED: player.rs sweep damage/knockback is implemented via combat::compute_sweep_damage
+  and sweep_in_reach, matching Player.java:1277-1305; no sweep damage type is required
+  (vanilla reuses the attack DamageSource with a Paper-only damage-cause tag).
 
 ## Result
 
@@ -70,9 +71,12 @@ Remaining gaps:
   getMessageForAssistedFall reading attackerEntity.getMainHandItem(). No call-site change was
   needed, so this stays in this unit. Unit test
   assisted_fall_uses_live_item_name_and_falls_back_without_it covers both branches.
-- player.rs sweep damage (M) - OPEN. Vanilla doSweepAttack needs a sweep damage type; none
-  exists in pumpkin-data generated data, so a faithful port needs generated data this unit
-  cannot add. Also in player.rs, which is outside this unit.
+- player.rs sweep damage (M) - VERIFIED. player.rs compute_sweep_damage now uses vanilla's
+  (1 + SWEEPING_DAMAGE_RATIO * base) * attackStrengthScale (Player.java:1280,1288), scans the
+  victim box inflated by (1.0, 0.25, 1.0), skips allies/marker stands/3+ block targets, applies
+  0.4 knockback and sends the sweep particle (Player.java:1282-1303). No sweep damage type is
+  needed: vanilla reuses the attack DamageSource with a Paper-only knownCause tag, and Pumpkin
+  uses DamageType::PLAYER_ATTACK. The earlier BLOCKED-DATA reason is obsolete.
 - player.rs causeExtraKnockback non-living push (S) - FIXED. The pure impulse helper
   non_living_knockback_impulse lives in combat.rs and is used by the player.rs call site with
   vanilla's opposite horizontal sign and 0.1 lift. Unit test

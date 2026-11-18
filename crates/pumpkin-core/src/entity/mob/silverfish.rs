@@ -139,7 +139,12 @@ impl Goal for SilverfishMergeWithStoneGoal {
                     current == host_state
                 });
             if written.is_some() {
-                world.send_entity_status(mob.get_entity(), EntityStatus::Poof, ActorEventID::None);
+                // Vanilla `Mob.spawnAnim` broadcasts SILVERFISH_MERGE_ANIM (20), not POOF (60).
+                world.send_entity_status(
+                    mob.get_entity(),
+                    EntityStatus::SilverfishMergeAnim,
+                    ActorEventID::None,
+                );
                 mob.get_entity().remove();
             }
         }

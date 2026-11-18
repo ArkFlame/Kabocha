@@ -39,6 +39,14 @@ impl Goal for ChasePlayerGoal {
             return false;
         };
 
+        // Vanilla EndermanFreezeWhenLookedAt.canUse compares squared distance to 256 (16 blocks).
+        let mob_pos = mob.get_entity().pos.load();
+        let target_pos = target.get_entity().pos.load();
+        if mob_pos.squared_distance_to_vec(&target_pos) > 256.0 {
+            self.target = None;
+            return false;
+        }
+
         if !enderman.is_player_staring(player) {
             self.target = None;
             return false;
@@ -68,19 +76,9 @@ impl Goal for ChasePlayerGoal {
         }
     }
 
-    fn should_continue(&mut self, _mob: &dyn Mob) -> bool {
-        let Some(enderman) = self.enderman.upgrade() else {
-            return false;
-        };
-        let Some(target) = self.target.as_ref().and_then(Weak::upgrade) else {
-            return false;
-        };
-        if !target.get_entity().is_alive() {
-            return false;
-        }
-        target
-            .get_player()
-            .is_some_and(|player| enderman.is_player_staring(player))
+    fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        // Vanilla's Goal.canContinueToUse defaults to canUse, so re-run the full check.
+        self.can_start(mob)
     }
 
     fn controls(&self) -> Controls {
