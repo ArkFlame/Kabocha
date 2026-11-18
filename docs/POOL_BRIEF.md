@@ -5,3 +5,5 @@ Task: open your unit doc (path below). For each row marked STILL OPEN, verify ag
 Before finishing, re-read your diff against the "Worker compile pitfalls" table in /run/media/linsaftw/SDD/GitHub/ArkFlame/Kabocha/AGENTS.md (import paths, helper placement, macro paths, struct initializers, clones, clippy pedantic).
 
 THIRD PASS: each remaining STILL OPEN row must end as FIXED, VERIFIED (matches vanilla, cite the .vendor path) or BLOCKED-DATA with the exact missing generated field or subsystem. Do not leave STILL OPEN. Read the unit's last Result, apply the fix across any file it needs, rustfmt touched files.
+
+FINAL PASS: finish the unit completely. Every row ends FIXED, VERIFIED (cite the .vendor vanilla path) or BLOCKED-DATA (name the missing generated field). Replace the line "STILL OPEN until closed..." with the real per-row results. Work through the rows in order and do not stop after the first few. Use your full step budget.
