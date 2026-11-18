@@ -100,3 +100,37 @@ generated-data, or cross-cutting change.
   needed in the item framework.
 
 No .rs file touched, so no rustfmt run and no unit test added (no behaviour change to test).
+
+## Result
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java`
+(this version folds the goat horn into `InstrumentItem`; `Instrument.java` and
+`world/item/component/InstrumentComponent.java` confirm the component shape). The current HEAD already
+contains the in-unit fixes from the pass-2 workers, so the earlier "no fix possible" verdict is stale:
+
+- 1 Used stat double increment: CLOSED. `use_item.rs:39-42` no longer awards `ITEM_USED` generically on
+  right-click; each path now awards once (`entity/living.rs:4986` on `Consumable` completion,
+  `use_item.rs:168-169` on equip, `goat_horn.rs:102` in the instrument use path). Vanilla's
+  `InstrumentItem.use` (`Stats.ITEM_USED`) awards exactly once. No further net-layer change needed.
+- 2 TOOT_HORN use animation: OPEN, out of unit. Vanilla `InstrumentItem.getUseAnimation` returns
+  `ItemUseAnimation.TOOT_HORN` (`:65-68`); needs a hook on `ItemBehaviour` (`item/mod.rs`, not an
+  editable basename here) plus third-person pose plumbing. Client-visible only.
+- 3 Per-stack use duration: CLOSED. `ItemBehaviour::get_use_duration(&self, &ItemStack)` and
+  `ItemRegistry::get_use_duration` now exist; `goat_horn.rs:105-110` reads the stack instrument and
+  returns 0 without one, matching `InstrumentItem.getUseDuration` (`:54-58`). Unit tests added.
+- 4 Instrument dispatch for non-goat-horn items: CLOSED. `item/registry.rs` no longer has the generic
+  `InstrumentImpl` dispatch; it uses `get_pumpkin_item(item.id)` with explicit spear / knowledge-book
+  fallbacks, so only the registered `GoatHornItem` plays.
+- 5 Datapack/custom instruments: CLOSED for the representable case. `InstrumentImpl::custom_definition`
+  and `use_duration_ticks` (`data_component_impl/basic.rs:603-629`) decode an inline datapack
+  instrument, and `goat_horn.rs` uses it for sound, range, duration and durability. A true
+  `Holder<Instrument>` from the synced registry would be a generated-data / cross-crate change, out of unit.
+- 6 Cooldown when duration is 0: CLOSED as not-a-gap. Vanilla guards `if (instrumentCooldown > 0.0F)`
+  (`:42-45`), so `goat_horn.rs:99-101`'s `if duration > 0` matches.
+- 7 Fail interaction result: CLOSED. `ItemBehaviour::use_result(&self, &ItemStack)` returns
+  `BlockActionResult::Consume`/`Fail`; `goat_horn.rs:112-122` returns `Fail` without an instrument,
+  matching `InstrumentItem.use` (`:49-51`). `item/registry.rs` skips cooldown side effects on `Fail`.
+  Unit tests added.
+
+No .rs file was edited this pass (all in-unit fixes are already present in HEAD), so no rustfmt run
+and no new test; `goat_horn.rs` already carries tests for `get_use_duration` and `use_result`.
+Only row 2 remains, and it needs a framework hook outside this unit.
