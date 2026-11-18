@@ -68,7 +68,7 @@ The source changed since the last review: the damage pipeline now runs
 
 ## Result
 
-Re-verified both STILL OPEN rows against the decompiled source now present under .vendor/vanilla-decompiled/net/minecraft/. The previous audit had no decompiled tree and guessed vanilla from memory; both rows rest on incorrect premises. Pumpkin already matches the real source. No code changes were needed and no test was added (no behaviour change to test; a constant mirror test would be a forbidden formula/constant test).
+Re-verified both previously open rows against the decompiled source now present under .vendor/vanilla-decompiled/net/minecraft/. The previous audit had no decompiled tree and guessed vanilla from memory; both rows rest on incorrect premises. Pumpkin already matches the real source. No code changes were needed and no test was added (no behaviour change to test; a constant mirror test would be a forbidden formula/constant test).
 
 ### Row 1 (M) projectile dodge: NO GAP, closed
 - Vanilla Enderman.hurtServer (world/entity/monster/Enderman.java:390-412) uses source.is(DamageTypeTags.IS_PROJECTILE) with !this.isPassenger(), i.e. the damage-type TAG. It does NOT use getDirectEntity() instanceof Projectile. The only direct-entity check there is getDirectEntity() instanceof AbstractThrownPotion for the water-sensitivity splash branch. The tracker premise was wrong.

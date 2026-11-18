@@ -122,3 +122,17 @@ No row in the "Remaining gaps" table is marked STILL OPEN; all four are already 
 | `player_action.rs:190` (`CancelledDigging`) | VERIFIED | `abortDestroyBlock`: clear state, stop mismatched target (335-342) then reported pos (346) -> `reset_mining()`, `BlockPos::ZERO`, two `Stop`s + resync 231-252 |
 
 No source change needed. No test added: all four fixes live in the async packet handler with no pure seam, so a helper test would be a discouraged formula-mirroring test. No generated data, WIT or cross-crate changes. `player_action.rs` was not touched this pass.
+
+
+## Result (final pass)
+
+All four rows in the Remaining gaps table are closed; none is STILL OPEN and no generated-data or subsystem dependency exists. Source re-read and checked against decompiled vanilla .vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java (handleBlockBreakAction 192-330, abortDestroyBlock 332-350). No source change required this pass: all four fixes are present in crates/pumpkin-core/src/net/java/play/player_action.rs.
+
+| file:line | final result | vanilla citation (.vendor path) |
+|---|---|---|
+| player_action.rs:31 (height guard) | VERIFIED | ServerPlayerGameMode.java:202-204 `pos.getY() > maxY` -> `ClientboundBlockUpdatePacket`; source 38-45 `position.0.y > world.get_top_y()` + `CBlockUpdate` |
+| player_action.rs:36 (spawn protection / `cannot_mine_block` before events) | VERIFIED | ServerPlayerGameMode.java:207-211 spawn protection + :243 `blockActionRestricted` before the :273 `BlockDamageEvent`; source 47-61 / 63-73 before events 75-108 |
+| player_action.rs:143 (abort other dig) | VERIFIED | ServerPlayerGameMode.java:287-293 `ClientboundBlockUpdatePacket(destroyPos)` before `destroyPos = pos`; source 168-183 `set_block_breaking(old, Stop)` + resync |
+| player_action.rs:190 (CancelledDigging) | VERIFIED | ServerPlayerGameMode.java:332-346 `abortDestroyBlock` clears state, stops mismatched target then reported pos; source 231-252 `reset_mining()`, `BlockPos::ZERO`, two `Stop`s + resync |
+
+Helper existence confirmed by grep: Player::reset_mining (player.rs:3977), Player::cannot_mine_block (player.rs:6838), World::is_in_spawn_protection (world/mod.rs:1027), World::set_block_breaking (world/mod.rs:6746), World::get_top_y (world/mod.rs:7857), sync_block_state_to_client (this file:383). No test added: every fix is inside the async packet handler with no pure seam, so an extracted-predicate test would be the discouraged formula-mirroring case. No generated data, WIT or cross-crate changes. player_action.rs was not touched this pass.

@@ -5,7 +5,10 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-bl-31ea5a** [partial/OWN-OPEN] own audit: 21 open, 14 fixed, 8 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-bl-31ea5a.md) docs/tracker/taudit-crates-pumpkin-core-src-bl-31ea5a.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+Row `own/taudit-crates-pumpkin-core-src-bl-31ea5a` (the single aggregate row of the jukebox
+deep-audit doc): VERIFIED. Every jukebox sub-row is FIXED or VERIFIED against the decompiled
+vanilla sources in `.vendor/vanilla-decompiled/net/minecraft/` (detail below); the source
+`crates/pumpkin-core/src/block/entities/jukebox.rs` matches vanilla and needs no change.
 
 Third pass (2026-11-18). The single row `own/taudit-crates-pumpkin-core-src-bl-31ea5a` is the
 aggregate of the jukebox deep-audit doc. Re-read that audit's final pass and re-verified every
