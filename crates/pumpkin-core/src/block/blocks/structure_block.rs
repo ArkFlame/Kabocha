@@ -77,8 +77,9 @@ impl BlockBehaviour for StructureBlock {
             structure_block.set_powered(true);
             match structure_block.mode() {
                 StructureblockMode::Save => {
-                    // Vanilla's redstone SAVE persists the template through StructureTemplateManager.
-                    structure_block.save_structure(args.world, true);
+                    // Vanilla redstone SAVE calls saveStructure(false): it fills the in-memory
+                    // template but, unlike the GUI save, does not persist it to disk.
+                    structure_block.save_structure(args.world, false);
                 }
                 StructureblockMode::Load => {
                     structure_block.place_structure(args.world);
