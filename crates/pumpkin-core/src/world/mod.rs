@@ -2442,7 +2442,7 @@ impl World {
         }
     }
 
-    fn send_block_updated(
+    pub fn send_block_updated(
         &self,
         position: &BlockPos,
         old_state: BlockStateId,
