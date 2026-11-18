@@ -5,7 +5,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-wo-3e55a4** [partial/OWN-OPEN] own audit: 12 open, 12 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-wo-3e55a4.md) docs/tracker/taudit-crates-pumpkin-core-src-wo-3e55a4.md
 - **own/taudit-crates-pumpkin-core-src-world-natu** [partial/OWN-OPEN] own audit: 4 open, 8 fixed, 5 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-world-natu.md) docs/tracker/taudit-crates-pumpkin-core-src-world-natu.md
 
-## Result
 ## Result (final)
 
 Every row is resolved; none remains STILL OPEN. Source was re-read against
