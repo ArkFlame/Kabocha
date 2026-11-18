@@ -79,14 +79,16 @@ fn parse_ingredient(value: &Value) -> Option<OwnedRecipeIngredient> {
                     .map(|item| OwnedRecipeIngredient::Simple(normalize_id(item)))
             }),
         Value::Array(arr) => {
-            let mut ids = Vec::new();
-            for item in arr {
-                if let Some(s) = item.as_str() {
-                    ids.push(normalize_id(s));
-                } else if let Some(obj_item) = item.get("item").and_then(Value::as_str) {
-                    ids.push(normalize_id(obj_item));
-                }
-            }
+            // Vanilla HolderSetCodec list entries are Item ids only (`#tag` belongs at the top level).
+            // A tag or any other shape fails the whole ingredient instead of silently narrowing it.
+            let ids = arr
+                .iter()
+                .map(|item| match item {
+                    Value::String(s) if !s.starts_with('#') => Some(normalize_id(s)),
+                    Value::Object(obj) => obj.get("item").and_then(Value::as_str).map(normalize_id),
+                    _ => None,
+                })
+                .collect::<Option<Vec<_>>>()?;
             if ids.is_empty() {
                 None
             } else {
