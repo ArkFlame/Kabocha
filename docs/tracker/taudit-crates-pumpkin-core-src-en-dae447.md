@@ -67,7 +67,7 @@ Markers: no `TODO`/`FIXME` in the file; the two tracker "vanilla markers" are do
 
 ## Result
 
-Verified each STILL OPEN row against decompiled vanilla at
+Verified each originally open row against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/`. Findings below supersede the "Gap status" list above.
 
 - **Row 1 (open-water flag, M): LEFT OPEN.** The loot side of this gap is already resolved outside
@@ -137,7 +137,7 @@ compile); verification was by reading the code against `.vendor/vanilla-decompil
 
 ## Result (post-restart independent re-verification)
 
-The server restarted mid-unit. Re-verified every STILL OPEN row against the actual current
+The server restarted mid-unit. Re-verified every originally open row against the actual current
 checkout (not the two prior `## Result` blocks) and decompiled vanilla. All fixable rows are
 already implemented correctly; no `.rs` file needed changes this pass.
 
@@ -174,7 +174,7 @@ Status: PASS fixed=0 open=1 files=none
 
 ## Result (fresh pass, independent verification of current checkout)
 
-Re-verified every STILL OPEN row against decompiled vanilla FishingHook.java and CraftBukkit FishingHook. All fixable rows are already implemented in the working tree; no .rs file needed changes.
+Re-verified every originally open row against decompiled vanilla FishingHook.java and CraftBukkit FishingHook. All fixable rows are already implemented in the working tree; no .rs file needed changes.
 
 - **Row 1 (open-water flag, M): CORRECT.** FishingBobberEntity stores open_water: AtomicBool and exposes is_open_water_fishing(). process_tick latches via the pure latched_open_water helper, reading out_of_water_time from the state at tick start before its update, matching vanilla FishingHook.tick 233-251 with MAX_OUT_OF_WATER_TIME=10. predicates.rs is_open_water reproduces calculateOpenWater layer rules (FishingHook.java 442-485) and gates the loot in_open_water predicate (predicates.rs 268-273). Pure tests exist for both helpers (fishing_bobber.rs 1065+, predicates.rs 1042+). No new test added (duplicates discouraged).
 - **Row 2 (cancelled PlayerFishEvent, S): CORRECT.** reel_in returns Option<i32>; fire_fish_event returns None on cancel (fishing_bobber.rs 381-385); fishing_rod.rs 138-154 keeps the hook and player.fishing_bobber on None and removes only on Some. Matches CraftBukkit retrieve early return before discard.
@@ -187,7 +187,7 @@ No .rs file changed, so no rustfmt. No compile run (workers do not compile); ver
 
 ## Result (second pass, full cross-file scope granted)
 
-Re-verified every STILL OPEN row against decompiled vanilla FishingHook.java / CraftBukkit FishingHook
+Re-verified every originally open row against decompiled vanilla FishingHook.java / CraftBukkit FishingHook
 with permission to edit any needed source file. All fixable rows are already implemented and correct
 in the current checkout; no .rs file needed changes this pass.
 
@@ -240,7 +240,7 @@ FishingHook. No .rs file needed changes this pass.
   a prior pass; no `random::<f64>()` remains in the file. No fix required.
 
 Rows 1-4 were already FIXED/CORRECT in prior passes (open-water flag, cancelled-event hook
-retention, should_stop_fishing discard, rod durability). Every STILL OPEN row is now resolved:
+retention, should_stop_fishing discard, rod durability). Every originally open row is now resolved:
 none remains open, and none needs generated data or a missing subsystem, so BLOCKED-DATA does not
 apply.
 
@@ -253,7 +253,7 @@ Status: PASS fixed=0 open=0 files=none
 
 ## Result (third pass: independent close-out, final)
 
-Independently re-verified each STILL OPEN row against decompiled vanilla at
+Independently re-verified each originally open row against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java` and the current
 checkout of the four unit files. No `.rs` change was needed: every row is already implemented and
 matches vanilla, so no BLOCKED-DATA (missing generated field or subsystem) applies.
@@ -290,7 +290,7 @@ matches vanilla, so no BLOCKED-DATA (missing generated field or subsystem) appli
   bite kick all use f32 / `synced.next_f32()` (:505,659,662,695,756,770-772,789 vs
   FishingHook.java:153,326,330,357,403-405,417).
 
-Every STILL OPEN row is now FIXED/VERIFIED with a vanilla citation; none remains open and none
+Every originally open row is now FIXED/VERIFIED with a vanilla citation; none remains open and none
 needs generated data or a missing subsystem. No `.rs` file changed, so rustfmt was not required.
 No compile run (workers do not compile); verification was by reading code against `.vendor/` only.
 Diff re-checked against the worker compile-pitfalls table: no changes made, so none apply.
@@ -303,7 +303,7 @@ Status: PASS fixed=0 open=0 files=none
 Independent verification of the actual current checkout of all unit files (fishing_bobber.rs,
 fishing_rod.rs, world/loot/predicates.rs) against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java` and
-`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java`. All five STILL OPEN rows
+`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java`. All five originally open rows
 were already implemented correctly in code; no `.rs` change was needed, and no BLOCKED-DATA
 condition (missing generated pumpkin-data field or whole subsystem) applies.
 
@@ -337,7 +337,7 @@ condition (missing generated pumpkin-data field or whole subsystem) applies.
   `synced.next_f32()` (:505,659,662,695,770-772,789), matching `RandomSource.nextFloat()` /
   `Mth.nextFloat` (FishingHook.java:153,232,348,403-405,417).
 
-Every STILL OPEN row is now FIXED/VERIFIED with a vanilla citation; none remains open and none needs
+Every originally open row is now FIXED/VERIFIED with a vanilla citation; none remains open and none needs
 generated data or a missing subsystem, so BLOCKED-DATA does not apply. No `.rs` file changed, so
 rustfmt was not required; no compile run (workers do not compile), verification by reading code
 against `.vendor/` only. Diff re-checked against the worker compile-pitfalls table: no changes made,
@@ -379,7 +379,7 @@ All five are already implemented and match vanilla; no .rs change was needed and
   use f32 / synced.next_f32() (fishing_bobber.rs:482,505,659,662,684-685,695,738,756,770-772,789),
   matching RandomSource.nextFloat() / Mth.nextFloat (FishingHook.java:153,232,348,403-405,417).
 
-Every STILL OPEN row is now VERIFIED with a vanilla citation; none remains open, so BLOCKED-DATA
+Every originally open row is now VERIFIED with a vanilla citation; none remains open, so BLOCKED-DATA
 does not apply. No .rs file changed, so rustfmt was not required; no compile run (workers do not
 compile), verification by reading code against .vendor/ only. Diff re-checked against the worker
 compile-pitfalls table: no code changes, so none apply.
