@@ -10545,6 +10545,57 @@ impl InventoryPlayer for Player {
         );
     }
 
+    fn award_recipes(&self, recipe_ids: &[String]) {
+        if recipe_ids.is_empty() {
+            return;
+        }
+        // Vanilla `Player.awardRecipes`: add each used recipe to the recipe book, fire the
+        // recipe-unlocked/crafted criteria, and send the client the newly known recipes.
+        let mut known = self
+            .known_recipes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut newly_unlocked = Vec::new();
+        for id in recipe_ids {
+            if known.insert(id.clone()) {
+                newly_unlocked.push(id.clone());
+            }
+        }
+        drop(known);
+
+        for id in &newly_unlocked {
+            self.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::RecipeUnlocked {
+                    recipe_id: id.clone(),
+                },
+            );
+            self.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::RecipeCrafted {
+                    recipe_id: id.clone(),
+                },
+            );
+        }
+
+        let Some(server) = self.get_server() else {
+            return;
+        };
+        let recipes: Vec<_> = server
+            .recipe_manager
+            .get_dynamic_recipes_internal()
+            .into_iter()
+            .filter(|recipe| {
+                recipe
+                    .recipe_id()
+                    .is_some_and(|id| newly_unlocked.iter().any(|new| new.as_str() == id))
+            })
+            .collect();
+        if !recipes.is_empty() {
+            self.try_send_client_packet(
+                &pumpkin_protocol::java::client::play::CRecipeBookAdd::new(false, &recipes),
+            );
+        }
+    }
+
     fn on_brewed_potion(&self) {
         self.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::BrewedPotion,
