@@ -223,3 +223,54 @@ has no open row and was verified in earlier passes.
 
 No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No .rs file
 was edited, so rustfmt is not applicable.
+
+
+## Result (FINAL PASS 2026-11-18, independent verification)
+
+Every row independently re-checked against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java` and
+`AbstractChestBoat.java`. No `.rs` file needed a change: current code already matches vanilla and
+carries pure tests. The only file in this unit's allowlist, `boat/dismount.rs`, has no open row.
+
+- Row 1 / h6 "Delta-rotation accumulation not added": FIXED / VERIFIED (already implemented).
+  `BoatEntity` stores `last_yaw`/`yaw_delta` (boat.rs:231-232, init :257-258); `tick` recomputes the
+  delta from consecutive yaw samples (boat.rs:590-593); `on_rider_positioned` adds the delta to rider
+  yaw/head yaw then clamps body/head (boat.rs:856-899); `on_passenger_turned` re-clamps and folds the
+  adjustment into `yRotO` (boat.rs:901-949). `clamp_rider_yaw` clamps the head to +-105 deg
+  (boat.rs:1009), and `rider_body_yaw` mirrors the full-passenger animal body-yaw shift
+  (boat.rs:985-991). Pure tests `rider_yaw_clamps_to_boat_heading_window`,
+  `rider_yaw_follows_boat_yaw_delta_then_clamps`, `rider_clamp_adjustment_feeds_previous_yaw`
+  (boat.rs:1037-1059). Matches `.vendor/.../AbstractBoat.java:696-705` (positionRider adds
+  `deltaRotation` then clampRotation) and `:740-754` (clampRotation: body yaw = hull, head clamped).
+  Note this vanilla branch is Paper/CraftBukkit decompiled; the animal 90/270 shift at
+  `AbstractBoat.java:756-759` is mirrored by `rider_body_yaw`.
+- Row 2 "drop ticks_underwater / is_eye_in_water from mounting gate": VERIFIED, no change. The doc
+  claim is contradicted by vanilla. `.vendor/.../AbstractBoat.java:784` keeps
+  `!(outOfControlTicks < 60.0F)` in interact and `:836-837` keeps
+  `size < getMaxPassengers() && !isEyeInFluid(WATER)` in canAddPassenger. Pumpkin's
+  `boat_interact_outcome` (boat.rs:161-177) and `is_eye_in_water` (boat.rs:123-131) match: a
+  submerged or long-out-of-control boat refuses riders in vanilla too. Test
+  `chest_boat_interact_follows_vanilla_mount_container_nothing_chain` (boat.rs:1248-1288).
+- Row 3 "increment outOfControlTicks only for UnderWater": VERIFIED, no change. The doc claim is
+  contradicted by vanilla. `.vendor/.../AbstractBoat.java:243-247` increments `outOfControlTicks`
+  for BOTH UNDER_WATER and UNDER_FLOWING_WATER. `BoatStatus::is_underwater` (physics.rs:22-24) covers
+  both and `tick_underwater` (boat.rs:392-402) uses it. Correct.
+- Row 4 "chest contents scatter only in damage path": FIXED / VERIFIED (already implemented).
+  `BoatEntity::on_removed` (boat.rs:488-506) scatters the 27 chest slots on every destroying removal
+  (Killed/Discarded), invoked centrally from `World::remove_entity` (world/mod.rs:6642-6666) for
+  /kill, plugin, discard, void and break paths. `claim_drops` (boat.rs:272-288) gates the scatter to
+  run at most once; the damage path also calls it (boat.rs:746). Matches
+  `.vendor/.../AbstractChestBoat.java:71-76` (remove scatters contents when reason.shouldDestroy()).
+- Capacity cross-check ("Fixed in this pass" note claiming chest boats = 2): VERIFIED, no change.
+  Vanilla `AbstractBoat.getMaxPassengers` returns 2 (AbstractBoat.java:840-842) but
+  `AbstractChestBoat.getMaxPassengers` overrides it to 1 (AbstractChestBoat.java:47-50). Current
+  Pumpkin `BOAT_MAX_PASSENGERS = 2` / `CHEST_BOAT_MAX_PASSENGERS = 1` (boat.rs:47-48, :93-101) is
+  correct; the stale doc note describing a change to 2 for every boat does not reflect the current
+  correct code. Test `chest_boat_detection_covers_every_chest_boat_entity_type` asserts 1/2
+  (boat.rs:1114-1134).
+- `boat/dismount.rs` (the only allowlisted file): VERIFIED line-by-line in prior passes, no open row.
+  Matches `.vendor/.../AbstractBoat.java:709-738` (getDismountLocationForPassenger),
+  `DismountHelper.canDismountTo` and `Entity.getCollisionHorizontalEscapeVector`.
+
+No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem. No `.rs` file
+was edited, so rustfmt is not applicable.
