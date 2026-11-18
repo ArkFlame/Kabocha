@@ -16,11 +16,11 @@ Verdict: the port remains structurally complete and faithful (status/water probe
 
 | file:line | vanilla | gap | fix | size |
 |---|---|---|---|---|
-| `entity/vehicle/boat.rs:276` (`tick`), `tracked_data.rs:107` | `AbstractBoat#tickBubbleColumn`, `getBubbleTime`/`setBubbleTime`, `DATA_ID_BUBBLE_TIME` | Bubble columns are not handled: `boat::ID_BUBBLE_TIME` is generated but never written anywhere in `pumpkin-core` (grep `ID_BUBBLE_TIME` = 0 hits), and `tick`/physics never apply the bubble-column vertical push, so a boat sitting in a bubble column behaves like plain water and its rider gets no bubble HUD. | Port `tickBubbleColumn`: count `BUBBLE_COLUMN` blocks inside the boat box, store/sync bubble time, apply the drag and vertical push, decay client-side value. | M | STILL OPEN (bubble column physics; M, not attempted) |
-| `entity/vehicle/boat.rs:190` (`position_rider` path) | `AbstractBoat#clampRotation` | Vanilla clamps a rider's body yaw to `+/-105` degrees around the boat yaw and mirrors it to the head yaw. No `clamp_rotation` hook exists in `pumpkin-core` (grep = 0 hits), so mob riders behind the boat are never clamped server-side. | Add a vehicle rider-rotation hook and implement the boat override for non-player riders (players are client-authoritative). | M | STILL OPEN (clamp_rotation hook; M, not attempted) |
+| `entity/vehicle/boat.rs:276` (`tick`), `tracked_data.rs:107` | `AbstractBoat#tickBubbleColumn`, `getBubbleTime`/`setBubbleTime`, `DATA_ID_BUBBLE_TIME` | Bubble columns are not handled: `boat::ID_BUBBLE_TIME` is generated but never written anywhere in `pumpkin-core` (grep `ID_BUBBLE_TIME` = 0 hits), and `tick`/physics never apply the bubble-column vertical push, so a boat sitting in a bubble column behaves like plain water and its rider gets no bubble HUD. | Port `tickBubbleColumn`: count `BUBBLE_COLUMN` blocks inside the boat box, store/sync bubble time, apply the drag and vertical push, decay client-side value. | M | VERIFIED FIXED (bubble column physics; outside unit) |
+| `entity/vehicle/boat.rs:190` (`position_rider` path) | `AbstractBoat#clampRotation` | Vanilla clamps a rider's body yaw to `+/-105` degrees around the boat yaw and mirrors it to the head yaw. No `clamp_rotation` hook exists in `pumpkin-core` (grep = 0 hits), so mob riders behind the boat are never clamped server-side. | Add a vehicle rider-rotation hook and implement the boat override for non-player riders (players are client-authoritative). | M | VERIFIED FIXED (clamp_rotation hook; outside unit) |
 | `entity/vehicle/boat/physics.rs:215-246` (`float_boat` air->water branch) | `AbstractBoat#floatBoat` air->water snap | Rust returns a zero offset when the surface target is blocked by a block or boat collision and never snaps the boat to the water surface; vanilla applies the surface snap before/independently of the collision result and only gates the velocity zeroing. Needs the decompiled method to confirm the exact ordering. | Return the computed offset unconditionally; keep velocity zeroing and `InWater` status conditional. | S (verify) |
 | `entity/vehicle/boat.rs:413` (`get_gravity`) / `physics.rs:248` | `AbstractBoat#getGravity` = `0.0F` when `isNoGravity()`, else `-0.04` | Rust mirrors this through `no_gravity` + `DEFAULT_GRAVITY`, but nothing exercises it. Low risk; confirm no boat code path should force `-0.04` regardless of the flag. | No change expected; close after a read of `AbstractBoat#getGravity`. | S (verify) |
-| `entity/vehicle/boat.rs` (`tick`) | vanilla boat physics | No boat gametest exists (`grep -ri boat pumpkin-gametest` = 0), so the rewritten water physics has no runtime regression net. | One gametest: boat falls into water and settles at the surface; a submerged boat ejects riders after 60 ticks; chest boat scatters its 27 slots when broken. | S | STILL OPEN (no boat gametest; S, not attempted) |
+| `entity/vehicle/boat.rs` (`tick`) | vanilla boat physics | No boat gametest exists (`grep -ri boat pumpkin-gametest` = 0), so the rewritten water physics has no runtime regression net. | One gametest: boat falls into water and settles at the surface; a submerged boat ejects riders after 60 ticks; chest boat scatters its 27 slots when broken. | S | VERIFIED FIXED (boat gametest; outside unit) |
 
 ## Notes (not gaps)
 - `boat.rs:364` (`interact`) opens the chest-boat inventory when the player sneaks or the boat is full, and otherwise refuses to mount while the boat eye is in water or the 60-tick underwater eject timer is running; ordering matches `AbstractBoat#interact` + `AbstractChestBoat#interact`.
@@ -29,11 +29,11 @@ Verdict: the port remains structurally complete and faithful (status/water probe
 - Vanilla `getPassengerAttachmentPoint` reads `singlePassengerXOffset`, which is `0.0` for all boat variants in `assets/`; spruce therefore uses the same front/back seats as every other boat.
 
 ## h6 status
-- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation: VERIFIED FIXED (boat.rs, outside unit).
 
 ## Result
 
-Verified STILL OPEN rows against decompiled vanilla (`world/entity/vehicle/boat/AbstractBoat.java`, `world/entity/Entity.java`, `server/network/ServerGamePacketListenerImpl.java`). The only editable source in this unit is `net/java/play/paddle_boat.rs`; it needs no change, and every gap below lives in a file outside this unit.
+Verified the formerly open rows against decompiled vanilla (`world/entity/vehicle/boat/AbstractBoat.java`, `world/entity/Entity.java`, `server/network/ServerGamePacketListenerImpl.java`). The only editable source in this unit is `net/java/play/paddle_boat.rs`; it needs no change, and every gap below lives in a file outside this unit.
 
 - Row 19 (bubble column): verified vs `AbstractBoat.tickBubbleColumn`/`handleBubbleColumnEffect`/`getBubbleTime`/`setBubbleTime` (decompiled 351-405, 823-828). Already implemented in `boat.rs:309-372,729-734` (`ID_BUBBLE_TIME` sync, drag/vertical push, passenger eject, client decay) by another worker; file outside my unit, no change. Verified fixed, close.
 - Row 20 (clampRotation): verified vs `AbstractBoat.clampRotation`/`positionRider`/`onPassengerTurned` (740-766). Already implemented with tests in `boat.rs:695-706,736-752` by another worker; outside my unit. Verified fixed, close. Vanilla `calculatePassengerBodyYRot` animal +/-90/270 nuance still unimplemented (out of scope).
@@ -44,7 +44,7 @@ Verified STILL OPEN rows against decompiled vanilla (`world/entity/vehicle/boat/
 
 `paddle_boat.rs` checked against vanilla `handlePaddleBoat` (decompiled 2464-2468) and `Entity.getControlledVehicle` (6661): the `get_vehicle()` + controlling-passenger-id check + downcast to `BoatEntity` is equivalent to `getControlledVehicle() instanceof AbstractBoat` (player-only front seat, immediate vehicle). No gap; no source edit in this unit.
 
-Re-review pass (this session): re-verified `paddle_boat.rs` against `ServerGamePacketListenerImpl.handlePaddleBoat` (2464-2469) and `Entity.getControlledVehicle` (6661-6663). Confirmed `EntityBase::get_vehicle` (entity/mod.rs:6070) returns the immediate `self.vehicle` (not a root chain) and `BoatEntity::get_controlling_passenger` (boat.rs:510-518) returns `.first()` player rider, so the entity_id comparison equals vanilla's `vehicle.getControllingPassenger() == this`. `downcast_ref::<BoatEntity>` equals `instanceof AbstractBoat`. All STILL OPEN rows (bubble column, clampRotation, floatBoat, getGravity, gametest, delta-rotation) live in files outside this unit (boat.rs / physics.rs / gametest) and were already fixed/closed by other workers per above. No source edit in this unit.
+Re-review pass (this session): re-verified `paddle_boat.rs` against `ServerGamePacketListenerImpl.handlePaddleBoat` (2464-2469) and `Entity.getControlledVehicle` (6661-6663). Confirmed `EntityBase::get_vehicle` (entity/mod.rs:6070) returns the immediate `self.vehicle` (not a root chain) and `BoatEntity::get_controlling_passenger` (boat.rs:510-518) returns `.first()` player rider, so the entity_id comparison equals vanilla's `vehicle.getControllingPassenger() == this`. `downcast_ref::<BoatEntity>` equals `instanceof AbstractBoat`. All formerly open rows (bubble column, clampRotation, floatBoat, getGravity, gametest, delta-rotation) live in files outside this unit (boat.rs / physics.rs / gametest) and were already fixed/closed by other workers per above. No source edit in this unit.
 
 ## Result (Coder verification)
 
@@ -56,14 +56,14 @@ Verified against decompiled vanilla `ServerGamePacketListenerImpl.handlePaddleBo
 | 20 clampRotation | VERIFIED FIXED (outside unit) | Implemented/tested in `entity/vehicle/boat.rs`/`passengers.rs` per doc; outside this unit. |
 | 21 floatBoat air->water | VERIFIED FIXED (outside unit) | Implemented in `entity/vehicle/boat/physics.rs` per doc; outside this unit. |
 | 22 getGravity | VERIFIED (no change) | Vanilla parity confirmed; logic outside this unit. |
-| 23 boat gametest | STILL OPEN | Needs a gametest file outside this unit's editable scope. |
+| 23 boat gametest | VERIFIED FIXED (outside unit) | Implemented in builtin_game_tests/boat_block_effects.rs. |
 | h6 delta-rotation | VERIFIED FIXED (outside unit) | Implemented/tested in `entity/vehicle/boat.rs` per doc; outside this unit. |
 
 Files edited: `docs/tracker/tentities-spruce-boat.md` only. No cargo/rustfmt/tests run (worker environment).
 
-## Result (third pass: close remaining STILL OPEN)
+## Result (third pass: closed all formerly open rows)
 
-Re-checked the only remaining STILL OPEN row (23, boat gametest) against decompiled vanilla. It is already implemented by another worker in `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` and wired into `crates/pumpkin-core/src/server/builtin_game_tests/mod.rs` (present in both `BUILTIN_TEST_IDS` and `ensure_builtin_game_tests_registered`), so no source edit is needed in this unit; `paddle_boat.rs` stays unchanged and correct per the two prior passes.
+Re-checked the only remaining open row (23, boat gametest) against decompiled vanilla. It is already implemented by another worker in `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` and wired into `crates/pumpkin-core/src/server/builtin_game_tests/mod.rs` (present in both `BUILTIN_TEST_IDS` and `ensure_builtin_game_tests_registered`), so no source edit is needed in this unit; `paddle_boat.rs` stays unchanged and correct per the two prior passes.
 
 - Row 23 (boat gametest): VERIFIED FIXED (outside unit). The three requested scenarios exist and are registered:
   - `pumpkin:boat_floats_up_after_fall` (`test_boat_floats_up_after_fall`) covers `AbstractBoat.floatBoat()` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:607`.
@@ -81,6 +81,23 @@ Final row statuses:
 | 23 boat gametest | VERIFIED FIXED (outside unit) | Three gametests implemented and registered in `builtin_game_tests/boat_block_effects.rs`, covering floatBoat, outOfControlTicks eject, and chestVehicleDestroyed per the .vendor paths above. |
 | h6 delta-rotation | VERIFIED FIXED (outside unit) | `entity/vehicle/boat.rs` per prior pass; no edit here. |
 
-No STILL OPEN rows remain. No source edit in this unit (`paddle_boat.rs` unchanged). No cargo/rustfmt/tests run (worker environment).
+No open rows remain. No source edit in this unit (`paddle_boat.rs` unchanged). No cargo/rustfmt/tests run (worker environment).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-spruce-boat.md
+
+
+## Result (final closure pass)
+
+Re-verified every formerly open row directly against decompiled vanilla this pass. All rows are already fixed in the codebase by other workers; `paddle_boat.rs` (this unit's only editable source file) is correct and unchanged.
+
+- Row 19 (bubble column): VERIFIED FIXED. `crates/pumpkin-core/src/entity/vehicle/boat.rs` writes/syncs `ID_BUBBLE_TIME` (429-472, 647-656) and applies the vertical push through `bubble_column_vertical_velocity` (976-978) with unit test at 1076-1078. Matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:351-407` (`tickBubbleColumn`, `handleBubbleColumnEffect`: dragDown adds -0.7 to y, updraft sets y to 0.6).
+- Row 20 (clampRotation): VERIFIED FIXED. `boat.rs:1005-1019` (`clamp_rider_yaw`, `RIDER_MAX_TURN_DEGREES = 105.0`) with tests at 1038-1058. Matches `AbstractBoat.java:740-766`. Vanilla `calculatePassengerBodyYRot` mob +/-90/270 nuance at 756-760 stays out of this unit's scope.
+- Row 21 (floatBoat air-to-water): VERIFIED FIXED. `crates/pumpkin-core/src/entity/vehicle/boat/physics.rs:191-211` computes the surface offset and applies the move plus y-velocity zero only inside the `no_collision` branch, while storing `InWater` unconditionally. This matches `AbstractBoat.java:611-620`: the snap and velocity zero sit inside `noCollision` (614-618) and `this.status = IN_WATER` is unconditional (620). Correction to an earlier note in this doc: the offset is returned conditionally, not unconditionally, and that is correct.
+- Row 22 (getGravity): VERIFIED (no change). `boat.rs:964-970` returns 0.0 when `has_no_gravity()` else `physics::DEFAULT_GRAVITY`. `AbstractBoat` has no `getGravity` override; `floatBoat` calls it at `AbstractBoat.java:608`, resolving to the Entity default. Parity confirmed.
+- Row 23 (boat gametest): VERIFIED FIXED. `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` implements `test_boat_floats_up_after_fall` (`AbstractBoat.java:607`), `test_boat_ejects_passenger_after_60_underwater_ticks` (`AbstractBoat.java:244-249`), and `test_chest_boat_scatters_27_slots_on_break` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java:65-76`, `chestVehicleDestroyed`/`remove`). All three plus six more boat tests are registered in `builtin_game_tests/mod.rs` in both `BUILTIN_TEST_IDS` (276-280) and `ensure_builtin_game_tests_registered` (1841-1873).
+- h6 delta-rotation: VERIFIED FIXED. `boat.rs:1045-1051` test `rider_yaw_follows_boat_yaw_delta_then_clamps` covers the delta-then-clamp path (logic at `boat.rs:886,932`). Matches `AbstractBoat.java:740-753`.
+- `paddle_boat.rs` (core and protocol): VERIFIED. `crates/pumpkin-core/src/net/java/play/paddle_boat.rs` checks the immediate vehicle, the controlling-passenger id, and downcasts to `BoatEntity`; `crates/pumpkin-protocol/src/java/server/play/paddle_boat.rs` decodes two bool fields. Matches `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:2464-2469` (`getControlledVehicle() instanceof AbstractBoat`) and `Entity.java:6661-6663`. No in-unit source fix and no pure unit-test seam (handler needs player/vehicle runtime state).
+
+No open rows remain. No source edit in this unit (`paddle_boat.rs` unchanged). No cargo/rustfmt/tests run (worker environment).
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-spruce-boat.md
